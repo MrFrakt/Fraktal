@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_TemplateCM" Id="{9f5c0ada-9c21-446a-9952-a498ac12f55c}" SpecialFunc="None">
+    <Declaration><![CDATA[// ─── FRAKTAL SCAFFOLD — rename Template -> your type (e.g. Gate) ───────────────
+// Reserve a reason band FIRST (Core §8.8) and record it in SKELETON.md.
+// Lifecycle (edge, state mapping, reset, ErrorID, abort) is INHERITED — you write
+// ONLY the CASE body below (Core §2.2). Born RED: FB_TemplateCM_Tests fails until
+// the TODOs are earned (Core §5.7 rows T2/T3/T5).
+FUNCTION_BLOCK FB_TemplateCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_TemplateCommand;
+    ParCfg   : ST_TemplateParCfg;                 // TODO: recipe members + SchemaVersion (Core §3.8)
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _hal     : REFERENCE TO ST_TemplateHal;       // TODO: your HAL struct (Core §3.6)
+    {attribute 'OPC.UA.DA' := '0'}
+    _recipe  : I_RecipeProvider;
+    _intlk   : FB_PermIntlk;                      // conditions in LD/ST per Core §5.5
+    _tMove   : TON;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{4ab9e8a9-37a9-4194-b03b-b0540beb29af}">
+      <Declaration><![CDATA[// one-shot wiring from the parent (Core §3.11)
+METHOD Setup : BOOL
+VAR_INPUT
+    Name   : STRING(80);
+    HalRef : REFERENCE TO ST_TemplateHal;
+    Recipe : I_RecipeProvider;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+_hal REF= HalRef;                                          // [TC3] TC3 §3.11
+_recipe := Recipe;
+_intlk.Define(Index := 1, Description := 'project.interlock.areaSafe', Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+// TODO: further condition records; recipe load with SchemaVersion check -> RECIPE_INVALID
+Setup := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{3318afdf-7640-4d1a-8ea7-b05f869d0d61}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_intlk();
+IF NOT _intlk.AllOk THEN
+    _M_FaultDiag(_intlk.Diagnostic);                       // interlock -> first-out (Core §7)
+    _diag.SourcePath := _name;                             // owner sets the path (Core §7.2)
+    RETURN;
+END_IF
+_M_TagCommand(Id := TO_DINT(Command), Label := 'project.command.todo');   // replace with a catalog key
+CASE _step OF
+    10:  // TODO: drive output for Command, arm _tMove(PT := ParCfg.MoveTimeout)
+        _step := 20;
+    20:  // TODO: await sensor -> _M_Complete();
+         //       on _tMove.Q -> _M_Fault(<your band code>, '<what did not happen>');
+        _M_Complete();                                     // placeholder — REPLACE
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'undefined step');     // defined ELSE (Core §5.6)
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

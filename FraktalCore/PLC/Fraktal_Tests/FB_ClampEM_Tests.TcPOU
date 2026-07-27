@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ClampEM_Tests" Id="{8ee95e59-52d8-491d-a99b-3c107bad4386}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex H §H.5 — the Composite (EM) tier suite.
+//
+// §5.7 coverage for this type. Rows T1/T4 and the T2/T6 *mechanisms* are proven
+// once in the framework base suite (FB_Base_Tests) and are deliberately NOT
+// re-tested here — "verification, like standardization, is paid once at the level
+// that owns the behaviour". What this suite owes is the applicable rows re-proven
+// with the TYPE's OWN reasons and source paths:
+//   T2  first-out carries this type's reason + its own child path  (via T6 case)
+//   T3  interlock withholds the output, with this type's path
+//   T5  invalid ParCfg -> RECIPE_INVALID, never mis-runs
+//   T6  cross-tier rollup: child first-out adopted verbatim  (composite row)
+FUNCTION_BLOCK FB_ClampEM_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _em : FB_ClampEM;
+    _hA, _hB : ST_CylinderHal;
+    _simA : FB_CylinderSim;
+    _pr : FB_LocalRecipeProvider;
+    _bCyl : ST_CylinderParCfg;
+    _bClamp : ST_ClampParCfg;
+    _d : ST_Diagnostic;
+    _w : BOOL;
+    _i : INT;
+
+    // T3 — a second EM whose CylA permissive is dropped before the command.
+    _emIntlk : FB_ClampEM;
+    _hIA, _hIB : ST_CylinderHal;
+
+    // T5 — a third EM built on a recipe whose stored ClampEM schema is wrong.
+    _emBad : FB_ClampEM;
+    _hBA, _hBB : ST_CylinderHal;
+    _prBad : FB_LocalRecipeProvider;
+    _bClampBad : ST_ClampParCfg;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT _w THEN
+    _bCyl.MoveTimeout := T#0S;               // CylB times out deterministically
+    _bClamp.SettleTime := T#0S;
+    _pr.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_bCyl), Size := SIZEOF(_bCyl));
+    _pr.Register(ModelCode := '', RecipeKey := 'ClampEM', pData := ADR(_bClamp), Size := SIZEOF(_bClamp));
+    _em.Setup(Name := 'ClampStation', HalA := _hA, HalB := _hB, Recipe := _pr);
+    _simA.Setup(HalRef := _hA, TravelTime := T#0S);
+    _emIntlk.Setup(Name := 'ClampIntlk', HalA := _hIA, HalB := _hIB, Recipe := _pr);
+    // Stored ClampEM record declares schema 2 while the type expects 1 (§3.8).
+    _bClampBad.SchemaVersion := 2;
+    _prBad.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_bCyl), Size := SIZEOF(_bCyl));
+    _prBad.Register(ModelCode := '', RecipeKey := 'ClampEM', pData := ADR(_bClampBad), Size := SIZEOF(_bClampBad));
+    _w := TRUE;
+END_IF
+Clamp_rolls_up_CylB_first_out();
+T3_interlock_withholds_child_output();
+T5_recipe_schema_mismatch_faults();]]></ST>
+    </Implementation>
+    <Method Name="Clamp_rolls_up_CylB_first_out" Id="{4354489a-a043-42c7-a2e4-125dede2c33b}">
+      <Declaration><![CDATA[METHOD Clamp_rolls_up_CylB_first_out]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Clamp_rolls_up_CylB_first_out');
+_em.Command := E_ClampCommand.CLAMP;
+_em.Execute := TRUE;
+FOR _i := 1 TO 6 DO
+    _em();                                   // EM ticks children in OnCyclic
+    _simA();                                 // plant completes CylA; CylB never arrives
+END_FOR
+AssertTrue(Condition := _em.Error, Message := 'EM faults on child error');
+_d := _em.GetFaultSummary();
+AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.CYL_NOT_EXTENDED),
+                   Actual   := TO_DWORD(_d.ReasonCode),
+                   Message  := 'EM adopts the child first-out verbatim (8.2)');
+AssertEquals_STRING(Expected := 'ClampStation.CylB', Actual := _d.SourcePath,
+                    Message := 'rollup names CylB, not the EM (H.5)');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="T3_interlock_withholds_child_output" Id="{3a7e41c8-90b5-4d26-8f13-6c0a5e72db41}">
+      <Declaration><![CDATA[// §5.7 T3 for the composite tier: a dropped permissive on a child must withhold
+// the physical output and surface the interlock reason THROUGH the EM, naming the
+// child that is actually blocked (not the EM) — the composite tier's own
+// path/reason pairing, which the base-suite mechanism test cannot assert.
+METHOD T3_interlock_withholds_child_output]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T3_interlock_withholds_child_output');
+_emIntlk.CylA.SimForceInterlock(Id := 1, Ok := FALSE);   // SIM-only hook (§5.7)
+_emIntlk.Command := E_ClampCommand.CLAMP;
+_emIntlk.Execute := TRUE;
+FOR _i := 1 TO 4 DO
+    _emIntlk();
+END_FOR
+AssertFalse(Condition := _hIA.ExtendOut,
+    Message := 'interlocked child must not energize its output (§7)');
+_d := _emIntlk.GetFaultSummary();
+AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.INTERLOCK_DROPPED),
+    Actual := TO_DWORD(_d.ReasonCode),
+    Message := 'EM surfaces the interlock reason (§7.2)');
+AssertEquals_STRING(Expected := 'ClampIntlk.CylA', Actual := _d.SourcePath,
+    Message := 'interlock names the blocked child, not the EM (§6.9)');
+_emIntlk.Execute := FALSE;
+_emIntlk();
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="T5_recipe_schema_mismatch_faults" Id="{6d19f0b3-4c82-4a75-91e6-27b5c8fa03de}">
+      <Declaration><![CDATA[// §5.7 T5 for the composite tier: a stored ClampEM ParCfg whose SchemaVersion is
+// not the expected one must migrate-or-fault with RECIPE_INVALID and never
+// mis-run with the wrong parameters (§3.8).
+METHOD T5_recipe_schema_mismatch_faults]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T5_recipe_schema_mismatch_faults');
+// Setup resolves the recipe, so the fault is raised during construction.
+_emBad.Setup(Name := 'ClampBad', HalA := _hBA, HalB := _hBB, Recipe := _prBad);
+_emBad();                                    // map ErrorID
+AssertTrue(Condition := _emBad.FaultActive,
+    Message := 'migrate-or-fault on schema mismatch (§3.8)');
+AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.RECIPE_INVALID),
+    Actual := _emBad.ErrorID,
+    Message := 'RECIPE_INVALID on SchemaVersion mismatch (§3.8)');
+// Never mis-runs: a command must not drive an output while the recipe is invalid.
+_emBad.Command := E_ClampCommand.CLAMP;
+_emBad.Execute := TRUE;
+_emBad();
+AssertFalse(Condition := _hBA.ExtendOut,
+    Message := 'invalid recipe must not mis-run the actuator (§3.8)');
+_emBad.Execute := FALSE;
+_emBad();
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

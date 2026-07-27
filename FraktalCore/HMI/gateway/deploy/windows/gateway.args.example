@@ -1,0 +1,38 @@
+# Fraktal Gateway arguments: one option or value per line.
+# Production is fail-closed until certificates, trust, credentials, and one or
+# more --write-root values are provisioned. Environment variables are expanded.
+#
+# PLC transport — pick ONE --plc-endpoint:
+#   opc.tcp://<host>:4840   TF6100 / multi-brand (uses the security profile below)
+#   ads://<AmsNetId>:851    native TwinCAT ADS (needs fraktal_ads.dll beside the
+#                           gateway exe + an AMS route; the OPC UA security
+#                           profile/certs/credentials below are IGNORED for ADS)
+--plc-endpoint
+opc.tcp://127.0.0.1:4840
+--port
+8080
+--path
+/fraktal
+--web-root
+%LOCALAPPDATA%\Programs\Fraktal Gateway\web
+--security-profile
+production
+--security-policy
+http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256
+--application-uri
+urn:fraktal:gateway:%COMPUTERNAME%
+--client-certificate
+%LOCALAPPDATA%\Fraktal\Gateway\pki\own\certs\fraktal-gateway.der
+--client-private-key
+%LOCALAPPDATA%\Fraktal\Gateway\pki\own\private\fraktal-gateway.pem
+--trust-list
+%LOCALAPPDATA%\Fraktal\Gateway\pki\trusted\certs
+
+# Add the published browse path for every Unit assigned to this gateway:
+# --write-root
+# PLC1/MAIN/PneumaticPress
+
+# Required by production, but never place secrets in this arguments file:
+# FRAKTAL_OPCUA_USERNAME
+# FRAKTAL_OPCUA_PASSWORD
+# Optional: FRAKTAL_OPCUA_PRIVATE_KEY_PASSWORD

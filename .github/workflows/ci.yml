@@ -1,0 +1,145 @@
+# Fraktal CI gate — Core §1.5: "A CI/lint gate (§5.5, §6.8) shall check the
+# machine-verifiable requirements — naming, step records, condition records, and
+# contract usage — on every commit."
+#
+# Gate order follows Annex H §CI wiring: lint -> test -> build.
+#
+# Scope note (O10 honest status): this gate verifies the HMI/gateway Dart tree and
+# the machine-verifiable PLC source rules. It does NOT compile the PLC — that
+# needs a self-hosted Windows runner with a licensed TwinCAT XAE; see the
+# `plc-compile` job stub at the end for the wiring once such a runner exists.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pin the toolchain so a CI green is reproducible (§1.5 pinned verification).
+  FLUTTER_VERSION: 3.44.6
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ---- lint: PLC source rules (no TwinCAT needed) --------------------------
+  # Both build profiles are linted. The library targets modern TwinCAT
+  # (>= 3.1.4026) and keeps 3.1.4024 as a legacy profile selected by the
+  # FRAKTAL_TC3_4024 compiler define; the '4024' run proves every modern-only
+  # construct is pragma-guarded, so the legacy build stays compilable.
+  # See FraktalCore/PLC/Fraktal_Core/Params/PL_FraktalCompat.TcGVL.
+  plc-lint:
+    name: PLC lint (${{ matrix.profile }} profile)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [modern, '4024']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lint TwinCAT sources
+        run: python tools/plc_lint.py --profile ${{ matrix.profile }} FraktalCore/PLC
+
+  # ---- lint + test: HMI app (Flutter) -------------------------------------
+  hmi:
+    name: HMI analyze + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FraktalCore/HMI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      # The suite is offline by design (SimRepository + fakes): no PLC, no ADS,
+      # no network. Anything needing real hardware lives in tool/probe_*.dart,
+      # which is intentionally not run here.
+      - name: Test
+        run: flutter test
+
+  # ---- lint: pure-Dart packages -------------------------------------------
+  dart-packages:
+    name: Dart packages analyze
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - FraktalCore/HMI/gateway
+          - FraktalCore/HMI/packages/fraktal_opcua_client
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: dart pub get
+      - name: Analyze
+        run: dart analyze
+      # Only run tests when the package actually has a suite, so an empty
+      # test/ dir is not reported as a false pass.
+      - name: Test (if present)
+        run: |
+          if compgen -G "test/*_test.dart" > /dev/null; then
+            dart test
+          else
+            echo "No test suite in ${{ matrix.package }} — skipping."
+          fi
+
+  # ---- build: the Web HMI must still compile ------------------------------
+  web-build:
+    name: Web HMI build
+    runs-on: ubuntu-latest
+    needs: [hmi]
+    defaults:
+      run:
+        working-directory: FraktalCore/HMI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build web
+        run: flutter build web --release
+
+  # ---- build: PLC compile (requires licensed TwinCAT XAE) -----------------
+  # Closes O10 G7. Left disabled rather than silently absent: a job that cannot
+  # run must not look like a passing gate. Enable by registering a self-hosted
+  # Windows runner with TwinCAT XAE + TcUnit and setting vars.HAS_TWINCAT_RUNNER.
+  plc-compile:
+    name: PLC compile + TcUnit (self-hosted TwinCAT)
+    if: vars.HAS_TWINCAT_RUNNER == 'true'
+    runs-on: [self-hosted, windows, twincat]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build PLC solution (TwinCAT automation interface)
+        run: |
+          echo "Wire up: TcXaeShell/automation-interface build of"
+          echo "FraktalCore/PLC/FraktalPressDemo.sln, then run the TcUnit"
+          echo "suites headless and publish JUnit XML (Annex H)."
+          exit 1

@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_EcBusHealth" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810abc}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §10.5.1 infrastructure service: read the REAL, live state of every
+// EtherCAT slave directly from the fieldbus master (Tc2_EtherCAT) and publish it
+// per node, so the HMI fieldbus tree mirrors XAE — independent of any Control-On
+// or safety verdict. Auto-detects from hardware: the project supplies only the
+// master AmsNetId ('' = local CPU) and how its topology node indices line up
+// with the master's slave ordering (one offset), not per-node wiring.
+//
+// This is not a module tier and owns no process image. It calls
+// FB_IoTopologyPublisher.M_SetNodeState for each mapped node.
+FUNCTION_BLOCK FB_EcBusHealth
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _pub : POINTER TO FB_IoTopologyPublisher;
+    _netId : T_AmsNetId;          // EtherCAT MASTER device AmsNetId (see Setup)
+    _firstSlaveNode : INT;        // topology node index of master slave #1
+    _slaveCount : INT;            // topology nodes that are real EtherCAT slaves
+    _masterNode : INT;            // topology node index of the master itself (0 = none)
+    _attached : BOOL;
+
+    // Auto-detection of the EtherCAT master's AmsNetId (no project wiring): the
+    // master's NetId is the local AMS NetId with the last two bytes replaced by
+    // 2.1 (Beckhoff convention -- a PC 'a.b.c.d.1.1' has its EtherCAT master at
+    // 'a.b.c.d.2.1'; the InfoSys FB_EcGetAllSlaveStates example uses exactly this
+    // pairing). Overridable via Setup for non-standard configurations.
+    {attribute 'OPC.UA.DA' := '0'}
+    _fbLocalNetId : Tc2_Utilities.FB_GetLocalAmsNetId;
+    _autoDetect : BOOL;           // TRUE = derive the master NetId at runtime
+    {attribute 'OPC.UA.DA' := '0'}
+    _netIdArr : T_AmsNetIdArr;    // scratch for the derived master NetId
+
+    {attribute 'OPC.UA.DA' := '0'}
+    _fbStates : Tc2_EtherCAT.FB_EcGetAllSlaveStates;
+    // Bounded state buffer, one ST_EcSlaveState (deviceState + linkState) per
+    // slave. Beckhoff declares pStateBuf as ARRAY[0..EC_MAX_SLAVES], so this
+    // buffer is ZERO-BASED: slave i (1..n, master scan order) is _stateBuf[i-1].
+    {attribute 'OPC.UA.DA' := '0'}
+    _stateBuf : ARRAY[0..PL_Fraktal.MAX_BUS_NODES] OF Tc2_EtherCAT.ST_EcSlaveState;
+    _step : INT;
+    _tPoll : TON;
+END_VAR
+VAR_OUTPUT
+    // Diagnostics so a fieldbus read failure is visible instead of silently
+    // showing every node as faulted. Published for the HMI/engineer.
+    ReadOk : BOOL;                // last slave-state read succeeded
+    LastErrorId : UDINT;          // ADS error of the last failed read (0 = none)
+    SlavesReported : UINT;        // slaves the master reports (nSlaves output)
+    NetIdMissing : BOOL;          // TRUE = InfoData.AmsNetId not linked (all zero)
+    MasterNetId : T_AmsNetId;     // the resolved master NetId actually being used
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Setup" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a01}">
+      <Declaration><![CDATA[// Bind the publisher and describe how topology nodes map to master slaves.
+// MasterNetIdArr = OPTIONAL override for the EtherCAT master's AmsNetId. Pass all
+//   zeros (the normal case, e.g. an unassigned T_AmsNetIdArr) to AUTO-DETECT it at
+//   runtime: the library reads the local AMS NetId and applies the Beckhoff master
+//   convention (last two bytes -> 2.1), so no project wiring, no XAE checkbox and
+//   no hand-typed address are needed. Supply a value only for a non-standard
+//   configuration (e.g. a remote master, or several masters on one PC), typically
+//   by linking that master's InfoData.AmsNetId.
+// FirstSlaveNode = topology index of the first EtherCAT slave (the coupler);
+// SlaveCount = number of consecutive topology nodes that are real slaves, in
+// master scan order; MasterNodeIndex = topology index of the EtherCAT master
+// itself, or 0 if not represented.
+METHOD Setup : BOOL
+VAR_INPUT
+    Publisher : REFERENCE TO FB_IoTopologyPublisher;
+    MasterNetIdArr : T_AmsNetIdArr;
+    FirstSlaveNode : INT;
+    SlaveCount : INT;
+    MasterNodeIndex : INT;
+END_VAR
+VAR
+    i : INT;
+    anyNonZero : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// All-zero (or omitted) = auto-detect; any explicit value is used verbatim.
+anyNonZero := FALSE;
+FOR i := 0 TO 5 DO
+    IF MasterNetIdArr[i] <> 0 THEN
+        anyNonZero := TRUE;
+    END_IF
+END_FOR
+
+_attached := __ISVALIDREF(Publisher)
+    AND (FirstSlaveNode >= 1)
+    AND (SlaveCount >= 0)
+    AND (SlaveCount <= PL_Fraktal.MAX_BUS_NODES);
+IF _attached THEN
+    _pub := ADR(Publisher);
+    _autoDetect := NOT anyNonZero;
+    IF anyNonZero THEN
+        // Tc2_System helper: byte array -> 'a.b.c.d.e.f' string.
+        _netId := Tc2_System.F_CreateAmsNetId(nIds := MasterNetIdArr);
+        MasterNetId := _netId;
+        NetIdMissing := FALSE;
+        _step := 0;
+    ELSE
+        // Resolve the local NetId first (step -10), then start polling.
+        _netId := '';
+        MasterNetId := '';
+        NetIdMissing := TRUE;   // cleared once auto-detection succeeds
+        _step := -10;
+    END_IF
+    _firstSlaveNode := FirstSlaveNode;
+    _slaveCount := SlaveCount;
+    _masterNode := MasterNodeIndex;
+END_IF
+Setup := _attached;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Refresh" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a02}">
+      <Declaration><![CDATA[// Non-blocking cyclic refresh: (re)issue the slave-state read at a bounded rate,
+// then publish each node's real state. On a read error every mapped node is
+// marked OFFLINE (fail-visible: an unreachable master is not "operational").
+METHOD M_Refresh
+VAR
+    i : INT;
+    node : INT;
+    mapped : E_NodeState;
+    linkOk : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT _attached THEN
+    RETURN;
+END_IF
+
+// Drive the async read. Re-trigger on a slow poll so a stuck call cannot pin the
+// task; FB_EcGetAllSlaveStates is edge-triggered by bExecute. The slave count is
+// implied by cbBufLen (nSlave * SIZEOF(ST_EcSlaveState)); there is no count input.
+CASE _step OF
+    -10:
+        // Auto-detect: ask the router for this PC's AmsNetId.
+        _fbLocalNetId(bExecute := FALSE);
+        _fbLocalNetId(bExecute := TRUE);
+        _step := -5;
+    -5:
+        _fbLocalNetId(bExecute := FALSE);
+        IF NOT _fbLocalNetId.bBusy THEN
+            IF _fbLocalNetId.bError THEN
+                // Cannot resolve: stay fail-visible and retry on the next poll.
+                ReadOk := FALSE;
+                LastErrorId := _fbLocalNetId.nErrId;
+                NetIdMissing := TRUE;
+                _M_PublishAllOffline();
+                _step := -10;
+            ELSE
+                // Beckhoff convention: the EtherCAT master of a PC 'a.b.c.d.1.1'
+                // is 'a.b.c.d.2.1'. Keep the first four bytes, force 2.1.
+                _netIdArr := _fbLocalNetId.AddrBytes;
+                _netIdArr[4] := 2;
+                _netIdArr[5] := 1;
+                _netId := Tc2_System.F_CreateAmsNetId(nIds := _netIdArr);
+                MasterNetId := _netId;
+                NetIdMissing := FALSE;
+                _step := 0;
+            END_IF
+        END_IF
+    0:
+        _fbStates(bExecute := FALSE);
+        _fbStates(sNetId := _netId,
+            pStateBuf := ADR(_stateBuf),
+            cbBufLen := TO_UDINT(_slaveCount) * SIZEOF(Tc2_EtherCAT.ST_EcSlaveState),
+            bExecute := (_slaveCount > 0));
+        _step := 10;
+    10:
+        _fbStates(bExecute := FALSE);
+        IF NOT _fbStates.bBusy THEN
+            // Publish diagnostics every cycle so a failing read is visible.
+            ReadOk := NOT _fbStates.bError;
+            LastErrorId := _fbStates.nErrId;
+            SlavesReported := _fbStates.nSlaves;
+            IF NOT _fbStates.bError THEN
+                FOR i := 1 TO _slaveCount DO
+                    node := _firstSlaveNode + i - 1;
+                    // pStateBuf is ARRAY[0..EC_MAX_SLAVES]: slave i lives at i-1.
+                    // Decode the deviceState byte (AL state + flags) -> E_NodeState.
+                    mapped := _M_MapSlaveState(DeviceState := _stateBuf[i - 1].deviceState);
+                    // linkState low nibble = link condition; 0 = OK (EC_LINK_STATE_OK).
+                    linkOk := (_stateBuf[i - 1].linkState AND 16#0F) = 0;
+                    _pub^.M_SetNodeState(NodeIndex := node, State := mapped, LinkOk := linkOk);
+                END_FOR
+                // The master node's state is inferred from the read: it answered
+                // ADS, so it is running. (A dedicated FB_EcGetMasterState read was
+                // dropped to avoid a version-sensitive member name.)
+                IF _masterNode >= 1 THEN
+                    _pub^.M_SetNodeState(NodeIndex := _masterNode,
+                        State := E_NodeState.OPERATIONAL, LinkOk := TRUE);
+                END_IF
+            ELSE
+                // Master unreachable: mark the whole segment (and master) offline.
+                _M_PublishAllOffline();
+            END_IF
+            _step := 20;
+        END_IF
+    20:
+        _tPoll(IN := TRUE, PT := T#250MS);
+        IF _tPoll.Q THEN
+            _tPoll(IN := FALSE);
+            _step := 0;
+        END_IF
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="M_BusOk" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a04}">
+      <Declaration><![CDATA[// TRUE when the fieldbus is delivering a valid process image: the master read
+// succeeded and every mapped slave is OPERATIONAL. This is the library-detected
+// replacement for a project-declared "bus valid" flag — projects no longer wire
+// their own RealBusOk. Derived from the last M_Refresh cycle (no extra I/O).
+METHOD M_BusOk : BOOL
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_BusOk := FALSE;
+IF NOT _attached OR _fbStates.bError OR (_slaveCount < 1) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _slaveCount DO
+    // Zero-based buffer (see _stateBuf): slave i is at i-1. Fully operational iff
+    // deviceState is exactly OP (no AL flag bits set).
+    IF _stateBuf[i - 1].deviceState <> Tc2_EtherCAT.EC_DEVICE_STATE_OP THEN
+        RETURN;  // any slave not OP -> bus not fully valid
+    END_IF
+END_FOR
+M_BusOk := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_PublishAllOffline" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a05}">
+      <Declaration><![CDATA[// Fail-visible fallback: publish every mapped node (and the master) as OFFLINE.
+// Used when the master cannot be reached and when its AmsNetId cannot be
+// resolved -- an unknown bus must never look "operational" on the HMI.
+METHOD PRIVATE _M_PublishAllOffline
+VAR
+    i : INT;
+    node : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT _attached THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _slaveCount DO
+    node := _firstSlaveNode + i - 1;
+    _pub^.M_SetNodeState(NodeIndex := node,
+        State := E_NodeState.OFFLINE, LinkOk := FALSE);
+END_FOR
+IF _masterNode >= 1 THEN
+    _pub^.M_SetNodeState(NodeIndex := _masterNode,
+        State := E_NodeState.OFFLINE, LinkOk := FALSE);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_MapSlaveState" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a03}">
+      <Declaration><![CDATA[// Decode an ST_EcSlaveState.deviceState byte (Beckhoff Tc2_EtherCAT, EtherCAT
+// AL state machine) into the neutral E_NodeState the HMI renders.
+//   low nibble  = AL state: INIT=1, PREOP=2, BOOTSTRAP=3, SAFEOP=4, OP=8
+//   high nibble = flags:    ERROR=0x10, INVALID_VPRS=0x20, INITCMD_ERROR=0x40,
+//                           DISABLED=0x80  -> any set is a fault.
+// Source: infosys.beckhoff.com ST_EcSlaveState / EC_DEVICE_STATE_*.
+METHOD PRIVATE _M_MapSlaveState : E_NodeState
+VAR_INPUT
+    DeviceState : BYTE;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// Any diagnostic flag bit (high nibble) overrides the AL state -> FAULT.
+// After that check only the AL-state bits remain, so compare directly.
+IF (DeviceState AND 16#F0) <> 0 THEN
+    _M_MapSlaveState := E_NodeState.FAULT;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_OP THEN
+    _M_MapSlaveState := E_NodeState.OPERATIONAL;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_SAFEOP THEN
+    _M_MapSlaveState := E_NodeState.SAFEOP;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_PREOP THEN
+    _M_MapSlaveState := E_NodeState.PREOP;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_INIT THEN
+    _M_MapSlaveState := E_NodeState.INIT;
+ELSE
+    // BOOTSTRAP (0x03) or no state reported -> show as offline.
+    _M_MapSlaveState := E_NodeState.OFFLINE;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

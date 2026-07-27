@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PressControlOnCircuit" Id="{35dd89ff-4ea1-46ee-a426-16b47baadf14}" SpecialFunc="None">
+    <Declaration><![CDATA[// Hardware Control-On adapter for a machine whose safety is a HARDWIRED relay
+// chain (Bosch/Nexeed N54 D2 "Control On", Pilz-style), NOT a TwinSAFE
+// controller. The standard PLC is not a safety function here: the relay circuit
+// remains the safety authority. This adapter only RECONSTRUCTS the read-only
+// GVL_PressSafety-equivalent status the rest of the application expects, from the
+// ordinary process-image inputs and the relay-chain Control On feedback, so the
+// HMI and interlocks reflect the real machine instead of failing closed on
+// unlinked TwinSAFE aliases.
+//
+// It produces status only (no safe outputs). The functional EnableControlOn /
+// SwitchControlOn requests to the relay chain are driven by the existing power
+// group -> FB_PressIoDriver.M_WriteOutputs path, gated by
+// ControlCircuitMappingConfirmed until the electrical semantics are confirmed.
+FUNCTION_BLOCK FB_PressControlOnCircuit
+VAR_OUTPUT
+    // Read-only mirrors, matching the six GVL_PressSafety aliases + the raw
+    // E-stop mirror the driver forwards. TRUE = healthy/safe/present.
+    RawEStopHealthy       : BOOL;
+    SafeEStopOk           : BOOL;
+    SafeGuardClosed       : BOOL;
+    SafeTwoHandActive     : BOOL;
+    SafePneumaticPermit   : BOOL;
+    SafetyFieldbusHealthy : BOOL;
+    StandardIoHealthy     : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="M_Evaluate" Id="{89487f56-1151-4d6e-96fe-a1d08e2e792e}">
+      <Declaration><![CDATA[// Reconstruct the status mirrors from raw relay/sensor inputs. All inputs are
+// ordinary (non-safety-rated) process-image values; the relay chain owns the
+// actual safety function. Called once per scan by FB_PressIoDriver, the sole
+// GVL_PressIO consumer.
+METHOD M_Evaluate
+VAR_INPUT
+    EStopHealthyMirror : BOOL; // _000K910A: ordinary E-stop-healthy mirror
+    DoorClosed         : BOOL; // _101B201A: guard-door closed sensor
+    LeftButton         : BOOL; // _101S102: left two-hand raw button
+    RightButton        : BOOL; // _101S101: right two-hand raw button
+    ControlOnFeedback  : BOOL; // _000K911_Y32: relay-chain Control On established
+    BusOk              : BOOL; // EtherCAT process image valid (link master OP state)
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// Fieldbus health: the standard and (functional) safety I/O share one EtherCAT
+// segment on this machine, so both mirror the bus-valid signal.
+StandardIoHealthy     := BusOk;
+SafetyFieldbusHealthy := BusOk;
+
+// E-stop: the ordinary healthy mirror gated by a valid process image. This is a
+// diagnostic mirror of the relay-chain E-stop, not an evaluated safe result.
+RawEStopHealthy := EStopHealthyMirror;
+SafeEStopOk     := EStopHealthyMirror AND BusOk;
+
+// Guard: the door-closed sensor. Plausibility (per N54 D2 Safety Door add-on) is
+// enforced in the relay chain; here it is the single available door signal.
+SafeGuardClosed := DoorClosed AND BusOk;
+
+// Two-hand: functional (both raw buttons) with E-stop healthy. The safety-rated
+// two-hand evaluation lives in the relay chain; this drives interlock/HMI only.
+SafeTwoHandActive := LeftButton AND RightButton AND SafeEStopOk AND BusOk;
+
+// Pneumatic permit: the relay-chain Control On feedback IS the enabled state.
+// Per N54 D2 the Main/Safety Valve add-ons already reset EnableControlOn on a
+// compressed-air error and the Safety Door add-on on a guard error, so the
+// K911_Y32 feedback subsumes air + guard monitoring. Gate on E-stop for defense
+// in depth (the air-pressure inputs are read separately by the air HAL).
+SafePneumaticPermit := ControlOnFeedback AND SafeEStopOk;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

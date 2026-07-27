@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_TemplateCM_Tests" Id="{35162f83-83b0-4ff8-940e-c6ec2cad414c}" SpecialFunc="None">
+    <Declaration><![CDATA[// Pre-wired, initially RED (Core §5.7): the checklist DRIVES development.
+// Fill the TODO expected values; the type is done when CI turns these green.
+// T1/T4 are inherited from the base and proven in FB_Base_Tests — do not repeat them.
+FUNCTION_BLOCK FB_TemplateCM_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _cm  : FB_TemplateCM;
+    _hal : ST_TemplateHal;
+    _d   : ST_Diagnostic;
+    _wired : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT _wired THEN
+    _cm.Setup(Name := 'Test.Template', HalRef := _hal, Recipe := 0);   // TODO: stub recipe
+    _wired := TRUE;
+END_IF
+T2_First_out_reason_and_path();
+T3_Interlock_withholds_output();
+T5_Recipe_invalid_faults();]]></ST>
+    </Implementation>
+    <Method Name="T2_First_out_reason_and_path" Id="{b9c2722d-eb55-44a0-876d-d90bc6eaa001}">
+      <Declaration><![CDATA[METHOD T2_First_out_reason_and_path]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T2_First_out_reason_and_path');
+// TODO: withhold _hal.FbA, let MoveTimeout elapse, then assert YOUR band code:
+AssertEquals_DWORD(Expected := 16#FFFF_FFFF,   // TODO: TO_DWORD(<your reason, e.g. 10401>)
+                   Actual   := _cm.ErrorID,
+                   Message  := 'RED until the type earns its first-out');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="T3_Interlock_withholds_output" Id="{1afd643c-b8d0-441e-8684-8abfa0fb3418}">
+      <Declaration><![CDATA[METHOD T3_Interlock_withholds_output]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T3_Interlock_withholds_output');
+// TODO: force interlock low (SIM-only hook, Core §5.7), command, then:
+AssertFalse(Condition := TRUE,                 // TODO: Actual := _hal.OutA
+            Message := 'RED until the interlock reaction is proven');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="T5_Recipe_invalid_faults" Id="{a37945e9-b84f-45e3-96c0-e2510e7907a3}">
+      <Declaration><![CDATA[METHOD T5_Recipe_invalid_faults]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T5_Recipe_invalid_faults');
+// TODO: stub provider returning wrong SchemaVersion; assert RECIPE_INVALID naming both versions:
+AssertTrue(Condition := FALSE,                 // TODO: _cm.Error after failed load
+           Message := 'RED until migrate-or-fault is proven (Core 3.8)');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_AppendTopologyConfig" Id="{1c5e94b7-3af2-4d68-8e01-b5d29c73fa46}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.10.2/§10.5.1 — export the activation-static fieldbus identity (tags,
+// addresses, wiring, hierarchy) into the config manifest. The live members
+// (State/LinkOk/values/force/quality/fault) stay cyclically published; the
+// static members carry OPC.UA.DA=0 in ST_BusNode/ST_IoChannel and reach the
+// HMI only through this walk. Item fragments use the server's array naming
+// (Nodes/Nodes[i]/..., Channels/Channels[j]/...) under the reserved scope
+// '#Fieldbus' so a generic client can rebuild the exact browse paths.
+// Only populated slots are exported — the empty tail of the bounded table
+// costs nothing on the wire.
+FUNCTION F_AppendTopologyConfig : BOOL
+VAR_IN_OUT
+    Topology : ST_FieldbusTopology;
+    Pager    : FB_ConfigPager;
+END_VAR
+VAR
+    i, j       : INT;
+    nodeBase   : STRING(255);
+    chanBase   : STRING(255);
+    item       : STRING(255);
+END_VAR
+VAR CONSTANT
+    SCOPE_FIELDBUS : STRING(16) := '#Fieldbus';
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[F_AppendTopologyConfig := TRUE;
+FOR i := 1 TO Topology.NodeCount DO
+    IF (i < 1) OR (i > PL_Fraktal.MAX_BUS_NODES) THEN
+        EXIT;                                       // defensive bound (§5.6)
+    END_IF
+    nodeBase := CONCAT('Nodes/Nodes[', CONCAT(TO_STRING(i), ']/'));
+    Pager.M_Append(Scope := SCOPE_FIELDBUS,
+        Item := CONCAT(nodeBase, 'Name'), ValueText := Topology.Nodes[i].Name);
+    Pager.M_Append(Scope := SCOPE_FIELDBUS,
+        Item := CONCAT(nodeBase, 'DescriptionKey'),
+        ValueText := Topology.Nodes[i].DescriptionKey);
+    Pager.M_Append(Scope := SCOPE_FIELDBUS,
+        Item := CONCAT(nodeBase, 'TypeId'), ValueText := Topology.Nodes[i].TypeId);
+    Pager.M_Append(Scope := SCOPE_FIELDBUS,
+        Item := CONCAT(nodeBase, 'Address'), ValueText := Topology.Nodes[i].Address);
+    Pager.M_AppendNumber(Scope := SCOPE_FIELDBUS,
+        Item := CONCAT(nodeBase, 'ParentIdx'),
+        Number := TO_DINT(Topology.Nodes[i].ParentIdx));
+    Pager.M_AppendNumber(Scope := SCOPE_FIELDBUS,
+        Item := CONCAT(nodeBase, 'ChannelCount'),
+        Number := TO_DINT(Topology.Nodes[i].ChannelCount));
+    FOR j := 1 TO Topology.Nodes[i].ChannelCount DO
+        IF (j < 1) OR (j > PL_Fraktal.MAX_NODE_CHANNELS) THEN
+            EXIT;                                   // defensive bound (§5.6)
+        END_IF
+        chanBase := CONCAT(nodeBase,
+            CONCAT('Channels/Channels[', CONCAT(TO_STRING(j), ']/')));
+        Pager.M_Append(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'Name'),
+            ValueText := Topology.Nodes[i].Channels[j].Name);
+        Pager.M_Append(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'DescriptionKey'),
+            ValueText := Topology.Nodes[i].Channels[j].DescriptionKey);
+        Pager.M_Append(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'Address'),
+            ValueText := Topology.Nodes[i].Channels[j].Address);
+        Pager.M_Append(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'Path'),
+            ValueText := Topology.Nodes[i].Channels[j].Path);
+        Pager.M_Append(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'ModulePath'),
+            ValueText := Topology.Nodes[i].Channels[j].ModulePath);
+        Pager.M_AppendNumber(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'Dir'),
+            Number := TO_DINT(Topology.Nodes[i].Channels[j].Dir));
+        Pager.M_AppendNumber(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'Kind'),
+            Number := TO_DINT(Topology.Nodes[i].Channels[j].Kind));
+        Pager.M_Append(Scope := SCOPE_FIELDBUS,
+            Item := CONCAT(chanBase, 'Unit'),
+            ValueText := Topology.Nodes[i].Channels[j].Unit);
+    END_FOR
+END_FOR]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

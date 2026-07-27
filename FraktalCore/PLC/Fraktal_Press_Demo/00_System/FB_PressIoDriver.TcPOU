@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PressIoDriver" Id="{bedb7de0-6ee7-499c-942c-a47bd1ba5582}" SpecialFunc="None">
+    <Declaration><![CDATA[// Project Hardware Driver layer. This is the only POU that accesses GVL_PressIO.
+// It maps raw process-image symbols to semantic HALs and refreshes the Core
+// topology publisher. It contains no sequence, mode, recipe or device behavior.
+FUNCTION_BLOCK FB_PressIoDriver
+VAR
+    _publisher : FB_IoTopologyPublisher;
+    {attribute 'OPC.UA.DA' := '0'}
+    _unit : REFERENCE TO FB_PressDemoUnit;
+    _attached : BOOL;
+    // Hardware Control-On adapter: reconstructs the safety-status mirrors from
+    // the raw relay/sensor process image on a machine with a hardwired N54 D2
+    // Control On circuit (no TwinSAFE controller). Status only; not a safety fn.
+    _controlOn : FB_PressControlOnCircuit;
+    // Reads the REAL EtherCAT slave states from the master and publishes each
+    // node's live state — the fieldbus tree reflects hardware, not Control-On.
+    _busHealth : FB_EcBusHealth;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Setup" Id="{3d2dc4cb-5c7c-441c-b71b-e76c6dc5e5ea}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    UnitRef : REFERENCE TO FB_PressDemoUnit;
+END_VAR
+VAR
+    // Left all-zero: FB_EcBusHealth auto-detects the EtherCAT master's AmsNetId,
+    // so the project needs no fieldbus address and no XAE link. Assign a value
+    // here only for a non-standard master (remote, or several on one PC).
+    ecMasterNetId : T_AmsNetIdArr;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_unit REF= UnitRef;
+_attached := _publisher.Setup(DataRef := GVL_PressFieldbus.Topology, ResetData := FALSE)
+    AND __ISVALIDREF(_unit);
+// Map the press topology to the EtherCAT master's slaves. The catalog defines
+// node 1 = CX2030 master, nodes 2..6 = the 5 EtherCAT slaves (EK1200 coupler,
+// EL1809, EL2809, EL6001, EL9011) in master scan order.
+_busHealth.Setup(Publisher := _publisher, MasterNetIdArr := ecMasterNetId,
+    FirstSlaveNode := 2, SlaveCount := 5, MasterNodeIndex := 1);
+Setup := _attached;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ReadInputs" Id="{0808b97f-7dcc-44e8-9480-17a48c17ac6f}">
+      <Declaration><![CDATA[METHOD M_ReadInputs
+VAR_IN_OUT
+    PressHal : ST_CylinderHal;
+    DoorHal : ST_CylinderHal;
+    SlideHal : ST_CylinderHal;
+    TwoHandHal : ST_TwoHandHal;
+    PowerHal : ST_PowerGroupHal;
+    PartPresentHal : ST_DigitalInputHal;
+    AirPressureHal : ST_AirPressureHal;
+    RawEStopHealthy : BOOL;
+    SafeEStopOk : BOOL;
+    SafeGuardClosed : BOOL;
+    SafeTwoHandActive : BOOL;
+    SafePneumaticPermit : BOOL;
+    SafetyFieldbusHealthy : BOOL;
+    StandardIoHealthy : BOOL;
+END_VAR
+VAR
+    // EtherCAT process-image validity, DETECTED from the fieldbus master by the
+    // library (FB_EcBusHealth) — the project no longer declares/links a RealBusOk.
+    busOk : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[busOk := _busHealth.M_BusOk();
+// Physical feeder retracted = logical slide inside; extended = outside.
+SlideHal.ExtendedFb := GVL_PressIO._101B301A;
+SlideHal.RetractedFb := GVL_PressIO._101B301B;
+DoorHal.ExtendedFb := GVL_PressIO._101B201A;
+DoorHal.RetractedFb := GVL_PressIO._101B201B;
+PressHal.ExtendedFb := GVL_PressIO._101B202A;
+PressHal.RetractedFb := GVL_PressIO._101B202B;
+TwoHandHal.RightPressed := GVL_PressIO._101S101;
+TwoHandHal.LeftPressed := GVL_PressIO._101S102;
+PartPresentHal.Value := GVL_PressIO._101B601;
+AirPressureHal.LowPressure := GVL_PressIO._000MB085A_2;
+AirPressureHal.OperatingPressure := GVL_PressIO._000MB085A_4;
+PowerHal.PowerFeedback := GVL_PressIO._000K911_Y32;
+// This machine's safety is a hardwired N54 D2 Control On relay chain, not a
+// TwinSAFE controller, so the GVL_PressSafety AT %I* aliases are never written.
+// Reconstruct the read-only safety-status mirrors from the raw relay/sensor
+// process image via the Control-On adapter. The relay chain remains the safety
+// authority; these values drive HMI/interlock display only.
+_controlOn.M_Evaluate(
+    EStopHealthyMirror := GVL_PressIO._000K910A,
+    DoorClosed := GVL_PressIO._101B201A,
+    LeftButton := GVL_PressIO._101S102,
+    RightButton := GVL_PressIO._101S101,
+    ControlOnFeedback := GVL_PressIO._000K911_Y32,
+    BusOk := busOk);
+RawEStopHealthy := _controlOn.RawEStopHealthy;
+SafeEStopOk := _controlOn.SafeEStopOk;
+SafeGuardClosed := _controlOn.SafeGuardClosed;
+SafeTwoHandActive := _controlOn.SafeTwoHandActive;
+SafePneumaticPermit := _controlOn.SafePneumaticPermit;
+SafetyFieldbusHealthy := _controlOn.SafetyFieldbusHealthy;
+StandardIoHealthy := _controlOn.StandardIoHealthy;
+PartPresentHal.Quality := StandardIoHealthy;
+AirPressureHal.Quality := StandardIoHealthy;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ClearOutputs" Id="{f625a4c1-e10f-4e07-b91a-6885860994d0}">
+      <Declaration><![CDATA[METHOD M_ClearOutputs]]></Declaration>
+      <Implementation><ST><![CDATA[GVL_PressIO._101K301A := FALSE; GVL_PressIO._101K301B := FALSE;
+GVL_PressIO._101K201A := FALSE; GVL_PressIO._101K201B := FALSE;
+GVL_PressIO._101K202A := FALSE; GVL_PressIO._101K202B := FALSE;
+GVL_PressIO._101P101 := FALSE; GVL_PressIO._101P102 := FALSE;
+GVL_PressIO._000K951_A1 := FALSE; GVL_PressIO._000K911_A1 := FALSE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_WriteOutputs" Id="{cc5ac6ba-fd45-445f-908c-0307380375bc}">
+      <Declaration><![CDATA[METHOD M_WriteOutputs
+VAR_INPUT
+    PressHal : ST_CylinderHal;
+    DoorHal : ST_CylinderHal;
+    SlideHal : ST_CylinderHal;
+    PowerHal : ST_PowerGroupHal;
+    LampsOn : BOOL;
+    ControlCircuitMappingConfirmed : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[GVL_PressIO._101K301A := SlideHal.ExtendOut;
+GVL_PressIO._101K301B := SlideHal.RetractOut;
+GVL_PressIO._101K201A := DoorHal.ExtendOut;
+GVL_PressIO._101K201B := DoorHal.RetractOut;
+GVL_PressIO._101K202A := PressHal.ExtendOut;
+GVL_PressIO._101K202B := PressHal.RetractOut;
+GVL_PressIO._101P101 := LampsOn;
+GVL_PressIO._101P102 := LampsOn;
+IF ControlCircuitMappingConfirmed THEN
+    GVL_PressIO._000K951_A1 := PowerHal.EnableRequestOut;
+    GVL_PressIO._000K911_A1 := PowerHal.EnableRequestOut;
+ELSE
+    GVL_PressIO._000K951_A1 := FALSE;
+    GVL_PressIO._000K911_A1 := FALSE;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RefreshFieldbus" Id="{69fbd59b-ae26-4b9d-9552-541f2a36a52b}">
+      <Declaration><![CDATA[// Node state now comes from the REAL EtherCAT master (FB_EcBusHealth), NOT from
+// the Control-On / StandardIoHealthy verdict — the HMI fieldbus tree mirrors
+// the actual bus (as XAE shows it). StandardIoHealthy is no longer an input.
+METHOD M_RefreshFieldbus
+VAR
+    D : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF _attached THEN
+    _busHealth.M_Refresh();  // publishes each node's real INIT/PREOP/SAFEOP/OP/FAULT
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 1, Value := GVL_PressIO._101B301A);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 2, Value := GVL_PressIO._101B301B);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 3, Value := GVL_PressIO._101B201A);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 4, Value := GVL_PressIO._101B201B);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 5, Value := GVL_PressIO._101B202A);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 6, Value := GVL_PressIO._101B202B);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 7, Value := GVL_PressIO._101S101);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 8, Value := GVL_PressIO._101S102);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 9, Value := GVL_PressIO._000MB085A_2);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 10, Value := GVL_PressIO._000MB085A_4);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 11, Value := GVL_PressIO._101B601);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 12, Value := GVL_PressIO._000K911_Y32);
+    _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 13, Value := GVL_PressIO._000K910A);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 1, Value := GVL_PressIO._101K301A);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 2, Value := GVL_PressIO._101K301B);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 3, Value := GVL_PressIO._101K201A);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 4, Value := GVL_PressIO._101K201B);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 5, Value := GVL_PressIO._101K202A);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 6, Value := GVL_PressIO._101K202B);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 7, Value := GVL_PressIO._101P101);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 8, Value := GVL_PressIO._101P102);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 9, Value := GVL_PressIO._000K951_A1);
+    _publisher.M_SetDigitalValue(NodeIndex := 4, ChannelIndex := 10, Value := GVL_PressIO._000K911_A1);
+    _publisher.M_BeginDiagnosticRefresh();
+    D := _unit.PressRam.Status.Diagnostic;
+    _M_ApplyCylinderDiagnostic(Diagnostic := D,
+        ExtendedTag := _unit.PressRam.OutImm.ExtendedSensorTag,
+        RetractedTag := _unit.PressRam.OutImm.RetractedSensorTag);
+    D := _unit.Door.Status.Diagnostic;
+    _M_ApplyCylinderDiagnostic(Diagnostic := D,
+        ExtendedTag := _unit.Door.OutImm.ExtendedSensorTag,
+        RetractedTag := _unit.Door.OutImm.RetractedSensorTag);
+    D := _unit.PartSlide.Status.Diagnostic;
+    _M_ApplyCylinderDiagnostic(Diagnostic := D,
+        ExtendedTag := _unit.PartSlide.OutImm.ExtendedSensorTag,
+        RetractedTag := _unit.PartSlide.OutImm.RetractedSensorTag);
+    D := _unit.AirPressureMonitor.Status.Diagnostic;
+    _publisher.M_ApplyDiagnostic(Diagnostic := D);
+    IF TO_DINT(D.ReasonCode) = PL_ModuleReasons.AIR_SWITCH_CONFLICT THEN
+        _publisher.M_ApplyDiagnosticToTag(Diagnostic := D,
+            Tag := _unit.AirPressureMonitor.OutImm.LowSensorTag);
+        _publisher.M_ApplyDiagnosticToTag(Diagnostic := D,
+            Tag := _unit.AirPressureMonitor.OutImm.OperatingSensorTag);
+    ELSE
+        ;
+    END_IF
+    _publisher.M_ApplyDiagnostic(Diagnostic := _unit.Status.Diagnostic);
+ELSE
+    ;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ApplyCylinderDiagnostic" Id="{c5bd449b-e7c7-4d49-8755-d2386bdfef10}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_ApplyCylinderDiagnostic
+VAR_INPUT
+    Diagnostic : ST_Diagnostic;
+    ExtendedTag : STRING(80);
+    RetractedTag : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_publisher.M_ApplyDiagnostic(Diagnostic := Diagnostic);
+IF TO_DINT(Diagnostic.ReasonCode) = PL_ModuleReasons.CYL_BOTH_SENSORS THEN
+    _publisher.M_ApplyDiagnosticToTag(Diagnostic := Diagnostic, Tag := ExtendedTag);
+    _publisher.M_ApplyDiagnosticToTag(Diagnostic := Diagnostic, Tag := RetractedTag);
+ELSE
+    ;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

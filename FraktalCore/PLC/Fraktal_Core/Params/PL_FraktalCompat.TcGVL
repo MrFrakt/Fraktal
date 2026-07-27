@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <GVL Name="PL_FraktalCompat" Id="{5c1e7a90-6b34-4d82-9af1-0e7c2b58d413}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Fraktal Core — TwinCAT compiler-compatibility policy (O8 portable, O9 one
+// authoritative source, O1 low developer effort).
+//
+// ---------------------------------------------------------------------------
+// POLICY
+// ---------------------------------------------------------------------------
+// The library targets MODERN TwinCAT (>= 3.1.4026) by default and treats
+// 3.1.4024 as a supported LEGACY target. Modern language features are used
+// freely; where a feature is unavailable on 4024, the legacy form is selected by
+// a conditional pragma keyed on ONE compiler define:
+//
+//     FRAKTAL_TC3_4024
+//
+// Absent  (default) -> modern: defaulted METHOD inputs, etc.
+// Defined           -> legacy 4024: the conservative form.
+//
+// This inverts the previous policy, where 4024 was the ceiling for everyone and
+// every developer paid its restrictions (e.g. repeating `OnJump1 := -1,
+// OnJump2 := -1, OnJump3 := -1` at all 22 M_Advance call sites).
+//
+// ---------------------------------------------------------------------------
+// HOW TO BUILD FOR LEGACY 4024
+// ---------------------------------------------------------------------------
+// Add the define to EVERY PLC project in the solution (the library AND the
+// application, since a pragma is evaluated per compiled project):
+//
+//   XAE: PLC project -> Properties -> Compile -> "Compiler Defines"
+//        enter:  FRAKTAL_TC3_4024
+//
+//   or in the .plcproj PropertyGroup:
+//        <CompilerDefines>FRAKTAL_TC3_4024</CompilerDefines>
+//
+// Verify with: python tools/plc_lint.py --profile 4024
+// (that profile fails on any modern-only construct that is NOT pragma-guarded).
+//
+// ---------------------------------------------------------------------------
+// FEATURES GUARDED TODAY
+// ---------------------------------------------------------------------------
+// 1. Defaulted METHOD VAR_INPUT  (requires >= 3.1.4026)
+//    On 4024 a defaulted input still makes the argument MANDATORY at the call
+//    site, so a caller that omits it fails with
+//        "M_Advance requires exactly 'N' inputs"
+//    Guarded in: FB_SequenceBase.M_Advance (OnJump1..3), .M_ResetBase (FirstStep)
+//
+// Conditional pragmas themselves are available in the DECLARATION part from
+// 3.1.4024 onward, so the guard mechanism works on both targets.
+// Reference: infosys.beckhoff.com "Conditional pragmas" (tc3_plc_intro).
+//
+// ---------------------------------------------------------------------------
+// ADDING A NEW GUARDED FEATURE
+// ---------------------------------------------------------------------------
+//   {IF defined (FRAKTAL_TC3_4024)}
+//   // legacy form
+//   {ELSE}
+//   // modern form
+//   {END_IF}
+//
+// Rules: keep the MODERN form in the {ELSE} branch (it is the default target);
+// make the legacy branch behaviour-identical, never merely compilable; and list
+// the feature above so this file stays the single source of truth for the policy.
+VAR_GLOBAL CONSTANT
+    // Mirror of the build's compatibility mode, readable from code and visible on
+    // the HMI/ADS surface so a deployed binary can be identified without
+    // inspecting project settings.
+    {IF defined (FRAKTAL_TC3_4024)}
+    LEGACY_TC3_4024      : BOOL := TRUE;
+    COMPAT_PROFILE       : STRING(16) := '4024-legacy';
+    {ELSE}
+    LEGACY_TC3_4024      : BOOL := FALSE;
+    COMPAT_PROFILE       : STRING(16) := '4026-modern';
+    {END_IF}
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_ConfigSource" Id="{4e8b6d05-a2c1-47f9-b3e4-6f90d215c887}">
+    <Declaration><![CDATA[// Core §3.10.2 — a module that contributes entries to the root Unit's
+// configuration manifest (static data deliberately excluded from the cyclic
+// OPC UA tree and served through the QUERY_CONFIG mailbox instead).
+// FB_ModuleBase implements it once for the base-owned facets; composites
+// recurse their children, so a new module type inherits participation and
+// only overrides M_AppendConfig to add type-owned static data (rare).
+INTERFACE I_ConfigSource EXTENDS __System.IQueryInterface]]></Declaration>
+    <Method Name="M_AppendConfig" Id="{a7c40d92-58e6-4b1a-9f27-31d8ce6b40e5}">
+      <Declaration><![CDATA[// Append this module's (and its children's) manifest entries to the pager.
+// Deterministic order across calls — the walk order defines the paging.
+METHOD M_AppendConfig : BOOL
+VAR_INPUT
+    Pager : REFERENCE TO FB_ConfigPager;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

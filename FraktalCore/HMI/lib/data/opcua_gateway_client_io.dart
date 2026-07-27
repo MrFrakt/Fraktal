@@ -1,0 +1,256 @@
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'opcua_session_client.dart';
+
+/// Native WSS authentication material. Deployment supplies this from protected
+/// files/environment; it is deliberately absent from ConnectionSettings JSON.
+class IoGatewaySecurityOptions {
+  final String bearerToken;
+  final String clientCertificatePath;
+  final String clientPrivateKeyPath;
+  final String clientPrivateKeyPassword;
+  final String trustedCaPath;
+
+  const IoGatewaySecurityOptions({
+    this.bearerToken = '',
+    this.clientCertificatePath = '',
+    this.clientPrivateKeyPath = '',
+    this.clientPrivateKeyPassword = '',
+    this.trustedCaPath = '',
+  });
+
+  bool get hasClientIdentity => clientCertificatePath.isNotEmpty;
+
+  bool get hasProtectedMaterial =>
+      bearerToken.isNotEmpty ||
+      clientCertificatePath.isNotEmpty ||
+      clientPrivateKeyPath.isNotEmpty ||
+      trustedCaPath.isNotEmpty;
+
+  void validate(Uri endpoint) {
+    if ((clientCertificatePath.isEmpty) != (clientPrivateKeyPath.isEmpty)) {
+      throw ArgumentError(
+        'WSS client certificate and private key must be configured together.',
+      );
+    }
+    if (hasProtectedMaterial && endpoint.scheme != 'wss') {
+      throw ArgumentError(
+        'Gateway credentials and custom trust material require wss://.',
+      );
+    }
+  }
+
+  HttpClient? createHttpClient(Uri endpoint) {
+    validate(endpoint);
+    if (!hasClientIdentity && trustedCaPath.isEmpty) return null;
+    final context = SecurityContext(withTrustedRoots: true);
+    if (trustedCaPath.isNotEmpty) {
+      context.setTrustedCertificates(trustedCaPath);
+    }
+    if (hasClientIdentity) {
+      context.useCertificateChain(clientCertificatePath);
+      context.usePrivateKey(
+        clientPrivateKeyPath,
+        password:
+            clientPrivateKeyPassword.isEmpty ? null : clientPrivateKeyPassword,
+      );
+    }
+    return HttpClient(context: context);
+  }
+}
+
+/// Native Windows/Linux/Android client for the same versioned WebSocket
+/// gateway used by Flutter Web. TLS validation is delegated to the platform
+/// trust store by dart:io; deployment authentication belongs at the WSS edge.
+class IoGatewayOpcUaClient implements OpcUaBatchSessionClient {
+  final WebSocket _socket;
+  final HttpClient? _httpClient;
+  final Map<int, Completer<Object?>> _pending = {};
+  late final StreamSubscription<dynamic> _subscription;
+  int _nextId = 1;
+  bool _closed = false;
+  bool _disposed = false;
+
+  IoGatewayOpcUaClient._(this._socket, this._httpClient) {
+    _subscription = _socket.listen(
+      _onMessage,
+      onDone: () {
+        _terminate(OpcUaTransportException(
+          'Gateway connection closed with code ${_socket.closeCode}: '
+          '${_socket.closeReason ?? '(no reason)'}.',
+        ));
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _terminate(OpcUaTransportException('Gateway socket failed.', error));
+      },
+      cancelOnError: true,
+    );
+  }
+
+  static Future<IoGatewayOpcUaClient> connect(
+    Uri endpoint, {
+    Duration timeout = const Duration(seconds: 5),
+    Duration heartbeatInterval = const Duration(seconds: 2),
+    Map<String, dynamic>? headers,
+    IoGatewaySecurityOptions security = const IoGatewaySecurityOptions(),
+  }) async {
+    security.validate(endpoint);
+    final effectiveHeaders = <String, dynamic>{
+      'origin': _nativeOrigin(endpoint),
+      ...?headers,
+    };
+    if (security.bearerToken.isNotEmpty) {
+      effectiveHeaders['authorization'] = 'Bearer ${security.bearerToken}';
+    }
+    final httpClient = security.createHttpClient(endpoint);
+    try {
+      final socket = await WebSocket.connect(
+        endpoint.toString(),
+        headers: effectiveHeaders,
+        customClient: httpClient,
+      ).timeout(timeout);
+      socket.pingInterval = heartbeatInterval;
+      return IoGatewayOpcUaClient._(socket, httpClient);
+    } on Object {
+      httpClient?.close(force: true);
+      rethrow;
+    }
+  }
+
+  Future<Object?> _call(String method, [Map<String, Object?>? parameters]) {
+    if (_closed) {
+      return Future.error(
+        const OpcUaTransportException('Gateway client is closed.'),
+      );
+    }
+    final id = _nextId++;
+    final completer = Completer<Object?>();
+    _pending[id] = completer;
+    try {
+      _socket.add(jsonEncode({
+        'protocol': 'fraktal.opcua.gateway.v1',
+        'id': id,
+        'method': method,
+        'params': parameters ?? const <String, Object?>{},
+      }));
+    } on Object catch (error) {
+      _pending.remove(id);
+      final transport = OpcUaTransportException(
+        'Could not send gateway $method request.',
+        error,
+      );
+      _terminate(transport);
+      return Future.error(transport);
+    }
+    return completer.future.timeout(const Duration(seconds: 5), onTimeout: () {
+      _pending.remove(id);
+      final error = OpcUaTransportException(
+        'Gateway $method request timed out.',
+      );
+      _terminate(error);
+      unawaited(_socket.close(WebSocketStatus.goingAway, 'request timeout'));
+      throw error;
+    });
+  }
+
+  void _onMessage(dynamic event) {
+    if (event is! String) {
+      _terminate(
+        const OpcUaTransportException('Gateway sent a binary response.'),
+      );
+      unawaited(_socket.close(
+        WebSocketStatus.unsupportedData,
+        'binary response',
+      ));
+      return;
+    }
+    try {
+      final decoded = jsonDecode(event);
+      if (decoded is! Map) return;
+      final id = decoded['id'];
+      if (id is! int) return;
+      final completer = _pending.remove(id);
+      if (completer == null) return;
+      if (decoded['ok'] == true) {
+        completer.complete(decoded['result']);
+      } else {
+        completer.completeError(OpcUaRemoteException('${decoded['error']}'));
+      }
+    } on Object catch (error) {
+      _terminate(
+        OpcUaTransportException('Invalid gateway response.', error),
+      );
+      unawaited(_socket.close(WebSocketStatus.protocolError, 'bad response'));
+    }
+  }
+
+  void _terminate(Object error) {
+    if (_closed) return;
+    _closed = true;
+    _httpClient?.close(force: true);
+    _failAll(error);
+  }
+
+  void _failAll(Object error) {
+    for (final completer in _pending.values) {
+      if (!completer.isCompleted) completer.completeError(error);
+    }
+    _pending.clear();
+  }
+
+  @override
+  Future<Map<String, Object?>> snapshot() async {
+    final result = await _call('snapshot');
+    if (result is! Map) {
+      throw const FormatException('Gateway snapshot missing.');
+    }
+    return Map<String, Object?>.from(result);
+  }
+
+  @override
+  Future<bool> write(String path, OpcUaWriteType type, Object value) async =>
+      (await _call('write', {
+        'path': path,
+        'valueType': type.name,
+        'value': value,
+      })) ==
+      true;
+
+  @override
+  Future<bool> writeBatch(List<OpcUaWrite> writes) async =>
+      (await _call('writeBatch', {
+        'writes': [
+          for (final writeValue in writes)
+            {
+              'path': writeValue.path,
+              'valueType': writeValue.type.name,
+              'value': writeValue.value,
+            },
+        ],
+      })) ==
+      true;
+
+  @override
+  Future<void> close() async {
+    if (_disposed) return;
+    _disposed = true;
+    _closed = true;
+    await _subscription.cancel();
+    await _socket.close();
+    _httpClient?.close(force: true);
+    _failAll(StateError('Gateway client closed.'));
+  }
+}
+
+String _nativeOrigin(Uri endpoint) {
+  final scheme = endpoint.scheme == 'wss' ? 'https' : 'http';
+  final defaultPort = endpoint.scheme == 'wss' ? 443 : 80;
+  final port = endpoint.hasPort && endpoint.port != defaultPort
+      ? ':${endpoint.port}'
+      : '';
+  return '$scheme://${endpoint.host}$port';
+}
