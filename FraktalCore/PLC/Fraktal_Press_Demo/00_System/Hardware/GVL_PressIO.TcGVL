@@ -29,10 +29,18 @@ VAR_GLOBAL
     _000MB085A_4 AT %I* : BOOL;    // Ch11 compressed air above 4.5 bar
     {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 12^_101B601'}
     _101B601 AT %I* : BOOL;        // Ch12 part present
+    // N54 D2 operator buttons. Free EL1809 channels were 9/13/16; 9 and 13 are
+    // assigned here. The TcLinkTo names MUST match the terminal channel names in
+    // XAE - confirm the physical wiring before trusting these.
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 9^_000BS901'}
+    _000BS901 AT %I* : BOOL;       // Ch9  IsControlOnButtonPressed  (=000+B-S901:14)
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 13^_000BS902'}
+    _000BS902 AT %I* : BOOL;       // Ch13 IsControlOffButtonPressed (=000+B-S902:14)
     {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 14^_000K911_Y32'}
     _000K911_Y32 AT %I* : BOOL;    // Ch14 Control On feedback
     {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 15^_000K910A'}
-    _000K910A AT %I* : BOOL;       // Ch15 ordinary E-stop healthy mirror only
+    _000K910A AT %I* : BOOL;       // Ch15 E-stop PRESSED (=000+S1-K910A:14); NORMALLY OPEN on this
+                                   // demo rig: TRUE = actuated. NOT fail-safe - production needs NC.
 
     // =000+S-K010C1 (EL2809) outputs
     {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 1^_101K301A'}

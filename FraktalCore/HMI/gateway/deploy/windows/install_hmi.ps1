@@ -28,6 +28,7 @@ $archive = Join-Path $PSScriptRoot 'hmi_app.zip'
 $nextDir = Join-Path $installRoot '..\fraktal_hmi.next'
 if (Test-Path -LiteralPath $nextDir) { Remove-Item -LiteralPath $nextDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $nextDir | Out-Null
+Write-Output 'step: expanding HMI app bundle'
 Expand-Archive -LiteralPath $archive -DestinationPath $nextDir -Force
 if (-not (Test-Path -LiteralPath (Join-Path $nextDir 'fraktal_hmi.exe'))) {
   throw 'The packaged HMI app is missing fraktal_hmi.exe.'
@@ -66,6 +67,7 @@ if (-not (Test-Path -LiteralPath $settingsPath)) {
 }
 
 # Start Menu shortcut only — the HMI is an on-demand GUI, not a background tray.
+Write-Output 'step: shortcut and uninstall entry'
 $shell = New-Object -ComObject WScript.Shell
 $hmiExe = Join-Path $installRoot 'fraktal_hmi.exe'
 $shortcut = $shell.CreateShortcut((Join-Path $programsRoot 'Fraktal HMI.lnk'))
@@ -88,3 +90,5 @@ New-ItemProperty -Path $uninstallKey -Name NoRepair -PropertyType DWord -Value 1
 $uninstallScript = Join-Path $installRoot 'uninstall_hmi.ps1'
 $uninstallCommand = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $uninstallScript + '"'
 Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value $uninstallCommand
+
+Write-Output 'step: done'

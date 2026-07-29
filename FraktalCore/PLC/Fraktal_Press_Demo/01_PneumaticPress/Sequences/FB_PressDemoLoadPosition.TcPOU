@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
   <POU Name="FB_PressDemoLoadPosition" Id="{27be7602-c702-dcca-822f-fb9fc2c71001}" SpecialFunc="None">
     <Declaration><![CDATA[// Shared load-safe-position sub-sequence (Core §6.7): ram up, door open, slide
 // outside. HOME and CHANGEOVER both embed it as one composite step, passing a
@@ -28,7 +28,7 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_baseStepNo := BaseStepNo;
-M_ResetBase();]]></ST>
+M_ResetBase(0);]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Run" Id="{27be7602-c702-dcca-822f-fb9fc2c71004}">
@@ -52,7 +52,7 @@ CASE _step OF
             _pressRam.Execute := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 20);
+        M_Advance(OnAdvance := 20, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     20:  // door open
         M_Step(StepNo := _baseStepNo + 20, StepName := 'project.step.pressSafePositionDoorOpen',
             Awaits := _door, AwaitingLabel := 'Door.RETRACT',
@@ -66,7 +66,7 @@ CASE _step OF
             _door.Execute := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 40);
+        M_Advance(OnAdvance := 40, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     40:  // slide outside
         M_Step(StepNo := _baseStepNo + 40, StepName := 'project.step.pressSafePositionSlideOutside',
             Awaits := _partSlide, AwaitingLabel := 'PartSlide.RETRACT',
@@ -80,7 +80,7 @@ CASE _step OF
             _partSlide.Execute := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 999);
+        M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     999:  // established
         M_Step(StepNo := _baseStepNo + 60, StepName := 'project.step.pressSafePositionComplete',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -108,5 +108,21 @@ Setup := M_Attach(Host := Host)
     AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_door) AND __ISVALIDREF(_partSlide);]]></ST>
       </Implementation>
     </Method>
+    <LineIds Name="FB_PressDemoLoadPosition">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoLoadPosition.M_Reset">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoLoadPosition.M_Run">
+      <LineId Id="3" Count="51" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoLoadPosition.Setup">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
   </POU>
 </TcPlcObject>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_PressControlOnCircuit" Id="{35dd89ff-4ea1-46ee-a426-16b47baadf14}" SpecialFunc="None">
     <Declaration><![CDATA[// Hardware Control-On adapter for a machine whose safety is a HARDWIRED relay
@@ -25,6 +25,24 @@ VAR_OUTPUT
     SafePneumaticPermit   : BOOL;
     SafetyFieldbusHealthy : BOOL;
     StandardIoHealthy     : BOOL;
+
+    // --- N54 D2 functional requests to the relay chain (not safety outputs) ---
+    // EnableControlOn is a PERMISSIVE, not a command: per the standard it is set
+    // at the start of the cycle from "bus OK and control-off not pressed", and
+    // reset by the Main/Safety-Valve add-ons when compressed-air monitoring
+    // errors. It must NOT wait for an operator power request, which is why the
+    // control circuit could never be energized headless.
+    EnableControlOn : BOOL;
+    // SwitchControlOn is the BUTTON coil: TRUE for exactly two seconds on the
+    // rising edge of the Control On button, however long the button is held, so
+    // the guard doors have time to lock. Control Off has priority and cancels it.
+    SwitchControlOn : BOOL;
+    ControlOffSet   : BOOL;   // per the standard: NOT EnableControlOn
+END_VAR
+VAR
+    _onEdge       : R_TRIG;
+    _switchTimer  : TON;
+    _switchActive : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[;]]></ST>
@@ -42,6 +60,9 @@ VAR_INPUT
     RightButton        : BOOL; // _101S101: right two-hand raw button
     ControlOnFeedback  : BOOL; // _000K911_Y32: relay-chain Control On established
     BusOk              : BOOL; // EtherCAT process image valid (link master OP state)
+    ControlOnButton    : BOOL; // _000BS901: IsControlOnButtonPressed
+    ControlOffButton   : BOOL; // _000BS902: IsControlOffButtonPressed
+    AirPressureOk      : BOOL; // compressed-air monitoring OK (Main/Safety Valve)
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[// Fieldbus health: the standard and (functional) safety I/O share one EtherCAT
 // segment on this machine, so both mirror the bus-valid signal.
@@ -66,7 +87,27 @@ SafeTwoHandActive := LeftButton AND RightButton AND SafeEStopOk AND BusOk;
 // compressed-air error and the Safety Door add-on on a guard error, so the
 // K911_Y32 feedback subsumes air + guard monitoring. Gate on E-stop for defense
 // in depth (the air-pressure inputs are read separately by the air HAL).
-SafePneumaticPermit := ControlOnFeedback AND SafeEStopOk;]]></ST></Implementation>
+SafePneumaticPermit := ControlOnFeedback AND SafeEStopOk;
+
+// --- N54 D2 Control On add-on logic ---------------------------------------
+// "EnableControlOn := BusOk AND NOT ControlOffButtonPressed", then reset by the
+// Main/Safety-Valve add-ons on a compressed-air error. Guard doors deliberately
+// do NOT gate it: the standard states the add-on still sets EnableControlOn (and
+// briefly SwitchControlOn) while doors are open - the relay chain enforces the
+// door condition.
+EnableControlOn := BusOk AND NOT ControlOffButton AND AirPressureOk;
+ControlOffSet   := NOT EnableControlOn;
+
+// SwitchControlOn: exactly two seconds from the button's rising edge, cancelled
+// immediately by Control Off (which has priority over Control On).
+_onEdge(CLK := ControlOnButton);
+IF ControlOffButton OR _switchTimer.Q THEN
+    _switchActive := FALSE;
+ELSIF _onEdge.Q AND EnableControlOn THEN
+    _switchActive := TRUE;
+END_IF
+_switchTimer(IN := _switchActive, PT := T#2S);
+SwitchControlOn := _switchActive;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

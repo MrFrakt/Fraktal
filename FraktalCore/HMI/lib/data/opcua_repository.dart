@@ -65,7 +65,7 @@ class OpcUaRepository implements PlcRepository {
   int _lastSlowKeyCount = -1;
   // Interactive (operator-initiated) requests in flight. While > 0 the periodic
   // full-tree refresh yields the single native worker so the command's small
-  // ack polls are not queued behind a ~500 ms snapshot (Core §14 responsiveness).
+  // ack polls are not queued behind a full snapshot (Core §14 responsiveness).
   int _interactiveInFlight = 0;
   // §3.10.2 config manifest: synthesized browse-path values overlaid under the
   // live snapshot so the mapper sees the same tree a full publication would give.
@@ -80,9 +80,20 @@ class OpcUaRepository implements PlcRepository {
 
   OpcUaRepository._(this._client, this._mapper, this.refreshInterval);
 
+  /// [refreshInterval] is the cyclic poll period, and it — not the work per
+  /// cycle — is what sets observed I/O staleness: a change is seen after
+  /// ~interval/2 on average, ~interval worst case.
+  ///
+  /// 250 ms (4 Hz) measured against a live 15k-symbol PLC over ADS: the full
+  /// snapshot costs ~24 ms and the on-demand fieldbus read ~5 ms, so ~29 ms of
+  /// a 250 ms budget is real work — the rest was idle wait. Emission cadence
+  /// tracked the requested period exactly at 500/250/125 ms, so this is not
+  /// riding a limit. It was 500 ms, chosen when mapping cost ~1.1 s per refresh
+  /// and dominated the cycle; that cost is now ~17 ms (see
+  /// `_buildParentPaths`), which is what makes the faster poll affordable.
   static Future<OpcUaRepository> connectWithClient(
     OpcUaSessionClient client, {
-    Duration refreshInterval = const Duration(milliseconds: 500),
+    Duration refreshInterval = const Duration(milliseconds: 250),
   }) async {
     final repository =
         OpcUaRepository._(client, OpcUaSnapshotMapper(), refreshInterval);
@@ -183,6 +194,9 @@ class OpcUaRepository implements PlcRepository {
       _maybeUpdatePathTiers(discovered is num ? discovered.toInt() : -1);
       _maybeFetchConfigManifest();
       _setLink(LinkState.live);
+      // Same race as _setLink: this refresh may have been disposed across one of
+      // the awaits above (snapshot / on-demand read / manifest hydration).
+      if (_disposed) return;
       _forestController.add(_projection.forest);
       _fieldbusController.add(_projection.fieldbus);
     } on Object catch (error) {
@@ -253,8 +267,38 @@ class OpcUaRepository implements PlcRepository {
   }
 
   @override
-  void setFieldbusViewActive(bool active) =>
-      _setOnDemandScopeActive(OpcUaFieldTier.fieldbusScope, active);
+  void setFieldbusViewActive(bool active) {
+    _setOnDemandScopeActive(OpcUaFieldTier.fieldbusScope, active);
+    // Core §10.5.1 is a diagnostic surface, so demand-gating is end-to-end: not
+    // reading the topology here is only half of it — without this the PLC would
+    // still poll the EtherCAT master over ADS every cycle to maintain data
+    // nobody is looking at. Best-effort: a PLC that does not publish the flag
+    // (older library, or a project that leaves it unmapped) simply keeps its own
+    // cadence, so this must never surface as a user-visible failure.
+    unawaited(_setFieldbusScanRequested(active));
+  }
+
+  /// Publishes the fieldbus-view demand gate to the PLC (`MAIN.FieldbusViewActive`).
+  Future<void> _setFieldbusScanRequested(bool active) async {
+    final base = _fieldbusScanFlagPath();
+    if (base == null) return;
+    try {
+      await _write(base, OpcUaWriteType.boolean, active);
+    } on Object catch (error) {
+      debugPrint('[Fraktal/Connection] stage=fieldbus-gate-write-skipped '
+          'active=$active error=$error');
+    }
+  }
+
+  /// Browse path of the PLC's fieldbus demand gate, or null when the running PLC
+  /// does not expose one. Derived from the discovered contract rather than
+  /// hardcoded, so it works for any project that publishes the flag.
+  String? _fieldbusScanFlagPath() {
+    for (final path in _discoveredPaths) {
+      if (path.endsWith('/FieldbusViewActive')) return path;
+    }
+    return null;
+  }
 
   @override
   void setModuleDetailActive(String rootPath, bool active) {
@@ -399,6 +443,11 @@ class OpcUaRepository implements PlcRepository {
   void _setLink(LinkState value) {
     if (_link == value) return;
     _link = value;
+    // A refresh is async, so dispose() can close the controllers while one is
+    // still in flight (e.g. the user leaves the page mid-request). The
+    // _disposed check when the refresh STARTS cannot cover that — the state can
+    // change across every await inside it — so re-check at each emit.
+    if (_disposed) return;
     _linkController.add(value);
   }
 

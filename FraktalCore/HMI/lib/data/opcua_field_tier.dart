@@ -2,8 +2,8 @@
 ///
 /// The generic HMI browses the whole Fraktal contract, but most published leaves
 /// are drill-down data — bounded history/trend rings, analytics, and the
-/// fieldbus I/O tree — that only specific views render. Polling them at the 2 Hz
-/// snapshot rate dominates read latency, so each leaf is assigned a tier:
+/// fieldbus I/O tree — that only specific views render. Polling them at the
+/// cyclic snapshot rate dominates read latency, so each leaf is assigned a tier:
 ///
 /// - [FieldTier.live] — always-visible data (tiles, banner, counters, active
 ///   alarms, current step). Read every snapshot.
@@ -49,7 +49,7 @@ class OpcUaFieldTier {
   /// Always-visible but slow-changing facets, published redundantly on every
   /// module: safety and control-power status change only on safety/power events,
   /// yet at ~265 nodes each across a forest they dominate the fast read. Read on
-  /// a heartbeat (cached between) so the ~500 ms live poll stays small and
+  /// a heartbeat (cached between) so the cyclic live poll stays small and
   /// interactive commands are not queued behind a large snapshot. Display lag is
   /// bounded by the heartbeat; the PLC safety authority is unaffected (these are
   /// read-only HMI status facets). Checked BEFORE liveContainers.

@@ -95,7 +95,7 @@ HMI\build\gateway\windows-x64\
   web\index.html
   ...
 
-HMI\build\gateway\installer\FraktalSetup.exe
+HMI\build\gateway\installer\FraktalSetup.exe  # includes verified Caddy
 ```
 
 Linux outputs the equivalent `linux-x64` package with `fraktal_gateway`,
@@ -116,13 +116,26 @@ PLC/TMC and configuration exports.
    endpoint (`opc.tcp://…`). (The same installer can also install the native
    HMI app — an independent ADS-direct desktop client — but this walkthrough
    covers the gateway path.)
-4. The installer writes program files to
+4. For a remote browser, leave **secure remote Web HMI** selected, confirm the
+   suggested `https://<controller-IP>` origin, enter the proxy account/password,
+   and allow the local-subnet Windows Firewall rule. For same-host-only use,
+   clear that option.
+5. The installer writes program files to
    `%LOCALAPPDATA%\Programs\Fraktal Gateway`, writes the endpoint as
-   `--plc-endpoint` in `gateway.args`, preserves site data under
+   `--plc-endpoint`, normalizes the loopback `--port` to numeric `8080`, and,
+   when selected, writes the exact public `--allow-origin` in `gateway.args`.
+   It preserves site data under
    `%LOCALAPPDATA%\Fraktal\Gateway`, creates Start Menu and Startup shortcuts,
    starts the tray, and opens `gateway.args`.
-5. Upgrades replace binaries and the Web HMI but preserve `gateway.args`, PKI,
-   and logs. Uninstall also preserves those site-owned files intentionally.
+6. The remote option configures the bundled, checksum-pinned Caddy executable
+   at `%LOCALAPPDATA%\Fraktal\Gateway\proxy\Caddyfile`. It hashes the password
+   through Caddy's stdin, stores only the Argon2id hash, generates an internal
+   LAN CA, validates the Caddyfile before publishing it, and exposes only the
+   selected HTTPS port from Domain/Private profiles and the local subnet.
+7. Upgrades replace binaries and the Web HMI but preserve `gateway.args`, proxy
+   configuration/password hash, proxy CA, OPC UA PKI, and logs when both new
+   password fields are left blank. Uninstall also preserves those site-owned
+   files intentionally.
 
 ### 5.2 Configure `gateway.args`
 
@@ -138,6 +151,8 @@ opc.tcp://127.0.0.1:4840
 /fraktal
 --web-root
 %LOCALAPPDATA%\Programs\Fraktal Gateway\web
+--allow-origin
+https://192.168.100.126
 --security-profile
 production
 --security-policy
@@ -169,8 +184,12 @@ FRAKTAL_OPCUA_PRIVATE_KEY_PASSWORD   # only for an encrypted private key
 ```
 
 Restart the tray after changing process credentials. Use the tray menu to edit
-configuration, open logs, restart the gateway, open the Web HMI, or inspect
-health.
+gateway/proxy configuration, open logs, restart both supervised processes, open
+the Web HMI, or inspect gateway health.
+
+The reverse-proxy password is separate from
+`FRAKTAL_OPCUA_PASSWORD`: one authenticates the browser at HTTPS/WSS; the other
+authenticates the gateway to TF6100. Neither belongs in `gateway.args`.
 
 ### 5.3 Local acceptance
 
@@ -221,20 +240,46 @@ curl --fail http://127.0.0.1:8080/readyz
 ```
 
 Open `http://127.0.0.1:8080/` locally or add the remote reverse proxy described
-next. systemd restarts process failures; OPC UA/WebSocket reconnect is handled
-inside the application and never replays an HMI write.
+next. The bundled proxy installation is currently Windows-only; Linux uses the
+site proxy/service policy. systemd restarts process failures; OPC UA/WebSocket
+reconnect is handled inside the application and never replays an HMI write.
 
 ## 7. Remote HTTPS/WSS browser deployment
 
-Use one public origin, for example `https://hmi-cell-01.example`. Add that exact
-origin to the gateway configuration:
+Use one public origin, for example `https://192.168.100.126` or
+`https://hmi-cell-01.example`. Add that exact origin to the gateway
+configuration:
 
 ```text
 --allow-origin
 https://hmi-cell-01.example
 ```
 
-Configure a same-host reverse proxy to:
+On Windows, select **secure remote Web HMI** in `FraktalSetup.exe`; the wizard
+performs this configuration and writes the corresponding `--allow-origin`.
+It also creates these site-owned artifacts:
+
+```text
+%LOCALAPPDATA%\Fraktal\Gateway\proxy\Caddyfile
+%LOCALAPPDATA%\Fraktal\Gateway\proxy\public-origin.txt
+%LOCALAPPDATA%\Fraktal\Gateway\proxy\FraktalGatewayRootCA.crt
+%LOCALAPPDATA%\Fraktal\Gateway\proxy\storage\   # includes the private CA key
+```
+
+Copy `FraktalGatewayRootCA.crt` through the commissioning trust channel and
+install it as a trusted root on every authorized remote HMI device. For example,
+on a managed Windows HMI account:
+
+```powershell
+certutil -user -addstore -f Root .\FraktalGatewayRootCA.crt
+```
+
+Do not distribute anything below `proxy\storage`; it contains the CA private
+key. A site PKI certificate may replace `tls internal` in the Caddyfile, in
+which case every client must trust that site chain instead. Restart the tray
+after a reviewed manual Caddyfile change.
+
+Linux or a site-managed Windows proxy shall equivalently:
 
 - listen on HTTPS with a certificate trusted by every HMI device;
 - authenticate access to both the static HMI and the WebSocket upgrade;
@@ -246,9 +291,29 @@ Configure a same-host reverse proxy to:
 - avoid publicly exposing health endpoints unless an authenticated monitoring
   policy requires them.
 
+The bundled Windows profile uses HTTP Basic authentication only inside TLS.
+Managed-browser SSO, mTLS client identity, centralized account lifecycle, and
+cross-host/load-balanced proxying remain site deployment adapters; replace the
+generated Caddy authentication block when those policies are required.
+
 Do not bind the Fraktal gateway directly to a LAN interface and do not treat
 Origin checking as authentication. Expose only the reverse proxy's HTTPS port
 through the host/network firewall.
+
+For scripted Windows installation, provide the password only in the child
+process environment; it is consumed and cleared after hashing:
+
+```powershell
+$env:FRAKTAL_PROXY_PASSWORD = '<from protected deployment secret>'
+.\install_fraktal.cmd `
+  -Components Gateway `
+  -GatewayEndpoint opc.tcp://127.0.0.1:4840 `
+  -EnableRemoteAccess `
+  -PublicOrigin https://192.168.100.126 `
+  -ProxyUsername fraktal `
+  -ConfigureFirewall
+Remove-Item Env:FRAKTAL_PROXY_PASSWORD
+```
 
 When opened from HTTPS, a release Web HMI automatically derives
 `wss://hmi-cell-01.example/fraktal`. Changing the public origin creates a new

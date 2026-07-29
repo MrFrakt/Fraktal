@@ -1,0 +1,224 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4024.75">
+	<Project ProjectGUID="{59FCFBE8-5690-4662-9EDA-84972CBA6FF4}" TargetNetId="5.132.128.188.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
+		<System>
+			<Tasks>
+				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
+					<Name>PlcTask</Name>
+				</Task>
+			</Tasks>
+		</System>
+		<Plc>
+			<Project GUID="{BD5689B4-80DB-4A9F-BFF2-754F96FD9CA3}" Name="Fraktal_Press_Demo" PrjFilePath="Fraktal_Press_Demo\Fraktal_Press_Demo.plcproj" TmcFilePath="Fraktal_Press_Demo\Fraktal_Press_Demo.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Fraktal_Press_Demo\Fraktal_Press_Demo.tmc" TmcHash="{62B9560A-0053-D154-9E45-31118091DBED}">
+					<Name>Fraktal_Press_Demo Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Vars VarGrpType="1">
+						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>GVL_PressIO._000BS901</Name>
+							<Comment><![CDATA[ Ch9  IsControlOnButtonPressed  (=000+B-S901:14)]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000BS902</Name>
+							<Comment><![CDATA[ Ch13 IsControlOffButtonPressed (=000+B-S902:14)]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101B301A</Name>
+							<Comment><![CDATA[ Ch1 feeder retracted = logical slide INSIDE]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101B301B</Name>
+							<Comment><![CDATA[ Ch2 feeder extended  = logical slide OUTSIDE]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101B201A</Name>
+							<Comment><![CDATA[ Ch3 door closed]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101B201B</Name>
+							<Comment><![CDATA[ Ch4 door open]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101B202A</Name>
+							<Comment><![CDATA[ Ch5 press down]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101B202B</Name>
+							<Comment><![CDATA[ Ch6 press up]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101S101</Name>
+							<Comment><![CDATA[ Ch7 right two-hand raw button]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101S102</Name>
+							<Comment><![CDATA[ Ch8 left two-hand raw button]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000MB085A_2</Name>
+							<Comment><![CDATA[ Ch10 compressed air below 0.3 bar]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000MB085A_4</Name>
+							<Comment><![CDATA[ Ch11 compressed air above 4.5 bar]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101B601</Name>
+							<Comment><![CDATA[ Ch12 part present]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K911_Y32</Name>
+							<Comment><![CDATA[ Ch14 Control On feedback]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K910A</Name>
+							<Comment><![CDATA[ Ch15 E-stop PRESSED (=000+S1-K910A:14); NORMALLY OPEN on this]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressSafety._EStopOk</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressSafety._GuardClosed</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressSafety._TwoHandActive</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressSafety._PneumaticPermit</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressSafety._SafetyFieldbusHealthy</Name>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressSafety._StandardIoHealthy</Name>
+							<Type>BOOL</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>PlcTask Outputs</Name>
+						<Var>
+							<Name>GVL_PressIO._101K301A</Name>
+							<Comment><![CDATA[ Ch1 feeder backward = move inside]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101K301B</Name>
+							<Comment><![CDATA[ Ch2 feeder forward  = move outside]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101K201A</Name>
+							<Comment><![CDATA[ Ch3 close door]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101K201B</Name>
+							<Comment><![CDATA[ Ch4 open door]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101K202A</Name>
+							<Comment><![CDATA[ Ch5 press downward]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101K202B</Name>
+							<Comment><![CDATA[ Ch6 press upward]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101P101</Name>
+							<Comment><![CDATA[ Ch7 right two-hand lamp]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._101P102</Name>
+							<Comment><![CDATA[ Ch8 left two-hand lamp]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K951_A1</Name>
+							<Comment><![CDATA[ Ch10 SwitchControlOn functional request]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K911_A1</Name>
+							<Comment><![CDATA[ Ch11 EnableControlOn functional request]]></Comment>
+							<Type>BOOL</Type>
+						</Var>
+					</Vars>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010030</OTCID>
+							</ManualConfig>
+							<Priority>20</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="20" OTCID="#x08502001"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+		</Plc>
+		<Io>
+			<Device File="=000+S-A610-A1 (EtherCAT).xti" Id="1"/>
+		</Io>
+	</Project>
+	<Mappings>
+		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000403}" Id="#x02030010"/>
+		<OwnerA Name="TIPC^Fraktal_Press_Demo^Fraktal_Press_Demo Instance">
+			<OwnerB Name="TIID^=000+S-A610-A1 (EtherCAT)^=000+S-K010 (EK1200)^=000+S-K010B1 (EL1809)">
+				<Link VarA="PlcTask Inputs^GVL_PressIO._000K910A" VarB="Channel 15^_000K910A" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._000K911_Y32" VarB="Channel 14^_000K911_Y32" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._000MB085A_2" VarB="Channel 10^_000MB085A_2" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._000MB085A_4" VarB="Channel 11^_000MB085A_4" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101B201A" VarB="Channel 3^_101B201A" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101B201B" VarB="Channel 4^_101B201B" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101B202A" VarB="Channel 5^_101B202A" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101B202B" VarB="Channel 6^_101B202B" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101B301A" VarB="Channel 1^_101B301A" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101B301B" VarB="Channel 2^_101B301B" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101B601" VarB="Channel 12^_101B601" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101S101" VarB="Channel 7^_101S101" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._101S102" VarB="Channel 8^_101S102" AutoLink="true"/>
+			</OwnerB>
+			<OwnerB Name="TIID^=000+S-A610-A1 (EtherCAT)^=000+S-K010 (EK1200)^=000+S-K010C1 (EL2809)">
+				<Link VarA="PlcTask Outputs^GVL_PressIO._000K911_A1" VarB="Channel 11^_000K911_A1" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._000K951_A1" VarB="Channel 10^_000K951_A1" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101K201A" VarB="Channel 3^_101K201A" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101K201B" VarB="Channel 4^_101K201B" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101K202A" VarB="Channel 5^_101K202A" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101K202B" VarB="Channel 6^_101K202B" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101K301A" VarB="Channel 1^_101K301A" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101K301B" VarB="Channel 2^_101K301B" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101P101" VarB="Channel 7^_101P101" AutoLink="true"/>
+				<Link VarA="PlcTask Outputs^GVL_PressIO._101P102" VarB="Channel 8^_101P102" AutoLink="true"/>
+			</OwnerB>
+		</OwnerA>
+	</Mappings>
+</TcSmProject>

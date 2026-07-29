@@ -40,6 +40,11 @@ VAR
     _stateBuf : ARRAY[0..PL_Fraktal.MAX_BUS_NODES] OF Tc2_EtherCAT.ST_EcSlaveState;
     _step : INT;
     _tPoll : TON;
+    // Demand gating (§10.5.1 diagnostic surface): only scan while a consumer
+    // asks. _firstScanDone lets one scan run after Setup so M_BusOk() — which
+    // feeds control logic, not a view — is never based on unread hardware.
+    _scanRequested : BOOL;
+    _firstScanDone : BOOL;
 END_VAR
 VAR_OUTPUT
     // Diagnostics so a fieldbus read failure is visible instead of silently
@@ -49,6 +54,29 @@ VAR_OUTPUT
     SlavesReported : UINT;        // slaves the master reports (nSlaves output)
     NetIdMissing : BOOL;          // TRUE = InfoData.AmsNetId not linked (all zero)
     MasterNetId : T_AmsNetId;     // the resolved master NetId actually being used
+    // TRUE = the master reports a different slave count than the project
+    // topology declares (missing/extra hardware, or a config not activated).
+    // §10.5.1: an unmatched mapping is a commissioning error, never guessed.
+    CountMismatch : BOOL;
+
+    // ---- Raw read-back diagnostics (commissioning aid) --------------------
+    // The decoded E_NodeState alone cannot distinguish "the master said INIT"
+    // from "we indexed or decoded it wrong". These publish the EXACT bytes the
+    // master returned plus how each was interpreted, so a disagreement with XAE
+    // is attributable to hardware, indexing, or decode without attaching a
+    // debugger. Deliberately PUBLISHED (no 'OPC.UA.DA' := '0'): the point is
+    // that an engineer can read them remotely over ADS/OPC UA.
+    // Read them as: slot k holds slave k (master scan order), which this
+    // library maps to topology node DiagNodeIndex[k].
+    DiagRawDeviceState : ARRAY[1..8] OF BYTE;   // deviceState byte, as received
+    DiagRawLinkState : ARRAY[1..8] OF BYTE;     // linkState byte, as received
+    DiagDecodedState : ARRAY[1..8] OF INT;      // E_NodeState after decoding
+    DiagNodeIndex : ARRAY[1..8] OF INT;         // topology node each slave maps to
+    DiagBufferBytes : UDINT;                    // cbBufLen passed to the FB
+    DiagEntrySize : UDINT;                      // SIZEOF(ST_EcSlaveState)
+    DiagScanCount : UDINT;                      // completed reads (proves polling)
+    DiagScanRequested : BOOL;                   // the §10.5.1 demand-gate state
+    DiagFirstScanDone : BOOL;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[;]]></ST></Implementation>
     <Method Name="Setup" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a01}">
@@ -120,8 +148,28 @@ VAR
     node : INT;
     mapped : E_NodeState;
     linkOk : BOOL;
+    reported : INT;   // slaves the master actually returned this read
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[IF NOT _attached THEN
+    RETURN;
+END_IF
+
+// Mirror the gate state every cycle so "why is it not updating?" is answerable
+// from published data alone: from the outside a PARKED scanner and a STUCK one
+// look identical.
+DiagScanRequested := _scanRequested;
+DiagFirstScanDone := _firstScanDone;
+
+// §10.5.1 is a DIAGNOSTIC surface: the bus picture is only consumed while the
+// fieldbus view is open. Polling the master every 250 ms regardless costs ADS
+// bandwidth and PLC time for data nobody is reading, so the read is demand-gated
+// (M_RequestScan, set by the HMI opening the view / a mailbox request). While no
+// consumer is active the state machine idles and the last published states are
+// held — they are not falsified, just not refreshed.
+// Exception: the FIRST scan after Setup always runs, so M_BusOk() (a control
+// input, not a view) has real data without anyone opening the HMI.
+IF NOT _scanRequested AND _firstScanDone THEN
+    _tPoll(IN := FALSE);
     RETURN;
 END_IF
 
@@ -171,13 +219,50 @@ CASE _step OF
             LastErrorId := _fbStates.nErrId;
             SlavesReported := _fbStates.nSlaves;
             IF NOT _fbStates.bError THEN
+                // Only the first nSlaves buffer entries were written by the
+                // master; the rest keep their previous/zero content. Decoding a
+                // zeroed entry yields linkState 0, which reads as "link OK" — a
+                // FAIL-OPEN that showed absent slaves as healthy. Publish only
+                // what the master actually reported and mark the surplus
+                // OFFLINE + link down (fail-closed).
+                reported := TO_INT(_fbStates.nSlaves);
+                IF reported > _slaveCount THEN
+                    reported := _slaveCount;
+                END_IF
+                CountMismatch := (TO_INT(_fbStates.nSlaves) <> _slaveCount);
+                // Commissioning trace: record what the master ACTUALLY returned,
+                // before any interpretation, for the first 8 slaves.
+                DiagScanCount := DiagScanCount + 1;
+                DiagBufferBytes := TO_UDINT(_slaveCount) * SIZEOF(Tc2_EtherCAT.ST_EcSlaveState);
+                DiagEntrySize := SIZEOF(Tc2_EtherCAT.ST_EcSlaveState);
+                FOR i := 1 TO 8 DO
+                    IF i <= _slaveCount THEN
+                        DiagRawDeviceState[i] := _stateBuf[i - 1].deviceState;
+                        DiagRawLinkState[i] := _stateBuf[i - 1].linkState;
+                        DiagNodeIndex[i] := _firstSlaveNode + i - 1;
+                    ELSE
+                        DiagRawDeviceState[i] := 0;
+                        DiagRawLinkState[i] := 0;
+                        DiagNodeIndex[i] := 0;
+                    END_IF
+                END_FOR
                 FOR i := 1 TO _slaveCount DO
                     node := _firstSlaveNode + i - 1;
-                    // pStateBuf is ARRAY[0..EC_MAX_SLAVES]: slave i lives at i-1.
-                    // Decode the deviceState byte (AL state + flags) -> E_NodeState.
-                    mapped := _M_MapSlaveState(DeviceState := _stateBuf[i - 1].deviceState);
-                    // linkState low nibble = link condition; 0 = OK (EC_LINK_STATE_OK).
-                    linkOk := (_stateBuf[i - 1].linkState AND 16#0F) = 0;
+                    IF i <= reported THEN
+                        // pStateBuf is ARRAY[0..EC_MAX_SLAVES]: slave i is at i-1.
+                        // Decode the deviceState byte (AL state + flags).
+                        mapped := _M_MapSlaveState(DeviceState := _stateBuf[i - 1].deviceState);
+                        // linkState low nibble = link condition; 0 = OK.
+                        linkOk := (_stateBuf[i - 1].linkState AND 16#0F) = 0;
+                    ELSE
+                        // Declared in the topology but never reported by the
+                        // master: it is not on the bus. Never claim link OK.
+                        mapped := E_NodeState.OFFLINE;
+                        linkOk := FALSE;
+                    END_IF
+                    IF i <= 8 THEN
+                        DiagDecodedState[i] := TO_INT(mapped);
+                    END_IF
                     _pub^.M_SetNodeState(NodeIndex := node, State := mapped, LinkOk := linkOk);
                 END_FOR
                 // The master node's state is inferred from the read: it answered
@@ -191,6 +276,7 @@ CASE _step OF
                 // Master unreachable: mark the whole segment (and master) offline.
                 _M_PublishAllOffline();
             END_IF
+            _firstScanDone := TRUE;
             _step := 20;
         END_IF
     20:
@@ -203,25 +289,67 @@ END_CASE]]></ST></Implementation>
     </Method>
     <Method Name="M_BusOk" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a04}">
       <Declaration><![CDATA[// TRUE when the fieldbus is delivering a valid process image: the master read
-// succeeded and every mapped slave is OPERATIONAL. This is the library-detected
-// replacement for a project-declared "bus valid" flag — projects no longer wire
-// their own RealBusOk. Derived from the last M_Refresh cycle (no extra I/O).
+// succeeded and every slave THE MASTER REPORTS is OPERATIONAL. This is the
+// library-detected replacement for a project-declared "bus valid" flag —
+// projects no longer wire their own RealBusOk. Derived from the last M_Refresh
+// cycle (no extra I/O).
+//
+// A catalog that declares MORE nodes than are fitted does not make this FALSE:
+// per N54 D2 the criterion is that the running bus is functioning properly, and
+// a stale catalog is a commissioning issue reported through CountMismatch /
+// MappingValid (§10.5.1). Conflating the two silently blocks Control On.
 METHOD M_BusOk : BOOL
 VAR
     i : INT;
+    reported : INT;   // slaves the master actually returned
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[M_BusOk := FALSE;
-IF NOT _attached OR _fbStates.bError OR (_slaveCount < 1) THEN
+      <Implementation><ST><![CDATA[// N54 D2 (Control On add-on): EnableControlOn is set when the fieldbus masters
+// are "functioning properly" — i.e. the bus that is RUNNING is healthy. That is
+// deliberately NOT the same question as "does the project catalog list exactly
+// the nodes that are fitted": a catalog with more entries than hardware is a
+// commissioning/mapping issue (surfaced as CountMismatch and MappingValid,
+// §10.5.1), not a running-bus fault, and must not hold off Control On.
+M_BusOk := FALSE;
+IF NOT _attached OR _fbStates.bError OR NOT ReadOk THEN
+    RETURN;  // master unreachable / read failed -> not "functioning properly"
+END_IF
+// Judge only what the master actually reports. reported = 0 means no slaves on
+// the bus at all, which is not a healthy running fieldbus.
+reported := TO_INT(_fbStates.nSlaves);
+IF reported < 1 THEN
     RETURN;
 END_IF
-FOR i := 1 TO _slaveCount DO
+IF reported > _slaveCount THEN
+    reported := _slaveCount;   // never read past the mapped buffer
+END_IF
+FOR i := 1 TO reported DO
     // Zero-based buffer (see _stateBuf): slave i is at i-1. Fully operational iff
     // deviceState is exactly OP (no AL flag bits set).
     IF _stateBuf[i - 1].deviceState <> Tc2_EtherCAT.EC_DEVICE_STATE_OP THEN
-        RETURN;  // any slave not OP -> bus not fully valid
+        RETURN;  // a slave that IS on the bus is not OP -> bus not valid
     END_IF
 END_FOR
 M_BusOk := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RequestScan" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a06}">
+      <Declaration><![CDATA[// §10.5.1 demand gate. Call every cycle with Active := TRUE while a consumer is
+// reading the bus picture (the HMI fieldbus view is open, or a mailbox scan was
+// requested); FALSE parks the scanner. Held states are NOT invalidated on
+// release — a stale-but-true picture beats a fabricated one; the view re-reads
+// on its next activation.
+METHOD M_RequestScan
+VAR_INPUT
+    Active : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Active AND NOT _scanRequested THEN
+    // Re-arm immediately on a rising request so opening the view does not wait
+    // out the poll timer.
+    _tPoll(IN := FALSE);
+    IF _step = 20 THEN
+        _step := 0;
+    END_IF
+END_IF
+_scanRequested := Active;]]></ST></Implementation>
     </Method>
     <Method Name="_M_PublishAllOffline" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a05}">
       <Declaration><![CDATA[// Fail-visible fallback: publish every mapped node (and the master) as OFFLINE.

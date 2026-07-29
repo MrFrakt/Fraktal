@@ -29,19 +29,26 @@ constexpr UINT kMenuHealth = 1007;
 constexpr UINT kMenuGuide = 1008;
 constexpr UINT kMenuExit = 1009;
 constexpr UINT kMenuWebHmi = 1010;
+constexpr UINT kMenuProxyConfig = 1011;
 
 HWND g_window = nullptr;
 NOTIFYICONDATAW g_tray{};
 PROCESS_INFORMATION g_child{};
+PROCESS_INFORMATION g_proxy{};
 std::filesystem::path g_install_dir;
 std::filesystem::path g_data_dir;
 std::filesystem::path g_config_path;
 std::filesystem::path g_log_path;
+std::filesystem::path g_proxy_config_path;
+std::filesystem::path g_proxy_log_path;
+std::filesystem::path g_proxy_origin_path;
 DWORD g_health_port = 8080;
 bool g_user_stopped = false;
 bool g_exiting = false;
 unsigned g_restart_failures = 0;
 ULONGLONG g_restart_after = 0;
+unsigned g_proxy_restart_failures = 0;
+ULONGLONG g_proxy_restart_after = 0;
 std::wstring g_status = L"Starting";
 HICON g_icon = nullptr;
 UINT g_taskbar_created = 0;
@@ -123,6 +130,27 @@ std::vector<std::wstring> LoadArguments() {
   return arguments;
 }
 
+std::wstring ReadTrimmedUtf8(const std::filesystem::path& path) {
+  std::ifstream stream(path, std::ios::binary);
+  if (!stream) return {};
+  std::string value((std::istreambuf_iterator<char>(stream)),
+                    std::istreambuf_iterator<char>());
+  if (value.size() >= 3 &&
+      static_cast<unsigned char>(value[0]) == 0xEF &&
+      static_cast<unsigned char>(value[1]) == 0xBB &&
+      static_cast<unsigned char>(value[2]) == 0xBF) {
+    value.erase(0, 3);
+  }
+  const auto start = value.find_first_not_of(" \t\r\n");
+  if (start == std::string::npos) return {};
+  const auto end = value.find_last_not_of(" \t\r\n");
+  return Utf8ToWide(value.substr(start, end - start + 1));
+}
+
+bool ProxyConfigured() {
+  return std::filesystem::exists(g_proxy_config_path);
+}
+
 void SetStatus(const std::wstring& status, HICON icon) {
   g_status = status;
   g_icon = icon;
@@ -136,6 +164,12 @@ void CloseChildHandles() {
   if (g_child.hThread != nullptr) CloseHandle(g_child.hThread);
   if (g_child.hProcess != nullptr) CloseHandle(g_child.hProcess);
   g_child = {};
+}
+
+void CloseProxyHandles() {
+  if (g_proxy.hThread != nullptr) CloseHandle(g_proxy.hThread);
+  if (g_proxy.hProcess != nullptr) CloseHandle(g_proxy.hProcess);
+  g_proxy = {};
 }
 
 bool StartGateway() {
@@ -199,9 +233,73 @@ bool StartGateway() {
   return true;
 }
 
+bool StartProxy() {
+  if (!ProxyConfigured() || g_proxy.hProcess != nullptr) return true;
+  const auto executable = g_install_dir / L"caddy.exe";
+  if (!std::filesystem::exists(executable)) {
+    SetStatus(L"HTTPS proxy executable missing",
+              LoadIconW(nullptr, IDI_ERROR));
+    return false;
+  }
+  std::filesystem::create_directories(g_proxy_log_path.parent_path());
+  SECURITY_ATTRIBUTES security{};
+  security.nLength = sizeof(security);
+  security.bInheritHandle = TRUE;
+  HANDLE log = CreateFileW(g_proxy_log_path.c_str(), FILE_APPEND_DATA,
+                           FILE_SHARE_READ | FILE_SHARE_WRITE, &security,
+                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (log == INVALID_HANDLE_VALUE) {
+    SetStatus(L"Cannot open HTTPS proxy log",
+              LoadIconW(nullptr, IDI_ERROR));
+    return false;
+  }
+  SetFilePointer(log, 0, nullptr, FILE_END);
+  HANDLE null_input = CreateFileW(L"NUL", GENERIC_READ,
+                                  FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                  &security, OPEN_EXISTING,
+                                  FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (null_input == INVALID_HANDLE_VALUE) {
+    CloseHandle(log);
+    SetStatus(L"Cannot open HTTPS proxy input",
+              LoadIconW(nullptr, IDI_ERROR));
+    return false;
+  }
+  std::wstring command = Quote(executable.wstring()) +
+      L" run --config " + Quote(g_proxy_config_path.wstring()) +
+      L" --adapter caddyfile";
+  std::vector<wchar_t> mutable_command(command.begin(), command.end());
+  mutable_command.push_back(L'\0');
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+  startup.wShowWindow = SW_HIDE;
+  startup.hStdInput = null_input;
+  startup.hStdOutput = log;
+  startup.hStdError = log;
+  PROCESS_INFORMATION process{};
+  const BOOL created = CreateProcessW(
+      executable.c_str(), mutable_command.data(), nullptr, nullptr, TRUE,
+      CREATE_NO_WINDOW, nullptr, g_install_dir.c_str(), &startup, &process);
+  CloseHandle(null_input);
+  CloseHandle(log);
+  if (!created) {
+    SetStatus(L"HTTPS proxy start failed", LoadIconW(nullptr, IDI_ERROR));
+    return false;
+  }
+  g_proxy = process;
+  g_user_stopped = false;
+  return true;
+}
+
 void StopGateway(bool user_stopped) {
   g_user_stopped = user_stopped;
   g_restart_after = 0;
+  g_proxy_restart_after = 0;
+  if (g_proxy.hProcess != nullptr) {
+    TerminateProcess(g_proxy.hProcess, 0);
+    WaitForSingleObject(g_proxy.hProcess, 2000);
+    CloseProxyHandles();
+  }
   if (g_child.hProcess != nullptr) {
     // The gateway owns no durable command queue. Forced local shutdown cannot
     // replay an HMI write and the PLC remains the final command authority.
@@ -247,7 +345,31 @@ bool ProbeReady() {
   return ready;
 }
 
+void MonitorProxy() {
+  if (!ProxyConfigured()) return;
+  if (g_proxy.hProcess == nullptr) {
+    if (!g_user_stopped && g_proxy_restart_after != 0 &&
+        GetTickCount64() >= g_proxy_restart_after) {
+      if (StartProxy()) {
+        g_proxy_restart_after = 0;
+      }
+    }
+    return;
+  }
+  DWORD exit_code = STILL_ACTIVE;
+  if (!GetExitCodeProcess(g_proxy.hProcess, &exit_code) ||
+      exit_code != STILL_ACTIVE) {
+    CloseProxyHandles();
+    if (g_user_stopped || g_exiting) return;
+    ++g_proxy_restart_failures;
+    const ULONGLONG delay = std::min<ULONGLONG>(
+        30000, 1000ULL << std::min(g_proxy_restart_failures, 5U));
+    g_proxy_restart_after = GetTickCount64() + delay;
+  }
+}
+
 void MonitorGateway() {
+  MonitorProxy();
   if (g_child.hProcess == nullptr) {
     if (!g_user_stopped && g_restart_after != 0 &&
         GetTickCount64() >= g_restart_after) {
@@ -259,7 +381,7 @@ void MonitorGateway() {
   if (!GetExitCodeProcess(g_child.hProcess, &exit_code) ||
       exit_code != STILL_ACTIVE) {
     CloseChildHandles();
-    if (g_user_stopped || g_exiting || exit_code == 0) {
+    if (g_user_stopped || g_exiting) {
       SetStatus(L"Stopped", LoadIconW(nullptr, IDI_APPLICATION));
       return;
     }
@@ -270,9 +392,17 @@ void MonitorGateway() {
     SetStatus(L"Failed - retrying", LoadIconW(nullptr, IDI_ERROR));
     return;
   }
+  if (ProxyConfigured() && g_proxy.hProcess == nullptr) {
+    SetStatus(L"HTTPS proxy failed - retrying",
+              LoadIconW(nullptr, IDI_ERROR));
+    return;
+  }
   if (ProbeReady()) {
     g_restart_failures = 0;
-    SetStatus(L"Ready", LoadIconW(nullptr, IDI_INFORMATION));
+    g_proxy_restart_failures = 0;
+    SetStatus(ProxyConfigured() ? L"Ready - secure remote access"
+                                : L"Ready",
+              LoadIconW(nullptr, IDI_INFORMATION));
   } else {
     SetStatus(L"Running - PLC unavailable", LoadIconW(nullptr, IDI_WARNING));
   }
@@ -296,6 +426,10 @@ void ShowMenu() {
   AppendMenuW(menu, MF_STRING, kMenuRestart, L"Restart");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_STRING, kMenuConfig, L"Edit configuration...");
+  if (ProxyConfigured()) {
+    AppendMenuW(menu, MF_STRING, kMenuProxyConfig,
+                L"Edit HTTPS proxy configuration...");
+  }
   AppendMenuW(menu, MF_STRING, kMenuLogs, L"Open logs");
   AppendMenuW(menu, MF_STRING, kMenuWebHmi, L"Open Web HMI");
   AppendMenuW(menu, MF_STRING, kMenuHealth, L"Open health page");
@@ -319,7 +453,13 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam,
       switch (LOWORD(wparam)) {
         case kMenuStart:
           g_restart_failures = 0;
-          StartGateway();
+          g_proxy_restart_failures = 0;
+          if (!StartGateway()) {
+            g_restart_after = GetTickCount64() + 1000;
+          }
+          if (!StartProxy()) {
+            g_proxy_restart_after = GetTickCount64() + 1000;
+          }
           break;
         case kMenuStop:
           StopGateway(true);
@@ -327,19 +467,33 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam,
         case kMenuRestart:
           StopGateway(false);
           g_restart_failures = 0;
-          StartGateway();
+          g_proxy_restart_failures = 0;
+          if (!StartGateway()) {
+            g_restart_after = GetTickCount64() + 1000;
+          }
+          if (!StartProxy()) {
+            g_proxy_restart_after = GetTickCount64() + 1000;
+          }
           break;
         case kMenuConfig:
           ShellExecuteW(window, L"open", L"notepad.exe",
                         Quote(g_config_path.wstring()).c_str(), nullptr,
                         SW_SHOWNORMAL);
           break;
+        case kMenuProxyConfig:
+          ShellExecuteW(window, L"open", L"notepad.exe",
+                        Quote(g_proxy_config_path.wstring()).c_str(), nullptr,
+                        SW_SHOWNORMAL);
+          break;
         case kMenuLogs:
           OpenPath(g_log_path.parent_path());
           break;
         case kMenuWebHmi: {
-          const std::wstring url = L"http://127.0.0.1:" +
-                                   std::to_wstring(g_health_port) + L"/";
+          std::wstring url = ReadTrimmedUtf8(g_proxy_origin_path);
+          if (url.empty()) {
+            url = L"http://127.0.0.1:" +
+                  std::to_wstring(g_health_port) + L"/";
+          }
           ShellExecuteW(window, L"open", url.c_str(), nullptr, nullptr,
                         SW_SHOWNORMAL);
           break;
@@ -432,6 +586,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
   g_data_dir = std::filesystem::path(local_app_data) / L"Fraktal" / L"Gateway";
   g_config_path = g_data_dir / L"gateway.args";
   g_log_path = g_data_dir / L"logs" / L"gateway.log";
+  g_proxy_config_path = g_data_dir / L"proxy" / L"Caddyfile";
+  g_proxy_log_path = g_data_dir / L"logs" / L"proxy.log";
+  g_proxy_origin_path =
+      g_data_dir / L"proxy" / L"public-origin.txt";
   std::filesystem::create_directories(g_data_dir);
 
   g_taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
@@ -456,7 +614,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
   wcscpy_s(g_tray.szTip, L"Fraktal Gateway - Starting");
   Shell_NotifyIconW(NIM_ADD, &g_tray);
   SetTimer(g_window, kMonitorTimer, 2000, nullptr);
-  StartGateway();
+  if (!StartGateway()) {
+    g_restart_after = GetTickCount64() + 1000;
+  }
+  if (!StartProxy()) {
+    g_proxy_restart_after = GetTickCount64() + 1000;
+  }
 
   MSG message{};
   while (GetMessageW(&message, nullptr, 0, 0) > 0) {

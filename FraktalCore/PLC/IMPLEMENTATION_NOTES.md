@@ -1356,3 +1356,85 @@ Versioning: Core advances to `0.1.0.5`; Modules is rebuilt and repinned as
 `0.1.0.4`; Demo advances to `0.1.0.3`; Press Demo and aggregate Tests advance to
 `0.1.0.9`. Source/XML/lint validation is run here; the pinned XAE compile and
 TcUnit execution remain required before release.
+
+## 74. Fieldbus: fail-open on unreported slaves, and §10.5.1 demand gating (2026-07-26)
+
+**Reported symptom:** the HMI showed K010B1/K010C1 in INIT while XAE showed OP.
+
+**The HMI was not at fault.** Probing the PLC directly showed it *publishing*
+`State = 1` for those nodes, so the tree rendered faithfully. Two real defects
+sat underneath, both in this library.
+
+**(a) Fail-open decode of unreported slaves.** `FB_EcGetAllSlaveStates` fills only
+the first `nSlaves` buffer entries; the rest keep their previous/zero content. The
+decode looped over the *declared* `_slaveCount` regardless, and a zeroed entry has
+`linkState = 0`, which the nibble test reads as **link OK**. Live evidence:
+`SlavesReported = 3` against 5 declared, and nodes 5/6 published
+`State = OFFLINE` **with `LinkOk = TRUE`** — a slave that is not on the bus was
+reported as healthy. Fixed: decode only the first `nSlaves` entries; publish the
+surplus as `OFFLINE` + `LinkOk = FALSE` (fail-closed); `M_BusOk()` now also
+returns FALSE when the master reports fewer slaves than the topology declares —
+missing declared hardware is not a valid bus. New `CountMismatch` output makes the
+"master reports N, project declares M" case visible instead of inferable, per
+§10.5.1 ("unmatched mappings are commissioning errors, never silently guessed").
+
+**(b) The bus was polled continuously.** §10.5.1 defines the topology as a
+**diagnostic** surface, and the HMI already demand-gates *reading* it (read tiers,
+`fieldbusScope`). The PLC nevertheless scanned the master every 250 ms forever, so
+half the saving was fictional: ADS traffic and PLC time were spent maintaining
+data nobody was reading. Added `FB_EcBusHealth.M_RequestScan(Active)`;
+`M_RefreshFieldbus(BusViewActive)` and `MAIN.FieldbusViewActive` thread it, and
+`OpcUaRepository.setFieldbusViewActive` now writes that flag so the gate is
+end-to-end. Deliberate details: the **first** scan after Setup always runs (so
+`M_BusOk()`, which feeds control logic rather than a view, is never based on
+unread hardware); a rising request re-arms the poll timer immediately so opening
+the view does not wait out the 250 ms; released gating **holds** the last states
+rather than invalidating them (a stale-but-true picture beats a fabricated one);
+and the HMI write is best-effort — a PLC without the flag keeps its own cadence.
+
+**Not a defect — the INIT states are real.** The dev runtime's EtherCAT master is
+bound to a **Null Adapter** in a usermode runtime ("running in the user mode
+runtime" in the TCOM log) and the downloaded boot config contains *only* the
+master (`=000+S-A610`), with zero mentions of EK1200/EL1809/EL2809/EL6001/EL9011.
+With no NIC there are no EtherCAT frames, so slaves cannot leave INIT. XAE showing
+OP is XAE's own configuration view, not the runtime's AL state. To see OP at
+runtime, bind the real NIC (clear `SimulationMode`) and re-activate so the
+terminals are actually downloaded.
+
+## 75. Windows installer owns a secure remote-Web adapter (2026-07-28)
+
+The loopback-only gateway boundary from §65 remains unchanged. Remote Windows
+browser access is now a concrete installer option rather than only a deployment
+instruction: `FraktalSetup.exe` bundles Caddy 2.11.4 from its official Windows
+amd64 release, verifies the pinned SHA-512 before packaging, and ships its
+Apache-2.0 license/readme. The gateway tray starts, stops, and restart-supervises
+both the Dart gateway and Caddy; Caddy is present but inert unless a site
+`proxy/Caddyfile` exists.
+
+The wizard collects one exact `https://<host>[:port]` public origin, a constrained
+username, and a minimum-12-character password. The password moves to the child
+only through its process environment and is piped to `caddy hash-password`; only
+the Argon2id hash enters the Caddyfile. Caddy terminates TLS, authenticates both
+the static HMI and WebSocket upgrade, actively checks loopback `/livez`, keeps
+WebSocket streams through reload churn, and proxies only to
+`127.0.0.1:8080`. Its admin endpoint and config persistence are disabled. The
+generated internal CA uses a site-owned persistent storage directory; only its
+public root is copied to the obvious client-distribution path. The private CA
+key is never exported.
+
+Installation now treats `--port`, `--web-root`, the selected
+`--plc-endpoint`, and the selected `--allow-origin` as structured
+option/value pairs. Duplicate installer-owned options collapse to one value, and
+`--port` is always normalized to `8080`; this repairs the observed deployed
+`8080\` value that made Dart fail with `Invalid radix-10 number` before binding.
+The optional elevated firewall helper permits only the Caddy program/HTTPS port
+from `LocalSubnet` on Domain/Private profiles; port 8080 remains unreachable
+remotely by construction.
+
+Upgrades replace Caddy but preserve an existing validated Caddyfile, password
+hash, CA, origin, and firewall rule when no new password is supplied. Supplying
+a new password is the explicit reconfiguration edge and publishes the new file
+only after Caddy formats and validates an atomic `.next` candidate. Linux/site
+SSO and managed mTLS proxy policies remain deployment adapters; the bundled
+Windows profile is the plug-and-produce LAN/basic-auth option, not a universal
+identity provider.

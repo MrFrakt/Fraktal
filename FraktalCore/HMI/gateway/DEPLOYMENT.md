@@ -59,7 +59,9 @@ The command first runs `flutter build web --release --no-pub` and copies that
 exact output into the platform package. Output is written to
 `FraktalCore/HMI/build/gateway/windows-x64` or `linux-x64`. Windows contains
 `fraktal_gateway.exe`, `fraktal_gateway_tray.exe`, `fraktal_opcua.dll`, and
-`web/`; Linux contains `fraktal_gateway`, `libfraktal_opcua.so`, and `web/`.
+`web/`; its installer also contains checksum-verified Caddy for optional secure
+remote access. Linux contains `fraktal_gateway`, `libfraktal_opcua.so`, and
+`web/`.
 
 The Windows build also creates
 `build/gateway/installer/FraktalSetup.exe`. It is a per-user, self-extracting
@@ -83,10 +85,31 @@ language/unit wizard on first launch, with the endpoint pre-filled) and the
 gateway endpoint is written as `--plc-endpoint` in
 `%LOCALAPPDATA%\Fraktal\Gateway\gateway.args`. Existing configuration, PKI
 files, logs, and the HMI connection settings are preserved across upgrades and
-uninstall. A silent path exists for Group-Policy/AppLocker hosts:
+uninstall. When **secure remote Web HMI** is selected, the wizard also collects
+one HTTPS origin and proxy account, writes the matching `--allow-origin`,
+generates a private LAN CA, stores only an Argon2id password hash, and can add a
+Domain/Private local-subnet firewall rule. It always rewrites installer-owned
+`--port` to `8080`, repairing malformed legacy values such as `8080\`.
+
+The proxy Caddyfile, CA, and public origin live below
+`%LOCALAPPDATA%\Fraktal\Gateway\proxy`. Leave both password fields blank during
+an upgrade to preserve that validated security configuration. A silent path
+exists for Group-Policy/AppLocker hosts:
 
 ```cmd
 install_fraktal.cmd -Components HMI,Gateway -HmiEndpoint ads://192.168.1.6.1.1:851 -GatewayEndpoint opc.tcp://192.168.1.6:4840
+```
+
+For silent secure remote access, place the password only in the installing
+process environment:
+
+```powershell
+$env:FRAKTAL_PROXY_PASSWORD = '<from protected deployment secret>'
+.\install_fraktal.cmd -Components Gateway `
+  -GatewayEndpoint opc.tcp://127.0.0.1:4840 `
+  -EnableRemoteAccess -PublicOrigin https://192.168.100.126 `
+  -ProxyUsername fraktal -ConfigureFirewall
+Remove-Item Env:FRAKTAL_PROXY_PASSWORD
 ```
 
 The installer is intentionally unsigned in a developer build; sign it with the
@@ -225,6 +248,19 @@ to `ws://127.0.0.1:8080/fraktal`. The proxy must:
 - leave WebSocket control frames intact and use an idle timeout comfortably
   above the gateway's 2 s heartbeat interval.
 
+The Windows installer automates this same-host profile with bundled Caddy. It
+supervises both gateway and proxy from the tray, configures Basic authentication
+inside TLS, and exports only the public LAN-CA certificate as:
+
+```text
+%LOCALAPPDATA%\Fraktal\Gateway\proxy\FraktalGatewayRootCA.crt
+```
+
+Install that certificate as a trusted root on each authorized browser device
+before opening the HTTPS URL. Never copy `proxy\storage`, which contains the CA
+private key. Linux, enterprise SSO, and managed mTLS proxy policies remain
+site-owned adapters.
+
 Add the exact Web origin, for example `--allow-origin
 https://hmi.example.com`. Origin checking is a second browser boundary, not
 authentication. Native Windows/Linux/Android HMI clients validate WSS through
@@ -266,8 +302,9 @@ after the connection is proven live.
 Run `FraktalSetup.exe` as the Windows user that operates the local HMI and
 select the **Gateway + Web HMI** component in the wizard (with the PLC endpoint).
 The tray menu exposes Ready/PLC unavailable/stopped state plus Start, Stop,
-Restart, **Open Web HMI**, configuration, logs, health, and the deployment
-guide. It supervises unexpected gateway exits with capped restart backoff. A
+Restart, **Open Web HMI**, gateway/proxy configuration, logs, health, and the
+deployment guide. It supervises unexpected gateway and proxy exits with
+capped restart backoff. A
 clean exit from the expiring commissioning profile remains stopped so the tray
 cannot defeat the commissioning TTL.
 

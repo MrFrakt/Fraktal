@@ -87,6 +87,51 @@ Config mode, remove/disable the `Fraktal_Tests` boot project for that ADS port,
 and restart. The following PREOP→OP / ADS 1804 messages are consequences of the
 crashed PLC runtime, not separate I/O mapping faults.
 
+## Commissioning gates (first power-up of a real machine)
+
+Two gates in the `VAR CONSTANT` block of `Fraktal_Press_Demo/00_System/MAIN.TcPOU` deliberately hold
+physical outputs off until the corresponding check is done. Until then the machine looks broken while
+the software is healthy:
+
+- **`CONTROL_CIRCUIT_MAPPING_CONFIRMED`** (default `FALSE`) — `FB_PressIoDriver.M_WriteOutputs` forces
+  `_000K951_A1` (`SwitchControlOn`) and `_000K911_A1` (`EnableControlOn`) FALSE every cycle. Control On
+  cannot energize, so the hardwired N54 D2 relay chain never closes and K985/K986 never enable the
+  valves — **nothing moves at all**, even though the cylinder coils are written unconditionally.
+  Set it only after verifying the K951/K911 electrical semantics on the cabinet. Per the N54 D2 signal
+  table these are *distinct* signals (momentary button coil vs. bus/air-OK enable), yet both currently
+  receive `PowerHal.EnableRequestOut`; confirm that is correct for your wiring before enabling.
+- **`USE_SIMULATION`** (default `FALSE`) — when TRUE, `MAIN` calls `IoDriver.M_ClearOutputs()` every
+  cycle so no physical output is ever energized during virtual commissioning.
+
+### Demo-rig deviation: the E-stop mirror is NOT fail-safe
+
+`_000K910A` (`=000+S1-K910A:14`, "Emergency Switch 1 Pressed") is wired **normally open** on the demo
+rig — confirmed on hardware — so `FB_PressIoDriver` inverts it to produce the healthy mirror. A
+normally-open E-stop contact cannot distinguish "not pressed" from a broken wire, a pulled terminal or a
+dead input card: all read FALSE, and the mirror would report **healthy**. ISO 13850 / EN 60204-1 require
+a normally-**closed** contact so any break forces the stop.
+
+This is tolerable *only* because the mirror is diagnostic and the hardwired N54 D2 relay chain remains
+the safety authority (Core §9). **A production machine must rewire to NC and delete the inversion.**
+
+These are **constants, so they cannot be written online.** Changing one is a source edit in `MAIN` plus
+a download — deliberate and reviewable, rather than a live write from an HMI, XAE watch window or ADS
+client. The trade-off is intentional: switching to virtual commissioning now costs a download.
+
+`MAIN` still publishes read-only mirrors (`UseSimulation`, `ControlCircuitMappingConfirmed`) so the gate
+state remains visible to diagnostics; they are reassigned from the constants every cycle and no logic
+reads them, so writing a mirror online changes nothing.
+
+Read both off a running PLC before suspecting the control logic:
+
+```bash
+cd FraktalCore/HMI/gateway
+dart run tool/probe_sim_flag.dart <amsNetId> [port]
+```
+
+**If forcing the output in TwinCAT XAE works but the PLC never drives it, it is one of these gates** —
+the terminal, wiring and process image are already proven good by that test.
+
 ## Writing your first type (Quick-start, Core §1.1)
 
 1. Copy `scaffold/FB_TemplateCM/`, rename `Template` → your type, **reserve a reason band** (Core §8.8) and record it in the registry.

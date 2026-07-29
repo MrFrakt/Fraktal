@@ -1,10 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_PressIoDriver" Id="{bedb7de0-6ee7-499c-942c-a47bd1ba5582}" SpecialFunc="None">
     <Declaration><![CDATA[// Project Hardware Driver layer. This is the only POU that accesses GVL_PressIO.
 // It maps raw process-image symbols to semantic HALs and refreshes the Core
 // topology publisher. It contains no sequence, mode, recipe or device behavior.
 FUNCTION_BLOCK FB_PressIoDriver
+VAR_OUTPUT
+    // Raw N54 D2 operator buttons, republished so MAIN can drive Control On/Off
+    // from hardware without becoming a second GVL_PressIO consumer.
+    ControlOnButton  : BOOL;
+    ControlOffButton : BOOL;
+END_VAR
 VAR
     _publisher : FB_IoTopologyPublisher;
     {attribute 'OPC.UA.DA' := '0'}
@@ -83,12 +89,30 @@ PowerHal.PowerFeedback := GVL_PressIO._000K911_Y32;
 // process image via the Control-On adapter. The relay chain remains the safety
 // authority; these values drive HMI/interlock display only.
 _controlOn.M_Evaluate(
-    EStopHealthyMirror := GVL_PressIO._000K910A,
+    // POLARITY: =000+S1-K910A:14 is "Emergency Switch 1 PRESSED" (N54 D2), and on
+    // THIS machine the contact is CONFIRMED NORMALLY OPEN - not pressed reads
+    // FALSE, pressed reads TRUE - so inverting it yields the "healthy" mirror
+    // this adapter publishes. Read un-inverted, a healthy machine reported
+    // E-stop-unhealthy and control power was withheld (POWER_ENABLE_WITHHELD)
+    // even with the relay chain demonstrably closed.
+    //
+    // DEMO WIRING ONLY - NOT FAIL-SAFE. A normally-open E-stop contact cannot
+    // distinguish "not pressed" from a broken wire, a pulled terminal or a dead
+    // input card: all read FALSE, and this mirror would then report HEALTHY.
+    // ISO 13850 / EN 60204-1 require a normally-CLOSED contact so that any break
+    // forces the stop. A production machine must rewire to NC and drop this
+    // inversion. This mirror is diagnostic only - the hardwired relay chain
+    // remains the safety authority (Core Sec.9), which is what keeps the
+    // non-fail-safe wiring tolerable on a demo rig and nowhere else.
+    EStopHealthyMirror := NOT GVL_PressIO._000K910A,
     DoorClosed := GVL_PressIO._101B201A,
     LeftButton := GVL_PressIO._101S102,
     RightButton := GVL_PressIO._101S101,
     ControlOnFeedback := GVL_PressIO._000K911_Y32,
-    BusOk := busOk);
+    BusOk := busOk,
+    ControlOnButton := GVL_PressIO._000BS901,
+    ControlOffButton := GVL_PressIO._000BS902,
+    AirPressureOk := GVL_PressIO._000MB085A_4 AND NOT GVL_PressIO._000MB085A_2);
 RawEStopHealthy := _controlOn.RawEStopHealthy;
 SafeEStopOk := _controlOn.SafeEStopOk;
 SafeGuardClosed := _controlOn.SafeGuardClosed;
@@ -97,7 +121,9 @@ SafePneumaticPermit := _controlOn.SafePneumaticPermit;
 SafetyFieldbusHealthy := _controlOn.SafetyFieldbusHealthy;
 StandardIoHealthy := _controlOn.StandardIoHealthy;
 PartPresentHal.Quality := StandardIoHealthy;
-AirPressureHal.Quality := StandardIoHealthy;]]></ST></Implementation>
+AirPressureHal.Quality := StandardIoHealthy;
+ControlOnButton := GVL_PressIO._000BS901;
+ControlOffButton := GVL_PressIO._000BS902;]]></ST></Implementation>
     </Method>
     <Method Name="M_ClearOutputs" Id="{f625a4c1-e10f-4e07-b91a-6885860994d0}">
       <Declaration><![CDATA[METHOD M_ClearOutputs]]></Declaration>
@@ -126,8 +152,12 @@ GVL_PressIO._101K202B := PressHal.RetractOut;
 GVL_PressIO._101P101 := LampsOn;
 GVL_PressIO._101P102 := LampsOn;
 IF ControlCircuitMappingConfirmed THEN
-    GVL_PressIO._000K951_A1 := PowerHal.EnableRequestOut;
-    GVL_PressIO._000K911_A1 := PowerHal.EnableRequestOut;
+    // N54 D2: these are DIFFERENT signals. SwitchControlOn is the momentary
+    // button coil (2 s pulse); EnableControlOn is the bus/air permissive that
+    // must be TRUE whenever the machine is healthy. Driving both from one power
+    // request was why the control circuit could never energize.
+    GVL_PressIO._000K951_A1 := _controlOn.SwitchControlOn;
+    GVL_PressIO._000K911_A1 := _controlOn.EnableControlOn;
 ELSE
     GVL_PressIO._000K951_A1 := FALSE;
     GVL_PressIO._000K911_A1 := FALSE;
@@ -138,10 +168,18 @@ END_IF]]></ST></Implementation>
 // the Control-On / StandardIoHealthy verdict — the HMI fieldbus tree mirrors
 // the actual bus (as XAE shows it). StandardIoHealthy is no longer an input.
 METHOD M_RefreshFieldbus
+VAR_INPUT
+    // §10.5.1: the bus picture is a diagnostic surface, so the master is only
+    // scanned while a consumer is actually reading it (the HMI fieldbus view is
+    // open). Pass FALSE to park the scan; published states are then held, not
+    // invalidated. One scan always runs after Setup so M_BusOk() has real data.
+    BusViewActive : BOOL;
+END_VAR
 VAR
     D : ST_Diagnostic;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[IF _attached THEN
+    _busHealth.M_RequestScan(Active := BusViewActive);
     _busHealth.M_Refresh();  // publishes each node's real INIT/PREOP/SAFEOP/OP/FAULT
     _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 1, Value := GVL_PressIO._101B301A);
     _publisher.M_SetDigitalValue(NodeIndex := 3, ChannelIndex := 2, Value := GVL_PressIO._101B301B);

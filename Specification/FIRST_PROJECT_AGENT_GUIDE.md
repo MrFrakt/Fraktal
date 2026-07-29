@@ -167,6 +167,36 @@ and all safety-dependent physical tests still marked separately for SAT.
 EtherCAT OP/mapping validation, running task, boot-project decision, and the
 deployed TMC corresponding to the active application.
 
+### 6.9 Commissioning gates — check these BEFORE debugging "nothing moves"
+
+On first power-up of real hardware, two `VAR CONSTANT` gates in the application's `MAIN` deliberately
+hold physical outputs off. They are **not** bugs, and chasing control logic past them wastes days:
+
+| Gate (`VAR CONSTANT` in `MAIN`) | When wrong | Symptom |
+| --- | --- | --- |
+| `CONTROL_CIRCUIT_MAPPING_CONFIRMED` | `FALSE` | The I/O driver forces the control-circuit coils (`SwitchControlOn` / `EnableControlOn`) FALSE every cycle. The relay chain never closes, the valve-enable relays never energize, and **no output moves at all** — even though the actuator coils are written unconditionally. |
+| `USE_SIMULATION` | `TRUE` | `MAIN` calls `M_ClearOutputs()` every cycle: outputs stay dark while the simulation driver animates the plant, so the HMI shows motion the machine never performs. |
+
+**The decisive test:** force the output in TwinCAT XAE. If forcing works but the PLC never drives it, it
+is one of these gates — the terminal, wiring and process image are already proven good.
+
+They are constant so they **cannot be flipped online**; changing one is a source edit plus a download.
+`MAIN` publishes inert read-only mirrors (`UseSimulation`, `ControlCircuitMappingConfirmed`) purely so
+the state stays visible over ADS. Read them live with:
+
+```bash
+cd FraktalCore/HMI/gateway && dart run tool/probe_sim_flag.dart <amsNetId> [port]
+```
+
+`CONTROL_CIRCUIT_MAPPING_CONFIRMED` is a **safety interlock**: it holds the control coils off until the
+control-circuit electrical semantics are verified on the real cabinet. **An agent must never set it —**
+report it and stop; that verification belongs to the commissioning engineer.
+
+Once the gate is open, the remaining "outputs still dead" causes are ordinary permits, in this order:
+control-power `SafetyPermit` / `FieldbusHealthy` (a withheld-power fault latches `RearmRequired`, so an
+operator reset is needed after fixing the cause), then sensor **polarity** — an E-stop or pressure input
+read with the wrong sense makes a healthy machine report unsafe and silently withholds control power.
+
 ## 7. Phase E — TF6100 and OPC UA commissioning
 
 TF6100 is installed and configured on the computer that owns the PLC runtime
@@ -263,9 +293,12 @@ namespace/node rights, server restart, and an authorized browse showing
    HMI, and `/fraktal` completes the WebSocket handshake and Fraktal discovery.
    For a local browser, open `http://127.0.0.1:8080/`. A release Web HMI derives
    the same-origin `ws://.../fraktal` or `wss://.../fraktal` endpoint
-   automatically. For remote browsers, put the loopback-only gateway behind an
-   authenticated same-host HTTPS/WSS reverse proxy; never expose the gateway
-   directly on a LAN interface.
+   automatically. For remote Windows-hosted browsers, select the installer's
+   **secure remote Web HMI** option, set the exact HTTPS origin, and trust the
+   exported `FraktalGatewayRootCA.crt` on every authorized client. This deploys
+   the bundled authenticated same-host HTTPS/WSS proxy while the gateway remains
+   loopback-only. Linux/site-SSO deployments provide the equivalent proxy;
+   never expose the gateway directly on a LAN interface.
 3. For production native Windows/Linux/Android clients, use the configured
    `wss://<gateway>/fraktal` endpoint. The same gateway protocol is implemented
    by native and browser clients. A direct Windows
@@ -469,6 +502,9 @@ development PC.
    `/fraktal` WebSocket, non-empty discovery, and an acknowledged mailbox
    request separately. Open `http://127.0.0.1:8080/` for a same-host browser;
    release Web builds select the same-origin gateway automatically. Native and
-   Web remote HMIs use an authenticated TLS reverse proxy and `wss://`;
-   the gateway itself remains loopback-only (browsers cannot open raw OPC UA
+   Web remote HMIs use an authenticated TLS reverse proxy and `wss://`. On
+   Windows the installer can deploy/supervise that proxy, write the exact
+   `--allow-origin`, and add a local-subnet firewall rule; the exported proxy CA
+   root still has to be trusted on each client. The gateway itself remains
+   loopback-only (browsers cannot open raw OPC UA
    TCP).

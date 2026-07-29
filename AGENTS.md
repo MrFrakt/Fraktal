@@ -333,8 +333,14 @@ dart run tool/build_gateway.dart --clean
 On Windows this also creates
 `build/gateway/installer/FraktalSetup.exe` — a combined installer (PowerShell
 WinForms wizard) for the native HMI app and/or the gateway + Web HMI, each with
-its own PLC endpoint; Linux output includes `web/`, the systemd unit, and
-protected environment example. Build on the target OS. Production distribution
+its own PLC endpoint. The Windows gateway option can also deploy a pinned,
+checksum-verified Caddy HTTPS/WSS proxy, collect/hash browser credentials, write
+the exact `--allow-origin`, generate/export an internal LAN-CA root, add a
+local-subnet firewall rule, and supervise both processes from the tray. Leave
+the new-password fields blank on upgrade to preserve site proxy security.
+Linux output includes `web/`, the systemd unit, and protected environment
+example; its reverse proxy remains site-managed. Build on the target OS.
+Production distribution
 shall sign binaries
 and record hashes. Prove `/livez`, `/readyz`, static `/`, `/fraktal`, Fraktal
 discovery, mailbox acknowledgement, and link-loss recovery as separate gates;
@@ -343,6 +349,44 @@ never infer PLC readiness from the process or page alone.
 ---
 
 ## 6. Known deferred / watch items — do NOT "fix" blindly
+
+### 6.0 Commissioning gates — read these BEFORE debugging "nothing works"
+
+Two gates in the `VAR CONSTANT` block of `Fraktal_Press_Demo/00_System/MAIN.TcPOU` can make a perfectly
+healthy machine look completely broken. **Read them off the live PLC first**; they have cost multiple
+wasted debugging sessions chasing control logic:
+
+| Gate (`VAR CONSTANT`) | When wrong | Symptom |
+| --- | --- | --- |
+| `CONTROL_CIRCUIT_MAPPING_CONFIRMED` | `FALSE` | `M_WriteOutputs` **forces `_000K951_A1` and `_000K911_A1` FALSE every cycle**. Control On can never energize, so the hardwired N54 D2 relay chain never closes and K985/K986 never enable the valves — **no output moves anywhere**, even though the valve coils are written unconditionally. |
+| `USE_SIMULATION` | `TRUE` | `MAIN` calls `IoDriver.M_ClearOutputs()` every cycle, so all physical outputs are held FALSE while the simulation driver still animates the plant — the HMI shows movement, the terminals stay dark. |
+
+They are **`VAR CONSTANT` on purpose: they cannot be changed online.** Defeating a gate requires a
+source edit plus a download — a reviewable, auditable act, not a live write from an HMI or ADS client.
+Do not "helpfully" convert them back to writable variables.
+
+`MAIN` also publishes inert read-only mirrors named `UseSimulation` / `ControlCircuitMappingConfirmed`,
+reassigned from the constants every cycle purely so the gate state stays visible over ADS (the compiler
+inlines constants and may publish no symbol). **Nothing reads the mirrors** — writing one online has no
+effect, and adding a consumer that reads a mirror would silently re-open the online-write hole.
+
+Diagnose in seconds instead of hours:
+
+```bash
+cd FraktalCore/HMI/gateway
+dart run tool/probe_sim_flag.dart <amsNetId> [port]   # prints both flags live
+```
+
+The tell that separates these from a logic bug: **forcing the output in TwinCAT XAE works.** That proves
+the terminal, wiring and process image are fine and the PLC simply is not driving the coil.
+
+`CONTROL_CIRCUIT_MAPPING_CONFIRMED` is a **safety interlock, not a nuisance flag**. It holds the control
+coils off until someone verifies the K951/K911 electrical semantics on the real cabinet (per N54 D2,
+`SwitchControlOn` and `EnableControlOn` are *distinct* signals, yet both currently receive
+`PowerHal.EnableRequestOut`). **An agent must never set it to TRUE** — that is an electrical
+verification on live equipment and belongs to the commissioning engineer. Report it and stop.
+
+### 6.1 Deferrals and first-compile caveats
 
 These are recorded honestly in `IMPLEMENTATION_NOTES.md` and the spec. They are **first-compile watch
 items or deliberate deferrals**, not bugs to silently change without a compiler or a spec reason:
@@ -357,11 +401,12 @@ items or deliberate deferrals**, not bugs to silently change without a compiler 
   owner; keep direct request-symbol writes for OPC UA clients at the published module node.
 - `FB_TemplateCM` (`scaffold/`) is a **copy-template, not compiled** — it is intentionally absent from
   every `.plcproj`. Its tests are born RED on purpose (§5.7).
-- `I_EventSink` historian adapters, automated PKI enrollment, site reverse-proxy
-  authentication, and a shared production document store remain deployment
-  adapters. Native OPC UA, the gateway protocol, loopback Web hosting, Windows
-  tray installer, and Linux systemd packaging are implemented; do not describe
-  them as deferred.
+- `I_EventSink` historian adapters, automated PKI enrollment, Linux/site SSO or
+  mTLS reverse-proxy policy, and a shared production document store remain
+  deployment adapters. Native OPC UA, the gateway protocol, loopback Web
+  hosting, the bundled authenticated Windows HTTPS/WSS proxy, Windows tray
+  installer, and Linux systemd packaging are implemented; do not describe them
+  as deferred.
 - Annexes B/D/G/I predate the base classes and show the *expanded* lifecycle form for pedagogy; a
   conforming type keeps only their `CASE` bodies (§2.2).
 

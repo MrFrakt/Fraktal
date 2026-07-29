@@ -42,7 +42,15 @@ class FieldbusTree extends StatefulWidget {
 
 class _FieldbusTreeState extends State<FieldbusTree> {
   final Set<String> _expanded = {};
-  BusNode? _selected;
+  /// Selection is held as the node's NAME, not the [BusNode] object.
+  ///
+  /// Each refresh rebuilds the whole projection, so every node is a NEW
+  /// instance. Holding the object pinned the pane to the snapshot taken when the
+  /// row was tapped: node state and channel values froze until the user selected
+  /// away and back (which re-captured a fresh object). `Name` is the stable
+  /// identity here — it is the exact schematic tag (Core §10.5.1) and unique
+  /// within the bus.
+  String? _selectedName;
 
   @override
   void initState() {
@@ -131,10 +139,10 @@ class _FieldbusTreeState extends State<FieldbusTree> {
     final tint = nodeStateColor(context, eff);
     final ownBad = n.state != NodeState.operational;
     final open = _expanded.contains(n.name) || depth == 0;
-    final selected = _selected?.name == n.name;
+    final selected = _selectedName == n.name;
     final tiles = <Widget>[
       InkWell(
-        onTap: () => setState(() => _selected = n),
+        onTap: () => setState(() => _selectedName = n.name),
         child: Container(
           height: 40,
           margin: EdgeInsets.only(left: 4.0 + depth * 14, right: 4, bottom: 2),
@@ -200,8 +208,21 @@ class _FieldbusTreeState extends State<FieldbusTree> {
     return tiles;
   }
 
+  /// Depth-first search for [name] in the CURRENT tree, so the detail pane always
+  /// renders live data instead of the instance captured when the row was tapped.
+  BusNode? _findNode(List<BusNode> roots, String name) {
+    for (final root in roots) {
+      if (root.name == name) return root;
+      final hit = _findNode(root.children, name);
+      if (hit != null) return hit;
+    }
+    return null;
+  }
+
   Widget _channelPanel(BuildContext context) {
-    final n = _selected;
+    final name = _selectedName;
+    // Re-resolve every build: each refresh produces new BusNode instances.
+    final n = name == null ? null : _findNode(widget.app.fieldbus, name);
     if (n == null)
       return const Center(child: LText('Select a node to see its I/O'));
     if (n.channels.isEmpty)

@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
   <POU Name="FB_PressDemoChangeover" Id="{27be7602-c702-dcca-822f-fb9fc2c73001}" SpecialFunc="None">
     <Declaration><![CDATA[// CHANGEOVER mode chain (Core §6.2/§6.8 ST skeleton on FB_SequenceBase): validate
 // the selected model, establish the shared load-safe position, then ask the
@@ -24,7 +24,7 @@ END_VAR]]></Declaration>
     <Method Name="M_Reset" Id="{27be7602-c702-dcca-822f-fb9fc2c73003}">
       <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_ResetBase();
+        <ST><![CDATA[M_ResetBase(0);
 _answer := 0;
 _loadPositionRunning := FALSE;
 _loadPosition.M_Reset(BaseStepNo := 0);]]></ST>
@@ -47,7 +47,7 @@ CASE _step OF
         M_ClearDecision();
         _loadPositionRunning := FALSE;
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 800);
+        M_Advance(OnAdvance := 800, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     800:  // validate the transactionally-loaded model
         M_Step(StepNo := 800, StepName := 'project.step.pressChangeoverValidateModel',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
@@ -57,7 +57,7 @@ CASE _step OF
             _loadPositionRunning := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 810);
+        M_Advance(OnAdvance := 810, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     810:  // shared load-safe position (composite step)
         IF NOT _loadPositionRunning THEN
             _loadPosition.M_Reset(BaseStepNo := 810);
@@ -68,7 +68,7 @@ CASE _step OF
             _loadPositionRunning := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 870);
+        M_Advance(OnAdvance := 870, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     870:  // request tooling/material confirmation
         M_Step(StepNo := 870, StepName := 'project.step.pressChangeoverRequestConfirmation',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
@@ -79,7 +79,7 @@ CASE _step OF
         _decisionRequest.Timeout := T#0S;
         M_AskDecision(Req := _decisionRequest);
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 880);
+        M_Advance(OnAdvance := 880, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     880:  // await confirmation; JUMP1 = repeat the guided position
         M_Step(StepNo := 880, StepName := 'project.step.pressChangeoverAwaitConfirmation',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
@@ -93,7 +93,7 @@ CASE _step OF
             _modelSelected := M_Await(Idx := 1,
                 Label := 'project.condition.pressChangeoverConfirmation', Ok := FALSE);
         END_IF
-        M_Advance(OnAdvance := 999, OnJump1 := 810);
+        M_Advance(OnAdvance := 999, OnJump1 := 810, OnJump2 := -1, OnJump3 := -1);
     999:  // complete
         M_Step(StepNo := 999, StepName := 'project.step.pressChangeoverComplete',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -124,5 +124,20 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_outCmd) AND __ISVALIDREF(_mode
     AND _loadPosition.Setup(Host := Host, PressRam := PressRam, Door := Door, PartSlide := PartSlide);]]></ST>
       </Implementation>
     </Method>
+    <LineIds Name="FB_PressDemoChangeover">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoChangeover.M_Reset">
+      <LineId Id="3" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoChangeover.M_Run">
+      <LineId Id="3" Count="68" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoChangeover.Setup">
+      <LineId Id="3" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
   </POU>
 </TcPlcObject>

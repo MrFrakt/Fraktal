@@ -4,6 +4,12 @@ param(
   # (the documented one-option/value-per-line contract). When omitted, the
   # example default is left in place so a standalone run stays self-documenting.
   [string]$Endpoint,
+  # Secure remote access is a separate listener. Caddy terminates HTTPS/WSS
+  # while the Dart gateway remains bound to 127.0.0.1.
+  [switch]$EnableRemoteAccess,
+  [string]$PublicOrigin,
+  [string]$ProxyUsername = 'fraktal',
+  [switch]$ConfigureFirewall,
   # Set by the combined wizard: suppress interactive follow-ups (Notepad) that
   # would block the caller waiting on this script's process tree.
   [switch]$Unattended
@@ -16,6 +22,7 @@ $dataRoot = Join-Path $env:LOCALAPPDATA 'Fraktal\Gateway'
 $programsRoot = Join-Path ([Environment]::GetFolderPath('Programs')) 'Fraktal Gateway'
 $startupRoot = [Environment]::GetFolderPath('Startup')
 
+Write-Output 'step: stopping any running gateway/tray'
 $existingTray = Join-Path $installRoot 'fraktal_gateway_tray.exe'
 if (Test-Path -LiteralPath $existingTray) {
   Start-Process -FilePath $existingTray -ArgumentList '--stop' -Wait -WindowStyle Hidden
@@ -26,6 +33,9 @@ Get-Process -Name 'fraktal_gateway_tray' -ErrorAction SilentlyContinue |
 Get-Process -Name 'fraktal_gateway' -ErrorAction SilentlyContinue |
   Where-Object { $_.Path -like "$installRoot*" } |
   Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -Name 'caddy' -ErrorAction SilentlyContinue |
+  Where-Object { $_.Path -like "$installRoot*" } |
+  Stop-Process -Force -ErrorAction SilentlyContinue
 
 New-Item -ItemType Directory -Force -Path $installRoot, $dataRoot, (Join-Path $dataRoot 'logs'), $programsRoot | Out-Null
 
@@ -33,11 +43,17 @@ $payload = @(
   'fraktal_gateway.exe',
   'fraktal_gateway_tray.exe',
   'fraktal_opcua.dll',
+  'caddy.exe',
+  'CADDY_LICENSE.txt',
+  'CADDY_README.md',
   'DEPLOYMENT.md',
   'WEB_HMI_GATEWAY_DEPLOYMENT.md',
   'gateway.args.example',
+  'configure_reverse_proxy.ps1',
+  'configure_proxy_firewall.ps1',
   'uninstall_gateway.ps1'
 )
+Write-Output 'step: copying program files'
 foreach ($name in $payload) {
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $installRoot $name) -Force
 }
@@ -56,6 +72,7 @@ $webRoot = Join-Path $installRoot 'web'
 if (Test-Path -LiteralPath $webNext) {
   Remove-Item -LiteralPath $webNext -Recurse -Force
 }
+Write-Output 'step: expanding Web HMI bundle'
 Expand-Archive -LiteralPath $webArchive -DestinationPath $webNext -Force
 if (-not (Test-Path -LiteralPath (Join-Path $webNext 'index.html'))) {
   throw 'The packaged Web HMI is missing index.html.'
@@ -65,36 +82,113 @@ if (Test-Path -LiteralPath $webRoot) {
 }
 Move-Item -LiteralPath $webNext -Destination $webRoot
 
+Write-Output 'step: writing gateway.args'
 $configPath = Join-Path $dataRoot 'gateway.args'
 if (-not (Test-Path -LiteralPath $configPath)) {
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gateway.args.example') -Destination $configPath
-} elseif (-not (Select-String -LiteralPath $configPath -Pattern '^--web-root\s*$' -Quiet)) {
-  Add-Content -LiteralPath $configPath -Value "`r`n# Web HMI installed with the gateway`r`n--web-root`r`n$webRoot"
 }
 
-# Line-aware --plc-endpoint injection: find the `--plc-endpoint` line and
-# overwrite the value on the following line. Never regex-replace the literal
-# default URI — it is fragile if the example ever changes. A missing option line
-# is appended so the configured endpoint always takes effect.
-if ($Endpoint) {
-  $lines = Get-Content -LiteralPath $configPath
-  $idx = -1
+# Replace one option and its following value without depending on the example's
+# previous literal. Duplicate occurrences are collapsed so one file has one
+# authoritative value for every installer-owned setting.
+function Set-FraktalArgument(
+  [string]$Path,
+  [string]$Option,
+  [string]$Value
+) {
+  $lines = Get-Content -LiteralPath $Path
+  $result = New-Object System.Collections.Generic.List[string]
+  $found = $false
   for ($i = 0; $i -lt $lines.Count; $i++) {
-    if ($lines[$i] -match '^\s*--plc-endpoint\s*$') { $idx = $i; break }
+    if ($lines[$i].Trim() -eq $Option) {
+      if (-not $found) {
+        $result.Add($Option) | Out-Null
+        $result.Add($Value) | Out-Null
+        $found = $true
+      }
+      if ($i + 1 -lt $lines.Count -and
+          -not $lines[$i + 1].TrimStart().StartsWith('--')) {
+        $i++
+      }
+      continue
+    }
+    $result.Add($lines[$i]) | Out-Null
   }
-  if ($idx -ge 0 -and $idx + 1 -lt $lines.Count) {
-    $lines[$idx + 1] = $Endpoint
-    Set-Content -LiteralPath $configPath -Value $lines -Encoding ASCII
-  } else {
-    Add-Content -LiteralPath $configPath -Value "`r`n--plc-endpoint`r`n$Endpoint"
+  if (-not $found) {
+    if ($result.Count -gt 0 -and $result[$result.Count - 1] -ne '') {
+      $result.Add('') | Out-Null
+    }
+    $result.Add($Option) | Out-Null
+    $result.Add($Value) | Out-Null
   }
+  Set-Content -LiteralPath $Path -Value $result -Encoding UTF8
 }
 
+# The local listener is installer-owned. Rewriting it also repairs malformed
+# legacy values such as `8080\`, which otherwise make Dart's int.parse abort
+# before the gateway creates a listener.
+Set-FraktalArgument -Path $configPath -Option '--port' -Value '8080'
+Set-FraktalArgument -Path $configPath -Option '--web-root' -Value $webRoot
+if ($Endpoint) {
+  Set-FraktalArgument -Path $configPath -Option '--plc-endpoint' -Value $Endpoint
+}
+
+if ($EnableRemoteAccess) {
+  $proxyConfig = Join-Path $dataRoot 'proxy\Caddyfile'
+  $proxyOrigin = Join-Path $dataRoot 'proxy\public-origin.txt'
+  if ([string]::IsNullOrWhiteSpace($PublicOrigin) -and
+      (Test-Path -LiteralPath $proxyOrigin)) {
+    $PublicOrigin = (Get-Content -LiteralPath $proxyOrigin -Raw).Trim()
+  }
+  if ([string]::IsNullOrWhiteSpace($PublicOrigin)) {
+    throw 'PublicOrigin is required when secure remote access is enabled.'
+  }
+  $proxyPassword = [Environment]::GetEnvironmentVariable(
+    'FRAKTAL_PROXY_PASSWORD',
+    [EnvironmentVariableTarget]::Process
+  )
+  if ((Test-Path -LiteralPath $proxyConfig) -and
+      (Test-Path -LiteralPath $proxyOrigin) -and
+      [string]::IsNullOrEmpty($proxyPassword)) {
+    # Passwords are intentionally unrecoverable. An upgrade with no new
+    # password preserves the validated site Caddyfile, hash, CA, and firewall
+    # rule instead of silently replacing site security.
+    $normalizedOrigin = (Get-Content -LiteralPath $proxyOrigin -Raw).Trim()
+    $validation = Start-Process -FilePath (Join-Path $installRoot 'caddy.exe') `
+      -ArgumentList @(
+        'validate', '--config', "`"$proxyConfig`"", '--adapter', 'caddyfile'
+      ) `
+      -Wait -PassThru -WindowStyle Hidden
+    if ($validation.ExitCode -ne 0) {
+      throw "The preserved HTTPS proxy configuration is not valid with the packaged Caddy version (exit $($validation.ExitCode))."
+    }
+  } else {
+    $proxyScript = Join-Path $installRoot 'configure_reverse_proxy.ps1'
+    & $proxyScript `
+      -PublicOrigin $PublicOrigin `
+      -Username $ProxyUsername `
+      -GatewayPort 8080 `
+      -InstallRoot $installRoot `
+      -DataRoot $dataRoot `
+      -ConfigureFirewall:$ConfigureFirewall `
+      -Unattended:$Unattended
+    $normalizedOrigin = (Get-Content -LiteralPath $proxyOrigin -Raw).Trim()
+  }
+  Set-FraktalArgument -Path $configPath -Option '--allow-origin' -Value $normalizedOrigin
+}
+
+Write-Output 'step: shortcuts and uninstall entry'
 $shell = New-Object -ComObject WScript.Shell
-function Set-Shortcut([string]$Path, [string]$Target, [string]$WorkingDirectory) {
+function Set-Shortcut(
+  [string]$Path,
+  [string]$Target,
+  [string]$WorkingDirectory,
+  [string]$Arguments = ''
+) {
   $shortcut = $shell.CreateShortcut($Path)
   $shortcut.TargetPath = $Target
   $shortcut.WorkingDirectory = $WorkingDirectory
+  $shortcut.Arguments = $Arguments
   $shortcut.Description = 'Fraktal OPC UA WebSocket Gateway'
   $shortcut.Save()
 }
@@ -108,6 +202,19 @@ $editShortcut.TargetPath = "$env:SystemRoot\System32\notepad.exe"
 $editShortcut.Arguments = '"' + $configPath + '"'
 $editShortcut.WorkingDirectory = $dataRoot
 $editShortcut.Save()
+if ($EnableRemoteAccess) {
+  $proxyRoot = Join-Path $dataRoot 'proxy'
+  Set-Shortcut `
+    -Path (Join-Path $programsRoot 'Edit HTTPS Proxy Configuration.lnk') `
+    -Target "$env:SystemRoot\System32\notepad.exe" `
+    -WorkingDirectory $proxyRoot `
+    -Arguments ('"' + (Join-Path $proxyRoot 'Caddyfile') + '"')
+  Set-Shortcut `
+    -Path (Join-Path $programsRoot 'Client CA Certificate.lnk') `
+    -Target "$env:SystemRoot\explorer.exe" `
+    -WorkingDirectory $proxyRoot `
+    -Arguments ('/select,"' + (Join-Path $proxyRoot 'FraktalGatewayRootCA.crt') + '"')
+}
 
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FraktalGateway'
 New-Item -Path $uninstallKey -Force | Out-Null
@@ -122,10 +229,22 @@ $uninstallScript = Join-Path $installRoot 'uninstall_gateway.ps1'
 $uninstallCommand = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $uninstallScript + '"'
 Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value $uninstallCommand
 
+# Launch the tray app. It is long-lived and deliberately outlives this script.
+#
+# Callers must therefore wait on THIS process only, never on its process tree:
+# `Start-Process -Wait` puts the child in a job object and waits for the whole
+# job to empty, which the running tray never lets happen. fraktal_wizard.ps1 uses
+# System.Diagnostics.Process.WaitForExit() for exactly this reason. Trying to
+# detach here instead (e.g. `cmd /c start`) does NOT help — job membership is
+# inherited and cannot be shed without CREATE_BREAKAWAY_FROM_JOB.
+Write-Output 'step: starting tray'
 Start-Process -FilePath $trayExe -WorkingDirectory $installRoot
+
 # Only pop Notepad for a direct/standalone run. Under the combined wizard the
 # child process tree is waited on, so opening an interactive editor here makes
 # the wizard appear hung (its Close button cannot run until this returns).
 if (-not $Unattended) {
   Start-Process -FilePath 'notepad.exe' -ArgumentList ('"' + $configPath + '"')
 }
+
+Write-Output 'step: done'

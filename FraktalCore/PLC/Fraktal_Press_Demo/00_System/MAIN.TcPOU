@@ -26,8 +26,18 @@ VAR
     InitialModel : ST_ModelId;
     Plate : ST_Nameplate;
     Init : BOOL;
-    UseSimulation : BOOL := FALSE; // set FALSE only after I/O + safety aliases are linked
-    ControlCircuitMappingConfirmed : BOOL; // verify K951/K911 electrical semantics first
+    // Read-only MIRRORS of the commissioning gates (see the VAR CONSTANT block).
+    // They exist only so the gate state stays visible over ADS/OPC UA: the
+    // compiler inlines constants, which may publish no symbol at all, and losing
+    // that visibility would remove the fastest way to diagnose "no output moves".
+    // They are reassigned from the constants every cycle and nothing reads them,
+    // so writing one online is inert - the constant remains the only authority.
+    UseSimulation : BOOL;
+    ControlCircuitMappingConfirmed : BOOL;
+    // §10.5.1 demand gate, written by the HMI while its fieldbus page is open.
+    // FALSE parks the EtherCAT master scan (no ADS traffic for a view nobody is
+    // watching); the last read states are held, never falsified.
+    FieldbusViewActive : BOOL;
 
     // Simulation controls. E-stop is normally closed: TRUE = healthy circuit.
     SimEStopNc : BOOL := TRUE;
@@ -49,9 +59,30 @@ VAR
     LampsOn : BOOL;
     ControlOnEdge : R_TRIG;
     ControlOffEdge : R_TRIG;
+    ControlOnAdopted : R_TRIG;   // rising edge of the relay chain's feedback
+END_VAR
+VAR CONSTANT
+    // COMMISSIONING GATES - deliberately CONSTANT so they cannot be flipped
+    // online. Defeating a gate must be a source change plus a download: a
+    // reviewable, auditable act, not a live write from an HMI or ADS client.
+    //
+    // TRUE makes MAIN call M_ClearOutputs() every cycle, so no physical output
+    // is ever energized while the simulation driver animates the plant.
+    USE_SIMULATION : BOOL := FALSE;
+    // FALSE makes M_WriteOutputs force _000K951_A1 and _000K911_A1 FALSE every
+    // cycle. Control On then cannot energize, the hardwired N54 D2 relay chain
+    // never closes, and NOTHING moves - even though the cylinder coils are
+    // written unconditionally. Set TRUE only after verifying the K951/K911
+    // electrical semantics on the cabinet; per N54 D2 SwitchControlOn and
+    // EnableControlOn are distinct signals.
+    CONTROL_CIRCUIT_MAPPING_CONFIRMED : BOOL := TRUE;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[IF NOT Init THEN
+      <ST><![CDATA[// Mirror the compile-time gates so they remain observable (see declaration).
+UseSimulation := USE_SIMULATION;
+ControlCircuitMappingConfirmed := CONTROL_CIRCUIT_MAPPING_CONFIRMED;
+
+IF NOT Init THEN
     Init := TRUE;
     // Initial mechanically safe/load position: ram up, door open, slide outside.
     PressHal.RetractedFb := TRUE;
@@ -104,15 +135,34 @@ END_IF
 // Ordinary simulated local station buttons. The worksheet does not list real
 // Control On/Off input buttons; physical operation therefore uses HMI requests
 // until those devices are identified. Control Off wins simultaneous edges.
-ControlOnEdge(CLK := UseSimulation AND SimControlOnButton);
-ControlOffEdge(CLK := UseSimulation AND SimControlOffButton);
+// Source the Control On/Off edges from the REAL buttons on a live machine, and
+// from the simulated ones only under USE_SIMULATION. Previously both edges were
+// ANDed with USE_SIMULATION, so on hardware neither could ever fire and the
+// machine had no headless Control On path at all.
+IF USE_SIMULATION THEN
+    ControlOnEdge(CLK := SimControlOnButton);
+    ControlOffEdge(CLK := SimControlOffButton);
+ELSE
+    ControlOnEdge(CLK := IoDriver.ControlOnButton);
+    ControlOffEdge(CLK := IoDriver.ControlOffButton);
+END_IF
 IF ControlOffEdge.Q THEN
     PneumaticPress.RequestLocalControl(ControlOn := FALSE);
 ELSIF ControlOnEdge.Q THEN
     PneumaticPress.RequestLocalControl(ControlOn := TRUE);
 END_IF
+// Adopt the relay chain's established state: it is the authority. Without this
+// the PLC can sit with no power request while K911_Y32 shows control is already
+// ON (observed on the press), leaving PLC and hardware permanently out of step.
+// One-shot: re-issuing POWER_ON every scan would re-fault the power group on
+// any momentary permit dip and spam the event log. Latch on the feedback's
+// rising edge only, and re-arm the latch when control drops away.
+ControlOnAdopted(CLK := PowerHal.PowerFeedback);
+IF NOT USE_SIMULATION AND ControlOnAdopted.Q AND NOT ControlOffEdge.Q THEN
+    PneumaticPress.RequestLocalControl(ControlOn := TRUE);
+END_IF
 
-IF UseSimulation THEN
+IF USE_SIMULATION THEN
     SimulationDriver.M_ReadInputs(DoorHal := DoorHal, TwoHandHal := TwoHandHal,
         PowerHal := PowerHal, PartPresentHal := PartPresentHal,
         AirPressureHal := AirPressureHal, RawEStopHealthy := RawEStopHealthy,
@@ -160,7 +210,7 @@ OutputAuthority.M_Apply(PressHal := PressHal, DoorHal := DoorHal,
     SafePneumaticPermit := SafePneumaticPermit,
     StandardIoHealthy := StandardIoHealthy,
     HazardousRamPermit := SafeGuardClosed AND SafeTwoHandActive);
-IF UseSimulation THEN
+IF USE_SIMULATION THEN
     // Never leave physical outputs energized while virtual commissioning.
     IoDriver.M_ClearOutputs();
     SimulationDriver.M_RefreshPlant();
@@ -170,13 +220,17 @@ ELSE
         AND PneumaticPress.OutImm.PartPresent AND PneumaticPress.OutImm.AirPressureOk;
     IoDriver.M_WriteOutputs(PressHal := PressHal, DoorHal := DoorHal,
         SlideHal := SlideHal, PowerHal := PowerHal, LampsOn := LampsOn,
-        ControlCircuitMappingConfirmed := ControlCircuitMappingConfirmed);
+        ControlCircuitMappingConfirmed := CONTROL_CIRCUIT_MAPPING_CONFIRMED);
 END_IF
-IoDriver.M_RefreshFieldbus();  // node state comes from the real EtherCAT master
+// Node state comes from the real EtherCAT master. §10.5.1 is a diagnostic
+// surface, so the master is scanned only while a client is watching the bus
+// view: the HMI sets FieldbusViewActive when its fieldbus page is open (the same
+// on-demand gating the read tiers already apply to the topology data itself).
+IoDriver.M_RefreshFieldbus(BusViewActive := FieldbusViewActive);
 ]]></ST>
     </Implementation>
     <LineIds Name="MAIN">
-      <LineId Id="3" Count="121" />
+      <LineId Id="3" Count="129" />
       <LineId Id="2" Count="0" />
     </LineIds>
   </POU>

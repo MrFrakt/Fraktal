@@ -15,6 +15,11 @@ opc.tcp://127.0.0.1:4840
 /fraktal
 --web-root
 %LOCALAPPDATA%\Programs\Fraktal Gateway\web
+# FraktalSetup writes one exact --allow-origin when its secure remote Web HMI
+# option is selected. Caddy remains the LAN listener; this gateway stays on
+# loopback. Example:
+# --allow-origin
+# https://192.168.100.126
 --security-profile
 production
 --security-policy

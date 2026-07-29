@@ -13,6 +13,9 @@ Get-Process -Name 'fraktal_gateway_tray' | Stop-Process -Force
 Get-Process -Name 'fraktal_gateway' |
   Where-Object { $_.Path -like "$installRoot*" } |
   Stop-Process -Force
+Get-Process -Name 'caddy' |
+  Where-Object { $_.Path -like "$installRoot*" } |
+  Stop-Process -Force
 Remove-Item -LiteralPath $startupShortcut -Force
 Remove-Item -LiteralPath $programsRoot -Recurse -Force
 Remove-Item -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FraktalGateway' -Recurse -Force
