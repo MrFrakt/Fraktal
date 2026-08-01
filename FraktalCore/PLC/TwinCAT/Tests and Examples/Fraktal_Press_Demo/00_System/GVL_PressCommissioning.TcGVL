@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <GVL Name="GVL_PressCommissioning" Id="{5742817d-5fd2-437e-a68e-6e93b660de64}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Deployment-owned access-provider bootstrap. Secrets deliberately have no
+// source default and are excluded from OPC UA; provision the retained values in
+// the target's controlled commissioning workflow before locking the PLC policy.
+VAR_GLOBAL PERSISTENT
+    {attribute 'OPC.UA.DA' := '0'}
+    OperatorPin   : STRING(32);
+    {attribute 'OPC.UA.DA' := '0'}
+    TechnicianPin : STRING(32);
+    {attribute 'OPC.UA.DA' := '0'}
+    AdminPin      : STRING(32);
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

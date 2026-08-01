@@ -112,10 +112,14 @@ PLC/TMC and configuration exports.
 
 1. Sign or verify the supplied installer according to site policy.
 2. Run `FraktalSetup.exe` as the Windows account that will own the tray.
-3. In the wizard, select **Fraktal Gateway + Web HMI** and enter the PLC OPC UA
-   endpoint (`opc.tcp://…`). (The same installer can also install the native
-   HMI app — an independent ADS-direct desktop client — but this walkthrough
-   covers the gateway path.)
+3. In the wizard, select **Fraktal Gateway + Web HMI**. The installer asks the
+   local TwinCAT router for its configured AMS Net ID and seeds
+   `ads://<detected-AmsNetId>:851`. **Use the HMI / local PLC endpoint for the
+   Gateway** is checked by default, so the Gateway endpoint mirrors that value
+   and its duplicate field is disabled. Clear the checkbox only when the
+   Gateway must use a different ADS runtime or an OPC UA endpoint. If router
+   discovery is unavailable, the wizard visibly falls back to
+   `ads://127.0.0.1.1.1:851`; confirm it before installation.
 4. For a remote browser, leave **secure remote Web HMI** selected, confirm the
    suggested `https://<controller-IP>` origin, enter the proxy account/password,
    and allow the local-subnet Windows Firewall rule. For same-host-only use,
@@ -131,7 +135,11 @@ PLC/TMC and configuration exports.
    at `%LOCALAPPDATA%\Fraktal\Gateway\proxy\Caddyfile`. It hashes the password
    through Caddy's stdin, stores only the Argon2id hash, generates an internal
    LAN CA, validates the Caddyfile before publishing it, and exposes only the
-   selected HTTPS port from Domain/Private profiles and the local subnet.
+   selected HTTPS port from Domain/Private profiles and the local subnet. The
+   checked **Trust this gateway CA** option installs the public root into the
+   current Windows user's Root store on the gateway PC only. Accept Windows'
+   visible certificate-security confirmation when prompted; the installer
+   aborts that step after two minutes rather than waiting invisibly forever.
 7. Upgrades replace binaries and the Web HMI but preserve `gateway.args`, proxy
    configuration/password hash, proxy CA, OPC UA PKI, and logs when both new
    password fields are left blank. Uninstall also preserves those site-owned
@@ -165,11 +173,16 @@ urn:fraktal:gateway:CELL-01
 %LOCALAPPDATA%\Fraktal\Gateway\pki\own\private\fraktal-gateway.pem
 --trust-list
 %LOCALAPPDATA%\Fraktal\Gateway\pki\trusted\certs
+--read-root
+PLC1/MAIN/PneumaticPress
 --write-root
 PLC1/MAIN/PneumaticPress
 ```
 
-Repeat `--write-root` for a multi-root deployment. Without one, the gateway is
+Repeat `--read-root` and `--write-root` for a multi-root deployment. Add a
+separate `--read-root` for standalone published data such as
+`PLC1/GVL_PressFieldbus/Topology`. Without `--read-root`, the upstream OPC UA/ADS
+identity remains the read boundary; without `--write-root`, the gateway is
 deliberately read-only. Never use `--allow-all-root-mailboxes` as the production
 scope.
 
@@ -228,7 +241,8 @@ sudo install -m 0644 /opt/fraktal-gateway/fraktal-gateway.service \
 
 Edit `/etc/fraktal/fraktal-gateway.env`, replace every placeholder, and protect
 the private key/trust material with the service account's ACLs. Edit the unit's
-`--plc-endpoint` and add one `--write-root` per assigned Unit. The supplied unit
+`--plc-endpoint`, add one `--read-root` per assigned Unit/shared data subtree,
+and add one `--write-root` per assigned Unit. The supplied unit
 already serves `/opt/fraktal-gateway/web`.
 
 ```sh
@@ -274,6 +288,12 @@ on a managed Windows HMI account:
 certutil -user -addstore -f Root .\FraktalGatewayRootCA.crt
 ```
 
+Trust on the gateway PC does not propagate over the network. A browser opened
+on an engineering laptop, panel PC, or mobile device remains untrusted until
+that same public root is installed through the site's managed trust process.
+The installer log distinguishes **exported** from **trusted** so creation of a
+certificate is never mistaken for client trust.
+
 Do not distribute anything below `proxy\storage`; it contains the CA private
 key. A site PKI certificate may replace `tls internal` in the Caddyfile, in
 which case every client must trust that site chain instead. Restart the tray
@@ -311,7 +331,8 @@ $env:FRAKTAL_PROXY_PASSWORD = '<from protected deployment secret>'
   -EnableRemoteAccess `
   -PublicOrigin https://192.168.100.126 `
   -ProxyUsername fraktal `
-  -ConfigureFirewall
+  -ConfigureFirewall `
+  -TrustProxyCaForCurrentUser
 Remove-Item Env:FRAKTAL_PROXY_PASSWORD
 ```
 

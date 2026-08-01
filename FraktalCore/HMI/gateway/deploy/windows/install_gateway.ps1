@@ -10,6 +10,10 @@ param(
   [string]$PublicOrigin,
   [string]$ProxyUsername = 'fraktal',
   [switch]$ConfigureFirewall,
+  # Trusts the generated private CA only for the Windows account running this
+  # installer. Remote operator devices still require an explicit public-root
+  # import (or site-managed PKI).
+  [switch]$TrustProxyCaForCurrentUser,
   # Set by the combined wizard: suppress interactive follow-ups (Notepad) that
   # would block the caller waiting on this script's process tree.
   [switch]$Unattended
@@ -124,6 +128,86 @@ function Set-FraktalArgument(
   Set-Content -LiteralPath $Path -Value $result -Encoding UTF8
 }
 
+function Install-CurrentUserRootCertificate([string]$CertificatePath) {
+  if (-not (Test-Path -LiteralPath $CertificatePath)) {
+    throw "The exported gateway root CA certificate is missing: $CertificatePath"
+  }
+  $certificate =
+    New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+      $CertificatePath
+    )
+  $basicConstraints = $certificate.Extensions |
+    Where-Object {
+      $_ -is [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]
+    } |
+    Select-Object -First 1
+  if (-not $basicConstraints -or -not $basicConstraints.CertificateAuthority) {
+    throw "Refusing to trust a certificate that is not a CA: $CertificatePath"
+  }
+
+  $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+    [System.Security.Cryptography.X509Certificates.StoreName]::Root,
+    [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+  )
+  try {
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+    $existing = $store.Certificates.Find(
+      [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+      $certificate.Thumbprint,
+      $false
+    )
+  } finally {
+    $store.Close()
+  }
+  if ($existing.Count -gt 0) {
+    $certificate.Dispose()
+    return
+  }
+
+  # Windows protects root-store changes with an interactive security prompt on
+  # some site policies. Deliberately show that prompt to the commissioning user;
+  # a hidden X509Store.Add/certutil can otherwise wait forever and make the
+  # installer look frozen. The bounded wait turns a missed/blocked prompt into
+  # a clear installation error.
+  $certutil = Join-Path $env:SystemRoot 'System32\certutil.exe'
+  $arguments = @(
+    '-user', '-addstore', '-f', 'Root', ('"' + $CertificatePath + '"')
+  )
+  $process = Start-Process -FilePath $certutil -ArgumentList $arguments `
+    -PassThru -WindowStyle Normal
+  $null = $process.Handle
+  try {
+    if (-not $process.WaitForExit(120000)) {
+      try { $process.Kill() } catch {}
+      throw 'Windows root-CA confirmation timed out after 120 seconds. Re-run the installer and accept the certificate prompt, or clear the trust checkbox and deploy the root through site policy.'
+    }
+    if ($process.ExitCode -ne 0) {
+      throw "Windows did not trust the gateway root CA (certutil exit $($process.ExitCode))."
+    }
+  } finally {
+    $process.Dispose()
+  }
+
+  $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+    [System.Security.Cryptography.X509Certificates.StoreName]::Root,
+    [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+  )
+  try {
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+    $trusted = $store.Certificates.Find(
+      [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+      $certificate.Thumbprint,
+      $false
+    )
+    if ($trusted.Count -eq 0) {
+      throw 'certutil returned success, but the gateway root CA is absent from the current-user Root store.'
+    }
+  } finally {
+    $store.Close()
+    $certificate.Dispose()
+  }
+}
+
 # The local listener is installer-owned. Rewriting it also repairs malformed
 # legacy values such as `8080\`, which otherwise make Dart's int.parse abort
 # before the gateway creates a listener.
@@ -174,6 +258,30 @@ if ($EnableRemoteAccess) {
       -Unattended:$Unattended
     $normalizedOrigin = (Get-Content -LiteralPath $proxyOrigin -Raw).Trim()
   }
+  $proxyRoot = Join-Path $dataRoot 'proxy'
+  $exportedRoot = Join-Path $proxyRoot 'FraktalGatewayRootCA.crt'
+  if (-not (Test-Path -LiteralPath $exportedRoot)) {
+    $generatedRoot = Join-Path $proxyRoot 'storage\pki\authorities\local\root.crt'
+    if (Test-Path -LiteralPath $generatedRoot) {
+      Copy-Item -LiteralPath $generatedRoot -Destination $exportedRoot -Force
+    }
+  }
+  if ($TrustProxyCaForCurrentUser) {
+    Install-CurrentUserRootCertificate -CertificatePath $exportedRoot
+    $trustedCertificate =
+      New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+        $exportedRoot
+      )
+    try {
+      Set-Content -LiteralPath (Join-Path $proxyRoot 'trusted-current-user-ca.thumbprint') `
+        -Value $trustedCertificate.Thumbprint -Encoding ASCII
+      Write-Output "Gateway root CA trusted for current Windows user: $($trustedCertificate.Thumbprint)"
+    } finally {
+      $trustedCertificate.Dispose()
+    }
+  } else {
+    Write-Output 'Gateway root CA exported but not added to Windows trust.'
+  }
   Set-FraktalArgument -Path $configPath -Option '--allow-origin' -Value $normalizedOrigin
 }
 
@@ -204,13 +312,17 @@ $editShortcut.WorkingDirectory = $dataRoot
 $editShortcut.Save()
 if ($EnableRemoteAccess) {
   $proxyRoot = Join-Path $dataRoot 'proxy'
+  $legacyCaShortcut = Join-Path $programsRoot 'Client CA Certificate.lnk'
+  if (Test-Path -LiteralPath $legacyCaShortcut) {
+    Remove-Item -LiteralPath $legacyCaShortcut -Force
+  }
   Set-Shortcut `
     -Path (Join-Path $programsRoot 'Edit HTTPS Proxy Configuration.lnk') `
     -Target "$env:SystemRoot\System32\notepad.exe" `
     -WorkingDirectory $proxyRoot `
     -Arguments ('"' + (Join-Path $proxyRoot 'Caddyfile') + '"')
   Set-Shortcut `
-    -Path (Join-Path $programsRoot 'Client CA Certificate.lnk') `
+    -Path (Join-Path $programsRoot 'Exported Gateway Root CA.lnk') `
     -Target "$env:SystemRoot\explorer.exe" `
     -WorkingDirectory $proxyRoot `
     -Arguments ('/select,"' + (Join-Path $proxyRoot 'FraktalGatewayRootCA.crt') + '"')

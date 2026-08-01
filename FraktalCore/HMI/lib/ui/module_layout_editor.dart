@@ -10,6 +10,7 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import 'touch_text_field.dart';
 
 Future<ModuleTabDefinition?> showModuleTabEditor(
   BuildContext context, {
@@ -225,7 +226,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
           key: _form,
           child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextFormField(
+              TouchTextFormField(
                 controller: _title,
                 maxLength: 160,
                 decoration: InputDecoration(
@@ -310,7 +311,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                 const SizedBox(height: 16),
                 const LText('std.module.editor.guidanceTriggerHelp'),
                 const SizedBox(height: 10),
-                TextFormField(
+                TouchTextFormField(
                   controller: _stepNo,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
@@ -325,7 +326,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                   },
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
+                TouchTextFormField(
                   controller: _stepName,
                   maxLength: 255,
                   decoration: InputDecoration(
@@ -508,7 +509,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
     String side,
   ) =>
       Expanded(
-        child: TextFormField(
+        child: TouchTextFormField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
@@ -683,7 +684,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                       setState(() => _width = value ?? _width),
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
+                TouchTextFormField(
                   controller: _label,
                   maxLength: 160,
                   decoration: InputDecoration(
@@ -692,7 +693,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                   ),
                 ),
                 if (_kind == ModuleControlKind.text) ...[
-                  TextFormField(
+                  TouchTextFormField(
                     controller: _text,
                     maxLength: 4000,
                     minLines: 3,
@@ -730,7 +731,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                       ),
                     ),
                   const SizedBox(height: 10),
-                  TextFormField(
+                  TouchTextFormField(
                     controller: _unit,
                     maxLength: 40,
                     decoration: InputDecoration(
@@ -740,7 +741,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                 if (_kind == ModuleControlKind.chart) ...[
                   Row(children: [
                     Expanded(
-                      child: TextFormField(
+                      child: TouchTextFormField(
                         controller: _period,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
@@ -759,7 +760,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: TextFormField(
+                      child: TouchTextFormField(
                         controller: _points,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
@@ -1042,7 +1043,7 @@ class _OpcUaBindingPickerState extends State<_OpcUaBindingPicker> {
           },
           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
             _searchController = controller;
-            return TextField(
+            return TouchTextField(
               key: const ValueKey('opcua-binding-search'),
               controller: controller,
               focusNode: focusNode,

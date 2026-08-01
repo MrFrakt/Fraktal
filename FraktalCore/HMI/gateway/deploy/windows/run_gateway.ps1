@@ -3,6 +3,7 @@ param(
   [int]$Port = 8080,
   [string]$WebRoot = '',
   [string[]]$AllowOrigin = @(),
+  [string[]]$ReadRoot = @(),
   [string[]]$WriteRoot = @(),
   [ValidateSet('production', 'secure-anonymous', 'commissioning-anonymous', 'isolated-anonymous')]
   [string]$SecurityProfile = 'production',
@@ -52,6 +53,9 @@ if ($SecurityProfile -eq 'commissioning-anonymous') {
 }
 foreach ($origin in $AllowOrigin) {
   $gatewayArguments += @('--allow-origin', $origin)
+}
+foreach ($root in $ReadRoot) {
+  $gatewayArguments += @('--read-root', $root)
 }
 foreach ($root in $WriteRoot) {
   $gatewayArguments += @('--write-root', $root)

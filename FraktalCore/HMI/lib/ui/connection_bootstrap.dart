@@ -17,12 +17,18 @@ import '../localization/default_catalogs.dart';
 import '../localization/localization_controller.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import 'app_theme.dart'
+    show ControlScale, ControlScaleScope, UiMetrics, kTouchScroll, themeAt;
+import 'access_setup.dart';
+import 'appearance_setup.dart';
 import 'fraktal_hmi_app.dart';
 import 'language_settings.dart';
 
 enum _BootstrapPhase {
   loading,
   languageSelection,
+  appearanceSetup,
+  accessSetup,
   wizard,
   connecting,
   unitSelection,
@@ -57,6 +63,11 @@ class ConnectionBootstrap extends StatefulWidget {
 
 class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
   _BootstrapPhase _phase = _BootstrapPhase.loading;
+
+  /// Non-null only while the appearance step is open, so the wizard renders in
+  /// the theme/size being chosen (and reverts if the engineer backs out).
+  int? _previewTheme;
+  ControlScale? _previewScale;
   ConnectionSettings? _settings;
   AppState? _app;
   ScopedPlcRepository? _scopedRepository;
@@ -163,6 +174,23 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
         scoped,
         localization: widget.localization,
         content: widget.content,
+        // Panel-local access policy chosen during commissioning (appearance
+        // step). The PLC's own §7.7 gates are published per root and untouched.
+        config: HmiConfig(
+          themeMinLevel:
+              AccessLevel.values[(candidate.themeMinLevelIndex).clamp(0, 4)],
+          closeAppMinLevel:
+              AccessLevel.values[(candidate.closeAppMinLevelIndex).clamp(0, 4)],
+          manualMinLevel:
+              AccessLevel.values[(candidate.manualMinLevelIndex).clamp(0, 4)],
+          alarmResetMinLevel: AccessLevel
+              .values[(candidate.alarmResetMinLevelIndex).clamp(0, 4)],
+        ),
+        initialThemeIndex: _settings?.themeIndex ?? 0,
+        initialFloatingKeyboard: _settings?.floatingKeyboard ?? true,
+        initialControlScale: ControlScale
+            .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
+        onUiPrefsChanged: _persistUiPrefs,
       );
       _app = app;
       _startupRetryAttempt = 0;
@@ -330,6 +358,21 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
     widget.store.save(next);
   }
 
+  /// Persist UI prefs (theme index, floating-keyboard toggle) fired from AppState
+  /// when they change, so they survive the AppState rebuild on reconnect.
+  void _persistUiPrefs() {
+    final app = _app;
+    final settings = _settings;
+    if (app == null || settings == null) return;
+    final next = settings.copyWith(
+      themeIndex: app.themeIndex,
+      floatingKeyboard: app.floatingKeyboard,
+      controlScaleIndex: app.controlScale.index,
+    );
+    _settings = next;
+    widget.store.save(next);
+  }
+
   void _armEditDelay() {
     _editTimer?.cancel();
     _editTimer = Timer(widget.editDelay, () {
@@ -360,6 +403,78 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
     _editSettings();
   }
 
+  /// Live preview while the engineer picks — the wizard re-themes itself, so the
+  /// panel is judged as it will actually look rather than from a swatch.
+  void _previewAppearance(int themeIndex, ControlScale scale) {
+    setState(() {
+      _previewTheme = themeIndex;
+      _previewScale = scale;
+    });
+  }
+
+  Future<void> _saveAppearance(AppearanceSetupResult result) async {
+    final next =
+        (_settings ?? ConnectionSettings(endpoint: defaultConnectionEndpoint()))
+            .copyWith(
+      themeIndex: result.themeIndex,
+      controlScaleIndex: result.controlScale.index,
+    );
+    await widget.store.save(next);
+    if (!mounted) return;
+    setState(() {
+      _settings = next;
+      _previewTheme = null;
+      _previewScale = null;
+      _phase = _BootstrapPhase.accessSetup;
+    });
+  }
+
+  Future<void> _saveAccess(AccessSetupResult result) async {
+    final next =
+        (_settings ?? ConnectionSettings(endpoint: defaultConnectionEndpoint()))
+            .copyWith(
+      themeMinLevelIndex: result.themeMinLevel.index,
+      closeAppMinLevelIndex: result.closeAppMinLevel.index,
+      manualMinLevelIndex: result.manualMinLevel.index,
+      alarmResetMinLevelIndex: result.alarmResetMinLevel.index,
+      appearanceSetupComplete: true,
+    );
+    await widget.store.save(next);
+    if (!mounted) return;
+    setState(() {
+      _settings = next;
+      _phase = _BootstrapPhase.wizard;
+    });
+  }
+
+  /// Admin-only path back to the access step from the live shell.
+  void _editAccess() {
+    if (_app?.session.level != AccessLevel.admin) return;
+    _connectionGeneration++;
+    _startupRetryTimer?.cancel();
+    _editTimer?.cancel();
+    _disposeApp();
+    _editingUnitSelection = false;
+    setState(() {
+      _phase = _BootstrapPhase.accessSetup;
+      _canEdit = false;
+    });
+  }
+
+  /// Admin-only path back to the appearance/access step from the live shell.
+  void _editAppearance() {
+    if (_app?.session.level != AccessLevel.admin) return;
+    _connectionGeneration++;
+    _startupRetryTimer?.cancel();
+    _editTimer?.cancel();
+    _disposeApp();
+    _editingUnitSelection = false;
+    setState(() {
+      _phase = _BootstrapPhase.appearanceSetup;
+      _canEdit = false;
+    });
+  }
+
   Future<void> _saveLanguageSelection(
       Set<String> enabled, String active) async {
     final next =
@@ -373,7 +488,11 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
     if (!mounted) return;
     setState(() {
       _settings = next;
-      _phase = _BootstrapPhase.wizard;
+      // Appearance/access is chosen before the endpoint: the engineer is at the
+      // panel, and a legible, correctly-sized wizard makes the rest easier.
+      _phase = next.appearanceSetupComplete
+          ? _BootstrapPhase.wizard
+          : _BootstrapPhase.appearanceSetup;
     });
   }
 
@@ -399,10 +518,16 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
   Widget build(BuildContext context) => switch (_phase) {
         _BootstrapPhase.loading => _ConnectionMaterial(
             localization: widget.localization,
+            themeIndex: _settings?.themeIndex ?? 0,
+            controlScale: ControlScale
+                .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: const ConnectionBlockingScreen(loadingSettings: true),
           ),
         _BootstrapPhase.languageSelection => _ConnectionMaterial(
             localization: widget.localization,
+            themeIndex: _settings?.themeIndex ?? 0,
+            controlScale: ControlScale
+                .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: FirstLanguageSelection(
               controller: widget.localization,
               initialEnabled: _settings?.enabledLanguageCodes.isNotEmpty == true
@@ -413,8 +538,45 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
               onContinue: _saveLanguageSelection,
             ),
           ),
+        _BootstrapPhase.appearanceSetup => _ConnectionMaterial(
+            localization: widget.localization,
+            // Live preview: render in whatever is currently selected.
+            themeIndex: _previewTheme ?? _settings?.themeIndex ?? 0,
+            controlScale: _previewScale ??
+                ControlScale
+                    .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
+            child: AppearanceSetupScreen(
+              initialThemeIndex: _settings?.themeIndex ?? 0,
+              initialControlScale: ControlScale
+                  .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
+              onPreview: _previewAppearance,
+              onContinue: _saveAppearance,
+            ),
+          ),
+        _BootstrapPhase.accessSetup => _ConnectionMaterial(
+            localization: widget.localization,
+            themeIndex: _settings?.themeIndex ?? 0,
+            controlScale: ControlScale
+                .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
+            child: AccessSetupScreen(
+              initialThemeMinLevel: AccessLevel
+                  .values[(_settings?.themeMinLevelIndex ?? 0).clamp(0, 4)],
+              initialCloseAppMinLevel: AccessLevel
+                  .values[(_settings?.closeAppMinLevelIndex ?? 2).clamp(0, 4)],
+              initialManualMinLevel: AccessLevel
+                  .values[(_settings?.manualMinLevelIndex ?? 0).clamp(0, 4)],
+              initialAlarmResetMinLevel: AccessLevel.values[
+                  (_settings?.alarmResetMinLevelIndex ?? 0).clamp(0, 4)],
+              onBack: () =>
+                  setState(() => _phase = _BootstrapPhase.appearanceSetup),
+              onContinue: _saveAccess,
+            ),
+          ),
         _BootstrapPhase.wizard => _ConnectionMaterial(
             localization: widget.localization,
+            themeIndex: _settings?.themeIndex ?? 0,
+            controlScale: ControlScale
+                .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: ConnectionWizard(
               initial: _settings,
               onConnect: (settings) => _connect(settings, newlySaved: true),
@@ -422,6 +584,9 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
           ),
         _BootstrapPhase.connecting => _ConnectionMaterial(
             localization: widget.localization,
+            themeIndex: _settings?.themeIndex ?? 0,
+            controlScale: ControlScale
+                .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: ConnectionBlockingScreen(
               endpoint: _settings?.endpoint ?? '',
               state: _lastLink,
@@ -432,6 +597,9 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
           ),
         _BootstrapPhase.unitSelection => _ConnectionMaterial(
             localization: widget.localization,
+            themeIndex: _settings?.themeIndex ?? 0,
+            controlScale: ControlScale
+                .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: UnitSelectionScreen(
               roots: _scopedRepository?.availableRoots ?? const [],
               initialSelection:
@@ -446,6 +614,8 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
             app: _app!,
             onEditUnitSelection: _editUnitSelection,
             onEditConnection: _editConnection,
+            onEditAppearance: _editAppearance,
+            onEditAccess: _editAccess,
             onLanguageChanged: _setActiveLanguage,
           ),
       };
@@ -454,9 +624,19 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
 class _ConnectionMaterial extends StatelessWidget {
   final Widget child;
   final LocalizationController localization;
+
+  /// The wizard renders in the SAME theme and control size the operator shell
+  /// will use, so a commissioning engineer judges the panel as it will really
+  /// look — and so a large-target preset is already active while they tap
+  /// through setup on the panel itself.
+  final int themeIndex;
+  final ControlScale controlScale;
+
   const _ConnectionMaterial({
     required this.child,
     required this.localization,
+    this.themeIndex = 0,
+    this.controlScale = ControlScale.compact,
   });
 
   @override
@@ -467,6 +647,10 @@ class _ConnectionMaterial extends StatelessWidget {
           builder: (context, _) => MaterialApp(
             title: localization.resolve('std.app.title'),
             debugShowCheckedModeBanner: false,
+            // The wizard is a SEPARATE MaterialApp from the operator shell, so
+            // it needs the touch scroll behaviour in its own right: the language
+            // list and the Unit selection are touch-only on a panel too.
+            scrollBehavior: kTouchScroll,
             locale: localization.locale,
             supportedLocales: [
               for (final code in availableLanguages.keys) Locale(code),
@@ -476,10 +660,11 @@ class _ConnectionMaterial extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            theme: ThemeData(
-                useMaterial3: true,
-                colorScheme:
-                    ColorScheme.fromSeed(seedColor: const Color(0xFF3D6DEB))),
+            theme: themeAt(themeIndex, controlScale),
+            builder: (context, child) => ControlScaleScope(
+              metrics: UiMetrics.of(controlScale),
+              child: child ?? const SizedBox.shrink(),
+            ),
             home: child,
           ),
         ),

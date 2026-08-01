@@ -1,7 +1,7 @@
 # Pneumatic press reference example
 
 Status: non-normative worked example of the normative Core contracts. The executable TwinCAT
-application is `FraktalCore/PLC/Fraktal_Press_Demo`; reusable device types live in `Fraktal_Modules`.
+application is `FraktalCore/PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo`; reusable device types live in `TwinCAT/Framework/Fraktal_Modules`.
 The concrete Unit, sequences, and station release policy live in the application project.
 
 ## 1. Objective and module tree

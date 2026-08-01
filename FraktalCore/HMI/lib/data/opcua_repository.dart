@@ -36,6 +36,9 @@ enum _HmiRequestKind {
   unshelveAlarm,
   forceChannel,
   queryConfig,
+  setAccessLevel,
+  setSessionTimeout,
+  lampTest,
 }
 
 /// Direct native OPC UA repository for Dart-native Flutter platforms. The
@@ -62,7 +65,7 @@ class OpcUaRepository implements PlcRepository {
   // key, or a root Unit's browse base for that root's drill-down rings/trends.
   Map<String, List<String>> _onDemandByScope = const {};
   final Set<String> _activeOnDemandScopes = {};
-  int _lastSlowKeyCount = -1;
+  List<String> _lastTierPaths = const [];
   // Interactive (operator-initiated) requests in flight. While > 0 the periodic
   // full-tree refresh yields the single native worker so the command's small
   // ack polls are not queued behind a full snapshot (Core §14 responsiveness).
@@ -70,6 +73,7 @@ class OpcUaRepository implements PlcRepository {
   // §3.10.2 config manifest: synthesized browse-path values overlaid under the
   // live snapshot so the mapper sees the same tree a full publication would give.
   Map<String, Object?> _manifestValues = const {};
+  Map<String, List<CfgField>> _manifestConfigByModule = const {};
   String? _manifestRevSignature; // null = never hydrated
   bool _manifestFetchInFlight = false;
   DateTime _manifestRetryAfter = DateTime.fromMillisecondsSinceEpoch(0);
@@ -179,9 +183,11 @@ class OpcUaRepository implements PlcRepository {
         if (onDemandOverlay != null) ...onDemandOverlay,
         ..._values,
       };
-      _projection = _mapper.map(onDemandOverlay == null && _manifestValues.isEmpty
-          ? document
-          : <String, Object?>{...document, 'values': merged});
+      _projection = _mapper.map(
+          onDemandOverlay == null && _manifestValues.isEmpty
+              ? document
+              : <String, Object?>{...document, 'values': merged},
+          configByModulePath: _manifestConfigByModule);
       final aliases = _projection.discardedAliases;
       final aliasSignature = aliases.join('|');
       if (aliases.isNotEmpty && aliasSignature != _aliasSignature) {
@@ -190,8 +196,7 @@ class OpcUaRepository implements PlcRepository {
       }
       _aliasSignature = aliasSignature;
       _lastGood = DateTime.now();
-      final discovered = document['nodeCount'];
-      _maybeUpdatePathTiers(discovered is num ? discovered.toInt() : -1);
+      _maybeUpdatePathTiers();
       _maybeFetchConfigManifest();
       _setLink(LinkState.live);
       // Same race as _setLink: this refresh may have been disposed across one of
@@ -216,9 +221,9 @@ class OpcUaRepository implements PlcRepository {
   // Re-runs only when the discovered node count changes (first snapshot, online
   // change, reconnect). The classifier runs over `paths`, not `_values`, since
   // excluded paths are absent from the snapshot values.
-  void _maybeUpdatePathTiers(int discoveredNodeCount) {
-    if (discoveredNodeCount == _lastSlowKeyCount) return;
-    _lastSlowKeyCount = discoveredNodeCount;
+  void _maybeUpdatePathTiers() {
+    if (listEquals(_lastTierPaths, _discoveredPaths)) return;
+    _lastTierPaths = List.unmodifiable(_discoveredPaths);
     if (_discoveredPaths.isEmpty) return;
     final roots = _projection.browsePathByModulePath.values;
     final slow = <String>[];
@@ -339,8 +344,7 @@ class OpcUaRepository implements PlcRepository {
     final session = _client;
     if (session is! OpcUaBulkReadClient) return null;
     final paths = <String>[
-      for (final scope in _activeOnDemandScopes)
-        ...?_onDemandByScope[scope],
+      for (final scope in _activeOnDemandScopes) ...?_onDemandByScope[scope],
     ];
     if (paths.isEmpty) return null;
     try {
@@ -396,8 +400,7 @@ class OpcUaRepository implements PlcRepository {
         if (!accepted) {
           debugPrint('[Fraktal/Connection] stage=config-manifest-failed '
               'root=${root.path} page=$page');
-          _manifestRetryAfter =
-              DateTime.now().add(const Duration(seconds: 5));
+          _manifestRetryAfter = DateTime.now().add(const Duration(seconds: 5));
           return; // signature not stored -> retried after the backoff
         }
         pageCount = _integer(_values['$pageBase/PageCount']);
@@ -409,6 +412,19 @@ class OpcUaRepository implements PlcRepository {
             '${_values['$prefix/Scope'] ?? ''}',
             '${_values['$prefix/Item'] ?? ''}',
             '${_values['$prefix/ValueText'] ?? ''}',
+            writeKey: '${_values['$prefix/WriteKey'] ?? ''}',
+            writeRevision: _integer(_values['$prefix/WriteRevision']),
+            configKind: _integer(_values['$prefix/ConfigKind']),
+            valueType: _integer(_values['$prefix/ValueType']),
+            writable: _values['$prefix/Writable'] == true,
+            requiresReady: _values['$prefix/RequiresReady'] == true,
+            hasMinimum: _values['$prefix/HasMinimum'] == true,
+            hasMaximum: _values['$prefix/HasMaximum'] == true,
+            minimum: _real(_values['$prefix/Minimum']),
+            maximum: _real(_values['$prefix/Maximum']),
+            unit: '${_values['$prefix/Unit'] ?? ''}',
+            labelKey: '${_values['$prefix/LabelKey'] ?? ''}',
+            enumDomain: '${_values['$prefix/EnumDomain'] ?? ''}',
           ));
         }
         page++;
@@ -434,6 +450,7 @@ class OpcUaRepository implements PlcRepository {
       browseBaseByModulePath: _projection.browsePathByModulePath,
       topologyBase: topologyBase,
     );
+    _manifestConfigByModule = configFieldsFromManifest(entries);
     _manifestRevSignature = revSignature;
     debugPrint('[Fraktal/Connection] stage=config-manifest-hydrated '
         'entries=${entries.length} values=${_manifestValues.length}');
@@ -694,8 +711,8 @@ class OpcUaRepository implements PlcRepository {
 
   @override
   Future<bool> setModel(String rootPath, String modelCode) async {
-    final ok =
-        await _request(rootPath, _HmiRequestKind.setModel, textValue: modelCode);
+    final ok = await _request(rootPath, _HmiRequestKind.setModel,
+        textValue: modelCode);
     // A changeover rewrites recipe/config leaves (the slow tier); pull them now.
     if (ok) {
       unawaited(_client.refreshSlowPaths().then((_) {}, onError: (_, __) {}));
@@ -724,8 +741,23 @@ class OpcUaRepository implements PlcRepository {
       _request(unitPath, _HmiRequestKind.operatorReset);
 
   @override
+  Future<bool> lampTest(String unitPath) =>
+      _request(unitPath, _HmiRequestKind.lampTest);
+
+  @override
   Future<bool> setDecisionAnswer(String unitPath, int option) =>
       _request(unitPath, _HmiRequestKind.decisionAnswer, intValue: option);
+
+  @override
+  Future<bool> setAccessLevel(
+          String rootPath, GatedAction action, AccessLevel level) =>
+      _request(rootPath, _HmiRequestKind.setAccessLevel,
+          intValue: action.index, textValue: '${level.index}');
+
+  @override
+  Future<bool> setSessionTimeout(String rootPath, Duration timeout) =>
+      _request(rootPath, _HmiRequestKind.setSessionTimeout,
+          durationMs: timeout.inMilliseconds);
 
   @override
   Future<bool> manualCommand(String unitPath, String targetPath, int value) =>
@@ -840,15 +872,56 @@ class OpcUaRepository implements PlcRepository {
       _request(unitPath, _HmiRequestKind.resetOee);
 
   @override
-  Future<bool> writeConfig(String nodePath, CfgField field, String value) async {
-    final ok = await _request(_owningRoot(nodePath), _HmiRequestKind.writeConfig,
-        targetPath: nodePath, nameValue: field.name, textValue: value);
+  Future<bool> writeConfig(
+      String nodePath, CfgField field, String value) async {
+    final capability = _configCapability(nodePath, field.writeKey);
+    if (capability == null ||
+        capability.writeRevision != field.writeRevision ||
+        !capability.hasWriteCapability ||
+        !capability.accepts(value)) {
+      return false;
+    }
+    final root = _findModule(_owningRoot(nodePath));
+    if (capability.requiresReady && root?.state != ExecState.ready)
+      return false;
+    final ok = await _request(
+        _owningRoot(nodePath), _HmiRequestKind.writeConfig,
+        targetPath: nodePath,
+        intValue: capability.writeRevision,
+        nameValue: capability.writeKey,
+        textValue: value.trim());
     // A config write changes a slow-tier leaf; refresh it now instead of waiting
     // for the heartbeat so the operator sees the new value promptly.
     if (ok) {
       unawaited(_client.refreshSlowPaths().then((_) {}, onError: (_, __) {}));
     }
     return ok;
+  }
+
+  CfgField? _configCapability(String nodePath, String writeKey) {
+    final node = _findModule(nodePath);
+    if (node == null) return null;
+    for (final field in node.config) {
+      if (field.writeKey == writeKey) return field;
+    }
+    return null;
+  }
+
+  ModuleNode? _findModule(String path) {
+    ModuleNode? visit(ModuleNode node) {
+      if (node.path == path) return node;
+      for (final child in node.children) {
+        final found = visit(child);
+        if (found != null) return found;
+      }
+      return null;
+    }
+
+    for (final root in _projection.forest) {
+      final found = visit(root);
+      if (found != null) return found;
+    }
+    return null;
   }
 
   @override
@@ -897,6 +970,7 @@ class OpcUaRepository implements PlcRepository {
 }
 
 int _integer(Object? value) => value is num ? value.toInt() : -1;
+double _real(Object? value) => value is num ? value.toDouble() : 0;
 T _enumAt<T>(List<T> values, int index, T fallback) =>
     index >= 0 && index < values.length ? values[index] : fallback;
 

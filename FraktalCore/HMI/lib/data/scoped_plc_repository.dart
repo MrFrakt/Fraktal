@@ -57,7 +57,7 @@ class ScopedPlcRepository implements PlcRepository {
 
   BusNode? _filterBusNode(BusNode node) {
     final channels =
-        node.channels.where((channel) => _allows(channel.path)).toList();
+        node.channels.where((channel) => _allows(channel.modulePath)).toList();
     final children =
         node.children.map(_filterBusNode).whereType<BusNode>().toList();
     if (channels.isEmpty && children.isEmpty) return null;
@@ -78,6 +78,17 @@ class ScopedPlcRepository implements PlcRepository {
   bool _allows(String path) =>
       !_configured ||
       _allowedRoots.any((root) => path == root || path.startsWith('$root.'));
+
+  IoChannel? _findChannel(String path, List<BusNode> nodes) {
+    for (final node in nodes) {
+      for (final channel in node.channels) {
+        if (channel.path == path) return channel;
+      }
+      final child = _findChannel(path, node.children);
+      if (child != null) return child;
+    }
+    return null;
+  }
 
   Future<bool> _bool(String path, Future<bool> Function() action) =>
       _allows(path) ? action() : Future.value(false);
@@ -105,6 +116,13 @@ class ScopedPlcRepository implements PlcRepository {
   Future<void> logout(String rootPath) =>
       _void(rootPath, () => source.logout(rootPath));
   @override
+  Future<bool> setAccessLevel(
+          String rootPath, GatedAction action, AccessLevel level) =>
+      _bool(rootPath, () => source.setAccessLevel(rootPath, action, level));
+  @override
+  Future<bool> setSessionTimeout(String rootPath, Duration timeout) =>
+      _bool(rootPath, () => source.setSessionTimeout(rootPath, timeout));
+  @override
   Future<bool> setMode(String unitPath, UnitMode mode) =>
       _bool(unitPath, () => source.setMode(unitPath, mode));
   @override
@@ -125,6 +143,9 @@ class ScopedPlcRepository implements PlcRepository {
   @override
   Future<bool> operatorReset(String unitPath) =>
       _bool(unitPath, () => source.operatorReset(unitPath));
+  @override
+  Future<bool> lampTest(String unitPath) =>
+      _bool(unitPath, () => source.lampTest(unitPath));
   @override
   Future<bool> setDecisionAnswer(String unitPath, int option) =>
       _bool(unitPath, () => source.setDecisionAnswer(unitPath, option));
@@ -178,13 +199,19 @@ class ScopedPlcRepository implements PlcRepository {
           : source.unshelveAlarm(unitPath, sourcePath, description);
   @override
   Future<bool> forceChannel(String rootPath, String channelPath,
-          {required bool force,
-          bool boolValue = false,
-          double analogValue = 0}) =>
-      _bool(
-          rootPath,
-          () => source.forceChannel(rootPath, channelPath,
-              force: force, boolValue: boolValue, analogValue: analogValue));
+      {required bool force, bool boolValue = false, double analogValue = 0}) {
+    final channel = _findChannel(channelPath, _availableBus);
+    final ownerMatches = channel != null &&
+        (channel.modulePath == rootPath ||
+            channel.modulePath.startsWith('$rootPath.'));
+    if (!_allows(rootPath) ||
+        channel == null ||
+        !channel.forceable ||
+        !_allows(channel.modulePath) ||
+        !ownerMatches) return Future.value(false);
+    return source.forceChannel(rootPath, channelPath,
+        force: force, boolValue: boolValue, analogValue: analogValue);
+  }
 
   @override
   bool get fieldbusExpected => source.fieldbusExpected;

@@ -6,6 +6,106 @@ library;
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
 import '../domain/types.dart';
+import 'app_theme.dart';
+
+class SystemHealthCard extends StatelessWidget {
+  final SystemHealthFacet health;
+  final SignalTowerFacet? tower;
+  final bool canLampTest;
+  final Future<bool> Function() onLampTest;
+  final VoidCallback onExplain;
+  const SystemHealthCard({
+    super.key,
+    required this.health,
+    this.tower,
+    required this.canLampTest,
+    required this.onLampTest,
+    required this.onExplain,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final clockOk = health.time.available && health.time.synchronized;
+    return Card(
+      color: health.healthy ? null : cs.errorContainer,
+      child: onContainer(
+        context,
+        health.healthy ? cs.surface : cs.errorContainer,
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.monitor_heart_outlined),
+              const SizedBox(width: 8),
+              LText('System health',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const Spacer(),
+              Chip(label: LText(health.healthy ? 'HEALTHY' : 'ATTENTION')),
+              if (tower != null) ...[
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: tower!.testActive
+                      ? null
+                      : () async {
+                          if (!canLampTest || !await onLampTest()) onExplain();
+                        },
+                  icon: const Icon(Icons.lightbulb_outline, size: 18),
+                  label: LText(tower!.testActive ? 'TESTING' : 'Lamp test'),
+                ),
+              ],
+            ]),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              Chip(label: LText('Task ${health.taskCycleUs} µs')),
+              Chip(label: LText('Jitter ${health.taskJitterUs} µs')),
+              if (health.controllerAvailable)
+                Chip(
+                    label:
+                        LText('CPU ${health.cpuLoadPct.toStringAsFixed(1)}%')),
+              if (health.controllerAvailable)
+                Chip(label: LText('Memory ${health.memoryAvailableMb} MB')),
+              Chip(
+                  avatar: Icon(
+                      clockOk ? Icons.schedule : Icons.schedule_outlined,
+                      size: 18),
+                  label: LText(clockOk
+                      ? '${health.time.source} ${health.time.offsetUs} µs'
+                      : 'TIME UNSYNCHRONIZED')),
+            ]),
+            if (tower != null) ...[
+              const SizedBox(height: 8),
+              Row(children: [
+                const LText('Signal tower'),
+                const SizedBox(width: 10),
+                _lamp(Colors.red, tower!.red),
+                _lamp(Colors.amber, tower!.amber),
+                _lamp(Colors.green, tower!.green),
+                _lamp(Colors.blue, tower!.blue),
+                _lamp(Colors.white, tower!.white),
+                if (tower!.horn) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.volume_up, size: 18),
+                ],
+              ]),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _lamp(Color color, bool active) => Container(
+        width: 18,
+        height: 18,
+        margin: const EdgeInsets.only(right: 5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: active ? color : color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.7)),
+        ),
+      );
+}
 
 class SafetyCard extends StatelessWidget {
   final SafetyFacet safety;
@@ -20,48 +120,52 @@ class SafetyCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Card(
       color: warning ? cs.errorContainer : null,
-      child: Padding(
-          padding: const EdgeInsets.all(12),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Icon(Icons.health_and_safety_outlined),
-              const SizedBox(width: 8),
-              LText('Safety', style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              Chip(label: LText(safety.allSafe ? 'READY' : 'SAFE STATE'))
-            ]),
-            if (safety.bridgeActive)
-              const ListTile(
-                  dense: true,
-                  leading: Icon(Icons.key),
-                  title: LText('KEY BRIDGE ACTIVE')),
-            if (safety.mutingActive)
-              const ListTile(
-                  dense: true,
-                  leading: Icon(Icons.visibility_off_outlined),
-                  title: LText('MUTING ACTIVE')),
-            if (safety.resetRequired)
-              const ListTile(
-                  dense: true,
-                  leading: Icon(Icons.restart_alt),
-                  title: LText('Physical safety reset required')),
-            for (final d in safety.devices)
-              ListTile(
-                  dense: true,
-                  leading: Icon(
-                      d.ready
-                          ? Icons.check_circle_outline
-                          : Icons.gpp_bad_outlined,
-                      color: d.ready ? const Color(0xFF2E7D32) : cs.error),
-                  title: LText(d.name),
-                  subtitle: LText(
-                      '${d.kind.name} · ${d.state.name}${d.description.isEmpty ? '' : '\n${context.tr(d.description)}'}'),
-                  trailing: d.affectedPowerMask == 0
-                      ? null
-                      : LText(
-                          'Zones 0x${d.affectedPowerMask.toRadixString(16)}')),
-          ])),
+      child: onContainer(
+        context,
+        warning ? cs.errorContainer : cs.surface,
+        Padding(
+            padding: const EdgeInsets.all(12),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.health_and_safety_outlined),
+                const SizedBox(width: 8),
+                LText('Safety', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                Chip(label: LText(safety.allSafe ? 'READY' : 'SAFE STATE'))
+              ]),
+              if (safety.bridgeActive)
+                const ListTile(
+                    dense: true,
+                    leading: Icon(Icons.key),
+                    title: LText('KEY BRIDGE ACTIVE')),
+              if (safety.mutingActive)
+                const ListTile(
+                    dense: true,
+                    leading: Icon(Icons.visibility_off_outlined),
+                    title: LText('MUTING ACTIVE')),
+              if (safety.resetRequired)
+                const ListTile(
+                    dense: true,
+                    leading: Icon(Icons.restart_alt),
+                    title: LText('Physical safety reset required')),
+              for (final d in safety.devices)
+                ListTile(
+                    dense: true,
+                    leading: Icon(
+                        d.ready
+                            ? Icons.check_circle_outline
+                            : Icons.gpp_bad_outlined,
+                        color: d.ready ? const Color(0xFF2E7D32) : cs.error),
+                    title: LText(d.name),
+                    subtitle: LText(
+                        '${d.kind.name} · ${d.state.name}${d.description.isEmpty ? '' : '\n${context.tr(d.description)}'}'),
+                    trailing: d.affectedPowerMask == 0
+                        ? null
+                        : LText(
+                            'Zones 0x${d.affectedPowerMask.toRadixString(16)}')),
+            ])),
+      ),
     );
   }
 }
@@ -73,6 +177,7 @@ class ControlPowerCard extends StatelessWidget {
   final List<String> memberUnits;
   final bool canControl;
   final Future<bool> Function() onControlOn, onControlOff;
+  final VoidCallback onExplain;
   const ControlPowerCard(
       {super.key,
       required this.power,
@@ -81,7 +186,13 @@ class ControlPowerCard extends StatelessWidget {
       this.memberUnits = const [],
       required this.canControl,
       required this.onControlOn,
-      required this.onControlOff});
+      required this.onControlOff,
+      required this.onExplain});
+
+  Future<void> _request(Future<bool> Function() action) async {
+    if (!canControl || !await action()) onExplain();
+  }
+
   @override
   Widget build(BuildContext context) => Card(
       child: Padding(
@@ -96,12 +207,12 @@ class ControlPowerCard extends StatelessWidget {
               const Spacer(),
               FilledButton.tonal(
                   onPressed:
-                      canControl && !power.controlOn ? onControlOn : null,
+                      !power.controlOn ? () => _request(onControlOn) : null,
                   child: const LText('Control On')),
               const SizedBox(width: 8),
               OutlinedButton(
                   onPressed:
-                      canControl && power.controlOn ? onControlOff : null,
+                      power.controlOn ? () => _request(onControlOff) : null,
                   child: const LText('Control Off'))
             ]),
             if (domainId.isNotEmpty)
@@ -170,9 +281,19 @@ class PackMLCard extends StatelessWidget {
           const SizedBox(width: 10),
           LText('PackML', style: Theme.of(context).textTheme.titleSmall),
           const Spacer(),
-          Chip(
+          // A custom chip fill needs its own label colour: the themed label is
+          // resolved for the DEFAULT surfaces, and these fixed pastels left
+          // white-on-pastel at 1.3:1 on the high-contrast dark theme.
+          Builder(builder: (context) {
+            final fill = _bg(context);
+            return Chip(
               label: LText(state.name.toUpperCase()),
-              backgroundColor: _bg(context)),
+              backgroundColor: fill,
+              labelStyle: fill == null
+                  ? null
+                  : TextStyle(color: foregroundOn(context, fill)),
+            );
+          }),
         ]),
       ),
     );
@@ -269,9 +390,13 @@ class PartCard extends StatelessWidget {
       Verdict.rework => ('REWORK', const Color(0xFFB26A00)),
       Verdict.none => ('—', Colors.grey),
     };
+    // The fill is a 15% tint, so it reads as the page surface: keep the themed
+    // label colour (which pairs with that surface) and let the border carry the
+    // status hue. Forcing the status colour here would be low-contrast on both.
     return Chip(
         label: LText(label),
         backgroundColor: color.withValues(alpha: 0.15),
+        labelStyle: TextStyle(color: Theme.of(ctx).colorScheme.onSurface),
         side: BorderSide(color: color));
   }
 

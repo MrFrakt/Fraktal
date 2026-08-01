@@ -48,7 +48,10 @@ void main() {
     final reply = jsonDecode(await socket.first as String) as Map;
     expect(reply['id'], 1);
     expect(reply['ok'], isTrue);
-    expect(reply['result'], client.document);
+    expect((reply['result'] as Map)['values'], client.document['values']);
+    expect((reply['result'] as Map)['paths'], [
+      'PLC1/MAIN/Unit/Status/Name',
+    ]);
     await socket.close();
   });
 
@@ -213,7 +216,10 @@ void main() {
       headers: {'origin': 'http://localhost:7357'},
     );
 
-    expect(await gatewayClient.snapshot(), client.document);
+    expect(
+      (await gatewayClient.snapshot())['values'],
+      client.document['values'],
+    );
     expect(
       await gatewayClient.write(
         'PLC1/MAIN/Unit/HmiRequest/Kind',
@@ -242,6 +248,132 @@ void main() {
     await gatewayClient.close();
   });
 
+  test('gateway client discovers paths, installs tiers, and bulk reads',
+      () async {
+    const root = 'PLC1/MAIN/Unit';
+    const live = '$root/Status/State';
+    const slow = '$root/Safety/State';
+    const onDemand = '$root/AlarmLog/Ring/Ring[1]/State';
+    client.document = {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'nodeCount': 3,
+      'truncated': false,
+      'paths': [live, slow, onDemand],
+      'values': {live: 1, slow: 2, onDemand: 3},
+    };
+    server = FraktalGatewayServer(
+      client,
+      config: FraktalGatewayConfig(port: 0, readRoots: {root}),
+    );
+    await server!.start();
+    final gatewayClient = await IoGatewayOpcUaClient.connect(
+      Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'),
+      headers: {'origin': 'http://localhost:7357'},
+    );
+
+    final snapshot = await gatewayClient.snapshot();
+    expect(snapshot['paths'], [live, slow, onDemand]);
+    expect(await gatewayClient.discoverPaths(), [live, slow, onDemand]);
+    await gatewayClient.setSlowPaths([slow]);
+    await gatewayClient.setExcludedPaths([onDemand]);
+    expect(client.slowPaths, {slow});
+    expect(client.excludedPaths, {onDemand});
+    expect(await gatewayClient.readValues([onDemand]), {onDemand: 3});
+    expect(client.readBatches.single, [onDemand]);
+    await gatewayClient.refreshSlowPaths();
+    expect(client.refreshSlowCalls, 1);
+
+    final tieredSnapshot = await gatewayClient.snapshot();
+    expect(tieredSnapshot['paths'], isEmpty,
+        reason:
+            'static discovery paths are not retransmitted after tier setup');
+    await gatewayClient.close();
+  });
+
+  test('configured read roots filter snapshot values and discovery', () async {
+    const allowed = 'PLC1/MAIN/UnitA/Status/State';
+    const denied = 'PLC1/MAIN/UnitB/Status/State';
+    client.document = {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'nodeCount': 2,
+      'truncated': false,
+      'paths': [allowed, denied],
+      'values': {allowed: 1, denied: 2},
+      'dataValues': {
+        allowed: {'value': 1, 'statusCode': 0},
+        denied: {'value': 2, 'statusCode': 0},
+      },
+    };
+    server = FraktalGatewayServer(
+      client,
+      config: FraktalGatewayConfig(
+        port: 0,
+        readRoots: {'PLC1/MAIN/UnitA'},
+      ),
+    );
+    await server!.start();
+    final gatewayClient = await IoGatewayOpcUaClient.connect(
+      Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'),
+      headers: {'origin': 'http://localhost:7357'},
+    );
+
+    final snapshot = await gatewayClient.snapshot();
+    expect(snapshot['nodeCount'], 1);
+    expect(snapshot['paths'], [allowed]);
+    expect(snapshot['values'], {allowed: 1});
+    expect((snapshot['dataValues'] as Map).keys, [allowed]);
+    expect(await gatewayClient.discoverPaths(), [allowed]);
+    await expectLater(
+      gatewayClient.readValues([denied]),
+      throwsA(isA<FormatException>()),
+    );
+    expect(client.readBatches, isEmpty);
+    await gatewayClient.close();
+  });
+
+  test('shared PLC tiers use the intersection requested by every browser',
+      () async {
+    const live = 'PLC1/MAIN/Unit/Status/State';
+    const slow = 'PLC1/MAIN/Unit/Safety/State';
+    const onDemand = 'PLC1/MAIN/Unit/AlarmLog/Ring/Ring[1]/State';
+    client.document = {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'nodeCount': 3,
+      'truncated': false,
+      'paths': [live, slow, onDemand],
+      'values': {live: 1, slow: 2, onDemand: 3},
+    };
+    server = FraktalGatewayServer(
+      client,
+      config: FraktalGatewayConfig(port: 0),
+    );
+    await server!.start();
+    Future<IoGatewayOpcUaClient> connectClient() =>
+        IoGatewayOpcUaClient.connect(
+          Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'),
+          headers: {'origin': 'http://localhost:7357'},
+        );
+    final first = await connectClient();
+    final second = await connectClient();
+    await first.snapshot();
+    await second.snapshot();
+
+    await first.setExcludedPaths([onDemand]);
+    expect(client.excludedPaths, isEmpty,
+        reason: 'an unconfigured browser still requires the full surface');
+    await second.setExcludedPaths([onDemand]);
+    expect(client.excludedPaths, {onDemand});
+
+    await second.setSlowPaths([slow]);
+    expect(client.slowPaths, isEmpty,
+        reason: 'the first browser still requests this path at live rate');
+    await first.setSlowPaths([slow]);
+    expect(client.slowPaths, {slow});
+
+    await first.close();
+    await second.close();
+  });
+
   test('native gateway client reconnects after a gateway restart', () async {
     server = FraktalGatewayServer(
       client,
@@ -259,7 +391,10 @@ void main() {
       maxBackoff: const Duration(milliseconds: 1),
     );
     addTearDown(reconnecting.close);
-    expect(await reconnecting.snapshot(), client.document);
+    expect(
+      (await reconnecting.snapshot())['values'],
+      client.document['values'],
+    );
 
     await server!.close();
     server = null;
@@ -275,7 +410,10 @@ void main() {
     );
     await server!.start();
     await Future<void>.delayed(const Duration(milliseconds: 3));
-    expect(await reconnecting.snapshot(), client.document);
+    expect(
+      (await reconnecting.snapshot())['values'],
+      client.document['values'],
+    );
   });
 
   test('mailbox batches are globally serialized without field interleaving',
@@ -496,7 +634,11 @@ String _batchRequest(int id, int sequence, int kind) => jsonEncode({
       },
     });
 
-class _FakeOpcUaClient implements OpcUaBatchSessionClient {
+class _FakeOpcUaClient
+    implements
+        OpcUaBatchSessionClient,
+        OpcUaBulkReadClient,
+        OpcUaTieredReadClient {
   Map<String, Object?> document = {
     'protocol': 'fraktal.opcua.snapshot.v1',
     'values': <String, Object?>{},
@@ -506,7 +648,11 @@ class _FakeOpcUaClient implements OpcUaBatchSessionClient {
   int concurrentWrites = 0;
   int maxConcurrentWrites = 0;
   int batchCalls = 0;
+  int refreshSlowCalls = 0;
   Object? snapshotError;
+  Set<String> slowPaths = const {};
+  Set<String> excludedPaths = const {};
+  final List<List<String>> readBatches = [];
 
   @override
   Future<Map<String, Object?>> snapshot() async {
@@ -535,6 +681,32 @@ class _FakeOpcUaClient implements OpcUaBatchSessionClient {
       if (!await write(value.path, value.type, value.value)) return false;
     }
     return true;
+  }
+
+  @override
+  Future<Map<String, Object?>> readValues(List<String> browsePaths) async {
+    readBatches.add(List.unmodifiable(browsePaths));
+    final values = document['values'];
+    if (values is! Map) return const {};
+    return {
+      for (final path in browsePaths)
+        if (values.containsKey(path)) path: values[path],
+    };
+  }
+
+  @override
+  Future<void> setSlowPaths(Iterable<String> browsePaths) async {
+    slowPaths = Set.unmodifiable(browsePaths);
+  }
+
+  @override
+  Future<void> setExcludedPaths(Iterable<String> browsePaths) async {
+    excludedPaths = Set.unmodifiable(browsePaths);
+  }
+
+  @override
+  Future<void> refreshSlowPaths() async {
+    refreshSlowCalls++;
   }
 
   @override

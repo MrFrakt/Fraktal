@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <FileVersion>1.0.0.0</FileVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{fdb931c7-7fb9-48e9-a40f-5c9ec6e4c5ca}</ProjectGuid>
+    <SubObjectsSortedByName>True</SubObjectsSortedByName>
+    <Name>Fraktal_Tests</Name>
+    <ProgramVersion>3.1.4026.24</ProgramVersion>
+    <Application>{b7f6d7fe-d798-4686-a726-c0c5f8500e58}</Application>
+    <TypeSystem>{5ce4241a-0a00-4b7c-88f1-d17af43bbb35}</TypeSystem>
+    <Implicit_Task_Info>{7e0de90c-a87b-4f71-9280-1f448814f107}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{96746d50-8b41-4130-b90f-ada193ebce73}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{2b27b616-7f08-4df5-a50c-5945216d6326}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{f736ac4f-781a-4b71-b643-6a566a2bec22}</LibraryReferences>
+    <DefaultNamespace>Fraktal_Tests</DefaultNamespace>
+    <Company>fraktal-automation</Company>
+    <Title>Fraktal_Tests</Title>
+    <ProjectVersion>0.1.0.10</ProjectVersion>
+    <Released>false</Released>
+    <Author>fraktal-automation</Author>
+    <Description>Aggregate Fraktal Core + Modules + Press Demo TcUnit gate - excluded from deployed runtime (Core 5.7).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- This project lives beside Fraktal_Press_Demo in Tests and Examples.
+         Own sources are project-relative; Press acceptance sources are linked
+         from the sibling project and remain single-source deployed files. -->
+    <Compile Include="PlcTask.TcTTO">
+      <Link>PlcTask.TcTTO</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <!-- Project sources are linked, never copied: the aggregate gate tests the
+         same application Unit, release logic, and native SFCs that are deployed. -->
+    <Compile Include="..\Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoLoadPosition.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoLoadPosition.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="..\Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoHome.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoHome.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="..\Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoChangeover.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoChangeover.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="..\Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoAuto.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoAuto.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="..\Fraktal_Press_Demo\01_PneumaticPress\Release\FB_PressDemoRelease.TcPOU">
+      <Link>PressDemo\Release\FB_PressDemoRelease.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="..\Fraktal_Press_Demo\01_PneumaticPress\FB_PressDemoUnit.TcPOU">
+      <Link>PressDemo\FB_PressDemoUnit.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Access_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_AlarmLog_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Base_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_FaultRecovery_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ConfigurableCylinderCM_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ClampEM_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ClampStationUnit_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Connector_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_CylinderCM_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Decision_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Hmi_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_IoTopologyPublisher_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_InputCM_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ManualCmd_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_MultiRoot_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Oee_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_PermIntlk_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_PowerGroupCM_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_TwoHandStartCM_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_PressDemoUnit_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ProbeCM.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ProbeConnector.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ProbeEM.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ProbeUnit.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ProbeUnitManual.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Release_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_PartTrace_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Shelve_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_SystemInfrastructure_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_TcpDev_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Timing_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Unit_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="PRG_TcUnitRunner.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <PlaceholderReference Include="Tc2_Standard">
+      <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Standard</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_System">
+      <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_System</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Utilities">
+      <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Utilities</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_Module">
+      <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_Module</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Fraktal_Core">
+      <DefaultResolution>Fraktal_Core, 0.3.0.0 (fraktal-automation)</DefaultResolution>
+      <Namespace>Fraktal_Core</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Fraktal_Modules">
+      <DefaultResolution>Fraktal_Modules, 0.2.0.0 (fraktal-automation)</DefaultResolution>
+      <Namespace>Fraktal_Modules</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="TcUnit">
+      <DefaultResolution>TcUnit, * (www.tcunit.org)</DefaultResolution>
+      <Namespace>TcUnit</Namespace>
+    </PlaceholderReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Fraktal_Press_Demo" />
+    <Folder Include="Fraktal_Press_Demo\01_PneumaticPress" />
+    <Folder Include="Fraktal_Press_Demo\01_PneumaticPress\Release" />
+    <Folder Include="Fraktal_Press_Demo\01_PneumaticPress\Sequences" />
+    <Folder Include="Fraktal_Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Fraktal_Tests.tmc">
+      <SubType>Content</SubType>
+    </None>
+  </ItemGroup>
+  <ProjectExtensions>
+    <PlcProjectOptions>
+      <XmlArchive>
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
+      <v n="Name">"&lt;ProjectRoot&gt;"</v>
+      <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
+        <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
+        <o>
+          <v n="Name">"{192FAD59-8248-4824-A8DE-9177C94C195A}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{29BD8D0C-3586-4548-BB48-497B9A01693F}</v>
+        <o>
+          <v n="Name">"{29BD8D0C-3586-4548-BB48-497B9A01693F}"</v>
+          <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
+            <v>NamingConventions</v>
+            <o>
+              <v n="Name">"NamingConventions"</v>
+              <d n="SubKeys" t="Hashtable" />
+              <d n="Values" t="Hashtable" />
+            </o>
+            <v>Rules</v>
+            <o>
+              <v n="Name">"Rules"</v>
+              <d n="SubKeys" t="Hashtable" />
+              <d n="Values" t="Hashtable" />
+            </o>
+          </d>
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{40450F57-0AA3-4216-96F3-5444ECB29763}</v>
+        <o>
+          <v n="Name">"{40450F57-0AA3-4216-96F3-5444ECB29763}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String" cvt="String">
+            <v>ActiveVisuProfile</v>
+            <v>IR0whWr8bwfyBwAAMxnWswAAAABVAgAADu3eawAAAAABAAAAAAAAAAEaUwB5AHMAdABlAG0ALgBTAHQAcgBpAG4AZwACTHsAZgA5ADUAYgBiADQAMgA2AC0ANQA1ADIANAAtADQAYgA0ADUALQA5ADQAMAAwAC0AZgBiADAAZgAyAGUANwA3AGUANQAxAGIAfQADCE4AYQBtAGUABDJUAHcAaQBuAEMAQQBUACAAMwAuADEAIABCAHUAaQBsAGQAIAA0ADAAMgA2AC4AMQA4AAUWUAByAG8AZgBpAGwAZQBEAGEAdABhAAZMewAxADYAZQA1ADUAYgA2ADAALQA3ADAANAAzAC0ANABhADYAMwAtAGIANgA1AGIALQA2ADEANAA3ADEAMwA4ADcAOABkADQAMgB9AAcSTABpAGIAcgBhAHIAaQBlAHMACEx7ADMAYgBmAGQANQA0ADUAOQAtAGIAMAA3AGYALQA0AGQANgBlAC0AYQBlADEAYQAtAGEAOAAzADMANQA2AGEANQA1ADEANAAyAH0ACUx7ADkAYwA5ADUAOAA5ADYAOAAtADIAYwA4ADUALQA0ADEAYgBiAC0AOAA4ADcAMQAtADgAOQA1AGYAZgAxAGYAZQBkAGUAMQBhAH0ACg5WAGUAcgBzAGkAbwBuAAsGaQBuAHQADApVAHMAYQBnAGUADQpUAGkAdABsAGUADhpWAGkAcwB1AEUAbABlAG0ATQBlAHQAZQByAA8OQwBvAG0AcABhAG4AeQAQDFMAeQBzAHQAZQBtABESVgBpAHMAdQBFAGwAZQBtAHMAEjBWAGkAcwB1AEUAbABlAG0AcwBTAHAAZQBjAGkAYQBsAEMAbwBuAHQAcgBvAGwAcwATKFYAaQBzAHUARQBsAGUAbQBzAFcAaQBuAEMAbwBuAHQAcgBvAGwAcwAUJFYAaQBzAHUARQBsAGUAbQBUAGUAeAB0AEUAZABpAHQAbwByABUiVgBpAHMAdQBOAGEAdABpAHYAZQBDAG8AbgB0AHIAbwBsABYUVgBpAHMAdQBJAG4AcAB1AHQAcwAXGFYAaQBzAHUARQBsAGUAbQBCAGEAcwBlABgmRABlAHYAUABsAGEAYwBlAGgAbwBsAGQAZQByAHMAVQBzAGUAZAAZCGIAbwBvAGwAGiJQAGwAdQBnAGkAbgBDAG8AbgBzAHQAcgBhAGkAbgB0AHMAG0x7ADQAMwBkADUAMgBiAGMAZQAtADkANAAyAGMALQA0ADQAZAA3AC0AOQBlADkANAAtADEAYgBmAGQAZgAzADEAMABlADYAMwBjAH0AHBxBAHQATABlAGEAcwB0AFYAZQByAHMAaQBvAG4AHRRQAGwAdQBnAGkAbgBHAHUAaQBkAB4WUwB5AHMAdABlAG0ALgBHAHUAaQBkAB9IYQBmAGMAZAA1ADQANAA2AC0ANAA5ADEANAAtADQAZgBlADcALQBiAGIANwA4AC0AOQBiAGYAZgBlAGIANwAwAGYAZAAxADcAIBRVAHAAZABhAHQAZQBJAG4AZgBvACFMewBiADAAMwAzADYANgBhADgALQBiADUAYwAwAC0ANABiADkAYQAtAGEAMAAwAGUALQBlAGIAOAA2ADAAMQAxADEAMAA0AGMAMwB9ACIOVQBwAGQAYQB0AGUAcwAjTHsAMQA4ADYAOABmAGYAYwA5AC0AZQA0AGYAYwAtADQANQAzADIALQBhAGMAMAA2AC0AMQBlADMAOQBiAGIANQA1ADcAYgA2ADkAfQAkTHsAYQA1AGIAZAA0ADgAYwAzAC0AMABkADEANwAtADQAMQBiADUALQBiADEANgA0AC0ANQBmAGMANgBhAGQAMgBiADkANgBiADcAfQAlFk8AYgBqAGUAYwB0AHMAVAB5AHAAZQAmVFUAcABkAGEAdABlAEwAYQBuAGcAdQBhAGcAZQBNAG8AZABlAGwARgBvAHIAQwBvAG4AdgBlAHIAdABpAGIAbABlAEwAaQBiAHIAYQByAGkAZQBzACcQTABpAGIAVABpAHQAbABlACgUTABpAGIAQwBvAG0AcABhAG4AeQApHlUAcABkAGEAdABlAFAAcgBvAHYAaQBkAGUAcgBzACo4UwB5AHMAdABlAG0ALgBDAG8AbABsAGUAYwB0AGkAbwBuAHMALgBIAGEAcwBoAHQAYQBiAGwAZQArEnYAaQBzAHUAZQBsAGUAbQBzACwMcwB5AHMAdABlAG0ALUg2AGMAYgAxAGMAZABlADEALQBkADUAZABjAC0ANABhADMAYgAtADkAMAA1ADQALQAyADEAZgBhADcANQA2AGEAMwBmAGEANAAuKEkAbgB0AGUAcgBmAGEAYwBlAFYAZQByAHMAaQBvAG4ASQBuAGYAbwAvTHsAYwA2ADEAMQBlADQAMAAwAC0ANwBmAGIAOQAtADQAYwAzADUALQBiADkAYQBjAC0ANABlADMAMQA0AGIANQA5ADkANgA0ADMAfQAwGE0AYQBqAG8AcgBWAGUAcgBzAGkAbwBuADEYTQBpAG4AbwByAFYAZQByAHMAaQBvAG4AMgxMAGUAZwBhAGMAeQAzMEwAYQBuAGcAdQBhAGcAZQBNAG8AZABlAGwAVgBlAHIAcwBpAG8AbgBJAG4AZgBvADQwTABvAGEAZABMAGkAYgByAGEAcgBpAGUAcwBJAG4AdABvAFAAcgBvAGoAZQBjAHQANRpDAG8AbQBwAGEAdABpAGIAaQBsAGkAdAB5ANAAAhoD0AMBLQTQBQYaB9AHCBoBRQcJCNAACRoERQoLBAQAAAAHAAAAAAAAAAAAAADQDAutAgAAANANAS0O0A8BLRDQAAkaBEUKCwQEAAAACAAAAAAAAAAAAAAA0AwLrQEAAADQDQEtEdAPAS0Q0AAJGgRFCgsEBAAAAAcAAAAAAAAAAAAAANAMC60CAAAA0A0BLRLQDwEtENAACRoERQoLBAQAAAAIAAAAAAAAAAAAAADQDAutAgAAANANAS0T0A8BLRDQAAkaBEUKCwQEAAAACAAAAAAAAAAAAAAA0AwLrQIAAADQDQEtFNAPAS0Q0AAJGgRFCgsEBAAAAAgAAAAAAAAAAAAAANAMC60CAAAA0A0BLRXQDwEtENAACRoERQoLBAQAAAAHAAAAAAAAAAAAAADQDAutAgAAANANAS0W0A8BLRDQAAkaBEUKCwQEAAAACAAAAAAAAAAAAAAA0AwLrQQAAADQDQEtF9APAS0Q0BgZrQFFGhsB0AAbGgJFHAsEBAAAAAIAAAAAAAAAAAAAANAdHi0f0CAhGgJFIiMC0AAkGgVFCgsEAwAAAAMAAAAAAAAACgAAANAlC60AAAAA0AMBLSbQJwEtEdAoAS0Q0AAkGgVFCgsEAwAAAAMAAAAAAAAACgAAANAlC60BAAAA0AMBLSbQJwEtEdAoAS0QmikqAUUAAQLQAAEtK9AAAS0s0AAeLS3QLi8aA9AwC60BAAAA0DELrSQAAADQMhmtANAzLxoD0DALrQIAAADQMQutBgAAANAyGa0A0DQZrQDQNRmtAA==</v>
+          </d>
+        </o>
+        <v>{8A0FB252-96EB-4DCC-A5B4-B4804D05E2D6}</v>
+        <o>
+          <v n="Name">"{8A0FB252-96EB-4DCC-A5B4-B4804D05E2D6}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
+            <v>WriteLineIDs</v>
+            <v>True</v>
+          </d>
+        </o>
+        <v>{8F99A816-E488-41E4-9FA3-846536012284}</v>
+        <o>
+          <v n="Name">"{8F99A816-E488-41E4-9FA3-846536012284}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{eeeeeeee-3909-4298-8022-501ac3238667}</v>
+        <o>
+          <v n="Name">"{eeeeeeee-3909-4298-8022-501ac3238667}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+      </d>
+      <d n="Values" t="Hashtable" />
+    </o>
+        </Data>
+        <TypeList>
+          <Type n="Boolean">System.Boolean</Type>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
+    </PlcProjectOptions>
+  </ProjectExtensions>
+</Project>

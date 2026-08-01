@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ConfigEntry" Id="{8f3d92a1-6c47-4b0e-9d15-2a7e84c1f603}">
+    <Declaration><![CDATA[// Core §3.10.2 — one configuration value served through the request mailbox
+// instead of the cyclic OPC UA tree. Scope selects the owner ('' = the root
+// Unit itself, a qualified dotted module identity for a child, '#Fieldbus' for
+// the bus topology). Item is the value's browse fragment in the server's array
+// naming (e.g. 'Catalog/Catalog[2]/Label') so a generic HMI can rebuild the
+// exact published path it would otherwise have read. The append-only capability
+// tail is fail-closed: Writable alone is insufficient; a client also requires a
+// stable WriteKey and non-zero WriteRevision and the owning handler rechecks it.
+TYPE ST_ConfigEntry :
+STRUCT
+    Scope     : STRING(255);
+    Item      : STRING(255);
+    ValueText : STRING(255);   // typed by the HMI from the Item vocabulary
+    WriteKey      : STRING(160);
+    WriteRevision : UDINT;
+    ConfigKind    : E_ConfigKind;
+    ValueType     : E_ConfigValueType;
+    Writable      : BOOL;
+    RequiresReady : BOOL;
+    HasMinimum    : BOOL;
+    HasMaximum    : BOOL;
+    Minimum       : LREAL;
+    Maximum       : LREAL;
+    Unit          : STRING(16);
+    LabelKey      : STRING(160);
+    EnumDomain    : STRING(255); // pipe-separated exact accepted values
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

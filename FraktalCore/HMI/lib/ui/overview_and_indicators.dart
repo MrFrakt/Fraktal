@@ -33,12 +33,20 @@ class CurrentStepCard extends StatelessWidget {
                 },
                 style: Theme.of(context).textTheme.titleMedium),
             const Spacer(),
+            // Fixed pastels need an explicit paired label: the themed one is
+            // resolved for the default surfaces and goes white on a dark theme.
             if (step.starved)
-              const Chip(
-                  label: LText('STARVED'), backgroundColor: Color(0xFFBBDEFB)),
+              Chip(
+                  label: const LText('STARVED'),
+                  backgroundColor: const Color(0xFFBBDEFB),
+                  labelStyle: TextStyle(
+                      color: foregroundOn(context, const Color(0xFFBBDEFB)))),
             if (step.blocked)
-              const Chip(
-                  label: LText('BLOCKED'), backgroundColor: Color(0xFFE1BEE7)),
+              Chip(
+                  label: const LText('BLOCKED'),
+                  backgroundColor: const Color(0xFFE1BEE7),
+                  labelStyle: TextStyle(
+                      color: foregroundOn(context, const Color(0xFFE1BEE7)))),
           ]),
           if (waiting)
             Padding(
@@ -195,12 +203,18 @@ class GlobalAlarmBanner extends StatelessWidget {
   }
 }
 
-/// Connection liveness chip for the app bar.
+/// Connection liveness chip for the app bar — shown **only when something is
+/// wrong**. `ConnectionBootstrap` removes the whole operator shell on STALE/DOWN
+/// and blocks it until LIVE, so a working panel would permanently display a
+/// "Live" badge that can never say anything else: chrome with no information.
+/// The degraded states stay, because those the operator does need to see (and
+/// they can appear briefly before the shell is torn down).
 class ConnectionChip extends StatelessWidget {
   final LinkState state;
   const ConnectionChip({super.key, required this.state});
   @override
   Widget build(BuildContext context) {
+    if (state == LinkState.live) return const SizedBox.shrink();
     final (label, color, icon) = switch (state) {
       LinkState.live => (
           'Live',
@@ -226,7 +240,9 @@ class ConnectionChip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Chip(
-          avatar: Icon(icon, size: 18, color: color),
+          // Follows the size preset like the rest of the bar (app_theme).
+          avatar: Icon(icon,
+              size: ControlScaleScope.of(context).iconSize * 0.9, color: color),
           label: LText(label),
           visualDensity: VisualDensity.compact),
     );

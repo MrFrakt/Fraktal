@@ -26,9 +26,21 @@ Rules
         misleading errors elsewhere in the file.
   C3  Balanced <Method> open/close tags (guards hand-edited .TcPOU XML).
   C4  Unique GUIDs within a file (a duplicated Id silently shadows an object).
+  D1  Shipping concrete modules declare the four physical contract members;
+        every `ST_*ParCfg` record starts with `SchemaVersion : UINT`.
+  E1  PLC enum ordinals/names match the generic HMI Dart transport enums.
+  H1  Concrete module bodies contain only inherited `Cyclic();`; lifecycle-hook
+        overrides call `SUPER^` first (except staged `OnModeExit`).
+  C5  Every authored ST `CASE` has an `ELSE` safe reaction.
+  S1  Every multi-step sequence extends `FB_SequenceBase` and carries the shared
+        step/result/advance skeleton.
+  A1  An EquipmentModule declaration never contains a Unit instance.
+  R1  Type reason constants are >=10000 and collision-free repository-wide.
+  P1  Project compile inputs resolve, authored sources are listed, and deployed
+        application root Units carry an instance-level `OPC.UA.DA := '1'`.
 
 Usage
-  python tools/plc_lint.py [root ...]        # default: FraktalCore/PLC
+  python tools/plc_lint.py [root ...]        # default: FraktalCore/PLC/TwinCAT
   python tools/plc_lint.py --quiet           # only failures
   python tools/plc_lint.py --profile 4024    # legacy build: no 4026-only feature
 Exit status: 0 clean, 1 violations found, 2 bad invocation.
@@ -40,10 +52,13 @@ import re
 import sys
 from pathlib import Path
 
-DEFAULT_ROOTS = [Path("FraktalCore/PLC")]
+DEFAULT_ROOTS = [Path("FraktalCore/PLC/TwinCAT")]
 
 # Generated/vendored trees that are not authored source.
-SKIP_PARTS = {"_CompileInfo", "_Boot", "_ScopeConfig", "third_party", ".git"}
+SKIP_PARTS = {
+    "_Boot", "_ScopeConfig", "_Libraries", "Dependancies", "Release",
+    "third_party", ".git",
+}
 
 OBJECT_TAG = re.compile(r"<(POU|DUT|GVL|Itf)\s+Name=\"([^\"]+)\"", re.I)
 METHOD_BLOCK = re.compile(r"<Method\s+Name=\"([^\"]+)\"[^>]*>(.*?)</Method>", re.S | re.I)
@@ -58,6 +73,58 @@ PRAGMA_ELSE = re.compile(r"^\{\s*ELSE\s*\}", re.I)
 PRAGMA_END = re.compile(r"^\{\s*END_IF\s*\}", re.I)
 # Identifier declarations inside any VAR block (name : TYPE).
 DECL_ANY = re.compile(r"^\s*([A-Za-z_]\w*)\s*:\s*[A-Za-z_]")
+POU_DECL = re.compile(
+    r"FUNCTION_BLOCK\s+(?:(ABSTRACT)\s+)?([A-Za-z_]\w*)"
+    r"(?:\s+EXTENDS\s+([A-Za-z_]\w*))?", re.I)
+OUTER_IMPL = re.compile(
+    r"</Declaration>\s*<Implementation>\s*<ST><!\[CDATA\[(.*?)\]\]></ST>"
+    r"\s*</Implementation>", re.S | re.I)
+METHOD_IMPL = re.compile(r"<Implementation>.*?<!\[CDATA\[(.*?)\]\]>.*?</Implementation>",
+                         re.S | re.I)
+CASE_BLOCK = re.compile(r"\bCASE\b.*?\bEND_CASE\b", re.S | re.I)
+TYPE_STRUCT = re.compile(r"\bTYPE\s+([A-Za-z_]\w*)\s*:\s*STRUCT(.*?)END_STRUCT",
+                         re.S | re.I)
+CONST_DINT = re.compile(
+    r"^\s*([A-Z][A-Z0-9_]*)\s*:\s*DINT\s*:=\s*(\d+)", re.M)
+
+MODULE_BASES = {"FB_ControlModuleBase", "FB_EquipmentModuleBase", "FB_UnitBase"}
+LIFECYCLE_HOOKS = {
+    "OnInit", "OnCyclic", "OnCommandStart", "OnModeChanged", "OnAbort",
+    "OnAbortInError", "OnManRelease", "OnChainAbort", "OnChainError",
+    "OnChainStart", "OnChainDone",
+}
+
+# PLC enum -> (Dart file, Dart enum). Names normalize across snake/camel case;
+# MED is the one intentional vocabulary alias for Dart's `medium`.
+ENUM_BINDINGS = {
+    "E_ExecState": ("types.dart", "ExecState"),
+    "E_ModuleType": ("types.dart", "ModuleType"),
+    "E_Severity": ("types.dart", "Severity"),
+    "E_ResetClass": ("types.dart", "ResetClass"),
+    "E_AlarmState": ("types.dart", "AlarmState"),
+    "E_AccessLevel": ("types.dart", "AccessLevel"),
+    "E_GatedAction": ("types.dart", "GatedAction"),
+    "E_Mode": ("types.dart", "UnitMode"),
+    "E_RunStyle": ("types.dart", "RunStyle"),
+    "E_ModeSwitchShield": ("types.dart", "ModeSwitchShield"),
+    "E_ModeSwitchStyle": ("types.dart", "ModeSwitchStyle"),
+    "E_ConfigKind": ("types.dart", "CfgKind"),
+    "E_ConfigValueType": ("types.dart", "CfgType"),
+    "E_SafetyDeviceKind": ("types.dart", "SafetyDeviceKind"),
+    "E_SafetyState": ("types.dart", "SafetyState"),
+    "E_PowerState": ("types.dart", "PowerState"),
+    "E_PowerGroupKind": ("types.dart", "PowerGroupKind"),
+    "E_FieldbusLossReaction": ("types.dart", "FieldbusLossReaction"),
+    "E_Verdict": ("types.dart", "Verdict"),
+    "E_PackMLState": ("types.dart", "PackMLState"),
+    "E_TimeClass": ("types.dart", "TimeClass"),
+    "E_MachineState": ("types.dart", "MachineState"),
+    "E_ReleaseKind": ("types.dart", "ReleaseKind"),
+    "E_HmiRequestKind": ("../data/opcua_repository.dart", "_HmiRequestKind"),
+    "E_NodeState": ("fieldbus.dart", "NodeState"),
+    "E_ChannelDir": ("fieldbus.dart", "ChannelDir"),
+    "E_ChannelKind": ("fieldbus.dart", "ChannelKind"),
+}
 
 PREFIX_BY_TAG = {
     "pou": ("FB_", "F_", "PRG_", "MAIN"),
@@ -202,6 +269,399 @@ def lint_file(path: Path, legacy_4024: bool = False) -> list[Finding]:
     return findings
 
 
+def _skipped(path: Path) -> bool:
+    return any(part in SKIP_PARTS or part.startswith("_CompileInfo")
+               for part in path.parts)
+
+
+def _without_comments(text: str) -> str:
+    text = re.sub(r"\(\*.*?\*\)", "", text, flags=re.S)
+    return re.sub(r"//[^\n]*", "", text)
+
+
+def _first_declaration(text: str) -> str:
+    hit = re.search(r"<Declaration><!\[CDATA\[(.*?)\]\]></Declaration>",
+                    text, re.S | re.I)
+    return hit.group(1) if hit else ""
+
+
+def _has_default_then_guard(code: str, block: re.Match[str]) -> bool:
+    """A CASE that is fail-safe by construction rather than by an ELSE branch.
+
+    The pattern the standard actually requires (§5.6) is a *defined safe
+    reaction*, not empty `ELSE` boilerplate. The idiomatic form is:
+
+        target := -1;                 // safe default BEFORE the CASE
+        CASE _retVal OF ... END_CASE  // branches only ever raise it
+        IF target >= 0 THEN ...       // guard AFTER: unmatched input does nothing
+
+    An unmatched selector then falls through to the default and the guard
+    rejects it — strictly safer than an `ELSE` that must be written correctly.
+    Recognised only when BOTH halves are present: a variable assigned a literal
+    immediately before the CASE, and that same variable tested in an `IF`
+    immediately after. A CASE with neither is still reported.
+    """
+    before = code[:block.start()]
+    after = code[block.end():]
+    # Last assignment before the CASE, e.g. `target := -1;`
+    default = None
+    for match in re.finditer(r"(\w+)\s*:=\s*[^;]+;", before):
+        default = match
+    if default is None:
+        return False
+    variable = default.group(1)
+    # The default must be adjacent to the CASE, not anywhere earlier in the POU.
+    if _without_comments(before[default.end():]).strip():
+        return False
+    # ...and every branch must write that same variable, so the default is the
+    # value an unmatched selector actually keeps.
+    branches = re.findall(rf"\b{re.escape(variable)}\s*:=", block.group(0))
+    if not branches:
+        return False
+    # A guard on that variable must follow the CASE.
+    guard = re.match(r"\s*IF\b[^;]*?\b" + re.escape(variable) + r"\b",
+                     after, re.I | re.S)
+    return guard is not None
+
+
+def _shipping(path: Path) -> bool:
+    parts = set(path.parts)
+    if "scaffold" in parts or "Fraktal_Tests" in parts:
+        return False
+    return "Framework" in parts or "Fraktal_Press_Demo" in parts
+
+
+def _normalize_enum_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def _parse_plc_enum(text: str, enum_name: str) -> list[tuple[str, int]] | None:
+    hit = re.search(
+        rf"\bTYPE\s+{re.escape(enum_name)}\s*:\s*\((.*?)\)\s*DINT\s*;",
+        _without_comments(text), re.S | re.I)
+    if not hit:
+        return None
+    rows: list[tuple[str, int]] = []
+    for item in hit.group(1).split(","):
+        parsed = re.match(r"\s*([A-Za-z_]\w*)\s*:=\s*(-?\d+)\s*$", item)
+        if not parsed:
+            return None
+        rows.append((parsed.group(1), int(parsed.group(2))))
+    return rows
+
+
+def _parse_dart_enum(text: str, enum_name: str) -> list[str] | None:
+    hit = re.search(rf"\benum\s+{re.escape(enum_name)}\s*\{{(.*?)\}}",
+                    _without_comments(text), re.S)
+    if not hit:
+        return None
+    names: list[str] = []
+    for item in hit.group(1).split(","):
+        parsed = re.match(r"\s*([A-Za-z_]\w*)", item)
+        if parsed:
+            names.append(parsed.group(1))
+    return names
+
+
+def _resolve_compile(project: Path, include: str, boundary: Path) -> Path | None:
+    relative = Path(include.replace("\\", "/"))
+    for base in (project.parent, *project.parents):
+        try:
+            base.relative_to(boundary)
+        except ValueError:
+            continue
+        candidate = base / relative
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def lint_repository(roots: list[Path]) -> list[Finding]:
+    """Cross-file conformance checks. Kept separate for deterministic fixtures."""
+    source_paths = sorted({path for path in iter_sources(roots)})
+    texts: dict[Path, str] = {}
+    findings: list[Finding] = []
+    for path in source_paths:
+        try:
+            texts[path] = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as error:
+            findings.append(Finding(path, 0, "IO", f"cannot read: {error}"))
+
+    inheritance: dict[str, str] = {}
+    declarations: dict[str, tuple[Path, str, bool]] = {}
+    for path, text in texts.items():
+        declaration = _first_declaration(text)
+        match = POU_DECL.search(declaration)
+        if not match:
+            continue
+        abstract, name, base = bool(match.group(1)), match.group(2), match.group(3)
+        declarations[name] = (path, declaration, abstract)
+        if base:
+            inheritance[name] = base
+
+    def derives(name: str, target: str) -> bool:
+        seen: set[str] = set()
+        while name and name not in seen:
+            if name == target:
+                return True
+            seen.add(name)
+            name = inheritance.get(name, "")
+        return False
+
+    # D1 + H1: physical contract and inheritance-owned lifecycle/body.
+    for name, (path, declaration, abstract) in declarations.items():
+        base = inheritance.get(name, "")
+        text = texts[path]
+        if (_shipping(path) and not abstract
+                and any(derives(name, module_base) for module_base in MODULE_BASES)):
+            # The four-structure contract may be declared on this type OR on any
+            # ancestor: §2.2 writes behaviour once at the owning level and
+            # inherits it, so a device variant that only overrides _M_Dispatch
+            # (e.g. FB_Iv3VisionCM EXTENDS FB_TcpVisionCM) legitimately declares
+            # none of the four itself. Walking the chain is what makes this rule
+            # agree with the framework instead of forbidding inheritance.
+            # Collect this type's declaration plus every ANCESTOR declaration we
+            # can see. The tier bases (FB_ControlModuleBase etc.) deliberately do
+            # not declare the four — a concrete type must obtain them somewhere
+            # in its own chain — so an unresolvable ancestor is simply skipped
+            # rather than treated as proof either way.
+            inherited_decls = [declaration]
+            ancestor = base
+            seen_bases: set[str] = set()
+            while (ancestor and ancestor not in seen_bases
+                   and ancestor not in MODULE_BASES):
+                seen_bases.add(ancestor)
+                ancestor_entry = declarations.get(ancestor)
+                if ancestor_entry is None:
+                    break
+                inherited_decls.append(ancestor_entry[1])
+                ancestor = inheritance.get(ancestor, "")
+            missing = [field for field in ("ParCfg", "ParCmd", "OutCmd", "OutImm")
+                       if not any(re.search(rf"\b{field}\b", decl)
+                                  for decl in inherited_decls)]
+            if missing:
+                findings.append(Finding(
+                    path, 1, "D1",
+                    f"shipping module {name} lacks physical contract member(s): "
+                    f"{', '.join(missing)}"))
+            outer = OUTER_IMPL.search(text)
+            body = _without_comments(outer.group(1) if outer else "")
+            normalized = re.sub(r"\s+", "", body)
+            if normalized != "Cyclic();":
+                findings.append(Finding(
+                    path, 1, "H1",
+                    f"concrete module {name} body must be exactly inherited Cyclic();"))
+
+        if base:
+            for method in METHOD_BLOCK.finditer(text):
+                method_name = method.group(1)
+                if method_name not in LIFECYCLE_HOOKS:
+                    continue
+                # The tier base owns a few hooks (notably OnModeChanged) that do
+                # not exist on its parent.  Those are definitions, not overrides;
+                # SUPER is mandatory only when an ancestor actually declares the
+                # same hook.  This also makes the rule correct for future
+                # intermediate abstract bases.
+                ancestor = base
+                inherited_hook = False
+                seen: set[str] = set()
+                while ancestor and ancestor not in seen:
+                    seen.add(ancestor)
+                    ancestor_decl = declarations.get(ancestor)
+                    if ancestor_decl and re.search(
+                            rf'<Method\s+Name="{re.escape(method_name)}"',
+                            texts[ancestor_decl[0]], re.I):
+                        inherited_hook = True
+                        break
+                    ancestor = inheritance.get(ancestor, "")
+                if not inherited_hook:
+                    continue
+                implementation = METHOD_IMPL.search(method.group(2))
+                code = _without_comments(implementation.group(1) if implementation else "")
+                statements = [part.strip() for part in code.split(";") if part.strip()]
+                if not statements or f"SUPER^.{method_name}" not in statements[0]:
+                    findings.append(Finding(
+                        path, _line_of(text, method.start()), "H1",
+                        f"{name}.{method_name} must call SUPER^.{method_name} first"))
+
+    for path, text in texts.items():
+        for type_name, body in TYPE_STRUCT.findall(text):
+            if not type_name.lower().endswith("parcfg"):
+                continue
+            code = _without_comments(body).strip()
+            first = re.match(r"([A-Za-z_]\w*)\s*:\s*([A-Za-z_]\w*)", code)
+            if not first or first.group(1) != "SchemaVersion" or first.group(2).upper() != "UINT":
+                findings.append(Finding(
+                    path, 1, "D1",
+                    f"{type_name} must start with SchemaVersion : UINT"))
+
+    # C5: CASE must own an explicit safe default. IF guard-return patterns are
+    # intentionally not policed; the standard requires semantics, not empty ELSE.
+    for path, text in texts.items():
+        if not _shipping(path):
+            continue
+        code = _without_comments(text)
+        for block in CASE_BLOCK.finditer(code):
+            if re.search(r"\bELSE\b", block.group(0), re.I):
+                continue
+            if _has_default_then_guard(code, block):
+                continue
+            findings.append(Finding(
+                path, _line_of(code, block.start()), "C5",
+                "CASE has no ELSE fail-safe reaction"))
+
+    # S1: the shipped ST sequence skeleton is deliberately small and testable.
+    for name, (path, declaration, _) in declarations.items():
+        if inheritance.get(name) != "FB_SequenceBase" or not _shipping(path):
+            continue
+        text = texts[path]
+        required = ("_step", "_retVal", "CASE _step OF", "M_Step(", "M_Advance(")
+        missing = [token for token in required if token not in text]
+        if missing:
+            findings.append(Finding(
+                path, 1, "S1",
+                f"sequence {name} lacks skeleton token(s): {', '.join(missing)}"))
+        case = re.search(r"\bCASE\s+_step\s+OF(.*?)\bEND_CASE\b", text, re.S | re.I)
+        if case:
+            body = case.group(1)
+            # Split into per-step branches so a TERMINAL step can be excused.
+            # A terminal step must NOT advance — it ends the chain via
+            # M_Complete() (finite chains) or Done := TRUE (sub-sequences).
+            # Requiring M_Advance there would demand the opposite of §6.8.
+            starts = [m.start() for m in re.finditer(r"(?m)^\s*-?\d+\s*:", body)]
+            advancing_required = 0
+            advances_found = 0
+            for index, start in enumerate(starts):
+                end = starts[index + 1] if index + 1 < len(starts) else len(body)
+                branch = body[start:end]
+                terminal = ("M_Complete(" in branch
+                            or re.search(r"\bDone\s*:=\s*TRUE", branch, re.I))
+                if terminal:
+                    continue
+                advancing_required += 1
+                if re.search(r"\bM_Advance\s*\(", branch):
+                    advances_found += 1
+            if advances_found < advancing_required:
+                findings.append(Finding(
+                    path, _line_of(text, case.start()), "S1",
+                    f"sequence {name} has {advancing_required} non-terminal step "
+                    f"branches but only {advances_found} M_Advance calls"))
+
+    # A1: direct or derived Unit types cannot be members of an EM declaration.
+    unit_types = {name for name in declarations if derives(name, "FB_UnitBase")}
+    for name, (path, declaration, _) in declarations.items():
+        if not derives(name, "FB_EquipmentModuleBase"):
+            continue
+        for member_type in re.findall(r":\s*(FB_[A-Za-z_]\w*)", declaration):
+            if member_type in unit_types:
+                findings.append(Finding(
+                    path, 1, "A1",
+                    f"EquipmentModule {name} contains Unit type {member_type}"))
+
+    # R1: the type-owned reason registry is one collision domain.
+    reasons: dict[int, tuple[Path, str]] = {}
+    for path, text in texts.items():
+        if not path.stem.startswith("PL_") or "Reasons" not in path.stem:
+            continue
+        for match in CONST_DINT.finditer(_without_comments(text)):
+            reason_name, value = match.group(1), int(match.group(2))
+            if value < 10000:
+                findings.append(Finding(
+                    path, _line_of(text, match.start()), "R1",
+                    f"type reason {reason_name}={value} is below 10000"))
+            prior = reasons.get(value)
+            if prior:
+                findings.append(Finding(
+                    path, _line_of(text, match.start()), "R1",
+                    f"reason {value} collides with {prior[1]} in {prior[0]}"))
+            else:
+                reasons[value] = (path, reason_name)
+
+    # E1: compare every transport enum the HMI mirrors.
+    workspace = Path.cwd()
+    dart_root = workspace / "FraktalCore/HMI/lib/domain"
+    by_stem = {path.stem: path for path in source_paths}
+    for plc_name, (dart_file, dart_name) in ENUM_BINDINGS.items():
+        plc_path = by_stem.get(plc_name)
+        dart_path = dart_root / dart_file
+        if plc_path is None or not dart_path.is_file():
+            continue  # partial fixture/root; full repository supplies both sides
+        plc_rows = _parse_plc_enum(texts[plc_path], plc_name)
+        dart_rows = _parse_dart_enum(
+            dart_path.read_text(encoding="utf-8", errors="replace"), dart_name)
+        if plc_rows is None or dart_rows is None:
+            findings.append(Finding(
+                plc_path, 1, "E1", f"cannot parse {plc_name}/{dart_name} enum"))
+            continue
+        plc_ordinals = [value for _, value in plc_rows]
+        if plc_ordinals != list(range(len(plc_rows))):
+            findings.append(Finding(
+                plc_path, 1, "E1", f"{plc_name} ordinals are not contiguous from 0"))
+        plc_names = [_normalize_enum_name(name) for name, _ in plc_rows]
+        plc_names = ["medium" if plc_name == "E_Severity" and name == "med" else name
+                     for name in plc_names]
+        dart_names = [_normalize_enum_name(name) for name in dart_rows]
+        if plc_names != dart_names:
+            findings.append(Finding(
+                plc_path, 1, "E1",
+                f"{plc_name} != Dart {dart_name}: {plc_names} vs {dart_names}"))
+
+    # P1: project includes are resolvable/complete, then deployment markers are
+    # checked for the two shipping application fixtures (never the test runtime).
+    for root in roots:
+        if not root.exists():
+            continue
+        boundary = root.resolve()
+        projects = sorted(root.rglob("*.plcproj"))
+        for project in projects:
+            if _skipped(project):
+                continue
+            project_text = project.read_text(encoding="utf-8", errors="replace")
+            includes = re.findall(r'<Compile\s+Include="([^"]+)"', project_text, re.I)
+            resolved: set[Path] = set()
+            for include in includes:
+                source = _resolve_compile(project.resolve(), include, boundary)
+                if source is None:
+                    findings.append(Finding(
+                        project, 1, "P1", f"Compile Include does not resolve: {include}"))
+                else:
+                    resolved.add(source)
+            owned = {
+                path.resolve() for path in project.parent.rglob("*")
+                if path.is_file() and path.suffix in {".TcPOU", ".TcDUT", ".TcGVL", ".TcIO", ".TcTTO"}
+                and not _skipped(path)
+            }
+            missing = sorted(owned - resolved)
+            for source in missing:
+                findings.append(Finding(
+                    project, 1, "P1",
+                    f"authored source is absent from project compile list: {source}"))
+
+            if project.stem not in {"Fraktal_Demo", "Fraktal_Press_Demo"}:
+                continue
+            for source in resolved:
+                if source.suffix != ".TcPOU":
+                    continue
+                source_text = source.read_text(encoding="utf-8", errors="replace")
+                if not re.search(r"\bPROGRAM\s+MAIN\b", source_text, re.I):
+                    continue
+                declaration = _first_declaration(source_text)
+                for match in re.finditer(r"(?m)^\s*([A-Za-z_]\w*)\s*:\s*(FB_[A-Za-z_]\w*)\s*;",
+                                         declaration):
+                    variable, type_name = match.group(1), match.group(2)
+                    if not derives(type_name, "FB_UnitBase"):
+                        continue
+                    prefix = declaration[max(0, match.start() - 160):match.start()]
+                    if not re.search(r"\{attribute\s+'OPC\.UA\.DA'\s*:=\s*'1'\}\s*$",
+                                     prefix, re.I):
+                        findings.append(Finding(
+                            source, _line_of(declaration, match.start()), "P1",
+                            f"deployed root {variable} : {type_name} lacks immediate "
+                            "OPC.UA.DA := '1' marker"))
+
+    return findings
+
+
 def iter_sources(roots: list[Path]):
     patterns = ("*.TcPOU", "*.TcDUT", "*.TcGVL", "*.TcIO")
     for root in roots:
@@ -210,7 +670,7 @@ def iter_sources(roots: list[Path]):
             continue
         for pattern in patterns:
             for path in sorted(root.rglob(pattern)):
-                if SKIP_PARTS.isdisjoint(path.parts):
+                if not _skipped(path):
                     yield path
 
 
@@ -218,7 +678,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description="Lint Fraktal TwinCAT sources (Core §1.5/§5.5/§6.8).")
     parser.add_argument("roots", nargs="*", type=Path, default=None,
-                        help="paths to scan (default: FraktalCore/PLC)")
+                        help="paths to scan (default: FraktalCore/PLC/TwinCAT)")
     parser.add_argument("--quiet", action="store_true",
                         help="print only violations")
     parser.add_argument("--profile", choices=["modern", "4024"],
@@ -233,6 +693,8 @@ def main(argv: list[str]) -> int:
     for path in iter_sources(list(roots)):
         scanned += 1
         findings.extend(lint_file(path, legacy_4024=legacy))
+
+    findings.extend(lint_repository(list(roots)))
 
     if not scanned:
         print("plc_lint: no PLC sources found — check the path.", file=sys.stderr)

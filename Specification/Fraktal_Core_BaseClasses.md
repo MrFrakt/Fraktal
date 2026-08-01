@@ -1,7 +1,7 @@
 # fraktal-core — Module Base Classes (Fraktal/TC3)
 *Implements §2.2 / §6.1: the lifecycle written once. Draft — validate against the pinned TwinCAT version.*
 
-> **Superseded by the implementation (M1, 2026-07-02).** The normative surface is Core §2.2/§3.2, and the source of truth is `FraktalCore/PLC/Fraktal_Core`. Known deltas of this rationale draft include the current §3.14 hook names, `ST_Diagnostic`, the transactional recipe API, `F_Now()`, and valid ST membership checks. This file is non-normative.
+> **Superseded by the implementation (M1, 2026-07-02).** The normative surface is Core §2.2/§3.2, and the source of truth is `FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core`. Known deltas of this rationale draft include the current §3.14 hook names, `ST_Diagnostic`, the transactional recipe API, `F_Now()`, and valid ST membership checks. This file is non-normative.
 
 ```iecst
 // ───────── shared contract types (§6.1, §8.8) ─────────

@@ -11,7 +11,9 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import 'app_theme.dart';
 import 'facet_cards.dart';
+import 'touch_text_field.dart';
 
 ModuleTabCapabilities moduleTabCapabilities(ModuleNode node) {
   final keys = node.hmiTags.keys.map((key) => key.toLowerCase()).toList();
@@ -342,42 +344,53 @@ class VisionModuleTab extends StatelessWidget {
             : judgeOk
                 ? colors.primaryContainer
                 : colors.errorContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(children: [
-            Row(children: [
-              Icon(judgeOk
-                  ? Icons.check_circle_outline
-                  : Icons.highlight_off_outlined),
-              const SizedBox(width: 10),
-              Expanded(
-                child: LText(
-                  !judged
-                      ? 'std.module.vision.noResult'
-                      : judgeOk
-                          ? 'std.module.vision.ok'
-                          : 'std.module.vision.ng',
-                  style: Theme.of(context).textTheme.headlineSmall,
+        // A filled Card does not restyle its content, so pair the foreground
+        // explicitly or the text keeps inheriting onSurface (app_theme).
+        child: onContainer(
+          context,
+          !judged
+              ? colors.surfaceContainerLow
+              : judgeOk
+                  ? colors.primaryContainer
+                  : colors.errorContainer,
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(children: [
+              Row(children: [
+                Icon(judgeOk
+                    ? Icons.check_circle_outline
+                    : Icons.highlight_off_outlined),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: LText(
+                    !judged
+                        ? 'std.module.vision.noResult'
+                        : judgeOk
+                            ? 'std.module.vision.ok'
+                            : 'std.module.vision.ng',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
+                if (trigger != null)
+                  FilledButton.tonalIcon(
+                    onPressed: () =>
+                        _manualCommand(context, app, node, trigger),
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: const LText('std.module.vision.trigger'),
+                  ),
+              ]),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SelectableText(
+                  result == null || '$result'.isEmpty ? '—' : '$result',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontFamily: 'monospace',
+                      ),
                 ),
               ),
-              if (trigger != null)
-                FilledButton.tonalIcon(
-                  onPressed: () => _manualCommand(context, app, node, trigger),
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: const LText('std.module.vision.trigger'),
-                ),
             ]),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: SelectableText(
-                result == null || '$result'.isEmpty ? '—' : '$result',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontFamily: 'monospace',
-                    ),
-              ),
-            ),
-          ]),
+          ),
         ),
       ),
       const SizedBox(height: 12),
@@ -888,42 +901,63 @@ class _TextInputControlState extends State<_TextInputControl> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                enabled: widget.tag?.usable == true && !_writing,
-                onChanged: (_) => setState(() => _dirty = true),
-                decoration: InputDecoration(
-                  labelText: widget.control.label.isEmpty
-                      ? widget.control.primaryBinding
-                      : widget.control.label,
-                  suffixText: widget.control.unit,
-                  helperText: widget.tag?.usable == true
-                      ? null
-                      : _tagQualityText(widget.tag),
-                ),
+  Widget build(BuildContext context) {
+    final capability = _capability;
+    final rootReady =
+        widget.app.rootOf(widget.node.path)?.state == ExecState.ready;
+    final available = widget.tag?.usable == true &&
+        capability != null &&
+        capability.hasWriteCapability &&
+        (!capability.requiresReady || rootReady);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          Expanded(
+            child: TouchTextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              enabled: available && !_writing,
+              onChanged: (_) => setState(() => _dirty = true),
+              decoration: InputDecoration(
+                labelText: widget.control.label.isEmpty
+                    ? widget.control.primaryBinding
+                    : widget.control.label,
+                suffixText: widget.control.unit,
+                helperText: capability == null
+                    ? 'No PLC write capability'
+                    : capability.requiresReady && !rootReady
+                        ? 'Unit must be READY'
+                        : widget.tag?.usable == true
+                            ? null
+                            : _tagQualityText(widget.tag),
               ),
             ),
-            const SizedBox(width: 10),
-            FilledButton(
-              onPressed: widget.tag?.usable == true && _dirty && !_writing
-                  ? () => _writeConfig(context)
-                  : null,
-              child: _writing
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const LText('std.common.apply'),
-            ),
-          ]),
-        ),
-      );
+          ),
+          const SizedBox(width: 10),
+          FilledButton(
+            onPressed: available && _dirty && !_writing
+                ? () => _writeConfig(context)
+                : null,
+            child: _writing
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const LText('std.common.apply'),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  CfgField? get _capability {
+    final binding = widget.control.primaryBinding;
+    for (final field in widget.node.config) {
+      if (field.name == binding) return field;
+    }
+    return null;
+  }
 
   Future<void> _writeConfig(BuildContext context) async {
     final root = widget.app.rootOf(widget.node.path);
@@ -933,17 +967,8 @@ class _TextInputControlState extends State<_TextInputControl> {
           root.path, GatedAction.dataWrite, 'std.release.configBlocked');
       return;
     }
-    final binding = widget.control.primaryBinding;
-    final name = binding.contains('/') ? binding.split('/').last : binding;
-    final kind =
-        binding.startsWith('StationCfg/') ? CfgKind.stationCfg : CfgKind.parCfg;
-    final field = CfgField(
-      name,
-      kind,
-      CfgType.text,
-      '${widget.tag?.value ?? ''}',
-      unit: widget.control.unit,
-    );
+    final field = _capability;
+    if (field == null || !field.accepts(_controller.text)) return;
     setState(() => _writing = true);
     var accepted = false;
     try {
@@ -1238,6 +1263,10 @@ Future<void> _manualCommand(BuildContext context, AppState app, ModuleNode node,
     CommandInfo command) async {
   final root = app.rootOf(node.path);
   if (root == null) return;
+  if (!app.permitsLocal(GatedAction.manual)) {
+    await app.showReleaseReportManual(root.path, node.path, command.value);
+    return;
+  }
   final accepted =
       await app.repo.manualCommand(root.path, node.path, command.value);
   if (!accepted) {
@@ -1258,6 +1287,11 @@ Future<bool> _performAction(BuildContext context, AppState app, ModuleNode node,
       final cataloged =
           node.commands.any((command) => command.value == control.actionValue);
       if (!cataloged) return false;
+      if (!app.permitsLocal(GatedAction.manual)) {
+        await app.showReleaseReportManual(
+            root.path, node.path, control.actionValue);
+        return false;
+      }
       accepted = await app.repo
           .manualCommand(root.path, node.path, control.actionValue);
       if (!accepted) {
@@ -1277,6 +1311,11 @@ Future<bool> _performAction(BuildContext context, AppState app, ModuleNode node,
       }
       break;
     case ModuleActionKind.operatorReset:
+      if (!app.permitsLocal(GatedAction.alarmReset)) {
+        await app.showReleaseReportAction(
+            root.path, GatedAction.alarmReset, 'std.release.resetBlocked');
+        return false;
+      }
       accepted = await app.repo.operatorReset(root.path);
       if (!accepted) {
         await app.showReleaseReportAction(
@@ -1292,6 +1331,10 @@ Future<bool> _performAction(BuildContext context, AppState app, ModuleNode node,
       }
       accepted =
           await app.repo.setDecisionAnswer(root.path, control.actionValue);
+      if (!accepted) {
+        await app.showReleaseReportAction(
+            root.path, GatedAction.startStop, 'Decision answer blocked');
+      }
       break;
   }
   return accepted;

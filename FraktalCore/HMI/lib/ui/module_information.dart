@@ -8,6 +8,7 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import 'touch_text_field.dart';
 
 class ModuleInformationCard extends StatelessWidget {
   final AppState app;
@@ -130,7 +131,7 @@ class ModuleDocumentsCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const LText('std.module.uploadPdf'),
-        content: TextField(
+        content: TouchTextField(
           controller: title,
           decoration: InputDecoration(
             labelText: context.tr('std.module.documentTitle'),

@@ -232,4 +232,4 @@ if ($ConfigureFirewall) {
 }
 
 Write-Output "Secure remote Web HMI configured at $origin"
-Write-Output "Client CA certificate: $exportedRoot"
+Write-Output "Gateway root CA exported for client-device import: $exportedRoot"

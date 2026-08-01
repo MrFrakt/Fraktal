@@ -14,7 +14,7 @@ Walk the exposed instance tree (§3.10). **A node is a module iff it has a `Stat
 |---|---|
 | Caption / kind | instance `Status.Name` identity plus optional `DisplayNameKey`, `Status.ModuleType` |
 | State LED | `Status.State` (READY/BUSY/DONE/ERROR/ABORTED) |
-| Message line | `Status.Diagnostic.Description` (+ `SourcePath`, `IoTag`, `IoAddress`, `Since`) — the §6.9 first-out; `IoTag` is rendered verbatim/monospace and never localized; on a Unit this shows the live stall (`Pending`) whenever no fault is active |
+| Message line | `Status.Diagnostic.Description` (+ `SourcePath`, `IoTag`, `IoAddress`, `Since`, `TimeSynchronized`) — the §6.9 first-out; `IoTag` is rendered verbatim/monospace and never localized; an unsynchronized stamp is visibly marked untrusted; on a Unit this shows the live stall (`Pending`) whenever no fault is active |
 | PLCopen strip | `Busy`, `Done`, `Error`, `Aborted`, `ErrorID` |
 | Command timing table (detail) | `Timing.Rows[i]` = {Id, Label, Count, Last, Minimum, Maximum, Avg}, `Timing.LastCmdTime`, `Timing.Truncated` (§8.11.4(a)) |
 
@@ -85,6 +85,23 @@ free-form target path is ignored. State-changing buttons may require an operator
 confirmation and disable while one acknowledged request is in flight. A missing
 catalog entry disables the button rather than guessing or sending an obsolete value.
 
+### Configuration write capabilities
+
+The editor is derived only from writable §3.10.2 manifest entries. Each field carries
+`Scope`, display/browse `Item`, stable `WriteKey`, non-zero `WriteRevision`, `ConfigKind`,
+`ValueType`, optional bounds/exact enum domain, unit/label, and `RequiresReady`. The HMI
+shows Apply only when that complete capability is valid, belongs to the current canonical
+module, the required root state is satisfied, and the current session permits
+`DATA_WRITE`. Missing metadata, duplicate `(Scope, WriteKey)` entries, older manifests,
+and arbitrary scalar tags are read-only. A custom configuration-input binding must match
+the capability's `Item`; it may not manufacture a field from the final browse segment.
+
+The repository re-resolves the current capability immediately before sending
+`WRITE_CONFIG`: `TargetPath=Scope`, `NameValue=WriteKey`, `IntValue=WriteRevision`,
+`TextValue=candidate`, then `Sequence` last. Client type/range checks provide immediate
+feedback only; the PLC repeats them and remains authoritative. A stale revision or
+reconnect never falls back to a browse write and is never queued for replay.
+
 ## Sequence-triggered Unit guidance
 
 A Unit may have one or more **guidance** tabs. A guidance tab can match an exact
@@ -139,22 +156,38 @@ IndexedDB and migrates the older local-storage record when encountered.
 | Counters | `GoodCount`, `NokCount`, `Starved`, `Blocked` (§8.11) |
 | Fault history | `History[1..MAX_DIAG_RING]`, newest at `HistoryHead` (§6.9(a) ring — shift post-mortem) |
 | Operator decision | read `Decision` (Prompt/Options/Default/Timeout); **write** `DecisionAnswer` (1-based option; 0 = none) (§6.11) |
-| Alarm/event list | `AlarmLog.Active[1..NActive-slots]` (State ACTIVE/WAIT_RESET, Severity, Reason, Source, optional exact `IoTag`/`IoAddress`, ComeAt, ResetClass) — WAIT_RESET rows render as "cleared, awaiting reset" (§8.3(b)) |
-| Event history | `AlarmLog.Ring[]`, newest at `AlarmLog.RingHead` — each closed event with optional exact `IoTag`/`IoAddress`, **`Duration`**, ComeAt/GoneAt/ResetAt (§8.3(a)/(d)); full history via an `I_EventSink` historian adapter (deferred by design) |
+| Alarm/event list | sparse `AlarmLog.Active[1..MAX_ALARM_ACTIVE]` slots whose State is ACTIVE/WAIT_RESET (Severity, Reason, Source, optional exact `IoTag`/`IoAddress`, ComeAt + time-quality flag, ResetClass) — WAIT_RESET rows render as "cleared, awaiting reset" (§8.3(b)) |
+| Event history | `AlarmLog.Ring[]`, newest at `AlarmLog.RingHead` — each closed event with optional exact `IoTag`/`IoAddress`, **`Duration`**, ComeAt/GoneAt/ResetAt and their time-quality flags (§8.3(a)/(d)); unsynchronized records are marked untrusted, never discarded; full history via an `I_EventSink` historian adapter (deferred by design) |
 | Blocked banner | `AlarmLog.Blocking` — Unit will refuse `Start` until **OperatorReset** (write, release-gated §7.6/§14) |
 
 ## Safety and control-power facets (§9.8)
 
 Any module may publish `Safety : ST_SafetyStatus` and `ControlPower : ST_ControlPowerStatus`; `Present=FALSE` hides the card. A root Unit additionally publishes read-only `Domain : ST_ControlDomainStatus` and `Status.ControlDomainId` (`''` = no arrangement). Its application-fed `ControlDomain` input is excluded from OPC UA; clients bind only `Domain`. One domain may serve several root Units; mirrored cards with the same ID are one shared domain, not independent power controls. Safety rows are read-only and include device kind/state, demand, safe-state feedback, reset-required, fault, muting, keyed bridge, fieldbus health, and affected power groups. Muting/bridge are conspicuous and never rendered as normal bypass controls. Control power shows domain Control On/Off state, affected member Units, and each named power group's request, feedback, safety permit, fieldbus health, reaction, and rearm requirement. `Start` is unavailable when an assigned domain is not `ReadyForStart`; an unassigned Unit adds no gate. The ordinary HMI never writes safety reset, bridge, muting, or guard unlock.
 
-Control On/Off is data-driven: pulse the selected Unit's `ReqControlOn` or `ReqControlOff`. The base clears both requests after sampling, applies the `POWER_CONTROL` access gate, gives Off priority if both arrive, and emits one-scan `ControlOnRequest` / `ControlOffRequest` outputs. A one-Unit application may consume those pulses locally; a shared-domain application shall route every member request to the single domain coordinator. Reconnection never replays either pulse.
+Control On/Off is data-driven through the selected root Unit's `HmiRequest` mailbox (`CONTROL_ON` / `CONTROL_OFF`). The base acknowledges only after applying the `POWER_CONTROL` access gate, then emits one-scan `ControlOnRequest` / `ControlOffRequest` outputs. A one-Unit application may consume those pulses locally; a shared-domain application shall route every member request to the single domain coordinator. Reconnection never replays either request.
+
+## System health, clock quality, and signal tower (§2.7/§8.12/§8.13)
+
+A Unit with `SystemHealth.Present=TRUE` renders the bounded live health card from
+task cycle/jitter/overrun, explicit controller/IPC/fieldbus/DC availability and
+values, and `SystemHealth.TimeQuality`. Unavailable is distinct from zero and a
+clock that is unavailable, unsynchronized, or outside the configured tolerance is
+conspicuous. `SignalTower` renders the semantic Red/Amber/Green/Blue/White/Horn and
+`TestActive` state beside it; no HMI code knows electrical output addresses.
+
+Lamp test writes only append-only mailbox request `LAMP_TEST := 26`. The control is
+shown through the existing act-or-explain path, requires the Unit's `MANUAL` access
+gate and an idle Unit, waits for acknowledgement, and is disabled while
+`TestActive`. The PLC owns the bounded timeout, so disconnect never leaves the test
+latched. Health/tower fields are generic Unit facets and shall not create a
+station-specific page.
 
 ## Connector sub-tile
 `Status` as any module; link detail: LastSeen/Reaction are on the connector's mirror/diag (`Status.Diagnostic` = link first-out when unlinked).
 
 ## Fieldbus and I/O identity
 
-The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Nodes[] : ST_BusNode`, `MappingValid`, and `MappingDiagnostic`. An invalid mapping is a commissioning fault and shall be displayed rather than treated as an empty/healthy bus. Discovery reads `NodeCount` and each active node's `ChannelCount` before traversing the bounded arrays; unused fixed-array elements are not part of an HMI snapshot. For every `ST_IoChannel`, the client maps `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Dir`, `Kind`, values, `Unit`, `Forced`, `Quality`, `FaultActive`, and `Diagnostic`. `Name` is the exact approved electrical/I/O-list tag and is shown verbatim in monospace; `DescriptionKey` and `Diagnostic` are localized by the project catalog. `Address` shows the terminal/channel locator. `Path` remains the unique forcing/audit identity, while `ModulePath` opens the owning module. A snapshot marked `truncated=true` is rejected before mapping and shall never produce a `LIVE` repository or an empty-but-healthy fieldbus view.
+The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Nodes[] : ST_BusNode`, `MappingValid`, and `MappingDiagnostic`. An invalid mapping is a commissioning fault and shall be displayed rather than treated as an empty/healthy bus. Discovery reads `NodeCount` and each active node's `ChannelCount` before traversing the bounded arrays; unused fixed-array elements are not part of an HMI snapshot. For every `ST_IoChannel`, the client maps `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Dir`, `Kind`, values, `Unit`, `Forced`, `Quality`, `FaultActive`, `Diagnostic`, and `Forceable`. `Name` is the exact approved electrical/I/O-list tag and is shown verbatim in monospace; `DescriptionKey` and `Diagnostic` are localized by the project catalog. `Address` shows the terminal/channel locator. `Path` remains the unique forcing/audit identity, while `ModulePath` opens the owning module and defines the HMI assignment boundary. `Forceable` is an explicit PLC capability and defaults false when absent; output direction by itself never creates a force control. A snapshot marked `truncated=true` is rejected before mapping and shall never produce a `LIVE` repository or an empty-but-healthy fieldbus view.
 
 When `FaultActive` is true the channel and its diagnostic are highlighted. A module alarm simultaneously shows `ST_Diagnostic.IoTag`/`IoAddress`, so a cylinder timeout can read, for example, “press did not reach DOWN” plus `_101B202A · EL1809 Ch5`; the same exact tag is highlighted in the fieldbus tree. Transport adapters shall copy these fields without normalizing case, stripping the leading mapping marker, translating, or substituting a friendly label.
 
@@ -168,7 +201,7 @@ Connection ownership precedes the operator shell. On first use—or whenever set
 When settings have previously connected, startup goes directly to a full-screen **Connecting to PLC** view. The interactive HMI is not built while the repository is `CONNECTING`, `STALE`, or `DOWN`. A transition away from `LIVE` removes operator interaction immediately; commands are never queued or replayed across reconnection. After 30 seconds without `LIVE`, and not before, the view exposes **Edit connection settings**. A successful `LIVE` transition cancels that timer and opens the shell only if every saved Unit path is rediscovered; missing/renamed assignments return to step 2 fail-closed. An authenticated `ADMIN` may edit the Unit assignment later from the shell. Native settings use a local JSON file; Web uses browser local storage. Both are HMI-local connection configuration, not PLC recipe/station data.
 
 ## Access levels (§7.7) — how the Flutter client behaves
-Per root Unit: read `Access.CurrentLevel` / `Access.CurrentUser` / `Access.LoginFailed` and `Access.Policy.Required[0..10]` (index = `E_GatedAction`, including append-only `ALARM_SHELVE` at 9 and `POWER_CONTROL` at 10). **Grey out** any control whose action threshold exceeds `CurrentLevel` — but the PLC re-checks every gated write regardless (defense in depth, §14): a stale/greedy client cannot bypass. Login is **data-driven**: write `Access.ReqUser` + `Access.ReqSecret`, pulse `Access.ReqLogin`; the PLC clears the secret after each attempt; pulse `Access.ReqLogout` to end the session; idle auto-logout per `Policy.SessionTimeout` (T#0S = never). A mailbox `Accepted` acknowledgement means the login request was consumed, **not** that credentials were accepted; login succeeds only when the resulting access snapshot has `LoginFailed = FALSE`, `CurrentUser` equal to the requested user, and `CurrentLevel > NONE`. On failure the dialog stays open, clears the secret field, and shows a localized generic user/PIN error (never reveals which credential was wrong). **Shipped default policy is fully open** (all thresholds `NONE`) — a station may require no login at all; thresholds are per-station persistent config (§3.8a), edited from the HMI itself (that edit gated by `ACCESS_POLICY`). The PLC re-checks `SetMode`, `SetModel`, `Start`/`Stop`, `OperatorReset`, OEE/config writes, manual commands, run-style/step/hold requests, power control, and alarm shelving. Logins/logouts/denied attempts land in the §8.3 ring as MESSAGE events (audit for free).
+Per root Unit: read `Access.CurrentLevel` / `Access.CurrentUser` / `Access.LoginFailed`, `Access.Policy.Required[0..10]` (index = `E_GatedAction`, including append-only `ALARM_SHELVE` at 9 and `POWER_CONTROL` at 10), and `Access.Policy.SessionTimeout`. A blocked control remains pressable only to open its release explanation; it never issues the mutation. Login is **data-driven** through the root mailbox; the PLC clears the transported secret after each attempt. Idle auto-logout (`T#0S` = never) is rearmed by successful login and accepted authenticated operator mutations, never by snapshot/manifest/release polling. A mailbox `Accepted` acknowledgement means the login request was consumed, **not** that credentials were accepted; login succeeds only when the resulting access snapshot has `LoginFailed = FALSE`, `CurrentUser` equal to the requested user, and `CurrentLevel > NONE`. On failure the dialog stays open, clears the secret field, and shows a localized generic user/PIN error (never reveals which credential was wrong). **Shipped default policy is fully open** (all thresholds `NONE`) — a station may require no login at all. The settings view edits the selected root's persistent policy through append-only mailbox kinds `SET_ACCESS_LEVEL=24` and `SET_SESSION_TIMEOUT=25`, serially; both are PLC-rechecked against `ACCESS_POLICY`, and the PLC rejects raising that threshold above the active session level to prevent retained self-lockout. The PLC re-checks all mutations, including decisions, power, shelving, force, and configuration writes. Accepted privileged mutations and denied attempts land in the §8.3 ring without secrets.
 
 ## Alarm shelving & rationalization (§8.9/§8.10)
 Units publish a rationalization catalog (`Meta`: per-ReasonCode operator action, consequence, shelvable flag) which the HMI joins onto events by `reasonCode` — the alarm row shows *what to do*. Active alarms carry `Shelved`; a shelved alarm is **de-emphasized (never hidden) in lists and excluded from the banner** — annunciation only: **Blocking, interlocks, and release reports are untouched**. Shelve/unshelve via `shelveAlarm`/`unshelveAlarm` (ALARM_SHELVE-gated §7.7, act-or-explain §7.8, PLC re-checks: SAFETY never shelvable, unrationalized reasons refuse). Shelves auto-expire in the PLC (time-bounded); every shelve/unshelve/expiry is a §8.3 event.
@@ -190,7 +223,7 @@ Right-side vertical bar controlling the selected module's owning Unit: **mode se
 Each CM/EM publishes a **command catalog** (`{value,label}` list); the HMI renders a button per entry — no per-type code. A command is issued via `manualCommand(unitPath, targetPath, value)` and accepted **only** when the owning Unit is in `MANUAL` mode (§3.4) **and** the user holds `MANUAL` access (§7.7); it routes *through* the module (interlocks/first-out/timing still apply — the opposite of a fieldbus force). Every accept/reject is a §8.3 event. The panel is visually distinct from the fieldbus force (bordered 'Manual commands' card on the module) so the two risk levels are never confused. Single path only — no mode-bypass override.
 
 ## Write surface (deliberately narrow, §14)
-Writes are limited to module `Command` + `Execute`/`Abort`, `DecisionAnswer`, Unit mode/run-style/start/stop/step/hold, release-gated manual commands, alarm reset/shelving, model/configuration changes, and explicitly authorized channel force. Every path is gated and re-checked by the PLC; commands are never queued across connection loss.
+Writes are limited to module `Command` + `Execute`/`Abort`, `DecisionAnswer`, Unit mode/run-style/start/stop/step/hold, release-gated manual commands and bounded lamp test, alarm reset/shelving, model/configuration changes, and explicitly authorized channel force. Every path is gated and re-checked by the PLC; commands are never queued across connection loss.
 
 For a guided model change, the HMI writes `CHANGEOVER` mode, submits the selected model through the
 transactional model request, then starts the Unit sequence. The live `CurrentStep` and `Decision`
@@ -212,6 +245,14 @@ for a rejection. Static browse discovery should be cached for the session;
 cyclic updates use subscriptions or bounded batch reads rather than recursively
 re-browsing the complete server namespace every refresh interval.
 
+The Web gateway exposes the same tier capability as direct clients through
+versioned path discovery, compact tier indices, and bounded targeted reads. The
+gateway intersects every connected browser's slow/on-demand sets before changing
+its one shared PLC session, so one client can never reduce another client's live
+surface. Optional deployment `read-root` subtrees filter snapshots, discovery,
+tier setup, and targeted reads consistently; PLC/OPC-UA authorization remains the
+primary confidentiality boundary when no additional gateway read scope is set.
+
 Discovery shall canonicalize module identity before rendering. `Status.Name` is
 the qualified dotted identity (`Root.Child`); a real module's final OPC UA
 browse-name segment equals the final segment of that identity. Candidates are
@@ -222,4 +263,9 @@ is not a module instance. Duplicate root identities are a contract/deployment
 diagnostic and shall never be passed unchanged into station selectors.
 
 ## Known deferred (tracked)
-§8.3(d) `I_EventSink` historian implementations (OPC UA A&C / SQL / MES adapters — interface is normative and shipped; adapters are deployment work) · §8.8 generated reason-text catalog for localization (Description text is already carried in every diagnostic, so the HMI works without it).
+§8.3(d) `I_EventSink` historian implementations (OPC UA A&C / SQL / MES
+adapters — interface is normative and shipped; adapters are deployment work) ·
+§8.9 generated alarm-rationalization metadata and §11.6's fixed ISA-95
+host-event projection. The §8.8 reason-code → localization-key/default-text
+catalog is generated and CI freshness-checked; unknown external/type reasons
+still fall back to the PLC diagnostic description.

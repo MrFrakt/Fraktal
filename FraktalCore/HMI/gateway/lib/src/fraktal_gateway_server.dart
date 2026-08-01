@@ -7,9 +7,11 @@ import 'dart:io';
 import 'package:fraktal_opcua_client/opcua_session_client.dart';
 
 const String kFraktalGatewayProtocol = 'fraktal.opcua.gateway.v1';
-const int _maxRequestBytes = 64 * 1024;
+const int _maxRequestBytes = 256 * 1024;
 const int _maxStringValueLength = 8192;
 const int _maxBatchWrites = 32;
+const int _maxTargetReadPaths = 512;
+const int _maxTierIndices = 20000;
 
 typedef GatewayLog = void Function(String message);
 
@@ -23,6 +25,7 @@ class FraktalGatewayConfig {
   final int port;
   final String webSocketPath;
   final Set<String> allowedOrigins;
+  final Set<String> readRoots;
   final Set<String> writeRoots;
   final bool allowAllRootMailboxes;
   final bool initialPlcReady;
@@ -34,6 +37,7 @@ class FraktalGatewayConfig {
     this.port = 8080,
     this.webSocketPath = '/fraktal',
     Set<String> allowedOrigins = const {},
+    Set<String> readRoots = const {},
     Set<String> writeRoots = const {},
     this.allowAllRootMailboxes = false,
     this.initialPlcReady = false,
@@ -43,6 +47,9 @@ class FraktalGatewayConfig {
         webRoot = _canonicalWebRoot(webRoot),
         allowedOrigins = Set.unmodifiable(
           allowedOrigins.map(_normalizeOrigin),
+        ),
+        readRoots = Set.unmodifiable(
+          readRoots.map(_normalizeBrowseRoot),
         ),
         writeRoots = Set.unmodifiable(
           writeRoots.map(_normalizeBrowseRoot),
@@ -107,6 +114,17 @@ class FraktalGatewayConfig {
     final root = parts.take(mailbox).join('/');
     return writeRoots.contains(root);
   }
+
+  /// Read scoping is optional because the upstream OPC UA/ADS identity remains
+  /// the primary browse authorization boundary. When configured, it is exact
+  /// and applies to snapshots, discovery, tier setup, and targeted reads.
+  bool permitsRead(String path) {
+    if (!_validBrowsePath(path)) return false;
+    if (readRoots.isEmpty) return true;
+    return readRoots.any(
+      (root) => path == root || path.startsWith('$root/'),
+    );
+  }
 }
 
 /// A standalone WebSocket gateway sharing one native OPC UA session across
@@ -116,10 +134,14 @@ class FraktalGatewayServer {
   final FraktalGatewayConfig config;
   final GatewayLog _log;
   final Set<WebSocket> _sockets = {};
+  final Map<WebSocket, _SocketReadProfile> _readProfiles = {};
 
   HttpServer? _server;
   Future<void> _writeTail = Future<void>.value();
+  Future<void> _tierTail = Future<void>.value();
   final Map<String, int> _lastCommittedSequenceByMailbox = {};
+  List<String> _discoveredPaths = const [];
+  int _discoveryRevision = 0;
   bool _closing = false;
   bool _plcReady;
   DateTime? _lastOpcUaSuccess;
@@ -205,6 +227,13 @@ class FraktalGatewayServer {
       final socket = await WebSocketTransformer.upgrade(request);
       socket.pingInterval = config.socketPingInterval;
       _sockets.add(socket);
+      _readProfiles[socket] = _SocketReadProfile();
+      unawaited(_queueAggregateTiers().then(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) {
+          _log('[Fraktal/Gateway] stage=read-tier-reset-failed error=$error');
+        },
+      ));
       _serveSocket(socket);
     } on Object catch (error) {
       _log('[Fraktal/Gateway] stage=upgrade-failed error=$error');
@@ -259,6 +288,14 @@ class FraktalGatewayServer {
       },
       onDone: () {
         _sockets.remove(socket);
+        _readProfiles.remove(socket);
+        unawaited(_queueAggregateTiers().then(
+          (_) {},
+          onError: (Object error, StackTrace stackTrace) {
+            _log(
+                '[Fraktal/Gateway] stage=read-tier-update-failed error=$error');
+          },
+        ));
         _log('[Fraktal/Gateway] stage=socket-closed '
             'code=${socket.closeCode} reason=${socket.closeReason ?? '-'}');
       },
@@ -276,7 +313,7 @@ class FraktalGatewayServer {
       return;
     }
     if (utf8.encode(message).length > _maxRequestBytes) {
-      _sendError(socket, null, 'Request exceeds the 64 KiB limit.');
+      _sendError(socket, null, 'Request exceeds the 256 KiB limit.');
       await socket.close(WebSocketStatus.messageTooBig, 'Request too large');
       return;
     }
@@ -311,6 +348,20 @@ class FraktalGatewayServer {
     switch (request['method']) {
       case 'snapshot':
         await _snapshot(socket, id);
+      case 'discoverPaths':
+        await _discoverPaths(socket, id);
+      case 'setReadTiers':
+        await _setReadTiers(
+          socket,
+          id,
+          Map<Object?, Object?>.from(parameters),
+        );
+      case 'readValues':
+        await _readValues(
+          socket,
+          id,
+          Map<Object?, Object?>.from(parameters),
+        );
       case 'write':
         await _write(socket, id, Map<Object?, Object?>.from(parameters));
       case 'writeBatch':
@@ -322,15 +373,228 @@ class FraktalGatewayServer {
 
   Future<void> _snapshot(WebSocket socket, int id) async {
     try {
+      await _tierTail;
       final snapshot = await _client.snapshot();
       validateCompleteOpcUaSnapshot(snapshot);
+      _rememberDiscovery(snapshot);
       _markOpcUaSuccess();
       _seedMailboxSequences(snapshot);
-      _sendResult(socket, id, snapshot);
+      _sendResult(socket, id, _projectSnapshot(snapshot, socket));
     } on Object catch (error) {
       _markOpcUaFailure(error);
       _sendError(socket, id, 'OPC UA snapshot failed: $error');
     }
+  }
+
+  Future<void> _discoverPaths(WebSocket socket, int id) async {
+    try {
+      await _ensureDiscovery();
+      final allowed = _allowedDiscoveredPaths();
+      _sendResult(socket, id, {
+        'revision': _discoveryRevision,
+        'nodeCount': allowed.length,
+        'paths': allowed,
+      });
+    } on Object catch (error) {
+      _markOpcUaFailure(error);
+      _sendError(socket, id, 'OPC UA discovery failed: $error');
+    }
+  }
+
+  Future<void> _setReadTiers(
+    WebSocket socket,
+    int id,
+    Map<Object?, Object?> parameters,
+  ) async {
+    try {
+      await _ensureDiscovery();
+      final revision = parameters['revision'];
+      if (revision != _discoveryRevision) {
+        throw const FormatException(
+          'Discovery revision is stale; discover paths again.',
+        );
+      }
+      final allowed = _allowedDiscoveredPaths();
+      final slow = _validatePathIndices(parameters['slow'], allowed.length);
+      final excluded =
+          _validatePathIndices(parameters['excluded'], allowed.length);
+      if (slow.any(excluded.contains)) {
+        throw const FormatException(
+          'A browse path cannot be both slow and excluded.',
+        );
+      }
+      final profile = _readProfiles[socket];
+      if (profile == null) {
+        throw const FormatException('WebSocket read profile is unavailable.');
+      }
+      profile
+        ..configured = true
+        ..slowPaths = {for (final index in slow) allowed[index]}
+        ..excludedPaths = {for (final index in excluded) allowed[index]};
+      await _queueAggregateTiers(
+        refreshSlow: parameters['refreshSlow'] == true,
+      );
+      _markOpcUaSuccess();
+      _sendResult(socket, id, true);
+    } on FormatException catch (error) {
+      _sendError(socket, id, error.message);
+    } on Object catch (error) {
+      _markOpcUaFailure(error);
+      _sendError(socket, id, 'OPC UA tier configuration failed: $error');
+    }
+  }
+
+  Future<void> _readValues(
+    WebSocket socket,
+    int id,
+    Map<Object?, Object?> parameters,
+  ) async {
+    try {
+      await _ensureDiscovery();
+      if (parameters['revision'] != _discoveryRevision) {
+        throw const FormatException(
+          'Discovery revision is stale; discover paths again.',
+        );
+      }
+      final allowed = _allowedDiscoveredPaths();
+      final indices = _validatePathIndices(
+        parameters['indices'],
+        allowed.length,
+        maximum: _maxTargetReadPaths,
+        requireNonEmpty: true,
+      );
+      final bulk = _client;
+      if (bulk is! OpcUaBulkReadClient) {
+        throw const FormatException(
+          'The configured PLC transport does not support targeted reads.',
+        );
+      }
+      final values = await bulk.readValues(
+        [for (final index in indices) allowed[index]],
+      );
+      _markOpcUaSuccess();
+      _sendResult(socket, id, values);
+    } on FormatException catch (error) {
+      _sendError(socket, id, error.message);
+    } on Object catch (error) {
+      _markOpcUaFailure(error);
+      _sendError(socket, id, 'OPC UA targeted read failed: $error');
+    }
+  }
+
+  Future<void> _ensureDiscovery() async {
+    if (_discoveredPaths.isNotEmpty) return;
+    await _tierTail;
+    final snapshot = await _client.snapshot();
+    validateCompleteOpcUaSnapshot(snapshot);
+    _rememberDiscovery(snapshot);
+    _seedMailboxSequences(snapshot);
+    _markOpcUaSuccess();
+    if (_discoveredPaths.isEmpty) {
+      throw const FormatException(
+        'The PLC snapshot did not expose any discoverable browse paths.',
+      );
+    }
+  }
+
+  void _rememberDiscovery(Map<String, Object?> snapshot) {
+    final rawPaths = snapshot['paths'];
+    final candidate = <String>[];
+    if (rawPaths is List && rawPaths.isNotEmpty) {
+      for (final path in rawPaths) {
+        final text = '$path';
+        if (_validBrowsePath(text)) candidate.add(text);
+      }
+    } else if (_discoveredPaths.isEmpty) {
+      final values = snapshot['values'];
+      if (values is Map) {
+        for (final path in values.keys) {
+          final text = '$path';
+          if (_validBrowsePath(text)) candidate.add(text);
+        }
+      }
+    }
+    if (candidate.isEmpty) return;
+    final unique = candidate.toSet().toList(growable: false);
+    if (_sameStrings(unique, _discoveredPaths)) return;
+    _discoveredPaths = unique;
+    _discoveryRevision = (_discoveryRevision + 1) & 0x7fffffff;
+    if (_discoveryRevision == 0) _discoveryRevision = 1;
+    for (final profile in _readProfiles.values) {
+      profile
+        ..configured = false
+        ..slowPaths = const {}
+        ..excludedPaths = const {};
+    }
+    _log('[Fraktal/Gateway] stage=discovery '
+        'revision=$_discoveryRevision paths=${unique.length}');
+    unawaited(_queueAggregateTiers().then(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        _log('[Fraktal/Gateway] stage=read-tier-reset-failed error=$error');
+      },
+    ));
+  }
+
+  List<String> _allowedDiscoveredPaths() => [
+        for (final path in _discoveredPaths)
+          if (config.permitsRead(path)) path,
+      ];
+
+  Map<String, Object?> _projectSnapshot(
+    Map<String, Object?> snapshot,
+    WebSocket socket,
+  ) {
+    final allowed = _allowedDiscoveredPaths();
+    final allowedSet = allowed.toSet();
+    Map<String, Object?> filter(Object? raw) {
+      if (raw is! Map) return const {};
+      return {
+        for (final entry in raw.entries)
+          if (entry.key is String && allowedSet.contains(entry.key))
+            entry.key as String: entry.value,
+      };
+    }
+
+    final profile = _readProfiles[socket];
+    return <String, Object?>{
+      ...snapshot,
+      'discoveryRevision': _discoveryRevision,
+      'nodeCount': allowed.length,
+      'truncated': false,
+      // The repository needs the full contract only until it has installed a
+      // tier profile. Thereafter an empty list avoids retransmitting thousands
+      // of static path strings on every cyclic snapshot.
+      'paths': profile?.configured == true ? const <String>[] : allowed,
+      'values': filter(snapshot['values']),
+      if (snapshot.containsKey('dataValues'))
+        'dataValues': filter(snapshot['dataValues']),
+    };
+  }
+
+  Future<void> _queueAggregateTiers({bool refreshSlow = false}) {
+    final profiles = _readProfiles.values.toList(growable: false);
+    final slow = _profileIntersection(
+      profiles,
+      (profile) => profile.slowPaths,
+    );
+    final excluded = _profileIntersection(
+      profiles,
+      (profile) => profile.excludedPaths,
+    );
+    final operation = _tierTail.then((_) async {
+      await _client.setSlowPaths(slow);
+      await _client.setExcludedPaths(excluded);
+      if (refreshSlow) await _client.refreshSlowPaths();
+      _log('[Fraktal/Gateway] stage=read-tiers '
+          'clients=${profiles.length} slow=${slow.length} '
+          'onDemand=${excluded.length} refreshSlow=$refreshSlow');
+    });
+    _tierTail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return operation;
   }
 
   Future<void> _write(
@@ -493,6 +757,7 @@ class FraktalGatewayServer {
       sockets.map((socket) => socket.close(WebSocketStatus.goingAway)),
     );
     await _writeTail;
+    await _tierTail;
     await _client.close();
     _log('[Fraktal/Gateway] stage=stopped');
   }
@@ -504,6 +769,12 @@ class _ValidatedWrite {
   final Object value;
 
   const _ValidatedWrite(this.path, this.type, this.value);
+}
+
+class _SocketReadProfile {
+  bool configured = false;
+  Set<String> slowPaths = const {};
+  Set<String> excludedPaths = const {};
 }
 
 class _ValidatedBatch {
@@ -592,6 +863,54 @@ _ValidatedWrite _validateWrite(Map<Object?, Object?> parameters) {
   return _ValidatedWrite(path, type, normalized);
 }
 
+Set<int> _validatePathIndices(
+  Object? raw,
+  int pathCount, {
+  int maximum = _maxTierIndices,
+  bool requireNonEmpty = false,
+}) {
+  if (raw is! List || (requireNonEmpty && raw.isEmpty)) {
+    throw const FormatException('Browse-path indices are invalid.');
+  }
+  if (raw.length > maximum) {
+    throw FormatException(
+      'Browse-path request exceeds the $maximum-path limit.',
+    );
+  }
+  final result = <int>{};
+  for (final value in raw) {
+    if (value is! int || value < 0 || value >= pathCount) {
+      throw const FormatException('Browse-path index is out of range.');
+    }
+    if (!result.add(value)) {
+      throw const FormatException('Browse-path indices must be unique.');
+    }
+  }
+  return result;
+}
+
+Set<String> _profileIntersection(
+  List<_SocketReadProfile> profiles,
+  Set<String> Function(_SocketReadProfile profile) select,
+) {
+  if (profiles.isEmpty || profiles.any((profile) => !profile.configured)) {
+    return const {};
+  }
+  final result = Set<String>.from(select(profiles.first));
+  for (final profile in profiles.skip(1)) {
+    result.retainAll(select(profile));
+  }
+  return result;
+}
+
+bool _sameStrings(List<String> left, List<String> right) {
+  if (left.length != right.length) return false;
+  for (var index = 0; index < left.length; index++) {
+    if (left[index] != right[index]) return false;
+  }
+  return true;
+}
+
 String _normalizeOrigin(String value) {
   final uri = Uri.parse(value);
   if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
@@ -674,10 +993,21 @@ String _normalizeBrowseRoot(String value) {
   while (result.endsWith('/')) {
     result = result.substring(0, result.length - 1);
   }
-  if (result.isEmpty || result.split('/').any((part) => part.isEmpty)) {
-    throw FormatException('Invalid write root: $value');
+  if (!_validBrowsePath(result)) {
+    throw FormatException('Invalid browse root: $value');
   }
   return result;
+}
+
+bool _validBrowsePath(String path) {
+  if (path.isEmpty ||
+      path.length > 2048 ||
+      path.runes.any((rune) => rune < 0x20)) {
+    return false;
+  }
+  return !path
+      .split('/')
+      .any((part) => part.isEmpty || part == '.' || part == '..');
 }
 
 bool _isLoopbackHost(String host) {

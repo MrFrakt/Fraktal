@@ -63,7 +63,8 @@ void main() {
     addTearDown(() => repo.setFieldbusViewActive(false));
     var stable = 0, last = -1;
     final sw = Stopwatch()..start();
-    while (sw.elapsed < const Duration(seconds: 20) && (bus.isEmpty || stable < 4)) {
+    while (sw.elapsed < const Duration(seconds: 20) &&
+        (bus.isEmpty || stable < 4)) {
       await Future<void>.delayed(const Duration(milliseconds: 500));
       stable = (bus.length == last) ? stable + 1 : 0;
       last = bus.length;

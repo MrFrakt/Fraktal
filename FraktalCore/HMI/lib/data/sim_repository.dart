@@ -32,6 +32,7 @@ class SimRepository implements PlcRepository {
   final List<AlarmEvent> _ringA = [];
   final Map<String, ({bool b, double a})> _forced =
       {}; // channelPath -> forced value
+  final Map<String, IoChannel> _latestChannels = {};
   final Set<String> _shelved =
       {}; // §8.10 'src|desc' keys with suppressed annunciation
   final Map<String, String> _configValues = {
@@ -39,6 +40,32 @@ class SimRepository implements PlcRepository {
     'MES port': '4840',
     'Clamp settle time': '150',
   };
+
+  List<CfgField> _configFields() => [
+        CfgField('MES endpoint IP', CfgKind.stationCfg, CfgType.text,
+            _configValues['MES endpoint IP']!,
+            labelKey: 'project.config.mesEndpointIp',
+            writeKey: 'sim.station.mes.endpointIp',
+            writeRevision: 1,
+            writable: true),
+        CfgField('MES port', CfgKind.stationCfg, CfgType.number,
+            _configValues['MES port']!,
+            labelKey: 'project.config.mesPort',
+            writeKey: 'sim.station.mes.port',
+            writeRevision: 1,
+            writable: true,
+            minimum: 1,
+            maximum: 65535),
+        CfgField('Clamp settle time', CfgKind.parCfg, CfgType.time,
+            _configValues['Clamp settle time']!,
+            unit: 'ms',
+            labelKey: 'project.config.clampSettleTime',
+            writeKey: 'sim.recipe.clamp.settleMs',
+            writeRevision: 1,
+            writable: true,
+            minimum: 0,
+            maximum: 60000),
+      ];
 
   // demo users (FB_LocalAccessProvider analogue)
   static const _users = {
@@ -293,18 +320,30 @@ class SimRepository implements PlcRepository {
               ],
               defaultOption: 1)
           : null, // §6.11
-      config: [
-        // §3.8a editable persistent data (each in the module that needs it)
-        CfgField('MES endpoint IP', CfgKind.stationCfg, CfgType.text,
-            _configValues['MES endpoint IP']!,
-            labelKey: 'project.config.mesEndpointIp'),
-        CfgField('MES port', CfgKind.stationCfg, CfgType.number,
-            _configValues['MES port']!,
-            labelKey: 'project.config.mesPort'),
-        CfgField('Clamp settle time', CfgKind.parCfg, CfgType.time,
-            _configValues['Clamp settle time']!,
-            unit: 'ms', labelKey: 'project.config.clampSettleTime'),
-      ],
+      systemHealth: const SystemHealthFacet(
+        healthy: true,
+        taskAvailable: true,
+        taskCycleUs: 1000,
+        taskJitterUs: 30,
+        controllerAvailable: true,
+        cpuLoadPct: 24.5,
+        memoryAvailableMb: 2048,
+        fieldbusAvailable: true,
+        fieldbusMasterHealthy: true,
+        dcAvailable: true,
+        dcSynchronized: true,
+        time: TimeQualityFacet(
+            available: true,
+            synchronized: true,
+            source: 'SIMULATED',
+            offsetUs: 0),
+      ),
+      signalTower: SignalTowerFacet(
+        red: _cylBError,
+        green: !_cylBError,
+        blue: _robotMsg,
+      ),
+      config: _configFields(),
       children: [
         const ModuleNode(
             path: 'StationA.Separator1',
@@ -508,7 +547,8 @@ class SimRepository implements PlcRepository {
         forced: true,
         quality: c.quality,
         faultActive: c.faultActive,
-        diagnosticKey: c.diagnosticKey);
+        diagnosticKey: c.diagnosticKey,
+        forceable: c.forceable);
   }
 
   void _publishBus() {
@@ -541,6 +581,7 @@ class SimRepository implements PlcRepository {
                       name: 'CylB.WorkFb[1]',
                       descriptionKey: 'project.io.cylBWorkFb1',
                       path: 'StationA.ClampStation.CylB.WorkFb1',
+                      modulePath: 'StationA.ClampStation.CylB',
                       dir: ChannelDir.input,
                       kind: ChannelKind.digital,
                       boolValue: !_cylBError,
@@ -549,6 +590,7 @@ class SimRepository implements PlcRepository {
                       name: 'CylB.WorkFb[2]',
                       descriptionKey: 'project.io.cylBWorkFb2',
                       path: 'StationA.ClampStation.CylB.WorkFb2',
+                      modulePath: 'StationA.ClampStation.CylB',
                       dir: ChannelDir.input,
                       kind: ChannelKind.digital,
                       boolValue: false,
@@ -556,6 +598,7 @@ class SimRepository implements PlcRepository {
                   const IoChannel(
                       name: 'CylA.HomeFb[1]',
                       path: 'StationA.ClampStation.CylA.HomeFb1',
+                      modulePath: 'StationA.ClampStation.CylA',
                       dir: ChannelDir.input,
                       kind: ChannelKind.digital,
                       boolValue: true),
@@ -563,6 +606,7 @@ class SimRepository implements PlcRepository {
                       name: 'Guard closed',
                       descriptionKey: 'project.io.guardClosed',
                       path: 'StationA.Guard',
+                      modulePath: 'StationA',
                       dir: ChannelDir.input,
                       kind: ChannelKind.digital,
                       boolValue: true),
@@ -576,12 +620,23 @@ class SimRepository implements PlcRepository {
                   IoChannel(
                       name: 'CylB.ToWorkOut',
                       path: 'StationA.ClampStation.CylB.ToWork',
+                      modulePath: 'StationA.ClampStation.CylB',
                       dir: ChannelDir.output,
                       kind: ChannelKind.digital,
+                      forceable: true,
                       boolValue: true),
                   IoChannel(
                       name: 'Separator.Extend',
                       path: 'StationA.Separator1.Extend',
+                      modulePath: 'StationA.Separator1',
+                      dir: ChannelDir.output,
+                      kind: ChannelKind.digital,
+                      forceable: true,
+                      boolValue: false),
+                  IoChannel(
+                      name: 'StatusLamp',
+                      path: 'StationA.StatusLamp',
+                      modulePath: 'StationA',
                       dir: ChannelDir.output,
                       kind: ChannelKind.digital,
                       boolValue: false),
@@ -595,6 +650,7 @@ class SimRepository implements PlcRepository {
                   IoChannel(
                       name: 'Clamp pressure',
                       path: 'StationA.ClampStation.Pressure',
+                      modulePath: 'StationA.ClampStation',
                       dir: ChannelDir.input,
                       kind: ChannelKind.analog,
                       analogValue: 5.8,
@@ -602,6 +658,7 @@ class SimRepository implements PlcRepository {
                   IoChannel(
                       name: 'Supply pressure',
                       path: 'StationA.Supply',
+                      modulePath: 'StationA',
                       dir: ChannelDir.input,
                       kind: ChannelKind.analog,
                       analogValue: 6.1,
@@ -619,6 +676,7 @@ class SimRepository implements PlcRepository {
               IoChannel(
                   name: 'Robot axis position',
                   path: 'StationA.Robot.Axis',
+                  modulePath: 'StationA.Robot',
                   dir: ChannelDir.input,
                   kind: ChannelKind.analog,
                   analogValue: 245.7,
@@ -628,7 +686,19 @@ class SimRepository implements PlcRepository {
         ],
       ),
     ];
-    _bus.add(_mapForces(tree));
+    final mapped = _mapForces(tree);
+    _latestChannels.clear();
+    _indexChannels(mapped);
+    _bus.add(mapped);
+  }
+
+  void _indexChannels(List<BusNode> nodes) {
+    for (final node in nodes) {
+      for (final channel in node.channels) {
+        _latestChannels[channel.path] = channel;
+      }
+      _indexChannels(node.children);
+    }
   }
 
   List<BusNode> _mapForces(List<BusNode> nodes) => [
@@ -652,16 +722,22 @@ class SimRepository implements PlcRepository {
       bool boolValue = false,
       double analogValue = 0}) async {
     // output-only rule (§10.5.1): inputs are never forceable through this path
-    final isOutput = channelPath.contains('.ToWork') ||
-        channelPath.contains('.Extend') ||
-        channelPath.endsWith('Out');
-    if (!isOutput) {
-      _audit('Force REJECTED (input)', channelPath);
+    final channel = _latestChannels[channelPath];
+    final owned = channel != null &&
+        (channel.modulePath == rootPath ||
+            channel.modulePath.startsWith('$rootPath.'));
+    if (!owned || channel.dir != ChannelDir.output || !channel.forceable) {
+      _audit('Force REJECTED (identity/direction/capability)', channelPath);
       return false;
     }
     // §7.7: MANUAL gate, PLC-side re-check (the client also greys the control)
     if (!_accessFor(rootPath).permits(GatedAction.manual)) {
       _audit('Force DENIED', channelPath);
+      return false;
+    }
+    final mode = rootPath.startsWith('StationA') ? _modeA : _modeB;
+    if (mode != UnitMode.manual) {
+      _audit('Force REJECTED (not MANUAL)', channelPath);
       return false;
     }
     if (force) {
@@ -695,11 +771,16 @@ class SimRepository implements PlcRepository {
     final ok = u != null && u.$1 == secret;
     final prior = _accessFor(rootPath);
     final next = ok
-        ? AccessSession(level: u.$2, user: user, required: prior.required)
+        ? AccessSession(
+            level: u.$2,
+            user: user,
+            required: prior.required,
+            sessionTimeout: prior.sessionTimeout)
         : AccessSession(
             level: AccessLevel.none,
             loginFailed: true,
-            required: prior.required);
+            required: prior.required,
+            sessionTimeout: prior.sessionTimeout);
     if (rootPath.startsWith('ConveyorB')) {
       _accessB = next;
     } else {
@@ -713,11 +794,53 @@ class SimRepository implements PlcRepository {
   Future<void> logout(String rootPath) async {
     final prior = _accessFor(rootPath);
     if (rootPath.startsWith('ConveyorB')) {
-      _accessB = AccessSession(required: prior.required);
+      _accessB = AccessSession(
+          required: prior.required, sessionTimeout: prior.sessionTimeout);
     } else {
-      _accessA = AccessSession(required: prior.required);
+      _accessA = AccessSession(
+          required: prior.required, sessionTimeout: prior.sessionTimeout);
     }
     _publish();
+  }
+
+  @override
+  Future<bool> setAccessLevel(
+      String rootPath, GatedAction action, AccessLevel level) async {
+    final prior = _accessFor(rootPath);
+    if (!prior.permits(GatedAction.accessPolicy)) return false;
+    if (action == GatedAction.accessPolicy && level.index > prior.level.index)
+      return false;
+    final required = List<AccessLevel>.from(prior.required);
+    if (action.index >= required.length) return false;
+    required[action.index] = level;
+    _setAccess(
+        rootPath,
+        AccessSession(
+            level: prior.level,
+            user: prior.user,
+            loginFailed: prior.loginFailed,
+            required: List.unmodifiable(required),
+            sessionTimeout: prior.sessionTimeout));
+    _audit('Access policy changed: ${action.name}=${level.name}', rootPath);
+    return true;
+  }
+
+  @override
+  Future<bool> setSessionTimeout(String rootPath, Duration timeout) async {
+    final prior = _accessFor(rootPath);
+    if (!prior.permits(GatedAction.accessPolicy) ||
+        timeout.isNegative ||
+        timeout > const Duration(days: 7)) return false;
+    _setAccess(
+        rootPath,
+        AccessSession(
+            level: prior.level,
+            user: prior.user,
+            loginFailed: prior.loginFailed,
+            required: prior.required,
+            sessionTimeout: timeout));
+    _audit('Session timeout changed: ${timeout.inMinutes} min', rootPath);
+    return true;
   }
 
   @override
@@ -799,8 +922,22 @@ class SimRepository implements PlcRepository {
   }
 
   @override
-  Future<bool> setDecisionAnswer(String unitPath, int option) async =>
-      option > 0;
+  Future<bool> lampTest(String unitPath) async {
+    if (!_accessFor(unitPath).permits(GatedAction.manual)) return false;
+    _audit('Signal tower lamp test', unitPath);
+    return true;
+  }
+
+  @override
+  Future<bool> setDecisionAnswer(String unitPath, int option) async {
+    if (!_accessFor(unitPath).permits(GatedAction.startStop) ||
+        !_robotMsg ||
+        option < 1 ||
+        option > 2) return false;
+    _robotMsg = false;
+    _audit('Decision accepted: option $option', unitPath);
+    return true;
+  }
 
   @override
   Future<ReleaseReport> releaseReportStart(String unitPath) async {
@@ -925,19 +1062,25 @@ class SimRepository implements PlcRepository {
       _audit('Config write DENIED', '$nodePath.${field.name}');
       return false;
     }
+    CfgField? capability;
+    if (nodePath == 'StationA') {
+      for (final candidate in _configFields()) {
+        if (candidate.writeKey == field.writeKey) {
+          capability = candidate;
+          break;
+        }
+      }
+    }
     final trimmed = value.trim();
-    final valid = switch (field.type) {
-      CfgType.text => trimmed.isNotEmpty,
-      CfgType.boolean =>
-        trimmed.toLowerCase() == 'true' || trimmed.toLowerCase() == 'false',
-      CfgType.number || CfgType.time => double.tryParse(trimmed) != null,
-    };
-    if (!valid) {
+    if (capability == null ||
+        !capability.hasWriteCapability ||
+        capability.writeRevision != field.writeRevision ||
+        !capability.accepts(trimmed)) {
       _audit('Config write REJECTED', '$nodePath.${field.name}');
       return false;
     }
-    _configValues[field.name] = trimmed;
-    _audit('Config write', '$nodePath.${field.name}');
+    _configValues[capability.name] = trimmed;
+    _audit('Config write', '$nodePath.${capability.name}');
     _publish();
     return true;
   }
@@ -1000,4 +1143,13 @@ class SimRepository implements PlcRepository {
 
   AccessSession _accessFor(String path) =>
       path.startsWith('ConveyorB') ? _accessB : _accessA;
+
+  void _setAccess(String path, AccessSession value) {
+    if (path.startsWith('ConveyorB')) {
+      _accessB = value;
+    } else {
+      _accessA = value;
+    }
+    _publish();
+  }
 }

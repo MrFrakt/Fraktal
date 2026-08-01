@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SystemHealthInput" Id="{89f432bb-457e-4500-a84b-1c481fdde476}">
+    <Declaration><![CDATA[// Core §8.12 — platform-neutral probe sample. Availability is explicit so an
+// unsupported metric never masquerades as a healthy zero.
+TYPE ST_SystemHealthInput :
+STRUCT
+    TaskAvailable       : BOOL;
+    TaskCycleUs         : UDINT;
+    TaskJitterUs        : UDINT;
+    TaskOverrun         : BOOL;
+    ControllerAvailable : BOOL;
+    CpuLoadPct          : LREAL;
+    MemoryAvailableMb   : UDINT;
+    IpcAvailable        : BOOL;
+    IpcTemperatureC     : LREAL;
+    FanHealthy          : BOOL;
+    StorageHealthPct    : LREAL;
+    FieldbusAvailable   : BOOL;
+    FieldbusMasterHealthy : BOOL;
+    LostFrameCount      : UDINT;
+    SlaveErrorCount     : UDINT;
+    DcAvailable         : BOOL;
+    DcSynchronized      : BOOL;
+    TimeQuality         : ST_TimeQuality;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

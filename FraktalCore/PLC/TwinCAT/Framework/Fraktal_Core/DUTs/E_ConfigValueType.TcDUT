@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_ConfigValueType" Id="{8617d116-3206-49d3-9e2a-5cbd9d13d184}">
+    <Declaration><![CDATA[// Core §3.8a/§3.10.2 — configuration value representation accepted by the
+// owning typed write handler. Ordinals mirror the generic HMI CfgType enum.
+// Append new values only.
+{attribute 'qualified_only'}
+TYPE E_ConfigValueType :
+(
+    NUMBER  := 0,
+    TEXT    := 1,
+    BOOLEAN := 2,
+    TIME    := 3
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

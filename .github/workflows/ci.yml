@@ -34,7 +34,7 @@ jobs:
   # (>= 3.1.4026) and keeps 3.1.4024 as a legacy profile selected by the
   # FRAKTAL_TC3_4024 compiler define; the '4024' run proves every modern-only
   # construct is pragma-guarded, so the legacy build stays compilable.
-  # See FraktalCore/PLC/Fraktal_Core/Params/PL_FraktalCompat.TcGVL.
+  # See FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/Params/PL_FraktalCompat.TcGVL.
   plc-lint:
     name: PLC lint (${{ matrix.profile }} profile)
     runs-on: ubuntu-latest
@@ -48,7 +48,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Lint TwinCAT sources
-        run: python tools/plc_lint.py --profile ${{ matrix.profile }} FraktalCore/PLC
+        run: python tools/plc_lint.py --profile ${{ matrix.profile }} FraktalCore/PLC/TwinCAT
+      - name: Test conformance-lint positive/negative fixtures
+        run: python -m unittest tools/test_plc_lint.py
 
   # ---- lint + test: HMI app (Flutter) -------------------------------------
   hmi:
@@ -68,6 +70,8 @@ jobs:
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
+      - name: Verify generated reason catalog
+        run: dart run tool/generate_reason_catalog.dart --check
       # The suite is offline by design (SimRepository + fakes): no PLC, no ADS,
       # no network. Anything needing real hardware lives in tool/probe_*.dart,
       # which is intentionally not run here.
@@ -140,6 +144,6 @@ jobs:
       - name: Build PLC solution (TwinCAT automation interface)
         run: |
           echo "Wire up: TcXaeShell/automation-interface build of"
-          echo "FraktalCore/PLC/FraktalPressDemo.sln, then run the TcUnit"
+          echo "FraktalCore/PLC/TwinCAT/Tests and Examples/FraktalPressDemo.sln, then run the TcUnit"
           echo "suites headless and publish JUnit XML (Annex H)."
           exit 1

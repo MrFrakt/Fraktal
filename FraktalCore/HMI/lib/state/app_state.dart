@@ -4,18 +4,52 @@ library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../data/panel_platform.dart';
 import '../data/plc_repository.dart';
 import '../domain/module_node.dart';
 import '../domain/fieldbus.dart';
 import '../domain/types.dart';
 import '../content/module_content_controller.dart';
 import '../localization/localization_controller.dart';
+import '../ui/on_screen_keyboard.dart';
+import '../ui/app_theme.dart' show ControlScale, UiMetrics;
 
 class HmiConfig {
   /// Theme changing is HMI-local config, gated by a minimum access level
   /// (default: open) — HMI_CONTRACT 'Tree & theming'.
   final AccessLevel themeMinLevel;
-  const HmiConfig({this.themeMinLevel = AccessLevel.none});
+
+  /// Closing the application is deliberately gated higher than theming: on a
+  /// machine panel it removes the operator's view of the process. The level is
+  /// editable per deployment (a locked cabinet may want ADMIN; a desk station
+  /// may want it open) and defaults to TECHNICIAN.
+  final AccessLevel closeAppMinLevel;
+
+  /// **Additional** HMI-local floors for two machine actions the PLC already
+  /// gates (§7.7 `MANUAL` / `ALARM_RESET`).
+  ///
+  /// These can only ever *tighten*: the published PLC policy is still consulted
+  /// and the PLC re-checks every request, so a panel can require more than the
+  /// PLC does but never less. That matters because a shared panel on the shop
+  /// floor may warrant stricter rules than the same PLC allows from an
+  /// engineering station. Default `NONE` = defer entirely to the PLC, which is
+  /// the behaviour before these existed.
+  final AccessLevel manualMinLevel;
+  final AccessLevel alarmResetMinLevel;
+
+  const HmiConfig({
+    this.themeMinLevel = AccessLevel.none,
+    this.closeAppMinLevel = AccessLevel.technician,
+    this.manualMinLevel = AccessLevel.none,
+    this.alarmResetMinLevel = AccessLevel.none,
+  });
+
+  /// The HMI-local floor for [action], or null when this panel adds none.
+  AccessLevel? localFloor(GatedAction action) => switch (action) {
+        GatedAction.manual => manualMinLevel,
+        GatedAction.alarmReset => alarmResetMinLevel,
+        _ => null,
+      };
 }
 
 class AppState extends ChangeNotifier {
@@ -23,11 +57,61 @@ class AppState extends ChangeNotifier {
   final HmiConfig config;
   final LocalizationController localization;
   final ModuleContentController content;
+
+  /// Persisted UI prefs change hook — the bootstrap wires this to save settings,
+  /// so a theme/keyboard change survives reconnect (AppState is rebuilt/connect).
+  final VoidCallback? _onUiPrefsChanged;
+  bool floatingKeyboard;
+
+  /// Operator-selectable control size (touch targets, icons, rail, tree rows).
+  /// Panel pixel density varies widely, so the same 48 px target is comfortable
+  /// on one screen and fiddly on another — gloves make it worse.
+  ControlScale controlScale;
+
+  /// In-app on-screen keyboard for touch panels (Core O9: minimum surface, no
+  /// package). Owned here so the Shell overlay and every TouchTextField share one.
+  final OnScreenKeyboardController keyboard = OnScreenKeyboardController();
+
+  /// Panel-host services (close app, fullscreen, keep-awake). Injectable so a
+  /// test can substitute a recording double.
+  final PanelPlatform panel;
+
+  /// §7.7-style gate for quitting the HMI — see [HmiConfig.closeAppMinLevel].
+  bool get mayCloseApp =>
+      panel.canCloseApp && session.level.index >= config.closeAppMinLevel.index;
+
+  /// The PLC's published policy for [action] AND this panel's local floor.
+  ///
+  /// **Always use this instead of `session.permits(...)` for a gated machine
+  /// action.** The PLC remains authoritative — it re-checks every request and
+  /// can still refuse — but a panel may be configured to require more (see
+  /// [HmiConfig.manualMinLevel]). Because both must pass, an HMI-local setting
+  /// can never grant something the PLC denies.
+  bool permitsLocal(GatedAction action, {AccessSession? forSession}) {
+    final active = forSession ?? session;
+    if (!active.permits(action)) return false;
+    final floor = config.localFloor(action);
+    return floor == null || active.level.index >= floor.index;
+  }
+
+  /// Quit the application. Returns false when refused (insufficient level or an
+  /// unsupported host), so the caller can explain rather than silently no-op.
+  Future<bool> closeApp() async {
+    if (!mayCloseApp) return false;
+    await panel.closeApp();
+    return true;
+  }
+
   factory AppState(
     PlcRepository repo, {
     HmiConfig config = const HmiConfig(),
     LocalizationController? localization,
     ModuleContentController? content,
+    int initialThemeIndex = 0,
+    bool initialFloatingKeyboard = true,
+    ControlScale initialControlScale = ControlScale.compact,
+    VoidCallback? onUiPrefsChanged,
+    PanelPlatform? panel,
   }) {
     final resolvedLocalization = localization ?? LocalizationController();
     return AppState._(
@@ -35,10 +119,29 @@ class AppState extends ChangeNotifier {
       config,
       resolvedLocalization,
       content ?? ModuleContentController(localization: resolvedLocalization),
+      initialThemeIndex,
+      initialFloatingKeyboard,
+      initialControlScale,
+      onUiPrefsChanged,
+      panel ?? createPanelPlatform(),
     );
   }
 
-  AppState._(this.repo, this.config, this.localization, this.content) {
+  AppState._(
+      this.repo,
+      this.config,
+      this.localization,
+      this.content,
+      int initialThemeIndex,
+      bool initialFloatingKeyboard,
+      ControlScale initialControlScale,
+      this._onUiPrefsChanged,
+      this.panel)
+      : themeIndex = initialThemeIndex,
+        floatingKeyboard = initialFloatingKeyboard,
+        controlScale = initialControlScale {
+    keyboard.enabled = floatingKeyboard;
+    keyboard.applyMetrics(UiMetrics.of(controlScale));
     _sub = repo.forest().listen((f) {
       final byPath = <String, ModuleNode>{};
       final duplicatePaths = <String>[];
@@ -94,7 +197,7 @@ class AppState extends ChangeNotifier {
   String? scopedRoot; // null = show whole forest; else single-root scope (3.1a)
   final Set<String> expanded = {};
   bool railCollapsed = false;
-  int themeIndex = 0; // 0 light, 1 dark, 2 high-contrast
+  int themeIndex; // index into kThemes (app_theme.dart); 0 = Light Blue
 
   ModuleNode? get selected {
     for (final r in visibleRoots) {
@@ -271,9 +374,32 @@ class AppState extends ChangeNotifier {
   /// Level-gated theme change (returns false when the session is insufficient).
   bool setTheme(int i) {
     if (session.level.index < config.themeMinLevel.index) return false;
+    if (i == themeIndex) return true;
     themeIndex = i;
     notifyListeners();
+    _onUiPrefsChanged?.call();
     return true;
+  }
+
+  /// Level-gated control-size change — same gate as the theme, since both are
+  /// HMI-local presentation config (HMI_CONTRACT 'Tree & theming').
+  bool setControlScale(ControlScale scale) {
+    if (session.level.index < config.themeMinLevel.index) return false;
+    if (scale == controlScale) return true;
+    controlScale = scale;
+    keyboard.applyMetrics(UiMetrics.of(scale));
+    notifyListeners();
+    _onUiPrefsChanged?.call();
+    return true;
+  }
+
+  /// Toggle the floating on-screen keyboard. Persisted alongside the theme.
+  void setFloatingKeyboard(bool enabled) {
+    if (floatingKeyboard == enabled) return;
+    floatingKeyboard = enabled;
+    keyboard.setEnabled(enabled);
+    notifyListeners();
+    _onUiPrefsChanged?.call();
   }
 
   @override

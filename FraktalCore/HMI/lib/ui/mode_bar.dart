@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
+import 'app_theme.dart';
 
 IconData modeIcon(UnitMode m) => switch (m) {
       UnitMode.auto => Icons.autorenew,
@@ -33,13 +34,15 @@ class ModeBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final u = _unit;
-    if (u == null) return const SizedBox(width: 72);
+    if (u == null)
+      return SizedBox(width: ControlScaleScope.of(context).railWidth);
     final cs = Theme.of(context).colorScheme;
     final s = app.session;
     final canMode = s.permits(GatedAction.modeChange);
     final isManual = u.modeActive == UnitMode.manual;
+    final m = ControlScaleScope.of(context);
     return Container(
-      width: 72,
+      width: m.railWidth,
       color: cs.surfaceContainerLow,
       child: Column(children: [
         const SizedBox(height: 8),
@@ -64,8 +67,32 @@ class ModeBar extends StatelessWidget {
   }
 
   Widget _modeSelector(BuildContext context, ModuleNode u, bool canMode) {
+    final mm = ControlScaleScope.of(context);
+    final child = Column(children: [
+      Container(
+        width: mm.touchTarget,
+        height: mm.touchTarget,
+        decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12)),
+        child: Icon(modeIcon(u.modeActive ?? UnitMode.auto),
+            size: mm.iconSize * 1.3),
+      ),
+      LText((u.modeActive ?? UnitMode.auto).name.toUpperCase(),
+          style: const TextStyle(fontSize: 10)),
+      if (canMode) const Icon(Icons.arrow_drop_down, size: 18),
+    ]);
+    if (!canMode) {
+      return Tooltip(
+        message: context.tr('Mode change blocked — tap to see why'),
+        child: InkWell(
+          onTap: () => app.showReleaseReportAction(
+              u.path, GatedAction.modeChange, 'Mode change blocked'),
+          child: child,
+        ),
+      );
+    }
     return PopupMenuButton<UnitMode>(
-      enabled: canMode,
       tooltip: context.tr('Select mode'),
       itemBuilder: (_) => [
         for (final m in u.supportedModes)
@@ -78,19 +105,7 @@ class ModeBar extends StatelessWidget {
               ])),
       ],
       onSelected: (m) => _requestMode(context, u, m),
-      child: Column(children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12)),
-          child: Icon(modeIcon(u.modeActive ?? UnitMode.auto), size: 26),
-        ),
-        LText((u.modeActive ?? UnitMode.auto).name.toUpperCase(),
-            style: const TextStyle(fontSize: 10)),
-        if (canMode) const Icon(Icons.arrow_drop_down, size: 18),
-      ]),
+      child: child,
     );
   }
 
@@ -101,8 +116,8 @@ class ModeBar extends StatelessWidget {
         u.modePolicy[u.modeActive]; // policy of the mode being LEFT (§3.4.1)
     // BLOCKED_WHILE_RUNNING: refuse while a sequence runs
     if (u.running && policy?.shield == ModeSwitchShield.blockedWhileRunning) {
-      _snack(context,
-          'Stop the sequence before leaving ${u.modeActive!.name.toUpperCase()} (§3.4.1)');
+      await app.showReleaseReportAction(
+          u.path, GatedAction.modeChange, 'Mode change blocked');
       return;
     }
     // CONFIRM: prompt while running
@@ -129,7 +144,10 @@ class ModeBar extends StatelessWidget {
       if (ok != true) return;
     }
     final done = await app.repo.setMode(u.path, m);
-    if (!done && context.mounted) _snack(context, 'Mode change rejected');
+    if (!done && context.mounted) {
+      await app.showReleaseReportAction(
+          u.path, GatedAction.modeChange, 'Mode change blocked');
+    }
   }
 
   Widget _stepToggle(BuildContext context, ModuleNode u, bool canMode) {
@@ -141,35 +159,44 @@ class ModeBar extends StatelessWidget {
           on ? 'Step mode ON — tap to run continuous' : 'Enable step-by-step'),
       isSelected: on,
       icon: Icon(on ? Icons.skip_next : Icons.skip_next_outlined),
-      onPressed: canMode
-          ? () {
-              // cycle CONTINUOUS -> SINGLE_STEP -> HOLD_TO_RUN (if supported) -> CONTINUOUS
-              final order = [
-                RunStyle.continuous,
-                ...u.supportedRunStyles.where((r) => r != RunStyle.continuous)
-              ];
-              final next =
-                  order[(order.indexOf(u.runStyle) + 1) % order.length];
-              app.repo.setRunStyle(u.path, next);
-            }
-          : null,
+      onPressed: () async {
+        if (!canMode) {
+          await app.showReleaseReportAction(
+              u.path, GatedAction.modeChange, 'Run-style change blocked');
+          return;
+        }
+        // cycle CONTINUOUS -> SINGLE_STEP -> HOLD_TO_RUN (if supported) -> CONTINUOUS
+        final order = [
+          RunStyle.continuous,
+          ...u.supportedRunStyles.where((r) => r != RunStyle.continuous)
+        ];
+        final next = order[(order.indexOf(u.runStyle) + 1) % order.length];
+        final accepted = await app.repo.setRunStyle(u.path, next);
+        if (!accepted) {
+          await app.showReleaseReportAction(
+              u.path, GatedAction.modeChange, 'Run-style change blocked');
+        }
+      },
     );
   }
 
   Widget _stepButton(BuildContext context, ModuleNode u, AccessSession s) {
+    final mm = ControlScaleScope.of(context);
     return FilledButton.tonal(
       onPressed: s.permits(GatedAction.startStop)
           ? () => app.repo.stepRequest(u.path)
           : () => app.showReleaseReportAction(
               u.path, GatedAction.startStop, 'Step blocked'),
       style: FilledButton.styleFrom(
-          minimumSize: const Size(48, 40), padding: EdgeInsets.zero),
+          minimumSize: Size(mm.touchTarget, mm.touchTarget * 0.84),
+          padding: EdgeInsets.zero),
       child: const Icon(Icons.redo),
     );
   }
 
   Widget _holdToRun(BuildContext context, ModuleNode u, AccessSession s) {
     // NON-SAFETY convenience (§3.4.2): advances only while pressed.
+    final mm = ControlScaleScope.of(context);
     return GestureDetector(
       onTapDown: (_) {
         if (s.permits(GatedAction.startStop)) {
@@ -184,18 +211,20 @@ class ModeBar extends StatelessWidget {
       child: Tooltip(
         message: context.tr('Hold to run (non-safety)'),
         child: Container(
-          width: 48,
-          height: 48,
+          width: mm.touchTarget,
+          height: mm.touchTarget,
           decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.tertiaryContainer,
+              // Operator action, not a fault — blue (app_theme).
+              color: operatorActionContainer(context),
               borderRadius: BorderRadius.circular(24)),
-          child: const Icon(Icons.touch_app),
+          child: const Icon(Icons.touch_app, color: kOperatorActionColor),
         ),
       ),
     );
   }
 
   Widget _playStop(BuildContext context, ModuleNode u, AccessSession s) {
+    final mm = ControlScaleScope.of(context);
     final running = u.running || u.stopPending;
     final enabled = s.permits(GatedAction.startStop) && !(u.blocking);
     // §7.8: a blocked Start stays pressable and reveals WHY (never silently no-ops)
@@ -203,7 +232,11 @@ class ModeBar extends StatelessWidget {
     void onPress() async {
       if (u.stopPending) return;
       if (running) {
-        app.repo.stop(u.path);
+        final ok = await app.repo.stop(u.path);
+        if (!ok) {
+          await app.showReleaseReportAction(
+              u.path, GatedAction.startStop, 'Stop blocked');
+        }
         return;
       }
       if (!enabled) {
@@ -223,7 +256,7 @@ class ModeBar extends StatelessWidget {
               ? 'Stop (finish sequence safely)'
               : (startBlocked ? 'Not released — tap to see why' : 'Run mode'))),
       child: IconButton.filled(
-        iconSize: 30,
+        iconSize: mm.primaryIconSize,
         // §7.8: stay pressable unless mid-stop — onPress decides act vs. explain
         onPressed: u.stopPending ? null : onPress,
         icon: Icon(running ? Icons.stop : Icons.play_arrow),
@@ -239,9 +272,6 @@ class ModeBar extends StatelessWidget {
     );
     return _Blink(active: u.stopPending, child: button);
   }
-
-  void _snack(BuildContext context, String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(msg)));
 }
 
 /// Blinks its child's opacity while [active] — used for the stop button during a

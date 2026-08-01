@@ -60,7 +60,7 @@ FraktalCore/HMI/native/opcua/**/build/
 FraktalCore/HMI/native/opcua/third_party/mbedtls-*/
 
 # --- PLC: TwinCAT XAE per-machine build + boot output (regenerated on build) ---
-FraktalCore/PLC/**/_CompileInfo/
+FraktalCore/PLC/**/_CompileInfo*/
 FraktalCore/PLC/**/_Boot/
 FraktalCore/PLC/_Boot/
 FraktalCore/PLC/**/*.compileinfo
@@ -74,15 +74,29 @@ FraktalCore/PLC/**/_Libraries/
 FraktalCore/PLC/**/*.tmc
 FraktalCore/PLC/**/*.tpy
 # Compiled library drops belong in signed GitHub Releases, not the source tree.
-FraktalCore/PLC/Release/
+# Match the ARTEFACTS, not the folder name: an application's `Release/` folder is
+# authored source (§4.2 groups a Unit's release engineering under `Release/`), and
+# a blanket folder rule silently excluded FB_PressDemoRelease.TcPOU from the repo.
+FraktalCore/PLC/**/Release/**/*.library
+FraktalCore/PLC/**/Release/*.library
+FraktalCore/PLC/**/Release/**/*.compiled-library
+FraktalCore/PLC/**/Release/*.compiled-library
+# Local dependency/install bundles are machine-bound build inputs, not authored
+# Fraktal source. Library versions stay in PlaceholderReference entries.
+FraktalCore/PLC/**/Dependancies/
 # Local archives and machine-bound TwinCAT trial licensing never leave the PC.
 FraktalCore/PLC.7z
-FraktalCore/PLC/TrialLicense.tclrs
+FraktalCore/PLC/**/TrialLicense.tclrs
+FraktalCore/PLC/**/*.tclrs
 *.plcproj.bak
 *.tsproj.bak
 *.xti.bak
 *.dbg.bak
 _backup/
+
+# --- Python tooling caches (plc_lint + its fixture suite; regenerated on run) ---
+__pycache__/
+*.py[cod]
 
 # --- Reference-only material kept locally, not published ---
 NexeedReferenceOnly/

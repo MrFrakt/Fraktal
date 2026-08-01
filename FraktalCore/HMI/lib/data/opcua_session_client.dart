@@ -5,6 +5,7 @@ export 'package:fraktal_opcua_client/opcua_session_client.dart'
         OpcUaRemoteException,
         OpcUaBatchSessionClient,
         OpcUaBulkReadClient,
+        OpcUaPathDiscoveryClient,
         OpcUaSessionClient,
         OpcUaSessionClientBatch,
         OpcUaSessionClientTiering,

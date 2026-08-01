@@ -37,6 +37,7 @@ Future<void> main(List<String> arguments) async {
       'securityProfile=${isAds ? "$securityProfileName (ignored: ADS transport)" : securityProfileName} '
       'listenPort=${options.port} path=${options.path} '
       'webRoot=${options.webRoot.isEmpty ? "(none)" : options.webRoot} '
+      'readRoots=${options.readRoots.isEmpty ? "(OPC-authorized)" : options.readRoots.join(",")} '
       'writeRoots=${options.writeRoots.isEmpty ? "(none)" : options.writeRoots.join(",")}');
   if (options.writeRoots.isEmpty && !options.allowAllRootMailboxes) {
     // A very common misconfiguration: the gateway starts and serves data but
@@ -50,7 +51,8 @@ Future<void> main(List<String> arguments) async {
       // Native TwinCAT ADS: the AMS route is the trust boundary, so the OPC UA
       // security profile / credential provisioning does not apply.
       final amsNetId = options.plcEndpoint.host;
-      final amsPort = options.plcEndpoint.hasPort ? options.plcEndpoint.port : 851;
+      final amsPort =
+          options.plcEndpoint.hasPort ? options.plcEndpoint.port : 851;
       stdout.writeln('[Fraktal/Gateway] stage=ads-connect '
           'amsNetId=$amsNetId amsPort=$amsPort');
       client = await AdsSessionClient.connect(
@@ -102,6 +104,7 @@ Future<void> main(List<String> arguments) async {
         port: options.port,
         webSocketPath: options.path,
         allowedOrigins: options.allowedOrigins,
+        readRoots: options.readRoots,
         writeRoots: options.writeRoots,
         allowAllRootMailboxes: options.allowAllRootMailboxes,
         initialPlcReady: true,
@@ -162,6 +165,7 @@ class _GatewayOptions {
   final String path;
   final Duration connectTimeout;
   final Set<String> allowedOrigins;
+  final Set<String> readRoots;
   final Set<String> writeRoots;
   final bool allowAllRootMailboxes;
   final String webRoot;
@@ -181,6 +185,7 @@ class _GatewayOptions {
     required this.path,
     required this.connectTimeout,
     required this.allowedOrigins,
+    required this.readRoots,
     required this.writeRoots,
     required this.allowAllRootMailboxes,
     required this.webRoot,
@@ -227,7 +232,8 @@ class _GatewayOptions {
     var path = '/fraktal';
     var timeout = const Duration(seconds: 5);
     final origins = <String>{};
-    final roots = <String>{};
+    final readRoots = <String>{};
+    final writeRoots = <String>{};
     var allowAllRootMailboxes = false;
     var webRoot = '';
     var securityProfile = OpcUaSecurityProfile.production;
@@ -270,8 +276,11 @@ class _GatewayOptions {
         case '--allow-origin':
           origins.add(valueAfter(index, argument));
           index++;
+        case '--read-root':
+          readRoots.add(valueAfter(index, argument));
+          index++;
         case '--write-root':
-          roots.add(valueAfter(index, argument));
+          writeRoots.add(valueAfter(index, argument));
           index++;
         case '--allow-all-root-mailboxes':
           allowAllRootMailboxes = true;
@@ -342,7 +351,8 @@ class _GatewayOptions {
       path: path,
       connectTimeout: timeout,
       allowedOrigins: origins,
-      writeRoots: roots,
+      readRoots: readRoots,
+      writeRoots: writeRoots,
       allowAllRootMailboxes: allowAllRootMailboxes,
       webRoot: webRoot,
       securityProfile: securityProfile,
@@ -389,6 +399,7 @@ Options:
   --path PATH              WebSocket path (default /fraktal)
   --connect-timeout-ms MS  PLC connect timeout (default 5000)
   --allow-origin ORIGIN    Add an exact remote Web origin; repeatable
+  --read-root BROWSE_PATH  Limit discovery/reads to this subtree; repeatable
   --write-root BROWSE_PATH Limit writes to this root Unit; repeatable
   --allow-all-root-mailboxes
                             Commissioning override for every root mailbox

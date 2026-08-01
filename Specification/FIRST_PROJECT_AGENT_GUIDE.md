@@ -12,7 +12,7 @@ or OPC UA bring-up, the agent shall:
 
 1. Read `AGENTS.md`, `Fraktal_Core_Part_I.md`, the applicable binding
    (`Fraktal_TC3_Part_II.md` for TwinCAT), `HMI_CONTRACT.md`, this guide, and
-   `FraktalCore/PLC/IMPLEMENTATION_NOTES.md` before changing code.
+   `FraktalCore/PLC/TwinCAT/IMPLEMENTATION_NOTES.md` before changing code.
 2. State the current phase and the evidence required to leave it. Do not mix a
    PLC compile failure, runtime deployment failure, OPC UA authorization issue,
    and HMI contract failure into one diagnosis.

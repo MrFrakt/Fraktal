@@ -1,0 +1,238 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <POU Name="FB_PressDemoAuto" Id="{27be7602-c702-dcca-822f-fb9fc2c74001}" SpecialFunc="None">
+    <Declaration><![CDATA[// AUTO mode chain (Core §6.2/§6.8 ST skeleton on FB_SequenceBase): the continuous
+// production cycle — await a fresh two-hand start with part+air present, transfer
+// the part in, press for the recipe dwell, return to load position, count the good
+// part, and loop until Stop. A Stop requested at the between-cycles wait is honored
+// there (M_StopNow) so no phantom cycle is charged. Every child motion goes through
+// the §6.1 handshake (M_MayIssue); progression rides the shared _retVal.
+FUNCTION_BLOCK FB_PressDemoAuto EXTENDS FB_SequenceBase
+VAR
+    _partReady, _airReady, _startReady : BOOL;
+    _dwellTwoHandHeld : BOOL;          // N220 named wait: two-hand held through the dwell
+    _traceAccepted, _recordAccepted, _partProcessed : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _pressRam : REFERENCE TO FB_CylinderCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _door : REFERENCE TO FB_CylinderCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _partSlide : REFERENCE TO FB_CylinderCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _twoHand : REFERENCE TO FB_TwoHandStartCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _partPresentSensor : REFERENCE TO FB_DigitalInputCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _airPressureMonitor : REFERENCE TO FB_AirPressureMonitorCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _parCfg : REFERENCE TO ST_PneumaticPressParCfg;
+    {attribute 'OPC.UA.DA' := '0'}
+    _outCmd : REFERENCE TO ST_PneumaticPressOutCmd;
+    {attribute 'OPC.UA.DA' := '0'}
+    _startLatched : REFERENCE TO BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _loadPosition : FB_PressDemoLoadPosition;
+    _loadPositionRunning : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="M_Reset" Id="{27be7602-c702-dcca-822f-fb9fc2c74003}">
+      <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ResetBase(0);
+_loadPositionRunning := FALSE;
+_loadPosition.M_Reset(BaseStepNo := 0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Run" Id="{27be7602-c702-dcca-822f-fb9fc2c74004}">
+      <Declaration><![CDATA[METHOD M_Run]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _attached THEN
+    RETURN;
+END_IF
+CASE _step OF
+    0:  // initialize
+        M_Step(StepNo := 0, StepName := 'project.step.pressAutoInitialize',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        _outCmd.CycleCompleted := FALSE;
+        _outCmd.Homed := FALSE;
+        _outCmd.ChangeoverCompleted := FALSE;
+        _loadPositionRunning := FALSE;
+        _retVal := E_StepResult.ADVANCE;
+        M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    100:  // await a fresh two-hand start (the §8.11.1 cycle-start marker)
+        M_Step(StepNo := 100, StepName := 'project.step.pressAwaitTwoHand',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+        _outCmd.CycleCompleted := FALSE;
+        _partReady := M_Await(Idx := 1, Label := 'project.condition.partPresent',
+            Ok := _partPresentSensor.OutImm.Value AND _partPresentSensor.OutImm.Quality);
+        _airReady := M_Await(Idx := 2, Label := 'project.condition.airPressureOk',
+            Ok := _airPressureMonitor.OutImm.PressureOk);
+        IF _parCfg.RequireTwoHandStart THEN
+            _startReady := M_Await(Idx := 3, Label := 'project.condition.twoHandStart', Ok := _startLatched);
+        ELSE
+            _startReady := TRUE;
+        END_IF
+        IF M_StopPending() THEN
+            M_StopNow();                       // stop accepted BETWEEN cycles: no phantom cycle
+        ELSIF _partReady AND _airReady AND _startReady THEN
+            _traceAccepted := M_PartReceived();
+            _retVal := E_StepResult.ADVANCE;
+        END_IF
+        M_Advance(OnAdvance := 110, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    110:  // ram up
+        M_Step(StepNo := 110, StepName := 'project.step.pressRamUp',
+            Awaits := _pressRam, AwaitingLabel := 'PressRam.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF M_MayIssue(Steppable := TRUE) THEN
+            _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.RETRACT; _pressRam.Execute := TRUE;
+        END_IF
+        IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+        M_Advance(OnAdvance := 130, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    130:  // door open
+        M_Step(StepNo := 130, StepName := 'project.step.pressDoorOpen',
+            Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF M_MayIssue(Steppable := TRUE) THEN
+            _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
+        END_IF
+        IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+        M_Advance(OnAdvance := 150, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    150:  // slide inside (value-adding sequence begins)
+        M_Step(StepNo := 150, StepName := 'project.step.pressSlideInside',
+            Awaits := _partSlide, AwaitingLabel := 'PartSlide.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF M_MayIssue(Steppable := TRUE) THEN
+            M_PartStarted();
+            _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.EXTEND; _partSlide.Execute := TRUE;
+        END_IF
+        IF _partSlide.Done THEN _partSlide.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+        M_Advance(OnAdvance := 170, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    170:  // transfer settle
+        M_Step(StepNo := 170, StepName := 'project.step.pressTransferSettle',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.TransferSettleTime);
+        _retVal := M_Delay(PT := _parCfg.TransferSettleTime);
+        M_Advance(OnAdvance := 180, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    180:  // door close
+        M_Step(StepNo := 180, StepName := 'project.step.pressDoorClose',
+            Awaits := _door, AwaitingLabel := 'Door.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF M_MayIssue(Steppable := TRUE) THEN
+            _door.Abort := FALSE; _door.Command := E_CylinderCommand.EXTEND; _door.Execute := TRUE;
+        END_IF
+        IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+        M_Advance(OnAdvance := 200, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    200:  // ram down
+        M_Step(StepNo := 200, StepName := 'project.step.pressRamDown',
+            Awaits := _pressRam, AwaitingLabel := 'PressRam.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF M_MayIssue(Steppable := TRUE) THEN
+            _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.EXTEND; _pressRam.Execute := TRUE;
+        END_IF
+        IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+        M_Advance(OnAdvance := 220, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    220:  // press dwell — two-hand must stay held; releasing it HOLDS the dwell
+        M_Step(StepNo := 220, StepName := 'project.step.pressDwell',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.PressSettleTime);
+        // Releasing the button mid-dwell is the designed way to stop pressing, so it
+        // is a named wait (§6.9(b)), not a fault: the ram's outputs come off, the
+        // dwell timer freezes where it is because M_Delay is not called, and pressing
+        // again restores the force and finishes the remaining dwell. Faulting here
+        // charged an unrecoverable downtime event for normal operator behaviour.
+        _dwellTwoHandHeld := M_Await(Idx := 1, Label := 'project.condition.twoHandHeldDuringPress',
+            Ok := _twoHand.OutImm.SafeActive OR NOT _parCfg.RequireTwoHandStart);
+        IF NOT _dwellTwoHandHeld THEN
+            _pressRam.WithdrawOutputs();
+        ELSE
+            // The press force is the valve latched by the EXTEND that step 200 already
+            // completed, so after a withdraw only this call re-energizes it — and the
+            // ram re-checks its own extend permit before it does (§7.2).
+            _pressRam.RestoreOutputs();
+            _retVal := M_Delay(PT := _parCfg.PressSettleTime);
+        END_IF
+        M_Advance(OnAdvance := 230, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    230:  // record the applied dwell (§3.16.1 measured value)
+        M_Step(StepNo := 230, StepName := 'project.step.pressRecordResult',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        _recordAccepted := M_PartRecord(RecordName := 'PressDwell',
+            Value := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)),
+            Minimum := 0, Maximum := 30000,
+            Target := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)), EngUnit := 'ms');
+        _loadPositionRunning := FALSE;
+        _retVal := E_StepResult.ADVANCE;
+        M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    240:  // return to the shared load-safe position (composite step)
+        IF NOT _loadPositionRunning THEN
+            _loadPosition.M_Reset(BaseStepNo := 240);
+            _loadPositionRunning := TRUE;
+        END_IF
+        _loadPosition.M_Run();
+        IF _loadPosition.Done THEN
+            _loadPositionRunning := FALSE;
+            _retVal := E_StepResult.ADVANCE;
+        END_IF
+        M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    999:  // cycle complete — write result, count by verdict, loop (§8.11.1 finish marker)
+        M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        _outCmd.CycleCompleted := TRUE;
+        _partProcessed := M_PartProcessed(Verdict := E_Verdict.OK, Reason := E_Reason.NONE);
+        IF NOT _partProcessed THEN
+            M_CountGood();                     // §3.9: no carrier configured — count directly
+        END_IF
+        _startLatched := FALSE;
+        IF M_EndOfCycle() THEN
+            _retVal := E_StepResult.ADVANCE;   // stop NOT requested: loop to N100
+        END_IF
+        M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+ELSE
+    M_Fault(Reason := E_Reason.STEP_STALLED, DescriptionKey := 'std.error.undefinedStep');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Setup" Id="{27be7602-c702-dcca-822f-fb9fc2c74002}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Host : I_SequenceHost;
+END_VAR
+VAR_IN_OUT
+    PressRam : FB_CylinderCM;
+    Door : FB_CylinderCM;
+    PartSlide : FB_CylinderCM;
+    TwoHand : FB_TwoHandStartCM;
+    PartPresentSensor : FB_DigitalInputCM;
+    AirPressureMonitor : FB_AirPressureMonitorCM;
+    ParCfg : ST_PneumaticPressParCfg;
+    OutCmd : ST_PneumaticPressOutCmd;
+    StartLatched : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_pressRam REF= PressRam;
+_door REF= Door;
+_partSlide REF= PartSlide;
+_twoHand REF= TwoHand;
+_partPresentSensor REF= PartPresentSensor;
+_airPressureMonitor REF= AirPressureMonitor;
+_parCfg REF= ParCfg;
+_outCmd REF= OutCmd;
+_startLatched REF= StartLatched;
+Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_door)
+    AND __ISVALIDREF(_partSlide) AND __ISVALIDREF(_twoHand)
+    AND __ISVALIDREF(_partPresentSensor) AND __ISVALIDREF(_airPressureMonitor)
+    AND __ISVALIDREF(_parCfg) AND __ISVALIDREF(_outCmd) AND __ISVALIDREF(_startLatched)
+    AND _loadPosition.Setup(Host := Host, PressRam := PressRam, Door := Door, PartSlide := PartSlide);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_PressDemoAuto">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoAuto.M_Reset">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoAuto.M_Run">
+      <LineId Id="3" Count="124" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoAuto.Setup">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

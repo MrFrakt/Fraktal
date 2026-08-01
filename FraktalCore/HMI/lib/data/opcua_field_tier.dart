@@ -77,8 +77,13 @@ class OpcUaFieldTier {
 
   /// Wholly static subtrees: change only on activation or a deliberate write.
   static const Set<String> configContainers = {
-    'Nameplate', 'Catalog', 'AvailableModels', 'ModePolicy',
-    'ParCfg', 'StationCfg', 'Meta',
+    'Nameplate',
+    'Catalog',
+    'AvailableModels',
+    'ModePolicy',
+    'ParCfg',
+    'StationCfg',
+    'Meta',
   };
 
   /// Static leaves that sit on a mixed struct next to live siblings.
@@ -88,11 +93,25 @@ class OpcUaFieldTier {
   /// mode dropdown, and are cyclically published by design (never obscured).
   /// Excluding them left the dropdown showing only the current mode.
   static const Set<String> configLeaves = {
-    'Name', 'DisplayNameKey', 'DescriptionKey', 'ModuleType',
-    'TileEnable', 'ControlDomainId',
-    'StallTime', 'CatalogCount', 'AvailableModelCount', 'MetaCount',
-    'TypeId', 'ParentIdx', 'ChannelCount',
-    'Address', 'Path', 'ModulePath', 'Dir', 'Kind', 'Unit',
+    'Name',
+    'DisplayNameKey',
+    'DescriptionKey',
+    'ModuleType',
+    'TileEnable',
+    'ControlDomainId',
+    'StallTime',
+    'CatalogCount',
+    'AvailableModelCount',
+    'MetaCount',
+    'TypeId',
+    'ParentIdx',
+    'ChannelCount',
+    'Address',
+    'Path',
+    'ModulePath',
+    'Dir',
+    'Kind',
+    'Unit',
   };
 
   /// Reserved on-demand scope key for the fieldbus topology (owned by no module).
@@ -131,7 +150,8 @@ class OpcUaFieldTier {
   /// - fieldbus topology → [fieldbusScope] (one shared scope; the bus page owns it)
   /// - everything else → the browse base of the root Unit the path belongs to, so
   ///   a module detail page activates only its own root's drill-down data.
-  static String? onDemandScopeOf(String browsePath, Iterable<String> forestRoots) {
+  static String? onDemandScopeOf(
+      String browsePath, Iterable<String> forestRoots) {
     if (classify(browsePath) != FieldTier.onDemand) return null;
     for (final raw in browsePath.split('/')) {
       if (_stripIndex(raw) == 'Topology') return fieldbusScope;

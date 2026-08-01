@@ -3,6 +3,7 @@ library;
 import '../domain/fieldbus.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
+import '../localization/reason_catalog.g.dart';
 
 class OpcUaProjection {
   final List<ModuleNode> forest;
@@ -21,7 +22,8 @@ class OpcUaProjection {
 /// Maps a transport-neutral flat OPC UA browse snapshot into the domain model.
 /// The mapper keys off the normative Status member, never a concrete FB type.
 class OpcUaSnapshotMapper {
-  OpcUaProjection map(Map<String, Object?> document) {
+  OpcUaProjection map(Map<String, Object?> document,
+      {Map<String, List<CfgField>> configByModulePath = const {}}) {
     final rawValues = document['values'];
     if (rawValues is! Map) {
       throw const FormatException('OPC UA snapshot has no values object.');
@@ -117,7 +119,8 @@ class OpcUaSnapshotMapper {
       final commandCount = _integer(values['$base/CatalogCount']);
       final commands = <CommandInfo>[];
       for (var i = 1; i <= commandCount; i++) {
-        final prefix = _indexedPrefix(values, '$base/Catalog', i, parentPaths: parentPaths);
+        final prefix = _indexedPrefix(values, '$base/Catalog', i,
+            parentPaths: parentPaths);
         if (prefix == null) continue;
         commands.add(CommandInfo(
           _integer(values['$prefix/Value']),
@@ -173,7 +176,8 @@ class OpcUaSnapshotMapper {
       final modePolicy = <UnitMode, ModePolicy>{};
       if (isUnit) {
         for (var i = 0; i < UnitMode.values.length; i++) {
-          final prefix = _indexedPrefix(values, '$base/ModePolicy', i + 1, parentPaths: parentPaths);
+          final prefix = _indexedPrefix(values, '$base/ModePolicy', i + 1,
+              parentPaths: parentPaths);
           if (prefix == null) continue;
           modePolicy[UnitMode.values[i]] = ModePolicy(
             _enumAt(ModeSwitchShield.values, _integer(values['$prefix/Shield']),
@@ -187,7 +191,8 @@ class OpcUaSnapshotMapper {
       final availableModels = <String>[];
       final availableModelCount = _integer(values['$base/AvailableModelCount']);
       for (var i = 1; i <= availableModelCount; i++) {
-        final prefix = _indexedPrefix(values, '$base/AvailableModels', i, parentPaths: parentPaths);
+        final prefix = _indexedPrefix(values, '$base/AvailableModels', i,
+            parentPaths: parentPaths);
         if (prefix == null) continue;
         final code = _string(values['$prefix/ModelCode']);
         if (code.isNotEmpty) availableModels.add(code);
@@ -198,7 +203,8 @@ class OpcUaSnapshotMapper {
       if (isUnit && stepNo != 0) {
         final conds = <CondInfo>[];
         for (var i = 1; i <= 8; i++) {
-          final prefix = _indexedPrefix(values, '$base/CurrentStep/Conds', i, parentPaths: parentPaths);
+          final prefix = _indexedPrefix(values, '$base/CurrentStep/Conds', i,
+              parentPaths: parentPaths);
           if (prefix == null) continue;
           final label = _string(values['$prefix/Label']);
           if (label.isNotEmpty) {
@@ -231,7 +237,8 @@ class OpcUaSnapshotMapper {
           final steps = <StepTiming>[];
           final nSteps = _integer(values['$profileBase/NSteps']);
           for (var i = 1; i <= nSteps; i++) {
-            final prefix = _indexedPrefix(values, '$profileBase/Steps', i, parentPaths: parentPaths);
+            final prefix = _indexedPrefix(values, '$profileBase/Steps', i,
+                parentPaths: parentPaths);
             if (prefix == null) continue;
             steps.add(StepTiming(
               _integer(values['$prefix/StepNo']),
@@ -256,10 +263,11 @@ class OpcUaSnapshotMapper {
         if (head > 0) {
           // ring -> chronological list, oldest..newest, skipping empty slots
           const ringSize = 60; // PL_Fraktal.MAX_CYCLE_HISTORY
-          for (var offset = ringSize; offset >= 1; offset--) {
+          for (var offset = 1; offset <= ringSize; offset++) {
             final index = ((head - 1 + offset) % ringSize) + 1;
-            final prefix =
-                _indexedPrefix(values, '$base/Profiler/History', index, parentPaths: parentPaths);
+            final prefix = _indexedPrefix(
+                values, '$base/Profiler/History', index,
+                parentPaths: parentPaths);
             if (prefix == null) continue;
             if (_integer(values['$prefix/CycleNo']) == 0) continue;
             cycleHistory.add(CycleSummary(
@@ -285,7 +293,8 @@ class OpcUaSnapshotMapper {
       final stepStats = <StepStat>[];
       if (isUnit) {
         for (var i = 1; i <= 32; i++) {
-          final prefix = _indexedPrefix(values, '$base/Profiler/StepStats', i, parentPaths: parentPaths);
+          final prefix = _indexedPrefix(values, '$base/Profiler/StepStats', i,
+              parentPaths: parentPaths);
           if (prefix == null) continue;
           if (_integer(values['$prefix/Count']) == 0) continue;
           stepStats.add(StepStat(
@@ -301,7 +310,8 @@ class OpcUaSnapshotMapper {
       // §8.11.4(a) — module command timing (any tier that ran commands)
       final commandTimings = <CommandTiming>[];
       for (var i = 1; i <= 8; i++) {
-        final prefix = _indexedPrefix(values, '$base/Timing/Rows', i, parentPaths: parentPaths);
+        final prefix = _indexedPrefix(values, '$base/Timing/Rows', i,
+            parentPaths: parentPaths);
         if (prefix == null) continue;
         if (_integer(values['$prefix/Count']) == 0) continue;
         commandTimings.add(CommandTiming(
@@ -320,9 +330,9 @@ class OpcUaSnapshotMapper {
       if (isUnit && prompt.isNotEmpty) {
         final options = <String>[];
         for (var i = 0; i < 6; i++) {
-          final option =
-              _string(_arrayElement(values, '$base/Decision/Options', i,
-                  parentPaths: parentPaths));
+          final option = _string(_arrayElement(
+              values, '$base/Decision/Options', i,
+              parentPaths: parentPaths));
           if (option.isNotEmpty) options.add(option);
         }
         final plcDefault = _integer(values['$base/Decision/Default']);
@@ -330,6 +340,261 @@ class OpcUaSnapshotMapper {
           prompt: prompt,
           options: options,
           defaultOption: plcDefault > 0 ? plcDefault - 1 : -1,
+        );
+      }
+
+      // §8.3/§8.9 — hydrate the real PLC alarm surface. Active slots are
+      // sparse, so scan the fixed bound instead of trusting NActive as an index.
+      final activeEvents = <AlarmEvent>[];
+      final ringEvents = <AlarmEvent>[];
+      final alarmMeta = <AlarmMeta>[];
+      if (isUnit) {
+        for (var i = 1; i <= 16; i++) {
+          final prefix = _indexedPrefix(values, '$base/AlarmLog/Active', i,
+              parentPaths: parentPaths);
+          if (prefix == null) continue;
+          final event = _alarmEvent(values, prefix, active: true);
+          if (event != null) activeEvents.add(event);
+        }
+        final ringHead = _integer(values['$base/AlarmLog/RingHead']);
+        if (ringHead > 0) {
+          for (var offset = 0; offset < 64; offset++) {
+            final index = ((ringHead - 1 - offset + 64) % 64) + 1;
+            final prefix = _indexedPrefix(values, '$base/AlarmLog/Ring', index,
+                parentPaths: parentPaths);
+            if (prefix == null) continue;
+            final event = _alarmEvent(values, prefix, active: false);
+            if (event != null) ringEvents.add(event);
+          }
+        }
+        final metaCount = _integer(values['$base/AlarmLog/MetaCount']);
+        for (var i = 1; i <= metaCount; i++) {
+          final prefix = _indexedPrefix(values, '$base/AlarmLog/Meta', i,
+              parentPaths: parentPaths);
+          if (prefix == null) continue;
+          final reasonCode = _integer(values['$prefix/ReasonCode']);
+          if (reasonCode == 0) continue;
+          alarmMeta.add(AlarmMeta(
+            reasonCode,
+            _string(values['$prefix/OperatorAction']),
+            _string(values['$prefix/Consequence']),
+            shelvable: _boolean(values['$prefix/Shelvable']),
+          ));
+        }
+      }
+
+      PartFacet? part;
+      if (isUnit) {
+        final records = <MeasRecord>[];
+        for (var i = 1; i <= 32; i++) {
+          final prefix = _indexedPrefix(values, '$base/Part/Result/Records', i,
+              parentPaths: parentPaths);
+          if (prefix == null) continue;
+          final recordName = _string(values['$prefix/Name']);
+          if (recordName.isEmpty) continue;
+          records.add(MeasRecord(
+            recordName,
+            _number(values['$prefix/Value']),
+            _number(values['$prefix/Minimum']),
+            _number(values['$prefix/Maximum']),
+            _number(values['$prefix/Target']),
+            _string(values['$prefix/Unit']),
+            _boolean(values['$prefix/InTol']),
+          ));
+        }
+        final uid = _string(values['$base/Part/Uid']);
+        final present = _boolean(values['$base/Part/Present']);
+        if (present || uid.isNotEmpty || records.isNotEmpty) {
+          final reasonCode = _integer(values['$base/Part/Result/ReasonCode']);
+          part = PartFacet(
+            uid: uid,
+            present: present,
+            verdict: _enumAt(Verdict.values,
+                _integer(values['$base/Part/Result/Verdict']), Verdict.none),
+            reason: reasonDescriptionKey(reasonCode, ''),
+            records: records,
+          );
+        }
+      }
+
+      SafetyFacet? safety;
+      if (_boolean(values['$base/Safety/Present'])) {
+        final devices = <SafetyDeviceStatus>[];
+        final count = _integer(values['$base/Safety/DeviceCount']);
+        for (var i = 1; i <= count && i <= 16; i++) {
+          final prefix = _indexedPrefix(values, '$base/Safety/Devices', i,
+              parentPaths: parentPaths);
+          if (prefix == null || !_boolean(values['$prefix/Present'])) continue;
+          devices.add(SafetyDeviceStatus(
+            name: _string(values['$prefix/Name']),
+            description: _string(values['$prefix/Description']),
+            kind: _enumAt(SafetyDeviceKind.values,
+                _integer(values['$prefix/Kind']), SafetyDeviceKind.other),
+            state: _enumAt(SafetyState.values,
+                _integer(values['$prefix/State']), SafetyState.unavailable),
+            ready: _boolean(values['$prefix/Ready']),
+            demandActive: _boolean(values['$prefix/DemandActive']),
+            safeStateActive: _boolean(values['$prefix/SafeStateActive']),
+            resetRequired: _boolean(values['$prefix/ResetRequired']),
+            faultActive: _boolean(values['$prefix/FaultActive']),
+            mutingActive: _boolean(values['$prefix/MutingActive']),
+            bridgeActive: _boolean(values['$prefix/BridgeActive']),
+            fieldbusHealthy: _boolean(values['$prefix/FieldbusHealthy']),
+            affectedPowerMask: _integer(values['$prefix/AffectedPowerMask']),
+          ));
+        }
+        safety = SafetyFacet(
+          allSafe: _boolean(values['$base/Safety/AllSafe']),
+          demandActive: _boolean(values['$base/Safety/DemandActive']),
+          resetRequired: _boolean(values['$base/Safety/ResetRequired']),
+          faultActive: _boolean(values['$base/Safety/FaultActive']),
+          mutingActive: _boolean(values['$base/Safety/MutingActive']),
+          bridgeActive: _boolean(values['$base/Safety/BridgeActive']),
+          stopRequested: _boolean(values['$base/Safety/StopRequested']),
+          devices: devices,
+        );
+      }
+
+      ControlPowerFacet? controlPower;
+      if (_boolean(values['$base/ControlPower/Present'])) {
+        final groups = <PowerGroupStatus>[];
+        final count = _integer(values['$base/ControlPower/GroupCount']);
+        for (var i = 1; i <= count && i <= 8; i++) {
+          final prefix = _indexedPrefix(values, '$base/ControlPower/Groups', i,
+              parentPaths: parentPaths);
+          if (prefix == null || !_boolean(values['$prefix/Present'])) continue;
+          groups.add(PowerGroupStatus(
+            name: _string(values['$prefix/Name']),
+            diagnostic: reasonDescriptionKey(
+              _integer(values['$prefix/Diagnostic/ReasonCode']),
+              _string(values['$prefix/Diagnostic/Description']),
+            ),
+            kind: _enumAt(PowerGroupKind.values,
+                _integer(values['$prefix/Kind']), PowerGroupKind.control),
+            state: _enumAt(PowerState.values, _integer(values['$prefix/State']),
+                PowerState.off),
+            requiredForControl: _boolean(values['$prefix/RequiredForControl']),
+            requestedOn: _boolean(values['$prefix/RequestedOn']),
+            powerOn: _boolean(values['$prefix/PowerOn']),
+            safetyPermit: _boolean(values['$prefix/SafetyPermit']),
+            fieldbusHealthy: _boolean(values['$prefix/FieldbusHealthy']),
+            rearmRequired: _boolean(values['$prefix/RearmRequired']),
+            fieldbusLossReaction: _enumAt(
+                FieldbusLossReaction.values,
+                _integer(values['$prefix/FieldbusLossReaction']),
+                FieldbusLossReaction.controlOff),
+          ));
+        }
+        controlPower = ControlPowerFacet(
+          requestedOn: _boolean(values['$base/ControlPower/RequestedOn']),
+          controlOn: _boolean(values['$base/ControlPower/ControlOn']),
+          transitioning: _boolean(values['$base/ControlPower/Transitioning']),
+          rearmRequired: _boolean(values['$base/ControlPower/RearmRequired']),
+          diagnostic: reasonDescriptionKey(
+            _integer(values['$base/ControlPower/Diagnostic/ReasonCode']),
+            _string(values['$base/ControlPower/Diagnostic/Description']),
+          ),
+          groups: groups,
+        );
+      }
+
+      Nameplate? nameplate;
+      final manufacturer = _string(values['$base/Nameplate/ManufacturerName']);
+      final designation = _string(values['$base/Nameplate/ProductDesignation']);
+      final serial = _string(values['$base/Nameplate/SerialNumber']);
+      if (manufacturer.isNotEmpty ||
+          designation.isNotEmpty ||
+          serial.isNotEmpty) {
+        nameplate = Nameplate(
+          productUri: _string(values['$base/Nameplate/ProductUri']),
+          manufacturer: manufacturer,
+          designation: designation,
+          serial: serial,
+          year: _string(values['$base/Nameplate/YearOfConstruction']),
+          hwVersion: _string(values['$base/Nameplate/HardwareVersion']),
+          fwVersion: _string(values['$base/Nameplate/FirmwareVersion']),
+          swVersion: _string(values['$base/Nameplate/SoftwareVersion']),
+          orderCode: _string(values['$base/Nameplate/OrderCode']),
+          docUrl: _string(values['$base/Nameplate/DocumentationUrl']),
+        );
+      }
+
+      OeeSnapshot? oee;
+      if (isUnit && candidatePaths.contains('$base/Oee/OeeValid')) {
+        final trend = <double>[];
+        final head = _integer(values['$base/OeeTrendHead']);
+        if (head > 0) {
+          for (var offset = 1; offset <= 60; offset++) {
+            final index = ((head - 1 + offset) % 60) + 1;
+            final prefix = _indexedPrefix(values, '$base/OeeTrend', index,
+                parentPaths: parentPaths);
+            if (prefix == null || !_boolean(values['$prefix/OeeValid']))
+              continue;
+            trend.add(_number(values['$prefix/Oee']));
+          }
+        }
+        oee = OeeSnapshot(
+          availability: _number(values['$base/Oee/Availability']),
+          performance: _number(values['$base/Oee/Performance']),
+          quality: _number(values['$base/Oee/Quality']),
+          oee: _number(values['$base/Oee/Oee']),
+          availValid: _boolean(values['$base/Oee/AvailValid']),
+          perfValid: _boolean(values['$base/Oee/PerfValid']),
+          qualValid: _boolean(values['$base/Oee/QualValid']),
+          oeeValid: _boolean(values['$base/Oee/OeeValid']),
+          trend: trend,
+        );
+      }
+
+      SystemHealthFacet? systemHealth;
+      if (isUnit && _boolean(values['$base/SystemHealth/Present'])) {
+        systemHealth = SystemHealthFacet(
+          healthy: _boolean(values['$base/SystemHealth/Healthy']),
+          taskAvailable: _boolean(values['$base/SystemHealth/TaskAvailable']),
+          taskCycleUs: _integer(values['$base/SystemHealth/TaskCycleUs']),
+          taskJitterUs: _integer(values['$base/SystemHealth/TaskJitterUs']),
+          taskOverrun: _boolean(values['$base/SystemHealth/TaskOverrun']),
+          controllerAvailable:
+              _boolean(values['$base/SystemHealth/ControllerAvailable']),
+          cpuLoadPct: _number(values['$base/SystemHealth/CpuLoadPct']),
+          memoryAvailableMb:
+              _integer(values['$base/SystemHealth/MemoryAvailableMb']),
+          ipcAvailable: _boolean(values['$base/SystemHealth/IpcAvailable']),
+          ipcTemperatureC:
+              _number(values['$base/SystemHealth/IpcTemperatureC']),
+          fanHealthy: _boolean(values['$base/SystemHealth/FanHealthy']),
+          storageHealthPct:
+              _number(values['$base/SystemHealth/StorageHealthPct']),
+          fieldbusAvailable:
+              _boolean(values['$base/SystemHealth/FieldbusAvailable']),
+          fieldbusMasterHealthy:
+              _boolean(values['$base/SystemHealth/FieldbusMasterHealthy']),
+          lostFrameCount: _integer(values['$base/SystemHealth/LostFrameCount']),
+          slaveErrorCount:
+              _integer(values['$base/SystemHealth/SlaveErrorCount']),
+          dcAvailable: _boolean(values['$base/SystemHealth/DcAvailable']),
+          dcSynchronized: _boolean(values['$base/SystemHealth/DcSynchronized']),
+          time: TimeQualityFacet(
+            available:
+                _boolean(values['$base/SystemHealth/TimeQuality/Available']),
+            synchronized:
+                _boolean(values['$base/SystemHealth/TimeQuality/Synchronized']),
+            source: _string(values['$base/SystemHealth/TimeQuality/Source']),
+            offsetUs:
+                _integer(values['$base/SystemHealth/TimeQuality/OffsetUs']),
+          ),
+        );
+      }
+      SignalTowerFacet? signalTower;
+      if (isUnit && candidatePaths.contains('$base/SignalTower/Red')) {
+        signalTower = SignalTowerFacet(
+          red: _boolean(values['$base/SignalTower/Red']),
+          amber: _boolean(values['$base/SignalTower/Amber']),
+          green: _boolean(values['$base/SignalTower/Green']),
+          blue: _boolean(values['$base/SignalTower/Blue']),
+          white: _boolean(values['$base/SignalTower/White']),
+          horn: _boolean(values['$base/SignalTower/Horn']),
+          testActive: _boolean(values['$base/SignalTower/TestActive']),
         );
       }
 
@@ -341,16 +606,25 @@ class OpcUaSnapshotMapper {
         type: candidate.type,
         state: state,
         faultActive: _boolean(values['$base/Status/FaultActive']),
-        message: _string(values['$base/Status/Diagnostic/Description']),
+        message: reasonDescriptionKey(
+          _integer(values['$base/Status/Diagnostic/ReasonCode']),
+          _string(values['$base/Status/Diagnostic/Description']),
+        ),
         diagnosticIoTag: _string(values['$base/Status/Diagnostic/IoTag']),
         diagnosticIoAddress:
             _string(values['$base/Status/Diagnostic/IoAddress']),
+        diagnosticSince: _dateTime(values['$base/Status/Diagnostic/Since']),
+        diagnosticTimeSynchronized: _boolean(
+            values['$base/Status/Diagnostic/TimeSynchronized'],
+            fallback: false),
         tileEnable: _boolean(values['$base/Status/TileEnable'], fallback: true),
         controlDomainId: _string(values['$base/Status/ControlDomainId']),
         children: children,
         modelCode: _string(values['$base/Model/ModelCode']),
         availableModels: availableModels,
         modeActive: isUnit ? currentMode : null,
+        activeEvents: activeEvents,
+        ringEvents: ringEvents,
         goodCount: _integer(values['$base/GoodCount']),
         nokCount: _integer(values['$base/NokCount']),
         reworkCount: _integer(values['$base/ReworkCount']),
@@ -368,10 +642,21 @@ class OpcUaSnapshotMapper {
                 user: _string(values['$base/Access/CurrentUser']),
                 loginFailed: _boolean(values['$base/Access/LoginFailed']),
                 required: required,
+                sessionTimeout:
+                    _duration(values['$base/Access/Policy/SessionTimeout']),
               )
             : null,
         commands: commands,
         decision: decision,
+        part: part,
+        safety: safety,
+        controlPower: controlPower,
+        systemHealth: systemHealth,
+        signalTower: signalTower,
+        config: configByModulePath[path] ?? const [],
+        nameplate: nameplate,
+        oee: oee,
+        alarmMeta: alarmMeta,
         step: step,
         running: _boolean(values['$base/RunningPublished'],
             fallback: state == ExecState.busy),
@@ -419,13 +704,15 @@ class OpcUaSnapshotMapper {
     final count = _integer(values['$topology/NodeCount']);
     final nodes = <int, _BusCandidate>{};
     for (var index = 1; index <= count; index++) {
-      final prefix = _indexedPrefix(values, '$topology/Nodes', index, parentPaths: parentPaths);
+      final prefix = _indexedPrefix(values, '$topology/Nodes', index,
+          parentPaths: parentPaths);
       if (prefix == null) continue;
       final channels = <IoChannel>[];
       final channelCount = _integer(values['$prefix/ChannelCount']);
       for (var channelIndex = 1; channelIndex <= channelCount; channelIndex++) {
-        final channelPrefix =
-            _indexedPrefix(values, '$prefix/Channels', channelIndex, parentPaths: parentPaths);
+        final channelPrefix = _indexedPrefix(
+            values, '$prefix/Channels', channelIndex,
+            parentPaths: parentPaths);
         if (channelPrefix == null) continue;
         channels.add(IoChannel(
           name: _string(values['$channelPrefix/Name']),
@@ -444,6 +731,7 @@ class OpcUaSnapshotMapper {
           quality: _boolean(values['$channelPrefix/Quality'], fallback: true),
           faultActive: _boolean(values['$channelPrefix/FaultActive']),
           diagnosticKey: _string(values['$channelPrefix/Diagnostic']),
+          forceable: _boolean(values['$channelPrefix/Forceable']),
         ));
       }
       nodes[index] = _BusCandidate(
@@ -505,6 +793,84 @@ bool _customBindable(String relativePath) {
         'credential',
         'token',
       }.contains(segment));
+}
+
+AlarmEvent? _alarmEvent(Map<String, Object?> values, String prefix,
+    {required bool active}) {
+  final state = _enumAt(
+      AlarmState.values, _integer(values['$prefix/State']), AlarmState.closed);
+  if (active && state == AlarmState.closed) return null;
+  final reasonCode = _integer(values['$prefix/ReasonCode']);
+  final description = reasonDescriptionKey(
+    reasonCode,
+    _string(values['$prefix/Description']),
+  );
+  final sourcePath = _string(values['$prefix/SourcePath']);
+  if (!active && description.isEmpty && sourcePath.isEmpty) return null;
+  final comeAt = _dateTime(values['$prefix/ComeAt']);
+  if (comeAt == null) return null;
+  final goneAt = _nonPlaceholderDateTime(values['$prefix/GoneAt']);
+  final duration = _duration(values['$prefix/Duration']);
+  return AlarmEvent(
+    severity: _enumAt(
+        Severity.values, _integer(values['$prefix/Severity']), Severity.low),
+    description: description,
+    sourcePath: sourcePath,
+    resetClass: _enumAt(ResetClass.values,
+        _integer(values['$prefix/ResetClass']), ResetClass.autoReset),
+    state: state,
+    comeAt: comeAt,
+    goneAt: goneAt,
+    duration: goneAt == null ? null : duration,
+    reasonCode: reasonCode,
+    shelved: _boolean(values['$prefix/Shelved']),
+    ioTag: _string(values['$prefix/IoTag']),
+    ioAddress: _string(values['$prefix/IoAddress']),
+    comeTimeSynchronized:
+        _boolean(values['$prefix/ComeTimeSynchronized'], fallback: false),
+    goneTimeSynchronized:
+        _boolean(values['$prefix/GoneTimeSynchronized'], fallback: false),
+    resetTimeSynchronized:
+        _boolean(values['$prefix/ResetTimeSynchronized'], fallback: false),
+    shelfTimeSynchronized:
+        _boolean(values['$prefix/ShelfTimeSynchronized'], fallback: false),
+  );
+}
+
+DateTime? _nonPlaceholderDateTime(Object? value) {
+  final parsed = _dateTime(value);
+  return parsed == null || parsed.year <= 1970 ? null : parsed;
+}
+
+/// Normalizes the two deployed transport encodings: OPC UA DateTime is a
+/// 100-ns count from 1601, while ADS exposes TwinCAT DT as Unix seconds.
+DateTime? _dateTime(Object? value) {
+  if (value is String && value.contains(RegExp(r'[^0-9-]'))) {
+    return DateTime.tryParse(value)?.toUtc();
+  }
+  final raw = value is num
+      ? value.toInt()
+      : value is String
+          ? int.tryParse(value)
+          : null;
+  if (raw == null || raw == 0) return null;
+  try {
+    if (raw.abs() >= 10000000000000000) {
+      const uaUnixOffset100ns = 116444736000000000;
+      return DateTime.fromMicrosecondsSinceEpoch(
+          (raw - uaUnixOffset100ns) ~/ 10,
+          isUtc: true);
+    }
+    if (raw.abs() >= 100000000000000) {
+      return DateTime.fromMicrosecondsSinceEpoch(raw, isUtc: true);
+    }
+    if (raw.abs() >= 100000000000) {
+      return DateTime.fromMillisecondsSinceEpoch(raw, isUtc: true);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(raw * 1000, isUtc: true);
+  } on Object {
+    return null;
+  }
 }
 
 PublishedTagValue _publishedTag(Object? source, Object? fallbackValue) {

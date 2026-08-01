@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
-import 'app_theme.dart';
 import 'login_dialog.dart';
 import 'module_detail.dart';
 import 'overview_and_indicators.dart';
@@ -14,20 +13,24 @@ import 'tree_menu.dart';
 import 'fieldbus_tree.dart';
 import 'mode_bar.dart';
 import 'release_panel.dart';
-import '../localization/default_catalogs.dart';
+import 'global_reset_button.dart';
+import 'settings_dialog.dart';
 import '../localization/localized_text.dart';
-import 'language_settings.dart';
 
 class Shell extends StatelessWidget {
   final AppState app;
   final VoidCallback? onEditUnitSelection;
   final VoidCallback? onEditConnection;
+  final VoidCallback? onEditAppearance;
+  final VoidCallback? onEditAccess;
   final ValueChanged<String>? onLanguageChanged;
   const Shell({
     super.key,
     required this.app,
     this.onEditUnitSelection,
     this.onEditConnection,
+    this.onEditAppearance,
+    this.onEditAccess,
     this.onLanguageChanged,
   });
 
@@ -93,20 +96,27 @@ class Shell extends StatelessWidget {
       actions: [
         ConnectionChip(state: app.link),
         if (wide)
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(
-                  value: false,
-                  icon: Icon(Icons.account_tree),
-                  label: LText('Modules')),
-              ButtonSegment(
-                  value: true,
-                  icon: Icon(Icons.lan_outlined),
-                  label: LText('Fieldbus')),
-            ],
-            selected: {app.showFieldbus},
-            onSelectionChanged: (s) => app.setFieldbusView(s.first),
-            showSelectedIcon: false,
+          // +2 px overall (1 px per side). Applied from OUTSIDE the widget:
+          // SegmentedButton recomputes its own padding for icon segments and
+          // drops `minimumSize` entirely, so neither the theme nor the widget's
+          // own style can widen it — a wrapping pad is what actually holds.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.account_tree),
+                    label: LText('Modules')),
+                ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.lan_outlined),
+                    label: LText('Fieldbus')),
+              ],
+              selected: {app.showFieldbus},
+              onSelectionChanged: (s) => app.setFieldbusView(s.first),
+              showSelectedIcon: false,
+            ),
           )
         else
           IconButton(
@@ -122,59 +132,18 @@ class Shell extends StatelessWidget {
           icon: const Icon(Icons.dashboard_outlined),
           onPressed: app.openOverview,
         ),
-        PopupMenuButton<String>(
-          tooltip: context.tr('std.nav.language'),
-          icon: const Icon(Icons.translate),
-          initialValue: app.localization.activeLanguage,
-          onSelected: (language) {
-            app.localization.setActiveLanguage(language);
-            onLanguageChanged?.call(language);
-          },
-          itemBuilder: (_) => [
-            for (final code in app.localization.enabledLanguages)
-              PopupMenuItem(
-                value: code,
-                child: LText(availableLanguages[code] ?? code),
-              ),
-          ],
-        ),
-        if (s.level == AccessLevel.admin)
-          IconButton(
-            key: const Key('language-settings'),
-            tooltip: context.tr('std.nav.languageSettings'),
-            icon: const Icon(Icons.translate_outlined),
-            onPressed: () => showLanguageSettings(context, app.localization),
-          ),
-        if (s.level == AccessLevel.admin && onEditUnitSelection != null)
-          IconButton(
-            key: const Key('edit-unit-assignment'),
-            tooltip: context.tr('Edit this HMI Unit assignment'),
-            icon: const Icon(Icons.factory_outlined),
-            onPressed: onEditUnitSelection,
-          ),
-        if (s.level == AccessLevel.admin && onEditConnection != null)
-          IconButton(
-            key: const Key('edit-connection'),
-            tooltip: context.tr('std.connection.edit'),
-            icon: const Icon(Icons.settings_ethernet),
-            onPressed: onEditConnection,
-          ),
-        PopupMenuButton<int>(
-          tooltip: context.tr('Theme (level-gated)'),
-          icon: const Icon(Icons.palette_outlined),
-          onSelected: (i) {
-            if (!app.setTheme(i)) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content:
-                        LText('Theme change requires a higher access level')),
-              );
-            }
-          },
-          itemBuilder: (_) => [
-            for (var i = 0; i < kThemeNames.length; i++)
-              PopupMenuItem(value: i, child: LText(kThemeNames[i]))
-          ],
+        // One settings entry consolidates theme, language, keyboard, and the
+        // admin connection/unit-edit flows (declutters the bar; Core O9).
+        IconButton(
+          key: const Key('settings'),
+          tooltip: context.tr('std.settings.title'),
+          icon: const Icon(Icons.settings_outlined),
+          onPressed: () => showSettingsDialog(context, app,
+              onEditConnection: onEditConnection,
+              onEditUnitSelection: onEditUnitSelection,
+              onEditAppearance: onEditAppearance,
+              onEditAccess: onEditAccess,
+              onLanguageChanged: onLanguageChanged),
         ),
         if (s.level == AccessLevel.none && wide)
           TextButton.icon(
@@ -204,6 +173,8 @@ class Shell extends StatelessWidget {
                 app.repo.logout(app.rootOf(app.selectedPath ?? '')?.path ?? ''),
             icon: const Icon(Icons.logout),
           ),
+        // §8.3(b) fault clear — fixed upper-right position, right of login.
+        GlobalResetButton(app: app),
         const SizedBox(width: 8),
       ],
     );

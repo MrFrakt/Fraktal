@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../domain/fieldbus.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
+import 'touch_text_field.dart';
 
 Color nodeStateColor(BuildContext ctx, NodeState s) {
   switch (s) {
@@ -42,6 +43,7 @@ class FieldbusTree extends StatefulWidget {
 
 class _FieldbusTreeState extends State<FieldbusTree> {
   final Set<String> _expanded = {};
+
   /// Selection is held as the node's NAME, not the [BusNode] object.
   ///
   /// Each refresh rebuilds the whole projection, so every node is a NEW
@@ -105,6 +107,7 @@ class _FieldbusTreeState extends State<FieldbusTree> {
           width: double.infinity,
           color: Theme.of(context).colorScheme.errorContainer,
           padding: const EdgeInsets.all(12),
+          // (the LText below already sets onErrorContainer explicitly)
           child: LText(
             mappingFault.mappingDiagnosticKey.isEmpty
                 ? 'std.error.fieldbusMappingInvalid'
@@ -181,8 +184,11 @@ class _FieldbusTreeState extends State<FieldbusTree> {
                 child: LText(n.name,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontWeight:
-                            ownBad ? FontWeight.w600 : FontWeight.w400))),
+                        fontWeight: ownBad ? FontWeight.w600 : FontWeight.w400,
+                        // Selected rows are filled with secondaryContainer.
+                        color: (!ownBad && selected)
+                            ? Theme.of(context).colorScheme.onSecondaryContainer
+                            : null))),
             if (!n.linkOk)
               Icon(Icons.link_off,
                   size: 16, color: Theme.of(context).colorScheme.error),
@@ -263,7 +269,12 @@ class _FieldbusTreeState extends State<FieldbusTree> {
           style: Theme.of(context).textTheme.titleMedium);
     }
     final isOutput = c.dir == ChannelDir.output;
-    final canForce = isOutput && widget.app.session.permits(GatedAction.manual);
+    final ownerRoot = widget.app.rootOf(c.modulePath);
+    final canForce = isOutput &&
+        c.forceable &&
+        ownerRoot != null &&
+        widget.app.permitsLocal(GatedAction.manual,
+            forSession: ownerRoot.access ?? const AccessSession());
     return ListTile(
       dense: true,
       leading: Icon(
@@ -309,14 +320,15 @@ class _FieldbusTreeState extends State<FieldbusTree> {
                 color: c.forced ? const Color(0xFFB26A00) : null),
             onPressed: () => _force(context, c),
           )
-        else if (isOutput)
+        else if (isOutput && c.forceable)
           IconButton(
             tooltip: context.tr('Why can\'t I force this?'),
             icon: const Icon(Icons.lock_outline, size: 18),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: LText(
-                        'Forcing an output requires MANUAL access level (§7.7). Log in with sufficient rights.'))),
+            onPressed: ownerRoot == null
+                ? () => _snack(
+                    context, 'Channel has no owning root; forcing is disabled.')
+                : () => widget.app.showReleaseReportAction(ownerRoot.path,
+                    GatedAction.manual, 'Channel force blocked'),
           ),
         // inputs are read-only: no force control (output-only rule, §10.5.1)
       ]),
@@ -324,8 +336,11 @@ class _FieldbusTreeState extends State<FieldbusTree> {
   }
 
   Future<void> _force(BuildContext context, IoChannel c) async {
-    final root = widget.app.rootOf(c.path)?.path ??
-        (widget.app.forest.isNotEmpty ? widget.app.forest.first.path : '');
+    final root = widget.app.rootOf(c.modulePath)?.path;
+    if (root == null) {
+      _snack(context, 'Channel has no owning root; forcing is disabled.');
+      return;
+    }
     if (c.forced) {
       final ok = await widget.app.repo.forceChannel(root, c.path, force: false);
       if (context.mounted) _snack(context, ok ? 'Force cleared' : 'Denied');
@@ -350,7 +365,7 @@ class _FieldbusTreeState extends State<FieldbusTree> {
                     value: boolVal,
                     onChanged: (v) => set(() => boolVal = v)))
           else
-            TextField(
+            TouchTextField(
                 controller: analogCtrl,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(

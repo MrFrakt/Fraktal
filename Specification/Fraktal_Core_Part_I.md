@@ -31,7 +31,7 @@
 7. **Safe.** Safety lives in the certified safety system; application code consumes safety state read-only and never bypasses it (§9).
 8. **Portable.** The normative model — tiers, contracts, state machines, diagnostics, routing — is platform-neutral; each PLC platform is served by a *binding* that maps the model onto that platform's language extensions and services. TwinCAT 3 is the first binding; clauses specific to it are tagged **[TC3]**. The standard is named **Fraktal** — one contract, self-similar at every tier — with the platform-neutral core designated **Fraktal Core** and each binding **Fraktal/⟨platform⟩** (this document: **Fraktal/TC3**; future: Fraktal/TIA, Fraktal/Logix). Conformance claims compose as *"Fraktal Core + ⟨profiles⟩"* (e.g. + Robot, Annex I; + PackML, Annex F). Fraktal is published as an **open-source project** in the `MrFrakt/Fraktal` monorepo.
 9. **Good coding and engineering practice.** The preceding objectives are upheld through disciplined coding and engineering practice, which the standard treats as a first-class goal rather than a matter of individual style. Every fact — a contract member, a reason code, a diagnostic, a piece of configuration — has **one authoritative source** and is derived, never duplicated (§4.8, §8.8, §3.8); behaviour is written **once at the level that owns it** and inherited, so overrides add device logic only (§2.2, §3.14). Interfaces expose the **minimum surface** needed and no more (§3.2, §3.13); changes to a released type are **additive and versioned**, never silently breaking a consumer or a stored recipe (§1.5, §3.8). Machine-verifiable rules — naming, contract usage, step/condition records, per-type tests — are enforced by a **CI/lint gate on every commit** (§1.5, §5.5, §6.8) so conformance is continuous, not a review-time hope. New code **should** follow the idioms and structure of the code around it, keeping the codebase legible to any engineer from any binding. This objective is cross-cutting: it names explicitly the practices the other objectives assume, so that scalability and maintainability survive as the standard and its fleets grow.
-10. **Industrial-grade robustness.** The framework is built to the reliability expected of production equipment software, not of a demonstrator. Every command, recipe payload, and external input is **validated before use** and every `CASE`/`IF` has a defined `ELSE` that drives a safe reaction — never a silent default or a stall (§5.6); bounded, statically-sized structures (fixed rings, no run-time allocation on the scan) keep timing and memory **deterministic** (§8.3, §8.11); faults **fail closed** and are never masked, and a lost transport or connection **queues nothing** and resumes cleanly rather than replaying stale actions (§7.8, §11, §14). The reference implementations are held to the same bar — warning-clean builds, green per-type tests against the simulated HAL before release (§1.5, §5.7), and honest status reporting that distinguishes proven behaviour from deferred work. Robustness is a **shall** wherever safety, data integrity, or command acceptance is at stake, so a Fraktal station behaves predictably under load, fault, and recovery in a real plant.
+10. **Industrial-grade robustness.** The framework is built to the reliability expected of production equipment software, not of a demonstrator. Every command, recipe payload, and external input is **validated before use**, and every behaviour-selection path has a defined fail-safe fallback — never a silent default or a stall (§5.6); bounded, statically-sized structures (fixed rings, no run-time allocation on the scan) keep timing and memory **deterministic** (§8.3, §8.11); faults **fail closed** and are never masked, and a lost transport or connection **queues nothing** and resumes cleanly rather than replaying stale actions (§7.8, §11, §14). The reference implementations are held to the same bar — warning-clean builds, green per-type tests against the simulated HAL before release (§1.5, §5.7), and honest status reporting that distinguishes proven behaviour from deferred work. Robustness is a **shall** wherever safety, data integrity, or command acceptance is at stake, so a Fraktal station behaves predictably under load, fault, and recovery in a real plant.
 
 **Non-goals.** The standard deliberately does **not** mandate PackML (it is an optional overlay, §6.6), does **not** tightly standardise step bodies the way heavily templated step-body standards do (that verbosity, slow to write and error-prone, is precisely what this standard sets out to avoid), and does **not** lock sequence authoring to a single language.
 
@@ -129,6 +129,15 @@ Every timestamp the standard produces — the `ST_Diagnostic.Since` first-out ti
 - **PTP (IEEE 1588) is the primary source.** Where the network and devices support it, the station clock **shall** be disciplined by PTP — over the fieldbus's distributed-clock mechanism and over network PTP for the controller ([TC3] mechanics: TC3 §2.7). NTP **may** be used as a fallback where PTP is unavailable; the chosen source **shall** be documented per station.
 - **One clock feeds all timestamps.** Diagnostic, alarm, traceability, and host-event timestamps **shall** read the synchronized clock so that PLC, HMI, historian, and MES share a single, comparable time base (this is the precondition that makes first-out ordering across tiers and across stations meaningful).
 - **Loss of sync is a System alarm.** If the clock loses its sync source beyond a configured tolerance, the station **shall** raise a System-category alarm with `ReasonCode := E_Reason.TIME_SYNC_LOST` (§8.6, §8.8) and **shall** flag subsequently generated timestamps as unsynchronized, rather than silently emitting drifting times.
+
+Clock confidence is published once as `ST_TimeQuality := {Available, Synchronized,
+Source, OffsetUs, LastSyncAt, ObservedAt}`. `Available=FALSE` is not a healthy zero
+and shall never be interpreted as synchronized. Every timestamp-bearing framework
+record appends a quality Boolean owned by that timestamp: `ST_Diagnostic.TimeSynchronized`,
+the come/gone/reset/shelf flags on `ST_AlarmEvent`, `ST_PartResult.TimeSynchronized`,
+and `StartedTimeSynchronized` on cycle/step records. The time value remains present
+for forensic ordering when quality is false; clients shall mark it untrusted rather
+than discard or silently present it as synchronized.
 
 *Cross-references: §8.3/§8.8 (timestamps), §3.16 (traceability), §11.6 (host events), §10.1 / TC3 §2.7 (fieldbus distributed clocks).*
 
@@ -330,7 +339,7 @@ A `FB_Unit` (and, where useful, an `FB_EquipmentModule`) **may** expose a typed 
 - **shall** carry, for any measured value, its limit/target and a fixed engineering unit (units are not made variable at runtime);
 - **shall** load top-down through the module tree during `CHANGEOVER`.
 
-**Two kinds of persistent data, one placement rule (§3.8a).** The standard distinguishes **model/recipe data** (varies per model — servo target positions, speeds, tolerances; resolved by `ModelId` at changeover) from **station configuration** (varies per deployment, not per model — the MES IP/port, a scanner's baud, a scale's calibration, a fixed endpoint). Both are **persistent editable data**, and both follow the same rule: *each value lives in the module that needs it.* A servo's positions belong to the axis Control Module — or, at the programmer's discretion, to the EM of an XYZ gantry that owns the three axes; the MES endpoint belongs to the host-interface module; a scanner's config to the scanner CM. There is **no** central config blob. Concretely, a module holds its persistent values in its own `ParCfg` (model data, versioned per §3.8) and/or its own `StationCfg` (deployment data), both `PERSISTENT`, both exposed for editing over the same OPC UA surface (§3.10) the HMI already walks — so an editor screen is generic, per §3.13. Station config is **not** keyed by `ModelId` (it does not change at changeover) and **shall not** be bundled into a model recipe; a module that needs both simply declares both structures.
+**Two kinds of persistent data, one placement rule (§3.8a).** The standard distinguishes **model/recipe data** (varies per model — servo target positions, speeds, tolerances; resolved by `ModelId` at changeover) from **station configuration** (varies per deployment, not per model — the MES IP/port, a scanner's baud, a scale's calibration, a fixed endpoint). Both are **persistent editable data**, and both follow the same rule: *each value lives in the module that needs it.* A servo's positions belong to the axis Control Module — or, at the programmer's discretion, to the EM of an XYZ gantry that owns the three axes; the MES endpoint belongs to the host-interface module; a scanner's config to the scanner CM. There is **no** central config blob. Concretely, a module holds its persistent values in its own `ParCfg` (model data, versioned per §3.8) and/or its own `StationCfg` (deployment data), both `PERSISTENT`. Read publication and write authority are distinct: an editable value **shall** be registered as an explicit typed write capability in the §3.10.2 manifest and changed only through the acknowledged root mailbox. Browsability or `DATA_WRITE` access alone never makes a value writable. Station config is **not** keyed by `ModelId` (it does not change at changeover) and **shall not** be bundled into a model recipe; a module that needs both simply declares both structures.
 
 **Source is pluggable.** Recipe/type data **shall not** be assumed to be local. The source is selected per deployment via `E_RecipeSource` and supplied through one provider interface, so the same module works whether data is held in the PLC or fetched at runtime:
 
@@ -416,6 +425,42 @@ The runtime self-description (§3.10) answers *what the module is doing*; mainte
 - **Not configuration.** The nameplate is identity, not behaviour: it is deliberately outside §3.8 (no recipe/model dependence, no §7.7 write gating question — it is not writable from the HMI at all).
 
 *Cross-references: §3.10 (self-description), §3.13 (HMI rendering), §8.3/§10.5.1 (the diagnostic surfaces this complements), Annex K (AAS/IEC 63278 projection).*
+
+#### 3.10.2 Bounded configuration manifest and typed write capabilities
+
+Activation-static identity and catalog data **should** be excluded from the cyclic
+namespace when the binding can serve it on demand. Each root Unit therefore exposes a
+revisioned, bounded configuration-manifest page through its acknowledged mailbox. A
+deterministic walk emits entries containing `Scope` (qualified module identity), `Item`
+(browse fragment), and `ValueText`; paging shall not require a full manifest buffer in
+the PLC. `ConfigRev` changes after activation, model/configuration changes, or restart so
+a client cannot retain stale metadata silently.
+
+Read publication does not confer write authority. An editable entry appends all of the
+following capability data:
+
+- stable `WriteKey` scoped to the owning module and a non-zero `WriteRevision`;
+- `ConfigKind` (`PAR_CFG` or `STATION_CFG`) and `ValueType` (`NUMBER`, `TEXT`,
+  `BOOLEAN`, or `TIME`), with append-only ordinals;
+- `Writable`, optional numeric bounds, optional exact enum domain, engineering unit and
+  label key; and
+- whether the owning root must be `READY` for the write.
+
+An absent key/revision, `Writable=FALSE`, invalid metadata, or a duplicate
+`(Scope, WriteKey)` registration **shall fail closed** and produce no editor control.
+`Item` remains a browse/display identity; `WriteKey` is the mutation identity and shall
+not be inferred from `Item` or from a writable OPC UA attribute. For `WRITE_CONFIG`, the
+client sends `TargetPath=Scope`, `NameValue=WriteKey`, `IntValue=WriteRevision`, and the
+serialized candidate in `TextValue`, committing `Sequence` last.
+
+The root rechecks `DATA_WRITE` access and subtree ownership, then routes only a registered
+key to the owning typed handler. That handler shall recheck revision, value type,
+range/domain, current machine state, and all module-specific invariants before changing
+data. Unknown keys, stale revisions and malformed or out-of-domain values are rejected
+without mutation. Recipe-backed changes remain migrate-or-fault and transactional per
+§3.8; this mailbox is not a partial recipe-write escape hatch. Accepted and denied
+requests follow the §8.3 audit rules. A generic HMI may render editors from these
+capabilities, but is never an authorization or validation authority.
 
 ### 3.11 Reusable sub-trees (low-effort duplication)
 
@@ -850,7 +895,7 @@ A module **shall** validate inputs before acting on them. This is both a reliabi
 - **Array indices & bounds.** Indices into arrays, step tables, and task lists **shall** be bounds-checked before use — the reference `CheckBounds` / `F_CheckTaskIndexBounds` pattern is the canonical form. Per the drafting rules (§5, E031), the loop index is never written inside a `FOR` loop.
 - **Motion & physical targets.** A motion target, force, or speed **shall** be validated against the axis/device limits (held in the CM/driver, §10.3, §10.6) before the command is issued — the `F_CheckMoveValid` pattern — so an unreachable or unsafe target is refused, not attempted.
 - **External payloads.** Recipe/host (§3.8, §11.4) and carrier/part data (§3.16) are already validate-before-load; this rule generalizes the same discipline to every input boundary.
-- **Fail-safe defaults.** Every `CASE`/`IF` that selects behaviour **shall** have a defined `ELSE` that drives a safe, explicit reaction (fault or hold), never an implicit no-op that silently stalls a chain — this keeps the stall walk (§6.9) able to explain *why* nothing advanced.
+- **Fail-safe defaults.** Every `CASE`/`IF` that **selects behaviour** shall define a safe, explicit fallback (fault, hold, or refusal), never an implicit no-op that silently stalls a chain — this keeps the stall walk (§6.9) able to explain *why* nothing advanced. A guard clause is already an explicit fallback when the result is initialized fail-closed and the branch terminates with `RETURN`; an `IF` that only conditionally appends a diagnostic or performs an optional bounded update likewise needs no meaningless empty `ELSE`. `CASE` dispatchers still require an `ELSE`, because an unknown selector is an input boundary. The lint gate shall check these semantic forms rather than require syntactic `ELSE` noise on every conditional (O1/O9).
 
 *Cross-references: §3.8/§3.16/§11.4 (payload validation), §8.8 (reason on rejection), §10.3/§10.6 (limits live in CM/driver), §6.9 (defined defaults keep diagnostics valid), §14.2 (secure-coding).*
 
@@ -932,6 +977,8 @@ END_IF
 ```
 
 **Timeout and first-out reason.** Every command **shall** carry a timeout (from `ParCfg`). While `Busy`, the module **shall** publish `OutImm.Diagnostic` (§6.9) — the *first* condition preventing completion: the first FALSE interlock/permissive (with its §7 description), or the awaited sub-result. On timeout the module raises `Error` and promotes that diagnostic to `ErrorID`. This is the Single-High / first-out rule of §8 applied per command, and it is what lets a stalled step always answer "why" (§6.9).
+
+**`Held` — a suspended command is not a failed one.** An interlock is by definition a condition that must hold *during* motion (§7.2), and losing one is frequently expected operator behaviour rather than a defect: releasing a hold-to-run or two-hand control is the designed way to stop a movement. A module **shall** distinguish these from failures. It **shall** publish a `Held` flag, orthogonal to the terminal states, that is TRUE while the module is `BUSY`, has withdrawn the outputs of the affected function, and is deliberately not progressing because a *named* condition is unsatisfied — the ISA-88/PackML **HELD** notion. While held, the module **shall** publish that condition as its `Diagnostic` at `LOW` severity, **shall not** raise `Error`, and **shall not** open a `MANUAL_RESET` event (§8.3(b)): there is nothing to reset, because progress resumes on its own when the condition returns. A parent **shall** roll a held child up the same way it rolls up a fault (§8.2) — adopting the child's reason and `SourcePath`, as information rather than as an error — so a suspended chain explains *which* module waits on *which* condition instead of expiring into a generic stall (§6.9). `Held` is deliberately **not** an `E_ExecState` ordinal: that enumeration is transport contract (§3.10(a′)) and its ordinals **shall not** be renumbered. A condition whose loss genuinely indicates a defect (a lost feedback, an exhausted travel timeout, a process value out of range) remains a fault; HELD is for conditions the operator or the process is expected to restore.
 
 ### 6.2 Unit mode sequence (ModeHandler) — continuous step chain
 
@@ -1109,7 +1156,7 @@ The result is an expressive chain — decisions, skips, bounded retries, paralle
 
 ### 6.11 Operator dialogs & decisions
 
-Some sequence decisions need an **operator**, not a sensor — "remove the NOK part manually or auto-continue?", "confirm tool change". The reference cell handles these through a dialog queue; the standard defines that as a contract so operator interaction is uniform and never hand-built per station.
+Some sequence decisions need an **operator**, not a sensor — "remove the NOK part manually or auto-continue?", "confirm tool change". The standard defines one typed decision contract so operator interaction is uniform and never hand-built per station.
 
 - **Typed decision request.** A step **may** raise an `ST_DecisionRequest` — prompt text, an option set, a default option, and a timeout — and wait on it. The HMI (§3.13) renders it generically from that record; the operator's choice (or, on timeout, the default) is consumed by the chain as the transition, advancing it exactly like a `Done` (§6.5).
 
@@ -1123,7 +1170,7 @@ TYPE ST_DecisionRequest : STRUCT
 END_STRUCT END_TYPE
 ```
 
-- **Queue, not modal block.** Requests enter a **decision queue** (ordered, none lost) so concurrent requests from different modules are presented in turn; each carries its `SourcePath` so the operator sees who is asking.
+- **One active decision per root.** A root Unit has one mode-chain/step-state writer (§6.7), so its base publishes one active decision slot rather than a second scheduling system. Re-presenting the same request while its step waits is idempotent; a different request arriving before the active one is consumed shall be rejected and logged, never overwrite it. A profile that genuinely permits independent concurrent decision producers may add a bounded FIFO in front of this slot, but the FIFO is an adapter and does not change the HMI contract. Each request carries its `SourcePath` so the operator sees who is asking.
 - **No safety/release bypass.** A decision **shall not** override safety (§9) or manual-release (§7.6); a timeout **shall** resolve to the **safe** default, and "continue" options remain gated by the normal releases.
 - **Logged.** Each decision (the request, the choice, and whether it was operator- or timeout-resolved) **shall** be logged as an event (§8.7) for audit (§14.3).
 
@@ -1136,7 +1183,7 @@ END_STRUCT END_TYPE
 ### 7.1 Definitions
 
 - **Permissive** — a condition that must be **met to initiate** an action.
-- **Interlock** — a condition that must be **met to initiate and maintained throughout**; if an interlock drops mid-action, the action **shall** stop immediately and the module **shall** fault.
+- **Interlock** — a condition that must be **met to initiate and maintained throughout**. If it drops mid-action, the affected output/action **shall** stop immediately. The owning module then applies the explicit classification from §6.1: an expected, operator/process-restorable condition enters **HELD** and resumes only when that same interlock returns; a defect or non-restorable loss faults. Neither classification permits motion while the interlock is false.
 
 ### 7.2 The `PermIntlk` object
 
@@ -1286,9 +1333,9 @@ Access level is the **who** dimension of release, ANDed with the **machine** dim
 
 **(a) Levels & actions.** Ordinal levels `E_AccessLevel` (`NONE`=0 < `OPERATOR` < `TECHNICIAN` < `ENGINEER` < `ADMIN`) and an enumerated set of **gated actions** `E_GatedAction`: `DATA_READ`, `DATA_WRITE` (ParCfg/StationCfg edits, §3.8a), `MANUAL` (manual movements), `CHANGEOVER` (`SetModel`, §3.1b), `MODE_CHANGE` (§3.4), `START_STOP`, `ALARM_HISTORY` (read, §8.3), `ALARM_RESET` (§8.3(b)), `ACCESS_POLICY` (editing this policy itself), append-only `ALARM_SHELVE` (shelve/unshelve annunciation, §8.10), and `POWER_CONTROL` (Control On/Off and power-group requests, §9.8). Ordinals are transport contract; new actions shall be appended, never inserted.
 
-**(b) Per-station policy, programmer-owned.** Each root Unit carries an **access policy** — a required level per gated action — held as persistent **station configuration** (§3.8a: deployment data, editable, never in a recipe). Any threshold set to `NONE` means that action needs no login; a station may therefore be **fully open** (every threshold `NONE`) or locked down per action — the programmer's choice per deployment. **Shipped default is fully open** (`NONE` everywhere): access control is a *deliberate* deployment decision, never a silent lock-in (O1/O6), and the §14 commissioning checklist **shall** include reviewing the policy. Per-function granularity for manual movements: `MANUAL` is the default threshold, and an individual manual function **may** declare its own higher required level in its `OnManRelease` definition (§7.6) — so "jog axis" and "open guard bypass" can differ.
+**(b) Per-station policy, PLC-authoritative and editable.** Each root Unit carries an **access policy** — a required level per gated action — held as persistent **station configuration** (§3.8a: deployment data, editable, never in a recipe). Any threshold set to `NONE` means that action needs no login; a station may therefore be **fully open** (every threshold `NONE`) or locked down per action — the deployment's deliberate choice. **Shipped default is fully open** (`NONE` everywhere): access control is never a silent lock-in (O1/O6), and the §14 commissioning checklist **shall** include provisioning an access provider and reviewing the policy. A generic HMI may edit the root's published policy, but each edit is routed through the root request mailbox and rechecked against `ACCESS_POLICY`; the policy editor is not a second authority. To prevent retained self-lockout, raising the `ACCESS_POLICY` threshold above the active session level **shall be rejected**. Per-function granularity for manual movements: `MANUAL` is the default threshold, and an individual manual function **may** declare its own higher required level in its `OnManRelease` definition (§7.6) — so "jog axis" and "open guard bypass" can differ.
 
-**(c) Sessions & enforcement.** A per-root **access manager** holds the active level/user, authenticates through an injected **`I_AccessProvider`** — with a shipped local default (`FB_LocalAccessProvider`, persistent user/PIN table) mirroring §3.8's provider pattern — and auto-logs-out after a configurable idle timeout (`T#0S` = never). Login/logout is **data-driven** (request members in the exposed namespace, §3.10(a′)); the secret member is cleared immediately after each attempt. A transport/mailbox acknowledgement only proves that the attempt was consumed; clients **shall** determine authentication success from the resulting published `CurrentUser`, `CurrentLevel`, and `LoginFailed` state. A failed attempt shall receive explicit localized HMI feedback without revealing whether the user or secret was incorrect. Enforcement is **in the PLC** at every gated entry point (`SetMode`, `SetModel`, `Start`/`Stop`, `OperatorReset`, manual commands, ParCfg/StationCfg writes): the HMI greys controls from the published level *and* the PLC re-checks — the client is never trusted (§14 defense in depth). Denied attempts, logins, and logouts **shall** be logged as `MESSAGE` events (§8.3), giving an audit trail for free. Thresholds are configured on the **root** the HMI addresses; framework-internal calls (the §3.7 cascade, step chains) are trusted — they only execute downstream of an already-authorized entry.
+**(c) Sessions & enforcement.** A per-root **access manager** holds the active level/user, authenticates through an injected **`I_AccessProvider`** — with a shipped local default (`FB_LocalAccessProvider`, persistent user/PIN table) mirroring §3.8's provider pattern — and auto-logs-out after a configurable idle timeout (`T#0S` = never). Idle time is measured since successful login or the last **accepted authenticated operator mutation**; background reads, manifest fetches, and release-report polling shall not keep an abandoned session alive. Login/logout is **data-driven** (request members in the exposed namespace, §3.10(a′)); the secret member is cleared immediately after each attempt. A transport/mailbox acknowledgement only proves that the attempt was consumed; clients **shall** determine authentication success from the resulting published `CurrentUser`, `CurrentLevel`, and `LoginFailed` state. A failed attempt shall receive explicit localized HMI feedback without revealing whether the user or secret was incorrect. Enforcement is **in the PLC** at every gated entry point (`SetMode`, `SetModel`, `Start`/`Stop`, `OperatorReset`, manual commands, decisions, power control, alarm shelving, force, and ParCfg/StationCfg writes): the HMI greys controls from the published level *and* the PLC re-checks — the client is never trusted (§14 defense in depth). Denied attempts, logins, logouts, and accepted privileged remote mutations **shall** be logged as `MESSAGE` events (§8.3), including the action identity and active user but never a secret. Thresholds are configured on the **root** the HMI addresses; framework-internal calls (the §3.7 cascade, step chains) are trusted — they only execute downstream of an already-authorized entry.
 
 **(d) Relation to transport security.** OPC UA session authentication/encryption remain the server's job (§11.2, TC3 §11.1); §7.7 is the *authorization* layer above it and works even where the transport is anonymous — the two compose, neither replaces the other (§14).
 
@@ -1330,9 +1377,11 @@ Because every archetype implements `I_Module.GetFaultSummary`, fault rollup is a
 
 Alarm/event **come and gone** transitions **shall** enter a per-Unit event log with a defined record and lifecycle, browsable in place and streamable to a historian.
 
-**(a) The event record (`ST_AlarmEvent`).** `ReasonCode` + `Description` + `SourcePath` (§8.8 — the same vocabulary as every diagnostic), one authoritative `Severity` (`LOW` | `MED` | `HIGH`), orthogonal `Category`, `ComeAt`/`GoneAt` (synchronized stamps, §2.7), **`Duration`** (monotonic come→gone difference, per §8.11.4(e)), `ResetClass`, and `State`. There is deliberately no second message/warning/error axis: annunciation, sorting, and tree tinting all use `Severity`.
+**(a) The event record (`ST_AlarmEvent`).** `ReasonCode` + `Description` + `SourcePath` (§8.8 — the same vocabulary as every diagnostic), one authoritative `Severity` (`LOW` | `MED` | `HIGH`), orthogonal `Category`, `ComeAt`/`GoneAt` plus their `ComeTimeSynchronized`/`GoneTimeSynchronized` quality (and equivalent reset/shelf quality, §2.7), **`Duration`** (monotonic come→gone difference, per §8.11.4(e)), `ResetClass`, and `State`. There is deliberately no second message/warning/error axis: annunciation, sorting, and tree tinting all use `Severity`.
 
 **(b) Reset classes (`E_ResetClass`).** Every event is declared either **`AUTO_RESET`** — it closes by itself when its condition re-establishes (typical for low/medium transient events) — or **`MANUAL_RESET`** — after the condition clears it remains **blocking** until a deliberate operator reset (typical for high-severity faults). Lifecycle: `ACTIVE` (come) → on condition-gone: `AUTO_RESET` closes immediately with `Duration`; `MANUAL_RESET` enters `WAIT_RESET` (still blocking) → operator reset closes it (`ResetAt` stamped). A `MANUAL_RESET` event **shall never** self-close (§9.3), and the Unit's `Start` **shall** be refused while any such event is `ACTIVE`/`WAIT_RESET`.
+
+An operator reset **shall** close a `MANUAL_RESET` event from **either** `ACTIVE` or `WAIT_RESET` — it is a deliberate external action, not a self-close, so the `WAIT_RESET` stage is where an event *waits* for the operator, never a precondition for being allowed to reset it. Requiring `WAIT_RESET` would make the reset a guaranteed no-op for the one class of event it exists to clear: whenever the blocking condition can only be re-established by running the machine — a permissive that must hold *during* motion, such as a two-hand control held through a press stroke — `ACTIVE` cannot be left, `Start` is refused because the event blocks it, and the operator has no action left. An event closed while its cause is still live is **re-raised by its owner on the next scan** through the automatic capture of (c), so this clears the *latch* and never the *condition*: the interlocks of §7.2 are untouched, no output is restored, and the release report of §7.8 still refuses `Start` and still names the live condition. A reset **shall** therefore also release the latched control state that the event was reporting — the Unit's own run command and any child command its suspended sequence had issued (§6.1) — because closing the event while those remain asserted leaves the equipment unrecoverable for the same reason. Recovery modes (HOME and equivalents) **shall** be reachable after one such reset, under the §7.7 authority for `ALARM_RESET`.
 
 **(c) Automatic capture, manual raising.** The Unit base **shall** capture module faults automatically — entering `ERROR` raises a `MANUAL_RESET` event carrying the rolled-up first-out severity and diagnostic (§8.2, §6.9); leaving `ERROR` marks it gone. Application code raises other events explicitly with a chosen severity/reset class (one call, §8.7 `EVENT_` constants). Nothing is double-authored: the event *is* the diagnostic plus lifecycle.
 
@@ -1388,6 +1437,7 @@ STRUCT
     Severity    : E_Severity;   // LOW | MED | HIGH (§8.1)
     Category    : E_Category;   // PROCESS | SAFETY | SYSTEM
     Since       : DT;           // first-out timestamp
+    TimeSynchronized : BOOL;    // quality of Since (§2.7); FALSE = display as untrusted
 END_STRUCT
 END_TYPE
 ```
@@ -1411,7 +1461,7 @@ A generic code plus `SourcePath` renders instance-specific — *"Clamp3: part pr
 
 | Band / sub-range | Reasons |
 |------------------|---------|
-| System `10–19` | controller & clock health (§8.12, §2.7): `TASK_OVERRUN`=10, `TASK_JITTER_HIGH`=11, `CPU_LOAD_HIGH`=12, `MEMORY_LOW`=13, `IPC_TEMP_HIGH`=14, `FIELDBUS_MASTER_FAULT`=15, `DC_SYNC_LOST`=16, `TIME_SYNC_LOST`=17, `UTILITY_DEVIATION`=18 (§8.14) |
+| System `10–21` | controller & clock health (§8.12, §2.7): `TASK_OVERRUN`=10, `TASK_JITTER_HIGH`=11, `CPU_LOAD_HIGH`=12, `MEMORY_LOW`=13, `IPC_TEMP_HIGH`=14, `FIELDBUS_MASTER_FAULT`=15, `DC_SYNC_LOST`=16, `TIME_SYNC_LOST`=17, `UTILITY_DEVIATION`=18 (§8.14), `IPC_FAN_FAULT`=19, `STORAGE_HEALTH_LOW`=20, `CONTROLLER_METRICS_UNAVAILABLE`=21 |
 | Framework `2000–2009` | common flow reasons: `TIMEOUT`=2001, `PERMISSIVE_NOT_MET`=2002, `INTERLOCK_DROPPED`=2003, `RECIPE_INVALID`=2004, `STEP_STALLED`=2005, `RETRY_EXHAUSTED`=2006, `CYCLE_TIME_DEGRADED`=2007 (maintenance event, §8.11.4/§8.12), `UNSUPPORTED_COMMAND`=2008 (input outside a type's declared command set, §5.6) |
 | Framework `2010–2019` | external device / link supervision (§3.15): `LINK_TIMEOUT`=2010, `DEVICE_NOT_READY`=2011, `DEVICE_PROTOCOL_ERROR`=2012 |
 | Framework `2020–2029` | traceability / part context (§3.16): `CARRIER_READ_FAILED`=2020, `CARRIER_WRITE_FAILED`=2021, `PART_ID_MISMATCH`=2022, `RESULT_RECORD_REJECTED`=2023 |
@@ -1502,7 +1552,21 @@ This state set maps one-to-one onto the PackML state/admin model (§11.7) and on
 - **Controller health.** The station **shall** monitor primary-task cycle time, **jitter**, and overruns; CPU and memory load; and, where the hardware exposes them, IPC temperature/fan and storage health. Threshold breaches raise System-category alarms (§8.6) with System-band reason codes — `TASK_OVERRUN`, `TASK_JITTER_HIGH`, `CPU_LOAD_HIGH`, `MEMORY_LOW`, `IPC_TEMP_HIGH` — and the live values **shall** also be exposed as OPC UA health nodes for trending/predictive maintenance, not only as pass/fail alarms.
 - **Fieldbus & device health.** Fieldbus master state, lost frames, slave errors, and distributed-clock sync (`FIELDBUS_MASTER_FAULT`, `DC_SYNC_LOST`) surface per §10.5 ([TC3]: EtherCAT specifics, TC3 §10); smart-device links (§3.15) contribute their heartbeat/last-seen. These are System/Low events that **shall not** be silently swallowed.
 - **Condition-based maintenance.** A Control Module or device connector **may** publish condition signals — actuation/cycle counts toward a service interval, drive load/temperature, vacuum/pressure trend — as **maintenance** events (Low severity, §8.1), distinct from production faults: they inform planning, they do not stop the cycle. Service thresholds are `ParCfg` (§3.8).
-- **Warning vs. alarm.** Approaching a limit raises a Low/Med warning; exceeding it raises the alarm — the two are distinguished by `Severity` (§8.1) on the same reason, so trending and annunciation share one source.
+- **Warning vs. alarm.** Where a distinct approach threshold is configured, approaching a limit raises a Low/Med warning and exceeding it raises the alarm; otherwise the configured limit produces the single Low System event. The two use `Severity` (§8.1) on the same reason, so trending and annunciation share one source without inventing a mandatory second threshold for every metric.
+
+The platform-neutral input is `ST_SystemHealthInput`: task, controller, IPC,
+fieldbus/DC, and `ST_TimeQuality` samples with an explicit availability flag for
+each optional group. Station thresholds and requirements live in schema-first
+`ST_SystemHealthParCfg`. A root Unit publishes the validated bounded copy as
+`SystemHealth : ST_SystemHealthStatus`; `Present=FALSE` means the profile was not
+configured, while `Present=TRUE, Healthy=FALSE` means one or more required probes
+are unavailable or outside limits. A reusable `FB_SystemHealthPublisher` (or
+equivalent binding implementation) shall own the threshold evaluation and the
+come/gone edges for the registered Low/System/AUTO_RESET events. Applications
+inject platform measurements; they shall not reproduce threshold/alarm logic per
+station. Several root Units on one PLC may mirror the same platform sample into
+their own bounded status/alarm scope so each independently assigned HMI sees the
+health affecting that Unit.
 
 *Cross-references: §2.3 (task/watchdog sizing), §2.7 (time sync for health timestamps), §10.5 (fieldbus diagnostics — the specific case this generalizes), §3.15 (link health), §8.1/§8.6 (severity, System alarms).*
 
@@ -1513,6 +1577,17 @@ A station's signal tower (and horn) **shall** be driven from the existing state 
 - **Single mapping.** The lamp/beacon pattern is a fixed function of the §8.11 machine state and the highest active alarm severity (§8.1/§8.2): e.g. **red** = `DOWN`/active fault, **amber** = warning or `BLOCKED`/`STARVED`/`CHANGEOVER`, **green** = `PRODUCING`, **blue/white** = operator action required (a pending decision, §6.11, or manual step), **off** = `STOPPED`. Exact colours and the horn follow the site convention (IEC 60204-1 / ANSI), but the **mapping is defined once** and reused.
 - **Driven by rollup, not by station code.** Because state and severity already roll up the tree (§8.2, §8.5), the tower reads the station summary directly; adding or changing a module never touches tower logic.
 - **Lamp test.** The station **shall** provide a lamp-test function (operator-triggered) that drives every lamp/horn for a fixed interval to verify the device, then returns to the mapped state.
+
+The reusable mapping publishes semantic outputs
+`ST_SignalTowerOut := {Red, Amber, Green, Blue, White, Horn, TestActive}`; only the
+project Hardware Driver maps those semantics to electrical channels. Site choices
+(`OperatorUsesWhite`, `HornOnHigh`, bounded `LampTestDuration`) are a schema-first
+`ST_SignalTowerParCfg`, never station-specific `IF` logic. A root Unit publishes
+`SignalTower`, derives its inputs from its authoritative `MachineState`, active
+alarm table, and decision state, and accepts remote lamp test only through the
+acknowledged mailbox under the `MANUAL` gate while the Unit is not `BUSY`. The test
+duration shall clamp to 30 seconds or less and self-clear even if the client
+disconnects.
 
 *Cross-references: §8.1/§8.2 (severity & rollup), §8.11 (machine state), §8.5 (station summary), §6.11 (operator-action signal).*
 
@@ -1631,11 +1706,11 @@ Fieldbus and controller diagnostics — lost frames, slave errors, distributed-c
 Beyond the *logical* module tree (§3.13), a maintenance user needs the *physical* bus picture — which node is down, which channel is stuck — because a field fault is diagnosed at the wiring, not the sequence. The framework therefore defines a platform-neutral **fieldbus topology model**, published for the HMI over the same self-description surface (§3.10):
 
 - **Nodes.** The bus is a tree of nodes (master → slaves/couplers → terminals); each node publishes `Name`, `TypeId` (vendor/product), `Address` (topological + logical), a **node state** (`E_NodeState`: `OFFLINE` < `INIT` < `PREOP` < `SAFEOP` < `OPERATIONAL`, plus `FAULT`), and a link-health flag. The state vocabulary is the CANopen/EtherCAT-style state machine expressed neutrally so other fieldbuses map onto it.
-- **Channels.** Each node publishes its **I/O channels**: `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Direction` (`INPUT`/`OUTPUT`), `Kind` (`DIGITAL`/`ANALOG`), live `Value` (BOOL for digital; scaled `REAL` + `Unit` for analog, raw available), and per-channel quality/forced/fault flags. `Name` **shall equal the exact tag in the approved I/O list and electrical schematic**; it is untranslated structured identity. `DescriptionKey` is the localizable human description, `Address` is the terminal/channel locator, `Path` is the unique force/audit identity (§4.8), and `ModulePath` cross-links to the owning module. The names are therefore generated/imported from engineering data rather than independently retyped in the PLC or HMI.
+- **Channels.** Each node publishes its **I/O channels**: `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Direction` (`INPUT`/`OUTPUT`), `Kind` (`DIGITAL`/`ANALOG`), live `Value` (BOOL for digital; scaled `REAL` + `Unit` for analog, raw available), per-channel quality/forced/fault flags, and an explicit `Forceable` capability. `Name` **shall equal the exact tag in the approved I/O list and electrical schematic**; it is untranslated structured identity. `DescriptionKey` is the localizable human description, `Address` is the terminal/channel locator, `Path` is the unique force/audit identity (§4.8), and `ModulePath` cross-links to the owning module. `Forceable` defaults `FALSE`; output direction alone never grants a force surface. The names and capabilities are therefore generated/imported from reviewed engineering data rather than independently retyped in the HMI.
 - **Auto-detection and engineering-data join.** The installed topology and health **shall** be read from the fieldbus master's own diagnostics at runtime — not hand-authored — so the view reflects the actual HAL and updates as nodes drop or return ([TC3]: EtherCAT master/slave + CoE over ADS, TC3 §10.6). The framework topology mechanism then joins the separate project I/O catalog (§10.2.1) onto the detected terminal/channel by a deterministic physical address. Missing, duplicated, or unmatched mappings set `MappingValid=FALSE` with a localizable `MappingDiagnostic`; they are commissioning errors, never silently guessed. A node's or channel's contribution to a module fault uses the same first-out vocabulary (§8.8): matching `ST_Diagnostic.IoTag` marks the channel and makes module↔fieldbus navigation available.
 - **HMI rendering (§3.13).** The topology view is a **second tree** beside the module tree: nodes coloured by state (operational = neutral, degraded `SAFEOP`/link-warn = warning, `FAULT`/`OFFLINE` = error), channels listed with live values, digital as on/off, analog as value + unit. This is a **read/diagnostic** surface by default. A limited **output force** is a manual function gated by §7.6 **and** §7.7 (`MANUAL`), never a casual click, and constrained by three rules so it can never become a way to defeat the controller:
 
-  1. **Outputs only.** A runtime force **shall** write only a mapped *output* channel (energize a valve, drive a lamp) through gated PLC code. Forcing an *input* — lying to the logic to bypass an interlock or sensor — is **not** provided by this surface; it is a commissioning act performed with the engineering tool under separate authority, never a normal operating practice.
+  1. **Explicit capability, outputs only.** The HMI exposes a force control only when the PLC publishes `Forceable=TRUE`, and the PLC resolver rechecks that capability and mapping. A runtime force **shall** write only such a mapped *output* channel (energize a valve, drive a lamp) through gated PLC code. Missing capability data is `FALSE` (fail closed). Forcing an *input* — lying to the logic to bypass an interlock or sensor — is **not** provided by this surface; it is a commissioning act performed with the engineering tool under separate authority, never a normal operating practice.
   2. **Not a process-image force.** The runtime path writes the output variable through the application, so the owning module still runs and still owns its interlocks (§7.2); a force is only *effective* when the module is stopped or in `MANUAL` (§3.4), because a running module will reassert its own output. This is deliberate — the force cannot silently override active logic.
   3. **Safety I/O is never forceable here.** Safety-rated I/O lives on the safety system (§9, FSoE/TwinSAFE) and is out of reach of this path by construction; the standard-PLC force cannot touch it.
 

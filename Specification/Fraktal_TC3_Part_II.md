@@ -39,7 +39,7 @@
 ### TC3 §2.2 Library distribution
 *Binds Core §2.2.*
 - Libraries are referenced as versioned TwinCAT library references with their dependencies; local or relative library references are not permitted (Core §5.4). The framework library ships as a versioned TwinCAT library; projects consume a pinned release, never a copy.
-- **Reference implementation:** repository `fraktal-core` — `Fraktal_Core` (framework library), `Fraktal_Modules` (reusable module library), `Fraktal_Demo` (executable root-Unit forest), `Fraktal_Press_Demo` (executable pneumatic-press virtual-commissioning example), `PLC/Fraktal_Tests.plcproj` plus `PLC/Fraktal_Tests/` (aggregate TcUnit application and sources excluded from deployed runtime), and the test-first type scaffold.
+- **Reference implementation:** repository `fraktal-core` — `PLC/TwinCAT/Framework/Fraktal_Core` (framework library), `PLC/TwinCAT/Framework/Fraktal_Modules` (reusable module library), `PLC/TwinCAT/Tests and Examples/Fraktal_Demo` (executable root-Unit forest), `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo` (internal acceptance fixture), `PLC/TwinCAT/Tests and Examples/Fraktal_Tests` (aggregate TcUnit application and sources excluded from deployed runtime), and `PLC/TwinCAT/scaffold`.
 - TwinCAT library metadata uses four components (`major.minor.patch.revision`, e.g. `0.1.0.0`). Fraktal compatibility follows the first three semantic-version components; `revision` identifies a binding rebuild that does not change the observable contract.
 
 ### TC3 §2.4 Project & solution settings
@@ -48,17 +48,28 @@
 ### TC3 §2.5 Source-control form
 *Binds Core §2.5.* Text-diffable storage is TwinCAT source / PLCopen-XML export or the IDE's text storage.
 
-When one `.plcproj` compiles linked sources from sibling project directories, its manifest shall be
-placed at their nearest repository common ancestor and every `Compile Include` shall be a downward
-relative path. TwinCAT's **Add Existing Item** importer validates the raw source path before applying
-`Link` metadata and treats a `..` segment as an invalid project-folder name. The aggregate reference
-therefore uses `PLC/Fraktal_Tests.plcproj`; the `PLC/Fraktal_Tests/` directory contains its local test
-POUs but deliberately does not contain another project manifest.
+When one `.plcproj` compiles linked sources from sibling project directories, its owning XAE project
+shall establish their nearest common ancestor as the PLC source base and every `Compile Include`
+shall be a downward relative path from that base. TwinCAT's **Add Existing Item** importer validates
+the raw source path before applying `Link` metadata and may reject escaping `..` segments. The
+aggregate reference keeps `Fraktal_Tests` and `Fraktal_Press_Demo` beneath
+`PLC/TwinCAT/Tests and Examples/`, and every compile input resolves within that tree.
 
 ### TC3 §2.7 Time-synchronization mechanics
 *Binds Core §2.7.* PTP discipline is realized over **EtherCAT distributed clocks** for the fieldbus and network PTP (IEEE 1588) for the IPC; NTP fallback where PTP is unavailable.
 
-The framework library exposes the station clock as **`F_Now() : DT`** (wrapping `Tc2_Utilities.F_GetSystemTime`, UTC). Every framework timestamp — `ST_Diagnostic.Since` (Core §8.8), the `FB_PermIntlk` first-out (Core §7.2) — reads it, so "one clock feeds all timestamps" (Core §2.7) holds by construction rather than by convention.
+The framework library exposes the station clock as **`F_Now() : DT`** (wrapping `Tc2_Utilities.F_GetSystemTime`, UTC). Every framework timestamp — `ST_Diagnostic.Since` (Core §8.8), the `FB_PermIntlk` first-out (Core §7.2), alarm edges, part results and cycle profiles — reads it, so "one clock feeds all timestamps" (Core §2.7) holds by construction rather than by convention.
+
+`GVL_FraktalTime.Current : ST_TimeQuality` is the one PLC-wide quality authority
+and is excluded from OPC UA; each configured root republishes its validated copy
+inside `SystemHealth`. `F_TimeSynchronized()` supplies the quality Boolean stamped
+alongside every framework wall-clock field. `FB_TcSystemHealthProbe` measures the
+primary task from the monotonic `TIME()` source and accepts the remaining target
+metrics, DC state, and documented time-source quality as explicit inputs. A target
+adapter shall source those inputs from the licensed/runtime APIs available on that
+controller. Missing metrics remain `Available=FALSE`; an application shall not
+inject healthy zeros. `F_Now()` does not discipline the operating-system clock;
+the target's PTP/NTP/DC commissioning still owns that prerequisite.
 
 ---
 
@@ -232,6 +243,25 @@ report argument in place.
 
 ### TC3 §8.11 Timing sources for the cycle-time profile
 *Binds Core §8.11.4(e).* Durations are measured with the monotonic millisecond clock (`TIME()`), differenced as `DWORD` so the ~49-day wrap subtracts correctly; wall-clock `Started`/`Since` stamps come from `F_Now()` (TC3 §2.7). The profiler and timing structures are plain framework DUTs exposed through the §3.10 pragmas on the base classes, so the HMI reads them with no per-type wiring.
+
+### TC3 §8.12 System-health binding
+*Binds Core §8.12.* `FB_TcSystemHealthProbe` is the TC3 adapter seam;
+`FB_SystemHealthPublisher` remains platform-neutral evaluation/alarm ownership.
+The composition root calls the probe once per scan, injects its bounded
+`ST_SystemHealthInput` plus schema-first thresholds through `SetSystemHealth`, and
+the Unit base publishes `SystemHealth`. Task cycle/jitter use `TIME()`; controller,
+IPC, EtherCAT/DC and clock-source inputs shall come from target-specific diagnostic
+APIs or remain explicitly unavailable. The Press Demo's synthetic values are an
+internal simulation profile, not live target evidence.
+
+### TC3 §8.13 Signal-tower binding
+*Binds Core §8.13.* `FB_SignalTower` produces only semantic lamp/horn outputs.
+`FB_UnitBase` calls it from the Unit's machine state, active-alarm maximum severity,
+and decision slot, publishes `SignalTower`, and handles append-only mailbox kind
+`LAMP_TEST := 26`. The project Hardware Driver is the only code permitted to map
+those outputs to `%Q` channels. The standard mapper never writes a project raw-I/O
+GVL and the internal Press fixture may leave the semantic output unwired when no
+reviewed physical stack-light mapping exists.
 
 ---
 

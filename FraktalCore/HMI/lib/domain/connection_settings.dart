@@ -30,7 +30,9 @@ const String kDefaultEndpoint =
 /// non-Beckhoff PLC. See `external_repository_factory_native.dart`.
 String defaultConnectionEndpoint() {
   if (kIsWeb) {
-    return kReleaseMode ? gatewayEndpointForWebBase(Uri.base) : kDefaultEndpoint;
+    return kReleaseMode
+        ? gatewayEndpointForWebBase(Uri.base)
+        : kDefaultEndpoint;
   }
   if (defaultTargetPlatform == TargetPlatform.windows) {
     return 'ads://127.0.0.1.1.1:851';
@@ -63,6 +65,31 @@ class ConnectionSettings {
   final String activeLanguageCode;
   final bool languageSelectionComplete;
 
+  /// UI prefs (schema v4). Persisted so the chosen theme and the on-screen
+  /// keyboard survive the AppState rebuild that happens on every reconnect.
+  final int themeIndex;
+  final bool floatingKeyboard;
+
+  /// Index into `ControlScale.values` (0 compact / 1 medium / 2 large). Stored
+  /// as an int so `domain/` keeps no dependency on the ui layer.
+  final int controlScaleIndex;
+
+  /// Minimum `AccessLevel` (index into its enum) for HMI-local privileges,
+  /// chosen during commissioning: appearance changes and quitting the app.
+  /// Both are panel policy rather than PLC policy — the PLC's own §7.7 gates are
+  /// published per root and are never overridden from here.
+  final int themeMinLevelIndex;
+  final int closeAppMinLevelIndex;
+
+  /// **Additional** panel-local floors for two actions the PLC already gates
+  /// (§7.7 MANUAL / ALARM_RESET). They can only tighten — see HmiConfig.
+  final int manualMinLevelIndex;
+  final int alarmResetMinLevelIndex;
+
+  /// Whether the commissioning engineer has completed the appearance/access
+  /// step, so it is offered once on first setup and afterwards only on demand.
+  final bool appearanceSetupComplete;
+
   const ConnectionSettings({
     this.transport = ConnectionTransport.gateway,
     this.endpoint = kDefaultEndpoint,
@@ -72,6 +99,14 @@ class ConnectionSettings {
     this.enabledLanguageCodes = const [],
     this.activeLanguageCode = 'en',
     this.languageSelectionComplete = false,
+    this.themeIndex = 0,
+    this.floatingKeyboard = true,
+    this.controlScaleIndex = 0,
+    this.themeMinLevelIndex = 0, // AccessLevel.none — appearance is open
+    this.closeAppMinLevelIndex = 2, // AccessLevel.technician
+    this.manualMinLevelIndex = 0, // defer entirely to the PLC
+    this.alarmResetMinLevelIndex = 0,
+    this.appearanceSetupComplete = false,
   });
 
   ConnectionSettings copyWith({
@@ -83,6 +118,14 @@ class ConnectionSettings {
     List<String>? enabledLanguageCodes,
     String? activeLanguageCode,
     bool? languageSelectionComplete,
+    int? themeIndex,
+    bool? floatingKeyboard,
+    int? controlScaleIndex,
+    int? themeMinLevelIndex,
+    int? closeAppMinLevelIndex,
+    int? manualMinLevelIndex,
+    int? alarmResetMinLevelIndex,
+    bool? appearanceSetupComplete,
   }) =>
       ConnectionSettings(
         transport: transport ?? this.transport,
@@ -95,10 +138,21 @@ class ConnectionSettings {
         activeLanguageCode: activeLanguageCode ?? this.activeLanguageCode,
         languageSelectionComplete:
             languageSelectionComplete ?? this.languageSelectionComplete,
+        themeIndex: themeIndex ?? this.themeIndex,
+        floatingKeyboard: floatingKeyboard ?? this.floatingKeyboard,
+        controlScaleIndex: controlScaleIndex ?? this.controlScaleIndex,
+        themeMinLevelIndex: themeMinLevelIndex ?? this.themeMinLevelIndex,
+        closeAppMinLevelIndex:
+            closeAppMinLevelIndex ?? this.closeAppMinLevelIndex,
+        manualMinLevelIndex: manualMinLevelIndex ?? this.manualMinLevelIndex,
+        alarmResetMinLevelIndex:
+            alarmResetMinLevelIndex ?? this.alarmResetMinLevelIndex,
+        appearanceSetupComplete:
+            appearanceSetupComplete ?? this.appearanceSetupComplete,
       );
 
   Map<String, Object> toJson() => {
-        'schemaVersion': 3,
+        'schemaVersion': 4,
         'transport': transport.name,
         'endpoint': endpoint,
         'everConnected': everConnected,
@@ -107,12 +161,23 @@ class ConnectionSettings {
         'enabledLanguageCodes': enabledLanguageCodes,
         'activeLanguageCode': activeLanguageCode,
         'languageSelectionComplete': languageSelectionComplete,
+        'themeIndex': themeIndex,
+        'floatingKeyboard': floatingKeyboard,
+        'controlScaleIndex': controlScaleIndex,
+        'themeMinLevelIndex': themeMinLevelIndex,
+        'closeAppMinLevelIndex': closeAppMinLevelIndex,
+        'manualMinLevelIndex': manualMinLevelIndex,
+        'alarmResetMinLevelIndex': alarmResetMinLevelIndex,
+        'appearanceSetupComplete': appearanceSetupComplete,
       };
 
   static ConnectionSettings? fromJson(Object? value) {
     if (value is! Map) return null;
     final schemaVersion = value['schemaVersion'];
-    if (schemaVersion != 1 && schemaVersion != 2 && schemaVersion != 3) {
+    if (schemaVersion != 1 &&
+        schemaVersion != 2 &&
+        schemaVersion != 3 &&
+        schemaVersion != 4) {
       return null;
     }
     final transportName = value['transport'];
@@ -147,6 +212,17 @@ class ConnectionSettings {
             languageComplete is! bool)) {
       return null;
     }
+    // UI prefs arrive in v4; older schemas take the defaults (theme 0, keyboard on).
+    final rawTheme = schemaVersion >= 4 ? value['themeIndex'] : null;
+    final rawKeyboard = schemaVersion >= 4 ? value['floatingKeyboard'] : null;
+    // Added after v4 shipped; absent in an early v4 file, so it is read
+    // defensively rather than by bumping the schema for one optional int.
+    final rawScale = schemaVersion >= 4 ? value['controlScaleIndex'] : null;
+    final rawThemeLevel = value['themeMinLevelIndex'];
+    final rawCloseLevel = value['closeAppMinLevelIndex'];
+    final rawManualLevel = value['manualMinLevelIndex'];
+    final rawResetLevel = value['alarmResetMinLevelIndex'];
+    final rawAppearanceDone = value['appearanceSetupComplete'];
     return ConnectionSettings(
       transport: transport,
       endpoint: endpoint,
@@ -158,6 +234,18 @@ class ConnectionSettings {
           languages == null ? const [] : List<String>.from(languages),
       activeLanguageCode: activeLanguage is String ? activeLanguage : 'en',
       languageSelectionComplete: languageComplete == true,
+      themeIndex: rawTheme is int ? rawTheme.clamp(0, 1000) : 0,
+      floatingKeyboard: rawKeyboard is bool ? rawKeyboard : true,
+      controlScaleIndex: rawScale is int ? rawScale.clamp(0, 2) : 0,
+      // AccessLevel has 5 members; clamp so a hand-edited file cannot crash boot.
+      themeMinLevelIndex: rawThemeLevel is int ? rawThemeLevel.clamp(0, 4) : 0,
+      closeAppMinLevelIndex:
+          rawCloseLevel is int ? rawCloseLevel.clamp(0, 4) : 2,
+      manualMinLevelIndex:
+          rawManualLevel is int ? rawManualLevel.clamp(0, 4) : 0,
+      alarmResetMinLevelIndex:
+          rawResetLevel is int ? rawResetLevel.clamp(0, 4) : 0,
+      appearanceSetupComplete: rawAppearanceDone == true,
     );
   }
 }

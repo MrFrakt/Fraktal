@@ -121,7 +121,9 @@ class _FirstLanguageSelectionState extends State<FirstLanguageSelection> {
 }
 
 Future<void> showLanguageSettings(
-    BuildContext context, LocalizationController controller) async {
+    BuildContext context, LocalizationController controller,
+    {required bool canAdminister}) async {
+  if (!canAdminister) return;
   await showDialog<void>(
     context: context,
     builder: (context) => _LanguageSettingsDialog(controller: controller),

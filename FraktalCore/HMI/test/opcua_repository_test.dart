@@ -44,6 +44,9 @@ void main() {
     expect(client.snapshotCalls, 2);
     expect(client.writes['PLC1/MAIN/PneumaticPress/HmiRequest/IntValue'],
         UnitMode.manual.index);
+    expect(await repository.lampTest('PneumaticPress'), isTrue);
+    expect(client.committedKinds, [3, 26],
+        reason: 'append-only PLC/HMI request ordinals must stay aligned');
   });
 
   test('login returns the access-provider result, not mailbox consumption',
@@ -108,8 +111,8 @@ void main() {
     // the QUERY_CONFIG manifest and surface through the unchanged mapper.
     final hydrated = await repository
         .forest()
-        .firstWhere((forest) =>
-            forest.isNotEmpty && forest.first.commands.length == 2)
+        .firstWhere(
+            (forest) => forest.isNotEmpty && forest.first.commands.length == 2)
         .timeout(const Duration(seconds: 5));
     expect(hydrated.first.commands[0].value, 11);
     expect(hydrated.first.commands[0].label, 'std.cmd.open');
@@ -119,10 +122,21 @@ void main() {
     // Fieldbus identity likewise comes only from the manifest.
     final bus = await repository
         .fieldbus()
-        .firstWhere((nodes) =>
-            nodes.isNotEmpty && nodes.first.name == '=000+S-K010')
+        .firstWhere(
+            (nodes) => nodes.isNotEmpty && nodes.first.name == '=000+S-K010')
         .timeout(const Duration(seconds: 5));
     expect(bus.first.name, '=000+S-K010');
+
+    final configured = await repository
+        .forest()
+        .firstWhere((forest) => forest.first.config.isNotEmpty)
+        .timeout(const Duration(seconds: 5));
+    final field = configured.first.config.single;
+    expect(await repository.writeConfig('PneumaticPress', field, '2'), isTrue);
+    expect(client.writes['PLC1/MAIN/PneumaticPress/HmiRequest/NameValue'],
+        'unit.modePolicy.0.shield');
+    expect(client.writes['PLC1/MAIN/PneumaticPress/HmiRequest/IntValue'], 1);
+    expect(client.writes['PLC1/MAIN/PneumaticPress/HmiRequest/TextValue'], '2');
 
     // A ConfigRev change (config write / changeover / PLC restart) refetches.
     client.bumpRevision('.v2');
@@ -181,7 +195,8 @@ void main() {
     await repository.forest().first.timeout(const Duration(seconds: 5));
     await Future<void>.delayed(const Duration(milliseconds: 60));
 
-    const historyPath = 'PLC1/MAIN/PneumaticPress/Profiler/History/History[1]/Total';
+    const historyPath =
+        'PLC1/MAIN/PneumaticPress/Profiler/History/History[1]/Total';
     expect(client.excludedPaths, contains(historyPath),
         reason: 'module history is on-demand, excluded from the snapshot');
     expect(client.readValuesCalls, 0);
@@ -285,6 +300,7 @@ class _ManifestClient implements OpcUaSessionClient {
   var _ackedKind = 0;
   var _ackedPage = 0;
   final requestedPages = <int>[];
+  final writes = <String, Object>{};
 
   void bumpRevision(String suffix) {
     configRev++;
@@ -333,6 +349,7 @@ class _ManifestClient implements OpcUaSessionClient {
               ('#Fieldbus', 'Nodes/Nodes[1]/Name', '=000+S-K010'),
               ('#Fieldbus', 'Nodes/Nodes[1]/ParentIdx', '0'),
               ('#Fieldbus', 'Nodes/Nodes[1]/ChannelCount', '0'),
+              ('PneumaticPress', 'ModePolicy/ModePolicy[0]/Shield', '1'),
             ];
       values['$pageBase/EntryCount'] = entries.length;
       // Real TF6100 array naming: an ARRAY container then the member browse
@@ -341,6 +358,22 @@ class _ManifestClient implements OpcUaSessionClient {
         values['$pageBase/Entries/Entries[${i + 1}]/Scope'] = entries[i].$1;
         values['$pageBase/Entries/Entries[${i + 1}]/Item'] = entries[i].$2;
         values['$pageBase/Entries/Entries[${i + 1}]/ValueText'] = entries[i].$3;
+        if (entries[i].$2 == 'ModePolicy/ModePolicy[0]/Shield') {
+          final prefix = '$pageBase/Entries/Entries[${i + 1}]';
+          values['$prefix/WriteKey'] = 'unit.modePolicy.0.shield';
+          values['$prefix/WriteRevision'] = 1;
+          values['$prefix/ConfigKind'] = CfgKind.stationCfg.index;
+          values['$prefix/ValueType'] = CfgType.number.index;
+          values['$prefix/Writable'] = true;
+          values['$prefix/RequiresReady'] = true;
+          values['$prefix/HasMinimum'] = true;
+          values['$prefix/HasMaximum'] = true;
+          values['$prefix/Minimum'] = 0.0;
+          values['$prefix/Maximum'] = 2.0;
+          values['$prefix/Unit'] = '';
+          values['$prefix/LabelKey'] = '';
+          values['$prefix/EnumDomain'] = '0|1|2';
+        }
       }
     }
     return {
@@ -362,6 +395,7 @@ class _ManifestClient implements OpcUaSessionClient {
 
   @override
   Future<bool> write(String path, OpcUaWriteType type, Object value) async {
+    writes[path] = value;
     if (path.endsWith('/HmiRequest/Kind')) {
       _pendingKind = (value as num).toInt();
     } else if (path.endsWith('/HmiRequest/IntValue')) {
@@ -408,6 +442,7 @@ class _OverlappingRefreshClient implements OpcUaSessionClient {
   final releaseRefresh = Completer<void>();
   final sequenceWritten = Completer<void>();
   final Map<String, Object> writes = {};
+  final List<int> committedKinds = [];
   var snapshotCalls = 0;
   var sequence = 0;
 
@@ -446,6 +481,8 @@ class _OverlappingRefreshClient implements OpcUaSessionClient {
   Future<bool> write(String path, OpcUaWriteType type, Object value) async {
     writes[path] = value;
     if (path.endsWith('/HmiRequest/Sequence')) {
+      committedKinds.add(
+          (writes[path.replaceFirst('/Sequence', '/Kind')] as num).toInt());
       sequence = (value as num).toInt();
       if (!sequenceWritten.isCompleted) sequenceWritten.complete();
     }

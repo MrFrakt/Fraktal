@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SystemHealthStatus" Id="{608a478c-7068-4b40-a819-e6f04b96e0df}">
+    <Declaration><![CDATA[// Core §8.12 — small cyclic health surface for OPC UA trending. Raw probes are
+// hidden; this validated copy is the public contract.
+TYPE ST_SystemHealthStatus :
+STRUCT
+    Present             : BOOL;
+    Healthy             : BOOL;
+    SourcePath          : STRING(255);
+    TaskAvailable       : BOOL;
+    TaskCycleUs         : UDINT;
+    TaskJitterUs        : UDINT;
+    TaskOverrun         : BOOL;
+    ControllerAvailable : BOOL;
+    CpuLoadPct          : LREAL;
+    MemoryAvailableMb   : UDINT;
+    IpcAvailable        : BOOL;
+    IpcTemperatureC     : LREAL;
+    FanHealthy          : BOOL;
+    StorageHealthPct    : LREAL;
+    FieldbusAvailable   : BOOL;
+    FieldbusMasterHealthy : BOOL;
+    LostFrameCount      : UDINT;
+    SlaveErrorCount     : UDINT;
+    DcAvailable         : BOOL;
+    DcSynchronized      : BOOL;
+    TimeQuality         : ST_TimeQuality;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

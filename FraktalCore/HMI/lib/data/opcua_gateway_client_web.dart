@@ -9,7 +9,12 @@ import 'opcua_session_client.dart';
 /// Browser implementation of the Fraktal OPC UA gateway protocol. The gateway
 /// owns the native OPC UA session and returns the exact same flat snapshot used
 /// by the open62541 adapter.
-class WebGatewayOpcUaClient implements OpcUaBatchSessionClient {
+class WebGatewayOpcUaClient
+    implements
+        OpcUaBatchSessionClient,
+        OpcUaBulkReadClient,
+        OpcUaPathDiscoveryClient,
+        OpcUaTieredReadClient {
   final WebSocket _socket;
   final Map<int, Completer<Object?>> _pending = {};
   late final StreamSubscription<MessageEvent> _messageSub;
@@ -18,6 +23,11 @@ class WebGatewayOpcUaClient implements OpcUaBatchSessionClient {
   int _nextId = 1;
   bool _closed = false;
   bool _disposed = false;
+  int _discoveryRevision = 0;
+  List<String> _discoveredPaths = const [];
+  Map<String, int> _pathIndex = const {};
+  Set<String> _slowPaths = const {};
+  Set<String> _excludedPaths = const {};
 
   WebGatewayOpcUaClient._(this._socket) {
     _messageSub = _socket.onMessage.listen(_onMessage);
@@ -146,7 +156,115 @@ class WebGatewayOpcUaClient implements OpcUaBatchSessionClient {
     final result = await _call('snapshot');
     if (result is! Map)
       throw const FormatException('Gateway snapshot missing.');
-    return Map<String, Object?>.from(result);
+    final document = Map<String, Object?>.from(result);
+    _rememberDiscovery(document);
+    return document;
+  }
+
+  @override
+  Future<List<String>> discoverPaths() async {
+    final result = await _call('discoverPaths');
+    if (result is! Map || result['paths'] is! List) {
+      throw const FormatException('Gateway discovery result is invalid.');
+    }
+    _installDiscovery(
+      result['revision'],
+      result['paths'] as List,
+    );
+    return _discoveredPaths;
+  }
+
+  @override
+  Future<Map<String, Object?>> readValues(List<String> browsePaths) async {
+    if (browsePaths.isEmpty) return const {};
+    await _ensureDiscovery();
+    final indices = <int>[];
+    for (final path in browsePaths) {
+      final index = _pathIndex[path];
+      if (index == null) {
+        throw FormatException(
+            'Browse path is outside gateway discovery: $path');
+      }
+      indices.add(index);
+    }
+    final values = <String, Object?>{};
+    for (var offset = 0; offset < indices.length; offset += 512) {
+      final end = offset + 512 < indices.length ? offset + 512 : indices.length;
+      final result = await _call('readValues', {
+        'revision': _discoveryRevision,
+        'indices': indices.sublist(offset, end),
+      });
+      if (result is! Map) {
+        throw const FormatException('Gateway targeted-read result is invalid.');
+      }
+      for (final entry in result.entries) {
+        values['${entry.key}'] = entry.value;
+      }
+    }
+    return values;
+  }
+
+  @override
+  Future<void> setSlowPaths(Iterable<String> browsePaths) async {
+    _slowPaths = Set.unmodifiable(browsePaths);
+    await _publishReadTiers();
+  }
+
+  @override
+  Future<void> setExcludedPaths(Iterable<String> browsePaths) async {
+    _excludedPaths = Set.unmodifiable(browsePaths);
+    await _publishReadTiers();
+  }
+
+  @override
+  Future<void> refreshSlowPaths() => _publishReadTiers(refreshSlow: true);
+
+  Future<void> _publishReadTiers({bool refreshSlow = false}) async {
+    await _ensureDiscovery();
+    List<int> indices(Set<String> paths) {
+      final result = <int>[];
+      for (final path in paths) {
+        final index = _pathIndex[path];
+        if (index == null) {
+          throw FormatException(
+            'Tier path is outside gateway discovery: $path',
+          );
+        }
+        result.add(index);
+      }
+      result.sort();
+      return result;
+    }
+
+    await _call('setReadTiers', {
+      'revision': _discoveryRevision,
+      'slow': indices(_slowPaths),
+      'excluded': indices(_excludedPaths),
+      'refreshSlow': refreshSlow,
+    });
+  }
+
+  Future<void> _ensureDiscovery() async {
+    if (_discoveredPaths.isEmpty) await discoverPaths();
+  }
+
+  void _rememberDiscovery(Map<String, Object?> document) {
+    final paths = document['paths'];
+    if (paths is List && paths.isNotEmpty) {
+      _installDiscovery(document['discoveryRevision'], paths);
+    }
+  }
+
+  void _installDiscovery(Object? revision, List rawPaths) {
+    if (revision is! int || revision <= 0) {
+      throw const FormatException('Gateway discovery revision is invalid.');
+    }
+    final paths = [for (final path in rawPaths) '$path'];
+    _discoveryRevision = revision;
+    _discoveredPaths = List.unmodifiable(paths);
+    _pathIndex = Map.unmodifiable({
+      for (var index = 0; index < paths.length; index++) paths[index]: index,
+    });
   }
 
   @override

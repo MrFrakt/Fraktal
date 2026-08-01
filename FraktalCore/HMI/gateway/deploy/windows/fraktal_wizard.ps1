@@ -10,7 +10,8 @@ param(
   [switch]$EnableRemoteAccess,
   [string]$PublicOrigin,
   [string]$ProxyUsername = 'fraktal',
-  [switch]$ConfigureFirewall
+  [switch]$ConfigureFirewall,
+  [switch]$TrustProxyCaForCurrentUser
 )
 
 # Validates an endpoint the same way the HMI wizard does, so a bad value fails
@@ -51,6 +52,76 @@ function Get-SuggestedPublicOrigin {
     # A hostname remains a valid editable default when address discovery fails.
   }
   return "https://$env:COMPUTERNAME"
+}
+
+# Ask the local TwinCAT ADS router for its authoritative six-byte AMS Net ID.
+# The router API is preferable to deriving a Net ID from a NIC address: a
+# controller may have multiple adapters and its configured Net ID need not equal
+# any current IPv4 address. Discovery is best-effort so installation remains
+# usable while TwinCAT is stopped or on a non-TwinCAT engineering PC.
+function Get-LocalAdsEndpoint {
+  $fallback = [PSCustomObject]@{
+    Endpoint = 'ads://127.0.0.1.1.1:851'
+    Detected = $false
+    Detail = 'TwinCAT router discovery was unavailable; confirm the loopback endpoint.'
+  }
+  try {
+    if (-not ('Fraktal.Installer.AdsRouter' -as [type])) {
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+namespace Fraktal.Installer {
+  [StructLayout(LayoutKind.Sequential, Pack = 1)]
+  public struct AmsAddress {
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+    public byte[] NetId;
+    public ushort Port;
+  }
+
+  public static class AdsRouter {
+    [DllImport("TcAdsDll.dll", CallingConvention = CallingConvention.StdCall)]
+    public static extern int AdsPortOpenEx();
+
+    [DllImport("TcAdsDll.dll", CallingConvention = CallingConvention.StdCall)]
+    public static extern int AdsPortCloseEx(int port);
+
+    [DllImport("TcAdsDll.dll", CallingConvention = CallingConvention.StdCall)]
+    public static extern int AdsGetLocalAddressEx(
+      int port,
+      ref AmsAddress address
+    );
+  }
+}
+'@ -ErrorAction Stop
+    }
+
+    $adsPort = [Fraktal.Installer.AdsRouter]::AdsPortOpenEx()
+    if ($adsPort -eq 0) { return $fallback }
+    try {
+      $address = New-Object Fraktal.Installer.AmsAddress
+      $address.NetId = New-Object byte[] 6
+      $result = [Fraktal.Installer.AdsRouter]::AdsGetLocalAddressEx(
+        $adsPort,
+        [ref]$address
+      )
+      if ($result -ne 0 -or
+          $address.NetId.Count -ne 6 -or
+          (@($address.NetId | Where-Object { $_ -ne 0 }).Count -eq 0)) {
+        return $fallback
+      }
+      $netId = $address.NetId -join '.'
+      return [PSCustomObject]@{
+        Endpoint = "ads://${netId}:851"
+        Detected = $true
+        Detail = "Detected local TwinCAT AMS Net ID $netId (runtime port 851)."
+      }
+    } finally {
+      [Fraktal.Installer.AdsRouter]::AdsPortCloseEx($adsPort) | Out-Null
+    }
+  } catch {
+    return $fallback
+  }
 }
 
 # Runs one component's install script synchronously (IExpress deletes the extract
@@ -150,7 +221,8 @@ function Run-SelectedInstalls(
   [bool]$RemoteAccess,
   [string]$RemoteOrigin,
   [string]$RemoteUsername,
-  [bool]$OpenFirewall
+  [bool]$OpenFirewall,
+  [bool]$TrustLocalProxyCa
 ) {
   $script:LogLines.Clear()
   $ok = $true
@@ -175,6 +247,7 @@ function Run-SelectedInstalls(
         $extra += @('-EnableRemoteAccess', '-PublicOrigin', $RemoteOrigin,
           '-ProxyUsername', $RemoteUsername)
         if ($OpenFirewall) { $extra += '-ConfigureFirewall' }
+        if ($TrustLocalProxyCa) { $extra += '-TrustProxyCaForCurrentUser' }
       }
       $ok = (Invoke-ComponentInstall 'Gateway' 'install_gateway.ps1' $Gateway $extra) -and $ok
     }
@@ -190,14 +263,15 @@ if ($PSBoundParameters.ContainsKey('Components')) {
     [Console]::Error.WriteLine('No components selected. Pass -Components HMI and/or Gateway.')
     exit 2
   }
-  if (-not $HmiEndpoint) { $HmiEndpoint = 'ads://127.0.0.1.1.1:851' }
-  if (-not $GatewayEndpoint) { $GatewayEndpoint = 'opc.tcp://127.0.0.1:4840' }
+  if (-not $HmiEndpoint) { $HmiEndpoint = (Get-LocalAdsEndpoint).Endpoint }
+  if (-not $GatewayEndpoint) { $GatewayEndpoint = $HmiEndpoint }
   if ($EnableRemoteAccess -and -not $PublicOrigin) {
     [Console]::Error.WriteLine('-PublicOrigin is required with -EnableRemoteAccess.')
     exit 2
   }
   $ok = Run-SelectedInstalls $Components $HmiEndpoint $GatewayEndpoint `
-    $EnableRemoteAccess.IsPresent $PublicOrigin $ProxyUsername $ConfigureFirewall.IsPresent
+    $EnableRemoteAccess.IsPresent $PublicOrigin $ProxyUsername `
+    $ConfigureFirewall.IsPresent $TrustProxyCaForCurrentUser.IsPresent
   if (-not $ok) { exit 1 }
   exit 0
 }
@@ -211,10 +285,11 @@ $installedProxyConfig = Join-Path $installedProxyRoot 'Caddyfile'
 $installedProxyOrigin = Join-Path $installedProxyRoot 'public-origin.txt'
 $proxyAlreadyConfigured = (Test-Path -LiteralPath $installedProxyConfig) -and
   (Test-Path -LiteralPath $installedProxyOrigin)
+$localAds = Get-LocalAdsEndpoint
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Fraktal Setup'
-$form.Size = New-Object System.Drawing.Size(680, 610)
+$form.Size = New-Object System.Drawing.Size(680, 680)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
@@ -224,7 +299,7 @@ $form.MinimizeBox = $false
 $componentsPage = New-Object System.Windows.Forms.Panel
 $componentsPage.Dock = 'Fill'
 $intro = New-Object System.Windows.Forms.Label
-$intro.Text = "Choose the Fraktal components to install. Select at least one.`r`n`r`nThe two components are independent: the HMI app connects directly to the PLC (ADS on a TwinCAT host); the Gateway serves the browser-based Web HMI over OPC UA."
+$intro.Text = "Choose the Fraktal components to install. Select at least one.`r`n`r`nThe native HMI and Gateway can share the same local ADS connection to the PLC. The Gateway serves the browser-based Web HMI."
 $intro.AutoSize = $false
 $intro.Size = New-Object System.Drawing.Size(620, 90)
 $intro.Location = New-Object System.Drawing.Point(20, 15)
@@ -251,21 +326,37 @@ $epIntro.Size = New-Object System.Drawing.Size(620, 40)
 $epIntro.Location = New-Object System.Drawing.Point(20, 15)
 
 $hmiEpLabel = New-Object System.Windows.Forms.Label
-$hmiEpLabel.Text = 'HMI endpoint (ads://<AmsNetId>:<port>):'
-$hmiEpLabel.Location = New-Object System.Drawing.Point(24, 70)
+$hmiEpLabel.Text = 'HMI / local PLC endpoint (ads://<AmsNetId>:<port>):'
+$hmiEpLabel.Location = New-Object System.Drawing.Point(24, 55)
 $hmiEpLabel.Size = New-Object System.Drawing.Size(600, 20)
 $hmiEpBox = New-Object System.Windows.Forms.TextBox
-$hmiEpBox.Text = 'ads://127.0.0.1.1.1:851'
-$hmiEpBox.Location = New-Object System.Drawing.Point(24, 92)
+$hmiEpBox.Text = $localAds.Endpoint
+$hmiEpBox.Location = New-Object System.Drawing.Point(24, 77)
 $hmiEpBox.Size = New-Object System.Drawing.Size(600, 24)
 
+$adsDetectionLabel = New-Object System.Windows.Forms.Label
+$adsDetectionLabel.Text = $localAds.Detail
+$adsDetectionLabel.ForeColor = if ($localAds.Detected) {
+  [System.Drawing.Color]::DarkGreen
+} else {
+  [System.Drawing.Color]::DarkOrange
+}
+$adsDetectionLabel.Location = New-Object System.Drawing.Point(24, 105)
+$adsDetectionLabel.Size = New-Object System.Drawing.Size(600, 20)
+
+$sameEndpointCheck = New-Object System.Windows.Forms.CheckBox
+$sameEndpointCheck.Text = 'Use the HMI / local PLC endpoint for the Gateway'
+$sameEndpointCheck.Checked = $true
+$sameEndpointCheck.Location = New-Object System.Drawing.Point(24, 130)
+$sameEndpointCheck.Size = New-Object System.Drawing.Size(600, 28)
+
 $gwEpLabel = New-Object System.Windows.Forms.Label
-$gwEpLabel.Text = 'Gateway PLC endpoint (opc.tcp://<host>:<port>):'
-$gwEpLabel.Location = New-Object System.Drawing.Point(24, 130)
+$gwEpLabel.Text = 'Gateway PLC endpoint (ADS or OPC UA):'
+$gwEpLabel.Location = New-Object System.Drawing.Point(24, 162)
 $gwEpLabel.Size = New-Object System.Drawing.Size(600, 20)
 $gwEpBox = New-Object System.Windows.Forms.TextBox
-$gwEpBox.Text = 'opc.tcp://127.0.0.1:4840'
-$gwEpBox.Location = New-Object System.Drawing.Point(24, 152)
+$gwEpBox.Text = $localAds.Endpoint
+$gwEpBox.Location = New-Object System.Drawing.Point(24, 184)
 $gwEpBox.Size = New-Object System.Drawing.Size(600, 24)
 
 $remoteCheck = New-Object System.Windows.Forms.CheckBox
@@ -276,12 +367,12 @@ $remoteCheck.Text = if ($proxyAlreadyConfigured) {
 }
 $remoteCheck.Checked = $true
 $remoteCheck.Enabled = -not $proxyAlreadyConfigured
-$remoteCheck.Location = New-Object System.Drawing.Point(24, 200)
+$remoteCheck.Location = New-Object System.Drawing.Point(24, 225)
 $remoteCheck.Size = New-Object System.Drawing.Size(610, 28)
 
 $originLabel = New-Object System.Windows.Forms.Label
 $originLabel.Text = 'Public Web HMI origin (https://<PLC IP or DNS name>[:port]):'
-$originLabel.Location = New-Object System.Drawing.Point(44, 235)
+$originLabel.Location = New-Object System.Drawing.Point(44, 260)
 $originLabel.Size = New-Object System.Drawing.Size(570, 20)
 $originBox = New-Object System.Windows.Forms.TextBox
 $originBox.Text = if ($proxyAlreadyConfigured) {
@@ -289,16 +380,16 @@ $originBox.Text = if ($proxyAlreadyConfigured) {
 } else {
   Get-SuggestedPublicOrigin
 }
-$originBox.Location = New-Object System.Drawing.Point(44, 257)
+$originBox.Location = New-Object System.Drawing.Point(44, 282)
 $originBox.Size = New-Object System.Drawing.Size(570, 24)
 
 $userLabel = New-Object System.Windows.Forms.Label
 $userLabel.Text = 'Remote-access username:'
-$userLabel.Location = New-Object System.Drawing.Point(44, 292)
+$userLabel.Location = New-Object System.Drawing.Point(44, 317)
 $userLabel.Size = New-Object System.Drawing.Size(270, 20)
 $userBox = New-Object System.Windows.Forms.TextBox
 $userBox.Text = 'fraktal'
-$userBox.Location = New-Object System.Drawing.Point(44, 314)
+$userBox.Location = New-Object System.Drawing.Point(44, 339)
 $userBox.Size = New-Object System.Drawing.Size(270, 24)
 
 $passwordLabel = New-Object System.Windows.Forms.Label
@@ -307,43 +398,50 @@ $passwordLabel.Text = if ($proxyAlreadyConfigured) {
 } else {
   'Password (minimum 12 characters):'
 }
-$passwordLabel.Location = New-Object System.Drawing.Point(334, 292)
+$passwordLabel.Location = New-Object System.Drawing.Point(334, 317)
 $passwordLabel.Size = New-Object System.Drawing.Size(280, 20)
 $passwordBox = New-Object System.Windows.Forms.TextBox
 $passwordBox.UseSystemPasswordChar = $true
-$passwordBox.Location = New-Object System.Drawing.Point(334, 314)
+$passwordBox.Location = New-Object System.Drawing.Point(334, 339)
 $passwordBox.Size = New-Object System.Drawing.Size(280, 24)
 
 $confirmLabel = New-Object System.Windows.Forms.Label
 $confirmLabel.Text = 'Confirm password:'
-$confirmLabel.Location = New-Object System.Drawing.Point(334, 350)
+$confirmLabel.Location = New-Object System.Drawing.Point(334, 375)
 $confirmLabel.Size = New-Object System.Drawing.Size(280, 20)
 $confirmBox = New-Object System.Windows.Forms.TextBox
 $confirmBox.UseSystemPasswordChar = $true
-$confirmBox.Location = New-Object System.Drawing.Point(334, 372)
+$confirmBox.Location = New-Object System.Drawing.Point(334, 397)
 $confirmBox.Size = New-Object System.Drawing.Size(280, 24)
 
 $firewallCheck = New-Object System.Windows.Forms.CheckBox
 $firewallCheck.Text = 'Allow HTTPS/WSS from the local subnet in Windows Firewall (requires UAC)'
 $firewallCheck.Checked = $true
-$firewallCheck.Location = New-Object System.Drawing.Point(44, 410)
+$firewallCheck.Location = New-Object System.Drawing.Point(44, 435)
 $firewallCheck.Size = New-Object System.Drawing.Size(570, 28)
+
+$trustCurrentUserCheck = New-Object System.Windows.Forms.CheckBox
+$trustCurrentUserCheck.Text = 'Trust this gateway CA for the current Windows user on this PC'
+$trustCurrentUserCheck.Checked = $true
+$trustCurrentUserCheck.Location = New-Object System.Drawing.Point(44, 465)
+$trustCurrentUserCheck.Size = New-Object System.Drawing.Size(570, 28)
 
 $trustNotice = New-Object System.Windows.Forms.Label
 $trustNotice.Text = if ($proxyAlreadyConfigured) {
-  'Existing proxy security was detected. Leave both password fields blank to preserve its origin, account hash, CA, and firewall rule; enter a new password to regenerate the proxy configuration.'
+  'Existing proxy security was detected. Blank password fields preserve its account hash and CA. Trust on this PC does not trust remote operator PCs; import the exported public root on each client.'
 } else {
-  'The installer creates a private factory-LAN CA. Install its public root certificate on each remote HMI device before opening the URL; the private key stays on this gateway.'
+  'A private factory-LAN CA is created. This checkbox trusts it only on this Windows account. Import the exported public root on every remote HMI client; the private key stays on the gateway.'
 }
 $trustNotice.AutoSize = $false
-$trustNotice.Location = New-Object System.Drawing.Point(44, 445)
-$trustNotice.Size = New-Object System.Drawing.Size(570, 45)
+$trustNotice.Location = New-Object System.Drawing.Point(44, 497)
+$trustNotice.Size = New-Object System.Drawing.Size(570, 50)
 
 $endpointsPage.Controls.AddRange(@(
-  $epIntro, $hmiEpLabel, $hmiEpBox, $gwEpLabel, $gwEpBox,
+  $epIntro, $hmiEpLabel, $hmiEpBox, $adsDetectionLabel,
+  $sameEndpointCheck, $gwEpLabel, $gwEpBox,
   $remoteCheck, $originLabel, $originBox, $userLabel, $userBox,
   $passwordLabel, $passwordBox, $confirmLabel, $confirmBox,
-  $firewallCheck, $trustNotice
+  $firewallCheck, $trustCurrentUserCheck, $trustNotice
 ))
 
 # --- Page 2: progress ---
@@ -396,12 +494,28 @@ function Update-RemoteControls {
   $remoteFields = @(
     $originLabel, $originBox, $userLabel, $userBox,
     $passwordLabel, $passwordBox, $confirmLabel, $confirmBox,
-    $firewallCheck, $trustNotice
+    $firewallCheck, $trustCurrentUserCheck, $trustNotice
   )
   foreach ($control in $remoteFields) {
     $control.Visible = $showRemote
     $control.Enabled = $showRemote -and $remoteCheck.Checked
   }
+}
+
+function Update-EndpointControls {
+  $shareEndpoint = $gwCheck.Checked -and $sameEndpointCheck.Checked
+  if ($shareEndpoint) { $gwEpBox.Text = $hmiEpBox.Text }
+
+  $showHmiEndpoint = $hmiCheck.Checked -or $shareEndpoint
+  foreach ($control in @($hmiEpLabel, $hmiEpBox, $adsDetectionLabel)) {
+    $control.Visible = $showHmiEndpoint
+  }
+  $sameEndpointCheck.Visible = $gwCheck.Checked
+  $gwEpLabel.Visible = $gwCheck.Checked
+  $gwEpBox.Visible = $gwCheck.Checked
+  # The shared value is authored once in the HMI/local field. Keeping the
+  # derived Gateway box read-only prevents the two persisted endpoints drifting.
+  $gwEpBox.Enabled = $gwCheck.Checked -and -not $shareEndpoint
 }
 
 function Show-Page([int]$Index) {
@@ -412,11 +526,7 @@ function Show-Page([int]$Index) {
     $nextBtn.Text = 'Install'
     $nextBtn.Enabled = ($hmiCheck.Checked -or $gwCheck.Checked)
   } elseif ($Index -eq 1) {
-    # Only reveal endpoint fields for selected components.
-    $hmiEpLabel.Visible = $hmiCheck.Checked
-    $hmiEpBox.Visible = $hmiCheck.Checked
-    $gwEpLabel.Visible = $gwCheck.Checked
-    $gwEpBox.Visible = $gwCheck.Checked
+    Update-EndpointControls
     Update-RemoteControls
     $nextBtn.Text = 'Install'
     $nextBtn.Enabled = $true
@@ -434,10 +544,18 @@ function Update-ComponentsNext {
   }
 }
 
-$hmiCheck.Add_CheckedChanged({ Update-ComponentsNext })
+$hmiCheck.Add_CheckedChanged({
+  Update-ComponentsNext
+  Update-EndpointControls
+})
 $gwCheck.Add_CheckedChanged({
   Update-ComponentsNext
+  Update-EndpointControls
   Update-RemoteControls
+})
+$sameEndpointCheck.Add_CheckedChanged({ Update-EndpointControls })
+$hmiEpBox.Add_TextChanged({
+  if ($sameEndpointCheck.Checked) { $gwEpBox.Text = $hmiEpBox.Text }
 })
 $remoteCheck.Add_CheckedChanged({ Update-RemoteControls })
 
@@ -452,12 +570,15 @@ $nextBtn.Add_Click({
   }
   if ($script:pageIndex -eq 1) {
     # Validate the visible endpoint fields before installing.
-    if ($hmiCheck.Checked -and -not (Test-FraktalEndpoint $hmiEpBox.Text)) {
+    $sharedGatewayEndpoint = $gwCheck.Checked -and $sameEndpointCheck.Checked
+    if (($hmiCheck.Checked -or $sharedGatewayEndpoint) -and
+        -not (Test-FraktalEndpoint $hmiEpBox.Text)) {
       [System.Windows.Forms.MessageBox]::Show($form,
-        'Enter a valid HMI endpoint, e.g. ads://192.168.1.6.1.1:851 (six dot-separated parts).',
-        'Invalid HMI endpoint', 0, 48)
+        'Enter a valid local PLC endpoint, e.g. ads://192.168.1.6.1.1:851 (six dot-separated parts).',
+        'Invalid local PLC endpoint', 0, 48)
       return
     }
+    if ($sharedGatewayEndpoint) { $gwEpBox.Text = $hmiEpBox.Text }
     if ($gwCheck.Checked -and -not (Test-FraktalEndpoint $gwEpBox.Text)) {
       [System.Windows.Forms.MessageBox]::Show($form,
         'Enter a valid Gateway PLC endpoint, e.g. opc.tcp://192.168.1.6:4840.',
@@ -516,7 +637,8 @@ $nextBtn.Add_Click({
         ($gwCheck.Checked -and $remoteCheck.Checked) `
         $originBox.Text `
         $userBox.Text `
-        $firewallCheck.Checked
+        $firewallCheck.Checked `
+        $trustCurrentUserCheck.Checked
     } finally {
       [Environment]::SetEnvironmentVariable(
         'FRAKTAL_PROXY_PASSWORD',

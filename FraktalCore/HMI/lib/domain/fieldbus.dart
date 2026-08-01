@@ -25,6 +25,7 @@ class IoChannel {
   final bool quality; // true = good
   final bool faultActive;
   final String diagnosticKey;
+  final bool forceable; // explicit PLC capability; absent/false stays read-only
   const IoChannel({
     required this.name,
     this.descriptionKey = '',
@@ -40,6 +41,7 @@ class IoChannel {
     this.quality = true,
     this.faultActive = false,
     this.diagnosticKey = '',
+    this.forceable = false,
   });
 }
 

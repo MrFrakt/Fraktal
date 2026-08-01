@@ -24,18 +24,20 @@ station's published/discovered/streamed surface proportional to what is actually
 Specification/        The standard. Part I (Core, platform-neutral) + Part II (Fraktal/TC3 binding)
                       + annexes A–K (worked examples) + HMI_CONTRACT.md + split/audit notes.
 FraktalCore/
-├── PLC/              Fraktal/TC3 reference implementation (TwinCAT 3, IEC 61131-3).
-│   ├── Fraktal_Core/            framework LIBRARY (contracts, base classes, PermIntlk, providers)
-│   ├── Fraktal_Modules/         reusable module library + sim models and device presets
-│   ├── Fraktal_Demo/            executable two-root application (MAIN + PlcTask; not a library)
-│   ├── Fraktal_Press_Demo/      pneumatic-press virtual-commissioning application
-│   ├── Fraktal_Tests/           aggregate TcUnit project (manifest + Core/Modules/Press test sources; excluded from runtime)
-│   └── scaffold/FB_TemplateCM/  copy-template for a new CM type (not compiled; born RED)
+├── PLC/
+│   ├── TwinCAT/                 Fraktal/TC3 reference implementation (IEC 61131-3)
+│   │   ├── Framework/Fraktal_Core/       framework library
+│   │   ├── Framework/Fraktal_Modules/    reusable module library
+│   │   ├── Tests and Examples/Fraktal_Demo/       two-root smoke application
+│   │   ├── Tests and Examples/Fraktal_Press_Demo/ internal acceptance fixture
+│   │   ├── Tests and Examples/Fraktal_Tests/      aggregate TcUnit project
+│   │   └── scaffold/FB_TemplateCM/       copy-template (not compiled; born RED)
+│   └── Allen-Bradley/            reserved platform binding tree
 └── HMI/               Generic operator HMI (Flutter). lib/{data,domain,state,ui}.
 ```
 
 Two source-of-truth documents beyond the spec:
-- `FraktalCore/PLC/IMPLEMENTATION_NOTES.md` — **every** place the implementation diverged from the
+- `FraktalCore/PLC/TwinCAT/IMPLEMENTATION_NOTES.md` — **every** place the implementation diverged from the
   draft spec, with the reason. Read this before changing PLC code; it records what was decided and why.
 - `Specification/HMI_CONTRACT.md` — the exact symbol→widget bind table the HMI implements.
 - `Specification/FIRST_PROJECT_AGENT_GUIDE.md` — mandatory phase/evidence workflow when guiding a
@@ -72,6 +74,16 @@ root cause produced automatically from the contract — never hand-coded per-ste
 diagnostic (Low), not a fault; the fault path is the awaited module's Error, adopted instantly via the
 rollup (§8.2).
 
+**Recoverability is part of the contract (§6.1 `Held`, §8.3(b)):** a condition the operator or process
+is *expected* to restore — a hold-to-run or two-hand control released mid-motion — is **HELD**, not a
+fault: `BUSY`, outputs withdrawn by the same permit, reason published at LOW, no alarm, resumes by
+itself (`_M_Hold`/`_M_HoldDiag`, `_M_RollupHold`). Reserve faults for defects. And **one** operator
+reset must leave the machine restartable: `OperatorReset` closes a MANUAL_RESET event from ACTIVE as
+well as WAIT_RESET *and* releases the latched control state — its own run command plus every child
+command the suspended chain issued (`M_ReleaseCommand`) — because §6.1's Execute-drop reset is the only
+exit from a latched terminal state and it needs those inputs low. Never make a symptom disappear by
+relaxing a release gate; a reset clears the **latch**, never the **condition** (IMPLEMENTATION_NOTES §76).
+
 ---
 
 ## 3. PLC editing guardrails (the shalls that bite)
@@ -80,9 +92,9 @@ rollup (§8.2).
 - New module types **shall extend the base classes** — never re-implement the lifecycle.
 - Every overridden hook **shall call `SUPER^.OnX(...)` first** and propagate its return — **except
   `OnModeExit`**, where calling the base *is* the cancel, so it is staged to the end of a graceful stop (§3.14.4).
-- The base FB body only calls `Cyclic()`; concrete types **do not write a body** — per-scan work goes in
-  `OnCyclic`, one-shot command wiring/reset in `OnCommandStart`, and device logic in `_M_Dispatch`
-  (IMPLEMENTATION_NOTES §5).
+- A module FB body contains only the inherited `Cyclic()` call; concrete types put no application logic
+  there. Per-scan extension work goes in `OnCyclic`, one-shot command wiring/reset in
+  `OnCommandStart`, and device logic in `_M_Dispatch` (IMPLEMENTATION_NOTES §5).
 - **No `FB_Unit` inside an `FB_EquipmentModule`** (§3.3) — structurally enforced; a CI check walks the tree.
 
 **Naming (§4.3–§4.6) — a lint gate checks this:**
@@ -137,8 +149,10 @@ rollup (§8.2).
   for duplicates and band squats. `E_Reason` is deliberately non-strict so bands compose across libraries.
 
 **Defensive coding (§5.6):** validate commands against the supported set (reject out-of-range with a
-reason, never a silent default); bounds-check indices; validate motion targets against limits; **every
-`CASE`/`IF` shall have a defined `ELSE`** that drives a safe reaction — never a silent no-op that stalls a chain.
+reason, never a silent default); bounds-check indices; validate motion targets against limits. Every
+behaviour-selection path shall have a safe fallback. A fail-closed initialized result plus a terminating
+guard `RETURN` is an explicit fallback; optional bounded updates/diagnostic appends need no empty `ELSE`.
+Every `CASE` dispatcher still has an `ELSE` — never a silent no-op that stalls a chain.
 
 **Safety and control power (§9.8, `SAFETY_AND_CONTROL_POWER_PROFILE.md`):** the standard PLC may
 send untrusted enable/stop/unlock requests, but TwinSAFE/certified safety alone grants safe enable,
@@ -288,7 +302,7 @@ so `Port_<ADS port>.tmc` is generated.
 
 **PLC (TwinCAT 3, 4024+):** a `.plcproj` is added *into* a TwinCAT XAE solution, not opened directly:
 create a TwinCAT XAE Project in TcXaeShell/VS, right-click **PLC → Add Existing Item…** → the `.plcproj`.
-The aggregate test manifest is `FraktalCore/PLC/Fraktal_Tests/Fraktal_Tests.plcproj`. It links the
+The aggregate test manifest is `FraktalCore/PLC/TwinCAT/Tests and Examples/Fraktal_Tests/Fraktal_Tests.plcproj`. It links the
 deployed press sources with `<Compile Include="..\Fraktal_Press_Demo\...">` + a `<Link>` display path, so
 the gate tests the same Unit/sequences that ship.
 Build order: `Fraktal_Core` first (save/install as library), then `Fraktal_Modules` (save/install as
@@ -302,16 +316,17 @@ library reference. (If you ever add a genuine graphical SFC drawn in the XAE edi
 `IecSfc` `.plcproj` reference — the compiler provides `SFCStepType`; an `SFCStepType` cascade means a
 machine-generated/malformed chart XML, which is prohibited — author charts in the editor only.) Close
 and reopen XAE after changing a `.plcproj` library reference so the in-memory project reloads it.
-The current Core is `0.1.0.5` and Modules is `0.1.0.4`; downstream placeholders are pinned accordingly. These versions include the deployed-root-only TF6100 publication change and require regenerated TMC files.
+The current Core is `0.3.0.0` and Modules is `0.2.0.0`; downstream placeholders are pinned accordingly. Core's minor-version step includes the append-only decision/configuration capability contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2). They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
 If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
-reason to edit each affected POU. Install Core `0.1.0.5`, resolve/build/install Modules `0.1.0.4`,
+reason to edit each affected POU. Install Core `0.3.0.0`, resolve/build/install Modules `0.2.0.0`,
 then reload the application placeholders and rebuild.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.
 
 **HMI (Flutter):** from `FraktalCore/HMI/` (windows/web platform folders are committed; SDK on this
-machine: `D:\FlutterSDK\flutter`):
+machine: `C:\Apps\FlutterSdk\flutter` — `flutter` is on `PATH`, so prefer resolving it there rather
+than hard-coding a path):
 ```
 flutter pub get
 flutter analyze                 # clean as of 2026-07-12 (Flutter 3.44.5)
@@ -332,11 +347,15 @@ dart run tool/build_gateway.dart --clean
 ```
 On Windows this also creates
 `build/gateway/installer/FraktalSetup.exe` — a combined installer (PowerShell
-WinForms wizard) for the native HMI app and/or the gateway + Web HMI, each with
-its own PLC endpoint. The Windows gateway option can also deploy a pinned,
+WinForms wizard) for the native HMI app and/or the gateway + Web HMI. It queries
+the local TwinCAT router for the AMS Net ID and shares that ADS endpoint with
+the Gateway by default; clear the checked share option for separate endpoints.
+The Windows gateway option can also deploy a pinned,
 checksum-verified Caddy HTTPS/WSS proxy, collect/hash browser credentials, write
-the exact `--allow-origin`, generate/export an internal LAN-CA root, add a
-local-subnet firewall rule, and supervise both processes from the tray. Leave
+the exact `--allow-origin`, generate/export an internal LAN-CA root, optionally
+trust it for the installing Windows user, add a local-subnet firewall rule, and
+supervise both processes from the tray. Local trust never propagates: every
+remote browser device must trust the exported public root (or site PKI). Leave
 the new-password fields blank on upgrade to preserve site proxy security.
 Linux output includes `web/`, the systemd unit, and protected environment
 example; its reverse proxy remains site-managed. Build on the target OS.
@@ -352,7 +371,7 @@ never infer PLC readiness from the process or page alone.
 
 ### 6.0 Commissioning gates — read these BEFORE debugging "nothing works"
 
-Two gates in the `VAR CONSTANT` block of `Fraktal_Press_Demo/00_System/MAIN.TcPOU` can make a perfectly
+Two gates in the `VAR CONSTANT` block of `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/00_System/MAIN.TcPOU` can make a perfectly
 healthy machine look completely broken. **Read them off the live PLC first**; they have cost multiple
 wasted debugging sessions chasing control logic:
 
@@ -420,18 +439,18 @@ compile-blocking regressions; see IMPLEMENTATION_NOTES §24).
 
 | You need… | Look at… |
 |---|---|
-| The common lifecycle | `PLC/Fraktal_Core/BaseClasses/FB_ModuleBase.TcPOU`; tier wrappers are `FB_ControlModuleBase`, `FB_EquipmentModuleBase`, and `FB_UnitBase`; spec §2.2, §6.1 |
-| The public module interface | `PLC/Fraktal_Core/Interfaces/I_Module.TcIO` (+ `I_Unit`/`I_EquipmentModule`/`I_ControlModule`); spec §3.2 |
-| Framework reason codes / constants | `PLC/Fraktal_Core/Params/PL_Fraktal.TcGVL`; spec §8.8 |
-| A reusable CM/EM implementation | `PLC/Fraktal_Modules/` (cylinder CM, clamp EM); Annexes A/B/C |
-| Press project Unit, mode chains, and releases | `PLC/Fraktal_Press_Demo/01_PneumaticPress/{FB_PressDemoUnit,Sequences,Release}` |
-| CX2030 press I/O and commissioning gaps | `Specification/CX2030_PRESS_IO_MAPPING.md`; physical XTI and linked symbols in `PLC/Fraktal_Press_Demo/00_System/{Hardware,GVL_PressIO.TcGVL}` |
+| The common lifecycle | `PLC/TwinCAT/Framework/Fraktal_Core/BaseClasses/FB_ModuleBase.TcPOU`; tier wrappers are `FB_ControlModuleBase`, `FB_EquipmentModuleBase`, and `FB_UnitBase`; spec §2.2, §6.1 |
+| The public module interface | `PLC/TwinCAT/Framework/Fraktal_Core/Interfaces/I_Module.TcIO` (+ `I_Unit`/`I_EquipmentModule`/`I_ControlModule`); spec §3.2 |
+| Framework reason codes / constants | `PLC/TwinCAT/Framework/Fraktal_Core/Params/PL_Fraktal.TcGVL`; spec §8.8 |
+| A reusable CM/EM implementation | `PLC/TwinCAT/Framework/Fraktal_Modules/` (cylinder CM, clamp EM); Annexes A/B/C |
+| Press project Unit, mode chains, and releases | `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/01_PneumaticPress/{FB_PressDemoUnit,Sequences,Release}` |
+| CX2030 press I/O and commissioning gaps | `Specification/CX2030_PRESS_IO_MAPPING.md`; physical XTI and linked symbols in `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/00_System/{Hardware,GVL_PressIO.TcGVL}` |
 | First project / deployment / OPC UA commissioning | `Specification/FIRST_PROJECT_AGENT_GUIDE.md` |
 | Web HMI + Windows/Linux gateway installation | `Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`; detailed switches in `HMI/gateway/DEPLOYMENT.md` |
-| Part traceability (§3.16) | `PLC/Fraktal_Core/Connectivity/FB_LocalPartCarrier.TcPOU`, `Interfaces/I_PartCarrier.TcIO`, UnitBase `_M_Part*` helpers; Annex E |
-| Start a new module type | Copy `PLC/scaffold/FB_TemplateCM/`, read its `SKELETON.md` |
+| Part traceability (§3.16) | `PLC/TwinCAT/Framework/Fraktal_Core/Connectivity/FB_LocalPartCarrier.TcPOU`, `Interfaces/I_PartCarrier.TcIO`, UnitBase `_M_Part*` helpers; Annex E |
+| Start a new module type | Copy `PLC/TwinCAT/scaffold/FB_TemplateCM/`, read its `SKELETON.md` |
 | HMI↔PLC bind table | `Specification/HMI_CONTRACT.md` |
 | HMI domain model (the contract types) | `HMI/lib/domain/types.dart` |
 | HMI transport seam | `HMI/lib/data/plc_repository.dart` (+ `sim_repository.dart`) |
 | Nexeed comparison decisions (grouping/sequences/releases) | `Specification/NEXEED_REFERENCE_INSIGHTS.md` |
-| Why the code differs from the draft spec | `PLC/IMPLEMENTATION_NOTES.md` |
+| Why the code differs from the draft spec | `PLC/TwinCAT/IMPLEMENTATION_NOTES.md` |

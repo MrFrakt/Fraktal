@@ -21,6 +21,7 @@ import 'facet_cards.dart';
 import 'overview_and_indicators.dart';
 import 'module_information.dart';
 import 'custom_module_tabs.dart';
+import 'touch_text_field.dart';
 import 'module_layout_editor.dart';
 
 class ModuleDetail extends StatefulWidget {
@@ -238,7 +239,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
               const VerticalDivider(width: 18),
               IconButton(
                 tooltip: context.tr('std.module.editor.importTitle'),
-                onPressed: null,
+                onPressed: () => importHmiCustomization(context, app),
                 icon: const Icon(Icons.file_upload_outlined),
               ),
               IconButton(
@@ -467,7 +468,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const LText('std.module.editor.publishTitle'),
-            content: TextField(
+            content: TouchTextField(
               controller: comment,
               maxLength: 240,
               maxLines: 3,
@@ -687,6 +688,14 @@ class _ModuleOverviewTab extends StatelessWidget {
                       ? Theme.of(context).colorScheme.error
                       : null)),
         ),
+      if (diagnostics && n.message.isNotEmpty && !n.diagnosticTimeSynchronized)
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Chip(
+            avatar: Icon(Icons.schedule_outlined, size: 18),
+            label: LText('TIME UNSYNCHRONIZED'),
+          ),
+        ),
       if (diagnostics && n.diagnosticIoTag.isNotEmpty)
         Align(
           alignment: Alignment.centerLeft,
@@ -704,6 +713,16 @@ class _ModuleOverviewTab extends StatelessWidget {
       if (diagnostics && n.motion != null) MotionCard(m: n.motion!),
       if (diagnostics && n.part != null) PartCard(part: n.part!),
       if (diagnostics && n.safety != null) SafetyCard(safety: n.safety!),
+      if (diagnostics && n.systemHealth != null)
+        SystemHealthCard(
+          health: n.systemHealth!,
+          tower: n.signalTower,
+          canLampTest:
+              operations && !n.running && s.permits(GatedAction.manual),
+          onLampTest: () => app.repo.lampTest(n.path),
+          onExplain: () => app.showReleaseReportAction(
+              n.path, GatedAction.manual, 'Lamp test blocked'),
+        ),
       if (operations && n.controlPower != null)
         ControlPowerCard(
           power: n.controlPower!,
@@ -713,6 +732,8 @@ class _ModuleOverviewTab extends StatelessWidget {
           canControl: s.permits(GatedAction.powerControl),
           onControlOn: () => app.repo.controlOn(n.path),
           onControlOff: () => app.repo.controlOff(n.path),
+          onExplain: () => app.showReleaseReportAction(
+              n.path, GatedAction.powerControl, 'Control power blocked'),
         ),
       if (diagnostics && n.nameplate != null && !n.nameplate!.isEmpty)
         NameplateCard(plate: n.nameplate!),
@@ -742,7 +763,7 @@ class _ModuleOverviewTab extends StatelessWidget {
                 'Blocked — a manual-reset event awaits operator intervention (8.3)'),
             actions: [
               FilledButton(
-                onPressed: s.permits(GatedAction.alarmReset)
+                onPressed: app.permitsLocal(GatedAction.alarmReset)
                     ? () => app.repo.operatorReset(n.path)
                     : () => app.showReleaseReportAction(
                         n.path, GatedAction.alarmReset, 'Reset blocked'),
@@ -826,21 +847,23 @@ class _ModuleOverviewTab extends StatelessWidget {
   Widget _manualPanel(BuildContext context, ModuleNode n) {
     final root = app.rootOf(n.path);
     final inManual = root?.modeActive == UnitMode.manual;
-    final canManual = app.session.permits(GatedAction.manual);
+    // PLC policy AND this panel's local floor (app_state.permitsLocal).
+    final canManual = app.permitsLocal(GatedAction.manual);
     final enabled = inManual && canManual;
-    final cs = Theme.of(context).colorScheme;
     // deliberately distinct from the fieldbus force: a bordered 'Manual commands'
     // card with a hand icon, on the module itself (routes THROUGH the module).
+    // Blue, not the theme's tertiary role — a manual command is a normal operator
+    // action, and red/pink on a machine panel reads as a fault (see app_theme).
     return Card(
-      color: cs.tertiaryContainer.withValues(alpha: 0.4),
+      color: operatorActionContainer(context),
       shape: RoundedRectangleBorder(
-          side: BorderSide(color: cs.tertiary),
+          side: const BorderSide(color: kOperatorActionColor),
           borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(Icons.pan_tool_outlined, color: cs.tertiary),
+            const Icon(Icons.pan_tool_outlined, color: kOperatorActionColor),
             const SizedBox(width: 8),
             LText('Manual commands',
                 style: Theme.of(context).textTheme.titleMedium),
@@ -859,6 +882,11 @@ class _ModuleOverviewTab extends StatelessWidget {
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final c in n.commands)
               FilledButton.tonal(
+                style: enabled
+                    ? FilledButton.styleFrom(
+                        backgroundColor: kOperatorActionColor,
+                        foregroundColor: Colors.white)
+                    : null,
                 // §7.6.0: a blocked manual button reveals WHY instead of being inert
                 onPressed: enabled
                     ? () => _manual(context, n, c)
@@ -915,7 +943,7 @@ class _ModuleOverviewTab extends StatelessWidget {
         return AlertDialog(
           title: const LText('Changeover — set model'),
           content: n.availableModels.isEmpty
-              ? TextField(
+              ? TouchTextField(
                   controller: ctrl,
                   decoration:
                       InputDecoration(labelText: context.tr('Model code')))
@@ -998,7 +1026,7 @@ class _ModuleOverviewTab extends StatelessWidget {
         title: LText(
             '${context.tr(e.description)}${e.shelved ? '  ·  ${context.tr('SHELVED')}' : ''}'),
         subtitle: LText(
-            '${e.sourcePath}${e.ioTag.isEmpty ? '' : '\n${e.ioTag}${e.ioAddress.isEmpty ? '' : ' · ${e.ioAddress}'}'}$st$dur${meta != null ? '\n→ ${context.tr(meta.operatorAction)}' : ''}'),
+            '${e.sourcePath}${e.ioTag.isEmpty ? '' : '\n${e.ioTag}${e.ioAddress.isEmpty ? '' : ' · ${e.ioAddress}'}'}$st$dur${e.timestampsSynchronized ? '' : ' · TIME UNSYNCHRONIZED'}${meta != null ? '\n→ ${context.tr(meta.operatorAction)}' : ''}'),
         isThreeLine: meta != null,
         trailing: !active || e.severity == Severity.low
             ? null

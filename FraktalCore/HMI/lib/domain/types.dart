@@ -55,6 +55,10 @@ class AlarmEvent {
   final bool shelved; // §8.10 annunciation suppressed (control unaffected)
   final String ioTag; // untranslated schematic/electrical tag, when applicable
   final String ioAddress; // terminal/channel locator
+  final bool comeTimeSynchronized;
+  final bool goneTimeSynchronized;
+  final bool resetTimeSynchronized;
+  final bool shelfTimeSynchronized;
   const AlarmEvent({
     required this.severity,
     required this.description,
@@ -68,6 +72,88 @@ class AlarmEvent {
     this.shelved = false,
     this.ioTag = '',
     this.ioAddress = '',
+    this.comeTimeSynchronized = true,
+    this.goneTimeSynchronized = true,
+    this.resetTimeSynchronized = true,
+    this.shelfTimeSynchronized = true,
+  });
+
+  bool get timestampsSynchronized =>
+      comeTimeSynchronized &&
+      (goneAt == null || goneTimeSynchronized) &&
+      (!shelved || shelfTimeSynchronized) &&
+      !(state == AlarmState.closed &&
+          resetClass == ResetClass.manualReset &&
+          !resetTimeSynchronized);
+}
+
+/// Core §2.7/§8.12 — PLC-authoritative wall-clock and controller health.
+class TimeQualityFacet {
+  final bool available;
+  final bool synchronized;
+  final String source;
+  final int offsetUs;
+  const TimeQualityFacet({
+    this.available = false,
+    this.synchronized = false,
+    this.source = '',
+    this.offsetUs = 0,
+  });
+}
+
+class SystemHealthFacet {
+  final bool healthy;
+  final bool taskAvailable;
+  final int taskCycleUs;
+  final int taskJitterUs;
+  final bool taskOverrun;
+  final bool controllerAvailable;
+  final double cpuLoadPct;
+  final int memoryAvailableMb;
+  final bool ipcAvailable;
+  final double ipcTemperatureC;
+  final bool fanHealthy;
+  final double storageHealthPct;
+  final bool fieldbusAvailable;
+  final bool fieldbusMasterHealthy;
+  final int lostFrameCount;
+  final int slaveErrorCount;
+  final bool dcAvailable;
+  final bool dcSynchronized;
+  final TimeQualityFacet time;
+  const SystemHealthFacet({
+    this.healthy = false,
+    this.taskAvailable = false,
+    this.taskCycleUs = 0,
+    this.taskJitterUs = 0,
+    this.taskOverrun = false,
+    this.controllerAvailable = false,
+    this.cpuLoadPct = 0,
+    this.memoryAvailableMb = 0,
+    this.ipcAvailable = false,
+    this.ipcTemperatureC = 0,
+    this.fanHealthy = false,
+    this.storageHealthPct = 0,
+    this.fieldbusAvailable = false,
+    this.fieldbusMasterHealthy = false,
+    this.lostFrameCount = 0,
+    this.slaveErrorCount = 0,
+    this.dcAvailable = false,
+    this.dcSynchronized = false,
+    this.time = const TimeQualityFacet(),
+  });
+}
+
+class SignalTowerFacet {
+  final bool red, amber, green, blue, white, horn, testActive;
+  const SignalTowerFacet({
+    this.red = false,
+    this.amber = false,
+    this.green = false,
+    this.blue = false,
+    this.white = false,
+    this.horn = false,
+    this.testActive = false,
   });
 }
 
@@ -77,6 +163,7 @@ class AccessSession {
   final String user;
   final bool loginFailed;
   final List<AccessLevel> required; // index = GatedAction.index (11 entries)
+  final Duration sessionTimeout; // zero = no inactivity timeout
   const AccessSession({
     this.level = AccessLevel.none,
     this.user = '',
@@ -94,6 +181,7 @@ class AccessSession {
       AccessLevel.none,
       AccessLevel.none,
     ],
+    this.sessionTimeout = Duration.zero,
   });
   bool permits(GatedAction a) {
     // Fail closed if a stale transport publishes an older, shorter policy array.
@@ -350,8 +438,45 @@ class CfgField {
   final CfgType type;
   final String value;
   final String unit;
+  final String writeKey;
+  final int writeRevision;
+  final bool writable;
+  final bool requiresReady;
+  final double? minimum;
+  final double? maximum;
+  final List<String> enumDomain;
   const CfgField(this.name, this.kind, this.type, this.value,
-      {this.unit = '', this.labelKey = ''});
+      {this.unit = '',
+      this.labelKey = '',
+      this.writeKey = '',
+      this.writeRevision = 0,
+      this.writable = false,
+      this.requiresReady = false,
+      this.minimum,
+      this.maximum,
+      this.enumDomain = const []});
+
+  bool get hasWriteCapability =>
+      writable && writeKey.isNotEmpty && writeRevision > 0;
+
+  /// Client-side feedback only; the owning PLC handler repeats every check.
+  bool accepts(String candidate) {
+    final text = candidate.trim();
+    if (enumDomain.isNotEmpty && !enumDomain.contains(text)) return false;
+    switch (type) {
+      case CfgType.text:
+        return true;
+      case CfgType.boolean:
+        return text.toLowerCase() == 'true' || text.toLowerCase() == 'false';
+      case CfgType.number:
+      case CfgType.time:
+        final parsed = double.tryParse(text);
+        if (parsed == null || !parsed.isFinite) return false;
+        if (minimum != null && parsed < minimum!) return false;
+        if (maximum != null && parsed > maximum!) return false;
+        return true;
+    }
+  }
 }
 
 // ── Current step (§6.5/§6.9) and per-step aggregates (§8.11.4 Pareto) ──────────

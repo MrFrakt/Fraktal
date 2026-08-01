@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_IoChannel" Id="{bf146261-16a7-49b7-9943-e2d2b4ee50a5}">
+    <Declaration><![CDATA[// Core §10.5.1 — one fieldbus I/O channel (published for the topology view §3.13)
+TYPE ST_IoChannel :
+STRUCT
+    // §3.10.2 — tag/wiring identity is activation-static: excluded from the
+    // cyclic OPC UA tree and served via the config manifest. Live I/O state
+    // (values, force, quality, fault) stays cyclically published.
+    {attribute 'OPC.UA.DA' := '0'}
+    Name       : STRING(80);
+    {attribute 'OPC.UA.DA' := '0'}
+    DescriptionKey : STRING(160); // project/standard localization key
+    {attribute 'OPC.UA.DA' := '0'}
+    Address    : STRING(80);    // physical locator, e.g. EL1809 Ch5
+    {attribute 'OPC.UA.DA' := '0'}
+    Path       : STRING(255);   // unique channel path (force/audit identity)
+    {attribute 'OPC.UA.DA' := '0'}
+    ModulePath : STRING(255);   // owning module browse path for cross-navigation
+    {attribute 'OPC.UA.DA' := '0'}
+    Dir        : E_ChannelDir;
+    {attribute 'OPC.UA.DA' := '0'}
+    Kind       : E_ChannelKind;
+    BoolValue  : BOOL;          // digital
+    AnalogValue: REAL;          // analog (scaled)
+    {attribute 'OPC.UA.DA' := '0'}
+    Unit       : STRING(16);
+    Forced     : BOOL;
+    Quality    : BOOL;          // TRUE = good
+    FaultActive: BOOL;          // a module diagnostic implicates this exact channel
+    Diagnostic : STRING(255);   // localization key; Name remains the exact I/O tag
+    // Additive capability flag (Core 0.1.0.7). FALSE is the fail-closed default:
+    // output direction alone never authorizes a raw process-image force.
+    {attribute 'OPC.UA.DA' := '0'}
+    Forceable  : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -47,17 +47,25 @@ abstract class OpcUaBatchSessionClient implements OpcUaSessionClient {
 
 /// Optional capability: a client that can read a small set of browse paths in
 /// one service call, without paying for a full snapshot. Used for mailbox
-/// acknowledgement polling and config-manifest page reads; a client without it
-/// (gateway, test fakes) is served by the legacy snapshot-poll path.
+/// acknowledgement polling, config-manifest page reads, and on-demand facets;
+/// a client without it is served by the legacy snapshot-poll path.
 abstract class OpcUaBulkReadClient implements OpcUaSessionClient {
   Future<Map<String, Object?>> readValues(List<String> browsePaths);
 }
 
+/// Optional capability: returns the stable, complete browse-path set used by
+/// tier configuration and bounded targeted reads. A gateway implements this
+/// explicitly because the shared native session emits its path list only once
+/// per discovery, while each browser connection needs the same contract.
+abstract class OpcUaPathDiscoveryClient implements OpcUaSessionClient {
+  Future<List<String>> discoverPaths();
+}
+
 /// Optional capability: a client that reads config-tier browse paths at a slow
-/// rate instead of on every snapshot. Only the native client and its
-/// reconnecting decorator implement it; other transports keep reading everything
-/// through the no-op [OpcUaSessionClientTiering] extension below, so adding a
-/// client type never has to know about tiering.
+/// rate instead of on every snapshot. Native clients and the bounded Web
+/// gateway implement it; other transports keep reading everything through the
+/// no-op [OpcUaSessionClientTiering] extension below, so adding a client type
+/// never has to know about tiering.
 abstract class OpcUaTieredReadClient implements OpcUaSessionClient {
   Future<void> setSlowPaths(Iterable<String> browsePaths);
   Future<void> refreshSlowPaths();

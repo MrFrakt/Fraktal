@@ -31,6 +31,14 @@ abstract class PlcRepository {
   // ---- write surface (HMI_CONTRACT: narrow, PLC re-checks everything, 7.7) ----
   Future<bool> login(String rootPath, String user, String secret);
   Future<void> logout(String rootPath);
+
+  /// §7.7 — edit the PLC-authoritative per-root access policy. The PLC gates
+  /// these writes with ACCESS_POLICY and persists them; the HMI is only an
+  /// editor for the published policy.
+  Future<bool> setAccessLevel(
+      String rootPath, GatedAction action, AccessLevel level);
+  Future<bool> setSessionTimeout(String rootPath, Duration timeout);
+
   Future<bool> setMode(String unitPath, UnitMode mode);
   Future<bool> setModel(String rootPath, String modelCode);
   Future<bool> start(String unitPath);
@@ -38,6 +46,9 @@ abstract class PlcRepository {
   Future<bool> controlOn(String unitPath);
   Future<bool> controlOff(String unitPath);
   Future<bool> operatorReset(String unitPath);
+
+  /// §8.13 — starts the PLC-bounded signal-tower lamp/horn test.
+  Future<bool> lampTest(String unitPath);
   Future<bool> setDecisionAnswer(String unitPath, int option);
 
   /// §7.6.1 — issue a manual command to a module. Accepted only when the owning

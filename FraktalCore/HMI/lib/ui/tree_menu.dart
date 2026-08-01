@@ -100,7 +100,8 @@ class TreeMenu extends StatelessWidget {
       InkWell(
         onTap: () => app.select(n.path),
         child: Container(
-          height: 40,
+          // Every tree row is a tap target, so it follows the size preset.
+          height: ControlScaleScope.of(context).treeRowHeight,
           margin: EdgeInsets.only(
               left: compact ? 4 : 4.0 + depth * 14, right: 4, bottom: 2),
           decoration: BoxDecoration(
@@ -136,7 +137,8 @@ class TreeMenu extends StatelessWidget {
                   )
                 else if (!compact)
                   const SizedBox(width: 28),
-                _typeIcon(context, n, tintColor),
+                _typeIcon(context, n, tintColor,
+                    selected: selected && sev == null),
                 if (!compact) ...[
                   const SizedBox(width: 6),
                   Expanded(
@@ -147,7 +149,16 @@ class TreeMenu extends StatelessWidget {
                         fontWeight: selected || own != null
                             ? FontWeight.w600
                             : FontWeight.w400,
-                        color: own != null ? tintColor : null,
+                        // A selected row is filled with secondaryContainer, so
+                        // its label MUST use the matching onSecondaryContainer.
+                        // Leaving it null inherits onSurface, which happens to
+                        // work on the normal themes but collapses to 1.8:1 on
+                        // the high-contrast ones — where that fill is dark.
+                        color: own != null
+                            ? tintColor
+                            : (selected && sev == null
+                                ? cs.onSecondaryContainer
+                                : null),
                       ),
                     ),
                   ),
@@ -166,13 +177,21 @@ class TreeMenu extends StatelessWidget {
     return tiles;
   }
 
-  Widget _typeIcon(BuildContext context, ModuleNode n, Color? tint) {
+  Widget _typeIcon(BuildContext context, ModuleNode n, Color? tint,
+      {bool selected = false}) {
     final icon = switch (n.type) {
       ModuleType.unit => Icons.factory_outlined,
       ModuleType.equipmentModule => Icons.widgets_outlined,
       _ => Icons.settings_input_component_outlined,
     };
-    return Icon(icon, size: 20, color: tint);
+    // Same pairing rule as the label: on a selected (secondaryContainer) row the
+    // icon must use onSecondaryContainer, not the inherited onSurface.
+    return Icon(icon,
+        size: ControlScaleScope.of(context).iconSize,
+        color: tint ??
+            (selected
+                ? Theme.of(context).colorScheme.onSecondaryContainer
+                : null));
   }
 
   Widget _stateDot(BuildContext context, ModuleNode n) => Container(

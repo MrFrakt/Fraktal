@@ -64,6 +64,8 @@ class ModuleNode {
       message; // Status.Diagnostic.Description (Unit: Pending overlays)
   final String diagnosticIoTag;
   final String diagnosticIoAddress;
+  final DateTime? diagnosticSince;
+  final bool diagnosticTimeSynchronized;
   final bool tileEnable;
   final List<ModuleNode> children;
   final String controlDomainId; // §9.8; empty means no assigned arrangement
@@ -99,6 +101,8 @@ class ModuleNode {
   final MachineState? machineState; // §8.11.3 (Units)
   final int reworkCount; // §8.11.2 (Units)
   final DecisionRequest? decision; // §6.11 (Units)
+  final SystemHealthFacet? systemHealth; // §2.7/§8.12 (Units)
+  final SignalTowerFacet? signalTower; // §8.13 (Units)
   final List<CfgField> config; // §3.8a editable persistent data
   final StepInfo? step; // §6.5/§6.9 current step (Units)
   final List<StepStat> stepStats; // §8.11.4 Pareto (Units)
@@ -133,6 +137,8 @@ class ModuleNode {
     this.message = '',
     this.diagnosticIoTag = '',
     this.diagnosticIoAddress = '',
+    this.diagnosticSince,
+    this.diagnosticTimeSynchronized = true,
     this.tileEnable = true,
     this.children = const [],
     this.controlDomainId = '',
@@ -161,6 +167,8 @@ class ModuleNode {
     this.machineState,
     this.reworkCount = 0,
     this.decision,
+    this.systemHealth,
+    this.signalTower,
     this.config = const [],
     this.step,
     this.stepStats = const [],
@@ -186,6 +194,9 @@ class ModuleNode {
         'Status/State': state.index,
         'Status/FaultActive': faultActive,
         'Status/Diagnostic/Description': message,
+        if (diagnosticSince != null)
+          'Status/Diagnostic/Since': diagnosticSince!.toUtc().toIso8601String(),
+        'Status/Diagnostic/TimeSynchronized': diagnosticTimeSynchronized,
         'Busy': state == ExecState.busy,
         'Done': state == ExecState.done,
         'Error': state == ExecState.error,
@@ -210,6 +221,15 @@ class ModuleNode {
           'CurrentStep/StepNo': step!.stepNo,
           'CurrentStep/StepName': step!.stepName,
           'CurrentStep/AwaitingLabel': step!.awaitingLabel,
+        },
+        if (systemHealth != null) ...{
+          'SystemHealth/Healthy': systemHealth!.healthy,
+          'SystemHealth/TaskCycleUs': systemHealth!.taskCycleUs,
+          'SystemHealth/TaskJitterUs': systemHealth!.taskJitterUs,
+          'SystemHealth/CpuLoadPct': systemHealth!.cpuLoadPct,
+          'SystemHealth/MemoryAvailableMb': systemHealth!.memoryAvailableMb,
+          'SystemHealth/TimeQuality/Synchronized':
+              systemHealth!.time.synchronized,
         },
         if (modeActive != null) 'ModeActivePublished': modeActive!.index,
         'GoodCount': goodCount,

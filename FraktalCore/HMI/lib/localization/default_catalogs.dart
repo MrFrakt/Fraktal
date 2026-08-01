@@ -1,5 +1,7 @@
 library;
 
+import 'reason_catalog.g.dart';
+
 const availableLanguages = <String, String>{
   'en': 'std.languageName.en',
   'es': 'std.languageName.es',
@@ -15,6 +17,7 @@ const availableLanguages = <String, String>{
 /// Standard-owned defaults. Project/module defaults live in their own catalog
 /// and never overwrite this map.
 const standardEnglish = <String, String>{
+  ...generatedReasonEnglish,
   'std.app.title': 'Fraktal HMI',
   'std.common.cancel': 'Cancel',
   'std.common.save': 'Save',
@@ -44,15 +47,14 @@ const standardEnglish = <String, String>{
   'std.languageName.ja': '日本語',
   'std.languageName.ko': '한국어',
   'std.connection.title': 'Connect Fraktal HMI',
-  'std.connection.step': 'Step 2 of 3 · Configure the PLC or gateway endpoint.',
+  'std.connection.step': 'Step 4 of 5 · Configure the PLC or gateway endpoint.',
   'std.connection.type': 'Connection type',
   'std.connection.gateway': 'PLC / gateway endpoint',
   'std.connection.simulation': 'Built-in simulation',
   'std.connection.endpoint': 'PLC or gateway endpoint',
   'std.connection.saveConnect': 'Save and connect',
   'std.connection.endpointInvalid': 'Enter a complete endpoint URI.',
-  'std.connection.schemeInvalid':
-      'Use ws, wss, http, https, opc.tcp, or ads.',
+  'std.connection.schemeInvalid': 'Use ws, wss, http, https, opc.tcp, or ads.',
   'std.connection.adsNetIdInvalid':
       'An ADS AmsNetId has six parts, e.g. ads://192.168.1.6.1.1:851.',
   'std.connection.transportHelp':
@@ -74,7 +76,7 @@ const standardEnglish = <String, String>{
   'std.connection.stateDown': 'Transport state: offline',
   'std.languages.firstTitle': 'Select HMI languages',
   'std.languages.firstHelp':
-      'Step 1 of 3 · Enable the languages available to operators. The detected device language is selected by default.',
+      'Step 1 of 5 · Enable the languages available to operators. The detected device language is selected by default.',
   'std.languages.active': 'Initial language',
   'std.languages.continue': 'Continue',
   'std.languages.settings': 'Language settings',
@@ -84,7 +86,7 @@ const standardEnglish = <String, String>{
   'std.languages.projectCatalog': 'Project language file',
   'std.units.selectTitle': 'Select Unit modules',
   'std.units.selectHelp':
-      'Step 3 of 3 · Choose the root Units this HMI may display and command. An administrator can change this assignment later.',
+      'Step 5 of 5 · Choose the root Units this HMI may display and command. An administrator can change this assignment later.',
   'std.units.selectOne': 'Select at least one Unit.',
   'std.units.save': 'Save assignment',
   'std.login.title': 'Login',
@@ -104,6 +106,120 @@ const standardEnglish = <String, String>{
   'std.nav.overview': 'Plant overview',
   'std.nav.language': 'Change language',
   'std.nav.languageSettings': 'Manage language catalogs',
+  // Twelve operator-selectable themes (HMI_CONTRACT 'Tree & theming'). The
+  // event/state alarm colours stay fixed regardless of the selected theme.
+  'std.theme.lightBlue': 'Light Blue',
+  'std.theme.cyan': 'Cyan',
+  'std.theme.teal': 'Teal',
+  'std.theme.indigo': 'Indigo',
+  'std.theme.slate': 'Slate',
+  'std.theme.amber': 'Amber',
+  'std.theme.darkBlue': 'Dark Blue',
+  'std.theme.darkCyan': 'Dark Cyan',
+  'std.theme.darkTeal': 'Dark Teal',
+  'std.theme.graphite': 'Graphite',
+  'std.theme.darkSlate': 'Dark Slate',
+  'std.theme.oledBlack': 'OLED Black',
+  'std.theme.highContrastLight': 'High contrast light',
+  'std.theme.highContrastDark': 'High contrast dark',
+  // Fullscreen settings dialog (Core O9): theme, language, touch keyboard, station.
+  'std.settings.title': 'Settings',
+  'std.settings.appearance': 'Appearance',
+  'std.settings.language': 'Language',
+  'std.settings.touch': 'Touch',
+  'std.settings.controlSize': 'Control size',
+  'std.settings.sizeCompact': 'Compact',
+  'std.settings.sizeMedium': 'Medium',
+  'std.settings.sizeLarge': 'Large',
+  'std.settings.sizeHelp':
+      'Enlarges buttons, tree rows, the command rail and the on-screen keyboard. Use a larger size on high-resolution panels or for gloved operation.',
+  'std.access.setupTitle': 'Access and permissions',
+  'std.access.setupHelp':
+      'Step 3 of 5 · Set the minimum level required on THIS panel. The PLC keeps its own rules and re-checks every request, so these can only make a panel stricter — never more permissive.',
+  'std.access.editHelp':
+      'Minimum level for manual commands, clearing faults, appearance and closing the HMI.',
+  'std.access.panelSetupTitle': 'Panel access floors',
+  'std.access.panelEditHelp':
+      'Extra restrictions that apply only on this HMI panel.',
+  'std.accessPolicy.title': 'PLC access policy',
+  'std.accessPolicy.help':
+      'Minimum access level for each machine action on this root Unit. The PLC stores and enforces this policy.',
+  'std.accessPolicy.tileHelp':
+      'Edit the persistent, PLC-authoritative policy for the selected root Unit.',
+  'std.accessPolicy.deniedHelp':
+      'The current session does not meet the PLC access-policy threshold.',
+  'std.accessPolicy.openWarning':
+      'Every action is currently open. Commission explicit thresholds before production use.',
+  'std.accessPolicy.timeoutMinutes': 'Inactivity timeout (minutes)',
+  'std.accessPolicy.timeoutHelp':
+      '0 disables automatic logout. Maximum: 10080 minutes (7 days).',
+  'std.accessPolicy.timeoutInvalid':
+      'Enter an inactivity timeout from 0 to 10080 minutes.',
+  'std.accessPolicy.selfLockout':
+      'Log in at the new access-policy level before raising that threshold.',
+  'std.accessPolicy.rejected':
+      'The PLC rejected a policy change. Accepted earlier fields remain applied; refresh and review the current policy.',
+  'std.accessPolicy.blocked': 'PLC access-policy editing blocked',
+  'std.gatedAction.dataRead': 'Read data',
+  'std.gatedAction.dataWrite': 'Write configuration and data',
+  'std.gatedAction.manual': 'Manual commands and channel force',
+  'std.gatedAction.changeover': 'Model changeover',
+  'std.gatedAction.modeChange': 'Mode change',
+  'std.gatedAction.startStop': 'Start, stop, and decisions',
+  'std.gatedAction.alarmHistory': 'Alarm history',
+  'std.gatedAction.alarmReset': 'Alarm reset',
+  'std.gatedAction.accessPolicy': 'Access-policy editing',
+  'std.gatedAction.alarmShelve': 'Alarm shelving',
+  'std.gatedAction.powerControl': 'Control power',
+  'std.access.machineActions': 'Machine actions',
+  'std.access.panelActions': 'Panel actions',
+  'std.access.plcStillDecides':
+      'The PLC always decides in the end. A level here is an extra requirement on top of the PLC policy, so it can restrict but never grant.',
+  'std.access.noneOrPlc': 'No extra requirement (use PLC policy)',
+  'std.access.manualMinLevel': 'Minimum level for manual commands',
+  'std.access.manualMinLevelHelp':
+      'Manual module commands and channel forcing. These move equipment directly.',
+  'std.access.alarmResetMinLevel': 'Minimum level to clear faults',
+  'std.access.alarmResetMinLevelHelp':
+      'Operator reset, per module and for the whole panel. Clearing a latched fault should follow a look at why it tripped.',
+  'std.access.themeMinLevelHelp':
+      'Theme and control size. Cosmetic, so this is usually left open.',
+  'std.access.closeAppMinLevelHelp':
+      'Quitting removes this panel’s view of the process, so it is usually restricted.',
+  'std.appearance.title': 'Appearance',
+  'std.appearance.help':
+      'Step 2 of 5 · Choose the theme and control size for the physical screen in front of you — a sunlit cabinet needs high contrast, a dense screen needs larger targets.',
+  'std.appearance.editHelp': 'Theme and control size for this panel.',
+  'std.appearance.permissions': 'Who may change this',
+  'std.appearance.permissionsHelp':
+      'These apply to this panel only. The PLC keeps its own access rules for machine actions.',
+  'std.appearance.themeMinLevel': 'Minimum level to change appearance',
+  'std.appearance.closeAppMinLevel': 'Minimum level to close the HMI',
+  'std.common.back': 'Back',
+  'std.settings.display': 'Display',
+  'std.settings.enterFullscreen': 'Enter fullscreen',
+  'std.settings.exitFullscreen': 'Exit fullscreen',
+  'std.settings.fullscreenHelp':
+      'Fill the whole panel. A browser only allows this from a button, so it cannot follow the window automatically.',
+  'std.settings.session': 'Session',
+  'std.settings.closeApp': 'Close the HMI',
+  'std.settings.closeAppHelp':
+      'Quit the application on this panel. The machine keeps running — only this view stops.',
+  'std.settings.closeAppDenied':
+      'Closing the HMI requires a higher access level.',
+  'std.settings.closeAppConfirm':
+      'Close the HMI on this panel? The machine is unaffected, but this screen will no longer show its state or alarms.',
+  'std.settings.floatingKeyboard': 'On-screen keyboard',
+  'std.settings.floatingKeyboardHelp':
+      'Show a floating keyboard when a text field is tapped (touch panels).',
+  'std.settings.station': 'Station',
+  'std.settings.editUnitAssignment': 'Edit Unit assignment',
+  'std.settings.editUnitAssignmentHelp':
+      'Choose which root Units this HMI displays and commands.',
+  'std.settings.adminOnly':
+      'Connection and Unit-assignment editing require an admin login.',
+  'std.connection.editHelp':
+      'Endpoint, transport, and credentials for this HMI.',
   'std.module.info': 'Information',
   'std.module.description': 'Module description',
   'std.module.noDescription': 'No module description configured.',
@@ -144,6 +260,17 @@ const standardEnglish = <String, String>{
   'std.access.admin': 'Administrator',
   'std.error.catalogInvalid': 'The CSV catalog is invalid.',
   'std.error.catalogImported': 'Language catalog imported.',
+  'std.error.accessDenied': 'The current PLC session is not authorized.',
+  'std.error.accessPolicyValueInvalid':
+      'The requested access-policy level is invalid.',
+  'std.error.alarmIdentityNotUnique':
+      'No unique active alarm matches the requested identity.',
+  'std.release.noActiveDecision':
+      'No decision is currently awaiting an answer.',
+  'std.release.invalidDecisionOption':
+      'The selected answer is not one of the active decision options.',
+  'std.release.modeSwitchBlockedWhileRunning':
+      'Stop the running sequence before leaving the current mode.',
   'std.error.fieldbusNodeMappingInvalid':
       'A fieldbus node mapping is incomplete or out of range.',
   'std.error.fieldbusMappingInvalid':
@@ -302,6 +429,14 @@ const standardEnglish = <String, String>{
   'std.module.action.unitStop': 'Stop Unit',
   'std.module.action.operatorReset': 'Operator reset',
   'std.module.action.decisionAnswer': 'Answer operator decision',
+  // Always-visible fault clear: one press resets every root Unit this HMI shows.
+  'std.alarm.resetAll': 'Reset faults',
+  'std.alarm.resetAllTooltip':
+      'Clear latched faults on every Unit shown on this HMI. A condition that is still present is reported again immediately.',
+  'std.alarm.resetAllAccepted': 'Reset accepted by {count} Unit(s).',
+  'std.alarm.resetAllPartial':
+      'Reset accepted by {count} Unit(s); {refused} refused.',
+  'std.release.why': 'Why?',
   'std.module.action.writeConfig': 'Write PLC configuration',
   'std.module.editor.active':
       'ADMIN EDIT MODE · Changes are saved on this HMI.',
@@ -507,7 +642,7 @@ const standardSpanish = <String, String>{
   'std.common.project': 'Proyecto',
   'std.connection.title': 'Conectar Fraktal HMI',
   'std.connection.step':
-      'Paso 2 de 3 · Configure el punto de conexión del PLC o gateway.',
+      'Paso 4 de 5 · Configure el punto de conexión del PLC o gateway.',
   'std.connection.type': 'Tipo de conexión',
   'std.connection.gateway': 'PLC / gateway',
   'std.connection.simulation': 'Simulación integrada',
@@ -532,7 +667,7 @@ const standardSpanish = <String, String>{
   'std.connection.stateDown': 'Estado del transporte: sin conexión',
   'std.languages.firstTitle': 'Seleccionar idiomas de la HMI',
   'std.languages.firstHelp':
-      'Paso 1 de 3 · Habilite los idiomas disponibles. El idioma detectado queda seleccionado por defecto.',
+      'Paso 1 de 5 · Habilite los idiomas disponibles. El idioma detectado queda seleccionado por defecto.',
   'std.languages.active': 'Idioma inicial',
   'std.languages.continue': 'Continuar',
   'std.languages.settings': 'Configuración de idiomas',
@@ -542,7 +677,7 @@ const standardSpanish = <String, String>{
   'std.languages.projectCatalog': 'Archivo de idioma del proyecto',
   'std.units.selectTitle': 'Seleccionar módulos Unit',
   'std.units.selectHelp':
-      'Paso 3 de 3 · Elija los Unit raíz que esta HMI puede mostrar y comandar.',
+      'Paso 5 de 5 · Elija los Unit raíz que esta HMI puede mostrar y comandar.',
   'std.units.selectOne': 'Seleccione al menos un Unit.',
   'std.units.save': 'Guardar asignación',
   'std.login.title': 'Iniciar sesión',
@@ -562,6 +697,116 @@ const standardSpanish = <String, String>{
   'std.nav.overview': 'Vista general',
   'std.nav.language': 'Cambiar idioma',
   'std.nav.languageSettings': 'Gestionar catálogos de idioma',
+  'std.theme.lightBlue': 'Azul claro',
+  'std.theme.cyan': 'Cian',
+  'std.theme.teal': 'Verde azulado',
+  'std.theme.indigo': 'Índigo',
+  'std.theme.slate': 'Pizarra',
+  'std.theme.amber': 'Ámbar',
+  'std.theme.darkBlue': 'Azul oscuro',
+  'std.theme.darkCyan': 'Cian oscuro',
+  'std.theme.darkTeal': 'Verde azulado oscuro',
+  'std.theme.graphite': 'Grafito',
+  'std.theme.darkSlate': 'Pizarra oscura',
+  'std.theme.oledBlack': 'Negro OLED',
+  'std.theme.highContrastLight': 'Alto contraste claro',
+  'std.theme.highContrastDark': 'Alto contraste oscuro',
+  'std.settings.title': 'Ajustes',
+  'std.settings.appearance': 'Apariencia',
+  'std.settings.language': 'Idioma',
+  'std.settings.touch': 'Táctil',
+  'std.settings.controlSize': 'Tamaño de controles',
+  'std.settings.sizeCompact': 'Compacto',
+  'std.settings.sizeMedium': 'Medio',
+  'std.settings.sizeLarge': 'Grande',
+  'std.settings.sizeHelp':
+      'Aumenta botones, filas del árbol, la barra de comandos y el teclado en pantalla. Use un tamaño mayor en paneles de alta resolución o para operación con guantes.',
+  'std.access.setupTitle': 'Acceso y permisos',
+  'std.access.setupHelp':
+      'Paso 3 de 5 · Defina el nivel mínimo exigido EN ESTE panel. El PLC mantiene sus propias reglas y vuelve a comprobar cada petición, por lo que esto solo puede hacer el panel más estricto, nunca más permisivo.',
+  'std.access.editHelp':
+      'Nivel mínimo para comandos manuales, borrar fallos, apariencia y cerrar la HMI.',
+  'std.access.panelSetupTitle': 'Restricciones de acceso del panel',
+  'std.access.panelEditHelp':
+      'Restricciones adicionales que solo se aplican en este panel HMI.',
+  'std.accessPolicy.title': 'Política de acceso del PLC',
+  'std.accessPolicy.help':
+      'Nivel mínimo para cada acción de máquina en esta unidad raíz. El PLC almacena y aplica esta política.',
+  'std.accessPolicy.tileHelp':
+      'Editar la política persistente y autoritativa del PLC para la unidad raíz seleccionada.',
+  'std.accessPolicy.deniedHelp':
+      'La sesión actual no cumple el umbral del PLC para editar la política.',
+  'std.accessPolicy.openWarning':
+      'Todas las acciones están abiertas. Configure umbrales explícitos antes del uso en producción.',
+  'std.accessPolicy.timeoutMinutes': 'Tiempo de inactividad (minutos)',
+  'std.accessPolicy.timeoutHelp':
+      '0 desactiva el cierre automático de sesión. Máximo: 10080 minutos (7 días).',
+  'std.accessPolicy.timeoutInvalid':
+      'Ingrese un tiempo de inactividad entre 0 y 10080 minutos.',
+  'std.accessPolicy.selfLockout':
+      'Inicie sesión con el nuevo nivel antes de elevar el umbral de la política.',
+  'std.accessPolicy.rejected':
+      'El PLC rechazó un cambio. Los campos aceptados antes permanecen aplicados; actualice y revise la política.',
+  'std.accessPolicy.blocked': 'Edición de política del PLC bloqueada',
+  'std.gatedAction.dataRead': 'Lectura de datos',
+  'std.gatedAction.dataWrite': 'Escritura de configuración y datos',
+  'std.gatedAction.manual': 'Comandos manuales y forzado de canal',
+  'std.gatedAction.changeover': 'Cambio de modelo',
+  'std.gatedAction.modeChange': 'Cambio de modo',
+  'std.gatedAction.startStop': 'Inicio, parada y decisiones',
+  'std.gatedAction.alarmHistory': 'Historial de alarmas',
+  'std.gatedAction.alarmReset': 'Reinicio de alarmas',
+  'std.gatedAction.accessPolicy': 'Edición de política de acceso',
+  'std.gatedAction.alarmShelve': 'Inhibición de alarmas',
+  'std.gatedAction.powerControl': 'Potencia de control',
+  'std.access.machineActions': 'Acciones de máquina',
+  'std.access.panelActions': 'Acciones del panel',
+  'std.access.plcStillDecides':
+      'El PLC siempre decide al final. Un nivel aquí es un requisito adicional sobre la política del PLC: puede restringir, pero nunca conceder.',
+  'std.access.noneOrPlc': 'Sin requisito adicional (usar política del PLC)',
+  'std.access.manualMinLevel': 'Nivel mínimo para comandos manuales',
+  'std.access.manualMinLevelHelp':
+      'Comandos manuales de módulo y forzado de canales. Mueven equipo directamente.',
+  'std.access.alarmResetMinLevel': 'Nivel mínimo para borrar fallos',
+  'std.access.alarmResetMinLevelHelp':
+      'Reinicio del operador, por módulo y para todo el panel. Borrar un fallo enclavado debería seguir a revisar por qué saltó.',
+  'std.access.themeMinLevelHelp':
+      'Tema y tamaño de controles. Es estético, por lo que suele dejarse abierto.',
+  'std.access.closeAppMinLevelHelp':
+      'Cerrar elimina la vista del proceso en este panel, por lo que suele restringirse.',
+  'std.appearance.title': 'Apariencia',
+  'std.appearance.help':
+      'Paso 2 de 5 · Elija el tema y el tamaño de los controles según la pantalla física que tiene delante: un armario con sol necesita alto contraste y una pantalla densa necesita objetivos más grandes.',
+  'std.appearance.editHelp': 'Tema y tamaño de controles de este panel.',
+  'std.appearance.permissions': 'Quién puede cambiar esto',
+  'std.appearance.permissionsHelp':
+      'Se aplican solo a este panel. El PLC mantiene sus propias reglas de acceso para las acciones de máquina.',
+  'std.appearance.themeMinLevel': 'Nivel mínimo para cambiar la apariencia',
+  'std.appearance.closeAppMinLevel': 'Nivel mínimo para cerrar la HMI',
+  'std.common.back': 'Atrás',
+  'std.settings.display': 'Pantalla',
+  'std.settings.enterFullscreen': 'Pantalla completa',
+  'std.settings.exitFullscreen': 'Salir de pantalla completa',
+  'std.settings.fullscreenHelp':
+      'Ocupa todo el panel. Un navegador solo lo permite desde un botón, por lo que no puede seguir la ventana automáticamente.',
+  'std.settings.session': 'Sesión',
+  'std.settings.closeApp': 'Cerrar la HMI',
+  'std.settings.closeAppHelp':
+      'Cierra la aplicación en este panel. La máquina sigue funcionando; solo se detiene esta vista.',
+  'std.settings.closeAppDenied':
+      'Cerrar la HMI requiere un nivel de acceso superior.',
+  'std.settings.closeAppConfirm':
+      '¿Cerrar la HMI en este panel? La máquina no se ve afectada, pero esta pantalla dejará de mostrar su estado y sus alarmas.',
+  'std.settings.floatingKeyboard': 'Teclado en pantalla',
+  'std.settings.floatingKeyboardHelp':
+      'Mostrar un teclado flotante al tocar un campo de texto (paneles táctiles).',
+  'std.settings.station': 'Estación',
+  'std.settings.editUnitAssignment': 'Editar asignación de unidades',
+  'std.settings.editUnitAssignmentHelp':
+      'Elegir qué unidades raíz muestra y controla esta HMI.',
+  'std.settings.adminOnly':
+      'La edición de conexión y asignación de unidades requiere inicio de sesión de administrador.',
+  'std.connection.editHelp': 'Endpoint, transporte y credenciales de esta HMI.',
   'std.module.info': 'Información',
   'std.module.description': 'Descripción del módulo',
   'std.module.noDescription': 'No hay descripción configurada.',
@@ -583,6 +828,16 @@ const standardSpanish = <String, String>{
   'std.access.admin': 'Administrador',
   'std.error.catalogInvalid': 'El catálogo CSV no es válido.',
   'std.error.catalogImported': 'Catálogo de idioma importado.',
+  'std.error.accessDenied': 'La sesión actual del PLC no está autorizada.',
+  'std.error.accessPolicyValueInvalid':
+      'El nivel solicitado para la política de acceso no es válido.',
+  'std.error.alarmIdentityNotUnique':
+      'Ninguna alarma activa coincide de forma única con la identidad solicitada.',
+  'std.release.noActiveDecision': 'No hay una decisión esperando respuesta.',
+  'std.release.invalidDecisionOption':
+      'La respuesta elegida no pertenece a las opciones activas.',
+  'std.release.modeSwitchBlockedWhileRunning':
+      'Detenga la secuencia en ejecución antes de salir del modo actual.',
   'std.error.identityAlarmRequestNotSupported':
       'Este transporte aún no puede resolver la identidad de la alarma a su posición en el PLC.',
   'std.error.emptyHmiRequest': 'La operación solicitada por la HMI está vacía.',
@@ -789,6 +1044,13 @@ const standardSpanish = <String, String>{
   'std.module.action.unitStart': 'Iniciar Unit',
   'std.module.action.unitStop': 'Detener Unit',
   'std.module.action.operatorReset': 'Reinicio del operador',
+  'std.alarm.resetAll': 'Reiniciar fallos',
+  'std.alarm.resetAllTooltip':
+      'Borra los fallos enclavados en todas las unidades mostradas en esta HMI. Una condición que siga presente se vuelve a notificar de inmediato.',
+  'std.alarm.resetAllAccepted': 'Reinicio aceptado por {count} unidad(es).',
+  'std.alarm.resetAllPartial':
+      'Reinicio aceptado por {count} unidad(es); {refused} rechazada(s).',
+  'std.release.why': '¿Por qué?',
   'std.module.action.decisionAnswer': 'Responder decisión del operador',
   'std.module.action.writeConfig': 'Escribir configuración del PLC',
   'std.module.motion.actualPosition': 'Posición actual',
@@ -941,8 +1203,26 @@ const projectEnglish = <String, String>{
       'The part slide may move outside only while the door is fully open and stopped.',
   'project.interlock.pressRequiresGuardSlideTwoHandPower':
       'Ram down requires the door closed, slide inside, two-hand control active and pneumatic power proven.',
+  // First-out ram-extend conditions. The composite key above named four things
+  // at once, so an operator releasing the two-hand button saw the same text as a
+  // guard fault or an air loss. These identify the single missing condition.
+  'project.interlock.pressRequiresTwoHandHeld':
+      'Two-hand control was released. Hold both buttons for the whole ram stroke.',
+  'project.interlock.pressRequiresGuardClosed':
+      'Ram down requires the guard door fully closed.',
+  'project.interlock.pressRequiresSlideInside':
+      'Ram down requires the part slide fully inside.',
+  'project.interlock.pressRequiresAirPressure':
+      'Ram down requires proven compressed air pressure.',
+  'project.interlock.pressRequiresControlPower':
+      'Ram down requires pneumatic control power to be on.',
+  'project.interlock.pressRequiresHealthyGuardSlide':
+      'Ram down is blocked while the guard door or part slide reports a fault.',
+  'project.interlock.pressRamExtendPermitted': 'Ram down is permitted.',
   'project.interlock.pressRetractPermitted': 'Ram retraction is permitted.',
   'project.condition.twoHandStart': 'Two-hand start accepted',
+  'project.condition.twoHandHeldDuringPress':
+      'Two-hand control held for the press dwell',
   'project.condition.partPresent': 'Part present at the loading position',
   'project.condition.airPressureOk':
       'Compressed-air pressure above the operating threshold',

@@ -101,6 +101,121 @@ void main() {
     expect(projection.forest, isEmpty);
   });
 
+  test('maps system health, time quality, and signal tower generically', () {
+    final projection = OpcUaSnapshotMapper().map({
+      'values': {
+        'PLC1/MAIN/Unit/Status/Name': 'Unit',
+        'PLC1/MAIN/Unit/Status/ModuleType': ModuleType.unit.index,
+        'PLC1/MAIN/Unit/SystemHealth/Present': true,
+        'PLC1/MAIN/Unit/SystemHealth/Healthy': false,
+        'PLC1/MAIN/Unit/SystemHealth/TaskAvailable': true,
+        'PLC1/MAIN/Unit/SystemHealth/TaskCycleUs': 1100,
+        'PLC1/MAIN/Unit/SystemHealth/TaskJitterUs': 100,
+        'PLC1/MAIN/Unit/SystemHealth/ControllerAvailable': true,
+        'PLC1/MAIN/Unit/SystemHealth/CpuLoadPct': 32.5,
+        'PLC1/MAIN/Unit/SystemHealth/MemoryAvailableMb': 1024,
+        'PLC1/MAIN/Unit/SystemHealth/FieldbusAvailable': true,
+        'PLC1/MAIN/Unit/SystemHealth/FieldbusMasterHealthy': true,
+        'PLC1/MAIN/Unit/SystemHealth/TimeQuality/Available': true,
+        'PLC1/MAIN/Unit/SystemHealth/TimeQuality/Synchronized': false,
+        'PLC1/MAIN/Unit/SystemHealth/TimeQuality/Source': 'PTP',
+        'PLC1/MAIN/Unit/SystemHealth/TimeQuality/OffsetUs': 2500,
+        'PLC1/MAIN/Unit/SignalTower/Red': false,
+        'PLC1/MAIN/Unit/SignalTower/Amber': true,
+        'PLC1/MAIN/Unit/SignalTower/Green': false,
+        'PLC1/MAIN/Unit/SignalTower/Blue': true,
+        'PLC1/MAIN/Unit/SignalTower/White': false,
+        'PLC1/MAIN/Unit/SignalTower/Horn': false,
+        'PLC1/MAIN/Unit/SignalTower/TestActive': false,
+      }
+    });
+
+    final unit = projection.forest.single;
+    expect(unit.systemHealth?.healthy, isFalse);
+    expect(unit.systemHealth?.taskCycleUs, 1100);
+    expect(unit.systemHealth?.cpuLoadPct, 32.5);
+    expect(unit.systemHealth?.time.source, 'PTP');
+    expect(unit.systemHealth?.time.synchronized, isFalse);
+    expect(unit.signalTower?.amber, isTrue);
+    expect(unit.signalTower?.blue, isTrue);
+  });
+
+  test('hydrates live alarms, time quality, OEE, nameplate and safety facets',
+      () {
+    const base = 'PLC1/MAIN/Unit';
+    final projection = OpcUaSnapshotMapper().map({
+      'values': {
+        '$base/Status/Name': 'Unit',
+        '$base/Status/ModuleType': ModuleType.unit.index,
+        '$base/Status/Diagnostic/Description': 'std.error.test',
+        '$base/Status/Diagnostic/Since': 1784613600,
+        '$base/Status/Diagnostic/TimeSynchronized': false,
+        '$base/AlarmLog/Blocking': true,
+        '$base/AlarmLog/Active/Active[1]/ReasonCode': 17,
+        '$base/AlarmLog/Active/Active[1]/Description':
+            'std.system.timeSyncLost',
+        '$base/AlarmLog/Active/Active[1]/SourcePath': 'Unit.SystemHealth',
+        '$base/AlarmLog/Active/Active[1]/Severity': Severity.low.index,
+        '$base/AlarmLog/Active/Active[1]/ResetClass':
+            ResetClass.autoReset.index,
+        '$base/AlarmLog/Active/Active[1]/State': AlarmState.active.index,
+        '$base/AlarmLog/Active/Active[1]/ComeAt': 1784613600,
+        '$base/AlarmLog/Active/Active[1]/ComeTimeSynchronized': false,
+        '$base/AlarmLog/RingHead': 1,
+        '$base/AlarmLog/Ring/Ring[1]/ReasonCode': 2003,
+        '$base/AlarmLog/Ring/Ring[1]/Description': 'std.error.interlock',
+        '$base/AlarmLog/Ring/Ring[1]/SourcePath': 'Unit.Clamp',
+        '$base/AlarmLog/Ring/Ring[1]/Severity': Severity.medium.index,
+        '$base/AlarmLog/Ring/Ring[1]/ResetClass': ResetClass.autoReset.index,
+        '$base/AlarmLog/Ring/Ring[1]/State': AlarmState.closed.index,
+        // OPC UA DateTime: 100-ns ticks from 1601 (the ADS case above is DT
+        // seconds from 1970). Both transports normalize to UTC DateTime.
+        '$base/AlarmLog/Ring/Ring[1]/ComeAt': 134290871000000000,
+        '$base/AlarmLog/Ring/Ring[1]/GoneAt': 134290871100000000,
+        '$base/AlarmLog/Ring/Ring[1]/Duration': 10000,
+        '$base/AlarmLog/Ring/Ring[1]/ComeTimeSynchronized': true,
+        '$base/AlarmLog/Ring/Ring[1]/GoneTimeSynchronized': true,
+        '$base/AlarmLog/MetaCount': 1,
+        '$base/AlarmLog/Meta/Meta[1]/ReasonCode': 2003,
+        '$base/AlarmLog/Meta/Meta[1]/OperatorAction': 'std.action.inspect',
+        '$base/AlarmLog/Meta/Meta[1]/Consequence': 'std.consequence.stop',
+        '$base/AlarmLog/Meta/Meta[1]/Shelvable': true,
+        '$base/Oee/Availability': .9,
+        '$base/Oee/Performance': .8,
+        '$base/Oee/Quality': .99,
+        '$base/Oee/Oee': .7128,
+        '$base/Oee/AvailValid': true,
+        '$base/Oee/PerfValid': true,
+        '$base/Oee/QualValid': true,
+        '$base/Oee/OeeValid': true,
+        '$base/Nameplate/ManufacturerName': 'Fraktal',
+        '$base/Nameplate/ProductDesignation': 'Test Cell',
+        '$base/Nameplate/SerialNumber': 'SN-1',
+        '$base/Safety/Present': true,
+        '$base/Safety/AllSafe': true,
+        '$base/Safety/DeviceCount': 1,
+        '$base/Safety/Devices/Devices[1]/Present': true,
+        '$base/Safety/Devices/Devices[1]/Name': 'EStop',
+        '$base/Safety/Devices/Devices[1]/Kind': SafetyDeviceKind.estop.index,
+        '$base/Safety/Devices/Devices[1]/State': SafetyState.ready.index,
+        '$base/Safety/Devices/Devices[1]/Ready': true,
+        '$base/Safety/Devices/Devices[1]/FieldbusHealthy': true,
+      }
+    });
+
+    final unit = projection.forest.single;
+    expect(unit.diagnosticSince?.isUtc, isTrue);
+    expect(unit.diagnosticTimeSynchronized, isFalse);
+    expect(unit.activeEvents.single.reasonCode, 17);
+    expect(unit.activeEvents.single.timestampsSynchronized, isFalse);
+    expect(unit.ringEvents.single.duration, const Duration(seconds: 10));
+    expect(unit.ringEvents.single.timestampsSynchronized, isTrue);
+    expect(unit.alarmMeta.single.shelvable, isTrue);
+    expect(unit.oee?.oee, closeTo(.7128, .00001));
+    expect(unit.nameplate?.serial, 'SN-1');
+    expect(unit.safety?.devices.single.kind, SafetyDeviceKind.estop);
+  });
+
   test('retains DataValue quality and timestamps for custom controls', () {
     final projection = OpcUaSnapshotMapper().map({
       'protocol': 'fraktal.opcua.snapshot.v1',

@@ -66,7 +66,8 @@ void main() {
     }
   });
 
-  group('ON-DEMAND — view-gated drill-down (module rings/trends + fieldbus)', () {
+  group('ON-DEMAND — view-gated drill-down (module rings/trends + fieldbus)',
+      () {
     const roots = ['PLC1/MAIN/PneumaticPress'];
     // Module drill-down data scopes to its owning root Unit.
     const moduleScoped = [
@@ -101,15 +102,16 @@ void main() {
   });
 
   test('unknown leaf defaults to LIVE (never wrongly stale)', () {
-    expect(OpcUaFieldTier.classify('PLC1/MAIN/X/SomeFutureField'),
-        FieldTier.live);
+    expect(
+        OpcUaFieldTier.classify('PLC1/MAIN/X/SomeFutureField'), FieldTier.live);
     expect(
         OpcUaFieldTier.onDemandScopeOf('PLC1/MAIN/X/SomeFutureField', const []),
         isNull);
   });
 
   test('array index forms are stripped (bracket, double-segment)', () {
-    expect(OpcUaFieldTier.classify('A/Ring[9]/Description'), FieldTier.onDemand);
+    expect(
+        OpcUaFieldTier.classify('A/Ring[9]/Description'), FieldTier.onDemand);
     expect(OpcUaFieldTier.classify('A/Ring/Ring[9]/Description'),
         FieldTier.onDemand);
     expect(OpcUaFieldTier.classify('A/Meta/Meta[9]/OperatorAction'),

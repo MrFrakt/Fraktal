@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import 'touch_text_field.dart';
 
 Future<void> showLoginDialog(BuildContext context, AppState app) async {
   final loggedIn = await showDialog<bool>(
@@ -81,7 +82,7 @@ class _LoginDialogState extends State<_LoginDialog> {
   Widget build(BuildContext context) => AlertDialog(
         title: const LText('std.login.title'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
+          TouchTextField(
             key: const Key('login-user'),
             controller: _user,
             enabled: !_busy,
@@ -92,12 +93,13 @@ class _LoginDialogState extends State<_LoginDialog> {
             decoration:
                 InputDecoration(labelText: context.tr('std.login.user')),
           ),
-          TextField(
+          TouchTextField(
             key: const Key('login-pin'),
             controller: _pin,
             focusNode: _pinFocus,
             enabled: !_busy,
             obscureText: true,
+            keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
             autofillHints: const [AutofillHints.password],
             onSubmitted: (_) => _submit(),

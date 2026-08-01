@@ -44,8 +44,9 @@ void main() {
         return total;
       }
 
-      final commands =
-          forest.isEmpty ? -1 : forest.fold<int>(0, (t, n) => t + countCommands(n));
+      final commands = forest.isEmpty
+          ? -1
+          : forest.fold<int>(0, (t, n) => t + countCommands(n));
       final log = 'forest=${forest.length} commands=$commands '
           'busRoots=${bus.length} '
           'busNames=${bus.map((n) => n.name).join(",")}';

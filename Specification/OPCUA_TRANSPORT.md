@@ -7,8 +7,10 @@ On a Windows/TwinCAT host the native default is now **ADS**, not direct OPC UA �
 it is the faster native path and needs no TF6100 server. OPC UA remains a
 first-class, selectable HMI transport for remote and non-Beckhoff PLCs. ADS is a
 drop-in `OpcUaSessionClient` that emits the identical `fraktal.opcua.snapshot.v1`
-document, so everything in this document below the transport seam (mapper, read
-tiers, config manifest, mailbox protocol) applies unchanged to both. The ADS
+document, so the mapper, config-manifest, and mailbox contracts apply unchanged
+to both direct transports. Read-tier behavior is capability-negotiated: the
+current direct ADS/OPC UA clients provide targeted/tiered reads, while the Web
+gateway currently relays a complete server-side snapshot. The ADS
 transport is specified in `ADS_TRANSPORT_MIGRATION.md`; the summary is below.
 
 ## Platform routing
@@ -261,6 +263,9 @@ The Web client sends:
 {"protocol":"fraktal.opcua.gateway.v1","id":1,"method":"snapshot","params":{}}
 {"protocol":"fraktal.opcua.gateway.v1","id":2,"method":"write","params":{"path":"...","valueType":"boolean","value":true}}
 {"protocol":"fraktal.opcua.gateway.v1","id":3,"method":"writeBatch","params":{"writes":[{"path":".../HmiRequest/Kind","valueType":"int32","value":4},{"path":".../HmiRequest/Sequence","valueType":"uint32","value":19}]}}
+{"protocol":"fraktal.opcua.gateway.v1","id":4,"method":"discoverPaths","params":{}}
+{"protocol":"fraktal.opcua.gateway.v1","id":5,"method":"setReadTiers","params":{"revision":7,"slow":[41,42],"excluded":[90,91],"refreshSlow":false}}
+{"protocol":"fraktal.opcua.gateway.v1","id":6,"method":"readValues","params":{"revision":7,"indices":[90,91]}}
 ```
 
 The gateway replies:
@@ -268,6 +273,7 @@ The gateway replies:
 ```json
 {"id":1,"ok":true,"result":{"protocol":"fraktal.opcua.snapshot.v1","values":{},"dataValues":{}}}
 {"id":2,"ok":true,"result":true}
+{"id":4,"ok":true,"result":{"revision":7,"nodeCount":1234,"paths":["PLC1/MAIN/Unit/Status/State"]}}
 ```
 
 The gateway shall enforce origin/TLS/authentication policy, preserve browse
@@ -277,6 +283,24 @@ write after reconnecting.
 The gateway relays `dataValues` without normalizing status codes, types, or
 timestamps. Native and Web HMIs therefore make the same quality decision from
 the same server result.
+
+`discoverPaths` returns the complete stable path vector plus a revision.
+`setReadTiers` uses indices into that vector instead of repeating long browse
+strings; stale revisions, duplicates, overlap, and out-of-range indices fail
+closed. `readValues` accepts at most 512 unique indices per request. Clients
+split larger logical reads into bounded calls and merge the results. A tier
+profile accepts at most 20,000 indices and the whole request remains bounded to
+256 KiB. The first snapshot on a connection includes the discovery vector;
+after tier setup, cyclic snapshots carry an empty `paths` list so static browse
+strings are not retransmitted. A rediscovery increments the revision and clears
+every connection's profile before new tiers can be installed.
+
+One gateway owns one native PLC session, so connection-local tier mutations
+cannot be applied independently at that layer. The server therefore applies the
+intersection of every connected browser's slow and excluded sets: a path is
+slowed or omitted only when all clients agree. A new or not-yet-configured
+browser temporarily requests the full live surface. This costs bandwidth during
+bootstrap but cannot make an existing operator view stale or incomplete.
 
 The reference service is `FraktalCore/HMI/gateway`. It builds as a headless
 Windows or Linux executable and shares the same native client package as the
@@ -298,7 +322,8 @@ authentication. Installation and acceptance are specified in
 
 Every gateway write is type-checked, globally serialized, attempted once, and
 restricted to a published root `HmiRequest` subtree. Deployment may further
-restrict eligible Unit browse roots; the reference service is read-only until
+restrict reads/discovery with repeatable `--read-root` subtrees and eligible
+Unit write roots with `--write-root`; the reference service is read-only until
 at least one root is configured (an all-root commissioning override is
 explicit). Invalid protocol versions, binary/oversize
 requests, non-mailbox paths, and unapproved origins are rejected before OPC UA.
@@ -337,13 +362,13 @@ through the request mailbox instead. This keeps the published address space
 | `ModePolicy`, `StallTime` | `SupportedModes/RunStylesPublished` |
 | `Nameplate`, `AlarmLog Meta/MetaCount` | `ParCfg`/`StationCfg` (editable fields) |
 | `ST_BusNode` identity (Name/TypeId/Address/ParentIdx/ChannelCount…) | `ST_BusNode.State`, `LinkOk` |
-| `ST_IoChannel` identity (Name/Address/Path/ModulePath/Dir/Kind/Unit…) | channel values/Forced/Quality/FaultActive/Diagnostic |
+| `ST_IoChannel` identity/capability (Name/Address/Path/ModulePath/Dir/Kind/Unit/Forceable…) | channel values/Forced/Quality/FaultActive/Diagnostic |
 
 **Protocol.** The root Unit publishes `ConfigRev : UDINT` (seeded from boot
 time, incremented on config writes, model changes, and re-activation) and
 answers `E_HmiRequestKind.QUERY_CONFIG` (`IntValue` = page index) by filling
-`HmiResponse.ConfigPage` — a bounded window of `{Scope, Item, ValueText}`
-entries. `Scope` is the dotted module identity (`'#Fieldbus'` for the bus
+`HmiResponse.ConfigPage` — a bounded window whose read projection begins with
+`{Scope, Item, ValueText}`. `Scope` is the dotted module identity (`'#Fieldbus'` for the bus
 topology); `Item` reproduces the server's array naming
 (`Catalog/Catalog[2]/Label`, `Nodes/Nodes[3]/Channels/Channels[5]/Name`) so a
 generic client rebuilds the exact browse path it would otherwise have read.
@@ -353,16 +378,26 @@ composite base, Unit facets appended, projects may append — the press demo add
 its fieldbus topology via `F_AppendTopologyConfig`). `FB_ConfigPager` counts the
 walk and stores only the requested window, so no full manifest buffer exists.
 
+An entry is writable only when its append-only capability tail is complete:
+`WriteKey`, non-zero `WriteRevision`, `ConfigKind`, `ValueType`, `Writable`,
+`RequiresReady`, optional `Minimum`/`Maximum`, `Unit`, `LabelKey`, and optional
+pipe-separated exact `EnumDomain`. Missing or conflicting metadata fails closed.
+`WRITE_CONFIG` transports `TargetPath=Scope`, `NameValue=WriteKey`,
+`IntValue=WriteRevision`, and `TextValue=candidate`; direct writes to `Item` are
+not part of the contract. The PLC owning handler rechecks access, owner, revision,
+type, domain/range, state, and transactional recipe invariants.
+
 **HMI behavior.** The repository fetches all pages when a forest is live and
 the `ConfigRev` signature is new (startup, reconnect to a restarted PLC,
 config write, changeover), synthesizes flat browse-path values from the
-entries, and overlays them **under** the live snapshot before mapping — the
-snapshot mapper, facets, and views are unchanged and transport-agnostic (the
+entries, and overlays them **under** the live snapshot before mapping. The
+snapshot mapper receives typed configuration capabilities beside that read-value
+overlay; facets and views remain transport-agnostic (the
 mailbox works identically over the gateway). A server that publishes no
 `ConfigRev` (older PLC library) is treated as fully published and never
 queried. Absent manifest data degrades to empty facets, never an error.
 
-## Native read tiers (direct OPC UA)
+## Native read tiers (direct ADS / OPC UA)
 
 The direct native client reads the discovered contract at three rates, so the
 2 Hz snapshot only pays for always-visible data. A single classifier
@@ -373,7 +408,7 @@ the client can classify paths it never reads.
 
 | Tier | Read rate | Data (examples) |
 |---|---|---|
-| **fast** | every snapshot (500 ms) | tiles, PLCopen state, counters, current step, active alarms (`AlarmLog/Active` — the global banner), OEE snapshot, live cycle profile |
+| **fast** | every snapshot (500 ms) | tiles, PLCopen state, counters, current step, active alarms (`AlarmLog/Active` — the global banner), OEE snapshot, live cycle profile, Unit `SystemHealth`/`TimeQuality`, and semantic `SignalTower` state |
 | **slow** | once + ~2 s heartbeat | always-visible but slow-changing facets published redundantly on every module: `Safety`, `ControlPower` (read-only §9 status mirrors — display lag is bounded by the heartbeat; the PLC safety authority is unaffected) |
 | **on-demand** | only while the owning view is visible | drill-down rings/trends read via a targeted batch call, never cyclically: per module — `AlarmLog/Ring`, `Profiler/History`/`StepStats`, `OeeTrend`, `Part/Result/Records`, command `Timing`; and the fieldbus I/O tree (`GVL_<Project>Fieldbus.Topology` state/values) |
 | **config** | manifest (above), never cyclic | activation-static identity (`OPC.UA.DA := '0'`) |
@@ -383,8 +418,17 @@ scopes to its owning root Unit's browse base; the fieldbus tree shares a reserve
 scope. `PlcRepository.setModuleDetailActive(rootPath, bool)` and
 `setFieldbusViewActive(bool)` gate them — `AppState` activates the selected
 root's scope while a module detail is shown, and the fieldbus page activates its
-scope on mount/dispose. Transports that publish everything cyclically (Sim,
-gateway) treat both as no-ops.
+scope on mount/dispose. Sim treats both as no-ops; direct and gateway clients
+apply the same classifier and targeted-read behavior.
+
+**Gateway parity status.** The gateway preserves discovery, the config manifest,
+mailbox ordering/acknowledgement, root scoping, PLC-side access checks, and the
+same HMI-owned tier classifier as direct clients. Its bounded `discoverPaths`,
+`setReadTiers`, and `readValues` operations make Web cyclic traffic proportional
+to the consumed fast surface after the one-time bootstrap. Production acceptance
+shall still measure a representative large forest through the packaged gateway;
+source/protocol parity is not latency evidence for a particular IPC or TF6100
+configuration.
 
 **Why this shape.** The bounded history/trend arrays and the per-module
 safety/power facets otherwise dominate the cyclic read (thousands of nodes) and
@@ -408,3 +452,9 @@ arguments and gives native and gateway clients identical acknowledged writes.
 The HMI seeds its next sequence from the published request/ack values on every
 application start. It reserves the sequence before attempting the batch, so an
 ambiguous disconnect can never cause that command number to be reused.
+
+`E_HmiRequestKind` is append-only across PLC and HMI. Core `0.3.0.0` appends
+`LAMP_TEST := 26`; it carries no arbitrary output path or duration. The Unit base
+rechecks `MANUAL` authorization and idle state, starts its configured bounded
+semantic tower test, and acknowledges the exact sequence. A client never writes
+individual lamp/horn members.

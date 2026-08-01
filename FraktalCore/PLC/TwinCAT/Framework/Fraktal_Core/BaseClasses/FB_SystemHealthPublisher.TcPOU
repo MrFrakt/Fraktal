@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SystemHealthPublisher" Id="{f1257aa2-e00d-4d45-be3c-4a7b38fb8260}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §2.7/§8.12 — one bounded, reusable health evaluator. Platform adapters
+// supply measurements; this owner publishes live values and owns alarm edges.
+FUNCTION_BLOCK FB_SystemHealthPublisher
+VAR_OUTPUT
+    Status : ST_SystemHealthStatus;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _log : POINTER TO FB_AlarmLog;
+    _sourcePath : STRING(255);
+    _taskOverrunSlot, _taskJitterSlot, _controllerSlot : INT;
+    _cpuSlot, _memorySlot, _temperatureSlot, _fanSlot, _storageSlot : INT;
+    _fieldbusSlot, _dcSlot, _timeSlot : INT;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Setup" Id="{70c5417f-1bee-4c60-a529-41bc56489375}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    SourcePath : STRING(255);
+    pAlarmLog  : POINTER TO FB_AlarmLog;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_sourcePath := SourcePath;
+_log := pAlarmLog;
+Status.SourcePath := SourcePath;
+Setup := (_sourcePath <> '') AND (_log <> 0);]]></ST></Implementation>
+    </Method>
+    <Method Name="Cyclic" Id="{028f4b39-a92c-45c3-8088-ef745993a106}">
+      <Declaration><![CDATA[METHOD Cyclic : BOOL
+VAR_INPUT
+    Input      : ST_SystemHealthInput;
+    ParCfg     : ST_SystemHealthParCfg;
+    Configured : BOOL;
+END_VAR
+VAR
+    validCfg, taskOverrunBad, jitterBad, controllerBad : BOOL;
+    cpuBad, memoryBad, temperatureBad, fanBad, storageBad : BOOL;
+    fieldbusBad, dcBad, timeBad : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[validCfg := Configured AND (ParCfg.SchemaVersion = 1)
+    AND (ParCfg.MaxTaskCycleUs > 0) AND (ParCfg.MaxTaskJitterUs > 0)
+    AND (ParCfg.MaxCpuLoadPct > 0.0) AND (ParCfg.MaxCpuLoadPct <= 100.0)
+    AND (ParCfg.MaxIpcTemperatureC > 0.0)
+    AND (ParCfg.MinStorageHealthPct >= 0.0) AND (ParCfg.MinStorageHealthPct <= 100.0)
+    AND (ParCfg.MaxTimeOffsetUs >= 0);
+
+Status.Present := validCfg;
+Status.SourcePath := _sourcePath;
+Status.TaskAvailable := Input.TaskAvailable;
+Status.TaskCycleUs := Input.TaskCycleUs;
+Status.TaskJitterUs := Input.TaskJitterUs;
+Status.TaskOverrun := Input.TaskOverrun;
+Status.ControllerAvailable := Input.ControllerAvailable;
+Status.CpuLoadPct := Input.CpuLoadPct;
+Status.MemoryAvailableMb := Input.MemoryAvailableMb;
+Status.IpcAvailable := Input.IpcAvailable;
+Status.IpcTemperatureC := Input.IpcTemperatureC;
+Status.FanHealthy := Input.FanHealthy;
+Status.StorageHealthPct := Input.StorageHealthPct;
+Status.FieldbusAvailable := Input.FieldbusAvailable;
+Status.FieldbusMasterHealthy := Input.FieldbusMasterHealthy;
+Status.LostFrameCount := Input.LostFrameCount;
+Status.SlaveErrorCount := Input.SlaveErrorCount;
+Status.DcAvailable := Input.DcAvailable;
+Status.DcSynchronized := Input.DcSynchronized;
+Status.TimeQuality := Input.TimeQuality;
+
+taskOverrunBad := validCfg AND (NOT Input.TaskAvailable OR Input.TaskOverrun
+    OR (Input.TaskCycleUs > ParCfg.MaxTaskCycleUs));
+jitterBad := validCfg AND Input.TaskAvailable
+    AND (Input.TaskJitterUs > ParCfg.MaxTaskJitterUs);
+controllerBad := validCfg AND NOT Input.ControllerAvailable;
+cpuBad := validCfg AND Input.ControllerAvailable
+    AND (Input.CpuLoadPct > ParCfg.MaxCpuLoadPct);
+memoryBad := validCfg AND Input.ControllerAvailable
+    AND (Input.MemoryAvailableMb < ParCfg.MinMemoryAvailableMb);
+temperatureBad := validCfg AND Input.IpcAvailable
+    AND (Input.IpcTemperatureC > ParCfg.MaxIpcTemperatureC);
+fanBad := validCfg AND Input.IpcAvailable AND NOT Input.FanHealthy;
+storageBad := validCfg AND Input.IpcAvailable
+    AND (Input.StorageHealthPct < ParCfg.MinStorageHealthPct);
+fieldbusBad := validCfg AND (Input.FieldbusAvailable
+    AND (NOT Input.FieldbusMasterHealthy
+        OR (Input.LostFrameCount > ParCfg.MaxLostFrames)
+        OR (Input.SlaveErrorCount > ParCfg.MaxSlaveErrors))
+    OR (ParCfg.RequireFieldbus AND NOT Input.FieldbusAvailable));
+dcBad := validCfg AND ParCfg.RequireDcSync
+    AND (NOT Input.DcAvailable OR NOT Input.DcSynchronized);
+timeBad := validCfg AND ParCfg.RequireTimeSync
+    AND (NOT Input.TimeQuality.Available OR NOT Input.TimeQuality.Synchronized
+        OR (Input.TimeQuality.OffsetUs > ParCfg.MaxTimeOffsetUs)
+        OR (Input.TimeQuality.OffsetUs < -ParCfg.MaxTimeOffsetUs));
+
+_M_UpdateAlarm(Active := taskOverrunBad, Reason := E_Reason.TASK_OVERRUN,
+    Text := 'std.system.taskOverrun', Slot := _taskOverrunSlot);
+_M_UpdateAlarm(Active := jitterBad, Reason := E_Reason.TASK_JITTER_HIGH,
+    Text := 'std.system.taskJitterHigh', Slot := _taskJitterSlot);
+_M_UpdateAlarm(Active := controllerBad, Reason := E_Reason.CONTROLLER_METRICS_UNAVAILABLE,
+    Text := 'std.system.controllerMetricsUnavailable', Slot := _controllerSlot);
+_M_UpdateAlarm(Active := cpuBad, Reason := E_Reason.CPU_LOAD_HIGH,
+    Text := 'std.system.cpuLoadHigh', Slot := _cpuSlot);
+_M_UpdateAlarm(Active := memoryBad, Reason := E_Reason.MEMORY_LOW,
+    Text := 'std.system.memoryLow', Slot := _memorySlot);
+_M_UpdateAlarm(Active := temperatureBad, Reason := E_Reason.IPC_TEMP_HIGH,
+    Text := 'std.system.ipcTemperatureHigh', Slot := _temperatureSlot);
+_M_UpdateAlarm(Active := fanBad, Reason := E_Reason.IPC_FAN_FAULT,
+    Text := 'std.system.ipcFanFault', Slot := _fanSlot);
+_M_UpdateAlarm(Active := storageBad, Reason := E_Reason.STORAGE_HEALTH_LOW,
+    Text := 'std.system.storageHealthLow', Slot := _storageSlot);
+_M_UpdateAlarm(Active := fieldbusBad, Reason := E_Reason.FIELDBUS_MASTER_FAULT,
+    Text := 'std.system.fieldbusMasterFault', Slot := _fieldbusSlot);
+_M_UpdateAlarm(Active := dcBad, Reason := E_Reason.DC_SYNC_LOST,
+    Text := 'std.system.dcSyncLost', Slot := _dcSlot);
+_M_UpdateAlarm(Active := timeBad, Reason := E_Reason.TIME_SYNC_LOST,
+    Text := 'std.system.timeSyncLost', Slot := _timeSlot);
+
+Status.Healthy := validCfg AND NOT taskOverrunBad AND NOT jitterBad
+    AND NOT controllerBad AND NOT cpuBad AND NOT memoryBad
+    AND NOT temperatureBad AND NOT fanBad AND NOT storageBad
+    AND NOT fieldbusBad AND NOT dcBad AND NOT timeBad;
+Cyclic := validCfg;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_UpdateAlarm" Id="{a0608b76-fcb0-478b-bce2-2d30fd6ee990}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_UpdateAlarm
+VAR_INPUT
+    Active : BOOL;
+    Reason : E_Reason;
+    Text   : STRING(255);
+END_VAR
+VAR_IN_OUT
+    Slot : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Active THEN
+    IF (Slot = 0) AND (_log <> 0) THEN
+        Slot := _log^.Raise(Reason := Reason, Text := Text, Source := _sourcePath,
+            Severity := E_Severity.LOW, Category := E_Category.SYSTEM,
+            ResetClass := E_ResetClass.AUTO_RESET);
+    END_IF
+ELSE
+    IF (Slot > 0) AND (_log <> 0) THEN
+        _log^.Gone(Slot := Slot);
+    END_IF
+    Slot := 0;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

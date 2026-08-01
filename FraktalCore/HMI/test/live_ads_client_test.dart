@@ -84,7 +84,8 @@ void main() {
     final host = ep != null ? Uri.parse(ep).host : '127.0.0.1.1.1';
     final port = ep != null && Uri.parse(ep).hasPort ? Uri.parse(ep).port : 854;
 
-    final client = await AdsSessionClient.connect(amsNetId: host, amsPort: port);
+    final client =
+        await AdsSessionClient.connect(amsNetId: host, amsPort: port);
     addTearDown(client.close);
 
     const cycles = 6; // ~16k handle-creations if leaked; past a typical pool
@@ -95,7 +96,8 @@ void main() {
       final doc = await client.snapshot(); // triggers a fresh discover()
       final nodeCount = (doc['nodeCount'] as num?)?.toInt() ?? 0;
       // ignore: avoid_print
-      print('reconnect cycle $i: nodeCount=$nodeCount ${sw.elapsedMilliseconds}ms');
+      print(
+          'reconnect cycle $i: nodeCount=$nodeCount ${sw.elapsedMilliseconds}ms');
       expect(nodeCount, greaterThan(0),
           reason: 'reconnect cycle $i produced an empty snapshot '
               '(handle pool likely exhausted)');

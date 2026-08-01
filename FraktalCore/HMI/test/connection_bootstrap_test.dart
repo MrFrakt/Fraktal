@@ -48,6 +48,19 @@ void main() {
         .ensureVisible(find.byKey(const Key('save-language-selection')));
     await tester.tap(find.byKey(const Key('save-language-selection')));
     await tester.pump();
+
+    // Appearance (theme + control size for the physical screen)...
+    expect(find.byKey(const Key('save-appearance')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('save-appearance')));
+    await tester.tap(find.byKey(const Key('save-appearance')));
+    await tester.pump();
+
+    // ...then access: panel-local floors that only ever tighten PLC policy.
+    expect(find.byKey(const Key('save-access')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('save-access')));
+    await tester.tap(find.byKey(const Key('save-access')));
+    await tester.pump();
+
     expect(find.text('Connect Fraktal HMI'), findsOneWidget);
     await tester.tap(find.byKey(const Key('save-connect')));
     await tester.pump();
@@ -212,9 +225,17 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    // The editors moved out of the app bar into the fullscreen Settings dialog,
+    // so an admin reaches them through Settings rather than a top-level icon.
+    await tester.tap(find.byKey(const Key('settings')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('edit-unit-assignment')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('edit-unit-assignment')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('edit-unit-assignment')));
-    await tester.pump();
+    await tester.pump(); // let the dialog pop
+    await tester.pump(); // then the deferred phase change
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('unit-selection-title')), findsOneWidget);
     await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pump();
@@ -241,8 +262,13 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(Shell), findsOneWidget);
 
-    // Before an admin logs in, the connection editor is not offered.
+    // Before an admin logs in, the connection editor is not offered — the
+    // editors live in the fullscreen Settings dialog, so check inside it.
+    await tester.tap(find.byKey(const Key('settings')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('edit-connection')), findsNothing);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Login'));
     await tester.pump();
@@ -254,9 +280,15 @@ void main() {
 
     // Admin sees the editor, and it reopens the wizard prefilled with the
     // current endpoint.
+    await tester.tap(find.byKey(const Key('settings')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('edit-connection')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('edit-connection')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('edit-connection')));
-    await tester.pump();
+    await tester.pump(); // let the dialog pop
+    await tester.pump(); // then the deferred phase change
+    await tester.pumpAndSettle();
     expect(find.text('Connect Fraktal HMI'), findsOneWidget);
     expect(find.text('opc.tcp://127.0.0.1:4840'), findsOneWidget);
 
@@ -323,8 +355,7 @@ void main() {
     expect(find.textContaining('AmsNetId'), findsOneWidget);
 
     // A malformed AmsNetId (four octets) is rejected inline and blocks connect.
-    await tester.enterText(
-        find.byType(TextFormField), 'ads://127.0.0.1:851');
+    await tester.enterText(find.byType(TextFormField), 'ads://127.0.0.1:851');
     await tester.pump();
     await tester.tap(find.byKey(const Key('save-connect')));
     await tester.pump();

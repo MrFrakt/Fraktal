@@ -15,7 +15,11 @@ typedef ReconnectLog = void Function(String message);
 /// their outcome unknown and invalidates that generation. The repository's
 /// next snapshot drives reconnect and must become fresh before writes resume.
 class ReconnectingOpcUaSessionClient
-    implements OpcUaBatchSessionClient, OpcUaTieredReadClient {
+    implements
+        OpcUaBatchSessionClient,
+        OpcUaBulkReadClient,
+        OpcUaPathDiscoveryClient,
+        OpcUaTieredReadClient {
   final OpcUaSessionFactory _factory;
   final Duration baseBackoff;
   final Duration maxBackoff;
@@ -96,6 +100,40 @@ class ReconnectingOpcUaSessionClient
   @override
   Future<bool> writeBatch(List<OpcUaWrite> writes) =>
       _writeOnce((session) => session.writeBatch(writes));
+
+  @override
+  Future<Map<String, Object?>> readValues(List<String> browsePaths) async {
+    final session = _active;
+    if (_closed || session == null) {
+      throw const OpcUaTransportException(
+        'Gateway is reconnecting; targeted reads are not queued.',
+      );
+    }
+    if (session is! OpcUaBulkReadClient) return const {};
+    try {
+      return await session.readValues(browsePaths);
+    } on OpcUaTransportException catch (error) {
+      await _invalidate(session, error);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<String>> discoverPaths() async {
+    final session = await _sessionForSnapshot();
+    if (session is OpcUaPathDiscoveryClient) {
+      try {
+        return await session.discoverPaths();
+      } on OpcUaTransportException catch (error) {
+        await _invalidate(session, error);
+        rethrow;
+      }
+    }
+    final document = await snapshot();
+    final paths = document['paths'];
+    if (paths is! List) return const [];
+    return [for (final path in paths) '$path'];
+  }
 
   @override
   Future<void> setSlowPaths(Iterable<String> browsePaths) async {

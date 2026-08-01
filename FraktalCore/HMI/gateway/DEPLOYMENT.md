@@ -71,15 +71,19 @@ either or both components:
 - **Fraktal HMI** — the native desktop app, which connects **ADS-direct** to the
   PLC on a TwinCAT host. Installed to `%LOCALAPPDATA%\Programs\Fraktal HMI` with
   a Start Menu shortcut (no autorun — it is an on-demand GUI).
-- **Fraktal Gateway + Web HMI** — the browser-access path over OPC UA. Installed
-  to `%LOCALAPPDATA%\Programs\Fraktal Gateway`; the tray starts immediately and a
-  Startup shortcut starts it at future sign-ins.
+- **Fraktal Gateway + Web HMI** — the browser-access path over ADS or OPC UA.
+  Installed to `%LOCALAPPDATA%\Programs\Fraktal Gateway`; the tray starts
+  immediately and a Startup shortcut starts it at future sign-ins.
 
-The wizard requires at least one component and asks for a per-component PLC
-endpoint: the HMI's `ads://<AmsNetId>:<port>` (default
-`ads://127.0.0.1.1.1:851`) and the gateway's `opc.tcp://<host>:<port>` (default
-`opc.tcp://127.0.0.1:4840`). The two components are independent — the HMI does
-not talk to the gateway. On first install the HMI endpoint is seeded into
+The wizard requires at least one component. It asks the local TwinCAT router for
+the configured AMS Net ID and seeds the HMI/local endpoint as
+`ads://<AmsNetId>:851`; when detection is unavailable it visibly falls back to
+`ads://127.0.0.1.1.1:851`. **Use the HMI / local PLC endpoint for the Gateway**
+is checked by default: the Gateway value mirrors the HMI/local value and its
+duplicate text field is disabled. Clear it to enter a different ADS runtime or
+`opc.tcp://<host>:<port>`. The two components remain independent at runtime —
+the HMI does not talk to the gateway. On first install the HMI endpoint is
+seeded into
 `%APPDATA%\Fraktal\HMI\connection.json` (the app still runs its own
 language/unit wizard on first launch, with the endpoint pre-filled) and the
 gateway endpoint is written as `--plc-endpoint` in
@@ -88,7 +92,12 @@ files, logs, and the HMI connection settings are preserved across upgrades and
 uninstall. When **secure remote Web HMI** is selected, the wizard also collects
 one HTTPS origin and proxy account, writes the matching `--allow-origin`,
 generates a private LAN CA, stores only an Argon2id password hash, and can add a
-Domain/Private local-subnet firewall rule. It always rewrites installer-owned
+Domain/Private local-subnet firewall rule. A separately visible, checked-by-
+default option trusts that CA for the installing Windows user on the gateway PC
+only; each remote browser device still needs the exported public root installed
+through the commissioning trust channel. Windows may show a visible root trust
+confirmation; it is bounded to two minutes so a blocked prompt cannot freeze
+the installer. It always rewrites installer-owned
 `--port` to `8080`, repairing malformed legacy values such as `8080\`.
 
 The proxy Caddyfile, CA, and public origin live below
@@ -108,7 +117,7 @@ $env:FRAKTAL_PROXY_PASSWORD = '<from protected deployment secret>'
 .\install_fraktal.cmd -Components Gateway `
   -GatewayEndpoint opc.tcp://127.0.0.1:4840 `
   -EnableRemoteAccess -PublicOrigin https://192.168.100.126 `
-  -ProxyUsername fraktal -ConfigureFirewall
+  -ProxyUsername fraktal -ConfigureFirewall -TrustProxyCaForCurrentUser
 Remove-Item Env:FRAKTAL_PROXY_PASSWORD
 ```
 
@@ -158,6 +167,7 @@ $env:FRAKTAL_OPCUA_PRIVATE_KEY_PASSWORD = '<from protected deployment secret>'
   -SecurityProfile production `
   -PlcEndpoint opc.tcp://plc-cell-01:4840 `
   -ApplicationUri urn:fraktal:gateway:cell-01 `
+  -ReadRoot PLC1/MAIN/PneumaticPress `
   -WriteRoot PLC1/MAIN/PneumaticPress
 ```
 
@@ -221,16 +231,27 @@ Local `http://localhost:*` and
 `http://127.0.0.1:*` browser origins are accepted automatically. A native HMI
 may also use this endpoint; it no longer needs a direct raw OPC UA session.
 
-Gateway writes are limited to published `HmiRequest` fields and are read-only
-until at least one root is assigned:
+Gateway reads may be limited independently; without `--read-root`, the upstream
+OPC UA/ADS identity remains the read boundary. Gateway writes are limited to
+published `HmiRequest` fields and are read-only until at least one write root is
+assigned:
 
 ```text
+--read-root PLC1/MAIN/PneumaticPress
 --write-root PLC1/MAIN/PneumaticPress
 ```
 
-Repeat the option for a multi-root HMI. `--allow-all-root-mailboxes` is an
-explicit commissioning override, not a production scope. The PLC still applies
-its access and release checks.
+Repeat the options for a multi-root HMI. Add another `--read-root` for any
+standalone published data subtree (for example a fieldbus topology) the assigned
+Units consume. `--allow-all-root-mailboxes` is an explicit commissioning
+override, not a production scope. The PLC still applies its access and release
+checks.
+
+After the first discovery snapshot, the HMI sends compact path-index tiers. The
+gateway omits on-demand rings/topology from cyclic reads and serves them through
+bounded targeted reads only while their view is open. With multiple browsers, a
+path is slowed or omitted only when every connected browser agrees, so opening a
+new client cannot starve an existing one.
 
 ## Remote HMI and WSS
 

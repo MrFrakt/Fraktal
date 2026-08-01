@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SystemInfrastructure_Tests" Id="{33e2708f-b4b2-47c9-a180-a1807c34fedf}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §2.7/§8.12/§8.13 fault-injection and truth-table coverage.
+FUNCTION_BLOCK FB_SystemInfrastructure_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _log : FB_AlarmLog;
+    _stampLog : FB_AlarmLog;
+    _health : FB_SystemHealthPublisher;
+    _input : ST_SystemHealthInput;
+    _healthCfg : ST_SystemHealthParCfg;
+    _tower : FB_SignalTower;
+    _towerCfg : ST_SignalTowerParCfg;
+    _setup : BOOL;
+    _slot : INT;
+    _towerPhase : INT;
+    _towerStarted : TIME;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[Health_fault_edges_are_auto_reset_and_time_qualified();
+Tower_mapping_and_bounded_test();]]></ST></Implementation>
+    <Method Name="Health_fault_edges_are_auto_reset_and_time_qualified" Id="{38c0f0ca-c37f-4f4e-bf24-7aa7844b4dce}">
+      <Declaration><![CDATA[METHOD Health_fault_edges_are_auto_reset_and_time_qualified]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Health_fault_edges_are_auto_reset_and_time_qualified');
+IF NOT _setup THEN
+    _health.Setup(SourcePath := 'Test.Unit.SystemHealth', pAlarmLog := ADR(_log));
+    _healthCfg.MaxTaskCycleUs := 2000;
+    _healthCfg.MaxTaskJitterUs := 500;
+    _setup := TRUE;
+END_IF
+_input.TaskAvailable := TRUE;
+_input.TaskCycleUs := 1000;
+_input.TaskJitterUs := 10;
+_input.ControllerAvailable := TRUE;
+_input.CpuLoadPct := 20.0;
+_input.MemoryAvailableMb := 1024;
+_input.TimeQuality.Available := TRUE;
+_input.TimeQuality.Synchronized := TRUE;
+_input.TimeQuality.Source := 'TEST';
+_health.Cyclic(Input := _input, ParCfg := _healthCfg, Configured := TRUE);
+AssertTrue(Condition := _health.Status.Healthy, Message := 'healthy sample stays healthy');
+
+_input.TimeQuality.Synchronized := FALSE;
+_health.Cyclic(Input := _input, ParCfg := _healthCfg, Configured := TRUE);
+AssertFalse(Condition := _health.Status.Healthy, Message := 'sync loss degrades health');
+AssertEquals_INT(Expected := 1, Actual := _log.NActive, Message := 'one time-sync event opens');
+AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.TIME_SYNC_LOST),
+    Actual := TO_DWORD(_log.Active[1].ReasonCode), Message := 'registered time-sync reason');
+
+_input.TimeQuality.Synchronized := TRUE;
+_health.Cyclic(Input := _input, ParCfg := _healthCfg, Configured := TRUE);
+AssertEquals_INT(Expected := 0, Actual := _log.NActive, Message := 'restored sync auto-closes');
+AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.TIME_SYNC_LOST),
+    Actual := TO_DWORD(_log.Ring[_log.RingHead].ReasonCode), Message := 'closed edge retained');
+
+GVL_FraktalTime.Current.Available := TRUE;
+GVL_FraktalTime.Current.Synchronized := FALSE;
+_slot := _stampLog.Raise(Reason := E_Reason.NONE, Text := 'test.unsynchronized',
+    Source := 'Test.Unit', Severity := E_Severity.LOW,
+    Category := E_Category.SYSTEM, ResetClass := E_ResetClass.AUTO_RESET);
+AssertFalse(Condition := _stampLog.Active[_slot].ComeTimeSynchronized,
+    Message := 'generated timestamp carries unsynchronized quality');
+_stampLog.Gone(Slot := _slot);
+GVL_FraktalTime.Current.Synchronized := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Tower_mapping_and_bounded_test" Id="{b12a5270-755c-47e7-a269-53c6e47fc7e3}">
+      <Declaration><![CDATA[METHOD Tower_mapping_and_bounded_test]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Tower_mapping_and_bounded_test');
+CASE _towerPhase OF
+    0:
+        _tower.Cyclic(MachineState := E_MachineState.PRODUCING,
+            AlarmActive := FALSE, HighestSeverity := E_Severity.LOW,
+            OperatorActionRequired := FALSE, LampTestRequest := FALSE,
+            ParCfg := _towerCfg);
+        AssertTrue(Condition := _tower.Status.Green, Message := 'producing maps green');
+        _tower.Cyclic(MachineState := E_MachineState.PRODUCING,
+            AlarmActive := TRUE, HighestSeverity := E_Severity.HIGH,
+            OperatorActionRequired := FALSE, LampTestRequest := FALSE,
+            ParCfg := _towerCfg);
+        AssertTrue(Condition := _tower.Status.Red AND _tower.Status.Horn
+            AND NOT _tower.Status.Green, Message := 'high alarm overrides to red and horn');
+        _tower.Cyclic(MachineState := E_MachineState.STOPPED,
+            AlarmActive := FALSE, HighestSeverity := E_Severity.LOW,
+            OperatorActionRequired := TRUE, LampTestRequest := FALSE,
+            ParCfg := _towerCfg);
+        AssertTrue(Condition := _tower.Status.Blue, Message := 'operator action maps blue');
+        _towerCfg.LampTestDuration := T#2MS;
+        _tower.Cyclic(MachineState := E_MachineState.STOPPED,
+            AlarmActive := FALSE, HighestSeverity := E_Severity.LOW,
+            OperatorActionRequired := FALSE, LampTestRequest := TRUE,
+            ParCfg := _towerCfg);
+        AssertTrue(Condition := _tower.Status.TestActive AND _tower.Status.Red
+            AND _tower.Status.Amber AND _tower.Status.Green AND _tower.Status.Blue
+            AND _tower.Status.White AND _tower.Status.Horn,
+            Message := 'lamp test drives every semantic output');
+        _towerStarted := TIME();
+        _towerPhase := 1;
+    1:
+        _tower.Cyclic(MachineState := E_MachineState.STOPPED,
+            AlarmActive := FALSE, HighestSeverity := E_Severity.LOW,
+            OperatorActionRequired := FALSE, LampTestRequest := FALSE,
+            ParCfg := _towerCfg);
+        IF TIME() - _towerStarted >= T#3MS THEN
+            AssertFalse(Condition := _tower.Status.TestActive,
+                Message := 'bounded test returns automatically to mapped state');
+            _towerPhase := 0;
+            TEST_FINISHED();
+        ELSE
+            ;
+        END_IF
+    ELSE
+        _towerPhase := 0;
+END_CASE]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

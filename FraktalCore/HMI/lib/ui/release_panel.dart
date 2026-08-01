@@ -7,6 +7,7 @@ import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
+import 'app_theme.dart';
 
 class ReleasePanel extends StatelessWidget {
   final AppState app;
@@ -20,74 +21,87 @@ class ReleasePanel extends StatelessWidget {
     if (app.releaseLoading || r == null) {
       return Material(
         color: cs.secondaryContainer,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-          child: Row(children: [
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2.5),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: LText(
-                'std.release.checking',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
+        child: onContainer(
+          context,
+          cs.secondaryContainer,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+            child: Row(children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: app.clearRelease,
-              tooltip: context.tr('Dismiss'),
-            ),
-          ]),
+              const SizedBox(width: 12),
+              Expanded(
+                child: LText(
+                  'std.release.checking',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: app.clearRelease,
+                tooltip: context.tr('Dismiss'),
+              ),
+            ]),
+          ),
         ),
       );
     }
-    // released -> green 'now clear' confirmation; blocked -> error-tinted list
+    // released -> a themed 'now clear' confirmation; blocked -> error-tinted
+    // list. Both fills are paired with their `on-` colour (app_theme.onContainer)
+    // — a hardcoded light green left dark-theme text at 1.34:1, unreadable.
     final clear = r.released;
+    final fill = clear ? cs.primaryContainer : cs.errorContainer;
     return Material(
-      color: clear ? const Color(0xFFC8E6C9) : cs.errorContainer,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Icon(clear ? Icons.check_circle : Icons.block,
-                    color: clear ? const Color(0xFF2E7D32) : cs.error),
-                const SizedBox(width: 8),
-                LText(
-                    clear ? 'Now released — you can proceed' : app.releaseTitle,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-                const Spacer(),
-                IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: app.clearRelease,
-                    tooltip: context.tr('Dismiss')),
-              ]),
-              if (!clear)
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  if (r.reasons.isEmpty)
-                    _reasonChip(
-                      context,
-                      const ReleaseReason(
-                        'std.release.noDetails',
-                        ReleaseKind.other,
-                      ),
-                    )
-                  else
-                    for (final reason in r.reasons)
-                      _reasonChip(context, reason),
+      color: fill,
+      child: onContainer(
+        context,
+        fill,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(clear ? Icons.check_circle : Icons.block,
+                      color: clear ? const Color(0xFF2E7D32) : cs.error),
+                  const SizedBox(width: 8),
+                  LText(
+                      clear
+                          ? 'Now released — you can proceed'
+                          : app.releaseTitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: app.clearRelease,
+                      tooltip: context.tr('Dismiss')),
                 ]),
-            ]),
+                if (!clear)
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    if (r.reasons.isEmpty)
+                      _reasonChip(
+                        context,
+                        const ReleaseReason(
+                          'std.release.noDetails',
+                          ReleaseKind.other,
+                        ),
+                      )
+                    else
+                      for (final reason in r.reasons)
+                        _reasonChip(context, reason),
+                  ]),
+              ]),
+        ),
       ),
     );
   }

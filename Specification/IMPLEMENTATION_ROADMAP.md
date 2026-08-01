@@ -185,9 +185,16 @@ Ensure every displayed sentence and KPI has complete provenance and validity.
 
 #### 6.2 Generated reason catalog
 
-- Make the reason registry machine-readable.
-- Generate PLC constants/enums, localization keys, default text, documentation, and Dart lookup data from it.
-- Fail CI on duplicate numbers, unregistered numeric assignments, missing fallback text, and missing localization keys.
+- **Source-complete for §8.8 code/text lookup:** the HMI generator reads the
+  authoritative Core enum and registered type-band constants, rejects duplicate
+  codes/symbols, and emits Dart localization keys plus English fallback text.
+  CI fails when the generated artifact is stale.
+- Consolidate reason allocation and §8.9 rationalization metadata into one
+  machine-readable registry without creating a second numeric authority. Generate
+  or verify PLC constants/enums, documentation, priority/category, operator action,
+  consequence, shelvability, localization keys, and Dart lookup data from it.
+- Fail CI on duplicate numbers, unregistered numeric assignments, missing fallback
+  text/localization keys, and incomplete or conflicting rationalization metadata.
 
 #### 6.3 Alarm semantics
 
@@ -197,7 +204,8 @@ Ensure every displayed sentence and KPI has complete provenance and validity.
 ### Exit gate
 
 - OEE is blank/invalid whenever any required factor is unavailable.
-- No production reason exists outside the generated registry.
+- No production reason exists outside the verified registry, and every alarmable
+  reason has one rationalized metadata record.
 - HMI tests render catalog text and fall back to the diagnostic description when localization is unavailable.
 
 ### Objectives advanced
