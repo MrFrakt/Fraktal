@@ -174,7 +174,40 @@ review's central point: a fixture that asserts "some finding of this rule class"
 can pass while the branch under test is dead. The new fixtures assert the
 specific positive *and* negative case for each corrected rule.
 
-### R1 — make the snapshot reproducible (P0, blocks everything downstream)
+### R1 — make the snapshot reproducible — ✅ **COMPLETED 2026-07-31**
+
+Committed as `87cad29`. Git recorded **252 renames**, so the restructure is a
+move rather than a delete-plus-add. Verified by content before staging: of 253
+deleted paths, **186 are byte-identical** at their new location and **66 moved
+with edits**; the single true deletion is `PLC/.gitignore`, which only stated
+that PLC ignores live in the root file.
+
+**Two `.gitignore` rules were silently excluding real content** — neither was
+noticed by the audit, and both would have shipped a broken repository:
+
+| Rule | Effect | Fix |
+|---|---|---|
+| `PLC/**/Release/` | Written for compiled `.library` drops, but an application's `Release/` folder is **authored source** (§4.2 groups a Unit's release engineering there). `FB_PressDemoRelease.TcPOU` was staged for deletion with no replacement. | Match `*.library` artefacts instead of the folder name |
+| `PLC/TrialLicense.tclrs` | Pinned to the pre-move path, so the machine-bound TwinCAT licence became stageable after the restructure — and was staged. | Path-independent `**/*.tclrs` |
+
+Also added a `__pycache__` rule; the linter's caches were the only other junk in
+the untracked set.
+
+**Clean-clone acceptance (R1.2), run from a fresh `git clone`:**
+
+| Check | Result |
+|---|---|
+| PLC source present | 93 `.TcPOU` files |
+| `plc_lint` both profiles | 255 files clean ×2 |
+| Lint fixtures | 16 green |
+| XML documents | 264 parsed, 0 failures |
+| Compile paths | 260 items, 0 unresolved |
+| `flutter analyze` / `flutter test` | clean · 163 passed, 4 skipped |
+
+The snapshot is now reproducible by anyone, which is the precondition the audit
+correctly identified for every remaining item.
+
+#### Original plan (retained for reference)
 
 | # | Action | Exit evidence |
 |---|---|---|
