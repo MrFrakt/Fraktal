@@ -61,7 +61,7 @@ Unknown safety authority or ambiguous output polarity shall remain fail-closed.
    ownership in a Unit.
 3. Search `Fraktal_Modules` before creating a type. Prefer configuration or a
    small extension over a project-specific duplicate.
-4. For a new reusable CM, copy `PLC/scaffold/FB_TemplateCM`, reserve and record
+4. For a new reusable CM, copy `PLC/TwinCAT/scaffold/FB_TemplateCM`, reserve and record
    its reason band, define its enum/HAL/config contract, and implement only the
    device `CASE` in `_M_Dispatch` plus required hooks.
 5. Keep `SchemaVersion : UINT` first in every configuration/recipe record.
@@ -118,7 +118,7 @@ VAR_GLOBAL
 END_VAR
 ```
 
-Before building, run `powershell -File FraktalCore/PLC/tools/Test-OpcUaPublication.ps1`.
+Before building, run `powershell -File "FraktalCore/PLC/TwinCAT/Tests and Examples/tools/Test-OpcUaPublication.ps1"`.
 It rejects definition-level enable markers, misplaced GVL markers, and
 persistent pointer/interface/reference fields without an immediate `DA=0`.
 

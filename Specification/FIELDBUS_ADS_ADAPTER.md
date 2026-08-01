@@ -8,11 +8,11 @@ The **data model is done and platform-neutral** — you are only filling it, nev
 
 | Layer | Artifact | Where |
 |---|---|---|
-| PLC types | `ST_BusNode`, `ST_IoChannel`, `E_NodeState`, `E_ChannelDir`, `E_ChannelKind` | `fraktal-core/src/Fraktal_Core/DUTs` |
-| PLC seam | `I_FieldbusScanner` (interface) + `FB_EcFieldbusScanner` (skeleton) | `fraktal-core/src/Fraktal_Core/{Interfaces,Connectivity}` |
-| HMI model | `BusNode`, `IoChannel`, `NodeState` (ordinals aligned to the PLC enums) | `fraktal-hmi/lib/domain/fieldbus.dart` |
+| PLC types | `ST_BusNode`, `ST_IoChannel`, `E_NodeState`, `E_ChannelDir`, `E_ChannelKind` | `FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs` |
+| PLC seam | `I_FieldbusScanner` (interface) + `FB_EcFieldbusScanner` (skeleton) | `FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/{Interfaces,Connectivity}` |
+| HMI model | `BusNode`, `IoChannel`, `NodeState` (ordinals aligned to the PLC enums) | `FraktalCore/HMI/lib/domain/fieldbus.dart` |
 | HMI seam | `OpcUaRepository` + `OpcUaSnapshotMapper` | `FraktalCore/HMI/lib/data` |
-| HMI view | `FieldbusTree` (node colouring + I/O panel + gated force) | `fraktal-hmi/lib/ui/fieldbus_tree.dart` |
+| HMI view | `FieldbusTree` (node colouring + I/O panel + gated force) | `FraktalCore/HMI/lib/ui/fieldbus_tree.dart` |
 
 The `E_NodeState` ordinals (`OFFLINE=0 … OPERATIONAL=4, FAULT=5`) are the wire contract between PLC and HMI and are already verified equal on both sides.
 

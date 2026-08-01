@@ -444,7 +444,7 @@ compile-blocking regressions; see IMPLEMENTATION_NOTES §24).
 | Framework reason codes / constants | `PLC/TwinCAT/Framework/Fraktal_Core/Params/PL_Fraktal.TcGVL`; spec §8.8 |
 | A reusable CM/EM implementation | `PLC/TwinCAT/Framework/Fraktal_Modules/` (cylinder CM, clamp EM); Annexes A/B/C |
 | Press project Unit, mode chains, and releases | `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/01_PneumaticPress/{FB_PressDemoUnit,Sequences,Release}` |
-| CX2030 press I/O and commissioning gaps | `Specification/CX2030_PRESS_IO_MAPPING.md`; physical XTI and linked symbols in `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/00_System/{Hardware,GVL_PressIO.TcGVL}` |
+| CX2030 press I/O and commissioning gaps | `Specification/CX2030_PRESS_IO_MAPPING.md`; physical XTI and linked symbols in `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/00_System/Hardware/{GVL_PressIO.TcGVL,...}` |
 | First project / deployment / OPC UA commissioning | `Specification/FIRST_PROJECT_AGENT_GUIDE.md` |
 | Web HMI + Windows/Linux gateway installation | `Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`; detailed switches in `HMI/gateway/DEPLOYMENT.md` |
 | Part traceability (§3.16) | `PLC/TwinCAT/Framework/Fraktal_Core/Connectivity/FB_LocalPartCarrier.TcPOU`, `Interfaces/I_PartCarrier.TcIO`, UnitBase `_M_Part*` helpers; Annex E |

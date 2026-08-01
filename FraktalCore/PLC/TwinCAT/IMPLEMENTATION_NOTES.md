@@ -776,7 +776,7 @@ without ever being consumed by the SFC runtime.
 The reused ram-up/door-open/slide-outside chain remains the single private ST
 `_M_SeqEstablishLoadPosition` sub-sequence, invoked as one composite SFC step with a caller-supplied
 step-number window. This preserves one implementation across HOME, CHANGEOVER, and AUTO while retaining
-detailed HMI progress. `Fraktal_Press_Demo/01_PneumaticPress/Sequences/New-PressModeSfc.ps1`
+detailed HMI progress. `Tests and Examples/Fraktal_Press_Demo/01_PneumaticPress/Sequences/New-PressModeSfc.ps1`
 deterministically regenerates the native TwinCAT
 SFC XmlArchive files; static validation checks XML, archive IDs, step/action links, and project includes.
 The next pinned-XAE build remains the authority for editor/compiler acceptance of the generated graphical
@@ -789,7 +789,7 @@ The first SFC conversion incorrectly compiled the press Unit and its HOME/AUTO/C
 The Nexeed reference and Core §4.2 both point to ownership-first application engineering instead.
 
 `FB_PressDemoUnit`, its three native SFCs, their deterministic generator, and
-`FB_PressDemoRelease` now live under `Fraktal_Press_Demo/01_PneumaticPress`. The Release component
+`FB_PressDemoRelease` now live under `Tests and Examples/Fraktal_Press_Demo/01_PneumaticPress`. The Release component
 contains the project cross-device collision rules, named mode-entry condition state, and Start/manual
 report appenders. Reusable `FB_CylinderCM`, input, two-hand, pressure, and power-group mechanisms stay
 in `Fraktal_Modules`; that library no longer compiles or exports the press Unit or its SFCs. The
@@ -1045,7 +1045,7 @@ persistent pointer, interface, and `REFERENCE TO` implementation field carries
 an immediate `DA=0`. The Press topology marker moved from the GVL header to the
 `Topology` variable itself, matching TF6100 attribute placement. Core is
 `0.1.0.4`, Modules is `0.1.0.3`, and downstream applications are repinned. The
-source audit `PLC/tools/Test-OpcUaPublication.ps1` prevents reintroduction.
+source audit `PLC/TwinCAT/Tests and Examples/tools/Test-OpcUaPublication.ps1` prevents reintroduction.
 
 The fieldbus contract remains a bounded flat IEC table, but a naive OPC UA walk
 would expand all 64 x 16 fixed slots. Native discovery now reads `NodeCount` and
@@ -1169,7 +1169,7 @@ verdict tied to Control-On (via `RealBusOk`/the §70 adapter); (b) `RealBusOk` a
 bus-validity were declared/wired in the *project*, violating the objective that
 the **library detect the most it can from hardware with the least project wiring**.
 
-New library FB **`FB_EcBusHealth`** (`Fraktal_Core/Connectivity`) reads the REAL,
+New library FB **`FB_EcBusHealth`** (`Framework/Fraktal_Core/Connectivity`) reads the REAL,
 live EtherCAT slave states directly from the master via `Tc2_EtherCAT.
 FB_EcGetAllSlaveStates` (+ `FB_EcGetMasterState`), maps each device-state nibble
 (`EC_DEVICE_STATE_INIT/PREOP/SAFEOP/OP/ERROR`) to the neutral `E_NodeState`, and

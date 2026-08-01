@@ -23,7 +23,7 @@ TEST('T4_abort_reports_and_no_auto_resume');
 Every type inheriting the base inherits these guarantees; its own suite covers T2/T3/T5(+tier rows).
 
 ## 2. Scaffold template — **test-first** (new idea, O1+O6)
-`fraktal-scaffold/FB_⟨Type⟩CM/` ships THREE files, generated together:
+`FraktalCore/PLC/TwinCAT/scaffold/FB_TemplateCM/` ships THREE files, generated together:
 - `FB_⟨Type⟩CM.TcPOU` — `EXTENDS FB_ControlModuleBase`; stub `Command : E_⟨Type⟩Command`, `ParCfg` (+`SchemaVersion`), HAL ref, empty `_M_Dispatch` with `// TODO CASE _step`.
 - `FB_⟨Type⟩CM_Tests.TcPOU` — **pre-wired, initially RED**: `T2_first_out_reason_and_path`, `T3_interlock_withholds_output`, `T5_recipe_invalid_faults` with `Expected := E_Reason.⟨TODO⟩` placeholders that fail until the type earns them.
 - `SKELETON.md` — the §5.7 row map + reason-band reservation reminder (§8.8).

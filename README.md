@@ -51,13 +51,18 @@ Specification/     The standard.
   Annex_A … Annex_K         worked examples exercising every contract end-to-end
 
 FraktalCore/
-  PLC/     Fraktal/TC3 reference implementation (TwinCAT 3, IEC 61131-3)
-    Fraktal_Core/         framework library: base classes, contracts, providers
-    Fraktal_Modules/      reusable module library (cylinder CM, clamp EM, …)
-    Fraktal_Demo/         executable two-root generic demo application
-    Fraktal_Press_Demo/   pneumatic-press virtual-commissioning application
-    Fraktal_Tests/        aggregate TcUnit suite (runs against the simulated HAL)
-    scaffold/             copy-template for a new module type (ships SKELETON.md)
+  PLC/     One directory per platform binding (§1.1 O8: the model is portable,
+           each platform is served by its own binding)
+    TwinCAT/              Fraktal/TC3 reference implementation (IEC 61131-3)
+      Framework/          the reusable libraries — what a station consumes
+        Fraktal_Core/       base classes, contracts, providers
+        Fraktal_Modules/    reusable module library (cylinder CM, clamp EM, …)
+      Tests and Examples/ internal fixtures, NOT conformance targets
+        Fraktal_Demo/       executable two-root generic demo application
+        Fraktal_Press_Demo/ pneumatic-press virtual-commissioning application
+        Fraktal_Tests/      aggregate TcUnit suite (runs against the simulated HAL)
+      scaffold/           copy-template for a new module type (ships SKELETON.md)
+    Allen-Bradley/        reserved for a future binding
   HMI/     Generic operator HMI (Flutter, Material 3) — Windows/Linux/Android/Web
     lib/                  the app (data / domain / state / ui)
     native/opcua/         native OPC UA client (open62541 + Mbed TLS via dart:ffi)
@@ -73,7 +78,7 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 | Understand the model | [`Fraktal_Core_Part_I.md`](Specification/Fraktal_Core_Part_I.md) (§1 foreword, §3 architecture) |
 | Build your first module | [`Fraktal_QuickStart_and_Suite.md`](Specification/Fraktal_QuickStart_and_Suite.md) |
 | Deploy a station & connect the HMI | [`FIRST_PROJECT_AGENT_GUIDE.md`](Specification/FIRST_PROJECT_AGENT_GUIDE.md) |
-| Bring up the PLC (TwinCAT) | [`FraktalCore/PLC/README.md`](FraktalCore/PLC/README.md) |
+| Bring up the PLC (TwinCAT) | [`FraktalCore/PLC/TwinCAT/README.md`](FraktalCore/PLC/TwinCAT/README.md) |
 | Run / build the HMI | [`FraktalCore/HMI/README.md`](FraktalCore/HMI/README.md) |
 | See what's proven vs. pending | [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md) |
 
@@ -99,8 +104,9 @@ what is deferred, and names the gaps rather than hiding them.
 
 **PLC (TwinCAT 3, 4024+/4026):** add each `.plcproj` to a TwinCAT XAE solution via
 *PLC → Add Existing Item…* (do not open a `.plcproj` directly). Build & install
-`Fraktal_Core`, then `Fraktal_Modules`, then the applications. See
-[`FraktalCore/PLC/README.md`](FraktalCore/PLC/README.md).
+`Framework/Fraktal_Core`, then `Framework/Fraktal_Modules`, then the applications
+under `Tests and Examples/`. See
+[`FraktalCore/PLC/TwinCAT/README.md`](FraktalCore/PLC/TwinCAT/README.md).
 
 **HMI (Flutter):** from `FraktalCore/HMI/`
 ```
