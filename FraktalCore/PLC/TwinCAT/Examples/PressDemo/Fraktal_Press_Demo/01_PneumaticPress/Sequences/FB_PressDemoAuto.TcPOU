@@ -32,7 +32,6 @@ VAR
     _startLatched : REFERENCE TO BOOL;
     {attribute 'OPC.UA.DA' := '0'}
     _loadPosition : FB_PressDemoLoadPosition;
-    _loadPositionRunning : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -40,9 +39,7 @@ END_VAR]]></Declaration>
     <Method Name="M_Reset" Id="{27be7602-c702-dcca-822f-fb9fc2c74003}">
       <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_ResetBase(0);
-_loadPositionRunning := FALSE;
-_loadPosition.M_Reset(BaseStepNo := 0);]]></ST>
+        <ST><![CDATA[M_ResetBase(0);]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Run" Id="{27be7602-c702-dcca-822f-fb9fc2c74004}">
@@ -58,7 +55,6 @@ CASE _step OF
         _outCmd.CycleCompleted := FALSE;
         _outCmd.Homed := FALSE;
         _outCmd.ChangeoverCompleted := FALSE;
-        _loadPositionRunning := FALSE;
         _retVal := E_StepResult.ADVANCE;
         M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     100:  // await a fresh two-hand start (the §8.11.1 cycle-start marker)
@@ -154,19 +150,10 @@ CASE _step OF
             Value := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)),
             Minimum := 0, Maximum := 30000,
             Target := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)), EngUnit := 'ms');
-        _loadPositionRunning := FALSE;
         _retVal := E_StepResult.ADVANCE;
         M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     240:  // return to the shared load-safe position (composite step)
-        IF NOT _loadPositionRunning THEN
-            _loadPosition.M_Reset(BaseStepNo := 240);
-            _loadPositionRunning := TRUE;
-        END_IF
-        _loadPosition.M_Run();
-        IF _loadPosition.Done THEN
-            _loadPositionRunning := FALSE;
-            _retVal := E_StepResult.ADVANCE;
-        END_IF
+        _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 240);
         M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     999:  // cycle complete — write result, count by verdict, loop (§8.11.1 finish marker)
         M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',

@@ -2343,3 +2343,41 @@ Project-side effect: **none required**. `FB_PressDemoUnit` is unchanged and
 owner.
 
 Not verified here: no TwinCAT compiler in this environment.
+
+## 96. Composite sub-chains: M_RunSub, and the O1 trimming rule (2026-08-03)
+
+Four charts repeated the same eight lines to run a sub-chain as one step — a
+`_running` latch, a reset carrying the composite step number, the run call, a
+`Done` test clearing the latch. `FB_SequenceBase` now owns all of it:
+
+    _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 240);
+
+- `M_ChainRun` is a virtual no-op on the base. An ST sub-chain overrides it (this
+  is the old `M_Run`); a chart-language POU leaves it alone, because its body *is*
+  the chart and the runtime executes it. Only a chain used compositely overrides.
+- `M_ChainReset(BaseStepNo)` is concrete on the base: `_baseStepNo` moved there,
+  since offsetting a sub-chain's step records by its composite step number (§6.5)
+  is a framework concept, not an application one. `OnChainReset` is the virtual
+  hook for application state and is empty by default.
+- `_subRunning` joins `_driveIssued` and `_delay` as step-scoped state cleared by
+  `M_ClearTransition`.
+
+That last point removed a real hazard rather than just lines. The Changeover
+chart's `JUMP1` back to its composite step used to need an explicit
+`_loadPositionRunning := FALSE;` to make the sub-chain restart; miss it and the
+chain silently never runs again. A jump is a step change, so the base now clears
+the latch on the framework's own path and the manual reset is gone.
+
+Project code: **10 insertions, 73 deletions** across the five sequence files, and
+`FB_PressDemoLoadPosition` lost its `_baseStepNo` and its whole `M_Reset`.
+
+Core §1.1 gained the **O1 trimming rule** normatively, and AGENTS.md §3 leads with
+it: repetition in more than one project object is a framework defect to absorb, a
+project shall never be required to remember a call for correctness, and the
+threshold is measured (more than once) rather than judged. §95's per-scan reset
+and this change are its two worked examples.
+
+Not verified here: no TwinCAT compiler in this environment. Note for the first
+build — an ST chart used as a composite sub-chain must now override `M_ChainRun`
+rather than `M_Run`; `FB_PressDemoLoadPosition` is the only such chain today and
+has been renamed. Top-level chains keep `M_Run`, called by the Unit's adapters.

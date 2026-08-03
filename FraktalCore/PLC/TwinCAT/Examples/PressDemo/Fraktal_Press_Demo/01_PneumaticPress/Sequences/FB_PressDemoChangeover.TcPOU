@@ -16,7 +16,6 @@ VAR
     _model : REFERENCE TO ST_ModelId;
     {attribute 'OPC.UA.DA' := '0'}
     _loadPosition : FB_PressDemoLoadPosition;
-    _loadPositionRunning : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -25,9 +24,7 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_ResetBase(0);
-_answer := 0;
-_loadPositionRunning := FALSE;
-_loadPosition.M_Reset(BaseStepNo := 0);]]></ST>
+_answer := 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Run" Id="{27be7602-c702-dcca-822f-fb9fc2c73004}">
@@ -45,7 +42,6 @@ CASE _step OF
         _answer := 0;
         _decisionRequest.Prompt := '';
         M_ClearDecision();
-        _loadPositionRunning := FALSE;
         _retVal := E_StepResult.ADVANCE;
         M_Advance(OnAdvance := 800, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     800:  // validate the transactionally-loaded model
@@ -54,20 +50,11 @@ CASE _step OF
         _modelSelected := M_Await(Idx := 1, Label := 'project.condition.pressModelSelected',
             Ok := _model.ModelCode <> '');
         IF _modelSelected THEN
-            _loadPositionRunning := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
         M_Advance(OnAdvance := 810, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     810:  // shared load-safe position (composite step)
-        IF NOT _loadPositionRunning THEN
-            _loadPosition.M_Reset(BaseStepNo := 810);
-            _loadPositionRunning := TRUE;
-        END_IF
-        _loadPosition.M_Run();
-        IF _loadPosition.Done THEN
-            _loadPositionRunning := FALSE;
-            _retVal := E_StepResult.ADVANCE;
-        END_IF
+        _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 810);
         M_Advance(OnAdvance := 870, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     870:  // request tooling/material confirmation
         M_Step(StepNo := 870, StepName := 'project.step.pressChangeoverRequestConfirmation',
@@ -87,7 +74,6 @@ CASE _step OF
         IF _answer = 1 THEN
             _retVal := E_StepResult.ADVANCE;
         ELSIF _answer = 2 THEN
-            _loadPositionRunning := FALSE;      // repeat the guided position from the start
             _retVal := E_StepResult.JUMP1;
         ELSE
             _modelSelected := M_Await(Idx := 1,

@@ -9,7 +9,6 @@ VAR
     _outCmd : REFERENCE TO ST_PneumaticPressOutCmd;
     {attribute 'OPC.UA.DA' := '0'}
     _loadPosition : FB_PressDemoLoadPosition;
-    _loadPositionRunning : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -17,9 +16,7 @@ END_VAR]]></Declaration>
     <Method Name="M_Reset" Id="{27be7602-c702-dcca-822f-fb9fc2c72003}">
       <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_ResetBase(0);
-_loadPositionRunning := FALSE;
-_loadPosition.M_Reset(BaseStepNo := 0);]]></ST>
+        <ST><![CDATA[M_ResetBase(0);]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Run" Id="{27be7602-c702-dcca-822f-fb9fc2c72004}">
@@ -34,19 +31,10 @@ CASE _step OF
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
         _outCmd.Homed := FALSE;
         _outCmd.ChangeoverCompleted := FALSE;
-        _loadPositionRunning := FALSE;
         _retVal := E_StepResult.ADVANCE;
         M_Advance(OnAdvance := 900, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     900:  // shared load-safe position (composite step, §6.7)
-        IF NOT _loadPositionRunning THEN
-            _loadPosition.M_Reset(BaseStepNo := 900);
-            _loadPositionRunning := TRUE;
-        END_IF
-        _loadPosition.M_Run();
-        IF _loadPosition.Done THEN
-            _loadPositionRunning := FALSE;
-            _retVal := E_StepResult.ADVANCE;
-        END_IF
+        _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 900);
         M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     999:  // complete
         M_Step(StepNo := 999, StepName := 'project.step.pressHomeComplete',

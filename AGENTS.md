@@ -92,6 +92,20 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
 
 ## 3. PLC editing guardrails (the shalls that bite)
 
+**Trim the project, pay in the library (§1.1 O1 — apply this before writing project code):**
+- When the same wiring, latch, reset, or per-scan call would be written in **more than one** project
+  sequence/module/Unit, that is a *framework* defect. Absorb it into `Fraktal_Core` even if the base
+  class gets materially more complex — the cost is paid once, the saving recurs per station.
+- **Never leave a project a call it must remember for correctness.** If forgetting it produces a wrong
+  or intermittent result, drive it from a path the application already takes: `M_Attach` (registration),
+  `OnCyclic` (per scan), `M_ClearTransition` (step change). Worked examples in the base:
+  `_M_BeginSequenceScan` (per-scan chain reset — a project calls nothing) and `M_RunSub`
+  (composite sub-chain — replaced 8 lines × 4 charts with one call, and removed a latch whose forgotten
+  reset left a chain that never restarted).
+- Before adding a "wiring-only" method to a project Unit, ask whether the base can do it from the
+  registry it already has. Prefer deleting project glue over documenting it.
+- Judge by count, not taste: **more than once is the threshold.**
+
 **Lifecycle & hooks (§2.2, §3.14):**
 - New module types **shall extend the base classes** — never re-implement the lifecycle.
 - Every overridden hook **shall call `SUPER^.OnX(...)` first** and propagate its return — **except

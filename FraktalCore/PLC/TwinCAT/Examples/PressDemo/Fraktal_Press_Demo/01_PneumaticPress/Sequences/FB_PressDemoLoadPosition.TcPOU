@@ -9,7 +9,6 @@
 // handshake (M_MayIssue), and progression rides the shared _retVal via M_Advance.
 FUNCTION_BLOCK FB_PressDemoLoadPosition EXTENDS FB_SequenceBase
 VAR
-    _baseStepNo : INT;
     {attribute 'OPC.UA.DA' := '0'}
     _pressRam : REFERENCE TO FB_CylinderCM;
     {attribute 'OPC.UA.DA' := '0'}
@@ -21,19 +20,9 @@ END_VAR]]></Declaration>
       <ST><![CDATA[// step body runs via M_Run; the Unit calls this instance each scan
 ]]></ST>
     </Implementation>
-    <Method Name="M_Reset" Id="{27be7602-c702-dcca-822f-fb9fc2c71003}">
-      <Declaration><![CDATA[METHOD M_Reset
-VAR_INPUT
-    BaseStepNo : INT;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_baseStepNo := BaseStepNo;
-M_ResetBase(0);]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_Run" Id="{27be7602-c702-dcca-822f-fb9fc2c71004}">
+    <Method Name="M_ChainRun" Id="{27be7602-c702-dcca-822f-fb9fc2c71004}">
       <Declaration><![CDATA[// §6.8 ST step skeleton. One M_Step per step, one commit via M_Advance.
-METHOD M_Run]]></Declaration>
+METHOD M_ChainRun]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT _attached THEN
     RETURN;

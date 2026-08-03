@@ -26,6 +26,8 @@ VAR
     _attached : BOOL;
     _delay : TON;                  // M_Delay's timer (cleared with the transition)
     _driveIssued : BOOL;           // M_MayIssue's per-step issue latch (cleared on commit)
+    _subRunning : BOOL;            // M_RunSub's per-step latch (cleared on commit)
+    _baseStepNo : INT;             // §6.5 step-record offset when run as a sub-chain
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[;]]></ST>
@@ -157,6 +159,7 @@ METHOD M_ClearTransition]]></Declaration>
       <Implementation>
         <ST><![CDATA[_retVal := E_StepResult.NONE;
 _driveIssued := FALSE;
+_subRunning := FALSE;
 _delay(IN := FALSE);]]></ST>
       </Implementation>
     </Method>
@@ -320,6 +323,69 @@ ActiveStep := FirstStep;
 Done := FALSE;
 _restart := FALSE;
 M_ClearTransition();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ChainRun" Id="{b2dd28b6-7db9-48a6-8f4e-a437e83baa79}">
+      <Declaration><![CDATA[// One scan of this chain. An ST chart overrides this with its
+// `CASE _step OF` body; a chart-language POU leaves it alone because its own body
+// IS the chart and the runtime executes it. Only a chain that is used as a
+// composite step (M_RunSub) has to override it.
+METHOD M_ChainRun]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ChainReset" Id="{a41025db-fb80-43ee-99ef-bace7f63f844}">
+      <Declaration><![CDATA[// Restart this chain as a sub-chain of a composite step: its step records are
+// offset by the owning step number (§6.5) so the stall walk still reports one
+// continuous chain. OnChainReset carries any application state.
+METHOD M_ChainReset
+VAR_INPUT
+    BaseStepNo : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_baseStepNo := BaseStepNo;
+M_ResetBase(FirstStep := 0);
+OnChainReset();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnChainReset" Id="{6e368c40-f3a8-46a7-866a-7e436102e0a9}">
+      <Declaration><![CDATA[// §3.14 hook: clear application-owned chain state on restart. Empty by default
+// so a chain that has none writes nothing.
+METHOD PROTECTED OnChainReset]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RunSub" Id="{c441a4bf-6a3a-473d-aecf-8dcf381358dc}">
+      <Declaration><![CDATA[// §6.8 run another chain as ONE composite step. Returns NONE while the
+// sub-chain works and ADVANCE on the scan it finishes, so a step action reads:
+//
+//     _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 240);
+//
+// The entry latch is step-scoped and re-arms through M_ClearTransition, so a
+// chain re-entered later restarts correctly. Hand-written, this was eight lines
+// per composite step and one forgotten latch reset left a chain that never ran
+// again (§1.1 O1: the framework owns repeated flow control, not the project).
+METHOD M_RunSub : E_StepResult
+VAR_INPUT
+    Sub : REFERENCE TO FB_SequenceBase;
+    BaseStepNo : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RunSub := E_StepResult.NONE;
+IF NOT __ISVALIDREF(Sub) THEN
+    RETURN;
+END_IF
+IF NOT _subRunning THEN
+    Sub.M_ChainReset(BaseStepNo := BaseStepNo);
+    _subRunning := TRUE;
+END_IF
+Sub.M_ChainRun();
+IF Sub.Done THEN
+    _subRunning := FALSE;
+    M_RunSub := E_StepResult.ADVANCE;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Step" Id="{b1f42a68-0d95-4e37-8cb1-27d3a9e60f14}">

@@ -31,7 +31,6 @@ VAR
     _startLatched : REFERENCE TO BOOL;
     {attribute 'OPC.UA.DA' := '0'}
     _loadPosition : FB_PressDemoLoadPosition;
-    _loadPositionRunning : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <SFC>
@@ -585,9 +584,7 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_do
     </Method><Method Name="M_Reset" Id="{df77d1ac-86e0-4afa-892c-37a2a5945628}">
       <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_ResetBase(0);
-_loadPositionRunning := FALSE;
-_loadPosition.M_Reset(BaseStepNo := 0);]]></ST>
+        <ST><![CDATA[M_ResetBase(0);]]></ST>
       </Implementation>
     </Method>    <Method Name="A000_Initialize" Id="{e34c91a1-6c4a-476c-a49e-f30f149a2e85}">
       <Declaration><![CDATA[// N000 step action. SFC step `A000_Initialize` calls this; its transition reads
@@ -600,7 +597,6 @@ METHOD A000_Initialize]]></Declaration>
 _outCmd.CycleCompleted := FALSE;
 _outCmd.Homed := FALSE;
 _outCmd.ChangeoverCompleted := FALSE;
-_loadPositionRunning := FALSE;
 _retVal := E_StepResult.ADVANCE;]]></ST>
       </Implementation>
     </Method>
@@ -750,7 +746,6 @@ _recordAccepted := M_PartRecord(RecordName := 'PressDwell',
     Value := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)),
     Minimum := 0, Maximum := 30000,
     Target := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)), EngUnit := 'ms');
-_loadPositionRunning := FALSE;
 _retVal := E_StepResult.ADVANCE;]]></ST>
       </Implementation>
     </Method>
@@ -760,15 +755,7 @@ _retVal := E_StepResult.ADVANCE;]]></ST>
 // without M_Advance - the chart runtime owns the transition.
 METHOD A240_ReturnToLoadPosition]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF NOT _loadPositionRunning THEN
-    _loadPosition.M_Reset(BaseStepNo := 240);
-    _loadPositionRunning := TRUE;
-END_IF
-_loadPosition.M_Run();
-IF _loadPosition.Done THEN
-    _loadPositionRunning := FALSE;
-    _retVal := E_StepResult.ADVANCE;
-END_IF]]></ST>
+        <ST><![CDATA[_retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 240);]]></ST>
       </Implementation>
     </Method>
     <Method Name="A999_CycleComplete" Id="{8fd457a3-e9ed-4996-af03-9fca4f1a3dda}">
