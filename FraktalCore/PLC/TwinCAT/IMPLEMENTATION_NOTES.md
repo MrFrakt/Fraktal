@@ -2556,3 +2556,27 @@ produces a silent no-op, not an error — the same failure shape as a lint rule 
 does not apply.
 
 Not verified here: no TwinCAT compiler in this environment.
+
+## 102. SFC abort branch bound; the two charts are at parity (2026-08-03)
+
+`A185` and `A190` were drawn and are now bound to `A185_DoorReopen` and
+`A190_SlideOutsideAfterAbort`. The chart is complete: **16 steps, 18 transitions,
+2 jumps, every step bound to a defined action and no orphan actions.**
+
+The two renditions are at parity. Both carry the same step numbers —
+0, 100, 110, 130, 150, 170, 180, 185, 190, 200, 210, 215, 220, 230, 240, 999 —
+and the same two branch points:
+
+    N180 --JUMP1--> N185   (advance -> N200)
+    N200 --JUMP1--> N210   (advance -> N220)
+
+N240 is the one step with no `M_Step` call of its own: it delegates to the
+sub-chain through `M_RunSub(Chain := _loadPosition, BaseStepNo := 240)`, which
+offsets the sub-chain's own step records by 240 so the stall walk still reports
+one continuous chain (§6.5). A parity check that greps for `M_Step(StepNo :=` will
+therefore always show 240 as missing from the chart side; that is correct, not a
+gap.
+
+Not verified here: no TwinCAT compiler in this environment. The chart now has two
+jump branches to exercise on the first run — release a two-hand button mid
+door-close, and let the ram time out extending.
