@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+<TcPlcObject Version="1.1.0.1">
   <POU Name="FB_SequenceBase" Id="{6c2f91a4-3e87-4b5d-a1f0-58d24c7be093}" SpecialFunc="None">
     <Declaration><![CDATA[// Core §6.8 — THE provided step-chain base: an SFC/ST/LD sequence POU extends
 // this and gets the step record, condition waits, run-style pacing, the child
@@ -8,7 +8,7 @@
 // _retVal; every chart transition reads it; one shared exit action calls
 // M_ClearTransition. Framework flow-control lives here ONCE (§6.8(a)); the
 // application's command/wait/decision logic stays visible in each step action.
-FUNCTION_BLOCK ABSTRACT FB_SequenceBase
+FUNCTION_BLOCK ABSTRACT FB_SequenceBase IMPLEMENTS I_Sequence
 VAR_OUTPUT
     ActiveStep : INT;              // §6.5 mirror of the step record (chart-local view)
     Done : BOOL;                   // finite chains: TRUE at their finish step
@@ -93,6 +93,11 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_host := Host;
 _attached := (Host <> 0);
+IF _attached THEN
+    // Announce this chain to its owner so the Unit base can run the
+    // §6.10 per-scan result reset for it. The project writes nothing (O1).
+    _host.M_SequenceRegister(Seq := THIS^);
+END_IF
 M_Attach := _attached;]]></ST>
       </Implementation>
     </Method>
@@ -108,14 +113,6 @@ END_VAR]]></Declaration>
         <ST><![CDATA[M_Await := FALSE;
 IF _host <> 0 THEN
     M_Await := _host.M_SequenceAwait(Idx := Idx, Label := Label, Ok := Ok);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_ClearDecision" Id="{4b06d8e1-72af-4c95-a3d8-e50c19b7f234}">
-      <Declaration><![CDATA[METHOD M_ClearDecision]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF _host <> 0 THEN
-    _host.M_SequenceClearDecision();
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -139,6 +136,14 @@ END_IF]]></ST>
 METHOD M_BeginScan]]></Declaration>
       <Implementation>
         <ST><![CDATA[_retVal := E_StepResult.NONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ClearDecision" Id="{4b06d8e1-72af-4c95-a3d8-e50c19b7f234}">
+      <Declaration><![CDATA[METHOD M_ClearDecision]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _host <> 0 THEN
+    _host.M_SequenceClearDecision();
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_ClearTransition" Id="{2e6b48d1-95cf-4a73-b30e-6f81da29c504}">
@@ -364,96 +369,5 @@ IF _host <> 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_SequenceBase">
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Advance">
-      <LineId Id="3" Count="10" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_AskDecision">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Attach">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Await">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_ClearDecision">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_ClearTransition">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Complete">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_CountGood">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Delay">
-      <LineId Id="3" Count="4" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_EndOfCycle">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Fault">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Gate">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_MayIssue">
-      <LineId Id="3" Count="6" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_PartProcessed">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_PartReceived">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_PartRecord">
-      <LineId Id="3" Count="4" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_PartStarted">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_ResetBase">
-      <LineId Id="3" Count="3" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_Step">
-      <LineId Id="3" Count="3" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_StopNow">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_StopPending">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_SequenceBase.M_TakeDecision">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
   </POU>
 </TcPlcObject>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_Sequence" Id="{25ed7d0d-4569-4485-bec3-b05140229588}">
+    <Declaration><![CDATA[// Core §6.8 — the sliver of a step chain its OWNER needs.
+// A chain receives the host bridge at Setup (I_SequenceHost); this is the
+// reverse direction, so FB_UnitBase can drive scan-scoped housekeeping for
+// every attached chain without the project wiring a single call.
+INTERFACE I_Sequence]]></Declaration>
+    <Method Name="M_BeginScan" Id="{caf3b0b3-9983-49f9-8954-0826909d05e6}">
+      <Declaration><![CDATA[// §6.10 one-scan reset of the shared transition result.
+METHOD M_BeginScan]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

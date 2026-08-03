@@ -105,6 +105,9 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _towerParCfg : ST_SignalTowerParCfg;
     _lampTestRequest : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _sequences : ARRAY[1..PL_Fraktal.MAX_SEQUENCES] OF I_Sequence;
+    _sequenceCount : INT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -1467,6 +1470,52 @@ END_VAR]]></Declaration>
         <ST><![CDATA[_M_PartStarted();]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_SequenceRegister" Id="{9c12e1e0-2b54-4710-a719-b7dbb939da2c}">
+      <Declaration><![CDATA[// §6.8 register an attached chain (idempotent, bounded). Called from
+// FB_SequenceBase.M_Attach, never by project code.
+METHOD M_SequenceRegister : BOOL
+VAR_INPUT
+    Seq : I_Sequence;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_SequenceRegister := FALSE;
+IF Seq = 0 THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _sequenceCount DO
+    IF _sequences[i] = Seq THEN
+        M_SequenceRegister := TRUE;        // already attached: Setup ran again
+        RETURN;
+    END_IF
+END_FOR
+IF _sequenceCount >= PL_Fraktal.MAX_SEQUENCES THEN
+    RETURN;                                // bounded; refused, never silently dropped
+END_IF
+_sequenceCount := _sequenceCount + 1;
+_sequences[_sequenceCount] := Seq;
+M_SequenceRegister := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_BeginSequenceScan" Id="{90d173ad-1ac7-44ea-8963-773d827fd02e}">
+      <Declaration><![CDATA[// §6.10 — reset every attached chain's shared transition result once per
+// PLC cycle, before _M_Dispatch drives any step action. This is why a project
+// never calls M_BeginScan itself, and why an SFC/LD/FBD chart needs no wiring
+// to be safe against a stale ADVANCE (O1).
+METHOD PROTECTED _M_BeginSequenceScan
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO _sequenceCount DO
+    IF _sequences[i] <> 0 THEN
+        _sequences[i].M_BeginScan();
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_SequenceSetStep" Id="{cd33b52b-b93d-4827-921b-0507be840f66}">
       <Declaration><![CDATA[// I_SequenceHost (§6.7/§6.8) — step record for a separately-compiled chain.
 METHOD M_SequenceSetStep
@@ -1600,6 +1649,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+_M_BeginSequenceScan();                               // §6.10 one-scan result reset for every attached chain
 _M_TickChildren();
 _M_OeeUpdate();                                       // §8.5.1 time accounting + sampling
 AlarmLog.Cyclic();                                    // §8.10 shelf auto-expiry

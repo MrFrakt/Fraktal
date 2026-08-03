@@ -1105,12 +1105,17 @@ step it just entered. Who performs that clear depends on who owns the transition
 - **ST chart** — `M_Advance` *is* the transition. It commits and clears in one call, so the requirement
   is met with no extra step.
 - **Chart language (SFC / LD / FBD)** — the *runtime* evaluates transitions, so nothing inside the chart
-  is positioned to clear afterwards. The owner **shall** call `M_BeginScan()` once per cycle immediately
-  before executing the chart (clearing at the top of a scan is equivalent to clearing after the previous
-  scan's transitions), or the chart **shall** wire `M_ClearTransition()` as the shared **step exit
-  action**, which the runtime executes after the transition condition was evaluated. Either satisfies the
-  rule; `M_BeginScan` is the stronger of the two because it also forces every step action to re-assert
-  its own result each scan, making a stale `ADVANCE` impossible rather than merely unlikely.
+  is positioned to clear afterwards. The **framework** performs the reset: a chain announces itself to its
+  owner when it receives the host bridge, and the Unit base clears every attached chain's result at the
+  top of each cycle, before it dispatches any step action. Clearing at the top of a scan is equivalent to
+  clearing after the previous scan's transitions, and it additionally forces every step action to
+  re-assert its own result each scan, making a stale `ADVANCE` impossible rather than merely unlikely.
+
+  This is deliberately **not** a project obligation (§1.1 O1). An application that had to remember one
+  call per chart would eventually forget it, and the failure — a transition firing on a result its step
+  never produced — is intermittent and expensive to diagnose. The reference implementation registers the
+  chain in `FB_SequenceBase.M_Attach` and drives `I_Sequence.M_BeginScan` from `FB_UnitBase`, so a project
+  adding a chart in any language writes no wiring at all.
 
 The per-scan clear **shall** reset the result only. The step-scoped helpers — the `M_MayIssue` one-shot
 latch and the `M_Delay` timer — are cleared on *step change* (`M_ClearTransition`), never per scan:

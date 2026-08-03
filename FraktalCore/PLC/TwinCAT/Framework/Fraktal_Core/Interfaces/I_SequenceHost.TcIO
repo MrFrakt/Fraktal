@@ -75,6 +75,14 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[// §3.16.3 EVENT_PART_PROCESSING_STARTED
 METHOD M_SequencePartStarted]]></Declaration>
     </Method>
+    <Method Name="M_SequenceRegister" Id="{0362d491-839e-4ca7-91b3-7f74cd7919f7}">
+      <Declaration><![CDATA[// §6.8 a chain announces itself at M_Attach so the owning Unit can run
+// scan-scoped housekeeping for it. Idempotent: Setup may run more than once.
+METHOD M_SequenceRegister : BOOL
+VAR_INPUT
+    Seq : I_Sequence;
+END_VAR]]></Declaration>
+    </Method>
     <Method Name="M_SequenceSetStep" Id="{2a14964c-5032-4856-b939-f5d956f67ed0}">
       <Declaration><![CDATA[// §6.5 step record (feeds the §6.9 walk and the §8.11.4 profiler)
 METHOD M_SequenceSetStep

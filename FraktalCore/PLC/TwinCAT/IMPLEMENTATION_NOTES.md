@@ -2308,3 +2308,38 @@ token there produced a false positive on a correct chart.
 The `NOT_BUILT_PARTS` / `AlterLanguages` exemption added in §93 was removed: the
 folder no longer exists, and an unused, fixture-free exemption inside a gate is a
 hole rather than a policy. Restoring it is six lines if language variants return.
+
+## 95. The per-scan chain reset moved into FB_UnitBase (O1) (2026-08-03)
+
+§93 introduced `M_BeginScan()` and §6.8 made calling it the *owner's* obligation.
+That was the wrong side of the line for O1: a project adding an SFC chart would
+have had to remember one call, and forgetting it produces an intermittent fault —
+a transition firing on a result its step never produced — which is exactly the
+class of defect the framework exists to make impossible.
+
+The reset is now framework-driven and costs a project nothing:
+
+- new `I_Sequence` interface exposes `M_BeginScan()` — the sliver of a chain its
+  owner needs, the reverse of the `I_SequenceHost` bridge the chain receives;
+- `FB_SequenceBase IMPLEMENTS I_Sequence` and announces itself from `M_Attach`,
+  which every chain already calls at `Setup`;
+- `I_SequenceHost` gains `M_SequenceRegister`; `FB_UnitBase` keeps a bounded
+  `ARRAY[1..PL_Fraktal.MAX_SEQUENCES] OF I_Sequence` with idempotent registration
+  (Setup may run more than once) and refuses rather than silently drops on
+  overflow;
+- `FB_UnitBase.OnCyclic` calls `_M_BeginSequenceScan()` immediately after
+  `SUPER^.OnCyclic()`. `FB_ModuleBase.Cyclic` runs `OnCyclic()` before
+  `_M_Dispatch()`, so the reset is guaranteed to land before any step action of
+  the same scan.
+
+Sizing: the press Unit attaches seven chains — three top-level plus the shared
+`FB_PressDemoLoadPosition` nested in each of Home, Changeover, Auto and the SFC
+Auto — so a bound of 16 leaves headroom. The null check before
+`_sequences[i].M_BeginScan()` is a separate statement, per rule C7.
+
+Project-side effect: **none required**. `FB_PressDemoUnit` is unchanged and
+`FB_SFC_PressDemoAuto` needs no wiring; both simply inherit the guarantee. Core
+§6.8 was corrected to state that the framework performs the reset rather than the
+owner.
+
+Not verified here: no TwinCAT compiler in this environment.
