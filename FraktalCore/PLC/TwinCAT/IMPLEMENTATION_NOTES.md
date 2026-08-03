@@ -2522,3 +2522,37 @@ should be scrapped, re-received, or tracked as the same part is a process
 decision, not a framework one.
 
 Not verified here: no TwinCAT compiler in this environment.
+
+## 101. The two-hand abort keeps the same part; M_Reset actually clears now (2026-08-03)
+
+Closing §100's open question, per the process decision: an aborted part is the
+**same part**, because nothing was processed. N100 therefore receives a physical
+part **once**:
+
+    IF NOT _partInMachine THEN
+        _traceAccepted := M_PartReceived();
+        _partInMachine := TRUE;
+    END_IF
+
+`_partInMachine` is released where the part actually leaves — N215 on scrap and
+N999 on completion — so the abort path can return to N100 as many times as the
+operator likes without opening a duplicate §3.16.3 record for one physical part.
+
+`M_PartStarted` (N150) is deliberately **not** guarded. Each pass is a genuine
+processing attempt on that part, and collapsing them would hide a part that was
+attempted three times before it succeeded.
+
+**A defect this uncovered.** `M_Reset` never cleared `_partDispositioned` either —
+the edit in §99 silently did nothing, because a `.TcPOU` method keeps its
+declaration and implementation in *separate* CDATA blocks and the replacement was
+written against the two concatenated. `M_Reset` was still just `M_ResetBase(0);`.
+Left alone, a chart reset after a scrap would have carried `_partDispositioned =
+TRUE` into the next cycle and skipped counting a good part. Both trackers are now
+cleared there, in both charts.
+
+The general lesson is worth stating because it will recur: text edits against
+`.TcPOU` files must target one CDATA section. Matching across the boundary
+produces a silent no-op, not an error — the same failure shape as a lint rule that
+does not apply.
+
+Not verified here: no TwinCAT compiler in this environment.

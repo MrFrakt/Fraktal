@@ -15,6 +15,7 @@ VAR
     _answer : INT;
     _ramReached, _failureConfirmed : BOOL;   // N200/N210 named waits
     _twoHandHeldDuringClose : BOOL;          // N180 named wait
+    _partInMachine : BOOL;                   // §3.16.3 the part is already received
     _partDispositioned : BOOL;               // N260 already set the verdict
     _traceAccepted, _recordAccepted, _partProcessed : BOOL;
     {attribute 'OPC.UA.DA' := '0'}
@@ -44,7 +45,11 @@ END_VAR]]></Declaration>
     <Method Name="M_Reset" Id="{27be7602-c702-dcca-822f-fb9fc2c74003}">
       <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_ResetBase(0);]]></ST>
+        <ST><![CDATA[M_ResetBase(0);
+// A chart reset abandons whatever the cycle was holding: the part record is
+// closed by N215/N999, never by a reset, so both trackers start clean.
+_partDispositioned := FALSE;
+_partInMachine := FALSE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Run" Id="{27be7602-c702-dcca-822f-fb9fc2c74004}">
@@ -78,7 +83,15 @@ CASE _step OF
         IF M_StopPending() THEN
             M_StopNow();                       // stop accepted BETWEEN cycles: no phantom cycle
         ELSIF _partReady AND _airReady AND _startReady THEN
-            _traceAccepted := M_PartReceived();
+            // §3.16.3 receive once per PHYSICAL part. The N180 two-hand abort returns
+            // here with the same part still in the machine and nothing processed, so a
+            // second M_PartReceived would open a duplicate record for one part.
+            // M_PartStarted (N150) is deliberately NOT guarded: each pass is a genuine
+            // processing attempt on that part.
+            IF NOT _partInMachine THEN
+                _traceAccepted := M_PartReceived();
+                _partInMachine := TRUE;
+            END_IF
             _retVal := E_StepResult.ADVANCE;
         END_IF
         M_Advance(OnAdvance := 110, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
@@ -196,6 +209,7 @@ CASE _step OF
         _partProcessed := M_PartProcessed(Verdict := E_Verdict.NOK,
             Reason := PL_ModuleReasons.CYL_NOT_EXTENDED);
         _partDispositioned := TRUE;             // N999 must not also count it good
+        _partInMachine := FALSE;                // dispositioned: the next one is a new part
         _outCmd.CycleCompleted := FALSE;
         _retVal := E_StepResult.ADVANCE;
         M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
@@ -243,6 +257,7 @@ CASE _step OF
                 M_CountGood();                 // §3.9: no carrier configured — count directly
             END_IF
         END_IF
+        _partInMachine := FALSE;               // processed: the next one is a new part
         _startLatched := FALSE;
         IF M_EndOfCycle() THEN
             _retVal := E_StepResult.ADVANCE;   // stop NOT requested: loop to N100

@@ -14,6 +14,7 @@ VAR
     _answer : INT;
     _ramReached, _failureConfirmed : BOOL;   // N200/N210 named waits
     _twoHandHeldDuringClose : BOOL;          // N180 named wait
+    _partInMachine : BOOL;                   // §3.16.3 the part is already received
     _partDispositioned : BOOL;               // N260 already set the verdict
     _traceAccepted, _recordAccepted, _partProcessed : BOOL;
     {attribute 'OPC.UA.DA' := '0'}
@@ -3172,9 +3173,8 @@ _retVal := E_StepResult.ADVANCE;]]></ST>
     </Action>
     <Action Name="A100_AwaitTwoHand" Id="{46c6cb1b-aa99-45ba-90d9-296615402308}">
       <Implementation>
-        <ST><![CDATA[// N100 step action. SFC step `A100_AwaitTwoHand` calls this; its transition reads
-// `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
-// without M_Advance - the chart runtime owns the transition.
+        <ST><![CDATA[// N100 step action. The §8.11.1 cycle-start marker; also the target of the
+// N190 two-hand abort, which returns here with the same part still in place.
 M_Step(StepNo := 100, StepName := 'project.step.pressAwaitTwoHand',
     Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
 _outCmd.CycleCompleted := FALSE;
@@ -3190,7 +3190,15 @@ END_IF
 IF M_StopPending() THEN
     M_StopNow();                       // stop accepted BETWEEN cycles: no phantom cycle
 ELSIF _partReady AND _airReady AND _startReady THEN
-    _traceAccepted := M_PartReceived();
+    // §3.16.3 receive once per PHYSICAL part. The N180 two-hand abort returns
+    // here with the same part still in the machine and nothing processed, so a
+    // second M_PartReceived would open a duplicate record for one part.
+    // M_PartStarted (N150) is deliberately NOT guarded: each pass is a genuine
+    // processing attempt on that part.
+    IF NOT _partInMachine THEN
+        _traceAccepted := M_PartReceived();
+        _partInMachine := TRUE;
+    END_IF
     _retVal := E_StepResult.ADVANCE;
 END_IF]]></ST>
       </Implementation>
@@ -3346,12 +3354,13 @@ END_IF]]></ST>
     </Action>
     <Action Name="A215_ScrapPart" Id="{c0fe7836-35ee-45c5-b7cb-7eae218e5a72}">
       <Implementation>
-        <ST><![CDATA[// N215 step action. Sets the part NOK, then rejoins A240.
+        <ST><![CDATA[// N215 step action. Sets the part NOK and releases it, then rejoins A240.
 M_Step(StepNo := 215, StepName := 'project.step.pressScrapPart',
     Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
 _partProcessed := M_PartProcessed(Verdict := E_Verdict.NOK,
     Reason := PL_ModuleReasons.CYL_NOT_EXTENDED);
 _partDispositioned := TRUE;             // N999 must not also count it good
+_partInMachine := FALSE;                // dispositioned: the next one is a new part
 _outCmd.CycleCompleted := FALSE;
 _retVal := E_StepResult.ADVANCE;]]></ST>
       </Implementation>
@@ -3405,9 +3414,7 @@ _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);]]></ST>
     </Action>
     <Action Name="A999_CycleComplete" Id="{0252dfdd-9d58-4bc9-a434-44b0046e8466}">
       <Implementation>
-        <ST><![CDATA[// N999 step action. SFC step `A999_CycleComplete` calls this; its transition reads
-// `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
-// without M_Advance - the chart runtime owns the transition.
+        <ST><![CDATA[// N999 step action. Transition `_retVal = E_StepResult.ADVANCE` loops to A100.
 M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',
     Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
 _outCmd.CycleCompleted := TRUE;
@@ -3419,6 +3426,7 @@ ELSE
         M_CountGood();                 // §3.9: no carrier configured — count directly
     END_IF
 END_IF
+_partInMachine := FALSE;               // processed: the next one is a new part
 _startLatched := FALSE;
 IF M_EndOfCycle() THEN
     _retVal := E_StepResult.ADVANCE;   // stop NOT requested: loop to N100
@@ -3428,7 +3436,11 @@ END_IF]]></ST>
     <Method Name="M_Reset" Id="{df77d1ac-86e0-4afa-892c-37a2a5945628}">
       <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_ResetBase(0);]]></ST>
+        <ST><![CDATA[M_ResetBase(0);
+// A chart reset abandons whatever the cycle was holding: the part record is
+// closed by N215/N999, never by a reset, so both trackers start clean.
+_partDispositioned := FALSE;
+_partInMachine := FALSE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="Setup" Id="{7572a4b5-57a8-498e-ad52-3ffdf4e35212}">
