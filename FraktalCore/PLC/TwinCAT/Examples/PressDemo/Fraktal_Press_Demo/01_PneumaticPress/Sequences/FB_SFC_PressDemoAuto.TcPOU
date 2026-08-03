@@ -10,6 +10,10 @@ FUNCTION_BLOCK INTERNAL FB_SFC_PressDemoAuto EXTENDS FB_SequenceBase
 VAR
     _partReady, _airReady, _startReady : BOOL;
     _dwellTwoHandHeld : BOOL;          // N220 named wait: two-hand held through the dwell
+    _decisionRequest : ST_DecisionRequest;   // §6.11 not-reached confirmation
+    _answer : INT;
+    _ramReached, _failureConfirmed : BOOL;   // N200/N250 named waits
+    _partDispositioned : BOOL;               // N260 already set the verdict
     _traceAccepted, _recordAccepted, _partProcessed : BOOL;
     {attribute 'OPC.UA.DA' := '0'}
     _pressRam : REFERENCE TO FB_CylinderCM;
@@ -2700,15 +2704,28 @@ IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_
     </Action>
     <Action Name="A200_RamDown" Id="{7d4a678c-d470-4782-a227-8cadaeb0464e}">
       <Implementation>
-        <ST><![CDATA[// N200 step action. SFC step `A200_RamDown` calls this; its transition reads
-// `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
-// without M_Advance - the chart runtime owns the transition.
+        <ST><![CDATA[// N200 step action. Its transition reads `_retVal = E_StepResult.ADVANCE`; the
+// JUMP1 branch (`_retVal = E_StepResult.JUMP1`) leads to A250.
+//
+// This step OWNS the not-reached disposition, so it does not hand the ram to the
+// §6.9 auto-rollup: an awaited child fault is adopted by the Unit (ERROR,
+// _step := 0) before _M_Dispatch runs, and the chain would stop before it could
+// ask the operator anything. The wait is still named (§6.9(b)) and the cylinder
+// still raises its own CYL_NOT_EXTENDED alarm.
 M_Step(StepNo := 200, StepName := 'project.step.pressRamDown',
-    Awaits := _pressRam, AwaitingLabel := 'PressRam.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_ramReached := M_Await(Idx := 1, Label := 'project.condition.pressRamExtended',
+    Ok := _pressRam.Done);
 IF M_MayIssue(Steppable := TRUE) THEN
     _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.EXTEND; _pressRam.Execute := TRUE;
 END_IF
-IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF]]></ST>
+IF _pressRam.Done THEN
+    _pressRam.Execute := FALSE;
+    _retVal := E_StepResult.ADVANCE;
+ELSIF _pressRam.Error THEN
+    _pressRam.Execute := FALSE;         // §6.1 Execute-drop reset returns the ram to READY
+    _retVal := E_StepResult.JUMP1;      // did not reach -> operator confirmation
+END_IF]]></ST>
       </Implementation>
     </Action>
     <Action Name="A220_PressDwell" Id="{af119666-88c9-40e5-a14b-7e0ff7e26224}">
@@ -2734,6 +2751,42 @@ ELSE
     _pressRam.RestoreOutputs();
     _retVal := M_Delay(PT := _parCfg.PressSettleTime);
 END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A250_ConfirmPressFailure" Id="{dd0fa8fa-e742-47df-80da-303bf0e5a7ac}">
+      <Implementation>
+        <ST><![CDATA[// N250 step action. Reached from A200 by the JUMP1 branch. Its transition reads
+// `_retVal = E_StepResult.ADVANCE` and leads to A260.
+//
+// The operator confirms the failure before the part is scrapped. A scrap is
+// deliberate, so there is no timeout default (§6.11).
+M_Step(StepNo := 250, StepName := 'project.step.pressNotReachedConfirm',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+_decisionRequest.Prompt := 'project.decision.pressNotReached';
+_decisionRequest.Options[1] := 'project.decision.confirmScrapAndReturn';
+_decisionRequest.Default := 0;
+_decisionRequest.Timeout := T#0S;
+M_AskDecision(Req := _decisionRequest);
+_answer := M_TakeDecision();
+IF _answer = 1 THEN
+    _retVal := E_StepResult.ADVANCE;
+ELSE
+    _failureConfirmed := M_Await(Idx := 1,
+        Label := 'project.condition.pressFailureConfirmation', Ok := FALSE);
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A260_ScrapPart" Id="{c0fe7836-35ee-45c5-b7cb-7eae218e5a72}">
+      <Implementation>
+        <ST><![CDATA[// N260 step action. Sets the part NOK, then its transition leads back to A240,
+// the shared return-to-start-position step.
+M_Step(StepNo := 260, StepName := 'project.step.pressScrapPart',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_partProcessed := M_PartProcessed(Verdict := E_Verdict.NOK,
+    Reason := PL_ModuleReasons.CYL_NOT_EXTENDED);
+_partDispositioned := TRUE;             // N999 must not also count it good
+_outCmd.CycleCompleted := FALSE;
+_retVal := E_StepResult.ADVANCE;]]></ST>
       </Implementation>
     </Action>
     <Action Name="A230_RecordResult" Id="{67615e2a-a244-4064-a084-9649e0b078c9}">
@@ -2766,9 +2819,13 @@ _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);]]></ST>
 M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',
     Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
 _outCmd.CycleCompleted := TRUE;
-_partProcessed := M_PartProcessed(Verdict := E_Verdict.OK, Reason := E_Reason.NONE);
-IF NOT _partProcessed THEN
-    M_CountGood();                     // §3.9: no carrier configured — count directly
+IF _partDispositioned THEN
+    _partDispositioned := FALSE;       // N260 already set the NOK verdict
+ELSE
+    _partProcessed := M_PartProcessed(Verdict := E_Verdict.OK, Reason := E_Reason.NONE);
+    IF NOT _partProcessed THEN
+        M_CountGood();                 // §3.9: no carrier configured — count directly
+    END_IF
 END_IF
 _startLatched := FALSE;
 IF M_EndOfCycle() THEN

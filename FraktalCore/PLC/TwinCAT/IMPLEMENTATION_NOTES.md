@@ -2445,3 +2445,45 @@ Not verified here: no TwinCAT compiler in this environment. First build should
 confirm that XAE resolves each `MainAction` name to its action and that the chart
 advances past `A000` — if it stalls on the first step, the binding landed on the
 wrong attribute despite the descriptor table.
+
+## 99. Press-not-reached disposition path — a worked §6.10 jump (2026-08-03)
+
+`FB_PressDemoAuto` gains a branch for the ram failing to reach the extended
+position, as the reference example of a §6.10 jump:
+
+    N200 --JUMP1--> N250 (operator confirms the failure)
+                 -> N260 (part dispositioned NOK)
+                 -> N240 (rejoin the existing return-to-start-position step)
+
+**N200 no longer awaits the ram, and that is the whole design.** An *awaited*
+child fault is adopted by `FB_UnitBase.OnCyclic`
+(`IF (_awaits <> 0) AND_THEN _awaits.FaultActive THEN _M_FaultDiag(...)`), and
+`_M_FaultDiag` sets `_exec := ERROR` and `_step := 0`. `FB_ModuleBase.Cyclic`
+runs `OnCyclic()` before `_M_Dispatch()`, so the Unit is already in ERROR in the
+same scan and the chain never gets a dispatch in which to offer the operator
+anything. A chart that wants to own a child's failure must therefore stop handing
+that child to the §6.9 auto-rollup; the wait stays named through `M_Await`
+(§6.9(b)) and the cylinder still raises its own `CYL_NOT_EXTENDED` alarm, so
+nothing is lost from the operator's view.
+
+The trade is explicit and worth stating: during N200 the Unit will no longer
+adopt a ram fault automatically. That is the point — the chain dispositions the
+part instead of stopping — but it means any *other* ram failure in that step is
+also the chart's responsibility now.
+
+Two smaller decisions:
+
+- N250 publishes the decision every scan. §6.11 specifies an idempotent active
+  request, so ask-and-await collapse into the one step the operator sees, rather
+  than the Changeover chart's split ask/await pair.
+- `Default := 0` and `Timeout := T#0S`: scrapping a part is deliberate, so there
+  is no silent timeout disposition.
+- N999 checks `_partDispositioned` so a part already scrapped at N260 is not also
+  counted good. `M_Reset` clears the flag.
+
+The SFC twin gains `A250_ConfirmPressFailure` and `A260_ScrapPart`, and
+`A200_RamDown`/`A999_CycleComplete` were refreshed from the ST bodies. The chart's
+step and jump structure is drawn in XAE by hand; the JUMP1 branch out of `A200`
+is the transition `_retVal = E_StepResult.JUMP1`.
+
+Not verified here: no TwinCAT compiler in this environment.
