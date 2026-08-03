@@ -150,15 +150,17 @@ TYPE E_Bad : (READY := 0, {keyword} := 1) DINT; END_TYPE
         root = self._root()
         good = _pou("FB_Chart", "FUNCTION_BLOCK FB_Chart EXTENDS FB_SequenceBase", "")
         good = good.replace("<ST><![CDATA[]]></ST>",
-                            "<SFC><![CDATA[_retVal M_Step( M_BeginScan(]]></SFC>")
+                            "<SFC><![CDATA[_retVal M_Step(]]></SFC>")
         self._write(root, "Fraktal_Press_Demo/FB_Chart.TcPOU", good)
         self.assertNotIn("S1", self._rules(root))
 
-    def test_s1_chart_without_a_per_scan_clear_is_rejected(self):
+    def test_s1_chart_still_needs_the_shared_result_and_step_record(self):
+        # A chart object can only prove what it contains. The per-scan clear is
+        # the owner's call (M_BeginScan) or an editor-wired exit action, neither
+        # of which is visible here - so S1 checks the two things that are.
         root = self._root()
         bad = _pou("FB_Chart2", "FUNCTION_BLOCK FB_Chart2 EXTENDS FB_SequenceBase", "")
-        bad = bad.replace("<ST><![CDATA[]]></ST>",
-                          "<SFC><![CDATA[_retVal M_Step(]]></SFC>")
+        bad = bad.replace("<ST><![CDATA[]]></ST>", "<SFC><![CDATA[nothing useful]]></SFC>")
         self._write(root, "Fraktal_Press_Demo/FB_Chart2.TcPOU", bad)
         self.assertIn("S1", self._rules(root))
 

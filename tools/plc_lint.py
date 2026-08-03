@@ -349,20 +349,9 @@ def _has_default_then_guard(code: str, block: re.Match[str]) -> bool:
     return guard is not None
 
 
-# Folders that hold authored source which is deliberately NOT part of any build:
-# alternative-language renditions of a chart kept beside the shipped one for
-# comparison. They are still linted for source rules, but they are neither
-# conformance targets (S1) nor compile-list omissions (P1).
-NOT_BUILT_PARTS = {"AlterLanguages"}
-
-
-def _not_built(path: Path) -> bool:
-    return any(part in NOT_BUILT_PARTS for part in path.parts)
-
-
 def _shipping(path: Path) -> bool:
     parts = set(path.parts)
-    if "scaffold" in parts or "Fraktal_Tests" in parts or _not_built(path):
+    if "scaffold" in parts or "Fraktal_Tests" in parts:
         return False
     return "Framework" in parts or "Fraktal_Press_Demo" in parts
 
@@ -610,10 +599,13 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
         # shared result and record its steps — and it must clear the result once
         # per scan, which only M_BeginScan or a M_ClearTransition exit action does.
         if re.search(r"<SFC\b|<LD\b|<FBD\b", text, re.I):
+            # The per-scan clear (§6.8) is the OWNER's obligation - it calls
+            # M_BeginScan() before executing the chart - or a step exit action
+            # wired in the chart editor. Neither is visible in this file, so the
+            # linter checks only what a chart object can prove about itself:
+            # it carries the shared result and records its steps.
             required = ("_retVal", "M_Step(")
             missing = [token for token in required if token not in text]
-            if not re.search(r"M_BeginScan\(|M_ClearTransition\(", text):
-                missing.append("M_BeginScan( or M_ClearTransition( (per-scan result clear)")
             if missing:
                 findings.append(Finding(
                     path, 1, "S1",
@@ -760,7 +752,7 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
             owned = {
                 path.resolve() for path in owned_root.rglob("*")
                 if path.is_file() and path.suffix in {".TcPOU", ".TcDUT", ".TcGVL", ".TcIO", ".TcTTO"}
-                and not _skipped(path) and not _not_built(path)
+                and not _skipped(path)
             }
             missing = sorted(owned - resolved)
             for source in missing:

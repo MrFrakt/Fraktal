@@ -2266,3 +2266,45 @@ meant to be in one.
 Not verified here: no TwinCAT compiler in this environment. The new method is
 three lines of ST and the rest is tooling; the next XAE build remains the
 authority.
+
+## 94. SFC AUTO chart moved into the project and given the ST chart's behavior (2026-08-03)
+
+`FB_SFC_PressDemoAuto` moved from `Sequences/AlterLanguages/` to `Sequences/` and
+is now a compile input of `Fraktal_Press_Demo.plcproj`. Its declaration matches
+`FB_PressDemoAuto` (same child references, `Setup`, `M_Reset`), and each
+`CASE _step OF` branch of the ST chart became one ST method:
+
+    A000_Initialize   A100_AwaitTwoHand  A110_RamUp      A130_DoorOpen
+    A150_SlideInside  A170_TransferSettle A180_DoorClose A200_RamDown
+    A220_PressDwell   A230_RecordResult  A240_ReturnToLoadPosition
+    A999_CycleComplete
+
+Each body is the ST branch verbatim with the trailing `M_Advance(...)` removed:
+in a chart language the runtime owns the transition, so a step action only
+produces `_retVal`. The N220 dwell keeps its hold-not-fault behavior (§ hard-lock
+fix) unchanged.
+
+**The chart graph itself is not generated.** A TwinCAT SFC body is a serialized
+object graph (`SFCImplementationObject` → `SFCSegment` → typed nodes with
+`Id`/`IdParent` identities and attribute GUIDs), and the only example available
+in this repository contains one step, one transition, one jump and **zero**
+`SFCAction` objects — there is no `<Action>` element anywhere in the tree either.
+Synthesising twelve action-bearing steps from that would mean inventing the
+majority of the schema with no compiler available to check it, and a malformed
+archive is worse than none because it looks finished. The graph is therefore
+drawn in XAE, where the work is mechanical: each step's action is one call
+(`A200_RamDown();`) and each transition is `_retVal = E_StepResult.ADVANCE`. The
+`N999 → N100` loop is the chart's back edge.
+
+The owner must call `M_BeginScan()` once per PLC cycle before executing the chart
+(§6.8). `FB_PressDemoUnit` still drives the ST twin; switching modes over is a
+deliberate separate change, not a side effect of adding the chart.
+
+S1's chart branch was relaxed to require only what a chart object can prove about
+itself — `_retVal` and `M_Step(`. The per-scan clear is the owner's call or an
+editor-wired exit action, neither visible in the chart file, so demanding the
+token there produced a false positive on a correct chart.
+
+The `NOT_BUILT_PARTS` / `AlterLanguages` exemption added in §93 was removed: the
+folder no longer exists, and an unused, fixture-free exemption inside a gate is a
+hole rather than a policy. Restoring it is six lines if language variants return.
