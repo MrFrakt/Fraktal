@@ -2487,3 +2487,38 @@ step and jump structure is drawn in XAE by hand; the JUMP1 branch out of `A200`
 is the transition `_retVal = E_StepResult.JUMP1`.
 
 Not verified here: no TwinCAT compiler in this environment.
+
+## 100. Two-hand release during door close; failure branch renumbered (2026-08-03)
+
+**Renumbered** the press-not-reached branch from N250/N260 to **N210/N215** to
+match the steps drawn in the SFC (`A210`, `A215`). The numbers now follow process
+position rather than insertion order, and the ST `CASE` was reassembled in numeric
+order — §99 had left 250/260 sitting between 220 and 230, which read as if the
+branch belonged there.
+
+**New two-hand abort path.** Releasing a two-hand button while the door is closing
+is operator intent, not a fault, so N180 gains a second jump:
+
+    N180 --JUMP1--> N185 (door back up) -> N190 (slide out) -> N100 (two-hand wait)
+
+- Completion wins the race: `IF _door.Done` is tested before the release, so a
+  door that finished in the same scan the button was released still advances.
+- The release is a named wait (§6.9(b)), so the stall walk can say *why* the step
+  left, and `_door.Execute := FALSE` releases the close through the §6.1
+  Execute-drop reset rather than aborting the child.
+- N190 drops `_startLatched`, so the cycle cannot resume without a fresh two-hand
+  press — returning to N100 alone would otherwise re-arm on the stale latch.
+
+The SFC twin gains `A185_DoorReopen` and `A190_SlideOutsideAfterAbort`, and
+`A180_DoorClose`/`A200_RamDown`/`A210`/`A215` were re-synced from the renumbered ST
+branches. All fourteen drawn steps are bound to a defined action; `A185`/`A190`
+are waiting on their steps.
+
+**Open question for the next pass, deliberately not decided here:** the abort path
+leaves the part lifecycle open. N100 called `M_PartReceived` and N150 called
+`M_PartStarted`, but the abort returns to N100 without a `M_PartProcessed`, so the
+part is neither dispositioned nor re-received cleanly. Whether an aborted part
+should be scrapped, re-received, or tracked as the same part is a process
+decision, not a framework one.
+
+Not verified here: no TwinCAT compiler in this environment.
