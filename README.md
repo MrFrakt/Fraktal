@@ -57,10 +57,12 @@ FraktalCore/
       Framework/          the reusable libraries — what a station consumes
         Fraktal_Core/       base classes, contracts, providers
         Fraktal_Modules/    reusable module library (cylinder CM, clamp EM, …)
-      Tests and Examples/ internal fixtures, NOT conformance targets
-        Fraktal_Demo/       executable two-root generic demo application
-        Fraktal_Press_Demo/ pneumatic-press virtual-commissioning application
-        Fraktal_Tests/      aggregate TcUnit suite (runs against the simulated HAL)
+      Examples/          executable internal fixtures, NOT conformance targets
+        CoreDemo/           two-root generic demo application (sources only)
+        PressDemo/          internal feature-testing bench + PressTests suite
+      Tests/             isolated validation sources
+        Fraktal_Tests.plcproj  the aggregate TcUnit manifest
+        Fraktal_Tests/         Core + Modules suites (simulated HAL)
       scaffold/           copy-template for a new module type (ships SKELETON.md)
     Allen-Bradley/        reserved for a future binding
   HMI/     Generic operator HMI (Flutter, Material 3) — Windows/Linux/Android/Web
@@ -87,10 +89,11 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 ## Status (2026-07-22)
 
 - **HMI** — `flutter analyze` clean, full test suite green, `flutter build web`/`windows` succeed.
-- **PLC** — compiles under **TwinCAT 4026**, deployed to a runtime, and exercised
-  end-to-end over TF6100: the press demo cycles, publishes over OPC UA, and drives
+- **PLC** — compiles under **TwinCAT 4026**, loaded on a development runtime, and exercised
+  end-to-end over TF6100: the internal Press bench cycles, publishes over OPC UA, and drives
   the generic HMI (config-manifest `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live
-  commanding — all confirmed against real hardware).
+  commanding — all confirmed against the development runtime). This is not a
+  real-machine project or production acceptance result.
 - **Pending** — a pinned-build **CI compile/test gate** (spec §1.5 makes it a
   *shall*), gateway read-tier parity for Web, and the remaining items tracked in
   [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md).
@@ -105,7 +108,7 @@ what is deferred, and names the gaps rather than hiding them.
 **PLC (TwinCAT 3, 4024+/4026):** add each `.plcproj` to a TwinCAT XAE solution via
 *PLC → Add Existing Item…* (do not open a `.plcproj` directly). Build & install
 `Framework/Fraktal_Core`, then `Framework/Fraktal_Modules`, then the applications
-under `Tests and Examples/`. See
+under `Examples/`; run the aggregate TcUnit suite from its own `FraktalTests.slnx`. See
 [`FraktalCore/PLC/TwinCAT/README.md`](FraktalCore/PLC/TwinCAT/README.md).
 
 **HMI (Flutter):** from `FraktalCore/HMI/`

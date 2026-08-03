@@ -10,7 +10,7 @@ This annex builds the **traceability** contract (§3.16) and its **MES/ISA-95 ma
 InfeedUnit (FB_InfeedUnit : FB_Unit)                       ← Annex C
  ├─ Carrier   (I_PartCarrier, injected — RFID reader)      ← here
  ├─ Separator1 / ClampStation / FixtureUnit                ← Annexes A–C
- └─ Host      (I_HostEvents, injected — ISA-95/OPC UA)     ← here (§11.6)
+ └─ HostEvents (FB_HostEventPublisher; optional sink)       ← here (§11.6)
 ```
 
 ---
@@ -48,17 +48,13 @@ Capture hangs off the existing AUTO mode chain (§6.2) at defined points — no 
 METHOD PRIVATE _M_AutoChain
 CASE _step OF
   5:  // ── station entry: confirm identity ──────────────────────────────
-      IF NOT _carrier.ReadContext(_part) THEN
-          _M_Fault(E_Reason.CARRIER_READ_FAILED, 'Carrier read failed');  RETURN;
-      END_IF
-      IF _part.Uid <> _expectedUid AND _expectedUid <> '' THEN
+      IF NOT _M_PartReceived() THEN RETURN; END_IF           // reads + emits once
+      IF Part.Uid <> _expectedUid AND _expectedUid <> '' THEN
           _M_Fault(E_Reason.PART_ID_MISMATCH, 'Part id mismatch');  RETURN;
       END_IF
-      _part.Result.Verdict := E_Verdict.NONE;
-      _host.Emit(EVENT_PART_RECEIVED, _part);                 // → §11.6
       _step := 10;
 
-  10: _host.Emit(EVENT_PART_PROCESSING_STARTED, _part);
+  10: _M_PartStarted();                                      // alarm log + host projection
       _step := 20;
       // … steps 20–40: Separate / Clamp / Process / Unclamp as Annex C …
       // each step that detects a child Error records it into the result:
@@ -79,15 +75,15 @@ END_CASE
 
 ```iecst
 METHOD PRIVATE _M_FinishPart
-    _part.Result.StationPath := _name;
-    _part.Result.Stamp       := SysTime();              // §2.7
-    IF NOT _carrier.WriteResult(_part) THEN
-        _M_Fault(E_Reason.CARRIER_WRITE_FAILED, 'Result write failed');  RETURN;
-    END_IF
-    _host.Emit(EVENT_PART_PROCESSED, _part);            // carries Verdict + ReasonCode → §11.6
+    _M_PartProcessed(Verdict := _part.Result.Verdict,
+        Reason := _part.Result.ReasonCode);             // write-before-event, host + NOK projection
 ```
 
-On a fault-hold that removes the part without a valid result, the Unit emits `EVENT_PART_PROCESSING_ABORTED` instead — the part leaves *known-incomplete*, never silently.
+The inherited helpers own both the §8.3 lifecycle entry and its §11.6 host
+projection; application chains do not call a host transport directly. On Unit
+ERROR entry the base emits `EVENT_PART_PROCESSING_ABORTED` and
+`PROCESSING_ABORTED`, adopting the first-out reason when needed — the part leaves
+*known-incomplete*, never silently.
 
 ---
 
@@ -108,7 +104,10 @@ So the reject analysis on the MES reads *"NOK — cylinder did not reach extende
 
 ## E.4 MES / ISA-95 mapping (§11.6)
 
-The host is injected behind `I_HostEvents`, mapping the fixed event set to ISA-95 (IEC 62264) transactions; transport (OPC UA method, socket/REST, MQTT) is configuration:
+Every Unit publishes the bounded `HostEvents : FB_HostEventPublisher` ring. A
+deployment that also needs push delivery injects `I_HostEventSink`, mapping the
+same fixed records to ISA-95 (IEC 62264) transactions; OPC UA A&C, socket/REST,
+or MQTT delivery is composition, not application sequence code:
 
 | In-PLC event (§3.16) | Host / ISA-95 transaction |
 |----------------------|---------------------------|

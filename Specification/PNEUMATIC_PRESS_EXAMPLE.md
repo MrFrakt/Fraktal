@@ -1,12 +1,15 @@
-# Pneumatic press reference example
+# Pneumatic press internal feature-testing bench
 
-Status: non-normative worked example of the normative Core contracts. The executable TwinCAT
-application is `FraktalCore/PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo`; reusable device types live in `TwinCAT/Framework/Fraktal_Modules`.
-The concrete Unit, sequences, and station release policy live in the application project.
+Status: non-normative internal integration fixture for exercising the normative
+Core contracts. It is not a real machine project, a production reference, or
+machine-acceptance evidence. The executable TwinCAT testing application is
+`FraktalCore/PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo`; reusable device
+types live in `TwinCAT/Framework/Fraktal_Modules`. The concrete Unit, sequences,
+and station release policy live in that testing fixture.
 
 ## 1. Objective and module tree
 
-The example is deliberately built from small reusable capabilities. One root
+The testing bench is deliberately built from small reusable capabilities. One root
 `FB_PressDemoUnit` owns:
 
 ```text

@@ -374,6 +374,71 @@ void main() {
     await second.close();
   });
 
+  test('large forest traffic follows the surface consumed by every browser',
+      () async {
+    final paths = [
+      for (var root = 1; root <= 20; root++)
+        for (var field = 1; field <= 200; field++)
+          'PLC1/MAIN/Unit$root/Module${(field - 1) ~/ 20}/Status/Field$field',
+    ];
+    client.document = {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'nodeCount': paths.length,
+      'truncated': false,
+      'paths': paths,
+      'values': {for (var i = 0; i < paths.length; i++) paths[i]: i},
+    };
+    server = FraktalGatewayServer(
+      client,
+      config: FraktalGatewayConfig(port: 0),
+    );
+    await server!.start();
+    Future<IoGatewayOpcUaClient> connectClient() =>
+        IoGatewayOpcUaClient.connect(
+          Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'),
+          headers: {'origin': 'http://localhost:7357'},
+        );
+    final browsers = await Future.wait([
+      for (var i = 0; i < 4; i++) connectClient(),
+    ]);
+    addTearDown(() async {
+      for (final browser in browsers) {
+        await browser.close();
+      }
+    });
+
+    final bootstrap = await Future.wait([
+      for (final browser in browsers) browser.snapshot(),
+    ]);
+    final bootstrapBytes = utf8.encode(jsonEncode(bootstrap.first)).length;
+    const consumedCount = 120;
+    final excluded = paths.skip(consumedCount).toList(growable: false);
+    for (final browser in browsers) {
+      await browser.setExcludedPaths(excluded);
+    }
+    expect(client.excludedPaths.length, paths.length - consumedCount,
+        reason: 'the shared upstream may exclude only the browser intersection');
+
+    final watch = Stopwatch()..start();
+    final steady = await Future.wait([
+      for (final browser in browsers) browser.snapshot(),
+    ]);
+    watch.stop();
+    for (final snapshot in steady) {
+      expect((snapshot['values'] as Map).length, consumedCount);
+      expect(snapshot['paths'], isEmpty,
+          reason: 'discovery strings are one-time connection data');
+      expect(utf8.encode(jsonEncode(snapshot)).length, lessThan(bootstrapBytes ~/ 4));
+    }
+
+    final onDemand = excluded.take(600).toList(growable: false);
+    expect((await browsers.first.readValues(onDemand)).length, onDemand.length);
+    expect(client.readBatches, isNotEmpty);
+    expect(client.readBatches, everyElement(hasLength(lessThanOrEqualTo(512))));
+    expect(watch.elapsed, lessThan(const Duration(seconds: 2)),
+        reason: 'four local WebSocket clients must not starve each other');
+  });
+
   test('native gateway client reconnects after a gateway restart', () async {
     server = FraktalGatewayServer(
       client,
@@ -659,7 +724,24 @@ class _FakeOpcUaClient
     snapshotCalls++;
     final error = snapshotError;
     if (error != null) throw error;
-    return document;
+    if (excludedPaths.isEmpty) return document;
+    final result = Map<String, Object?>.from(document);
+    final values = document['values'];
+    if (values is Map) {
+      result['values'] = {
+        for (final entry in values.entries)
+          if (!excludedPaths.contains(entry.key)) entry.key: entry.value,
+      };
+      result['nodeCount'] = (result['values'] as Map).length;
+    }
+    final dataValues = document['dataValues'];
+    if (dataValues is Map) {
+      result['dataValues'] = {
+        for (final entry in dataValues.entries)
+          if (!excludedPaths.contains(entry.key)) entry.key: entry.value,
+      };
+    }
+    return result;
   }
 
   @override

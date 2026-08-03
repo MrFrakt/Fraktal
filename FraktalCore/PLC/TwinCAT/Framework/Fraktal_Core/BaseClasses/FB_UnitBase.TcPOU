@@ -17,7 +17,7 @@ VAR_INPUT
     ControlDomain  : ST_ControlDomainStatus; // §9.8: optional shared cell/cage arrangement
 END_VAR
 VAR_OUTPUT
-    Starved : BOOL;                    // §8.11.3 — derived from CurrentStep.Class
+    Starved : BOOL;                    // §8.11.3 — derived from CurrentStep.TimeClass
     Blocked : BOOL;
     Domain  : ST_ControlDomainStatus;  // §9.8 read-only publication of the assigned domain
     ControlOnRequest  : BOOL;          // one-scan request to the owning domain coordinator
@@ -38,6 +38,7 @@ VAR_OUTPUT
     AvailableModels : ARRAY[1..PL_Fraktal.MAX_RECIPES] OF ST_ModelId;
     Part        : ST_PartContext;      // §3.16.1 live part context (Present=FALSE, Uid='' = none)
     AlarmLog    : FB_AlarmLog;         // §8.3 — active list + closed ring + Blocking
+    HostEvents  : FB_HostEventPublisher; // §11.6 fixed, bounded L3/MES projection
     Access      : FB_AccessManager;    // §7.7 — per-root session/policy (default: fully open)
     GoodCount   : UDINT;               // §8.11.2 — cycle verdict counters
     NokCount    : UDINT;
@@ -616,15 +617,19 @@ CASE HmiRequest.Kind OF
         END_IF
     E_HmiRequestKind.SET_ACCESS_LEVEL:
         policyValueValid := TRUE;
-        CASE HmiRequest.TextValue OF
-            '0': levelReq := E_AccessLevel.NONE;
-            '1': levelReq := E_AccessLevel.OPERATOR;
-            '2': levelReq := E_AccessLevel.TECHNICIAN;
-            '3': levelReq := E_AccessLevel.ENGINEER;
-            '4': levelReq := E_AccessLevel.ADMIN;
+        IF HmiRequest.TextValue = '0' THEN
+            levelReq := E_AccessLevel.NONE;
+        ELSIF HmiRequest.TextValue = '1' THEN
+            levelReq := E_AccessLevel.OPERATOR;
+        ELSIF HmiRequest.TextValue = '2' THEN
+            levelReq := E_AccessLevel.TECHNICIAN;
+        ELSIF HmiRequest.TextValue = '3' THEN
+            levelReq := E_AccessLevel.ENGINEER;
+        ELSIF HmiRequest.TextValue = '4' THEN
+            levelReq := E_AccessLevel.ADMIN;
         ELSE
             policyValueValid := FALSE;
-        END_CASE
+        END_IF
         IF policyValueValid
         AND (HmiRequest.IntValue >= 0)
         AND (HmiRequest.IntValue <= TO_DINT(E_GatedAction.POWER_CONTROL)) THEN
@@ -653,6 +658,21 @@ _M_AuditHmiAccepted(Kind := HmiRequest.Kind, TargetPath := HmiRequest.TargetPath
 HmiRequest.Secret := '';
 HmiResponse.AckSequence := _hmiLastSequence;]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="_M_HostEvent" Id="{76fb49ac-f9ea-4e53-8db6-e7e4e756fd84}">
+      <Declaration><![CDATA[// §11.6 one owning projection helper; callers supply only event-specific fields.
+METHOD PRIVATE _M_HostEvent : BOOL
+VAR_INPUT
+    Kind          : E_HostEventKind;
+    PartUid       : STRING(64);
+    Subject       : STRING(80);
+    Value         : STRING(80);
+    Verdict       : E_Verdict;
+    ReasonCode    : E_Reason;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_HostEvent := HostEvents.Emit(Kind := Kind,
+    StationPath := _name, PartUid := PartUid, Subject := Subject,
+    Value := Value, Verdict := Verdict, ReasonCode := ReasonCode);]]></ST></Implementation>
     </Method>
     <Method Name="_M_InitModePolicy" Id="{df8ba8da-c8fa-411c-85c1-392b353d5cfd}">
       <Declaration><![CDATA[// §3.4.1/§3.14.4 — default per-mode switch policy. Station config (§3.8a) may
@@ -766,8 +786,14 @@ METHOD PROTECTED _M_PartAborted]]></Declaration>
     RETURN;
 END_IF
 Part.Result.Verdict := E_Verdict.NONE;
+IF (_exec = E_ExecState.ERROR) AND (Part.Result.ReasonCode = E_Reason.NONE) THEN
+    Part.Result.ReasonCode := _diag.ReasonCode;
+END_IF
 _M_PartEvent(Reason := E_Reason.EVENT_PART_PROCESSING_ABORTED,
     Text := 'std.event.partAborted: ');
+_M_HostEvent(Kind := E_HostEventKind.PROCESSING_ABORTED, PartUid := Part.Uid,
+    Subject := '', Value := '',
+    Verdict := E_Verdict.NONE, ReasonCode := Part.Result.ReasonCode);
 Part.Present := FALSE;]]></ST>
       </Implementation>
     </Method>
@@ -806,6 +832,12 @@ END_VAR]]></Declaration>
 IF (_carrier = 0) OR NOT Part.Present THEN
     RETURN;
 END_IF
+// A reject without a first-out reason cannot satisfy the KPI or host contract.
+// Reject it before writing the carrier so result-before-event remains atomic.
+IF (Verdict = E_Verdict.NOK) AND (Reason = E_Reason.NONE) THEN
+    _M_Fault(E_Reason.RESULT_RECORD_REJECTED, 'std.error.nokReasonRequired');
+    RETURN;
+END_IF
 Part.Result.Verdict := Verdict;
 Part.Result.ReasonCode := Reason;
 Part.Result.StationPath := _name;
@@ -819,12 +851,18 @@ END_IF
 // first-out ReasonCode so scrap is analysable by cause (§8.8 vocabulary).
 CASE Verdict OF
     E_Verdict.OK:     CountGood();
-    E_Verdict.NOK:    CountNok();    NokReason := Reason;
+    E_Verdict.NOK:
+        IF NOT CountNok(Reason := Reason) THEN
+            RETURN;
+        END_IF
     E_Verdict.REWORK: CountRework();
 ELSE
     ;                                // NONE: no count — the part left unjudged
 END_CASE
 _M_PartEvent(Reason := E_Reason.EVENT_PART_PROCESSED, Text := 'std.event.partProcessed: ');
+_M_HostEvent(Kind := E_HostEventKind.PROCESSED, PartUid := Part.Uid,
+    Subject := '', Value := '',
+    Verdict := Verdict, ReasonCode := Reason);
 Part.Present := FALSE;
 _M_PartProcessed := TRUE;]]></ST>
       </Implementation>
@@ -854,6 +892,9 @@ FOR i := 1 TO PL_Fraktal.MAX_RESULTS DO
     Part.Result.Records[i].Name := '';
 END_FOR
 _M_PartEvent(Reason := E_Reason.EVENT_PART_RECEIVED, Text := 'std.event.partReceived: ');
+_M_HostEvent(Kind := E_HostEventKind.PART_RECEIVED, PartUid := Part.Uid,
+    Subject := '', Value := '',
+    Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);
 _M_PartReceived := TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -901,7 +942,10 @@ METHOD PROTECTED _M_PartStarted]]></Declaration>
     RETURN;
 END_IF
 _M_PartEvent(Reason := E_Reason.EVENT_PART_PROCESSING_STARTED,
-    Text := 'std.event.partProcessingStarted: ');]]></ST>
+    Text := 'std.event.partProcessingStarted: ');
+_M_HostEvent(Kind := E_HostEventKind.PROCESSING_STARTED, PartUid := Part.Uid,
+    Subject := '', Value := '',
+    Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_PublishStatus" Id="{02d44270-09e8-4bc1-97fd-f43dd3fc44f2}">
@@ -1186,9 +1230,26 @@ CountGood := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="CountNok" Id="{a686f5b6-4c90-4e12-9d98-fa111d14dfe8}">
-      <Declaration><![CDATA[METHOD CountNok : BOOL]]></Declaration>
+      <Declaration><![CDATA[// Sections 8.11.2 and 11.6: one authoritative NOK outcome path.
+// Part.Uid is empty when the optional traceability carrier is not configured.
+METHOD CountNok : BOOL
+VAR_INPUT
+    Reason : E_Reason;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[NokCount := NokCount + 1;
+        <ST><![CDATA[CountNok := FALSE;
+IF Reason = E_Reason.NONE THEN
+    _M_Fault(E_Reason.RESULT_RECORD_REJECTED, 'std.error.nokReasonRequired');
+    RETURN;
+END_IF
+IF NOT _M_HostEvent(Kind := E_HostEventKind.NOK, PartUid := Part.Uid,
+        Subject := '', Value := '', Verdict := E_Verdict.NOK,
+        ReasonCode := Reason) THEN
+    _M_Fault(E_Reason.RESULT_RECORD_REJECTED, 'std.error.hostEventRejected');
+    RETURN;
+END_IF
+NokCount := NokCount + 1;
+NokReason := Reason;
 CountNok := TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -1209,8 +1270,10 @@ VAR_INPUT
 END_VAR
 VAR
     i        : INT;
+    metaIndex: INT;
     item     : STRING(255);
     writeKey : STRING(160);
+    meta     : ST_AlarmMeta;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_AppendConfig := SUPER^.M_AppendConfig(Pager := Pager);
@@ -1245,18 +1308,55 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         EnumDomain := '0|1');
 END_FOR
 Pager.M_AppendNumber(Scope := Status.Name, Item := 'AlarmLog/MetaCount',
-    Number := TO_DINT(AlarmLog.MetaCount));
-FOR i := 1 TO AlarmLog.MetaCount DO
+    Number := TO_DINT(PL_ReasonCatalog.COUNT + AlarmLog.MetaCount));
+// §8.8/§8.9: the standard catalog is generated from the numeric sources plus
+// one symbol-keyed rationalization registry. Static metadata stays manifest-only.
+FOR i := 1 TO PL_ReasonCatalog.COUNT DO
+    IF NOT F_ReasonMetaByIndex(Index := i, Meta := meta) THEN
+        EXIT;
+    END_IF
     item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(i), ']/ReasonCode'));
     Pager.M_AppendNumber(Scope := Status.Name, Item := item,
-        Number := TO_DINT(AlarmLog.Meta[i].ReasonCode));
+        Number := TO_DINT(meta.ReasonCode));
     item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(i), ']/OperatorAction'));
     Pager.M_Append(Scope := Status.Name, Item := item,
-        ValueText := AlarmLog.Meta[i].OperatorAction);
+        ValueText := meta.OperatorAction);
     item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(i), ']/Consequence'));
     Pager.M_Append(Scope := Status.Name, Item := item,
-        ValueText := AlarmLog.Meta[i].Consequence);
+        ValueText := meta.Consequence);
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(i), ']/Priority'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item,
+        Number := TO_DINT(meta.Priority));
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(i), ']/Category'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item,
+        Number := TO_DINT(meta.Category));
     item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(i), ']/Shelvable'));
+    IF meta.Shelvable THEN
+        Pager.M_Append(Scope := Status.Name, Item := item, ValueText := 'TRUE');
+    ELSE
+        Pager.M_Append(Scope := Status.Name, Item := item, ValueText := 'FALSE');
+    END_IF
+END_FOR
+// External/application libraries may append rationalized reasons not present in
+// the shipped registry. RegisterMetaFull enforces their complete record.
+FOR i := 1 TO AlarmLog.MetaCount DO
+    metaIndex := PL_ReasonCatalog.COUNT + i;
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(metaIndex), ']/ReasonCode'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item,
+        Number := TO_DINT(AlarmLog.Meta[i].ReasonCode));
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(metaIndex), ']/OperatorAction'));
+    Pager.M_Append(Scope := Status.Name, Item := item,
+        ValueText := AlarmLog.Meta[i].OperatorAction);
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(metaIndex), ']/Consequence'));
+    Pager.M_Append(Scope := Status.Name, Item := item,
+        ValueText := AlarmLog.Meta[i].Consequence);
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(metaIndex), ']/Priority'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item,
+        Number := TO_DINT(AlarmLog.Meta[i].Priority));
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(metaIndex), ']/Category'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item,
+        Number := TO_DINT(AlarmLog.Meta[i].Category));
+    item := CONCAT('AlarmLog/Meta/Meta[', CONCAT(TO_STRING(metaIndex), ']/Shelvable'));
     IF AlarmLog.Meta[i].Shelvable THEN
         Pager.M_Append(Scope := Status.Name, Item := item, ValueText := 'TRUE');
     ELSE
@@ -1298,7 +1398,12 @@ _M_ClearDecisionState();]]></ST>
     <Method Name="M_SequenceComplete" Id="{94f85c2c-bf7e-4679-9ad7-df299f9443e9}">
       <Declaration><![CDATA[METHOD M_SequenceComplete]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_M_Complete();]]></ST>
+        <ST><![CDATA[IF _mode = E_Mode.CHANGEOVER THEN
+    _M_HostEvent(Kind := E_HostEventKind.CHANGEOVER_DONE, PartUid := '',
+        Subject := 'Model', Value := Model.ModelCode,
+        Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);
+END_IF
+_M_Complete();]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_SequenceCountGood" Id="{7ac5d064-bbc3-4e23-a999-5b1106c18501}">
@@ -1711,8 +1816,22 @@ VAR_INPUT
     OldMode : E_Mode;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[OnModeChanged := 0;]]></ST>
+        <ST><![CDATA[_M_HostEvent(Kind := E_HostEventKind.MODE_CHANGED, PartUid := '',
+    Subject := 'Mode', Value := TO_STRING(TO_DINT(NewMode)),
+    Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);
+OnModeChanged := 0;]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="OnCommandStart" Id="{4698d7ce-6d4c-492c-9ead-e072c285ae34}">
+      <Declaration><![CDATA[// Core §11.6: CHANGEOVER starts when its guided sequence actually starts, not
+// merely when the operator selects the mode or transactionally loads a model.
+METHOD PROTECTED OnCommandStart : DINT]]></Declaration>
+      <Implementation><ST><![CDATA[OnCommandStart := SUPER^.OnCommandStart();
+IF _mode = E_Mode.CHANGEOVER THEN
+    _M_HostEvent(Kind := E_HostEventKind.CHANGEOVER_STARTED, PartUid := '',
+        Subject := 'Model', Value := Model.ModelCode,
+        Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);
+END_IF]]></ST></Implementation>
     </Method>
     <Method Name="OnModeExit" Id="{d824838b-6d6c-4575-ade3-00f3815d6c9e}">
       <Declaration><![CDATA[// §3.14.4 — called every scan while a mode request is pending and the Unit is BUSY.
@@ -2199,6 +2318,36 @@ Model := Id;                           // identity changes only after subtree co
 ConfigRev := ConfigRev + 1;            // §3.10.2 — recipe/config leaves changed
 SetModel := TRUE;]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="M_PublishMaterialChanged" Id="{27225091-fd15-48c0-a242-131de64ab93c}">
+      <Declaration><![CDATA[// §11.6.1 internal composition seam; not a remote command surface.
+METHOD M_PublishMaterialChanged : BOOL
+VAR_INPUT
+    Material : STRING(80);
+    Value    : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_PublishMaterialChanged := _M_HostEvent(
+    Kind := E_HostEventKind.MATERIAL_CHANGED, PartUid := '', Subject := Material,
+    Value := Value, Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_PublishToolChanged" Id="{cc18bd59-d3df-4af3-a8b4-e56788466431}">
+      <Declaration><![CDATA[// §11.6.1 internal composition seam; not a remote command surface.
+METHOD M_PublishToolChanged : BOOL
+VAR_INPUT
+    Tool  : STRING(80);
+    Value : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_PublishToolChanged := _M_HostEvent(
+    Kind := E_HostEventKind.TOOL_CHANGED, PartUid := '', Subject := Tool,
+    Value := Value, Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SetHostEventSink" Id="{c075ef1c-ce1a-4aec-9cd4-f8cc578ba7b2}">
+      <Declaration><![CDATA[// §11.6.2 inject an optional OPC UA/MES/REST/MQTT delivery adapter.
+METHOD M_SetHostEventSink : BOOL
+VAR_INPUT
+    Sink : I_HostEventSink;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetHostEventSink := HostEvents.SetSink(Sink := Sink);]]></ST></Implementation>
     </Method>
     <Method Name="SetPartCarrier" Id="{6a3e9c15-2f84-4b0d-9c17-d84f5e21ab63}">
       <Declaration><![CDATA[// §3.16.2 — inject the part carrier at the composition root (0 = traceability off).

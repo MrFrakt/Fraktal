@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_FaultRecovery_Tests" Id="{83504ef1-2fae-4d99-a54c-60644b0cda0f}" SpecialFunc="None">
+    <Declaration><![CDATA[// Regression suite for the press hard-lock: an AUTO cycle reached N200 (ram down),
+// the operator released the two-hand button mid-stroke — the designed way to stop a
+// stroke — and NO panel action could recover the machine.
+//
+// Measured on the live PLC, the lock was two latches deep:
+//   1. the lost permissive was classified as a FAULT, so the only exit was
+//      Reset -> IDLE, and the fault's own condition ("two-hand held during a
+//      stroke") could only be re-established by starting;
+//   2. OperatorReset skipped an ACTIVE event and left both Execute inputs asserted,
+//      and §6.1's Execute-drop reset — the sole exit from a latched terminal state —
+//      needs them low. A Unit that is not BUSY never calls _M_Dispatch again, so the
+//      frozen step holding `PressRam.Execute := TRUE` could never clear it, and the
+//      next HOME re-issued an already-TRUE input: no rising edge, ram stuck in its
+//      latched state, Unit re-adopting the fault through the §8.2 rollup.
+//
+// The ram is held mid-stroke deterministically by NOT calling its sim plant, so its
+// position feedback never arrives (MoveTimeout is T#2S and a TON cannot advance
+// inside one PLC scan, so it cannot expire here and turn the wait into a timeout).
+FUNCTION_BLOCK FB_FaultRecovery_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    Press : FB_PressDemoUnit;
+    PressHal, DoorHal, SlideHal : ST_CylinderHal;
+    TwoHandHal : ST_TwoHandHal;
+    PowerHal : ST_PowerGroupHal;
+    PartPresentHal : ST_DigitalInputHal;
+    AirPressureHal : ST_AirPressureHal;
+    PressSim, DoorSim, SlideSim : FB_CylinderSim;
+    Recipe : FB_LocalRecipeProvider;
+    Cfg : ST_PneumaticPressParCfg;
+    Domain : ST_ControlDomainStatus;
+    Release : ST_ReleaseReport;
+    Wired : BOOL;
+    i : INT;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF NOT Wired THEN
+    // A non-zero dwell keeps N220 open for the dwell-hold assertions; a TON never
+    // advances inside a scan, so the dwell simply does not elapse during a test.
+    Cfg.PressSettleTime := T#500MS;
+    Cfg.TransferSettleTime := T#0S;
+    Cfg.IdealCycleMs := 1000;
+    Cfg.BaselineWorkMs := 900;
+    Cfg.RequireTwoHandStart := TRUE;
+    Recipe.Register(ModelCode := '', RecipeKey := 'PneumaticPressUnit', pData := ADR(Cfg), Size := SIZEOF(Cfg));
+    PressHal.RetractedFb := TRUE; DoorHal.RetractedFb := TRUE; SlideHal.RetractedFb := TRUE;
+    Press.Setup(Name := 'Test.Recovery', PressHal := PressHal, DoorHal := DoorHal,
+        SlideHal := SlideHal, TwoHandHal := TwoHandHal, PowerHal := PowerHal,
+        PartPresentHal := PartPresentHal, AirPressureHal := AirPressureHal, Recipe := Recipe);
+    PressSim.Setup(HalRef := PressHal, TravelTime := T#0S);
+    DoorSim.Setup(HalRef := DoorHal, TravelTime := T#0S);
+    SlideSim.Setup(HalRef := SlideHal, TravelTime := T#0S);
+    PowerHal.SafetyPermit := TRUE; PowerHal.FieldbusHealthy := TRUE; PowerHal.PowerFeedback := TRUE;
+    TwoHandHal.FieldbusHealthy := TRUE;
+    PartPresentHal.Quality := TRUE; PartPresentHal.Value := TRUE;
+    AirPressureHal.Quality := TRUE;
+    AirPressureHal.LowPressure := FALSE; AirPressureHal.OperatingPressure := TRUE;
+    Domain.Present := TRUE; Domain.Id := 'TEST-RECOVERY'; Domain.ReadyForStart := TRUE;
+    Domain.Safety.Present := TRUE; Domain.Safety.AllSafe := TRUE;
+    Domain.ControlPower.Present := TRUE; Domain.ControlPower.ControlOn := TRUE;
+    Press.ControlDomain := Domain;
+    Press.SetMode(Mode := E_Mode.AUTO);
+    Press();
+    Wired := TRUE;
+END_IF
+Two_hand_release_mid_stroke_holds_the_ram();
+Two_hand_release_in_the_dwell_holds_and_restores();
+Latched_fault_recovers_with_one_operator_reset();
+Reset_never_bypasses_a_live_condition();]]></ST></Implementation>
+    <Method Name="_M_RunToRamDown" Id="{69d94b0e-ff42-4cba-99a7-8907c39c4eba}">
+      <Declaration><![CDATA[// Drive the fixture from the load-safe position to N200 with the ram commanded
+// EXTEND and still travelling. The ram's plant model is deliberately NOT ticked, so
+// its extended feedback never arrives and the stroke stays in progress.
+METHOD PROTECTED _M_RunToRamDown : BOOL
+VAR
+    scan : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TwoHandHal.LeftPressed := FALSE; TwoHandHal.RightPressed := FALSE;
+TwoHandHal.SafeActive := FALSE;
+Press();                                     // clear any stale start pulse
+TwoHandHal.LeftPressed := TRUE; TwoHandHal.RightPressed := TRUE;
+TwoHandHal.SafeActive := TRUE;               // physical start edge (§3.4.2, non-safety)
+FOR scan := 1 TO 40 DO
+    DoorSim(); SlideSim(); Press();
+END_FOR
+_M_RunToRamDown := (Press.CurrentStep.StepNo = 200) AND Press.PressRam.Busy;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ReturnToIdle" Id="{fd9df32c-d62b-4f0a-bb5f-c1da8c5f48d2}">
+      <Declaration><![CDATA[// Leave the fixture where every test in this suite expects to find it: AUTO, stopped,
+// no blocking event, ram/door/slide back at the load-safe position, two-hand released.
+METHOD PROTECTED _M_ReturnToIdle
+VAR
+    scan : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TwoHandHal.LeftPressed := FALSE; TwoHandHal.RightPressed := FALSE;
+TwoHandHal.SafeActive := FALSE;
+AirPressureHal.LowPressure := FALSE; AirPressureHal.OperatingPressure := TRUE;
+Press.OperatorReset();
+// HOME is interruptible and uses the normal immediate mode-exit handshake. This
+// deterministically abandons an open AUTO dwell without pretending rapid calls
+// advance its 500 ms TON.
+Press.SetMode(Mode := E_Mode.HOME);
+FOR scan := 1 TO 8 DO
+    PressSim(); DoorSim(); SlideSim(); Press();
+END_FOR
+IF (Press.ModeActive = E_Mode.HOME) AND (Press.State = E_ExecState.READY) THEN
+    Press.Start();
+END_IF
+FOR scan := 1 TO 30 DO
+    PressSim(); DoorSim(); SlideSim(); Press();
+END_FOR
+Press.Stop();
+FOR scan := 1 TO 4 DO
+    PressSim(); DoorSim(); SlideSim(); Press();
+END_FOR
+Press.SetMode(Mode := E_Mode.AUTO);
+FOR scan := 1 TO 6 DO
+    PressSim(); DoorSim(); SlideSim(); Press();
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="Two_hand_release_mid_stroke_holds_the_ram" Id="{502654e3-7d54-4369-874c-510484b58b77}">
+      <Declaration><![CDATA[// Defect B: releasing the button mid-stroke is expected operator behaviour, so it
+// belongs in HELD (suspend, resume when restored), not in a fault whose only exit is
+// Reset -> IDLE. Nothing is relaxed: the output is still withheld by the same permit.
+METHOD Two_hand_release_mid_stroke_holds_the_ram]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Two_hand_release_mid_stroke_holds_the_ram');
+AssertTrue(Condition := _M_RunToRamDown(),
+    Message := 'fixture reaches N200 with the ram travelling');
+AssertTrue(Condition := PressHal.ExtendOut, Message := 'ram is driving down');
+
+// The operator lets go, mid-stroke.
+TwoHandHal.LeftPressed := FALSE; TwoHandHal.RightPressed := FALSE;
+TwoHandHal.SafeActive := FALSE;
+DoorSim(); SlideSim(); Press();
+DoorSim(); SlideSim(); Press();
+
+AssertFalse(Condition := PressHal.ExtendOut,
+    Message := 'the permit still withholds the output — the interlock is untouched');
+AssertTrue(Condition := Press.PressRam.Held, Message := 'ram is HELD (§6.1)');
+AssertFalse(Condition := Press.PressRam.Error, Message := 'a released two-hand is not a ram fault');
+AssertFalse(Condition := Press.Error, Message := 'and it is not a Unit fault either');
+AssertFalse(Condition := Press.AlarmLog.Blocking,
+    Message := 'no MANUAL_RESET event, so nothing blocks the restart (§8.3(b))');
+AssertTrue(Condition := Press.Held, Message := 'the Unit reports the awaited hold (§8.2)');
+AssertEquals_STRING(Expected := 'project.interlock.pressRequiresTwoHandHeld',
+    Actual := Press.Status.Diagnostic.Description,
+    Message := 'the operator sees WHICH condition is missing, not a composite key (§6.9)');
+AssertEquals_STRING(Expected := 'Test.Recovery.PressRam',
+    Actual := Press.Status.Diagnostic.SourcePath,
+    Message := 'the held module names itself, not the Unit');
+
+// Pressing again resumes the same stroke — no reset, no restart, no lost part.
+TwoHandHal.LeftPressed := TRUE; TwoHandHal.RightPressed := TRUE;
+TwoHandHal.SafeActive := TRUE;
+DoorSim(); SlideSim(); Press();
+DoorSim(); SlideSim(); Press();
+AssertTrue(Condition := PressHal.ExtendOut, Message := 'resume re-energizes the ram');
+AssertFalse(Condition := Press.PressRam.Held, Message := 'hold clears itself when the button returns');
+FOR i := 1 TO 6 DO
+    PressSim(); DoorSim(); SlideSim(); Press();      // let the stroke finish now
+END_FOR
+AssertEquals_INT(Expected := 220, Actual := Press.CurrentStep.StepNo,
+    Message := 'the suspended stroke completes and the cycle carries on');
+_M_ReturnToIdle();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Two_hand_release_in_the_dwell_holds_and_restores" Id="{5f8b3a41-6c27-4d18-9e05-b7f0c2a1d934}">
+      <Declaration><![CDATA[// N220 holds the press force through the dwell. The force is the valve latched by the
+// EXTEND that N200 already completed, so a withdraw needs an explicit restore — the
+// case a hold at the CM alone does not cover.
+METHOD Two_hand_release_in_the_dwell_holds_and_restores]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Two_hand_release_in_the_dwell_holds_and_restores');
+AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
+FOR i := 1 TO 6 DO
+    PressSim(); DoorSim(); SlideSim(); Press();      // complete the stroke -> dwell
+END_FOR
+AssertEquals_INT(Expected := 220, Actual := Press.CurrentStep.StepNo, Message := 'dwelling at N220');
+AssertTrue(Condition := PressHal.ExtendOut, Message := 'press force is applied during the dwell');
+
+TwoHandHal.LeftPressed := FALSE; TwoHandHal.RightPressed := FALSE;
+TwoHandHal.SafeActive := FALSE;
+PressSim(); DoorSim(); SlideSim(); Press();
+AssertFalse(Condition := PressHal.ExtendOut, Message := 'releasing the button stops pressing');
+AssertFalse(Condition := Press.Error, Message := 'and does not fault the cycle');
+AssertEquals_INT(Expected := 220, Actual := Press.CurrentStep.StepNo, Message := 'the dwell holds where it was');
+AssertFalse(Condition := Press.CurrentStep.Conds[1].Ok,
+    Message := 'the named dwell condition shows FALSE (§6.9(b))');
+
+TwoHandHal.LeftPressed := TRUE; TwoHandHal.RightPressed := TRUE;
+TwoHandHal.SafeActive := TRUE;
+PressSim(); DoorSim(); SlideSim(); Press();
+PressSim(); DoorSim(); SlideSim(); Press();
+AssertTrue(Condition := PressHal.ExtendOut,
+    Message := 'pressing again restores the press force (RestoreOutputs)');
+_M_ReturnToIdle();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Latched_fault_recovers_with_one_operator_reset" Id="{7d41c9a6-2e83-4b50-9f16-3c05a8d7e921}">
+      <Declaration><![CDATA[// Defect A + C, the actual hard-lock. Air loss mid-stroke is a genuine process fault
+// (not an operator action), so it still faults — and that is exactly the state the
+// press could not get out of. ONE reset has to make HOME runnable again.
+METHOD Latched_fault_recovers_with_one_operator_reset]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Latched_fault_recovers_with_one_operator_reset');
+AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
+
+// Lose operating air while the ram is travelling: the Unit faults with the chain
+// frozen at N200, which is where it had asserted PressRam.Execute.
+AirPressureHal.OperatingPressure := FALSE;
+AirPressureHal.LowPressure := TRUE;
+DoorSim(); SlideSim(); Press();
+DoorSim(); SlideSim(); Press();
+
+AssertTrue(Condition := Press.Error, Message := 'air loss during motion is a real fault');
+AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'and raises a blocking event (§8.3(b))');
+AssertEquals_DINT(Expected := TO_DINT(E_AlarmState.ACTIVE),
+    Actual := TO_DINT(Press.AlarmLog.Active[1].State),
+    Message := 'the event is ACTIVE — it never reached WAIT_RESET');
+// The two latches that made this unrecoverable:
+AssertTrue(Condition := Press.Execute, Message := 'the run command is still asserted');
+AssertTrue(Condition := Press.PressRam.Execute,
+    Message := 'and so is the child command the frozen chain issued');
+
+// Restore air: the CAUSE is gone, but the latched state is not, and Start stays shut.
+AirPressureHal.OperatingPressure := TRUE;
+AirPressureHal.LowPressure := FALSE;
+DoorSim(); SlideSim(); Press();
+Press.ReleaseReportStart(Report := Release);
+AssertFalse(Condition := Release.Released,
+    Message := 'a cleared cause does not by itself unlatch the Unit');
+
+// ONE operator action.
+AssertTrue(Condition := Press.OperatorReset(), Message := 'the reset is accepted');
+AssertFalse(Condition := Press.AlarmLog.Blocking,
+    Message := 'an ACTIVE MANUAL_RESET event closes on a deliberate reset (§8.3(b))');
+AssertEquals_DINT(Expected := TO_DINT(E_AlarmState.CLOSED),
+    Actual := TO_DINT(Press.AlarmLog.Active[1].State), Message := 'slot released');
+AssertTrue(Condition := Press.AlarmLog.Ring[Press.AlarmLog.RingHead].Duration >= T#0S,
+    Message := 'the closed event still carries a Duration (§8.3(a))');
+AssertFalse(Condition := Press.Execute, Message := 'the stale run command is released');
+AssertFalse(Condition := Press.PressRam.Execute, Message := 'the stranded child command is released');
+
+DoorSim(); SlideSim(); Press();
+DoorSim(); SlideSim(); Press();
+AssertTrue(Condition := Press.State = E_ExecState.READY,
+    Message := 'the Unit is READY after the inherited Execute-drop reset (§6.1)');
+AssertTrue(Condition := Press.PressRam.State = E_ExecState.READY,
+    Message := 'and so is the ram, so it can take a fresh command edge');
+
+// Defect C: the recovery sequence is now reachable, under normal access authority.
+AssertTrue(Condition := Press.SetMode(Mode := E_Mode.HOME), Message := 'HOME can be selected');
+Press();
+AssertTrue(Condition := Press.Start(), Message := 'HOME starts with no further operator action');
+FOR i := 1 TO 30 DO
+    PressSim(); DoorSim(); SlideSim(); Press();
+END_FOR
+AssertTrue(Condition := Press.OutCmd.Homed, Message := 'HOME reaches the load-safe position');
+_M_ReturnToIdle();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Reset_never_bypasses_a_live_condition" Id="{4a1e7b02-9d35-4c68-b7a1-0f28e6c35d17}">
+      <Declaration><![CDATA[// The reset closes a latched event even while its cause is unsatisfied, which is only
+// safe because it clears the LATCH and never the condition. Proof: reset with the air
+// still missing, then watch the release report keep Start shut on that live condition.
+METHOD Reset_never_bypasses_a_live_condition]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Reset_never_bypasses_a_live_condition');
+AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
+AirPressureHal.OperatingPressure := FALSE;
+AirPressureHal.LowPressure := TRUE;
+DoorSim(); SlideSim(); Press();
+DoorSim(); SlideSim(); Press();
+AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'faulted with air missing');
+
+AssertTrue(Condition := Press.OperatorReset(), Message := 'reset is accepted with the cause still live');
+DoorSim(); SlideSim(); Press();
+AssertFalse(Condition := Press.AlarmLog.Blocking, Message := 'the latch is cleared');
+Press.ReleaseReportStart(Report := Release);
+AssertFalse(Condition := Release.Released,
+    Message := 'but Start is still refused — the reset cleared the latch, not the condition');
+AssertFalse(Condition := Press.ReleaseConditions.ModeStartAirPressureOk,
+    Message := 'and the live condition is still reported by name (§7.8)');
+AssertFalse(Condition := PressHal.ExtendOut,
+    Message := 'no output is restored by a reset');
+_M_ReturnToIdle();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

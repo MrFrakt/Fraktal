@@ -79,6 +79,25 @@ Speed : LREAL; SchemaVersion : UINT; END_STRUCT END_TYPE]]></Declaration></DUT>
             _method("M_Check", "CASE OutCmd OF 0: OutCmd := 1; END_CASE")))
         self.assertIn("C5", self._rules(root))
 
+    def test_c2_rejects_reserved_enum_member(self):
+        for keyword in ("TIME", "CLASS"):
+            root = self._root()
+            path = self._write(root, "Framework/E_Bad.TcDUT", f'''<TcPlcObject>
+<DUT Name="E_Bad"><Declaration><![CDATA[{{attribute 'qualified_only'}}
+TYPE E_Bad : (READY := 0, {keyword} := 1) DINT; END_TYPE
+]]></Declaration></DUT></TcPlcObject>''')
+            with self.subTest(keyword=keyword):
+                self.assertIn("C2", {finding.rule for finding in lint_file(path)})
+
+    def test_c6_rejects_string_case_labels(self):
+        root = self._root()
+        declaration = "FUNCTION_BLOCK FB_Bad EXTENDS FB_ControlModuleBase\n" + _contract()
+        self._write(root, "Framework/FB_Bad.TcPOU", _pou(
+            "FB_Bad", declaration, "Cyclic();",
+            _method("M_Check",
+                    "CASE TextValue OF\n'0': OutCmd := 1;\nELSE OutCmd := 0;\nEND_CASE")))
+        self.assertIn("C6", self._rules(root))
+
     def test_s1_sequence_skeleton_negative_fixture(self):
         root = self._root()
         self._write(root, "Fraktal_Press_Demo/FB_BadSeq.TcPOU", _pou(
@@ -121,6 +140,50 @@ BAD_REASON : DINT := {value}; END_VAR]]></Declaration></GVL></TcPlcObject>''')
             "MAIN", "PROGRAM MAIN\nVAR\nRoot : FB_TestUnit;\nEND_VAR", "Root();"))
         self._write(root, "Fraktal_Demo/Fraktal_Demo.plcproj", f'''<Project>
 <Compile Include="{unit.name}"/><Compile Include="{main.name}"/></Project>''')
+        self.assertIn("P1", self._rules(root))
+
+    def test_p1_common_ancestor_manifest_owns_only_matching_source_folder(self):
+        # TwinCAT rejects '..' in linked Compile paths, so an aggregate manifest
+        # must be allowed at the common ancestor without claiming every sibling
+        # project's authored files as its own.
+        root = self._root()
+        runner = self._write(root,
+            "Tests/Fraktal_Tests/PRG_TcUnitRunner.TcPOU",
+            _pou("PRG_TcUnitRunner", "PROGRAM PRG_TcUnitRunner", ""))
+        linked = self._write(root,
+            "Examples/Fraktal_Press_Demo/PRG_Linked.TcPOU",
+            _pou("PRG_Linked", "PROGRAM PRG_Linked", ""))
+        demo = self._write(root,
+            "Examples/Fraktal_Demo/MAIN.TcPOU",
+            _pou("MAIN", "PROGRAM MAIN", ""))
+        self._write(root, "Fraktal_Tests.plcproj", f'''<Project>
+<Compile Include="Tests\\Fraktal_Tests\\{runner.name}"/>
+<Compile Include="Examples\\Fraktal_Press_Demo\\{linked.name}"/></Project>''')
+        self._write(root,
+            "Examples/Fraktal_Press_Demo/Fraktal_Press_Demo.plcproj",
+            f'<Project><Compile Include="{linked.name}"/></Project>')
+        self._write(root, "Examples/Fraktal_Demo/Fraktal_Demo.plcproj",
+            f'<Project><Compile Include="{demo.name}"/></Project>')
+        self.assertNotIn("P1", self._rules(root))
+
+    def test_p1_rejects_parent_relative_compile_include(self):
+        root = self._root()
+        linked = self._write(root, "Sibling/PRG_Linked.TcPOU",
+            _pou("PRG_Linked", "PROGRAM PRG_Linked", ""))
+        self._write(root, "Aggregate/Aggregate.plcproj", f'''<Project>
+<Compile Include="..\\Sibling\\{linked.name}"/></Project>''')
+        self.assertIn("P1", self._rules(root))
+
+    def test_p1_rejects_duplicate_source_loaded_by_two_xae_plc_projects(self):
+        root = self._root()
+        shared = self._write(root, "Fixture/Shared/PRG_Shared.TcPOU",
+            _pou("PRG_Shared", "PROGRAM PRG_Shared", ""))
+        for name in ("App", "Tests"):
+            self._write(root, f"Fixture/{name}.plcproj", f'''<Project>
+<Compile Include="Shared\\{shared.name}"/></Project>''')
+        self._write(root, "Fixture/Both.tsproj", '''<TcSmProject><Project><Plc>
+<Project PrjFilePath="App.plcproj"/><Project PrjFilePath="Tests.plcproj"/>
+</Plc></Project></TcSmProject>''')
         self.assertIn("P1", self._rules(root))
 
     # ---- regression fixtures for the three rules corrected after the audit ----

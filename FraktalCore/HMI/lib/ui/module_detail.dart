@@ -1001,7 +1001,9 @@ class _ModuleOverviewTab extends StatelessWidget {
     final root = app.rootOf(e.sourcePath);
     AlarmMeta? meta;
     for (final m in root?.alarmMeta ?? const <AlarmMeta>[]) {
-      if (m.reasonCode == e.reasonCode && e.reasonCode != 0) {
+      if (m.reasonCode == e.reasonCode &&
+          e.reasonCode != 0 &&
+          m.operatorAction.isNotEmpty) {
         meta = m;
         break;
       }

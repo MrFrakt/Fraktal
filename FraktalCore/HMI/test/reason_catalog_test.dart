@@ -19,10 +19,25 @@ void main() {
   });
 
   test('every generated reason has a standard English fallback', () {
-    expect(generatedReasonSymbolByCode, hasLength(50));
+    expect(generatedReasonSymbolByCode, hasLength(51));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');
+      expect(standardEnglish['std.reason.$code.consequence'], isNotNull,
+          reason: 'missing consequence for reason $code');
+      expect(generatedReasonPriorityByCode[code], inInclusiveRange(0, 2));
+      expect(generatedReasonCategoryByCode[code], inInclusiveRange(0, 2));
+      expect(generatedReasonShelvableByCode[code], isNotNull);
     }
+  });
+
+  test('alarm metadata is actionable while lifecycle entries remain events',
+      () {
+    expect(reasonActionKey(2001), 'std.reason.2001.action');
+    expect(
+        standardEnglish[reasonActionKey(2001)], contains('awaited condition'));
+    expect(reasonActionKey(2024), isEmpty);
+    expect(generatedReasonShelvableByCode[2024], isFalse);
+    expect(generatedReasonSymbolByCode[2901], 'TEST_FAULT');
   });
 }

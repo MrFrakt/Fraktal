@@ -216,7 +216,8 @@ class OpcUaSnapshotMapper {
           stepName: _string(values['$base/CurrentStep/StepName']),
           awaitingLabel: _string(values['$base/CurrentStep/AwaitingLabel']),
           timeClass: _enumAt(TimeClass.values,
-              _integer(values['$base/CurrentStep/Class']), TimeClass.work),
+              _integer(values['$base/CurrentStep/TimeClass'] ??
+                  values['$base/CurrentStep/Class']), TimeClass.work),
           expected: _duration(values['$base/CurrentStep/ExpectedTime']),
           conds: conds,
           starved: _boolean(values['$base/Starved']),
@@ -243,7 +244,10 @@ class OpcUaSnapshotMapper {
             steps.add(StepTiming(
               _integer(values['$prefix/StepNo']),
               _string(values['$prefix/StepName']),
-              _enumAt(TimeClass.values, _integer(values['$prefix/Class']),
+              _enumAt(
+                  TimeClass.values,
+                  _integer(values['$prefix/TimeClass'] ??
+                      values['$prefix/Class']),
                   TimeClass.work),
               _duration(values['$prefix/Duration']),
               _duration(values['$prefix/Expected']),
@@ -300,7 +304,10 @@ class OpcUaSnapshotMapper {
           stepStats.add(StepStat(
             _integer(values['$prefix/Id']),
             _string(values['$prefix/Label']),
-            _enumAt(TimeClass.values, _integer(values['$prefix/Class']),
+            _enumAt(
+                TimeClass.values,
+                _integer(values['$prefix/TimeClass'] ??
+                    values['$prefix/Class']),
                 TimeClass.work),
             _duration(values['$prefix/Avg']),
             _duration(values['$prefix/Maximum']),
@@ -347,7 +354,29 @@ class OpcUaSnapshotMapper {
       // sparse, so scan the fixed bound instead of trusting NActive as an index.
       final activeEvents = <AlarmEvent>[];
       final ringEvents = <AlarmEvent>[];
-      final alarmMeta = <AlarmMeta>[];
+      final hostEvents = <HostEvent>[];
+      final alarmMeta = <AlarmMeta>[
+        // §8.9 generated standard catalog. The manifest carries the same data so
+        // non-HMI clients can discover it; this local projection also gives a
+        // deterministic fallback during an older/partial server rollout.
+        for (final reasonCode in generatedReasonSymbolByCode.keys)
+          AlarmMeta(
+            reasonCode,
+            reasonActionKey(reasonCode),
+            reasonConsequenceKey(reasonCode),
+            priority: _enumAt(
+              Severity.values,
+              generatedReasonPriorityByCode[reasonCode] ?? 0,
+              Severity.low,
+            ),
+            category: _enumAt(
+              AlarmCategory.values,
+              generatedReasonCategoryByCode[reasonCode] ?? 0,
+              AlarmCategory.process,
+            ),
+            shelvable: generatedReasonShelvableByCode[reasonCode] ?? false,
+          ),
+      ];
       if (isUnit) {
         for (var i = 1; i <= 16; i++) {
           final prefix = _indexedPrefix(values, '$base/AlarmLog/Active', i,
@@ -367,6 +396,47 @@ class OpcUaSnapshotMapper {
             if (event != null) ringEvents.add(event);
           }
         }
+        final hostRingHead = _integer(values['$base/HostEvents/RingHead']);
+        final hostCapacity =
+            _integer(values['$base/HostEvents/Capacity']).clamp(0, 1024);
+        final hostCount =
+            _integer(values['$base/HostEvents/Count']).clamp(0, hostCapacity);
+        if (hostRingHead > 0 && hostCapacity > 0) {
+          for (var offset = 0; offset < hostCount; offset++) {
+            final index =
+                ((hostRingHead - 1 - offset + hostCapacity) % hostCapacity) + 1;
+            final prefix = _indexedPrefix(
+              values,
+              '$base/HostEvents/Ring',
+              index,
+              parentPaths: parentPaths,
+            );
+            if (prefix == null) continue;
+            final sequence = _integer(values['$prefix/Sequence']);
+            final kind = _enumAt(
+              HostEventKind.values,
+              _integer(values['$prefix/Kind']),
+              HostEventKind.none,
+            );
+            if (sequence == 0 || kind == HostEventKind.none) continue;
+            hostEvents.add(HostEvent(
+              sequence: sequence,
+              kind: kind,
+              stationPath: _string(values['$prefix/StationPath']),
+              partUid: _string(values['$prefix/PartUid']),
+              subject: _string(values['$prefix/Subject']),
+              value: _string(values['$prefix/Value']),
+              stamp: _nonPlaceholderDateTime(values['$prefix/Stamp']),
+              timeSynchronized: _boolean(values['$prefix/TimeSynchronized']),
+              verdict: _enumAt(
+                Verdict.values,
+                _integer(values['$prefix/Verdict']),
+                Verdict.none,
+              ),
+              reasonCode: _integer(values['$prefix/ReasonCode']),
+            ));
+          }
+        }
         final metaCount = _integer(values['$base/AlarmLog/MetaCount']);
         for (var i = 1; i <= metaCount; i++) {
           final prefix = _indexedPrefix(values, '$base/AlarmLog/Meta', i,
@@ -374,10 +444,35 @@ class OpcUaSnapshotMapper {
           if (prefix == null) continue;
           final reasonCode = _integer(values['$prefix/ReasonCode']);
           if (reasonCode == 0) continue;
+          alarmMeta.removeWhere((meta) => meta.reasonCode == reasonCode);
           alarmMeta.add(AlarmMeta(
             reasonCode,
             _string(values['$prefix/OperatorAction']),
             _string(values['$prefix/Consequence']),
+            priority: _enumAt(
+              Severity.values,
+              _integer(
+                values['$prefix/Priority'],
+                fallback: generatedReasonPriorityByCode[reasonCode] ?? 0,
+              ),
+              _enumAt(
+                Severity.values,
+                generatedReasonPriorityByCode[reasonCode] ?? 0,
+                Severity.low,
+              ),
+            ),
+            category: _enumAt(
+              AlarmCategory.values,
+              _integer(
+                values['$prefix/Category'],
+                fallback: generatedReasonCategoryByCode[reasonCode] ?? 0,
+              ),
+              _enumAt(
+                AlarmCategory.values,
+                generatedReasonCategoryByCode[reasonCode] ?? 0,
+                AlarmCategory.process,
+              ),
+            ),
             shelvable: _boolean(values['$prefix/Shelvable']),
           ));
         }
@@ -625,6 +720,7 @@ class OpcUaSnapshotMapper {
         modeActive: isUnit ? currentMode : null,
         activeEvents: activeEvents,
         ringEvents: ringEvents,
+        hostEvents: hostEvents,
         goodCount: _integer(values['$base/GoodCount']),
         nokCount: _integer(values['$base/NokCount']),
         reworkCount: _integer(values['$base/ReworkCount']),

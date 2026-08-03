@@ -72,6 +72,7 @@ void main() {
     // Module drill-down data scopes to its owning root Unit.
     const moduleScoped = [
       'PLC1/MAIN/PneumaticPress/AlarmLog/Ring/Ring[5]/Description',
+      'PLC1/MAIN/PneumaticPress/HostEvents/Ring/Ring[5]/Kind',
       'PLC1/MAIN/PneumaticPress/Profiler/History/History[2]/Total',
       'PLC1/MAIN/PneumaticPress/Profiler/StepStats/StepStats[1]/Avg',
       'PLC1/MAIN/PneumaticPress/OeeTrend/OeeTrend[10]/Oee',

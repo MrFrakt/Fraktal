@@ -58,9 +58,29 @@ VAR_INPUT
 END_VAR
 VAR
     i, slot : INT;
+    generatedMeta : ST_AlarmMeta;
+    effectiveSeverity : E_Severity;
+    effectiveCategory : E_Category;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[slot := 0;
+effectiveSeverity := Severity;
+effectiveCategory := Category;
+// §8.9: a registered standard reason has one generated priority/class on every
+// surface. Unknown project reasons retain the explicit caller values and must
+// provide their own runtime rationalization through RegisterMetaFull.
+IF F_ReasonMeta(Reason := Reason, Meta := generatedMeta) THEN
+    effectiveSeverity := generatedMeta.Priority;
+    effectiveCategory := generatedMeta.Category;
+ELSE
+    FOR i := 1 TO MetaCount DO
+        IF Meta[i].ReasonCode = Reason THEN
+            effectiveSeverity := Meta[i].Priority;
+            effectiveCategory := Meta[i].Category;
+            EXIT;
+        END_IF
+    END_FOR
+END_IF
 FOR i := 1 TO PL_Fraktal.MAX_ALARM_ACTIVE DO
     IF Active[i].State = E_AlarmState.CLOSED THEN
         slot := i;
@@ -77,8 +97,8 @@ Active[slot].Description := Text;
 Active[slot].SourcePath  := Source;
 Active[slot].IoTag       := IoTag;
 Active[slot].IoAddress   := IoAddress;
-Active[slot].Severity    := Severity;
-Active[slot].Category    := Category;
+Active[slot].Severity    := effectiveSeverity;
+Active[slot].Category    := effectiveCategory;
 Active[slot].ResetClass  := ResetClass;
 Active[slot].State       := E_AlarmState.ACTIVE;
 Active[slot].ComeAt      := F_Now();
@@ -224,37 +244,75 @@ Blocking := b;]]></ST>
       </Implementation>
     </Method>
     <Method Name="RegisterMeta" Id="{348460f8-b6f5-4322-9ed8-695da3e196b8}">
-      <Declaration><![CDATA[// §8.9 — register/update the rationalization record for a ReasonCode (idempotent).
-// Modules/Units call at Setup. No record => the reason is NOT shelvable (§8.10).
+      <Declaration><![CDATA[// §8.9 compatibility helper for project reasons outside the generated registry.
+// Standard reasons are generated and reject override; use RegisterMetaFull when
+// an external reason needs non-default priority/category.
 METHOD RegisterMeta : BOOL
 VAR_INPUT
     Reason         : E_Reason;
     OperatorAction : STRING(255);
     Consequence    : STRING(255);
     Shelvable      : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[RegisterMeta := RegisterMetaFull(Reason := Reason,
+    OperatorAction := OperatorAction, Consequence := Consequence,
+    Priority := E_Severity.LOW, Category := E_Category.PROCESS,
+    Shelvable := Shelvable);]]></ST></Implementation>
+    </Method>
+    <Method Name="RegisterMetaFull" Id="{46243a41-12a5-42c2-bfde-bdf86f864a3f}">
+      <Declaration><![CDATA[// §8.9 extension seam for application/type reasons outside the generated registry.
+// Standard reasons reject here: their generated metadata is the single authority.
+METHOD RegisterMetaFull : BOOL
+VAR_INPUT
+    Reason         : E_Reason;
+    OperatorAction : STRING(255);
+    Consequence    : STRING(255);
+    Priority       : E_Severity;
+    Category       : E_Category;
+    Shelvable      : BOOL;
 END_VAR
 VAR
     i : INT;
+    generated : ST_AlarmMeta;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[FOR i := 1 TO MetaCount DO
+      <Implementation><ST><![CDATA[RegisterMetaFull := FALSE;
+IF F_ReasonMeta(Reason := Reason, Meta := generated) THEN
+    RETURN;                              // generated standard metadata cannot drift
+END_IF
+IF (Reason = E_Reason.NONE) OR (OperatorAction = '') OR (Consequence = '') THEN
+    RETURN;                              // complete actionable record required
+END_IF
+IF (TO_DINT(Priority) < TO_DINT(E_Severity.LOW))
+OR (TO_DINT(Priority) > TO_DINT(E_Severity.HIGH))
+OR (TO_DINT(Category) < TO_DINT(E_Category.PROCESS))
+OR (TO_DINT(Category) > TO_DINT(E_Category.SYSTEM)) THEN
+    RETURN;                              // non-strict transport enums still need bounds
+END_IF
+IF (Category = E_Category.SAFETY) AND Shelvable THEN
+    RETURN;                              // §8.10: Safety is never shelvable
+END_IF
+FOR i := 1 TO MetaCount DO
     IF Meta[i].ReasonCode = Reason THEN
         Meta[i].OperatorAction := OperatorAction;
         Meta[i].Consequence := Consequence;
+        Meta[i].Priority := Priority;
+        Meta[i].Category := Category;
         Meta[i].Shelvable := Shelvable;
-        RegisterMeta := TRUE;
+        RegisterMetaFull := TRUE;
         RETURN;
     END_IF
 END_FOR
 IF MetaCount >= PL_Fraktal.MAX_ALARM_META THEN
-    RegisterMeta := FALSE;
     RETURN;
 END_IF
 MetaCount := MetaCount + 1;
 Meta[MetaCount].ReasonCode := Reason;
 Meta[MetaCount].OperatorAction := OperatorAction;
 Meta[MetaCount].Consequence := Consequence;
+Meta[MetaCount].Priority := Priority;
+Meta[MetaCount].Category := Category;
 Meta[MetaCount].Shelvable := Shelvable;
-RegisterMeta := TRUE;]]></ST></Implementation>
+RegisterMetaFull := TRUE;]]></ST></Implementation>
     </Method>
     <Method Name="_M_Shelvable" Id="{52f81fea-4f28-4973-abca-b231c01b560c}">
       <Declaration><![CDATA[// §8.10 — may this active slot be shelved? SAFETY never; no meta record => no.
@@ -264,6 +322,7 @@ VAR_INPUT
 END_VAR
 VAR
     i : INT;
+    generated : ST_AlarmMeta;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[_M_Shelvable := FALSE;
 IF Slot < 1 OR Slot > PL_Fraktal.MAX_ALARM_ACTIVE THEN
@@ -274,6 +333,10 @@ IF Active[Slot].State = E_AlarmState.CLOSED THEN
 END_IF
 IF Active[Slot].Category = E_Category.SAFETY THEN
     RETURN;                              // §8.10: safety never shelvable
+END_IF
+IF F_ReasonMeta(Reason := Active[Slot].ReasonCode, Meta := generated) THEN
+    _M_Shelvable := generated.Shelvable;
+    RETURN;
 END_IF
 FOR i := 1 TO MetaCount DO
     IF Meta[i].ReasonCode = Active[Slot].ReasonCode THEN

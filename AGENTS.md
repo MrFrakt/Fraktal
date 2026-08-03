@@ -28,9 +28,13 @@ FraktalCore/
 │   ├── TwinCAT/                 Fraktal/TC3 reference implementation (IEC 61131-3)
 │   │   ├── Framework/Fraktal_Core/       framework library
 │   │   ├── Framework/Fraktal_Modules/    reusable module library
-│   │   ├── Tests and Examples/Fraktal_Demo/       two-root smoke application
-│   │   ├── Tests and Examples/Fraktal_Press_Demo/ internal acceptance fixture
-│   │   ├── Tests and Examples/Fraktal_Tests/      aggregate TcUnit project
+│   │   ├── Examples/CoreDemo/Fraktal_Demo/          two-root smoke application
+│   │   ├── Examples/PressDemo/Fraktal_Press_Demo/  internal feature-testing bench (not a real project)
+│   │   ├── Tests/                       aggregate Core/Modules TcUnit project
+│   │   ├── Examples/PressDemo/PressTests/  the internal bench's integration suites
+│   │   │                                (separate gate: XAE rejects '..' in a
+│   │   │                                Compile path, so Tests/ cannot reach
+│   │   │                                Examples/ - run BOTH)
 │   │   └── scaffold/FB_TemplateCM/       copy-template (not compiled; born RED)
 │   └── Allen-Bradley/            reserved platform binding tree
 └── HMI/               Generic operator HMI (Flutter). lib/{data,domain,state,ui}.
@@ -103,8 +107,8 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
 - **No Hungarian** on variables/instances (`Clamp1 : FB_ControlModule`, not `fbClamp1`). Retained
   access markers only: `p` pointer, `r` reference, `i` interface, leading `_` for `%I/%Q/%M`-mapped (HAL boundary).
 - Enums carry `{attribute 'qualified_only'}` and are referenced `E_X.MEMBER`. Constants `UPPER_SNAKE_CASE`.
-- TwinCAT keywords are case-insensitive and forbidden as identifiers (`Action`, `Log`, `Min`, `Max`, `R`,
-  `S`, `DT`, `Time`, etc.). Use semantic alternatives (`Gate`, `AuditSlot`, `Minimum`, `Maximum`, `DeltaMs`).
+- TwinCAT keywords are case-insensitive and forbidden as identifiers (`Action`, `Class`, `Log`, `Min`, `Max`, `R`,
+  `S`, `DT`, `Time`, etc.). Use semantic alternatives (`Gate`, `TimeClass`, `AuditSlot`, `Minimum`, `Maximum`, `DeltaMs`).
 - Status = *adj·noun·num·past-verb* (`ClampClosed`); Command = *verb·adj·noun·num* (`CloseClamp`) (§4.5).
 - A module's local OPC UA browse segment **shall equal** its local PLC instance/schematic name.
   `Status.Name` is the qualified dotted Fraktal identity (`Root.Child`); its final segment shall equal
@@ -205,7 +209,7 @@ are the reference; their `FB_PressDemoUnit._M_Sequence*` methods are lifecycle-o
 - A deployed Unit's concrete mode chains and cross-module release policy belong to its application branch.
   A library may offer an abstract helper, reusable sub-sequence, or opt-in generic default, but it shall be
   explicitly selected and extendable/replaceable; a library shall not silently make AUTO/HOME/CHANGEOVER
-  final for the project. In the press reference, `FB_PressDemoUnit`, `Sequences/`, and `Release/` all live
+final for the project. In the internal Press test bench, `FB_PressDemoUnit`, `Sequences/`, and `Release/` all live
   under `Fraktal_Press_Demo/01_PneumaticPress` while `Fraktal_Modules` supplies the reusable device modules.
 - Every chain has one owner and one step-state writer: an ST chain with application logic inside its
   `CASE _step OF` step branches plus a lifecycle-only `_M_Sequence<Mode>` adapter = continuous Unit mode
@@ -234,8 +238,8 @@ Rows **T1** (handshake + Execute-drop reset) and **T4** (abort, no self-resume) 
 `FB_Base_Tests` for every inheriting type — **do not re-test them per type**. A type earns T2 (first-out
 reason + SourcePath), T3 (interlock withholds output), T5 (recipe migrate-or-fault). T10 proves once that
 the Unit base consumes its release report; any Unit adding mode-entry conditions exercises one of them.
-`Fraktal_Tests` runs only on an isolated test runtime/ADS port with Autostart Boot Project disabled;
-never deploy it as the machine boot application. On TC3, fill large bounded records such as
+`Fraktal_Tests` and `PressTests` run only on an isolated test runtime/ADS port with Autostart Boot Project disabled;
+never deploy either as the machine boot application. On TC3, fill large bounded records such as
 `ST_ReleaseReport` through caller-owned `VAR_IN_OUT` storage—nested by-value returns can overflow the
 bounded task stack.
 SIM-only force hooks compile out of release builds.
@@ -302,11 +306,16 @@ so `Port_<ADS port>.tmc` is generated.
 
 **PLC (TwinCAT 3, 4024+):** a `.plcproj` is added *into* a TwinCAT XAE solution, not opened directly:
 create a TwinCAT XAE Project in TcXaeShell/VS, right-click **PLC → Add Existing Item…** → the `.plcproj`.
-The aggregate test manifest is `FraktalCore/PLC/TwinCAT/Tests and Examples/Fraktal_Tests/Fraktal_Tests.plcproj`. It links the
-deployed press sources with `<Compile Include="..\Fraktal_Press_Demo\...">` + a `<Link>` display path, so
-the gate tests the same Unit/sequences that ship.
-Build order: `Fraktal_Core` first (save/install as library), then `Fraktal_Modules` (save/install as
-library), then the `Fraktal_Demo`, `Fraktal_Press_Demo`, and `Fraktal_Tests` applications
+There are **two** TcUnit gates and both must be run: `Tests/Fraktal_Tests.plcproj`
+(Core + Modules) and `Examples/PressDemo/PressTests.plcproj` (the internal Press integration bench).
+They are separate because XAE rejects a `..` segment in a `Compile Include`, so a
+manifest in `Tests/` cannot reach `Examples/`. Every Compile path is downward from
+its own manifest; the press gate links (never copies) the same Unit/sequences that
+ship. A `<Folder Include>` list must mirror the Include directories, not the `<Link>`
+paths — XAE creates those folders on disk.
+Build order: `Fraktal_Core` first (use `Framework/FraktalCore.slnx`, save/install as library), then
+`Fraktal_Modules` (close Core, use `Framework/FraktalModules.slnx`, save/install as library), then the
+`Fraktal_Demo`, `Fraktal_Press_Demo`, `PressTests`, and `Fraktal_Tests` applications
 (`Fraktal_Tests` needs TcUnit).
 Do not leave the Core/Modules source-library projects loaded beside applications that consume their
 installed libraries: XAE sees the same source object GUIDs twice and rewrites them in the solution.
@@ -316,10 +325,14 @@ library reference. (If you ever add a genuine graphical SFC drawn in the XAE edi
 `IecSfc` `.plcproj` reference — the compiler provides `SFCStepType`; an `SFCStepType` cascade means a
 machine-generated/malformed chart XML, which is prohibited — author charts in the editor only.) Close
 and reopen XAE after changing a `.plcproj` library reference so the in-memory project reloads it.
-The current Core is `0.3.0.0` and Modules is `0.2.0.0`; downstream placeholders are pinned accordingly. Core's minor-version step includes the append-only decision/configuration capability contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2). They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
+For the same GUID-ownership reason, never load `Fraktal_Press_Demo.plcproj` and
+`PressTests.plcproj` in one XAE solution: the press gate links the exact Press
+Unit/sequence/release source files. Use its dedicated isolated test solution,
+or unload/remove the Press application before adding the press tests.
+The current Core is `0.4.0.0` and Modules is `0.3.0.0`; downstream placeholders are pinned accordingly. Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2). They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
 If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
-reason to edit each affected POU. Install Core `0.3.0.0`, resolve/build/install Modules `0.2.0.0`,
+reason to edit each affected POU. Install Core `0.4.0.0`, resolve/build/install Modules `0.3.0.0`,
 then reload the application placeholders and rebuild.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.
@@ -371,8 +384,8 @@ never infer PLC readiness from the process or page alone.
 
 ### 6.0 Commissioning gates — read these BEFORE debugging "nothing works"
 
-Two gates in the `VAR CONSTANT` block of `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/00_System/MAIN.TcPOU` can make a perfectly
-healthy machine look completely broken. **Read them off the live PLC first**; they have cost multiple
+Two gates in the `VAR CONSTANT` block of `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo/00_System/MAIN.TcPOU` can make a perfectly
+healthy test bench look completely broken. **Read them off the live PLC first**; they have cost multiple
 wasted debugging sessions chasing control logic:
 
 | Gate (`VAR CONSTANT`) | When wrong | Symptom |
@@ -443,8 +456,8 @@ compile-blocking regressions; see IMPLEMENTATION_NOTES §24).
 | The public module interface | `PLC/TwinCAT/Framework/Fraktal_Core/Interfaces/I_Module.TcIO` (+ `I_Unit`/`I_EquipmentModule`/`I_ControlModule`); spec §3.2 |
 | Framework reason codes / constants | `PLC/TwinCAT/Framework/Fraktal_Core/Params/PL_Fraktal.TcGVL`; spec §8.8 |
 | A reusable CM/EM implementation | `PLC/TwinCAT/Framework/Fraktal_Modules/` (cylinder CM, clamp EM); Annexes A/B/C |
-| Press project Unit, mode chains, and releases | `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/01_PneumaticPress/{FB_PressDemoUnit,Sequences,Release}` |
-| CX2030 press I/O and commissioning gaps | `Specification/CX2030_PRESS_IO_MAPPING.md`; physical XTI and linked symbols in `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/00_System/Hardware/{GVL_PressIO.TcGVL,...}` |
+| Internal Press test-bench Unit, mode chains, and releases | `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo/01_PneumaticPress/{FB_PressDemoUnit,Sequences,Release}` |
+| CX2030 press I/O and commissioning gaps | `Specification/CX2030_PRESS_IO_MAPPING.md`; physical XTI under `PLC/TwinCAT/Examples/PressDemo/_Config/IO/` and linked symbols in `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo/00_System/Hardware/` |
 | First project / deployment / OPC UA commissioning | `Specification/FIRST_PROJECT_AGENT_GUIDE.md` |
 | Web HMI + Windows/Linux gateway installation | `Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`; detailed switches in `HMI/gateway/DEPLOYMENT.md` |
 | Part traceability (§3.16) | `PLC/TwinCAT/Framework/Fraktal_Core/Connectivity/FB_LocalPartCarrier.TcPOU`, `Interfaces/I_PartCarrier.TcIO`, UnitBase `_M_Part*` helpers; Annex E |

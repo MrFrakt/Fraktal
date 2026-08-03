@@ -94,6 +94,15 @@ _linked := FALSE;
 Disconnect := TRUE;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_ReleaseCommand" Id="{075e2104-50bc-4a55-be6a-1160e411d49b}">
+      <Declaration><![CDATA[// I_Module command-release seam. The connector owns no PLCopen Execute latch;
+// the fronting Control Module owns and releases the dependent device command.
+// Disconnecting here would defeat the mandatory bounded reconnect policy (Core §3.15.2).
+METHOD M_ReleaseCommand : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ReleaseCommand := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="GetFaultSummary" Id="{a45fc429-cb2b-4a66-a99a-b971db5e3aba}">
       <Declaration><![CDATA[METHOD GetFaultSummary : ST_Diagnostic]]></Declaration>
       <Implementation>
@@ -165,6 +174,7 @@ _diag.Description := Text;
 _diag.SourcePath  := _name;
 _diag.Severity    := E_Severity.MED;
 _diag.Category    := E_Category.SYSTEM;
+F_RationalizeDiagnostic(Diag := _diag);
 _linked := FALSE;
 _hbBusy := FALSE;
 _M_Close();
@@ -196,6 +206,18 @@ END_IF]]></ST>
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[FaultActive := (NOT _linked) AND (_diag.ReasonCode <> E_Reason.NONE);]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="HoldActive" Id="{d6ceff61-623b-41ff-abdd-e77ad7bc2e7a}">
+      <Declaration><![CDATA[// The connector reports link state/faults. HOLD is a configured loss reaction
+// interpreted by the fronting Control Module; it is not connector lifecycle state.
+PROPERTY HoldActive : BOOL]]></Declaration>
+      <Get Name="Get" Id="{dc0eca4e-360e-43de-8ed0-a30e3478efa2}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[HoldActive := FALSE;]]></ST>
         </Implementation>
       </Get>
     </Property>

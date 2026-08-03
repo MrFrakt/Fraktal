@@ -82,6 +82,7 @@ class ModuleNode {
   final bool blocking; // AlarmLog.Blocking -> banner + Start disabled
   final List<AlarmEvent> activeEvents; // AlarmLog.Active (this node's log)
   final List<AlarmEvent> ringEvents; // AlarmLog.Ring newest-first
+  final List<HostEvent> hostEvents; // §11.6 bounded ring, newest-first
   final AccessSession? access; // root Units only (per-root manager, 7.7)
 
   // optional typed facets (annex data) — null when the module doesn't publish them
@@ -152,6 +153,7 @@ class ModuleNode {
     this.blocking = false,
     this.activeEvents = const [],
     this.ringEvents = const [],
+    this.hostEvents = const [],
     this.access,
     this.link,
     this.part,

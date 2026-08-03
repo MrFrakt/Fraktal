@@ -453,8 +453,17 @@ The HMI seeds its next sequence from the published request/ack values on every
 application start. It reserves the sequence before attempting the batch, so an
 ambiguous disconnect can never cause that command number to be reused.
 
-`E_HmiRequestKind` is append-only across PLC and HMI. Core `0.3.0.0` appends
+`E_HmiRequestKind` is append-only across PLC and HMI. Core `0.3.0.0` appended
 `LAMP_TEST := 26`; it carries no arbitrary output path or duration. The Unit base
 rechecks `MANUAL` authorization and idle state, starts its configured bounded
 semantic tower test, and acknowledges the exact sequence. A client never writes
 individual lamp/horn members.
+
+Core `0.4.0.0` also publishes each Unit's `HostEvents` object as a bounded ring
+(`Ring`, `RingHead`, `Count`, `Capacity`, `Wrapped`). It is read-only,
+event-produced PLC data—not a command surface—and its ring belongs to the
+on-demand tier. Clients derive traversal from the published `Capacity`, whose
+current TC3 binding value is 32. `E_HostEventKind` is append-only and ordinal-identical in PLC and
+HMI. A north-bound client uses `Sequence` for ordering and must retain
+`TimeSynchronized`, `Verdict`, and `ReasonCode` rather than flattening quality or
+result semantics.

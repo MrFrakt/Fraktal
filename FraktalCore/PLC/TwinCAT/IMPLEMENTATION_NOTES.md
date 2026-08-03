@@ -60,7 +60,7 @@ Implements the cycle-time-profile amendment, including clause (f) time classific
 - **Two clocks, deliberately (§8.11.4(e) / TC3 §8.11):** durations from the monotonic ms clock (`TIME()` differenced as `DWORD`, wrap-safe across the ~49-day rollover); wall-clock `Started`/stamps from `F_Now()` so profiles align across stations (§2.7). Never mix the two.
 - **`F_TimingUpdate` is a pure function** (running mean `avg += (x−avg)/n`) so the aggregate math is unit-tested with exact values (100/200/300 → avg 200 in `FB_Timing_Tests`).
 - **Base-class capture is transition-driven:** the row closes on `BUSY → DONE/ERROR/ABORTED` via `_prevExec`, so faulted/aborted commands are measured too. A type contributes only `_M_TagCommand(TO_DINT(Command), '<label>')` — one idempotent line, in the scaffold; untagged types still get `LastCmdTime` and an id-0 row.
-- **Classification is opt-in per wait step (§8.11.4(f)):** `StepChanged(…, Class := E_TimeClass.WAIT_UPSTREAM)` — default `WORK`, so non-wait steps cost nothing. The profiler accumulates `ByClass[TO_INT(class)]` and publishes `WorkTime` (**the real cycle time**) and `WaitTime` at `CycleComplete`; the suite asserts `Total = WorkTime + WaitTime` and that classes survive into both the waterfall and the per-step aggregates. `WAIT_UPSTREAM`/`WAIT_DOWNSTREAM` are the per-step attribution of §8.11.3 Starved/Blocked; M2's chain base may auto-attribute them from the Unit's Starved/Blocked conditions (explicit class wins).
+- **Classification is opt-in per wait step (§8.11.4(f)):** `StepChanged(…, TimeClass := E_TimeClass.WAIT_UPSTREAM)` — default `WORK`, so non-wait steps cost nothing. The profiler accumulates `ByClass[TO_INT(time class)]` and publishes `WorkTime` (**the real cycle time**) and `WaitTime` at `CycleComplete`; the suite asserts `Total = WorkTime + WaitTime` and that classes survive into both the waterfall and the per-step aggregates. `WAIT_UPSTREAM`/`WAIT_DOWNSTREAM` are the per-step attribution of §8.11.3 Starved/Blocked; M2's chain base may auto-attribute them from the Unit's Starved/Blocked conditions (explicit class wins).
 - **Find-or-allocate rows, fixed arrays:** `Count = 0` marks a free slot; overflow sets `Truncated`/`StatsTruncated` rather than growing — capture never allocates at runtime.
 - **`FB_CycleProfiler` is event-driven** (`StepChanged`/`CycleComplete`, no cyclic body): a refreshed same-step call is a no-op (but may re-declare the class), the first step opens the cycle (§8.11.1 start marker), `ResetStats` exists but the *caller* must log the reset (§8.11.2).
 - **M2 wiring:** the Unit/step-chain base will call `StepChanged` inside `_M_SetStep` (forwarding the step record's class) and `CycleComplete` at `N999` — step timing and classification become zero-effort by construction; until then a Unit adds the two calls once (Annex C §C.6 note).
@@ -776,7 +776,7 @@ without ever being consumed by the SFC runtime.
 The reused ram-up/door-open/slide-outside chain remains the single private ST
 `_M_SeqEstablishLoadPosition` sub-sequence, invoked as one composite SFC step with a caller-supplied
 step-number window. This preserves one implementation across HOME, CHANGEOVER, and AUTO while retaining
-detailed HMI progress. `Tests and Examples/Fraktal_Press_Demo/01_PneumaticPress/Sequences/New-PressModeSfc.ps1`
+detailed HMI progress. `Examples/Fraktal_Press_Demo/01_PneumaticPress/Sequences/New-PressModeSfc.ps1`
 deterministically regenerates the native TwinCAT
 SFC XmlArchive files; static validation checks XML, archive IDs, step/action links, and project includes.
 The next pinned-XAE build remains the authority for editor/compiler acceptance of the generated graphical
@@ -789,7 +789,7 @@ The first SFC conversion incorrectly compiled the press Unit and its HOME/AUTO/C
 The Nexeed reference and Core §4.2 both point to ownership-first application engineering instead.
 
 `FB_PressDemoUnit`, its three native SFCs, their deterministic generator, and
-`FB_PressDemoRelease` now live under `Tests and Examples/Fraktal_Press_Demo/01_PneumaticPress`. The Release component
+`FB_PressDemoRelease` now live under `Examples/Fraktal_Press_Demo/01_PneumaticPress`. The Release component
 contains the project cross-device collision rules, named mode-entry condition state, and Start/manual
 report appenders. Reusable `FB_CylinderCM`, input, two-hand, pressure, and power-group mechanisms stay
 in `Fraktal_Modules`; that library no longer compiles or exports the press Unit or its SFCs. The
@@ -901,8 +901,8 @@ entry supplied a valid virtual `Link`, TwinCAT XAE's **PLC → Add Existing Item
 raw path first, attempted to create a project-tree folder named `..`, and stopped with
 "'..' is not a valid folder name." The XML was valid MSBuild but not importable by TwinCAT.
 
-`Fraktal_Tests.plcproj` now lives at `FraktalCore/PLC/`, the nearest common ancestor of
-`Fraktal_Tests/` and `Fraktal_Press_Demo/`. All 37 compiled objects use downward repository-relative
+`Fraktal_Tests.plcproj` lives at the nearest common ancestor of
+`Tests/Fraktal_Tests/` and `Examples/Fraktal_Press_Demo/` (currently `TwinCAT/`). All compiled objects use downward repository-relative
 paths; the Press sources remain single-source links and are not copied into the test directory. The
 nested `Fraktal_Tests/Fraktal_Tests.plcproj` is removed so there is only one selectable manifest.
 The aggregate test application advances to `0.1.0.5`; no PLC runtime contract changed.
@@ -1045,7 +1045,7 @@ persistent pointer, interface, and `REFERENCE TO` implementation field carries
 an immediate `DA=0`. The Press topology marker moved from the GVL header to the
 `Topology` variable itself, matching TF6100 attribute placement. Core is
 `0.1.0.4`, Modules is `0.1.0.3`, and downstream applications are repinned. The
-source audit `PLC/TwinCAT/Tests and Examples/tools/Test-OpcUaPublication.ps1` prevents reintroduction.
+source audit `PLC/TwinCAT/Tests/tools/Test-OpcUaPublication.ps1` prevents reintroduction.
 
 The fieldbus contract remains a bounded flat IEC table, but a naive OPC UA walk
 would expand all 64 x 16 fixed slots. Native discovery now reads `NodeCount` and
@@ -1660,7 +1660,7 @@ an older memory layout.
 
 Because the observable Core manifest contract grew, Core advances to `0.3.0.0`.
 Modules remains `0.2.0.0` and is repinned to Core `0.3.0.0`; Demo, Press Demo and
-Tests pin that same pair. The new `PLC/TwinCAT/{Framework,Tests and Examples}`
+Tests pin that same pair. The new `PLC/TwinCAT/{Framework,Tests,Examples}`
 layout is retained, documentation paths are updated, and generated-directory
 ignore rules now work at any depth. A licensed XAE build/TcUnit run and regenerated
 TMC remain mandatory before this source can be called release-proven.
@@ -1745,9 +1745,427 @@ remain condition-specific rather than being replaced by a generic reason sentenc
 which preserves §7.8 act-or-explain detail. This closes the §8.8 projection, not
 §8.9's remaining generated rationalization-metadata work.
 
-Moving the aggregate tests into
-`TwinCAT/Tests and Examples/Fraktal_Tests/` changed the `.plcproj`'s relative base.
-Its own sources now resolve relative to that project directory and its Press
-fixture links resolve through the sibling `../Fraktal_Press_Demo/` directory.
-The pre-fix manifest had 40 unresolved compile items even though its XML was
-well-formed; the corrected repository-wide check resolves all 260 compile items.
+Moving the aggregate test sources into their dedicated owner folder initially
+changed the `.plcproj`'s relative base and left 40 unresolved compile items.
+Merely resolving those paths through sibling parent-relative Press references was insufficient: TwinCAT PLC
+Control rejects `..` lexically before evaluating `Link` metadata (see §62). The
+manifest therefore remains at `TwinCAT/`, with all `Tests/` and `Examples/`
+includes expressed as downward paths from that common ancestor.
+The repository-wide check resolves every compile item and the manifest stays
+importable through **PLC → Add Existing Item**.
+
+## 82. Generated rationalization and fixed host events (2026-07-31)
+
+The §8.8 text generator now joins the numeric authorities (`E_Reason` plus the
+registered Core/Modules type bands) to
+`Specification/reason_rationalization.json`, which is keyed by symbol and
+therefore does not duplicate reason numbers. It rejects incomplete/unknown
+coverage, duplicate symbols/numbers, shelvable events, and shelvable Safety
+records. One run derives four artifacts: the Dart localization/metadata lookup,
+`PL_ReasonCatalog`, `F_ReasonMetaByIndex`, and `F_ReasonMeta`. CI `--check`
+therefore covers PLC and HMI projections together. The shipped registry currently
+contains 51 complete records, including the formerly missed final enum member
+`TEST_FAULT`.
+
+`FB_AlarmLog` now enforces the generated priority/category/shelvability for every
+standard reason, so a caller cannot reclassify one alarm on one surface. The Unit
+configuration manifest pages the complete generated catalog and any validated
+external/application records. `RegisterMetaFull` is the extension seam for those
+nonstandard bands; it rejects standard overrides, event-only alarm records, and
+shelvable Safety records. `F_RationalizeDiagnostic` applies the same generated
+priority/category at the first-out source, so `Status.Diagnostic`, the Unit alarm
+log, HMI, and injected sinks cannot disagree for a standard reason. The HMI
+hydrates the same fields and uses its generated copy as a deterministic fallback
+during a partial server rollout. Events with no operator action stay logged but
+do not render a blank action prompt.
+
+Core §11.6 is projected by `FB_HostEventPublisher` and `ST_HostEvent`: each root
+publishes a bounded 32-record read-only ring with sequence, fixed kind, station
+path, optional part/subject/value, timestamp quality, verdict, reason, and an
+explicit wrap flag. `FB_UnitBase` is the single producer for part lifecycle,
+NOK, mode, and changeover events; `CHANGEOVER_STARTED` is tied to the accepted
+CHANGEOVER Start edge and `CHANGEOVER_DONE` to successful sequence completion,
+not merely mode selection or recipe commit. Named methods cover project-owned
+tool/material changes. Optional push delivery is injected through
+`I_HostEventSink`; its implementation storage is hidden from OPC UA and the ring
+remains authoritative when no adapter exists.
+
+The closing audit found one carrier-optional edge in that projection: the legacy
+`CountNok()` counter could be called without emitting an attributed host event.
+Core `0.4.0.0` now requires `CountNok(Reason)` with a non-`NONE` reason and makes
+the counter increment plus fixed `NOK` event one operation. `_M_PartProcessed`
+uses that same path, while a no-carrier sequence publishes an empty `PartUid`.
+An unattributed reject is refused before carrier write and raises
+`RESULT_RECORD_REJECTED` rather than creating unanalysable scrap data.
+
+The HMI enum/domain/mapper mirrors the append-only event vocabulary and hydrates
+the ring newest-first on demand. PLC source suites cover invalid events, all ten
+fixed kinds, required fields, bounded wrapping, base mode emission, and generated
+metadata authority. Core advances to `0.4.0.0`; Modules advances to `0.3.0.0` and
+all downstream placeholders are repinned. These are source-level changes until a
+licensed XAE build, aggregate TcUnit run, and regenerated TMC prove the binding.
+
+## 83. Aggregate manifest repair after the TwinCAT tree rearrangement (2026-08-01)
+
+The rearrangement accidentally moved `Fraktal_Tests.plcproj` inside its source
+folder and converted the six Press fixture links to `..\Fraktal_Press_Demo\...`.
+That made every file resolvable to ordinary filesystem tooling but reintroduced
+the exact TwinCAT PLC Control import failure documented in §62: `..` is parsed as
+an invalid PLC folder before `Link` metadata is evaluated. The manifest is again
+at the `TwinCAT/` common ancestor, all 41 compile inputs are downward paths, the
+tracked XAE project reference follows it, and the source-owned TMC remains under
+`Tests/Fraktal_Tests/`.
+
+P1 lint ownership now recognizes the same-named source directory beside a
+common-ancestor aggregate manifest. It still resolves every explicit linked
+input, while sibling applications remain accountable to their own manifests;
+it also rejects any raw `..` compile segment before filesystem resolution can
+mask the TwinCAT incompatibility. Regression fixtures cover both arrangements;
+the suite now contains 18 tests.
+
+## 84. Press and aggregate tests separated by GUID ownership (2026-08-01)
+
+`PressDemoX32.tsproj` loaded both `Fraktal_Press_Demo.plcproj` and the aggregate
+`Fraktal_Tests.plcproj`. Because the aggregate links the deployed Press Unit,
+release evaluator, and four sequence POUs, PLC Control saw each physical object
+twice in one XAE solution. A load produced 1,029 duplicate-object warnings and
+repeatedly rewrote every shared POU/method GUID plus line-ID metadata. The six
+files' declarations and implementations were verified identical to Git before
+their original metadata was restored.
+
+The Press system project now contains only the deployable Press application.
+Aggregate tests run from a separate XAE solution/ADS port as §5.7 requires. P1
+lint now resolves the PLC projects referenced by each `.tsproj` and rejects any
+physical source intersection, preventing the same GUID churn from returning.
+The linter suite contains 21 tests.
+
+## 85. Compiler-cascade and Press system-project repair (2026-08-01)
+
+The first licensed 4026 compile exposed three independent source defects whose
+parser fallout appeared as a much longer error list. `FB_UnitBase` used a
+TwinCAT-invalid `CASE` over `HmiRequest.TextValue`; it now uses `IF`/`ELSIF`
+string comparisons. `FB_AlarmLog._M_Raise` declared local `meta` beside the
+published `Meta[]` member; TwinCAT identifiers are case-insensitive, so the local
+shadow made `Meta[i].ReasonCode` parse as a type expression. The local is now
+`generatedMeta`. Finally, `E_ConfigValueType.TIME` used the reserved IEC type
+keyword; the TC3 binding spells ordinal 3 `DURATION` while Core/HMI retain the
+portable `time` vocabulary. No ordinal or observable schema changed.
+
+The rearranged `PressDemo.tsproj` also contained only the PLC instance: its
+EtherCAT device and all symbolic mappings were absent. Those were restored from
+the existing Press system authority. EL1809 channels 9 and 13 were still named
+`Reserve` in the XTI while the approved PLC tags were `_000BS901` and
+`_000BS902`; the XTI names now match those exact electrical tags. A subsequent
+XAE load resolved every mapping without the former `not linked` warnings.
+`CONTROL_CIRCUIT_MAPPING_CONFIRMED` and `USE_SIMULATION` were not changed.
+
+The corrected draft libraries were built and installed in dependency order:
+Core `0.4.0.0`, then Modules `0.3.0.0`, followed by a fresh Press application
+reload. Direct nested XAE builds for all three returned `LastBuildInfo=0` with an
+empty Error List under `Debug|TwinCAT OS (ARMV7-A)`. The full system-project CLI
+build still stops at `Check config` while the saved remote target is unavailable;
+that is a target/configuration checkpoint, not a PLC compiler failure. The builds
+regenerated Core, Modules, and Press TMC files; TcUnit, live TMC/OPC UA import,
+and target acceptance remain open release evidence.
+
+Lint now rejects reserved enum members (C2) and quoted/string `CASE` labels (C6)
+so these two parser defects cannot recur silently. The suite contains 21 tests
+and the real tree passes both modern and legacy-4024 profiles.
+
+The aggregate test application now has its own 4026 wrapper,
+`Tests/FraktalTests.slnx` / `FraktalTests.tsproj`, on ADS port 854.
+It references the common-ancestor `Fraktal_Tests.plcproj` and loads without the
+Press project, so the two applications cannot present the linked Press sources
+to XAE twice. No target route is stored in this test wrapper by design. Its full
+system build therefore stops at `Check config` until an isolated test runtime is
+selected; aggregate test compilation and TcUnit execution remain open evidence.
+
+## 86. Aggregate-test first compile reconciliation (2026-08-01)
+
+The first interactive aggregate compile exposed an incomplete reserved-word
+binding migration. Core already used `TimeClass` because TwinCAT reserves
+`CLASS`, but four `FB_ClampStationUnit` calls, the Unit probe, and the profiler
+tests still used the old named input/member `Class`. All PLC callers and test
+assertions now use `TimeClass`. `HMI_CONTRACT.md` binds the deployed
+`TimeClass` symbol, while the generic mapper accepts both `TimeClass` and the
+legacy draft `Class` path during migration. C2 now reserves `CLASS` and its
+existing parameterized regression fixture exercises both `TIME` and `CLASS`.
+
+The moved aggregate manifest also linked `FB_PressDemoUnit` without its
+application-owned `GVL_PressFieldbus`; that GVL and its owner-local `Io` folder
+are now explicit downward links. The isolated `FraktalTests.tsproj` contains no
+EtherCAT device and keeps ADS port 854; test execution cannot address the Press
+hardware mapping accidentally.
+
+Modules rebuilt with `LastBuildInfo=0` and zero errors, then the corrected
+`0.3.0.0` library was installed. TwinCAT `CheckAllObjects` on the reloaded
+aggregate project reported zero Error List entries. A full system-project build
+still stops at `Check config` until an isolated test target is selected; TcUnit
+execution remains the next acceptance checkpoint.
+
+## 87. Connector completion of the extended I_Module contract (2026-08-01)
+
+The next interactive aggregate build exposed a separate interface-completeness
+gap. `FB_DeviceConnectorBase` implements `I_DeviceConnector` directly, and
+`I_DeviceConnector` extends `I_Module`; unlike the three ordinary module tiers,
+the connector deliberately does not inherit `FB_ModuleBase`. When `I_Module`
+gained `M_ReleaseCommand` and `HoldActive`, the direct connector implementation
+was not updated. The abstract Core type could still be packaged, but the
+aggregate project's concrete `FB_ProbeConnector` correctly failed with the two
+missing-implementation diagnostics.
+
+The connector now implements both members at the correct ownership boundary.
+`M_ReleaseCommand()` is a successful bounded no-op because a connector owns no
+PLCopen `Execute` latch; the fronting Control Module owns and releases the
+dependent command. Calling `Disconnect()` here would be wrong because Core
+§3.15.2 requires the connector to retain bounded automatic reconnect. Likewise,
+`HoldActive` is always `FALSE`: the connector publishes link state and its
+diagnostic, while the fronting Control Module interprets `Reaction := HOLD` and
+owns ISA-88 HELD lifecycle state. `FB_Connector_Tests` now exercises both
+members on the concrete probe, so future interface drift reaches the aggregate
+compiler seam.
+
+Core `0.4.0.0` and Modules `0.3.0.0` were rebuilt and installed in dependency
+order under `Debug|TwinCAT OS (x64)`; both returned `LastBuildInfo=0` with zero
+Error List entries. The reloaded aggregate wrapper and its direct nested-project
+build command also returned `LastBuildInfo=0`/zero errors, and `CheckAllObjects`
+reported zero errors. The aggregate TMC/compile-info timestamp did not advance in
+headless automation, so this evidence closes the reported source/compiler gap
+but does not replace the still-open isolated-runtime TcUnit execution and fresh
+test-TMC acceptance gate.
+
+## 88. Runtime-test contract corrections after the first aggregate execution (2026-08-01)
+
+The first isolated-runtime execution after the PLC-folder migration compiled and
+ran all 27 suites, then exposed five failing test cases. A clause-by-clause audit
+found no reason to relax production behavior:
+
+- `FB_CycleProfiler` correctly derives elapsed time from `TIME()`. The profiler
+  test opened and completed both cycles within one PLC scan, so its own measured
+  minimum was legitimately zero. The test now keeps each cycle open across a
+  task scan before asserting the Core §8.11 throughput markers.
+- Core §3.10.2 defines the configuration manifest as a bounded page window. The
+  Unit test assumed a stable write key remained on page zero after new base and
+  generated entries were added. It now follows the advertised `PageCount` and
+  searches every page while preserving the exact typed-write assertions.
+- Core §6.1 maps `Error` from the owning lifecycle during `Cyclic()`. The invalid
+  decision test faulted the private execution state through a protected probe
+  and read the public output before that mapping pass. It now performs the next
+  cyclic call before asserting the public fault and non-publication contract.
+- The Press release policy is intentionally fail-safe. Child modules tick before
+  the application-owned Unit release policy reevaluates their permits, so a
+  restored two-hand input needs one scan to refresh the condition and one scan
+  for the ram to consume it. Both restore assertions now observe that bounded
+  propagation instead of requiring same-scan re-energization.
+- The shared Press fixture tried to escape an open 500 ms AUTO dwell by issuing
+  `Stop()` and several function-block calls inside one task scan. Those calls do
+  not advance a TON, and stop-after-cycle correctly left the chain at N220. The
+  cleanup now requests interruptible HOME, lets the normal Core §3.14.4 immediate
+  mode-exit/Execute-drop handshake settle, homes the simulated devices, releases
+  the terminal command, and commits AUTO before the next case.
+
+The runtime warning that old persistent symbols such as `MAIN.AccessUsers` could
+not be restored is independent: it is stale retained-runtime metadata after the
+symbol rearrangement, not a command/release/test failure. Clearing or migrating
+that retained data is a commissioning choice and was deliberately not automated.
+
+The four changed TcUnit POUs parse as TwinCAT XML, `git diff --check` is clean,
+the isolated wrapper build returns `LastBuildInfo=0` with an empty Error List,
+and the nested `Fraktal_Tests Project` `CheckAllObjects()` call returns `TRUE`
+with zero diagnostics. That compiler pass refreshed the aggregate wrapper's
+common-ancestor `Fraktal_Tests.tmc`; no runtime configuration was activated or
+downloaded. The acceptance gate remains a fresh isolated-runtime TcUnit run of
+these sources.
+That commissioning pass shall also clear **Autostart Boot Project** on the selected
+test target: the XAE automation view reported it enabled, while §5.7 requires the
+aggregate to remain non-autostart. Beckhoff defines this as a target-transferred
+setting, so it was not guessed into the repository `.tsproj` or changed remotely
+during a source audit.
+
+## 89. Repeatable access-policy mailbox fixture (2026-08-01)
+
+The next isolated-runtime run proved 91 of 92 tests, including every timing,
+configuration-paging, decision, and Press recovery correction from §88. Its only
+failure was `Mailbox_policy_is_self_gated_and_power_ack_is_authoritative`: the
+fixture expected the `ACCESS_POLICY` threshold to begin at `NONE`, but TwinCAT
+correctly restored `ADMIN` from the preceding successful run.
+
+This is required production behavior, not a policy defect. Core §7.7(b) makes the
+per-root policy persistent station configuration; “shipped default fully open”
+describes a new/uncommissioned deployment, not a value to overwrite at every
+restart. The test itself raises `ACCESS_POLICY` to `ADMIN` while authenticated,
+so assuming that value disappears on the next execution contradicted the
+contract it was testing.
+
+`FB_Hmi_Tests` now commissions `ACCESS_POLICY` and `DATA_WRITE` to `NONE` through
+the existing `ConfigureRequired` startup seam when its policy fixture initializes,
+then sets `POWER_CONTROL` to `ADMIN` as before. The runtime mailbox remains the
+only self-gated edit path under test; no production authorization or persistence
+logic changed. The POU parses as TwinCAT XML, `git diff --check` is clean, and the
+nested aggregate `CheckAllObjects()` returns `TRUE` with zero errors and warnings.
+A fresh isolated-runtime execution remains the final acceptance step.
+
+## 90. Tests and examples directory split (2026-08-01)
+
+The former combined container mixed acceptance infrastructure,
+generated test-runtime artifacts, reusable examples, and the physical Press
+fixture in one ownership boundary. It is now split into `Tests/` and
+`Examples/`: the aggregate TcUnit sources, test wrapper, dependencies, audit
+tooling, and test-runtime artifacts live under `Tests/`; the generic demo,
+Press demo, application wrappers, I/O configuration, and example runtime
+artifacts live under `Examples/`.
+
+`Fraktal_Tests.plcproj` deliberately remains directly under `TwinCAT/`, the
+common ancestor of both branches. TwinCAT rejects parent-relative source links
+in a PLC manifest, so the aggregate now uses only downward
+`Tests\Fraktal_Tests\...` and `Examples\Fraktal_Press_Demo\...` compile paths.
+The test XAE wrapper may reference that manifest as
+`..\Fraktal_Tests.plcproj`; the no-parent rule applies to the PLC manifest's
+compiled source links, not to the wrapper's project reference. The OPC UA
+publication audit now defaults to the `TwinCAT/` root and resolves the Press
+topology through `Examples/`.
+
+Migration validation parsed 284 authored TwinCAT XML files, resolved all 270
+compile includes across five PLC manifests, found no missing or
+parent-relative compile source, and found no remaining authored reference to
+the combined folder name. The publication audit passed. Isolated XAE loads of
+`Tests/FraktalTests.tsproj` and `Examples/PressDemo.tsproj` each returned
+`CheckAllObjects=TRUE` with zero real diagnostics; neither project was
+activated or downloaded. This structural/compiler check does not replace the
+separate isolated-runtime TcUnit acceptance gate described in §5.7.
+
+## 91. Aggregate gate split in two; test manifest returned to `Tests/` (2026-08-01)
+
+§62 hoisted `Fraktal_Tests.plcproj` to the `TwinCAT/` common ancestor so it could
+link both `Tests/Fraktal_Tests/` and the Press example with downward-only paths.
+That satisfied the `..` constraint but put a project manifest in the binding root —
+the directory that has to stay free for further platform projects — and it proved
+fragile: two folder re-layouts in succession left the manifest orphaned from its
+sources, the second time with all 44 links dead and `FB_PressDemoUnit` undefined
+across ~200 cascading compiler errors.
+
+The manifest now lives at `Tests/Fraktal_Tests.plcproj` and owns only
+`Tests/Fraktal_Tests/`. The two press-dependent suites — `FB_PressDemoUnit_Tests`
+and `FB_FaultRecovery_Tests` — moved to a new
+`Examples/PressDemo/PressTests.plcproj` (own solution, own `PRG_PressTestRunner`),
+which reaches `Fraktal_Press_Demo/01_PneumaticPress/...` downward. Both gates must
+be run; neither is a subset of the other. The press objects are still **linked, not
+copied**, so that gate exercises the objects that deploy. `PressTests` must never
+share a solution with `Fraktal_Press_Demo` (same source objects, duplicate GUIDs —
+P1 rejects it). Only 2 of 34 suites were press-dependent, and both were
+self-contained, so the split cost no shared fixtures.
+
+Two rules learned the hard way, now enforced and documented:
+
+- **`<Folder Include>` must mirror the `Compile Include` directories, never the
+  `<Link>` paths.** XAE materializes those entries as real directories on disk
+  relative to the manifest. Deriving the list from `<Link>` created phantom
+  `Tests/Tests/`, `Tests/Examples/` and `Tests/PressDemo/{Io,Release,Sequences}`
+  folders and left the source tree nested a level deeper.
+- **`plc_lint.py` P1 must locate a project's ownership root, not assume a depth.**
+  It computed `<manifest dir>/<stem>`; with the manifest one level up from
+  `Tests/Fraktal_Tests/` that missed, fell back to the manifest's own directory,
+  and claimed every sibling source in the tree — 226 false violations, with the
+  fixture that described the correct behaviour already present and failing. The
+  rule now searches for the same-named source directory beneath the manifest.
+
+Not verified here: no TwinCAT compiler in this environment. Structural checks only
+— every include resolves, no `..` segments, all project XML well-formed, both lint
+profiles clean over 265 files, 21 linter fixtures green, and all 28 suites wired
+into a runner. The next XAE build remains the authority.
+
+## 92. Post-split compiler/runtime evidence and fieldbus profile reconciliation (2026-08-01)
+
+The post-split authority checks are now real rather than inferred. A fresh local
+TcUnit run of `Tests/Fraktal_Tests.plcproj` reports **84 successful, 0 failed, 84
+total tests across 26 suites**. The two Press-owned suites are intentionally absent
+from that result: `Examples/PressDemo/PressTests.plcproj` owns the remaining 8 tests
+across 2 suites and still requires its own isolated-runtime run. The deployed Press
+Demo remained running during all source/compiler work; no test configuration was
+activated or downloaded.
+
+The licensed CI placeholder was replaced with `tools/Invoke-TwinCatBuild.ps1`.
+It opens each solution in a separate hidden Visual Studio/TwinCAT process, selects
+`Debug|TwinCAT OS (x64)`, locates the hidden IEC project, and calls
+`CheckAllObjects()` directly so an unavailable saved target cannot turn a PLC
+compiler result into a system-level `Check config failed`. Both `FraktalTests` and
+`PressTests` returned `TRUE`. `tools/tcunit_to_junit.py` validates all five TcUnit
+summary fields, expected counts, zero failures, and total consistency before
+emitting JUnit; its fixture tests and the supplied 84-test log are green. Hosted
+runtime execution remains runner-owned because target selection/activation must be
+isolated from any machine runtime.
+
+XAE inspection also corrected §88's assumption that boot autostart could not be
+represented in source. Both test `.tsproj` files now serialize
+`BootProjectAutostart="false"`; XAE reload reports `False`, and the compiler gate
+fails if either wrapper enables it. This is source configuration only and does not
+alter an already activated target; the operator must still confirm the selected
+test runtime before download.
+
+The objective audit's former G4 was an over-specified mechanism, not a missing
+diagnostic outcome. The normative base profile now matches the working ownership
+split: `FB_EcBusHealth` supplies master-reported slave count/order/state/link and
+configured-identity mismatch flags; the project I/O catalog supplies approved
+tags, addresses, scaling and module ownership; the sole Hardware Driver supplies
+live HAL/process-image values; and `FB_IoTopologyPublisher` validates/publishes the
+join. Generic live CoE/PDO inference cannot author approved electrical identity or
+Fraktal ownership, so `I_FieldbusScanner`/`FB_EcFieldbusScanner` remain an optional
+fail-closed extension rather than a base-conformance requirement. `NodeCount` and
+per-node `ChannelCount` already provide the compact active-length representation.
+
+Finally, the gateway suite now includes a deterministic 4,000-path/four-WebSocket-
+client acceptance case. After one-time discovery, each client's cyclic reply
+contains only 120 consumed values and no repeated path vector; shared upstream
+exclusions use the conservative client intersection, and a 600-value drill-down is
+split into requests of at most 512. This closes the algorithmic scalability gap;
+packaged real ADS/OPC-UA traffic/latency remains release evidence for the chosen
+IPC and transport.
+
+## 93. Runtime gate identity is runner plus count (2026-08-02)
+
+An isolated Windows 10 x64 VM run supplied as the next test deployment completed
+cleanly with 84 tests across 26 suites, but every reported suite was rooted at
+`PRG_TcUnitRunner`. It therefore repeated the Core/Modules gate rather than
+executing the intended two-suite Press gate, whose task calls
+`PRG_PressTestRunner` and whose expected summary is 8 tests across 2 suites.
+
+The discrepancy is deployment identity, not a test-source defect: the committed
+`PressTests/PlcTask.TcTTO` calls `PRG_PressTestRunner`, and its manifest owns only
+the two Press suites. The operating rule now requires matching both runner path
+and expected counts before accepting runtime evidence. If a Press deployment
+reports the Core runner, inspect the selected solution/application and stale boot
+data on that isolated target. `BootProjectAutostart="false"` in the source wrapper
+prevents a new autostart choice; it cannot erase a boot application previously
+created on the runtime. The JUnit converter now requires `--expected-runner` and
+fails on missing, mixed, or unexpected runner paths in addition to count/summary
+failures. The VM result is archived as an independent Core/Modules repeat, while
+the 8-test Press gate remains open.
+
+The same check found post-rearrangement source drift in the Core wrapper:
+`Tests/FraktalTests.tsproj` no longer serialized `BootProjectAutostart="false"`,
+although the Press wrapper still did. The explicit false value is restored. This
+protects future activations but still does not remove boot data already written
+to the VM.
+
+## 94. Complete split runtime gate and Press fixture boundary (2026-08-02)
+
+The correctly selected `PRG_PressTestRunner` subsequently completed on the
+isolated Windows 10 x64 VM: 8 successful, 0 failed, 8 total tests across the two
+intended suites (`PressDemoTests` and `FaultRecoveryTests`). The fail-closed
+runner/count validator accepted the archived raw output. Together with the
+Core/Modules result, the split program is 92/92 tests across 28 suites. Evidence
+and source/TMC hashes are recorded in
+`Specification/Evidence/2026-08-02_Press_TcUnit.md`.
+
+The preceding `PRG_TcUnitRunner.*` persistent-symbol restoration warning is stale
+test-runtime metadata after replacing the Core application on ADS port 851, not
+a Press failure. The old symbols were skipped and the correct Press runner then
+completed. The VM USB-support warning is likewise non-blocking for this simulated
+fixture.
+
+Press Demo's scope is now stated without ambiguity: it is an internal Fraktal
+feature-testing bench, not a real machine project, production reference,
+conformance target, SAT, or safety-validation artifact. Its sequences, release
+policy, simulated plant, illustrative I/O data, and 8-test gate exercise framework
+integration. Any real project must own its engineering and independently satisfy
+the deployment, electrical, risk-assessment, and certified-safety gates.

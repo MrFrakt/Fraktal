@@ -38,28 +38,28 @@ OutImm.Unclamped := Clamp.OutImm.Unclamped;]]></ST></Implementation>
     10:
         OutCmd.CycleCompleted := FALSE;
         _M_SetStep(StepNo := 100, StepName := 'project.step.commandClamp', Awaits := 0,
-            AwaitingLabel := '', Class := E_TimeClass.WORK, ExpectedTime := T#0S);
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
         Clamp.Abort := FALSE;
         Clamp.Command := E_ClampCommand.CLAMP;
         Clamp.Execute := TRUE;
         _step := 20;
     20:
         _M_SetStep(StepNo := 110, StepName := 'project.step.awaitClamp', Awaits := Clamp,
-            AwaitingLabel := 'Clamp.CLAMP', Class := E_TimeClass.WORK, ExpectedTime := T#0S);
+            AwaitingLabel := 'Clamp.CLAMP', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
         IF Clamp.Done THEN
             Clamp.Execute := FALSE;
             _step := 30;
         END_IF
     30:
         _M_SetStep(StepNo := 200, StepName := 'project.step.commandUnclamp', Awaits := 0,
-            AwaitingLabel := '', Class := E_TimeClass.WORK, ExpectedTime := T#0S);
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
         Clamp.Abort := FALSE;
         Clamp.Command := E_ClampCommand.UNCLAMP;
         Clamp.Execute := TRUE;
         _step := 40;
     40:
         _M_SetStep(StepNo := 210, StepName := 'project.step.awaitUnclamp', Awaits := Clamp,
-            AwaitingLabel := 'Clamp.UNCLAMP', Class := E_TimeClass.WORK, ExpectedTime := T#0S);
+            AwaitingLabel := 'Clamp.UNCLAMP', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
         IF Clamp.Done THEN
             Clamp.Execute := FALSE;
             _step := 50;

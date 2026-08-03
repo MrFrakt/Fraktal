@@ -21,9 +21,8 @@ Rules
         legacy form must exist alongside it (see Params/PL_FraktalCompat.TcGVL).
         With `--profile 4024`, ANY defaulted input is reported — guarded or not —
         because that build must contain no 4026-only construct at all.
-  C2  No IEC/TwinCAT reserved word as a variable identifier. These do not error
-        where they are declared — they desync the parser and produce a cascade of
-        misleading errors elsewhere in the file.
+  C2  No IEC/TwinCAT reserved word as a variable or enumeration identifier.
+        These desync the parser and produce a cascade of misleading errors.
   C3  Balanced <Method> open/close tags (guards hand-edited .TcPOU XML).
   C4  Unique GUIDs within a file (a duplicated Id silently shadows an object).
   D1  Shipping concrete modules declare the four physical contract members;
@@ -32,12 +31,14 @@ Rules
   H1  Concrete module bodies contain only inherited `Cyclic();`; lifecycle-hook
         overrides call `SUPER^` first (except staged `OnModeExit`).
   C5  Every authored ST `CASE` has an `ELSE` safe reaction.
+  C6  `CASE` labels are integral/enum labels, never string literals.
   S1  Every multi-step sequence extends `FB_SequenceBase` and carries the shared
         step/result/advance skeleton.
   A1  An EquipmentModule declaration never contains a Unit instance.
   R1  Type reason constants are >=10000 and collision-free repository-wide.
-  P1  Project compile inputs resolve, authored sources are listed, and deployed
-        application root Units carry an instance-level `OPC.UA.DA := '1'`.
+  P1  Project compile inputs resolve, authored sources are listed, XAE system
+        projects do not load the same source object through two PLC projects,
+        and deployed roots carry an instance-level `OPC.UA.DA := '1'`.
 
 Usage
   python tools/plc_lint.py [root ...]        # default: FraktalCore/PLC/TwinCAT
@@ -82,6 +83,9 @@ OUTER_IMPL = re.compile(
 METHOD_IMPL = re.compile(r"<Implementation>.*?<!\[CDATA\[(.*?)\]\]>.*?</Implementation>",
                          re.S | re.I)
 CASE_BLOCK = re.compile(r"\bCASE\b.*?\bEND_CASE\b", re.S | re.I)
+ENUM_BLOCK = re.compile(
+    r"\bTYPE\s+[A-Za-z_]\w*\s*:\s*\((.*?)\)\s*[A-Za-z_]\w*\s*;",
+    re.S | re.I)
 TYPE_STRUCT = re.compile(r"\bTYPE\s+([A-Za-z_]\w*)\s*:\s*STRUCT(.*?)END_STRUCT",
                          re.S | re.I)
 CONST_DINT = re.compile(
@@ -100,8 +104,10 @@ ENUM_BINDINGS = {
     "E_ExecState": ("types.dart", "ExecState"),
     "E_ModuleType": ("types.dart", "ModuleType"),
     "E_Severity": ("types.dart", "Severity"),
+    "E_Category": ("types.dart", "AlarmCategory"),
     "E_ResetClass": ("types.dart", "ResetClass"),
     "E_AlarmState": ("types.dart", "AlarmState"),
+    "E_HostEventKind": ("types.dart", "HostEventKind"),
     "E_AccessLevel": ("types.dart", "AccessLevel"),
     "E_GatedAction": ("types.dart", "GatedAction"),
     "E_Mode": ("types.dart", "UnitMode"),
@@ -136,7 +142,7 @@ PREFIX_BY_TAG = {
 # Reserved in IEC 61131-3 / TwinCAT. Using one as an identifier desyncs the
 # parser; the reported errors then point at unrelated lines.
 RESERVED = {
-    "action", "and", "array", "at", "by", "case", "constant", "do", "dt",
+    "action", "and", "array", "at", "by", "case", "class", "constant", "do", "dt",
     "else", "elsif", "end_case", "end_for", "end_if", "end_repeat",
     "end_struct", "end_type", "end_var", "end_while", "exit", "false", "for",
     "function", "if", "log", "max", "min", "mod", "not", "of", "or", "r",
@@ -245,6 +251,15 @@ def lint_file(path: Path, legacy_4024: bool = False) -> list[Finding]:
                 path, offset, "C2",
                 f"'{hit.group(1)}' is a reserved word; as an identifier it "
                 "desyncs the parser and cascades misleading errors"))
+    code = _without_comments(text)
+    for enum_block in ENUM_BLOCK.finditer(code):
+        for member in re.finditer(r"\b([A-Za-z_]\w*)\s*:=", enum_block.group(1)):
+            if member.group(1).lower() not in RESERVED:
+                continue
+            findings.append(Finding(
+                path, _line_of(code, enum_block.start(1) + member.start()), "C2",
+                f"'{member.group(1)}' is a reserved word; as an enumeration "
+                "member it desyncs the parser and cascades misleading errors"))
 
     # C3 — balanced Method tags.
     opens = len(re.findall(r"<Method\s+Name=", text, re.I))
@@ -510,6 +525,20 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
                 path, _line_of(code, block.start()), "C5",
                 "CASE has no ELSE fail-safe reaction"))
 
+    # C6: IEC/TwinCAT CASE selectors and labels are ordinal. A quoted label is
+    # a reliable source-level indication that a STRING was incorrectly used as
+    # the selector; use IF/ELSIF for string comparisons.
+    for path, text in texts.items():
+        if not _shipping(path):
+            continue
+        code = _without_comments(text)
+        for block in CASE_BLOCK.finditer(code):
+            if not re.search(r"(?m)^\s*'[^'\r\n]*'\s*:", block.group(0)):
+                continue
+            findings.append(Finding(
+                path, _line_of(code, block.start()), "C6",
+                "CASE has a string-literal label; use IF/ELSIF for STRING values"))
+
     # S1: the shipped ST sequence skeleton is deliberately small and testable.
     for name, (path, declaration, _) in declarations.items():
         if inheritance.get(name) != "FB_SequenceBase" or not _shipping(path):
@@ -600,6 +629,8 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
         plc_names = [_normalize_enum_name(name) for name, _ in plc_rows]
         plc_names = ["medium" if plc_name == "E_Severity" and name == "med" else name
                      for name in plc_names]
+        plc_names = ["time" if plc_name == "E_ConfigValueType" and name == "duration"
+                     else name for name in plc_names]
         dart_names = [_normalize_enum_name(name) for name in dart_rows]
         if plc_names != dart_names:
             findings.append(Finding(
@@ -620,14 +651,38 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
             includes = re.findall(r'<Compile\s+Include="([^"]+)"', project_text, re.I)
             resolved: set[Path] = set()
             for include in includes:
+                if ".." in Path(include.replace("\\", "/")).parts:
+                    findings.append(Finding(
+                        project, 1, "P1",
+                        f"Compile Include contains TwinCAT-invalid '..' segment: {include}"))
                 source = _resolve_compile(project.resolve(), include, boundary)
                 if source is None:
                     findings.append(Finding(
                         project, 1, "P1", f"Compile Include does not resolve: {include}"))
                 else:
                     resolved.add(source)
+            # A TwinCAT aggregate may keep its manifest at the nearest common
+            # ancestor because PLC Control rejects raw '..' Include segments.
+            # Its authored ownership root is then the same-named source
+            # directory, which need not sit directly beside the manifest -
+            # Fraktal_Tests.plcproj lives at TwinCAT/ but owns
+            # TwinCAT/Tests/Fraktal_Tests/. Locate it rather than assume a
+            # depth, so a folder re-layout does not silently turn every sibling
+            # source into a violation. Sibling application sources may still be
+            # explicit linked inputs, but are checked for completeness by their
+            # own manifests.
+            candidates = sorted(
+                (path for path in project.parent.rglob(project.stem)
+                 if path.is_dir() and not _skipped(path)),
+                key=lambda path: len(path.relative_to(project.parent).parts))
+            if candidates:
+                owned_root = candidates[0]
+            elif (project.parent / project.stem).is_dir():
+                owned_root = project.parent / project.stem
+            else:
+                owned_root = project.parent
             owned = {
-                path.resolve() for path in project.parent.rglob("*")
+                path.resolve() for path in owned_root.rglob("*")
                 if path.is_file() and path.suffix in {".TcPOU", ".TcDUT", ".TcGVL", ".TcIO", ".TcTTO"}
                 and not _skipped(path)
             }
@@ -658,6 +713,46 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
                             source, _line_of(declaration, match.start()), "P1",
                             f"deployed root {variable} : {type_name} lacks immediate "
                             "OPC.UA.DA := '1' marker"))
+
+        # TwinCAT identifies every PLC object and child method by the GUID in
+        # its source XML. Loading one physical source through two PLC projects
+        # in the same XAE system project makes PLC Control rewrite those GUIDs
+        # repeatedly. Aggregate tests that link application fixtures therefore
+        # belong in a separate XAE solution/runtime from the deployed fixture.
+        for system_project in sorted(root.rglob("*.tsproj")):
+            if _skipped(system_project):
+                continue
+            system_text = system_project.read_text(
+                encoding="utf-8", errors="replace")
+            references = re.findall(
+                r'PrjFilePath="([^"]+\.plcproj)"', system_text, re.I)
+            loaded: list[tuple[Path, set[Path]]] = []
+            for reference in references:
+                manifest = (system_project.parent /
+                            Path(reference.replace("\\", "/"))).resolve()
+                if not manifest.is_file():
+                    findings.append(Finding(
+                        system_project, 1, "P1",
+                        f"XAE PLC project reference does not resolve: {reference}"))
+                    continue
+                manifest_text = manifest.read_text(
+                    encoding="utf-8", errors="replace")
+                manifest_sources: set[Path] = set()
+                for include in re.findall(
+                        r'<Compile\s+Include="([^"]+)"', manifest_text, re.I):
+                    source = _resolve_compile(manifest, include, boundary)
+                    if source is not None:
+                        manifest_sources.add(source)
+                loaded.append((manifest, manifest_sources))
+            for index, (left, left_sources) in enumerate(loaded):
+                for right, right_sources in loaded[index + 1:]:
+                    overlap = sorted(left_sources & right_sources)
+                    if overlap:
+                        findings.append(Finding(
+                            system_project, 1, "P1",
+                            f"XAE loads {len(overlap)} source object(s) through both "
+                            f"{left.name} and {right.name}; first duplicate: "
+                            f"{overlap[0]}"))
 
     return findings
 

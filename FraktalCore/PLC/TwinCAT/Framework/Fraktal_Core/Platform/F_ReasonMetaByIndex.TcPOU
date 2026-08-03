@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_ReasonMetaByIndex" Id="{c23abbdb-75fc-481a-bd8e-e572f49cde5f}" SpecialFunc="None">
+    <Declaration><![CDATA[// GENERATED FILE — DO NOT EDIT. Core §8.8/§8.9 complete catalog projection.
+FUNCTION F_ReasonMetaByIndex : BOOL
+VAR_INPUT
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Meta : ST_AlarmMeta;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_ReasonMetaByIndex := FALSE;
+Meta.ReasonCode := E_Reason.NONE;
+Meta.OperatorAction := '';
+Meta.Consequence := '';
+Meta.Priority := E_Severity.LOW;
+Meta.Category := E_Category.PROCESS;
+Meta.Shelvable := FALSE;
+CASE Index OF
+    1:
+        Meta.ReasonCode := 10;
+        Meta.OperatorAction := 'std.reason.10.action';
+        Meta.Consequence := 'std.reason.10.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    2:
+        Meta.ReasonCode := 11;
+        Meta.OperatorAction := 'std.reason.11.action';
+        Meta.Consequence := 'std.reason.11.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    3:
+        Meta.ReasonCode := 12;
+        Meta.OperatorAction := 'std.reason.12.action';
+        Meta.Consequence := 'std.reason.12.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    4:
+        Meta.ReasonCode := 13;
+        Meta.OperatorAction := 'std.reason.13.action';
+        Meta.Consequence := 'std.reason.13.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    5:
+        Meta.ReasonCode := 14;
+        Meta.OperatorAction := 'std.reason.14.action';
+        Meta.Consequence := 'std.reason.14.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    6:
+        Meta.ReasonCode := 15;
+        Meta.OperatorAction := 'std.reason.15.action';
+        Meta.Consequence := 'std.reason.15.consequence';
+        Meta.Priority := E_Severity.HIGH;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    7:
+        Meta.ReasonCode := 16;
+        Meta.OperatorAction := 'std.reason.16.action';
+        Meta.Consequence := 'std.reason.16.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    8:
+        Meta.ReasonCode := 17;
+        Meta.OperatorAction := 'std.reason.17.action';
+        Meta.Consequence := 'std.reason.17.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    9:
+        Meta.ReasonCode := 18;
+        Meta.OperatorAction := 'std.reason.18.action';
+        Meta.Consequence := 'std.reason.18.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    10:
+        Meta.ReasonCode := 19;
+        Meta.OperatorAction := 'std.reason.19.action';
+        Meta.Consequence := 'std.reason.19.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    11:
+        Meta.ReasonCode := 20;
+        Meta.OperatorAction := 'std.reason.20.action';
+        Meta.Consequence := 'std.reason.20.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    12:
+        Meta.ReasonCode := 21;
+        Meta.OperatorAction := 'std.reason.21.action';
+        Meta.Consequence := 'std.reason.21.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    13:
+        Meta.ReasonCode := 2001;
+        Meta.OperatorAction := 'std.reason.2001.action';
+        Meta.Consequence := 'std.reason.2001.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    14:
+        Meta.ReasonCode := 2002;
+        Meta.OperatorAction := 'std.reason.2002.action';
+        Meta.Consequence := 'std.reason.2002.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    15:
+        Meta.ReasonCode := 2003;
+        Meta.OperatorAction := 'std.reason.2003.action';
+        Meta.Consequence := 'std.reason.2003.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    16:
+        Meta.ReasonCode := 2004;
+        Meta.OperatorAction := 'std.reason.2004.action';
+        Meta.Consequence := 'std.reason.2004.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    17:
+        Meta.ReasonCode := 2005;
+        Meta.OperatorAction := 'std.reason.2005.action';
+        Meta.Consequence := 'std.reason.2005.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := TRUE;
+    18:
+        Meta.ReasonCode := 2006;
+        Meta.OperatorAction := 'std.reason.2006.action';
+        Meta.Consequence := 'std.reason.2006.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    19:
+        Meta.ReasonCode := 2007;
+        Meta.OperatorAction := 'std.reason.2007.action';
+        Meta.Consequence := 'std.reason.2007.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := TRUE;
+    20:
+        Meta.ReasonCode := 2008;
+        Meta.OperatorAction := 'std.reason.2008.action';
+        Meta.Consequence := 'std.reason.2008.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    21:
+        Meta.ReasonCode := 2010;
+        Meta.OperatorAction := 'std.reason.2010.action';
+        Meta.Consequence := 'std.reason.2010.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    22:
+        Meta.ReasonCode := 2011;
+        Meta.OperatorAction := 'std.reason.2011.action';
+        Meta.Consequence := 'std.reason.2011.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := TRUE;
+    23:
+        Meta.ReasonCode := 2012;
+        Meta.OperatorAction := 'std.reason.2012.action';
+        Meta.Consequence := 'std.reason.2012.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    24:
+        Meta.ReasonCode := 2020;
+        Meta.OperatorAction := 'std.reason.2020.action';
+        Meta.Consequence := 'std.reason.2020.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    25:
+        Meta.ReasonCode := 2021;
+        Meta.OperatorAction := 'std.reason.2021.action';
+        Meta.Consequence := 'std.reason.2021.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    26:
+        Meta.ReasonCode := 2022;
+        Meta.OperatorAction := 'std.reason.2022.action';
+        Meta.Consequence := 'std.reason.2022.consequence';
+        Meta.Priority := E_Severity.HIGH;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    27:
+        Meta.ReasonCode := 2023;
+        Meta.OperatorAction := 'std.reason.2023.action';
+        Meta.Consequence := 'std.reason.2023.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    28:
+        Meta.ReasonCode := 2024;
+        Meta.OperatorAction := '';
+        Meta.Consequence := 'std.reason.2024.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    29:
+        Meta.ReasonCode := 2025;
+        Meta.OperatorAction := '';
+        Meta.Consequence := 'std.reason.2025.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    30:
+        Meta.ReasonCode := 2026;
+        Meta.OperatorAction := '';
+        Meta.Consequence := 'std.reason.2026.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    31:
+        Meta.ReasonCode := 2027;
+        Meta.OperatorAction := '';
+        Meta.Consequence := 'std.reason.2027.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    32:
+        Meta.ReasonCode := 2901;
+        Meta.OperatorAction := '';
+        Meta.Consequence := 'std.reason.2901.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    33:
+        Meta.ReasonCode := 10101;
+        Meta.OperatorAction := 'std.reason.10101.action';
+        Meta.Consequence := 'std.reason.10101.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    34:
+        Meta.ReasonCode := 10102;
+        Meta.OperatorAction := 'std.reason.10102.action';
+        Meta.Consequence := 'std.reason.10102.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    35:
+        Meta.ReasonCode := 10103;
+        Meta.OperatorAction := 'std.reason.10103.action';
+        Meta.Consequence := 'std.reason.10103.consequence';
+        Meta.Priority := E_Severity.HIGH;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    36:
+        Meta.ReasonCode := 10111;
+        Meta.OperatorAction := 'std.reason.10111.action';
+        Meta.Consequence := 'std.reason.10111.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    37:
+        Meta.ReasonCode := 10112;
+        Meta.OperatorAction := 'std.reason.10112.action';
+        Meta.Consequence := 'std.reason.10112.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    38:
+        Meta.ReasonCode := 10113;
+        Meta.OperatorAction := 'std.reason.10113.action';
+        Meta.Consequence := 'std.reason.10113.consequence';
+        Meta.Priority := E_Severity.HIGH;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    39:
+        Meta.ReasonCode := 10114;
+        Meta.OperatorAction := 'std.reason.10114.action';
+        Meta.Consequence := 'std.reason.10114.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    40:
+        Meta.ReasonCode := 10115;
+        Meta.OperatorAction := 'std.reason.10115.action';
+        Meta.Consequence := 'std.reason.10115.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    41:
+        Meta.ReasonCode := 10116;
+        Meta.OperatorAction := 'std.reason.10116.action';
+        Meta.Consequence := 'std.reason.10116.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    42:
+        Meta.ReasonCode := 10401;
+        Meta.OperatorAction := 'std.reason.10401.action';
+        Meta.Consequence := 'std.reason.10401.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    43:
+        Meta.ReasonCode := 10402;
+        Meta.OperatorAction := 'std.reason.10402.action';
+        Meta.Consequence := 'std.reason.10402.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    44:
+        Meta.ReasonCode := 10403;
+        Meta.OperatorAction := 'std.reason.10403.action';
+        Meta.Consequence := 'std.reason.10403.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    45:
+        Meta.ReasonCode := 10404;
+        Meta.OperatorAction := 'std.reason.10404.action';
+        Meta.Consequence := 'std.reason.10404.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := TRUE;
+    46:
+        Meta.ReasonCode := 10405;
+        Meta.OperatorAction := 'std.reason.10405.action';
+        Meta.Consequence := 'std.reason.10405.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    47:
+        Meta.ReasonCode := 10406;
+        Meta.OperatorAction := 'std.reason.10406.action';
+        Meta.Consequence := 'std.reason.10406.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.SYSTEM;
+        Meta.Shelvable := FALSE;
+    48:
+        Meta.ReasonCode := 10501;
+        Meta.OperatorAction := 'std.reason.10501.action';
+        Meta.Consequence := 'std.reason.10501.consequence';
+        Meta.Priority := E_Severity.LOW;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    49:
+        Meta.ReasonCode := 10502;
+        Meta.OperatorAction := 'std.reason.10502.action';
+        Meta.Consequence := 'std.reason.10502.consequence';
+        Meta.Priority := E_Severity.HIGH;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    50:
+        Meta.ReasonCode := 10601;
+        Meta.OperatorAction := 'std.reason.10601.action';
+        Meta.Consequence := 'std.reason.10601.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+    51:
+        Meta.ReasonCode := 11001;
+        Meta.OperatorAction := 'std.reason.11001.action';
+        Meta.Consequence := 'std.reason.11001.consequence';
+        Meta.Priority := E_Severity.MED;
+        Meta.Category := E_Category.PROCESS;
+        Meta.Shelvable := FALSE;
+ELSE
+    RETURN;
+END_CASE
+F_ReasonMetaByIndex := TRUE;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

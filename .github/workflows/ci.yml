@@ -4,10 +4,10 @@
 #
 # Gate order follows Annex H §CI wiring: lint -> test -> build.
 #
-# Scope note (O10 honest status): this gate verifies the HMI/gateway Dart tree and
-# the machine-verifiable PLC source rules. It does NOT compile the PLC — that
-# needs a self-hosted Windows runner with a licensed TwinCAT XAE; see the
-# `plc-compile` job stub at the end for the wiring once such a runner exists.
+# Scope note (O10 honest status): hosted jobs verify the HMI/gateway and PLC
+# source rules. Licensed PLC compilation and runtime execution are separate
+# self-hosted jobs at the end; they remain skipped until their explicit runner
+# variables are configured and never silently appear as a passing hosted gate.
 name: CI
 
 on:
@@ -50,7 +50,7 @@ jobs:
       - name: Lint TwinCAT sources
         run: python tools/plc_lint.py --profile ${{ matrix.profile }} FraktalCore/PLC/TwinCAT
       - name: Test conformance-lint positive/negative fixtures
-        run: python -m unittest tools/test_plc_lint.py
+        run: python -m unittest tools/test_plc_lint.py tools/test_tcunit_to_junit.py
 
   # ---- lint + test: HMI app (Flutter) -------------------------------------
   hmi:
@@ -131,19 +131,74 @@ jobs:
       - name: Build web
         run: flutter build web --release
 
-  # ---- build: PLC compile (requires licensed TwinCAT XAE) -----------------
-  # Closes O10 G7. Left disabled rather than silently absent: a job that cannot
-  # run must not look like a passing gate. Enable by registering a self-hosted
-  # Windows runner with TwinCAT XAE + TcUnit and setting vars.HAS_TWINCAT_RUNNER.
-  plc-compile:
-    name: PLC compile + TcUnit (self-hosted TwinCAT)
+  # ---- check: PLC object check (requires licensed TwinCAT XAE) ------------
+  # Each solution gets a fresh hidden XAE process so installed-library/source
+  # GUIDs never coexist. This gate never activates a configuration or touches a
+  # runtime. Enable it by registering a licensed self-hosted Windows runner with
+  # the `twincat` label and setting vars.HAS_TWINCAT_RUNNER=true.
+  plc-object-check:
+    name: PLC object check (self-hosted TwinCAT)
     if: vars.HAS_TWINCAT_RUNNER == 'true'
     runs-on: [self-hosted, windows, twincat]
+    defaults:
+      run:
+        shell: powershell
     steps:
       - uses: actions/checkout@v4
-      - name: Build PLC solution (TwinCAT automation interface)
+      - name: Check all PLC objects in both isolated test solutions
+        run: .\tools\Invoke-TwinCatBuild.ps1
+      - name: Archive XAE build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twincat-build-logs
+          path: artifacts/twincat-build
+
+  # Runtime activation is deliberately a separate gate. The runner-owned hook
+  # selects an isolated target/ADS port, keeps Autostart Boot Project disabled,
+  # activates/downloads, waits for TcUnit completion, and writes the raw XAE
+  # event-log text requested by -OutputLog. It must never target a machine
+  # runtime. Repository code validates the summary and emits JUnit.
+  plc-tcunit:
+    name: PLC TcUnit (isolated runtime)
+    needs: plc-object-check
+    if: ${{ always() && needs.plc-object-check.result == 'success' && vars.HAS_TWINCAT_TEST_RUNTIME == 'true' }}
+    runs-on: [self-hosted, windows, twincat, twincat-test]
+    defaults:
+      run:
+        shell: powershell
+    env:
+      TCUNIT_RUNNER_SCRIPT: ${{ vars.TCUNIT_RUNNER_SCRIPT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run both TcUnit gates on the isolated target
         run: |
-          echo "Wire up: TcXaeShell/automation-interface build of"
-          echo "FraktalCore/PLC/TwinCAT/Tests and Examples/FraktalPressDemo.sln, then run the TcUnit"
-          echo "suites headless and publish JUnit XML (Annex H)."
-          exit 1
+          if ([string]::IsNullOrWhiteSpace($env:TCUNIT_RUNNER_SCRIPT)) {
+            throw 'Set repository variable TCUNIT_RUNNER_SCRIPT to the absolute runner-local PowerShell hook.'
+          }
+          $runner = (Resolve-Path -LiteralPath $env:TCUNIT_RUNNER_SCRIPT).Path
+          if ([System.IO.Path]::GetExtension($runner) -ne '.ps1') {
+            throw "TCUNIT_RUNNER_SCRIPT must resolve to a .ps1 file: $runner"
+          }
+          New-Item -ItemType Directory -Path artifacts\tcunit -Force | Out-Null
+          & $runner -Gate CoreModules `
+            -Solution (Resolve-Path FraktalCore\PLC\TwinCAT\Tests\FraktalTests.slnx).Path `
+            -OutputLog (Join-Path $PWD artifacts\tcunit\core-modules.log)
+          if ($LASTEXITCODE -ne 0) { throw "CoreModules runner hook failed: $LASTEXITCODE" }
+          & $runner -Gate Press `
+            -Solution (Resolve-Path FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressTests.slnx).Path `
+            -OutputLog (Join-Path $PWD artifacts\tcunit\press.log)
+          if ($LASTEXITCODE -ne 0) { throw "Press runner hook failed: $LASTEXITCODE" }
+      - name: Validate summaries and emit JUnit
+        run: |
+          python tools\tcunit_to_junit.py artifacts\tcunit\core-modules.log artifacts\tcunit\core-modules.xml --gate-name CoreModules --expected-tests 84 --expected-suites 26 --expected-runner PRG_TcUnitRunner
+          python tools\tcunit_to_junit.py artifacts\tcunit\press.log artifacts\tcunit\press.xml --gate-name Press --expected-tests 8 --expected-suites 2 --expected-runner PRG_PressTestRunner
+      - name: Archive TcUnit logs and JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twincat-tcunit-results
+          path: artifacts/tcunit

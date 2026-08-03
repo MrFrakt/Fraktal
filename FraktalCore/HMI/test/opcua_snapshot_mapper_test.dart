@@ -32,7 +32,7 @@ void main() {
         'PLC1/MAIN/PneumaticPress/CurrentStep/StepNo': 880,
         'PLC1/MAIN/PneumaticPress/CurrentStep/StepName':
             'project.step.pressChangeoverAwaitConfirmation',
-        'PLC1/MAIN/PneumaticPress/CurrentStep/Class': 3,
+        'PLC1/MAIN/PneumaticPress/CurrentStep/TimeClass': 3,
         'PLC1/MAIN/PneumaticPress/CurrentStep/ExpectedTime': 0,
         'PLC1/MAIN/PneumaticPress/CurrentStep/Conds/1/Label':
             'project.condition.pressChangeoverConfirmation',
@@ -179,7 +179,20 @@ void main() {
         '$base/AlarmLog/Meta/Meta[1]/ReasonCode': 2003,
         '$base/AlarmLog/Meta/Meta[1]/OperatorAction': 'std.action.inspect',
         '$base/AlarmLog/Meta/Meta[1]/Consequence': 'std.consequence.stop',
+        '$base/AlarmLog/Meta/Meta[1]/Priority': Severity.medium.index,
+        '$base/AlarmLog/Meta/Meta[1]/Category': AlarmCategory.process.index,
         '$base/AlarmLog/Meta/Meta[1]/Shelvable': true,
+        '$base/HostEvents/RingHead': 1,
+        '$base/HostEvents/Count': 1,
+        '$base/HostEvents/Capacity': 32,
+        '$base/HostEvents/Ring/Ring[1]/Sequence': 7,
+        '$base/HostEvents/Ring/Ring[1]/Kind': HostEventKind.nok.index,
+        '$base/HostEvents/Ring/Ring[1]/StationPath': 'Unit',
+        '$base/HostEvents/Ring/Ring[1]/PartUid': 'PART-42',
+        '$base/HostEvents/Ring/Ring[1]/Stamp': 1784613610,
+        '$base/HostEvents/Ring/Ring[1]/TimeSynchronized': true,
+        '$base/HostEvents/Ring/Ring[1]/Verdict': Verdict.nok.index,
+        '$base/HostEvents/Ring/Ring[1]/ReasonCode': 2003,
         '$base/Oee/Availability': .9,
         '$base/Oee/Performance': .8,
         '$base/Oee/Quality': .99,
@@ -210,7 +223,16 @@ void main() {
     expect(unit.activeEvents.single.timestampsSynchronized, isFalse);
     expect(unit.ringEvents.single.duration, const Duration(seconds: 10));
     expect(unit.ringEvents.single.timestampsSynchronized, isTrue);
-    expect(unit.alarmMeta.single.shelvable, isTrue);
+    final interlockMeta =
+        unit.alarmMeta.singleWhere((meta) => meta.reasonCode == 2003);
+    expect(unit.alarmMeta, hasLength(51));
+    expect(interlockMeta.shelvable, isTrue);
+    expect(interlockMeta.priority, Severity.medium);
+    expect(interlockMeta.category, AlarmCategory.process);
+    expect(unit.hostEvents.single.kind, HostEventKind.nok);
+    expect(unit.hostEvents.single.partUid, 'PART-42');
+    expect(unit.hostEvents.single.reasonCode, 2003);
+    expect(unit.hostEvents.single.timeSynchronized, isTrue);
     expect(unit.oee?.oee, closeTo(.7128, .00001));
     expect(unit.nameplate?.serial, 'SN-1');
     expect(unit.safety?.devices.single.kind, SafetyDeviceKind.estop);

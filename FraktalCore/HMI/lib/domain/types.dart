@@ -10,9 +10,26 @@ enum ModuleType { none, unit, equipmentModule, controlModule }
 
 enum Severity { low, medium, high } // E_Severity: LOW=0 MED=1 HIGH=2
 
+enum AlarmCategory { process, safety, system } // E_Category: PROCESS=0...
+
 enum ResetClass { autoReset, manualReset }
 
 enum AlarmState { closed, active, waitReset }
+
+/// Core §11.6.1 fixed host-event ordinals (E_HostEventKind).
+enum HostEventKind {
+  none,
+  partReceived,
+  processingStarted,
+  processed,
+  processingAborted,
+  changeoverStarted,
+  changeoverDone,
+  toolChanged,
+  materialChanged,
+  modeChanged,
+  nok,
+}
 
 enum AccessLevel { none, operator, technician, engineer, admin }
 
@@ -85,6 +102,33 @@ class AlarmEvent {
       !(state == AlarmState.closed &&
           resetClass == ResetClass.manualReset &&
           !resetTimeSynchronized);
+}
+
+/// Core §11.6.2 transport-neutral L3/MES event record.
+class HostEvent {
+  final int sequence;
+  final HostEventKind kind;
+  final String stationPath;
+  final String partUid;
+  final String subject;
+  final String value;
+  final DateTime? stamp;
+  final bool timeSynchronized;
+  final Verdict verdict;
+  final int reasonCode;
+
+  const HostEvent({
+    required this.sequence,
+    required this.kind,
+    required this.stationPath,
+    this.partUid = '',
+    this.subject = '',
+    this.value = '',
+    this.stamp,
+    this.timeSynchronized = false,
+    this.verdict = Verdict.none,
+    this.reasonCode = 0,
+  });
 }
 
 /// Core §2.7/§8.12 — PLC-authoritative wall-clock and controller health.
@@ -620,7 +664,11 @@ class AlarmMeta {
   final int reasonCode;
   final String operatorAction;
   final String consequence;
+  final Severity priority;
+  final AlarmCategory category;
   final bool shelvable;
   const AlarmMeta(this.reasonCode, this.operatorAction, this.consequence,
-      {this.shelvable = false});
+      {this.priority = Severity.low,
+      this.category = AlarmCategory.process,
+      this.shelvable = false});
 }

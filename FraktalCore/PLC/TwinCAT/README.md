@@ -6,7 +6,7 @@ The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit s
 > (`Fraktal_Core` + `Fraktal_Modules`) and the `Fraktal_Press_Demo` application build in XAE, deploy
 > to a TC runtime, and have been exercised end-to-end over TF6100 (press demo cycling; generic HMI
 > commanding; `QUERY_CONFIG` config manifest and `OPC.UA.DA` publication obscuring confirmed). Still
-> The current Core `0.3.0.0` / Modules `0.2.0.0` source is newer and still requires the P0 clean build,
+> The current Core `0.4.0.0` / Modules `0.3.0.0` source is newer and still requires the P0 clean build,
 > TcUnit run, and TMC regeneration; the prior live result is not evidence for this snapshot. See
 > `../../../Specification/OBJECTIVES_AUDIT.md`. Per Core §2 / TC3 §2.1 pin your exact XAE/XAR build; the
 > plcproj files target 4024+ (ABSTRACT FBs/methods). The sources are kept **source-compatible with
@@ -37,15 +37,28 @@ Framework/
   BaseClasses/FB_CycleProfiler §8.11.4 cycle waterfall + per-step stats + time-class split
                                (WorkTime = real cycle time; fed by _M_SetStep)
   Fraktal_Modules/           reusable module library
-Tests and Examples/
-  Fraktal_Demo/              two-root smoke application
-  Fraktal_Press_Demo/        internal integration/acceptance fixture
-  Fraktal_Tests/             aggregate TcUnit project and test sources (§5.7)
-  FB_ProbeCM / FB_ProbeEM      minimal concrete probes for the bases
-  FB_Base_Tests                T1 · T2 · T4 (+ rollup/T6 at base level) proven ONCE
-  FB_PermIntlk_Tests           first-out ordering · bypass rules
-  FB_Timing_Tests              §8.11.4: exact math · classified cycle publication · command rows
-  PRG_TcUnitRunner             TcUnit.RUN() — driven headless by TcUnit-Runner (TC3 §5.7)
+  FraktalCore.tsproj           XAE solution for the Core library alone
+  FraktalModules.tsproj        XAE solution for the module library alone
+  TwinCAT Fraktal.tsproj       XAE solution loading both libraries together
+Examples/                    example applications, one solution folder each
+  CoreDemo/Fraktal_Demo/      two-root smoke application (§3.1a; sources only,
+                               no .tsproj — add it to a solution to build)
+    PressDemo/                 internal Fraktal feature-testing bench
+    PressDemo.tsproj           the XAE solution (PressDemoX32 = 32-bit variant)
+    Fraktal_Press_Demo/        simulated test-bench PLC project (not a real project)
+    PressTests.plcproj         the bench's integration gate (own solution)
+    PressTests/                FB_PressDemoUnit_Tests · FB_FaultRecovery_Tests
+    _Config/IO/                exported physical I/O configuration
+Tests/                       the aggregate Core + Modules gate, self-contained
+  Fraktal_Tests.plcproj      its manifest (every Compile path downward)
+  FraktalTests.tsproj/.slnx  its XAE solution (ADS port 851)
+  Fraktal_Tests/             aggregate TcUnit test sources (§5.7)
+    FB_ProbeCM / FB_ProbeEM    minimal concrete probes for the bases
+    FB_Base_Tests              T1 · T2 · T4 (+ rollup/T6 at base level) proven ONCE
+    FB_PermIntlk_Tests         first-out ordering · bypass rules
+    FB_Timing_Tests            §8.11.4: exact math · classified cycle publication · command rows
+    PRG_TcUnitRunner           TcUnit.RUN() — driven headless by TcUnit-Runner (TC3 §5.7)
+  tools/                     source audits (e.g. Test-OpcUaPublication.ps1)
 scaffold/FB_TemplateCM/      "new CM type in 30 minutes" — pre-wired, initially RED (§5.7)
 IMPLEMENTATION_NOTES.md      every reconciliation vs. the drafts + proposed Core §3.2 amendments
 ```
@@ -59,31 +72,89 @@ IMPLEMENTATION_NOTES.md      every reconciliation vs. the drafts + proposed Core
 > (TwinCAT System Service) the shell pairs with. 4024.75 is fine — 4024+ is required
 > (ABSTRACT FBs/methods).
 
-1. In TcXaeShell: **File → New → Project → TwinCAT XAE Project**, then right-click `PLC` →
-   **Add Existing Item…** → `Framework/Fraktal_Core/Fraktal_Core.plcproj`. The referenced Beckhoff
+1. Open the dedicated 4026 wrapper `Framework/FraktalCore.slnx`, or in TcXaeShell create a
+   TwinCAT XAE Project and add `Framework/Fraktal_Core/Fraktal_Core.plcproj` beneath its `PLC` node.
+   The referenced Beckhoff
    libraries (`Tc2_Standard`, `Tc2_System`, `Tc2_Utilities`, `Tc3_Module`) resolve from the
    local repository automatically (they are placeholder references, `*` version).
 2. Build warning-clean (Core §2), then **Save as library** and install; consumers pin the
    version (§2.2/§5.4). If the compiler rejects a construct, check the watch-item list in
    `IMPLEMENTATION_NOTES.md` §8 — these are known first-compile candidates, fix at source.
-3. Add `Framework/Fraktal_Modules/Fraktal_Modules.plcproj` the same way (references the installed
-   `Fraktal_Core`), build it, then save/install it as a library. It deliberately has no task or `MAIN`.
-4. Add either executable fixture: `Tests and Examples/Fraktal_Demo/Fraktal_Demo.plcproj`, or
-   `Tests and Examples/Fraktal_Press_Demo/Fraktal_Press_Demo.plcproj` for the pneumatic press.
-5. Add `Tests and Examples/Fraktal_Tests/Fraktal_Tests.plcproj`; install **TcUnit** (tcunit.org)
-   first. Its `PlcTask.TcTTO` calls `PRG_TcUnitRunner`. Run it only on an isolated
+3. Close the Core wrapper, then open `Framework/FraktalModules.slnx`, or add
+   `Framework/Fraktal_Modules/Fraktal_Modules.plcproj` to another otherwise-empty XAE solution.
+   It references the installed `Fraktal_Core`; build it, then save/install it as a library. It
+   deliberately has no task or `MAIN`.
+4. Add either executable fixture: `Examples/CoreDemo/Fraktal_Demo/Fraktal_Demo.plcproj`, or
+   `Examples/PressDemo/Fraktal_Press_Demo/Fraktal_Press_Demo.plcproj` for the pneumatic press.
+   The ready-made 4026 system project is `Examples/PressDemo/PressDemo.slnx`
+   (`PressDemo.tsproj`); `PressDemoX32.sln` is the legacy XAE-shell wrapper. Open
+   one wrapper only—both point at the same Press PLC source project.
+5. Open the dedicated `Tests/FraktalTests.slnx`, or
+   create a **separate XAE solution** and add `Tests/Fraktal_Tests.plcproj`;
+   install **TcUnit** (tcunit.org) first. Then run the press gate too:
+   `Examples/PressDemo/PressTests.slnx`. Never load `PressTests` beside the Press
+   Demo project: it links the exact Press source objects and duplicate GUIDs make
+   TwinCAT rewrite those files. Each `PlcTask.TcTTO` calls its runner. Run only on an isolated
    test runtime/ADS port and leave **Autostart Boot Project disabled**. Start it
    deliberately, harvest the result, and stop it; never make it the machine boot
    application. All suites green is the M1 acceptance bar.
 6. Wire TcUnit-Runner into CI so the JUnit results gate the merge alongside lint (Core §6.8, §1.5).
 
+### Two TcUnit gates, and why they are separate
+
+There are **two** test projects and you must run both:
+
+| Gate | Covers | Solution |
+|---|---|---|
+| `Tests/Fraktal_Tests.plcproj` | Core + Modules (26 suites / 84 tests, simulated HAL) | `Tests/FraktalTests.slnx` |
+| `Examples/PressDemo/PressTests.plcproj` | Internal Press feature bench (2 suites / 8 integration tests: `FB_PressDemoUnit_Tests`, `FB_FaultRecovery_Tests`) | `Examples/PressDemo/PressTests.slnx` |
+
+Accept a runtime result only when both its count and runner identity match the
+selected gate: Core/Modules output is rooted at `PRG_TcUnitRunner` and reports
+84 tests/26 suites; Press output is rooted at `PRG_PressTestRunner` and reports
+8 tests/2 suites. If a Press attempt reports the Core identity, either the wrong
+solution was downloaded or a previously created Core boot project restarted on
+that target. Source `BootProjectAutostart="false"` prevents creating a new
+autostart configuration; it does not erase boot data that already exists on a
+runtime.
+
+They are split because of a hard TwinCAT constraint: PLC Control inspects a raw
+`Compile Include` path **before** it evaluates `<Link>` metadata, so a path
+containing `..` makes the importer try to create a project-tree folder literally
+named `..` and stop with *"'..' is not a valid folder name."* Every Compile path
+must run **downward** from its manifest.
+
+A single aggregate would therefore have to sit at `TwinCAT/` to reach both
+`Tests/` and `Examples/` — cluttering the root that holds the platform's
+projects. Keeping each manifest beside the sources it owns is what lets `Tests/`
+stay self-contained. The press suites still link the **same** physical objects
+that deploy (`Fraktal_Press_Demo/01_PneumaticPress/...`), never copies.
+
+Two rules keep this working, both enforced by `plc_lint.py` **P1**:
+- no `..` in any Compile path, and every include must resolve;
+- a `<Folder Include>` list mirrors the **Include** directories, never the
+  `<Link>` paths — XAE materialises those entries as real directories on disk,
+  so a mismatch litters the tree with phantom empty folders.
+
+Never load `PressTests` in the same solution as `Fraktal_Press_Demo`: both link
+the same source objects and duplicate in-solution GUIDs make PLC Control rewrite
+the shared files.
+
+For a compiler-only local/CI check that does not activate or download a target,
+run `tools/Invoke-TwinCatBuild.ps1` from the repository root. It opens each test
+solution in a separate hidden XAE host, selects x64, asserts Autostart Boot Project
+is false, and runs the nested IEC project's `CheckAllObjects`. Runtime CI supplies
+the separate isolated-target hook and validates its raw TcUnit summaries with
+`tools/tcunit_to_junit.py`, including expected runner identity as well as counts.
+
+
 **Build order matters:** save/install `Fraktal_Core`, then save/install `Fraktal_Modules`.
-`Fraktal_Demo`, `Fraktal_Press_Demo`, and `Fraktal_Tests` are executable applications, not libraries;
+`Fraktal_Demo`, `Fraktal_Press_Demo`, `PressTests`, and `Fraktal_Tests` are executable applications, not libraries;
 Tests additionally needs `Fraktal_Modules` and `TcUnit` installed.
 
-The aggregate test project and Press Demo share `Tests and Examples/` as their common ancestor, so its
-linked compile inputs stay inside that tree. Keep every linked input resolvable from the project and do
-not reintroduce paths that escape this common ancestor.
+Each manifest sits with the sources it owns, so every compile input is a downward
+path. Keep it that way: do not reintroduce escaping `..` compile paths, and do not
+merge the two gates back into one manifest — that would force it up to `TwinCAT/`.
 
 If a test runtime is accidentally saved as a boot project and reports a PLC
 stack overflow during TwinCAT startup, keep outputs safe, return TwinCAT to
@@ -93,7 +164,7 @@ crashed PLC runtime, not separate I/O mapping faults.
 
 ## Commissioning gates (first power-up of a real machine)
 
-Two gates in the `VAR CONSTANT` block of `Tests and Examples/Fraktal_Press_Demo/00_System/MAIN.TcPOU` deliberately hold
+Two gates in the `VAR CONSTANT` block of `Examples/Fraktal_Press_Demo/00_System/MAIN.TcPOU` deliberately hold
 physical outputs off until the corresponding check is done. Until then the machine looks broken while
 the software is healthy:
 

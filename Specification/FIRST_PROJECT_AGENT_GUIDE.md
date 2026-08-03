@@ -118,7 +118,7 @@ VAR_GLOBAL
 END_VAR
 ```
 
-Before building, run `powershell -File "FraktalCore/PLC/TwinCAT/Tests and Examples/tools/Test-OpcUaPublication.ps1"`.
+Before building, run `powershell -File "FraktalCore/PLC/TwinCAT/Tests/tools/Test-OpcUaPublication.ps1"`.
 It rejects definition-level enable markers, misplaced GVL markers, and
 persistent pointer/interface/reference fields without an immediate `DA=0`.
 
@@ -145,15 +145,26 @@ and all safety-dependent physical tests still marked separately for SAT.
 1. Pin and record XAE/XAR. A `.plcproj` is added to a TwinCAT XAE solution with
    **PLC → Add Existing Item**; it is not opened as a solution.
 2. Build and install `Fraktal_Core` as a library, then build and install
-   `Fraktal_Modules`. Build the application and `Fraktal_Tests` afterwards.
+   `Fraktal_Modules`. Build the application and both applicable test gates
+   afterwards: `Tests/Fraktal_Tests.plcproj` for Core/Modules and
+   `Examples/PressDemo/PressTests.plcproj` for the internal Press feature-testing
+   bench. This bench is framework integration evidence, not a real project or
+   machine-acceptance target.
    Use a separate application solution, or unload/remove the Core and Modules
    source-library projects before adding applications that consume the installed
    libraries; otherwise XAE can see identical object GUIDs in source and installed
    copies. Native SFC POUs need no SFC/`IecSfc` library reference (the compiler
    provides SFC support). After changing a `.plcproj` library reference,
    close and reopen XAE before evaluating the next build.
-   Run `Fraktal_Tests` only on an isolated test runtime/ADS port with Autostart
-   Boot Project disabled; it is never the machine boot application.
+   Run either test gate only on an isolated test runtime/ADS port with Autostart
+   Boot Project disabled; neither is ever the machine boot application. Never
+   load `PressTests` beside the deployed Press project because it links the same
+   source objects. Before accepting the result, verify both the runner and count:
+   Core/Modules is `PRG_TcUnitRunner` with 84 tests/26 suites; Press is
+   `PRG_PressTestRunner` with 8 tests/2 suites. A Core identity after attempting
+   Press means the wrong solution was downloaded or stale Core boot data restarted
+   on the target. Disabling source autostart does not delete previously created
+   target boot data.
 3. Resolve the project to the intended target, add/scan the EtherCAT hardware,
    compare it to the approved I/O list, link process-image symbols, and verify
    terminal identity/order before enabling physical output authority.

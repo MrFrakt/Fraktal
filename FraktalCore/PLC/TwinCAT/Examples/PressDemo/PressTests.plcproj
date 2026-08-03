@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <FileVersion>1.0.0.0</FileVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{3708dd5f-6c85-494b-b9d5-fe932c5f027e}</ProjectGuid>
+    <SubObjectsSortedByName>True</SubObjectsSortedByName>
+    <Name>PressTests</Name>
+    <ProgramVersion>3.1.4026.24</ProgramVersion>
+    <Application>{484400dc-f590-4b72-9668-960931cb5fdd}</Application>
+    <TypeSystem>{78c01b72-be81-4427-a849-7149aac8484a}</TypeSystem>
+    <Implicit_Task_Info>{07857c96-9b99-4ac4-9fe7-586ec311b734}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{dfd2da9c-b8f4-4b12-8801-643fef27af67}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{ab51b837-5c19-46e2-afcd-2b44342a9a57}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{e8685067-810d-477d-b49b-21a9c61f79f8}</LibraryReferences>
+    <DefaultNamespace>PressTests</DefaultNamespace>
+    <Company>fraktal-automation</Company>
+    <Title>PressTests</Title>
+    <ProjectVersion>0.1.0.1</ProjectVersion>
+    <Released>false</Released>
+    <Author>fraktal-automation</Author>
+    <Description>Press example TcUnit gate - excluded from deployed runtime (Core 5.7).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Load this project in its OWN XAE solution, never beside
+         Fraktal_Press_Demo: both link the same physical press objects and
+         duplicate in-solution GUIDs make PLC Control rewrite the shared files.
+
+         All Compile paths are DOWNWARD from this manifest. TwinCAT PLC Control
+         rejects a raw Compile path containing '..' before it evaluates <Link>
+         metadata ("'..' is not a valid folder name"), which is exactly why
+         these two suites live here rather than in Tests/Fraktal_Tests/.
+
+         The <Folder Include> list mirrors the Include directories, never the
+         <Link> paths: XAE materialises those entries as real directories on
+         disk relative to this manifest. -->
+    <Compile Include="PressTests\PlcTask.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="PressTests\PRG_PressTestRunner.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="PressTests\FB_PressDemoUnit_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="PressTests\FB_FaultRecovery_Tests.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Fraktal_Press_Demo\01_PneumaticPress\FB_PressDemoUnit.TcPOU">
+      <Link>PressDemo\FB_PressDemoUnit.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Fraktal_Press_Demo\01_PneumaticPress\Release\FB_PressDemoRelease.TcPOU">
+      <Link>PressDemo\Release\FB_PressDemoRelease.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoHome.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoHome.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoAuto.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoAuto.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoChangeover.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoChangeover.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Fraktal_Press_Demo\01_PneumaticPress\Sequences\FB_PressDemoLoadPosition.TcPOU">
+      <Link>PressDemo\Sequences\FB_PressDemoLoadPosition.TcPOU</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Fraktal_Press_Demo\01_PneumaticPress\Io\GVL_PressFieldbus.TcGVL">
+      <Link>PressDemo\Io\GVL_PressFieldbus.TcGVL</Link>
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <PlaceholderReference Include="Tc2_Standard">
+      <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Standard</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_System">
+      <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_System</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Utilities">
+      <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Utilities</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_Module">
+      <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_Module</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Fraktal_Core">
+      <DefaultResolution>Fraktal_Core, 0.4.0.0 (fraktal-automation)</DefaultResolution>
+      <Namespace>Fraktal_Core</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Fraktal_Modules">
+      <DefaultResolution>Fraktal_Modules, 0.3.0.0 (fraktal-automation)</DefaultResolution>
+      <Namespace>Fraktal_Modules</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="TcUnit">
+      <DefaultResolution>TcUnit, * (www.tcunit.org)</DefaultResolution>
+      <Namespace>TcUnit</Namespace>
+    </PlaceholderReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Fraktal_Press_Demo" />
+    <Folder Include="Fraktal_Press_Demo\01_PneumaticPress" />
+    <Folder Include="Fraktal_Press_Demo\01_PneumaticPress\Io" />
+    <Folder Include="Fraktal_Press_Demo\01_PneumaticPress\Release" />
+    <Folder Include="Fraktal_Press_Demo\01_PneumaticPress\Sequences" />
+    <Folder Include="PressTests" />
+  </ItemGroup>
+  <ProjectExtensions />
+</Project>

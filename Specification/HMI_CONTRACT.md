@@ -148,10 +148,10 @@ IndexedDB and migrates the older local-storage record when encountered.
 ## Unit detail view (additional)
 | UI element | Symbol |
 |---|---|
-| Current step | `CurrentStep` (StepNo, StepName, AwaitingLabel, Class, ExpectedTime, Conds[] with per-condition Label/Ok — §6.5/§6.9(b)) |
+| Current step | `CurrentStep` (StepNo, StepName, AwaitingLabel, TimeClass, ExpectedTime, Conds[] with per-condition Label/Ok — §6.5/§6.9(b)) |
 | Model catalog | optional `AvailableModelCount` + `AvailableModels[]/ModelCode`; render a selector when present, otherwise validated free text (§3.8) |
 | Live stall reason | `Pending` (Low; distinct from a fault) |
-| Cycle waterfall | `Profiler.LastCycle` — ordered `Steps[]` {StepNo, StepName, **Class** (color), Started, Duration}; header: `Total`, **`WorkTime` (real cycle time)**, `WaitTime`, `ByClass[0..4]` (§8.11.4(b)/(f)) |
+| Cycle waterfall | `Profiler.LastCycle` — ordered `Steps[]` {StepNo, StepName, **TimeClass** (color), Started, Duration}; header: `Total`, **`WorkTime` (real cycle time)**, `WaitTime`, `ByClass[0..4]` (§8.11.4(b)/(f)) |
 | Step Pareto | `Profiler.StepStats[]` (Avg/Max per StepNo, class-tagged), `Profiler.Current` for the live bar |
 | Counters | `GoodCount`, `NokCount`, `Starved`, `Blocked` (§8.11) |
 | Fault history | `History[1..MAX_DIAG_RING]`, newest at `HistoryHead` (§6.9(a) ring — shift post-mortem) |
@@ -204,7 +204,7 @@ When settings have previously connected, startup goes directly to a full-screen 
 Per root Unit: read `Access.CurrentLevel` / `Access.CurrentUser` / `Access.LoginFailed`, `Access.Policy.Required[0..10]` (index = `E_GatedAction`, including append-only `ALARM_SHELVE` at 9 and `POWER_CONTROL` at 10), and `Access.Policy.SessionTimeout`. A blocked control remains pressable only to open its release explanation; it never issues the mutation. Login is **data-driven** through the root mailbox; the PLC clears the transported secret after each attempt. Idle auto-logout (`T#0S` = never) is rearmed by successful login and accepted authenticated operator mutations, never by snapshot/manifest/release polling. A mailbox `Accepted` acknowledgement means the login request was consumed, **not** that credentials were accepted; login succeeds only when the resulting access snapshot has `LoginFailed = FALSE`, `CurrentUser` equal to the requested user, and `CurrentLevel > NONE`. On failure the dialog stays open, clears the secret field, and shows a localized generic user/PIN error (never reveals which credential was wrong). **Shipped default policy is fully open** (all thresholds `NONE`) — a station may require no login at all. The settings view edits the selected root's persistent policy through append-only mailbox kinds `SET_ACCESS_LEVEL=24` and `SET_SESSION_TIMEOUT=25`, serially; both are PLC-rechecked against `ACCESS_POLICY`, and the PLC rejects raising that threshold above the active session level to prevent retained self-lockout. The PLC re-checks all mutations, including decisions, power, shelving, force, and configuration writes. Accepted privileged mutations and denied attempts land in the §8.3 ring without secrets.
 
 ## Alarm shelving & rationalization (§8.9/§8.10)
-Units publish a rationalization catalog (`Meta`: per-ReasonCode operator action, consequence, shelvable flag) which the HMI joins onto events by `reasonCode` — the alarm row shows *what to do*. Active alarms carry `Shelved`; a shelved alarm is **de-emphasized (never hidden) in lists and excluded from the banner** — annunciation only: **Blocking, interlocks, and release reports are untouched**. Shelve/unshelve via `shelveAlarm`/`unshelveAlarm` (ALARM_SHELVE-gated §7.7, act-or-explain §7.8, PLC re-checks: SAFETY never shelvable, unrationalized reasons refuse). Shelves auto-expire in the PLC (time-bounded); every shelve/unshelve/expiry is a §8.3 event.
+Units publish the generated rationalization catalog (`Meta`: per-ReasonCode priority, category, operator action, consequence, and shelvable flag) which the HMI joins onto events by `reasonCode` — the alarm row shows *what to do*. The HMI carries the same generated catalog as a deterministic fallback for a partial/older manifest, while the PLC remains authoritative for alarm behavior. A record with no operator action is an event and is not rendered as an actionable alarm. Active alarms carry `Shelved`; a shelved alarm is **de-emphasized (never hidden) in lists and excluded from the banner** — annunciation only: **Blocking, interlocks, and release reports are untouched**. Shelve/unshelve via `shelveAlarm`/`unshelveAlarm` (ALARM_SHELVE-gated §7.7, act-or-explain §7.8, PLC re-checks: SAFETY never shelvable, unrationalized reasons refuse). Shelves auto-expire in the PLC (time-bounded); every shelve/unshelve/expiry is a §8.3 event.
 
 ## OEE (§8.5.1)
 Units publish `Oee` (run/down/idle ms buckets + Availability/Performance/Quality/OEE, each with a validity flag) and `OeeTrend` (bounded sample ring). The HMI renders an OEE facet: factors + OEE% with **exception-based colouring** (muted at/above target, amber/red below) and a **sparkline** from the ring. **Invalid factors render as '—' and are omitted from the product — never assumed 100%** (O7). `resetOee` is DATA_WRITE-gated (§7.7), audited (§8.3), and follows act-or-explain (§7.8). Long-horizon trending is the historian's job, not the ring's.
@@ -264,8 +264,12 @@ diagnostic and shall never be passed unchanged into station selectors.
 
 ## Known deferred (tracked)
 §8.3(d) `I_EventSink` historian implementations (OPC UA A&C / SQL / MES
-adapters — interface is normative and shipped; adapters are deployment work) ·
-§8.9 generated alarm-rationalization metadata and §11.6's fixed ISA-95
-host-event projection. The §8.8 reason-code → localization-key/default-text
-catalog is generated and CI freshness-checked; unknown external/type reasons
-still fall back to the PLC diagnostic description.
+adapters — interface is normative and shipped; adapters are deployment work) and
+external §11.6 `I_HostEventSink` deliveries. The fixed bounded `HostEvents` OPC UA
+projection, HMI hydration, and §8.8/§8.9 generated catalog are shipped and
+freshness-checked; historian/MES/REST/MQTT delivery adapters remain deployment
+profiles. Core §8.10's optional Alarm-performance profile (long-window
+rate/standing/stale/chatter/flood analytics) is likewise owned once by the chosen
+station/line aggregator or historian, not duplicated in every root HMI. Unknown external/application reasons still fall back to the PLC
+diagnostic description and require a complete runtime rationalization before
+they may be shelved.

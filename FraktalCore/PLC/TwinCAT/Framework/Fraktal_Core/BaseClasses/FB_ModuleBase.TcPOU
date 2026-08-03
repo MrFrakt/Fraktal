@@ -286,6 +286,7 @@ _diag.IoTag       := '';
 _diag.IoAddress   := '';
 _diag.Severity    := E_Severity.MED;
 _diag.Category    := E_Category.PROCESS;
+F_RationalizeDiagnostic(Diag := _diag);
 _diag.Since       := F_Now();       // synchronized clock (Core §2.7)
 _diag.TimeSynchronized := F_TimeSynchronized();
 _exec := E_ExecState.ERROR;
@@ -300,6 +301,7 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_diag := Diag;
+F_RationalizeDiagnostic(Diag := _diag);
 _exec := E_ExecState.ERROR;
 _step := 0;]]></ST>
       </Implementation>
@@ -385,6 +387,7 @@ _diag.IoTag       := '';
 _diag.IoAddress   := '';
 _diag.Severity    := E_Severity.MED;
 _diag.Category    := E_Category.PROCESS;
+F_RationalizeDiagnostic(Diag := _diag);
 _diag.Since       := F_Now();
 _diag.TimeSynchronized := F_TimeSynchronized();
 _exec := E_ExecState.ERROR;

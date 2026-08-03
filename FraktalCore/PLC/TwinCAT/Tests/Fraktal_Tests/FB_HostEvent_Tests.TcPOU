@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_HostEvent_Tests" Id="{b344765c-b001-482b-8398-0dd6582c2dc2}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §11.6: fixed event vocabulary, required shape, bounds, and invalid-input rejection.
+FUNCTION_BLOCK FB_HostEvent_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    ShapePublisher : FB_HostEventPublisher;
+    VocabularyPublisher : FB_HostEventPublisher;
+    WrapPublisher : FB_HostEventPublisher;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[Rejects_invalid_event();
+Publishes_required_shape();
+Accepts_fixed_vocabulary();
+Ring_is_bounded();]]></ST></Implementation>
+    <Method Name="Rejects_invalid_event" Id="{7c5e621b-7694-455d-a65a-5acf3592d084}">
+      <Declaration><![CDATA[METHOD Rejects_invalid_event]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Rejects_invalid_event');
+AssertFalse(Condition := ShapePublisher.Emit(Kind := E_HostEventKind.NONE,
+    StationPath := 'U', PartUid := '', Subject := '', Value := '', Verdict := E_Verdict.NONE,
+    ReasonCode := E_Reason.NONE), Message := 'NONE is not a host event');
+AssertFalse(Condition := ShapePublisher.Emit(Kind := E_HostEventKind.MODE_CHANGED,
+    StationPath := '', PartUid := '', Subject := 'Mode', Value := '1', Verdict := E_Verdict.NONE,
+    ReasonCode := E_Reason.NONE), Message := 'station path is mandatory');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Publishes_required_shape" Id="{f9068dd3-529c-4145-9fe0-5cb7af640453}">
+      <Declaration><![CDATA[METHOD Publishes_required_shape]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Publishes_required_shape');
+AssertTrue(Condition := ShapePublisher.Emit(Kind := E_HostEventKind.NOK,
+    StationPath := 'Root', PartUid := 'P-42', Subject := '', Value := '',
+    Verdict := E_Verdict.NOK, ReasonCode := E_Reason.RESULT_RECORD_REJECTED),
+    Message := 'valid event accepted');
+AssertEquals_UDINT(Expected := 1, Actual := ShapePublisher.Ring[1].Sequence,
+    Message := 'monotonic sequence assigned');
+AssertEquals_STRING(Expected := 'Root', Actual := ShapePublisher.Ring[1].StationPath,
+    Message := 'station browse path carried');
+AssertEquals_STRING(Expected := 'P-42', Actual := ShapePublisher.Ring[1].PartUid,
+    Message := 'part uid carried when applicable');
+AssertEquals_DINT(Expected := TO_DINT(E_Verdict.NOK),
+    Actual := TO_DINT(ShapePublisher.Ring[1].Verdict), Message := 'verdict carried');
+AssertEquals_DINT(Expected := TO_DINT(E_Reason.RESULT_RECORD_REJECTED),
+    Actual := TO_DINT(ShapePublisher.Ring[1].ReasonCode), Message := 'reason carried');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Accepts_fixed_vocabulary" Id="{be0c8715-91fd-4262-9eaf-a6b6573295c7}">
+      <Declaration><![CDATA[METHOD Accepts_fixed_vocabulary
+VAR
+    i : INT;
+    kind : E_HostEventKind;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Accepts_fixed_vocabulary');
+FOR i := 1 TO 10 DO
+    kind := i;
+    AssertTrue(Condition := VocabularyPublisher.Emit(Kind := kind,
+        StationPath := 'Root', PartUid := '', Subject := '', Value := '', Verdict := E_Verdict.NONE,
+        ReasonCode := E_Reason.NONE), Message := 'fixed event kind accepted');
+END_FOR
+AssertEquals_INT(Expected := 10, Actual := VocabularyPublisher.Count,
+    Message := 'exact fixed vocabulary emitted');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Ring_is_bounded" Id="{b08cf0d9-1750-44d0-a90a-ec2c36ef409e}">
+      <Declaration><![CDATA[METHOD Ring_is_bounded
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Ring_is_bounded');
+FOR i := 1 TO PL_Fraktal.MAX_HOST_EVENTS + 1 DO
+    WrapPublisher.Emit(Kind := E_HostEventKind.MODE_CHANGED,
+        StationPath := 'Root', PartUid := '', Subject := 'Mode',
+        Value := '',
+        Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);
+END_FOR
+AssertEquals_INT(Expected := PL_Fraktal.MAX_HOST_EVENTS, Actual := WrapPublisher.Count,
+    Message := 'valid count saturates at the bound');
+AssertEquals_INT(Expected := PL_Fraktal.MAX_HOST_EVENTS, Actual := WrapPublisher.Capacity,
+    Message := 'published capacity derives from the owning PLC parameter');
+AssertTrue(Condition := WrapPublisher.Wrapped, Message := 'overwrite is visible');
+AssertEquals_INT(Expected := 1, Actual := WrapPublisher.RingHead,
+    Message := 'bounded ring wraps deterministically');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

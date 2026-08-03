@@ -185,21 +185,27 @@ Ensure every displayed sentence and KPI has complete provenance and validity.
 
 #### 6.2 Generated reason catalog
 
-- **Source-complete for §8.8 code/text lookup:** the HMI generator reads the
+- **Source-complete for §8.8/§8.9:** the HMI generator reads the
   authoritative Core enum and registered type-band constants, rejects duplicate
-  codes/symbols, and emits Dart localization keys plus English fallback text.
-  CI fails when the generated artifact is stale.
-- Consolidate reason allocation and §8.9 rationalization metadata into one
-  machine-readable registry without creating a second numeric authority. Generate
-  or verify PLC constants/enums, documentation, priority/category, operator action,
-  consequence, shelvability, localization keys, and Dart lookup data from it.
+  codes/symbols, and joins the symbol-keyed machine-readable rationalization
+  registry without creating a second numeric authority. It emits the PLC lookup,
+  manifest count, Dart localization keys/default English, priority/category,
+  operator action, consequence, and shelvability. CI fails when any derived
+  artifact is stale or the registry coverage is not exact.
 - Fail CI on duplicate numbers, unregistered numeric assignments, missing fallback
   text/localization keys, and incomplete or conflicting rationalization metadata.
+- Treat external/application reason registration as an extension seam: the PLC
+  rejects attempts to override generated standard metadata and requires complete
+  priority/category/action/consequence data before an external reason is shelvable.
 
 #### 6.3 Alarm semantics
 
 - Test recursive alarm ownership, shelving expiry, historian sink ordering, full-table behavior, and source-path stability.
 - Define whether a full event table rejects the newest event or evicts by an explicit policy; always raise a visible system diagnostic for loss.
+- Treat Core §8.10's long-window nuisance/flood KPIs as an explicitly selected
+  Alarm-performance profile. Implement them once at the station/line historian or
+  one owning aggregator, consume the complete event stream, and never suppress
+  control, first-out, blocking, or retained history.
 
 ### Exit gate
 
@@ -207,6 +213,8 @@ Ensure every displayed sentence and KPI has complete provenance and validity.
 - No production reason exists outside the verified registry, and every alarmable
   reason has one rationalized metadata record.
 - HMI tests render catalog text and fall back to the diagnostic description when localization is unavailable.
+- A deployment claiming the Alarm-performance profile names one owner and proves
+  alarm-rate, standing/stale counts, chatter handling, and flood drill-through.
 
 ### Objectives advanced
 

@@ -4,7 +4,7 @@ Sources:
 
 - `TrainningStation_IOs_V2.xlsx`, worksheet `ios`, supplied 2026-07-13;
 - `=000+S-A610-A1 (EtherCAT).xti`, supplied 2026-07-16 and preserved at
-  `FraktalCore/PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo/00_System/Hardware/=000+S-A610-A1 (EtherCAT).xti`.
+  `FraktalCore/PLC/TwinCAT/Examples/PressDemo/_Config/IO/=000+S-A610-A1 (EtherCAT).xti`.
 
 The XTI is authoritative for the installed EtherCAT terminal order, terminal names, PDO-entry names,
 and channel numbers. The worksheet remains authoritative for the approved electrical descriptions and

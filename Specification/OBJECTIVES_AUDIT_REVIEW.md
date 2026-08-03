@@ -1,5 +1,10 @@
 # Second review of `OBJECTIVES_AUDIT.md`
 
+> Historical review snapshot. Its compiler/TcUnit counts and open-gap list were
+> superseded on 2026-08-01 by `OBJECTIVES_AUDIT.md` and implementation note §92;
+> retain this document as the evidence trail for the audit corrections, not as
+> the current scorecard.
+
 Review date: **2026-07-31**. Scope: verify the audit's findings, its gap closures,
 and its own verification claims. Method: re-run every check the audit says it ran,
 re-run the ones it says it could not, and independently sample the `DONE` claims.
@@ -77,6 +82,11 @@ implementation rather than the requirement.
 `FraktalCore/PLC/TwinCAT` for both profiles. On the first run after the untracked
 tree is committed, `plc-lint` **fails**. The `plc-compile` job is already a
 deliberate `exit 1` stub, so CI has never been green; that has masked this.
+
+*(Superseded 2026-08-02: the stub is now an executable gate that runs
+`tools/Invoke-TwinCatBuild.ps1`, and the job was renamed `plc-object-check`
+because `CheckAllObjects()` is an object check, not a full compile. The lint
+finding above was fixed and the tree now lints clean in both profiles.)*
 
 *(One correction to an inference I made mid-review: CI line 53's
 `python -m unittest tools/test_plc_lint.py` does work — Python accepts the path
@@ -211,7 +221,7 @@ correctly identified for every remaining item.
 
 | # | Action | Exit evidence |
 |---|---|---|
-| R1.1 | Stage the `PLC/TwinCAT/{Framework,Tests and Examples}` move as a recorded rename + the 275 untracked sources; stage authored HMI/tool/test files. Exclude build output, `Dependancies`, XAE `.~u`, `.dart-*`, credentials. | `git status` clean except intended work |
+| R1.1 | Stage the `PLC/TwinCAT/{Framework,Tests,Examples}` move as recorded renames plus the authored sources; stage HMI/tool/test files. Exclude build output, `Dependancies`, XAE `.~u`, `.dart-*`, credentials. | `git status` clean except intended work |
 | R1.2 | Verify from a **clean clone**: XML parse (264), compile-path resolve (260), `flutter analyze`, `flutter test`, reason-catalog `--check`, `plc_lint` both profiles. | All green in a fresh clone |
 
 Until R1 lands, no other result is evidence — it cannot be reproduced.

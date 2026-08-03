@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <Itf Name="I_FieldbusScanner" Id="{6a5f0942-5899-403d-81c1-0747200a061c}">
-    <Declaration><![CDATA[// Core §10.5.1 / TC3 §10.6 — the seam an integrator implements to populate the
-// fieldbus topology model from a real master's diagnostics. The application owns
-// the flat node table; the scanner fills it each refresh and answers force writes.
-// A default EtherCAT implementation is FB_EcFieldbusScanner (skeleton). Other buses
-// (PROFINET, EtherNet/IP gateways) implement this same interface (O4/O8).
+    <Declaration><![CDATA[// OPTIONAL Core §10.5.1 / TC3 §10.6 compatibility seam for a deployment that
+// needs richer vendor-specific runtime topology discovery. Base Fraktal/TC3 uses
+// FB_EcBusHealth + a reviewed project I/O catalog + FB_IoTopologyPublisher; it
+// does not require this interface. The fail-closed FB_EcFieldbusScanner skeleton
+// is therefore not a default implementation or a base-conformance claim.
+// Other buses may implement the same extension without changing the published model.
 INTERFACE I_FieldbusScanner]]></Declaration>
     <Method Name="Scan" Id="{deaa3248-94d7-474b-b785-bb11f970bd8a}">
       <Declaration><![CDATA[// Rebuild the node table from the master; returns node count (0 = master down).

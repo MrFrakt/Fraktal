@@ -39,7 +39,7 @@
 ### TC3 §2.2 Library distribution
 *Binds Core §2.2.*
 - Libraries are referenced as versioned TwinCAT library references with their dependencies; local or relative library references are not permitted (Core §5.4). The framework library ships as a versioned TwinCAT library; projects consume a pinned release, never a copy.
-- **Reference implementation:** repository `fraktal-core` — `PLC/TwinCAT/Framework/Fraktal_Core` (framework library), `PLC/TwinCAT/Framework/Fraktal_Modules` (reusable module library), `PLC/TwinCAT/Tests and Examples/Fraktal_Demo` (executable root-Unit forest), `PLC/TwinCAT/Tests and Examples/Fraktal_Press_Demo` (internal acceptance fixture), `PLC/TwinCAT/Tests and Examples/Fraktal_Tests` (aggregate TcUnit application and sources excluded from deployed runtime), and `PLC/TwinCAT/scaffold`.
+- **Reference implementation:** repository `fraktal-core` — `PLC/TwinCAT/Framework/Fraktal_Core` (framework library), `PLC/TwinCAT/Framework/Fraktal_Modules` (reusable module library), `PLC/TwinCAT/Examples/CoreDemo/Fraktal_Demo` (executable root-Unit forest), `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo` (internal acceptance fixture), `PLC/TwinCAT/Tests` (aggregate Core + Modules TcUnit gate) and `PLC/TwinCAT/Examples/PressDemo/PressTests` (the press example's gate) — both excluded from the deployed runtime, and `PLC/TwinCAT/scaffold`.
 - TwinCAT library metadata uses four components (`major.minor.patch.revision`, e.g. `0.1.0.0`). Fraktal compatibility follows the first three semantic-version components; `revision` identifies a binding rebuild that does not change the observable contract.
 
 ### TC3 §2.4 Project & solution settings
@@ -52,8 +52,22 @@ When one `.plcproj` compiles linked sources from sibling project directories, it
 shall establish their nearest common ancestor as the PLC source base and every `Compile Include`
 shall be a downward relative path from that base. TwinCAT's **Add Existing Item** importer validates
 the raw source path before applying `Link` metadata and may reject escaping `..` segments. The
-aggregate reference keeps `Fraktal_Tests` and `Fraktal_Press_Demo` beneath
-`PLC/TwinCAT/Tests and Examples/`, and every compile input resolves within that tree.
+Hoisting a manifest to a common ancestor is therefore always sound, but it is the
+*fallback*: it drags the manifest away from the sources it owns and clutters the
+binding root. **Prefer instead to give each body of sources its own manifest**, so
+no cross-sibling linking is needed at all.
+
+The reference implementation does this with two gates. `PLC/TwinCAT/Tests/` holds
+the aggregate Core + Modules gate, whose every compile input is downward from
+`Tests/`; the press example's suites live in
+`PLC/TwinCAT/Examples/PressDemo/PressTests.plcproj`, downward from `PressDemo/`.
+Both gates shall be run. A project's suites may live beside the example they
+exercise, but shall remain a separate `.plcproj` so no test object reaches the
+deployed runtime (Core §5.7), and shall link — never copy — the objects under test.
+
+A `<Folder Include>` list shall mirror the manifest's `Compile Include` directories,
+not its `Link` paths: XAE materializes those entries as real directories relative to
+the manifest, so any other list leaves empty phantom folders in the source tree.
 
 ### TC3 §2.7 Time-synchronization mechanics
 *Binds Core §2.7.* PTP discipline is realized over **EtherCAT distributed clocks** for the fieldbus and network PTP (IEEE 1588) for the IPC; NTP fallback where PTP is unavailable.
@@ -124,6 +138,15 @@ The same Unit branch owns `Release/FB_PressDemoRelease`: its `ModeStart` conditi
 live condition outputs are published beneath the Unit, while `M_AppendStart`/`M_AppendManual` fill the
 same authoritative reports consumed by the Unit gates. TwinCAT method-scoped `REFERENCE TO` inputs
 connect the release evaluator to child modules without storing/publishing pointer-like alias state.
+
+### TC3 §3.8 Configuration value-type binding
+*Binds Core §3.8a and §3.10.2.*
+
+Core configuration value type `TIME` is represented by
+`E_ConfigValueType.DURATION` in Structured Text because `TIME` is a reserved
+TwinCAT identifier. Its wire ordinal remains **3** and the generic HMI continues
+to name that transport value `time`; this is a binding spelling only, not a
+contract or schema change.
 
 ### TC3 §3.10 OPC UA exposure mechanics
 *Binds Core §3.10(a) and Core §11.1.* Publication begins at every deployed root Unit **instance**, making the intended forest explicit and independently auditable when TF6100 imports a TMC in **Filtered** mode. Reusable FB type definitions do not carry `OPC.UA.DA := 1`:
@@ -201,7 +224,7 @@ The Core responsibility table binds to TwinCAT as follows:
 - `FB_IoTopologyPublisher` in `Fraktal_Core` owns validation, health propagation and diagnostic joining against `ST_FieldbusTopology`;
 - `MAIN` calls setup and the driver methods in scan order but contains no individual raw channel assignments.
 
-The catalog and driver are application infrastructure, not `FB_Unit`/`FB_EquipmentModule`/`FB_ControlModule` objects and therefore do not create a fourth tier. `GVL_<Project>Fieldbus.Topology : ST_FieldbusTopology` is the published HMI data. The deployment EtherCAT scanner supplies actual node identity/state; the catalog supplies project semantics. Either source failing validation keeps `MappingValid=FALSE`.
+The catalog and driver are application infrastructure, not `FB_Unit`/`FB_EquipmentModule`/`FB_ControlModule` objects and therefore do not create a fourth tier. `GVL_<Project>Fieldbus.Topology : ST_FieldbusTopology` is the published HMI data. `FB_EcBusHealth` supplies runtime slave count/order, state/link data, and configured-identity mismatch flags from the EtherCAT master; the catalog supplies reviewed node/channel identity and project semantics; `FB_IoTopologyPublisher` validates and joins them. Either authority failing validation keeps `MappingValid=FALSE`.
 
 ---
 
@@ -224,11 +247,11 @@ The catalog and driver are application infrastructure, not `FB_Unit`/`FB_Equipme
 ### TC3 §5.7 Unit-test framework & CI runner
 *Binds Core §5.7.* Tests are written with the TwinCAT 3 xUnit framework **TcUnit** and executed in CI by **TcUnit-Runner**, which drives the suites headless on the build agent and emits JUnit-format results for the merge gate (Core §6.8). Worked example: Annex H.
 
-The aggregate `Fraktal_Tests` application shall run only on an isolated test
-runtime/ADS port or CI worker. It shall not be selected as the machine boot
-project and shall not have Autostart Boot Project enabled on a production
-target. A test runtime is started deliberately, its result is harvested, and it
-is then stopped or replaced by the machine application.
+The `Fraktal_Tests` and `PressTests` applications shall run only on an isolated
+test runtime/ADS port or CI worker. Neither shall be selected as the machine boot
+project, and both repository wrappers shall serialize Autostart Boot Project as
+disabled. A test runtime is started deliberately, its result is harvested, and
+it is then stopped or replaced by the machine application.
 
 TwinCAT task stacks are bounded. Large bounded contract records such as
 `ST_ReleaseReport` shall be filled in caller-owned storage through `VAR_IN_OUT`;
@@ -242,7 +265,7 @@ report argument in place.
 ## TC3 §8 — Diagnostics & performance binding (TwinCAT 3)
 
 ### TC3 §8.11 Timing sources for the cycle-time profile
-*Binds Core §8.11.4(e).* Durations are measured with the monotonic millisecond clock (`TIME()`), differenced as `DWORD` so the ~49-day wrap subtracts correctly; wall-clock `Started`/`Since` stamps come from `F_Now()` (TC3 §2.7). The profiler and timing structures are plain framework DUTs exposed through the §3.10 pragmas on the base classes, so the HMI reads them with no per-type wiring.
+*Binds Core §8.11.4(e).* Durations are measured with the monotonic millisecond clock (`TIME()`), differenced as `DWORD` so the ~49-day wrap subtracts correctly; wall-clock `Started`/`Since` stamps come from `F_Now()` (TC3 §2.7). The profiler and timing structures are plain framework DUTs exposed through the §3.10 pragmas on the base classes, so the HMI reads them with no per-type wiring. Core's semantic time-class field is spelled `TimeClass` in the TwinCAT DUTs and method inputs because `CLASS` is a reserved TwinCAT identifier. The HMI binds `TimeClass`; its reader may accept legacy draft snapshots containing `Class` during migration.
 
 ### TC3 §8.12 System-health binding
 *Binds Core §8.12.* `FB_TcSystemHealthProbe` is the TC3 adapter seam;
@@ -262,6 +285,16 @@ and decision slot, publishes `SignalTower`, and handles append-only mailbox kind
 those outputs to `%Q` channels. The standard mapper never writes a project raw-I/O
 GVL and the internal Press fixture may leave the semantic output unwired when no
 reviewed physical stack-light mapping exists.
+
+### TC3 §8.9 Generated alarm-rationalization binding
+*Binds Core §8.8/§8.9.* `Specification/reason_rationalization.json` is the
+symbol-keyed rationalization authority; numeric authority remains `E_Reason` and
+the registered `PL_*Reasons` lists. `HMI/tool/generate_reason_catalog.dart`
+validates exact coverage and generates `PL_ReasonCatalog`,
+`F_ReasonMetaByIndex`, `F_ReasonMeta`, and the Dart localization/metadata lookup.
+`FB_AlarmLog` resolves generated priority/category/shelvability by `ReasonCode`,
+rejects standard-record overrides, and exposes the complete static catalog
+through the paged configuration manifest. Static metadata is not a cyclic array.
 
 ---
 
@@ -285,7 +318,7 @@ reviewed physical stack-light mapping exists.
 *Binds Core §10.5.* EtherCAT master state, lost frames, slave errors, distributed-clock sync loss, and watchdog surface as System alarms per Core §10.5/§8.6.
 
 ### TC3 §10.6 Fieldbus topology & I/O diagnostics (EtherCAT/ADS)
-*Binds Core §10.5.1.* The topology model is populated at runtime from the **EtherCAT master and slave diagnostics** exposed over ADS: master `AmsNetId`, slave count and topological order, each slave's state (`INIT`/`PREOP`/`SAFEOP`/`OP` → the neutral `E_NodeState`), `WcState`/link status, and the CoE object dictionary for channel discovery and values. Analog scaling and channel names come from the TMC/ESI process image; digital channels map to their PDO bits. `E_NodeState.FAULT` covers lost-link / no-response. Reads are diagnostic; a channel **force** is issued through the master's force interface only behind the Core §7.6/§7.7 gates, and every force is logged as a §8.3 event. Master/slave state changes continue to raise the System alarms of TC3 §10.5 — the topology view and the alarm list are two views of one source. The integrator's guide — the `I_FieldbusScanner` seam, the `FB_EcFieldbusScanner` skeleton, the AL-state map, and both deployment paths (PLC-published vs direct client + Web gateway) — is **`FIELDBUS_ADS_ADAPTER.md`**.
+*Binds Core §10.5.1.* The conforming base profile is a three-authority composition: `FB_EcBusHealth` reads the EtherCAT master's reported slave count/order plus each slave's `deviceState`/`linkState`; `FB_<Project>IoCatalog` imports the reviewed XAE/ESI/TMC/electrical channel identity, scaling, address, and owning-module data; and `FB_IoTopologyPublisher` validates the bounded join and publishes `ST_FieldbusTopology`. The `deviceState` mismatch flags make configured vendor/product/revision/serial disagreement fail visible; `E_NodeState.FAULT` covers those flags and lost/no-response conditions. Channel values are copied by the sole project Hardware Driver from the same linked process-image/HAL variables used by control logic, not re-read through CoE. A runtime force, when a project explicitly enables one, resolves only a reviewed `Forceable` output and writes through that application's output authority behind the Core §7.6/§7.7 gates; it is never a raw master/process-image or input force, and every accepted request is logged as a §8.3 event. `I_FieldbusScanner`/`FB_EcFieldbusScanner` remain an optional compatibility seam for deployments needing richer vendor-specific runtime discovery; the fail-closed skeleton is not the default profile and is not required for base conformance. Master/slave state changes continue to raise the System alarms of TC3 §10.5 — the topology view and alarm list are two views of one source. The implementation and acceptance guide is **`FIELDBUS_ADS_ADAPTER.md`**.
 
 ---
 
@@ -315,6 +348,16 @@ controlled commissioning activity; the production requirement remains Core
 §11.2/§14 authenticated sign-and-encrypt with least privilege. The complete
 first-deployment and fault-isolation procedure is
 `FIRST_PROJECT_AGENT_GUIDE.md`.
+
+### TC3 §11.6 Host-event binding
+*Binds Core §11.6.* Each published root inherits
+`HostEvents : FB_HostEventPublisher`; TF6100 exposes its bounded 32-record ring,
+head, count, and wrapped flag through the root's deployed-instance DA marker.
+Implementation-only `I_HostEventSink` storage is explicitly excluded from OPC UA.
+`FB_UnitBase` owns part, mode, changeover, and NOK projection; application
+composition calls the named tool/material seams. Optional north-bound delivery
+implements `I_HostEventSink` and is injected at the composition root. The HMI and
+PLC `E_HostEventKind` ordinals are a checked append-only transport contract.
 
 ---
 

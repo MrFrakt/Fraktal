@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_RationalizeDiagnostic" Id="{cb0e4b63-f458-42d7-a908-ae706e4639c2}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §8.9 — apply the one generated priority/category to a diagnostic at its
+// source. Unknown external reasons keep the caller values until their owning
+// AlarmLog joins a validated runtime record.
+FUNCTION F_RationalizeDiagnostic : BOOL
+VAR_IN_OUT
+    Diag : ST_Diagnostic;
+END_VAR
+VAR
+    meta : ST_AlarmMeta;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_RationalizeDiagnostic := F_ReasonMeta(
+    Reason := Diag.ReasonCode, Meta := meta);
+IF F_RationalizeDiagnostic THEN
+    Diag.Severity := meta.Priority;
+    Diag.Category := meta.Category;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

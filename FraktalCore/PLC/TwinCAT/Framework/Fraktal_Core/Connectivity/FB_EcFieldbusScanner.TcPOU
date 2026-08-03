@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_EcFieldbusScanner" Id="{2de01126-99e6-45f0-a1dd-065dea9660c7}" SpecialFunc="None">
-    <Declaration><![CDATA[// [TC3] SKELETON — default EtherCAT implementation of I_FieldbusScanner (TC3 §10.6).
-// This is a CONTRACT SKELETON: the structure and the Tc2_EtherCAT building blocks
+    <Declaration><![CDATA[// [TC3] OPTIONAL SKELETON — compatibility implementation of I_FieldbusScanner.
+// The conforming default is FB_EcBusHealth + project I/O catalog +
+// FB_IoTopologyPublisher (TC3 §10.6). This extension remains fail-closed until a
+// deployment needs richer vendor-specific discovery. Its structure and building blocks
 // are named; bodies are TODO for the integrator, who must verify every index group,
 // port, and FB signature against the pinned Tc2_EtherCAT version (Beckhoff InfoSys).
-// See fraktal-tc3/FIELDBUS_ADS_ADAPTER.md for the full contract and the AL-state map.
+// See Specification/FIELDBUS_ADS_ADAPTER.md for the base and extension profiles.
 FUNCTION_BLOCK FB_EcFieldbusScanner IMPLEMENTS I_FieldbusScanner
 VAR
     MasterNetId : STRING(23);        // EtherCAT master AmsNetId (from the master's ADS tab)

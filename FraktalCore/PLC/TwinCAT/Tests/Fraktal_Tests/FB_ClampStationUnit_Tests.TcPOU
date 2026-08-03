@@ -1,0 +1,166 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ClampStationUnit_Tests" Id="{78856f84-4173-418b-a23e-539be1f5662e}" SpecialFunc="None">
+    <Declaration><![CDATA[// §5.7 suite for the UNIT tier. Rows T1/T4 and the T2/T6/T10 *mechanisms* are
+// proven once in the framework base suites (FB_Base_Tests, FB_Unit_Tests,
+// FB_Release_Tests) and are NOT re-tested here (§5.7: "types shall not re-test
+// inherited rows"). What the Unit tier owes with its OWN modes/paths/actions:
+//   T6  cross-tier rollup reaches the ROOT, naming the deepest child
+//   T8  mode lifecycle: an unsupported mode is rejected gracefully, no state change
+//   T9  stall walk: a stalled step names the awaited module or first FALSE condition
+//   T10 gate/report equivalence for THIS unit's actions
+FUNCTION_BLOCK FB_ClampStationUnit_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _station : FB_ClampStationUnit;
+    _halA, _halB : ST_CylinderHal;
+    _simA, _simB : FB_CylinderSim;
+    _recipe : FB_LocalRecipeProvider;
+    _cylinderCfg : ST_CylinderParCfg;
+    _clampCfg : ST_ClampParCfg;
+    _wired : BOOL;
+
+    // T6/T9 — a second station whose CylB never reaches position (deterministic
+    // timeout), so the root can be asked what it is waiting on / what failed.
+    _stall : FB_ClampStationUnit;
+    _sHalA, _sHalB : ST_CylinderHal;
+    _sSimA : FB_CylinderSim;
+    _stallRecipe : FB_LocalRecipeProvider;
+    _stallCylCfg : ST_CylinderParCfg;
+    _stallClampCfg : ST_ClampParCfg;
+
+    _d : ST_Diagnostic;
+    _r : ST_ReleaseReport;
+    _ok : BOOL;
+    _modeBefore : E_Mode;
+    _i : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT _wired THEN
+    _recipe.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_cylinderCfg), Size := SIZEOF(_cylinderCfg));
+    _recipe.Register(ModelCode := '', RecipeKey := 'ClampEM', pData := ADR(_clampCfg), Size := SIZEOF(_clampCfg));
+    _station.Setup(Name := 'Test.Station', HalA := _halA, HalB := _halB, Recipe := _recipe);
+    _simA.Setup(HalRef := _halA, TravelTime := T#0S);
+    _simB.Setup(HalRef := _halB, TravelTime := T#0S);
+    // Stall/rollup fixture: CylB has no sim plant and a zero move timeout, so the
+    // clamp cannot complete and the root must explain why.
+    _stallCylCfg.MoveTimeout := T#0S;
+    _stallClampCfg.SettleTime := T#0S;
+    _stallRecipe.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_stallCylCfg), Size := SIZEOF(_stallCylCfg));
+    _stallRecipe.Register(ModelCode := '', RecipeKey := 'ClampEM', pData := ADR(_stallClampCfg), Size := SIZEOF(_stallClampCfg));
+    _stall.Setup(Name := 'Stall.Station', HalA := _sHalA, HalB := _sHalB, Recipe := _stallRecipe);
+    _sSimA.Setup(HalRef := _sHalA, TravelTime := T#0S);
+    _wired := TRUE;
+END_IF
+Root_is_a_real_unit();
+T8_unsupported_mode_is_rejected_gracefully();
+T10_start_gate_matches_release_report();
+T6_T9_root_rollup_names_deepest_child();]]></ST>
+    </Implementation>
+    <Method Name="Root_is_a_real_unit" Id="{f64c2d18-544b-493b-b2df-d5e3a546e033}">
+      <Declaration><![CDATA[METHOD Root_is_a_real_unit]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Root_is_a_real_unit');
+_station();
+AssertEquals_DINT(Expected := TO_DINT(E_ModuleType.UNIT),
+    Actual := TO_DINT(_station.Status.ModuleType),
+    Message := 'demo root publishes Unit identity');
+AssertEquals_DINT(Expected := TO_DINT(E_ModuleType.EQUIPMENT_MODULE),
+    Actual := TO_DINT(_station.Clamp.Status.ModuleType),
+    Message := 'Clamp remains an Equipment Module child');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="T10_start_gate_matches_release_report" Id="{8f31b6d4-05ac-4e72-9138-4de2c710ba63}">
+      <Declaration><![CDATA[// §5.7 T10 — gate/report equivalence for THIS unit: Start accepts exactly when
+// ReleaseReportStart says Released. Asserting both directions on the same object
+// is what proves the report is the authoritative predicate rather than a
+// separately-maintained description that can drift from the gate (§7.8).
+METHOD T10_start_gate_matches_release_report]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T10_start_gate_matches_release_report');
+_station();
+_ok := _station.ReleaseReportStart(Report := _r);
+// Whatever the current release state is, the gate must agree with it.
+AssertEquals_BOOL(Expected := _r.Released, Actual := _ok,
+    Message := 'report return value matches the record (7.8)');
+IF _r.Released THEN
+    AssertTrue(Condition := _station.Start(),
+        Message := 'Start accepts exactly when the report is Released (7.8)');
+    _station();
+    _station.Stop();
+    _station();
+ELSE
+    AssertFalse(Condition := _station.Start(),
+        Message := 'Start refuses exactly when the report is not Released (7.8)');
+    AssertTrue(Condition := _r.Count > 0,
+        Message := 'a refusal must list at least one concrete reason (7.8)');
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="T6_T9_root_rollup_names_deepest_child" Id="{5b0d92e7-3f41-4a86-9c25-1e84f2b0763a}">
+      <Declaration><![CDATA[// §5.7 T6 + T9 at the ROOT. T6: the first-out must be adopted VERBATIM up two
+// tiers (Cyl -> Clamp EM -> Unit), naming the deepest failing child rather than
+// the nearest parent — that two-hop walk is what the Unit tier adds over the EM's
+// single hop. T9: the root's diagnostic must name the module it was waiting on,
+// so a stalled station is diagnosable without opening XAE (§6.9(b)).
+METHOD T6_T9_root_rollup_names_deepest_child]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T6_T9_root_rollup_names_deepest_child');
+// CylB has no sim plant and MoveTimeout T#0S, so the clamp cannot complete.
+_ok := _stall.Start();
+FOR _i := 1 TO 12 DO
+    _stall();
+    _sSimA();                                // CylA completes; CylB never arrives
+END_FOR
+_d := _stall.GetFaultSummary();
+AssertEquals_STRING(Expected := 'Stall.Station.Clamp.CylB', Actual := _d.SourcePath,
+    Message := 'root adopts the deepest child path verbatim across two tiers (8.2)');
+AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.CYL_NOT_EXTENDED),
+    Actual := TO_DWORD(_d.ReasonCode),
+    Message := 'reason code is the childs, not a generic parent code (8.2)');
+AssertTrue(Condition := _d.SourcePath <> 'Stall.Station',
+    Message := 'the root must not name itself as the source (6.9)');
+_stall.Stop();
+_stall();
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="T8_unsupported_mode_is_rejected_gracefully" Id="{2c58f01a-9d73-4e48-b615-70a3fe9c8d21}">
+      <Declaration><![CDATA[// §5.7 T8 — mode lifecycle for THIS unit's mode set. FB_ClampStationUnit does not
+// override _M_Supports, so its set is the baseline AUTO + MANUAL: requesting
+// CALIBRATION must be refused *gracefully* — SetMode returns FALSE, the active
+// mode is unchanged, and the unit does not fault (a rejected request is not an
+// error, §3.7).
+METHOD T8_unsupported_mode_is_rejected_gracefully]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('T8_unsupported_mode_is_rejected_gracefully');
+_station();
+_modeBefore := _station.ModeActive;
+_ok := _station.SetMode(Mode := E_Mode.CALIBRATION);
+AssertFalse(Condition := _ok,
+    Message := 'unsupported mode returns FALSE, not a fault (3.7)');
+_station();
+AssertEquals_DINT(Expected := TO_DINT(_modeBefore),
+    Actual := TO_DINT(_station.ModeActive),
+    Message := 'rejected request leaves the active mode unchanged (3.7)');
+AssertFalse(Condition := _station.Error,
+    Message := 'graceful rejection must not raise a module error (3.7)');
+// A supported mode from the same set is still accepted afterwards.
+AssertTrue(Condition := _station.SetMode(Mode := E_Mode.MANUAL),
+    Message := 'supported mode still accepted after a rejection');
+FOR _i := 1 TO 4 DO
+    _station();
+END_FOR
+AssertEquals_DINT(Expected := TO_DINT(E_Mode.MANUAL),
+    Actual := TO_DINT(_station.ModeActive),
+    Message := 'supported mode commits (3.4)');
+_station.SetMode(Mode := E_Mode.AUTO);
+FOR _i := 1 TO 4 DO
+    _station();
+END_FOR
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
