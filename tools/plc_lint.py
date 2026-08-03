@@ -161,6 +161,21 @@ RESERVED = {
 }
 
 
+# IEC 61131-3 standard functions and operators. Reserved for VARIABLE
+# identifiers only: a qualified enum member does not collide with them
+# (E_CylinderPosition.MID compiles), but `Sub : REFERENCE TO ...` parses as
+# the subtraction operator and cascades ~40 syntax errors onto innocent
+# lines. The keyword list above had been inconsistent - MOD/MAX/MIN were
+# present while ADD/SUB/DIV were not.
+RESERVED_FUNCTIONS = {
+    "abs", "acos", "add", "adr", "asin", "atan", "bitadr", "concat", "cos",
+    "delete", "div", "eq", "exp", "expt", "find", "ge", "gt", "indexof",
+    "insert", "le", "left", "len", "limit", "ln", "lt", "mid", "move", "mul",
+    "mux", "ne", "replace", "right", "rol", "ror", "sel", "shl", "shr",
+    "sin", "sizeof", "sqrt", "sub", "tan", "trunc",
+}
+
+
 class Finding:
     __slots__ = ("path", "line", "rule", "message")
 
@@ -256,7 +271,7 @@ def lint_file(path: Path, legacy_4024: bool = False) -> list[Finding]:
     for offset, raw in enumerate(text.splitlines(), start=1):
         code = _strip_comment(raw)
         hit = DECL_ANY.match(code)
-        if hit and hit.group(1).lower() in RESERVED:
+        if hit and hit.group(1).lower() in (RESERVED | RESERVED_FUNCTIONS):
             findings.append(Finding(
                 path, offset, "C2",
                 f"'{hit.group(1)}' is a reserved word; as an identifier it "

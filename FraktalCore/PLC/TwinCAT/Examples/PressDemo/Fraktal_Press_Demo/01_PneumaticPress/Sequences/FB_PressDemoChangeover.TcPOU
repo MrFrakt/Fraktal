@@ -54,7 +54,7 @@ CASE _step OF
         END_IF
         M_Advance(OnAdvance := 810, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     810:  // shared load-safe position (composite step)
-        _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 810);
+        _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 810);
         M_Advance(OnAdvance := 870, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     870:  // request tooling/material confirmation
         M_Step(StepNo := 870, StepName := 'project.step.pressChangeoverRequestConfirmation',

@@ -89,6 +89,37 @@ TYPE E_Bad : (READY := 0, {keyword} := 1) DINT; END_TYPE
             with self.subTest(keyword=keyword):
                 self.assertIn("C2", {finding.rule for finding in lint_file(path)})
 
+    def test_c2_rejects_iec_standard_function_names_as_identifiers(self):
+        # A METHOD input named `Sub` parsed as the subtraction operator and
+        # produced ~40 cascading syntax errors on innocent lines. The word list
+        # had been inconsistent: MOD/MAX/MIN were present, ADD/SUB/DIV were not.
+        # Variable identifiers only — a qualified enum member does not collide
+        # (E_CylinderPosition.MID compiles), so RESERVED_FUNCTIONS is not applied
+        # to enum members.
+        for keyword in ("Sub", "Add", "Len", "Sel"):
+            root = self._root()
+            path = self._write(root, "Framework/FB_Bad.TcPOU", _pou(
+                "FB_Bad", "FUNCTION_BLOCK FB_Bad EXTENDS FB_ControlModuleBase",
+                "Cyclic();",
+                f'''<Method Name="M_Take" Id="{{10000000-0000-0000-0000-00000000000e}}">
+<Declaration><![CDATA[METHOD M_Take : DINT
+VAR_INPUT
+    {keyword} : REFERENCE TO FB_SequenceBase;
+END_VAR]]></Declaration>
+<Implementation><ST><![CDATA[;]]></ST></Implementation></Method>'''))
+            with self.subTest(keyword=keyword):
+                self.assertIn("C2", {f.rule for f in lint_file(path)})
+
+    def test_c2_allows_a_function_name_as_a_qualified_enum_member(self):
+        # E_CylinderPosition.MID is real, shipped and compiles: qualification
+        # keeps it clear of the MID() string function.
+        root = self._root()
+        path = self._write(root, "Framework/E_Pos.TcDUT", '''<TcPlcObject>
+<DUT Name="E_Pos"><Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE E_Pos : (LOW := 0, MID := 1, HIGH := 2) DINT; END_TYPE
+]]></Declaration></DUT></TcPlcObject>''')
+        self.assertNotIn("C2", {f.rule for f in lint_file(path)})
+
     def test_c6_rejects_string_case_labels(self):
         root = self._root()
         declaration = "FUNCTION_BLOCK FB_Bad EXTENDS FB_ControlModuleBase\n" + _contract()

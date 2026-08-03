@@ -34,7 +34,7 @@ CASE _step OF
         _retVal := E_StepResult.ADVANCE;
         M_Advance(OnAdvance := 900, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     900:  // shared load-safe position (composite step, §6.7)
-        _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 900);
+        _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 900);
         M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     999:  // complete
         M_Step(StepNo := 999, StepName := 'project.step.pressHomeComplete',

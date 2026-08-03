@@ -153,7 +153,7 @@ CASE _step OF
         _retVal := E_StepResult.ADVANCE;
         M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     240:  // return to the shared load-safe position (composite step)
-        _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 240);
+        _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);
         M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     999:  // cycle complete — write result, count by verdict, loop (§8.11.1 finish marker)
         M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',

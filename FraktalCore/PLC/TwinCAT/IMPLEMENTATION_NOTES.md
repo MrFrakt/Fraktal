@@ -2381,3 +2381,30 @@ Not verified here: no TwinCAT compiler in this environment. Note for the first
 build — an ST chart used as a composite sub-chain must now override `M_ChainRun`
 rather than `M_Run`; `FB_PressDemoLoadPosition` is the only such chain today and
 has been renamed. Top-level chains keep `M_Run`, called by the Unit's adapters.
+
+## 97. `Sub` is reserved; C2's word list completed (2026-08-03)
+
+`M_RunSub`'s input was named `Sub`. `SUB` is the IEC 61131-3 subtraction
+function, so the declaration parsed as an operator and the compiler emitted about
+forty cascading syntax errors pointing at innocent lines — the exact failure mode
+rule C2 exists to prevent. The input is now `Chain`.
+
+C2 did not catch it because its word list was incomplete and inconsistently so:
+`MOD`, `MAX` and `MIN` were present while `ADD`, `SUB` and `DIV` were not. The 43
+missing IEC standard functions and operators are now listed.
+
+They live in a **separate** `RESERVED_FUNCTIONS` set applied to variable
+identifiers only, not to enumeration members. The shipped `E_CylinderPosition`
+has a member `MID` and compiles: `{attribute 'qualified_only'}` keeps a member
+clear of the `MID()` string function, so folding these words into the keyword set
+would have produced a false positive on correct, working code. Both directions
+now have fixtures — the four-keyword rejection and the qualified-enum acceptance.
+
+One test-harness note worth recording: the suite's `_rules()` helper calls
+`lint_repository`, which runs repository-scope rules only. Per-file rules (C1-C7)
+must be asserted through `lint_file`, as the pre-existing C2 enum test already
+did. `main()` runs both passes, so the CLI and CI were never affected — but a
+fixture written against `_rules()` for a per-file rule silently passes nothing.
+
+Not verified here: no TwinCAT compiler in this environment. The rename is
+mechanical and lint-clean; the user's build is the authority.

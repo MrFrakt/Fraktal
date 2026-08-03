@@ -361,7 +361,7 @@ METHOD PROTECTED OnChainReset]]></Declaration>
       <Declaration><![CDATA[// §6.8 run another chain as ONE composite step. Returns NONE while the
 // sub-chain works and ADVANCE on the scan it finishes, so a step action reads:
 //
-//     _retVal := M_RunSub(Sub := _loadPosition, BaseStepNo := 240);
+//     _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);
 //
 // The entry latch is step-scoped and re-arms through M_ClearTransition, so a
 // chain re-entered later restarts correctly. Hand-written, this was eight lines
@@ -369,20 +369,20 @@ METHOD PROTECTED OnChainReset]]></Declaration>
 // again (§1.1 O1: the framework owns repeated flow control, not the project).
 METHOD M_RunSub : E_StepResult
 VAR_INPUT
-    Sub : REFERENCE TO FB_SequenceBase;
+    Chain : REFERENCE TO FB_SequenceBase;
     BaseStepNo : INT;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_RunSub := E_StepResult.NONE;
-IF NOT __ISVALIDREF(Sub) THEN
+IF NOT __ISVALIDREF(Chain) THEN
     RETURN;
 END_IF
 IF NOT _subRunning THEN
-    Sub.M_ChainReset(BaseStepNo := BaseStepNo);
+    Chain.M_ChainReset(BaseStepNo := BaseStepNo);
     _subRunning := TRUE;
 END_IF
-Sub.M_ChainRun();
-IF Sub.Done THEN
+Chain.M_ChainRun();
+IF Chain.Done THEN
     _subRunning := FALSE;
     M_RunSub := E_StepResult.ADVANCE;
 END_IF]]></ST>
