@@ -15,7 +15,11 @@ VAR_OUTPUT
 END_VAR
 VAR
     _step    : INT;                // §6.5 active step index (the ST `CASE _step OF` token)
-    _retVal  : E_StepResult;       // shared transition result (§6.10; committed then cleared)
+    // Shared transition result (§6.10). ONE-SCAN signal: the active step's action
+    // is its only writer, every chart transition reads it, and it is cleared before
+    // the next scan's actions run - by M_Advance on commit in an ST chart, or by
+    // M_BeginScan when the chart runtime owns the transition (SFC/LD/FBD).
+    _retVal  : E_StepResult;
     _restart : BOOL;               // a step may request a chart restart (M_Run applies it)
     {attribute 'OPC.UA.DA' := '0'}
     _host : I_SequenceHost;        // owning module's framework services (§6.7)
@@ -115,9 +119,35 @@ END_IF]]></ST>
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_BeginScan" Id="{4c0862c1-7015-4c44-8473-90c09e6eebff}">
+      <Declaration><![CDATA[// Core §6.10 - scan-scoped reset of the shared transition result.
+//
+// `_retVal` is a ONE-SCAN signal: the active step's action writes it, the chart's
+// transition reads it in the same scan, and it must not survive into the next.
+// In an ST chart M_Advance is itself the transition, so it commits and clears in
+// one call. In a chart language the RUNTIME evaluates transitions (SFC/LD/FBD),
+// so nothing in the chart is positioned to clear afterwards - call this once per
+// PLC cycle immediately BEFORE executing the chart. Clearing at the top of the
+// scan is equivalent to clearing after the previous scan's transitions, and it
+// forces every step action to re-assert its own result each scan, which is the
+// property that makes a stale ADVANCE impossible.
+//
+// It deliberately clears ONLY the result. `_driveIssued` (M_MayIssue's one-shot)
+// and `_delay` (M_Delay's timer) are STEP-scoped, not scan-scoped: resetting them
+// every scan would re-issue a child command every cycle and stop any delay from
+// ever elapsing. Those re-arm on step change, through M_ClearTransition.
+METHOD M_BeginScan]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_retVal := E_StepResult.NONE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_ClearTransition" Id="{2e6b48d1-95cf-4a73-b30e-6f81da29c504}">
-      <Declaration><![CDATA[// the ONE shared exit action: a completed step's result never leaks into the
-// next step, and the step-scoped helpers (delay, drive latch) re-arm.
+      <Declaration><![CDATA[// the ONE shared STEP-EXIT action: a completed step's result never leaks into
+// the next step, and the step-scoped helpers (delay, drive latch) re-arm.
+// ST charts reach this through M_Advance on commit. A chart language whose
+// engine owns the transition (SFC/LD/FBD) wires this as the step exit action,
+// which the runtime executes AFTER the transition condition was evaluated -
+// so the transition still sees the result the step action produced.
 METHOD M_ClearTransition]]></Declaration>
       <Implementation>
         <ST><![CDATA[_retVal := E_StepResult.NONE;

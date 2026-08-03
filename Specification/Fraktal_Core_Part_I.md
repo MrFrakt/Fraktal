@@ -1097,6 +1097,25 @@ decision, and transition logic stays visible in each `CASE _step OF` branch (§6
 SFC would place the same action bodies on its steps and read `_retVal` on its transitions; the ST
 skeleton is the shipped form because it is plain reviewable text and needs no editor-generated chart XML.
 
+**Lifetime of the shared result.** `_retVal` **shall** be a *one-scan* signal: the active step's action
+writes it, the chart's transition reads it in the same PLC cycle, and it **shall** be cleared before the
+next cycle's step actions run. Otherwise a result produced by one step re-fires the transition of the
+step it just entered. Who performs that clear depends on who owns the transition:
+
+- **ST chart** — `M_Advance` *is* the transition. It commits and clears in one call, so the requirement
+  is met with no extra step.
+- **Chart language (SFC / LD / FBD)** — the *runtime* evaluates transitions, so nothing inside the chart
+  is positioned to clear afterwards. The owner **shall** call `M_BeginScan()` once per cycle immediately
+  before executing the chart (clearing at the top of a scan is equivalent to clearing after the previous
+  scan's transitions), or the chart **shall** wire `M_ClearTransition()` as the shared **step exit
+  action**, which the runtime executes after the transition condition was evaluated. Either satisfies the
+  rule; `M_BeginScan` is the stronger of the two because it also forces every step action to re-assert
+  its own result each scan, making a stale `ADVANCE` impossible rather than merely unlikely.
+
+The per-scan clear **shall** reset the result only. The step-scoped helpers — the `M_MayIssue` one-shot
+latch and the `M_Delay` timer — are cleared on *step change* (`M_ClearTransition`), never per scan:
+re-arming them every cycle would re-issue a child command each scan and prevent any delay from elapsing.
+
 ### 6.9 Step diagnostic contract (resolving the lean-vs-diagnosable dilemma)
 
 Lean step bodies and rich per-step diagnostics are reconciled by moving the standardization **off the steps and onto the module types** — the cost is paid once per reusable module, not once per step.

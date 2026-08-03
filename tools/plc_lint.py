@@ -77,8 +77,15 @@ PRAGMA_ELSE = re.compile(r"^\{\s*ELSE\s*\}", re.I)
 PRAGMA_END = re.compile(r"^\{\s*END_IF\s*\}", re.I)
 # Identifier declarations inside any VAR block (name : TYPE).
 DECL_ANY = re.compile(r"^\s*([A-Za-z_]\w*)\s*:\s*[A-Za-z_]")
+# A FUNCTION_BLOCK may carry any combination of access/extension qualifiers, not
+# just ABSTRACT. Tolerating only ABSTRACT made `FUNCTION_BLOCK INTERNAL FB_X
+# EXTENDS FB_Y` parse as name="INTERNAL" with no base, so the object was
+# registered under the wrong name and every inheritance-keyed rule (D1/H1/A1/S1)
+# silently skipped it — a rule that does not apply is indistinguishable from a
+# rule that passes.
+FB_QUALIFIER = r"(?:ABSTRACT|FINAL|INTERNAL|PUBLIC|PRIVATE|PROTECTED)"
 POU_DECL = re.compile(
-    r"FUNCTION_BLOCK\s+(?:(ABSTRACT)\s+)?([A-Za-z_]\w*)"
+    r"FUNCTION_BLOCK\s+((?:" + FB_QUALIFIER + r"\s+)*)([A-Za-z_]\w*)"
     r"(?:\s+EXTENDS\s+([A-Za-z_]\w*))?", re.I)
 OUTER_IMPL = re.compile(
     r"</Declaration>\s*<Implementation>\s*<ST><!\[CDATA\[(.*?)\]\]></ST>"
@@ -342,9 +349,20 @@ def _has_default_then_guard(code: str, block: re.Match[str]) -> bool:
     return guard is not None
 
 
+# Folders that hold authored source which is deliberately NOT part of any build:
+# alternative-language renditions of a chart kept beside the shipped one for
+# comparison. They are still linted for source rules, but they are neither
+# conformance targets (S1) nor compile-list omissions (P1).
+NOT_BUILT_PARTS = {"AlterLanguages"}
+
+
+def _not_built(path: Path) -> bool:
+    return any(part in NOT_BUILT_PARTS for part in path.parts)
+
+
 def _shipping(path: Path) -> bool:
     parts = set(path.parts)
-    if "scaffold" in parts or "Fraktal_Tests" in parts:
+    if "scaffold" in parts or "Fraktal_Tests" in parts or _not_built(path):
         return False
     return "Framework" in parts or "Fraktal_Press_Demo" in parts
 
@@ -412,7 +430,8 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
         match = POU_DECL.search(declaration)
         if not match:
             continue
-        abstract, name, base = bool(match.group(1)), match.group(2), match.group(3)
+        qualifiers = (match.group(1) or "").upper().split()
+        abstract, name, base = "ABSTRACT" in qualifiers, match.group(2), match.group(3)
         declarations[name] = (path, declaration, abstract)
         if base:
             inheritance[name] = base
@@ -585,6 +604,22 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
         if inheritance.get(name) != "FB_SequenceBase" or not _shipping(path):
             continue
         text = texts[path]
+        # A chart-language body (SFC/LD/FBD) is not the ST skeleton: its runtime
+        # owns the transition, so `CASE _step OF` and M_Advance are the wrong
+        # things to demand. It still has to honour the §6.10 contract — carry the
+        # shared result and record its steps — and it must clear the result once
+        # per scan, which only M_BeginScan or a M_ClearTransition exit action does.
+        if re.search(r"<SFC\b|<LD\b|<FBD\b", text, re.I):
+            required = ("_retVal", "M_Step(")
+            missing = [token for token in required if token not in text]
+            if not re.search(r"M_BeginScan\(|M_ClearTransition\(", text):
+                missing.append("M_BeginScan( or M_ClearTransition( (per-scan result clear)")
+            if missing:
+                findings.append(Finding(
+                    path, 1, "S1",
+                    f"chart sequence {name} lacks chart-contract token(s): "
+                    f"{', '.join(missing)}"))
+            continue
         required = ("_step", "_retVal", "CASE _step OF", "M_Step(", "M_Advance(")
         missing = [token for token in required if token not in text]
         if missing:
@@ -725,7 +760,7 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
             owned = {
                 path.resolve() for path in owned_root.rglob("*")
                 if path.is_file() and path.suffix in {".TcPOU", ".TcDUT", ".TcGVL", ".TcIO", ".TcTTO"}
-                and not _skipped(path)
+                and not _skipped(path) and not _not_built(path)
             }
             missing = sorted(owned - resolved)
             for source in missing:

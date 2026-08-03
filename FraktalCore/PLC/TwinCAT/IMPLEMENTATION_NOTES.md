@@ -2213,3 +2213,56 @@ PLC-facing Dart layer.
 
 Not verified here: no TwinCAT compiler in this environment. Both edits are
 structural only; the next XAE build remains the authority.
+
+## 93. `_retVal` is a one-scan signal; `M_BeginScan` for chart languages (2026-08-03)
+
+Building the SFC rendition of the AUTO chart surfaced a real gap: `M_Advance`
+clears `_retVal` as part of committing the transition, which is correct when
+`M_Advance` *is* the transition (ST), but leaves nothing to clear it when the
+SFC/LD/FBD runtime owns the transition. The Nexeed reference drives its charts
+exactly this way — step actions assign `_retVal := OK` / `JUMP1` /
+`CheckUnitDone(...)`, and transitions are expressions such as `_retVal = OK` and
+`(_retVal = OK) AND (_retVal2 = OK)`.
+
+`FB_SequenceBase` gains **`M_BeginScan()`**, which clears `_retVal` and nothing
+else. The owner calls it once per PLC cycle immediately before executing the
+chart. Clearing at the top of a scan is equivalent to clearing after the previous
+scan's transitions, and it additionally forces every step action to re-assert its
+own result each scan — which is what makes a stale `ADVANCE` impossible rather
+than merely unlikely.
+
+The method deliberately does **not** touch `_driveIssued` or `_delay`. Those are
+step-scoped: resetting them every scan would make `M_MayIssue` re-issue a child
+command every cycle and stop `M_Delay` ever elapsing. They re-arm on step change
+through `M_ClearTransition`, whose role is now documented as the shared *step
+exit* action — the SFC exit action runs after the transition was evaluated, so a
+chart may use it instead of `M_BeginScan`. `M_Advance` is unchanged, so the four
+shipped ST charts and the 92-test runtime result are unaffected.
+
+Two linter defects were found in the same pass, both of the "rule silently does
+not apply" class:
+
+- `POU_DECL` tolerated only the `ABSTRACT` qualifier, so
+  `FUNCTION_BLOCK INTERNAL FB_SFC_PressDemoAuto EXTENDS FB_SequenceBase` parsed
+  as name `INTERNAL` with no base. The object was registered under the wrong name
+  and **every inheritance-keyed rule (D1/H1/A1/S1) skipped it**. The regex now
+  accepts any combination of FB qualifiers, and `abstract` is derived from the
+  qualifier list rather than from "was there a qualifier". Verified by reverting
+  the fix: the new fixture fails with `'S1' not found in set()`.
+- **S1 demanded the ST skeleton of every** `FB_SequenceBase` descendant. A chart
+  body has no `CASE _step OF` and no `M_Advance`, so a legitimate SFC chart could
+  only pass by pretending to be ST. S1 now recognises `<SFC>`/`<LD>`/`<FBD>`
+  bodies and applies the chart contract instead: carry `_retVal`, record steps via
+  `M_Step(`, and clear the result once per scan via `M_BeginScan(` or
+  `M_ClearTransition(`.
+
+`Sequences/AlterLanguages/` is declared **not built** (`NOT_BUILT_PARTS`): it holds
+alternative-language renditions kept beside the shipped chart for comparison. Such
+files are still linted for source rules but are neither conformance targets (S1)
+nor compile-list omissions (P1). Before this, the in-progress SFC chart tripped P1
+for being absent from every `.plcproj` — correctly, but for a file that is not
+meant to be in one.
+
+Not verified here: no TwinCAT compiler in this environment. The new method is
+three lines of ST and the rest is tooling; the next XAE build remains the
+authority.

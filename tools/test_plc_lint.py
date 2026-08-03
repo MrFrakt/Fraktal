@@ -133,6 +133,35 @@ TYPE E_Bad : (READY := 0, {keyword} := 1) DINT; END_TYPE
                     "IF _size[hit] <> Size THEN\nRETURN;\nEND_IF")))
         self.assertNotIn("C7", self._rules(root))
 
+    def test_pou_qualifiers_do_not_hide_inheritance(self):
+        # `FUNCTION_BLOCK INTERNAL FB_X EXTENDS FB_SequenceBase` used to parse as
+        # name="INTERNAL" with no base, so every inheritance-keyed rule silently
+        # skipped the object. A rule that does not apply must not look like a pass.
+        root = self._root()
+        self._write(root, "Fraktal_Press_Demo/FB_QualBad.TcPOU", _pou(
+            "FB_QualBad",
+            "FUNCTION_BLOCK INTERNAL FB_QualBad EXTENDS FB_SequenceBase", ""))
+        self.assertIn("S1", self._rules(root))
+
+    def test_s1_chart_body_is_not_held_to_the_st_skeleton(self):
+        # An SFC chart's runtime owns the transition, so CASE _step OF / M_Advance
+        # are the wrong requirement; it must still carry the shared result, record
+        # steps, and clear the result once per scan.
+        root = self._root()
+        good = _pou("FB_Chart", "FUNCTION_BLOCK FB_Chart EXTENDS FB_SequenceBase", "")
+        good = good.replace("<ST><![CDATA[]]></ST>",
+                            "<SFC><![CDATA[_retVal M_Step( M_BeginScan(]]></SFC>")
+        self._write(root, "Fraktal_Press_Demo/FB_Chart.TcPOU", good)
+        self.assertNotIn("S1", self._rules(root))
+
+    def test_s1_chart_without_a_per_scan_clear_is_rejected(self):
+        root = self._root()
+        bad = _pou("FB_Chart2", "FUNCTION_BLOCK FB_Chart2 EXTENDS FB_SequenceBase", "")
+        bad = bad.replace("<ST><![CDATA[]]></ST>",
+                          "<SFC><![CDATA[_retVal M_Step(]]></SFC>")
+        self._write(root, "Fraktal_Press_Demo/FB_Chart2.TcPOU", bad)
+        self.assertIn("S1", self._rules(root))
+
     def test_s1_sequence_skeleton_negative_fixture(self):
         root = self._root()
         self._write(root, "Fraktal_Press_Demo/FB_BadSeq.TcPOU", _pou(
