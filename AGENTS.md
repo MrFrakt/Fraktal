@@ -342,8 +342,8 @@ machine: `C:\Apps\FlutterSdk\flutter` — `flutter` is on `PATH`, so prefer reso
 than hard-coding a path):
 ```
 flutter pub get
-flutter analyze                 # clean as of 2026-07-12 (Flutter 3.44.5)
-flutter test                    # SimRepository boot smoke test
+flutter analyze                 # clean as of 2026-08-02 (Flutter 3.44.6, the CI pin)
+flutter test                    # 166 passing, 4 intentional live-environment skips
 flutter run -d windows|chrome
 ```
 `analysis_options.yaml` is self-contained (no flutter_lints include) per the zero-package policy.

@@ -43,11 +43,17 @@ a tray/startup installer and Linux includes a systemd unit. See `HMI/README.md`,
 `../Specification/HMI_CONTRACT.md`, and
 `../Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`.
 
-> **Status (2026-07-22):** HMI verified — `flutter analyze` clean, full test suite green,
-> `flutter build web`/`windows` succeed. PLC **compiles under TwinCAT 4026** and has been
-> **loaded on a development runtime and exercised end-to-end** — the internal Press bench runs, publishes over TF6100,
-> and drives the generic HMI (config-manifest `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live
-> commanding all confirmed against the development runtime). This is framework-integration
-> evidence, not a production-machine claim. Still pending: a **pinned-build CI compile**
-> (§1.5) and the improvement items in `../Specification/OBJECTIVES_AUDIT.md`. Add each `.plcproj`
+> **Status (2026-08-02):** HMI verified — `flutter analyze` clean, **166 tests passing**
+> (4 intentional live-environment skips) on the pinned Flutter 3.44.6;
+> `flutter build web`/`windows` succeed. PLC source gate clean: **265 files in both
+> build profiles**, 31 linter fixtures green. The split TcUnit program is green on an
+> isolated runtime — **92/92 tests across 28 suites** (Core+Modules 84/26, internal
+> Press bench 8/2), archived with artifact hashes in `../Specification/Evidence/`.
+> PLC **compiles under TwinCAT 4026** and has been **loaded on a development runtime and
+> exercised end-to-end** — the internal Press bench runs, publishes over TF6100, and drives
+> the generic HMI (config-manifest `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live commanding).
+> This is framework-integration evidence, not a production-machine claim. Still pending:
+> the PLC compile/TcUnit CI jobs exist but stay **skipped** until a licensed self-hosted
+> TwinCAT runner is registered (§1.5), plus the improvement items in
+> `../Specification/OBJECTIVES_AUDIT.md`. Add each `.plcproj`
 > to a TwinCAT XAE solution via *PLC → Add Existing Item…* (see `PLC/TwinCAT/README.md` bring-up).

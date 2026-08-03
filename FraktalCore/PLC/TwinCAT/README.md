@@ -2,12 +2,18 @@
 
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
-> **Last live baseline (2026-07-22): compiled under TwinCAT 4026 and ran on a runtime.** The library set
-> (`Fraktal_Core` + `Fraktal_Modules`) and the `Fraktal_Press_Demo` application build in XAE, deploy
-> to a TC runtime, and have been exercised end-to-end over TF6100 (press demo cycling; generic HMI
-> commanding; `QUERY_CONFIG` config manifest and `OPC.UA.DA` publication obscuring confirmed). Still
-> The current Core `0.4.0.0` / Modules `0.3.0.0` source is newer and still requires the P0 clean build,
-> TcUnit run, and TMC regeneration; the prior live result is not evidence for this snapshot. See
+> **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their
+> TcUnit gates are green.** All three PLC projects returned `LastBuildInfo=0` with an
+> empty Error List and regenerated their TMC files, and both isolated-runtime gates
+> pass — **92/92 tests across 28 suites** (Core+Modules 84/26, internal Press bench 8/2),
+> repeated on a Windows 10 x64 VM. Summaries, runner identities and artifact SHA-256
+> hashes are archived in `../../../Specification/Evidence/`.
+>
+> Separately, an earlier snapshot was deployed to a development runtime and exercised
+> end-to-end over TF6100 (Press bench cycling; generic HMI commanding; `QUERY_CONFIG`
+> config manifest and `OPC.UA.DA` publication obscuring confirmed). That live result is
+> framework-integration evidence on a development runtime — not a machine acceptance,
+> safety or production claim, and not re-run against this snapshot. See
 > `../../../Specification/OBJECTIVES_AUDIT.md`. Per Core §2 / TC3 §2.1 pin your exact XAE/XAR build; the
 > plcproj files target 4024+ (ABSTRACT FBs/methods). The sources are kept **source-compatible with
 > TwinCAT 3.1.4024**: no optional/defaulted method inputs (a 4026+ feature) — every method input is

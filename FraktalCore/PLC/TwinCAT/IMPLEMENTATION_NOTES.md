@@ -2169,3 +2169,47 @@ conformance target, SAT, or safety-validation artifact. Its sequences, release
 policy, simulated plant, illustrative I/O data, and 8-test gate exercise framework
 integration. Any real project must own its engineering and independently satisfy
 the deployment, electrical, risk-assessment, and certified-safety gates.
+
+## 92. Short-circuit guard defects and lint rule C7 (2026-08-02)
+
+A deep hunt across the PLC and HMI trees before publishing found two real PLC
+defects, both of the same class and both on ordinary not-found paths — which is
+why a green 92/92 TcUnit run could not have caught either.
+
+IEC 61131-3 does not mandate short-circuit evaluation of `AND`/`OR`, and
+TwinCAT's compile option for it is off by default. The protected operand of a
+guard is therefore evaluated regardless:
+
+- `FB_AsciiDeviceCM.SendRequest` used
+  `IF _chan = 0 OR (_chan.State() <> OPEN)`, calling a method on a **null
+  interface** whenever no channel is injected — a runtime fault, not a bad value.
+  `OnCyclic` in the same file already guarded correctly with a separate
+  statement, which is what identifies this as an oversight rather than a choice.
+- `FB_LocalRecipeProvider.Load` used
+  `IF (hit = 0) OR ... OR (_size[hit] <> Size)`, reading `_size[0]` of an
+  `ARRAY[1..MAX_RECIPES]` whenever a recipe key is not found. The branch outcome
+  is still correct, so it is silent today and becomes a bounds violation the
+  moment a project enables the implicit `CheckBounds` POU.
+
+Both are now separate statements; behavior is unchanged.
+
+`plc_lint` gains **C7**: a guard may not dereference or index the symbol it is
+testing against 0 within the same condition. Three fixtures cover the null-call
+form, the 1-based-index form, and the split guard that must stay clean. The rule
+was validated against the **real pre-fix sources from HEAD**, not only its own
+fixtures — it reports exactly those two files at the right lines and nothing
+else. That check exists because an earlier rule (D1) had been validated only
+against fixtures and encoded the wrong invariant (see `OBJECTIVES_AUDIT_REVIEW.md`
+§R0).
+
+Swept and found clean in the same pass: ring-index math in every publisher (all
+use the correct `(x MOD n) + 1` for 1-based arrays), sentinel-index guards in
+`FB_AlarmLog`/`FB_CycleProfiler`/`FB_PermIntlk` (early-`RETURN` guarded),
+division by a named operand in shipped sources (none), HMI ordinal-to-enum
+conversions from PLC data (all range-checked or via the bounds-checked
+`_enumAt`), the fieldbus topology recursion (a single `parent` field makes any
+cycle unreachable from the `parent = 0` roots), and null assertions in the
+PLC-facing Dart layer.
+
+Not verified here: no TwinCAT compiler in this environment. Both edits are
+structural only; the next XAE build remains the authority.

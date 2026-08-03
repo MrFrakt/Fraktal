@@ -86,16 +86,28 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 
 ---
 
-## Status (2026-07-22)
+## Status (2026-08-02)
 
-- **HMI** — `flutter analyze` clean, full test suite green, `flutter build web`/`windows` succeed.
-- **PLC** — compiles under **TwinCAT 4026**, loaded on a development runtime, and exercised
-  end-to-end over TF6100: the internal Press bench cycles, publishes over OPC UA, and drives
-  the generic HMI (config-manifest `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live
-  commanding — all confirmed against the development runtime). This is not a
-  real-machine project or production acceptance result.
-- **Pending** — a pinned-build **CI compile/test gate** (spec §1.5 makes it a
-  *shall*), gateway read-tier parity for Web, and the remaining items tracked in
+- **PLC unit tests** — the split TcUnit program is green on an isolated runtime:
+  **92/92 tests across 28 suites** (Core+Modules 84/26, internal Press bench 8/2),
+  repeated on a Windows 10 x64 VM. Summaries, runner identities and artifact
+  SHA-256 hashes are archived in [`Specification/Evidence/`](Specification/Evidence/)
+  and reproduce from a clean clone.
+- **PLC source gate** — `plc_lint.py`: **265 files clean in both build profiles**
+  (modern and the 4024 legacy profile), **31 fixtures** green.
+- **HMI** — `flutter analyze` clean, **166 tests passing** (4 intentional
+  live-environment skips) on the pinned Flutter 3.44.6; `flutter build web`/`windows` succeed.
+- **PLC compile** — builds under **TwinCAT 4026** and has been loaded on a
+  development runtime and exercised end-to-end over TF6100: the internal Press
+  bench cycles, publishes over OPC UA, and drives the generic HMI (config-manifest
+  `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live commanding). This is a development
+  runtime — not a real-machine project, and not a production acceptance result.
+- **Pending** — the PLC compile and TcUnit CI jobs exist
+  ([`ci.yml`](.github/workflows/ci.yml), `tools/Invoke-TwinCatBuild.ps1`) but stay
+  **skipped** until a licensed self-hosted TwinCAT runner is registered, so the
+  hosted gate still does not compile the PLC (spec §1.5 makes that a *shall*).
+  Also open: gateway read-tier parity for Web, live-transport and deployment-profile
+  acceptance, and the remaining items in
   [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md).
 
 This project reports status honestly (O10): it distinguishes what is proven from

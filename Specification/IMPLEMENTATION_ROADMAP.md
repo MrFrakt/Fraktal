@@ -2,6 +2,8 @@
 
 *Status: execution plan derived from the objective/coherence review of 2026-07-12. The normative requirements remain in `Fraktal_Core_Part_I.md`, the TwinCAT binding in Part II, and the HMI surface in `HMI_CONTRACT.md`. This document orders the work; it does not silently weaken a `shall`.*
 
+*This roadmap is a plan, not a progress tracker — it is deliberately not edited as items land. For what is actually proven versus pending at any moment, read `OBJECTIVES_AUDIT.md` and the archived runs in `Evidence/`.*
+
 ## 1. Purpose and ordering rule
 
 Fraktal already has the right central shape: one recursive module model, one inherited lifecycle, one diagnostic vocabulary, simulation through HAL seams, and a generic HMI. The next work shall make the existing promises compositionally true before adding more optional profiles.

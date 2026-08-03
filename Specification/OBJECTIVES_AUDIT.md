@@ -270,7 +270,7 @@ Ordered by safety/conformance risk and dependency.
 | DONE | Formalize Demo and Press Demo as internal feature-testing fixtures: deterministic simulation covers mode/command/recovery, diagnostics, recipes, traceability and multi-root behavior; optional ADS/OPC-UA and HIL profiles stay separate. | Test architecture + internal fixtures | Press source/build and 8-test runtime integration gate green; explicitly not a real project or machine-acceptance claim |
 | DONE | Central decision resolver: idempotent active request, reject/log overlap, monotonic timeout, validated safe default, operator/timeout distinction and atomic clear. | Core implementation | XAE clean; green runtime `DecisionTests` included in the 84-test gate |
 | DONE | **Capability-driven write manifest** with stable key/revision, type, writable/state flags, bounds/domain and owning typed handler; no arbitrary-tag fallback. | Novel contract + PLC/HMI | XAE/HMI validation clean; green runtime `HmiTests` includes typed fail-closed capability coverage |
-| DONE | Extend `plc_lint.py` into the promised conformance gate. | Tooling | **Freshly executed 2026-08-01**: 265 files clean in both profiles; 21 linter fixtures green, including rejection of reserved enum members, string `CASE` labels, duplicate XAE source ownership and TwinCAT-invalid `..` includes, ownership-root resolution, and a guard that runs the linter against the real tree. Three earlier rules (D1/C5/S1) were corrected first — see `OBJECTIVES_AUDIT_REVIEW.md` §R0 |
+| DONE | Extend `plc_lint.py` into the promised conformance gate. | Tooling | **Freshly executed 2026-08-01**: 265 files clean in both profiles; **24 linter fixtures** green, including rejection of reserved enum members, string `CASE` labels, duplicate XAE source ownership, TwinCAT-invalid `..` includes, ownership-root resolution, guards that rely on short-circuit evaluation (**C7**, added 2026-08-02 after two real defects), and a guard that runs the linter against the real tree. Three earlier rules (D1/C5/S1) were corrected first — see `OBJECTIVES_AUDIT_REVIEW.md` §R0 |
 | DONE | Implement `FB_SystemHealthPublisher`, time-quality records/flags, and the TC3 probe seam. | Core contract + TC3 adapter | XAE clean; green fault-edge/quality runtime test. Live task/DC/PTP is deployment adapter acceptance |
 | DONE | Implement reusable signal-tower mapping and bounded mailbox lamp test. | Core + HMI | Green runtime truth-table/bounded test; physical I/O checkout is deployment evidence |
 | DONE | Add gateway `discoverPaths`, `setReadTiers`, and bounded `readValues`; enforce roots/counts, conservative shared-client tiers, and commit-last writes. | Gateway/HMI | Protocol/reconnect/auth tests plus 4,000-path/four-client proportional-traffic test green |
@@ -310,11 +310,32 @@ authority.
   declarations and **92** `TEST(...)` calls. The split Core/Modules runner owns
   26 suites/84 tests; `PRG_PressTestRunner` owns 2 suites/8 tests; none are orphaned.
 - **PLC lint: freshly executed.** The present tree reports **265 files clean in
-  both profiles** and all 21 positive/negative fixtures green. The first run
+  both profiles** and all **24** positive/negative fixtures green. The first run
   correctly rejected the new reserved identifier `At`; the transport field was
   renamed `Stamp` across PLC/HMI/tests before the clean rerun. The earlier
   reconciled baseline and rule corrections remain recorded in
   `OBJECTIVES_AUDIT_REVIEW.md`.
+- **Post-audit bug hunt (2026-08-02).** A review of this snapshot found five
+  defects, all invisible to the gates that were meant to catch them:
+  - `tools/tcunit_to_junit.py` matched each summary field with first-hit
+    `search()`, so a log holding a green run followed by a red re-run reported
+    PASS/exit 0. Reproduced, then made to reject ambiguous logs.
+  - the same tool wrote raw XAE text into `system-out` without stripping
+    XML-illegal control characters; ElementTree emits them silently and the
+    resulting JUnit cannot be parsed, i.e. a gate that reports nothing.
+  - the repository had no `.gitattributes` while Git for Windows sets
+    `core.autocrlf=true`, so **every SHA-256 in `Evidence/` failed to reproduce
+    on a fresh clone** (1 of 8 matched). Fixed and re-verified by cloning: 8/8.
+  - `FB_AsciiDeviceCM.SendRequest` called `_chan.State()` on a null interface and
+    `FB_LocalRecipeProvider.Load` read `_size[0]` of a 1-based array, both because
+    TwinCAT does not short-circuit `AND`/`OR`. Both were on ordinary not-found
+    paths, so neither could fail a green TcUnit run. `plc_lint` **C7** now gates
+    the class and was validated against the real pre-fix sources, not only its
+    own fixtures.
+
+  The pattern is consistent and worth stating plainly: every one of these lived
+  in verification machinery — the code that decides whether everything else is
+  trustworthy — and none of it was itself under test.
 - **TwinCAT compile: freshly executed.** Core `0.4.0.0`, Modules `0.3.0.0`, and
   Press Demo each returned `LastBuildInfo=0` with an empty Error List under
   `Debug|TwinCAT OS (ARMV7-A)` and regenerated their TMC files. All Press EtherCAT mappings resolve. The full

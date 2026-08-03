@@ -97,10 +97,13 @@ Fraktal discovery, and live-state publication instead of waiting indefinitely.
 - **§7.7 access**: fully-open default; login (`op1/1111`, `tech1/4711`, `eng1/9999`, `admin1/2468`); controls grey below threshold; ADMIN can edit the local Unit assignment; theme changing is level-gated HMI config (`HmiConfig.themeMinLevel`, default open).
 
 ## Honest status
-Verified against Flutter 3.44.5 (2026-07-12): `flutter analyze` clean, the
-SimRepository boot smoke test passes (`flutter test`), and `flutter build web`
-succeeds. Enum **ordinals in `lib/domain/types.dart` are the PLC contract**
-(must match the Core DUTs) and are the first thing to verify against a real server.
+Verified against Flutter 3.44.6 (2026-08-02 — the version CI pins): `flutter analyze`
+clean, **166 tests passing** with 4 intentional live-environment skips (`flutter test`),
+and `flutter build web` succeeds. The suite is offline by design — SimRepository and
+fakes, no PLC, no ADS, no network; anything needing hardware lives in `tool/probe_*.dart`
+and is deliberately not run. Enum **ordinals in `lib/domain/types.dart` are the PLC
+contract** (must match the Core DUTs); `plc_lint` rule E1 checks that parity on every
+commit, and they remain the first thing to verify against a real server.
 
 ## Widget set & annex coverage
 

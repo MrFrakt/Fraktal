@@ -165,7 +165,8 @@ Phases 0–2 deliver the responsiveness win; 3–4 make it the default; 5 is the
       served by `readValues`); fieldbus/drill-down scopes reuse the same mechanism.
 - [ ] Reconnect after an ADS router restart / PLC online-change recovers cleanly,
       queues no writes (§14), and re-discovers symbols. **(hardening — see below)**
-- [x] Web (gateway) unaffected; full HMI suite green (108 tests).
+- [x] Web (gateway) unaffected; full HMI suite green (108 tests at the time of
+      this acceptance run; the suite is 166 tests as of 2026-08-02).
 
 ## 10. Delivered (Phases 0–4)
 
