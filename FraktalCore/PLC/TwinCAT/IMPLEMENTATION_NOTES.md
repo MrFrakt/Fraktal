@@ -2408,3 +2408,40 @@ fixture written against `_rules()` for a per-file rule silently passes nothing.
 
 Not verified here: no TwinCAT compiler in this environment. The rename is
 mechanical and lint-clean; the user's build is the authority.
+
+## 98. SFC steps bound to their step bodies (2026-08-03)
+
+The chart was drawn in XAE — twelve steps `A000`..`A999`, twelve transitions all
+reading `_retVal = E_StepResult.ADVANCE`, and the `A999 -> A100` jump — leaving
+only the step-to-body binding.
+
+§94 declined to synthesise the SFC graph because the archive had no example of an
+action-bearing step. With the drawn chart in hand that guesswork disappeared: the
+archive carries its **own descriptor table**, mapping each attribute GUID to an
+identifier and a description. It states outright that
+`{700a583f-b4d4-43e4-8c14-629c7cd3bec8}` is `MainAction`, *"Name of the action to
+be called if the step is active"*, alongside `EntryAction`, `ExitAction`,
+`MinTime`, `MaxTime`, `InitStep` and the rest. Every step's ten attributes were
+resolved from that table rather than inferred from position.
+
+Two consequences decided the implementation:
+
+- **MainAction, not EntryAction.** The bodies poll child `Done` flags and timers,
+  so they must run every scan the step is active. An entry action runs once on
+  activation and the chain would stall forever at the first step — a failure that
+  looks like a hung machine, not a wiring mistake. Picking the wrong empty string
+  attribute out of the five was the single real risk here, and the descriptor
+  table removed it.
+- **Actions, not methods.** `MainAction` resolves to an ACTION of the POU. The
+  twelve generated METHODs are therefore now ACTIONs of the same names; each body
+  is unchanged, with the documentation comment moved into the action body since an
+  action has no declaration. `Setup` and `M_Reset` remain methods.
+
+Verified structurally: XML parses, twelve `<Action>` objects exist, and every one
+of the twelve steps names an action that is defined in the file. 267 files clean
+in both profiles, 36 fixtures green.
+
+Not verified here: no TwinCAT compiler in this environment. First build should
+confirm that XAE resolves each `MainAction` name to its action and that the chart
+advances past `A000` — if it stalls on the first step, the binding landed on the
+wrong attribute despite the descriptor table.

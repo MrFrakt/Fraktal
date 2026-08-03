@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+<TcPlcObject Version="1.1.0.1">
   <POU Name="FB_PressDemoAuto" Id="{27be7602-c702-dcca-822f-fb9fc2c74001}" SpecialFunc="None">
     <Declaration><![CDATA[// AUTO mode chain (Core §6.2/§6.8 ST skeleton on FB_SequenceBase): the continuous
 // production cycle — await a fresh two-hand start with part+air present, transfer
@@ -206,20 +206,5 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_do
     AND _loadPosition.Setup(Host := Host, PressRam := PressRam, Door := Door, PartSlide := PartSlide);]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_PressDemoAuto">
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_PressDemoAuto.M_Reset">
-      <LineId Id="3" Count="1" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_PressDemoAuto.M_Run">
-      <LineId Id="3" Count="124" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_PressDemoAuto.Setup">
-      <LineId Id="3" Count="12" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
   </POU>
 </TcPlcObject>
