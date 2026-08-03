@@ -32,6 +32,9 @@ Rules
         overrides call `SUPER^` first (except staged `OnModeExit`).
   C5  Every authored ST `CASE` has an `ELSE` safe reaction.
   C6  `CASE` labels are integral/enum labels, never string literals.
+  C7  A guard never dereferences or indexes the symbol it is testing against 0
+        in the same condition — TwinCAT does not short-circuit AND/OR, so the
+        protected operand is evaluated anyway.
   S1  Every multi-step sequence extends `FB_SequenceBase` and carries the shared
         step/result/advance skeleton.
   A1  An EquipmentModule declaration never contains a Unit instance.
@@ -538,6 +541,44 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
             findings.append(Finding(
                 path, _line_of(code, block.start()), "C6",
                 "CASE has a string-literal label; use IF/ELSIF for STRING values"))
+
+    # C7: a guard must not rely on short-circuit evaluation. IEC 61131-3 does
+    # not mandate it and TwinCAT's compile option for it is off by default, so
+    # in `IF (p = 0) OR (p^.x <> y)` or `IF (i > 0) AND (arr[i] = z)` the second
+    # operand is evaluated anyway: a null dereference, or index 0 of a 1-based
+    # ARRAY. Both are ordinary not-found paths, so this faults in the field
+    # rather than in test. Split the sentinel test into its own statement.
+    for path, text in texts.items():
+        if not _shipping(path):
+            continue
+        code = _without_comments(text)
+        one_based = {
+            match.group(1)
+            for match in re.finditer(
+                r"(\w+)\s*:\s*ARRAY\s*\[\s*1\s*\.\.", code, re.I)
+        }
+        for statement in re.finditer(r"\bIF\b(.+?)\bTHEN\b", code, re.S):
+            condition = " ".join(statement.group(1).split())
+            if len(condition) > 400:
+                continue
+            for guard in re.finditer(r"\b(\w+)\s*(?:=|<>|>|<=)\s*0\b", condition):
+                symbol = guard.group(1)
+                unsafe = re.search(
+                    r"\b" + re.escape(symbol) + r"\s*(?:\^|\.\w+\s*\()", condition)
+                indexed = [
+                    array for array in re.findall(
+                        r"\b(\w+)\s*\[\s*" + re.escape(symbol) + r"\s*\]", condition)
+                    if array in one_based
+                ]
+                if not unsafe and not indexed:
+                    continue
+                detail = (f"dereferences {symbol}" if unsafe
+                          else f"indexes 1-based {indexed[0]}[{symbol}]")
+                findings.append(Finding(
+                    path, _line_of(code, statement.start()), "C7",
+                    f"guard {detail} in the same condition that tests it against 0; "
+                    "TwinCAT does not short-circuit — split into separate statements"))
+                break
 
     # S1: the shipped ST sequence skeleton is deliberately small and testable.
     for name, (path, declaration, _) in declarations.items():

@@ -124,7 +124,16 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// live channel state: the cached LinkState is one scan old and would reject a
 // request issued in the same scan the transport opened.
-IF _chan = 0 OR (_chan.State() <> E_ByteChannelState.OPEN) THEN
+// Null test is its own statement: IEC 61131-3 does not mandate short-circuit
+// evaluation and TwinCAT's compile option for it is off by default, so folding
+// this into `_chan = 0 OR (_chan.State() <> ...)` still calls State() on a null
+// interface and faults the runtime. OnCyclic already guards this way.
+IF _chan = 0 THEN
+    _M_FaultN(PL_TcpDevReasons.DEV_NOT_CONNECTED, 'std.error.deviceNotConnected');
+    SendRequest := FALSE;
+    RETURN;
+END_IF
+IF _chan.State() <> E_ByteChannelState.OPEN THEN
     _M_FaultN(PL_TcpDevReasons.DEV_NOT_CONNECTED, 'std.error.deviceNotConnected');
     SendRequest := FALSE;
     RETURN;

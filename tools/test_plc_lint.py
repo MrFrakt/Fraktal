@@ -98,6 +98,41 @@ TYPE E_Bad : (READY := 0, {keyword} := 1) DINT; END_TYPE
                     "CASE TextValue OF\n'0': OutCmd := 1;\nELSE OutCmd := 0;\nEND_CASE")))
         self.assertIn("C6", self._rules(root))
 
+    def test_c7_rejects_null_call_guarded_by_the_same_condition(self):
+        # The real defect from FB_AsciiDeviceCM.SendRequest: without
+        # short-circuit evaluation _chan.State() is called when _chan is 0.
+        root = self._root()
+        declaration = "FUNCTION_BLOCK FB_Bad EXTENDS FB_ControlModuleBase\n" + _contract()
+        self._write(root, "Framework/FB_Bad.TcPOU", _pou(
+            "FB_Bad", declaration, "Cyclic();",
+            _method("M_Send",
+                    "IF _chan = 0 OR (_chan.State() <> 1) THEN\nRETURN;\nEND_IF")))
+        self.assertIn("C7", self._rules(root))
+
+    def test_c7_rejects_one_based_index_guarded_by_the_same_condition(self):
+        # The real defect from FB_LocalRecipeProvider.Load: _size[0] is read on
+        # the ordinary not-found path.
+        root = self._root()
+        declaration = ("FUNCTION_BLOCK FB_Bad EXTENDS FB_ControlModuleBase\n"
+                       "VAR\n_size : ARRAY[1..16] OF UDINT;\nEND_VAR\n" + _contract())
+        self._write(root, "Framework/FB_Bad.TcPOU", _pou(
+            "FB_Bad", declaration, "Cyclic();",
+            _method("M_Load",
+                    "IF (hit = 0) OR (_size[hit] <> Size) THEN\nRETURN;\nEND_IF")))
+        self.assertIn("C7", self._rules(root))
+
+    def test_c7_accepts_the_split_guard(self):
+        # The shipped fix: sentinel test in its own statement.
+        root = self._root()
+        declaration = ("FUNCTION_BLOCK FB_Good EXTENDS FB_ControlModuleBase\n"
+                       "VAR\n_size : ARRAY[1..16] OF UDINT;\nEND_VAR\n" + _contract())
+        self._write(root, "Framework/FB_Good.TcPOU", _pou(
+            "FB_Good", declaration, "Cyclic();",
+            _method("M_Load",
+                    "IF hit = 0 THEN\nRETURN;\nEND_IF\n"
+                    "IF _size[hit] <> Size THEN\nRETURN;\nEND_IF")))
+        self.assertNotIn("C7", self._rules(root))
+
     def test_s1_sequence_skeleton_negative_fixture(self):
         root = self._root()
         self._write(root, "Fraktal_Press_Demo/FB_BadSeq.TcPOU", _pou(

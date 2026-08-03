@@ -44,8 +44,15 @@ END_FOR
 IF hit = 0 THEN
     hit := fallback;
 END_IF
-IF (hit = 0) OR (pParCfg = 0) OR (_size[hit] <> Size) THEN
-    RETURN;                                       // unknown/size mismatch -> caller faults (§3.8)
+// Two statements, not one condition: IEC 61131-3 does not mandate short-circuit
+// evaluation and TwinCAT's compile option for it is off by default, so a single
+// `(hit = 0) OR (_size[hit] <> Size)` still reads _size[0] on the ordinary
+// not-found path - out of bounds for ARRAY[1..MAX_RECIPES] (§3.8).
+IF (hit = 0) OR (pParCfg = 0) THEN
+    RETURN;                                       // unknown recipe -> caller faults (§3.8)
+END_IF
+IF _size[hit] <> Size THEN
+    RETURN;                                       // size mismatch -> caller faults (§3.8)
 END_IF
 puT := pParCfg;
 puS := _ptr[hit];
