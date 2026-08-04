@@ -2615,3 +2615,36 @@ none in this repository and none in the Nexeed reference, which is entirely ST a
 SFC. Synthesising one would be inventing a whole schema with no compiler to check
 it. The SFC arrived the same way: the empty chart shell was created in XAE first,
 after which filling and binding it was mechanical.
+
+## 104. Ladder rendition: FB_LD_PressDemoAuto, and S1's `<LADDER>` blind spot (2026-08-03)
+
+`FB_LD_PressDemoAuto` now carries its declaration, `Setup`/`M_Reset` and all
+sixteen rung actions over the empty network TwinCAT created. Each action is the ST
+branch **including** its `M_Advance` call: ladder rungs dispatch on `_step` but do
+not evaluate transitions, so the action still commits its own result and the
+`OnJump1..3` mapping keeps both jump branches declarative. The rung table is in
+the README; every rung has the same shape, `[EQ(_step, N)]──(A<N>_Action)`.
+
+**A ladder body is nothing like an SFC body.** Where SFC is a serialized object
+graph, ladder is a single `ModelJson` attribute holding a JSON document:
+
+    <o t="LadderImplementationObject">
+      <v n="ModelJson">"{ "$type": "LadderDataModel", "Networks": [ … ] }"</v>
+
+That is far more amenable to generation — `$type`-discriminated JSON rather than
+`Id`/`IdParent` object identities. The remaining unknown is only the element
+vocabulary (contact, box, connection), which **one drawn rung would supply**; the
+other fifteen are then mechanical.
+
+**S1 had a blind spot.** Its chart-body detection matched `<SFC>`, `<LD>` and
+`<FBD>`, but TwinCAT writes a ladder body as **`<LADDER>`** — so the moment a real
+ladder POU appeared, S1 demanded the ST skeleton of it and reported five missing
+tokens. The rule applied, but to the wrong contract, which is the same failure
+shape as a rule that does not apply at all. It now recognises
+`<SFC>`/`<LADDER>`/`<LD>`/`<FBD>`/`<CFC>`, and distinguishes them: a `<LADDER>`
+chain must carry `M_Advance(` because its rungs do not transition, while an
+`<SFC>` chart must not need it. Two fixtures cover both directions.
+
+Not verified here: no TwinCAT compiler in this environment. The rungs are not
+drawn, so the POU compiles as a chain whose body does nothing until they exist —
+the actions themselves are complete.

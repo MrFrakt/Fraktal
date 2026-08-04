@@ -613,13 +613,22 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
         # things to demand. It still has to honour the §6.10 contract — carry the
         # shared result and record its steps — and it must clear the result once
         # per scan, which only M_BeginScan or a M_ClearTransition exit action does.
-        if re.search(r"<SFC\b|<LD\b|<FBD\b", text, re.I):
+        # TwinCAT writes a Ladder body as <LADDER>, not <LD>. Missing that one
+        # spelling made S1 demand the ST skeleton of every ladder chain — the
+        # rule applied, but to the wrong contract.
+        if re.search(r"<SFC\b|<LADDER\b|<LD\b|<FBD\b|<CFC\b", text, re.I):
             # The per-scan clear (§6.8) is the OWNER's obligation - it calls
             # M_BeginScan() before executing the chart - or a step exit action
             # wired in the chart editor. Neither is visible in this file, so the
             # linter checks only what a chart object can prove about itself:
             # it carries the shared result and records its steps.
+            #
+            # LADDER is the integer-state-machine form: its rungs dispatch on
+            # _step but do not evaluate transitions, so unlike SFC its actions
+            # still commit their own result through M_Advance.
             required = ("_retVal", "M_Step(")
+            if re.search(r"<LADDER\b", text, re.I):
+                required += ("M_Advance(",)
             missing = [token for token in required if token not in text]
             if missing:
                 findings.append(Finding(

@@ -185,6 +185,26 @@ TYPE E_Pos : (LOW := 0, MID := 1, HIGH := 2) DINT; END_TYPE
         self._write(root, "Fraktal_Press_Demo/FB_Chart.TcPOU", good)
         self.assertNotIn("S1", self._rules(root))
 
+    def test_s1_ladder_chain_uses_the_integer_state_machine_contract(self):
+        # TwinCAT writes a ladder body as <LADDER>, not <LD>. Missing that spelling
+        # made S1 demand the ST skeleton of every ladder chain. A ladder chain's
+        # rungs dispatch but do not evaluate transitions, so unlike SFC its actions
+        # still commit through M_Advance.
+        root = self._root()
+        good = _pou("FB_Rung", "FUNCTION_BLOCK FB_Rung EXTENDS FB_SequenceBase", "")
+        good = good.replace("<ST><![CDATA[]]></ST>",
+                            "<LADDER><![CDATA[_retVal M_Step( M_Advance(]]></LADDER>")
+        self._write(root, "Fraktal_Press_Demo/FB_Rung.TcPOU", good)
+        self.assertNotIn("S1", self._rules(root))
+
+    def test_s1_ladder_chain_without_m_advance_is_rejected(self):
+        root = self._root()
+        bad = _pou("FB_Rung2", "FUNCTION_BLOCK FB_Rung2 EXTENDS FB_SequenceBase", "")
+        bad = bad.replace("<ST><![CDATA[]]></ST>",
+                          "<LADDER><![CDATA[_retVal M_Step(]]></LADDER>")
+        self._write(root, "Fraktal_Press_Demo/FB_Rung2.TcPOU", bad)
+        self.assertIn("S1", self._rules(root))
+
     def test_s1_chart_still_needs_the_shared_result_and_step_record(self):
         # A chart object can only prove what it contains. The per-scan clear is
         # the owner's call (M_BeginScan) or an editor-wired exit action, neither

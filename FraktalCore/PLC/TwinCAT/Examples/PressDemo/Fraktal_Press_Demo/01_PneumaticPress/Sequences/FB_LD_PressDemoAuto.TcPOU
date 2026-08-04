@@ -1,0 +1,383 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LD_PressDemoAuto" Id="{d5ec2574-c99e-4ec9-bb23-1ac320fe88a1}" SpecialFunc="None">
+    <Declaration><![CDATA[// LADDER rendition of FB_PressDemoAuto as an integer-based state machine.
+// One rung per state gates its action on the inherited `_step`:
+//
+//     [ EQ(_step, 200) ]------------------( A200_RamDown )
+//
+// The rungs dispatch only. Unlike SFC, ladder does not evaluate transitions,
+// so each action still ends with M_Advance and the OnJump1..3 mapping keeps
+// jumps declarative - the bodies below are the ST branches unchanged.
+// The `FB_LD_` prefix is demo convenience, not a naming convention.
+FUNCTION_BLOCK FB_LD_PressDemoAuto EXTENDS FB_SequenceBase
+VAR
+    _partReady, _airReady, _startReady : BOOL;
+    _dwellTwoHandHeld : BOOL;          // N220 named wait: two-hand held through the dwell
+    _decisionRequest : ST_DecisionRequest;   // §6.11 not-reached confirmation
+    _answer : INT;
+    _ramReached, _failureConfirmed : BOOL;   // N200/N210 named waits
+    _twoHandHeldDuringClose : BOOL;          // N180 named wait
+    _partInMachine : BOOL;                   // §3.16.3 the part is already received
+    _partDispositioned : BOOL;               // N260 already set the verdict
+    _traceAccepted, _recordAccepted, _partProcessed : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _pressRam : REFERENCE TO FB_CylinderCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _door : REFERENCE TO FB_CylinderCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _partSlide : REFERENCE TO FB_CylinderCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _twoHand : REFERENCE TO FB_TwoHandStartCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _partPresentSensor : REFERENCE TO FB_DigitalInputCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _airPressureMonitor : REFERENCE TO FB_AirPressureMonitorCM;
+    {attribute 'OPC.UA.DA' := '0'}
+    _parCfg : REFERENCE TO ST_PneumaticPressParCfg;
+    {attribute 'OPC.UA.DA' := '0'}
+    _outCmd : REFERENCE TO ST_PneumaticPressOutCmd;
+    {attribute 'OPC.UA.DA' := '0'}
+    _startLatched : REFERENCE TO BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _loadPosition : FB_PressDemoLoadPosition;
+END_VAR]]></Declaration>
+    <Implementation>
+      <LADDER>
+        <XmlArchive>
+          <Data>
+            <o xml:space="preserve" t="LadderImplementationObject">
+              <v n="ModelJson">"{
+  "$type": "LadderDataModel",
+  "Networks": [
+    {
+      "$type": "Network",
+      "Id": "iHn1wsc9",
+      "Sequence": {
+        "$type": "Sequence"
+      }
+    }
+  ]
+}"</v>
+            </o>
+          </Data>
+          <TypeList>
+            <Type n="LadderImplementationObject">{f0fda5b8-8c48-4377-bbd5-c49444e4d26e}</Type>
+            <Type n="String">System.String</Type>
+          </TypeList>
+        </XmlArchive>
+      </LADDER>
+    </Implementation>
+<Method Name="Setup" Id="{d1b7e8ee-68e8-413a-8702-18379f9693f6}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Host : I_SequenceHost;
+END_VAR
+VAR_IN_OUT
+    PressRam : FB_CylinderCM;
+    Door : FB_CylinderCM;
+    PartSlide : FB_CylinderCM;
+    TwoHand : FB_TwoHandStartCM;
+    PartPresentSensor : FB_DigitalInputCM;
+    AirPressureMonitor : FB_AirPressureMonitorCM;
+    ParCfg : ST_PneumaticPressParCfg;
+    OutCmd : ST_PneumaticPressOutCmd;
+    StartLatched : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_pressRam REF= PressRam;
+_door REF= Door;
+_partSlide REF= PartSlide;
+_twoHand REF= TwoHand;
+_partPresentSensor REF= PartPresentSensor;
+_airPressureMonitor REF= AirPressureMonitor;
+_parCfg REF= ParCfg;
+_outCmd REF= OutCmd;
+_startLatched REF= StartLatched;
+Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_door)
+    AND __ISVALIDREF(_partSlide) AND __ISVALIDREF(_twoHand)
+    AND __ISVALIDREF(_partPresentSensor) AND __ISVALIDREF(_airPressureMonitor)
+    AND __ISVALIDREF(_parCfg) AND __ISVALIDREF(_outCmd) AND __ISVALIDREF(_startLatched)
+    AND _loadPosition.Setup(Host := Host, PressRam := PressRam, Door := Door, PartSlide := PartSlide);]]></ST>
+      </Implementation>
+    </Method>
+<Method Name="M_Reset" Id="{8d856582-ecbd-45ea-8b26-822f35c2ddb6}">
+      <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ResetBase(0);
+// A chart reset abandons whatever the cycle was holding: the part record is
+// closed by N215/N999, never by a reset, so both trackers start clean.
+_partDispositioned := FALSE;
+_partInMachine := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="A000_Initialize" Id="{76915a68-6f6d-4e8f-964e-b89fd7f38675}">
+      <Implementation>
+        <ST><![CDATA[// N000 rung action. Called from the rung `[EQ(_step, 0)]`.
+M_Step(StepNo := 0, StepName := 'project.step.pressAutoInitialize',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_outCmd.CycleCompleted := FALSE;
+_outCmd.Homed := FALSE;
+_outCmd.ChangeoverCompleted := FALSE;
+_retVal := E_StepResult.ADVANCE;
+M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A100_AwaitTwoHand" Id="{44e3f19b-01a5-42bd-a0d6-27e27b8a2f7f}">
+      <Implementation>
+        <ST><![CDATA[// N100 rung action. Called from the rung `[EQ(_step, 100)]`.
+M_Step(StepNo := 100, StepName := 'project.step.pressAwaitTwoHand',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+_outCmd.CycleCompleted := FALSE;
+_partReady := M_Await(Idx := 1, Label := 'project.condition.partPresent',
+    Ok := _partPresentSensor.OutImm.Value AND _partPresentSensor.OutImm.Quality);
+_airReady := M_Await(Idx := 2, Label := 'project.condition.airPressureOk',
+    Ok := _airPressureMonitor.OutImm.PressureOk);
+IF _parCfg.RequireTwoHandStart THEN
+    _startReady := M_Await(Idx := 3, Label := 'project.condition.twoHandStart', Ok := _startLatched);
+ELSE
+    _startReady := TRUE;
+END_IF
+IF M_StopPending() THEN
+    M_StopNow();                       // stop accepted BETWEEN cycles: no phantom cycle
+ELSIF _partReady AND _airReady AND _startReady THEN
+    // §3.16.3 receive once per PHYSICAL part. The N180 two-hand abort returns
+    // here with the same part still in the machine and nothing processed, so a
+    // second M_PartReceived would open a duplicate record for one part.
+    // M_PartStarted (N150) is deliberately NOT guarded: each pass is a genuine
+    // processing attempt on that part.
+    IF NOT _partInMachine THEN
+        _traceAccepted := M_PartReceived();
+        _partInMachine := TRUE;
+    END_IF
+    _retVal := E_StepResult.ADVANCE;
+END_IF
+M_Advance(OnAdvance := 110, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A110_RamUp" Id="{5662513b-fd18-4fd1-bcda-77b0ecbdd85b}">
+      <Implementation>
+        <ST><![CDATA[// N110 rung action. Called from the rung `[EQ(_step, 110)]`.
+M_Step(StepNo := 110, StepName := 'project.step.pressRamUp',
+    Awaits := _pressRam, AwaitingLabel := 'PressRam.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+IF M_MayIssue(Steppable := TRUE) THEN
+    _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.RETRACT; _pressRam.Execute := TRUE;
+END_IF
+IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+M_Advance(OnAdvance := 130, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A130_DoorOpen" Id="{9cc3526d-4fb7-4105-9178-73e78cb82dc8}">
+      <Implementation>
+        <ST><![CDATA[// N130 rung action. Called from the rung `[EQ(_step, 130)]`.
+M_Step(StepNo := 130, StepName := 'project.step.pressDoorOpen',
+    Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+IF M_MayIssue(Steppable := TRUE) THEN
+    _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
+END_IF
+IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+M_Advance(OnAdvance := 150, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A150_SlideInside" Id="{23fbafaf-e75a-47ae-b043-96625df2575a}">
+      <Implementation>
+        <ST><![CDATA[// N150 rung action. Called from the rung `[EQ(_step, 150)]`.
+M_Step(StepNo := 150, StepName := 'project.step.pressSlideInside',
+    Awaits := _partSlide, AwaitingLabel := 'PartSlide.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+IF M_MayIssue(Steppable := TRUE) THEN
+    M_PartStarted();
+    _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.EXTEND; _partSlide.Execute := TRUE;
+END_IF
+IF _partSlide.Done THEN _partSlide.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+M_Advance(OnAdvance := 170, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A170_TransferSettle" Id="{5250534e-f52e-4548-8f47-ce1c46a127e4}">
+      <Implementation>
+        <ST><![CDATA[// N170 rung action. Called from the rung `[EQ(_step, 170)]`.
+M_Step(StepNo := 170, StepName := 'project.step.pressTransferSettle',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.TransferSettleTime);
+_retVal := M_Delay(PT := _parCfg.TransferSettleTime);
+M_Advance(OnAdvance := 180, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A180_DoorClose" Id="{bc8148db-d4c4-4193-a20b-524d74d47513}">
+      <Implementation>
+        <ST><![CDATA[// N180 rung action. Called from the rung `[EQ(_step, 180)]`.
+// operator abort, not a fault: the door goes back up, the part slides out,
+// and the cycle returns to the two-hand wait (§6.10 jump). Completion wins
+// if the door finished in the same scan the button was released.
+M_Step(StepNo := 180, StepName := 'project.step.pressDoorClose',
+    Awaits := _door, AwaitingLabel := 'Door.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_twoHandHeldDuringClose := M_Await(Idx := 1,
+    Label := 'project.condition.twoHandHeldDuringDoorClose',
+    Ok := _twoHand.OutImm.SafeActive OR NOT _parCfg.RequireTwoHandStart);
+IF M_MayIssue(Steppable := TRUE) THEN
+    _door.Abort := FALSE; _door.Command := E_CylinderCommand.EXTEND; _door.Execute := TRUE;
+END_IF
+IF _door.Done THEN
+    _door.Execute := FALSE;
+    _retVal := E_StepResult.ADVANCE;
+ELSIF NOT _twoHandHeldDuringClose THEN
+    _door.Execute := FALSE;             // §6.1 Execute-drop reset releases the close
+    _retVal := E_StepResult.JUMP1;      // released -> reopen and clear the part
+END_IF
+M_Advance(OnAdvance := 200, OnJump1 := 185, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A185_DoorReopen" Id="{38d22ae8-ded2-409f-95b7-43a1cf45a729}">
+      <Implementation>
+        <ST><![CDATA[// N185 rung action. Called from the rung `[EQ(_step, 185)]`.
+M_Step(StepNo := 185, StepName := 'project.step.pressDoorReopen',
+    Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+IF M_MayIssue(Steppable := TRUE) THEN
+    _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
+END_IF
+IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
+M_Advance(OnAdvance := 190, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A190_SlideOutsideAfterAbort" Id="{d79dc06c-8279-45fe-9a68-6b602c342cbc}">
+      <Implementation>
+        <ST><![CDATA[// N190 rung action. Called from the rung `[EQ(_step, 190)]`.
+// is dropped so the cycle cannot resume without a fresh two-hand press.
+M_Step(StepNo := 190, StepName := 'project.step.pressSlideOutsideAfterAbort',
+    Awaits := _partSlide, AwaitingLabel := 'PartSlide.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+IF M_MayIssue(Steppable := TRUE) THEN
+    _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.RETRACT; _partSlide.Execute := TRUE;
+END_IF
+IF _partSlide.Done THEN
+    _partSlide.Execute := FALSE;
+    _startLatched := FALSE;
+    _retVal := E_StepResult.ADVANCE;
+END_IF
+M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A200_RamDown" Id="{8a4a5d84-6064-4798-b9d0-9822568ef35c}">
+      <Implementation>
+        <ST><![CDATA[// N200 rung action. Called from the rung `[EQ(_step, 200)]`.
+// the ram to the §6.9 auto-rollup: an awaited child fault is adopted by the
+// Unit (ERROR, _step := 0) before _M_Dispatch runs, and the chain would stop
+// before it could ask the operator anything. The wait is still named (§6.9(b))
+// and the cylinder still raises its own CYL_NOT_EXTENDED alarm.
+M_Step(StepNo := 200, StepName := 'project.step.pressRamDown',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_ramReached := M_Await(Idx := 1, Label := 'project.condition.pressRamExtended',
+    Ok := _pressRam.Done);
+IF M_MayIssue(Steppable := TRUE) THEN
+    _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.EXTEND; _pressRam.Execute := TRUE;
+END_IF
+IF _pressRam.Done THEN
+    _pressRam.Execute := FALSE;
+    _retVal := E_StepResult.ADVANCE;
+ELSIF _pressRam.Error THEN
+    _pressRam.Execute := FALSE;         // §6.1 Execute-drop reset returns the ram to READY
+    _retVal := E_StepResult.JUMP1;      // did not reach -> operator confirmation
+END_IF
+M_Advance(OnAdvance := 220, OnJump1 := 210, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A210_ConfirmPressFailure" Id="{2dfdfd1f-3585-438f-85db-9d98ce869487}">
+      <Implementation>
+        <ST><![CDATA[// N210 rung action. Called from the rung `[EQ(_step, 210)]`.
+// scrapped. A scrap is deliberate, so there is no timeout default (§6.11).
+M_Step(StepNo := 210, StepName := 'project.step.pressNotReachedConfirm',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+_decisionRequest.Prompt := 'project.decision.pressNotReached';
+_decisionRequest.Options[1] := 'project.decision.confirmScrapAndReturn';
+_decisionRequest.Default := 0;
+_decisionRequest.Timeout := T#0S;
+M_AskDecision(Req := _decisionRequest);
+_answer := M_TakeDecision();
+IF _answer = 1 THEN
+    _retVal := E_StepResult.ADVANCE;
+ELSE
+    _failureConfirmed := M_Await(Idx := 1,
+        Label := 'project.condition.pressFailureConfirmation', Ok := FALSE);
+END_IF
+M_Advance(OnAdvance := 215, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A215_ScrapPart" Id="{2ee89a9a-8fbf-4f2d-acde-ccef2d8d4f01}">
+      <Implementation>
+        <ST><![CDATA[// N215 rung action. Called from the rung `[EQ(_step, 215)]`.
+M_Step(StepNo := 215, StepName := 'project.step.pressScrapPart',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_partProcessed := M_PartProcessed(Verdict := E_Verdict.NOK,
+    Reason := PL_ModuleReasons.CYL_NOT_EXTENDED);
+_partDispositioned := TRUE;             // N999 must not also count it good
+_partInMachine := FALSE;                // dispositioned: the next one is a new part
+_outCmd.CycleCompleted := FALSE;
+_retVal := E_StepResult.ADVANCE;
+M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A220_PressDwell" Id="{a616d72d-6568-485b-87cc-1343a5817224}">
+      <Implementation>
+        <ST><![CDATA[// N220 rung action. Called from the rung `[EQ(_step, 220)]`.
+M_Step(StepNo := 220, StepName := 'project.step.pressDwell',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.PressSettleTime);
+// Releasing the button mid-dwell is the designed way to stop pressing, so it
+// is a named wait (§6.9(b)), not a fault: the ram's outputs come off, the
+// dwell timer freezes where it is because M_Delay is not called, and pressing
+// again restores the force and finishes the remaining dwell. Faulting here
+// charged an unrecoverable downtime event for normal operator behaviour.
+_dwellTwoHandHeld := M_Await(Idx := 1, Label := 'project.condition.twoHandHeldDuringPress',
+    Ok := _twoHand.OutImm.SafeActive OR NOT _parCfg.RequireTwoHandStart);
+IF NOT _dwellTwoHandHeld THEN
+    _pressRam.WithdrawOutputs();
+ELSE
+    // The press force is the valve latched by the EXTEND that step 200 already
+    // completed, so after a withdraw only this call re-energizes it — and the
+    // ram re-checks its own extend permit before it does (§7.2).
+    _pressRam.RestoreOutputs();
+    _retVal := M_Delay(PT := _parCfg.PressSettleTime);
+END_IF
+M_Advance(OnAdvance := 230, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A230_RecordResult" Id="{586a3a71-9929-4f65-afa7-a28ac96dbd37}">
+      <Implementation>
+        <ST><![CDATA[// N230 rung action. Called from the rung `[EQ(_step, 230)]`.
+M_Step(StepNo := 230, StepName := 'project.step.pressRecordResult',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_recordAccepted := M_PartRecord(RecordName := 'PressDwell',
+    Value := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)),
+    Minimum := 0, Maximum := 30000,
+    Target := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)), EngUnit := 'ms');
+_retVal := E_StepResult.ADVANCE;
+M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A240_ReturnToLoadPosition" Id="{5564782f-87e9-4f14-b678-14635998ea7a}">
+      <Implementation>
+        <ST><![CDATA[// N240 rung action. Called from the rung `[EQ(_step, 240)]`.
+_retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);
+M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A999_CycleComplete" Id="{f02afacc-8ff2-42bd-ad7e-4025b7e62e7e}">
+      <Implementation>
+        <ST><![CDATA[// N999 rung action. Called from the rung `[EQ(_step, 999)]`.
+M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+_outCmd.CycleCompleted := TRUE;
+IF _partDispositioned THEN
+    _partDispositioned := FALSE;       // N260 already set the NOK verdict
+ELSE
+    _partProcessed := M_PartProcessed(Verdict := E_Verdict.OK, Reason := E_Reason.NONE);
+    IF NOT _partProcessed THEN
+        M_CountGood();                 // §3.9: no carrier configured — count directly
+    END_IF
+END_IF
+_partInMachine := FALSE;               // processed: the next one is a new part
+_startLatched := FALSE;
+IF M_EndOfCycle() THEN
+    _retVal := E_StepResult.ADVANCE;   // stop NOT requested: loop to N100
+END_IF
+M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>

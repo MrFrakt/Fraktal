@@ -221,6 +221,47 @@ result and the `OnJump1..3` mapping keeps jumps declarative. One rung per state,
 in step order, is the whole body. There is no equivalent of `MainAction` to bind:
 the call lives in the rung.
 
+A ladder body is stored very differently from an SFC one, and much more openly:
+
+```xml
+<LADDER><XmlArchive><Data>
+  <o t="LadderImplementationObject">
+    <v n="ModelJson">"{ "$type": "LadderDataModel", "Networks": [ … ] }"</v>
+```
+
+It is a **JSON document in a single attribute**, not a serialized object graph —
+so a ladder body is far more amenable to generation than an SFC chart, once one
+real rung exists to derive the element vocabulary from.
+
+`FB_LD_PressDemoAuto` ships with its declaration, `Setup`/`M_Reset` and all
+sixteen rung actions, over the empty network TwinCAT creates. The rungs to draw
+are mechanical and identical in shape:
+
+| Rung | Gate | Call |
+|---|---|---|
+| 1 | `EQ(_step, 0)` | `A000_Initialize` |
+| 2 | `EQ(_step, 100)` | `A100_AwaitTwoHand` |
+| 3 | `EQ(_step, 110)` | `A110_RamUp` |
+| 4 | `EQ(_step, 130)` | `A130_DoorOpen` |
+| 5 | `EQ(_step, 150)` | `A150_SlideInside` |
+| 6 | `EQ(_step, 170)` | `A170_TransferSettle` |
+| 7 | `EQ(_step, 180)` | `A180_DoorClose` |
+| 8 | `EQ(_step, 185)` | `A185_DoorReopen` |
+| 9 | `EQ(_step, 190)` | `A190_SlideOutsideAfterAbort` |
+| 10 | `EQ(_step, 200)` | `A200_RamDown` |
+| 11 | `EQ(_step, 210)` | `A210_ConfirmPressFailure` |
+| 12 | `EQ(_step, 215)` | `A215_ScrapPart` |
+| 13 | `EQ(_step, 220)` | `A220_PressDwell` |
+| 14 | `EQ(_step, 230)` | `A230_RecordResult` |
+| 15 | `EQ(_step, 240)` | `A240_ReturnToLoadPosition` |
+| 16 | `EQ(_step, 999)` | `A999_CycleComplete` |
+
+Because each action commits its own transition, the rungs need no ordering
+guarantees beyond being evaluated once per scan: only the rung whose gate matches
+the current `_step` does anything, and a state change takes effect on the next
+scan. Rule **S1** enforces the difference — a `<LADDER>` chain must carry
+`M_Advance(`, an `<SFC>` chart must not need it.
+
 ### Two TcUnit gates, and why they are separate
 
 There are **two** test projects and you must run both:
