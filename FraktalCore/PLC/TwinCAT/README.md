@@ -106,6 +106,121 @@ IMPLEMENTATION_NOTES.md      every reconciliation vs. the drafts + proposed Core
    application. All suites green is the M1 acceptance bar.
 6. Wire TcUnit-Runner into CI so the JUnit results gate the merge alongside lint (Core §6.8, §1.5).
 
+## Writing a sequence: ST, SFC or LD
+
+A chain is a chain: it extends `FB_SequenceBase`, records steps with `M_Step`, and
+progresses through the shared result `_retVal`. Only **who evaluates the
+transition** differs, and everything else follows from that one fact.
+
+| | **ST** | **SFC** | **LD (integer state machine)** |
+|---|---|---|---|
+| Owns the transition | `M_Advance` | the SFC runtime | the rungs |
+| Body of the POU | `CASE _step OF` | the chart | rungs gated on `_step` |
+| Step body lives in | a `CASE` branch | an **ACTION** | an **ACTION** |
+| Calls `M_Advance`? | **yes**, ends every branch | **no** | **yes**, from the action |
+| Transition condition | (inside `M_Advance`) | `_retVal = E_StepResult.ADVANCE` | (inside `M_Advance`) |
+| A jump is | `OnJump1 := <step>` | a branch whose condition is `_retVal = E_StepResult.JUMP1` | `OnJump1 := <step>` |
+| Clears `_retVal` | `M_Advance`, on commit | `FB_UnitBase` per scan | `M_Advance`, on commit |
+| Overrides `M_ChainRun`? | yes (that is the body) | no — its body *is* the chart | yes |
+
+The per-scan clear is never a project's job: a chain registers itself in
+`M_Attach` and `FB_UnitBase._M_BeginSequenceScan` resets every attached chain
+before `_M_Dispatch` runs (§1.1 O1). An SFC chart needs **no wiring at all** to be
+safe against a stale `ADVANCE`.
+
+`Fraktal_Press_Demo` ships the AUTO chain in ST (`FB_PressDemoAuto`) and SFC
+(`FB_SFC_PressDemoAuto`) so the two can be compared side by side. **The `FB_SFC_`
+prefix is not a naming convention** — it exists only so two renditions of one
+chain can coexist in one project. A real project has one chain per mode and names
+it `FB_<Thing><Mode>`.
+
+### Building an SFC chart
+
+The chart graph is drawn in XAE. A `.TcPOU` SFC body is a serialized object graph
+(`SFCImplementationObject` → `SFCSegment` → `SFCElementList`), and synthesising
+one by hand is not worth attempting — a malformed archive is worse than none
+because it still looks like a finished file. Draw the steps and transitions; the
+rest is mechanical and can be scripted.
+
+1. **Write the step bodies as ACTIONS.** `MainAction` resolves to an *action* of
+   the POU, never a method. Each action is the ST branch **minus** its
+   `M_Advance` call: an action only produces `_retVal`.
+2. **Draw the steps.** Name them after their actions (`A200` → `A200_RamDown`) so
+   the binding is obvious to a reviewer.
+3. **Every transition is `_retVal = E_StepResult.ADVANCE`**, except a jump branch,
+   which is `_retVal = E_StepResult.JUMP1` (`JUMP2`/`JUMP3` for further branches).
+4. **Bind each step's `MainAction`.** The attribute is
+   `{700a583f-b4d4-43e4-8c14-629c7cd3bec8}`.
+
+**Read the archive's own descriptor table; never guess an attribute.** Each step
+carries ten attributes and *five* of them are empty strings. The archive maps
+every GUID to an identifier and a description, so the binding target is a lookup,
+not an inference:
+
+| Attribute | GUID |
+|---|---|
+| `Name` | `{38391c6d-6d4a-42f8-8ee7-9f45e5adafa8}` |
+| `Comment` | `{7d894980-aeea-405c-a0f6-e2b26429c58f}` |
+| `Exclude` | `{01580b27-6378-448b-8ecb-0e4b795b58d6}` |
+| `InitStep` | `{6844a48e-46c2-4cc8-a185-a478f3b99cc0}` |
+| `Duplication` | `{62e1754b-7629-4e63-9cec-10ae0c536f1f}` |
+| `MinTime` | `{cacf1a68-236e-47c2-b7b1-1cf9199718cb}` |
+| `MaxTime` | `{b693554c-1b01-4a8d-afde-9e3a46f7465d}` |
+| **`MainAction`** | **`{700a583f-b4d4-43e4-8c14-629c7cd3bec8}`** |
+| `EntryAction` | `{a6b08bd8-b696-47e3-9cbf-7408b61c9ff8}` |
+| `ExitAction` | `{a2621e18-7de3-4ea6-ae6d-89e9e0b7befd}` |
+
+**`MainAction`, not `EntryAction`.** Step bodies poll child `Done` flags and
+timers, so they must run *every scan the step is active*. An entry action runs
+once on activation, and a chain wired that way stalls at its first step forever —
+which reads as a hung machine, not a wiring mistake.
+
+### Traps that cost real time here
+
+- **A `.TcPOU` edit must target one CDATA section.** A method's declaration and
+  implementation are separate CDATA blocks. A replacement written against the two
+  concatenated matches nothing and reports success — a silent no-op. This bit
+  `M_Reset` twice.
+- **`_retVal` is a one-scan signal.** In a chart the runtime evaluates the
+  transition *after* the step action, so the value must survive the scan and be
+  gone before the next one. The framework does this; do not add a manual clear.
+- **A chart POU must not override `M_ChainRun`.** Its body is the chart. Only a
+  chain used as a composite sub-step (`M_RunSub`) overrides it, and such a
+  sub-chain must therefore be ST.
+- **`FUNCTION_BLOCK INTERNAL FB_X EXTENDS FB_Y`** is legal; any combination of
+  `ABSTRACT`/`FINAL`/`INTERNAL`/`PUBLIC`/`PRIVATE`/`PROTECTED` may precede the
+  name.
+- **IEC standard function names are reserved as identifiers** — `SUB`, `ADD`,
+  `DIV`, `LEN`, `SEL` and the rest. A method input named `Sub` parses as the
+  subtraction operator and yields ~40 cascading errors on innocent lines. Rule
+  **C2** now rejects them; a *qualified* enum member (`E_CylinderPosition.MID`) is
+  still fine.
+- **Owning a child's failure means not awaiting it.** An awaited child fault is
+  adopted by `FB_UnitBase.OnCyclic` — `_exec := ERROR`, `_step := 0` — *before*
+  `_M_Dispatch` runs, so a chart can never jump on it. A step that wants to
+  disposition the failure itself passes `Awaits := 0` and names the wait with
+  `M_Await` instead (`N200` in the press AUTO chain does exactly this).
+
+Rule **S1** knows the difference: for an `<SFC>`/`<LD>`/`<FBD>` body it requires
+the chart contract (`_retVal`, `M_Step(`) rather than the ST skeleton, so a
+correct chart is not forced to pretend it is ST.
+
+### Building an LD chain (integer-based state machine)
+
+Ladder expresses the same chain as an explicit state machine over the inherited
+`_step`. The rungs are pure dispatch and the logic stays in actions, so an LD
+chain and an ST chain differ only in how the branch is selected:
+
+```
+Rung n : [ EQ(_step, 200) ]────────( A200_RamDown )      // state-gated action call
+```
+
+Each action is the ST branch **verbatim, including its `M_Advance` call** — unlike
+SFC, the ladder does not evaluate transitions, so the action still commits its own
+result and the `OnJump1..3` mapping keeps jumps declarative. One rung per state,
+in step order, is the whole body. There is no equivalent of `MainAction` to bind:
+the call lives in the rung.
+
 ### Two TcUnit gates, and why they are separate
 
 There are **two** test projects and you must run both:

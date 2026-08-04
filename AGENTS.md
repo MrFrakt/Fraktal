@@ -106,6 +106,43 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   registry it already has. Prefer deleting project glue over documenting it.
 - Judge by count, not taste: **more than once is the threshold.**
 
+**Sequences — pick the language, then follow its rule (§6.8):**
+- A chain always extends `FB_SequenceBase`, records steps with `M_Step`, and
+  progresses through `_retVal`. Only **who evaluates the transition** differs:
+  ST → `M_Advance`; SFC → the runtime; LD → the rungs.
+- **ST**: every `CASE _step OF` branch ends with `M_Advance(OnAdvance := …, OnJump1 := …)`.
+- **SFC**: step bodies are **ACTIONS** (not methods — `MainAction` resolves to an
+  action), each the ST branch **minus** `M_Advance`. Transitions are
+  `_retVal = E_StepResult.ADVANCE`, and a jump branch is `… = E_StepResult.JUMP1`.
+  A chart POU never overrides `M_ChainRun` — its body *is* the chart.
+- **LD**: an integer state machine over the inherited `_step`; one rung per state,
+  `[EQ(_step, N)]──(A<N>_Action)`, and the action keeps its `M_Advance`.
+- Never add a per-scan `_retVal` clear: `FB_UnitBase._M_BeginSequenceScan` does it
+  for every attached chain before `_M_Dispatch` (§1.1 O1).
+- The `FB_SFC_` prefix in the press demo is **not a convention** — it only lets two
+  renditions of one chain coexist. Name a real chain `FB_<Thing><Mode>`.
+- **Do not synthesise an SFC/LD body.** It is a serialized object graph; draw it in
+  XAE. Binding steps afterwards is safe and scriptable — read the archive's own
+  descriptor table for the attribute GUIDs rather than guessing (a step has ten
+  attributes, five of them empty strings). `MainAction` is
+  `{700a583f-b4d4-43e4-8c14-629c7cd3bec8}`; using `EntryAction` by mistake stalls
+  the chain at its first step forever.
+- **To own a child's failure, stop awaiting it.** An awaited child fault is adopted
+  by `FB_UnitBase.OnCyclic` (`_exec := ERROR`, `_step := 0`) *before* `_M_Dispatch`
+  runs, so a chart can never jump on it. Pass `Awaits := 0` and name the wait with
+  `M_Await` (press AUTO `N200` does this to offer a scrap/return decision).
+- Full comparison table, the SFC build procedure and the trap list live in
+  `FraktalCore/PLC/TwinCAT/README.md` § "Writing a sequence: ST, SFC or LD".
+
+**Editing `.TcPOU` files by script:**
+- A method's **declaration and implementation are separate CDATA blocks**. A
+  replacement written against the two concatenated matches nothing and *reports
+  success* — a silent no-op. Target one CDATA section, then re-read and assert.
+- `FUNCTION_BLOCK INTERNAL FB_X EXTENDS FB_Y` is legal; qualifiers may precede the
+  name in any combination.
+- IEC standard function names (`SUB`, `ADD`, `DIV`, `LEN`, `SEL`, …) are reserved as
+  identifiers — rule **C2** rejects them. A *qualified* enum member is fine.
+
 **Lifecycle & hooks (§2.2, §3.14):**
 - New module types **shall extend the base classes** — never re-implement the lifecycle.
 - Every overridden hook **shall call `SUPER^.OnX(...)` first** and propagate its return — **except

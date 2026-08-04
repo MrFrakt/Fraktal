@@ -2580,3 +2580,38 @@ gap.
 Not verified here: no TwinCAT compiler in this environment. The chart now has two
 jump branches to exercise on the first run — release a two-hand button mid
 door-close, and let the ram time out extending.
+
+## 103. Sequence-language guide: ST vs SFC vs LD (2026-08-03)
+
+`README.md` gains § "Writing a sequence: ST, SFC or LD" and AGENTS.md §3 gains the
+operational form, so the SFC work is repeatable instead of folklore.
+
+The organising idea is that only **who evaluates the transition** differs — ST's
+`M_Advance`, the SFC runtime, or LD's rungs — and everything else follows: whether
+the step body calls `M_Advance`, what a transition condition looks like, whether
+`M_ChainRun` is overridden, and who clears `_retVal`.
+
+Recorded because each cost real time to learn:
+
+- The archive carries its **own descriptor table**. A step has ten attributes and
+  five are empty strings; `MainAction` is
+  `{700a583f-b4d4-43e4-8c14-629c7cd3bec8}` and the full GUID table is in the
+  README. Binding `EntryAction` by mistake stalls the chain at its first step
+  forever — a failure that reads as a hung machine.
+- `MainAction` resolves to an **ACTION**, never a method.
+- A `.TcPOU` edit must target **one** CDATA section; matching across the
+  declaration/implementation boundary is a silent no-op that reports success.
+- To own a child's failure a step must stop awaiting it, because the awaited-fault
+  rollup runs before `_M_Dispatch`.
+- The `FB_SFC_` prefix is **not a convention** — it exists only so two renditions
+  of one chain can coexist in the demo. This is now stated in both documents.
+
+**LD is specified but not yet implemented.** The README describes the
+integer-state-machine form — one rung per state, `[EQ(_step, N)]──(A<N>_Action)`,
+with the action keeping its `M_Advance` because the rungs do not evaluate
+transitions. `FB_LD_PressDemoAuto` is not created here: an `<LD>` body is a
+serialized object graph and there is **no LD example anywhere** to derive it from —
+none in this repository and none in the Nexeed reference, which is entirely ST and
+SFC. Synthesising one would be inventing a whole schema with no compiler to check
+it. The SFC arrived the same way: the empty chart shell was created in XAE first,
+after which filling and binding it was mechanical.
