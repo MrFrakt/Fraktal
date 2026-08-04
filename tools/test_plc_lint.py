@@ -205,6 +205,36 @@ TYPE E_Pos : (LOW := 0, MID := 1, HIGH := 2) DINT; END_TYPE
         self._write(root, "Fraktal_Press_Demo/FB_Rung2.TcPOU", bad)
         self.assertIn("S1", self._rules(root))
 
+    def test_s1_follows_the_inheritance_chain_to_fb_sequencebase(self):
+        # FB_SequenceBaseLd sits between the ladder chains and FB_SequenceBase.
+        # A direct-equality test on the base name skipped every POU behind it, so
+        # the ladder chain was never checked at all.
+        root = self._root()
+        self._write(root, "Framework/FB_MidBase.TcPOU", _pou(
+            "FB_MidBase", "FUNCTION_BLOCK ABSTRACT FB_MidBase EXTENDS FB_SequenceBase", ""))
+        self._write(root, "Fraktal_Press_Demo/FB_Chain.TcPOU", _pou(
+            "FB_Chain", "FUNCTION_BLOCK FB_Chain EXTENDS FB_MidBase", ""))
+        self.assertIn("S1", self._rules(root))
+
+    def test_s1_skips_abstract_bases(self):
+        # An ABSTRACT base is scaffolding, not a chain: it carries no steps.
+        root = self._root()
+        self._write(root, "Framework/FB_AbstractBase.TcPOU", _pou(
+            "FB_AbstractBase",
+            "FUNCTION_BLOCK ABSTRACT FB_AbstractBase EXTENDS FB_SequenceBase", ""))
+        self.assertNotIn("S1", self._rules(root))
+
+    def test_s1_accepts_a_network_list_ladder_body(self):
+        # TwinCAT stores a ladder body as <NWL> and a call appears as a BoxType
+        # string ("M_Step"), never the ST call syntax "M_Step(".
+        root = self._root()
+        good = _pou("FB_Nwl", "FUNCTION_BLOCK FB_Nwl EXTENDS FB_SequenceBase", "")
+        good = good.replace("<ST><![CDATA[]]></ST>",
+                            '<NWL><![CDATA[<v n="BoxType">"M_Step"</v>'
+                            '<v n="BoxType">"M_Advance"</v>_retVal]]></NWL>')
+        self._write(root, "Fraktal_Press_Demo/FB_Nwl.TcPOU", good)
+        self.assertNotIn("S1", self._rules(root))
+
     def test_s1_chart_still_needs_the_shared_result_and_step_record(self):
         # A chart object can only prove what it contains. The per-scan clear is
         # the owner's call (M_BeginScan) or an editor-wired exit action, neither

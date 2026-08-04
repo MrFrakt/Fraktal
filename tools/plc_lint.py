@@ -604,8 +604,13 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
                 break
 
     # S1: the shipped ST sequence skeleton is deliberately small and testable.
-    for name, (path, declaration, _) in declarations.items():
-        if inheritance.get(name) != "FB_SequenceBase" or not _shipping(path):
+    for name, (path, declaration, is_abstract) in declarations.items():
+        # Follow the chain: FB_SequenceBaseLd sits between the ladder chains and
+        # FB_SequenceBase, and a direct-equality test skipped every POU behind it.
+        # An ABSTRACT base is scaffolding, not a chain, so it carries no steps.
+        if is_abstract or not derives(name, "FB_SequenceBase") or name == "FB_SequenceBase":
+            continue
+        if not _shipping(path):
             continue
         text = texts[path]
         # A chart-language body (SFC/LD/FBD) is not the ST skeleton: its runtime
@@ -616,7 +621,7 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
         # TwinCAT writes a Ladder body as <LADDER>, not <LD>. Missing that one
         # spelling made S1 demand the ST skeleton of every ladder chain — the
         # rule applied, but to the wrong contract.
-        if re.search(r"<SFC\b|<LADDER\b|<LD\b|<FBD\b|<CFC\b", text, re.I):
+        if re.search(r"<SFC\b|<NWL\b|<LADDER\b|<LD\b|<FBD\b|<CFC\b", text, re.I):
             # The per-scan clear (§6.8) is the OWNER's obligation - it calls
             # M_BeginScan() before executing the chart - or a step exit action
             # wired in the chart editor. Neither is visible in this file, so the
@@ -626,10 +631,13 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
             # LADDER is the integer-state-machine form: its rungs dispatch on
             # _step but do not evaluate transitions, so unlike SFC its actions
             # still commit their own result through M_Advance.
-            required = ("_retVal", "M_Step(")
-            if re.search(r"<LADDER\b", text, re.I):
-                required += ("M_Advance(",)
-            missing = [token for token in required if token not in text]
+            # In a network list a call is a BoxType string ("M_Step"), never the
+            # ST call syntax, so match the names rather than "M_Step(".
+            required = ["_retVal", "M_Step"]
+            if re.search(r"<NWL\b|<LADDER\b", text, re.I):
+                required.append("M_Advance")
+            missing = [token for token in required
+                       if not re.search(r"\b" + token + r"\b", text)]
             if missing:
                 findings.append(Finding(
                     path, 1, "S1",

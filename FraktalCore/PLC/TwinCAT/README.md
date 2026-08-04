@@ -207,60 +207,46 @@ correct chart is not forced to pretend it is ST.
 
 ### Building an LD chain (integer-based state machine)
 
-Ladder expresses the same chain as an explicit state machine over the inherited
-`_step`. The rungs are pure dispatch and the logic stays in actions, so an LD
-chain and an ST chain differ only in how the branch is selected:
+A ladder rung has no statement context: a box runs because **power reaches it**.
+Every step-facing method therefore needs a boolean it can be wired to, so ladder
+chains extend **`FB_SequenceBaseLd`**, which re-exposes the whole step vocabulary
+with `Run : BOOL` as the first input and delegates to `SUPER^` when `Run` is TRUE.
+A call with `Run = FALSE` is a no-op and a value-returning one yields its
+fail-closed default (`M_Await` → `FALSE`, `M_Delay` → `NONE`, `M_TakeDecision` → 0).
+
+One rung per state, gated on the inherited `_step`, with the boxes chained left to
+right so power flows through them in order:
 
 ```
-Rung n : [ EQ(_step, 200) ]────────( A200_RamDown )      // state-gated action call
+[ EQ(_step, 0) ]──┬─(assign _outCmd.CycleCompleted / .Homed / .ChangeoverCompleted)
+                  └─[ MOVE ]──[ M_Step ]──[ M_Advance ]
+                     ADVANCE    StepNo 0    OnAdvance 100
+                     → _retVal  …           OnJump1..3 −1
 ```
 
-Each action is the ST branch **verbatim, including its `M_Advance` call** — unlike
-SFC, the ladder does not evaluate transitions, so the action still commits its own
-result and the `OnJump1..3` mapping keeps jumps declarative. One rung per state,
-in step order, is the whole body. There is no equivalent of `MainAction` to bind:
-the call lives in the rung.
+Ladder rungs **dispatch only — they do not evaluate transitions**, so unlike SFC
+each rung still ends in `M_Advance` and the `OnJump1..3` mapping keeps jumps
+declarative. Only the rung whose gate matches the current `_step` does anything,
+and a state change takes effect on the next scan, so rung order does not matter.
 
-A ladder body is stored very differently from an SFC one, and much more openly:
+Where a step's logic is conditional rather than a straight series, put it in a
+`Run`-gated method and keep the rung uniform — that is the point of the `Run`
+input, and it is why the ladder face is a base class rather than a convention.
 
-```xml
-<LADDER><XmlArchive><Data>
-  <o t="LadderImplementationObject">
-    <v n="ModelJson">"{ "$type": "LadderDataModel", "Networks": [ … ] }"</v>
-```
+The body is stored as a **`<NWL>` network list** (`DefaultViewMode: "Ld"`), a
+serialized object graph of `BoxTreeBox` / `BoxTreeOperand` / `BoxTreeDemux` /
+`BoxTreeAssign` nodes with `Id` identities — not the `ModelJson` document an empty
+ladder shell first suggests. Generating rungs from one worked example is possible;
+generating them from none is not.
 
-It is a **JSON document in a single attribute**, not a serialized object graph —
-so a ladder body is far more amenable to generation than an SFC chart, once one
-real rung exists to derive the element vocabulary from.
+> **Signature note for the first compile.** `FB_SequenceBaseLd` re-declares
+> inherited names with an extra `Run` input, which is not a signature-compatible
+> override. If a pinned compiler rejects it, the fix is to give the ladder face
+> distinct names (`M_StepLd`, `M_AdvanceLd`, …) — the delegation body is unchanged.
 
-`FB_LD_PressDemoAuto` ships with its declaration, `Setup`/`M_Reset` and all
-sixteen rung actions, over the empty network TwinCAT creates. The rungs to draw
-are mechanical and identical in shape:
-
-| Rung | Gate | Call |
-|---|---|---|
-| 1 | `EQ(_step, 0)` | `A000_Initialize` |
-| 2 | `EQ(_step, 100)` | `A100_AwaitTwoHand` |
-| 3 | `EQ(_step, 110)` | `A110_RamUp` |
-| 4 | `EQ(_step, 130)` | `A130_DoorOpen` |
-| 5 | `EQ(_step, 150)` | `A150_SlideInside` |
-| 6 | `EQ(_step, 170)` | `A170_TransferSettle` |
-| 7 | `EQ(_step, 180)` | `A180_DoorClose` |
-| 8 | `EQ(_step, 185)` | `A185_DoorReopen` |
-| 9 | `EQ(_step, 190)` | `A190_SlideOutsideAfterAbort` |
-| 10 | `EQ(_step, 200)` | `A200_RamDown` |
-| 11 | `EQ(_step, 210)` | `A210_ConfirmPressFailure` |
-| 12 | `EQ(_step, 215)` | `A215_ScrapPart` |
-| 13 | `EQ(_step, 220)` | `A220_PressDwell` |
-| 14 | `EQ(_step, 230)` | `A230_RecordResult` |
-| 15 | `EQ(_step, 240)` | `A240_ReturnToLoadPosition` |
-| 16 | `EQ(_step, 999)` | `A999_CycleComplete` |
-
-Because each action commits its own transition, the rungs need no ordering
-guarantees beyond being evaluated once per scan: only the rung whose gate matches
-the current `_step` does anything, and a state change takes effect on the next
-scan. Rule **S1** enforces the difference — a `<LADDER>` chain must carry
-`M_Advance(`, an `<SFC>` chart must not need it.
+Rule **S1** knows the difference between the three faces: an `<SFC>` chart must
+not need `M_Advance`, a `<NWL>`/`<LADDER>` chain must carry it, and an ST chain
+needs the full `CASE _step OF` skeleton.
 
 ### Two TcUnit gates, and why they are separate
 

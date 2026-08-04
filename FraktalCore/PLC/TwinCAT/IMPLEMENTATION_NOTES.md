@@ -2648,3 +2648,51 @@ chain must carry `M_Advance(` because its rungs do not transition, while an
 Not verified here: no TwinCAT compiler in this environment. The rungs are not
 drawn, so the POU compiles as a chain whose body does nothing until they exist —
 the actions themselves are complete.
+
+## 105. The ladder face is a base class: FB_SequenceBaseLd (2026-08-03)
+
+§104 was wrong about how a ladder chain calls the framework. A rung has no
+statement context — a box runs because **power reaches it** — so a method cannot
+simply be "called from a rung"; it needs a boolean input to wire that power to.
+The user's `FB_SequenceBaseLd` establishes the pattern: re-expose the step
+vocabulary with `Run : BOOL` as the FIRST input and delegate to `SUPER^` when it
+is TRUE. Nineteen further methods now follow those two, so the whole vocabulary is
+wireable: awaits, gate/issue, delay, part lifecycle, decisions, stop/end-of-cycle,
+fault, sub-chain and the shared exit action. A call with `Run = FALSE` is a no-op
+and a value-returning one yields its fail-closed default.
+
+The worked rung (N000) shows the shape: `EQ(_step, 0)` gates the rung, and the
+boxes chain left to right through `InputItems` so power flows
+`MOVE(_retVal := ADVANCE)` → `M_Step` → `M_Advance`, with a `BoxTreeAssign`
+writing the three `_outCmd` flags. Rungs dispatch but do not evaluate transitions,
+so each still ends in `M_Advance`.
+
+**S1 had three blind spots, all found by this one file:**
+
+- **`<NWL>`.** A ladder body is a *network list* — the `<LADDER>`/`ModelJson`
+  form seen in the empty shell is not what TwinCAT writes once the POU has
+  content. §104's fix matched `<LADDER>` and missed the real thing.
+- **Direct-inheritance test.** S1 compared the base name for equality, so every
+  chain behind `FB_SequenceBaseLd` was skipped entirely — the ladder POU was never
+  checked. It now walks the chain with `derives()`.
+- **ABSTRACT bases.** With the chain walk in place, `FB_SequenceBaseLd` itself was
+  flagged for lacking `_retVal`. A base is scaffolding, not a chain.
+
+Also: in a network list a call appears as a `BoxType` string (`"M_Step"`), never
+the ST call syntax, so the token check matches names rather than `M_Step(`. Three
+fixtures cover the chain walk, the abstract skip and an `<NWL>` body.
+
+**Open risk, deliberately not resolved here.** Re-declaring an inherited method
+with an extra input is not a signature-compatible override in IEC 61131-3. The
+pattern is the user's and is followed consistently, but the first compile is the
+authority; if it is rejected the fix is distinct names (`M_StepLd`, …) with the
+same delegation bodies.
+
+**Remaining rungs not generated.** The `<NWL>` graph is replicable from an
+example, but N000 is unconditional — an `EQ` gate plus a straight box chain. Every
+other step branches (`IF _pressRam.Done`, `IF M_MayIssue`, `IF/ELSIF`), and the
+contact/branch vocabulary for that appears nowhere in this file. Generating them
+would mean inventing that part of the graph with no compiler to check it, on a
+file that has already been rebuilt twice. One conditional rung — N110 ram-up is
+the smallest — supplies the missing vocabulary, after which the remaining rungs
+are mechanical.
