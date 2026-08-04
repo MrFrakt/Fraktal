@@ -531,6 +531,35 @@ class CondInfo {
   const CondInfo(this.label, this.ok);
 }
 
+/// One row of the §3.13 sequence flow chart, discovered by the PLC from its own
+/// `_M_SetStep` calls. [awaitsPath] is the module the step commands — empty when
+/// the step commands nothing, or when it deliberately dropped its await to own
+/// that child's failure, so an empty path means "not click-through", never
+/// "unknown".
+class SequenceStep {
+  final int stepNo;
+  final String stepName;
+  final String awaitingLabel;
+  final String awaitsPath;
+  final TimeClass timeClass;
+  final Duration expected;
+  final bool visited;
+  final Duration lastDuration;
+  const SequenceStep({
+    this.stepNo = 0,
+    this.stepName = '',
+    this.awaitingLabel = '',
+    this.awaitsPath = '',
+    this.timeClass = TimeClass.work,
+    this.expected = Duration.zero,
+    this.visited = false,
+    this.lastDuration = Duration.zero,
+  });
+
+  /// A step is click-through only when the PLC declared its target directly.
+  bool get drillsDown => awaitsPath.isNotEmpty;
+}
+
 class StepInfo {
   final int stepNo;
   final String stepName;

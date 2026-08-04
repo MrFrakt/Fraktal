@@ -7,6 +7,7 @@ import '../domain/types.dart';
 enum ModuleTabKind {
   overview,
   description,
+  sequence,
   motion,
   vision,
   codeReader,
@@ -82,6 +83,7 @@ enum ModuleControlWidth { quarter, third, half, twoThirds, full }
 
 class ModuleTabCapabilities {
   final bool unit;
+  final bool sequence;
   final bool motion;
   final bool vision;
   final bool codeReader;
@@ -89,6 +91,7 @@ class ModuleTabCapabilities {
 
   const ModuleTabCapabilities({
     this.unit = false,
+    this.sequence = false,
     this.motion = false,
     this.vision = false,
     this.codeReader = false,
@@ -422,6 +425,7 @@ class ModuleTabDefinition {
       switch (kind) {
         ModuleTabKind.overview => ModuleTabIcon.dashboard,
         ModuleTabKind.description => ModuleTabIcon.description,
+        ModuleTabKind.sequence => ModuleTabIcon.checklist,
         ModuleTabKind.motion => ModuleTabIcon.machine,
         ModuleTabKind.vision => ModuleTabIcon.camera,
         ModuleTabKind.codeReader => ModuleTabIcon.scanner,
@@ -554,6 +558,12 @@ class ModuleTabDefinition {
         title: 'std.module.tab.description',
         kind: ModuleTabKind.description,
       ),
+      if (capabilities.sequence)
+        const ModuleTabDefinition(
+          id: 'sequence',
+          title: 'std.module.tab.sequence',
+          kind: ModuleTabKind.sequence,
+        ),
       if (capabilities.motion)
         const ModuleTabDefinition(
           id: 'motion',

@@ -294,6 +294,25 @@ class OpcUaSnapshotMapper {
             ? MachineState.values[machineStateValue]
             : null;
       }
+      // §3.13 sequence flow chart rows, bounded by the published count.
+      final sequenceSteps = <SequenceStep>[];
+      final sequenceCount = _integer(values['$base/SequenceStepCount']);
+      for (var i = 1; i <= sequenceCount; i++) {
+        final prefix = _indexedPrefix(values, '$base/SequenceSteps', i,
+            parentPaths: parentPaths);
+        if (prefix == null) continue;
+        sequenceSteps.add(SequenceStep(
+          stepNo: _integer(values['$prefix/StepNo']),
+          stepName: _string(values['$prefix/StepName']),
+          awaitingLabel: _string(values['$prefix/AwaitingLabel']),
+          awaitsPath: _string(values['$prefix/AwaitsPath']),
+          timeClass: _enumAt(TimeClass.values,
+              _integer(values['$prefix/TimeClass']), TimeClass.work),
+          expected: _duration(values['$prefix/ExpectedTime']),
+          visited: _boolean(values['$prefix/Visited']),
+          lastDuration: _duration(values['$prefix/LastDuration']),
+        ));
+      }
       final stepStats = <StepStat>[];
       if (isUnit) {
         for (var i = 1; i <= 32; i++) {
@@ -729,6 +748,10 @@ class OpcUaSnapshotMapper {
         lastCycleTime: lastCycleTime,
         minCycleTime: minCycleTime,
         stepStats: stepStats,
+        sequenceViewEnabled: _boolean(values['$base/SequenceViewEnabled']),
+        sequenceSteps: sequenceSteps,
+        currentStepElapsed: _duration(values['$base/CurrentStepElapsed']),
+        currentStepTimedOut: _boolean(values['$base/CurrentStepTimedOut']),
         commandTimings: commandTimings,
         machineState: machineState,
         blocking: _boolean(values['$base/AlarmLog/Blocking']),

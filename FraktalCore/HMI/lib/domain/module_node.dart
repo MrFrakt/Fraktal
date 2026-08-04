@@ -107,6 +107,12 @@ class ModuleNode {
   final List<CfgField> config; // §3.8a editable persistent data
   final StepInfo? step; // §6.5/§6.9 current step (Units)
   final List<StepStat> stepStats; // §8.11.4 Pareto (Units)
+  // §3.13 sequence flow chart. The PLC decides whether this module has a chain
+  // worth drawing; the HMI never guesses from the module type.
+  final bool sequenceViewEnabled;
+  final List<SequenceStep> sequenceSteps;
+  final Duration currentStepElapsed;
+  final bool currentStepTimedOut;
   final List<CommandInfo>
       commands; // §7.6.1 published manual-command catalog (CM/EM)
   final Nameplate? nameplate; // §3.10.1 asset identity (null = none published)
@@ -174,6 +180,10 @@ class ModuleNode {
     this.config = const [],
     this.step,
     this.stepStats = const [],
+    this.sequenceViewEnabled = false,
+    this.sequenceSteps = const [],
+    this.currentStepElapsed = Duration.zero,
+    this.currentStepTimedOut = false,
     this.commands = const [],
     this.nameplate,
     this.running = false,

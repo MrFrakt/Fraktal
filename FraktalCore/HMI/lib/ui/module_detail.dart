@@ -21,6 +21,7 @@ import 'facet_cards.dart';
 import 'overview_and_indicators.dart';
 import 'module_information.dart';
 import 'custom_module_tabs.dart';
+import 'sequence_module_tab.dart';
 import 'touch_text_field.dart';
 import 'module_layout_editor.dart';
 
@@ -268,6 +269,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
               ModuleDocumentsCard(app: app, node: node),
             ],
           ),
+        ModuleTabKind.sequence =>
+          SequenceModuleTab(app: app, node: node),
         ModuleTabKind.motion => MotionModuleTab(node: node),
         ModuleTabKind.vision => VisionModuleTab(app: app, node: node),
         ModuleTabKind.codeReader => CodeReaderModuleTab(app: app, node: node),

@@ -273,3 +273,31 @@ rate/standing/stale/chatter/flood analytics) is likewise owned once by the chose
 station/line aggregator or historian, not duplicated in every root HMI. Unknown external/application reasons still fall back to the PLC
 diagnostic description and require a complete runtime rationalization before
 they may be shelved.
+
+## Sequence flow chart (§3.13)
+
+| PLC symbol | Type | HMI use |
+|---|---|---|
+| `<module>/SequenceViewEnabled` | BOOL | shows or hides the **Sequence** tab for that module. The PLC owns this: a type too simple to be worth drawing leaves it FALSE, a Unit defaults TRUE and may vary it per mode. The HMI never infers it from the module type. |
+| `<unit>/SequenceStepCount` | INT | published length of the rows below; a row beyond it is ignored even if present on the wire |
+| `<unit>/SequenceSteps[i]/StepNo` | INT | row label (`N100`) and the key matched against `CurrentStep/StepNo` to find the active row |
+| `<unit>/SequenceSteps[i]/StepName` | STRING | localization key for the row title |
+| `<unit>/SequenceSteps[i]/AwaitingLabel` | STRING | secondary line, e.g. `PressRam.EXTEND` |
+| `<unit>/SequenceSteps[i]/AwaitsPath` | STRING | **drill-down target.** Non-empty ⇒ the row is click-through and selects that module. Empty ⇒ tapping opens the step detail instead |
+| `<unit>/SequenceSteps[i]/TimeClass` | E_TimeClass | shown in the step detail |
+| `<unit>/SequenceSteps[i]/ExpectedTime` | TIME | the guard drawn beside the elapsed time (`1.4 s / 2.0 s`); 0 = no guard |
+| `<unit>/SequenceSteps[i]/Visited` | BOOL | dims rows the chain has not reached yet |
+| `<unit>/SequenceSteps[i]/LastDuration` | TIME | elapsed shown on an inactive row |
+| `<unit>/CurrentStepElapsed` | TIME | elapsed shown on the **active** row |
+| `<unit>/CurrentStepTimedOut` | BOOL | active row blinks between surface and error container |
+
+**The inventory is discovered, not authored.** The PLC registers each step the
+first time it runs, so a chain author writes nothing and a step not yet reached is
+simply absent — the chart shows what the chain has actually done, never a
+hand-maintained drawing that can drift from the code.
+
+**`AwaitsPath` is the "direct wiring" rule.** A row is click-through only when the
+step *declared* the module it commands through `Awaits`; no `IF`/`CASE` chose it.
+A step that drops its await — to own that child's failure and disposition it
+itself, as press AUTO `N200` does — publishes an empty path and is deliberately
+not click-through. The HMI must not guess a target from the label.

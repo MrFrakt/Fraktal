@@ -22,6 +22,9 @@ ModuleTabCapabilities moduleTabCapabilities(ModuleNode node) {
   bool hasKey(String suffix) => keys.any((key) => key.endsWith(suffix));
   return ModuleTabCapabilities(
     unit: node.isUnit,
+    // The PLC owns this one: SequenceViewEnabled is published per module,
+    // so a type too simple to draw suppresses its own tab (§3.13).
+    sequence: node.sequenceViewEnabled && node.sequenceSteps.isNotEmpty,
     motion: node.motion != null,
     vision: identity.contains('vision') ||
         identity.contains('camera') ||
