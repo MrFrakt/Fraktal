@@ -26,6 +26,13 @@ END_VAR
 VAR_OUTPUT
     Profiler    : FB_CycleProfiler;    // §8.11.4 — HMI chart source
     CurrentStep : ST_StepRecord;       // §6.5 — feeds §6.9 walk AND the profiler
+    // §3.13 sequence flow chart. Discovered from _M_SetStep, so a chain author
+    // writes nothing; SequenceStepCount is the published length (§8.4 bounded).
+    SequenceSteps : ARRAY[1..PL_Fraktal.MAX_SEQUENCE_STEPS] OF ST_SequenceStep;
+    SequenceStepCount : INT;
+    CurrentStepElapsed : TIME;         // how long the active step has been running
+    CurrentStepTimedOut : BOOL;        // active step outran its guard (§6.9 stall)
+
     Pending     : ST_Diagnostic;       // live stall reason (Low) — NOT a fault (§6.9)
     Decision    : ST_DecisionRequest;  // §6.11 active request ('' Prompt = none)
     {attribute 'OPC.UA.DA' := '0'}
@@ -80,6 +87,8 @@ VAR
     _awaits   : I_Module;              // module the current step awaits (0 = none)
     _faultEvt : INT;                   // open ERROR event slot in AlarmLog (0 = none)
     _tStall   : TON;
+    _seqIndex : INT;                   // row of the active step in SequenceSteps
+    _stepSinceMs : DWORD;              // monotonic start of the active step
     _tDecision: TON;                   // §6.11 monotonic active-decision timeout
     _decisionConflictLogged : BOOL;    // one audit record per conflicting request
     _decisionResolutionLogged : BOOL;  // operator/timeout resolution logged once
@@ -958,6 +967,14 @@ METHOD PROTECTED _M_PublishStatus]]></Declaration>
         <ST><![CDATA[SUPER^._M_PublishStatus();
 // §8.11.4(f)/§8.11.3 — one declaration, two views. Derived AFTER dispatch so the
 // wait class reflects the step record this scan just set, not the previous one.
+// §3.13 — live row state for the flow chart: how long the active step has run,
+// and whether it outran its declared guard (the same watchdog §6.9 stalls on).
+IF _exec = E_ExecState.BUSY THEN
+    CurrentStepElapsed := DWORD_TO_TIME(TIME_TO_DWORD(TIME()) - _stepSinceMs);
+ELSE
+    CurrentStepElapsed := T#0S;
+END_IF
+CurrentStepTimedOut := _tStall.Q;
 Starved := (_exec = E_ExecState.BUSY) AND (CurrentStep.TimeClass = E_TimeClass.WAIT_UPSTREAM);
 Blocked := (_exec = E_ExecState.BUSY) AND (CurrentStep.TimeClass = E_TimeClass.WAIT_DOWNSTREAM);
 // §8.11.3 — classify into the fixed machine-state set (priority: fault first,
@@ -1110,6 +1127,64 @@ END_VAR]]></Declaration>
         <ST><![CDATA[_M_RouteManual := FALSE;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_M_RecordSequenceStep" Id="{bae7334e-b67d-46db-a917-aa05f1522e0f}">
+      <Declaration><![CDATA[// §3.13 — keep the published flow chart in step with the chain.
+// Called only from _M_SetStep, so every step of every chain lands here exactly
+// once per visit and a chain author writes nothing (§1.1 O1). Rows are matched by
+// StepNo, appended on first sight and bounded: an overflowing chain publishes the
+// first MAX_SEQUENCE_STEPS rows rather than dropping the chart.
+METHOD PROTECTED _M_RecordSequenceStep
+VAR_INPUT
+    StepNo        : INT;
+    StepName      : STRING(120);
+    Awaits        : I_Module;
+    AwaitingLabel : STRING(120);
+    TimeClass     : E_TimeClass;
+    ExpectedTime  : TIME;
+END_VAR
+VAR
+    i    : INT;
+    hit  : INT;
+    path : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[hit := 0;
+FOR i := 1 TO SequenceStepCount DO
+    IF SequenceSteps[i].StepNo = StepNo THEN
+        hit := i;
+        EXIT;
+    END_IF
+END_FOR
+IF hit = 0 THEN
+    IF SequenceStepCount >= PL_Fraktal.MAX_SEQUENCE_STEPS THEN
+        RETURN;                        // bounded: publish what fits, never overrun
+    END_IF
+    SequenceStepCount := SequenceStepCount + 1;
+    hit := SequenceStepCount;
+END_IF
+// The drill-down target is the module the step DECLARES it commands. Reading it
+// here is what makes the link unambiguous: no IF/CASE chose it (§3.13).
+path := '';
+IF Awaits <> 0 THEN
+    path := Awaits.Name;
+END_IF
+SequenceSteps[hit].StepNo        := StepNo;
+SequenceSteps[hit].StepName      := StepName;
+SequenceSteps[hit].AwaitingLabel := AwaitingLabel;
+SequenceSteps[hit].AwaitsPath    := path;
+SequenceSteps[hit].TimeClass     := TimeClass;
+SequenceSteps[hit].ExpectedTime  := ExpectedTime;
+SequenceSteps[hit].Visited       := TRUE;
+IF hit <> _seqIndex THEN
+    IF (_seqIndex >= 1) AND (_seqIndex <= SequenceStepCount) THEN
+        SequenceSteps[_seqIndex].LastDuration := CurrentStepElapsed;
+    END_IF
+    _seqIndex := hit;
+    _stepSinceMs := TIME_TO_DWORD(TIME());
+    CurrentStepElapsed := T#0S;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_M_SetStep" Id="{1066dd3c-baf2-43ea-91d5-309ad4ca7878}">
       <Declaration><![CDATA[// §6.5 — the ONE line per step: record for the §6.9 walk AND the §8.11.4 profiler
 METHOD PROTECTED _M_SetStep
@@ -1139,6 +1214,8 @@ CurrentStep.AwaitingLabel := AwaitingLabel;
 CurrentStep.TimeClass     := TimeClass;
 CurrentStep.ExpectedTime  := ExpectedTime;
 _awaits := Awaits;
+_M_RecordSequenceStep(StepNo := StepNo, StepName := StepName, Awaits := Awaits,
+    AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime);
 Profiler.StepChanged(StepNo := StepNo, StepName := StepName, TimeClass := TimeClass,
     Expected := ExpectedTime);]]></ST>
       </Implementation>
@@ -1838,6 +1915,8 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnInit := SUPER^.OnInit();
+SequenceViewEnabled := TRUE;   // §3.13 a Unit has a chain worth drawing;
+                               // a concrete Unit may vary this per mode
 Access.Setup(Provider := 0, pAlarmLog := ADR(AlarmLog)); // preserves an injected provider
 _healthPublisher.Setup(SourcePath := CONCAT(Status.Name, '.SystemHealth'),
     pAlarmLog := ADR(AlarmLog));

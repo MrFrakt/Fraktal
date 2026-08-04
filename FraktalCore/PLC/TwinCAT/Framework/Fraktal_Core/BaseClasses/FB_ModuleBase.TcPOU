@@ -23,6 +23,10 @@ VAR_OUTPUT
     // contract (§3.10(a')) and the HMI mirrors its ordinals, so HELD is published
     // as its own flag beside Busy/Done/Error/Aborted and never renumbers the set.
     Held    : BOOL;
+    // §3.13 — does this module publish a sequence flow chart? A type that has
+    // no meaningful chain leaves it FALSE and the HMI omits the tab entirely;
+    // FB_UnitBase defaults it TRUE and a Unit may vary it per mode.
+    SequenceViewEnabled : BOOL;
     ErrorID : DWORD;   // = TO_DWORD(first-out ReasonCode), Core §8.8
 END_VAR
 VAR_OUTPUT

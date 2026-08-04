@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_SequenceStep" Id="{96a6cc7d-6da4-43e1-b681-49a112c3dfea}">
+    <Declaration><![CDATA[// Core §6.5/§3.13 — one row of the published sequence flow chart.
+// The inventory is discovered, never authored: every step reaches _M_SetStep, so
+// the base records it the first time it runs. A step not yet reached is simply
+// absent, which is honest - the chart shows what the chain has actually done.
+TYPE ST_SequenceStep :
+STRUCT
+    StepNo        : INT;
+    StepName      : STRING(120);   // localization key
+    AwaitingLabel : STRING(120);   // e.g. 'PressRam.EXTEND' ('' if none)
+    // §3.13 drill-down target: the Fraktal path of the module this step commands,
+    // taken from the Awaits reference. Empty when the step commands nothing, or
+    // when the step deliberately owns its child's failure and passes Awaits := 0.
+    AwaitsPath    : STRING(255);
+    TimeClass     : E_TimeClass;
+    ExpectedTime  : TIME;          // 0 = no declared guard
+    Visited       : BOOL;          // reached at least once since the chain reset
+    LastDuration  : TIME;          // how long it ran on its last visit
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

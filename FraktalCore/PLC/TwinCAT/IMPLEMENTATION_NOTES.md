@@ -2696,3 +2696,50 @@ would mean inventing that part of the graph with no compiler to check it, on a
 file that has already been rebuilt twice. One conditional rung — N110 ram-up is
 the smallest — supplies the missing vocabulary, after which the remaining rungs
 are mechanical.
+
+## 106. Sequence flow-chart contract (PLC half) (2026-08-03)
+
+The HMI wants a per-module tab drawing the whole chain: every step, the active one
+highlighted with its elapsed time, red when it outruns its guard, and click-through
+from a step to the module it commands. Today only `CurrentStep` is published, so
+the PLC half had to come first.
+
+**The inventory is discovered, not authored.** `_M_SetStep` is the single funnel
+every step of every chain already passes through, so `_M_RecordSequenceStep`
+registers each step there the first time it is seen, matched by `StepNo` and
+bounded by `MAX_SEQUENCE_STEPS` (32). A chain author writes **nothing** — the §1.1
+O1 trimming rule applied to a new feature rather than retrofitted afterwards. A
+step not yet reached is simply absent, which is honest: the chart shows what the
+chain has actually done.
+
+New/changed contract:
+
+- `ST_SequenceStep` — StepNo, StepName, AwaitingLabel, **AwaitsPath**, TimeClass,
+  ExpectedTime, Visited, LastDuration.
+- `FB_UnitBase`: `SequenceSteps` + `SequenceStepCount`, `CurrentStepElapsed`,
+  `CurrentStepTimedOut` (the same `_tStall` watchdog §6.9 stalls on).
+- `FB_ModuleBase`: `SequenceViewEnabled` — every module can enable or suppress its
+  own tab, so a type too simple to be worth drawing leaves it FALSE. `FB_UnitBase`
+  defaults it TRUE in `OnInit`, and a concrete Unit may vary it per mode.
+
+**`AwaitsPath` is the "direct wiring".** The drill-down target is the module the
+step *declares* through `Awaits`, read once in `_M_SetStep` — no `IF`/`CASE` chose
+it, so the link is unambiguous by construction. This gives the rule its teeth: a
+step that wants to be click-through **shall** pass a constant module reference to
+`Awaits` and command that module unconditionally in the same step.
+
+Two consequences worth stating plainly:
+
+- A step that passes `Awaits := 0` publishes an empty `AwaitsPath` and is therefore
+  **not** click-through. Press AUTO `N200` is exactly this case — it dropped its
+  await deliberately to own the ram's failure (§99), so it trades drill-down for
+  disposition. That is a real trade the chart now makes visible.
+- H1 caught this work in the act: the first version set `SequenceViewEnabled`
+  before `SUPER^.OnInit()`. The gate was right and the line moved.
+
+**Not done here: the HMI half.** The Flutter side needs the domain model, the
+snapshot mapper rows, a `ModuleTabKind.sequence` tab rendering the chart, the
+click-through into `AwaitsPath`, and the step-detail panel for a step with no
+failure state. The contract above is what it will bind to.
+
+Not verified here: no TwinCAT compiler in this environment.
