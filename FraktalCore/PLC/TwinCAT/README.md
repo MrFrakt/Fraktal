@@ -151,8 +151,14 @@ rest is mechanical and can be scripted.
 1. **Write the step bodies as ACTIONS.** `MainAction` resolves to an *action* of
    the POU, never a method. Each action is the ST branch **minus** its
    `M_Advance` call: an action only produces `_retVal`.
-2. **Draw the steps.** Name them after their actions (`A200` → `A200_RamDown`) so
-   the binding is obvious to a reviewer.
+2. **Name a step `N<StepNo>`, and its action `A<StepNo>_<What>`.** The step carries
+   the same number the step record publishes (`M_Step(StepNo := 200)` → step `N200`
+   → row `N200` on the §3.13 chart → `200:` in the ST twin), so one step number
+   reads identically in the chart, the code, the operator's flow chart and a stall
+   message. The action keeps the `A` prefix precisely so the two never blur: in the
+   archive a step and its `MainAction` are different objects, and `N200` bound to
+   `A200_RamDown` says which is which at a glance. A step's "wait at the join"
+   placeholder follows the same rule (`N250` → `_aN250_active`).
 3. **Every transition is `_retVal = E_StepResult.ADVANCE`**, except a jump branch,
    which is `_retVal = E_StepResult.JUMP1` (`JUMP2`/`JUMP3` for further branches).
 4. **Bind each step's `MainAction`.** The attribute is

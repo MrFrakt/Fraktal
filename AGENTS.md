@@ -116,6 +116,10 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   by hand works but hides the graph inside conditionals and defeats the check, so ST
   chains **shall** use `M_Advance`. Unused jumps are defaulted: pass `OnJump1 := 185`
   only for jumps the step really has, never `OnJumpN := -1`.
+- **SFC naming**: a step is `N<StepNo>`, its action is `A<StepNo>_<What>`. The step
+  number is then the same token in the chart, the ST twin's `CASE` label, the §3.13
+  row and the stall message; the differing prefix keeps a step distinguishable from
+  its action object in the archive.
 - **SFC**: step bodies are **ACTIONS** (not methods — `MainAction` resolves to an
   action), each the ST branch **minus** `M_Advance`. Transitions are
   `_retVal = E_StepResult.ADVANCE`, and a jump branch is `… = E_StepResult.JUMP1`.

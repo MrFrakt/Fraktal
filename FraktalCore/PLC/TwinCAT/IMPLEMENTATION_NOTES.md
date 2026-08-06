@@ -3400,3 +3400,22 @@ Still outstanding: `FraktalTests` and `PressTests` return FALSE because `Fraktal
 *Save as library and install* step the workflow doc describes and the automation
 deliberately never performs, so the seven new TcUnit suites remain unexecuted — but they
 are now the only thing between here and a real test run.
+
+## 120. SFC step naming: N for steps, A for actions (2026-08-05)
+
+The SFC chart's steps were renamed `A<n>` → **`N<n>`** (`A200` → `N200`, and the join
+placeholders `_aA250_active` → `_aN250_active`); the action objects keep `A<n>_<What>`.
+
+It is a small change that removes a real friction. `N` is already the step token
+everywhere else in Fraktal — `M_Step(StepNo := 200)`, the `200:` label in the ST twin,
+the `N200` row on the §3.13 chart, the `Step N200 stalled → …` first-out message. The
+chart was the only surface calling it `A200`, so a reader tracing one step across the
+chart, the code and the operator's screen had to translate at exactly the moment they
+were already confused.
+
+Keeping `A` on the *action* is the other half: in the archive a step and its
+`MainAction` are separate objects bound by GUID, and `N200 → A200_RamDown` says which
+is which without opening either. Same number, different prefix, no ambiguity.
+
+Documented in the README's SFC build procedure and in AGENTS.md so a generated chart
+follows it.
