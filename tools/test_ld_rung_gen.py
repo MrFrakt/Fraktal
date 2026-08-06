@@ -1,11 +1,27 @@
+import re
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from tools.ld_dump import network_lines
 from tools.ld_rung_gen import (
+    PLAIN,
+    RESET,
+    Allocator,
+    Coil,
+    Contact,
+    Rail,
     RungError,
+    Term,
+    Value,
+    Wire,
     clone,
+    compare,
+    logic,
     max_identifiers,
+    method,
+    move,
+    network,
     rebuild,
     split_networks,
 )
@@ -224,6 +240,182 @@ class LdToEnConversionTests(unittest.TestCase):
         import re
         self.assertEqual(re.findall(r'<v n="BoxType">"(M_\w+Ld)"</v>', source), [])
         self.assertIn("EXTENDS FB_SequenceBase\n", source)
+
+
+STEP_PARAMS = [("StepNo", "INT"), ("StepName", "STRING(120)"),
+               ("Awaits", "I_Module"), ("AwaitingLabel", "STRING(120)"),
+               ("TimeClass", "E_TimeClass"), ("ExpectedTime", "TIME"),
+               ("Branch", "INT")]
+
+
+class SynthesisTests(unittest.TestCase):
+    """Building a rung from its declaration, with no donor to clone."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = LADDER.read_text(encoding="utf-8")
+
+    # -- the acid test -----------------------------------------------------
+    #
+    # N999 was drawn by hand in the XAE editor. If the emitter reproduces it
+    # node for node, pin for pin and flag for flag, then a rung it emits for a
+    # box with NO instance to clone is trustworthy for exactly the same reason.
+
+    @staticmethod
+    def _n999(alloc):
+        rail = alloc.take_var()
+        tap = lambda: Rail(rail)                                    # noqa: E731
+        step = lambda nodes: [                                      # noqa: E731
+            (name, type_name, node)
+            for (name, type_name), node in zip(STEP_PARAMS, nodes)]
+        return [
+            Wire(rail, compare("EQ", Term(), Value("_step", "INT"),
+                               Value("999", "INT"))),
+            method("M_Step", tap(), step([
+                Value("999", "INT"),
+                Value.text("project.step.pressAutoComplete"),
+                Value("0", "INT"),
+                Value.text(""),
+                Value("E_TimeClass.WORK", "E_TIMECLASS"),
+                Value("T#0S", "TIME"),
+                Value("0", "INT")])),
+            Coil("_outCmd.CycleCompleted", tap(), PLAIN),
+            method("M_PartProcessed",
+                   logic("AND", [tap(), Contact("_partDispositioned",
+                                                negated=True)]),
+                   [("Verdict", "E_Verdict", Value("E_Verdict.OK", "E_VERDICT")),
+                    ("Reason", "E_Reason", Value("E_Reason.NONE", "E_REASON"))],
+                   returns=("M_PartProcessed", "BOOL"), result="_processed"),
+            method("M_CountGood", logic("AND", [tap(), Contact("_processed")])),
+            Coil("_partDispositioned",
+                 logic("AND", [tap(), Contact("_partDispositioned")]), RESET),
+            Coil("_partInMachine", tap(), RESET),
+            Coil("_startLatched", tap(), RESET),
+            method("M_EndOfCycle", tap(), returns=("M_EndOfCycle", "BOOL"),
+                   result="_endCycle"),
+            move(logic("AND", [tap(), Contact("_endCycle")]),
+                 Value("100", "INT"), "_step", "INT"),
+        ]
+
+    @staticmethod
+    def _normalise_rails(lines):
+        # Rail numbers are freshly allocated; only the PATTERN of reuse matters.
+        seen, out = {}, []
+        for line in lines:
+            for number in re.findall(r"var=(\d+)", line):
+                seen.setdefault(number, f"#{len(seen)}")
+                line = line.replace(f"var={number}", f"var={seen[number]}")
+            out.append(line)
+        return out
+
+    def test_synthesis_reproduces_the_editor_drawn_rung(self):
+        _, networks, _, _ = split_networks(self.source)
+        alloc = Allocator.above(self.source)
+        generated = network(self._n999(alloc), alloc)
+        self.assertEqual(
+            self._normalise_rails(network_lines(ET.fromstring(networks[7]),
+                                                show_ids=False)),
+            self._normalise_rails(network_lines(ET.fromstring(generated),
+                                                show_ids=False)))
+
+    def test_synthesis_reproduces_every_operand_flag(self):
+        # The graph dump does not show LValue/Boolean/Fixed/Flags, and those are
+        # what separate a contact from an argument and a Set coil from a Reset.
+        fields = ("Operand", "Type", "LValue", "Boolean", "IsInstance")
+
+        def records(text):
+            rows = []
+            for node in ET.fromstring(text).iter("o"):
+                if node.find("./v[@n='Operand']") is None:
+                    continue
+                read = lambda name: (                               # noqa: E731
+                    node.find(f"./v[@n='{name}']").text
+                    if node.find(f"./v[@n='{name}']") is not None else None)
+                flags = node.find("./o[@n='Flags']")
+                values = [read(name) for name in fields]
+                if values[fields.index("IsInstance")] == "true":
+                    values[fields.index("Type")] = ""   # cosmetic; the file is
+                    # itself inconsistent here (a stale "M_CountGoodLd" survives
+                    # from the …Ld migration next to plain "" on its neighbours)
+                rows.append(tuple(values) + (flags.find("./v[@n='Flags']").text,
+                                             flags.find("./v[@n='Fixed']").text))
+            return rows
+
+        _, networks, _, _ = split_networks(self.source)
+        alloc = Allocator.above(self.source)
+        generated = network(self._n999(alloc), alloc)
+        self.assertEqual(records(networks[7]), records(generated))
+
+    # -- the signature is the whole input ----------------------------------
+
+    def test_method_box_derives_its_pins_from_the_declaration(self):
+        alloc = Allocator(1, 1)
+        box = ET.fromstring(method(
+            "M_Delay", Term(), [("PT", "TIME", Value("T#1S", "TIME"))],
+            returns=("M_Delay", "E_StepResult"), result="_retVal"
+        ).render(alloc))
+        names = [v.text for v in box.findall("./o[@n='InputParam']/l2[@n='Names']/v")]
+        outs = [v.text for v in box.findall("./o[@n='OutputParam']/l2[@n='Names']/v")]
+        wired = [o.find("./v[@n='Operand']").text for o in
+                 box.findall("./o[@n='OutputItems']/l2[@n='OutputItems']/o")]
+        self.assertEqual(names, ["EN", "PT"])
+        # ENO occupies output slot 0; the return value is SECOND. Wiring a
+        # variable into slot 0 puts it on ENO and strands the intended one.
+        self.assertEqual(outs, ["ENO", "M_Delay"])
+        self.assertEqual(wired, ['""', '"_retVal"'])
+
+    def test_a_void_method_gets_an_empty_output_slot_and_no_result(self):
+        alloc = Allocator(1, 1)
+        box = method("M_PartStarted", Term()).render(alloc)
+        self.assertIn('<l2 n="OutputItems">\n', box)
+        self.assertIn("<n />", box)
+        self.assertIn("<v>ENO</v>", box)
+        with self.assertRaises(RungError):
+            method("M_PartStarted", Term(), result="_x")
+
+    def test_a_childs_method_folds_the_instance_into_the_box_type(self):
+        alloc = Allocator(1, 1)
+        box = method("_pressRam.WithdrawOutputs", Term()).render(alloc)
+        self.assertIn('<v n="BoxType">"_pressRam.WithdrawOutputs"</v>', box)
+
+    def test_every_synthesised_item_carries_its_own_type(self):
+        # The silent failure this exists to prevent: a node with no `t=` of its
+        # own parses AND compiles while the box is simply absent.
+        alloc = Allocator(1, 1)
+        rail = alloc.take_var()
+        text = network([Wire(rail, compare("EQ", Term(), Value("_step", "INT"),
+                                           Value("0", "INT"))),
+                        method("M_PartStarted", Rail(rail)),
+                        Coil("_x", Rail(rail), RESET)], alloc)
+        items = ET.fromstring(text).find("./l2[@n='NetworkItems']")
+        self.assertIsNone(items.get("cet"), "a cet would type the items collectively")
+        for item in items:
+            self.assertIsNotNone(item.get("t"), ET.tostring(item)[:80])
+
+    def test_synthesised_ids_are_unique_and_above_the_body(self):
+        _, networks, _, _ = split_networks(self.source)
+        alloc = Allocator.above(self.source)
+        highest_id, _ = max_identifiers(self.source)
+        generated = network(self._n999(alloc), alloc)
+        candidate = rebuild(self.source, networks + [generated])
+        ET.fromstring(candidate)
+        found = re.findall(r'<v n="Id">(\d+)L</v>', candidate)
+        self.assertEqual(len(found), len(set(found)), "duplicate Id in the body")
+        self.assertTrue(all(int(m) > highest_id for m in
+                            re.findall(r'<v n="Id">(\d+)L</v>', generated)))
+
+    def test_string_operand_length_comes_from_the_literal(self):
+        # The declared form STRING(120) belongs in a parameter list; an operand
+        # carries the literal's own length. Mixing them is a silent mismatch.
+        self.assertEqual(Value.text("PressDwell").type_name, "STRING(INT#10)")
+        self.assertEqual(Value.text("").type_name, "STRING(INT#0)")
+
+    def test_network_comment_cannot_break_the_quoting(self):
+        alloc = Allocator(1, 1)
+        with self.assertRaises(RungError):
+            network([], alloc, comment='he said "no"')
+        self.assertIn('<v n="Comment">"215: scrap &amp; return"</v>',
+                      network([], alloc, comment="215: scrap & return"))
 
 
 if __name__ == "__main__":

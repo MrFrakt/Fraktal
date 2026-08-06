@@ -432,6 +432,401 @@ def graft_before(rung: str, host_type: str, donor: str, *, id_base: int,
     return rung[:host_start] + host + rung[host_end:], next_id, next_var
 
 
+# ---------------------------------------------------------------------------
+# Synthesis - declare a node instead of finding a donor to clone
+# ---------------------------------------------------------------------------
+#
+# Cloning has one hard limit: it can only produce box types that already exist
+# somewhere in the file. Every rung needing `M_Delay`, `M_AskDecision`, a
+# child's `WithdrawOutputs` - anything with no instance to copy - stalled on
+# "draw one in XAE first".
+#
+# It does not have to. A `BoxTreeBox` is fully determined by the DECLARATION of
+# the method it calls: `InputParam.Names` is `EN` followed by the `VAR_INPUT`
+# names, `Types` is `BOOL` followed by their types, and `OutputParam` is `ENO`
+# plus - only for a value-returning method - the method's own name and return
+# type. Nothing in it is copied from anywhere. The same is true of the operator
+# boxes, the power rails and the coils, so a whole rung can be written down.
+#
+# The one thing synthesis must never do is emit an untyped `<o>`. A node lifted
+# out of a `<l2 … cet="BoxTreeBox">` list loses the type the list gave it
+# collectively, and an untyped `<o>` parses AND compiles while the box is simply
+# absent. Every node here carries its own `t=`, and `network()` writes
+# `<l2 n="NetworkItems">` with no `cet` so it stays that way. Dump the result
+# (`tools/ld_dump.py`) - that is the check, not the compiler.
+
+PLAIN, SET, RESET = 0, 2, 3          # BoxTreeAssign coil flags
+
+
+class Allocator:
+    """Hands out `Id` and `VarId` numbers above everything a body already uses.
+
+    A duplicated `Id` does not fail to parse - it silently shadows a node - so
+    every synthesised node draws from one allocator, and `Allocator.above()`
+    starts it past the highest number in the file being edited.
+    """
+
+    def __init__(self, next_id: int, next_var: int) -> None:
+        self.next_id = next_id
+        self.next_var = next_var
+
+    @classmethod
+    def above(cls, source: str) -> "Allocator":
+        highest_id, highest_var = max_identifiers(source)
+        return cls(highest_id + 1, highest_var + 1)
+
+    def take_id(self) -> int:
+        self.next_id += 1
+        return self.next_id - 1
+
+    def take_var(self) -> int:
+        self.next_var += 1
+        return self.next_var - 1
+
+
+def _flags(indent: str, flags: int = 0, fixed: bool = False) -> str:
+    return (f'{indent}<o n="Flags" t="Flags">\n'
+            f'{indent}  <v n="Flags">{flags}</v>\n'
+            f'{indent}  <v n="Fixed">{str(fixed).lower()}</v>\n'
+            f'{indent}  <v n="Extensible">false</v>\n'
+            f'{indent}</o>\n')
+
+
+def _operand(alloc: Allocator, indent: str, operand: str | None, type_name: str,
+             *, flags: int = 0, fixed: bool = False, lvalue: bool = False,
+             boolean: bool = False, instance: bool = False,
+             element: str = "<o>") -> str:
+    """The `Operand` record every operand, coil and output slot is made of."""
+    head = (f'{indent}  <v n="Operand">"{operand}"</v>\n' if operand is not None
+            else f'{indent}  <n n="Operand" />\n')
+    return (f'{indent}{element}\n'
+            f'{head}'
+            f'{indent}  <v n="Type">"{type_name}"</v>\n'
+            f'{indent}  <v n="Comment">""</v>\n'
+            f'{indent}  <v n="SymbolComment">""</v>\n'
+            f'{indent}  <v n="Address">""</v>\n'
+            + _flags(indent + "  ", flags, fixed) +
+            f'{indent}  <v n="LValue">{str(lvalue).lower()}</v>\n'
+            f'{indent}  <v n="Boolean">{str(boolean).lower()}</v>\n'
+            f'{indent}  <v n="IsInstance">{str(instance).lower()}</v>\n'
+            f'{indent}  <v n="Id">{alloc.take_id()}L</v>\n'
+            f'{indent}</o>\n')
+
+
+class Node:
+    """One serialized `<o>` of an `<NWL>` network."""
+
+    ELEMENT = ""
+
+    def render(self, alloc: Allocator, indent: str = "",
+               name: str | None = None) -> str:
+        raise NotImplementedError
+
+    def _open(self, name: str | None) -> str:
+        attribute = ' n="%s"' % name if name else ""
+        return '<o%s t="%s">' % (attribute, self.ELEMENT)
+
+
+@dataclass
+class Term(Node):
+    """The left power rail - what a gate hangs from when nothing precedes it."""
+
+    ELEMENT = "BoxTreeTerminator"
+
+    def render(self, alloc, indent="", name=None):
+        return (f'{indent}{self._open(name)}\n'
+                f'{indent}  <n n="Input" />\n'
+                + _flags(indent + "  ") +
+                f'{indent}  <v n="Id">{alloc.take_id()}L</v>\n'
+                f'{indent}</o>\n')
+
+
+@dataclass
+class Contact(Node):
+    """A BOOL read as power flow: `--| |--`, or `--|/|--` when negated.
+
+    Distinct from `Value` on purpose. Both are `BoxTreeOperand`s, but XAE marks
+    a contact `Boolean`/`Fixed` and a plain BOOL *argument* (`Steppable := TRUE`)
+    not - so the type alone cannot tell them apart, and in ladder they are not
+    the same thing anyway.
+    """
+
+    ELEMENT = "BoxTreeOperand"
+    operand: str
+    negated: bool = False
+
+    def render(self, alloc, indent="", name=None):
+        return (f'{indent}{self._open(name)}\n'
+                + _operand(alloc, indent + "  ", self.operand, "BOOL",
+                           flags=1 if self.negated else 0, fixed=True,
+                           boolean=True, element='<o n="Operand" t="Operand">') +
+                f'{indent}  <v n="Id">{alloc.take_id()}L</v>\n'
+                f'{indent}</o>\n')
+
+
+@dataclass
+class Value(Node):
+    """An argument operand - a literal, an enum member, an FB instance, an expr."""
+
+    ELEMENT = "BoxTreeOperand"
+    operand: str
+    type_name: str
+
+    @classmethod
+    def text(cls, literal: str) -> "Value":
+        """An IEC string literal, with the `STRING(INT#n)` its own length implies.
+
+        The declared form (`STRING(120)`) belongs in a parameter list; an operand
+        carries the literal's length. Mixing them is a silent type mismatch.
+        """
+        return cls(f"'{literal}'", f"STRING(INT#{len(literal)})")
+
+    def render(self, alloc, indent="", name=None):
+        return (f'{indent}{self._open(name)}\n'
+                + _operand(alloc, indent + "  ", self.operand, self.type_name,
+                           element='<o n="Operand" t="Operand">') +
+                f'{indent}  <v n="Id">{alloc.take_id()}L</v>\n'
+                f'{indent}</o>\n')
+
+
+@dataclass
+class Rail(Node):
+    """A tap on a power node defined elsewhere in the same network."""
+
+    ELEMENT = "BoxTreeDemux"
+    var_id: int
+
+    def render(self, alloc, indent="", name=None):
+        return (f'{indent}{self._open(name)}\n'
+                f'{indent}  <v n="VarId">{self.var_id}</v>\n'
+                f'{indent}  <n n="Input" />\n'
+                f'{indent}  <v n="Id">{alloc.take_id()}L</v>\n'
+                f'{indent}</o>\n')
+
+
+@dataclass
+class Wire(Node):
+    """Defines the power node `var_id`, driven by `source`.
+
+    This is how a rung branches: define the wire once, then hang any number of
+    `Rail(var_id)` taps off it. Power flow in the nested EN form is *nesting*,
+    so without a wire a rung can only be a single chain.
+    """
+
+    ELEMENT = "BoxTreeDemux"
+    var_id: int
+    source: Node
+
+    def tap(self) -> Rail:
+        return Rail(self.var_id)
+
+    def render(self, alloc, indent="", name=None):
+        return (f'{indent}{self._open(name)}\n'
+                f'{indent}  <v n="VarId">{self.var_id}</v>\n'
+                + self.source.render(alloc, indent + "  ", "Input") +
+                f'{indent}  <v n="Id">{alloc.take_id()}L</v>\n'
+                f'{indent}</o>\n')
+
+
+@dataclass
+class Coil(Node):
+    """`(S)`, `(R)` or a plain coil: `kind` is `SET`, `RESET` or `PLAIN`.
+
+    A plain coil writes the rail's value, so `x := FALSE` inside a step that is
+    active is a RESET coil, never a plain one driven from the step's own rail -
+    that would write TRUE.
+    """
+
+    ELEMENT = "BoxTreeAssign"
+    operand: str
+    source: Node
+    kind: int = PLAIN
+
+    def render(self, alloc, indent="", name=None):
+        return (f'{indent}{self._open(name)}\n'
+                f'{indent}  <o n="OutputItems" t="OutputItemList">\n'
+                f'{indent}    <l2 n="OutputItems" cet="Operand">\n'
+                + _operand(alloc, indent + "      ", self.operand, "BOOL",
+                           flags=self.kind, fixed=True, lvalue=True,
+                           boolean=True) +
+                f'{indent}    </l2>\n'
+                f'{indent}  </o>\n'
+                + _flags(indent + "  ")
+                + self.source.render(alloc, indent + "  ", "RValue") +
+                f'{indent}  <v n="Id">{alloc.take_id()}L</v>\n'
+                f'{indent}</o>\n')
+
+
+@dataclass
+class Box(Node):
+    """A `BoxTreeBox`. Use `method`/`compare`/`move`/`logic` rather than this."""
+
+    ELEMENT = "BoxTreeBox"
+    box_type: str
+    call_type: str
+    inputs: list[Node]
+    param_names: list[str]
+    param_types: list[str]
+    output_names: list[str]
+    output_types: list[str]
+    outputs: list[tuple[str, str] | None]
+    en: bool | None = True
+    eno: bool | None = True
+    named_instance: bool = True
+    fixed: bool = True
+
+    def _param_list(self, indent: str, name: str, names: list[str],
+                    types: list[str]) -> str:
+        if not names:
+            return (f'{indent}<o n="{name}" t="ParamList">\n'
+                    f'{indent}  <l2 n="Names" />\n'
+                    f'{indent}  <l2 n="Types" />\n'
+                    f'{indent}</o>\n')
+        rows = lambda items: "".join(  # noqa: E731
+            f'{indent}    <v>{item}</v>\n' for item in items)
+        return (f'{indent}<o n="{name}" t="ParamList">\n'
+                f'{indent}  <l2 n="Names" cet="String">\n{rows(names)}'
+                f'{indent}  </l2>\n'
+                f'{indent}  <l2 n="Types" cet="String">\n{rows(types)}'
+                f'{indent}  </l2>\n'
+                f'{indent}</o>\n')
+
+    def _output_items(self, alloc: Allocator, indent: str) -> str:
+        if not self.outputs:
+            body = f'{indent}  <l2 n="OutputItems" />\n'
+        elif all(slot is None for slot in self.outputs):
+            body = (f'{indent}  <l2 n="OutputItems">\n'
+                    f'{indent}    <n />\n'
+                    f'{indent}  </l2>\n')
+        else:
+            slots = "".join(
+                f'{indent}    <n />\n' if slot is None else
+                _operand(alloc, indent + "    ", slot[0], slot[1], lvalue=True)
+                for slot in self.outputs)
+            body = (f'{indent}  <l2 n="OutputItems" cet="Operand">\n{slots}'
+                    f'{indent}  </l2>\n')
+        return (f'{indent}<o n="OutputItems" t="OutputItemList">\n{body}'
+                f'{indent}</o>\n')
+
+    def render(self, alloc, indent="", name=None):
+        inner = indent + "  "
+        pin = "".join(node.render(alloc, inner + "  ") for node in self.inputs)
+        flag = lambda value, tag: (  # noqa: E731
+            f'{inner}<n n="{tag}" />\n' if value is None else
+            f'{inner}<v n="{tag}">{str(value).lower()}</v>\n')
+        return (
+            f'{indent}{self._open(name)}\n'
+            f'{inner}<v n="BoxType">"{self.box_type}"</v>\n'
+            + _operand(alloc, inner, "" if self.named_instance else None, "",
+                       instance=True, element='<o n="Instance" t="Operand">')
+            + self._output_items(alloc, inner)
+            + _flags(inner, 0, self.fixed) +
+            f'{inner}<n n="InputFlags" />\n'
+            f'{inner}<l2 n="InputItems">\n{pin}{inner}</l2>\n'
+            + self._param_list(inner, "InputParam", self.param_names,
+                               self.param_types)
+            + self._param_list(inner, "OutputParam", self.output_names,
+                               self.output_types) +
+            f'{inner}<v n="CallType" t="Operator">{self.call_type}</v>\n'
+            + flag(self.en, "EN") + flag(self.eno, "ENO") +
+            f'{inner}<n n="STSnippet" />\n'
+            f'{inner}<v n="ContainsExtensibleInputs">false</v>\n'
+            f'{inner}<v n="ProvidesSTSnippet">false</v>\n'
+            f'{inner}<v n="Id">{alloc.take_id()}L</v>\n'
+            f'{indent}</o>\n')
+
+
+def method(box_type: str, en: Node, args: list[tuple[str, str, Node]] = (),
+           *, returns: tuple[str, str] | None = None,
+           result: str | None = None) -> Box:
+    """A method call, derived entirely from the method's declaration.
+
+    `args` are `(VAR_INPUT name, type, node)` in declaration order; `returns` is
+    `(method name, return type)` for a value-returning method and `result` the
+    variable its value lands in.
+
+    An `EN`-gated value-returning box has TWO outputs and the return is the
+    SECOND: `ENO` always takes slot 0. Wiring a variable into slot 0 puts it on
+    `ENO`, compiles clean, and strands the one you meant - that defect already
+    left `_partReady` unwritten and a chain unable to leave step 100. Passing
+    `result` here is what makes that unrepresentable.
+
+    Another FB's method folds the instance into the box type:
+    `method("_pressRam.WithdrawOutputs", …)`.
+    """
+    names = ["EN"] + [name for name, _, _ in args]
+    types = ["BOOL"] + [type_name for _, type_name, _ in args]
+    inputs = [en] + [node for _, _, node in args]
+    if returns is None:
+        if result is not None:
+            raise RungError(f"{box_type}: a void method has no value to land in "
+                            f"{result!r}")
+        return Box(box_type, "Method", inputs, names, types, ["ENO"], ["BOOL"],
+                   [None])
+    return_name, return_type = returns
+    return Box(box_type, "Method", inputs, names, types,
+               ["ENO", return_name], ["BOOL", return_type],
+               [("", "BOOL"), (result or "", return_type)])
+
+
+def compare(operator: str, en: Node, left: Node, right: Node) -> Box:
+    """`EQ(left, right)` and friends: the gate. Its output IS the power flow.
+
+    It has one unnamed BOOL output rather than an `ENO`, which is why a rung
+    reads `M_Step(EN := EQ(_step, 215))`.
+    """
+    return Box(operator, operator.capitalize(), [en, left, right], ["EN"],
+               ["BOOL"], [""], ["BOOL"], [None], eno=False,
+               named_instance=False, fixed=False)
+
+
+def move(en: Node, value: Node, target: str, target_type: str) -> Box:
+    """`MOVE` - how a rung writes the next state into `_step`, and any other value."""
+    return Box("MOVE", "Move", [en, value], ["EN"], ["BOOL"], ["ENO", ""],
+               ["BOOL", ""], [None, (target, target_type)],
+               named_instance=False, fixed=False)
+
+
+def logic(operator: str, inputs: list[Node]) -> Box:
+    """`AND` / `OR` of contacts and rails - series and parallel, in one box."""
+    return Box(operator, operator.capitalize(), list(inputs), [], [], [], [], [],
+               en=None, eno=None, named_instance=False, fixed=False)
+
+
+NETWORK_INDENT = " " * 16
+
+
+def network(items: list[Node], alloc: Allocator, *, comment: str = "",
+            indent: str = NETWORK_INDENT) -> str:
+    """One complete `<o>` network, ready to hand to `rebuild()`.
+
+    `NetworkItems` is written WITHOUT a `cet`, so every item states its own
+    type. A list that types its children collectively is how a node loses its
+    type in the first place.
+    """
+    if '"' in comment:
+        raise RungError("a network comment is stored quoted; it cannot contain "
+                        'a " character')
+    inner = indent + "  "
+    body = "".join(item.render(alloc, inner + "  ") for item in items)
+    escaped = comment.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # No leading indent: `split_networks` hands back blocks that begin at `<o`,
+    # and the separator it preserves is what puts each one in column `indent`.
+    return ('<o>\n'
+            f'{inner}<v n="ILActive">false</v>\n'
+            f'{inner}<v n="FBDValid">false</v>\n'
+            f'{inner}<v n="ILValid">false</v>\n'
+            f'{inner}<l2 n="ILLines" />\n'
+            f'{inner}<v n="Comment">"{escaped}"</v>\n'
+            f'{inner}<v n="Title">""</v>\n'
+            f'{inner}<v n="Label">""</v>\n'
+            f'{inner}<v n="OutCommented">false</v>\n'
+            f'{inner}<l2 n="NetworkItems">\n{body}{inner}</l2>\n'
+            f'{inner}<l2 n="Connectors" />\n'
+            f'{inner}<v n="Id">{alloc.take_id()}L</v>\n'
+            f'{indent}</o>')
+
+
 def rebuild(source: str, networks: list[str]) -> str:
     """Reassemble the body from a new network list, fixing BranchCounter.
 
