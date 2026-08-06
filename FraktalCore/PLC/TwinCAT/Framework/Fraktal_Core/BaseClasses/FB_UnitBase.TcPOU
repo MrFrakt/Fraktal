@@ -2015,6 +2015,7 @@ VAR
     modeExitResult : DINT;
     highestSeverity : E_Severity;
     alarmActive : BOOL;
+    heldReported : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
@@ -2085,23 +2086,43 @@ ELSIF (_exec <> E_ExecState.ERROR) AND (_faultEvt > 0) THEN
     AlarmLog.Gone(Slot := _faultEvt);                            // -> WAIT_RESET (blocking)
     _faultEvt := 0;
 END_IF
-// §6.9 — instant rollup on awaited Error; adopt an awaited HOLD; stall as PENDING otherwise
+// §6.9 — instant rollup on awaited Error; adopt a HELD child; stall as PENDING otherwise
 IF _exec = E_ExecState.BUSY THEN
     IF (_awaits <> 0) AND_THEN _awaits.FaultActive THEN
         _M_FaultDiag(_awaits.GetFaultSummary());
-    ELSIF (_awaits <> 0) AND_THEN _awaits.HoldActive THEN
-        // §6.1 HELD — the awaited module is waiting on a condition it can name, so
+    ELSE
+        // §6.1 HELD — the held module is waiting on a condition it can name, so
         // report THAT instead of letting StallTime expire into a generic stall. A
         // declared wait is not a stall, so the watchdog stays disarmed while it lasts.
-        _M_HoldDiag(Diag := _awaits.GetFaultSummary());
-        _tStall(IN := FALSE);
-    ELSE
-        IF Held THEN
-            _M_ClearPending();         // the hold ended: drop any stall text it outlived
+        //
+        // The hold rolls up whether or not the step awaits the child (§1.1 O1: the
+        // project must not have to remember a call to stay correct). `Awaits := 0`
+        // says "this step owns the child's FAULT disposition" (§6.9, press AUTO
+        // N200 offering scrap/return) - it does not say "stay silent while the ram
+        // is HELD". A hold is recoverable information that clears itself and never
+        // blocks a restart, so suppressing it only produced a Unit that sat BUSY
+        // with an empty diagnostic while its own child correctly reported Held.
+        // Prefer the awaited module: when a step named one it is the most specific
+        // source. _M_RollupHold is called on exactly the scans the awaited branch
+        // did not fire, because TwinCAT does not short-circuit and calling both
+        // would let a second held child overwrite the named one.
+        heldReported := FALSE;
+        IF (_awaits <> 0) AND_THEN _awaits.HoldActive THEN
+            _M_HoldDiag(Diag := _awaits.GetFaultSummary());
+            heldReported := TRUE;
+        ELSE
+            heldReported := _M_RollupHold();   // §8.2 first held registered child
         END_IF
-        _tStall(IN := TRUE, PT := SEL(CurrentStep.ExpectedTime > T#0S, StallTime, CurrentStep.ExpectedTime));
-        IF _tStall.Q THEN
-            _M_StallWalk();
+        IF heldReported THEN
+            _tStall(IN := FALSE);
+        ELSE
+            IF Held THEN
+                _M_ClearPending();     // the hold ended: drop any stall text it outlived
+            END_IF
+            _tStall(IN := TRUE, PT := SEL(CurrentStep.ExpectedTime > T#0S, StallTime, CurrentStep.ExpectedTime));
+            IF _tStall.Q THEN
+                _M_StallWalk();
+            END_IF
         END_IF
     END_IF
 ELSE

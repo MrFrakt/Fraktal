@@ -1510,7 +1510,36 @@ its ordinals. `FB_CylinderCM` holds instead of faulting on a lost interlock and
 rewinds to N010, so the resume re-energizes the direction output and re-arms
 `MoveTimeout` with a full window instead of silently consuming travel time it was
 not moving for. `FB_CompositeModuleBase._M_RollupHold` is the hold analogue of
-`_M_RollupFault`, used by `FB_ClampEM` and by `FB_UnitBase`'s awaited-module branch.
+`_M_RollupFault`, used by `FB_ClampEM` and by `FB_UnitBase`'s hold branch.
+
+**(c′) The Unit's hold rollup was documented but never wired.** This paragraph used
+to claim `_M_RollupHold` was "used by `FB_ClampEM` and by `FB_UnitBase`'s
+awaited-module branch". `FB_ClampEM` did call it; `FB_UnitBase` never did — its
+awaited branch called `_M_HoldDiag(_awaits.GetFaultSummary())` directly, so
+`_M_RollupHold` had exactly one call site repository-wide and the Unit could only
+report a hold on the module a step happened to name in `Awaits`. Press AUTO `N200`
+passes `Awaits := 0` on purpose (§6.9: the step owns the ram's *not-reached*
+disposition so the chain can offer scrap/return), and the two facts combined into a
+silent defect: with the ram correctly `Held`, the Unit stayed `BUSY` with `Held`
+FALSE and an empty `Status.Diagnostic`, which is what
+`Two_hand_release_mid_stroke_holds_the_ram` had been failing on. It is pre-existing —
+both the `Awaits := 0` and the missing call are unchanged since `4e47f37`.
+
+The fix is in `FB_UnitBase.OnCyclic`, not in the project (§1.1 O1 — forgetting a call
+must not be able to produce a wrong result). The hold branch now prefers the awaited
+module when a step named one and otherwise falls back to `_M_RollupHold()` over the
+registered children, so a hold rolls up whether or not the step awaits the child.
+`Awaits := 0` scopes **fault** disposition only: a hold is recoverable information
+that clears itself level-based and never blocks a restart, so there is nothing for a
+step to "own" by staying silent about it. The two calls are deliberately exclusive
+rather than OR-ed — TwinCAT does not short-circuit, so evaluating both would let a
+second held child overwrite the named one.
+
+The **fault** rollup stays explicit and is not made automatic here. That asymmetry is
+the point of §6.9: adopting an awaited child's Error sets `_exec := ERROR` and
+`_step := 0` before `_M_Dispatch` runs, so an automatic fault rollup would remove the
+chain's ability to disposition a failure at all — `N200`'s scrap/return decision, and
+`FB_ProbeUnitRaise`, both depend on it not firing.
 
 Nothing was weakened to achieve this. The output is still withheld in the same
 place by the same permit; the reset clears the **latch**, never the **condition**;
