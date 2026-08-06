@@ -394,6 +394,60 @@ BAD_REASON : DINT := {value}; END_VAR]]></Declaration></GVL></TcPlcObject>''')
 </Plc></Project></TcSmProject>''')
         self.assertIn("P1", self._rules(root))
 
+    def _borrowing_fixture(self, root: Path, borrow_the_dut: bool):
+        """Bench owns a Unit plus the DUT it declares; BenchTests borrows them.
+
+        This is the PressTests/Fraktal_Press_Demo shape: the test manifest links
+        the shipping Unit source directly rather than copying it.
+        """
+        self._write(root, "Bench/DUTs/ST_BenchParCfg.TcDUT", '''<TcPlcObject>
+<DUT Name="ST_BenchParCfg"><Declaration><![CDATA[TYPE ST_BenchParCfg : STRUCT
+SchemaVersion : UINT; Speed : LREAL; END_STRUCT END_TYPE]]></Declaration></DUT>
+</TcPlcObject>''')
+        self._write(root, "Bench/FB_BenchUnit.TcPOU", _pou(
+            "FB_BenchUnit",
+            "FUNCTION_BLOCK FB_BenchUnit EXTENDS FB_UnitBase" + _NL
+            + "VAR" + _NL + "Cfg : ST_BenchParCfg;" + _NL + "END_VAR",
+            "Cyclic();"))
+        self._write(root, "Bench/Bench.plcproj", '''<Project>
+<Compile Include="DUTs\\ST_BenchParCfg.TcDUT"/>
+<Compile Include="FB_BenchUnit.TcPOU"/></Project>''')
+        self._write(root, "BenchTests/FB_Bench_Tests.TcPOU", _pou(
+            "FB_Bench_Tests",
+            "FUNCTION_BLOCK FB_Bench_Tests" + _NL + "VAR" + _NL
+            + "Unit : FB_BenchUnit;" + _NL + "END_VAR", ""))
+        borrowed_dut = ('<Compile Include="Bench\\DUTs\\ST_BenchParCfg.TcDUT"/>'
+                        if borrow_the_dut else "")
+        self._write(root, "BenchTests.plcproj", f'''<Project>
+<Compile Include="BenchTests\\FB_Bench_Tests.TcPOU"/>
+<Compile Include="Bench\\FB_BenchUnit.TcPOU"/>
+{borrowed_dut}</Project>''')
+
+    def test_p2_rejects_incomplete_cross_project_borrowing(self):
+        # The historical break: a DUT moves INTO the lender's tree, the lender's
+        # own manifest gains it (so P1 stays green), and the borrower does not.
+        root = self._root()
+        self._borrowing_fixture(root, borrow_the_dut=False)
+        self.assertIn("P2", self._rules(root))
+
+    def test_p2_accepts_a_complete_borrow(self):
+        root = self._root()
+        self._borrowing_fixture(root, borrow_the_dut=True)
+        self.assertNotIn("P2", self._rules(root))
+
+    def test_p2_ignores_types_that_come_from_a_library_reference(self):
+        # Framework types are consumed through an installed library, never
+        # borrowed as source: a project that borrows nothing has no lender, and
+        # one that borrows from a bench must not be judged against the library.
+        root = self._root()
+        self._borrowing_fixture(root, borrow_the_dut=True)
+        self._write(root, "Framework/Fraktal_Core/ST_Diagnostic.TcDUT", '''<TcPlcObject>
+<DUT Name="ST_Diagnostic"><Declaration><![CDATA[TYPE ST_Diagnostic : STRUCT
+Reason : DINT; END_STRUCT END_TYPE]]></Declaration></DUT></TcPlcObject>''')
+        self._write(root, "Framework/Fraktal_Core/Fraktal_Core.plcproj",
+                    '<Project><Compile Include="ST_Diagnostic.TcDUT"/></Project>')
+        self.assertNotIn("P2", self._rules(root))
+
     # ---- regression fixtures for the three rules corrected after the audit ----
     # Each pair proves the fix narrowed the rule to the CORRECT invariant rather
     # than disabling it: the legitimate pattern passes, the real defect still

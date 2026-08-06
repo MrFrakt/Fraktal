@@ -45,6 +45,10 @@ Rules
   P1  Project compile inputs resolve, authored sources are listed, XAE system
         projects do not load the same source object through two PLC projects,
         and deployed roots carry an instance-level `OPC.UA.DA := '1'`.
+  P2  A project that compiles another project's authored sources borrows every
+        object of that tree it references. P1 only proves a manifest lists its
+        OWN root completely, so a type moving into a lender's tree keeps P1
+        green while breaking the borrower's compile.
 
 Usage
   python tools/plc_lint.py [root ...]        # default: FraktalCore/PLC/TwinCAT
@@ -66,6 +70,13 @@ SKIP_PARTS = {
     "_Boot", "_ScopeConfig", "_Libraries", "Dependancies", "Release",
     "third_party", ".git",
 }
+
+# The object kinds a .plcproj lists as <Compile Include>.
+COMPILABLE_SUFFIXES = {".TcPOU", ".TcDUT", ".TcGVL", ".TcIO", ".TcTTO"}
+
+# A Fraktal-prefixed object reference (§4.3). Used to find which borrowed types
+# a compiled source actually depends on.
+OBJECT_REFERENCE = re.compile(r"\b(?:FB|ST|E|I|PL|GVL|F)_[A-Za-z_]\w*")
 
 OBJECT_TAG = re.compile(r"<(POU|DUT|GVL|Itf)\s+Name=\"([^\"]+)\"", re.I)
 METHOD_BLOCK = re.compile(r"<Method\s+Name=\"([^\"]+)\"[^>]*>(.*?)</Method>", re.S | re.I)
@@ -417,6 +428,36 @@ def _resolve_compile(project: Path, include: str, boundary: Path) -> Path | None
         if candidate.is_file():
             return candidate.resolve()
     return None
+
+
+def _authored_root(project: Path) -> Path:
+    """The source directory a `.plcproj` is the authoritative owner of.
+
+    A TwinCAT aggregate may keep its manifest at the nearest common ancestor
+    because PLC Control rejects raw '..' Include segments. Its authored
+    ownership root is then the same-named source directory, which need not sit
+    directly beside the manifest - Fraktal_Tests.plcproj lives at TwinCAT/ but
+    owns TwinCAT/Tests/Fraktal_Tests/. Locate it rather than assume a depth, so
+    a folder re-layout does not silently turn every sibling source into a
+    violation.
+    """
+    candidates = sorted(
+        (path for path in project.parent.rglob(project.stem)
+         if path.is_dir() and not _skipped(path)),
+        key=lambda path: len(path.relative_to(project.parent).parts))
+    if candidates:
+        return candidates[0]
+    if (project.parent / project.stem).is_dir():
+        return project.parent / project.stem
+    return project.parent
+
+
+def _authored_sources(owned_root: Path) -> set[Path]:
+    return {
+        path.resolve() for path in owned_root.rglob("*")
+        if path.is_file() and path.suffix in COMPILABLE_SUFFIXES
+        and not _skipped(path)
+    }
 
 
 def lint_repository(roots: list[Path]) -> list[Finding]:
@@ -806,6 +847,7 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
 
     # P1: project includes are resolvable/complete, then deployment markers are
     # checked for the two shipping application fixtures (never the test runtime).
+    manifests: list[tuple[Path, set[Path], set[Path]]] = []
     for root in roots:
         if not root.exists():
             continue
@@ -828,31 +870,11 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
                         project, 1, "P1", f"Compile Include does not resolve: {include}"))
                 else:
                     resolved.add(source)
-            # A TwinCAT aggregate may keep its manifest at the nearest common
-            # ancestor because PLC Control rejects raw '..' Include segments.
-            # Its authored ownership root is then the same-named source
-            # directory, which need not sit directly beside the manifest -
-            # Fraktal_Tests.plcproj lives at TwinCAT/ but owns
-            # TwinCAT/Tests/Fraktal_Tests/. Locate it rather than assume a
-            # depth, so a folder re-layout does not silently turn every sibling
-            # source into a violation. Sibling application sources may still be
-            # explicit linked inputs, but are checked for completeness by their
-            # own manifests.
-            candidates = sorted(
-                (path for path in project.parent.rglob(project.stem)
-                 if path.is_dir() and not _skipped(path)),
-                key=lambda path: len(path.relative_to(project.parent).parts))
-            if candidates:
-                owned_root = candidates[0]
-            elif (project.parent / project.stem).is_dir():
-                owned_root = project.parent / project.stem
-            else:
-                owned_root = project.parent
-            owned = {
-                path.resolve() for path in owned_root.rglob("*")
-                if path.is_file() and path.suffix in {".TcPOU", ".TcDUT", ".TcGVL", ".TcIO", ".TcTTO"}
-                and not _skipped(path)
-            }
+            # Sibling application sources may still be explicit linked inputs,
+            # but are checked for completeness by their own manifests.
+            owned_root = _authored_root(project)
+            owned = _authored_sources(owned_root)
+            manifests.append((project, owned, resolved))
             missing = sorted(owned - resolved)
             for source in missing:
                 findings.append(Finding(
@@ -920,6 +942,39 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
                             f"XAE loads {len(overlap)} source object(s) through both "
                             f"{left.name} and {right.name}; first duplicate: "
                             f"{overlap[0]}"))
+
+    # P2: a project that compiles ANOTHER project's authored sources must borrow
+    # every object of that tree it references. P1 only proves each manifest lists
+    # its OWN authored root completely, so a type that moves INTO a lender's tree
+    # is added to the lender's manifest, keeps P1 green, and silently breaks the
+    # borrower at compile time - which is exactly how relocating the
+    # ST_PneumaticPress* DUTs out of Fraktal_Modules broke PressTests while the
+    # Press bench stayed green. Only trees this project already borrows from are
+    # considered: a type consumed through an installed LIBRARY reference is not a
+    # borrowed source and must never be reported here.
+    for project, _, resolved in manifests:
+        lent: dict[str, Path] = {}
+        for lender, lender_owned, _ in manifests:
+            if lender == project or not (resolved & lender_owned):
+                continue
+            for path in sorted(lender_owned):
+                lent.setdefault(path.stem, path)
+        if not lent:
+            continue
+        # One finding per missing object, naming the first source that needs it.
+        absent: dict[Path, tuple[Path, str]] = {}
+        for source in sorted(resolved):
+            text = _without_comments(
+                source.read_text(encoding="utf-8", errors="replace"))
+            for name in sorted(set(OBJECT_REFERENCE.findall(text))):
+                target = lent.get(name)
+                if target is not None and target not in resolved:
+                    absent.setdefault(target, (source, name))
+        for target, (source, name) in sorted(absent.items()):
+            findings.append(Finding(
+                project, 1, "P2",
+                f"{source.name} references borrowed object {name}, but "
+                f"{target} is absent from this compile list"))
 
     return findings
 

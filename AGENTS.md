@@ -126,11 +126,17 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   A chart POU never overrides `M_ChainRun` — its body *is* the chart.
 - **LD**: an integer state machine over the inherited `_step` — one rung per state,
   `[EQ(_step, N)]` dispatching, and the rung `MOVE`s the next state into `_step`. No
-  `M_Advance`, no `_retVal`. Calls go through the `FB_SequenceBaseLd` facade
-  (`M_StepLd`, `M_TryIssueLd`, …), which takes `Run : BOOL` first for rung power flow;
-  those are **not** overrides (adding an input is `C0094`), and each returns through its
-  own name. **Never nest a value-returning facade box or feed its result into another
-  box's `Run`:** XAE lowers that edge to `ImpVar<BoxId>_<output>` and may fail lazy
+  `M_Advance`, no `_retVal`. A chain extends **`FB_SequenceBase`**, the same base ST and
+  SFC use: a rung calls the real method through XAE's `EN`/`ENO` pins, so `M_Step`,
+  `M_Await` and **every method of every project-defined FB** are rung-callable with no
+  library change. That is the only form that scales — a hand-written `…Ld` twin per
+  method per developer type does not. (`FB_SequenceBaseLd`, which took `Run : BOOL`
+  because adding an input to an override is `C0094`, was exactly that mistake and has
+  been **deleted**; `convert_ld_boxes()` in `tools/ld_rung_gen.py` migrates a chain that
+  still carries it.) An `EN`-gated value-returning box has **two** outputs, `ENO` first
+  and the return value second; wiring the wrong slot compiles clean and strands the
+  intended variable. **Never nest a value-returning box or feed its result into another
+  box's power pin:** XAE lowers that edge to `ImpVar<BoxId>_<output>` and may fail lazy
   type inference. Assign every return to an explicitly typed local, then combine the
   locals; `Run` is rung power, not Boolean chaining, and independent waits must all be
   called each active scan. Full rung-by-rung procedure, both rung shapes and traps are in
@@ -139,12 +145,27 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   for every attached chain before `_M_Dispatch` (§1.1 O1).
 - The `FB_SFC_` prefix in the press demo is **not a convention** — it only lets two
   renditions of one chain coexist. Name a real chain `FB_<Thing><Mode>`.
-- **Do not synthesise an SFC/LD body.** It is a serialized object graph; draw it in
-  XAE. Binding steps afterwards is safe and scriptable — read the archive's own
-  descriptor table for the attribute GUIDs rather than guessing (a step has ten
-  attributes, five of them empty strings). `MainAction` is
-  `{700a583f-b4d4-43e4-8c14-629c7cd3bec8}`; using `EntryAction` by mistake stalls
-  the chain at its first step forever.
+- **Do not synthesise an SFC/LD body from nothing — clone one that compiles.**
+  It is a serialized object graph. For **LD**, `tools/ld_rung_gen.py` generates a rung
+  by cloning an existing network, renumbering every `Id`/`VarId` into a fresh range,
+  and rewriting only leaf operands; `tools/test_ld_rung_gen.py` proves the split/rebuild
+  is byte-identical before it touches a file. Every substitution asserts its hit count,
+  because a rewrite that matches nothing reports success and changes nothing. Compile
+  after **every** rung: `ImpVar<BoxId>_<n>` maps straight to that node's
+  `<v n="Id">…L</v>`. **The limit is absolute: it can only produce box types that
+  already exist somewhere in the file** — a rung needing a box with no instance to
+  clone from (`M_DelayLd`, `M_AskDecisionLd`, `M_PartRecordLd`, `M_RunSubLd`,
+  `M_RaiseWarningLd`, `M_ReportFromChildLd`, a child's `WithdrawOutputs`) needs **one**
+  instance drawn in XAE first; then clone it. Full procedure in
+  `FraktalCore/PLC/TwinCAT/README.md` § "Generating a rung by cloning a worked example".
+  For **SFC** the archive is flat attribute records, not a wired graph, so a chart is
+  materially easier to clone than a rung — no `Id`/`VarId` renumbering, no power rails.
+  Read the archive's own descriptor table (`<d2 n="Attributes" ckt="Guid"
+  cvt="SFCAttributeDescription">`) for the attribute GUIDs rather than guessing: a step
+  has ten attributes, four normally empty, and **a transition stores its condition
+  expression in `Name`**. `MainAction` is `{700a583f-b4d4-43e4-8c14-629c7cd3bec8}`;
+  using `EntryAction` by mistake stalls the chain at its first step forever. The full
+  GUID table and the step/action naming rule are in the README section above.
 - **To own a child's failure, stop awaiting it.** An awaited child fault is adopted
   by `FB_UnitBase.OnCyclic` (`_exec := ERROR`, `_step := 0`) *before* `_M_Dispatch`
   runs, so a chart can never jump on it. Pass `Awaits := 0` and name the wait with
@@ -246,6 +267,13 @@ missing property that looks like a tooling dead end.
   with no library FB owning them, so every consumer carried four structs for a machine
   they do not have (§1.1 O4/O9). Cross-library ownership is fine — `ST_IoPointIdentity`
   lives in Core and is owned by Modules.
+- **Moving a type between trees is a two-manifest edit (lint rule P2).** A project that
+  compiles *another* project's authored sources — `PressTests` links the shipping Press
+  Unit/sequences rather than copying them — must borrow every object of that tree it
+  references. P1 only proves each manifest lists its **own** root completely, so a type
+  that moves *into* a lender's tree is added to the lender's manifest, keeps P1 green,
+  and breaks only the borrower's compile. That is exactly how the `ST_PneumaticPress*`
+  move broke `PressTests` while the bench stayed green.
 - **Declare a flag when something needs it, not before.** A published field with no
   consumer is not "ready for the future", it is surface everyone pays for and nobody
   reads. `OutCmd`/`OutImm` are the exception *only* because the generic HMI tree
