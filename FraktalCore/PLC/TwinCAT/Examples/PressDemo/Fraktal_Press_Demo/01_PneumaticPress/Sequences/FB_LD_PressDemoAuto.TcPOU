@@ -9154,5 +9154,50 @@ END_VAR]]></Declaration>
         </XmlArchive>
       </NWL>
     </Implementation>
+    <Method Name="Setup" Id="{9f2c41ab-73d5-4e18-9c60-2ad4f1e77b31}">
+      <Declaration><![CDATA[// Identical signature to the ST and SFC renditions of this chain, so the Unit can
+// bind whichever one AUTO_SEQUENCE_LANGUAGE selects without any other difference.
+METHOD Setup : BOOL
+VAR_INPUT
+    Host : I_SequenceHost;
+END_VAR
+VAR_IN_OUT
+    PressRam : FB_CylinderCM;
+    Door : FB_CylinderCM;
+    PartSlide : FB_CylinderCM;
+    TwoHand : FB_TwoHandStartCM;
+    PartPresentSensor : FB_DigitalInputCM;
+    AirPressureMonitor : FB_AirPressureMonitorCM;
+    ParCfg : ST_PneumaticPressParCfg;
+    OutCmd : ST_PneumaticPressOutCmd;
+    StartLatched : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_pressRam REF= PressRam;
+_door REF= Door;
+_partSlide REF= PartSlide;
+_twoHand REF= TwoHand;
+_partPresentSensor REF= PartPresentSensor;
+_airPressureMonitor REF= AirPressureMonitor;
+_parCfg REF= ParCfg;
+_outCmd REF= OutCmd;
+_startLatched REF= StartLatched;
+Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_door)
+    AND __ISVALIDREF(_partSlide) AND __ISVALIDREF(_twoHand)
+    AND __ISVALIDREF(_partPresentSensor) AND __ISVALIDREF(_airPressureMonitor)
+    AND __ISVALIDREF(_parCfg) AND __ISVALIDREF(_outCmd) AND __ISVALIDREF(_startLatched)
+    AND _loadPosition.Setup(Host := Host, PressRam := PressRam, Door := Door, PartSlide := PartSlide);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Reset" Id="{4c1e8b02-59d7-4a63-b8f1-6e0d92c3aa17}">
+      <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ResetBase(0);
+// A chart reset abandons whatever the cycle was holding: the part record is
+// closed by N215/N999, never by a reset, so both trackers start clean.
+_partDispositioned := FALSE;
+_partInMachine := FALSE;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

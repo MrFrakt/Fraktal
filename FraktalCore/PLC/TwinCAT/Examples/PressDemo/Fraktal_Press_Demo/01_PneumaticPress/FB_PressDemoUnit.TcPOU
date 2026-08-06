@@ -33,8 +33,25 @@ VAR
     _homeSequence : FB_PressDemoHome;       // §6.8 ST chain on FB_SequenceBase owns HOME steps
     {attribute 'OPC.UA.DA' := '0'}
     _changeoverSequence : FB_PressDemoChangeover;
+    // §6.8 / O2 — the SAME AUTO chain in all three permitted languages. This is a
+    // demo bench: carrying three renditions is the point (O2 says sequences and
+    // interlocks may be ST, SFC or Ladder), not something a real project would do.
+    // AUTO_SEQUENCE_LANGUAGE below picks which one the Unit binds and runs; the
+    // other two are inert. They are excluded from OPC UA for the same reason the
+    // bound one is: a chain is not a module and publishes no Status.
     {attribute 'OPC.UA.DA' := '0'}
     _autoSequence : FB_PressDemoAuto;
+    {attribute 'OPC.UA.DA' := '0'}
+    _sfcAutoSequence : FB_SFC_PressDemoAuto;
+    {attribute 'OPC.UA.DA' := '0'}
+    _ldAutoSequence : FB_LD_PressDemoAuto;
+END_VAR
+VAR CONSTANT
+    // Which rendition of the AUTO chain runs. VAR CONSTANT on purpose, like the
+    // §6.0 commissioning gates in MAIN: switching language is a source edit plus a
+    // download, never an online write. The compiler folds the unselected branches.
+    // 0 = ST (FB_PressDemoAuto)   1 = SFC (FB_SFC_PressDemoAuto)   2 = LD (FB_LD_PressDemoAuto)
+    AUTO_SEQUENCE_LANGUAGE : INT := 0;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
     <Method Name="Setup" Id="{c48eb9f5-2cef-457b-90cd-aa7b557e955a}">
@@ -72,10 +89,24 @@ Ok := _homeSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
     PartSlide := PartSlide, OutCmd := OutCmd) AND Ok;
 Ok := _changeoverSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
     PartSlide := PartSlide, OutCmd := OutCmd, Model := Model) AND Ok;
-Ok := _autoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
-    PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
-    AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg, OutCmd := OutCmd,
-    StartLatched := _startLatched) AND Ok;
+// Only the selected rendition is attached: M_Attach registers the chain with the
+// Unit, so attaching all three would put three chains on one step pointer.
+IF AUTO_SEQUENCE_LANGUAGE = 2 THEN
+    Ok := _ldAutoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+        PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg, OutCmd := OutCmd,
+        StartLatched := _startLatched) AND Ok;
+ELSIF AUTO_SEQUENCE_LANGUAGE = 1 THEN
+    Ok := _sfcAutoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+        PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg, OutCmd := OutCmd,
+        StartLatched := _startLatched) AND Ok;
+ELSE
+    Ok := _autoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+        PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg, OutCmd := OutCmd,
+        StartLatched := _startLatched) AND Ok;
+END_IF
 PneumaticPower.ParCfg.Kind := E_PowerGroupKind.VALVE_ZONE;
 PneumaticPower.ParCfg.RequiredForControl := TRUE;
 PneumaticPower.ParCfg.FieldbusLossReaction := E_FieldbusLossReaction.CONTROL_OFF;
@@ -287,7 +318,11 @@ PartSlide.Execute := FALSE;]]></ST></Implementation>
 METHOD PROTECTED _M_ResetModeSequences]]></Declaration>
       <Implementation><ST><![CDATA[_homeSequence.M_Reset();
 _changeoverSequence.M_Reset();
-_autoSequence.M_Reset();]]></ST></Implementation>
+// Reset all three unconditionally: an unattached chain's M_Reset is harmless, and
+// this way the reset cannot go stale if AUTO_SEQUENCE_LANGUAGE changes.
+_autoSequence.M_Reset();
+_sfcAutoSequence.M_Reset();
+_ldAutoSequence.M_Reset();]]></ST></Implementation>
     </Method>
     <Method Name="_M_ClearModeTransitionState" Id="{f103e8ba-b0dd-4270-929c-47b3482c2e72}">
       <Declaration><![CDATA[// Clear state that must not survive init, mode entry, or either abort path.
@@ -361,7 +396,16 @@ METHOD PROTECTED _M_SequenceChangeover]]></Declaration>
       <Declaration><![CDATA[// Wiring-only AUTO adapter. Every production command, wait, timer, decision,
 // traceability action, and transition lives in the §6.8 chain.
 METHOD PROTECTED _M_SequenceAuto]]></Declaration>
-      <Implementation><ST><![CDATA[_autoSequence.M_Run();]]></ST></Implementation>
+      <Implementation><ST><![CDATA[// An ST chain's body is a method (M_Run); an SFC or LD chain's body IS the chart,
+// so the instance itself is the call. That asymmetry is the language difference,
+// not an inconsistency to normalise away.
+IF AUTO_SEQUENCE_LANGUAGE = 2 THEN
+    _ldAutoSequence();
+ELSIF AUTO_SEQUENCE_LANGUAGE = 1 THEN
+    _sfcAutoSequence();
+ELSE
+    _autoSequence.M_Run();
+END_IF]]></ST></Implementation>
     </Method>
 
     <Method Name="_M_RouteManual" Id="{653016fc-4fc6-4987-b1a0-1cd3e2828844}">
