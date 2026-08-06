@@ -56,24 +56,17 @@ END_VAR]]></Declaration>
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_StepLd" Id="{eb1b6a4d-878c-4792-a3b6-96b46f1f3886}">
-      <Declaration><![CDATA[// §6.5 step record + the chart-local ActiveStep mirror, one call.
-METHOD M_StepLd
+    <Method Name="M_AskDecisionLd" Id="{27b828b7-e6ab-4929-a8e3-bf0128c31e36}">
+      <Declaration><![CDATA[// §6.11 publish a decision request — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op.
+METHOD M_AskDecisionLd
 VAR_INPUT
-	Run : BOOL;
-    StepNo : INT;
-    StepName : STRING(120);
-    Awaits : I_Module;
-    AwaitingLabel : STRING(120);
-    TimeClass : E_TimeClass;
-    ExpectedTime : TIME;
-    // §6.12 concurrent leg; 0 = this chain's own. Required here because a ladder
-    // box has no defaulted inputs to omit.
-    Branch : INT;
+    Run : BOOL;
+    Req : ST_DecisionRequest;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF Run THEN
-	SUPER^.M_Step(StepNo := StepNo, StepName := StepName, Awaits := Awaits, AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime, Branch := Branch);
+    SUPER^.M_AskDecision(Req := Req);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -94,33 +87,55 @@ IF Run THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_MayIssueLd" Id="{d31c61df-3ef5-4878-a4b4-37693736d3c6}">
-      <Declaration><![CDATA[// §6.1 issue+await one-shot; FALSE when the rung is not powered — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns FALSE.
-METHOD M_MayIssueLd : BOOL
+    <Method Name="M_ClearDecisionLd" Id="{ec9bf0d3-47aa-4c63-98ef-c304b344d19c}">
+      <Declaration><![CDATA[// §6.11 withdraw the active request — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op.
+METHOD M_ClearDecisionLd
 VAR_INPUT
     Run : BOOL;
-    Steppable : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_MayIssueLd := FALSE;
-IF Run THEN
-    M_MayIssueLd := SUPER^.M_MayIssue(Steppable := Steppable);
+        <ST><![CDATA[IF Run THEN
+    SUPER^.M_ClearDecision();
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_GateLd" Id="{3a185ff4-e128-4750-afb7-5cb87585f867}">
-      <Declaration><![CDATA[// §3.4.2 run-style pacing gate — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns FALSE.
-METHOD M_GateLd : BOOL
+    <Method Name="M_ClearTransitionLd" Id="{e67188a5-fdd7-4322-b6cb-2ada65ea7679}">
+      <Declaration><![CDATA[// §6.10 shared step-exit action — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op.
+METHOD M_ClearTransitionLd
 VAR_INPUT
     Run : BOOL;
-    Steppable : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_GateLd := FALSE;
-IF Run THEN
-    M_GateLd := SUPER^.M_Gate(Steppable := Steppable);
+        <ST><![CDATA[IF Run THEN
+    SUPER^.M_ClearTransition();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CompleteLd" Id="{dd003618-4633-4347-8e9d-013efc953515}">
+      <Declaration><![CDATA[// §6.1 one-shot completion (finite chains) — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op.
+METHOD M_CompleteLd
+VAR_INPUT
+    Run : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Run THEN
+    SUPER^.M_Complete();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CountGoodLd" Id="{799295c5-db62-4ed6-bac1-fc03ead3d638}">
+      <Declaration><![CDATA[// §3.9 count a good part directly — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op.
+METHOD M_CountGoodLd
+VAR_INPUT
+    Run : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Run THEN
+    SUPER^.M_CountGood();
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -139,49 +154,6 @@ IF Run THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_RunSubLd" Id="{ff5366eb-e63d-42b4-9cd8-8aa89d688138}">
-      <Declaration><![CDATA[// §6.8 run another chain as ONE composite step — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns E_StepResult.NONE.
-METHOD M_RunSubLd : E_StepResult
-VAR_INPUT
-    Run : BOOL;
-    Chain : REFERENCE TO FB_SequenceBase;
-    BaseStepNo : INT;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[M_RunSubLd := E_StepResult.NONE;
-IF Run THEN
-    M_RunSubLd := SUPER^.M_RunSub(Chain := Chain, BaseStepNo := BaseStepNo);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_StopPendingLd" Id="{ba7ca419-b2b1-4490-91b8-070539246221}">
-      <Declaration><![CDATA[// §3.4 poll at the between-cycles wait — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns FALSE.
-METHOD M_StopPendingLd : BOOL
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[M_StopPendingLd := FALSE;
-IF Run THEN
-    M_StopPendingLd := SUPER^.M_StopPending();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_StopNowLd" Id="{d560b992-548f-4361-9200-15082d0c99d1}">
-      <Declaration><![CDATA[// §3.4/§8.11 accept the stop between cycles — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op.
-METHOD M_StopNowLd
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF Run THEN
-    SUPER^.M_StopNow();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="M_EndOfCycleLd" Id="{30745972-4ddd-43d6-a242-42581b0672aa}">
       <Declaration><![CDATA[// §8.11.1 cycle-complete marker — ladder form: `Run` is the rung's power flow.
 // FALSE makes the call a no-op and returns FALSE.
@@ -196,30 +168,62 @@ IF Run THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_PartReceivedLd" Id="{d4cf9f9b-38f3-4791-b65c-ff9cfdaf4a3f}">
-      <Declaration><![CDATA[// §3.16.3 part received — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns FALSE.
-METHOD M_PartReceivedLd : BOOL
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[M_PartReceivedLd := FALSE;
-IF Run THEN
-    M_PartReceivedLd := SUPER^.M_PartReceived();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_PartStartedLd" Id="{50700549-7b3c-41ab-a9af-9dbef655a687}">
-      <Declaration><![CDATA[// §3.16.3 processing started — ladder form: `Run` is the rung's power flow.
+    <Method Name="M_FaultLd" Id="{4be25263-b392-4c85-9495-75e3d3724ad3}">
+      <Declaration><![CDATA[// §6.9 first-out fault from a step — ladder form: `Run` is the rung's power flow.
 // FALSE makes the call a no-op.
-METHOD M_PartStartedLd
+METHOD M_FaultLd
 VAR_INPUT
     Run : BOOL;
+    Reason : E_Reason;
+    DescriptionKey : STRING(255);
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF Run THEN
-    SUPER^.M_PartStarted();
+    SUPER^.M_Fault(Reason := Reason, DescriptionKey := DescriptionKey);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GateLd" Id="{3a185ff4-e128-4750-afb7-5cb87585f867}">
+      <Declaration><![CDATA[// §3.4.2 run-style pacing gate — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns FALSE.
+METHOD M_GateLd : BOOL
+VAR_INPUT
+    Run : BOOL;
+    Steppable : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_GateLd := FALSE;
+IF Run THEN
+    M_GateLd := SUPER^.M_Gate(Steppable := Steppable);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TryIssueLd" Id="{d31c61df-3ef5-4878-a4b4-37693736d3c6}">
+      <Declaration><![CDATA[// §6.1 issue+await one-shot; FALSE when the rung is not powered — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns FALSE.
+METHOD M_TryIssueLd : BOOL
+VAR_INPUT
+    Run : BOOL;
+    Steppable : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_TryIssueLd := FALSE;
+IF Run THEN
+    M_TryIssueLd := SUPER^.M_TryIssue(Steppable := Steppable);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ParJoinLd" Id="{22213af1-acc1-4d3d-94f0-d19965e3b977}">
+      <Declaration><![CDATA[// §6.12 join of a parallel step — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns NONE.
+METHOD M_ParJoinLd : E_StepResult
+VAR_INPUT
+    Run : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ParJoinLd := E_StepResult.NONE;
+IF Run THEN
+    M_ParJoinLd := SUPER^.M_ParJoin();
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -236,6 +240,20 @@ END_VAR]]></Declaration>
         <ST><![CDATA[M_PartProcessedLd := FALSE;
 IF Run THEN
     M_PartProcessedLd := SUPER^.M_PartProcessed(Verdict := Verdict, Reason := Reason);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_PartReceivedLd" Id="{d4cf9f9b-38f3-4791-b65c-ff9cfdaf4a3f}">
+      <Declaration><![CDATA[// §3.16.3 part received — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns FALSE.
+METHOD M_PartReceivedLd : BOOL
+VAR_INPUT
+    Run : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_PartReceivedLd := FALSE;
+IF Run THEN
+    M_PartReceivedLd := SUPER^.M_PartReceived();
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -259,130 +277,35 @@ IF Run THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CountGoodLd" Id="{799295c5-db62-4ed6-bac1-fc03ead3d638}">
-      <Declaration><![CDATA[// §3.9 count a good part directly — ladder form: `Run` is the rung's power flow.
+    <Method Name="M_PartStartedLd" Id="{50700549-7b3c-41ab-a9af-9dbef655a687}">
+      <Declaration><![CDATA[// §3.16.3 processing started — ladder form: `Run` is the rung's power flow.
 // FALSE makes the call a no-op.
-METHOD M_CountGoodLd
+METHOD M_PartStartedLd
 VAR_INPUT
     Run : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF Run THEN
-    SUPER^.M_CountGood();
+    SUPER^.M_PartStarted();
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_AskDecisionLd" Id="{27b828b7-e6ab-4929-a8e3-bf0128c31e36}">
-      <Declaration><![CDATA[// §6.11 publish a decision request — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op.
-METHOD M_AskDecisionLd
-VAR_INPUT
-    Run : BOOL;
-    Req : ST_DecisionRequest;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF Run THEN
-    SUPER^.M_AskDecision(Req := Req);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_TakeDecisionLd" Id="{0ffd832f-1c47-4295-af89-ba583a949b67}">
-      <Declaration><![CDATA[// §6.11 consume the answer once (0 = none yet) — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns 0.
-METHOD M_TakeDecisionLd : INT
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[M_TakeDecisionLd := 0;
-IF Run THEN
-    M_TakeDecisionLd := SUPER^.M_TakeDecision();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_ClearDecisionLd" Id="{ec9bf0d3-47aa-4c63-98ef-c304b344d19c}">
-      <Declaration><![CDATA[// §6.11 withdraw the active request — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op.
-METHOD M_ClearDecisionLd
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF Run THEN
-    SUPER^.M_ClearDecision();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_CompleteLd" Id="{dd003618-4633-4347-8e9d-013efc953515}">
-      <Declaration><![CDATA[// §6.1 one-shot completion (finite chains) — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op.
-METHOD M_CompleteLd
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF Run THEN
-    SUPER^.M_Complete();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_FaultLd" Id="{4be25263-b392-4c85-9495-75e3d3724ad3}">
-      <Declaration><![CDATA[// §6.9 first-out fault from a step — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op.
-METHOD M_FaultLd
+    <Method Name="M_RaiseCustomLd" Id="{4a0cdff6-edf4-412a-a7a4-aec736993d6b}">
+      <Declaration><![CDATA[// §6.9/§8.8 raise a message this step defines itself — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns FALSE.
+METHOD M_RaiseCustomLd : BOOL
 VAR_INPUT
     Run : BOOL;
     Reason : E_Reason;
     DescriptionKey : STRING(255);
+    Severity : E_Severity;
+    Category : E_Category;
+    LinkPath : STRING(255);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF Run THEN
-    SUPER^.M_Fault(Reason := Reason, DescriptionKey := DescriptionKey);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_RunParLd" Id="{8e30f2f3-d289-4fc3-bdf4-492075436e4a}">
-      <Declaration><![CDATA[// §6.12 run one leg of a parallel step — ladder form: `Run` is the rung's power
-// flow. FALSE makes the call a no-op and returns FALSE.
-METHOD M_RunParLd : BOOL
-VAR_INPUT
-    Run : BOOL;
-    Chain : REFERENCE TO FB_SequenceBase;
-    BaseStepNo : INT;
-    Branch : INT;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[M_RunParLd := FALSE;
+        <ST><![CDATA[M_RaiseCustomLd := FALSE;
 IF Run THEN
-    M_RunParLd := SUPER^.M_RunPar(Chain := Chain, BaseStepNo := BaseStepNo,
-        Branch := Branch);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_ParJoinLd" Id="{22213af1-acc1-4d3d-94f0-d19965e3b977}">
-      <Declaration><![CDATA[// §6.12 join of a parallel step — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns NONE.
-METHOD M_ParJoinLd : E_StepResult
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[M_ParJoinLd := E_StepResult.NONE;
-IF Run THEN
-    M_ParJoinLd := SUPER^.M_ParJoin();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_ClearTransitionLd" Id="{e67188a5-fdd7-4322-b6cb-2ada65ea7679}">
-      <Declaration><![CDATA[// §6.10 shared step-exit action — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op.
-METHOD M_ClearTransitionLd
-VAR_INPUT
-    Run : BOOL;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF Run THEN
-    SUPER^.M_ClearTransition();
+    M_RaiseCustomLd := SUPER^.M_RaiseCustom(Reason := Reason, DescriptionKey := DescriptionKey, Severity := Severity, Category := Category, LinkPath := LinkPath);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -398,21 +321,6 @@ END_VAR]]></Declaration>
         <ST><![CDATA[M_RaiseFromChildLd := FALSE;
 IF Run THEN
     M_RaiseFromChildLd := SUPER^.M_RaiseFromChild(Source := Source);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_ReportFromChildLd" Id="{25cd115d-609f-487d-a4a5-11ba53412631}">
-      <Declaration><![CDATA[// §6.9(e) report a child's failure without adopting it — ladder form: `Run` is
-// the rung's power flow. FALSE makes the call a no-op and returns FALSE.
-METHOD M_ReportFromChildLd : BOOL
-VAR_INPUT
-    Run : BOOL;
-    Source : I_Module;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[M_ReportFromChildLd := FALSE;
-IF Run THEN
-    M_ReportFromChildLd := SUPER^.M_ReportFromChild(Source := Source);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -435,22 +343,114 @@ IF Run THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_RaiseCustomLd" Id="{4a0cdff6-edf4-412a-a7a4-aec736993d6b}">
-      <Declaration><![CDATA[// §6.9/§8.8 raise a message this step defines itself — ladder form: `Run` is the rung's power flow.
-// FALSE makes the call a no-op and returns FALSE.
-METHOD M_RaiseCustomLd : BOOL
+    <Method Name="M_ReportFromChildLd" Id="{25cd115d-609f-487d-a4a5-11ba53412631}">
+      <Declaration><![CDATA[// §6.9(e) report a child's failure without adopting it — ladder form: `Run` is
+// the rung's power flow. FALSE makes the call a no-op and returns FALSE.
+METHOD M_ReportFromChildLd : BOOL
 VAR_INPUT
     Run : BOOL;
-    Reason : E_Reason;
-    DescriptionKey : STRING(255);
-    Severity : E_Severity;
-    Category : E_Category;
-    LinkPath : STRING(255);
+    Source : I_Module;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_RaiseCustomLd := FALSE;
+        <ST><![CDATA[M_ReportFromChildLd := FALSE;
 IF Run THEN
-    M_RaiseCustomLd := SUPER^.M_RaiseCustom(Reason := Reason, DescriptionKey := DescriptionKey, Severity := Severity, Category := Category, LinkPath := LinkPath);
+    M_ReportFromChildLd := SUPER^.M_ReportFromChild(Source := Source);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RunParLd" Id="{8e30f2f3-d289-4fc3-bdf4-492075436e4a}">
+      <Declaration><![CDATA[// §6.12 run one leg of a parallel step — ladder form: `Run` is the rung's power
+// flow. FALSE makes the call a no-op and returns FALSE.
+METHOD M_RunParLd : BOOL
+VAR_INPUT
+    Run : BOOL;
+    Chain : REFERENCE TO FB_SequenceBase;
+    BaseStepNo : INT;
+    Branch : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RunParLd := FALSE;
+IF Run THEN
+    M_RunParLd := SUPER^.M_RunPar(Chain := Chain, BaseStepNo := BaseStepNo,
+        Branch := Branch);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RunSubLd" Id="{ff5366eb-e63d-42b4-9cd8-8aa89d688138}">
+      <Declaration><![CDATA[// §6.8 run another chain as ONE composite step — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns E_StepResult.NONE.
+METHOD M_RunSubLd : E_StepResult
+VAR_INPUT
+    Run : BOOL;
+    Chain : REFERENCE TO FB_SequenceBase;
+    BaseStepNo : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RunSubLd := E_StepResult.NONE;
+IF Run THEN
+    M_RunSubLd := SUPER^.M_RunSub(Chain := Chain, BaseStepNo := BaseStepNo);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StepLd" Id="{eb1b6a4d-878c-4792-a3b6-96b46f1f3886}">
+      <Declaration><![CDATA[// §6.5 step record + the chart-local ActiveStep mirror, one call.
+METHOD M_StepLd
+VAR_INPUT
+	Run : BOOL;
+    StepNo : INT;
+    StepName : STRING(120);
+    Awaits : I_Module;
+    AwaitingLabel : STRING(120);
+    TimeClass : E_TimeClass;
+    ExpectedTime : TIME;
+    // §6.12 concurrent leg; 0 = this chain's own. Required here because a ladder
+    // box has no defaulted inputs to omit.
+    Branch : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Run THEN
+	SUPER^.M_Step(StepNo := StepNo, StepName := StepName, Awaits := Awaits, AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime, Branch := Branch);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopNowLd" Id="{d560b992-548f-4361-9200-15082d0c99d1}">
+      <Declaration><![CDATA[// §3.4/§8.11 accept the stop between cycles — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op.
+METHOD M_StopNowLd
+VAR_INPUT
+    Run : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Run THEN
+    SUPER^.M_StopNow();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopPendingLd" Id="{ba7ca419-b2b1-4490-91b8-070539246221}">
+      <Declaration><![CDATA[// §3.4 poll at the between-cycles wait — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns FALSE.
+METHOD M_StopPendingLd : BOOL
+VAR_INPUT
+    Run : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StopPendingLd := FALSE;
+IF Run THEN
+    M_StopPendingLd := SUPER^.M_StopPending();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TakeDecisionLd" Id="{0ffd832f-1c47-4295-af89-ba583a949b67}">
+      <Declaration><![CDATA[// §6.11 consume the answer once (0 = none yet) — ladder form: `Run` is the rung's power flow.
+// FALSE makes the call a no-op and returns 0.
+METHOD M_TakeDecisionLd : INT
+VAR_INPUT
+    Run : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_TakeDecisionLd := 0;
+IF Run THEN
+    M_TakeDecisionLd := SUPER^.M_TakeDecision();
 END_IF]]></ST>
       </Implementation>
     </Method>

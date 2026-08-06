@@ -118,7 +118,7 @@ graph fails with an `Unknown type: 'SFCStepType'` cascade and shall not be commi
 is preferred here precisely because it is plain reviewable text with no editor-generated blob.
 
 `FB_SequenceBase` owns the framework bridge and shared flow mechanics once: the `_step` token, `M_Step`,
-`M_Await`, `M_Gate`, one-shot `M_MayIssue`, `M_Delay`, the part/decision/completion forwards, the shared
+`M_Await`, `M_Gate`, one-shot `M_TryIssue`, `M_Delay`, the part/decision/completion forwards, the shared
 `_retVal : E_StepResult`, and `M_Advance`. A step branch is `_retVal`'s only writer; it ends with
 `M_Advance(OnAdvance := <next>)` (plus optional `OnJump<n>` for §6.10 branches), which commits the
 transition — advancing to the mapped step and clearing the step-scoped latches (drive-issue, delay) so

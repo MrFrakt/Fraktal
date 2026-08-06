@@ -864,7 +864,7 @@ Core additions: `E_StepResult` (NONE/ADVANCE/JUMP1..3 — the Fraktal spelling o
 integrated with §6.10 branch rules), `I_SequenceHost` (the once-per-framework bridge to protected Unit
 services; `FB_UnitBase` implements it, replacing the press-private interface verbatim, plus
 `M_SequenceStopPending`/`M_SequenceStopNow`), and `FB_SequenceBase`: `M_Attach`, `M_Step` (step record +
-ActiveStep mirror), `M_Await`, `M_Gate`, `M_MayIssue` (one-shot gated issue latch — the §6.1 issue/await
+ActiveStep mirror), `M_Await`, `M_Gate`, `M_TryIssue` (one-shot gated issue latch — the §6.1 issue/await
 pair collapses into ONE reviewable step; the child's typed Command/Execute stays visible in the action),
 `M_Delay` (declared process waits), part/decision/completion/fault forwards, and the shared
 `_retVal : E_StepResult` transition with `M_ClearTransition()` as the single shared exit action.
@@ -907,7 +907,7 @@ paths; the Press sources remain single-source links and are not copied into the 
 nested `Fraktal_Tests/Fraktal_Tests.plcproj` is removed so there is only one selectable manifest.
 The aggregate test application advances to `0.1.0.5`; no PLC runtime contract changed.
 
-During the same import audit, `FB_SequenceBase.M_MayIssue` was found with a default-valued method input.
+During the same import audit, `FB_SequenceBase.M_TryIssue` was found with a default-valued method input.
 That optional-input syntax is a TwinCAT 3.1.4026+ feature and violates the pinned 4024 binding rule.
 The default was removed; every generated press action already supplies `Steppable := TRUE` explicitly,
 so behavior and the effective call contract are unchanged.
@@ -930,7 +930,7 @@ Two errors in that build were real and their fixes are kept:
 - `FB_PressDemoLoadPositionSfc.M_Reset` requires `BaseStepNo`, while the shared generated restart branch
   called it with no inputs. The generator now preserves and passes `_baseStepNo` on that branch; the
   other three charts keep their zero-input reset.
-- `FB_SequenceBase.M_MayIssue` had a default-valued method input (`Steppable : BOOL := TRUE`). Optional
+- `FB_SequenceBase.M_TryIssue` had a default-valued method input (`Steppable : BOOL := TRUE`). Optional
   method inputs are a TwinCAT 3.1.4026+ feature and violate the pinned 4024 binding rule. The default was
   removed; every generated press action already passes `Steppable := TRUE` explicitly, so the call
   contract is unchanged.
@@ -954,7 +954,7 @@ library problem (see §63 — that reference was a wrong diagnosis and was remov
 
 Resolution, per Core §6.8 (an ST `CASE StepNo OF` skeleton is a first-class equivalent to native SFC with
 identical diagnostics): the four sequences are now plain ST on the SAME `FB_SequenceBase`. Everything the
-base contributes is retained — `M_Step`, `M_Await`, `M_Gate`, one-shot `M_MayIssue`, `M_Delay`, the
+base contributes is retained — `M_Step`, `M_Await`, `M_Gate`, one-shot `M_TryIssue`, `M_Delay`, the
 part/decision/completion forwards, `I_SequenceHost` (still implemented once in `FB_UnitBase`), the shared
 `_retVal : E_StepResult`, `CycleAbandon`, and the between-cycles `M_StopNow`. Two base additions make the
 pure-ST body work: the `_step` token moved into the base, and `M_Advance(OnAdvance, OnJump1..3)` commits
@@ -962,7 +962,7 @@ pure-ST body work: the `_step` token moved into the base, and `M_Advance(OnAdvan
 latches (the guarantee the SFC exit action gave). The generator, the four `*Sfc.TcPOU` files, and the
 `SFCReset` two-scan reset handshake are gone; the files are `FB_PressDemoAuto/Home/Changeover/LoadPosition`
 and the Unit adapters do a plain reset-then-run. HOME/CHANGEOVER Setup signatures narrowed to the children
-they actually use. `M_MayIssue`'s `Steppable` input carries no default (4024 rule). Both manifests and all
+they actually use. `M_TryIssue`'s `Steppable` input carries no default (4024 rule). Both manifests and all
 four POUs parse; every `M_*` call resolves against the base.
 
 Native graphical SFC remains a permitted §6.8 option, but only when drawn in the XAE SFC editor — a
@@ -1109,7 +1109,7 @@ requires exactly '4' inputs` errors across all four ST sequence POUs
 M_Advance(OnAdvance, OnJump1..3)` had been reintroduced with defaulted jump
 inputs (`OnJump1..3 : INT := -1`), and every caller passed only `OnAdvance`.
 Optional/defaulted method inputs are a TwinCAT 3.1.4026+ feature and violate the
-pinned-4024 binding rule already established for `M_MayIssue` (§62) and
+pinned-4024 binding rule already established for `M_TryIssue` (§62) and
 `M_ResetBase` (§64): **every method input must be explicit on 4024**. The same
 audit found `M_ResetBase(FirstStep : INT := 0)` still carrying a default,
 though all four callers already passed `FirstStep := 0`.
@@ -2232,7 +2232,7 @@ own result each scan — which is what makes a stale `ADVANCE` impossible rather
 than merely unlikely.
 
 The method deliberately does **not** touch `_driveIssued` or `_delay`. Those are
-step-scoped: resetting them every scan would make `M_MayIssue` re-issue a child
+step-scoped: resetting them every scan would make `M_TryIssue` re-issue a child
 command every cycle and stop `M_Delay` ever elapsing. They re-arm on step change
 through `M_ClearTransition`, whose role is now documented as the shared *step
 exit* action — the SFC exit action runs after the transition was evaluated, so a
@@ -2690,7 +2690,7 @@ same delegation bodies.
 
 **Remaining rungs not generated.** The `<NWL>` graph is replicable from an
 example, but N000 is unconditional — an `EQ` gate plus a straight box chain. Every
-other step branches (`IF _pressRam.Done`, `IF M_MayIssue`, `IF/ELSIF`), and the
+other step branches (`IF _pressRam.Done`, `IF M_TryIssue`, `IF/ELSIF`), and the
 contact/branch vocabulary for that appears nowhere in this file. Generating them
 would mean inventing that part of the graph with no compiler to check it, on a
 file that has already been rebuilt twice. One conditional rung — N110 ram-up is
@@ -2770,7 +2770,7 @@ step.
 while `_exec = BUSY`, so the fault stops the chain by itself, frozen *on* the step —
 its own `_step` is untouched (the Unit's `_step := 0` is a different variable). The
 hazard is what happens after the operator clears it: the step would resume with
-`M_MayIssue`'s one-shot already spent, `M_Delay`'s timer half-run and `M_RunSub`'s
+`M_TryIssue`'s one-shot already spent, `M_Delay`'s timer half-run and `M_RunSub`'s
 latch set — i.e. still believing a handshake that failed. So `FB_UnitBase` now edge-
 detects the *end* of ERROR (`_errClr : R_TRIG` on `_exec <> E_ExecState.ERROR`),
 clears the row marks and calls `M_ResumeAfterError()` on every registered chain,
@@ -2873,7 +2873,7 @@ legs cannot share one `_retVal`. Finishing it turned up more that could not be s
 
 **Every step-scoped latch had to become per-branch.** `_driveIssued`, `_delay`,
 `_subRunning` and the §6.9(e) message latch are singular per chain. With two legs live
-in the same POU, leg A's `M_MayIssue` consumed leg B's one-shot, so only one leg could
+in the same POU, leg A's `M_TryIssue` consumed leg B's one-shot, so only one leg could
 ever command a child — and `M_ClearTransition` cleared *all* of `_conRetVal`, so leg A
 committing a step wiped leg B's result mid-motion. They are now
 `ARRAY[0..MAX_PARALLEL_BRANCHES]`, indexed by a scan-scoped cursor. Index 0 is the
@@ -2883,7 +2883,7 @@ nothing existing changed.
 **A latent bug fell out of it.** The re-arm of those latches lived in
 `M_ClearTransition`, which ST reaches through `M_Advance` on commit. A chart language
 never calls it — its engine owns the transition, so there is no commit point — and
-nothing else re-armed anything. `M_MayIssue` therefore fired once per chart **RUN**
+nothing else re-armed anything. `M_TryIssue` therefore fired once per chart **RUN**
 instead of once per step: the SFC rendition would have commanded its first cylinder
 and then silently nothing. It never bit because `FB_SFC_PressDemoAuto` is compiled but
 not instantiated. The re-arm now lives in `M_Step`, the one call every step of every
@@ -3527,3 +3527,32 @@ project root appear in that project's compile list. These DUTs live under the
 no rule looks at cross-project source borrowing. That is a genuine gap — a second
 project compiling another project's sources is exactly where a manifest drifts
 silently — and is the obvious next lint rule.
+
+## 124. M_MayIssue -> M_TryIssue (2026-08-05)
+
+A question-shaped name on a call that consumes what it reports. `M_MayIssue` reads as a
+predicate — ask twice, same answer — but when the gate opens it latches
+`_driveIssued[_branch]`, so the second call in a step returns FALSE and the command
+silently never issues. Command/Query Separation, and the kind of defect that survives
+review because the call site reads correctly.
+
+`Try*` is the established convention for attempt-and-report, and it matches the real
+contract including the part that is easy to miss: a **closed** gate returns FALSE
+*without* consuming, so retrying on the next scan is correct. It also restores the
+imperative-verb convention every sibling follows (`M_Step`, `M_Await`, `M_Advance`,
+`M_Delay`, `M_RunSub`, `M_Gate`) — `M_MayIssue` was the only interrogative, because it
+was conceived as a predicate and implemented as a consuming operation.
+
+`M_BeginCommand` was the runner-up and was rejected: `OnCommandStart` already exists on
+the module base and means something else (the Unit's own command edge), and the
+near-collision would have cost more than the clarity gained.
+
+59 occurrences across the base, the `Ld` facade, the ST/SFC/LD renditions, the probes
+and the specification. `Fraktal_Core` verifies green (`CheckAllObjects = True`).
+
+**Consumers need the library re-installed.** `PressTests` compiles against the
+*installed* `Fraktal_Core` (0.4.0.0), which still exports `M_MayIssue`, so it now
+reports 30 errors until Core is rebuilt and re-installed via **Save as library and
+install**. That is the documented dependency order, not a defect — but it is the first
+time this session a Core API rename has been made, and it is worth recording that the
+source-green/consumer-red window is expected and is closed by the install step.

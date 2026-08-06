@@ -164,7 +164,7 @@ END_IF]]></ST>
 // forces every step action to re-assert its own result each scan, which is the
 // property that makes a stale ADVANCE impossible.
 //
-// It deliberately clears ONLY the result. `_driveIssued` (M_MayIssue's one-shot)
+// It deliberately clears ONLY the result. `_driveIssued` (M_TryIssue's one-shot)
 // and `_delay` (M_Delay's timer) are STEP-scoped, not scan-scoped: resetting them
 // every scan would re-issue a child command every cycle and stop any delay from
 // ever elapsing. Those re-arm on step change, through M_ClearTransition.
@@ -382,25 +382,25 @@ IF _host <> 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_MayIssue" Id="{d70a5c94-83e1-4f26-b5d8-42c69e01af37}">
+    <Method Name="M_TryIssue" Id="{d70a5c94-83e1-4f26-b5d8-42c69e01af37}">
       <Declaration><![CDATA[// §6.1 issue+await in ONE step: TRUE exactly once per step visit, when the
 // run-style gate permits (§3.4.2). The action then sets the child's typed
 // Command and raises Execute — visibly, in the step (§6.8). The child's Done
 // releases the handshake and sets _retVal := ADVANCE; a child Error needs no
 // step code — the owning Unit adopts it instantly via the §8.2 rollup.
 // The latch re-arms through the shared exit action (M_ClearTransition).
-METHOD M_MayIssue : BOOL
+METHOD M_TryIssue : BOOL
 VAR_INPUT
     Steppable : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_MayIssue := FALSE;
+        <ST><![CDATA[M_TryIssue := FALSE;
 IF _driveIssued[_branch] THEN
     RETURN;
 END_IF
 IF M_Gate(Steppable := Steppable) THEN
     _driveIssued[_branch] := TRUE;
-    M_MayIssue := TRUE;
+    M_TryIssue := TRUE;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -624,7 +624,7 @@ _parDone := 0;]]></ST>
       <Declaration><![CDATA[// §6.9 — the owning Unit left ERROR. The chain's _step was never touched, so it
 // resumes exactly where it stopped; re-arming the step-scoped latches here is
 // what makes it RE-EVALUATE the command rather than resume mid-handshake with a
-// spent M_MayIssue one-shot and a half-run delay.
+// spent M_TryIssue one-shot and a half-run delay.
 METHOD M_ResumeAfterError]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT _errorRaised THEN
@@ -698,7 +698,7 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// §6.12 — select the leg first: everything below, and everything the step action
-// does after this call (M_MayIssue, M_Delay, M_RunSub, the §6.9(e) message latch)
+// does after this call (M_TryIssue, M_Delay, M_RunSub, the §6.9(e) message latch)
 // is scoped to it. An out-of-range index faults rather than quietly landing on the
 // main line (§5.6 - no silent default).
 IF Branch < 0 OR Branch > PL_Fraktal.MAX_PARALLEL_BRANCHES THEN
@@ -715,7 +715,7 @@ END_IF
 // so there is no commit point to hang it on. The step record is the one call every
 // step of every language makes, so the re-arm belongs here - a new step number on
 // this leg re-arms that leg's issue latch, delay and message. Without it
-// M_MayIssue fired once per chart RUN instead of once per step.
+// M_TryIssue fired once per chart RUN instead of once per step.
 IF (NOT _stepSeen[_branch]) OR (_lastStep[_branch] <> StepNo) THEN
     _lastStep[_branch] := StepNo;
     _stepSeen[_branch] := TRUE;

@@ -127,7 +127,7 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
 - **LD**: an integer state machine over the inherited `_step` — one rung per state,
   `[EQ(_step, N)]` dispatching, and the rung `MOVE`s the next state into `_step`. No
   `M_Advance`, no `_retVal`. Calls go through the `FB_SequenceBaseLd` facade
-  (`M_StepLd`, `M_MayIssueLd`, …), which takes `Run : BOOL` first for rung power flow;
+  (`M_StepLd`, `M_TryIssueLd`, …), which takes `Run : BOOL` first for rung power flow;
   those are **not** overrides (adding an input is `C0094`), and each returns through its
   own name. **Never nest a value-returning facade box or feed its result into another
   box's `Run`:** XAE lowers that edge to `ImpVar<BoxId>_<output>` and may fail lazy
@@ -380,7 +380,7 @@ final for the project. In the internal Press test bench, `FB_PressDemoUnit`, `Se
   same child in one scan. Promote a sub-sequence to an EM when it needs independent commandability,
   concurrency, recipe/lifecycle/diagnostic identity, or reuse by unrelated owners.
 - A sequence POU **extends `FB_SequenceBase`** (§6.8(a)): it supplies the `_step` token,
-  `M_Step`/`M_Await`/`M_Gate`/`M_MayIssue`/`M_Delay`, the part/decision/completion forwards, the shared
+  `M_Step`/`M_Await`/`M_Gate`/`M_TryIssue`/`M_Delay`, the part/decision/completion forwards, the shared
   `_retVal : E_StepResult`, and `M_Advance`. Each `_step` branch is `_retVal`'s only writer and ends with
   `M_Advance(OnAdvance := <next>)` (optional `OnJump<n>` for §6.10 branches), which advances and clears
   the step-scoped latches. The owning Unit already implements `I_SequenceHost` (base) — pass `THIS^` at

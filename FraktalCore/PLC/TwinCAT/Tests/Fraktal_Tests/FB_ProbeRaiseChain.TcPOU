@@ -81,7 +81,7 @@ Reported := FALSE;]]></ST>
                 Severity := E_Severity.LOW, Category := E_Category.PROCESS);
         END_IF
         IF Enable THEN
-            IF M_MayIssue(Steppable := TRUE) THEN
+            IF M_TryIssue(Steppable := TRUE) THEN
                 Issues := Issues + 1;        // proves the re-evaluation after resume
                 _child.Abort := FALSE;
                 _child.Execute := TRUE;

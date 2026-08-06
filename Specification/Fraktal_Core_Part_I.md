@@ -1131,7 +1131,7 @@ To keep all three languages cheap and consistent, the standard **provides**: (a)
 
 The reference implementation of (a) is `FB_SequenceBase` [TC3]: a sequence POU extends it and receives
 the active step token (`_step`), the step record (`M_Step`), condition waits (`M_Await`), run-style
-pacing with a one-shot issue latch (`M_MayIssue`), declared process delays (`M_Delay`), the
+pacing with a one-shot issue latch (`M_TryIssue`), declared process delays (`M_Delay`), the
 part/decision/completion forwards, and the **shared transition result `_retVal : E_StepResult`**. Each
 step action is `_retVal`'s only writer; at the end of the step it calls `M_Advance(OnAdvance := <next>)`
 (with optional `OnJump<n>` targets for §6.10 branches), which commits the transition — advancing to the
@@ -1162,7 +1162,7 @@ step it just entered. Who performs that clear depends on who owns the transition
   chain in `FB_SequenceBase.M_Attach` and drives `I_Sequence.M_BeginScan` from `FB_UnitBase`, so a project
   adding a chart in any language writes no wiring at all.
 
-The per-scan clear **shall** reset the result only. The step-scoped helpers — the `M_MayIssue` one-shot
+The per-scan clear **shall** reset the result only. The step-scoped helpers — the `M_TryIssue` one-shot
 latch and the `M_Delay` timer — are cleared on *step change* (`M_ClearTransition`), never per scan:
 re-arming them every cycle would re-issue a child command each scan and prevent any delay from elapsing.
 
@@ -1228,7 +1228,7 @@ The reaction is fixed and **shall not** be varied per step:
    module that actually failed — even for a step that passed `Awaits := 0`.
 3. **Re-evaluate, never resume blind.** When the `ERROR` state ends, the Unit clears the
    row marks and re-arms every attached chain (`M_ResumeAfterError` → `M_ClearTransition`).
-   The step-scoped latches — `M_MayIssue`'s one-shot, `M_Delay`'s timer, `M_RunSub`'s
+   The step-scoped latches — `M_TryIssue`'s one-shot, `M_Delay`'s timer, `M_RunSub`'s
    latch — go back to their unissued state, so the step **re-issues and re-tests its
    command** instead of resuming mid-handshake on a spent one-shot. Whether the chain
    then continues from that step or restarts from the top is the project's choice, made
@@ -1416,7 +1416,7 @@ apart. A leg step declares itself **on its own step record**:
 M_Step(StepNo := 300, StepName := 'project.step.positionBWork', Awaits := 0,
     AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S,
     Branch := 1);
-IF M_MayIssue(Steppable := TRUE) THEN ... END_IF
+IF M_TryIssue(Steppable := TRUE) THEN ... END_IF
 _conRetVal[1] := E_StepResult.ADVANCE;     // this leg's transition result
 ```
 
@@ -1450,7 +1450,7 @@ chain rather than silently falling back (§5.6).
 
 #### (d) What the base owns
 
-Every **step-scoped** latch is per branch: the `M_MayIssue` one-shot, the `M_Delay`
+Every **step-scoped** latch is per branch: the `M_TryIssue` one-shot, the `M_Delay`
 timer, the `M_RunSub` entry latch, and the §6.9(e) message latch. `M_Step` selects the
 leg before any of them, so everything a step action does after its step record is
 scoped to that leg. This is not an
@@ -1459,7 +1459,7 @@ leg committing a step wipe another leg's transition result mid-motion.
 
 The re-arm itself moved to `M_Step`, which is the one call every step of every
 language makes. A chart language has no commit point to hang `M_ClearTransition` on,
-so before this a chart's `M_MayIssue` fired once per chart **run** instead of once per
+so before this a chart's `M_TryIssue` fired once per chart **run** instead of once per
 step.
 
 #### (f) The chart is scoped to the running mode

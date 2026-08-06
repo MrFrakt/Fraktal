@@ -42,7 +42,7 @@ METHOD M_ChainRun]]></Declaration>
     0:
         M_Step(StepNo := _baseStepNo, StepName := 'project.test.legCommand', Awaits := 0,
             AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-        IF M_MayIssue(Steppable := TRUE) THEN
+        IF M_TryIssue(Steppable := TRUE) THEN
             Issues := Issues + 1;
             _child.Abort := FALSE;
             _child.Execute := TRUE;

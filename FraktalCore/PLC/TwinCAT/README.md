@@ -254,7 +254,7 @@ the worked example; `FB_SequenceBaseLd` is the base it extends.
 
 **The facade, and why it exists.** Every framework call needs a boolean input because a
 ladder box only executes on power flow. `FB_SequenceBaseLd` therefore declares
-`M_StepLd`, `M_AwaitLd`, `M_MayIssueLd`, … — each taking `Run : BOOL` first and
+`M_StepLd`, `M_AwaitLd`, `M_TryIssueLd`, … — each taking `Run : BOOL` first and
 delegating to `SUPER^.M_Step(...)` when TRUE. **They are NOT overrides.** Adding an
 input changes the signature, which is `C0094: Interface of overridden method doesn't
 match declaration` — 27 of them, and the reason the library did not compile for weeks.
@@ -287,7 +287,7 @@ Hence the distinct `Ld` names. Two consequences worth knowing before editing:
 ```
 [EQ(_step, 110)]──┬──[M_StepLd  StepNo:=110, …, Awaits:=_pressRam,
                   │              AwaitingLabel:='PressRam.RETRACT']
-                  ├──[M_MayIssueLd Steppable:=TRUE]──┬──[_pressRam.Command := E_CylinderCommand.RETRACT]
+                  ├──[M_TryIssueLd Steppable:=TRUE]──┬──[_pressRam.Command := E_CylinderCommand.RETRACT]
                   │                                  ├──[_pressRam.Abort   := FALSE]
                   │                                  └──[_pressRam.Execute := TRUE]
                   └──[_pressRam.Done]────────────────┬──[_pressRam.Execute := FALSE]
@@ -316,7 +316,7 @@ semantics—three independent result assignments followed by one combined transi
 
 **Rules that differ from ST.**
 
-1. `M_MayIssueLd` is what re-arms per step — the issue latch is cleared by `M_Step`
+1. `M_TryIssueLd` is what re-arms per step — the issue latch is cleared by `M_Step`
    on a step-number change (a chart language never reaches `M_ClearTransition`).
 2. No `M_Advance`, no `_retVal`. The rung writes `_step` directly; that is the
    idiomatic ladder transition and rule S1 accepts it (it requires a step record plus
@@ -352,7 +352,7 @@ resolves only once Core and Modules are installed as libraries.
   subtraction operator and yields ~40 cascading errors on innocent lines. Rule
   **C2** now rejects them; a *qualified* enum member (`E_CylinderPosition.MID`) is
   still fine.
-- **`M_MayIssue` used to fire once per chart RUN in SFC/LD.** A chart language never
+- **`M_TryIssue` used to fire once per chart RUN in SFC/LD.** A chart language never
   calls `M_ClearTransition` — its engine owns the transition, so there is no commit
   point to hang it on — and nothing else re-armed the issue latch. The re-arm now
   lives in `M_Step`, the one call every step of every language makes. If you are

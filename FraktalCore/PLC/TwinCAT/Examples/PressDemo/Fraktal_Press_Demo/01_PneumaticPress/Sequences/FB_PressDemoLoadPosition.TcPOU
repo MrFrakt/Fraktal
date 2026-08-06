@@ -6,7 +6,7 @@
 // BaseStepNo window so its detailed progress projects through the Unit's normal
 // §6.5 step record. Implemented as a Core §6.8 ST `CASE _step OF` skeleton on
 // FB_SequenceBase — the step actions issue child commands only through the §6.1
-// handshake (M_MayIssue), and progression rides the shared _retVal via M_Advance.
+// handshake (M_TryIssue), and progression rides the shared _retVal via M_Advance.
 FUNCTION_BLOCK FB_PressDemoLoadPosition EXTENDS FB_SequenceBase
 VAR
     {attribute 'OPC.UA.DA' := '0'}
@@ -32,7 +32,7 @@ CASE _step OF
         M_Step(StepNo := _baseStepNo, StepName := 'project.step.pressSafePositionRamUp',
             Awaits := _pressRam, AwaitingLabel := 'PressRam.RETRACT',
             TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-        IF M_MayIssue(Steppable := TRUE) THEN
+        IF M_TryIssue(Steppable := TRUE) THEN
             _pressRam.Abort := FALSE;
             _pressRam.Command := E_CylinderCommand.RETRACT;
             _pressRam.Execute := TRUE;
@@ -46,7 +46,7 @@ CASE _step OF
         M_Step(StepNo := _baseStepNo + 20, StepName := 'project.step.pressSafePositionDoorOpen',
             Awaits := _door, AwaitingLabel := 'Door.RETRACT',
             TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-        IF M_MayIssue(Steppable := TRUE) THEN
+        IF M_TryIssue(Steppable := TRUE) THEN
             _door.Abort := FALSE;
             _door.Command := E_CylinderCommand.RETRACT;
             _door.Execute := TRUE;
@@ -60,7 +60,7 @@ CASE _step OF
         M_Step(StepNo := _baseStepNo + 40, StepName := 'project.step.pressSafePositionSlideOutside',
             Awaits := _partSlide, AwaitingLabel := 'PartSlide.RETRACT',
             TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-        IF M_MayIssue(Steppable := TRUE) THEN
+        IF M_TryIssue(Steppable := TRUE) THEN
             _partSlide.Abort := FALSE;
             _partSlide.Command := E_CylinderCommand.RETRACT;
             _partSlide.Execute := TRUE;

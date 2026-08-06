@@ -4488,7 +4488,7 @@ END_IF]]></ST>
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 110, StepName := 'project.step.pressRamUp',
     Awaits := _pressRam, AwaitingLabel := 'PressRam.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-IF M_MayIssue(Steppable := TRUE) THEN
+IF M_TryIssue(Steppable := TRUE) THEN
     _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.RETRACT; _pressRam.Execute := TRUE;
 END_IF
 IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF]]></ST>
@@ -4501,7 +4501,7 @@ IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVAN
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 130, StepName := 'project.step.pressDoorOpen',
     Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-IF M_MayIssue(Steppable := TRUE) THEN
+IF M_TryIssue(Steppable := TRUE) THEN
     _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
 END_IF
 IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF]]></ST>
@@ -4514,7 +4514,7 @@ IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 150, StepName := 'project.step.pressSlideInside',
     Awaits := _partSlide, AwaitingLabel := 'PartSlide.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-IF M_MayIssue(Steppable := TRUE) THEN
+IF M_TryIssue(Steppable := TRUE) THEN
     M_PartStarted();
     _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.EXTEND; _partSlide.Execute := TRUE;
 END_IF
@@ -4545,7 +4545,7 @@ M_Step(StepNo := 180, StepName := 'project.step.pressDoorClose',
 _twoHandHeldDuringClose := M_Await(Idx := 1,
     Label := 'project.condition.twoHandHeldDuringDoorClose',
     Ok := _twoHand.OutImm.SafeActive OR NOT _parCfg.RequireTwoHandStart);
-IF M_MayIssue(Steppable := TRUE) THEN
+IF M_TryIssue(Steppable := TRUE) THEN
     _door.Abort := FALSE; _door.Command := E_CylinderCommand.EXTEND; _door.Execute := TRUE;
 END_IF
 IF _door.Done THEN
@@ -4570,7 +4570,7 @@ END_IF]]></ST>
 // released while the door closes. Advances to A190.
 M_Step(StepNo := 185, StepName := 'project.step.pressDoorReopen',
     Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-IF M_MayIssue(Steppable := TRUE) THEN
+IF M_TryIssue(Steppable := TRUE) THEN
     _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
 END_IF
 IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF]]></ST>
@@ -4583,7 +4583,7 @@ IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_
 // so the cycle cannot resume without a fresh two-hand press.
 M_Step(StepNo := 190, StepName := 'project.step.pressSlideOutsideAfterAbort',
     Awaits := _partSlide, AwaitingLabel := 'PartSlide.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
-IF M_MayIssue(Steppable := TRUE) THEN
+IF M_TryIssue(Steppable := TRUE) THEN
     _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.RETRACT; _partSlide.Execute := TRUE;
 END_IF
 IF _partSlide.Done THEN
@@ -4606,7 +4606,7 @@ M_Step(StepNo := 200, StepName := 'project.step.pressRamDown',
     Branch := 1);
 _ramReached := M_Await(Idx := 1, Label := 'project.condition.pressRamExtended',
     Ok := _pressRam.Done);
-IF M_MayIssue(Steppable := TRUE) THEN
+IF M_TryIssue(Steppable := TRUE) THEN
     _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.EXTEND; _pressRam.Execute := TRUE;
 END_IF
 IF _pressRam.Done THEN
