@@ -150,6 +150,42 @@ class Rung:
         return self.subst(f"'{old}'", f"'{new}'",
                           new_type=f"STRING(INT#{len(new)})", count=count)
 
+    def set_input(self, box_type: str, index: int, new: str, *,
+                  new_type: str | None = None, occurrence: int = 0) -> "Rung":
+        """Set the operand on a box's `index`-th DIRECT input pin.
+
+        Text substitution cannot address a rung reliably: `"0"` is the gate
+        constant, the `Awaits` argument AND the `Branch` argument of one N0-shaped
+        rung, so `subst("0", "230")` correctly refuses. Pins are positional and
+        match `InputParam.Names` one-for-one, so addressing them by index says
+        what was actually meant.
+
+        Only direct children count. A nested box occupying pin 0 (the EN chain)
+        is one child however deep it goes.
+        """
+        start, end = find_box(self.text, box_type, occurrence)
+        box = self.text[start:end]
+        items_at = box.index('<l2 n="InputItems"')
+        cursor = box.index(">", items_at) + 1
+        span = None
+        for pin in range(index + 1):
+            span = subtree(box, cursor)
+            cursor = span[1]
+        child = box[span[0]:span[1]]
+        if "BoxTreeOperand" not in (child[:60]) and '<v n="Operand">' not in child:
+            raise RungError(f"{box_type} pin {index} is not a plain operand")
+        pattern = re.compile(r'(<v n="Operand">)"[^"]*"(</v>\s*<v n="Type">)"([^"]*)"')
+        replaced, hits = pattern.subn(
+            lambda m: f'{m.group(1)}"{new}"{m.group(2)}'
+                      f'"{m.group(3) if new_type is None else new_type}"',
+            child, count=1)
+        if hits != 1:
+            raise RungError(f"{box_type} pin {index}: no operand to set")
+        box = box[:span[0]] + replaced + box[span[1]:]
+        self.text = self.text[:start] + box + self.text[end:]
+        self.log.append(f"{box_type}[{index}] := {new!r}")
+        return self
+
     def splice_after(self, anchor: str, block: str, *, count: int = 1) -> "Rung":
         """Insert raw node XML immediately after a matched anchor."""
         hits = self.text.count(anchor)
@@ -323,6 +359,76 @@ def convert_ld_boxes(source: str, *, id_base: int) -> tuple[str, int, list[str]]
         source = source[:start] + new_box + source[end:]
         converted.append(f"{box_type} -> {base_name}"
                          f"{' (value)' if returns_value else ''}")
+
+
+def subtree(text: str, start: int) -> tuple[int, int]:
+    """Span of the `<o …>` element beginning at or after `start`."""
+    open_at = text.index("<o", start)
+    depth = 0
+    for tag in O_TAG.finditer(text, open_at):
+        if tag.group(2):
+            continue
+        depth += 1 if not tag.group(1) else -1
+        if depth == 0:
+            return open_at, tag.end()
+    raise RungError("unterminated <o> element")
+
+
+def find_box(text: str, box_type: str, occurrence: int = 0) -> tuple[int, int]:
+    matches = [(a, b) for a, b, t in iter_boxes(text) if t == box_type]
+    if len(matches) <= occurrence:
+        raise RungError(
+            f"box {box_type!r} #{occurrence} not found (have {len(matches)})")
+    return matches[occurrence]
+
+
+def _en_slot(box: str) -> tuple[int, int]:
+    """Span of a box's FIRST InputItems child - its EN/power source."""
+    items = box.index('<l2 n="InputItems"')
+    if box[items:items + 40].rstrip().endswith("/>"):
+        raise RungError("box has no InputItems children to graft onto")
+    return subtree(box, box.index(">", items) + 1)
+
+
+def graft_before(rung: str, host_type: str, donor: str, *, id_base: int,
+                 var_base: int, occurrence: int = 0) -> tuple[str, int, int]:
+    """Insert `donor` into `rung`'s power chain so it runs BEFORE `host_type`.
+
+    Power flow in the EN form is nesting, not sibling order:
+
+        MOVE(EN := M_Step(EN := EQ(…)))
+
+    so adding a box means re-parenting, not appending. The donor takes over the
+    host's EN slot and the slot's previous occupant becomes the donor's own EN
+    source, which is exactly `host(EN := donor(EN := previous))`.
+
+    The donor is renumbered into a fresh Id/VarId range first: it is normally
+    cloned out of another network, where its Ids are already in use.
+    """
+    donor_rung, next_id, next_var = clone(donor, id_base=id_base, var_base=var_base)
+    donor_text = donor_rung.text
+
+    # A node lifted out of a `<l2 … cet="BoxTreeBox">` list carries NO t= of its
+    # own: the list typed it collectively. Dropped into a list without a cet it
+    # becomes an untyped `<o>`, which still parses and still COMPILES - the box
+    # is simply not there. Restore the type explicitly.
+    if re.match(r"<o>\s", donor_text):
+        donor_text = donor_text.replace("<o>", '<o t="BoxTreeBox">', 1)
+    elif not re.match(r'<o\s+t="', donor_text):
+        raise RungError("donor node has no recognisable element type")
+
+    host_start, host_end = find_box(rung, host_type, occurrence)
+    host = rung[host_start:host_end]
+    slot_start, slot_end = _en_slot(host)
+    previous = host[slot_start:slot_end]
+
+    # Give the donor the host's old EN source.
+    donor_slot_start, donor_slot_end = _en_slot(donor_text)
+    donor_text = (donor_text[:donor_slot_start] + previous
+                  + donor_text[donor_slot_end:])
+
+    host = host[:slot_start] + donor_text + host[slot_end:]
+    return rung[:host_start] + host + rung[host_end:], next_id, next_var
 
 
 def rebuild(source: str, networks: list[str]) -> str:
