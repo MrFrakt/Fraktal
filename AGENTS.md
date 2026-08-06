@@ -129,7 +129,11 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   `M_Advance`, no `_retVal`. Calls go through the `FB_SequenceBaseLd` facade
   (`M_StepLd`, `M_MayIssueLd`, …), which takes `Run : BOOL` first for rung power flow;
   those are **not** overrides (adding an input is `C0094`), and each returns through its
-  own name. Full rung-by-rung procedure, both rung shapes and the traps are in
+  own name. **Never nest a value-returning facade box or feed its result into another
+  box's `Run`:** XAE lowers that edge to `ImpVar<BoxId>_<output>` and may fail lazy
+  type inference. Assign every return to an explicitly typed local, then combine the
+  locals; `Run` is rung power, not Boolean chaining, and independent waits must all be
+  called each active scan. Full rung-by-rung procedure, both rung shapes and traps are in
   `FraktalCore/PLC/TwinCAT/README.md` § "Writing a Ladder sequence rung by rung".
 - Never add a per-scan `_retVal` clear: `FB_UnitBase._M_BeginSequenceScan` does it
   for every attached chain before `_M_Dispatch` (§1.1 O1).

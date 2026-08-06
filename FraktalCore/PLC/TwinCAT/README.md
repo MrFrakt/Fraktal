@@ -273,9 +273,13 @@ Hence the distinct `Ld` names. Two consequences worth knowing before editing:
 ```
 [EQ(_step, 100)]──┬──[M_StepLd  StepNo:=100, StepName:='…', Awaits:=0,
                   │              AwaitingLabel:='', TimeClass:=…, ExpectedTime:=…, Branch:=0]
-                  ├──[M_AwaitLd Idx:=1, Label:='project.condition.partPresent',
-                  │              Ok:= sensor.OutImm.Value AND sensor.OutImm.Quality]
-                  └──[<conditions>]──[MOVE 110 → _step]
+                  ├──[_partReady := M_AwaitLd(Idx:=1,
+                  │              Label:='project.condition.partPresent',
+                  │              Ok:=sensor.OutImm.Value AND sensor.OutImm.Quality)]
+                  ├──[_airReady := M_AwaitLd(Idx:=2, Label:='…', Ok:=…)]
+                  ├──[_twoHandReady := M_AwaitLd(Idx:=3, Label:='…', Ok:=…)]
+                  ├──[_startReady := NOT requireTwoHand OR _twoHandReady]
+                  └──[_partReady AND _airReady AND _startReady]──[MOVE 110 → _step]
 ```
 
 *Commanding a child* (most steps — this is the N110 shape):
@@ -293,6 +297,22 @@ Hence the distinct `Ld` names. Two consequences worth knowing before editing:
 A **jump** is not a special construct: it is a second `MOVE` under a different contact
 in the same rung (`_pressRam.Error` → `MOVE 210 → _step` beside `Done` → `MOVE 220`).
 A **terminal** step calls `M_Complete()`/sets `Done` and does not `MOVE`.
+
+**Never nest a value-returning facade box.** Assign each `M_AwaitLd`,
+`M_PartReceivedLd`, decision, or other value-returning call to a declared variable of
+the exact return type, then combine those variables in a separate logic box. `Run` is
+the box's rung-power/execute input; it is not an accumulator for the previous call's
+Boolean result. Every active named wait must execute independently on every scan so
+the complete diagnostic set remains published.
+
+Why this is a hard rule: XAE lowers a nested graphical output to a temporary named
+`ImpVar<BoxId>_<output ordinal>`. In the broken N100 archive,
+`ImpVar597_1` is the return of `M_AwaitLd` box ID 597 feeding OR box 612, and
+`ImpVar616_1` is the return of `M_AwaitLd` box ID 616 feeding the `Run` pin of outer
+`M_AwaitLd` box 614. TwinCAT could not type those nested method temporaries. The
+names were editor-generated, but they were not opaque: their box IDs locate the
+offending nodes in `<NWL><XmlArchive>`. Flattening the calls also restores the ST/SFC
+semantics—three independent result assignments followed by one combined transition.
 
 **Rules that differ from ST.**
 
