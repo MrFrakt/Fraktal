@@ -5,6 +5,7 @@ from pathlib import Path
 
 from tools.ld_dump import gate_step, network_lines
 from tools.ld_rung_gen import (
+    ARCHIVE_TYPES,
     PLAIN,
     RESET,
     Allocator,
@@ -15,6 +16,8 @@ from tools.ld_rung_gen import (
     Term,
     Value,
     Wire,
+    body,
+    call,
     clone,
     compare,
     logic,
@@ -419,6 +422,37 @@ class SynthesisTests(unittest.TestCase):
         # carries the literal's own length. Mixing them is a silent mismatch.
         self.assertEqual(Value.text("PressDwell").type_name, "STRING(INT#10)")
         self.assertEqual(Value.text("").type_name, "STRING(INT#0)")
+
+    def test_an_fb_instance_call_names_the_type_and_carries_the_instance(self):
+        # The one shape a method box cannot express: `ModeStart();`. It names the
+        # FB TYPE and puts the INSTANCE in its Instance operand, which is what
+        # makes the compiler check one against the other - proven by pointing it
+        # at a name that is not an instance of that type and watching XAE say
+        # "'ModeStartTypo' is not an instance of 'FB_PermIntlk'".
+        alloc = Allocator(1, 1)
+        box = ET.fromstring(call("FB_PermIntlk", "ModeStart", Term()).render(alloc))
+        self.assertEqual(box.find("./v[@n='BoxType']").text, '"FB_PermIntlk"')
+        self.assertEqual(
+            box.find("./o[@n='Instance']/v[@n='Operand']").text, '"ModeStart"')
+        self.assertEqual(box.find("./v[@n='CallType']").text, "FunctionBlock")
+        # Inputs left unwired keep whatever the instance already holds.
+        self.assertEqual(
+            [v.text for v in box.findall("./o[@n='InputParam']/l2[@n='Names']/v")],
+            ["EN"])
+
+    def test_body_wraps_networks_into_a_loadable_archive(self):
+        alloc = Allocator(1, 1)
+        rung = network([method("M_PartStarted", Term())], alloc)
+        text = body([rung], indent="      ")
+        root = ET.fromstring(text)
+        archive = root.find("./NWL/XmlArchive")
+        self.assertIsNotNone(archive, "no <NWL><XmlArchive> in the body")
+        # The TypeList is not decoration - the archive will not load without it.
+        self.assertEqual(
+            len(archive.findall("./TypeList/Type")), len(ARCHIVE_TYPES))
+        holder = archive.find("./Data/o")
+        self.assertEqual(len(holder.findall("./l2[@n='NetworkList']/o")), 1)
+        self.assertIsNotNone(holder.find("./v[@n='BranchCounter']"))
 
     def test_network_comment_cannot_break_the_quoting(self):
         alloc = Allocator(1, 1)

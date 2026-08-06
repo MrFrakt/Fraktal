@@ -672,7 +672,7 @@ class Box(Node):
     outputs: list[tuple[str, str] | None]
     en: bool | None = True
     eno: bool | None = True
-    named_instance: bool = True
+    instance: str | None = ""      # None -> `<n n="Operand" />`, as operators use
     fixed: bool = True
 
     def _param_list(self, indent: str, name: str, names: list[str],
@@ -717,8 +717,8 @@ class Box(Node):
         return (
             f'{indent}{self._open(name)}\n'
             f'{inner}<v n="BoxType">"{self.box_type}"</v>\n'
-            + _operand(alloc, inner, "" if self.named_instance else None, "",
-                       instance=True, element='<o n="Instance" t="Operand">')
+            + _operand(alloc, inner, self.instance, "", instance=True,
+                       element='<o n="Instance" t="Operand">')
             + self._output_items(alloc, inner)
             + _flags(inner, 0, self.fixed) +
             f'{inner}<n n="InputFlags" />\n'
@@ -769,6 +769,25 @@ def method(box_type: str, en: Node, args: list[tuple[str, str, Node]] = (),
                [("", "BOOL"), (result or "", return_type)])
 
 
+def call(fb_type: str, instance: str, en: Node,
+         args: list[tuple[str, str, Node]] = ()) -> Box:
+    """Call an FB INSTANCE from a rung: `ModeStart();`.
+
+    Different from `method()` in exactly one way - the box names the FB TYPE and
+    carries the INSTANCE in its `Instance` operand, where a method box names the
+    method and leaves the instance empty (or folds it into the box type for
+    another FB's method).
+
+    Inputs left unwired keep whatever the instance already holds, which is what
+    a bare `ModeStart();` after `ModeStart.Cond[1] := …` means. Pass `args` only
+    for inputs the rung actually drives.
+    """
+    names = ["EN"] + [name for name, _, _ in args]
+    types = ["BOOL"] + [type_name for _, type_name, _ in args]
+    return Box(fb_type, "FunctionBlock", [en] + [node for _, _, node in args],
+               names, types, ["ENO"], ["BOOL"], [None], instance=instance)
+
+
 def compare(operator: str, en: Node, left: Node, right: Node) -> Box:
     """`EQ(left, right)` and friends: the gate. Its output IS the power flow.
 
@@ -776,21 +795,21 @@ def compare(operator: str, en: Node, left: Node, right: Node) -> Box:
     reads `M_Step(EN := EQ(_step, 215))`.
     """
     return Box(operator, operator.capitalize(), [en, left, right], ["EN"],
-               ["BOOL"], [""], ["BOOL"], [None], eno=False,
-               named_instance=False, fixed=False)
+               ["BOOL"], [""], ["BOOL"], [None], eno=False, instance=None,
+               fixed=False)
 
 
 def move(en: Node, value: Node, target: str, target_type: str) -> Box:
     """`MOVE` - how a rung writes the next state into `_step`, and any other value."""
     return Box("MOVE", "Move", [en, value], ["EN"], ["BOOL"], ["ENO", ""],
-               ["BOOL", ""], [None, (target, target_type)],
-               named_instance=False, fixed=False)
+               ["BOOL", ""], [None, (target, target_type)], instance=None,
+               fixed=False)
 
 
 def logic(operator: str, inputs: list[Node]) -> Box:
     """`AND` / `OR` of contacts and rails - series and parallel, in one box."""
     return Box(operator, operator.capitalize(), list(inputs), [], [], [], [], [],
-               en=None, eno=None, named_instance=False, fixed=False)
+               en=None, eno=None, instance=None, fixed=False)
 
 
 NETWORK_INDENT = " " * 16
@@ -825,6 +844,63 @@ def network(items: list[Node], alloc: Allocator, *, comment: str = "",
             f'{inner}<l2 n="Connectors" />\n'
             f'{inner}<v n="Id">{alloc.take_id()}L</v>\n'
             f'{indent}</o>')
+
+
+ARCHIVE_TYPES = [
+    ("Boolean", "System.Boolean"),
+    ("BoxTreeAssign", "{9873c309-1f09-4ebf-9078-42d8057ef11b}"),
+    ("BoxTreeBox", "{acfc6f68-8e3a-4af5-bf81-3dd512095a46}"),
+    ("BoxTreeDemux", "{b1d55618-017c-4bc5-990a-55c2f27d9d3a}"),
+    ("BoxTreeOperand", "{9de7f100-1b87-424c-a62e-45b0cfc85ed2}"),
+    ("BoxTreeTerminator", "{5f9848d3-568d-4cc5-9e31-8e28e9607ff1}"),
+    ("Flags", "{668066f2-6069-46b3-8962-8db8d13d7db2}"),
+    ("Int32", "System.Int32"),
+    ("Int64", "System.Int64"),
+    ("Network", "{d9a99d73-b633-47db-b876-a752acb25871}"),
+    ("NWLImplementationObject", "{25e509de-33d4-4447-93f8-c9e4ea381c8b}"),
+    ("Operand", "{c9b2f165-48a2-4a45-8326-3952d8a3d708}"),
+    ("Operator", "{bffb3c53-f105-4e85-aba2-e30df579d75f}"),
+    ("OutputItemList", "{f40d3e09-c02c-4522-a88c-dac23558cfc4}"),
+    ("ParamList", "{71496971-9e0c-4677-a832-b9583b571130}"),
+    ("String", "System.String"),
+]
+
+
+def body(networks: list[str], *, indent: str = "    ") -> str:
+    """A complete `<Implementation><NWL>…</NWL></Implementation>` block.
+
+    `rebuild()` edits a body that already exists; this makes one, which is what
+    a NEW ladder POU or a ladder METHOD needs. `indent` is the column of
+    `<Implementation>` - four spaces for a POU body, six for a method's - and the
+    networks must have been rendered at `indent + 10` to line up.
+
+    `xml:space="preserve"` and the `TypeList` are not decoration: the archive
+    will not load without the type table, and the GUIDs are XAE's, not ours.
+    """
+    inner = indent + " " * 10
+    separator = "\n" + inner + "  "
+    _, highest_var = max_identifiers("".join(networks))
+    types = "".join(f'{indent}    <Type n="{name}">{value}</Type>\n'
+                    for name, value in ARCHIVE_TYPES)
+    return (f'{indent}<Implementation>\n'
+            f'{indent}  <NWL>\n'
+            f'{indent}    <XmlArchive>\n'
+            f'{indent}      <Data>\n'
+            f'{indent}        <o xml:space="preserve" t="NWLImplementationObject">\n'
+            f'{inner}<v n="NetworkListComment">""</v>\n'
+            f'{inner}<v n="DefaultViewMode">"Ld"</v>\n'
+            f'{inner}<l2 n="NetworkList" cet="Network">\n'
+            f'{inner}  ' + separator.join(networks) + '\n'
+            f'{inner}</l2>\n'
+            f'{inner}<v n="BranchCounter">{highest_var + 1}</v>\n'
+            f'{inner}<v n="ValidIds">true</v>\n'
+            f'{indent}        </o>\n'
+            f'{indent}      </Data>\n'
+            f'{indent}      <TypeList>\n{types}'
+            f'{indent}      </TypeList>\n'
+            f'{indent}    </XmlArchive>\n'
+            f'{indent}  </NWL>\n'
+            f'{indent}</Implementation>')
 
 
 def rebuild(source: str, networks: list[str]) -> str:

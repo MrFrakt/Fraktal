@@ -45,6 +45,16 @@ VAR
     _sfcAutoSequence : FB_SFC_PressDemoAuto;
     {attribute 'OPC.UA.DA' := '0'}
     _ldAutoSequence : FB_LD_PressDemoAuto;
+    // §7.2 / O2 — the SAME release engineering in a second language. Only the
+    // rendition RELEASE_LANGUAGE selects is set up, evaluated, and allowed to
+    // write the directional permits and the release report; the other is inert.
+    // The ST one stays the PUBLISHED one (ReleaseConditions, a VAR_OUTPUT
+    // above): a browseable second copy that nothing evaluates would show the
+    // operator a set of named conditions that is simply not a claim (§3.12).
+    // Selecting LD therefore trades the browseable condition state for the
+    // demonstration — a bench limitation, not a pattern.
+    {attribute 'OPC.UA.DA' := '0'}
+    _ldReleaseConditions : FB_LD_PressDemoRelease;
 END_VAR
 VAR CONSTANT
     // Which rendition of the AUTO chain runs. VAR CONSTANT on purpose, like the
@@ -52,6 +62,12 @@ VAR CONSTANT
     // download, never an online write. The compiler folds the unselected branches.
     // 0 = ST (FB_PressDemoAuto)   1 = SFC (FB_SFC_PressDemoAuto)   2 = LD (FB_LD_PressDemoAuto)
     AUTO_SEQUENCE_LANGUAGE : INT := 0;
+    // Which rendition of the release/interlock logic is evaluated, on the same
+    // terms. There is no 1: SFC is a sequence language and has nothing to say
+    // about a permissive, so the numbering deliberately leaves the gap rather
+    // than making 1 mean something different here than it does above.
+    // 0 = ST (FB_PressDemoRelease)   2 = LD (FB_LD_PressDemoRelease)
+    RELEASE_LANGUAGE : INT := 0;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
     <Method Name="Setup" Id="{c48eb9f5-2cef-457b-90cd-aa7b557e955a}">
@@ -84,7 +100,11 @@ Ok := PartPresentSensor.Setup(Name := CONCAT(Name, '.PartPresentSensor'),
     DescriptionKey := 'project.module.partPresentSensor.description') AND Ok;
 Ok := AirPressureMonitor.Setup(Name := CONCAT(Name, '.AirPressureMonitor'),
     HalRef := AirPressureHal) AND Ok;
-Ok := ReleaseConditions.Setup(UnitPath := Name) AND Ok;
+IF RELEASE_LANGUAGE = 2 THEN
+    Ok := _ldReleaseConditions.Setup(UnitPath := Name) AND Ok;
+ELSE
+    Ok := ReleaseConditions.Setup(UnitPath := Name) AND Ok;
+END_IF
 Ok := _homeSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
     PartSlide := PartSlide, OutCmd := OutCmd) AND Ok;
 Ok := _changeoverSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
@@ -193,9 +213,15 @@ _M_ClearModeTransitionState();]]></ST></Implementation>
       <Implementation><ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
 // Project release engineering is a separate visible component. It owns the
 // functional collision permits and mode-entry conditions consumed below.
-ReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
-    TwoHand := TwoHand, PneumaticPower := PneumaticPower,
-    AirPressure := AirPressureMonitor);
+IF RELEASE_LANGUAGE = 2 THEN
+    _ldReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
+        TwoHand := TwoHand, PneumaticPower := PneumaticPower,
+        AirPressure := AirPressureMonitor);
+ELSE
+    ReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
+        TwoHand := TwoHand, PneumaticPower := PneumaticPower,
+        AirPressure := AirPressureMonitor);
+END_IF
 
 // Latch access-gated Unit requests, then observe one full Execute-low scan before
 // starting another power-group command (PLCopen edge discipline).
@@ -432,7 +458,11 @@ METHOD PROTECTED _M_AppendInterlocks
 VAR_IN_OUT
     Report : ST_ReleaseReport;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[ReleaseConditions.M_AppendStart(Report := Report);]]></ST></Implementation>
+      <Implementation><ST><![CDATA[IF RELEASE_LANGUAGE = 2 THEN
+    _ldReleaseConditions.M_AppendStart(Report := Report);
+ELSE
+    ReleaseConditions.M_AppendStart(Report := Report);
+END_IF]]></ST></Implementation>
     </Method>
     <Method Name="_M_AppendManualInterlocks" Id="{35af721a-a6ca-4323-a3cf-ed754f60575f}">
       <Declaration><![CDATA[METHOD PROTECTED _M_AppendManualInterlocks
@@ -443,8 +473,13 @@ END_VAR
 VAR_IN_OUT
     Report : ST_ReleaseReport;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[ReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
-    PressRam := PressRam, Door := Door, PartSlide := PartSlide, Report := Report);]]></ST></Implementation>
+      <Implementation><ST><![CDATA[IF RELEASE_LANGUAGE = 2 THEN
+    _ldReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
+        PressRam := PressRam, Door := Door, PartSlide := PartSlide, Report := Report);
+ELSE
+    ReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
+        PressRam := PressRam, Door := Door, PartSlide := PartSlide, Report := Report);
+END_IF]]></ST></Implementation>
     </Method>
     <Method Name="_M_PublishStatus" Id="{0aec4f4a-7433-497b-8fb9-a69b8a633711}">
       <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
