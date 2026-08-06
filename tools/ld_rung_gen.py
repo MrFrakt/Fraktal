@@ -412,9 +412,10 @@ def graft_before(rung: str, host_type: str, donor: str, *, id_base: int,
     # own: the list typed it collectively. Dropped into a list without a cet it
     # becomes an untyped `<o>`, which still parses and still COMPILES - the box
     # is simply not there. Restore the type explicitly.
-    if re.match(r"<o>\s", donor_text):
+    stripped = donor_text.lstrip()
+    if stripped.startswith("<o>"):
         donor_text = donor_text.replace("<o>", '<o t="BoxTreeBox">', 1)
-    elif not re.match(r'<o\s+t="', donor_text):
+    elif not re.match(r'<o\s+t="', stripped):
         raise RungError("donor node has no recognisable element type")
 
     host_start, host_end = find_box(rung, host_type, occurrence)
