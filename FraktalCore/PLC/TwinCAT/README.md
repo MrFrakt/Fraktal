@@ -250,21 +250,48 @@ Rules for a natively drawn leg:
 
 A ladder chain is an **integer state machine**: one rung per state, dispatched on the
 inherited `_step`, and the rung writes the next state itself. `FB_LD_PressDemoAuto` is
-the worked example; `FB_SequenceBaseLd` is the base it extends.
+the worked example; it extends `FB_SequenceBase`, the same base an ST or SFC
+chain uses.
 
-**The facade, and why it exists.** Every framework call needs a boolean input because a
-ladder box only executes on power flow. `FB_SequenceBaseLd` therefore declares
-`M_StepLd`, `M_AwaitLd`, `M_TryIssueLd`, … — each taking `Run : BOOL` first and
-delegating to `SUPER^.M_Step(...)` when TRUE. **They are NOT overrides.** Adding an
-input changes the signature, which is `C0094: Interface of overridden method doesn't
-match declaration` — 27 of them, and the reason the library did not compile for weeks.
-Hence the distinct `Ld` names. Two consequences worth knowing before editing:
+**Use `EN`/`ENO`, not a `Run` facade.** A ladder box only executes on power flow, and
+XAE already supplies that for **any** method box: enable `EN` and the box gains an
+`EN` input and an `ENO` output. The base method is called directly —
 
-- A method returns through **its own** name. `M_AwaitLd` assigns `M_AwaitLd := …`; an
-  assignment to `M_Await` inside it binds to the inherited *method* and yields
-  `Cannot convert type 'BOOL' to type 'M_AWAIT'`.
-- A ladder box calls the facade, so its `BoxType` operand is `M_StepLd`, never
-  `M_Step`. A box naming the base method has no `Run` pin and will not resolve.
+```
+BOX "M_Step"   params=['EN', 'StepNo', …]  returns=['ENO']          EN=true
+BOX "M_StepLd" params=['Run','StepNo', …]  returns=[]               EN=false
+```
+
+— so `M_Step`, `M_Await`, `M_RunSub` and **every method on every developer-written FB**
+are callable from a rung with no library change at all. This is the only approach that
+scales: a project may define or extend module types freely, and adding a hand-written
+`…Ld` twin per method per type does not.
+
+> **`FB_SequenceBaseLd` has been deleted.** Its 27 `Run : BOOL` facades were
+> reinventing `EN`. They existed because adding an input to an override is
+> `C0094: Interface of overridden method doesn't match declaration`, which forced the
+> distinct `Ld` names — but `EN`/`ENO` adds no parameter, so the signature never
+> changes, so no facade and no renaming was ever needed. A ladder chain now extends
+> **`FB_SequenceBase`**, exactly like an ST or SFC chain; `FB_LD_PressDemoAuto` is the
+> worked example. `convert_ld_boxes()` in `tools/ld_rung_gen.py` performed the
+> migration and is kept for any chain still carrying the old form.
+>
+> Removing a type from a released library is a breaking change. Core's version was
+> **not** stepped for it because no shipped chain outside this repo consumed the
+> facade; a downstream project that did must migrate with `convert_ld_boxes()` before
+> resolving Core again.
+
+Two consequences worth knowing before editing an `EN`-gated box:
+
+- **A value-returning box has TWO outputs: `ENO` first, then the return value.**
+  `M_Await` reports `returns=['ENO','M_Await']`. Wiring the result into slot 0 puts it
+  on `ENO` and leaves the real output dangling; wiring the wrong variable into slot 1
+  compiles clean and silently strands the intended one. That is a defect no gate
+  catches — see the `_partReady`/`_airReady` trap below.
+- **`EN := FALSE` means the box is not executed at all**, so its output variable keeps
+  its previous value. A `Run := FALSE` facade call still *ran* and wrote its fail-closed
+  default. Inside a rung gated on `EQ(_step, N)` the two are equivalent, because the
+  variable is only read by that same rung — but a value read outside the rung differs.
 
 **The two rung shapes.** Everything in a chain is one of these.
 
@@ -324,13 +351,145 @@ semantics—three independent result assignments followed by one combined transi
 3. Drop the child's `Execute` in the same rung that leaves the step — §6.1's
    Execute-drop reset is what returns the child to READY.
 
-**Do not synthesise the body.** A `<NWL>` network is a serialized object graph of
-`BoxTreeBox`/`BoxTreeOperand`/`BoxTreeDemux`/`BoxTreeAssign` nodes with `Id`/`IdParent`
-links — roughly 40 kB per rung. Draw rungs in XAE. Editing an existing rung's *operand
-text* is safe and scriptable; cutting nodes with a regex is not, and has produced a
-file that stayed plausible while ceasing to be well-formed XML. After any edit, verify
-with `CheckAllObjects` (see `Specification/TWINCAT_XAE_WORKFLOW.md`) — the press demo
-resolves only once Core and Modules are installed as libraries.
+**Do not synthesise the body from nothing.** A `<NWL>` network is a serialized object
+graph of `BoxTreeBox`/`BoxTreeOperand`/`BoxTreeDemux`/`BoxTreeAssign` nodes with `Id`
+identities and `VarId` power-rail nodes — roughly 40 kB per rung. Hand-writing one is
+not viable and cutting nodes with a regex has produced a file that stayed plausible
+while ceasing to be well-formed XML. What *is* viable is **cloning a rung that already
+compiles** — see the next section. After any edit, verify with `CheckAllObjects` (see
+`Specification/TWINCAT_XAE_WORKFLOW.md`) — the press demo resolves only once Core and
+Modules are installed as libraries.
+
+### Generating a rung by cloning a worked example
+
+`tools/ld_rung_gen.py` generates rungs; `tools/test_ld_rung_gen.py` is its gate. The
+method is deliberately narrow, and the narrowness is what makes it safe:
+
+1. **Split, never parse.** The archive carries `xml:space="preserve"`, so an
+   ElementTree round-trip rewrites indentation that is real content. `split_networks`
+   scans `<o>` depth and returns the raw blocks *plus the separator between them* —
+   rejoining without it yields `</o><o>` on one line, which is still valid XML and
+   therefore fails silently.
+2. **Clone a rung of the shape you want** and renumber every `Id`/`VarId` into a fresh
+   range above the file's maximum. A duplicated `Id` does not fail to parse; it
+   silently shadows a node.
+3. **Rewrite only leaf operands.** `subst()` matches the `Operand`+`Type` *pair*, so a
+   short name cannot match inside a longer one and the type can never drift away from
+   the value — that mismatch is exactly `Cannot convert type 'BOOL' to type 'E_VERDICT'`.
+   `subst_string()` additionally derives `STRING(INT#n)` from the new literal, so a
+   renamed step cannot keep the previous name's declared length.
+4. **Every substitution asserts its hit count.** A rewrite that matches nothing reports
+   success and changes nothing; `subst()` raises instead. `_pressRam.Execute` occurs
+   twice in a command rung (Set coil and Reset coil) — asserting `count=1` there is a
+   bug the assertion catches.
+5. **Fix `BranchCounter`.** It is the archive's monotonic `VarId` allocator; leaving it
+   below a `VarId` that now exists lets XAE hand out a duplicate the next time someone
+   opens the chart.
+6. **Compile after every rung.** `ImpVar<BoxId>_<n>` in an error message maps directly
+   to that node's `<v n="Id">…L</v>`, which locates the fault in seconds — but only if
+   you know which rung you just added.
+
+Worked example — the whole of `N130` is `N110` with nine operand substitutions:
+
+```python
+rung, next_id, next_var = clone(template_N110, id_base=…, var_base=…)
+rung.subst("130", "150", count=1)          # MOVE target FIRST: doing the gate first
+rung.subst("110", "130", count=1)          # would collide with the template's MOVE
+rung.subst_string("project.step.pressRamUp", "project.step.pressDoorOpen")
+rung.subst_string("PressRam.RETRACT", "Door.RETRACT")
+rung.subst("_pressRam", "_door", count=1)               # the Awaits operand
+rung.subst("_pressRam.Command", "_door.Command", count=1)
+rung.subst("_pressRam.Abort",   "_door.Abort",   count=1)
+rung.subst("_pressRam.Execute", "_door.Execute", count=2)
+rung.subst("_pressRam.Done",    "_door.Done",    count=1)
+```
+
+**The method's hard limit: it can only produce box types that already exist somewhere
+in the file.** A rung needing `M_DelayLd`, `M_AskDecisionLd`, `M_PartRecordLd`,
+`M_RunSubLd`, `M_RaiseWarningLd`, `M_ReportFromChildLd` or a child method such as
+`WithdrawOutputs` cannot be cloned when no instance of that box exists to clone from.
+Draw **one** rung containing the new box in XAE, then clone it for the rest. The
+`BoxTreeBox` shape is uniform — `BoxType`, `Instance`, `OutputItems`, `Flags`,
+`InputFlags`, `InputItems`, `InputParam{Names,Types}`, `OutputParam{Names,Types}`,
+`CallType=Method`, `EN`/`ENO=false`, `Id` — so extending the generator to *retype* a
+box's parameter list from the facade signature is the next increment; until that
+exists, one editor-drawn instance per box type is the prerequisite. `to_en_form()`
+already does the narrower version of this transformation — it retypes a box's parameter
+list from `Run` to `EN`/`ENO` — so it is the shape to generalise.
+
+### Reading and generating an SFC chart
+
+An `<SFC>` body is a different archive from `<NWL>`, and simpler. The skeleton is
+
+```
+SFCImplementationObject
+└── o n="Root" t="SFCSegment"
+    └── o n="ElementList" t="SFCElementList"
+        └── l2 n="InnerList"          ← the chart, in order
+            ├── o t="SFCStep"         ← EmbeddedMain/Entry/ExitAction, nested
+            │                            ElementList, and l2 n="Attributes"
+            ├── o t="SFCTransition"
+            ├── o t="SFCJump"
+            └── o t="SFCBranch"       ← l2 of SFCSegment legs
+```
+
+**Everything meaningful is a GUID-keyed attribute**, and the archive ships its own
+descriptor table — `<d2 n="Attributes" ckt="Guid" cvt="SFCAttributeDescription">` maps
+each GUID to an `Identifier`. Read it from the file rather than trusting this list;
+these are the 14 it currently defines:
+
+| Identifier | GUID | Notes |
+|---|---|---|
+| `Name` | `38391c6d-6d4a-42f8-8ee7-9f45e5adafa8` | step name (`N200`); **on a transition this holds the CONDITION expression** |
+| `MainAction` | `700a583f-b4d4-43e4-8c14-629c7cd3bec8` | action run while the step is active |
+| `EntryAction` | `a6b08bd8-b696-47e3-9cbf-7408b61c9ff8` | runs once on activation |
+| `ExitAction` | `a2621e18-7de3-4ea6-ae6d-89e9e0b7befd` | runs once on deactivation |
+| `InitStep` | `6844a48e-46c2-4cc8-a185-a478f3b99cc0` | exactly one step per chart |
+| `Parallel` | `23bdaa98-72ec-41f7-817b-9dede5697086` | on a **branch**: parallel vs alternative |
+| `Qualifier` | `e174fc0d-80b0-4a9e-a530-ca239c249a50` | action association qualifier |
+| `MinTime` / `MaxTime` | `cacf1a68-…` / `b693554c-…` | step active-time bounds |
+| `Monitoring` | `8294df19-5962-4dee-a874-1051dabb0e3e` | transition monitoring |
+| `Comment` | `7d894980-aeea-405c-a0f6-e2b26429c58f` | |
+| `Duplication` | `62e1754b-7629-4e63-9cec-10ae0c536f1f` | copy implementation vs reference |
+| `Symbol` | `bc882c11-1e91-4dd8-a6b8-2075724ed18b` | `EnumValue`, not a string |
+| `Exclude` | `01580b27-6378-448b-8ecb-0e4b795b58d6` | hidden; excludes from build |
+
+A real step carries **ten** of these — `Name`, `Comment`, `Exclude`, `InitStep`,
+`Duplication`, `MinTime`, `MaxTime`, `MainAction`, `EntryAction`, `ExitAction` — and
+four are normally empty strings. A transition carries only `Name`, `Comment`, `Exclude`.
+Values are typed wrappers: `StringValue`, `BoolValue`, or `EnumValue` (which carries a
+`TemplateGuid` before its `Value`, so a regex written for the string form silently
+skips it).
+
+Two traps that cost real time:
+
+- **`MainAction` vs `EntryAction`.** Putting the body on `EntryAction` runs it once and
+  the chart stalls at its first step forever. `MainAction` is the one you want.
+- **The action is a separate POU object.** `<Action Name="A200_RamDown">` is a sibling
+  of `<Method>` under `<POU>`; the step attribute only holds its *name* as a string, so
+  a renamed action and a step still naming the old one both parse and neither warns.
+
+Fraktal's naming makes the step number the same token everywhere: step `N<StepNo>`,
+action `A<StepNo>_<What>` (`N200` → `A200_RamDown`), matching the ST twin's `CASE`
+label and the §3.13 row. The differing prefix is what keeps a step distinguishable from
+its action object inside the archive.
+
+Because steps and transitions are flat attribute records rather than a wired graph,
+an SFC chart is **materially easier to clone than a ladder rung** — retargeting a step
+is two `StringValue` edits (`Name`, `MainAction`) with no `Id`/`VarId` renumbering and
+no power rails. The same discipline still applies: assert every substitution's hit
+count, keep `Id`/`IdParent` consistent, and compile after each step.
+
+Reading an archive is far easier than writing one: dump a body's structure before
+touching it. The `<NWL>` node grammar you will see is
+
+```
+DEMUX var=N (DEF)  ← defines a power node; its <o n="Input"> is what drives it
+DEMUX var=N (ref)  ← every later use of that same rail
+OPERAND "x" : "T"  ← Flags 1 = negated contact, 0 = plain
+ASSIGN -> "x"{flags=N}   ← 2 = Set coil (S), 3 = Reset coil (R)
+BOX "M_StepLd" params=[Run, StepNo, …]   ← InputItems positionally match params
+```
 
 ### Traps that cost real time here
 
@@ -402,46 +561,16 @@ correct chart is not forced to pretend it is ST.
 
 ### Building an LD chain (integer-based state machine)
 
-A ladder rung has no statement context: a box runs because **power reaches it**.
-Every step-facing method therefore needs a boolean it can be wired to, so ladder
-chains extend **`FB_SequenceBaseLd`**, which re-exposes the whole step vocabulary
-with `Run : BOOL` as the first input and delegates to `SUPER^` when `Run` is TRUE.
-A call with `Run = FALSE` is a no-op and a value-returning one yields its
-fail-closed default (`M_Await` → `FALSE`, `M_Delay` → `NONE`, `M_TakeDecision` → 0).
+This section used to describe a second, incompatible ladder form: a
+`FB_SequenceBaseLd` base whose methods took `Run : BOOL`, and rungs that ended in
+`M_Advance` with an `OnJump1..3` mapping. **Neither is how the ladder works.** The
+facade has been deleted (`EN`/`ENO` replaces it) and a rung has always written `_step`
+directly. The authoritative description is § "Writing a Ladder sequence rung by rung"
+above; this heading is kept only so an old link still lands somewhere truthful.
 
-One rung per state, gated on the inherited `_step`, with the boxes chained left to
-right so power flows through them in order:
-
-```
-[ EQ(_step, 0) ]──┬─(assign _outCmd.CycleCompleted / .Homed / .ChangeoverCompleted)
-                  └─[ MOVE ]──[ M_Step ]──[ M_Advance ]
-                     ADVANCE    StepNo 0    OnAdvance 100
-                     → _retVal  …           OnJump1..3 −1
-```
-
-Ladder rungs **dispatch only — they do not evaluate transitions**, so unlike SFC
-each rung still ends in `M_Advance` and the `OnJump1..3` mapping keeps jumps
-declarative. Only the rung whose gate matches the current `_step` does anything,
-and a state change takes effect on the next scan, so rung order does not matter.
-
-Where a step's logic is conditional rather than a straight series, put it in a
-`Run`-gated method and keep the rung uniform — that is the point of the `Run`
-input, and it is why the ladder face is a base class rather than a convention.
-
-The body is stored as a **`<NWL>` network list** (`DefaultViewMode: "Ld"`), a
-serialized object graph of `BoxTreeBox` / `BoxTreeOperand` / `BoxTreeDemux` /
-`BoxTreeAssign` nodes with `Id` identities — not the `ModelJson` document an empty
-ladder shell first suggests. Generating rungs from one worked example is possible;
-generating them from none is not.
-
-> **Signature note for the first compile.** `FB_SequenceBaseLd` re-declares
-> inherited names with an extra `Run` input, which is not a signature-compatible
-> override. If a pinned compiler rejects it, the fix is to give the ladder face
-> distinct names (`M_StepLd`, `M_AdvanceLd`, …) — the delegation body is unchanged.
-
-Rule **S1** knows the difference between the three faces: an `<SFC>` chart must
-not need `M_Advance`, a `<NWL>`/`<LADDER>` chain must carry it, and an ST chain
-needs the full `CASE _step OF` skeleton.
+Rule **S1** knows the difference between the three faces: an `<SFC>` chart must not
+need `M_Advance`, a `<NWL>`/`<LADDER>` chain must carry *some* way to move (writing
+`_step` counts), and an ST chain needs the full `CASE _step OF` skeleton.
 
 ### Two TcUnit gates, and why they are separate
 
