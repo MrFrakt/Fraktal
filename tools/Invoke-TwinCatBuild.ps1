@@ -6,6 +6,10 @@ param(
         # in a library could only surface as an unexplained failure downstream.
         'FraktalCore\PLC\TwinCAT\Framework\FraktalCore.slnx',
         'FraktalCore\PLC\TwinCAT\Framework\FraktalModules.slnx',
+        # Then the bench application. It consumes the two installed libraries, so a
+        # rename in Core surfaces here first; it was outside the gate only because
+        # the autostart assertion above used to reject it.
+        'FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressDemo.slnx',
         'FraktalCore\PLC\TwinCAT\Tests\FraktalTests.slnx',
         'FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressTests.slnx'
     ),
@@ -266,13 +270,17 @@ foreach ($relativeSolution in $Solution) {
         $systemManager = $dte.Solution.Projects.Item(1).Object
         $plcRoot = $systemManager.LookupTreeItem('TIPC').Child(1)
         $bootAutostart = [bool]$plcRoot.BootProjectAutostart
-        # Autostart is a TEST-project rule: a test application must never auto-start
-        # on a runtime. A LIBRARY project is never downloaded, so the assertion is
-        # meaningless for it - and applying it anyway meant the gate stopped before
-        # CheckAllObjects and neither library was ever compiled by CI. Core was red
-        # for 27 errors nobody could see because of exactly this.
-        $isLibrary = $solutionName -in @('FraktalCore', 'FraktalModules')
-        if ($bootAutostart -and -not $isLibrary) {
+        # Autostart is a TEST-project rule (AGENTS 5.7): a TcUnit application must
+        # never be the boot application of the runtime it is downloaded to. It says
+        # nothing about the other two kinds of project here, and asserting it on them
+        # cost real coverage twice: a LIBRARY is never downloaded at all, and while
+        # that was the only exemption the gate stopped before CheckAllObjects, so
+        # neither library was compiled by CI (Core was red for 27 invisible errors);
+        # the Press BENCH is a machine application that is *supposed* to auto-start,
+        # so the same blanket rule kept it out of the gate entirely. Name the test
+        # solutions explicitly instead of guessing from what is left over.
+        $isTestSolution = $solutionName -in @('FraktalTests', 'PressTests')
+        if ($bootAutostart -and $isTestSolution) {
             throw "Test project $($plcRoot.Name) has Autostart Boot Project enabled"
         }
         $iecPath = "TIPC^$($plcRoot.Name)^$($plcRoot.Name) Project"
