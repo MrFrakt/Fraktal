@@ -3,7 +3,7 @@ import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from tools.ld_dump import network_lines
+from tools.ld_dump import gate_step, network_lines
 from tools.ld_rung_gen import (
     PLAIN,
     RESET,
@@ -308,12 +308,22 @@ class SynthesisTests(unittest.TestCase):
             out.append(line)
         return out
 
-    def test_synthesis_reproduces_the_editor_drawn_rung(self):
+    def _editor_drawn_n999(self):
+        # By its gate, never by position: the network list is ordered for
+        # execution and gets reordered, so an index would silently point at a
+        # different rung.
         _, networks, _, _ = split_networks(self.source)
+        for text in networks:
+            if gate_step(ET.fromstring(text)) == 999:
+                return networks, text
+        raise AssertionError("the ladder has no N999 rung")
+
+    def test_synthesis_reproduces_the_editor_drawn_rung(self):
+        networks, n999 = self._editor_drawn_n999()
         alloc = Allocator.above(self.source)
         generated = network(self._n999(alloc), alloc)
         self.assertEqual(
-            self._normalise_rails(network_lines(ET.fromstring(networks[7]),
+            self._normalise_rails(network_lines(ET.fromstring(n999),
                                                 show_ids=False)),
             self._normalise_rails(network_lines(ET.fromstring(generated),
                                                 show_ids=False)))
@@ -341,10 +351,10 @@ class SynthesisTests(unittest.TestCase):
                                              flags.find("./v[@n='Fixed']").text))
             return rows
 
-        _, networks, _, _ = split_networks(self.source)
+        networks, n999 = self._editor_drawn_n999()
         alloc = Allocator.above(self.source)
         generated = network(self._n999(alloc), alloc)
-        self.assertEqual(records(networks[7]), records(generated))
+        self.assertEqual(records(n999), records(generated))
 
     # -- the signature is the whole input ----------------------------------
 

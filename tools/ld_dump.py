@@ -102,6 +102,27 @@ def describe(node: ET.Element, depth: int = 0, label: str = "",
     return lines
 
 
+def gate_step(network: ET.Element) -> int | None:
+    """The step a rung dispatches on - the constant in its `EQ(_step, N)` gate.
+
+    `None` means the rung has no such gate, which for a chain of the LD form is
+    itself the finding: `EQ(215, 0)` is legal IEC, constantly FALSE, and the
+    rung behind it never runs.
+    """
+    for box in network.iter("o"):
+        # A box is a node carrying a BoxType. Testing `t="BoxTreeBox"` misses
+        # every one a `<l2 … cet="BoxTreeBox">` typed collectively.
+        kind = box.find("./v[@n='BoxType']")
+        if kind is None or kind.text != '"EQ"':
+            continue
+        operands = [(o.find("./o[@n='Operand']/v[@n='Operand']").text or "")
+                    for o in box.findall("./l2[@n='InputItems']/o")
+                    if o.get("t") == "BoxTreeOperand"]
+        if len(operands) == 2 and operands[0] == '"_step"':
+            return int(operands[1].strip('"'))
+    return None
+
+
 def network_lines(network: ET.Element, *, show_ids: bool = True) -> list[str]:
     """Every item of one network, in order."""
     lines: list[str] = []
@@ -128,8 +149,10 @@ def body_lines(source: str, *, show_ids: bool = True) -> list[str]:
              f"view={_value(body, 'DefaultViewMode')}"]
     for index, network in enumerate(networks):
         ident = f" id={_value(network, 'Id')}" if show_ids else ""
+        step = gate_step(network)
         lines.append("")
-        lines.append(f"=== network {index}{ident}")
+        lines.append(f"=== network {index} step={step if step is not None else '--'}"
+                     f"{ident}")
         lines += network_lines(network, show_ids=show_ids)
     return lines
 
