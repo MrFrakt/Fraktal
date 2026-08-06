@@ -1,6 +1,11 @@
 [CmdletBinding()]
 param(
     [string[]] $Solution = @(
+        # Libraries first, in dependency order: they are the code the test
+        # applications consume, and until this list included them a compile error
+        # in a library could only surface as an unexplained failure downstream.
+        'FraktalCore\PLC\TwinCAT\Framework\FraktalCore.slnx',
+        'FraktalCore\PLC\TwinCAT\Framework\FraktalModules.slnx',
         'FraktalCore\PLC\TwinCAT\Tests\FraktalTests.slnx',
         'FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressTests.slnx'
     ),
@@ -77,6 +82,131 @@ function Release-ComObject {
     }
 }
 
+$dteMajor = if ($DteProgId -match '\.(\d+)\.0$') { $Matches[1] } else { $null }
+$programFilesRoot = [Environment]::GetFolderPath('ProgramFiles')
+$dte2AssemblyCandidates = [System.Collections.Generic.List[string]]::new()
+if ($null -ne $dteMajor) {
+    foreach ($edition in @('Community', 'Professional', 'Enterprise')) {
+        $dte2AssemblyCandidates.Add((Join-Path $programFilesRoot "Microsoft Visual Studio\$dteMajor\$edition\Common7\IDE\PublicAssemblies\envdte80.dll"))
+    }
+}
+$dte2AssemblyCandidates.Add((Join-Path $programFilesRoot 'Beckhoff\TcXaeShell\Common7\IDE\PublicAssemblies\envdte80.dll'))
+$dte2AssemblyPath = $dte2AssemblyCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+$dte2AssemblyLoadError = $null
+if ($null -ne $dte2AssemblyPath) {
+    try {
+        Add-Type -Path $dte2AssemblyPath -ErrorAction Stop
+    } catch {
+        $dte2AssemblyLoadError = $_.Exception.Message
+    }
+} else {
+    $dte2AssemblyLoadError = 'envdte80.dll was not found in the supported Visual Studio/TcXaeShell locations'
+}
+
+function Get-DteDiagnosticsSnapshot {
+    param([object] $Dte)
+
+    # CheckAllObjects itself returns only a Boolean. Beckhoff documents the
+    # separate DTE2 Error List, and XAE also writes a compile transcript to the
+    # Build output pane on the pinned host. Keep both as diagnostics; the Boolean
+    # remains the authority for the all-object gate.
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $dte2 = $null
+    $toolWindows = $null
+    try {
+        if ($null -ne $dte2AssemblyLoadError) {
+            throw $dte2AssemblyLoadError
+        }
+        $unknown = [System.Runtime.InteropServices.Marshal]::GetIUnknownForObject($Dte)
+        try {
+            $dte2 = [System.Runtime.InteropServices.Marshal]::GetTypedObjectForIUnknown(
+                $unknown,
+                [EnvDTE80.DTE2]
+            )
+        } finally {
+            [void][System.Runtime.InteropServices.Marshal]::Release($unknown)
+        }
+        $toolWindows = [EnvDTE80.DTE2].GetProperty('ToolWindows').GetValue($dte2, $null)
+        $lines.Add("Dte2Interop=$dte2AssemblyPath")
+    } catch {
+        $lines.Add("Dte2CaptureUnavailable=$($_.Exception.Message)")
+        return $lines -join [Environment]::NewLine
+    }
+
+    $errorList = $null
+    $errorItems = $null
+    try {
+        $errorList = [EnvDTE80.ToolWindows].GetProperty('ErrorList').GetValue($toolWindows, $null)
+        $errorItems = [EnvDTE80.ErrorList].GetProperty('ErrorItems').GetValue($errorList, $null)
+        $count = [int][EnvDTE80.ErrorItems].GetProperty('Count').GetValue($errorItems, $null)
+        $lines.Add("DteErrorListCount=$count")
+        for ($index = 1; $index -le $count; $index++) {
+            $item = $null
+            try {
+                $item = [EnvDTE80.ErrorItems].GetMethod('Item').Invoke($errorItems, @($index))
+                $description = [EnvDTE80.ErrorItem].GetProperty('Description').GetValue($item, $null)
+                $fileName = [EnvDTE80.ErrorItem].GetProperty('FileName').GetValue($item, $null)
+                $line = [EnvDTE80.ErrorItem].GetProperty('Line').GetValue($item, $null)
+                $column = [EnvDTE80.ErrorItem].GetProperty('Column').GetValue($item, $null)
+                $project = [EnvDTE80.ErrorItem].GetProperty('Project').GetValue($item, $null)
+                $lines.Add("DteError[$index]=$description | Project=$project | File=$fileName | Line=$line | Column=$column")
+            } finally {
+                Release-ComObject $item
+            }
+        }
+    } catch {
+        $lines.Add("DteErrorListCaptureError=$($_.Exception.Message)")
+    } finally {
+        Release-ComObject $errorItems
+        Release-ComObject $errorList
+    }
+
+    $outputWindow = $null
+    $panes = $null
+    try {
+        $outputWindow = [EnvDTE80.ToolWindows].GetProperty('OutputWindow').GetValue($toolWindows, $null)
+        $panes = $outputWindow.OutputWindowPanes
+        $lines.Add("DteOutputPaneCount=$($panes.Count)")
+        for ($index = 1; $index -le $panes.Count; $index++) {
+            $pane = $null
+            $document = $null
+            $startPoint = $null
+            $endPoint = $null
+            $editPoint = $null
+            try {
+                $pane = $panes.Item($index)
+                $lines.Add("--- DTE output pane: $($pane.Name) ---")
+                $document = $pane.TextDocument
+                $startPoint = $document.StartPoint
+                $endPoint = $document.EndPoint
+                $editPoint = $startPoint.CreateEditPoint()
+                $paneText = [string]$editPoint.GetText($endPoint)
+                if ([string]::IsNullOrWhiteSpace($paneText)) {
+                    $lines.Add('[empty]')
+                } else {
+                    $lines.Add($paneText.TrimEnd())
+                }
+            } catch {
+                $lines.Add("[capture failed: $($_.Exception.Message)]")
+            } finally {
+                Release-ComObject $editPoint
+                Release-ComObject $endPoint
+                Release-ComObject $startPoint
+                Release-ComObject $document
+                Release-ComObject $pane
+            }
+        }
+    } catch {
+        $lines.Add("DteOutputCaptureError=$($_.Exception.Message)")
+    } finally {
+        Release-ComObject $panes
+        Release-ComObject $outputWindow
+    }
+
+    Release-ComObject $toolWindows
+    return $lines -join [Environment]::NewLine
+}
+
 $targetConfiguration = "$Configuration|$Platform"
 $failedSolutions = [System.Collections.Generic.List[string]]::new()
 [Fraktal.Tools.OleMessageFilter]::Register()
@@ -136,17 +266,30 @@ foreach ($relativeSolution in $Solution) {
         $systemManager = $dte.Solution.Projects.Item(1).Object
         $plcRoot = $systemManager.LookupTreeItem('TIPC').Child(1)
         $bootAutostart = [bool]$plcRoot.BootProjectAutostart
-        if ($bootAutostart) {
+        # Autostart is a TEST-project rule: a test application must never auto-start
+        # on a runtime. A LIBRARY project is never downloaded, so the assertion is
+        # meaningless for it - and applying it anyway meant the gate stopped before
+        # CheckAllObjects and neither library was ever compiled by CI. Core was red
+        # for 27 errors nobody could see because of exactly this.
+        $isLibrary = $solutionName -in @('FraktalCore', 'FraktalModules')
+        if ($bootAutostart -and -not $isLibrary) {
             throw "Test project $($plcRoot.Name) has Autostart Boot Project enabled"
         }
         $iecPath = "TIPC^$($plcRoot.Name)^$($plcRoot.Name) Project"
         $iecProject = $systemManager.LookupTreeItem($iecPath)
         $stage = 'checking all PLC objects'
         $checkOk = $iecProject.CheckAllObjects()
-        Set-Content -LiteralPath $logPath -Encoding utf8 -Value "Solution=$solutionPath`nConfiguration=$targetConfiguration`nIecProject=$iecPath`nBootProjectAutostart=$bootAutostart`nCheckAllObjects=$checkOk"
+        $diagnostics = Get-DteDiagnosticsSnapshot -Dte $dte
+        Set-Content -LiteralPath $logPath -Encoding utf8 -Value "Solution=$solutionPath`nConfiguration=$targetConfiguration`nIecProject=$iecPath`nBootProjectAutostart=$bootAutostart`nCheckAllObjects=$checkOk`n$diagnostics"
 
         if (-not $checkOk) {
-            $failedSolutions.Add("$solutionName (CheckAllObjects returned FALSE; inspect $logPath)")
+            $detailCaptured = $diagnostics -match '(?m)^DteErrorListCount=[1-9][0-9]*$' -or
+                $diagnostics -match '(?m)^Compile complete -- [1-9][0-9]* errors'
+            if ($detailCaptured) {
+                $failedSolutions.Add("$solutionName (CheckAllObjects returned FALSE; detailed DTE2 Error List/Build output is in $logPath)")
+            } else {
+                $failedSolutions.Add("$solutionName (CheckAllObjects returned FALSE; no detailed DTE rows were captured in $logPath, so export TwinCAT's visible Error List)")
+            }
         } else {
             Write-Host "Checked $solutionName successfully; log: $logPath"
         }

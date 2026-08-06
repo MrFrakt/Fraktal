@@ -83,6 +83,24 @@ VAR_INPUT
     Seq : I_Sequence;
 END_VAR]]></Declaration>
     </Method>
+    <Method Name="M_SequenceRaise" Id="{37847017-7acc-4969-843a-e3fadabf0b3f}">
+      <Declaration><![CDATA[// §6.9 raise a first-out from a step, with the module path the §3.13 flow
+// chart links to. Unlike M_SequenceFault this carries severity/category and a
+// link, so a step can adopt a child's fault verbatim or declare its own message.
+METHOD M_SequenceRaise : BOOL
+VAR_INPUT
+    Diag     : ST_Diagnostic;
+    LinkPath : STRING(255);
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_SequenceWarn" Id="{53f8986b-3df5-4abf-8276-cdbf14b85a60}">
+      <Declaration><![CDATA[// §6.9(e) publish a message that informs and does NOT stop the chain: an
+// AUTO_RESET come+gone event (§8.3(c)) plus the §3.13 flow-chart row mark.
+METHOD M_SequenceWarn : BOOL
+VAR_INPUT
+    Diag : ST_Diagnostic;
+END_VAR]]></Declaration>
+    </Method>
     <Method Name="M_SequenceSetStep" Id="{2a14964c-5032-4856-b939-f5d956f67ed0}">
       <Declaration><![CDATA[// §6.5 step record (feeds the §6.9 walk and the §8.11.4 profiler)
 METHOD M_SequenceSetStep
@@ -93,6 +111,7 @@ VAR_INPUT
     AwaitingLabel : STRING(120);
     TimeClass : E_TimeClass;
     ExpectedTime : TIME;
+    Branch : INT;                  // §6.12 concurrent leg, 0 = main line
 END_VAR]]></Declaration>
     </Method>
     <Method Name="M_SequenceStepGate" Id="{c102ba44-56c0-4d41-96ab-b26618c1ec9e}">

@@ -15,6 +15,8 @@ VAR
     _answer : INT;
     _ramReached, _failureConfirmed : BOOL;   // N200/N210 named waits
     _twoHandHeldDuringClose : BOOL;          // N180 named wait
+    _closeAbortWarned : BOOL;                // N180 §6.9(e) message result
+    _ramFailureReported : BOOL;              // N200 §6.9(e) message result
     _partInMachine : BOOL;                   // §3.16.3 the part is already received
     _partDispositioned : BOOL;               // N260 already set the verdict
     _traceAccepted, _recordAccepted, _partProcessed : BOOL;
@@ -63,10 +65,8 @@ CASE _step OF
         M_Step(StepNo := 0, StepName := 'project.step.pressAutoInitialize',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
         _outCmd.CycleCompleted := FALSE;
-        _outCmd.Homed := FALSE;
-        _outCmd.ChangeoverCompleted := FALSE;
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 100);
     100:  // await a fresh two-hand start (the §8.11.1 cycle-start marker)
         M_Step(StepNo := 100, StepName := 'project.step.pressAwaitTwoHand',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
@@ -94,7 +94,7 @@ CASE _step OF
             END_IF
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 110, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 110);
     110:  // ram up
         M_Step(StepNo := 110, StepName := 'project.step.pressRamUp',
             Awaits := _pressRam, AwaitingLabel := 'PressRam.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -102,7 +102,7 @@ CASE _step OF
             _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.RETRACT; _pressRam.Execute := TRUE;
         END_IF
         IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
-        M_Advance(OnAdvance := 130, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 130);
     130:  // door open
         M_Step(StepNo := 130, StepName := 'project.step.pressDoorOpen',
             Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -110,7 +110,7 @@ CASE _step OF
             _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
         END_IF
         IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
-        M_Advance(OnAdvance := 150, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 150);
     150:  // slide inside (value-adding sequence begins)
         M_Step(StepNo := 150, StepName := 'project.step.pressSlideInside',
             Awaits := _partSlide, AwaitingLabel := 'PartSlide.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -119,12 +119,12 @@ CASE _step OF
             _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.EXTEND; _partSlide.Execute := TRUE;
         END_IF
         IF _partSlide.Done THEN _partSlide.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
-        M_Advance(OnAdvance := 170, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 170);
     170:  // transfer settle
         M_Step(StepNo := 170, StepName := 'project.step.pressTransferSettle',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.TransferSettleTime);
         _retVal := M_Delay(PT := _parCfg.TransferSettleTime);
-        M_Advance(OnAdvance := 180, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 180);
     180:  // door close. Releasing a two-hand button while the door is moving is an
           // operator abort, not a fault: the door goes back up, the part slides out,
           // and the cycle returns to the two-hand wait (§6.10 jump). Completion wins
@@ -142,9 +142,18 @@ CASE _step OF
             _retVal := E_StepResult.ADVANCE;
         ELSIF NOT _twoHandHeldDuringClose THEN
             _door.Execute := FALSE;             // §6.1 Execute-drop reset releases the close
+            // §6.9(e) — a WARNING, not a fault: the release is designed operator
+            // behaviour and the chain already owns the recovery below, so nothing
+            // stops. It is recorded because a cycle was abandoned with the part
+            // still in the machine, and the §3.13 chart marks this step for it.
+            // The base raises it once per visit however many scans this runs.
+            _closeAbortWarned := M_RaiseWarning(
+                Reason := PL_PressReasons.PRESS_TWO_HAND_RELEASED,
+                DescriptionKey := 'project.warning.twoHandReleasedDuringDoorClose',
+                Severity := E_Severity.LOW, Category := E_Category.PROCESS);
             _retVal := E_StepResult.JUMP1;      // released -> reopen and clear the part
         END_IF
-        M_Advance(OnAdvance := 200, OnJump1 := 185, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 200, OnJump1 := 185);
     185:  // two-hand released during closing: take the door back up
         M_Step(StepNo := 185, StepName := 'project.step.pressDoorReopen',
             Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -152,7 +161,7 @@ CASE _step OF
             _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
         END_IF
         IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_IF
-        M_Advance(OnAdvance := 190, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 190);
     190:  // slide the part back out, then return to the two-hand wait. The start latch
           // is dropped so the cycle cannot resume without a fresh two-hand press.
         M_Step(StepNo := 190, StepName := 'project.step.pressSlideOutsideAfterAbort',
@@ -165,7 +174,7 @@ CASE _step OF
             _startLatched := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 100);
     200:  // ram down. THIS step owns the not-reached disposition, so it does NOT hand
           // the ram to the §6.9 auto-rollup: an awaited child fault is adopted by the
           // Unit (ERROR, _step := 0) before _M_Dispatch runs, and the chain would stop
@@ -182,10 +191,16 @@ CASE _step OF
             _pressRam.Execute := FALSE;
             _retVal := E_StepResult.ADVANCE;
         ELSIF _pressRam.Error THEN
+            // §6.9(e) — publish the ram's own first-out (CYL_NOT_EXTENDED, with its
+            // text and IO tag) on the Unit and on this row of the §3.13 chart, and
+            // do NOT adopt it: the confirmation + scrap below IS the handling, so a
+            // fault here would replace a designed recovery. Saying nothing is what
+            // left the failure visible only on the ram itself.
+            _ramFailureReported := M_ReportFromChild(Source := _pressRam);
             _pressRam.Execute := FALSE;         // §6.1 Execute-drop reset returns the ram to READY
             _retVal := E_StepResult.JUMP1;      // did not reach -> operator confirmation
         END_IF
-        M_Advance(OnAdvance := 220, OnJump1 := 210, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 220, OnJump1 := 210);
     210:  // press did not reach: the operator confirms the failure before the part is
           // scrapped. A scrap is deliberate, so there is no timeout default (§6.11).
         M_Step(StepNo := 210, StepName := 'project.step.pressNotReachedConfirm',
@@ -202,7 +217,7 @@ CASE _step OF
             _failureConfirmed := M_Await(Idx := 1,
                 Label := 'project.condition.pressFailureConfirmation', Ok := FALSE);
         END_IF
-        M_Advance(OnAdvance := 215, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 215);
     215:  // disposition the part NOK, then rejoin the shared return-to-start step
         M_Step(StepNo := 215, StepName := 'project.step.pressScrapPart',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -212,7 +227,7 @@ CASE _step OF
         _partInMachine := FALSE;                // dispositioned: the next one is a new part
         _outCmd.CycleCompleted := FALSE;
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 240);
     220:  // press dwell — two-hand must stay held; releasing it HOLDS the dwell
         M_Step(StepNo := 220, StepName := 'project.step.pressDwell',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.PressSettleTime);
@@ -232,7 +247,7 @@ CASE _step OF
             _pressRam.RestoreOutputs();
             _retVal := M_Delay(PT := _parCfg.PressSettleTime);
         END_IF
-        M_Advance(OnAdvance := 230, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 230);
     230:  // record the applied dwell (§3.16.1 measured value)
         M_Step(StepNo := 230, StepName := 'project.step.pressRecordResult',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -241,10 +256,10 @@ CASE _step OF
             Minimum := 0, Maximum := 30000,
             Target := DINT_TO_LREAL(TIME_TO_DINT(_parCfg.PressSettleTime)), EngUnit := 'ms');
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 240, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 240);
     240:  // return to the shared load-safe position (composite step)
         _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);
-        M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 999);
     999:  // cycle complete — write result, count by verdict, loop (§8.11.1 finish marker)
         M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
@@ -262,7 +277,7 @@ CASE _step OF
         IF M_EndOfCycle() THEN
             _retVal := E_StepResult.ADVANCE;   // stop NOT requested: loop to N100
         END_IF
-        M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 100);
 ELSE
     M_Fault(Reason := E_Reason.STEP_STALLED, DescriptionKey := 'std.error.undefinedStep');
 END_CASE]]></ST>

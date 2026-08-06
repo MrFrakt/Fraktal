@@ -63,6 +63,35 @@ VAR_GLOBAL
     _000K951_A1 AT %Q* : BOOL;     // Ch10 SwitchControlOn functional request
     {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 11^_000K911_A1'}
     _000K911_A1 AT %Q* : BOOL;     // Ch11 EnableControlOn functional request
+
+    // =000+S-K010D1 (EL6001) RS232 serial interface.
+    //
+    // The terminal is on the bus and was previously unmapped, so it appeared in the
+    // topology as a node with no channels: an operator diagnosing a dead serial link
+    // had nothing to look at. Nothing in this demo speaks a serial protocol yet - the
+    // process image is mapped so the card is visible, forceable and diagnosable like
+    // every other node, which is what the §10.5.1 bus view is for.
+    //
+    // [!] These names are the EL6001 DEFAULT 3-byte PDO assignment (0x1A00/0x1600).
+    // The terminal also offers 5- and 22-byte variants; if XAE was set to one of
+    // those, the link names differ and the build will say so. Confirm the assignment
+    // in the terminal's Process Data tab before trusting these.
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Inputs^Status'}
+    _000K010D1_Status AT %I* : USINT;    // serial status byte
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Inputs^Data In 0'}
+    _000K010D1_DataIn0 AT %I* : USINT;
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Inputs^Data In 1'}
+    _000K010D1_DataIn1 AT %I* : USINT;
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Inputs^Data In 2'}
+    _000K010D1_DataIn2 AT %I* : USINT;
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Outputs^Ctrl'}
+    _000K010D1_Ctrl AT %Q* : USINT;      // serial control byte
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Outputs^Data Out 0'}
+    _000K010D1_DataOut0 AT %Q* : USINT;
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Outputs^Data Out 1'}
+    _000K010D1_DataOut1 AT %Q* : USINT;
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010D1 (EL6001)]^Outputs^Data Out 2'}
+    _000K010D1_DataOut2 AT %Q* : USINT;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

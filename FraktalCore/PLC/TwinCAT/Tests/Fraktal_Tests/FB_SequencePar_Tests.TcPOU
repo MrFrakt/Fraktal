@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequencePar_Tests" Id="{59b81a17-854a-43f9-ad4a-61149bf3ad94}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §6.12 — parallel branches. Proves the three things that make them real
+// rather than drawn: both legs run in the SAME scan with independent latches, the
+// join waits for the slowest, and each leg is published as its own §3.13 rows.
+FUNCTION_BLOCK FB_SequencePar_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u : FB_ProbeUnitPar;
+    _w1, _w2 : BOOL;
+    _rowA, _rowB : INT;
+    _i : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Legs_run_together_with_independent_step_state();
+Join_waits_for_every_leg_and_publishes_them_separately();]]></ST>
+    </Implementation>
+    <Method Name="Legs_run_together_with_independent_step_state" Id="{834f7a9f-31c4-47d9-947c-9e4ed1b0b1f4}">
+      <Declaration><![CDATA[METHOD Legs_run_together_with_independent_step_state]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Legs_run_together_with_independent_step_state');
+IF NOT _w1 THEN
+    AssertTrue(Condition := _u.Setup(Name := 'Test.Par'), Message := 'Unit sets up');
+    AssertTrue(Condition := _u.Start(), Message := 'Unit starts');
+    _u();                                // fork scan: BOTH legs run
+    AssertEquals_UDINT(Expected := 1, Actual := _u.M_TestIssues(Leg := 1),
+        Message := 'leg 1 issued its command');
+    AssertEquals_UDINT(Expected := 1, Actual := _u.M_TestIssues(Leg := 2),
+        Message := 'leg 2 issued its own command in the SAME scan - one shared issue latch used to let the first leg consume the second one''s');
+    _u();
+    AssertEquals_UDINT(Expected := 1, Actual := _u.M_TestIssues(Leg := 1),
+        Message := 'and neither re-issues while its step is still running (§6.1 one-shot, per leg)');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Join_waits_for_every_leg_and_publishes_them_separately" Id="{a3c04f3f-47d7-4195-b166-5ade52881355}">
+      <Declaration><![CDATA[METHOD Join_waits_for_every_leg_and_publishes_them_separately]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Join_waits_for_every_leg_and_publishes_them_separately');
+IF NOT _w2 THEN
+    // both leg rows are live at once - the whole reason a single CurrentStep was
+    // not enough to draw a parallel step (§3.13/§6.12)
+    FOR _i := 1 TO _u.SequenceStepCount DO
+        IF _u.SequenceSteps[_i].StepNo = 600 THEN _rowA := _i; END_IF
+        IF _u.SequenceSteps[_i].StepNo = 700 THEN _rowB := _i; END_IF
+    END_FOR
+    AssertTrue(Condition := (_rowA > 0) AND (_rowB > 0),
+        Message := 'each leg publishes its own rows, offset by its BaseStepNo');
+    AssertEquals_INT(Expected := 1, Actual := _u.SequenceSteps[_rowA].Branch,
+        Message := 'tagged with the leg the fork assigned it');
+    AssertEquals_INT(Expected := 2, Actual := _u.SequenceSteps[_rowB].Branch,
+        Message := 'and the other leg with its own');
+    AssertTrue(Condition := _u.SequenceSteps[_rowA].Active AND _u.SequenceSteps[_rowB].Active,
+        Message := 'BOTH rows are active at the same time');
+    // leg 1 finishes; the join must not fire on it alone
+    _u.M_TestSetChild(Which := 1, ChildDone := TRUE);
+    _u();                                // child A completes
+    _u();                                // leg 1 advances to its terminal step
+    _u();                                // leg 1 reports Done
+    AssertEquals_INT(Expected := 500, Actual := _u.M_TestChainStep(),
+        Message := 'the join holds the fork step while leg 2 is still working');
+    AssertFalse(Condition := _u.Done, Message := 'and the Unit has not completed');
+    _u.M_TestSetChild(Which := 2, ChildDone := TRUE);
+    _u();                                // child B completes
+    _u();                                // leg 2 advances
+    _u();                                // leg 2 Done -> join fires
+    _u();                                // chain reaches its completion step
+    AssertEquals_INT(Expected := 999, Actual := _u.M_TestChainStep(),
+        Message := 'the fork step commits only once EVERY leg is Done');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

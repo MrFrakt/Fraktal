@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_StateFlag_Tests" Id="{c8428b24-e90d-49eb-8eea-dfc8c9da3dec}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.12 — derived state flags. The point of the mechanism is that a flag is
+// a live fact, not a latch, so the tests are about what happens when the fact
+// changes and when the module stops asserting it at all.
+FUNCTION_BLOCK FB_StateFlag_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _m : FB_ProbeCM;
+    _w1, _w2 : BOOL;
+    _since : DT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Flag_is_published_with_the_moment_it_changed();
+Unpublished_flag_goes_stale_and_stops_claiming();]]></ST>
+    </Implementation>
+    <Method Name="Flag_is_published_with_the_moment_it_changed" Id="{4b5bab21-03c3-4806-a831-67c6d0021740}">
+      <Declaration><![CDATA[METHOD Flag_is_published_with_the_moment_it_changed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Flag_is_published_with_the_moment_it_changed');
+IF NOT _w1 THEN
+    AssertTrue(Condition := _m.Setup(Name := 'Test.State'), Message := 'module sets up');
+    _m.SimState := TRUE;
+    _m();
+    AssertTrue(Condition := _m.StateProbe,
+        Message := 'the call returns the value, so it reads as a plain assignment');
+    AssertEquals_INT(Expected := 1, Actual := _m.StateFlagCount,
+        Message := 'and publishes it on the generic table');
+    AssertEquals_STRING(Expected := 'project.test.probeState',
+        Actual := _m.StateFlags[1].Key, Message := 'under the key the module chose');
+    AssertTrue(Condition := _m.StateFlags[1].Value, Message := 'with the value');
+    AssertFalse(Condition := _m.StateFlags[1].Stale, Message := 'and not stale');
+    _since := _m.StateFlags[1].Since;
+    _m();
+    AssertEquals_DWORD(Expected := DT_TO_DWORD(_since),
+        Actual := DT_TO_DWORD(_m.StateFlags[1].Since),
+        Message := 'Since is the moment it CHANGED, not the last time it was written');
+    // the fact stops being true: a derived flag follows it with no sequence involved
+    _m.SimState := FALSE;
+    _m();
+    AssertFalse(Condition := _m.StateFlags[1].Value,
+        Message := 'a derived flag drops itself - this is what a latched OutCmd could not do');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Unpublished_flag_goes_stale_and_stops_claiming" Id="{c9ab2292-93d1-49d0-8ad0-c4776486e66a}">
+      <Declaration><![CDATA[METHOD Unpublished_flag_goes_stale_and_stops_claiming]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Unpublished_flag_goes_stale_and_stops_claiming');
+IF NOT _w2 THEN
+    _m.SimState := TRUE;
+    _m();
+    AssertTrue(Condition := _m.StateFlags[1].Value, Message := 'true again');
+    // the project puts the publication behind a condition that stops being true
+    _m.SimPublish := FALSE;
+    _m();                                // last scan's publication still stands
+    _m();                                // the sweep resolves it
+    AssertTrue(Condition := _m.StateFlags[1].Stale,
+        Message := 'a flag nobody computes any more is marked stale');
+    AssertFalse(Condition := _m.StateFlags[1].Value,
+        Message := 'and forced FALSE: unmaintained state is not a claim (§5.6)');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

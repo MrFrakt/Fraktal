@@ -35,6 +35,9 @@ Rules
   C7  A guard never dereferences or indexes the symbol it is testing against 0
         in the same condition — TwinCAT does not short-circuit AND/OR, so the
         protected operand is evaluated anyway.
+  L1  A library declares no type that no object IN that library uses. A struct
+      only one application instantiates is that application's contract, not a
+      reusable one, and shipping it forces every consumer to carry it.
   S1  Every multi-step sequence extends `FB_SequenceBase` and carries the shared
         step/result/advance skeleton.
   A1  An EquipmentModule declaration never contains a Unit instance.
@@ -628,16 +631,26 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
             # linter checks only what a chart object can prove about itself:
             # it carries the shared result and records its steps.
             #
-            # LADDER is the integer-state-machine form: its rungs dispatch on
-            # _step but do not evaluate transitions, so unlike SFC its actions
-            # still commit their own result through M_Advance.
             # In a network list a call is a BoxType string ("M_Step"), never the
             # ST call syntax, so match the names rather than "M_Step(".
-            required = ["_retVal", "M_Step"]
-            if re.search(r"<NWL\b|<LADDER\b", text, re.I):
-                required.append("M_Advance")
-            missing = [token for token in required
-                       if not re.search(r"\b" + token + r"\b", text)]
+            #
+            # Every chart must record its steps. HOW it progresses is where the
+            # languages genuinely differ, and demanding one mechanism was wrong:
+            #   - SFC: the runtime evaluates the transition, which reads _retVal.
+            #   - LADDER: the integer state machine writes `_step` from a rung
+            #     (a MOVE box into _step). That is the idiomatic ladder form and
+            #     needs neither _retVal nor M_Advance; routing a rung through
+            #     both just to satisfy a linter would be the tail wagging the
+            #     dog. Going through M_Advance stays equally valid.
+            # So: record steps, AND have SOME way to move - not a nominated one.
+            # The ladder facade carries its own names (M_StepLd, ...): a method that
+            # adds `Run : BOOL` for power flow is NOT an override, and declaring it
+            # as one is C0094 "interface of overridden method doesn't match
+            # declaration". So the step record may appear under either name.
+            missing = ([] if re.search(r"\bM_Step(?:Ld)?\b", text) else ["M_Step"])
+            if not any(re.search(r"\b" + token + r"(?:Ld)?\b", text)
+                       for token in ("M_Advance", "_retVal", "_step")):
+                missing.append("a step transition (M_Advance, _retVal or _step)")
             if missing:
                 findings.append(Finding(
                     path, 1, "S1",
@@ -675,6 +688,60 @@ def lint_repository(roots: list[Path]) -> list[Finding]:
                     path, _line_of(text, case.start()), "S1",
                     f"sequence {name} has {advancing_required} non-terminal step "
                     f"branches but only {advances_found} M_Advance calls"))
+
+    # L1 — a library may not declare a type that nothing in that library uses.
+    #
+    # `ST_PneumaticPress*` sat in Fraktal_Modules while only the press PROJECT
+    # referenced them: every consumer of the module library carried four structs
+    # for a machine they do not have. A reusable type is one a library OBJECT
+    # owns; a type only an application instantiates belongs to that application
+    # (§1.1 O4 - the library is the reusable tier; O9 - minimum surface).
+    #
+    # "Used from outside" is NOT the test - that is what a reusable type is for.
+    # The test is whether anything inside the library declares a member of it,
+    # including through REFERENCE TO / VAR_IN_OUT, which is how a HAL struct is
+    # owned by the CM that takes it.
+    library_roots = {}
+    for path in source_paths:
+        parts = path.parts
+        if "Framework" not in parts:
+            continue
+        index = parts.index("Framework")
+        if index + 1 < len(parts):
+            library_roots.setdefault(parts[index + 1], []).append(path)
+    # A library type may legitimately be owned by ANOTHER library that depends on
+    # it — ST_IoPointIdentity lives in Fraktal_Core and is owned by Fraktal_Modules.
+    # So ownership is searched across the whole Framework tree; only a type that
+    # nothing in ANY library declares, yet a project instantiates, is misfiled.
+    framework = {q: texts[q] for q in source_paths if "Framework" in q.parts}
+    framework_text = "\n".join(framework.values())
+    for library, members in library_roots.items():
+        bodies = {q: texts[q] for q in members}
+        joined = framework_text
+        for path in members:
+            if path.suffix.lower() != ".tcdut":
+                continue
+            name = path.stem
+            # a declaration of a member of this type, anywhere else in the library
+            # Ownership can be declared four ways, and missing any of them turns a
+            # correctly-placed type into a false positive: a plain member, a
+            # REFERENCE TO / VAR_IN_OUT (how a CM owns its HAL struct), an ARRAY
+            # OF (how ST_BusNode owns ST_IoChannel), and EXTENDS.
+            others = joined.replace(texts[path], "")
+            owner = re.search(
+                r"(?::\s*(?:REFERENCE\s+TO\s+)?|\bOF\s+|\bEXTENDS\s+)"
+                + re.escape(name) + r"\b", others)
+            if owner:
+                continue
+            used_outside = any(
+                re.search(r"\b" + re.escape(name) + r"\b", texts[q])
+                for q in source_paths if q not in bodies)
+            if used_outside:
+                findings.append(Finding(
+                    path, 1, "L1",
+                    f"library {library} declares {name}, which no object in that "
+                    "library uses - it is an application type and belongs in the "
+                    "project that instantiates it"))
 
     # A1: direct or derived Unit types cannot be members of an EM declaration.
     unit_types = {name for name in declarations if derives(name, "FB_UnitBase")}

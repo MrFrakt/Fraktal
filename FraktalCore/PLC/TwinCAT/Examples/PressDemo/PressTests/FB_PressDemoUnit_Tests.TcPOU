@@ -103,14 +103,14 @@ AssertTrue(Condition := Press.Start(), Message := 'HOME starts through Unit life
 FOR i := 1 TO 20 DO
     PressSim(); DoorSim(); SlideSim(); Press();
 END_FOR
-AssertTrue(Condition := Press.OutCmd.Homed, Message := 'HOME establishes load-safe position');
+AssertTrue(Condition := Press.OutImm.Homed, Message := 'HOME establishes load-safe position');
 Press.Stop(); Press();
 AssertTrue(Condition := Press.Start(),
     Message := 'HOME restarts without requiring an intervening mode change');
 FOR i := 1 TO 20 DO
     PressSim(); DoorSim(); SlideSim(); Press();
 END_FOR
-AssertTrue(Condition := Press.OutCmd.Homed,
+AssertTrue(Condition := Press.OutImm.Homed,
     Message := 'repeated HOME receives a freshly reset finite chain');
 Press.Stop(); Press();
 

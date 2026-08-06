@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeRaiseChain" Id="{56aa8250-ea0c-4278-af6d-d84394970fb2}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §6.9 — the worked example for an explicitly raised step error. Its two
+// steps are the two shapes a chain cannot express with `Awaits`: a command
+// guarded by an IF (so the framework never sees the child), and a rule only the
+// application knows. Both stop the chain; both re-evaluate on resume.
+FUNCTION_BLOCK FB_ProbeRaiseChain EXTENDS FB_SequenceBase
+VAR_INPUT
+    Enable    : BOOL;               // the IF that hides the child from `Awaits`
+    SimCustom : BOOL;               // the application rule step 30 checks
+    SimWarn   : BOOL;               // the non-blocking message step 20 reports
+    ReportOnly : BOOL;              // step 20 owns the recovery, like press AUTO N200
+END_VAR
+VAR_OUTPUT
+    Issues : UDINT;                 // times step 20 issued its command (§6.1 one-shot)
+    Warned : BOOL;                  // last M_RaiseWarning result
+    Reported : BOOL;                // last M_ReportFromChild result
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _child : REFERENCE TO FB_ProbeCM;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{8507c6a7-a0a0-4985-9693-1c8ecffb2730}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Host : I_SequenceHost;
+END_VAR
+VAR_IN_OUT
+    Child : FB_ProbeCM;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_child REF= Child;
+Setup := M_Attach(Host := Host) AND __ISVALIDREF(_child);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Reset" Id="{4c4ad0cd-07dc-41ec-9f75-c6b775b764d3}">
+      <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ResetBase(FirstStep := 0);
+Issues := 0;
+Warned := FALSE;
+Reported := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Run" Id="{c27934a0-51cd-4102-a171-3623b4be5a05}">
+      <Declaration><![CDATA[METHOD M_Run]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE _step OF
+    0:
+        M_Step(StepNo := 10, StepName := 'project.test.raiseIdle', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        _retVal := E_StepResult.ADVANCE;
+        M_Advance(OnAdvance := 20);
+    20:  // conditional command. `Enable` decides whether the child is driven at all,
+         // so this step cannot hand it to the §6.9 auto-rollup - Awaits would name a
+         // module it may never command. M_RaiseFromChild adopts the child's own
+         // first-out instead, verbatim, with the child as the §3.13 drill-down link.
+        M_Step(StepNo := 20, StepName := 'project.test.raiseCommand', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF ReportOnly THEN
+            // The step already routes the failure itself, so it PUBLISHES the child's
+            // first-out and carries on - the §6.9(e) counterpart of raising it.
+            IF M_ReportFromChild(Source := _child) THEN
+                _child.Execute := FALSE;
+                _retVal := E_StepResult.ADVANCE;
+            END_IF
+        ELSIF M_RaiseFromChild(Source := _child) THEN
+            _child.Execute := FALSE;         // §6.1 drop-reset frees the child to recover
+            RETURN;                          // chain stopped; the Unit is in ERROR
+        END_IF
+        // §6.9(e) — called unconditionally every scan the step runs. The base
+        // raises it ONCE per visit, so the ring gets one entry per occurrence and
+        // the chain is never stopped by it.
+        IF SimWarn THEN
+            Warned := M_RaiseWarning(Reason := E_Reason.TEST_FAULT,
+                DescriptionKey := 'project.test.stepWarning',
+                Severity := E_Severity.LOW, Category := E_Category.PROCESS);
+        END_IF
+        IF Enable THEN
+            IF M_MayIssue(Steppable := TRUE) THEN
+                Issues := Issues + 1;        // proves the re-evaluation after resume
+                _child.Abort := FALSE;
+                _child.Execute := TRUE;
+            END_IF
+            IF _child.Done THEN
+                _child.Execute := FALSE;
+                _retVal := E_StepResult.ADVANCE;
+            END_IF
+        END_IF
+        M_Advance(OnAdvance := 30);
+    30:  // application rule: nothing in the framework can see it, so the step
+         // defines the whole message - severity, category and drill-down link (§8.1).
+        M_Step(StepNo := 30, StepName := 'project.test.raiseCustom', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF SimCustom THEN
+            IF M_RaiseCustom(Reason := E_Reason.TEST_FAULT,
+                DescriptionKey := 'project.test.customRaise',
+                Severity := E_Severity.HIGH, Category := E_Category.PROCESS,
+                LinkPath := _child.Name) THEN
+                RETURN;
+            END_IF
+        END_IF
+        _retVal := E_StepResult.ADVANCE;
+        M_Advance(OnAdvance := 999);
+    999:
+        M_Step(StepNo := 999, StepName := 'project.test.raiseComplete', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        Done := TRUE;
+        M_Complete();
+ELSE
+    M_Fault(Reason := E_Reason.STEP_STALLED, DescriptionKey := 'std.error.undefinedStep');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

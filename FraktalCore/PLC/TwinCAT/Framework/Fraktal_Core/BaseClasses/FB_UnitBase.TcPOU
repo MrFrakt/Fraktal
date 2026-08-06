@@ -29,6 +29,19 @@ VAR_OUTPUT
     // §3.13 sequence flow chart. Discovered from _M_SetStep, so a chain author
     // writes nothing; SequenceStepCount is the published length (§8.4 bounded).
     SequenceSteps : ARRAY[1..PL_Fraktal.MAX_SEQUENCE_STEPS] OF ST_SequenceStep;
+    // §3.10.2 — the static half of each row: discovered once, never changes, so it
+    // stays OFF the cyclic tree and is served through the config manifest under the
+    // SAME browse paths as the live half (M_AppendConfig below).
+    {attribute 'OPC.UA.DA' := '0'}
+    SequenceStepDef : ARRAY[1..PL_Fraktal.MAX_SEQUENCE_STEPS] OF ST_SequenceStepDef;
+    // §3.13 — which row each concurrent leg is running. Indexed by branch (0 = the
+    // main line), so it is ~10 entries however long the chain is, and cheap enough
+    // to stay in the cyclic read: the chart is right the moment its tab opens.
+    ActiveSteps : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF ST_SequenceCursor;
+    // §6.9 — the errors and messages currently attached to rows. Sparse, so a small
+    // table instead of 633 bytes reserved on every row for the usually-empty case.
+    SequenceAnnotations : ARRAY[1..PL_Fraktal.MAX_SEQUENCE_ANNOTATIONS] OF ST_SequenceAnnotation;
+    SequenceAnnotationCount : INT;
     SequenceStepCount : INT;
     CurrentStepElapsed : TIME;         // how long the active step has been running
     CurrentStepTimedOut : BOOL;        // active step outran its guard (§6.9 stall)
@@ -87,14 +100,22 @@ VAR
     _awaits   : I_Module;              // module the current step awaits (0 = none)
     _faultEvt : INT;                   // open ERROR event slot in AlarmLog (0 = none)
     _tStall   : TON;
-    _seqIndex : INT;                   // row of the active step in SequenceSteps
-    _stepSinceMs : DWORD;              // monotonic start of the active step
+    _seqIndex : INT;                   // row recorded LAST, i.e. the step action running now
+    _stepSinceMs : DWORD;              // monotonic start of the main-line step
+    // §6.12 — per-row clock and liveness. With a parallel step several rows are
+    // active at once, so one cursor is no longer enough to say what is running or
+    // for how long. Bounded exactly like the row table itself (§1.1 O10).
+    // Per-LEG, not per row: a leg has one active step, so the per-scan sweep is ~10
+    // iterations instead of up to MAX_SEQUENCE_STEPS.
+    _branchSinceMs : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF DWORD;
+    _branchTouched : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF BOOL;
     _tDecision: TON;                   // §6.11 monotonic active-decision timeout
     _decisionConflictLogged : BOOL;    // one audit record per conflicting request
     _decisionResolutionLogged : BOOL;  // operator/timeout resolution logged once
     _stepReq  : BOOL;                  // §3.4.2 pending single-step request (edge-consumed)
     _holdRun  : BOOL;                  // §3.4.2 HOLD_TO_RUN input held (NON-SAFETY, §9)
     _stepArm  : R_TRIG;
+    _errClr   : R_TRIG;                // §6.9 the ERROR state ended
     _oeeLast  : TIME;                  // §8.5.1 last accumulation stamp
     _oeeSampMs: UDINT;                 // ms since last trend sample
     _hmiLastSequence : UDINT;
@@ -1141,6 +1162,7 @@ VAR_INPUT
     AwaitingLabel : STRING(120);
     TimeClass     : E_TimeClass;
     ExpectedTime  : TIME;
+    Branch        : INT;           // §6.12 concurrent leg, 0 = the chain's main line
 END_VAR
 VAR
     i    : INT;
@@ -1150,7 +1172,7 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[hit := 0;
 FOR i := 1 TO SequenceStepCount DO
-    IF SequenceSteps[i].StepNo = StepNo THEN
+    IF SequenceStepDef[i].StepNo = StepNo THEN
         hit := i;
         EXIT;
     END_IF
@@ -1168,21 +1190,159 @@ path := '';
 IF Awaits <> 0 THEN
     path := Awaits.Name;
 END_IF
-SequenceSteps[hit].StepNo        := StepNo;
-SequenceSteps[hit].StepName      := StepName;
-SequenceSteps[hit].AwaitingLabel := AwaitingLabel;
-SequenceSteps[hit].AwaitsPath    := path;
-SequenceSteps[hit].TimeClass     := TimeClass;
-SequenceSteps[hit].ExpectedTime  := ExpectedTime;
-SequenceSteps[hit].Visited       := TRUE;
-IF hit <> _seqIndex THEN
-    IF (_seqIndex >= 1) AND (_seqIndex <= SequenceStepCount) THEN
-        SequenceSteps[_seqIndex].LastDuration := CurrentStepElapsed;
+// Static half: fixed from this first visit, published through the manifest.
+SequenceStepDef[hit].StepNo        := StepNo;
+SequenceStepDef[hit].Branch        := Branch;
+SequenceStepDef[hit].TimeClass     := TimeClass;
+SequenceStepDef[hit].ExpectedTime  := ExpectedTime;
+SequenceStepDef[hit].StepName      := StepName;
+SequenceStepDef[hit].AwaitingLabel := AwaitingLabel;
+SequenceStepDef[hit].AwaitsPath    := path;
+SequenceSteps[hit].Visited := TRUE;
+// §6.12 — the LEG owns the clock, because a leg runs exactly one step at a time.
+// A different row on this leg means the step just changed.
+IF ActiveSteps[Branch].RowIdx <> hit THEN
+    SequenceSteps[hit].WarningActive := FALSE;   // §6.9(e) this visit starts clean
+    _M_SequenceAnnotationClear(RowIdx := hit, IsError := FALSE);
+    _branchSinceMs[Branch] := TIME_TO_DWORD(TIME());
+    ActiveSteps[Branch].RowIdx := hit;
+    ActiveSteps[Branch].Elapsed := T#0S;
+    ActiveSteps[Branch].TimedOut := FALSE;
+    IF Branch = 0 THEN
+        _stepSinceMs := _branchSinceMs[0];
+        CurrentStepElapsed := T#0S;
     END_IF
-    _seqIndex := hit;
-    _stepSinceMs := TIME_TO_DWORD(TIME());
-    CurrentStepElapsed := T#0S;
-END_IF]]></ST>
+END_IF
+_branchTouched[Branch] := TRUE;
+ActiveSteps[Branch].Elapsed :=
+    DWORD_TO_TIME(TIME_TO_DWORD(TIME()) - _branchSinceMs[Branch]);
+// A leg carries its own guard: the §6.9 stall watchdog is singular and follows the
+// main line, so without this a leg could overrun for ever with nothing to show.
+ActiveSteps[Branch].TimedOut := (ExpectedTime > T#0S)
+    AND (ActiveSteps[Branch].Elapsed > ExpectedTime);
+// The row recorded last IS the step action executing right now, which is what makes
+// it the correct target for a §6.9 raise or a §6.9(e) message raised further down
+// that same action - on the main line or on any leg.
+_seqIndex := hit;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ResetSequenceRows" Id="{3a7e979a-9c02-4e58-aa36-f0627902f8fb}">
+      <Declaration><![CDATA[// §3.13 — drop the published flow chart so the next mode builds its own.
+//
+// The row table is DISCOVERED by visit (§6.5), which is what makes it free to
+// author - but discovery has no end: without this the table becomes the union of
+// every chain run since boot. After AUTO then HOME the operator would be shown
+// AUTO's rows and HOME's together with only some of them live, and the union of
+// the press demo's three modes is 29 rows against a bound of 32. A mode is the
+// natural boundary: within one mode a re-run keeps its rows, so Visited and
+// LastDuration stay meaningful across cycles.
+//
+// Bounded by the count actually in use, not by MAX_SEQUENCE_STEPS: clearing rows
+// nobody published would cost the whole table on every mode change (§1.1 O10 -
+// deterministic scan time).
+METHOD PROTECTED _M_ResetSequenceRows
+VAR
+    i : INT;
+    e : ST_SequenceStep;
+    x : ST_SequenceStepDef;
+    c : ST_SequenceCursor;
+    a : ST_SequenceAnnotation;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO SequenceStepCount DO
+    SequenceSteps[i] := e;             // zero-initialized local: clears every field
+    SequenceStepDef[i] := x;
+END_FOR
+SequenceStepCount := 0;
+FOR i := 0 TO PL_Fraktal.MAX_PARALLEL_BRANCHES DO
+    ActiveSteps[i] := c;
+    _branchTouched[i] := FALSE;
+END_FOR
+FOR i := 1 TO SequenceAnnotationCount DO
+    SequenceAnnotations[i] := a;
+END_FOR
+SequenceAnnotationCount := 0;
+_seqIndex := 0;                        // nothing to stamp until the new chain steps
+CurrentStepElapsed := T#0S;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SequenceAnnotate" Id="{981fa92c-f12b-4972-9483-880edfae72c8}">
+      <Declaration><![CDATA[// §6.9 — attach an error or a message to a flow-chart row.
+//
+// One slot per (row, kind): re-annotating the same row with the same kind
+// overwrites rather than accumulating, which is what makes it safe for the
+// per-visit message latch to call this without tracking slots.
+//
+// Returns FALSE when the table is full. The CALLER has already set the row flag
+// by then, deliberately: a full table costs the text, never the mark, so the
+// chart still shows that something happened here (§5.6 degrade, never mislead).
+METHOD PROTECTED _M_SequenceAnnotate : BOOL
+VAR_INPUT
+    RowIdx     : INT;
+    IsError    : BOOL;
+    Key        : STRING(120);
+    SourcePath : STRING(80);
+END_VAR
+VAR
+    i    : INT;
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SequenceAnnotate := FALSE;
+IF (RowIdx < 1) OR (RowIdx > SequenceStepCount) THEN
+    RETURN;
+END_IF
+slot := 0;
+FOR i := 1 TO SequenceAnnotationCount DO
+    IF (SequenceAnnotations[i].RowIdx = RowIdx)
+    AND (SequenceAnnotations[i].IsError = IsError) THEN
+        slot := i;
+        EXIT;
+    END_IF
+END_FOR
+IF slot = 0 THEN
+    FOR i := 1 TO SequenceAnnotationCount DO
+        IF SequenceAnnotations[i].RowIdx = 0 THEN     // freed by a clear
+            slot := i;
+            EXIT;
+        END_IF
+    END_FOR
+END_IF
+IF slot = 0 THEN
+    IF SequenceAnnotationCount >= PL_Fraktal.MAX_SEQUENCE_ANNOTATIONS THEN
+        RETURN;                                       // full: the mark stands, the text does not
+    END_IF
+    SequenceAnnotationCount := SequenceAnnotationCount + 1;
+    slot := SequenceAnnotationCount;
+END_IF
+SequenceAnnotations[slot].RowIdx     := RowIdx;
+SequenceAnnotations[slot].IsError    := IsError;
+SequenceAnnotations[slot].Key        := Key;
+SequenceAnnotations[slot].SourcePath := SourcePath;
+_M_SequenceAnnotate := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SequenceAnnotationClear" Id="{7256d50d-cf16-4906-8e35-fd394563602f}">
+      <Declaration><![CDATA[// §6.9 — release annotations. RowIdx 0 means "every row" (the ERROR-cleared edge
+// drops all error notes at once); otherwise just that row's note of that kind.
+// Freed slots are reused before the table grows, so a chain that warns on many
+// steps over many cycles does not exhaust it.
+METHOD PROTECTED _M_SequenceAnnotationClear
+VAR_INPUT
+    RowIdx  : INT;
+    IsError : BOOL;
+END_VAR
+VAR
+    i : INT;
+    e : ST_SequenceAnnotation;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO SequenceAnnotationCount DO
+    IF (SequenceAnnotations[i].IsError = IsError)
+    AND ((RowIdx = 0) OR (SequenceAnnotations[i].RowIdx = RowIdx)) THEN
+        SequenceAnnotations[i] := e;                  // RowIdx 0 marks the slot free
+    END_IF
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_SetStep" Id="{1066dd3c-baf2-43ea-91d5-309ad4ca7878}">
@@ -1215,7 +1375,8 @@ CurrentStep.TimeClass     := TimeClass;
 CurrentStep.ExpectedTime  := ExpectedTime;
 _awaits := Awaits;
 _M_RecordSequenceStep(StepNo := StepNo, StepName := StepName, Awaits := Awaits,
-    AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime);
+    AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime,
+    Branch := 0);
 Profiler.StepChanged(StepNo := StepNo, StepName := StepName, TimeClass := TimeClass,
     Expected := ExpectedTime);]]></ST>
       </Implementation>
@@ -1354,6 +1515,8 @@ VAR
     item     : STRING(255);
     writeKey : STRING(160);
     meta     : ST_AlarmMeta;
+    seqIdx   : INT;
+    seqBase  : STRING(255);
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_AppendConfig := SUPER^.M_AppendConfig(Pager := Pager);
@@ -1442,6 +1605,28 @@ FOR i := 1 TO AlarmLog.MetaCount DO
     ELSE
         Pager.M_Append(Scope := Status.Name, Item := item, ValueText := 'FALSE');
     END_IF
+END_FOR
+// §3.13/§3.10.2 — the static definition of each flow-chart row. The Item fragment
+// reproduces the browse path the LIVE half is published under, so the HMI mapper
+// reads `SequenceSteps[i]/StepName` without knowing it arrived by a different
+// route: one row structure, half of it live, half fetched once and cached.
+// Bounded by the discovered count, so an empty chain appends nothing.
+FOR seqIdx := 1 TO SequenceStepCount DO
+    seqBase := CONCAT('SequenceSteps/SequenceSteps[', CONCAT(TO_STRING(seqIdx), ']/'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := CONCAT(seqBase, 'StepNo'),
+        Number := TO_DINT(SequenceStepDef[seqIdx].StepNo));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := CONCAT(seqBase, 'Branch'),
+        Number := TO_DINT(SequenceStepDef[seqIdx].Branch));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := CONCAT(seqBase, 'TimeClass'),
+        Number := TO_DINT(SequenceStepDef[seqIdx].TimeClass));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := CONCAT(seqBase, 'ExpectedTime'),
+        Number := TIME_TO_DINT(SequenceStepDef[seqIdx].ExpectedTime));
+    Pager.M_Append(Scope := Status.Name, Item := CONCAT(seqBase, 'StepName'),
+        ValueText := SequenceStepDef[seqIdx].StepName);
+    Pager.M_Append(Scope := Status.Name, Item := CONCAT(seqBase, 'AwaitingLabel'),
+        ValueText := SequenceStepDef[seqIdx].AwaitingLabel);
+    Pager.M_Append(Scope := Status.Name, Item := CONCAT(seqBase, 'AwaitsPath'),
+        ValueText := SequenceStepDef[seqIdx].AwaitsPath);
 END_FOR]]></ST>
       </Implementation>
     </Method>
@@ -1586,9 +1771,104 @@ VAR
     i : INT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR i := 1 TO _sequenceCount DO
+        <ST><![CDATA[// §6.12 — close out the legs the previous scan's dispatch stopped recording. A step
+// is live exactly while its action keeps calling M_Step, which is the same fact the
+// chart draws, so nothing has to be deregistered when a leg finishes. Sweeping legs
+// rather than rows makes this ~10 iterations however long the chain is.
+FOR i := 0 TO PL_Fraktal.MAX_PARALLEL_BRANCHES DO
+    IF (ActiveSteps[i].RowIdx > 0) AND NOT _branchTouched[i] THEN
+        // The row keeps how long it ran: the HMI polls too slowly to have timed it.
+        SequenceSteps[ActiveSteps[i].RowIdx].LastDuration := ActiveSteps[i].Elapsed;
+        ActiveSteps[i].RowIdx := 0;
+        ActiveSteps[i].TimedOut := FALSE;
+    END_IF
+    _branchTouched[i] := FALSE;
+END_FOR
+FOR i := 1 TO _sequenceCount DO
     IF _sequences[i] <> 0 THEN
         _sequences[i].M_BeginScan();
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SequenceWarn" Id="{75ce463f-f749-4a05-8c5e-fea3607d380d}">
+      <Declaration><![CDATA[// §6.9(e) — a step said something worth recording that is not a failure.
+// Deliberately does NOT touch _exec: no fault is adopted, _M_Dispatch keeps
+// running, and the chain follows its own recovery path. The ring entry is
+// AUTO_RESET come+gone (§8.3(c)) so it can never block the next Start.
+METHOD M_SequenceWarn : BOOL
+VAR_INPUT
+    Diag : ST_Diagnostic;
+END_VAR
+VAR
+    d    : ST_Diagnostic;
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[d := Diag;
+IF d.SourcePath = '' THEN
+    d.SourcePath := _name;
+END_IF
+F_RationalizeDiagnostic(Diag := d);   // §8.8 owns a registered reason's level
+IF (_seqIndex >= 1) AND (_seqIndex <= SequenceStepCount) THEN
+    SequenceSteps[_seqIndex].WarningActive := TRUE;
+    // A message about THIS Unit has nowhere to drill; one about a child keeps the
+    // child's path, so the chart links to the module the message is about.
+    IF d.SourcePath = _name THEN
+        _M_SequenceAnnotate(RowIdx := _seqIndex, IsError := FALSE,
+            Key := d.Description, SourcePath := '');
+    ELSE
+        _M_SequenceAnnotate(RowIdx := _seqIndex, IsError := FALSE,
+            Key := d.Description, SourcePath := d.SourcePath);
+    END_IF
+END_IF
+slot := AlarmLog.Raise(Reason := d.ReasonCode, Text := d.Description,
+    Source := d.SourcePath, Severity := d.Severity, Category := d.Category,
+    ResetClass := E_ResetClass.AUTO_RESET);
+IF slot > 0 THEN
+    AlarmLog.Gone(Slot := slot);       // an occurrence, not a standing condition
+END_IF
+M_SequenceWarn := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SequenceRaise" Id="{0bee2dd9-d8a8-4946-b400-dc31452b748f}">
+      <Declaration><![CDATA[// §6.9 — a step raised a first-out itself. Stamp the flow-chart row with the
+// error and its link before adopting the diagnostic, so the §3.13 chart can mark
+// the step red and drill into the module that actually failed even when the step
+// passed Awaits := 0. Adopting the diagnostic stops the chain: _M_FaultDiag puts
+// the Unit in ERROR and _M_Dispatch no longer runs.
+METHOD M_SequenceRaise : BOOL
+VAR_INPUT
+    Diag     : ST_Diagnostic;
+    LinkPath : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_SequenceRaise := FALSE;
+IF (_seqIndex >= 1) AND (_seqIndex <= SequenceStepCount) THEN
+    SequenceSteps[_seqIndex].ErrorActive := TRUE;
+    _M_SequenceAnnotate(RowIdx := _seqIndex, IsError := TRUE,
+        Key := Diag.Description, SourcePath := LinkPath);
+END_IF
+_M_FaultDiag(Diag := Diag);
+M_SequenceRaise := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ResumeSequencesAfterError" Id="{f331535e-fb67-4439-a403-97a206176d31}">
+      <Declaration><![CDATA[// §6.9 — the ERROR state ended: clear the flow-chart error marks and re-arm
+// every attached chain so the step that raised the fault re-evaluates its
+// command. A project writes nothing for this (§1.1 O1).
+METHOD PROTECTED _M_ResumeSequencesAfterError
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO SequenceStepCount DO
+    SequenceSteps[i].ErrorActive := FALSE;
+END_FOR
+_M_SequenceAnnotationClear(RowIdx := 0, IsError := TRUE);
+FOR i := 1 TO _sequenceCount DO
+    IF _sequences[i] <> 0 THEN
+        _sequences[i].M_ResumeAfterError();
     END_IF
 END_FOR]]></ST>
       </Implementation>
@@ -1603,9 +1883,21 @@ VAR_INPUT
     AwaitingLabel : STRING(120);
     TimeClass : E_TimeClass;
     ExpectedTime : TIME;
+    Branch : INT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_M_SetStep(StepNo := StepNo, StepName := StepName,
+        <ST><![CDATA[// §6.12 — a step on a concurrent LEG publishes its own row and nothing else. The
+// Unit's CurrentStep, the §6.9 stall walk and the §8.11.4 profiler are singular by
+// definition; letting a leg write them would make the walk report whichever leg
+// happened to run last. A leg is timed and guarded on its own row instead, so
+// _M_SetStep keeps the signature every inline chain already calls (§1.1 O1).
+IF Branch > 0 THEN
+    _M_RecordSequenceStep(StepNo := StepNo, StepName := StepName, Awaits := Awaits,
+        AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime,
+        Branch := Branch);
+    RETURN;
+END_IF
+_M_SetStep(StepNo := StepNo, StepName := StepName,
     Awaits := Awaits, AwaitingLabel := AwaitingLabel, TimeClass := TimeClass,
     ExpectedTime := ExpectedTime);]]></ST>
       </Implementation>
@@ -1817,6 +2109,10 @@ ELSE
 END_IF
 // §6.9(a) — every new fault joins the shift-change ring, no historian needed
 _fTrig(CLK := (_exec = E_ExecState.ERROR));
+_errClr(CLK := (_exec <> E_ExecState.ERROR));
+IF _errClr.Q THEN
+    _M_ResumeSequencesAfterError();   // §6.9 re-evaluate, do not resume blind
+END_IF
 IF _fTrig.Q THEN
     _M_PushHistory(_diag);
 END_IF
@@ -1948,6 +2244,9 @@ END_VAR]]></Declaration>
         <ST><![CDATA[_M_HostEvent(Kind := E_HostEventKind.MODE_CHANGED, PartUid := '',
     Subject := 'Mode', Value := TO_STRING(TO_DINT(NewMode)),
     Verdict := E_Verdict.NONE, ReasonCode := E_Reason.NONE);
+// §3.13 — the chart belongs to the mode that is running. A project writes nothing
+// for this: it lands in the base hook every override calls SUPER^ on first (§3.14.2).
+_M_ResetSequenceRows();
 OnModeChanged := 0;]]></ST>
       </Implementation>
     </Method>

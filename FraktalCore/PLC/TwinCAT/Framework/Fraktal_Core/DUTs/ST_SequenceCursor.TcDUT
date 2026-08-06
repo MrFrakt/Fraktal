@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_SequenceCursor" Id="{2b6222c7-d55a-4d8a-a9a7-2cc338ed426c}">
+    <Declaration><![CDATA[// Core §3.13/§6.12 — which row a concurrent leg is running, and for how long.
+//
+// Indexed BY BRANCH, because a leg has exactly one active step by definition: index
+// 0 is the chain's main line, 1..n are its parallel legs. That is what makes this
+// table ~10 entries instead of one per row, and small enough to publish cyclically -
+// so the chart is already correct the instant its tab opens, instead of after the
+// first on-demand read.
+TYPE ST_SequenceCursor :
+STRUCT
+    RowIdx   : INT;                // SequenceSteps index; 0 = this leg has no active step
+    Elapsed  : TIME;               // how long that row has been running
+    TimedOut : BOOL;               // it outran its own ExpectedTime (a leg's own guard)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

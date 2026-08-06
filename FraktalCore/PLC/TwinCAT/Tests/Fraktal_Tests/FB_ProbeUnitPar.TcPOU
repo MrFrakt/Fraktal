@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeUnitPar" Id="{ae9fb4ff-77d4-4a3b-ad12-a290eb4c0e93}" SpecialFunc="None">
+    <Declaration><![CDATA[// Unit host for the §6.12 parallel suite: two children, one forking chain.
+FUNCTION_BLOCK FB_ProbeUnitPar EXTENDS FB_UnitBase
+VAR
+    ChildA : FB_ProbeCM;
+    ChildB : FB_ProbeCM;
+    Chain : FB_ProbeParChain;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{5529537b-a583-43f3-bce8-f173ea5e9a6e}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+StallTime := T#10S;
+Setup := ChildA.Setup(Name := CONCAT(Name, '.ChildA'))
+    AND ChildB.Setup(Name := CONCAT(Name, '.ChildB'))
+    AND _M_Register(Child := ChildA)
+    AND _M_Register(Child := ChildB)
+    AND Chain.Setup(Host := THIS^, ChildA := ChildA, ChildB := ChildB);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{35120a6e-e494-4830-9cd1-221ad5fa8a76}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();   // base first (Core §3.14.2)
+_M_TickChildren();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{bca17faf-c3ab-4478-bfaf-f89487af1efc}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation><ST><![CDATA[Chain.M_Run();]]></ST></Implementation>
+    </Method>
+    <Method Name="OnCommandStart" Id="{231ee97c-b4fe-426f-8940-65d5066fed47}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCommandStart : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCommandStart := SUPER^.OnCommandStart();
+Chain.M_Reset();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TestSetChild" Id="{332e50ad-63c4-4a09-be6f-efd65326a0e8}">
+      <Declaration><![CDATA[METHOD M_TestSetChild : BOOL
+VAR_INPUT
+    Which : INT;
+    ChildDone : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Which = 1 THEN
+    ChildA.SimDone := ChildDone;
+ELSE
+    ChildB.SimDone := ChildDone;
+END_IF
+M_TestSetChild := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_TestIssues" Id="{8b66b073-547b-47f4-8ee3-2a8c191daa0f}">
+      <Declaration><![CDATA[METHOD M_TestIssues : UDINT
+VAR_INPUT
+    Leg : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_TestIssues := Chain.M_TestIssues(Leg := Leg);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_TestChainStep" Id="{ecb1c3f2-972e-481d-b614-1b07cbb06a46}">
+      <Declaration><![CDATA[METHOD M_TestChainStep : INT]]></Declaration>
+      <Implementation><ST><![CDATA[M_TestChainStep := Chain.ActiveStep;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -71,6 +71,12 @@ IMPLEMENTATION_NOTES.md      every reconciliation vs. the drafts + proposed Core
 
 ## Bring-up (first compile)
 
+The authoritative interaction and evidence procedure is
+`../../../Specification/TWINCAT_XAE_WORKFLOW.md`. It records the exact
+Core→Modules save/install order, nested-build versus `CheckAllObjects` boundary,
+hidden-XAE automation, isolated-runtime download/run sequence, and the 2026-08-01/02
+execution history.
+
 > A `.plcproj` is **not** opened directly like a solution — it is added *into* a TwinCAT
 > XAE project. Verified on TwinCAT 3.1 4024.x (TcXaeShell): create/open a TwinCAT solution,
 > then right-click the **PLC** node → **Add Existing Item…** → select the `.plcproj`.
@@ -175,6 +181,65 @@ timers, so they must run *every scan the step is active*. An entry action runs
 once on activation, and a chain wired that way stalls at its first step forever —
 which reads as a hung machine, not a wiring mistake.
 
+### Parallel branches (§6.12)
+
+Two work positions that run at the same time and independently. There are two
+forms; **prefer the first** unless the chart itself is the clearest documentation.
+
+**Sub-chain fork — every language, including ST.** Each leg is an ordinary chain,
+so it brings its own step pointer, transition result and step-scoped latches, and
+nothing about it has to know it runs beside another. One step forks and joins:
+
+```iecst
+500: M_Step(StepNo := 500, StepName := 'project.step.bothPositions', Awaits := 0,
+         AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+     M_RunPar(Chain := _positionA, BaseStepNo := 600, Branch := 1);
+     M_RunPar(Chain := _positionB, BaseStepNo := 700, Branch := 2);
+     _retVal := M_ParJoin();
+     M_Advance(OnAdvance := 999);
+```
+
+`M_ParJoin` commits only when every leg run that scan reports `Done`. The leg list
+is the calls themselves — nothing to register, nothing to forget when a leg is
+added. Worked example: `FB_ProbeParChain` / `FB_ProbeLeg` / `FB_SequencePar_Tests`.
+
+**Native divergence — drawn in the chart.** In XAE, select the transition after
+the forking step and insert a *parallel branch*. In the archive the two shapes are
+told apart by what each leg starts with:
+
+| | leg starts with | meaning |
+|---|---|---|
+| `SFCBranch` whose legs open with `SFCTransition` | a transition | **alternative** (one leg runs) |
+| `SFCBranch` whose legs open with `SFCStep` | a step | **parallel** (all legs run) |
+
+Rules for a natively drawn leg:
+
+1. **Every leg step names its leg on its own step record:** `Branch := 1` as the
+   last argument of `M_Step`. That is what keeps this leg's issue latch, delay and
+   message separate from the main line's, so both can command their own children in
+   the same scan. Main-line steps omit it — it defaults to this chain's own leg, so
+   a leg written as a sub-chain never mentions a branch either. (Under the legacy
+   `FRAKTAL_TC3_4024` profile there are no defaulted method inputs, so a 4024 build
+   writes `Branch := 0` at every `M_Step`, as it already does for `M_Advance`.)
+2. **A leg's transitions read `_conRetVal[n]`**, not `_retVal`. The main line keeps
+   `_retVal`. Both are cleared once per scan by the base.
+3. **Every leg needs a terminal step to wait in.** A parallel branch joins only when
+   all legs have reached their last step, so the main line needs one too — that is
+   what `A250`/`A310` are in `FB_SFC_PressDemoAuto`.
+4. **The join transition reads every result**, e.g.
+   `_retVal = E_StepResult.ADVANCE AND _conRetVal[1] = E_StepResult.ADVANCE`.
+5. **Number every leg; none is "the main line".** A two-leg fork uses legs 1 and 2.
+   Leaving one on branch 0 makes the chart draw it unindented, as if the other leg
+   were subordinate, and leaves `_retVal` meaning one thing inside the fork and
+   another outside it. `_retVal` is the line before and after; between them there
+   are only legs.
+6. **A composite step inherits its leg.** `M_RunSub` takes no branch argument — the
+   sub-chain runs on whatever leg the calling step is on, because `M_Step` already
+   set that. Press AUTO `A240` runs the load-position chain from leg 1 and its four
+   steps publish as leg 1.
+7. **The fork sits on a chain's main line.** Nest by making a leg a sub-chain
+   instead — that form nests without limit.
+
 ### Traps that cost real time here
 
 - **A `.TcPOU` edit must target one CDATA section.** A method's declaration and
@@ -195,6 +260,44 @@ which reads as a hung machine, not a wiring mistake.
   subtraction operator and yields ~40 cascading errors on innocent lines. Rule
   **C2** now rejects them; a *qualified* enum member (`E_CylinderPosition.MID`) is
   still fine.
+- **`M_MayIssue` used to fire once per chart RUN in SFC/LD.** A chart language never
+  calls `M_ClearTransition` — its engine owns the transition, so there is no commit
+  point to hang it on — and nothing else re-armed the issue latch. The re-arm now
+  lives in `M_Step`, the one call every step of every language makes. If you are
+  reading an older chart that only ever commanded its first child, this was why.
+- **A parallel leg is not a place to fault quietly.** `CurrentStep`, the §6.9 stall
+  walk and the profiler follow the **main line** only: a first-out has to name one
+  step. A leg is timed and guarded on its own §3.13 row instead, and a leg that must
+  fault does it through §6.9(d), which stops the whole chain — one leg failing is a
+  failure of the step.
+- **Owning a child's failure is not the same as hiding it.** A step that drops
+  `Awaits` to disposition the failure itself (below) is one case; a step whose
+  command sits behind an `IF`/`CASE` is the other, and that one has no rollup at
+  all. Raise it explicitly (Core §6.9(d)):
+
+  ```iecst
+  IF M_RaiseFromChild(Source := _gauge) THEN
+      _gauge.Execute := FALSE;      // §6.1 drop-reset frees the child to recover
+      RETURN;
+  END_IF
+  ```
+
+  `M_RaiseCustom` does the same for a condition no module reports — an
+  application rule, an out-of-band measurement — with the step choosing the text,
+  severity, category and drill-down link. Both stop the chain **on** the step,
+  mark that row of the §3.13 flow chart, and re-arm the step's latches when the
+  error clears, so the command is re-issued and re-tested rather than resumed
+  mid-handshake. Both are one call in ST, an action line in SFC, and a
+  power-flow-gated box in LD. Worked example: `FB_ProbeRaiseChain`.
+
+- **Do not fault a condition the step already handles.** `M_RaiseWarning` (a rule the
+  step states) and `M_ReportFromChild` (a child's first-out, published but not
+  adopted) record the occurrence and leave the chain running — press AUTO `N180`
+  and `N200`. They are AUTO_RESET come+gone events, so they can never block the
+  next `Start`, and the base emits each once per step visit so an unguarded call in
+  a step body is correct. Reach for the raising pair only when the machine must
+  stop.
+
 - **Owning a child's failure means not awaiting it.** An awaited child fault is
   adopted by `FB_UnitBase.OnCyclic` — `_exec := ERROR`, `_step := 0` — *before*
   `_M_Dispatch` runs, so a chart can never jump on it. A step that wants to

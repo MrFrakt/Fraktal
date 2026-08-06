@@ -227,6 +227,16 @@ END_VAR]]></Declaration>
     ELSE
         ;
     END_IF
+    // §10.5.1 — the RS232 terminal's process image, published like any other
+    // channel so a dead serial link is visible on the bus page instead of invisible.
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 1, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_Status));
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 2, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_DataIn0));
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 3, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_DataIn1));
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 4, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_DataIn2));
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 5, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_Ctrl));
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 6, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_DataOut0));
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 7, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_DataOut1));
+    _publisher.M_SetAnalogValue(NodeIndex := 5, ChannelIndex := 8, Value := USINT_TO_REAL(GVL_PressIO._000K010D1_DataOut2));
     _publisher.M_ApplyDiagnostic(Diagnostic := _unit.Status.Diagnostic);
 ELSE
     ;

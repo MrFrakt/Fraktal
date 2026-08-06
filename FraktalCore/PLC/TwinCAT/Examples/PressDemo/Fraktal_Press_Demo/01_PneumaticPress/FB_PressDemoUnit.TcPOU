@@ -221,9 +221,17 @@ OutImm.TwoHandArmed := TwoHand.OutImm.Armed;
 OutImm.TwoHandActive := TwoHand.OutImm.SafeActive;
 OutImm.PartPresent := PartPresentSensor.OutImm.Value AND PartPresentSensor.OutImm.Quality;
 OutImm.AirPressureOk := AirPressureMonitor.OutImm.PressureOk;
-OutImm.ReadyForLoad := Door.OutImm.Retracted AND NOT Door.OutImm.Extended
-    AND PartSlide.OutImm.Retracted AND NOT PartSlide.OutImm.Extended
-    AND PressRam.OutImm.Retracted AND NOT PressRam.OutImm.Extended;
+// §3.12 — ONE derivation, published under the name the operator knows and read
+// by everything that needs the fact (§1.1 O9: derived, never duplicated). It is a
+// state, not a command result: it stops being true the moment a cylinder leaves
+// the position, including in MANUAL where no sequence runs to clear anything.
+// _M_State publishes it on the generic flag table with the moment it last changed,
+// so the HMI can render it without knowing this module type.
+OutImm.Homed := _M_State(Idx := 1, Key := 'project.state.pressAtLoadPosition',
+    Ok := Door.OutImm.Retracted AND NOT Door.OutImm.Extended
+      AND PartSlide.OutImm.Retracted AND NOT PartSlide.OutImm.Extended
+      AND PressRam.OutImm.Retracted AND NOT PressRam.OutImm.Extended);
+OutImm.ReadyForLoad := OutImm.Homed;   // same fact; the load gate's name for it
 OutImm.ActiveSettleTime := ParCfg.PressSettleTime;
 OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
     </Method>

@@ -24,7 +24,10 @@ ModuleTabCapabilities moduleTabCapabilities(ModuleNode node) {
     unit: node.isUnit,
     // The PLC owns this one: SequenceViewEnabled is published per module,
     // so a type too simple to draw suppresses its own tab (§3.13).
-    sequence: node.sequenceViewEnabled && node.sequenceSteps.isNotEmpty,
+    // Keyed on the COUNT, not the rows: the rows are an on-demand subtree read
+    // only while this tab is open, so requiring them here would mean the tab could
+    // never appear to be opened. The count is live at the module root.
+    sequence: node.sequenceViewEnabled && node.sequenceStepCount > 0,
     motion: node.motion != null,
     vision: identity.contains('vision') ||
         identity.contains('camera') ||

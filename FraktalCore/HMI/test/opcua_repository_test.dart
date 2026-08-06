@@ -215,8 +215,10 @@ void main() {
   });
 }
 
+// The channel VALUE is live now (§10.5.1), so the on-demand exemplar for this
+// suite is a field that stays gated: `Forced` is per-channel drill-down state.
 const _channelValuePath =
-    'PLC1/GVL_PressFieldbus/Topology/Nodes/Nodes[1]/Channels/Channels[1]/BoolValue';
+    'PLC1/GVL_PressFieldbus/Topology/Nodes/Nodes[1]/Channels/Channels[1]/Forced';
 
 /// A bulk-read + tiered client that models fieldbus live I/O as on-demand data:
 /// the snapshot omits the excluded channel-state paths; readValues serves them.

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_PneumaticPressOutCmd" Id="{7583c968-841f-4e62-94f4-18e8982ce347}">
+    <Declaration><![CDATA[TYPE ST_PneumaticPressOutCmd :
+STRUCT
+    // §3.12 — OutCmd is what a COMMAND PRODUCED, latched until the next command.
+    // Both of these are genuine command results: a cycle ran, a changeover ran.
+    // `Homed` used to live here and does not any more - being at the home position
+    // is not something a command produced, it is something that is either true now
+    // or not, so it is derived state (OutImm.Homed) recomputed every scan.
+    CycleCompleted : BOOL;
+    ChangeoverCompleted : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

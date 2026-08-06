@@ -793,6 +793,7 @@ class _ModuleOverviewTab extends StatelessWidget {
                     'Cycle ${(n.lastCycleTime.inMilliseconds / 1000).toStringAsFixed(1)}s'
                     ' (best ${(n.minCycleTime.inMilliseconds / 1000).toStringAsFixed(1)}s)')),
         ]),
+        if (n.stateFlags.isNotEmpty) _stateFlags(context, n.stateFlags),
         const SizedBox(height: 8),
         _controls(context, n, s),
         const SizedBox(height: 12),
@@ -1084,4 +1085,40 @@ class _ModuleOverviewTab extends StatelessWidget {
               : 'Shelve refused by the PLC')));
     }
   }
+}
+
+/// §3.12 — the module's derived state, rendered generically: the HMI knows only
+/// that these are named facts with a value and a moment, never what the module is.
+Widget _stateFlags(BuildContext context, List<StateFlag> flags) {
+  final scheme = Theme.of(context).colorScheme;
+  final now = DateTime.now();
+  return Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Wrap(spacing: 8, runSpacing: 8, children: [
+      for (final f in flags)
+        Chip(
+          avatar: Icon(
+            // Stale is neither true nor false: the PLC stopped computing it, so
+            // showing a confident "off" would be a claim nobody is making.
+            f.stale
+                ? Icons.help_outline
+                : (f.value ? Icons.check_circle_outline : Icons.circle_outlined),
+            size: 18,
+            color: f.stale
+                ? scheme.onSurfaceVariant
+                : (f.value ? scheme.primary : scheme.onSurfaceVariant),
+          ),
+          label: LText(_flagLabel(f, now)),
+        ),
+    ]),
+  );
+}
+
+String _flagLabel(StateFlag f, DateTime now) {
+  if (f.stale || f.since == null) return f.key;
+  final held = now.difference(f.since!);
+  if (held.isNegative || held.inSeconds < 1) return f.key;
+  if (held.inMinutes < 1) return '${f.key} · ${held.inSeconds}s';
+  if (held.inHours < 1) return '${f.key} · ${held.inMinutes}m';
+  return '${f.key} · ${held.inHours}h';
 }

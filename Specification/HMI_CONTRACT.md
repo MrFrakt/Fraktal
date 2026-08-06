@@ -274,6 +274,35 @@ station/line aggregator or historian, not duplicated in every root HMI. Unknown 
 diagnostic description and require a complete runtime rationalization before
 they may be shelved.
 
+## Fieldbus channel state (§10.5.1)
+
+The topology subtree is on-demand — identity, addressing and diagnostic text are
+large and only feed the bus page. **The channel value is the exception and is live**:
+`Channels[i]/BoolValue` and `Channels[i]/AnalogValue` are classified `live` even
+though they sit inside an on-demand container, because an operator watches an
+interlock that will not clear or a sensor that never comes on without opening the
+bus page at all. It is one leaf per channel, so the promotion costs a fraction of
+the subtree it lives in; `Address`, `Path`, `Diagnostic`, `Forced` and `Quality`
+stay gated.
+
+A leaf-level `liveLeaves` rule is checked **before** the container rules, which is
+what lets it outrank the subtree it belongs to.
+
+## Derived state flags (§3.12)
+
+| PLC symbol | Type | HMI use |
+|---|---|---|
+| `<module>/StateFlagCount` | INT | published length of the table below |
+| `<module>/StateFlags[i]/Key` | STRING | localization key. **Empty ⇒ the slot was never published**: skip it, do not render a nameless chip |
+| `<module>/StateFlags[i]/Value` | BOOL | the fact, as of this scan |
+| `<module>/StateFlags[i]/Since` | DT | when `Value` last **changed** — not when it was last written. Render as a duration ("closed · 4s") |
+| `<module>/StateFlags[i]/Stale` | BOOL | the PLC stopped publishing this flag. Render as **unknown**, never as a confident "off" — the PLC has already forced `Value` false, and showing that as a claim would be inventing one |
+
+These are `OutImm`-role values: facts recomputed every scan from what is actually
+true underneath, as opposed to `OutCmd`, which is what a command produced and stays
+latched until the next one. Any module of any tier may publish them, so the HMI
+renders them generically from the key — it never needs to know the module type.
+
 ## Sequence flow chart (§3.13)
 
 | PLC symbol | Type | HMI use |
@@ -281,20 +310,113 @@ they may be shelved.
 | `<module>/SequenceViewEnabled` | BOOL | shows or hides the **Sequence** tab for that module. The PLC owns this: a type too simple to be worth drawing leaves it FALSE, a Unit defaults TRUE and may vary it per mode. The HMI never infers it from the module type. |
 | `<unit>/SequenceStepCount` | INT | published length of the rows below; a row beyond it is ignored even if present on the wire |
 | `<unit>/SequenceSteps[i]/StepNo` | INT | row label (`N100`) and the key matched against `CurrentStep/StepNo` to find the active row |
-| `<unit>/SequenceSteps[i]/StepName` | STRING | localization key for the row title |
-| `<unit>/SequenceSteps[i]/AwaitingLabel` | STRING | secondary line, e.g. `PressRam.EXTEND` |
+| `<unit>/SequenceSteps[i]/StepName` | STRING | localization key for the row title. **Served by the §3.10.2 config manifest**, not cyclically — see below |
+| `<unit>/SequenceSteps[i]/Branch` | INT | §6.12 concurrent leg. 0 = the chain's main line; >0 indents the row under the fork and shows a `∥n` badge |
+| `<unit>/SequenceSteps[i]/Active` | BOOL | **this row is running now.** With a parallel step several rows are Active at once, which is why liveness may not be derived from `CurrentStep` |
+| `<unit>/SequenceSteps[i]/Elapsed` | TIME | that row's own clock |
+| `<unit>/SequenceSteps[i]/TimedOut` | BOOL | that row outran its own `ExpectedTime` — a leg's guard, since the §6.9 stall watchdog follows the main line only |
+| `<unit>/SequenceSteps[i]/AwaitingLabel` | STRING | secondary line, e.g. `PressRam.EXTEND`. Manifest-served |
 | `<unit>/SequenceSteps[i]/AwaitsPath` | STRING | **drill-down target.** Non-empty ⇒ the row is click-through and selects that module. Empty ⇒ tapping opens the step detail instead |
 | `<unit>/SequenceSteps[i]/TimeClass` | E_TimeClass | shown in the step detail |
 | `<unit>/SequenceSteps[i]/ExpectedTime` | TIME | the guard drawn beside the elapsed time (`1.4 s / 2.0 s`); 0 = no guard |
 | `<unit>/SequenceSteps[i]/Visited` | BOOL | dims rows the chain has not reached yet |
 | `<unit>/SequenceSteps[i]/LastDuration` | TIME | elapsed shown on an inactive row |
+| `<unit>/SequenceSteps[i]/ErrorActive` | BOOL | this row raised an error (§6.9(d)). Marks the row red **whether or not it is still the active one**, unlike a timeout. **This flag is authoritative** — see the annotation table |
+| `<unit>/SequenceSteps[i]/WarningActive` | BOOL | this row raised a **non-blocking** message (§6.9(e)). Steady mark, never the error blink — nothing stopped |
 | `<unit>/CurrentStepElapsed` | TIME | elapsed shown on the **active** row |
 | `<unit>/CurrentStepTimedOut` | BOOL | active row blinks between surface and error container |
+
+**Liveness is per row (§6.12).** A chain with a parallel step has one Active row per
+leg, so the HMI shall highlight every Active row and show each one's own `Elapsed`.
+When **no** row reports Active — an older runtime that does not publish it — the HMI
+shall fall back to matching `CurrentStep/StepNo`, which is the pre-§6.12 behaviour, so
+the tab never goes blank against an older PLC. `CurrentStepElapsed` and
+`CurrentStepTimedOut` remain the **main line's** clock and guard.
+
+**A row arrives from three places, and the HMI joins them.** The row was split by
+how often each part changes, so that a 128-row chart costs ~47 kB per Unit instead of
+~145 kB:
+
+| part | where it comes from | changes |
+|---|---|---|
+| `StepNo`, `Branch`, `TimeClass`, `ExpectedTime`, `StepName`, `AwaitingLabel`, `AwaitsPath` | the **§3.10.2 config manifest**, published under these same `SequenceSteps[i]/…` browse paths | never, after first visit |
+| `Active`, `Elapsed`, `TimedOut` | the `ActiveSteps` **cursor**, one entry per concurrent leg, joined by `RowIdx` — **live tier** | per scan |
+| `Visited`, `LastDuration`, `ErrorActive`, `WarningActive` | the `SequenceSteps` array (on-demand read) | over time, per row |
+| the text and link of an error/message | the `SequenceAnnotations` table, joined by `RowIdx` | rarely, and sparse |
+
+| PLC symbol | Type | HMI use |
+|---|---|---|
+| `<unit>/ActiveSteps[b]/RowIdx` | INT | the `SequenceSteps` row leg `b` is running. **0 ⇒ that leg has no active step.** A row is `Active` exactly when some leg's cursor points at it |
+| `<unit>/ActiveSteps[b]/Elapsed` | TIME | how long that row has been running |
+| `<unit>/ActiveSteps[b]/TimedOut` | BOOL | it outran its own `ExpectedTime` — the leg's own guard |
+
+The cursor is indexed **by branch** (0 = main line), so it is ~10 entries however long
+the chain is. It is small enough to stay in the cyclic read, which is what makes the
+chart correct the instant its tab opens instead of after the first on-demand read.
+
+**What the HMI shall NOT reconstruct.** `Visited`, `LastDuration`, `ErrorActive` and
+`WarningActive` stay per-row and PLC-authoritative, and a client **shall not** derive
+them by watching the cursor. The HMI polls at a few Hz; the PLC steps at scan rate, so
+a step shorter than one poll interval is never observed. A chart that accumulated these
+client-side would silently skip fast steps, mistime visits, and lose transient errors
+entirely — it would show what the client happened to catch rather than what the chain
+did (§1.1 O3).
+
+Because the manifest reproduces the live half's browse paths, the mapper reads
+`SequenceSteps[i]/StepName` without knowing it arrived by a different route. The HMI
+should cache manifest values and re-fetch on `Status/ConfigRev`.
+
+| PLC symbol | Type | HMI use |
+|---|---|---|
+| `<unit>/SequenceAnnotationCount` | INT | published length of the note table |
+| `<unit>/SequenceAnnotations[i]/RowIdx` | INT | the `SequenceSteps` row this note belongs to. **0 ⇒ a freed slot**: skip it, it is not a note |
+| `<unit>/SequenceAnnotations[i]/IsError` | BOOL | TRUE = §6.9(d) raise (the chain stopped), FALSE = §6.9(e) message |
+| `<unit>/SequenceAnnotations[i]/Key` | STRING | localization key of the reason or message |
+| `<unit>/SequenceAnnotations[i]/SourcePath` | STRING | module to drill into; empty ⇒ the Unit itself |
+
+**The row flag is authoritative, not the note.** The note table is small on purpose;
+if it fills, the PLC keeps `ErrorActive`/`WarningActive` and drops only the text. The
+HMI shall therefore colour a row from its flag and treat a missing note as "nothing
+more to say" — deriving the mark from the note would silently unmark a real failure.
+
+**The rows are an on-demand subtree.** `SequenceSteps` is bounded at
+`MAX_SEQUENCE_STEPS` (128) × 17 fields = 2176 nodes per Unit and feeds exactly one
+view, so it **shall** be read by a targeted batch while the Sequence tab is open and
+**never** in the cyclic snapshot — the same treatment as the rings and trends (§3.10,
+§1.1 O4). `SequenceViewEnabled`, `SequenceStepCount`, `CurrentStepElapsed` and
+`CurrentStepTimedOut` are leaves at the module root and stay live.
+
+Consequently the **tab's existence is decided by `SequenceStepCount`, not by the rows**.
+Gating it on the rows would deadlock: no tab → no on-demand read → no rows → no tab.
+
+**The chart belongs to the ACTIVE mode.** The PLC clears the row table when a mode
+commits, so `SequenceStepCount` drops to 0 and rebuilds as the new chain runs. The HMI
+therefore renders whatever is published without filtering by mode, and must tolerate
+the count going to 0 and back up — that is a mode change, not a lost connection.
 
 **The inventory is discovered, not authored.** The PLC registers each step the
 first time it runs, so a chain author writes nothing and a step not yet reached is
 simply absent — the chart shows what the chain has actually done, never a
 hand-maintained drawing that can drift from the code.
+
+**A raised error supplies the link `Awaits` could not.** When a step raises an
+error explicitly (Core §6.9(d)) — a child commanded behind an `IF`, or an
+application rule — the PLC stamps that row's `ErrorActive` and `ErrorSourcePath`.
+The HMI shall resolve a row's target most-specific-first — `ErrorSourcePath`, then
+`WarningSourcePath`, then `AwaitsPath`: the operator wants the module that actually
+went wrong, not the one the step nominally commands.
+A row with neither stays non-click-through and opens its detail, where the raised
+error is listed. The marks are cleared by the PLC when the error state ends, so a
+stale red row is a PLC contract violation, not something the HMI ages out.
+
+**A message is not an error.** `WarningActive` reports a condition the chain
+**handled** — press AUTO `N180` (two-hand released while the door closes) and `N200`
+(the ram did not reach, which the chain confirms and scraps) both use it. The row is
+tinted steadily and carries an info marker; it shall never blink, never be coloured
+`error`, and never be counted as a fault. It still supplies a drill-down link through
+`WarningSourcePath`, which is how `N200` stays click-through to the ram with
+`AwaitsPath` empty. The PLC clears the mark when the step is entered again, so an
+amber row means "this is what happened on the last pass".
 
 **`AwaitsPath` is the "direct wiring" rule.** A row is click-through only when the
 step *declared* the module it commands through `Awaits`; no `IF`/`CASE` chose it.

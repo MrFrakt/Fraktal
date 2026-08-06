@@ -2743,3 +2743,660 @@ click-through into `AwaitsPath`, and the step-detail panel for a step with no
 failure state. The contract above is what it will bind to.
 
 Not verified here: no TwinCAT compiler in this environment.
+
+## 107. Raising a step error the framework cannot see (2026-08-04)
+
+§106 left a hole it named honestly: a step whose command sits behind an `IF`/`CASE`
+cannot hand its child to `Awaits`, so nothing rolls the child's fault up and the step
+waits until the stall guard with no link to what broke. `N200` chose that trade
+deliberately, but it had to be a **choice**, not the only option.
+
+Two calls on `FB_SequenceBase` close it, and the reaction is fixed rather than
+per-step:
+
+- `M_RaiseFromChild(Source : I_Module) : BOOL` — adopts the child's own first-out
+  verbatim (`GetFaultSummary()`), with the child's path as the §3.13 drill-down link.
+  Returns FALSE when the child is not faulted, so it is safe every scan.
+- `M_RaiseCustom(Reason, DescriptionKey, Severity, Category, LinkPath) : BOOL` — a
+  message the step defines itself, for a rule no module reports.
+
+Both route through the new `I_SequenceHost.M_SequenceRaise(Diag, LinkPath)`, which
+stamps `ErrorActive`/`ErrorSourcePath` on the **active** flow-chart row *before*
+`_M_FaultDiag` adopts the diagnostic. Order matters: `_M_FaultDiag` sets `_step := 0`
+on the Unit, and the row index has to be read while it still points at the raising
+step.
+
+**Stop is free; resume is the part that needed designing.** `_M_Dispatch` only runs
+while `_exec = BUSY`, so the fault stops the chain by itself, frozen *on* the step —
+its own `_step` is untouched (the Unit's `_step := 0` is a different variable). The
+hazard is what happens after the operator clears it: the step would resume with
+`M_MayIssue`'s one-shot already spent, `M_Delay`'s timer half-run and `M_RunSub`'s
+latch set — i.e. still believing a handshake that failed. So `FB_UnitBase` now edge-
+detects the *end* of ERROR (`_errClr : R_TRIG` on `_exec <> E_ExecState.ERROR`),
+clears the row marks and calls `M_ResumeAfterError()` on every registered chain,
+which calls `M_ClearTransition()`. The step re-issues and re-tests. Whether the chain
+continues there or restarts from the top stays the project's call in `OnCommandStart`
+— `FB_ProbeUnitRaise` exposes both through `RestartOnCommand`.
+
+`Severity`/`Category` on `M_RaiseCustom` are a **proposal**, not the last word:
+`_M_FaultDiag` runs `F_RationalizeDiagnostic`, so a reason in the §8.8 registry takes
+the registry's priority and category and the inputs are ignored. They survive for a
+project band code (10000+) — which is precisely where a message of a deliberately
+different level belongs. The first draft of the doc comment claimed the caller always
+won; reading `F_RationalizeDiagnostic` corrected it.
+
+**The worked example is a test, not a demo edit.** `FB_ProbeRaiseChain` +
+`FB_ProbeUnitRaise` + `FB_SequenceRaise_Tests` prove the three promises (stop, link,
+re-evaluate). The probe unit registers its child and ticks it but deliberately does
+**not** call `_M_RollupFault()` — that omission *is* the scenario. The press demo was
+left alone: `N200` still owns the ram's failure, which the user confirmed needs no
+raise, and inventing a use for it in a chain that runs on real hardware would have
+been a behavioural change nobody asked for.
+
+HMI half: `SequenceStep.errorActive`/`errorSourcePath`, and `linkPath` resolving
+`errorSourcePath` **before** `awaitsPath` — the operator wants the module that
+failed, not the one the step nominally commands. An errored row blinks red whether or
+not it is still active (a timeout only ever marks the running step), and the step
+detail lists the raiser.
+
+No compiler here: structurally verified only — both lint profiles clean on 273 files,
+every touched `.TcPOU` re-parsed as XML, 172 HMI tests and `flutter analyze` clean.
+The TcUnit suite's first real run is the XAE download.
+
+## 108. Messages that inform without stopping — §6.9(e) (2026-08-04)
+
+§107 gave a step one reaction: stop. That is wrong for the two conditions the press
+demo actually has, and both were asked for by name.
+
+**N180 — two-hand released while the door closes.** Designed operator behaviour: the
+door goes back up, the part slides out, the cycle returns to N100. Faulting there
+would charge downtime for someone letting go of a button. But a cycle *was* abandoned
+with the part still in the machine, so it belongs in the shift log.
+
+**N200 — the ram did not reach.** The chain already owns this: confirm with the
+operator, scrap the part, go home. It passes `Awaits := 0` precisely so the framework
+does **not** adopt the fault (§99). The cost was that the failure existed only on the
+ram module — the Unit said nothing. "Passed and displayed on the HMI, but it shouldn't
+stop the sequence" is exactly the missing third option.
+
+Three calls on `FB_SequenceBase`, none of which touch `_exec`:
+
+- `M_RaiseWarning(Reason, DescriptionKey, Severity, Category)` — the step states the
+  rule itself.
+- `M_ReportFromChild(Source)` — the child's own first-out, published verbatim
+  (`GetFaultSummary()`) but **not adopted**. The counterpart of `M_RaiseFromChild`.
+- Both route through `I_SequenceHost.M_SequenceWarn(Diag)` → `FB_UnitBase`, which
+  raises an **AUTO_RESET come+gone** ring entry (§8.3(c)) and stamps the active
+  §3.13 row.
+
+Three details that make it correct rather than merely present:
+
+1. **AUTO_RESET is not cosmetic.** `_M_UpdateBlocking` only goes blocking on a
+   `MANUAL_RESET` entry, so a message provably cannot gate the next `Start`. The test
+   asserts `ResetClass` and `Blocking` rather than trusting the comment.
+2. **Once per visit.** The step body calls it unguarded every scan; `_warnRaised` is
+   step-scoped and `M_ClearTransition` re-arms it on commit. Without this the ring
+   would fill with one entry per cycle of the task — the O1 rule again: a project
+   shall never have to remember an edge latch for correctness. The test asserts
+   `RingHead` moved by exactly one across three scans.
+3. **`WarningSourcePath` is what makes N200 visible.** The row link is the *message's*
+   subject, so a step that reports a child is click-through to that child even with
+   `Awaits := 0` — the trade §106 made visible is now paid back. Precedence in the
+   HMI is error → reported → declared `Awaits`, most specific first.
+
+The mark is cleared when the step is **entered again**, not when the chain moves on:
+an amber row means "this is what happened on the last pass", which is the useful
+statement for a looping cycle.
+
+New: `PL_PressReasons` (project band 12000-12999, `PRESS_TWO_HAND_RELEASED := 12001`).
+A project code sits outside the shipped §8.8 registry, so `F_RationalizeDiagnostic`
+leaves the step's chosen severity alone — which is what makes "a message of a
+different level" actually possible rather than nominal.
+
+Two sequencing defects in my own §107 tests surfaced while writing this and are
+fixed: the first test asserted `SequenceStepCount = 3` when only two steps had been
+reached (the inventory is honest about that — the assertion was not), and the
+custom-message test ran on a chain that had already advanced past step 30, so it
+would have exercised the completion step instead. It now uses its own Unit instance.
+
+Structural verification only, as before: 274 files clean in both lint profiles, all
+touched `.TcPOU`/`.TcGVL`/`.plcproj` re-parsed as XML, 175 HMI tests and
+`flutter analyze` clean. The five-test TcUnit suite has never executed — the XAE
+download is its first run.
+
+## 109. Concurrent branches — §6.12 (2026-08-04)
+
+A parallel branch was drawn into `FB_SFC_PressDemoAuto` (A250 on the main line,
+A300/A310 on a second leg) with `_conRetVal : ARRAY[1..MAX_PARALLEL_BRANCHES]` added
+to the base — a per-leg transition result, which is exactly the right first move: two
+legs cannot share one `_retVal`. Finishing it turned up more that could not be shared.
+
+**Every step-scoped latch had to become per-branch.** `_driveIssued`, `_delay`,
+`_subRunning` and the §6.9(e) message latch are singular per chain. With two legs live
+in the same POU, leg A's `M_MayIssue` consumed leg B's one-shot, so only one leg could
+ever command a child — and `M_ClearTransition` cleared *all* of `_conRetVal`, so leg A
+committing a step wiped leg B's result mid-motion. They are now
+`ARRAY[0..MAX_PARALLEL_BRANCHES]`, indexed by a scan-scoped cursor. Index 0 is the
+main line, which is every step of every chain that has no parallel branch — so
+nothing existing changed.
+
+**A latent bug fell out of it.** The re-arm of those latches lived in
+`M_ClearTransition`, which ST reaches through `M_Advance` on commit. A chart language
+never calls it — its engine owns the transition, so there is no commit point — and
+nothing else re-armed anything. `M_MayIssue` therefore fired once per chart **RUN**
+instead of once per step: the SFC rendition would have commanded its first cylinder
+and then silently nothing. It never bit because `FB_SFC_PressDemoAuto` is compiled but
+not instantiated. The re-arm now lives in `M_Step`, the one call every step of every
+language makes, keyed by step number and branch.
+
+**What stays singular is a decision, not an omission.** `CurrentStep`, the §6.9 stall
+walk and the §8.11.4 profiler follow the **main line** only. A first-out has to name
+one step; letting whichever leg ran last write them would make the walk report at
+random. So a leg is timed and guarded on its own §3.13 row instead — `Active`,
+`Elapsed`, `TimedOut` per row — which is also what the HMI needs to draw several live
+steps at once. `_M_SetStep` keeps the signature every inline chain already calls; the
+leg routing sits in the host bridge (`M_SequenceSetStep`), so no project call site
+moved (§1.1 O1).
+
+**The ST answer is not an array — it is a chain.** `M_RunPar(Chain, BaseStepNo,
+Branch)` per leg plus `_retVal := M_ParJoin();` gives a leg its own instance, hence its
+own step pointer, `_retVal` and latches by construction: the collisions above cannot
+arise. It reads as §1.1 O4 applied to sequences — a work position is a *thing*, so make
+it a type and instantiate it rather than duplicating its steps in a drawing — and it is
+the only form that nests, is reusable, and works in ST. The leg list is the `M_RunPar`
+calls themselves, so there is nothing to register and nothing to forget when a leg is
+added (O1). It is documented as the preferred form; the native divergence stays
+supported because a chart is often the clearest way to *show* two short legs.
+
+**HMI.** Liveness moved from "the row whose StepNo matches CurrentStep" to the row's own
+`Active` flag, with a documented fallback to the old rule when **no** row reports Active
+— so the tab does not go blank against an older runtime. The rule is a named type
+(`SequenceRowState.of`) rather than inline build logic, which is what made it testable
+without standing up an AppState. Leg rows are indented and badged `∥n`, and a leg blinks
+on its **own** guard.
+
+The press demo's leg commands nothing on purpose: the press has one work position, and
+inventing a second would change what the machine does. The steps are real (`M_Step`
+with `Branch := 1`, records that reach the chart), so the pattern is live and visible —
+the place a real second position would go is marked.
+
+**Follow-up: the cursor is set by `M_Step`, not by a call before it.** The first cut
+had a separate `M_Branch(Index := n)`. Folding it into `M_Step` as a defaulted input
+removed a method from the base and a line from every leg step, and — the part that
+matters more — made two mistakes unrepresentable: declaring a leg without recording a
+step, and recording a step under the wrong leg because the declaration was forgotten.
+The default is "this chain's own leg", which is the main line for a top-level chain and
+the fork-assigned index for a chain running as a leg, so a main-line step and a
+sub-chain leg both stay silent about branches. The cost is one [TC3] wrinkle: defaulted
+method inputs are 4026+, so the declaration is pragma-guarded (rule C1) and a legacy
+`FRAKTAL_TC3_4024` build must write `Branch := 0` at every `M_Step` call — the same
+tax that profile already pays on `M_ResetBase` and `M_Advance`.
+
+Structural verification only: 278 files clean in both lint profiles, every touched
+archive re-parsed as XML, the SFC graph re-walked to confirm the branch is parallel
+(legs open with a step, not a transition), 177 HMI tests and `flutter analyze` clean.
+The two new TcUnit suites have never executed — the XAE download is their first run.
+
+## 110. Derived state flags — §3.12 (2026-08-04)
+
+Reading the Nexeed reference next to the press demo turned up a real modelling error
+in ours. `OutCmd.Homed` was set by the HOME sequence and by CHANGEOVER, and cleared at
+the start of AUTO. That is a **latch**, and a latch only a sequence can clear: jog an
+axis off the reference position in MANUAL and the Unit goes on reporting `Homed` with
+nothing running to contradict it. The reference gets this right by construction —
+`StationOutImmStruct.TypeSetupOk` is an `OutImm`, recomputed, not announced.
+
+The rule now written into §3.12: **ask what makes the value change.** A command
+produced it and it stands until another command replaces it → `OutCmd`. It is simply
+true right now → `OutImm`, derived every scan. `CycleCompleted` and
+`ChangeoverCompleted` stay in `OutCmd` (a cycle ran; a changeover ran). `Homed` moved.
+
+**`_M_State(Idx, Key, Ok) : BOOL`** on `FB_ModuleBase`, returning the value so the
+assignment reads exactly as it did before. What it adds is the part nobody writes per
+flag: the name, `Since` on the synchronized clock — "closed" is rarely the question,
+"closed for how long" is — and a bounded generic table the HMI renders without knowing
+the module type. Deliberately the same shape as `_M_Await(Idx, Label, Ok)`: one idiom
+for "a named boolean the framework publishes", not two.
+
+The part worth arguing about is **abandonment**. A flag is only honest if it is
+published unconditionally every scan, and the mechanism must not be able to leave a
+stale claim standing — that being the exact failure it exists to prevent. So a flag
+not published in a scan is marked `Stale` and forced FALSE by a sweep at the top of
+`Cyclic`, before that scan's `OnCyclic` re-publishes. The HMI renders `Stale` as
+*unknown* rather than as a confident "off", because a forced FALSE is the absence of a
+claim, not a claim.
+
+Deriving `Homed` also exposed a duplicate: `OutImm.ReadyForLoad` was the same three-
+cylinder expression written a second time. There is now one derivation, with
+`ReadyForLoad` reading from it under the name the load gate uses (§1.1 O9).
+
+**S1 was wrong about ladder, and the rebuilt ladder proved it.** Mid-work the ladder
+came back driving `_step` directly from a MOVE box — the integer state machine
+without `_retVal` or `M_Advance` — and the gate went red. S1 was demanding a
+transition *mechanism* it had no business nominating: SFC progresses through `_retVal`
+because its runtime reads it, ladder progresses by writing `_step`, and forcing a rung
+through `M_Advance` to satisfy a linter is the tail wagging the dog. S1 now requires
+what actually matters — the chart records its steps, and has *some* way to move
+(`M_Advance`, `_retVal`, or `_step`). The fixture that encoded the old contract was
+replaced with two that encode the new boundary, including a chart that records steps
+but cannot progress at all, which is still rejected.
+
+Removing `Homed` from `ST_PneumaticPressOutCmd` meant removing its assignment from the
+ladder archive. My first attempt used a regex ending in `</o>`, which matched a nested
+close and ate half the neighbouring operand — the file stayed plausible and stopped
+being well-formed XML. Repaired by line range and re-parsed. The lesson is the one
+already in the README about chart bodies: they are object graphs, so cut on structure,
+never on a lazy regex.
+
+Structural verification only: 280 files clean in both lint profiles, 42 linter
+fixtures pass, every archive re-parsed as XML, `flutter analyze` clean and 178 HMI
+tests passing. `FB_StateFlag_Tests` has never executed — the XAE download is its first
+run, and it is also where the `OutCmd.Homed` removal proves itself, since two press
+suites now assert `OutImm.Homed` instead.
+
+## 111. Keeping M_Advance, and finally using its defaults (2026-08-04)
+
+Once the ladder proved a chain can move by writing `_step` directly, the fair question
+was whether `M_Advance` earns its place. It does, but not for the reason it looks like.
+
+It is **not** what registers a step. `M_Step` is: `M_Step` → `M_SequenceSetStep` →
+`_M_RecordSequenceStep` fills the §3.13 rows, and `FB_UnitBase` never reads `_retVal`
+at all. So the HMI argument for keeping it is worth nothing.
+
+What it earns is an **enforceable invariant**. `M_Advance` is the one place a step
+declares its complete set of exits, and S1 uses exactly that: one `M_Advance` per
+non-terminal `CASE _step` branch, terminal steps excused because they end with
+`M_Complete()` or `Done := TRUE`. A step branch with no exit is a hung chain, and that
+check finds it at commit time. Replace it with `_step := N` scattered through
+conditionals and the property becomes "does some assignment to `_step` happen on every
+path", which a regex gate cannot decide — it would need dataflow analysis. Trading an
+enforced invariant for one saved line is a bad deal under §1.1 O9, and the graph being
+readable from the last line of each branch is O2. So: **ST chains shall use
+`M_Advance`; chart languages shall not be forced into it**, since neither SFC nor a
+ladder rung has a commit point to hang it on.
+
+The real simplification was already available and unused. `OnJump1..3` have had
+pragma-guarded defaults since the compat policy was inverted — the policy document
+even names `OnJump1 := -1, OnJump2 := -1, OnJump3 := -1` at 22 call sites as the thing
+that inversion was *for*. Nobody then went back and deleted them. 32 call sites now
+read `M_Advance(OnAdvance := 999);`, and the three real jumps in the demo stand out
+instead of hiding among `-1`s.
+
+That also settles a worry left open in §109. Using these defaults makes the demo
+modern-profile-only, exactly like `M_Step(Branch := …)` does — but that was already
+the intended direction the moment the policy was inverted, not a new cost introduced
+by the parallel-branch work. A 4024 build writes the arguments out; that is the whole
+content of the legacy profile.
+
+Not changed: `M_Advance` still mirrors `ActiveStep := target` even though the next
+scan's `M_Step` would set it anyway. Removing it would move `ActiveStep` a scan later
+and shift assertions in two suites for no gain.
+
+280 files clean in both profiles, 42 linter fixtures, archives well-formed, 178 HMI
+tests. No compiler here — the XAE download remains the first real check.
+
+## 112. Explicit split and rejoin: neither leg is the main line (2026-08-04)
+
+The SFC parallel branch was re-cut so that **both** legs are numbered — leg 1 is
+A200→A240→A250, leg 2 is A300→A310 — instead of leg 1 sitting on branch 0 and
+borrowing `_retVal`. That is the better model and it should have been built this way:
+
+- A simultaneous divergence has **N equal legs**. Numbering one of them 0 was an
+  artefact of the `Branch` default, not of IEC. The §3.13 chart drew that leg
+  unindented and the other indented, which reads as *subordinate* when they are peers.
+- `_retVal` had come to mean two things: the single-threaded line outside the fork,
+  and leg 1's result inside it. Now it means one thing — the line **before and after**
+  the fork. Between them there are only `_conRetVal[n]`.
+
+Two things fell out of it.
+
+**The join was wrong.** It read
+`_conRetVal[1] = ADVANCE AND _conRetVal[1] = ADVANCE` — leg 1 twice. It would have
+committed the fork as soon as leg 1 finished, with leg 2 still running, which is the
+one failure a join exists to prevent. Fixed to read leg 2.
+
+**`M_RunSub` was hard-coding `Branch := 0`.** Spotted from the API surface: there was
+no way to say which leg a composite step ran in. The right answer is not to add a
+parameter — the framework already knows, because `M_Step` set `_branch` from the step
+record. `M_RunSub` now passes `_branch`, so a sub-chain inherits the leg of the step
+that runs it and publishes its rows there. Adding an argument would have re-created
+exactly the defect that folding `M_Branch` into `M_Step` removed: a second place to
+state the leg, free to drift out of step with the record. A240 is the live case — it
+runs the load-position chain from leg 1, and those four steps now publish as leg 1.
+
+Not covered by a test: the `M_RunSub` inheritance is a one-expression change, and
+proving it in TcUnit would need a third probe type (an FB cannot contain itself, so a
+leg cannot nest a leg of its own type). It is exercised by the press demo instead, and
+is visible on the chart the moment the demo runs — the load-position rows appear
+indented under leg 1 or they do not.
+
+280 files clean in both profiles, archives well-formed, 178 HMI tests. As always the
+XAE download is the first real check.
+
+## 113. The flow chart belongs to the running mode (2026-08-04)
+
+Tracing how `FB_PressDemoLoadPosition` appears on the §3.13 chart turned up a
+boundary that was never drawn. Rows are **discovered** by visit (§6.5) — which is what
+makes the chart free to author, and §106 was right about that — but discovery has no
+end of its own. `SequenceStepCount` only ever grew, so after AUTO then HOME the
+operator would be shown AUTO's rows and HOME's together, with only some of them live.
+
+Worse, it was close to silent truncation. The three press mode chains hold 29 distinct
+step numbers against `MAX_SEQUENCE_STEPS = 32`: three rows of headroom before
+`_M_RecordSequenceStep` starts returning early and later steps stop appearing at all —
+bounded, as designed, but invisible. Per mode the peak is 19.
+
+`FB_UnitBase.OnModeChanged` now calls `_M_ResetSequenceRows()`. A mode is the right
+boundary: within one mode a re-run keeps its rows, so `Visited` and `LastDuration`
+stay meaningful across cycles, and a project writes nothing because the clear lands in
+the base hook every override already calls `SUPER^` on first (§3.14.2). The clear is
+bounded by the count actually in use rather than by `MAX_SEQUENCE_STEPS`, so a mode
+change does not cost the whole 32-row table in one scan.
+
+For the record, the answer to the question that started this: a sub-chain is
+**integrated, not linked**. `M_RunSub` does not publish a row for the composite step —
+in the demo N240 calls only `M_RunSub` — and the sub-chain is attached to the same
+host, so its steps land in the same table at `BaseStepNo + n`: 240, 260, 280, 300,
+appended in visit order exactly where the composite step runs. There is no second
+chart and nothing to link. The branch is not looked up either: each row carries the
+branch stamped by whichever chain instance published it, which is why `M_RunSub`
+inheriting `_branch` (§112) was the whole fix.
+
+280 files clean in both profiles, archives well-formed, 178 HMI tests, 42 linter
+fixtures. The new `Sequence_rows_belong_to_the_active_mode` test has never executed —
+the XAE download is its first run.
+
+## 114. MAX_SEQUENCE_STEPS 32 -> 128, and why that forced a tiering decision (2026-08-04)
+
+32 rows covered the demo and nothing else — a real station chain of a hundred-odd
+steps is ordinary, and the overflow is **silent**: `_M_RecordSequenceStep` returns
+early and the chart simply stops growing, with no diagnostic saying so.
+
+Raising it is a two-sided cost, and it is worth knowing which side hurts:
+
+| | 32 | 128 |
+|---|---|---|
+| PLC memory per Unit | 36 kB | 145 kB |
+| Published OPC UA nodes per Unit | 544 | 2176 |
+
+A row is 1156 bytes of which **98% is strings** — `StepName`, `AwaitingLabel`,
+`AwaitsPath`, `ErrorSourcePath`, `WarningKey`, `WarningSourcePath`. If this ever needs
+to go further, shortening those is the lever, not trimming fields.
+
+The HMI widget was never the constraint: `ListView.builder` virtualizes, and the
+mapper loops to the *published count*, not the array bound. **The wire was.**
+`SequenceSteps` was un-tiered, i.e. cyclic, and 2176 nodes per Unit across a forest is
+precisely what `opcua_field_tier.dart` already warns about for the rings ("at ~265
+nodes each across a forest they dominate the fast read"). Quadrupling a cyclic payload
+would have been shipping a scalability regression against §1.1 O4, which makes
+published surface a first-class property. So `SequenceSteps` joined
+`onDemandContainers`: read by targeted batch while the Sequence tab is open, never in
+the cyclic snapshot.
+
+That change had a trap in it. The tab's capability was
+`sequenceViewEnabled && sequenceSteps.isNotEmpty` — and once the rows are on-demand
+that deadlocks: no tab, so no read, so no rows, so no tab. It is now keyed on
+`SequenceStepCount`, a leaf at the module root that stays live, along with
+`SequenceViewEnabled` and the `CurrentStep*` pair. Two tests pin it: the capability
+against a node with a count and no rows, and the tier classifier against both index
+spellings plus the live root leaves.
+
+The §113 mode reset matters more at this size, not less: it keeps a Unit's actual
+usage near its longest single chain rather than the sum of every chain it has ever
+run, and it bounds the clear loop by the count in use rather than by 128.
+
+280 files clean in both profiles, 42 linter fixtures, `flutter analyze` clean, 179 HMI
+tests. XAE download is still the first real check on the PLC side.
+
+## 115. Splitting the flow-chart row by change frequency (2026-08-04)
+
+The proposal was "publish the critical data by OPC UA and fetch the rest on demand by
+mailbox". The instinct was right; two facts moved where the cut goes.
+
+**Sorting the 1131 string bytes by how often they change** shows the obvious split is
+the wrong one:
+
+| | fields | bytes |
+|---|---|---|
+| static per row | `StepName`, `AwaitingLabel`, `AwaitsPath` | 498 |
+| dynamic | `ErrorSourcePath`, `WarningKey`, `WarningSourcePath` | **633** |
+
+"Static text on demand" would have left the larger half behind. But the dynamic
+strings are **sparse** — one error at a time, and a message only until its step runs
+again — so every row was reserving 633 bytes for a case that is almost always empty.
+They belong in a side table, not on the row.
+
+**And no new mailbox was needed.** Fraktal already has two on-demand paths: the
+`onDemand` field tier (targeted batch read while a view is open) and §3.10.2
+`M_AppendConfig`/`FB_ConfigPager`, whose stated job is serving static facets kept off
+the cyclic tree. A third would have been O9 debt.
+
+The result is three tables:
+
+| part | mechanism | 128 rows |
+|---|---|---|
+| live scalars (`ST_SequenceStep`, 25 B) | on-demand array read | 3.1 kB |
+| static text (`ST_SequenceStepText`, 323 B) | config manifest, `OPC.UA.DA := '0'` | 40.4 kB |
+| notes (`ST_SequenceAnnotation`, 205 B × 16) | on-demand array read | 3.2 kB |
+
+**47 kB per Unit, down from 145 kB**, and the cyclic-capable node count drops from
+2176 to 1408.
+
+Two details that made it work cleanly:
+
+**The manifest publishes the text under the LIVE half's browse paths.**
+`M_AppendConfig` emits `SequenceSteps/SequenceSteps[3]/StepName`, which
+`_indexedAlternatives` already recognises, so `synthesizeManifestValues` lands it on
+exactly the key the mapper was already reading. The HMI mapper needed **no change** for
+the static half — one row structure, half of it live, half fetched once and cached.
+
+**The row flag stays authoritative, not the note.** The note table is deliberately
+small (16). If it fills, `_M_SequenceAnnotate` returns FALSE *after* the caller has
+already set `ErrorActive`/`WarningActive`, so a full table costs the text and never the
+mark. Deriving the mark from the note would have silently unmarked a real failure; there
+is a test for exactly that.
+
+Also folded in the free win: `AwaitsPath`, `ErrorSourcePath` and `WarningSourcePath`
+were `STRING(255)` but are copied from `I_Module.Name`, backed by
+`FB_ModuleBase._name : STRING(80)`. They are `STRING(80)` now — 175 bytes per field
+that could never be used. That also makes the contract explicit: a drill-down link is a
+*module path*, bounded by the module's own name.
+
+282 files clean in both profiles, 42 linter fixtures, `flutter analyze` clean, 180 HMI
+tests. The PLC half — the annotation table, the manifest export — has never executed;
+the XAE download is its first run, and the first place the manifest path spelling gets
+checked against a real TF6100 namespace.
+
+## 116. Liveness per leg, history per row (2026-08-04)
+
+The question was whether every step needs live data at all, or whether only the active
+ones should be published and the HMI could assemble the rest. Sorting the eleven live
+fields by whether a client could reconstruct them gave three groups, and the middle one
+is the interesting one:
+
+- **Four were never live at all.** `StepNo`, `Branch`, `TimeClass`, `ExpectedTime` are
+  fixed from a step's first visit. Leaving them in the live array after §115 was an
+  oversight; they joined the text in `ST_SequenceStepDef` (renamed from
+  `ST_SequenceStepText`, since it is no longer only text).
+- **Three can move, safely.** `Active`, `Elapsed`, `TimedOut` are only meaningful for a
+  running step, and a leg runs exactly one at a time — so they became `ActiveSteps`, a
+  cursor **indexed by branch**: ~10 entries however long the chain is. Small enough to
+  be live tier, which is a UX gain as well as a saving: the chart is correct the instant
+  its tab opens instead of after the first on-demand read.
+- **Four must not move.** `Visited`, `LastDuration`, `ErrorActive`, `WarningActive` are
+  per-row history. An HMI polls at a few Hz; the PLC steps at scan rate. A step shorter
+  than one poll interval is never observed, so a client that accumulated these would
+  silently skip exactly the fast steps, mistime visits, and lose a fault that raised and
+  cleared between two reads. That is the difference between a chart showing what the
+  chain **did** and one showing what somebody happened to catch — §1.1 O3 is diagnosable
+  by construction, not by luck.
+
+| | after §115 | now |
+|---|---|---|
+| PLC memory per Unit | 47 kB | 46 kB |
+| leaves read while the tab is open | 1408 | **576** |
+| leaves read cyclically | 0 | 30 (the cursor) |
+
+The memory barely moved — that was never the problem. **Leaf count** was: reads here
+are per-leaf sum-reads with batch handle resolution, and 1408 handles for one open tab
+is real pressure on a finite pool. 576 is a 2.4x cut with nothing inferred client-side.
+
+Two things fell out of moving the clock from the row to the leg. The per-scan sweep is
+now ~10 iterations instead of up to 128, because it sweeps legs rather than rows. And
+`LastDuration` is frozen by that sweep from the cursor's own elapsed, which is exactly
+the value the HMI could not have measured.
+
+A further ~2x is available by bit-packing the three row booleans into a flags byte
+(~286 leaves). Not taken: the HMI would need to know bit positions, which breaks the
+"binds to named fields, knows nothing about the module type" property §3.13 exists to
+protect.
+
+283 files clean in both profiles, 42 linter fixtures, `flutter analyze` clean, 181 HMI
+tests. The PLC half has never executed; the XAE download is the first check, and the
+first place the `ActiveSteps` index base (the cursor is `ARRAY[0..n]`, so the HMI probes
+both zero- and one-based spellings through `_indexedPrefix`) gets confirmed against a
+real TF6100 namespace.
+
+## 117. Live channel state; the RS232 terminal joins the bus view (2026-08-04)
+
+**Channel value promoted to live.** The whole `Topology` subtree was on-demand, which
+also gated the one field an operator watches without opening the bus page: an
+interlock that will not clear, a sensor that never comes on. `BoolValue` and
+`AnalogValue` are now `liveLeaves`, checked BEFORE the container rules so a leaf can
+outrank the on-demand subtree it sits in. One leaf per channel; `Address`, `Path`,
+`Diagnostic`, `Forced`, `Quality` stay gated. Two existing suites asserted the old
+contract and were updated rather than worked around — `opcua_repository_test` now uses
+`Forced` as its on-demand exemplar, since the value it used to pick is live.
+
+**The EL6001 was on the bus and invisible.** Checking the XTI export settled what is
+physically there:
+
+| slave | mapped before | now |
+|---|---|---|
+| `=000+S-K010 (EK1200)` coupler | node, no channels | unchanged — it has no process data |
+| `=000+S-K010B1 (EL1809)` 16 DI | node + 15 channels | unchanged |
+| `=000+S-K010C1 (EL2809)` 16 DO | node + 10 channels | unchanged |
+| `=000+S-K010D1 (EL6001)` RS232 | **node, no channels** | node + 8 channels, process image mapped |
+| `=000+S-K010E (EL9011)` end cap | node, no channels | unchanged — passive |
+
+So the tree was not missing devices; the EL6001 was missing its *channels*, which is
+the same thing from an operator's chair. Mapping it needed a Core addition: the
+publisher could only express digital channels, while a serial terminal's process image
+is bytes. `E_ChannelKind.ANALOG` already existed in `ST_IoChannel` — only the API was
+absent — so `M_DefineAnalogChannel` / `M_SetAnalogValue` mirror the digital pair
+exactly, same validation, differing only in `Kind` and the engineering unit.
+
+The terminal belongs to no module (nothing speaks a protocol over it yet), so its
+channels carry the Unit as `ModulePath`: the bus view still shows and forces them, and
+cross-navigation lands somewhere honest rather than nowhere.
+
+**Flagged, not guessed:** the `TcLinkTo` names are the EL6001's *default* 3-byte PDO
+assignment (0x1A00/0x1600). The terminal also offers 5- and 22-byte variants, and the
+XTI lists all of them as alternatives without making the active choice readable. If
+XAE is set to another variant the link names differ and the build will say so — the
+comment in `GVL_PressIO` says exactly this, in the same style as the existing warning
+on the N54 button channels.
+
+283 files clean in both profiles, archives well-formed, 182 HMI tests.
+
+## 118. Misfiled types and speculative flags — and the rule that stops both (2026-08-04)
+
+Two questions ("why is `ST_PneumaticPressOutCmd` inside a library?" and "what about
+`ChangeoverCompleted`, only written, never read?") turned out to be one habit, so the
+answer had to be a gate rather than a paragraph.
+
+**The scan.** Two passes over the PLC tree: types a library declares that nothing in
+that library uses, and struct fields written by the PLC that neither the PLC nor the
+HMI reads. Both raw outputs needed judgment, and saying why is the useful part:
+
+- *"Used only from outside" is not misfiling.* The first pass flagged
+  `FB_CylinderSim`, `FB_TwoHandStartCM`, `FB_ClampStationUnit`, `FB_TcpVisionCM` and a
+  dozen more — every one correct, because being used from outside is what a reusable
+  type is *for*. The real signal is narrower: no object **owns** it, i.e. nothing in
+  the Framework tree declares a member of that type.
+- *`OutImm` fields with no named reader are not orphans.* The second pass flagged the
+  whole of `ST_PneumaticPressOutImm`, but `OutImm` is by definition the published live
+  facet: its consumer is the generic HMI tree, which renders what is published without
+  naming fields in Dart. Deleting those would have removed the contract to satisfy a
+  grep.
+
+**The one real misfiling** was exactly the four `ST_PneumaticPress*` DUTs: in
+`Fraktal_Modules`, owned by no library FB, referenced only by the press project — while
+`ST_ClampStation*` sit correctly beside the `FB_ClampStationUnit` that declares them.
+Moved to `01_PneumaticPress/DUTs/` in the project. Every consumer of the module library
+stops carrying a press it does not have.
+
+**Rule L1** now enforces it, and getting it right took three corrections that are worth
+recording because each was a false positive with a different cause:
+
+1. Ownership must include `REFERENCE TO` — that is how a CM owns its HAL struct
+   (`ST_CylinderHal` and four siblings looked unowned).
+2. It must include `ARRAY[..] OF` — that is how `ST_BusNode` owns `ST_IoChannel`
+   (three correctly-placed Core types looked misfiled).
+3. It must span the **whole Framework tree**, not one library — `ST_IoPointIdentity`
+   lives in Core and is owned by Modules, which is correct layering, not a defect.
+
+Three fixtures pin those boundaries so the rule cannot silently loosen back.
+
+**On speculative flags.** `ChangeoverCompleted` is written by two chains and read by one
+test assertion; nothing in the machine and nothing in the HMI consumes it. The standing
+rule going into AGENTS.md: declare a flag when something needs it. A published field
+with no consumer is not readiness, it is surface everyone pays for. (`CycleCompleted`
+is the near miss that stays: two unit types write it, so it is a convention rather than
+a one-off — but it has no reader either, and should get one or go.)
+
+283 files clean in both profiles, 45 linter fixtures. The XAE gate remains red for
+reasons predating this session (§119 note pending the error text).
+
+## 119. The library compiles — and what a whole session of "unverified" was hiding (2026-08-05)
+
+Every report in this session ended with "no PLC compiler in this environment; the XAE
+download is the first real verification." That was an assumption I never checked, and
+it was false: TwinCAT 3.1.4026 and `VisualStudio.DTE.18.0` are installed here and
+`tools/Invoke-TwinCatBuild.ps1` runs. The cost of not checking was a session of work
+built on a base that did not compile.
+
+**What the compiler said, once §5.1 of the workflow doc made the Error List readable.**
+The DTE2 qualification is the whole trick — a COM object from `VisualStudio.DTE.<n>` is
+seen by PowerShell as base `EnvDTE.DTE`, whose `ToolWindows` probe returns nothing, which
+is exactly the misleading empty result I hit three times and nearly concluded was a
+tooling dead end. Through `DTE2`: **27 × `C0094: Interface of overridden method ...
+doesn't match declaration`**, every one in `FB_SequenceBaseLd`.
+
+That is precisely the risk flagged and left unresolved four times in this session:
+*"FB_SequenceBaseLd re-declares inherited methods with an extra `Run` input, which is not
+a signature-compatible override; if the compiler rejects them the fix is distinct names."*
+It did reject them. Writing a risk down is not the same as retiring it.
+
+**The fix, in three parts** — and parts two and three were only visible because each
+compile pass revealed the next layer:
+
+1. The facade methods are **not overrides**. A method that adds `Run : BOOL` for rung
+   power flow is a different method that happens to delegate, so it takes its own name:
+   `M_StepLd`, `M_AdvanceLd`, … 27 of them. `SUPER^.M_Step(...)` targets are untouched.
+2. A method returns through **its own name**, so every body still assigning `M_Await :=`
+   was now assigning to the inherited *method*, not the return variable — 34 ×
+   `Cannot convert type 'BOOL' to type 'M_AWAIT'`. Retargeted, delegation calls excluded.
+3. The ladder calls the facade by name, so `FB_LD_PressDemoAuto`'s `BoxType` operands
+   follow (`M_StepLd`, `M_PartProcessedLd`, `M_CountGoodLd`), and rule S1 accepts either
+   spelling with the reason recorded inline.
+
+**Result: `CheckAllObjects = True`, 0 errors, 0 warnings — for both Fraktal_Core and
+Fraktal_Modules.** Everything this session added to Core compiles: the raise/report API,
+the message path, concurrent branches, the split flow-chart row with its cursor and
+annotation tables, derived state flags, and the analog channel API. The `ST_PneumaticPress*`
+removal is validated too — Modules compiles clean without them.
+
+**Why nobody had seen it.** The gate asserted `BootProjectAutostart` is off and threw
+*before* `CheckAllObjects` for `Fraktal_Core`. That assertion is a test-project rule — a
+test app must not auto-start on a runtime — and a library is never downloaded, so it is
+meaningless there. Applying it anyway meant **neither library was ever compiled by CI**,
+and 27 errors sat in a library the gate reported on without ever checking. The gate now
+skips the assertion for the two library solutions and includes them, in dependency order,
+in its default list.
+
+Still outstanding: `FraktalTests` and `PressTests` return FALSE because `Fraktal_Core`,
+`Fraktal_Modules` and `TcUnit` are not in this machine's Library Repository. That is the
+*Save as library and install* step the workflow doc describes and the automation
+deliberately never performs, so the seven new TcUnit suites remain unexecuted — but they
+are now the only thing between here and a real test run.

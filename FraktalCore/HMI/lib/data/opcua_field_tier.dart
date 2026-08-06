@@ -44,6 +44,10 @@ class OpcUaFieldTier {
     // configLeaves) would make the whole module tree vanish. Checked before the
     // configLeaves rule so Status/Name is live, not config.
     'Status',
+    // §3.13 the per-leg step cursor: ~30 leaves, and it is what makes the chart
+    // correct the moment its tab opens rather than after the first on-demand read.
+    // The 128-row tables it points INTO stay on-demand.
+    'ActiveSteps',
   };
 
   /// Always-visible but slow-changing facets, published redundantly on every
@@ -72,6 +76,14 @@ class OpcUaFieldTier {
     'OeeTrend', // OEE trend ring (OEE card sparkline)
     'Records', // Part/Result/Records measured values (part card)
     'Timing', // per-command timing tables (command-timing view)
+    // §3.13 flow-chart rows. Bounded at MAX_SEQUENCE_STEPS (128) x 17 fields = 2176
+    // nodes per Unit, and they only feed the Sequence tab. Cyclic they would dominate
+    // the fast read exactly like the rings above; SequenceStepCount, CurrentStep*
+    // and SequenceViewEnabled stay live at the module root, which is all the rest of
+    // the UI needs to know the chart exists.
+    'SequenceSteps',
+    // §6.9 error/message notes for those rows: same view, same lifetime.
+    'SequenceAnnotations',
     'Topology', // GVL_<Project>Fieldbus.Topology live I/O (fieldbus page)
   };
 
@@ -117,8 +129,25 @@ class OpcUaFieldTier {
   /// Reserved on-demand scope key for the fieldbus topology (owned by no module).
   static const String fieldbusScope = '#fieldbus';
 
+  /// Leaves that stay LIVE even inside an on-demand subtree (§10.5.1).
+  ///
+  /// The fieldbus topology is on-demand because its identity, addressing and
+  /// diagnostic text are large and view-gated — but a channel's VALUE is the one
+  /// thing an operator watches without opening the bus page (an interlock that
+  /// will not clear, a sensor that never comes on). It is one leaf per channel,
+  /// so promoting it costs a fraction of the subtree it lives in while everything
+  /// around it — `Address`, `Path`, `Diagnostic`, `Forced`, `Quality` — stays
+  /// gated. Checked BEFORE the container rules, which is what lets it win.
+  static const Set<String> liveLeaves = {
+    'BoolValue', // digital channel state
+    'AnalogValue', // the analog channel's equivalent — same role, same argument
+  };
+
   static FieldTier classify(String browsePath) {
     final segments = browsePath.split('/');
+    if (liveLeaves.contains(_stripIndex(segments.isEmpty ? '' : segments.last))) {
+      return FieldTier.live;
+    }
     var configContainer = false;
     var slowContainer = false;
     for (final raw in segments) {

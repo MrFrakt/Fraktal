@@ -110,7 +110,12 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
 - A chain always extends `FB_SequenceBase`, records steps with `M_Step`, and
   progresses through `_retVal`. Only **who evaluates the transition** differs:
   ST → `M_Advance`; SFC → the runtime; LD → the rungs.
-- **ST**: every `CASE _step OF` branch ends with `M_Advance(OnAdvance := …, OnJump1 := …)`.
+- **ST**: every `CASE _step OF` branch ends with `M_Advance(OnAdvance := …)` — and
+  that call is the point: it declares the step's COMPLETE set of exits in one place,
+  which is what lets S1 prove every non-terminal branch has one. Writing `_step := N`
+  by hand works but hides the graph inside conditionals and defeats the check, so ST
+  chains **shall** use `M_Advance`. Unused jumps are defaulted: pass `OnJump1 := 185`
+  only for jumps the step really has, never `OnJumpN := -1`.
 - **SFC**: step bodies are **ACTIONS** (not methods — `MainAction` resolves to an
   action), each the ST branch **minus** `M_Advance`. Transitions are
   `_retVal = E_StepResult.ADVANCE`, and a jump branch is `… = E_StepResult.JUMP1`.
@@ -131,6 +136,56 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   by `FB_UnitBase.OnCyclic` (`_exec := ERROR`, `_step := 0`) *before* `_M_Dispatch`
   runs, so a chart can never jump on it. Pass `Awaits := 0` and name the wait with
   `M_Await` (press AUTO `N200` does this to offer a scrap/return decision).
+- **A command behind an `IF`/`CASE` has no rollup — raise it (§6.9(d)).**
+  `M_RaiseFromChild(Source := _child)` adopts the child's own first-out verbatim;
+  `M_RaiseCustom(Reason, DescriptionKey, Severity, Category, LinkPath)` states a rule
+  the framework cannot see. Both return TRUE only when they actually faulted, so the
+  shape is `IF M_Raise…(…) THEN <drop the child's Execute>; RETURN; END_IF` and it is
+  safe to call every scan. The reaction is fixed: the chain stops **on** the step, that
+  §3.13 row gets the error and its drill-down link, and when the error clears the step's
+  latches are re-armed so the command is **re-issued and re-tested**, never resumed
+  mid-handshake. Restart-vs-resume of the whole chain is the project's call in
+  `OnCommandStart`. `Severity`/`Category` are a proposal — §8.8 rationalization wins for a
+  registered reason, so they only survive for a project band code (10000+).
+- **A handled condition is a message, not a fault (§6.9(e)).** `M_RaiseWarning(Reason,
+  DescriptionKey, Severity, Category)` states a rule the step owns;
+  `M_ReportFromChild(Source)` publishes a child's first-out **verbatim without adopting
+  it**. Neither touches `_exec`, so the chain keeps its own recovery branch; the ring
+  entry is AUTO_RESET come+gone and can never block a restart; and the base raises each
+  at most **once per step visit**, so call them unconditionally every scan. Press AUTO
+  `N180` (two-hand released while the door closes) and `N200` (ram did not reach) are
+  the shipped examples. Choose (d) `M_Raise…` only when the machine must actually stop.
+- **Parallel branches (§6.12) — prefer the sub-chain fork.** `M_RunPar(Chain, BaseStepNo,
+  Branch)` once per leg then `_retVal := M_ParJoin();` works in **every** language, and
+  each leg is an ordinary chain, so it already owns its step pointer, its `_retVal` and
+  its step-scoped latches (§1.1 O4: make the work position a type, do not duplicate its
+  steps in a picture). A natively drawn SFC/LD divergence is also supported: a leg step
+  passes `Branch := n` to `M_Step` (there is no separate declaring call — the leg is an
+  argument of the step record, so it cannot be set without recording a step), and that
+  leg's transitions read `_conRetVal[n]`. **Number every leg (1, 2, …); none of them is
+  "the main line"** — `_retVal` is the line before and after the fork, and the join reads
+  every `_conRetVal[n]`. `M_RunSub` takes no branch: a composite step inherits the leg of
+  the step that runs it. In the archive, a branch whose legs open with a **step** is parallel;
+  one whose legs open with a **transition** is alternative.
+- **A flow-chart row is assembled from four tables** (§3.13), split by how often each
+  part changes: `SequenceStepDef` (static, served once through the §3.10.2 manifest under
+  the live browse paths), `ActiveSteps` (a cursor per concurrent leg — live, ~10 entries),
+  `SequenceSteps` (7 B/row: `Visited`, `LastDuration`, and the error/message marks), and
+  the sparse `SequenceAnnotations` for their text. A project writes none of it — `M_Step`
+  still takes the same arguments and the base files them.
+- **Never move `Visited`/`LastDuration`/the marks to client-side accumulation.** An HMI
+  polls at a few Hz against a task at kHz, so it cannot see a step shorter than its poll
+  interval: it would skip fast steps and lose transient faults. Liveness is safe to derive
+  from the cursor; history is not. The row FLAG is likewise authoritative — if the note
+  table fills, the mark survives and only the text is lost.
+- **The §3.13 chart is scoped to the running mode.** `FB_UnitBase.OnModeChanged` clears
+  the published rows, so each mode builds its own chart; a project writes nothing, it
+  inherits through the `SUPER^` call every override already makes. Rows are discovered
+  by visit and discovery never ends, so without that boundary the table is the union of
+  every chain run since boot — and `MAX_SEQUENCE_STEPS` bounds it silently.
+- **`CurrentStep`, the §6.9 walk and the profiler are main-line only.** A first-out must
+  name one step. A leg is timed and guarded on its own §3.13 row (`Active`, `Elapsed`,
+  `TimedOut`); a leg that must fault uses §6.9(d) and stops the whole chain.
 - Full comparison table, the SFC build procedure and the trap list live in
   `FraktalCore/PLC/TwinCAT/README.md` § "Writing a sequence: ST, SFC or LD".
 
@@ -142,6 +197,48 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   name in any combination.
 - IEC standard function names (`SUB`, `ADD`, `DIV`, `LEN`, `SEL`, …) are reserved as
   identifiers — rule **C2** rejects them. A *qualified* enum member is fine.
+
+**Command result vs. derived state (§3.12):**
+- Ask what makes the value change. A command produced it and it stays until another
+  command replaces it → `OutCmd`. It is simply true *right now*, recomputed from the
+  modules underneath → `OutImm`, and it **shall** be derived, never latched.
+- `Homed` is the canonical mistake: latched by a HOME sequence, it keeps claiming
+  "homed" after an operator jogs an axis off position in MANUAL, because only a
+  sequence can clear a latch and no sequence is running.
+- Publish derived state with `OutImm.X := _M_State(Idx := n, Key := '...', Ok := <expr>);`
+  — it returns the value, so it reads as a plain assignment, and adds the name, the
+  moment it last changed (§2.7), and a bounded generic table the HMI renders without
+  knowing the module type. Same shape as `_M_Await` on purpose.
+- **Call it unconditionally, every scan.** A flag that stops being published goes
+  `Stale` and is forced FALSE: state nobody computes is not a claim. Never put
+  `_M_State` behind an `IF`.
+
+**Compile before you claim.** There IS a TwinCAT compiler on the dev host:
+`tools/Invoke-TwinCatBuild.ps1` runs `CheckAllObjects()` on the two libraries and the two
+test solutions. Read `Specification/TWINCAT_XAE_WORKFLOW.md` §5.1 before concluding a
+failure is undiagnosable — the Error List is reachable **only** through the `DTE2`
+interface (`envdte80.dll` from the same IDE), and base `EnvDTE.DTE` returns an empty or
+missing property that looks like a tooling dead end.
+- **A ladder facade is not an override.** Adding `Run : BOOL` for rung power flow changes
+  the signature, which is `C0094`. Give it its own name (`M_StepLd`), and remember a
+  method returns through **its own** name — renaming the method without retargeting
+  `<name> :=` in the body silently rebinds it to the inherited method.
+
+**Where a type lives, and when to declare a flag (lint rule L1):**
+- **A library declares only what a library object owns.** The test is not "who uses
+  it" — a reusable type is *meant* to be used from outside. It is: does any object in
+  the Framework tree declare a member of it (plain, `REFERENCE TO`, `ARRAY … OF`, or
+  `EXTENDS`)? If only an application instantiates it, it is that application's
+  contract and belongs in that project. `ST_PneumaticPress*` sat in `Fraktal_Modules`
+  with no library FB owning them, so every consumer carried four structs for a machine
+  they do not have (§1.1 O4/O9). Cross-library ownership is fine — `ST_IoPointIdentity`
+  lives in Core and is owned by Modules.
+- **Declare a flag when something needs it, not before.** A published field with no
+  consumer is not "ready for the future", it is surface everyone pays for and nobody
+  reads. `OutCmd`/`OutImm` are the exception *only* because the generic HMI tree
+  renders whatever is published — but a field no PLC code, no HMI code and no MES
+  reads is an orphan, and the honest fix is to delete it and add it back the day it
+  has a reader.
 
 **Lifecycle & hooks (§2.2, §3.14):**
 - New module types **shall extend the base classes** — never re-implement the lifecycle.
@@ -357,6 +454,33 @@ so `Port_<ADS port>.tmc` is generated.
 
 **PLC (TwinCAT 3, 4024+):** a `.plcproj` is added *into* a TwinCAT XAE solution, not opened directly:
 create a TwinCAT XAE Project in TcXaeShell/VS, right-click **PLC → Add Existing Item…** → the `.plcproj`.
+Before any XAE work, read `Specification/TWINCAT_XAE_WORKFLOW.md`; it is the
+authoritative interaction/evidence procedure. Its mandatory distinctions are:
+
+- nested IEC **Build/Rebuild** proves the selected PLC/platform and may regenerate
+  TMC; **Check all objects** compiles every object but is not a full system build;
+- `tools/Invoke-TwinCatBuild.ps1` performs only isolated hidden-XAE
+  `CheckAllObjects()` plus the boot-autostart assertion—it never selects a target,
+  activates, downloads, runs tests, or installs a library;
+- `CheckAllObjects()` itself exposes only its Boolean. For diagnostics, use the
+  matching `EnvDTE80.DTE2` interface—not the base DTE wrapper—and capture both
+  `ToolWindows.ErrorList.ErrorItems` and the DTE Build Output pane. The maintained
+  script does this and, on the pinned 4026/VS18 host, captures the PLC rows and
+  coded compile transcript headlessly. Zero captured rows never override
+  `FALSE`; use the cleared visible PLC Error List UTF-8/TSV export as fallback.
+  See workflow §5.1–5.3;
+- build/install in dependency order: open only `Framework/FraktalCore.slnx`, build
+  and **Save as library and install**, close it; then do the same with
+  `Framework/FraktalModules.slnx`; verify the exact versions in **PLC → Library
+  Repository**, then close/reopen every consumer so placeholders reload;
+- source-library projects shall never coexist in a solution with consumers of the
+  installed versions, and PressTests shall never coexist with the Press bench;
+- runtime tests are a separate manual/runner-owned gate on an isolated target:
+  verify target/ADS/autostart, Activate Configuration, PLC Login/download, PLC
+  Start, capture the event log, match runner+counts+zero failures, then stop/Config;
+- archive revision, XAE/XAR/platform/target/ADS identity, raw log, JUnit, TMC and
+  source hashes. A wrong-runner green summary is a failed gate-selection check.
+
 There are **two** TcUnit gates and both must be run: `Tests/Fraktal_Tests.plcproj`
 (Core + Modules) and `Examples/PressDemo/PressTests.plcproj` (the internal Press integration bench).
 They are separate because XAE rejects a `..` segment in a `Compile Include`, so a

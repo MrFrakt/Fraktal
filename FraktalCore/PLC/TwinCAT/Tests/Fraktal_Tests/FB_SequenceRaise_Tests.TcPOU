@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SequenceRaise_Tests" Id="{0cd7cb6d-7eae-40c9-ba20-5798e2e41761}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §6.9 — an error raised BY a step, for the cases `Awaits` cannot reach:
+// a command behind an IF, and a rule only the application knows. Proves the three
+// promised behaviours: the chain stops, the §3.13 row carries the drill-down link,
+// and clearing the error re-evaluates the command instead of resuming blind.
+FUNCTION_BLOCK FB_SequenceRaise_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u : FB_ProbeUnitRaise;
+    _x : FB_ProbeUnitRaise;   // custom-message path, entered at step 30 cleanly
+    _v : FB_ProbeUnitRaise;   // warning path, kept off the fault path's state
+    _r : FB_ProbeUnitRaise;   // report-without-adopting path (press AUTO N200)
+    _w1, _w2, _w3, _w4, _w5 : BOOL;
+    _ringBefore : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Guarded_child_fault_is_raised_with_its_drilldown_link();
+Cleared_error_re_evaluates_the_command_at_the_same_step();
+Custom_message_carries_its_own_severity_and_link();
+Warning_is_recorded_once_per_visit_and_stops_nothing();
+Reported_child_failure_is_visible_without_stopping_the_chain();]]></ST>
+    </Implementation>
+    <Method Name="Guarded_child_fault_is_raised_with_its_drilldown_link" Id="{38144c65-f2f7-412a-bec6-793c53d15210}">
+      <Declaration><![CDATA[METHOD Guarded_child_fault_is_raised_with_its_drilldown_link
+VAR
+    d : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Guarded_child_fault_is_raised_with_its_drilldown_link');
+IF NOT _w1 THEN
+    AssertTrue(Condition := _u.Setup(Name := 'Test.Raise'), Message := 'Unit sets up');
+    _u.Enable := TRUE;                   // the IF that hides the child from `Awaits`
+    AssertTrue(Condition := _u.Start(), Message := 'Unit starts');
+    _u();                                // edge -> BUSY; chain step 10 -> 20
+    _u();                                // step 20 issues the guarded command
+    AssertEquals_UDINT(Expected := 1, Actual := _u.M_TestIssues(),
+        Message := 'the guarded command was issued once (§6.1 one-shot)');
+    AssertFalse(Condition := _u.Error, Message := 'no fault while the child runs');
+    _u.M_TestSetChild(ChildDone := FALSE, ChildFault := TRUE);
+    _u();                                // children tick first, then the step raises
+    AssertTrue(Condition := _u.Error,
+        Message := 'a raised child fault stops the chain, exactly like an awaited one');
+    d := _u.GetFaultSummary();
+    AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.TEST_FAULT),
+        Actual := TO_DWORD(d.ReasonCode),
+        Message := 'the child first-out is adopted verbatim, not re-invented');
+    AssertEquals_STRING(Expected := 'Test.Raise.Child', Actual := d.SourcePath,
+        Message := 'the failing module owns the diagnostic (§8.2)');
+    AssertEquals_INT(Expected := 20, Actual := _u.M_TestChainStep(),
+        Message := 'the chain stopped ON the step; a raise never advances it');
+    AssertEquals_INT(Expected := 2, Actual := _u.SequenceStepCount,
+        Message := 'the chart holds the steps reached so far - step 30 is honestly absent');
+    AssertTrue(Condition := _u.SequenceSteps[2].ErrorActive,
+        Message := 'the raising row is marked, so the chart can blink it red');
+    AssertEquals_STRING(Expected := 'Test.Raise.Child',
+        Actual := _u.SequenceSteps[2].ErrorSourcePath,
+        Message := 'the row is click-through to the module that failed, even though the step passed Awaits := 0');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Cleared_error_re_evaluates_the_command_at_the_same_step" Id="{6a6a2fe1-c6d7-4015-947d-755b05d7bd94}">
+      <Declaration><![CDATA[METHOD Cleared_error_re_evaluates_the_command_at_the_same_step]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Cleared_error_re_evaluates_the_command_at_the_same_step');
+IF NOT _w2 THEN
+    _u.M_TestSetChild(ChildDone := TRUE, ChildFault := FALSE);   // cause removed
+    AssertTrue(Condition := _u.OperatorReset(),
+        Message := 'the reset releases the latched commands (§8.3(b))');
+    _u();                                // Execute low -> READY: the ERROR-cleared edge
+    AssertFalse(Condition := _u.SequenceSteps[2].ErrorActive,
+        Message := 'the row error mark is cleared with the fault, not left stale');
+    AssertTrue(Condition := _u.Start(), Message := 'restart after the reset');
+    _u();                                // BUSY again; this project does not restart the chain
+    AssertEquals_INT(Expected := 20, Actual := _u.M_TestChainStep(),
+        Message := 'the chain resumes at the step that raised, not somewhere else');
+    AssertEquals_UDINT(Expected := 2, Actual := _u.M_TestIssues(),
+        Message := 're-evaluated: the command is issued again rather than assumed still running');
+    _u();                                // child takes the command and completes
+    _u();                                // Done -> advance to step 30
+    AssertEquals_INT(Expected := 30, Actual := _u.M_TestChainStep(),
+        Message := 'the chain carries on once the step actually completes');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Custom_message_carries_its_own_severity_and_link" Id="{5384b7f2-9a0c-4702-a815-c560f0a3b0f8}">
+      <Declaration><![CDATA[METHOD Custom_message_carries_its_own_severity_and_link
+VAR
+    d : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Custom_message_carries_its_own_severity_and_link');
+IF NOT _w3 THEN
+    AssertTrue(Condition := _x.Setup(Name := 'Test.Raise'), Message := 'Unit sets up');
+    _x.Enable := TRUE;
+    _x.SimCustom := TRUE;                // the application rule step 30 checks
+    _x.M_TestSetChild(ChildDone := TRUE, ChildFault := FALSE);
+    AssertTrue(Condition := _x.Start(), Message := 'Unit starts');
+    _x();                                // step 10 -> 20
+    _x();                                // step 20 issues its command
+    _x();                                // child Done -> step 30
+    _x();                                // step 30 raises its own message
+    AssertTrue(Condition := _x.Error, Message := 'a custom message stops the chain too');
+    d := _x.GetFaultSummary();
+    AssertEquals_STRING(Expected := 'project.test.customRaise', Actual := d.Description,
+        Message := 'the step owns the text');
+    AssertEquals_DWORD(Expected := TO_DWORD(E_Severity.HIGH), Actual := TO_DWORD(d.Severity),
+        Message := 'an unregistered reason keeps the severity the step chose (§8.8)');
+    AssertEquals_DWORD(Expected := TO_DWORD(E_Category.PROCESS), Actual := TO_DWORD(d.Category),
+        Message := 'and the category it chose');
+    AssertEquals_STRING(Expected := 'Test.Raise.Child', Actual := d.SourcePath,
+        Message := 'a custom message may still point at the module that explains it');
+    AssertTrue(Condition := _x.SequenceSteps[3].ErrorActive,
+        Message := 'the custom raise marks its own §3.13 row');
+    AssertEquals_STRING(Expected := 'Test.Raise.Child',
+        Actual := _x.SequenceSteps[3].ErrorSourcePath,
+        Message := 'and publishes the link the chart drills into');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Warning_is_recorded_once_per_visit_and_stops_nothing" Id="{510c1605-d6d4-4f3b-b941-6022ff6f62f9}">
+      <Declaration><![CDATA[METHOD Warning_is_recorded_once_per_visit_and_stops_nothing]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Warning_is_recorded_once_per_visit_and_stops_nothing');
+IF NOT _w4 THEN
+    AssertTrue(Condition := _v.Setup(Name := 'Test.Warn'), Message := 'Unit sets up');
+    _v.Enable := TRUE;
+    _v.SimWarn := TRUE;
+    _v.M_TestSetChild(ChildDone := TRUE, ChildFault := FALSE);
+    AssertTrue(Condition := _v.Start(), Message := 'Unit starts');
+    _v();                                // chain step 10 -> 20
+    _ringBefore := _v.AlarmLog.RingHead;
+    _v();                                // step 20: warning + the command
+    _v();                                // still on step 20, called again every scan
+    AssertFalse(Condition := _v.Error,
+        Message := 'a warning is not a fault: the chain is never stopped by it');
+    AssertTrue(Condition := _v.Busy, Message := 'and the Unit keeps running');
+    AssertEquals_INT(Expected := (_ringBefore MOD PL_Fraktal.MAX_ALARM_RING) + 1,
+        Actual := _v.AlarmLog.RingHead,
+        Message := 'one ring entry per visit, not one per scan (§6.9(e) dedupe)');
+    AssertEquals_DWORD(Expected := TO_DWORD(E_ResetClass.AUTO_RESET),
+        Actual := TO_DWORD(_v.AlarmLog.Ring[_v.AlarmLog.RingHead].ResetClass),
+        Message := 'AUTO_RESET come+gone: a message can never block the next Start');
+    AssertFalse(Condition := _v.AlarmLog.Blocking,
+        Message := 'and the log does not go blocking on it');
+    AssertTrue(Condition := _v.SequenceSteps[2].WarningActive,
+        Message := 'the §3.13 row carries the message');
+    AssertEquals_STRING(Expected := 'project.test.stepWarning',
+        Actual := _v.SequenceSteps[2].WarningKey,
+        Message := 'with the key the step chose');
+    _v();                                // child Done -> advance
+    AssertEquals_INT(Expected := 30, Actual := _v.M_TestChainStep(),
+        Message := 'the step completed normally: the warning changed no flow');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Reported_child_failure_is_visible_without_stopping_the_chain" Id="{9a12f2dd-b0cf-4b44-b873-6ad6b80ef167}">
+      <Declaration><![CDATA[METHOD Reported_child_failure_is_visible_without_stopping_the_chain]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Reported_child_failure_is_visible_without_stopping_the_chain');
+IF NOT _w5 THEN
+    AssertTrue(Condition := _r.Setup(Name := 'Test.Report'), Message := 'Unit sets up');
+    _r.Enable := TRUE;
+    _r.ReportOnly := TRUE;               // the step owns the recovery, like press AUTO N200
+    AssertTrue(Condition := _r.Start(), Message := 'Unit starts');
+    _r();                                // step 10 -> 20
+    _r();                                // step 20 issues the command
+    _r.M_TestSetChild(ChildDone := FALSE, ChildFault := TRUE);
+    _r();                                // the child fails; the step reports and routes
+    AssertFalse(Condition := _r.Error,
+        Message := 'reporting is not adopting: the Unit does not fault');
+    AssertTrue(Condition := _r.Busy, Message := 'and the chain keeps running');
+    AssertTrue(Condition := _r.SequenceSteps[2].WarningActive,
+        Message := 'the failure is visible on the §3.13 row that handled it');
+    AssertEquals_STRING(Expected := 'probe fault',
+        Actual := _r.SequenceSteps[2].WarningKey,
+        Message := 'with the CHILD text verbatim, not a re-invented one');
+    AssertEquals_STRING(Expected := 'Test.Report.Child',
+        Actual := _r.SequenceSteps[2].WarningSourcePath,
+        Message := 'and click-through to the module that failed, with Awaits := 0');
+    AssertFalse(Condition := _r.SequenceSteps[2].ErrorActive,
+        Message := 'a reported failure never borrows the error mark');
+    _r();
+    AssertEquals_INT(Expected := 30, Actual := _r.M_TestChainStep(),
+        Message := 'the chain took its own recovery branch instead of stopping');
+    _w5 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

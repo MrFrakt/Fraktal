@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="ST_SequenceStep" Id="{96a6cc7d-6da4-43e1-b681-49a112c3dfea}">
-    <Declaration><![CDATA[// Core §6.5/§3.13 — one row of the published sequence flow chart.
-// The inventory is discovered, never authored: every step reaches _M_SetStep, so
-// the base records it the first time it runs. A step not yet reached is simply
-// absent, which is honest - the chart shows what the chain has actually done.
+  <DUT Name="ST_SequenceStep" Id="{0c3ae940-6c38-44e3-872b-4eb8cc092beb}">
+    <Declaration><![CDATA[// Core §6.5/§3.13 — the per-row LIVE state of one flow-chart row: 7 bytes.
+//
+// Everything static about a row (its number, leg, time class, guard and text) is in
+// ST_SequenceStepDef, served once through the §3.10.2 manifest. Everything about
+// which row is running RIGHT NOW is in ST_SequenceCursor, one entry per concurrent
+// leg. What is left here is the small set that is per-row AND changes over time,
+// and that the HMI could not reconstruct by watching: a poll at a few Hz against a
+// task at kHz cannot see a step shorter than its own interval, so a chart that
+// accumulated these client-side would silently skip fast steps and lose transient
+// errors. The chart shows what the chain DID, not what someone happened to catch.
 TYPE ST_SequenceStep :
 STRUCT
-    StepNo        : INT;
-    StepName      : STRING(120);   // localization key
-    AwaitingLabel : STRING(120);   // e.g. 'PressRam.EXTEND' ('' if none)
-    // §3.13 drill-down target: the Fraktal path of the module this step commands,
-    // taken from the Awaits reference. Empty when the step commands nothing, or
-    // when the step deliberately owns its child's failure and passes Awaits := 0.
-    AwaitsPath    : STRING(255);
-    TimeClass     : E_TimeClass;
-    ExpectedTime  : TIME;          // 0 = no declared guard
     Visited       : BOOL;          // reached at least once since the chain reset
     LastDuration  : TIME;          // how long it ran on its last visit
+    // §6.9(d)/(e) marks. The text and the drill-down link are in the annotation
+    // table; these say only that the row has one, which is all the chart needs to
+    // colour it - so a row stays correctly marked even if that table is full.
+    ErrorActive   : BOOL;
+    WarningActive : BOOL;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

@@ -41,7 +41,7 @@ CASE _step OF
             _pressRam.Execute := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 20, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 20);
     20:  // door open
         M_Step(StepNo := _baseStepNo + 20, StepName := 'project.step.pressSafePositionDoorOpen',
             Awaits := _door, AwaitingLabel := 'Door.RETRACT',
@@ -55,7 +55,7 @@ CASE _step OF
             _door.Execute := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 40, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 40);
     40:  // slide outside
         M_Step(StepNo := _baseStepNo + 40, StepName := 'project.step.pressSafePositionSlideOutside',
             Awaits := _partSlide, AwaitingLabel := 'PartSlide.RETRACT',
@@ -69,7 +69,7 @@ CASE _step OF
             _partSlide.Execute := FALSE;
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+        M_Advance(OnAdvance := 999);
     999:  // established
         M_Step(StepNo := _baseStepNo + 60, StepName := 'project.step.pressSafePositionComplete',
             Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);

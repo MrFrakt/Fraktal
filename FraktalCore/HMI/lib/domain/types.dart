@@ -538,6 +538,10 @@ class CondInfo {
 /// "unknown".
 class SequenceStep {
   final int stepNo;
+
+  /// §6.12 — which concurrent leg this step belongs to. 0 is the chain's main
+  /// line, which is every step of a chain that has no parallel branch.
+  final int branch;
   final String stepName;
   final String awaitingLabel;
   final String awaitsPath;
@@ -545,8 +549,27 @@ class SequenceStep {
   final Duration expected;
   final bool visited;
   final Duration lastDuration;
+
+  /// §6.12 per-row liveness. A parallel step makes several rows live at once, so
+  /// the chart can no longer derive "active" from the Unit's single CurrentStep.
+  final bool active;
+  final Duration elapsed;
+  final bool timedOut;
+
+  /// §6.9 — this step raised an error. [errorSourcePath] is the module that
+  /// actually failed, which is how a step that owns its child's failure stays
+  /// click-through even though it declared no [awaitsPath].
+  final bool errorActive;
+  final String errorSourcePath;
+
+  /// §6.9(e) — a non-blocking message this step raised. It did NOT stop the
+  /// chain, so it is history: the last pass warned. Never rendered as a fault.
+  final bool warningActive;
+  final String warningKey;
+  final String warningSourcePath;
   const SequenceStep({
     this.stepNo = 0,
+    this.branch = 0,
     this.stepName = '',
     this.awaitingLabel = '',
     this.awaitsPath = '',
@@ -554,10 +577,52 @@ class SequenceStep {
     this.expected = Duration.zero,
     this.visited = false,
     this.lastDuration = Duration.zero,
+    this.active = false,
+    this.elapsed = Duration.zero,
+    this.timedOut = false,
+    this.errorActive = false,
+    this.errorSourcePath = '',
+    this.warningActive = false,
+    this.warningKey = '',
+    this.warningSourcePath = '',
   });
 
-  /// A step is click-through only when the PLC declared its target directly.
-  bool get drillsDown => awaitsPath.isNotEmpty;
+  /// Where tapping this row navigates, or '' when it opens the step detail
+  /// instead. Most specific first: a raised error, then a reported one, then the
+  /// module the step declared. The operator wants what actually went wrong, not
+  /// what the step nominally commands.
+  String get linkPath {
+    if (errorSourcePath.isNotEmpty) return errorSourcePath;
+    if (warningSourcePath.isNotEmpty) return warningSourcePath;
+    return awaitsPath;
+  }
+
+  /// A step is click-through only when the PLC declared a target directly —
+  /// through Awaits, or through the link carried by a raised error.
+  bool get drillsDown => linkPath.isNotEmpty;
+}
+
+/// §3.12 — one published derived state flag: a fact the module recomputes every
+/// scan from what is actually true underneath, as opposed to `OutCmd`, which is
+/// what a command produced and stays latched until the next one.
+class StateFlag {
+  final String key;
+  final bool value;
+
+  /// When [value] last changed — not when it was last written. "Door closed for
+  /// 4 s" is the question operators actually ask.
+  final DateTime? since;
+
+  /// The PLC stopped publishing this flag, so its value is no longer a claim and
+  /// the PLC has already forced it false. Render it as unknown, not as false.
+  final bool stale;
+
+  const StateFlag({
+    this.key = '',
+    this.value = false,
+    this.since,
+    this.stale = false,
+  });
 }
 
 class StepInfo {

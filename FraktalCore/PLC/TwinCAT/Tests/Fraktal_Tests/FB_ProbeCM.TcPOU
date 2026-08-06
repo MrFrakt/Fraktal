@@ -8,9 +8,12 @@ FUNCTION_BLOCK FB_ProbeCM EXTENDS FB_ControlModuleBase
 VAR_INPUT
     SimDone  : BOOL;
     SimFault : BOOL;
+    SimState : BOOL;                 // §3.12 the derived fact this probe publishes
+    SimPublish : BOOL := TRUE;       // stop publishing to exercise the stale path
 END_VAR
 VAR_OUTPUT
     CommandStarts : UDINT;
+    StateProbe : BOOL;               // what _M_State returned, so the call reads as an assignment
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -23,6 +26,17 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_M_SetName(Name);
 Setup := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{35959dd2-3c4c-42a7-8c86-2c4db506675f}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();   // base first (Core §3.14.2)
+// §3.12 — a derived flag is published UNCONDITIONALLY every scan. SimPublish exists
+// only so the suite can prove what happens when a project breaks that rule.
+IF SimPublish THEN
+    StateProbe := _M_State(Idx := 1, Key := 'project.test.probeState', Ok := SimState);
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{09dda4aa-ea32-4a00-b61d-5b786f9f2569}">

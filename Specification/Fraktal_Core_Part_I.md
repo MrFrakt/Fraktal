@@ -488,6 +488,44 @@ Every module — `FB_Unit`, `FB_EquipmentModule`, `FB_ControlModule` — exposes
 | Command results | `OutCmd` | values valid after a command completes | written once on `ExecState → DONE` |
 | Cyclic status | `OutImm` | live status (inputs, outputs, flags) + first-out `Diagnostic` | refreshed every scan |
 
+**Command result vs. derived state — the distinction that decides which one.** Ask
+what makes the value change. If a *command produced* it and it stays true until
+another command replaces it, it is `OutCmd`. If it is simply *true right now*,
+recomputed from what the modules underneath actually report, it is `OutImm`.
+
+`Homed` is the case that gets this wrong most often. Written as `OutCmd.Homed := TRUE`
+at the end of a HOME sequence it goes on claiming "homed" after an operator jogs an
+axis off the reference position in MANUAL — because no sequence runs to clear a latch
+that only a sequence can clear. It is not a command result. It is a fact about where
+the axes are, and it **shall** be derived.
+
+A module publishes derived state through `_M_State`, which returns the value so the
+assignment reads as it otherwise would:
+
+```iecst
+OutImm.Homed := _M_State(Idx := 1, Key := 'project.state.atLoadPosition',
+    Ok := Ram.OutImm.Retracted AND Door.OutImm.Retracted AND Slide.OutImm.Retracted);
+```
+
+What the call adds over a bare assignment is what nobody wants to write per flag
+(§1.1 O1):
+
+- **The flag carries its own name**, so the HMI renders it without knowing the module
+  type (§3.13) — the same generic-rendering bargain as the rest of the contract.
+- **`Since`** — the moment the value last changed, on the synchronized clock (§2.7).
+  "Door closed" is rarely the question; "closed for how long" is.
+- **Fail-safe on abandonment.** A flag **shall** be published unconditionally every
+  scan. One that stops being published is marked `Stale` and forced FALSE on the next
+  scan: state nobody is computing is not a claim (§5.6). A latch left standing is
+  precisely the failure this mechanism exists to prevent, so the mechanism must not
+  be able to leave one.
+- **Bounded** at `MAX_STATE_FLAGS` per module, statically sized like every other
+  Fraktal table (§1.1 O10).
+
+It is deliberately the same shape as the §6.9(b) named condition wait
+(`_M_Await(Idx, Label, Ok)`) — one idiom for "a named boolean the framework
+publishes", not two (§1.1 O9).
+
 This contract makes every module uniform and self-describing: the handshake of §6.1 reads/writes `ParCmd`/`OutCmd`, the recipe of §3.8 lives in `ParCfg`, and the Flutter HMI binds to `OutImm` for live state. Module-specific structure types **shall** be named `ST_<Module>ParCfg` / `ST_<Module>ParCmd` / `ST_<Module>OutCmd` / `ST_<Module>OutImm` (e.g. `ST_SeparatorParCfg`).
 
 ![Figure 6](diagrams/data_contract.png)
@@ -1148,6 +1186,98 @@ The owning Unit exposes this as its current stall reason; the HMI (§3.13) shows
 
 A stall is a **pending** reason (Low severity, published live on the Unit), not a fault: the Unit keeps waiting while naming exactly what it waits for. The *fault* path is the awaited module's `Error`, which the Unit base adopts **immediately** through the §8.2 rollup — without waiting for the stall timer — so a real failure is never delayed behind a stall guard (`FB_UnitBase`). **Outcome.** Steps stay lean; the operator gets a precise root cause; and because the answer comes from the standardized module contract (§3.12, §7, §8) rather than hand-coded step conditions, it is identical in SFC, Ladder, or ST. Standardization effort scales with the number of module *types*, not the number of steps — which is the whole point.
 
+**(d) Raising an error the framework cannot see.** `Awaits` carries the automatic
+rollup of (c), but only for a step that hands its child to the framework. A step that
+decides for itself — a command inside an `IF` or `CASE`, a rule that lives in the
+application — is invisible to it, and would hang until the stall guard with nothing
+naming the cause. Two calls on the §6.8 base close that gap, and both are available in
+every language (ST, SFC, LD):
+
+```iecst
+// a child commanded behind a guard: adopt ITS first-out, verbatim
+IF M_RaiseFromChild(Source := _gauge) THEN
+    _gauge.Execute := FALSE;            // §6.1 drop-reset frees the child to recover
+    RETURN;
+END_IF
+
+// a rule only the application knows: the step defines the whole message
+IF _measured > _parCfg.MaxDrift THEN
+    IF M_RaiseCustom(Reason := PL_ProjectReasons.GAUGE_DRIFT,
+        DescriptionKey := 'project.error.gaugeDrift',
+        Severity := E_Severity.HIGH, Category := E_Category.PROCESS,
+        LinkPath := _gauge.Name) THEN
+        RETURN;
+    END_IF
+END_IF
+```
+
+Both return TRUE only when a fault was actually raised, so calling them every scan is
+safe and the `IF ... THEN RETURN` shape reads the same everywhere. `Severity` and
+`Category` are a proposal: adoption runs the §8.8 rationalization, so a **registered**
+reason takes the registry's priority and category, and the caller's values survive only
+for a project band code (10000+) the registry does not know — which is where a message
+of a deliberately different level belongs.
+
+The reaction is fixed and **shall not** be varied per step:
+
+1. **Stop.** The Unit adopts the diagnostic and enters `ERROR`, so `_M_Dispatch` is no
+   longer called and the chain freezes **on** the raising step — it never advances past
+   a step whose command failed.
+2. **Link.** The Unit stamps the §3.13 flow-chart row of the active step with
+   `ErrorActive` and `ErrorSourcePath`, so the chart marks that step and drills into the
+   module that actually failed — even for a step that passed `Awaits := 0`.
+3. **Re-evaluate, never resume blind.** When the `ERROR` state ends, the Unit clears the
+   row marks and re-arms every attached chain (`M_ResumeAfterError` → `M_ClearTransition`).
+   The step-scoped latches — `M_MayIssue`'s one-shot, `M_Delay`'s timer, `M_RunSub`'s
+   latch — go back to their unissued state, so the step **re-issues and re-tests its
+   command** instead of resuming mid-handshake on a spent one-shot. Whether the chain
+   then continues from that step or restarts from the top is the project's choice, made
+   in `OnCommandStart` (§3.14); the framework only guarantees it will not skip.
+
+A project writes none of the plumbing (§1.1 O1): registration, the row stamp, the clear
+and the re-arm all live in the base. Worked example: `FB_ProbeRaiseChain` /
+`FB_SequenceRaise_Tests`.
+
+**(e) Reporting without stopping.** Not every message is a fault. A two-hand control
+released mid-motion, a ram that did not reach when the step already routes to an
+operator confirmation and a scrap — these are **handled** conditions with a
+consequence worth recording. Adopting them would replace a designed recovery with a
+hard stop; saying nothing leaves the operator with a machine that abandoned a cycle
+for no visible reason. Three calls, none of which touch the exec state:
+
+```iecst
+// a rule the step states itself
+_warned := M_RaiseWarning(Reason := PL_PressReasons.PRESS_TWO_HAND_RELEASED,
+    DescriptionKey := 'project.warning.twoHandReleasedDuringDoorClose',
+    Severity := E_Severity.LOW, Category := E_Category.PROCESS);
+
+// a child's own first-out, published verbatim but NOT adopted
+_reported := M_ReportFromChild(Source := _pressRam);
+```
+
+Guarantees:
+
+- **Nothing stops.** `_exec` is untouched, `_M_Dispatch` keeps running, and the step
+  keeps whatever branch it was going to take. This is the *whole* difference from
+  (d) and **shall not** be blurred: a condition that must stop the machine belongs
+  in (d).
+- **It can never block a restart.** The ring entry is an AUTO_RESET come+gone event
+  (§8.3(c)), so `AlarmLog.Blocking` is unaffected and the next `Start` is not gated
+  on an operator reset.
+- **Once per visit, not once per scan.** The base latches the message for the
+  duration of the step visit and re-arms it on commit, so a step body may call it
+  unconditionally every scan (§1.1 O1 — a project shall never have to remember an
+  edge latch for correctness).
+- **It stays visible where the operator is looking.** The active §3.13 row is marked
+  with `WarningActive`/`WarningKey`, and with `WarningSourcePath` when the message is
+  about a child — so a step that reports a child's failure is click-through to that
+  child even though it passed `Awaits := 0`. The mark is cleared when the step is
+  entered again: the chart says what happened on the last pass, not forever.
+
+The HMI resolves a row's target most-specific-first — raised error, then reported
+message, then the declared `Awaits` — and renders a message as a steady mark, never
+as the error blink.
+
 ### 6.10 Branching, decisions, jumps & actions
 
 The step model already expresses decisions and jumps directly — a transition may target **any** declared step, not only the next one — but to keep the stall walk (§6.9) reliable, every branch and jump **shall** route through the step record (`_M_SetStep`, or the SFC step itself), so `StepNo`/`StepName`/`Awaiting` always follow the active path.
@@ -1185,6 +1315,26 @@ The step model already expresses decisions and jumps directly — a transition m
 
 The result is an expressive chain — decisions, skips, bounded retries, parallel joins — where every position stays visible to the stall walk and every output stays traceable to an active step.
 
+
+**`M_Advance` is the declaration of a step's exits, not a convenience.** An ST branch
+**shall** end with it. Assigning `_step` by hand reaches the same next step, but the
+out-edges then live inside whatever conditional produced them, and the property
+"every non-terminal branch has an exit" stops being checkable — the CI gate proves it
+today by finding one `M_Advance` per non-terminal branch (§1.5, §5.7). Keeping the
+graph in one greppable call per step is what makes a chain readable by scanning the
+last line of each branch (§1.1 O2) and enforceable without dataflow analysis
+(§1.1 O9). Unused jump targets are defaulted, so a step with no jump reads
+`M_Advance(OnAdvance := 100);` and a step with one reads
+`M_Advance(OnAdvance := 200, OnJump1 := 185);` — a jump is then visible at a glance
+instead of buried among three `-1`s.
+
+A **chart language is different and shall not be forced into it.** SFC's runtime owns
+the transition, and a Ladder integer state machine moves by writing `_step` from a
+rung, which is that language's native form; neither has a commit point to hang
+`M_Advance` on. §6.5 is satisfied for both because `M_Step` — not `M_Advance` — is
+what records the step, so the §6.9 walk and the §3.13 chart are fed identically in
+every language.
+
 ### 6.11 Operator dialogs & decisions
 
 Some sequence decisions need an **operator**, not a sensor — "remove the NOK part manually or auto-continue?", "confirm tool change". The standard defines one typed decision contract so operator interaction is uniform and never hand-built per station.
@@ -1209,7 +1359,151 @@ END_STRUCT END_TYPE
 
 ---
 
-## 7. Permissives & Interlocks
+### 6.12 Concurrent branches (parallel divergence)
+
+A machine with two work positions that run **simultaneously and independently** —
+load one while the other presses, weld two joints at once — needs more than one
+active step at a time. IEC 61131-3 draws this as a *simultaneous divergence* in SFC;
+this clause says what it means for the rest of the contract, and gives the form that
+works in every language.
+
+#### (a) Two forms, one contract
+
+| | **Sub-chain fork (`M_RunPar`)** | **Native divergence (`M_Step(Branch := n)`)** |
+|---|---|---|
+| Available in | ST, SFC, LD — **all** | SFC / LD only (the chart draws it) |
+| A leg is | its own `FB_SequenceBase` instance | a set of steps in the same POU |
+| Per-leg step pointer, `_retVal`, latches | inherent — separate instances | provided by the base, keyed by branch |
+| Leg written by | anyone who can write a chain | same, plus `Branch := n` on each step |
+| Nests | yes, without limit | one level (a fork sits on a main line) |
+| Reusable leg | yes — it is a type | no — it is drawing |
+
+A project **should** prefer the sub-chain fork. It is the same answer §1.1 O4 gives
+everywhere else: a work position is a *thing*, so make it a type and instantiate it,
+rather than duplicating its steps in a picture. The native divergence stays supported
+because a chart is often the clearest way to *show* two short legs, and because
+existing charts use it.
+
+#### (b) The sub-chain fork
+
+```iecst
+500: // both work positions run at once
+    M_Step(StepNo := 500, StepName := 'project.step.bothPositions', Awaits := 0,
+        AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    M_RunPar(Chain := _positionA, BaseStepNo := 600, Branch := 1);
+    M_RunPar(Chain := _positionB, BaseStepNo := 700, Branch := 2);
+    _retVal := M_ParJoin();
+    M_Advance(OnAdvance := 999);
+```
+
+`M_ParJoin` returns ADVANCE on the scan every leg run **this scan** reports `Done`.
+A composite step (`M_RunSub`) **inherits** the leg of the step that runs it, so a
+sub-chain inside a leg publishes its steps under that leg with nothing to declare —
+the framework already knows which leg it is in, and a second place to say so is a
+second place to get it wrong.
+The leg list is the calls themselves, so there is nothing to register and nothing to
+keep in step when a leg is added or removed (§1.1 O1). The entry latch is step-scoped:
+re-entering the fork step later restarts every leg. `BaseStepNo` offsets a leg's step
+records exactly as it does for a composite step (§6.5, §6.7), so the §6.9 walk and the
+§3.13 chart still read one continuous chain.
+
+#### (c) The native divergence
+
+Legs drawn inside one POU share the function block, so the framework cannot tell them
+apart. A leg step declares itself **on its own step record**:
+
+```iecst
+M_Step(StepNo := 300, StepName := 'project.step.positionBWork', Awaits := 0,
+    AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S,
+    Branch := 1);
+IF M_MayIssue(Steppable := TRUE) THEN ... END_IF
+_conRetVal[1] := E_StepResult.ADVANCE;     // this leg's transition result
+```
+
+and each leg's transitions read `_conRetVal[n]` where the single-threaded line reads
+`_retVal`.
+
+**Number every leg; none of them is the main line.** A simultaneous divergence has *N
+equal* legs, so a two-leg fork **shall** use legs 1 and 2 — not "the main line plus
+leg 1". Leaving one leg on branch 0 costs twice: the §3.13 chart draws it as an
+unindented main-line row and the other as subordinate, when they are peers; and
+`_retVal` comes to mean two different things depending on whether you are reading
+inside the fork or outside it. `_retVal` is the line **before and after** the fork;
+between them there are only legs. The join then reads every leg:
+
+```iecst
+_conRetVal[1] = E_StepResult.ADVANCE AND _conRetVal[2] = E_StepResult.ADVANCE
+```
+
+`Branch` is an input of `M_Step` rather than a call before it, so a leg cannot be
+declared without recording a step, and a step cannot land on the wrong leg because a
+separate declaration was forgotten (§1.1 O1). It defaults to **this chain's own leg**:
+0 for a top-level chain, which is the main line, and the index the fork assigned for a
+chain running as a leg — so neither a main-line step nor a leg written as its own
+chain ever mentions a branch. An index outside `0..MAX_PARALLEL_BRANCHES` faults the
+chain rather than silently falling back (§5.6).
+
+> **[TC3]** `Branch` is a defaulted method input, which requires TwinCAT ≥ 3.1.4026.
+> Under the legacy `FRAKTAL_TC3_4024` profile the declaration has no default, so a
+> 4024 build passes `Branch := 0` at every `M_Step` call, exactly as it already does
+> for `M_ResetBase` and `M_Advance` (see `Params/PL_FraktalCompat.TcGVL`).
+
+#### (d) What the base owns
+
+Every **step-scoped** latch is per branch: the `M_MayIssue` one-shot, the `M_Delay`
+timer, the `M_RunSub` entry latch, and the §6.9(e) message latch. `M_Step` selects the
+leg before any of them, so everything a step action does after its step record is
+scoped to that leg. This is not an
+optimisation — sharing them let one leg's issue consume another leg's, and let one
+leg committing a step wipe another leg's transition result mid-motion.
+
+The re-arm itself moved to `M_Step`, which is the one call every step of every
+language makes. A chart language has no commit point to hang `M_ClearTransition` on,
+so before this a chart's `M_MayIssue` fired once per chart **run** instead of once per
+step.
+
+#### (f) The chart is scoped to the running mode
+
+Step rows are **discovered** by visit (§6.5), which is what makes the chart free to
+author — but discovery has no end of its own. A Unit **shall** therefore drop its
+published rows when a mode commits, so the chart shows the chain that is running
+rather than the union of every chain run since power-up. Within one mode a re-run
+keeps its rows, so `Visited` and `LastDuration` stay meaningful across cycles.
+
+This is also what keeps the bound honest. A row is therefore **split by how often each
+part changes**, because 98% of the original 1.16 kB row was strings that almost never
+did: the live scalars stay in `SequenceSteps` (25 B), the step's text is discovered
+once and served through the §3.10.2 config manifest under the same browse paths, and
+the error/message text — sparse, since at most a few rows carry one — moves to a small
+`SequenceAnnotations` table rather than reserving 633 B on every row for the empty
+case.
+
+Liveness is published **per concurrent leg**, not per row: a leg runs exactly one step
+at a time, so an `ActiveSteps` cursor indexed by branch is ~10 entries however long the
+chain is, and cheap enough to stay cyclic. What remains per row is only what a client
+could **not** reconstruct by watching — `Visited`, `LastDuration`, and the error and
+message marks. That boundary is deliberate: an HMI polls at a few Hz against a task at
+kHz, so anything it had to accumulate from observation would drop steps shorter than
+its own poll interval and lose transient faults. The chart shows what the chain did,
+not what a client happened to catch (§1.1 O3).
+
+`MAX_SEQUENCE_STEPS = 128` then costs ~46 kB per Unit instead of ~145 kB, of which
+only ~1 kB is read per poll while the chart is open. That is affordable only because the rows are read on demand rather than
+cyclically (§3.10); raising it further costs linearly in both, and shortening the
+string fields is the lever if it ever matters. Scoping the chart to the running mode
+is what keeps a Unit's actual usage near its longest single chain instead of the sum
+of all of them.
+
+#### (e) What stays singular, and why
+
+`CurrentStep`, the §6.9 stall walk and the §8.11.4 profiler are **main-line only**. A
+first-out has to name one step; letting whichever leg ran last overwrite it would make
+the walk report at random. A leg is therefore timed and guarded on **its own §3.13
+row** — `Active`, `Elapsed`, `TimedOut` per row — which is also what lets the HMI draw
+several live steps at once and blink only the leg that overran. A leg that must raise
+a *fault* still does so through §6.9(d), which stops the whole chain, as it should:
+one leg failing is a failure of the step.
+
 
 ### 7.1 Definitions
 
@@ -1385,6 +1679,8 @@ An operator who presses a control that does not act **shall** be able to see *wh
 *Cross-references: §3.4/§3.4.1 (mode preconditions), §7.2/§7.4 (interlocks & bypass), §7.6/§7.6.1 (manual release & commands), §7.7 (access), §8.3 (blocking alarms), §8.8 (reason codes), §3.13 (HMI panel).*
 
 ---
+
+## 7. Permissives & Interlocks
 
 ## 8. Alarms & Diagnostics
 

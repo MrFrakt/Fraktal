@@ -294,6 +294,59 @@ class OpcUaSnapshotMapper {
             ? MachineState.values[machineStateValue]
             : null;
       }
+      // §3.12 derived state flags, bounded by the published count.
+      final stateFlags = <StateFlag>[];
+      final stateFlagCount = _integer(values['$base/StateFlagCount']);
+      for (var i = 1; i <= stateFlagCount; i++) {
+        final prefix = _indexedPrefix(values, '$base/StateFlags', i,
+            parentPaths: parentPaths);
+        if (prefix == null) continue;
+        final key = _string(values['$prefix/Key']);
+        if (key.isEmpty) continue;      // a slot the PLC never published
+        stateFlags.add(StateFlag(
+          key: key,
+          value: _boolean(values['$prefix/Value']),
+          since: _nonPlaceholderDateTime(values['$prefix/Since']),
+          stale: _boolean(values['$prefix/Stale']),
+        ));
+      }
+      // §3.13 the per-leg cursor: which row each concurrent leg is running, and
+      // for how long. Indexed by branch, so it is ~10 entries however long the
+      // chain is — small enough to stay in the cyclic read, which is why the chart
+      // is already correct the instant its tab opens.
+      final liveRows = <int, _SequenceCursor>{};
+      for (var b = 0; b <= _maxParallelBranches; b++) {
+        final prefix = _indexedPrefix(values, '$base/ActiveSteps', b + 1,
+            parentPaths: parentPaths);
+        if (prefix == null) continue;
+        final row = _integer(values['$prefix/RowIdx']);
+        if (row < 1) continue;          // this leg has no active step
+        liveRows[row] = _SequenceCursor(
+          elapsed: _duration(values['$prefix/Elapsed']),
+          timedOut: _boolean(values['$prefix/TimedOut']),
+        );
+      }
+      // §6.9 annotations: the errors and messages currently attached to rows,
+      // indexed by the row they belong to so the join below is a lookup.
+      final errorNotes = <int, _SequenceNote>{};
+      final messageNotes = <int, _SequenceNote>{};
+      final noteCount = _integer(values['$base/SequenceAnnotationCount']);
+      for (var i = 1; i <= noteCount; i++) {
+        final prefix = _indexedPrefix(values, '$base/SequenceAnnotations', i,
+            parentPaths: parentPaths);
+        if (prefix == null) continue;
+        final row = _integer(values['$prefix/RowIdx']);
+        if (row < 1) continue;          // freed slot
+        final note = _SequenceNote(
+          key: _string(values['$prefix/Key']),
+          sourcePath: _string(values['$prefix/SourcePath']),
+        );
+        if (_boolean(values['$prefix/IsError'])) {
+          errorNotes[row] = note;
+        } else {
+          messageNotes[row] = note;
+        }
+      }
       // §3.13 sequence flow chart rows, bounded by the published count.
       final sequenceSteps = <SequenceStep>[];
       final sequenceCount = _integer(values['$base/SequenceStepCount']);
@@ -301,8 +354,22 @@ class OpcUaSnapshotMapper {
         final prefix = _indexedPrefix(values, '$base/SequenceSteps', i,
             parentPaths: parentPaths);
         if (prefix == null) continue;
+        // The row arrives from three places and is joined here so nothing above
+        // this line has to know: live scalars from the cyclic/on-demand read, the
+        // static text from the §3.10.2 manifest (published under these SAME paths,
+        // so it reads identically), and error/message text from the sparse
+        // annotation table below, keyed by row index.
+        final note = errorNotes[i];
+        final message = messageNotes[i];
+        final live = liveRows[i];
         sequenceSteps.add(SequenceStep(
           stepNo: _integer(values['$prefix/StepNo']),
+          branch: _integer(values['$prefix/Branch']),
+          // Liveness comes from the cursor, not the row: a row is active exactly
+          // when some leg's cursor points at it.
+          active: live != null,
+          elapsed: live?.elapsed ?? Duration.zero,
+          timedOut: live?.timedOut ?? false,
           stepName: _string(values['$prefix/StepName']),
           awaitingLabel: _string(values['$prefix/AwaitingLabel']),
           awaitsPath: _string(values['$prefix/AwaitsPath']),
@@ -311,6 +378,14 @@ class OpcUaSnapshotMapper {
           expected: _duration(values['$prefix/ExpectedTime']),
           visited: _boolean(values['$prefix/Visited']),
           lastDuration: _duration(values['$prefix/LastDuration']),
+          // The FLAG is authoritative, not the note: an annotation table that
+          // filled up costs the text, never the mark (PLC §5.6), so a marked row
+          // with no note renders marked and simply has nothing extra to say.
+          errorActive: _boolean(values['$prefix/ErrorActive']),
+          errorSourcePath: note?.sourcePath ?? '',
+          warningActive: _boolean(values['$prefix/WarningActive']),
+          warningKey: message?.key ?? '',
+          warningSourcePath: message?.sourcePath ?? '',
         ));
       }
       final stepStats = <StepStat>[];
@@ -748,8 +823,10 @@ class OpcUaSnapshotMapper {
         lastCycleTime: lastCycleTime,
         minCycleTime: minCycleTime,
         stepStats: stepStats,
+        stateFlags: stateFlags,
         sequenceViewEnabled: _boolean(values['$base/SequenceViewEnabled']),
         sequenceSteps: sequenceSteps,
+        sequenceStepCount: sequenceCount,
         currentStepElapsed: _duration(values['$base/CurrentStepElapsed']),
         currentStepTimedOut: _boolean(values['$base/CurrentStepTimedOut']),
         commandTimings: commandTimings,
@@ -1134,3 +1211,21 @@ List<String> _indexedAlternatives(String base, int index) {
     '$base/$member[$index]',
   ];
 }
+
+/// One §6.9 error or message attached to a flow-chart row (Core `ST_SequenceAnnotation`).
+/// The live half of a §3.13 row, from the per-leg cursor (`ST_SequenceCursor`).
+class _SequenceCursor {
+  final Duration elapsed;
+  final bool timedOut;
+  const _SequenceCursor({required this.elapsed, required this.timedOut});
+}
+
+class _SequenceNote {
+  final String key;
+  final String sourcePath;
+  const _SequenceNote({required this.key, required this.sourcePath});
+}
+
+/// Mirrors `PL_Fraktal.MAX_PARALLEL_BRANCHES`: the cursor table is indexed by leg,
+/// 0 (the main line) through this.
+const int _maxParallelBranches = 9;

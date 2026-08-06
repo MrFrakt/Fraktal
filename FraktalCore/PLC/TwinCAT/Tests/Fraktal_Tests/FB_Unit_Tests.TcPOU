@@ -13,6 +13,7 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Unit_run_stall_classes_and_cycle();
 Unit_mode_change_is_estop_by_default();
+Sequence_rows_belong_to_the_active_mode();
 Unit_config_capability_is_typed_and_fail_closed();]]></ST>
     </Implementation>
     <Method Name="Unit_run_stall_classes_and_cycle" Id="{14ae51c7-c760-4004-9fdd-4ede7d4f00ff}">
@@ -100,6 +101,29 @@ AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Other.Unit',
     WriteKey := 'unit.modePolicy.3.shield', Revision := 1, TextValue := '1'),
     Message := 'foreign owner path is rejected');
 TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Sequence_rows_belong_to_the_active_mode" Id="{02a7b2be-5959-445e-aa14-e646770d0bdd}">
+      <Declaration><![CDATA[METHOD Sequence_rows_belong_to_the_active_mode]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Sequence_rows_belong_to_the_active_mode');
+// The previous test left the Unit in MANUAL having run two AUTO steps, so the §3.13
+// table had rows in it when the mode committed. Discovery has no end of its own:
+// without a boundary the chart becomes the union of every chain run since boot.
+AssertEquals_INT(Expected := 0, Actual := _u.SequenceStepCount,
+    Message := 'committing a mode drops the previous mode chain rows');
+AssertEquals_INT(Expected := 0, Actual := _u.SequenceSteps[1].StepNo,
+    Message := 'and clears them, so a later row cannot inherit stale text');
+// the new mode fills its own table from scratch
+AssertTrue(Condition := _u.SetMode(Mode := E_Mode.AUTO), Message := 'back to AUTO');
+_u();
+_u();
+_u();
+AssertTrue(Condition := _u.Start(), Message := 'run the AUTO chain again');
+_u();
+AssertEquals_INT(Expected := 1, Actual := _u.SequenceStepCount,
+    Message := 'the chart rebuilds from the mode that is actually running');
+TEST_FINISHED();]]></ST>
+      </Implementation>
     </Method>
     <Method Name="Unit_mode_change_is_estop_by_default" Id="{7c014f2f-fda2-494e-b29c-1fc8224ac0ab}">
       <Declaration><![CDATA[METHOD Unit_mode_change_is_estop_by_default]]></Declaration>

@@ -86,12 +86,14 @@ void main() {
             'PLC1/MAIN/PneumaticPress');
       });
     }
-    // Fieldbus live I/O shares the reserved fieldbus scope.
+    // Fieldbus drill-down shares the reserved fieldbus scope. The channel VALUE
+    // is deliberately NOT in this list: it is promoted to live (see below), so a
+    // sensor that never comes on is visible without opening the bus page.
     const fieldbus = [
       'PLC1/GVL_PressFieldbus/Topology/NodeCount',
       'PLC1/GVL_PressFieldbus/Topology/Nodes/Nodes[3]/State',
-      'PLC1/GVL_PressFieldbus/Topology/Nodes/Nodes[3]/Channels/Channels[5]/BoolValue',
       'PLC1/GVL_PressFieldbus/Topology/Nodes/Nodes[3]/Channels/Channels[5]/Forced',
+      'PLC1/GVL_PressFieldbus/Topology/Nodes/Nodes[3]/Channels/Channels[5]/Address',
     ];
     for (final path in fieldbus) {
       test(path, () {

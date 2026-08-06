@@ -41,6 +41,42 @@ Ok := _publisher.M_DefineNode(Index := 6, Name := '=000+S-K010E',
     DescriptionKey := 'project.hardware.el9011', TypeId := 'Beckhoff EL9011',
     Address := 'EtherCAT Box 5', ParentIndex := 2) AND Ok;
 
+// §10.5.1 — the RS232 terminal's process image. It belongs to no module (nothing
+// speaks a protocol over it yet), so its ModulePath is the Unit itself: the bus view
+// still shows and forces it, and cross-navigation lands somewhere honest.
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 1,
+    Tag := '_000K010D1_Status', DescriptionKey := 'project.io.el6001Status',
+    Address := '=000+S-K010D1 Status', Path := '=000+S-K010D1/Status',
+    ModulePath := _rootPath, Dir := E_ChannelDir.INPUT, EngUnit := '') AND Ok;
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 2,
+    Tag := '_000K010D1_DataIn0', DescriptionKey := 'project.io.el6001DataIn',
+    Address := '=000+S-K010D1 Data In 0', Path := '=000+S-K010D1/DataIn0',
+    ModulePath := _rootPath, Dir := E_ChannelDir.INPUT, EngUnit := '') AND Ok;
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 3,
+    Tag := '_000K010D1_DataIn1', DescriptionKey := 'project.io.el6001DataIn',
+    Address := '=000+S-K010D1 Data In 1', Path := '=000+S-K010D1/DataIn1',
+    ModulePath := _rootPath, Dir := E_ChannelDir.INPUT, EngUnit := '') AND Ok;
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 4,
+    Tag := '_000K010D1_DataIn2', DescriptionKey := 'project.io.el6001DataIn',
+    Address := '=000+S-K010D1 Data In 2', Path := '=000+S-K010D1/DataIn2',
+    ModulePath := _rootPath, Dir := E_ChannelDir.INPUT, EngUnit := '') AND Ok;
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 5,
+    Tag := '_000K010D1_Ctrl', DescriptionKey := 'project.io.el6001Ctrl',
+    Address := '=000+S-K010D1 Ctrl', Path := '=000+S-K010D1/Ctrl',
+    ModulePath := _rootPath, Dir := E_ChannelDir.OUTPUT, EngUnit := '') AND Ok;
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 6,
+    Tag := '_000K010D1_DataOut0', DescriptionKey := 'project.io.el6001DataOut',
+    Address := '=000+S-K010D1 Data Out 0', Path := '=000+S-K010D1/DataOut0',
+    ModulePath := _rootPath, Dir := E_ChannelDir.OUTPUT, EngUnit := '') AND Ok;
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 7,
+    Tag := '_000K010D1_DataOut1', DescriptionKey := 'project.io.el6001DataOut',
+    Address := '=000+S-K010D1 Data Out 1', Path := '=000+S-K010D1/DataOut1',
+    ModulePath := _rootPath, Dir := E_ChannelDir.OUTPUT, EngUnit := '') AND Ok;
+Ok := _publisher.M_DefineAnalogChannel(NodeIndex := 5, ChannelIndex := 8,
+    Tag := '_000K010D1_DataOut2', DescriptionKey := 'project.io.el6001DataOut',
+    Address := '=000+S-K010D1 Data Out 2', Path := '=000+S-K010D1/DataOut2',
+    ModulePath := _rootPath, Dir := E_ChannelDir.OUTPUT, EngUnit := '') AND Ok;
+
 Ok := _M_DefineCylinder(Identity := SlideIdentity,
     ModulePath := UnitRef.PartSlide.Name,
     ExtendedSensorTag := '_101B301A', ExtendedSensorDescription := 'project.io.101B301A',

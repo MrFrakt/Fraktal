@@ -80,6 +80,7 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 | Understand the model | [`Fraktal_Core_Part_I.md`](Specification/Fraktal_Core_Part_I.md) (§1 foreword, §3 architecture) |
 | Build your first module | [`Fraktal_QuickStart_and_Suite.md`](Specification/Fraktal_QuickStart_and_Suite.md) |
 | Deploy a station & connect the HMI | [`FIRST_PROJECT_AGENT_GUIDE.md`](Specification/FIRST_PROJECT_AGENT_GUIDE.md) |
+| Reproduce XAE compile, library install, and TcUnit runs | [`TWINCAT_XAE_WORKFLOW.md`](Specification/TWINCAT_XAE_WORKFLOW.md) |
 | Bring up the PLC (TwinCAT) | [`FraktalCore/PLC/TwinCAT/README.md`](FraktalCore/PLC/TwinCAT/README.md) |
 | Run / build the HMI | [`FraktalCore/HMI/README.md`](FraktalCore/HMI/README.md) |
 | See what's proven vs. pending | [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md) |

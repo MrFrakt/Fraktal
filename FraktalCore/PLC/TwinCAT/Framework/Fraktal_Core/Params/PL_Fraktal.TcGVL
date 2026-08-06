@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
   <GVL Name="PL_Fraktal" Id="{f799b7c8-d019-4817-b1c7-7035795ae805}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 // Fraktal Core — framework constants (Core §7.2, §3.2, §6.5, §3.16, §6.11)
@@ -7,8 +7,26 @@ VAR_GLOBAL CONSTANT
     MAX_PERMINTLK_COND   : INT := 16;   // Core §7.2 (default 16)
     MAX_EM_CHILDREN      : INT := 16;
     MAX_SEQUENCES        : INT := 16;
-    MAX_SEQUENCE_STEPS   : INT := 32;   // Core §3.13 — rows in a published sequence flow chart   // Core §6.8 — chains attached to one Unit (incl. sub-chains)   // Core §3.2 / §8.2
+    // Core §3.13 — rows in a published sequence flow chart. 32 covered the demo but
+    // not a real machine: a station chain of a hundred-odd steps is ordinary, and the
+    // overflow is SILENT (the row is dropped, the chart just stops growing).
+    //
+    // The cost is per Unit and it is nearly all strings: one row is ~1.16 kB, of which
+    // 98% is the five localization-key and path fields. 128 rows is ~145 kB of PLC
+    // memory per Unit and 2176 OPC UA nodes, which is why SequenceSteps is an
+    // ON-DEMAND subtree on the HMI side (read while the Sequence tab is open, never in
+    // the cyclic snapshot) - see Specification/HMI_CONTRACT.md. Raising this further
+    // costs linearly in both; shortening the string fields is the lever if it matters.
+    MAX_SEQUENCE_STEPS   : INT := 128;
+    // Core §6.9 — errors/messages attached to flow-chart rows at once. Sparse by
+    // nature (one error; a message per step visit until that step runs again), so
+    // this is far below MAX_SEQUENCE_STEPS on purpose. If it fills, the row keeps
+    // its mark and loses only the text (§5.6 degrade, never mislead).
+    MAX_SEQUENCE_ANNOTATIONS : INT := 16;   // Core §6.8 — chains attached to one Unit (incl. sub-chains)   // Core §3.2 / §8.2
     MAX_STEP_CONDS       : INT := 8;    // Core §6.9(b) condition records per step
+    // Core §3.12 — derived state flags a module may publish. Statically sized
+    // per module like every other Fraktal table (§1.1 O10).
+    MAX_STATE_FLAGS      : INT := 12;
     MAX_GENEALOGY        : INT := 8;    // Core §3.16.1
     MAX_RESULTS          : INT := 32;   // Core §3.16.1
     MAX_OPTIONS          : INT := 6;    // Core §6.11
@@ -37,6 +55,12 @@ VAR_GLOBAL CONSTANT
     MAX_SAFETY_DEVICES   : INT := 16;   // Core §9 — published safety aliases per module/zone
     MAX_POWER_GROUPS     : INT := 8;    // Core §9 — independently controlled energy groups
     MAX_CONTROL_DOMAIN_UNITS : INT := 16; // Core §9.8 — root Units sharing one arrangement
+    // Core §6.12 — concurrent legs one chain may run at once. It bounds the
+    // per-leg transition results AND every per-leg step-scoped latch, so it is a
+    // real memory cost per chain, not a loop limit (§1.1 O10: statically sized,
+    // no run-time allocation). Legs are numbered 1..n; 0 is the main line and is
+    // always available on top of these.
+    MAX_PARALLEL_BRANCHES : INT := 9;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

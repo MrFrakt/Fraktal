@@ -106,6 +106,72 @@ ELSE
 END_IF
 M_DefineNode := TRUE;]]></ST></Implementation>
     </Method>
+    <Method Name="M_DefineAnalogChannel" Id="{7843a14a-3a28-4b46-8ace-00783d5c9dac}">
+      <Declaration><![CDATA[// §10.5.1 — declare a non-boolean channel: an analog input, or the process-image
+// bytes of a communication terminal (an EL6001 status/data byte is a channel of
+// the bus like any other, and an operator diagnosing a dead link needs to see it).
+// Identical validation to M_DefineDigitalChannel; only Kind and the unit differ.
+METHOD M_DefineAnalogChannel : BOOL
+VAR_INPUT
+    NodeIndex : INT;
+    ChannelIndex : INT;
+    Tag : STRING(80);
+    DescriptionKey : STRING(160);
+    Address : STRING(80);
+    Path : STRING(255);
+    ModulePath : STRING(255);
+    Dir : E_ChannelDir;
+    EngUnit : STRING(16);          // '' when the raw count has no engineering unit
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_DefineAnalogChannel := FALSE;
+IF NOT _attached THEN
+    RETURN;
+ELSE
+    ;
+END_IF
+IF (NodeIndex < 1) OR (NodeIndex > _data.NodeCount)
+OR (ChannelIndex < 1) OR (ChannelIndex > PL_Fraktal.MAX_NODE_CHANNELS)
+OR (Tag = '') OR (DescriptionKey = '') OR (Address = '')
+OR (Path = '') OR (ModulePath = '') THEN
+    _M_Reject(Text := 'std.error.fieldbusChannelMappingInvalid');
+    RETURN;
+ELSE
+    ;
+END_IF
+_data.Nodes[NodeIndex].Channels[ChannelIndex].Name := Tag;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].DescriptionKey := DescriptionKey;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].Address := Address;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].Path := Path;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].ModulePath := ModulePath;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].Dir := Dir;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].Kind := E_ChannelKind.ANALOG;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].Unit := EngUnit;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].Quality := TRUE;
+IF ChannelIndex > _data.Nodes[NodeIndex].ChannelCount THEN
+    _data.Nodes[NodeIndex].ChannelCount := ChannelIndex;
+ELSE
+    ;
+END_IF
+M_DefineAnalogChannel := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SetAnalogValue" Id="{2e9f746e-0a53-41cf-a3b9-0ed3ffbca215}">
+      <Declaration><![CDATA[// §10.5.1 — publish an analog channel's live value (the analogue of
+// M_SetDigitalValue, and live-tier on the HMI for the same reason).
+METHOD M_SetAnalogValue : BOOL
+VAR_INPUT
+    NodeIndex : INT;
+    ChannelIndex : INT;
+    Value : REAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetAnalogValue := FALSE;
+IF _attached AND (NodeIndex >= 1) AND (NodeIndex <= _data.NodeCount)
+AND (ChannelIndex >= 1) AND (ChannelIndex <= _data.Nodes[NodeIndex].ChannelCount) THEN
+    _data.Nodes[NodeIndex].Channels[ChannelIndex].AnalogValue := Value;
+    M_SetAnalogValue := TRUE;
+ELSE
+    _M_Reject(Text := 'std.error.fieldbusValueMappingInvalid');
+END_IF]]></ST></Implementation>
+    </Method>
     <Method Name="M_DefineDigitalChannel" Id="{c8a4375b-e51b-4416-b08a-8f0548f925e2}">
       <Declaration><![CDATA[METHOD M_DefineDigitalChannel : BOOL
 VAR_INPUT

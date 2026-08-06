@@ -28,6 +28,11 @@ VAR_OUTPUT
     // FB_UnitBase defaults it TRUE and a Unit may vary it per mode.
     SequenceViewEnabled : BOOL;
     ErrorID : DWORD;   // = TO_DWORD(first-out ReasonCode), Core §8.8
+    // §3.12 — derived state published by this module: facts recomputed from the
+    // real state underneath, every scan. Distinct from OutCmd, which is what a
+    // command produced and stays latched until the next one.
+    StateFlags : ARRAY[1..PL_Fraktal.MAX_STATE_FLAGS] OF ST_StateFlag;
+    StateFlagCount : INT;              // highest index published (§8.4 bounded)
 END_VAR
 VAR_OUTPUT
     Status : ST_ModuleStatus;   // Core §3.10(a')/§6.9(a) — the OPC UA data mirror
@@ -56,6 +61,7 @@ VAR
     _manualReq  : BOOL;
     _manualActive : BOOL;        // one-shot manual request owns Execute until terminal state
     _cmdArmed   : BOOL;          // terminal state came from a command; gates the §6.1 reset
+    _stateTouched : ARRAY[1..PL_Fraktal.MAX_STATE_FLAGS] OF BOOL;   // §3.12 published this scan
     _cmdId      : DINT;          // set by _M_TagCommand (one line per type, §8.11.4(a))
     _cmdLabel   : STRING(120);
     _tCmdStart  : DWORD;         // monotonic ms at command start (TC3 §8.11)
@@ -107,6 +113,7 @@ END_IF
 IF commandStarted THEN
     OnCommandStart();                // one-shot after init, before cyclic/dispatch
 END_IF
+_M_SweepStateFlags();                // §3.12 last scan's flags resolve here
 OnCyclic();                          // Core §3.14 hook: background management, no outputs
 
 IF Abort AND (_exec = E_ExecState.BUSY) THEN
@@ -348,6 +355,70 @@ ELSE
     Timing.Rows[slot].Label := _cmdLabel;
     F_TimingUpdate(Row := Timing.Rows[slot], DurMs := DurMs);
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_State" Id="{8a4c71f2-1fd5-4cfd-b3b9-9688e6721e06}">
+      <Declaration><![CDATA[// §3.12 — publish a DERIVED state flag and return it, so the assignment reads
+// exactly as it would without the framework:
+//
+//     OutImm.Homed := _M_State(Idx := 1, Key := 'project.state.atHome',
+//         Ok := Ram.OutImm.Retracted AND Door.OutImm.Retracted);
+//
+// What the call adds over a bare assignment is everything the operator and the
+// HMI need and nobody wants to write per flag (§1.1 O1): the flag carries its
+// own name, and the moment it last changed (§2.7), and it is published on a
+// bounded generic table the HMI renders without knowing the module type (§3.13).
+// Same shape as the §6.9(b) named condition wait, deliberately - one idiom for
+// "a named boolean the framework publishes" (§1.1 O9).
+//
+// CALL IT UNCONDITIONALLY, every scan. A flag that stops being published goes
+// Stale and its Value is forced FALSE on the next scan: state that nobody is
+// computing is not a claim. That is the point of the mechanism - a latch left
+// standing is exactly the failure it exists to prevent.
+//
+// Out-of-range Idx is skipped rather than faulted, matching _M_Await (§6.9(b)):
+// the value still returns, so a mis-indexed flag loses its publication, never
+// the machine logic that reads it.
+METHOD PROTECTED _M_State : BOOL
+VAR_INPUT
+    Idx : INT;
+    Key : STRING(120);
+    Ok  : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_State := Ok;
+IF (Idx < 1) OR (Idx > PL_Fraktal.MAX_STATE_FLAGS) THEN
+    RETURN;
+END_IF
+IF Idx > StateFlagCount THEN
+    StateFlagCount := Idx;
+END_IF
+IF (StateFlags[Idx].Value <> Ok) OR (StateFlags[Idx].Key <> Key)
+OR StateFlags[Idx].Stale THEN
+    StateFlags[Idx].Since := F_Now();      // §2.7 synchronized clock
+END_IF
+StateFlags[Idx].Key   := Key;
+StateFlags[Idx].Value := Ok;
+StateFlags[Idx].Stale := FALSE;
+_stateTouched[Idx] := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SweepStateFlags" Id="{7c21cb03-cf91-4f5b-9317-f62b4aefdb3d}">
+      <Declaration><![CDATA[// §3.12 — resolve the previous scan's publications, before this scan re-publishes.
+// A flag the owner stopped computing stops claiming; nothing has to be
+// deregistered when a module stops publishing one (§1.1 O1).
+METHOD PRIVATE _M_SweepStateFlags
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO StateFlagCount DO
+    IF NOT _stateTouched[i] THEN
+        StateFlags[i].Value := FALSE;
+        StateFlags[i].Stale := TRUE;
+    END_IF
+    _stateTouched[i] := FALSE;
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_TagCommand" Id="{ece46cea-23d0-43c2-813e-8667a9d51bcb}">

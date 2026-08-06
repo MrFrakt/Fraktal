@@ -1,5 +1,7 @@
 import tempfile
 import unittest
+
+_NL = chr(10)
 from pathlib import Path
 
 from tools.plc_lint import (
@@ -197,12 +199,71 @@ TYPE E_Pos : (LOW := 0, MID := 1, HIGH := 2) DINT; END_TYPE
         self._write(root, "Fraktal_Press_Demo/FB_Rung.TcPOU", good)
         self.assertNotIn("S1", self._rules(root))
 
-    def test_s1_ladder_chain_without_m_advance_is_rejected(self):
+    def test_l1_library_type_no_library_object_owns_is_rejected(self):
+        # ST_PneumaticPress* sat in Fraktal_Modules while only the press project
+        # used them: every consumer of the library carried four structs for a
+        # machine they do not have.
         root = self._root()
-        bad = _pou("FB_Rung2", "FUNCTION_BLOCK FB_Rung2 EXTENDS FB_SequenceBase", "")
+        self._write(root, "Framework/Fraktal_Modules/DUTs/ST_OnlyAppUses.TcDUT",
+                    "<TcPlcObject><DUT Name=\"ST_OnlyAppUses\"><Declaration>"
+                    "<![CDATA[TYPE ST_OnlyAppUses : STRUCT x : BOOL; END_STRUCT END_TYPE]]>"
+                    "</Declaration></DUT></TcPlcObject>")
+        self._write(root, "Fraktal_Press_Demo/FB_App.TcPOU", _pou(
+            "FB_App", "FUNCTION_BLOCK FB_App" + _NL + "VAR" + _NL
+            + "  d : ST_OnlyAppUses;" + _NL + "END_VAR"))
+        self.assertIn("L1", self._rules(root))
+
+    def test_l1_accepts_a_type_another_library_owns(self):
+        # Cross-library ownership is correct layering: ST_IoPointIdentity lives
+        # in Fraktal_Core and is owned by Fraktal_Modules. Only "no library at
+        # all" is misfiling.
+        root = self._root()
+        self._write(root, "Framework/Fraktal_Core/DUTs/ST_Shared.TcDUT",
+                    "<TcPlcObject><DUT Name=\"ST_Shared\"><Declaration>"
+                    "<![CDATA[TYPE ST_Shared : STRUCT x : BOOL; END_STRUCT END_TYPE]]>"
+                    "</Declaration></DUT></TcPlcObject>")
+        self._write(root, "Framework/Fraktal_Modules/FB_Owner.TcPOU", _pou(
+            "FB_Owner", "FUNCTION_BLOCK FB_Owner" + _NL + "VAR" + _NL
+            + "  d : ST_Shared;" + _NL + "END_VAR"))
+        self.assertNotIn("L1", self._rules(root))
+
+    def test_l1_accepts_ownership_through_array_of(self):
+        # ST_BusNode owns ST_IoChannel as `ARRAY[..] OF`; matching only `: Name`
+        # made three correctly-placed Core types look misfiled.
+        root = self._root()
+        self._write(root, "Framework/Fraktal_Core/DUTs/ST_Elem.TcDUT",
+                    "<TcPlcObject><DUT Name=\"ST_Elem\"><Declaration>"
+                    "<![CDATA[TYPE ST_Elem : STRUCT x : BOOL; END_STRUCT END_TYPE]]>"
+                    "</Declaration></DUT></TcPlcObject>")
+        self._write(root, "Framework/Fraktal_Core/DUTs/ST_Holder.TcDUT",
+                    "<TcPlcObject><DUT Name=\"ST_Holder\"><Declaration>"
+                    "<![CDATA[TYPE ST_Holder : STRUCT items : ARRAY[1..4] OF ST_Elem; END_STRUCT END_TYPE]]>"
+                    "</Declaration></DUT></TcPlcObject>")
+        self._write(root, "Fraktal_Press_Demo/FB_App3.TcPOU", _pou(
+            "FB_App3", "FUNCTION_BLOCK FB_App3" + _NL + "VAR" + _NL
+            + "  d : ST_Elem;" + _NL + "END_VAR"))
+        self.assertNotIn("L1", self._rules(root))
+
+    def test_s1_ladder_may_drive_step_directly(self):
+        # The integer-state-machine form: a rung MOVEs the next state into _step.
+        # It needs neither _retVal nor M_Advance, and demanding them would have
+        # forced a rung through a transition mechanism ladder does not use.
+        root = self._root()
+        good = _pou("FB_Rung2", "FUNCTION_BLOCK FB_Rung2 EXTENDS FB_SequenceBase", "")
+        good = good.replace("<ST><![CDATA[]]></ST>",
+                            '<LADDER><![CDATA[<v n="BoxType">"M_Step"</v>'
+                            '<v n="Operand">"_step"</v>]]></LADDER>')
+        self._write(root, "Fraktal_Press_Demo/FB_Rung2.TcPOU", good)
+        self.assertNotIn("S1", self._rules(root))
+
+    def test_s1_chart_that_cannot_progress_at_all_is_rejected(self):
+        # Records steps but has no way to leave one: no M_Advance, no _retVal for a
+        # chart runtime to read, no _step for a rung to write.
+        root = self._root()
+        bad = _pou("FB_Rung3", "FUNCTION_BLOCK FB_Rung3 EXTENDS FB_SequenceBase", "")
         bad = bad.replace("<ST><![CDATA[]]></ST>",
-                          "<LADDER><![CDATA[_retVal M_Step(]]></LADDER>")
-        self._write(root, "Fraktal_Press_Demo/FB_Rung2.TcPOU", bad)
+                          '<LADDER><![CDATA[<v n="BoxType">"M_Step"</v>]]></LADDER>')
+        self._write(root, "Fraktal_Press_Demo/FB_Rung3.TcPOU", bad)
         self.assertIn("S1", self._rules(root))
 
     def test_s1_follows_the_inheritance_chain_to_fb_sequencebase(self):

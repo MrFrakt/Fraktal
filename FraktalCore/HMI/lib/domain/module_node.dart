@@ -109,8 +109,15 @@ class ModuleNode {
   final List<StepStat> stepStats; // §8.11.4 Pareto (Units)
   // §3.13 sequence flow chart. The PLC decides whether this module has a chain
   // worth drawing; the HMI never guesses from the module type.
+  /// §3.12 derived state this module publishes, in index order.
+  final List<StateFlag> stateFlags;
   final bool sequenceViewEnabled;
   final List<SequenceStep> sequenceSteps;
+
+  /// §3.13 rows the PLC says it has. Published live at the module root while
+  /// [sequenceSteps] is an on-demand subtree, so this is what tells the UI the
+  /// chart exists before any row has been read.
+  final int sequenceStepCount;
   final Duration currentStepElapsed;
   final bool currentStepTimedOut;
   final List<CommandInfo>
@@ -180,8 +187,10 @@ class ModuleNode {
     this.config = const [],
     this.step,
     this.stepStats = const [],
+    this.stateFlags = const [],
     this.sequenceViewEnabled = false,
     this.sequenceSteps = const [],
+    this.sequenceStepCount = 0,
     this.currentStepElapsed = Duration.zero,
     this.currentStepTimedOut = false,
     this.commands = const [],

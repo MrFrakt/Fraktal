@@ -20,13 +20,46 @@ VAR
     // the next scan's actions run - by M_Advance on commit in an ST chart, or by
     // M_BeginScan when the chart runtime owns the transition (SFC/LD/FBD).
     _retVal  : E_StepResult;
+    // §6.12 — the same one-scan signal as _retVal, but one per CONCURRENT LEG.
+    // A parallel divergence has several active steps at once, so a single shared
+    // result cannot work: whichever leg wrote last would decide every leg's
+    // transition. Index n belongs to leg n; the main line keeps _retVal, so a
+    // chain with no parallel branch never touches this array.
+    //
+    // A leg's step action writes `_conRetVal[n] := E_StepResult.ADVANCE;` and its
+    // transition reads `_conRetVal[n] = E_StepResult.ADVANCE`; the join reads every
+    // leg plus the main line. Cleared with _retVal once per scan (M_BeginScan), and
+    // per leg on that leg's step exit (M_ClearTransition) - never across legs,
+    // which would let one leg's commit erase another's result mid-motion.
+    _conRetVal  : ARRAY[1..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF E_StepResult;
     _restart : BOOL;               // a step may request a chart restart (M_Run applies it)
     {attribute 'OPC.UA.DA' := '0'}
     _host : I_SequenceHost;        // owning module's framework services (§6.7)
     _attached : BOOL;
-    _delay : TON;                  // M_Delay's timer (cleared with the transition)
-    _driveIssued : BOOL;           // M_MayIssue's per-step issue latch (cleared on commit)
-    _subRunning : BOOL;            // M_RunSub's per-step latch (cleared on commit)
+    // §6.12 — every STEP-scoped latch is per CONCURRENT BRANCH, because two legs of
+    // a parallel divergence are two active steps in the same POU at the same time.
+    // Sharing one latch let leg A's issue consume leg B's, and let leg A's step exit
+    // wipe leg B's transition result. Index 0 is the main line, which is what a chain
+    // without any parallel branch uses throughout.
+    _delay : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF TON;
+    _driveIssued : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF BOOL;
+    _subRunning : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF BOOL;
+    // Which leg the step action executing RIGHT NOW belongs to. Set by M_Step from
+    // its `Branch` input, so it is always in step with the record just published,
+    // and reset to _branchBase every scan - a chain that never names a leg is
+    // therefore always on its own, which for a top-level chain is the main line.
+    _branch : INT;
+    // This chain's own leg index when the chain IS a leg (assigned by M_RunPar at
+    // the fork). 0 for a top-level chain. It is what lets a leg written as its own
+    // chain tag every one of its rows without naming a branch anywhere.
+    _branchBase : INT;
+    _lastStep : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF INT;
+    _stepSeen : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF BOOL;
+    _parStarted : ARRAY[1..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF BOOL;
+    _parLegs : INT;                // M_RunPar calls made this scan
+    _parDone : INT;                // how many of them reported Done
+    _errorRaised : BOOL;           // this chain raised the active fault (§6.9)
+    _warnRaised : ARRAY[0..PL_Fraktal.MAX_PARALLEL_BRANCHES] OF BOOL;   // §6.9(e) one message per step visit
     _baseStepNo : INT;             // §6.5 step-record offset when run as a sub-chain
 END_VAR]]></Declaration>
     <Implementation>
@@ -135,9 +168,110 @@ END_IF]]></ST>
 // and `_delay` (M_Delay's timer) are STEP-scoped, not scan-scoped: resetting them
 // every scan would re-issue a child command every cycle and stop any delay from
 // ever elapsing. Those re-arm on step change, through M_ClearTransition.
-METHOD M_BeginScan]]></Declaration>
+METHOD M_BeginScan
+VAR
+	Idx : INT;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_retVal := E_StepResult.NONE;]]></ST>
+        <ST><![CDATA[_retVal := E_StepResult.NONE;
+FOR Idx := 1 TO PL_Fraktal.MAX_PARALLEL_BRANCHES DO
+    _conRetVal[Idx] := E_StepResult.NONE;
+END_FOR
+// §6.12 the branch cursor is scan-scoped: a step action that does not declare a
+// branch is on the main line (or on this chain's own leg when it IS a leg), so a
+// chain with no parallel branch never mentions one.
+_branch := _branchBase;
+_parLegs := 0;
+_parDone := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ChainReset" Id="{a41025db-fb80-43ee-99ef-bace7f63f844}">
+      <Declaration><![CDATA[// Restart this chain as a sub-chain of a composite step: its step records are
+// offset by the owning step number (§6.5) so the stall walk still reports one
+// continuous chain. OnChainReset carries any application state.
+METHOD M_ChainReset
+VAR_INPUT
+    BaseStepNo : INT;
+    // §6.12 the leg index this chain runs as, assigned by the fork. 0 = not a leg.
+    // Every step it records is tagged with it, so the project writes it once per
+    // leg instead of once per step (§1.1 O1).
+    Branch : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_baseStepNo := BaseStepNo;
+_branchBase := Branch;
+M_ResetBase(FirstStep := 0);
+OnChainReset();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ParJoin" Id="{f98ae9d3-390d-46f9-904f-3a62bb18f212}">
+      <Declaration><![CDATA[// §6.12 — the join of a parallel step: ADVANCE on the scan every leg run this
+// scan has reported Done, NONE while any is still working. The counts are
+// scan-scoped, so the join always reflects the legs the step actually ran -
+// there is no leg list to register, and none to forget to update (§1.1 O1).
+METHOD M_ParJoin : E_StepResult]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ParJoin := E_StepResult.NONE;
+IF (_parLegs > 0) AND (_parDone = _parLegs) THEN
+    M_ParJoin := E_StepResult.ADVANCE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RunPar" Id="{707c763b-a5d2-4ecb-bf74-ae809dae7fd3}">
+      <Declaration><![CDATA[// §6.12 — run one leg of a parallel step. THE portable form of a parallel
+// divergence, and the only one available to an ST chain.
+//
+//     M_Step(StepNo := 500, StepName := 'project.step.bothPositions', ...);
+//     M_RunPar(Chain := _positionA, BaseStepNo := 500, Branch := 1);
+//     M_RunPar(Chain := _positionB, BaseStepNo := 600, Branch := 2);
+//     _retVal := M_ParJoin();
+//     M_Advance(OnAdvance := 999);
+//
+// Each leg is an ordinary FB_SequenceBase chain, so it brings its own step
+// pointer, its own transition result and its own step-scoped latches - the
+// collisions §6.12 has to manage inside one POU simply cannot arise (§1.1 O4:
+// the model scales structurally rather than by decoration). Its steps are
+// recorded under BaseStepNo and tagged with Branch, so the §3.13 flow chart
+// groups them and the §6.9 walk still names one continuous chain.
+//
+// Returns TRUE on the scans this leg reports Done. The entry latch is
+// step-scoped, so re-entering the fork step later restarts every leg.
+METHOD M_RunPar : BOOL
+VAR_INPUT
+    Chain : REFERENCE TO FB_SequenceBase;
+    BaseStepNo : INT;
+    Branch : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RunPar := FALSE;
+IF NOT __ISVALIDREF(Chain) THEN
+    RETURN;
+END_IF
+IF (Branch < 1) OR (Branch > PL_Fraktal.MAX_PARALLEL_BRANCHES) THEN
+    M_Fault(Reason := E_Reason.UNSUPPORTED_COMMAND,
+        DescriptionKey := 'std.error.parallelBranchOutOfRange');
+    RETURN;                          // §5.6 no silent default
+END_IF
+IF NOT _parStarted[Branch] THEN
+    Chain.M_ChainReset(BaseStepNo := BaseStepNo, Branch := Branch);
+    _parStarted[Branch] := TRUE;
+END_IF
+Chain.M_ChainRun();
+_parLegs := _parLegs + 1;
+IF Chain.Done THEN
+    _parDone := _parDone + 1;
+    M_RunPar := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ChainRun" Id="{b2dd28b6-7db9-48a6-8f4e-a437e83baa79}">
+      <Declaration><![CDATA[// One scan of this chain. An ST chart overrides this with its
+// `CASE _step OF` body; a chart-language POU leaves it alone because its own body
+// IS the chart and the runtime executes it. Only a chain that is used as a
+// composite step (M_RunSub) has to override it.
+METHOD M_ChainRun]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_ClearDecision" Id="{4b06d8e1-72af-4c95-a3d8-e50c19b7f234}">
@@ -151,16 +285,32 @@ END_IF]]></ST>
     <Method Name="M_ClearTransition" Id="{2e6b48d1-95cf-4a73-b30e-6f81da29c504}">
       <Declaration><![CDATA[// the ONE shared STEP-EXIT action: a completed step's result never leaks into
 // the next step, and the step-scoped helpers (delay, drive latch) re-arm.
+// §6.12 — it re-arms THE CURRENT BRANCH only. Clearing every branch here is what
+// made a parallel divergence misbehave: one leg committing a step wiped the other
+// leg's transition result and its issue latch mid-motion.
 // ST charts reach this through M_Advance on commit. A chart language whose
 // engine owns the transition (SFC/LD/FBD) wires this as the step exit action,
 // which the runtime executes AFTER the transition condition was evaluated -
 // so the transition still sees the result the step action produced.
-METHOD M_ClearTransition]]></Declaration>
+METHOD M_ClearTransition
+VAR
+	Idx : INT;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_retVal := E_StepResult.NONE;
-_driveIssued := FALSE;
-_subRunning := FALSE;
-_delay(IN := FALSE);]]></ST>
+        <ST><![CDATA[IF _branch = 0 THEN
+    _retVal := E_StepResult.NONE;
+    // A fork always sits on the main line of its own chain (§6.12), so leaving the
+    // fork step is what re-arms its legs for a later re-entry.
+    FOR Idx := 1 TO PL_Fraktal.MAX_PARALLEL_BRANCHES DO
+        _parStarted[Idx] := FALSE;
+    END_FOR
+ELSE
+    _conRetVal[_branch] := E_StepResult.NONE;
+END_IF
+_driveIssued[_branch] := FALSE;
+_warnRaised[_branch] := FALSE;
+_subRunning[_branch] := FALSE;
+_delay[_branch](IN := FALSE);]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Complete" Id="{68e5b09c-d3f1-4a27-85b6-04c7a2e91d58}">
@@ -189,9 +339,9 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_Delay := E_StepResult.NONE;
-_delay(IN := TRUE, PT := PT);
-IF _delay.Q THEN
-    _delay(IN := FALSE);
+_delay[_branch](IN := TRUE, PT := PT);
+IF _delay[_branch].Q THEN
+    _delay[_branch](IN := FALSE);
     M_Delay := E_StepResult.ADVANCE;
 END_IF]]></ST>
       </Implementation>
@@ -245,11 +395,11 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_MayIssue := FALSE;
-IF _driveIssued THEN
+IF _driveIssued[_branch] THEN
     RETURN;
 END_IF
 IF M_Gate(Steppable := Steppable) THEN
-    _driveIssued := TRUE;
+    _driveIssued[_branch] := TRUE;
     M_MayIssue := TRUE;
 END_IF]]></ST>
       </Implementation>
@@ -304,6 +454,139 @@ END_IF]]></ST>
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_RaiseCustom" Id="{11030a2b-446d-408a-be8e-77b2d821a339}">
+      <Declaration><![CDATA[// §6.9/§8.8 — raise a message this step defines itself.
+//
+// For a condition the framework cannot see: a measured value out of band, a
+// disagreement between two children, an application rule. LinkPath is the module
+// the §3.13 chart should drill into ('' = this Unit).
+//
+// Severity and Category are a PROPOSAL, not the last word: adoption runs the §8.8
+// rationalization, so a reason that is in the registry gets the registry's priority
+// and category and these inputs are ignored. They survive for a project band code
+// (10000+) the registry does not know - which is exactly where a custom message of
+// a different level belongs.
+METHOD M_RaiseCustom : BOOL
+VAR_INPUT
+    Reason         : E_Reason;
+    DescriptionKey : STRING(255);
+    Severity       : E_Severity;
+    Category       : E_Category;
+    LinkPath       : STRING(255);
+END_VAR
+VAR
+    diag : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RaiseCustom := FALSE;
+IF _host = 0 THEN
+    RETURN;
+END_IF
+diag.ReasonCode  := Reason;
+diag.Description := DescriptionKey;
+diag.SourcePath  := LinkPath;
+diag.Severity    := Severity;
+diag.Category    := Category;
+M_RaiseCustom := _host.M_SequenceRaise(Diag := diag, LinkPath := LinkPath);
+_errorRaised := M_RaiseCustom;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RaiseFromChild" Id="{df83c77d-bc83-42e1-ac7d-6193bc3a0362}">
+      <Declaration><![CDATA[// §6.9 — adopt a child's first-out from inside conditional step logic.
+//
+// `Awaits` rolls a child fault up automatically, but only for a step that hands
+// the child to the framework. A step that decides for itself - anything with an
+// IF or CASE around the command - calls this instead, and gets the same result:
+// the child's reason verbatim, the child's path as the §3.13 drill-down link,
+// and the chain stopped until the error is cleared.
+//
+// Returns TRUE only when a fault was actually raised, so the usual shape is
+//     IF M_RaiseFromChild(Source := _pressRam) THEN RETURN; END_IF
+METHOD M_RaiseFromChild : BOOL
+VAR_INPUT
+    Source : I_Module;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RaiseFromChild := FALSE;
+IF Source = 0 THEN
+    RETURN;
+END_IF
+IF NOT Source.FaultActive THEN
+    RETURN;                          // nothing to raise: safe to call every scan
+END_IF
+IF _host = 0 THEN
+    RETURN;
+END_IF
+M_RaiseFromChild := _host.M_SequenceRaise(Diag := Source.GetFaultSummary(),
+    LinkPath := Source.Name);
+_errorRaised := M_RaiseFromChild;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RaiseWarning" Id="{3fe15fab-e9b5-4d06-9baf-f8b35615c629}">
+      <Declaration><![CDATA[// §6.9(e) — a custom message that informs and lets the chain carry on.
+//
+// For designed behaviour with a consequence worth recording: an operator
+// releasing a two-hand control mid-motion, a retry, a value drifting inside its
+// band. It is NOT the error path - the chain is not stopped, no fault is
+// adopted, and the step keeps whatever recovery it already routes to.
+//
+// Raised at most ONCE per visit to a step, however many scans the step runs and
+// however many times this is called (§1.1 O1: a project shall never have to
+// remember an edge latch for correctness). Committing the step re-arms it.
+//
+// Severity/Category are the caller's for a project band code; a reason in the
+// §8.8 registry is rationalized to the registry's values like any other.
+METHOD M_RaiseWarning : BOOL
+VAR_INPUT
+    Reason         : E_Reason;
+    DescriptionKey : STRING(255);
+    Severity       : E_Severity;
+    Category       : E_Category;
+END_VAR
+VAR
+    diag : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RaiseWarning := FALSE;
+IF _warnRaised[_branch] OR (_host = 0) THEN
+    RETURN;                          // already said once for this visit
+END_IF
+diag.ReasonCode  := Reason;
+diag.Description := DescriptionKey;
+diag.Severity    := Severity;
+diag.Category    := Category;
+M_RaiseWarning := _host.M_SequenceWarn(Diag := diag);
+_warnRaised[_branch] := M_RaiseWarning;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReportFromChild" Id="{3c0625b4-1691-42a6-8198-5d21de9ddfe5}">
+      <Declaration><![CDATA[// §6.9(e) — publish a child's failure WITHOUT adopting it.
+//
+// The counterpart of M_RaiseFromChild, for a step that already owns the
+// recovery: the child's first-out reaches the alarm ring and the §3.13 chart
+// (marked on this step, click-through to the child), but nothing faults and the
+// chain keeps the branch it was going to take anyway. Press AUTO N200 is the
+// case: the ram not reaching is handled by an operator confirmation and a scrap,
+// so stopping there would replace a designed recovery with a hard fault - while
+// saying nothing left the failure invisible on the Unit.
+//
+// Reported once per visit to the step, so calling it every scan is correct.
+METHOD M_ReportFromChild : BOOL
+VAR_INPUT
+    Source : I_Module;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ReportFromChild := FALSE;
+IF _warnRaised[_branch] OR (_host = 0) OR (Source = 0) THEN
+    RETURN;
+END_IF
+IF NOT Source.FaultActive THEN
+    RETURN;                          // nothing to report: safe every scan
+END_IF
+M_ReportFromChild := _host.M_SequenceWarn(Diag := Source.GetFaultSummary());
+_warnRaised[_branch] := M_ReportFromChild;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_ResetBase" Id="{5a90c3e2-7f18-4d66-8b2a-9ce45d10f782}">
       <Declaration><![CDATA[// clear the base flow state to the first step. The derived M_Reset calls this.
 METHOD M_ResetBase
@@ -316,45 +599,39 @@ VAR_INPUT
     {ELSE}
     FirstStep : INT := 0;          // the chain's initial step number (N000 = 0)
     {END_IF}
+END_VAR
+VAR
+    Idx : INT;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_step := FirstStep;
 ActiveStep := FirstStep;
 Done := FALSE;
 _restart := FALSE;
+// §6.12 a reset re-arms EVERY branch, not just the one that happened to run last.
+FOR Idx := 0 TO PL_Fraktal.MAX_PARALLEL_BRANCHES DO
+    _stepSeen[Idx] := FALSE;
+    _lastStep[Idx] := -1;
+    _branch := Idx;
+    M_ClearTransition();
+END_FOR
+_branch := _branchBase;
+_parLegs := 0;
+_parDone := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResumeAfterError" Id="{60fcb1e5-ca9a-42a5-8f04-39fe8ddf26c0}">
+      <Declaration><![CDATA[// §6.9 — the owning Unit left ERROR. The chain's _step was never touched, so it
+// resumes exactly where it stopped; re-arming the step-scoped latches here is
+// what makes it RE-EVALUATE the command rather than resume mid-handshake with a
+// spent M_MayIssue one-shot and a half-run delay.
+METHOD M_ResumeAfterError]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _errorRaised THEN
+    RETURN;
+END_IF
+_errorRaised := FALSE;
 M_ClearTransition();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_ChainRun" Id="{b2dd28b6-7db9-48a6-8f4e-a437e83baa79}">
-      <Declaration><![CDATA[// One scan of this chain. An ST chart overrides this with its
-// `CASE _step OF` body; a chart-language POU leaves it alone because its own body
-// IS the chart and the runtime executes it. Only a chain that is used as a
-// composite step (M_RunSub) has to override it.
-METHOD M_ChainRun]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_ChainReset" Id="{a41025db-fb80-43ee-99ef-bace7f63f844}">
-      <Declaration><![CDATA[// Restart this chain as a sub-chain of a composite step: its step records are
-// offset by the owning step number (§6.5) so the stall walk still reports one
-// continuous chain. OnChainReset carries any application state.
-METHOD M_ChainReset
-VAR_INPUT
-    BaseStepNo : INT;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_baseStepNo := BaseStepNo;
-M_ResetBase(FirstStep := 0);
-OnChainReset();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="OnChainReset" Id="{6e368c40-f3a8-46a7-866a-7e436102e0a9}">
-      <Declaration><![CDATA[// §3.14 hook: clear application-owned chain state on restart. Empty by default
-// so a chain that has none writes nothing.
-METHOD PROTECTED OnChainReset]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_RunSub" Id="{c441a4bf-6a3a-473d-aecf-8dcf381358dc}">
@@ -364,7 +641,9 @@ METHOD PROTECTED OnChainReset]]></Declaration>
 //     _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);
 //
 // The entry latch is step-scoped and re-arms through M_ClearTransition, so a
-// chain re-entered later restarts correctly. Hand-written, this was eight lines
+// chain re-entered later restarts correctly. The sub-chain inherits the leg of
+// the step that runs it (§6.12), so a composite step inside a parallel branch
+// publishes its sub-steps under that leg without saying so. Hand-written, this was eight lines
 // per composite step and one forgotten latch reset left a chain that never ran
 // again (§1.1 O1: the framework owns repeated flow control, not the project).
 METHOD M_RunSub : E_StepResult
@@ -377,13 +656,18 @@ END_VAR]]></Declaration>
 IF NOT __ISVALIDREF(Chain) THEN
     RETURN;
 END_IF
-IF NOT _subRunning THEN
-    Chain.M_ChainReset(BaseStepNo := BaseStepNo);
-    _subRunning := TRUE;
+IF NOT _subRunning[_branch] THEN
+    // §6.12 — the sub-chain runs INSIDE this step, so it belongs to whatever leg
+    // this step is on. _branch is already correct (M_Step set it from the step
+    // record), so there is nothing for the project to state and nothing that can
+    // drift out of step with the record - the same reason Branch is an input of
+    // M_Step rather than a call beside it (§1.1 O1).
+    Chain.M_ChainReset(BaseStepNo := BaseStepNo, Branch := _branch);
+    _subRunning[_branch] := TRUE;
 END_IF
 Chain.M_ChainRun();
 IF Chain.Done THEN
-    _subRunning := FALSE;
+    _subRunning[_branch] := FALSE;
     M_RunSub := E_StepResult.ADVANCE;
 END_IF]]></ST>
       </Implementation>
@@ -398,12 +682,50 @@ VAR_INPUT
     AwaitingLabel : STRING(120);
     TimeClass : E_TimeClass;
     ExpectedTime : TIME;
+    // §6.12 — the concurrent leg this step belongs to, which a step on the main
+    // line never mentions. Folding it into the step record rather than a separate
+    // call is what makes it impossible to declare a leg without recording a step,
+    // or to record a step under the wrong leg because the declaration was
+    // forgotten (§1.1 O1: the framework owns the bookkeeping, not the project).
+    // 0 means "this chain's own leg", which is the main line for a top-level chain
+    // and the index the fork assigned for a chain running as a leg (M_RunPar) -
+    // so a leg written as its own chain never mentions a branch either.
+    {IF defined (FRAKTAL_TC3_4024)}
+    Branch : INT;
+    {ELSE}
+    Branch : INT := 0;
+    {END_IF}
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[ActiveStep := StepNo;
+        <ST><![CDATA[// §6.12 — select the leg first: everything below, and everything the step action
+// does after this call (M_MayIssue, M_Delay, M_RunSub, the §6.9(e) message latch)
+// is scoped to it. An out-of-range index faults rather than quietly landing on the
+// main line (§5.6 - no silent default).
+IF Branch < 0 OR Branch > PL_Fraktal.MAX_PARALLEL_BRANCHES THEN
+    M_Fault(Reason := E_Reason.UNSUPPORTED_COMMAND,
+        DescriptionKey := 'std.error.parallelBranchOutOfRange');
+    RETURN;
+END_IF
+IF Branch > 0 THEN
+    _branch := Branch;
+ELSE
+    _branch := _branchBase;
+END_IF
+// A chart language never calls M_ClearTransition: its engine owns the transition,
+// so there is no commit point to hang it on. The step record is the one call every
+// step of every language makes, so the re-arm belongs here - a new step number on
+// this leg re-arms that leg's issue latch, delay and message. Without it
+// M_MayIssue fired once per chart RUN instead of once per step.
+IF (NOT _stepSeen[_branch]) OR (_lastStep[_branch] <> StepNo) THEN
+    _lastStep[_branch] := StepNo;
+    _stepSeen[_branch] := TRUE;
+    M_ClearTransition();
+END_IF
+ActiveStep := StepNo;
 IF _host <> 0 THEN
     _host.M_SequenceSetStep(StepNo := StepNo, StepName := StepName, Awaits := Awaits,
-        AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime);
+        AwaitingLabel := AwaitingLabel, TimeClass := TimeClass, ExpectedTime := ExpectedTime,
+        Branch := _branch);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -433,6 +755,14 @@ END_IF]]></ST>
 IF _host <> 0 THEN
     M_TakeDecision := _host.M_SequenceTakeDecision();
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnChainReset" Id="{6e368c40-f3a8-46a7-866a-7e436102e0a9}">
+      <Declaration><![CDATA[// §3.14 hook: clear application-owned chain state on restart. Empty by default
+// so a chain that has none writes nothing.
+METHOD PROTECTED OnChainReset]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
       </Implementation>
     </Method>
   </POU>

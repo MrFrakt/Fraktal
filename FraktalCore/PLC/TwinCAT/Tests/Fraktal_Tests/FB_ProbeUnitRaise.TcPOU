@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeUnitRaise" Id="{ecd5ce5c-f811-4b37-9e9d-8592aa940b1e}" SpecialFunc="None">
+    <Declaration><![CDATA[// Unit host for the §6.9 raise suite. Wiring only - every step lives in the chain.
+// It registers its child but deliberately does NOT call _M_RollupFault: that is the
+// whole scenario. A child commanded behind an IF cannot be handed to `Awaits`, so
+// without an explicit raise its fault would leave the chain waiting until the stall
+// guard, with nothing naming what broke.
+FUNCTION_BLOCK FB_ProbeUnitRaise EXTENDS FB_UnitBase
+VAR_INPUT
+    Enable    : BOOL;
+    SimCustom : BOOL;
+    SimWarn   : BOOL;
+    ReportOnly : BOOL;
+    // Whether a fresh run command restarts the chain (the demo's choice) or lets it
+    // resume where the error stopped it. Both are legitimate; the project decides.
+    RestartOnCommand : BOOL;
+END_VAR
+VAR
+    Child : FB_ProbeCM;
+    Chain : FB_ProbeRaiseChain;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{cda28714-e203-4714-85e0-4503699b36f6}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+StallTime := T#10S;                      // long: this suite tests raises, not stalls
+Setup := Child.Setup(Name := CONCAT(Name, '.Child'))
+    AND _M_Register(Child := Child)
+    AND Chain.Setup(Host := THIS^, Child := Child);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{7f49edc6-8949-41ee-9f6a-d8c148731356}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();   // base first (Core §3.14.2)
+_M_TickChildren();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{d8ace433-b9d1-4eee-8219-31366ee30189}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Chain.Enable := Enable;
+Chain.SimCustom := SimCustom;
+Chain.SimWarn := SimWarn;
+Chain.ReportOnly := ReportOnly;
+Chain.M_Run();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCommandStart" Id="{1c1a7a0e-a890-4c1b-bc92-7658d14b5122}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCommandStart : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCommandStart := SUPER^.OnCommandStart();
+IF RestartOnCommand THEN
+    Chain.M_Reset();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TestSetChild" Id="{aa7384f7-c394-445d-8f52-fbb0a6baa453}">
+      <Declaration><![CDATA[// Test injection stays inside the owning FB (see FB_ProbeEM).
+METHOD M_TestSetChild : BOOL
+VAR_INPUT
+    ChildDone  : BOOL;
+    ChildFault : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[Child.SimDone := ChildDone;
+Child.SimFault := ChildFault;
+M_TestSetChild := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_TestIssues" Id="{cc868337-e8dc-4c25-a8d2-9be52a53ae5f}">
+      <Declaration><![CDATA[// test seam: how many times the guarded command was actually issued
+METHOD M_TestIssues : UDINT]]></Declaration>
+      <Implementation><ST><![CDATA[M_TestIssues := Chain.Issues;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_TestChainStep" Id="{07df548c-9978-4500-a46a-979960eac6cc}">
+      <Declaration><![CDATA[// test seam: the chain's own active step, which a raise must not move
+METHOD M_TestChainStep : INT]]></Declaration>
+      <Implementation><ST><![CDATA[M_TestChainStep := Chain.ActiveStep;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

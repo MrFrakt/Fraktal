@@ -142,6 +142,12 @@ and all safety-dependent physical tests still marked separately for SAT.
 
 ## 6. Phase D — TwinCAT build and target deployment
 
+Before operating XAE, read `TWINCAT_XAE_WORKFLOW.md`. It is the authoritative
+record and repeatable procedure for solution isolation, nested IEC compilation,
+`CheckAllObjects`, Core→Modules library save/install, test download/run, cleanup,
+and evidence capture. In particular, its hidden-XAE script is compiler-only and
+never authorizes target activation or a download.
+
 1. Pin and record XAE/XAR. A `.plcproj` is added to a TwinCAT XAE solution with
    **PLC → Add Existing Item**; it is not opened as a solution.
 2. Build and install `Fraktal_Core` as a library, then build and install

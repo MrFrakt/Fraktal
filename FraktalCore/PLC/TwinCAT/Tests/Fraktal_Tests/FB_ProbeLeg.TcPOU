@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeLeg" Id="{a793bca8-15ae-4ae4-898e-9878fb1e32c9}" SpecialFunc="None">
+    <Declaration><![CDATA[// §6.12 — one leg of a parallel step, written as an ORDINARY chain. That is the
+// whole point of the ST form: a leg is a chain, so it brings its own step pointer,
+// its own transition result and its own step-scoped latches, and nothing about it
+// has to know it is running beside another one.
+FUNCTION_BLOCK FB_ProbeLeg EXTENDS FB_SequenceBase
+VAR_OUTPUT
+    Issues : UDINT;                    // times this leg issued its command
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _child : REFERENCE TO FB_ProbeCM;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{e7b7ef3e-1b7c-48ef-9707-f49f91a49caa}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Host : I_SequenceHost;
+END_VAR
+VAR_IN_OUT
+    Child : FB_ProbeCM;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_child REF= Child;
+Setup := M_Attach(Host := Host) AND __ISVALIDREF(_child);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnChainReset" Id="{b95b78b2-6dc0-46ff-b35e-5b4f07ec9f7f}">
+      <Declaration><![CDATA[METHOD OnChainReset]]></Declaration>
+      <Implementation><ST><![CDATA[Issues := 0;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ChainRun" Id="{b717624d-ac18-48f7-b19c-e4458d0616a5}">
+      <Declaration><![CDATA[// Run as a composite/parallel leg, so the step records are offset by _baseStepNo
+// (§6.5) and the chart still reads as one continuous chain.
+METHOD M_ChainRun]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE _step OF
+    0:
+        M_Step(StepNo := _baseStepNo, StepName := 'project.test.legCommand', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        IF M_MayIssue(Steppable := TRUE) THEN
+            Issues := Issues + 1;
+            _child.Abort := FALSE;
+            _child.Execute := TRUE;
+        END_IF
+        IF _child.Done THEN
+            _child.Execute := FALSE;
+            _retVal := E_StepResult.ADVANCE;
+        END_IF
+        M_Advance(OnAdvance := 999);
+    999:
+        M_Step(StepNo := _baseStepNo + 90, StepName := 'project.test.legDone', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        Done := TRUE;                  // the join reads this
+ELSE
+    M_Fault(Reason := E_Reason.STEP_STALLED, DescriptionKey := 'std.error.undefinedStep');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

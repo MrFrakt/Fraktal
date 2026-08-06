@@ -39,8 +39,16 @@
 ### TC3 §2.2 Library distribution
 *Binds Core §2.2.*
 - Libraries are referenced as versioned TwinCAT library references with their dependencies; local or relative library references are not permitted (Core §5.4). The framework library ships as a versioned TwinCAT library; projects consume a pinned release, never a copy.
-- **Reference implementation:** repository `fraktal-core` — `PLC/TwinCAT/Framework/Fraktal_Core` (framework library), `PLC/TwinCAT/Framework/Fraktal_Modules` (reusable module library), `PLC/TwinCAT/Examples/CoreDemo/Fraktal_Demo` (executable root-Unit forest), `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo` (internal acceptance fixture), `PLC/TwinCAT/Tests` (aggregate Core + Modules TcUnit gate) and `PLC/TwinCAT/Examples/PressDemo/PressTests` (the press example's gate) — both excluded from the deployed runtime, and `PLC/TwinCAT/scaffold`.
+- **Reference implementation:** repository `fraktal-core` — `PLC/TwinCAT/Framework/Fraktal_Core` (framework library), `PLC/TwinCAT/Framework/Fraktal_Modules` (reusable module library), `PLC/TwinCAT/Examples/CoreDemo/Fraktal_Demo` (executable root-Unit forest), `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo` (internal feature-testing bench, not a real project), `PLC/TwinCAT/Tests` (aggregate Core + Modules TcUnit gate) and `PLC/TwinCAT/Examples/PressDemo/PressTests` (the bench's integration gate) — both test applications are excluded from deployed runtimes, and `PLC/TwinCAT/scaffold`.
 - TwinCAT library metadata uses four components (`major.minor.patch.revision`, e.g. `0.1.0.0`). Fraktal compatibility follows the first three semantic-version components; `revision` identifies a binding rebuild that does not change the observable contract.
+- The reproducible XAE build order, full-build/object-check distinction, local
+  library save/install procedure, isolated-runtime interaction, and retained
+  evidence are defined in `TWINCAT_XAE_WORKFLOW.md`. A `CheckAllObjects()` result
+  shall not be reported as target activation, download, or runtime evidence. Its
+  Boolean is the all-object pass/fail authority; failure detail shall be retained
+  from the matching DTE2 ErrorItems/Build Output capture (or the visible PLC Error
+  List fallback) as defined by workflow §5.1–5.3. Zero captured rows shall not
+  override `CheckAllObjects()=FALSE`.
 
 ### TC3 §2.4 Project & solution settings
 *Binds Core §2 note; baseline defined in TC3 §4.1 (project name, autostart boot project, symbolic mapping, TMC symbol download, ADS ports, documentation format).*
@@ -252,6 +260,11 @@ test runtime/ADS port or CI worker. Neither shall be selected as the machine boo
 project, and both repository wrappers shall serialize Autostart Boot Project as
 disabled. A test runtime is started deliberately, its result is harvested, and
 it is then stopped or replaced by the machine application.
+
+The exact XAE sequence and evidence identity are specified in
+`TWINCAT_XAE_WORKFLOW.md` §6. Runner identity, expected suite/test inventory, and
+zero failures shall all match; a green summary from the wrong runner is not the
+selected gate's result.
 
 TwinCAT task stacks are bounded. Large bounded contract records such as
 `ST_ReleaseReport` shall be filled in caller-owned storage through `VAR_IN_OUT`;
