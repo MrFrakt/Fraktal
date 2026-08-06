@@ -334,6 +334,23 @@ at the Press gate reported `PRG_TcUnitRunner` and 84/26, proving that the Core t
 application was still selected. Selecting/downloading `PressTests.slnx` produced
 the correct 8/2 result.
 
+**The Core/Modules inventory has since grown to 29 suites / 94 tests.**
+`FB_SequenceRaise_Tests`, `FB_SequencePar_Tests` and `FB_StateFlag_Tests` were
+added after the 2026-08-02 baseline and two of them did not compile, so
+`Fraktal_Tests` was carried as a known red and its runtime gate could not run at
+all — a project that does not compile cannot be downloaded. They compile now.
+Expect these counts for the next run:
+
+| Gate | Required runner in the log | Expected from current source |
+|---|---|---:|
+| Core/Modules | `PRG_TcUnitRunner` | 94 tests / 29 suites / 0 failed |
+| Internal Press integration | `PRG_PressTestRunner` | 8 tests / 2 suites / 0 failed |
+
+Derive them from source rather than trusting this table — the suite count is the
+`VAR` block of the runner POU, and the test count is the `TEST('…')` calls in the
+suites it instantiates. A suite that exists but is not instantiated does not run,
+and would make the log's own totals self-consistent while silently under-testing.
+
 Validate captured logs with:
 
 ```powershell
