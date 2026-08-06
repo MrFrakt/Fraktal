@@ -145,19 +145,28 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   for every attached chain before `_M_Dispatch` (§1.1 O1).
 - The `FB_SFC_` prefix in the press demo is **not a convention** — it only lets two
   renditions of one chain coexist. Name a real chain `FB_<Thing><Mode>`.
-- **Do not synthesise an SFC/LD body from nothing — clone one that compiles.**
-  It is a serialized object graph. For **LD**, `tools/ld_rung_gen.py` generates a rung
-  by cloning an existing network, renumbering every `Id`/`VarId` into a fresh range,
-  and rewriting only leaf operands; `tools/test_ld_rung_gen.py` proves the split/rebuild
-  is byte-identical before it touches a file. Every substitution asserts its hit count,
-  because a rewrite that matches nothing reports success and changes nothing. Compile
-  after **every** rung: `ImpVar<BoxId>_<n>` maps straight to that node's
-  `<v n="Id">…L</v>`. **The limit is absolute: it can only produce box types that
-  already exist somewhere in the file** — a rung needing a box with no instance to
-  clone from (`M_DelayLd`, `M_AskDecisionLd`, `M_PartRecordLd`, `M_RunSubLd`,
-  `M_RaiseWarningLd`, `M_ReportFromChildLd`, a child's `WithdrawOutputs`) needs **one**
-  instance drawn in XAE first; then clone it. Full procedure in
-  `FraktalCore/PLC/TwinCAT/README.md` § "Generating a rung by cloning a worked example".
+- **Never hand-write an SFC/LD body — generate it, then read the graph back.**
+  It is a serialized object graph. For **LD**, `tools/ld_rung_gen.py` either clones an
+  existing network (renumbering every `Id`/`VarId` into a fresh range, rewriting only
+  leaf operands, every substitution asserting its hit count) or **declares** a rung
+  outright: a `BoxTreeBox` is fully determined by the declaration of the method it
+  calls, so `method("M_Delay", …)` or `method("_pressRam.WithdrawOutputs", …)` needs no
+  instance to copy. `tools/test_ld_rung_gen.py` proves split/rebuild is byte-identical
+  and regenerates an editor-drawn rung from a declaration, matching it node for node
+  and flag for flag. Compile after **every** rung: `ImpVar<BoxId>_<n>` maps straight to
+  that node's `<v n="Id">…L</v>`.
+- **A clean compile does not prove a generated node exists — dump the graph.**
+  `python tools/ld_dump.py <file>` (ladder) and `tools/sfc_dump.py <file>` (charts) are
+  the verification step, not a convenience. An untyped `<o>` — a node that lost the
+  type a `<l2 … cet="BoxTreeBox">` gave it collectively — parses and compiles while the
+  box is simply absent; and a gate reading `EQ(215, 0)` instead of `EQ(_step, 215)` is
+  legal IEC, constantly FALSE, and warned about by nothing. Both have happened here.
+- **Rung order is execution order.** A forward transition re-enters any rung below it
+  in the same scan. Harmless — until two such rungs command the same child, because
+  §6.1's Execute-drop reset needs a scan with `Execute` low and a Reset coil followed
+  by a Set coil in one scan never gives it one. Full procedure, the node algebra and
+  this ordering rule are in `FraktalCore/PLC/TwinCAT/README.md`
+  § "Declaring a rung instead of cloning one".
   For **SFC** the archive is flat attribute records, not a wired graph, so a chart is
   materially easier to clone than a rung — no `Id`/`VarId` renumbering, no power rails.
   Read the archive's own descriptor table (`<d2 n="Attributes" ckt="Guid"

@@ -404,18 +404,91 @@ rung.subst("_pressRam.Execute", "_door.Execute", count=2)
 rung.subst("_pressRam.Done",    "_door.Done",    count=1)
 ```
 
-**The method's hard limit: it can only produce box types that already exist somewhere
-in the file.** A rung needing `M_DelayLd`, `M_AskDecisionLd`, `M_PartRecordLd`,
-`M_RunSubLd`, `M_RaiseWarningLd`, `M_ReportFromChildLd` or a child method such as
-`WithdrawOutputs` cannot be cloned when no instance of that box exists to clone from.
-Draw **one** rung containing the new box in XAE, then clone it for the rest. The
-`BoxTreeBox` shape is uniform — `BoxType`, `Instance`, `OutputItems`, `Flags`,
-`InputFlags`, `InputItems`, `InputParam{Names,Types}`, `OutputParam{Names,Types}`,
-`CallType=Method`, `EN`/`ENO=false`, `Id` — so extending the generator to *retype* a
-box's parameter list from the facade signature is the next increment; until that
-exists, one editor-drawn instance per box type is the prerequisite. `to_en_form()`
-already does the narrower version of this transformation — it retypes a box's parameter
-list from `Run` to `EN`/`ENO` — so it is the shape to generalise.
+Cloning had one hard limit — **it can only produce box types that already exist
+somewhere in the file** — so every rung needing `M_Delay`, `M_AskDecision`, `M_RunSub`,
+`M_RaiseWarning`, `M_ReportFromChild` or a child method such as `WithdrawOutputs` used
+to stall on "draw one in XAE first". That limit is gone; see the next section. Cloning
+is still the shorter route when a rung of the shape you want already exists.
+
+### Declaring a rung instead of cloning one
+
+A `BoxTreeBox` is fully determined by the **declaration of the method it calls**, so
+nothing about it has to be copied from anywhere:
+
+| Archive field | Comes from |
+|---|---|
+| `InputParam.Names` | `EN`, then the `VAR_INPUT` names in declaration order |
+| `InputParam.Types` | `BOOL`, then their types |
+| `OutputParam` | `ENO : BOOL`, then — only if the method returns a value — the method's own name and return type |
+| `OutputItems` | `<n />` when void; otherwise an empty `ENO` slot **then** the return slot |
+| `CallType` / `EN` / `ENO` | `Method` / `true` / `true` |
+
+A method on another FB folds the instance into the box type
+(`method("_pressRam.WithdrawOutputs", …)`). The operator boxes, the power rails and the
+coils are equally mechanical, so `tools/ld_rung_gen.py` provides a small node algebra
+and a whole rung is written down:
+
+```python
+alloc = Allocator.above(source)                 # Ids above everything in the file
+rail  = Rail(alloc.take_var())
+items = [
+    Wire(rail.var_id, compare("EQ", Term(), Value("_step", "INT"),
+                                            Value("215", "INT"))),
+    method("M_Step", rail, [("StepNo", "INT", Value("215", "INT")), …]),
+    method("M_PartProcessed", rail,
+           [("Verdict", "E_Verdict", Value("E_Verdict.NOK", "E_VERDICT")), …],
+           returns=("M_PartProcessed", "BOOL"), result="_partProcessed"),
+    Coil("_partDispositioned", rail, SET),      # (S)
+    Coil("_partInMachine",     rail, RESET),    # (R)
+    move(rail, Value("240", "INT"), "_step", "INT"),
+]
+text = network(items, alloc, comment="N215")
+```
+
+- `Term()` is the left power rail; `Wire`/`Rail` are a branch point and its taps, and a
+  rung can only branch through them — power flow in the nested `EN` form *is* the
+  nesting.
+- `Contact` and `Value` are deliberately different types. Both serialize as
+  `BoxTreeOperand`, but XAE marks a contact `Boolean`/`Fixed` and a plain BOOL
+  *argument* (`Steppable := TRUE`) not, so the type alone cannot tell them apart — and
+  in ladder they are not the same thing. `Contact(x, negated=True)` is `--|/|--`.
+- `Coil(x, rail, RESET)` is what `x := FALSE` means inside an active step. A *plain*
+  coil driven from the step's own rail would write TRUE.
+- `result=` on a value-returning `method()` is what makes the ENO trap
+  unrepresentable: the return can only land in slot 1.
+
+**The gate for all of it is `tools/test_ld_rung_gen.py`**, which regenerates `N999` —
+a rung drawn by hand in the XAE editor — from a declaration and compares it against the
+real one node for node, pin for pin and flag for flag. If the emitter can reproduce
+what the editor wrote, a rung it emits for a box with no instance to clone is
+trustworthy for the same reason.
+
+**Dump the result. A clean compile does not prove a generated node exists.**
+
+```
+python tools/ld_dump.py <file.TcPOU>       # every network, as a graph
+python tools/sfc_dump.py <file.TcPOU>      # the same for a chart
+```
+
+This is not a convenience, it is the verification step. Two failures it catches that
+nothing else does:
+
+- an untyped `<o>` — a node lifted out of a `<l2 … cet="BoxTreeBox">` list loses the
+  type the list gave it collectively. It parses, it compiles, and the box is simply not
+  there. (`network()` writes `NetworkItems` with **no** `cet` so every item states its
+  own type.)
+- a dead gate. `N215` and `N230` both compiled while reading `EQ(215, 0)` and
+  `EQ(230, 0)` — the step number compared against a leftover constant instead of
+  against `_step`. Legal IEC, constantly FALSE, no warning from anything.
+
+**Rung order is execution order, and it matters.** A forward transition re-enters any
+rung *below* it in the same scan, because the `MOVE` writes `_step` before those rungs
+are evaluated. That is normally harmless — the chain simply advances a scan earlier
+than the ST twin would — but **not when the two rungs command the same child**: §6.1's
+Execute-drop reset needs one scan with `Execute` low, and a Reset coil followed by a Set
+coil in the same scan never gives it one. In the press AUTO chain the abort at `N180`
+and the reopen at `N185` are the only such pair (both drive the door), which is why
+`N185` is placed deliberately **above** `N180` and everything else is in step order.
 
 ### Reading and generating an SFC chart
 
@@ -481,14 +554,19 @@ no power rails. The same discipline still applies: assert every substitution's h
 count, keep `Id`/`IdParent` consistent, and compile after each step.
 
 Reading an archive is far easier than writing one: dump a body's structure before
-touching it. The `<NWL>` node grammar you will see is
+touching it (`python tools/sfc_dump.py <file>`, `python tools/ld_dump.py <file>`). Note
+that the descriptor `<d2>` is a **dictionary** — alternating `<v>` key and `<o>` value
+children, and the values are typed collectively by `cvt`, so none of them carries a
+`t=`. A dumper that filtered on `t="SFCAttributeDescription"` printed an empty table and
+an empty chart, and looked like a file with nothing in it. The `<NWL>` node grammar
+`ld_dump` prints is
 
 ```
 DEMUX var=N (DEF)  ← defines a power node; its <o n="Input"> is what drives it
 DEMUX var=N (ref)  ← every later use of that same rail
 OPERAND "x" : "T"  ← Flags 1 = negated contact, 0 = plain
-ASSIGN -> "x"{flags=N}   ← 2 = Set coil (S), 3 = Reset coil (R)
-BOX "M_StepLd" params=[Run, StepNo, …]   ← InputItems positionally match params
+ASSIGN -> "x"{flags=N}   ← 2 = Set coil (S), 3 = Reset coil (R), 0 = plain
+BOX "M_Step" params=[EN, StepNo, …]   ← InputItems positionally match params
 ```
 
 ### Traps that cost real time here
