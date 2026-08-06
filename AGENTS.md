@@ -124,8 +124,13 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   action), each the ST branch **minus** `M_Advance`. Transitions are
   `_retVal = E_StepResult.ADVANCE`, and a jump branch is `… = E_StepResult.JUMP1`.
   A chart POU never overrides `M_ChainRun` — its body *is* the chart.
-- **LD**: an integer state machine over the inherited `_step`; one rung per state,
-  `[EQ(_step, N)]──(A<N>_Action)`, and the action keeps its `M_Advance`.
+- **LD**: an integer state machine over the inherited `_step` — one rung per state,
+  `[EQ(_step, N)]` dispatching, and the rung `MOVE`s the next state into `_step`. No
+  `M_Advance`, no `_retVal`. Calls go through the `FB_SequenceBaseLd` facade
+  (`M_StepLd`, `M_MayIssueLd`, …), which takes `Run : BOOL` first for rung power flow;
+  those are **not** overrides (adding an input is `C0094`), and each returns through its
+  own name. Full rung-by-rung procedure, both rung shapes and the traps are in
+  `FraktalCore/PLC/TwinCAT/README.md` § "Writing a Ladder sequence rung by rung".
 - Never add a per-scan `_retVal` clear: `FB_UnitBase._M_BeginSequenceScan` does it
   for every attached chain before `_M_Dispatch` (§1.1 O1).
 - The `FB_SFC_` prefix in the press demo is **not a convention** — it only lets two

@@ -246,6 +246,72 @@ Rules for a natively drawn leg:
 7. **The fork sits on a chain's main line.** Nest by making a leg a sub-chain
    instead — that form nests without limit.
 
+### Writing a Ladder sequence rung by rung
+
+A ladder chain is an **integer state machine**: one rung per state, dispatched on the
+inherited `_step`, and the rung writes the next state itself. `FB_LD_PressDemoAuto` is
+the worked example; `FB_SequenceBaseLd` is the base it extends.
+
+**The facade, and why it exists.** Every framework call needs a boolean input because a
+ladder box only executes on power flow. `FB_SequenceBaseLd` therefore declares
+`M_StepLd`, `M_AwaitLd`, `M_MayIssueLd`, … — each taking `Run : BOOL` first and
+delegating to `SUPER^.M_Step(...)` when TRUE. **They are NOT overrides.** Adding an
+input changes the signature, which is `C0094: Interface of overridden method doesn't
+match declaration` — 27 of them, and the reason the library did not compile for weeks.
+Hence the distinct `Ld` names. Two consequences worth knowing before editing:
+
+- A method returns through **its own** name. `M_AwaitLd` assigns `M_AwaitLd := …`; an
+  assignment to `M_Await` inside it binds to the inherited *method* and yields
+  `Cannot convert type 'BOOL' to type 'M_AWAIT'`.
+- A ladder box calls the facade, so its `BoxType` operand is `M_StepLd`, never
+  `M_Step`. A box naming the base method has no `Run` pin and will not resolve.
+
+**The two rung shapes.** Everything in a chain is one of these.
+
+*Pure logic* (initialise, wait on conditions, complete):
+
+```
+[EQ(_step, 100)]──┬──[M_StepLd  StepNo:=100, StepName:='…', Awaits:=0,
+                  │              AwaitingLabel:='', TimeClass:=…, ExpectedTime:=…, Branch:=0]
+                  ├──[M_AwaitLd Idx:=1, Label:='project.condition.partPresent',
+                  │              Ok:= sensor.OutImm.Value AND sensor.OutImm.Quality]
+                  └──[<conditions>]──[MOVE 110 → _step]
+```
+
+*Commanding a child* (most steps — this is the N110 shape):
+
+```
+[EQ(_step, 110)]──┬──[M_StepLd  StepNo:=110, …, Awaits:=_pressRam,
+                  │              AwaitingLabel:='PressRam.RETRACT']
+                  ├──[M_MayIssueLd Steppable:=TRUE]──┬──[_pressRam.Command := E_CylinderCommand.RETRACT]
+                  │                                  ├──[_pressRam.Abort   := FALSE]
+                  │                                  └──[_pressRam.Execute := TRUE]
+                  └──[_pressRam.Done]────────────────┬──[_pressRam.Execute := FALSE]
+                                                     └──[MOVE 130 → _step]
+```
+
+A **jump** is not a special construct: it is a second `MOVE` under a different contact
+in the same rung (`_pressRam.Error` → `MOVE 210 → _step` beside `Done` → `MOVE 220`).
+A **terminal** step calls `M_Complete()`/sets `Done` and does not `MOVE`.
+
+**Rules that differ from ST.**
+
+1. `M_MayIssueLd` is what re-arms per step — the issue latch is cleared by `M_Step`
+   on a step-number change (a chart language never reaches `M_ClearTransition`).
+2. No `M_Advance`, no `_retVal`. The rung writes `_step` directly; that is the
+   idiomatic ladder transition and rule S1 accepts it (it requires a step record plus
+   *some* way to move, not a nominated one).
+3. Drop the child's `Execute` in the same rung that leaves the step — §6.1's
+   Execute-drop reset is what returns the child to READY.
+
+**Do not synthesise the body.** A `<NWL>` network is a serialized object graph of
+`BoxTreeBox`/`BoxTreeOperand`/`BoxTreeDemux`/`BoxTreeAssign` nodes with `Id`/`IdParent`
+links — roughly 40 kB per rung. Draw rungs in XAE. Editing an existing rung's *operand
+text* is safe and scriptable; cutting nodes with a regex is not, and has produced a
+file that stayed plausible while ceasing to be well-formed XML. After any edit, verify
+with `CheckAllObjects` (see `Specification/TWINCAT_XAE_WORKFLOW.md`) — the press demo
+resolves only once Core and Modules are installed as libraries.
+
 ### Traps that cost real time here
 
 - **A `.TcPOU` edit must target one CDATA section.** A method's declaration and

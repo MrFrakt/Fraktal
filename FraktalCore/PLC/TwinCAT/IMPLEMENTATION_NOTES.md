@@ -3419,3 +3419,39 @@ is which without opening either. Same number, different prefix, no ambiguity.
 
 Documented in the README's SFC build procedure and in AGENTS.md so a generated chart
 follows it.
+
+## 121. What it takes to write a ladder chain unaided (2026-08-05)
+
+With N000/N100/N110/N999 drawn, the ladder vocabulary is complete and the procedure is
+now written down in the README (§ "Writing a Ladder sequence rung by rung"). The two
+rung shapes cover every step of every chain: pure logic, and command-a-child. A jump is
+not a construct — it is a second `MOVE` under a different contact. A terminal step
+completes and does not `MOVE`.
+
+What made this hard to write earlier was not the drawing, it was three facts only the
+compiler could settle, all now recorded:
+
+- the facade methods are **not overrides** (`C0094`), so they carry `Ld` names;
+- a method returns through **its own** name, so renaming one without retargeting the
+  body's `<name> :=` silently rebinds it to the inherited method;
+- a ladder box's `BoxType` must name the facade, not the base, or it has no `Run` pin.
+
+**Why the remaining rungs are still not generated.** Two blockers, one of them mine:
+
+1. `FB_LD_PressDemoAuto` reports two unresolved lazy-typed implicit variables
+   (`ImpVar597_1`, `ImpVar616_1`) — editor-generated intermediates for rung results
+   whose type cannot be inferred, i.e. a dangling or mistyped pin in an existing rung.
+   Until the file compiles, a generated rung's errors cannot be told apart from the
+   ones already there, and that is precisely the confusion that hides real defects.
+2. The EL6001 `TcLinkTo` names were a guess and were wrong: XAE reports
+   `TIIB[=000+S-K010D1 (EL6001)]^Inputs^Status` not found, so the terminal is on a
+   different PDO assignment than the default 3-byte one. The links are **removed**
+   rather than guessed a second time; the variables and their §10.5.1 topology channels
+   stay, so the card is still published and visible, and the comment says exactly what
+   to read off the Process Data tab to restore them. A wrong `TcLinkTo` fails the build
+   loudly, which is the right failure mode and the reason not to leave a plausible one
+   in place.
+
+The demo now has a real oracle (Core and Modules are installed as libraries), so once
+those two are cleared each generated rung can be `CheckAllObjects`-verified as it is
+added, rather than twelve at once.
