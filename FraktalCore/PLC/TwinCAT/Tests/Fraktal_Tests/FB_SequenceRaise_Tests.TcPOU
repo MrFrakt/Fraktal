@@ -54,7 +54,7 @@ IF NOT _w1 THEN
     AssertTrue(Condition := _u.SequenceSteps[2].ErrorActive,
         Message := 'the raising row is marked, so the chart can blink it red');
     AssertEquals_STRING(Expected := 'Test.Raise.Child',
-        Actual := _u.SequenceSteps[2].ErrorSourcePath,
+        Actual := M_NotePath(Unit := _u, RowIdx := 2, IsError := TRUE),
         Message := 'the row is click-through to the module that failed, even though the step passed Awaits := 0');
     _w1 := TRUE;
 END_IF
@@ -117,7 +117,7 @@ IF NOT _w3 THEN
     AssertTrue(Condition := _x.SequenceSteps[3].ErrorActive,
         Message := 'the custom raise marks its own §3.13 row');
     AssertEquals_STRING(Expected := 'Test.Raise.Child',
-        Actual := _x.SequenceSteps[3].ErrorSourcePath,
+        Actual := M_NotePath(Unit := _x, RowIdx := 3, IsError := TRUE),
         Message := 'and publishes the link the chart drills into');
     _w3 := TRUE;
 END_IF
@@ -152,7 +152,7 @@ IF NOT _w4 THEN
     AssertTrue(Condition := _v.SequenceSteps[2].WarningActive,
         Message := 'the §3.13 row carries the message');
     AssertEquals_STRING(Expected := 'project.test.stepWarning',
-        Actual := _v.SequenceSteps[2].WarningKey,
+        Actual := M_NoteKey(Unit := _v, RowIdx := 2, IsError := FALSE),
         Message := 'with the key the step chose');
     _v();                                // child Done -> advance
     AssertEquals_INT(Expected := 30, Actual := _v.M_TestChainStep(),
@@ -181,10 +181,10 @@ IF NOT _w5 THEN
     AssertTrue(Condition := _r.SequenceSteps[2].WarningActive,
         Message := 'the failure is visible on the §3.13 row that handled it');
     AssertEquals_STRING(Expected := 'probe fault',
-        Actual := _r.SequenceSteps[2].WarningKey,
+        Actual := M_NoteKey(Unit := _r, RowIdx := 2, IsError := FALSE),
         Message := 'with the CHILD text verbatim, not a re-invented one');
     AssertEquals_STRING(Expected := 'Test.Report.Child',
-        Actual := _r.SequenceSteps[2].WarningSourcePath,
+        Actual := M_NotePath(Unit := _r, RowIdx := 2, IsError := FALSE),
         Message := 'and click-through to the module that failed, with Awaits := 0');
     AssertFalse(Condition := _r.SequenceSteps[2].ErrorActive,
         Message := 'a reported failure never borrows the error mark');
@@ -194,6 +194,65 @@ IF NOT _w5 THEN
     _w5 := TRUE;
 END_IF
 TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_NoteIdx" Id="{4a1c9f30-2d6e-4b17-91a8-5c0e3f77aa01}">
+      <Declaration><![CDATA[// Core §6.9 — the annotation attached to one §3.13 row, or 0 if it has none.
+// The row keeps only the MARK; the key and the drill-down path are in the sparse
+// annotation table, so a row stays correctly coloured even when that table is full.
+METHOD M_NoteIdx : INT
+VAR_INPUT
+    Unit : REFERENCE TO FB_ProbeUnitRaise;
+    RowIdx : INT;
+    IsError : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO Unit.SequenceAnnotationCount DO
+    IF (Unit.SequenceAnnotations[i].RowIdx = RowIdx)
+    AND (Unit.SequenceAnnotations[i].IsError = IsError) THEN
+        M_NoteIdx := i;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_NoteKey" Id="{4a1c9f30-2d6e-4b17-91a8-5c0e3f77aa02}">
+      <Declaration><![CDATA[// '' when the row has no such annotation, so a missing one fails the assertion
+// with '' instead of indexing outside the table.
+METHOD M_NoteKey : STRING(120)
+VAR_INPUT
+    Unit : REFERENCE TO FB_ProbeUnitRaise;
+    RowIdx : INT;
+    IsError : BOOL;
+END_VAR
+VAR
+    idx : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[idx := M_NoteIdx(Unit := Unit, RowIdx := RowIdx, IsError := IsError);
+IF idx > 0 THEN
+    M_NoteKey := Unit.SequenceAnnotations[idx].Key;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_NotePath" Id="{4a1c9f30-2d6e-4b17-91a8-5c0e3f77aa03}">
+      <Declaration><![CDATA[METHOD M_NotePath : STRING(80)
+VAR_INPUT
+    Unit : REFERENCE TO FB_ProbeUnitRaise;
+    RowIdx : INT;
+    IsError : BOOL;
+END_VAR
+VAR
+    idx : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[idx := M_NoteIdx(Unit := Unit, RowIdx := RowIdx, IsError := IsError);
+IF idx > 0 THEN
+    M_NotePath := Unit.SequenceAnnotations[idx].SourcePath;
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

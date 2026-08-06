@@ -111,7 +111,7 @@ TEST_FINISHED();]]></ST></Implementation>
 // without a boundary the chart becomes the union of every chain run since boot.
 AssertEquals_INT(Expected := 0, Actual := _u.SequenceStepCount,
     Message := 'committing a mode drops the previous mode chain rows');
-AssertEquals_INT(Expected := 0, Actual := _u.SequenceSteps[1].StepNo,
+AssertEquals_INT(Expected := 0, Actual := _u.SequenceStepDef[1].StepNo,
     Message := 'and clears them, so a later row cannot inherit stale text');
 // the new mode fills its own table from scratch
 AssertTrue(Condition := _u.SetMode(Mode := E_Mode.AUTO), Message := 'back to AUTO');
