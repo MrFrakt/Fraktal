@@ -20,9 +20,11 @@ two failure modes are the same failure mode.
 This document is the survey of where Fraktal already does this, where it does
 not, and what an AI-assisted project lifecycle looks like when it does.
 
-> **Status.** Sections 1–2 describe what exists and is running today. Sections
-> 3–4 are **proposals with measured evidence**, not implemented work. Section 5
-> is descriptive: it documents the lifecycle as currently practised.
+> **Status.** Sections 1–2 describe what exists and is running today —
+> including `tools/check_consistency.py`, which implements V1, V2 and V4 of the
+> Tier 1 list below. The remaining Tier 1–3 items are **proposals with measured
+> evidence**, not implemented work. Section 5 is descriptive: it documents the
+> lifecycle as currently practised.
 
 ---
 
@@ -37,6 +39,7 @@ guarantee is the shape of that defect.
 | Tool | Guarantees |
 |---|---|
 | `tools/plc_lint.py` | 18 rules, machine-decidable from source (§1.5 makes this a **shall**). Runs both TwinCAT profiles. |
+| `tools/check_consistency.py` | Agreement *between* artifacts: every operator-facing key resolves in a catalogue; every test suite is instantiated by a runner and the documented counts match source; a chain carried in two languages has the same steps and transitions in both. |
 | `tools/Invoke-TwinCatBuild.ps1` | `CheckAllObjects()` on 5 isolated solutions + the boot-autostart assertion. Captures the DTE2 Error List, which is the only place XAE exposes a compile row. |
 | `tools/Invoke-TwinCatLibraryInstall.ps1` | Save-as-library + install for Core then Modules, in dependency order. |
 | `tools/Invoke-TwinCatTcUnitGate.ps1` | Activate → download → run → stop on a **named** target. Incomplete: result capture unresolved. |
@@ -71,15 +74,16 @@ Strong on **PLC source rules** and **build/compile**. Thin on:
 Every number below was measured against this repository at
 `386d83c`. These are findings, not estimates.
 
-### 2.1 Localization keys — 66 unresolved in shipping code
+### 2.1 Localization keys — 52 unresolved in shipping code
 
 A `DescriptionKey`, `StepName`, `Label` or `Prompt` that has no catalogue entry
-renders on the operator HMI as the raw key. Nothing checks this.
+renders on the operator HMI as the raw key. Nothing checked this until
+`check_consistency.py localization`, which now reports:
 
 ```
-shipping-code keys referenced : 355
-resolved (default_catalogs.dart + reason_catalog.g.dart) : 289
-MISSING : 66
+shipping-code keys referenced (excluding test suites and probe FBs) : 341
+resolved (default_catalogs.dart + reason_catalog.g.dart)            : 289
+MISSING                                                             :  52
 ```
 
 **15 of them are `std.*` keys from Core itself** — `FB_UnitBase`
@@ -89,20 +93,25 @@ MISSING : 66
 this framework shows them raw. The rest are the press bench's SFC/LD chains and
 I/O catalogue.
 
-This is the single highest-value validation not yet written, and it is perhaps
-40 lines.
+That they are genuine omissions rather than a family the HMI renders another
+way is checkable and was checked: `std.audit.*` and `std.error.*` already have
+11 and 71 entries in the catalogue, so the missing siblings are simply missing.
+`std.system.*` has none of its eleven — an entire family added to Core after the
+catalogue and never carried across.
 
-### 2.2 Rendition parity — checked by hand, once
+### 2.2 Rendition parity — was checked by hand, once
 
 The bench carries the same AUTO chain in ST, SFC and LD, and the same release
-logic in ST and LD. Nothing proves they agree. A one-off script written during
-the ladder work compared the ST twin's `CASE` labels, `M_Step` arguments and
-`M_Advance` targets against the ladder's gates, `M_Step` pins and `MOVE`
-targets — and that comparison is what confirmed the ladder was correct. It lives
-in a scratchpad and will rot.
+logic in ST and LD. Nothing proved they agree: the comparison that confirmed the
+ladder was correct was a one-off script in a scratchpad.
 
 Carrying N renditions is duplication O9 forbids unless something enforces that
-they are the same thing. Right now nothing does.
+they are the same thing. `check_consistency.py parity` is now that something,
+for ST↔LD. **SFC is not covered yet** — its chart archive stores a step's
+transition condition as a string in the transition's `Name` attribute, so the
+target of a jump is an expression to parse rather than a number to read.
+`tools/sfc_dump.py` already reads the attributes; the parity comparison is the
+remaining piece.
 
 ### 2.3 Test inventory drift — caught only by accident
 
@@ -159,17 +168,32 @@ Ranked by (defects prevented × frequency) ÷ effort. Effort is calibrated again
 
 ### Tier 1 — validations. Cheap, and each one has live findings.
 
-| # | What | Prevents | Effort |
+| # | What | Prevents | Status |
 |---|---|---|---|
-| V1 | **Localization coverage** — every key in shipping PLC source resolves in a shipped catalogue | 66 live misses, 15 of them framework-wide | ~40 lines |
-| V2 | **Test inventory** — derive runner ↔ suite ↔ `TEST()` counts from source; fail if the workflow doc disagrees | §2.3 drift, and a suite that exists but never runs | ~60 lines |
+| V1 | **Localization coverage** — every key in shipping PLC source resolves in a shipped catalogue | 52 live misses, 15 of them framework-wide | **built** — `check_consistency.py localization` |
+| V2 | **Test inventory** — derive runner ↔ suite ↔ `TEST()` counts from source; fail if the workflow doc disagrees | §2.3 drift, and a suite that exists but never runs | **built** — `check_consistency.py inventory` |
 | V3 | **Evidence integrity** — recompute every SHA-256 in `Specification/Evidence/*.md` | an evidence record that quietly stopped being true | ~50 lines |
-| V4 | **Rendition parity** — promote the ST/SFC/LD comparison to a test | the whole justification for carrying three renditions | ~120 lines (exists in draft) |
-| V5 | **The §2.6 rule set** — six new lint rules | six classes of defect the spec calls *shall* | ~150 lines |
+| V4 | **Rendition parity** — the ST/LD comparison as a check | the whole justification for carrying more than one rendition | **built** — `check_consistency.py parity` |
+| V5 | **The §2.6 rule set** — new lint rules | classes of defect the spec calls *shall* | ~150 lines |
 
-> V1–V3 should land as **report-only** tools first, not blocking lint rules.
-> V1 fires 66 times today; making it blocking on day one would just turn the
-> gate red and train everyone to skip it.
+V1 lands as a **warning**, not an error: it fires 52 times today, and a check
+that turns the gate red on the day it ships teaches everyone to skip the gate.
+`--emit` prints pasteable Dart for every missing key, so clearing the backlog is
+mechanical; `--strict` promotes warnings to failures once it is clear.
+
+V2 and V4 are **errors** and pass today, so they can block immediately.
+
+V4's value is not theoretical. Re-introducing the exact defect that shipped —
+a rung gate reading `EQ(215, 0)` instead of `EQ(_step, 215)` — makes the ladder
+report 15 rungs against the twin's 16 steps, and the check names the missing
+one. That defect previously passed lint, five compiles and a runtime gate.
+
+**On V5, a caution learned while writing this.** Two of the six candidate rules
+(`_M_State` behind an `IF`, and `OutImm` latched inside a chain) need real
+statement-level structure, not line-oriented scanning: a first attempt reported
+`FB_PressDemoUnit.OnCyclic` as a violation when the call is plainly at the top
+level. A rule with false positives is worse than no rule, because it teaches
+people to override the gate. These two want a small ST block parser first.
 
 ### Tier 2 — generators. Larger, and they change how a project starts.
 
@@ -306,14 +330,19 @@ Stated so they are designed against, not discovered again:
 
 ## 6. Suggested order
 
-1. **V1, V2, V3** — one session. Each has live findings; all three are
-   report-only, so none can break the gate.
-2. **G1** — manifests. Turns two lint rules from *checks* into *impossibilities*.
-3. **G3** — the ST chain generator. Largest recurring authoring cost, and the
+1. ~~**V1, V2, V4**~~ — done, `tools/check_consistency.py`, 9 tests.
+   Next on that tool: **V3** (evidence hashes), which fits the same shape.
+2. **Clear the V1 backlog** — 52 keys, `--emit` generates the stubs; then turn
+   `--strict` on in the gate so it can never grow again. The 15 `std.*` ones are
+   Core's own and should go first: `std.audit.*` and `std.error.*` already have
+   11 and 71 siblings in the catalogue, so those omissions are simply misses,
+   and all eleven `std.system.*` keys are absent as a family.
+3. **G1** — manifests. Turns two lint rules from *checks* into *impossibilities*.
+4. **G3** — the ST chain generator. Largest recurring authoring cost, and the
    harder graphical version is already proven.
-4. **V4, V5** — parity and the remaining rule set.
-5. **G2, G4** — the scaffold generators, once G1 and G3 have settled the shape.
-6. **R1** — finish the runtime capture, then **R2**.
+5. **V5** — the remaining rule set, after the ST block parser it needs.
+6. **G2, G4** — the scaffold generators, once G1 and G3 have settled the shape.
+7. **R1** — finish the runtime capture, then **R2**.
 
 Nothing here requires a new framework concept. Every item is a derivation of
 something the repository already states, and the measure of success is the same

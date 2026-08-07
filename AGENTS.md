@@ -256,6 +256,22 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   `Stale` and is forced FALSE: state nobody computes is not a claim. Never put
   `_M_State` behind an `IF`.
 
+**The machine-checkable gates, in the order they get cheaper to fix:**
+```
+python tools/plc_lint.py            # source rules, both profiles (--profile 4024)
+python tools/check_consistency.py   # agreement BETWEEN artifacts (see below)
+python -m unittest tools.test_plc_lint tools.test_tcunit_to_junit \
+                   tools.test_ld_rung_gen tools.test_check_consistency
+tools/Invoke-TwinCatBuild.ps1       # CheckAllObjects on all five solutions
+```
+`check_consistency.py` covers what `plc_lint.py` structurally cannot, because it
+spans trees: every operator-facing localization key resolves in a shipped
+catalogue (**warning** — there is a backlog; `--emit` prints the stubs,
+`--strict` fails on them); every TcUnit suite is instantiated by a runner and
+the counts a document promises match source; and a chain carried in more than
+one language has the same steps and transitions in each. The last one is what
+makes carrying three AUTO renditions legitimate rather than O9 duplication.
+
 **Compile before you claim.** There IS a TwinCAT compiler on the dev host:
 `tools/Invoke-TwinCatBuild.ps1` runs `CheckAllObjects()` on the two libraries and the two
 test solutions. Read `Specification/TWINCAT_XAE_WORKFLOW.md` §5.1 before concluding a
