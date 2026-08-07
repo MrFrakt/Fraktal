@@ -1,7 +1,7 @@
 # Fraktal Core — Modular Automation Architecture (Part I)
 *Unified PLC Programming Standard · **Part I: platform-neutral normative core***
 
-**Status:** Draft · Part I of II (Part II: the TwinCAT 3 binding, **Fraktal/TC3**, in `fraktal-tc3`)
+**Status:** Draft · Part I of III (Part II: the TwinCAT 3 binding, **Fraktal/TC3**; Part III: the Allen-Bradley Logix binding, **Fraktal/AB**, draft/pre-spike)
 **Platform:** none — this Part is platform-neutral. Platform-specific clauses live in a *binding* (Part II); the first binding is TwinCAT 3.
 **Grounded in:** ISA-88 / IEC 61512 (physical & procedural model), PLCopen (command-handshake vocabulary, motion & safety function blocks), ISA-TR88.00.02 PackML / OPC 30050 (optional overlay), ISA-95 / IEC 62264 (MES integration), ISA-18.2 / IEC 62682 (alarm management), IEC 62443 (cybersecurity), and OPC UA / IEC 62541 companion models — reconciled into a single recursive-module architecture.
 

@@ -22,8 +22,8 @@ falsified.
 
 ## 1. What a binding must deliver
 
-`Fraktal_TC3_Part_II.md` is the template. An Allen-Bradley Part II answers the
-same questions, and the list is the scope definition:
+`Fraktal_TC3_Part_II.md` is the template. The Allen-Bradley binding is
+`Fraktal_AB_Part_III.md`, and it answers the same questions, and the list is the scope definition:
 
 | Binding section | What Fraktal/AB must fix |
 |---|---|
@@ -37,7 +37,8 @@ same questions, and the list is the scope definition:
 | §10 fieldbus | EtherNet/IP/CIP in place of EtherCAT; I/O and topology diagnostics |
 | §11 connectivity | EtherNet/IP/CIP controller access, the Fraktal gateway, live self-description, security, and the host-event path; optional OPC UA projection |
 
-Plus the two things that are *not* Part II and must also be ported or replaced:
+Plus the two things that are *not* in the binding document and must also be
+ported or replaced:
 the **module library** (`Fraktal_Modules` equivalent) and the **gates**
 (`plc_lint`, build, unit-test runner) — because a binding without gates is a
 binding whose conformance is a hope.
@@ -325,7 +326,7 @@ the gateway is a Web convenience. On AB it is the only path for every client. Th
 PLC never depends on it — the machine runs, releases hold, and safety is
 untouched if it dies — but the *operator interface*, including diagnostics, is
 gone until it restarts. Treat it as cell-local infrastructure with a supervised
-restart, and state the availability expectation in the AB Part II rather than
+restart, and state the availability expectation in the AB Part III rather than
 discovering it during a night shift.
 
 ### 4.5 Required Core and HMI-contract amendment
@@ -343,7 +344,7 @@ Service** whose required semantics are:
 - authenticated, encrypted, least-privilege access; and
 - generated optional industry projections from the same source of truth.
 
-The TC3 Part II binds that service to TF6100 OPC UA. The AB Part II binds it to
+The TC3 Part II binds that service to TF6100 OPC UA. The AB Part III binds it to
 EtherNet/IP/CIP plus the Fraktal gateway and `FRK_Manifest`, while allowing OPC
 UA as an alternative projection. `HMI_CONTRACT.md` should rename OPC-UA-specific
 transport wording where it is really a repository semantic, while retaining
@@ -419,7 +420,7 @@ II without weakening the existing TC3 conformance claim. *Exit:* Part I names
 required behavior rather than a platform mechanism; TC3 Part II still binds
 every moved requirement; the normative diff and objective impact are reviewed.
 
-**Phase 2 — AB binding and gateway contract.** Write `Fraktal_AB_Part_II.md`, the
+**Phase 2 — AB binding and gateway contract.** Write `Fraktal_AB_Part_III.md`, the
 normative `FRK_Manifest` schema, the EtherNet/IP tag/external-access rules, the
 gateway protocol mapping, security profile, supported-version matrix, and
 performance budgets. Update the transport-specific portions of
@@ -464,7 +465,7 @@ integration suites pass; optional OPC UA projection, if claimed, resolves to the
 same canonical identities.
 
 **Phase 8 — full conformance and objective audit.** Audit implementation,
-generator, gateway, HMI contract, AB Part II, and amended Core clause-by-clause
+generator, gateway, HMI contract, AB Part III, and amended Core clause-by-clause
 against O1–O9. Close gaps in the owning layer: implementation when behavior is
 wrong, binding/specification when a platform mechanism leaked into Core, or a
 new mechanism when neither satisfies the objective. Re-run security, scale,

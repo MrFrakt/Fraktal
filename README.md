@@ -107,6 +107,7 @@ coherent architecture, defined platform-neutrally and delivered first as a
 Specification/     The standard.
   Fraktal_Core_Part_I.md    Part I — platform-neutral normative core (§1–14)
   Fraktal_TC3_Part_II.md    Part II — the TwinCAT 3 binding (Fraktal/TC3)
+  Fraktal_AB_Part_III.md    Part III — the Allen-Bradley Logix binding (draft, pre-spike)
   HMI_CONTRACT.md           the symbol → widget bind table the HMI implements
   OPCUA_TRANSPORT.md        the OPC UA transport, config manifest & read tiers
   FIRST_PROJECT_AGENT_GUIDE.md   empty solution → deployed, HMI-commandable station
@@ -127,7 +128,7 @@ FraktalCore/
         Fraktal_Tests.plcproj  the aggregate TcUnit manifest
         Fraktal_Tests/         Core + Modules suites (simulated HAL)
       scaffold/           copy-template for a new module type (ships SKELETON.md)
-    Allen-Bradley/        reserved for a future binding
+    Allen-Bradley/        reserved — binding drafted (Part III), no code yet
   HMI/     Generic operator HMI (Flutter, Material 3) — Windows/Linux/Android/Web
     lib/                  the app (data / domain / state / ui)
     native/opcua/         native OPC UA client (open62541 + Mbed TLS via dart:ffi)
@@ -157,6 +158,7 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 | See what's proven vs. pending | [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md) |
 | Know what is generated, checked, or still hand-written | [`AI_DEVELOPMENT_AND_AUTOMATION.md`](Specification/AI_DEVELOPMENT_AND_AUTOMATION.md) |
 | Port Fraktal to another PLC platform | [`ALLEN_BRADLEY_PORT_PLAN.md`](Specification/ALLEN_BRADLEY_PORT_PLAN.md) |
+| Read the Allen-Bradley binding (draft, pre-spike) | [`Fraktal_AB_Part_III.md`](Specification/Fraktal_AB_Part_III.md) |
 
 ---
 
