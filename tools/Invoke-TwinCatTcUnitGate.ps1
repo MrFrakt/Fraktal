@@ -380,8 +380,11 @@ finally {
     # After XAE has let go of the file, undo its rewrite of the source .tsproj.
     if ($null -ne $tsProjectBytes) {
         try {
-            if (-not [System.Linq.Enumerable]::SequenceEqual(
-                    $tsProjectBytes, [System.IO.File]::ReadAllBytes($tsProjectPath))) {
+            # Not LINQ SequenceEqual: PowerShell 5.1 cannot infer the
+            # generic parameter and throws "cannot find an overload".
+            $current = [System.IO.File]::ReadAllBytes($tsProjectPath)
+            if ([System.Convert]::ToBase64String($current) -ne
+                [System.Convert]::ToBase64String($tsProjectBytes)) {
                 [System.IO.File]::WriteAllBytes($tsProjectPath, $tsProjectBytes)
                 Write-Host '  restored the .tsproj that activation rewrote'
             }

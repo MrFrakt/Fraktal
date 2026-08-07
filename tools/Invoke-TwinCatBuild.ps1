@@ -231,6 +231,17 @@ foreach ($relativeSolution in $Solution) {
     $plcRoot = $null
     $iecProject = $null
     $stage = 'starting XAE'
+    # Merely OPENING a solution makes XAE rewrite its .tsproj, and one of its
+    # normalisations is destructive: it drops `BootProjectAutostart="false"`
+    # because false is the default. The attribute is carried deliberately - it
+    # records that a test application must never become a boot application - so
+    # a read-only compile check must not be what deletes it. Snapshot the bytes
+    # and restore them; this gate produces its output in artifacts/, never in
+    # the source tree.
+    $tsProjectPath = [System.IO.Path]::ChangeExtension($solutionPath, '.tsproj')
+    $tsProjectBytes = if (Test-Path -LiteralPath $tsProjectPath) {
+        [System.IO.File]::ReadAllBytes($tsProjectPath)
+    } else { $null }
 
     try {
         Write-Host "Building $solutionPath [$targetConfiguration]"
@@ -323,6 +334,20 @@ foreach ($relativeSolution in $Solution) {
         Release-ComObject $plcRoot
         Release-ComObject $systemManager
         Release-ComObject $dte
+        # XAE has let go of the file by now; undo its rewrite.
+        if ($null -ne $tsProjectBytes) {
+            try {
+                # Not LINQ SequenceEqual: PowerShell 5.1 cannot infer the
+                # generic parameter and throws "cannot find an overload".
+                $current = [System.IO.File]::ReadAllBytes($tsProjectPath)
+                if ([System.Convert]::ToBase64String($current) -ne
+                    [System.Convert]::ToBase64String($tsProjectBytes)) {
+                    [System.IO.File]::WriteAllBytes($tsProjectPath, $tsProjectBytes)
+                }
+            } catch {
+                Write-Warning "Could not restore $tsProjectPath : $($_.Exception.Message)"
+            }
+        }
         [GC]::Collect()
         [GC]::WaitForPendingFinalizers()
     }

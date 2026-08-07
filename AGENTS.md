@@ -690,5 +690,6 @@ compile-blocking regressions; see IMPLEMENTATION_NOTES §24).
 | HMI↔PLC bind table | `Specification/HMI_CONTRACT.md` |
 | HMI domain model (the contract types) | `HMI/lib/domain/types.dart` |
 | HMI transport seam | `HMI/lib/data/plc_repository.dart` (+ `sim_repository.dart`) |
+| What is generated vs. hand-written, and the AI-assisted lifecycle | `Specification/AI_DEVELOPMENT_AND_AUTOMATION.md` |
 | Nexeed comparison decisions (grouping/sequences/releases) | `Specification/NEXEED_REFERENCE_INSIGHTS.md` |
 | Why the code differs from the draft spec | `PLC/TwinCAT/IMPLEMENTATION_NOTES.md` |
