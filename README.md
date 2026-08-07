@@ -156,6 +156,7 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 | Run / build the HMI | [`FraktalCore/HMI/README.md`](FraktalCore/HMI/README.md) |
 | See what's proven vs. pending | [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md) |
 | Know what is generated, checked, or still hand-written | [`AI_DEVELOPMENT_AND_AUTOMATION.md`](Specification/AI_DEVELOPMENT_AND_AUTOMATION.md) |
+| Port Fraktal to another PLC platform | [`ALLEN_BRADLEY_PORT_PLAN.md`](Specification/ALLEN_BRADLEY_PORT_PLAN.md) |
 
 ---
 
