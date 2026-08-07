@@ -1,20 +1,82 @@
 # Fraktal
 
-**A platform-neutral standard — and reference implementation — for PLC equipment software.**
+**A control and automation framework for machine builders — from the PLC to the
+operator HMI.**
 
-One recursive three-tier module model, one data contract, one PLCopen command
-handshake, one diagnostic model. A station describes itself over OPC UA, so a
-single **generic HMI renders and commands it with zero per-station screen code**.
+Compose the machine from tested module types. Write only the step sequences.
+Do not build an HMI at all: the machine describes itself, and one generic HMI
+discovers it.
 
-Fraktal synthesises established industry practice — ISA-88/IEC 61512 (physical &
-procedural model), PLCopen (command handshake, motion & safety FBs), ISA-18.2
-alarm management, IEC 62443 security, and the OPC UA companion models — into one
-coherent architecture, defined platform-neutrally and delivered first as a
-**TwinCAT 3** binding with a **Flutter** operator HMI.
+> **Alpha pre-release.** The framework, the reference implementation and the
+> toolchain are complete enough to build and run a station end-to-end, and are
+> gated on every commit. They have not yet run a production line. §Status below
+> says exactly what is proven and what is not — this project reports that
+> honestly rather than aspirationally (O10).
 
 ---
 
-## Why
+## Concept
+
+The goal is to bring a machine into service with **as little application
+programming as possible**, and to make what remains the part that is actually
+specific to your machine.
+
+**Compose, don't write.** Equipment is assembled from reusable module *types* in
+three recursive tiers — device (`FB_ControlModule`), bounded function
+(`FB_EquipmentModule`), station (`FB_Unit`). A type is declared, wired once in
+`Setup`, and it is finished: it ships with its own tests, its own reason codes,
+and its own published contract.
+
+**Inherit everything that is the same on every machine.** The PLCopen command
+handshake, mode and state machines, first-out diagnostics, the alarm model,
+recipe load and migration, part traceability, the OPC UA data contract, and the
+HMI data mirror are written **once at the level that owns them** and inherited.
+A concrete type overrides one method — its device logic — and nothing else.
+
+**The HMI is not built, and not generated either.** The station publishes its
+own module forest over OPC UA; a single generic HMI walks it at runtime and
+renders the tree, the commands, the alarms and the §3.13 flow charts. Add a
+module and it appears. There is no per-station screen code, and — unlike a
+generator — **no generated artifact to regenerate, redeploy, or keep in sync**
+when the machine changes.
+
+**What is left for you to write is the step sequence.** The process itself: what
+this machine does, in what order. In ST, SFC or Ladder — the choice is the
+author's, and all three are the same chain against the same base class.
+
+### What you write vs. what you inherit
+
+| | Written per machine | Inherited / discovered |
+|---|---|---|
+| **Device logic** | one `CASE` in `_M_Dispatch` per *new* type | lifecycle, edges, state mapping, abort, reset |
+| **Sequences** | the steps and their order | step records, stall diagnosis, timing, re-arm |
+| **Interlocks** | the conditions, by name | first-out selection, release reports, HMI display |
+| **Commands** | which child, which command | the entire §6.1 handshake |
+| **Alarms** | a reason code from your band | ring buffer, rationalisation, shelving, audit |
+| **Recipes** | the record layout | provider transport, migrate-or-fault, changeover |
+| **HMI** | *nothing* | the whole operator interface |
+| **I/O** | tags, addresses, polarity | bounds, health, duplicate and diagnostic joins |
+
+### What Fraktal is not
+
+Stated plainly, because the concept above invites the comparison:
+
+- **There is no graphical machine configurator.** You compose in IEC 61131-3
+  declarations, not in a wizard.
+- **PLC code is not generated from a machine description.** The toolchain
+  generates *bodies* — ladder rungs and chart steps from a declaration, module
+  scaffolds — and mechanically checks the rest. It does not synthesise a station.
+- **It is not a runtime you buy.** It is a standard, a reference implementation,
+  and the gates that keep the two honest, under the MIT licence.
+
+The full objective set (**O1–O10**, in priority order) is in
+[`Specification/Fraktal_Core_Part_I.md` §1.1](Specification/Fraktal_Core_Part_I.md) —
+including **O9 good coding and engineering practice** and **O10 industrial-grade
+robustness**.
+
+---
+
+## Why it is built this way
 
 Equipment software is usually rewritten per machine, per station, per screen.
 Fraktal pays standardisation **once per reusable module *type***, not once per
@@ -31,10 +93,11 @@ step or per station:
   and the published/streamed surface stays proportional to what is consumed
   (config served on demand, live data tiered by cadence).
 
-The full objective set (**O1–O10**, in priority order) is in
-[`Specification/Fraktal_Core_Part_I.md` §1.1](Specification/Fraktal_Core_Part_I.md) —
-including **O9 good coding and engineering practice** and **O10 industrial-grade
-robustness**.
+Fraktal synthesises established industry practice — ISA-88/IEC 61512 (physical &
+procedural model), PLCopen (command handshake, motion & safety FBs), ISA-18.2
+alarm management, IEC 62443 security, and the OPC UA companion models — into one
+coherent architecture, defined platform-neutrally and delivered first as a
+**TwinCAT 3** binding with a **Flutter** operator HMI.
 
 ---
 
@@ -70,6 +133,14 @@ FraktalCore/
     native/opcua/         native OPC UA client (open62541 + Mbed TLS via dart:ffi)
     gateway/              headless WebSocket gateway for the Web transport
 
+tools/     The gates and generators — what keeps the standard and the
+           implementation honest about each other
+  plc_lint.py             18 source rules, both build profiles
+  check_consistency.py    agreement BETWEEN artifacts (PLC ↔ HMI ↔ docs)
+  ld_rung_gen.py          ladder rungs from a declaration; ld_dump / sfc_dump read them back
+  Invoke-TwinCatBuild.ps1 CheckAllObjects on every solution
+  Invoke-TwinCatTcUnitGate.ps1 / tcunit_to_junit.py   runtime gate + result validation
+
 AGENTS.md          working briefing for AI coding agents editing this repo
 ```
 
@@ -84,35 +155,60 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 | Bring up the PLC (TwinCAT) | [`FraktalCore/PLC/TwinCAT/README.md`](FraktalCore/PLC/TwinCAT/README.md) |
 | Run / build the HMI | [`FraktalCore/HMI/README.md`](FraktalCore/HMI/README.md) |
 | See what's proven vs. pending | [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md) |
+| Know what is generated, checked, or still hand-written | [`AI_DEVELOPMENT_AND_AUTOMATION.md`](Specification/AI_DEVELOPMENT_AND_AUTOMATION.md) |
 
 ---
 
-## Status (2026-08-02)
+## Status (2026-08-06)
 
-- **PLC unit tests** — the split TcUnit program is green on an isolated runtime:
-  **92/92 tests across 28 suites** (Core+Modules 84/26, internal Press bench 8/2),
-  repeated on a Windows 10 x64 VM. Summaries, runner identities and artifact
-  SHA-256 hashes are archived in [`Specification/Evidence/`](Specification/Evidence/)
-  and reproduce from a clean clone.
-- **PLC source gate** — `plc_lint.py`: **265 files clean in both build profiles**
-  (modern and the 4024 legacy profile), **31 fixtures** green.
-- **HMI** — `flutter analyze` clean, **166 tests passing** (4 intentional
-  live-environment skips) on the pinned Flutter 3.44.6; `flutter build web`/`windows` succeed.
-- **PLC compile** — builds under **TwinCAT 4026** and has been loaded on a
-  development runtime and exercised end-to-end over TF6100: the internal Press
-  bench cycles, publishes over OPC UA, and drives the generic HMI (config-manifest
-  `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live commanding). This is a development
-  runtime — not a real-machine project, and not a production acceptance result.
-- **Pending** — the PLC compile and TcUnit CI jobs exist
-  ([`ci.yml`](.github/workflows/ci.yml), `tools/Invoke-TwinCatBuild.ps1`) but stay
-  **skipped** until a licensed self-hosted TwinCAT runner is registered, so the
-  hosted gate still does not compile the PLC (spec §1.5 makes that a *shall*).
-  Also open: gateway read-tier parity for Web, live-transport and deployment-profile
+**Proven at this revision**
+
+- **PLC compile** — `tools/Invoke-TwinCatBuild.ps1` runs `CheckAllObjects()` on
+  **all five solutions** (Core, Modules, the Press bench, and both test
+  projects) under **TwinCAT 4026**, green. `Fraktal_Tests` compiles for the first
+  time; it had been carried as a known red, which also meant its runtime gate
+  could not run at all.
+- **PLC runtime tests, Press bench** — **8/8 tests across 2 suites, 0 failures**
+  on an isolated VM, validated by `tools/tcunit_to_junit.py` against the expected
+  runner identity and counts. Log, JUnit and SHA-256s in
+  [`Specification/Evidence/`](Specification/Evidence/).
+- **PLC source gate** — `plc_lint.py`: **282 files clean in both build profiles**
+  (modern and the 4024 legacy profile).
+- **Cross-artifact gate** — `check_consistency.py`: test inventory and ST↔LD
+  sequence-rendition parity clean.
+- **Toolchain** — **81 tests** over the tooling itself.
+
+**Not proven at this revision**
+
+- **PLC runtime tests, Core + Modules** — expected **94 tests / 29 suites** from
+  source; **not run** since the project started compiling. No result is claimed.
+- **Ladder and SFC renditions of the press AUTO chain** — compiled,
+  graph-verified and cross-checked step-for-step against their ST twin, but the
+  language selector ships at ST, so they have never executed on a runtime.
+- **HMI** — as of **2026-08-02**: `flutter analyze` clean, **166 tests passing**
+  (4 intentional live-environment skips) on the pinned Flutter 3.44.6;
+  `flutter build web`/`windows` succeed. Not re-verified since.
+- **End-to-end over TF6100** — the Press bench has cycled on a *development*
+  runtime, published over OPC UA and driven the generic HMI (config-manifest
+  `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live commanding). A development runtime
+  is not a machine, and this is not a production acceptance result.
+
+**Open**
+
+- The PLC compile and TcUnit CI jobs exist ([`ci.yml`](.github/workflows/ci.yml))
+  but stay **skipped** until a licensed self-hosted TwinCAT runner is registered,
+  so the hosted gate still does not compile the PLC (§1.5 makes that a *shall*).
+- **52 localization keys** referenced by shipping PLC code resolve in no
+  catalogue and render on the HMI as raw keys — 15 of them from Core itself.
+  `check_consistency.py --emit` generates the entries; reported as a warning
+  until the backlog is cleared.
+- Gateway read-tier parity for Web, live-transport and deployment-profile
   acceptance, and the remaining items in
   [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md).
 
 This project reports status honestly (O10): it distinguishes what is proven from
-what is deferred, and names the gaps rather than hiding them.
+what is deferred, and names the gaps rather than hiding them. A framework that
+overstates its own maturity is not one you can trust with a machine.
 
 ---
 
