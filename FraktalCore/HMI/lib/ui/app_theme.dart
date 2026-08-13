@@ -271,8 +271,33 @@ ThemeData _applyScale(ThemeData theme, UiMetrics m) {
           vertical: ((m.touchTarget - 48) / 4).clamp(0.0, 4.0),
         ),
         iconSize: WidgetStatePropertyAll(m.iconSize),
-        textStyle:
-            WidgetStatePropertyAll(scaled(theme.textTheme.labelLarge, 14)),
+        // A SELECTED segment is filled with secondaryContainer, an UNselected
+        // one sits on the surface — exactly the split the chipTheme below
+        // already resolves per state. A flat WidgetStatePropertyAll gave both
+        // the SAME colour, which is invisible wherever the two fills differ in
+        // lightness: on high-contrast LIGHT, Material widens the tonal spread
+        // until secondaryContainer inverts to a DARK fill (44485c) while the
+        // label stayed near-black — 1.05:1, the "Modules/Fieldbus" selector
+        // simply disappeared. Resolve per state so each fill gets its `on-`.
+        textStyle: WidgetStateTextStyle.resolveWith((states) {
+          final base =
+              scaled(theme.textTheme.labelLarge, 14) ?? const TextStyle();
+          return base.copyWith(
+            color: states.contains(WidgetState.selected)
+                ? theme.colorScheme.onSecondaryContainer
+                : theme.colorScheme.onSurface,
+          );
+        }),
+        // The glyph beside that label needs the same pairing — iconColor is a
+        // separate property and does not follow textStyle.
+        iconColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? theme.colorScheme.onSecondaryContainer
+                : theme.colorScheme.onSurface),
+        foregroundColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? theme.colorScheme.onSecondaryContainer
+                : theme.colorScheme.onSurface),
       ),
     ),
     chipTheme: ChipThemeData(
@@ -344,15 +369,68 @@ ThemeData themeAt(int i, [ControlScale scale = ControlScale.compact]) =>
     kThemes[i.clamp(0, kThemes.length - 1)].toThemeData(scale);
 
 /// Fixed severity colours — theme-aware only for HIGH (uses error). MEDIUM/LOW
-/// are constants chosen for AA contrast on both light and dark surfaces.
+/// are the [warningColor]/[infoColor] semantics, brightness-adapted so an amber
+/// or blue icon stays AA on a dark card (the single-shade constants measured
+/// ~2-3:1 there).
 Color severityColor(BuildContext ctx, Severity k) {
   switch (k) {
     case Severity.high:
       return Theme.of(ctx).colorScheme.error;
     case Severity.medium:
-      return const Color(0xFFB26A00); // amber-800, AA on light+dark surfaces
+      return warningColor(ctx);
     case Severity.low:
-      return const Color(0xFF1565C0); // info blue
+      return infoColor(ctx);
+  }
+}
+
+/// Fixed semantic GREEN: success / clear / linked / BUSY·DONE-ok. Same hue in
+/// every theme; the SHADE adapts to brightness. The light shade (green-800) is
+/// the only one that pairs AA with white text on a fill, so it is the fill
+/// colour too — but as a FOREGROUND (icon, dot, border) on a dark card it
+/// measured ~2:1 and the indicator vanished. Use this for foregrounds; use
+/// [kOkFill] (or the constant) for a fill that carries white text.
+Color okColor(BuildContext ctx) =>
+    Theme.of(ctx).brightness == Brightness.dark
+        ? const Color(0xFF66BB6A) // green-400: ~7:1 on a dark card
+        : const Color(0xFF2E7D32); // green-800: AA on light + with white text
+
+/// A fill in the success hue that keeps white text legible. Always the dark
+/// shade: a light green fill under white text is ~1.7:1.
+const Color kOkFill = Color(0xFF2E7D32);
+
+/// Fixed semantic AMBER: warning / held / degraded / MEDIUM. Brightness-adapted
+/// for foreground use; [kWarningFill] for white-on-fill.
+Color warningColor(BuildContext ctx) =>
+    Theme.of(ctx).brightness == Brightness.dark
+        ? const Color(0xFFFFB300) // amber-600: ~10:1 on a dark card
+        : const Color(0xFFB26A00); // amber-800
+const Color kWarningFill = Color(0xFFB26A00);
+
+/// Fixed semantic BLUE: info / LOW / DONE. Brightness-adapted for foreground.
+Color infoColor(BuildContext ctx) =>
+    Theme.of(ctx).brightness == Brightness.dark
+        ? const Color(0xFF60A5FA) // blue-400: ~7:1 on a dark card
+        : const Color(0xFF1565C0); // blue-800
+const Color kInfoFill = Color(0xFF1565C0);
+
+/// A severity colour safe for BODY TEXT, not just an icon or a dot.
+///
+/// [severityColor] is tuned for glyphs, which WCAG lets sit at 3:1. The same
+/// amber used as a sentence on a tinted banner measured 3.4:1 — legible-ish in
+/// an office, marginal on a glare-washed panel. Text callers use this instead:
+/// it darkens/lightens only the shades that need it, so the hue stays the
+/// fixed §8.1 semantic and nothing else about the palette changes.
+Color severityTextColor(BuildContext ctx, Severity k) {
+  final dark = Theme.of(ctx).brightness == Brightness.dark;
+  switch (k) {
+    case Severity.high:
+      return Theme.of(ctx).colorScheme.error;
+    case Severity.medium:
+      // amber-900 on light (4.9:1 on the 8% tint); the light shade already
+      // clears 4.5:1 on dark surfaces.
+      return dark ? const Color(0xFFFFB300) : const Color(0xFF8A5200);
+    case Severity.low:
+      return dark ? const Color(0xFF60A5FA) : const Color(0xFF0D4C94);
   }
 }
 
@@ -393,9 +471,24 @@ Color foregroundOn(BuildContext context, Color fill) {
     _ when fill == scheme.tertiaryContainer => scheme.onTertiaryContainer,
     _ when fill == scheme.errorContainer => scheme.onErrorContainer,
     _ when fill == scheme.surface => scheme.onSurface,
-    // Unknown fill: choose the higher-contrast of black/white against it.
-    _ => fill.computeLuminance() > 0.4 ? Colors.black : Colors.white,
+    // Unknown fill: actually COMPUTE which of black/white wins, rather than
+    // guessing from a luminance threshold. A fixed 0.4 cut sent white onto
+    // mid-tone fills where black is the better pairing — the info-blue `+N`
+    // alarm chip measured 2.54:1 that way, while black on the same fill is
+    // 5.9:1. WCAG's own crossover is ~0.179, but deriving it is cheap and
+    // cannot drift.
+    _ => _betterOf(Colors.black, Colors.white, fill),
   };
+}
+
+/// Whichever of [a]/[b] contrasts more strongly with [on].
+Color _betterOf(Color a, Color b, Color on) =>
+    _contrastRatio(a, on) >= _contrastRatio(b, on) ? a : b;
+
+double _contrastRatio(Color a, Color b) {
+  final la = a.computeLuminance(), lb = b.computeLuminance();
+  final hi = la > lb ? la : lb, lo = la > lb ? lb : la;
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 Widget onContainer(BuildContext context, Color container, Widget child) {
@@ -412,14 +505,14 @@ Widget onContainer(BuildContext context, Color container, Widget child) {
 Color stateColor(BuildContext ctx, ExecState s) {
   switch (s) {
     case ExecState.ready:
-      return Colors.grey;
+      return Theme.of(ctx).colorScheme.onSurfaceVariant;
     case ExecState.busy:
-      return const Color(0xFF2E7D32);
+      return okColor(ctx);
     case ExecState.done:
-      return const Color(0xFF1565C0);
+      return infoColor(ctx);
     case ExecState.error:
       return Theme.of(ctx).colorScheme.error;
     case ExecState.aborted:
-      return const Color(0xFFB26A00);
+      return warningColor(ctx);
   }
 }

@@ -17,21 +17,29 @@ class OnScreenKeyboardPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     // Rendered as a sibling below the app content (see FraktalHmiApp.builder),
     // so it occupies its own space rather than floating over the active field.
-    return SizedBox(
-      height: controller.reservedHeight,
-      width: double.infinity,
-      child: SafeArea(
-        top: false,
-        child: Material(
-          elevation: 12,
-          color: ElevationOverlay.applySurfaceTint(
-            Theme.of(context).colorScheme.surface,
-            Theme.of(context).colorScheme.primary,
-            12,
+    return FocusScope(
+      // Belt and braces with each key's `canRequestFocus: false`: nothing inside
+      // the panel may pull focus away from the field being typed into. Losing
+      // that focus detaches the field (TouchTextField._focusChanged -> hide()),
+      // which is exactly how a key press produced no character and dismissed
+      // the keyboard.
+      canRequestFocus: false,
+      child: SizedBox(
+        height: controller.reservedHeight,
+        width: double.infinity,
+        child: SafeArea(
+          top: false,
+          child: Material(
+            elevation: 12,
+            color: ElevationOverlay.applySurfaceTint(
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.primary,
+              12,
+            ),
+            child: keyboardTypeIsNumeric(controller.activeType)
+                ? _NumericPad(controller: controller)
+                : _AlphaPad(controller: controller),
           ),
-          child: keyboardTypeIsNumeric(controller.activeType)
-              ? _NumericPad(controller: controller)
-              : _AlphaPad(controller: controller),
         ),
       ),
     );
@@ -49,6 +57,8 @@ class _Key extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // The whole panel is also wrapped so a tap anywhere on it — the padding
+    // between keys, the panel background — cannot move focus either.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
       child: Ink(
@@ -58,6 +68,12 @@ class _Key extends StatelessWidget {
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
+          // A key must NEVER take focus. InkWell is focusable by default, so a
+          // tap moved focus off the text field, which fired the field's
+          // focus-lost handler -> controller.hide() -> the active field was
+          // detached before insert() could run: the keyboard vanished and not a
+          // character arrived.
+          canRequestFocus: false,
           onTap: onTap,
           child: Center(
             child: icon ??

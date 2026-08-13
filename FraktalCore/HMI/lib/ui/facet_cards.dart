@@ -156,7 +156,7 @@ class SafetyCard extends StatelessWidget {
                         d.ready
                             ? Icons.check_circle_outline
                             : Icons.gpp_bad_outlined,
-                        color: d.ready ? const Color(0xFF2E7D32) : cs.error),
+                        color: d.ready ? okColor(context) : cs.error),
                     title: LText(d.name),
                     subtitle: LText(
                         '${d.kind.name} · ${d.state.name}${d.description.isEmpty ? '' : '\n${context.tr(d.description)}'}'),
@@ -251,7 +251,7 @@ class LinkCard extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: Icon(link.linked ? Icons.link : Icons.link_off,
-            color: link.linked ? const Color(0xFF2E7D32) : cs.error),
+            color: link.linked ? okColor(context) : cs.error),
         title: LText(link.linked ? 'Device linked' : 'Link lost'),
         subtitle: LText(link.linked
             ? 'Last seen ${_ago(link.lastSeen)}'
@@ -385,10 +385,10 @@ class PartCard extends StatelessWidget {
 
   Widget _verdictChip(BuildContext ctx, Verdict v) {
     final (label, color) = switch (v) {
-      Verdict.ok => ('OK', const Color(0xFF2E7D32)),
+      Verdict.ok => ('OK', okColor(ctx)),
       Verdict.nok => ('NOK', Theme.of(ctx).colorScheme.error),
-      Verdict.rework => ('REWORK', const Color(0xFFB26A00)),
-      Verdict.none => ('—', Colors.grey),
+      Verdict.rework => ('REWORK', warningColor(ctx)),
+      Verdict.none => ('—', Theme.of(ctx).colorScheme.onSurfaceVariant),
     };
     // The fill is a 15% tint, so it reads as the page surface: keep the themed
     // label colour (which pairs with that surface) and let the border carry the
@@ -413,7 +413,7 @@ class PartCard extends StatelessWidget {
         Icon(r.inTol ? Icons.check_circle_outline : Icons.error_outline,
             size: 18,
             color: r.inTol
-                ? const Color(0xFF2E7D32)
+                ? okColor(ctx)
                 : Theme.of(ctx).colorScheme.error),
       ]),
     );
@@ -489,7 +489,7 @@ class OeeCard extends StatelessWidget {
     if (!valid) return Theme.of(ctx).colorScheme.outline;
     if (v >= _target)
       return Theme.of(ctx).colorScheme.onSurfaceVariant; // muted = good
-    if (v >= 0.6) return const Color(0xFFB26A00);
+    if (v >= 0.6) return warningColor(ctx);
     return Theme.of(ctx).colorScheme.error;
   }
 

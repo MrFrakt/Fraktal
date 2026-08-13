@@ -481,8 +481,23 @@ SIM-only force hooks compile out of release builds.
   `ws://`/`wss://<page-origin>/fraktal` automatically, while Chrome debug keeps
   the explicit loopback development endpoint. The gateway remains loopback-only;
   remote Web access belongs behind an authenticated same-host HTTPS/WSS proxy.
+  That derivation is also why a multi-PLC host gives every gateway instance a
+  whole origin of its own (§5) rather than a path prefix.
 - Connection ownership precedes the operator shell: `ConnectionBootstrap` opens the wizard until an endpoint has reached `LIVE`, removes the interactive HMI immediately on `STALE`/`DOWN`, and exposes connection editing only after 30 s without `LIVE`. Never bypass this gate or queue writes across reconnect.
 - Module details are tabbed and data-driven. Overview/Description are standard; typed category data may add Motion/Vision/Code Reader/RFID tabs. ADMIN-authored custom/guidance controls select compatible current-module scalar tags through autocomplete and use only the existing PLC-validated repository actions—never add arbitrary OPC UA writes or station screens. Scalar/LED/input controls bind one tag; charts bind at most eight numeric tags. Custom tab icons and an optional fitted/aligned/margined Overview background are portable presentation data. Guidance is triggered by `CurrentStep` but never advances a PLC step by dismissal. The portable customization bundle includes layouts, bindings, access policy, images/PDFs, and localization overrides; it deliberately excludes connection settings and session/credentials. Import remaps only deterministic module-path changes and preserves ambiguous paths as deferred content—never discard profiles merely because the live project structure changed (`HMI_CONTRACT.md`, `LOCALIZATION_AND_MODULE_CONTENT.md`).
+- **A status colour is chosen for the surface it lands on, in all 14 themes.**
+  The §8.1 semantics are fixed (READY/BUSY/DONE/ERROR/ABORTED, HIGH/MEDIUM/LOW)
+  but the SHADE is not: a single constant tuned for a light card measured ~2:1 as
+  a dot or icon on a dark one, so the operator could not see it. Use
+  `okColor`/`warningColor`/`infoColor`/`stateColor`/`severityColor` for a GLYPH
+  (dot, icon, border — WCAG 3:1), `severityTextColor` for a SENTENCE (4.5:1), and
+  the `k*Fill` constants only for a filled area that carries white text (the
+  Run/Stop button, the fieldbus ON cell, chart bars — a light shade there is
+  ~1.7:1 under white). Never write a bare `TextStyle(fontSize: …)`: it carries no
+  colour and falls back to the ambient `DefaultTextStyle`. Any widget painting a
+  `*Container` role or a fixed fill must pair it with `foregroundOn`/`onContainer`.
+  `test/theme_contrast_test.dart` measures every one of these against the tinted
+  surface it is really drawn on, in every theme — extend it rather than eyeballing.
 - Custom controls preserve OPC UA DataValue quality/type/timestamps: Bad/Uncertain values remain linkable but render unavailable, do not feed trends, and cannot enable inputs. Use responsive width presets and flow layout, not persisted pixel coordinates. ADMIN edits stay in a local undoable draft until explicit Publish; publish/rollback retains at most 20 revisions per module and exports them in customization schema 4. Manual/decision buttons come from live PLC catalogs, target the current canonical module/root, optionally confirm, and wait for acknowledgement; ignore imported legacy free-form target paths.
 - Wizard step 2 assigns one or more discovered root Unit paths to this HMI. `ScopedPlcRepository` enforces that scope for reads and writes; only an authenticated ADMIN may edit it later.
 - The write surface is deliberately narrow: `Command`+`Execute`/`Abort`, `DecisionAnswer`, Unit
@@ -570,10 +585,10 @@ For the same GUID-ownership reason, never load `Fraktal_Press_Demo.plcproj` and
 `PressTests.plcproj` in one XAE solution: the press gate links the exact Press
 Unit/sequence/release source files. Use its dedicated isolated test solution,
 or unload/remove the Press application before adding the press tests.
-The current Core is `0.4.0.0` and Modules is `0.3.0.0`; downstream placeholders are pinned accordingly. Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2). They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
+The current Core is `0.4.0.2` and Modules is `0.3.0.0`; downstream placeholders are pinned accordingly. Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
 If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
-reason to edit each affected POU. Install Core `0.4.0.0`, resolve/build/install Modules `0.3.0.0`,
+reason to edit each affected POU. Install Core `0.4.0.2`, resolve/build/install Modules `0.3.0.0`,
 then reload the application placeholders and rebuild.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.
@@ -599,20 +614,43 @@ cd gateway
 dart pub get
 dart run tool/build_gateway.dart --clean
 ```
-On Windows this also creates
+**One gateway process serves ONE PLC.** A host serving several controllers runs
+one *instance* per PLC, and an instance is just a folder:
+`%LOCALAPPDATA%\Fraktal\Gateway\instances\<name>\gateway.args` (the folder name
+is `--instance-name`, reported by `/healthz`). Discovery is "every subfolder
+with a gateway.args" — written once in `gateway/deploy/windows/fraktal_instances.ps1`
+for the scripts and once in the tray; keep the two in step and add no third
+index. Each instance owns its own `--port` **and its own public origin**: a
+release Web HMI derives its WebSocket endpoint from the page origin, so PLCs
+can never share an origin under different paths. **Whether the BROWSER may
+command a PLC is gateway configuration, not PLC code** — `--write-root`, asked
+per instance by the wizard. No write root = a read-only viewer whose every
+operator command the gateway refuses before the PLC sees it; the native HMI is
+unaffected and the PLC still applies its own §7.6/§7.7 gates. The PLC cannot
+make this distinction itself: `ST_HmiRequest` carries no transport identity, so
+a PLC-side gate could only disable commanding for every client at once. The tray supervises all of
+them with independent restart backoff and aggregates status failure-first.
+
+On Windows the build also creates
 `build/gateway/installer/FraktalSetup.exe` — a combined installer (PowerShell
 WinForms wizard) for the native HMI app and/or the gateway + Web HMI. It queries
 the local TwinCAT router for the AMS Net ID and shares that ADS endpoint with
-the Gateway by default; clear the checked share option for separate endpoints.
+the first Gateway instance by default; its instance list adds/edits/removes the
+other PLCs, refusing duplicate names, ports, or origins.
 The Windows gateway option can also deploy a pinned,
-checksum-verified Caddy HTTPS/WSS proxy, collect/hash browser credentials, write
-the exact `--allow-origin`, generate/export an internal LAN-CA root, optionally
+checksum-verified Caddy HTTPS/WSS proxy (one site block per published
+instance), collect/hash browser credentials, write
+the exact `--allow-origin` per instance, generate/export an internal LAN-CA root, optionally
 trust it for the installing Windows user, add a local-subnet firewall rule, and
-supervise both processes from the tray. Local trust never propagates: every
+supervise every process from the tray. Local trust never propagates: every
 remote browser device must trust the exported public root (or site PKI). Leave
-the new-password fields blank on upgrade to preserve site proxy security.
-Linux output includes `web/`, the systemd unit, and protected environment
-example; its reverse proxy remains site-managed. Build on the target OS.
+the new-password fields blank on upgrade to preserve site proxy security — the
+routing is still regenerated, so a PLC can be added without the password. A
+pre-instances `gateway.args` is migrated (not replaced) on the next install; a
+removed instance is retired to `gateway.args.removed`, never deleted.
+Linux output includes `web/`, the single-PLC systemd unit, the templated
+`fraktal-gateway@.service` (one instance per PLC), and protected environment
+examples; its reverse proxy remains site-managed. Build on the target OS.
 Production distribution
 shall sign binaries
 and record hashes. Prove `/livez`, `/readyz`, static `/`, `/fraktal`, Fraktal

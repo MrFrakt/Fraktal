@@ -3585,3 +3585,157 @@ reports 30 errors until Core is rebuilt and re-installed via **Save as library a
 install**. That is the documented dependency order, not a defect — but it is the first
 time this session a Core API rename has been made, and it is worth recording that the
 source-green/consumer-red window is expected and is closed by the install step.
+## 125. The §3.13 flow chart never told the HMI it had changed (2026-08-07)
+
+**Symptom.** The HMI's sequence view rendered every row as `N0` with an empty
+drill-down, intermittently — sometimes correct, usually not.
+
+**Cause.** A chart row is deliberately split in two: the LIVE half (`Visited`,
+`LastDuration`, the error/message marks) publishes cyclically, and the STATIC
+half (`StepNo`, `StepName`, `Branch`, `TimeClass`, `ExpectedTime`,
+`AwaitingLabel`, `AwaitsPath`) is served once through the §3.10.2 manifest under
+the same browse paths, so the mapper reads one row without knowing it arrived by
+two routes. The HMI refetches that manifest only when `ConfigRev` changes.
+
+`SequenceStepDef` rows, however, are discovered **by visit** — and neither
+`_M_RecordSequenceStep` (append) nor `_M_ResetSequenceRows` (the mode-change
+clear) bumped `ConfigRev`. Every other manifest contributor already did:
+`RegisterAvailableModel`, `SetAccessLevel`, the recipe commit in `SetModel`. So
+a chart that grew after the HMI's one-time fetch — which is every chart, since
+the rows appear as the chain runs — rendered its new rows from defaults: step 0,
+no text. `OnModeChanged` then made it permanent for that mode.
+
+That the split is invisible to the mapper is the design working; that half of it
+had no revision signal is the defect. **A published surface assembled from two
+sources needs one revision that covers both.**
+
+**Fix.** `ConfigRev := ConfigRev + 1` on append (only when a row is actually
+added — a re-visit rewrites identical values) and on the mode-change clear
+(guarded by `SequenceStepCount > 0`, so a mode change with nothing published
+costs no refetch). The HMI's `_manifestFetchInFlight` guard coalesces the bumps
+of a first pass into far fewer fetches than there are steps.
+
+Core advances to `0.4.0.1`: a contract-neutral rebuild in the fourth component
+(Part II §2.2). Nothing about the published types changed, but a fixed library
+that still called itself `0.4.0.0` would be indistinguishable from the broken one
+in the library repository. Pins in `Fraktal_Demo`, `PressTests` and
+`Fraktal_Tests` move with it; Core must be rebuilt and re-installed, then Modules
+resolved, before any application binds the fix.
+
+## 126. A ladder rung agreed on every step and still dropped an effect (2026-08-07)
+
+**Symptom.** Running the LD rendition of the press AUTO chain, releasing a
+two-hand button before the slide finished retracting put the machine in a loop:
+slide in, door down, abort, door up, slide out, repeat, indefinitely.
+
+**Cause.** `FB_LD_PressDemoAuto` network 8 (step 190, the post-abort slide-out)
+carried its `M_Step`, its `M_TryIssue`, the RETRACT command, the Reset of
+`_partSlide.Execute` and `MOVE 100 -> _step` — everything its ST twin does
+except `_startLatched := FALSE`. `_startLatched` is a `REFERENCE TO BOOL` shared
+with the Unit, and N100's `M_Await(Ok := _startLatched)` is the only thing that
+holds the cycle at the two-hand wait. Still latched, N100 fell straight through
+and the chain ran the whole cycle again against a released button.
+
+The ST and SFC renditions both write it in both places (steps 190 and 999); the
+ladder wrote it only at 999.
+
+**Why nothing caught it.** `check_consistency.py --checks parity` compared which
+steps exist and where each one can go. Step 190 existed and went to 100 in both
+renditions, so the chain was "at parity" while doing something materially
+different. **Same steps and same transitions is not the same chain.**
+
+**Fix.** The rung gains a Reset coil on `_startLatched`, generated with
+`tools/ld_rung_gen.py` and gated by the same `EQ(_step,190) AND _partSlide.Done`
+power that already resets `_partSlide.Execute` — tapping rail 197, which was
+computed at the top of the rung, so it cannot be re-evaluated after the MOVE
+below sets `_step := 100`.
+
+The gate now compares **effects**, not just topology: for every step carried in
+both languages, the shared state the ST branch assigns must be written by a coil
+in the ladder rung. "Shared" is exactly the roots the ST twin declares
+`REFERENCE TO` — a rendition's own scratch is excluded on purpose, because
+`_partProcessed` in ST is `_processed` in ladder and naming scratch differently
+is not a divergence. A PLAIN coil is exempt everywhere: it writes its rail's
+value every scan, so it already drives the symbol FALSE in every other step and
+the ST twin's explicit clears have no ladder counterpart to find. That exemption
+is what keeps `_outCmd.CycleCompleted` from being reported. Run against the
+pre-fix artifact the check reports exactly one error, naming step 190 and
+`_startLatched`.
+## 127. The fieldbus tree showed each card its neighbour's state (2026-08-07)
+
+**Symptom.** On the press bench the EL6001 (`=000+S-K010D1`) read OFFLINE on the
+HMI fieldbus tree while XAE showed the terminal present and the card was
+operational.
+
+**Cause — not the HMI, and not a stale boot configuration.** `FB_EcBusHealth`
+mapped the master's slave list to topology nodes *by position*:
+`node := _firstSlaveNode + i - 1`. That assumes the catalog and the master's
+slave list are the same sequence. They are not.
+
+The master enumerates only devices with an EtherCAT slave controller on the
+process-data ring. The press bus is EK1200 coupler, EL1809, EL2809, EL6001,
+EL9011 — five entries in the project tree and in the catalog, but the coupler
+and the passive end cap have **no ESC**, so `FB_EcGetAllSlaveStates` returns
+three. The `.xti` shows it plainly: those two boxes declare 0 PDOs, the other
+three declare 16, 16 and 10.
+
+Everything therefore shifted by one:
+
+| master slot | really is | published onto |
+|---|---|---|
+| 1 | EL1809 | node 2 — the **coupler** |
+| 2 | EL2809 | node 3 — the **EL1809** |
+| 3 | EL6001 | node 4 — the **EL2809** |
+| — | (nothing) | node 5 — EL6001 → OFFLINE |
+| — | (nothing) | node 6 — EL9011 → OFFLINE |
+
+So the EL6001's genuine OP state was being displayed on the EL2809's row. **A
+wrong state on the right node is worse than no state: it is a plausible lie**,
+and it is why the symptom looked like a single dead card rather than a
+system-wide off-by-one.
+
+**Fix.** The mapping is stated, not assumed. `FB_EcBusHealth` gains
+`M_MapSlaveNode(SlaveIndex, NodeIndex)` — which topology node the master's
+slave *i* actually is — and `M_MapPassiveNode(NodeIndex)` for catalogued
+devices that carry the bus but are not enumerated. A passive node's state is
+*inferred* (OPERATIONAL exactly when the read succeeded and at least one slave
+answered), never invented: leaving it OFFLINE forever on a healthy bus is the
+same class of lie in the other direction. `Setup`'s consecutive
+`FirstSlaveNode`/`SlaveCount` form still fills the map and stays correct for a
+bus where every catalogued node really is a slave.
+
+`FB_PressIoDriver` now declares the truth: `SlaveCount := 3` starting at node 3,
+three explicit slave mappings, and the coupler and end cap as passive.
+
+**Not verified on hardware.** The press PLC was unavailable when this was
+written. The diagnosis rests on the live probe capture taken while it *was*
+reachable (`SlavesReported 3`, slots 4–5 returning `0x00` = no data) plus the
+`.xti` PDO counts, and both agree. The runtime re-test is outstanding: with the
+bus healthy, all six nodes should read OPERATIONAL and `CountMismatch` should be
+FALSE.
+## 128. The manifest threw away the type it knew (2026-08-08)
+
+**Symptom.** Every row of the §3.13 sequence flow chart rendered as `N0` with an
+empty drill-down. §125 fixed the *revision* half of this (the HMI never refetched
+a chart that grew), but the rows stayed blank — so that fix was necessary and not
+sufficient, and I reported it as complete too early.
+
+**Cause.** A chart row is half live, half manifest. `FB_ConfigPager.M_Append`
+stamps `ValueType := TEXT` on every entry, and `M_AppendNumber` — which knows
+perfectly well it is writing a number — inherited it. The type was discarded at
+the source, so the HMI had to guess from the leaf NAME against a hand-maintained
+allowlist. `StepNo` was never in that list. The value crossed the wire as the
+string `"100"`, the mapper's `_integer()` fell back to `0`, and the whole chart
+became N0. `Branch`, `TimeClass` and `ExpectedTime` were silently wrong the same
+way.
+
+**A type the sender knows must never be re-derived by the receiver.**
+`M_AppendNumber` now stamps `E_ConfigValueType.NUMBER` on the slot it just wrote,
+using the `_storedSlot` mechanism `M_AppendCapability` already relies on. The HMI
+consults the declared type first and keeps the name list only as a fallback for a
+PLC built before this change — so an un-upgraded controller still renders, and a
+new leaf can never silently stringify again.
+
+Core advances to `0.4.0.2` (contract-neutral, Part II §2.2): no published type
+changed, but a fixed library must be distinguishable from the broken one in the
+repository.

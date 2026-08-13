@@ -479,6 +479,11 @@ const standardEnglish = <String, String>{
   'std.module.editor.triggerStepName': 'Trigger step name (optional)',
   'std.module.editor.triggerWildcardHelp':
       "Use * to open for every WAIT_OPERATOR step.",
+  'std.module.editor.triggerModes': 'Open only in these modes',
+  'std.module.editor.triggerModesHelp':
+      'Leave all cleared to open in every mode. AUTO is normally excluded: a '
+      'running cycle waits for the operator routinely, so guidance there '
+      'interrupts production.',
   'std.module.editor.invalidNumber': 'Enter a valid non-negative number.',
   'std.module.editor.addControl': 'Add control',
   'std.module.editor.editControl': 'Edit control',
@@ -632,6 +637,20 @@ const standardEnglish = <String, String>{
   'std.release.stopBlocked': 'Stop blocked',
   'std.release.resetBlocked': 'Reset blocked',
   'std.guidance.step': 'Step {number} · {name}',
+  'std.guidance.acknowledge': 'Acknowledge',
+  'std.guidance.forcedNotice':
+      'This step is waiting for you. Read the instructions, complete any '
+      'decision below, then acknowledge to continue.',
+  'std.module.editor.guidanceMode': 'When it opens automatically',
+  'std.module.editor.guidanceModeOptional':
+      'Optional — the operator can close it and keep working',
+  'std.module.editor.guidanceModeForced':
+      'Forced — must be acknowledged (decisions, safety confirmations)',
+  'std.module.editor.guidanceModeHelp':
+      'Use Forced only when the step genuinely waits on the operator, such as '
+      'selecting a changeover model or confirming it is safe to open the '
+      'doors. Blocking the panel when it was not necessary teaches operators '
+      'to dismiss guidance without reading it.',
 };
 
 const standardSpanish = <String, String>{
@@ -941,6 +960,11 @@ const standardSpanish = <String, String>{
   'std.module.editor.triggerStepName': 'Nombre de paso (opcional)',
   'std.module.editor.triggerWildcardHelp':
       'Use * para abrir en cada paso WAIT_OPERATOR.',
+  'std.module.editor.triggerModes': 'Abrir solo en estos modos',
+  'std.module.editor.triggerModesHelp':
+      'Deje todo sin marcar para abrir en cualquier modo. AUTO se excluye '
+      'normalmente: un ciclo en marcha espera al operador de forma rutinaria, '
+      'por lo que la guía allí interrumpe la producción.',
   'std.module.editor.invalidNumber': 'Ingrese un número no negativo válido.',
   'std.module.editor.addControl': 'Agregar control',
   'std.module.editor.editControl': 'Editar control',
@@ -1120,6 +1144,20 @@ const standardSpanish = <String, String>{
   'std.release.stopBlocked': 'Paro bloqueado',
   'std.release.resetBlocked': 'Reinicio bloqueado',
   'std.guidance.step': 'Paso {number} · {name}',
+  'std.guidance.acknowledge': 'Confirmar',
+  'std.guidance.forcedNotice':
+      'Este paso le está esperando. Lea las instrucciones, complete cualquier '
+      'decisión y confirme para continuar.',
+  'std.module.editor.guidanceMode': 'Cuándo se abre automáticamente',
+  'std.module.editor.guidanceModeOptional':
+      'Opcional: el operador puede cerrarla y seguir trabajando',
+  'std.module.editor.guidanceModeForced':
+      'Forzada: debe confirmarse (decisiones, confirmaciones de seguridad)',
+  'std.module.editor.guidanceModeHelp':
+      'Use Forzada solo cuando el paso realmente espera al operador, como '
+      'seleccionar un modelo de cambio o confirmar que es seguro abrir las '
+      'puertas. Bloquear el panel sin necesidad enseña a descartar la guía '
+      'sin leerla.'
 };
 
 const projectEnglish = <String, String>{

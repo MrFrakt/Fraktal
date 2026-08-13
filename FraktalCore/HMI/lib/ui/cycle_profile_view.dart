@@ -6,6 +6,7 @@ library;
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
 import '../domain/types.dart';
+import 'app_theme.dart';
 
 // Categorical palette validated with the dataviz six-checks (light PASS; dark
 // passes with a contrast WARN on blocked, relieved by direct labels + the table
@@ -55,9 +56,12 @@ class CycleProfileView extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium),
             const Spacer(),
             _stat(context, 'Total', p.total),
-            _stat(context, 'Work', p.workTime,
-                color: timeClassColor(TimeClass.work)),
-            _stat(context, 'Wait', p.waitTime, color: const Color(0xFF1565C0)),
+            // These are numbers on a card, not chart fills: they take the
+            // brightness-adapted foreground shades. timeClassColor stays fixed
+            // for the BARS below, where the colour is a filled area and the
+            // categorical assignment must never move.
+            _stat(context, 'Work', p.workTime, color: okColor(context)),
+            _stat(context, 'Wait', p.waitTime, color: infoColor(context)),
           ]),
           const SizedBox(height: 12),
           for (final s in p.steps) _bar(context, s, maxMs),

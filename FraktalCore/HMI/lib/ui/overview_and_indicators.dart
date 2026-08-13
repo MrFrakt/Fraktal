@@ -192,10 +192,26 @@ class GlobalAlarmBanner extends StatelessWidget {
                 child: LText(
                     '${context.tr(worst.description)}  ·  ${worst.sourcePath}',
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: c, fontWeight: FontWeight.w600))),
+                    // Body text, so the text-weight shade — the icon-weight one
+                    // is only held to 3:1 and read 3.4:1 here.
+                    style: TextStyle(
+                        color: severityTextColor(context, worst.severity),
+                        fontWeight: FontWeight.w600))),
             if (more > 0)
+              // The banner paints a severity tint over the surface, so a default
+              // Chip lands fill-on-fill: its own surfaceContainerLow sits on an
+              // already-tinted background and the label keeps the ambient
+              // onSurface. On high-contrast dark that measured ~1.9:1 and the
+              // count vanished. Fill it with the severity colour and pair the
+              // label with foregroundOn, like every other fixed-colour fill.
               Chip(
-                  label: LText('+$more'), visualDensity: VisualDensity.compact),
+                  label: LText('+$more',
+                      style: TextStyle(
+                          color: foregroundOn(context, c),
+                          fontWeight: FontWeight.w600)),
+                  backgroundColor: c,
+                  side: BorderSide.none,
+                  visualDensity: VisualDensity.compact),
           ]),
         ),
       ),
@@ -218,17 +234,17 @@ class ConnectionChip extends StatelessWidget {
     final (label, color, icon) = switch (state) {
       LinkState.live => (
           'Live',
-          const Color(0xFF2E7D32),
+          okColor(context),
           Icons.cloud_done_outlined
         ),
       LinkState.connecting => (
           'Connecting',
-          const Color(0xFFB26A00),
+          warningColor(context),
           Icons.cloud_sync_outlined
         ),
       LinkState.stale => (
           'Stale',
-          const Color(0xFFB26A00),
+          warningColor(context),
           Icons.cloud_off_outlined
         ),
       LinkState.down => (
@@ -317,7 +333,9 @@ class PlantOverview extends StatelessWidget {
               LText(r.message,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tint, fontWeight: FontWeight.w600))
+                  style: TextStyle(
+                      color: severityTextColor(context, sev),
+                      fontWeight: FontWeight.w600))
             else
               LText(r.message,
                   maxLines: 1,

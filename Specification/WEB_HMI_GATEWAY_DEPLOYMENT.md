@@ -34,6 +34,22 @@ The gateway always binds to loopback. Remote access therefore has one explicit
 security boundary: a same-host reverse proxy authenticates the browser,
 terminates TLS, and forwards ordinary HTTP plus the WebSocket upgrade.
 
+One gateway process owns one PLC session. A host that serves several
+controllers runs one **instance** per PLC, each with its own loopback port, its
+own published origin, and its own supervision — so an unreachable controller or
+a stalled router takes down that PLC's gateway and nothing else:
+
+```text
+https://cell.example         -> 127.0.0.1:8080  instance "press"  -> PLC A
+https://cell.example:8443    -> 127.0.0.1:8081  instance "oven"   -> PLC B
+        (one reverse proxy, one site block and one origin per instance)
+```
+
+Each instance needs a whole origin, not a path: a release Web HMI derives its
+WebSocket endpoint from the page origin, so `https://cell.example/press` cannot
+be made to reach a second gateway. Ports and origins are therefore unique per
+instance, and the installer refuses a set that repeats either.
+
 ## 2. Choose a deployment path
 
 | Target | Recommended path | Starts automatically | Web HMI included |
@@ -59,6 +75,9 @@ Do not install the HMI layer until these checkpoints are known:
   `commissioning-anonymous`, or `isolated-anonymous`;
 - exact root browse paths assigned to this gateway, for example
   `PLC1/MAIN/PneumaticPress`;
+- for a multi-PLC host: the instance name, PLC endpoint, loopback port, and
+  public origin of **every** controller this host serves, decided before
+  installation — each is a separate gateway process;
 - production gateway application URI, client certificate/private key, server
   trust list, dedicated TF6100 username/password, and their provisioning owner;
 - local-only or remote-browser URL and, for remote access, the reverse proxy's
@@ -99,7 +118,8 @@ HMI\build\gateway\installer\FraktalSetup.exe  # includes verified Caddy
 ```
 
 Linux outputs the equivalent `linux-x64` package with `fraktal_gateway`,
-`libfraktal_opcua.so`, `web/`, the systemd unit, and environment example.
+`libfraktal_opcua.so`, `web/`, the single-PLC systemd unit, the templated
+`fraktal-gateway@.service` for a multi-PLC host, and both environment examples.
 Build on the target operating system; the native gateway is not cross-compiled.
 
 Sign the Windows installer and binaries with the organization's Authenticode
@@ -114,43 +134,84 @@ PLC/TMC and configuration exports.
 2. Run `FraktalSetup.exe` as the Windows account that will own the tray.
 3. In the wizard, select **Fraktal Gateway + Web HMI**. The installer asks the
    local TwinCAT router for its configured AMS Net ID and seeds
-   `ads://<detected-AmsNetId>:851`. **Use the HMI / local PLC endpoint for the
-   Gateway** is checked by default, so the Gateway endpoint mirrors that value
-   and its duplicate field is disabled. Clear the checkbox only when the
-   Gateway must use a different ADS runtime or an OPC UA endpoint. If router
-   discovery is unavailable, the wizard visibly falls back to
-   `ads://127.0.0.1.1.1:851`; confirm it before installation.
-4. For a remote browser, leave **secure remote Web HMI** selected, confirm the
-   suggested `https://<controller-IP>` origin, enter the proxy account/password,
-   and allow the local-subnet Windows Firewall rule. For same-host-only use,
-   clear that option.
-5. The installer writes program files to
-   `%LOCALAPPDATA%\Programs\Fraktal Gateway`, writes the endpoint as
-   `--plc-endpoint`, normalizes the loopback `--port` to numeric `8080`, and,
-   when selected, writes the exact public `--allow-origin` in `gateway.args`.
-   It preserves site data under
-   `%LOCALAPPDATA%\Fraktal\Gateway`, creates Start Menu and Startup shortcuts,
-   starts the tray, and opens `gateway.args`.
-6. The remote option configures the bundled, checksum-pinned Caddy executable
-   at `%LOCALAPPDATA%\Fraktal\Gateway\proxy\Caddyfile`. It hashes the password
-   through Caddy's stdin, stores only the Argon2id hash, generates an internal
-   LAN CA, validates the Caddyfile before publishing it, and exposes only the
-   selected HTTPS port from Domain/Private profiles and the local subnet. The
-   checked **Trust this gateway CA** option installs the public root into the
-   current Windows user's Root store on the gateway PC only. Accept Windows'
-   visible certificate-security confirmation when prompted; the installer
-   aborts that step after two minutes rather than waiting invisibly forever.
-7. Upgrades replace binaries and the Web HMI but preserve `gateway.args`, proxy
-   configuration/password hash, proxy CA, OPC UA PKI, and logs when both new
-   password fields are left blank. Uninstall also preserves those site-owned
-   files intentionally.
+   `ads://<detected-AmsNetId>:851`. If router discovery is unavailable, the
+   wizard visibly falls back to `ads://127.0.0.1.1.1:851`; confirm it before
+   installation.
+4. Fill in the **gateway instance list — one row per PLC**. A fresh install
+   starts with one instance named `default` on port 8080; an upgrade shows the
+   instances already installed. **Use the HMI / local PLC endpoint for the first
+   Gateway instance** is checked by default, so row one mirrors the HMI/local
+   value; clear it only when that instance must use a different ADS runtime or
+   an OPC UA endpoint. **Add PLC…** appends a row with the next free port and a
+   suggested origin; give each its own name, endpoint, port, and — when it is
+   published — its own HTTPS origin. The wizard refuses duplicate names, ports,
+   and origins before writing anything.
+5. Decide, per instance, whether the **browser** may command that PLC.
+   **Allow operator commands from the browser** writes `--write-root`; cleared,
+   the instance is a read-only viewer and the gateway refuses every operator
+   command before it reaches the PLC. The scope is the published root Unit and
+   its shape follows the transport — `PneumaticPress` over ADS,
+   `PLC1/MAIN/PneumaticPress` over TF6100 OPC UA — comma-separated for a
+   multi-root HMI. The wizard confirms any read-only instance before installing,
+   because "every command is refused" is otherwise discovered at commissioning
+   with no obvious cause. The native HMI is unaffected, and the PLC re-checks
+   its own release/access gates either way.
+6. For remote browsers, leave **secure remote Web HMI** selected and enter one
+   proxy account/password for the host; every instance that has an origin is
+   published as its own HTTPS site under that account. Allow the local-subnet
+   Windows Firewall rule, which covers every published port. For same-host-only
+   use, clear that option (or leave an instance's origin blank to keep just that
+   PLC local).
+7. The installer writes program files to
+   `%LOCALAPPDATA%\Programs\Fraktal Gateway` and one arguments file per instance
+   under `%LOCALAPPDATA%\Fraktal\Gateway\instances\<name>\gateway.args`, each
+   carrying its `--instance-name`, `--plc-endpoint`, numeric `--port`,
+   `--web-root`, and — when published — its exact `--allow-origin`. It preserves
+   site data under `%LOCALAPPDATA%\Fraktal\Gateway`, creates Start Menu and
+   Startup shortcuts (one configuration shortcut per instance), and starts the
+   tray.
+8. The remote option configures the bundled, checksum-pinned Caddy executable
+   at `%LOCALAPPDATA%\Fraktal\Gateway\proxy\Caddyfile`, one site block per
+   published instance. It hashes the password through Caddy's stdin, stores only
+   the Argon2id hash, generates an internal LAN CA, validates the Caddyfile
+   before publishing it, and exposes only the selected HTTPS ports from
+   Domain/Private profiles and the local subnet. The checked **Trust this
+   gateway CA** option installs the public root into the current Windows user's
+   Root store on the gateway PC only. Accept Windows' visible
+   certificate-security confirmation when prompted; the installer aborts that
+   step after two minutes rather than waiting invisibly forever.
+9. Upgrades replace binaries and the Web HMI but preserve every instance's
+   `gateway.args`, the proxy password hash, proxy CA, OPC UA PKI, and logs when
+   both new password fields are left blank — including when the upgrade adds a
+   PLC, because the routing is regenerated from the stored account. A
+   pre-instances installation's single `gateway.args` is migrated into
+   `instances\<first>\` with its site scoping intact, and the original is kept
+   as `gateway.args.migrated`. An instance removed in the wizard is retired to
+   `gateway.args.removed` rather than deleted, and re-adding the same name
+   restores it. Uninstall also preserves those site-owned files intentionally.
 
 ### 5.2 Configure `gateway.args`
+
+Each instance owns one arguments file, and that file is the only place its
+settings live — there is no separate index to keep in step:
+
+```text
+%LOCALAPPDATA%\Fraktal\Gateway\instances\press\gateway.args
+%LOCALAPPDATA%\Fraktal\Gateway\instances\oven\gateway.args
+%LOCALAPPDATA%\Fraktal\Gateway\logs\press\gateway.log
+```
+
+The folder name is the instance name (1–32 letters, digits, `.`, `_`, `-`). The
+tray runs every subfolder that has a `gateway.args`, so an instance can be added
+or retired by hand and picked up with **Reload instances** — but let the wizard
+do it when the proxy is involved, since the routing must change with it.
 
 The file uses one option or value per line. Environment variables are expanded.
 The installed production template already includes the Web root:
 
 ```text
+--instance-name
+press
 --plc-endpoint
 opc.tcp://127.0.0.1:4840
 --port
@@ -197,8 +258,11 @@ FRAKTAL_OPCUA_PRIVATE_KEY_PASSWORD   # only for an encrypted private key
 ```
 
 Restart the tray after changing process credentials. Use the tray menu to edit
-gateway/proxy configuration, open logs, restart both supervised processes, open
-the Web HMI, or inspect gateway health.
+gateway/proxy configuration, open logs, restart supervised processes, open the
+Web HMI, or inspect gateway health — per instance under its own submenu once
+there is more than one, plus Start/Stop/Restart all. The tray icon aggregates
+and leads with failure: with three PLCs configured it reads `2 of 3 ready`, and
+never `Ready`, while one is unreachable.
 
 The reverse-proxy password is separate from
 `FRAKTAL_OPCUA_PASSWORD`: one authenticates the browser at HTTPS/WSS; the other
@@ -206,14 +270,20 @@ authenticates the gateway to TF6100. Neither belongs in `gateway.args`.
 
 ### 5.3 Local acceptance
 
-1. Restart the gateway from the tray.
+Repeat every step **per instance**, on that instance's own port:
+
+1. Restart the gateway from the tray (its own submenu on a multi-PLC host).
 2. Confirm the tray reaches **Ready**, not merely **Running - PLC unavailable**.
 3. Open `http://127.0.0.1:8080/healthz`; expect protocol
-   `fraktal.opcua.gateway.v1`, status `ready`, and `plcReady: true`.
+   `fraktal.opcua.gateway.v1`, status `ready`, `plcReady: true`, and the
+   `instance` field naming the PLC you meant to test.
 4. Open `http://127.0.0.1:8080/`. The Web HMI and WebSocket now share one origin.
 5. On first run, select languages and Units. A release Web build derives
    `ws://127.0.0.1:8080/fraktal` from that page automatically. The endpoint
    remains editable for diagnostics.
+
+An instance's Unit assignment is stored per browser origin, so each PLC is
+commissioned separately in the browser as well as in the gateway.
 
 For an expiring local commissioning session, explicitly change the profile to
 `commissioning-anonymous` and add `--commissioning-ttl-minutes 120`. A clean TTL
@@ -258,11 +328,35 @@ next. The bundled proxy installation is currently Windows-only; Linux uses the
 site proxy/service policy. systemd restarts process failures; OPC UA/WebSocket
 reconnect is handled inside the application and never replays an HMI write.
 
+For several PLCs on one Linux host, use the templated unit instead of the plain
+one — one systemd instance per controller, each with its own environment file:
+
+```sh
+sudo install -m 0644 /opt/fraktal-gateway/fraktal-gateway@.service \
+  /etc/systemd/system/fraktal-gateway@.service
+sudo install -d -o root -g fraktal-gateway -m 0750 /etc/fraktal/instances
+sudo install -m 0640 -o root -g fraktal-gateway \
+  /opt/fraktal-gateway/fraktal-gateway-instance.env.example \
+  /etc/fraktal/instances/press.env      # repeat per PLC: oven.env, ...
+
+# Set FRAKTAL_PLC_ENDPOINT and a unique FRAKTAL_GATEWAY_PORT in each file.
+sudo systemctl daemon-reload
+sudo systemctl enable --now fraktal-gateway@press fraktal-gateway@oven
+curl --fail http://127.0.0.1:8080/healthz   # "instance": "press"
+curl --fail http://127.0.0.1:8081/healthz   # "instance": "oven"
+```
+
+Shared credentials and PKI stay in `/etc/fraktal/fraktal-gateway.env`, which the
+template reads first; per-PLC overrides go in the instance file, which wins. Do
+not enable both `fraktal-gateway.service` and `fraktal-gateway@<name>` for the
+same PLC, and never give two instances the same port. The site proxy publishes
+one origin per instance, exactly as the Windows profile does.
+
 ## 7. Remote HTTPS/WSS browser deployment
 
-Use one public origin, for example `https://192.168.100.126` or
-`https://hmi-cell-01.example`. Add that exact origin to the gateway
-configuration:
+Use one public origin **per instance**, for example `https://192.168.100.126`
+for the first PLC and `https://192.168.100.126:8443` for the second. Add that
+exact origin to that instance's configuration:
 
 ```text
 --allow-origin
@@ -270,15 +364,20 @@ https://hmi-cell-01.example
 ```
 
 On Windows, select **secure remote Web HMI** in `FraktalSetup.exe`; the wizard
-performs this configuration and writes the corresponding `--allow-origin`.
-It also creates these site-owned artifacts:
+performs this configuration and writes the corresponding `--allow-origin` into
+each published instance. It also creates these site-owned artifacts:
 
 ```text
-%LOCALAPPDATA%\Fraktal\Gateway\proxy\Caddyfile
-%LOCALAPPDATA%\Fraktal\Gateway\proxy\public-origin.txt
+%LOCALAPPDATA%\Fraktal\Gateway\proxy\Caddyfile          # one site block per instance
+%LOCALAPPDATA%\Fraktal\Gateway\proxy\basic-auth.txt     # account name + Argon2id hash
 %LOCALAPPDATA%\Fraktal\Gateway\proxy\FraktalGatewayRootCA.crt
 %LOCALAPPDATA%\Fraktal\Gateway\proxy\storage\   # includes the private CA key
 ```
+
+`basic-auth.txt` holds the same account name and hash the Caddyfile already
+contains — no recoverable password — so adding a PLC later can regenerate the
+routing without re-entering the browser password. One account serves every
+published instance; per-instance accounts are a site-PKI/SSO adapter.
 
 Copy `FraktalGatewayRootCA.crt` through the commissioning trust channel and
 install it as a trusted root on every authorized remote HMI device. For example,
@@ -336,6 +435,26 @@ $env:FRAKTAL_PROXY_PASSWORD = '<from protected deployment secret>'
 Remove-Item Env:FRAKTAL_PROXY_PASSWORD
 ```
 
+For several PLCs, replace `-GatewayEndpoint`/`-PublicOrigin` with one repeatable
+`-GatewayInstance` spec per controller (`name`, `port`, and `origin` all
+default sensibly; only `endpoint` is required):
+
+```powershell
+$env:FRAKTAL_PROXY_PASSWORD = '<from protected deployment secret>'
+.\install_fraktal.cmd `
+  -Components Gateway `
+  -GatewayInstance "name=press;endpoint=ads://192.168.1.6.1.1:851;port=8080;origin=https://192.168.100.126" `
+  -GatewayInstance "name=oven;endpoint=opc.tcp://192.168.1.9:4840;port=8081;origin=https://192.168.100.126:8443" `
+  -EnableRemoteAccess `
+  -ProxyUsername fraktal `
+  -ConfigureFirewall `
+  -TrustProxyCaForCurrentUser
+Remove-Item Env:FRAKTAL_PROXY_PASSWORD
+```
+
+A silent run carries the whole instance set: instances missing from it are
+retired. Pass every PLC the host should serve, not only the one being added.
+
 When opened from HTTPS, a release Web HMI automatically derives
 `wss://hmi-cell-01.example/fraktal`. Changing the public origin creates a new
 browser storage origin, so language/Unit assignment must be commissioned again
@@ -392,7 +511,10 @@ protocol versions.
 | Unit selector empty | Namespace URI/browse rights, TMC root marker, truncated snapshot—not static hosting |
 | Control rejected | `HmiResponse.AckSequence`, `Accepted`, and `Diagnostic`; do not restart at ping |
 | Browser reconnects but command did not repeat | Correct fail-safe behavior; commands are never replayed after an ambiguous disconnect |
-| Installer tray is Running but not Ready | Open gateway log; production credentials/PKI or PLC access are incomplete |
+| Installer tray is Running but not Ready | Open that instance's gateway log; production credentials/PKI or PLC access are incomplete |
+| Tray says `2 of 3 ready` | Open the failing instance's submenu and log; the other instances are unaffected by design |
+| A new PLC's page shows another PLC's data | Two instances share an origin or a port; `/healthz` `instance` names which one actually answered |
+| A configured instance never starts | Its folder must contain `gateway.args` and a name of 1–32 letters/digits/`.`/`_`/`-`; then **Reload instances** |
 
 For deeper PLC/TF6100 diagnosis, return to the layered table in
 `FIRST_PROJECT_AGENT_GUIDE.md` Section 9.

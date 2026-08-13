@@ -150,6 +150,11 @@ Future<void> main(List<String> arguments) async {
         .copy('${output.path}/fraktal-gateway.service');
     await File('${project.path}/deploy/linux/fraktal-gateway.env.example')
         .copy('${output.path}/fraktal-gateway.env.example');
+    // The multi-PLC form: one templated unit instance per controller.
+    await File('${project.path}/deploy/linux/fraktal-gateway@.service')
+        .copy('${output.path}/fraktal-gateway@.service');
+    await File('${project.path}/deploy/linux/fraktal-gateway-instance.env.example')
+        .copy('${output.path}/fraktal-gateway-instance.env.example');
   }
   stdout.writeln('Gateway package: ${output.path}');
 }

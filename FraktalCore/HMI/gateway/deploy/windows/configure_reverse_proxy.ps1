@@ -1,10 +1,14 @@
-param(
-  [Parameter(Mandatory = $true)]
+﻿param(
+  # One HTTPS site per gateway instance: a JSON document of
+  # {Name, Port, PublicOrigin} entries, as written by install_gateway.ps1.
+  # Each site terminates TLS for exactly one loopback gateway.
+  [string]$SitesFile,
+  # Single-site shorthand for a manual run against one gateway.
   [string]$PublicOrigin,
-  [Parameter(Mandatory = $true)]
-  [string]$Username,
   [ValidateRange(1, 65535)]
   [int]$GatewayPort = 8080,
+  [Parameter(Mandatory = $true)]
+  [string]$Username,
   [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'Programs\Fraktal Gateway'),
   [string]$DataRoot = (Join-Path $env:LOCALAPPDATA 'Fraktal\Gateway'),
   [switch]$ConfigureFirewall,
@@ -13,29 +17,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Get-NormalizedHttpsOrigin([string]$Value) {
-  if ([string]::IsNullOrWhiteSpace($Value)) {
-    throw 'The public Web HMI origin is required.'
-  }
-  try {
-    $uri = [System.Uri]::new($Value.Trim())
-  } catch {
-    throw "Invalid public Web HMI origin: $Value"
-  }
-  if (-not $uri.IsAbsoluteUri -or
-      $uri.Scheme -ne 'https' -or
-      [string]::IsNullOrWhiteSpace($uri.Host) -or
-      -not [string]::IsNullOrEmpty($uri.UserInfo) -or
-      ($uri.AbsolutePath -ne '/' -and $uri.AbsolutePath -ne '') -or
-      -not [string]::IsNullOrEmpty($uri.Query) -or
-      -not [string]::IsNullOrEmpty($uri.Fragment)) {
-    throw 'The public Web HMI origin must be only https://<host>[:port], with no path, credentials, query, or fragment.'
-  }
-  return $uri.GetComponents(
-    [System.UriComponents]::SchemeAndServer,
-    [System.UriFormat]::UriEscaped
-  ).TrimEnd('/')
-}
+. (Join-Path $PSScriptRoot 'fraktal_instances.ps1')
 
 function ConvertTo-CaddyPath([string]$Value) {
   return $Value.Replace('\', '/').Replace('"', '\"')
@@ -50,7 +32,7 @@ function ConvertFrom-SecureStringPlainText([Security.SecureString]$Value) {
   }
 }
 
-function Read-ProxyPassword {
+function Read-ProxyPassword([bool]$AllowPreserved) {
   $fromEnvironment = [Environment]::GetEnvironmentVariable(
     'FRAKTAL_PROXY_PASSWORD',
     [EnvironmentVariableTarget]::Process
@@ -58,6 +40,7 @@ function Read-ProxyPassword {
   if (-not [string]::IsNullOrEmpty($fromEnvironment)) {
     return $fromEnvironment
   }
+  if ($AllowPreserved) { return '' }
   if ($Unattended) {
     throw 'FRAKTAL_PROXY_PASSWORD is required when secure remote access is configured unattended.'
   }
@@ -103,6 +86,33 @@ function Get-CaddyPasswordHash([string]$CaddyPath, [string]$Password) {
   }
 }
 
+# Passwords are intentionally unrecoverable, but the site set is not: adding a
+# PLC on an upgrade has to rewrite the Caddyfile without asking for the account
+# again. Only the account name and its Argon2id hash are kept, beside the
+# generated Caddyfile that already contains them.
+function Get-StoredProxyCredential([string]$Path, [string]$LegacyConfigPath) {
+  if (Test-Path -LiteralPath $Path) {
+    $stored = (Get-Content -LiteralPath $Path -Raw).Trim()
+    $parts = $stored -split '\s+', 2
+    if ($parts.Count -eq 2 -and $parts[1].StartsWith('$argon2id$')) {
+      return [PSCustomObject]@{ Username = $parts[0]; Hash = $parts[1] }
+    }
+  }
+  # An installation configured before the credential file existed keeps the
+  # only copy inside its validated Caddyfile.
+  if (Test-Path -LiteralPath $LegacyConfigPath) {
+    foreach ($line in (Get-Content -LiteralPath $LegacyConfigPath)) {
+      if ($line -match '^\s*(\S+)\s+(\$argon2id\$\S+)\s*$') {
+        return [PSCustomObject]@{
+          Username = $Matches[1]
+          Hash = $Matches[2]
+        }
+      }
+    }
+  }
+  return $null
+}
+
 function Invoke-CaddyValidation([string]$CaddyPath, [string]$ConfigPath) {
   $formatResult = Start-Process -FilePath $CaddyPath `
     -ArgumentList @('fmt', '--overwrite', "`"$ConfigPath`"") `
@@ -118,7 +128,7 @@ function Invoke-CaddyValidation([string]$CaddyPath, [string]$ConfigPath) {
   }
 }
 
-function Set-ProxyFirewallRule([int]$Port, [string]$ProgramPath) {
+function Set-ProxyFirewallRule([int[]]$Ports, [string]$ProgramPath) {
   $helper = Join-Path $PSScriptRoot 'configure_proxy_firewall.ps1'
   if (-not (Test-Path -LiteralPath $helper)) {
     throw "Windows Firewall helper is missing: $helper"
@@ -126,7 +136,7 @@ function Set-ProxyFirewallRule([int]$Port, [string]$ProgramPath) {
   $escapedHelper = '"' + $helper.Replace('"', '""') + '"'
   $escapedProgram = '"' + $ProgramPath.Replace('"', '""') + '"'
   $arguments = '-NoProfile -ExecutionPolicy Bypass -File ' + $escapedHelper +
-    ' -Port ' + $Port + ' -ProgramPath ' + $escapedProgram
+    ' -Port ' + ($Ports -join ',') + ' -ProgramPath ' + $escapedProgram
   $result = Start-Process -FilePath 'powershell.exe' -Verb RunAs `
     -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
   if ($result.ExitCode -ne 0) {
@@ -134,7 +144,30 @@ function Set-ProxyFirewallRule([int]$Port, [string]$ProgramPath) {
   }
 }
 
-$origin = Get-NormalizedHttpsOrigin $PublicOrigin
+# ---- Sites -----------------------------------------------------------------
+$sites = @()
+if ($SitesFile) {
+  foreach ($entry in (Read-FraktalInstancesFile $SitesFile)) {
+    $sites += [PSCustomObject]@{
+      Name = $entry.Name
+      Origin = (Get-NormalizedHttpsOrigin $entry.PublicOrigin)
+      Port = [int]$entry.Port
+    }
+  }
+} elseif ($PublicOrigin) {
+  $sites = @([PSCustomObject]@{
+    Name = 'default'
+    Origin = (Get-NormalizedHttpsOrigin $PublicOrigin)
+    Port = $GatewayPort
+  })
+}
+if ($sites.Count -eq 0) {
+  throw 'Pass -SitesFile (one site per gateway instance) or -PublicOrigin.'
+}
+$distinctOrigins = @($sites | ForEach-Object { $_.Origin.ToLowerInvariant() } | Select-Object -Unique)
+if ($distinctOrigins.Count -ne $sites.Count) {
+  throw 'Two gateway instances share one public origin; give each its own host name or port.'
+}
 if ($Username -notmatch '^[A-Za-z0-9._-]{1,64}$') {
   throw 'The reverse-proxy username must contain 1-64 letters, digits, dots, underscores, or hyphens.'
 }
@@ -144,28 +177,40 @@ if (-not (Test-Path -LiteralPath $caddy)) {
   throw "The packaged reverse proxy is missing: $caddy"
 }
 
-$password = Read-ProxyPassword
-if ($password.Length -lt 12) {
-  throw 'The remote Web HMI password must contain at least 12 characters.'
+$proxyRoot = Join-Path $DataRoot 'proxy'
+$storageRoot = Join-Path $proxyRoot 'storage'
+$logsRoot = Join-Path $DataRoot 'logs'
+New-Item -ItemType Directory -Force -Path $proxyRoot, $storageRoot, $logsRoot | Out-Null
+$configPath = Join-Path $proxyRoot 'Caddyfile'
+$nextConfigPath = Join-Path $proxyRoot 'Caddyfile.next'
+$credentialPath = Join-Path $proxyRoot 'basic-auth.txt'
+
+# ---- Account ---------------------------------------------------------------
+$stored = Get-StoredProxyCredential $credentialPath $configPath
+$password = Read-ProxyPassword ($null -ne $stored -and $stored.Username -eq $Username)
+if ([string]::IsNullOrEmpty($password)) {
+  # Upgrade with the password fields left blank: keep the site account exactly
+  # as it is and regenerate only the routing.
+  $passwordHash = $stored.Hash
+  Write-Output 'Preserving the existing remote Web HMI account.'
+} else {
+  if ($password.Length -lt 12) {
+    throw 'The remote Web HMI password must contain at least 12 characters.'
+  }
+  $passwordHash = Get-CaddyPasswordHash -CaddyPath $caddy -Password $password
 }
 [Environment]::SetEnvironmentVariable(
   'FRAKTAL_PROXY_PASSWORD',
   $null,
   [EnvironmentVariableTarget]::Process
 )
-$passwordHash = Get-CaddyPasswordHash -CaddyPath $caddy -Password $password
 $password = $null
 
-$proxyRoot = Join-Path $DataRoot 'proxy'
-$storageRoot = Join-Path $proxyRoot 'storage'
-$logsRoot = Join-Path $DataRoot 'logs'
-New-Item -ItemType Directory -Force -Path $proxyRoot, $storageRoot, $logsRoot | Out-Null
-
+# ---- Caddyfile -------------------------------------------------------------
 $storageCaddy = ConvertTo-CaddyPath $storageRoot
 $accessLogCaddy = ConvertTo-CaddyPath (Join-Path $logsRoot 'proxy-access.log')
-$configPath = Join-Path $proxyRoot 'Caddyfile'
-$nextConfigPath = Join-Path $proxyRoot 'Caddyfile.next'
-$config = @"
+$blocks = New-Object System.Collections.Generic.List[string]
+$blocks.Add(@"
 {
 	admin off
 	persist_config off
@@ -173,8 +218,15 @@ $config = @"
 	skip_install_trust
 	storage file_system "$storageCaddy"
 }
+"@) | Out-Null
 
-$origin {
+foreach ($site in $sites) {
+  # One site per gateway instance. The Web HMI derives its WebSocket endpoint
+  # from the page origin, so an instance needs a whole origin of its own — a
+  # shared origin with per-instance paths would break that derivation.
+  $blocks.Add(@"
+
+$($site.Origin) {
 	tls internal
 
 	basic_auth argon2id {
@@ -187,7 +239,7 @@ $origin {
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
 
-	reverse_proxy 127.0.0.1:$GatewayPort {
+	reverse_proxy 127.0.0.1:$($site.Port) {
 		health_uri /livez
 		health_interval 10s
 		health_timeout 2s
@@ -204,9 +256,10 @@ $origin {
 		format json
 	}
 }
-"@
+"@) | Out-Null
+}
 
-Set-Content -LiteralPath $nextConfigPath -Value $config -Encoding UTF8
+Set-Content -LiteralPath $nextConfigPath -Value ($blocks -join "`r`n") -Encoding UTF8
 try {
   Invoke-CaddyValidation -CaddyPath $caddy -ConfigPath $nextConfigPath
   Move-Item -LiteralPath $nextConfigPath -Destination $configPath -Force
@@ -215,8 +268,14 @@ try {
     Remove-Item -LiteralPath $nextConfigPath -Force
   }
 }
-Set-Content -LiteralPath (Join-Path $proxyRoot 'public-origin.txt') `
-  -Value $origin -Encoding ASCII
+Set-Content -LiteralPath $credentialPath -Value "$Username $passwordHash" -Encoding ASCII
+
+# Superseded by each instance's own --allow-origin: with several sites there is
+# no single "the" public origin, and a stale file would name only the first.
+$legacyOriginPath = Join-Path $proxyRoot 'public-origin.txt'
+if (Test-Path -LiteralPath $legacyOriginPath) {
+  Remove-Item -LiteralPath $legacyOriginPath -Force
+}
 
 # Validation provisions the internal CA. Export only its public root certificate
 # to a stable, obvious path; private CA material remains below proxy\storage.
@@ -227,9 +286,13 @@ if (Test-Path -LiteralPath $generatedRoot) {
 }
 
 if ($ConfigureFirewall) {
-  $publicUri = [System.Uri]::new($origin)
-  Set-ProxyFirewallRule -Port $publicUri.Port -ProgramPath $caddy
+  $ports = @(
+    $sites | ForEach-Object { [System.Uri]::new($_.Origin).Port } | Select-Object -Unique
+  )
+  Set-ProxyFirewallRule -Ports $ports -ProgramPath $caddy
 }
 
-Write-Output "Secure remote Web HMI configured at $origin"
+foreach ($site in $sites) {
+  Write-Output "Secure remote Web HMI configured at $($site.Origin) -> instance $($site.Name) (127.0.0.1:$($site.Port))"
+}
 Write-Output "Gateway root CA exported for client-device import: $exportedRoot"

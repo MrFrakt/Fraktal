@@ -10,7 +10,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{BD5689B4-80DB-4A9F-BFF2-754F96FD9CA3}" Name="Fraktal_Press_Demo" PrjFilePath="Fraktal_Press_Demo\Fraktal_Press_Demo.plcproj" TmcFilePath="Fraktal_Press_Demo\Fraktal_Press_Demo.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Fraktal_Press_Demo\Fraktal_Press_Demo.tmc" TmcHash="{B425D84B-AD30-3567-7DD8-0EC5F931DDC7}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Fraktal_Press_Demo\Fraktal_Press_Demo.tmc" TmcHash="{7096B5D1-7EE9-1C33-8023-6838FF65A82A}">
 					<Name>Fraktal_Press_Demo Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -91,6 +91,23 @@
 							<Type>BOOL</Type>
 						</Var>
 						<Var>
+							<Name>GVL_PressIO._000K010D1_Status</Name>
+							<Comment><![CDATA[ serial status byte]]></Comment>
+							<Type>USINT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K010D1_DataIn0</Name>
+							<Type>USINT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K010D1_DataIn1</Name>
+							<Type>USINT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K010D1_DataIn2</Name>
+							<Type>USINT</Type>
+						</Var>
+						<Var>
 							<Name>GVL_PressSafety._EStopOk</Name>
 							<Type>BOOL</Type>
 						</Var>
@@ -167,6 +184,23 @@
 							<Comment><![CDATA[ Ch11 EnableControlOn functional request]]></Comment>
 							<Type>BOOL</Type>
 						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K010D1_Ctrl</Name>
+							<Comment><![CDATA[ serial control byte]]></Comment>
+							<Type>USINT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K010D1_DataOut0</Name>
+							<Type>USINT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K010D1_DataOut1</Name>
+							<Type>USINT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_PressIO._000K010D1_DataOut2</Name>
+							<Type>USINT</Type>
+						</Var>
 					</Vars>
 					<Contexts>
 						<Context>
@@ -193,6 +227,8 @@
 		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000403}" Id="#x02030010"/>
 		<OwnerA Name="TIPC^Fraktal_Press_Demo^Fraktal_Press_Demo Instance">
 			<OwnerB Name="TIID^=000+S-A610-A1 (EtherCAT)^=000+S-K010 (EK1200)^=000+S-K010B1 (EL1809)">
+				<Link VarA="PlcTask Inputs^GVL_PressIO._000BS901" VarB="Channel 9^_000BS901" AutoLink="true"/>
+				<Link VarA="PlcTask Inputs^GVL_PressIO._000BS902" VarB="Channel 13^_000BS902" AutoLink="true"/>
 				<Link VarA="PlcTask Inputs^GVL_PressIO._000K910A" VarB="Channel 15^_000K910A" AutoLink="true"/>
 				<Link VarA="PlcTask Inputs^GVL_PressIO._000K911_Y32" VarB="Channel 14^_000K911_Y32" AutoLink="true"/>
 				<Link VarA="PlcTask Inputs^GVL_PressIO._000MB085A_2" VarB="Channel 10^_000MB085A_2" AutoLink="true"/>

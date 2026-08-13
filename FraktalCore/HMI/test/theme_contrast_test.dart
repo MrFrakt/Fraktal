@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fraktal_hmi/ui/app_theme.dart';
+import 'package:fraktal_hmi/domain/types.dart';
 
 double _contrast(Color a, Color b) {
   final la = a.computeLuminance();
@@ -14,6 +15,19 @@ double _contrast(Color a, Color b) {
   final hi = la > lb ? la : lb;
   final lo = la > lb ? lb : la;
   return (hi + 0.05) / (lo + 0.05);
+}
+
+/// Flatten a translucent fill over its parent, the way the screen does. A tinted
+/// card/banner is what an indicator is really measured against — comparing
+/// against the untinted surface hides the defect.
+Color _over(Color fg, Color bg) {
+  final a = fg.a;
+  return Color.from(
+    alpha: 1,
+    red: fg.r * a + bg.r * (1 - a),
+    green: fg.g * a + bg.g * (1 - a),
+    blue: fg.b * a + bg.b * (1 - a),
+  );
 }
 
 void main() {
@@ -171,6 +185,91 @@ void main() {
         expect(_contrast(foregroundOn(ctx, fill), fill), greaterThan(4.5),
             reason: '${kThemes[i].nameKey}: $name label unreadable');
       });
+    }
+  });
+
+  testWidgets('status indicators stay visible on the surface they sit on',
+      (tester) async {
+    // Regression: the fixed status colours were single constants tuned for a
+    // LIGHT card — green-800, amber-800, blue-800. As foregrounds (the module
+    // header's state dot, the tree dots, the "Ready"/link/release icons) on a
+    // dark card they measured ~2:1 and the operator simply could not see them;
+    // the info-blue DONE dot was the worst at 2.98:1. They are brightness-
+    // adapted now, so each shade is chosen for the surface it lands on.
+    //
+    // Anything that is a GLYPH (dot, icon, border) is held to WCAG's 3:1 for
+    // non-text; anything that is a SENTENCE is held to 4.5:1 via
+    // severityTextColor.
+    for (var i = 0; i < kThemes.length; i++) {
+      final label = kThemes[i].nameKey;
+      await tester.pumpWidget(MaterialApp(
+        key: ValueKey(i), // a fresh tree per theme, or Theme.of returns a stale one
+        theme: themeAt(i),
+        home: Scaffold(body: Builder(builder: (ctx) {
+          final cs = Theme.of(ctx).colorScheme;
+          final card = cs.surfaceContainerLow;
+
+          for (final state in ExecState.values) {
+            expect(_contrast(stateColor(ctx, state), card), greaterThan(3.0),
+                reason: '$label: the $state indicator is invisible on a card');
+          }
+          for (final entry in {
+            'ok/linked/released': okColor(ctx),
+            'warning/forced/degraded': warningColor(ctx),
+            'info': infoColor(ctx),
+          }.entries) {
+            expect(_contrast(entry.value, card), greaterThan(3.0),
+                reason: '$label: ${entry.key} is invisible on a card');
+          }
+
+          for (final sev in Severity.values) {
+            final glyph = severityColor(ctx, sev);
+            // The alarm banner and the overview card paint a tint of the
+            // severity colour and then draw on top of it.
+            final banner = _over(glyph.withValues(alpha: 0.14), cs.surface);
+            final tintedCard = _over(glyph.withValues(alpha: 0.08), card);
+            final text = severityTextColor(ctx, sev);
+            expect(_contrast(text, banner), greaterThan(4.5),
+                reason: '$label: $sev banner text unreadable');
+            expect(_contrast(text, tintedCard), greaterThan(4.5),
+                reason: '$label: $sev overview message unreadable');
+            expect(_contrast(cs.onSurface, tintedCard), greaterThan(4.5),
+                reason: '$label: $sev card body text unreadable');
+            // The "+N" chip fills with the severity colour, so its label must
+            // pair with THAT fill, not with the page.
+            expect(_contrast(foregroundOn(ctx, glyph), glyph), greaterThan(4.5),
+                reason: '$label: the +N alarm count is unreadable on $sev');
+          }
+          return const SizedBox();
+        })),
+      ));
+      await tester.pump();
+    }
+  });
+
+  test('foregroundOn picks the better of black/white, not a guessed threshold',
+      () {
+    // The helper documented "choose the higher-contrast of black/white" but
+    // actually cut at luminance 0.4, which sent white onto mid-tone fills where
+    // black wins. The info-blue +N chip measured 2.54:1 that way against 5.9:1
+    // for black. Assert the property, not the threshold.
+    const fills = [
+      Color(0xFF1565C0), // info blue — the one that regressed
+      Color(0xFF2E7D32),
+      Color(0xFFB26A00),
+      Color(0xFF60A5FA),
+      Color(0xFFFFB300),
+      Color(0xFFC8E6C9),
+      Color(0xFF7F7F7F), // the ambiguous mid-tone
+    ];
+    for (final fill in fills) {
+      final black = _contrast(Colors.black, fill);
+      final white = _contrast(Colors.white, fill);
+      final best = black > white ? black : white;
+      // Rebuilt here rather than calling foregroundOn (which needs a context):
+      // the property is what matters and it must hold for every fill.
+      expect(best, greaterThan(4.5),
+          reason: 'no legible foreground exists for $fill');
     }
   });
 

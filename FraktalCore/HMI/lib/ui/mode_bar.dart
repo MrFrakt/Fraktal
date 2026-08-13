@@ -75,11 +75,21 @@ class ModeBar extends StatelessWidget {
         decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(12)),
+        // The tile is filled with primaryContainer, so its glyph must use the
+        // paired onPrimaryContainer — inheriting onSurface is the pairing that
+        // collapses on the high-contrast themes.
         child: Icon(modeIcon(u.modeActive ?? UnitMode.auto),
-            size: mm.iconSize * 1.3),
+            size: mm.iconSize * 1.3,
+            color: Theme.of(context).colorScheme.onPrimaryContainer),
       ),
+      // A BARE TextStyle carries no colour, so the mode name fell back to the
+      // ambient DefaultTextStyle. Copy the theme's own style instead — the same
+      // rule _applyScale documents for every scaled label.
       LText((u.modeActive ?? UnitMode.auto).name.toUpperCase(),
-          style: const TextStyle(fontSize: 10)),
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(fontSize: 10, color: Theme.of(context).colorScheme.onSurface)),
       if (canMode) const Icon(Icons.arrow_drop_down, size: 18),
     ]);
     if (!canMode) {
@@ -260,14 +270,21 @@ class ModeBar extends StatelessWidget {
         // §7.8: stay pressable unless mid-stop — onPress decides act vs. explain
         onPressed: u.stopPending ? null : onPress,
         icon: Icon(running ? Icons.stop : Icons.play_arrow),
-        style: IconButton.styleFrom(
-          backgroundColor: running
+        style: () {
+          // The fill is a fixed status colour, so the glyph must be paired with
+          // THAT fill — not assumed white. `colorScheme.error` is a light salmon
+          // on every dark theme, where a white stop glyph measured 1.70:1 (1.14:1
+          // on high-contrast dark): the machine's Stop button, all but invisible.
+          // The green/amber fills stay dark shades precisely so a light glyph
+          // reads on them; foregroundOn confirms rather than assumes that.
+          final fill = running
               ? Theme.of(context).colorScheme.error
-              : (startBlocked
-                  ? const Color(0xFFB26A00)
-                  : const Color(0xFF2E7D32)),
-          foregroundColor: Colors.white,
-        ),
+              : (startBlocked ? kWarningFill : kOkFill);
+          return IconButton.styleFrom(
+            backgroundColor: fill,
+            foregroundColor: foregroundOn(context, fill),
+          );
+        }(),
       ),
     );
     return _Blink(active: u.stopPending, child: button);

@@ -16,9 +16,31 @@ VAR
     _pub : POINTER TO FB_IoTopologyPublisher;
     _netId : T_AmsNetId;          // EtherCAT MASTER device AmsNetId (see Setup)
     _firstSlaveNode : INT;        // topology node index of master slave #1
-    _slaveCount : INT;            // topology nodes that are real EtherCAT slaves
+    _slaveCount : INT;            // how many slaves the master is asked about
     _masterNode : INT;            // topology node index of the master itself (0 = none)
     _attached : BOOL;
+
+    // §10.5.1 — which topology node each MASTER SLAVE INDEX belongs to.
+    // _slaveNode[i] = topology node of the master's slave i (0 = unmapped).
+    //
+    // The master enumerates only devices with an EtherCAT slave controller on
+    // the process-data ring. A bus coupler (EK1200) and a passive end cap
+    // (EL9011) are in the project tree and in the catalog, but the master never
+    // lists them -- so "catalog position" and "master slave index" are NOT the
+    // same sequence. Assuming they were shifted every state by one: the press
+    // bench published the EL1809's state onto the coupler, the EL2809's onto the
+    // EL1809, the EL6001's onto the EL2809, and left the real EL6001 and the end
+    // cap reading OFFLINE while all three cards were in OP. A wrong state on the
+    // right node is worse than no state: it is a plausible lie.
+    //
+    // Setup's FirstSlaveNode/SlaveCount form still works and fills this map
+    // consecutively -- correct whenever every catalogued node really is a slave.
+    _slaveNode : ARRAY[1..PL_Fraktal.MAX_BUS_NODES] OF INT;
+    // Topology nodes that are catalogued but are NOT on the master's slave list
+    // (couplers, end caps). Their state is inferred, never invented: they carry
+    // the bus and are reachable exactly when the slaves behind them answer.
+    _passiveNode : ARRAY[1..PL_Fraktal.MAX_BUS_NODES] OF INT;
+    _passiveCount : INT;
 
     // Auto-detection of the EtherCAT master's AmsNetId (no project wiring): the
     // master's NetId is the local AMS NetId with the last two bytes replaced by
@@ -135,8 +157,69 @@ IF _attached THEN
     _firstSlaveNode := FirstSlaveNode;
     _slaveCount := SlaveCount;
     _masterNode := MasterNodeIndex;
+    // Consecutive default: master slave i -> topology node FirstSlaveNode+i-1.
+    // Correct only when EVERY catalogued node in that window is a real slave;
+    // call M_MapSlaveNode to state the mapping explicitly when it is not.
+    _passiveCount := 0;
+    FOR i := 1 TO PL_Fraktal.MAX_BUS_NODES DO
+        IF i <= _slaveCount THEN
+            _slaveNode[i] := _firstSlaveNode + i - 1;
+        ELSE
+            _slaveNode[i] := 0;
+        END_IF
+        _passiveNode[i] := 0;
+    END_FOR
 END_IF
 Setup := _attached;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_MapSlaveNode" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a07}">
+      <Declaration><![CDATA[// §10.5.1 — state explicitly which topology node the master's slave [SlaveIndex]
+// is, for a bus whose catalog is NOT one-to-one with the master's slave list.
+//
+// The master enumerates only devices with an EtherCAT slave controller on the
+// process-data ring. A bus coupler or a passive end cap appears in the project
+// tree and in the catalog, but never in that list, so the default consecutive
+// mapping shifts every state onto its neighbour. Call this once per real slave,
+// after Setup, and the shift is impossible:
+//
+//   _busHealth.Setup(..., FirstSlaveNode := 2, SlaveCount := 3, MasterNodeIndex := 1);
+//   _busHealth.M_MapSlaveNode(SlaveIndex := 1, NodeIndex := 3);  // EL1809
+//   _busHealth.M_MapSlaveNode(SlaveIndex := 2, NodeIndex := 4);  // EL2809
+//   _busHealth.M_MapSlaveNode(SlaveIndex := 3, NodeIndex := 5);  // EL6001
+//   _busHealth.M_MapPassiveNode(NodeIndex := 2);                 // EK1200 coupler
+//   _busHealth.M_MapPassiveNode(NodeIndex := 6);                 // EL9011 end cap
+METHOD M_MapSlaveNode : BOOL
+VAR_INPUT
+    SlaveIndex : INT;   // 1-based index in the master's slave list
+    NodeIndex : INT;    // topology node this slave IS (0 clears the mapping)
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_MapSlaveNode := _attached
+    AND (SlaveIndex >= 1) AND (SlaveIndex <= PL_Fraktal.MAX_BUS_NODES)
+    AND (NodeIndex >= 0);
+IF M_MapSlaveNode THEN
+    _slaveNode[SlaveIndex] := NodeIndex;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_MapPassiveNode" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a08}">
+      <Declaration><![CDATA[// §10.5.1 — declare a catalogued node that carries the bus but is NOT a slave
+// the master enumerates (bus coupler, end cap, power feed).
+//
+// Its state is INFERRED, never invented: the devices behind it can only answer
+// if it is passing traffic, so it is OPERATIONAL exactly when the read
+// succeeded and at least one real slave reported. Without this it would sit at
+// OFFLINE forever on a perfectly healthy bus -- which is the same "plausible
+// lie" the positional mapping produced, just in the other direction.
+METHOD M_MapPassiveNode : BOOL
+VAR_INPUT
+    NodeIndex : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_MapPassiveNode := _attached
+    AND (NodeIndex >= 1)
+    AND (_passiveCount < PL_Fraktal.MAX_BUS_NODES);
+IF M_MapPassiveNode THEN
+    _passiveCount := _passiveCount + 1;
+    _passiveNode[_passiveCount] := NodeIndex;
+END_IF]]></ST></Implementation>
     </Method>
     <Method Name="M_Refresh" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a02}">
       <Declaration><![CDATA[// Non-blocking cyclic refresh: (re)issue the slave-state read at a bounded rate,
@@ -239,7 +322,7 @@ CASE _step OF
                     IF i <= _slaveCount THEN
                         DiagRawDeviceState[i] := _stateBuf[i - 1].deviceState;
                         DiagRawLinkState[i] := _stateBuf[i - 1].linkState;
-                        DiagNodeIndex[i] := _firstSlaveNode + i - 1;
+                        DiagNodeIndex[i] := _slaveNode[i];
                     ELSE
                         DiagRawDeviceState[i] := 0;
                         DiagRawLinkState[i] := 0;
@@ -247,7 +330,9 @@ CASE _step OF
                     END_IF
                 END_FOR
                 FOR i := 1 TO _slaveCount DO
-                    node := _firstSlaveNode + i - 1;
+                    // The topology node this master slave IS -- from the
+                    // explicit map, not from position (see _slaveNode).
+                    node := _slaveNode[i];
                     IF i <= reported THEN
                         // pStateBuf is ARRAY[0..EC_MAX_SLAVES]: slave i is at i-1.
                         // Decode the deviceState byte (AL state + flags).
@@ -263,7 +348,22 @@ CASE _step OF
                     IF i <= 8 THEN
                         DiagDecodedState[i] := TO_INT(mapped);
                     END_IF
-                    _pub^.M_SetNodeState(NodeIndex := node, State := mapped, LinkOk := linkOk);
+                    IF node >= 1 THEN
+                        _pub^.M_SetNodeState(NodeIndex := node, State := mapped, LinkOk := linkOk);
+                    END_IF
+                END_FOR
+                // Couplers/end caps: inferred from the bus answering, never
+                // invented. See M_MapPassiveNode.
+                FOR i := 1 TO _passiveCount DO
+                    IF _passiveNode[i] >= 1 THEN
+                        IF reported >= 1 THEN
+                            _pub^.M_SetNodeState(NodeIndex := _passiveNode[i],
+                                State := E_NodeState.OPERATIONAL, LinkOk := TRUE);
+                        ELSE
+                            _pub^.M_SetNodeState(NodeIndex := _passiveNode[i],
+                                State := E_NodeState.OFFLINE, LinkOk := FALSE);
+                        END_IF
+                    END_IF
                 END_FOR
                 // The master node's state is inferred from the read: it answered
                 // ADS, so it is running. (A dedicated FB_EcGetMasterState read was
@@ -364,9 +464,18 @@ END_VAR]]></Declaration>
     RETURN;
 END_IF
 FOR i := 1 TO _slaveCount DO
-    node := _firstSlaveNode + i - 1;
-    _pub^.M_SetNodeState(NodeIndex := node,
-        State := E_NodeState.OFFLINE, LinkOk := FALSE);
+    node := _slaveNode[i];
+    IF node >= 1 THEN
+        _pub^.M_SetNodeState(NodeIndex := node,
+            State := E_NodeState.OFFLINE, LinkOk := FALSE);
+    END_IF
+END_FOR
+// Couplers/end caps go dark with the bus they carry.
+FOR i := 1 TO _passiveCount DO
+    IF _passiveNode[i] >= 1 THEN
+        _pub^.M_SetNodeState(NodeIndex := _passiveNode[i],
+            State := E_NodeState.OFFLINE, LinkOk := FALSE);
+    END_IF
 END_FOR
 IF _masterNode >= 1 THEN
     _pub^.M_SetNodeState(NodeIndex := _masterNode,

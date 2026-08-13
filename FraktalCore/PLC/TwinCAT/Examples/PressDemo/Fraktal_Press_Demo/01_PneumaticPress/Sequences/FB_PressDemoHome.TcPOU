@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
   <POU Name="FB_PressDemoHome" Id="{27be7602-c702-dcca-822f-fb9fc2c72001}" SpecialFunc="None">
     <Declaration><![CDATA[// HOME mode chain (Core §6.2/§6.8 ST skeleton on FB_SequenceBase): establish the
 // shared load-safe position, then complete. Finite (does not loop).
@@ -28,15 +28,15 @@ END_IF
 CASE _step OF
     0:  // initialize
         M_Step(StepNo := 0, StepName := 'project.step.pressHomeInitialize',
-            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 900);
+        M_Advance(OnAdvance := 900, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     900:  // shared load-safe position (composite step, §6.7)
         _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 900);
-        M_Advance(OnAdvance := 999);
+        M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     999:  // complete
         M_Step(StepNo := 999, StepName := 'project.step.pressHomeComplete',
-            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
         M_Complete();
 ELSE
     M_Fault(Reason := E_Reason.STEP_STALLED, DescriptionKey := 'std.error.undefinedStep');
@@ -60,5 +60,19 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_outCmd)
     AND _loadPosition.Setup(Host := Host, PressRam := PressRam, Door := Door, PartSlide := PartSlide);]]></ST>
       </Implementation>
     </Method>
+    <LineIds Name="FB_PressDemoHome">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoHome.M_Reset">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoHome.M_Run">
+      <LineId Id="3" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoHome.Setup">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
   </POU>
 </TcPlcObject>

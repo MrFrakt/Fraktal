@@ -70,7 +70,7 @@ class ReleasePanel extends StatelessWidget {
               children: [
                 Row(children: [
                   Icon(clear ? Icons.check_circle : Icons.block,
-                      color: clear ? const Color(0xFF2E7D32) : cs.error),
+                      color: clear ? okColor(context) : cs.error),
                   const SizedBox(width: 8),
                   LText(
                       clear

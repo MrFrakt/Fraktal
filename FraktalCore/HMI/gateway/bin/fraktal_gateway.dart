@@ -30,6 +30,7 @@ Future<void> main(List<String> arguments) async {
   final plcScheme = options.plcEndpoint.scheme;
   final isAds = plcScheme == 'ads';
   stdout.writeln('[Fraktal/Gateway] stage=config '
+      'instance=${options.instanceName.isEmpty ? '(unnamed)' : options.instanceName} '
       'plcEndpoint=${options.plcEndpoint} '
       'plcTransport=${plcScheme.isEmpty ? "(unknown)" : plcScheme} '
       // On ADS the OPC UA profile is not applied at all; say so explicitly so a
@@ -103,6 +104,7 @@ Future<void> main(List<String> arguments) async {
       config: FraktalGatewayConfig(
         port: options.port,
         webSocketPath: options.path,
+        instanceName: options.instanceName,
         allowedOrigins: options.allowedOrigins,
         readRoots: options.readRoots,
         writeRoots: options.writeRoots,
@@ -163,6 +165,7 @@ class _GatewayOptions {
   final Uri plcEndpoint;
   final int port;
   final String path;
+  final String instanceName;
   final Duration connectTimeout;
   final Set<String> allowedOrigins;
   final Set<String> readRoots;
@@ -183,6 +186,7 @@ class _GatewayOptions {
     required this.plcEndpoint,
     required this.port,
     required this.path,
+    required this.instanceName,
     required this.connectTimeout,
     required this.allowedOrigins,
     required this.readRoots,
@@ -230,6 +234,7 @@ class _GatewayOptions {
     var endpoint = Uri.parse('opc.tcp://127.0.0.1:4840');
     var port = 8080;
     var path = '/fraktal';
+    var instanceName = '';
     var timeout = const Duration(seconds: 5);
     final origins = <String>{};
     final readRoots = <String>{};
@@ -267,6 +272,9 @@ class _GatewayOptions {
           index++;
         case '--path':
           path = valueAfter(index, argument);
+          index++;
+        case '--instance-name':
+          instanceName = valueAfter(index, argument);
           index++;
         case '--connect-timeout-ms':
           timeout = Duration(
@@ -335,6 +343,13 @@ class _GatewayOptions {
     if (port < 1 || port > 65535) {
       throw const FormatException('--port must be between 1 and 65535.');
     }
+    if (instanceName.isNotEmpty &&
+        !RegExp(r'^[A-Za-z0-9._-]{1,32}$').hasMatch(instanceName)) {
+      throw const FormatException(
+        '--instance-name must be 1-32 letters, digits, dots, underscores, or '
+        'hyphens (it also names the instance folder and log directory).',
+      );
+    }
     if (timeout.inMilliseconds < 100 || timeout.inSeconds > 60) {
       throw const FormatException(
         '--connect-timeout-ms must be between 100 and 60000.',
@@ -349,6 +364,7 @@ class _GatewayOptions {
       plcEndpoint: endpoint,
       port: port,
       path: path,
+      instanceName: instanceName,
       connectTimeout: timeout,
       allowedOrigins: origins,
       readRoots: readRoots,
@@ -386,6 +402,10 @@ String _securityProfileName(OpcUaSecurityProfile profile) => switch (profile) {
 const String _usage = '''
 Fraktal OPC UA WebSocket gateway
 
+One process serves exactly one PLC. To serve several controllers from one host,
+run one process per PLC, each with its own --port and --instance-name; on
+Windows the tray supervises them from %LOCALAPPDATA%\\Fraktal\\Gateway\\instances.
+
 Usage:
   fraktal_gateway [options]
 
@@ -397,6 +417,9 @@ Options:
                              profile/credentials below are ignored)
   --port PORT              Loopback WebSocket port (default 8080)
   --path PATH              WebSocket path (default /fraktal)
+  --instance-name NAME     Label for this gateway when several run on one host,
+                            one per PLC. Reported by /healthz and every log
+                            line; it is also the instance folder name.
   --connect-timeout-ms MS  PLC connect timeout (default 5000)
   --allow-origin ORIGIN    Add an exact remote Web origin; repeatable
   --read-root BROWSE_PATH  Limit discovery/reads to this subtree; repeatable

@@ -9,16 +9,17 @@ import 'package:flutter/material.dart';
 import '../domain/fieldbus.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
+import 'app_theme.dart';
 import 'touch_text_field.dart';
 
 Color nodeStateColor(BuildContext ctx, NodeState s) {
   switch (s) {
     case NodeState.operational:
-      return const Color(0xFF2E7D32);
+      return okColor(ctx);
     case NodeState.safeop:
     case NodeState.preop:
     case NodeState.init:
-      return const Color(0xFFB26A00); // degraded -> warning
+      return warningColor(ctx); // degraded -> warning
     case NodeState.offline:
     case NodeState.fault:
       return Theme.of(ctx).colorScheme.error;
@@ -280,7 +281,7 @@ class _FieldbusTreeState extends State<FieldbusTree> {
       leading: Icon(
         isOut ? Icons.output : Icons.input,
         color: c.forced
-            ? const Color(0xFFB26A00)
+            ? warningColor(context)
             : (c.quality && !c.faultActive
                 ? null
                 : Theme.of(context).colorScheme.error),
@@ -317,7 +318,7 @@ class _FieldbusTreeState extends State<FieldbusTree> {
             tooltip: context
                 .tr(c.forced ? 'Clear force' : 'Force (§7.6/§7.7, logged)'),
             icon: Icon(c.forced ? Icons.lock_open : Icons.push_pin_outlined,
-                color: c.forced ? const Color(0xFFB26A00) : null),
+                color: c.forced ? warningColor(context) : null),
             onPressed: () => _force(context, c),
           )
         else if (isOutput && c.forceable)

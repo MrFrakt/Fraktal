@@ -83,6 +83,10 @@ Future<void> main(List<String> arguments) async {
         File('${package.path}/WEB_HMI_GATEWAY_DEPLOYMENT.md'),
     'gateway.args.example':
         File('${gatewayRoot.path}/deploy/windows/gateway.args.example'),
+    // The instance model (discovery, validation, arguments-file editing) the
+    // wizard, the installer, and the reverse-proxy configurator all dot-source.
+    'fraktal_instances.ps1':
+        File('${gatewayRoot.path}/deploy/windows/fraktal_instances.ps1'),
     'configure_reverse_proxy.ps1':
         File('${gatewayRoot.path}/deploy/windows/configure_reverse_proxy.ps1'),
     'configure_proxy_firewall.ps1':

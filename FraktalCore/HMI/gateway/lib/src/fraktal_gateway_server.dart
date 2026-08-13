@@ -12,6 +12,7 @@ const int _maxStringValueLength = 8192;
 const int _maxBatchWrites = 32;
 const int _maxTargetReadPaths = 512;
 const int _maxTierIndices = 20000;
+final RegExp _validInstanceName = RegExp(r'^[A-Za-z0-9._-]{1,32}$');
 
 typedef GatewayLog = void Function(String message);
 
@@ -24,6 +25,13 @@ class FraktalGatewayConfig {
   final InternetAddress address;
   final int port;
   final String webSocketPath;
+
+  /// Names this gateway process when several serve one host, one per PLC. It
+  /// is a label only — the listener, the PLC session, and the write scope are
+  /// still one per process — but it is the only thing that tells an operator
+  /// reading `/healthz` or a log line WHICH PLC answered. Empty when a single
+  /// gateway serves the host.
+  final String instanceName;
   final Set<String> allowedOrigins;
   final Set<String> readRoots;
   final Set<String> writeRoots;
@@ -36,6 +44,7 @@ class FraktalGatewayConfig {
     InternetAddress? address,
     this.port = 8080,
     this.webSocketPath = '/fraktal',
+    this.instanceName = '',
     Set<String> allowedOrigins = const {},
     Set<String> readRoots = const {},
     Set<String> writeRoots = const {},
@@ -79,6 +88,15 @@ class FraktalGatewayConfig {
         webSocketPath,
         'webSocketPath',
         'Expected an absolute path without query or fragment.',
+      );
+    }
+    // The same charset the deployment uses for an instance folder name, so one
+    // value names the folder, the log directory, and the health field.
+    if (instanceName.isNotEmpty && !_validInstanceName.hasMatch(instanceName)) {
+      throw ArgumentError.value(
+        instanceName,
+        'instanceName',
+        'Expected 1-32 letters, digits, dots, underscores, or hyphens.',
       );
     }
   }
@@ -167,6 +185,7 @@ class FraktalGatewayServer {
       },
     );
     _log('[Fraktal/Gateway] stage=listen '
+        'instance=${config.instanceName.isEmpty ? '-' : config.instanceName} '
         'address=${config.address.address} port=${server.port} '
         'path=${config.webSocketPath} '
         'webRoot=${config.webRoot?.path ?? '-'}');
@@ -184,6 +203,7 @@ class FraktalGatewayServer {
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
         'protocol': kFraktalGatewayProtocol,
+        if (config.instanceName.isNotEmpty) 'instance': config.instanceName,
         'status': _closing
             ? 'stopping'
             : isLiveness

@@ -3,6 +3,15 @@
 # and one or more --write-root values are provisioned. Environment variables
 # are expanded.
 #
+# THIS FILE CONFIGURES ONE INSTANCE = ONE PLC. A host serves several
+# controllers by running one instance per PLC, each in its own folder:
+#   %LOCALAPPDATA%\Fraktal\Gateway\instances\<name>\gateway.args
+# The folder name is the instance name. Give every instance its own --port, and
+# its own --allow-origin when it is published for remote browsers. The tray
+# supervises every instance it finds there; FraktalSetup adds and retires them.
+--instance-name
+default
+#
 # PLC transport — pick ONE --plc-endpoint:
 #   opc.tcp://<host>:4840   TF6100 / multi-brand (uses the security profile below)
 #   ads://<AmsNetId>:851    native TwinCAT ADS (needs fraktal_ads.dll beside the

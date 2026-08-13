@@ -167,6 +167,9 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
   late AccessLevel _level;
   late ModuleTabKind _kind;
   late ModuleTabIcon _tabIcon;
+  /// Unit modes a guidance tab may auto-open in. Empty = every mode.
+  late Set<int> _triggerModes;
+  late GuidanceMode _guidanceMode;
   late ModuleBackgroundFit _backgroundFit;
   late ModuleBackgroundPosition _backgroundPosition;
   String _backgroundImageBase64 = '';
@@ -183,6 +186,14 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
             ? ''
             : '${tab.triggerStepNo}');
     _stepName = TextEditingController(text: tab?.triggerStepName ?? '');
+    // Guidance mode scoping. An existing tab keeps exactly what it had; a NEW
+    // guidance tab starts scoped to the setup modes, matching the shipped
+    // default — an unscoped wildcard interrupts a running AUTO cycle.
+    _triggerModes = {
+      ...(tab?.triggerModes ??
+          (tab == null ? kSetupGuidanceModes : const <int>[])),
+    };
+    _guidanceMode = tab?.guidanceMode ?? GuidanceMode.optional;
     final background = tab?.background;
     _marginLeft = TextEditingController(text: '${background?.marginLeft ?? 0}');
     _marginTop = TextEditingController(text: '${background?.marginTop ?? 0}');
@@ -335,6 +346,61 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                         context.tr('std.module.editor.triggerWildcardHelp'),
                   ),
                 ),
+                const SizedBox(height: 12),
+                // Mode scoping. Without it a wildcard trigger fires in AUTO —
+                // where a WAIT_OPERATOR step is routine — and takes over the
+                // screen during production.
+                LText('std.module.editor.triggerModes',
+                    style: Theme.of(context).textTheme.titleSmall),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 6),
+                  child: LText('std.module.editor.triggerModesHelp',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final mode in UnitMode.values)
+                      FilterChip(
+                        label: LText(mode.name.toUpperCase()),
+                        selected: _triggerModes.contains(mode.index),
+                        onSelected: (on) => setState(() {
+                          if (on) {
+                            _triggerModes.add(mode.index);
+                          } else {
+                            _triggerModes.remove(mode.index);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Optional vs forced. Forced blocks the panel until the
+                // operator acknowledges, so it is opt-in and explained.
+                LText('std.module.editor.guidanceMode',
+                    style: Theme.of(context).textTheme.titleSmall),
+                RadioGroup<GuidanceMode>(
+                  groupValue: _guidanceMode,
+                  onChanged: (value) => setState(
+                      () => _guidanceMode = value ?? GuidanceMode.optional),
+                  child: const Column(children: [
+                    RadioListTile<GuidanceMode>(
+                      value: GuidanceMode.optional,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: LText('std.module.editor.guidanceModeOptional'),
+                    ),
+                    RadioListTile<GuidanceMode>(
+                      value: GuidanceMode.forced,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: LText('std.module.editor.guidanceModeForced'),
+                    ),
+                  ]),
+                ),
+                LText('std.module.editor.guidanceModeHelp',
+                    style: Theme.of(context).textTheme.bodySmall),
               ],
               if (_kind == ModuleTabKind.overview) ...[
                 const SizedBox(height: 16),
@@ -372,6 +438,14 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
         controls: existing?.controls ?? const [],
         triggerStepNo: int.tryParse(_stepNo.text.trim()) ?? 0,
         triggerStepName: _stepName.text.trim(),
+        // Must be carried explicitly: dropping it here would silently widen an
+        // existing guidance tab back to "every mode" on the next edit.
+        triggerModes: _kind == ModuleTabKind.guidance
+            ? (_triggerModes.toList()..sort())
+            : const <int>[],
+        guidanceMode: _kind == ModuleTabKind.guidance
+            ? _guidanceMode
+            : GuidanceMode.optional,
         tabIcon:
             _kind == ModuleTabKind.custom || _kind == ModuleTabKind.guidance
                 ? _tabIcon

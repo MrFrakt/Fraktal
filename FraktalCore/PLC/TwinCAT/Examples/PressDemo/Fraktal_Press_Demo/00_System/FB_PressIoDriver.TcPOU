@@ -40,10 +40,23 @@ END_VAR]]></Declaration>
 _attached := _publisher.Setup(DataRef := GVL_PressFieldbus.Topology, ResetData := FALSE)
     AND __ISVALIDREF(_unit);
 // Map the press topology to the EtherCAT master's slaves. The catalog defines
-// node 1 = CX2030 master, nodes 2..6 = the 5 EtherCAT slaves (EK1200 coupler,
-// EL1809, EL2809, EL6001, EL9011) in master scan order.
+// node 1 = CX2030 master and nodes 2..6 = the five devices in the project tree
+// (EK1200 coupler, EL1809, EL2809, EL6001, EL9011).
+//
+// Only THREE of those are slaves the master enumerates: the EK1200 coupler and
+// the EL9011 end cap carry the bus but have no EtherCAT slave controller on the
+// process-data ring, so they never appear in FB_EcGetAllSlaveStates. Declaring
+// SlaveCount := 5 made the master's slave i land on catalog node i, shifting
+// every state onto its neighbour: the EL6001's OP was published onto the
+// EL2809, and the EL6001 itself read OFFLINE while it was perfectly healthy.
+// State the mapping instead of assuming it.
 _busHealth.Setup(Publisher := _publisher, MasterNetIdArr := ecMasterNetId,
-    FirstSlaveNode := 2, SlaveCount := 5, MasterNodeIndex := 1);
+    FirstSlaveNode := 3, SlaveCount := 3, MasterNodeIndex := 1);
+_busHealth.M_MapSlaveNode(SlaveIndex := 1, NodeIndex := 3);   // EL1809
+_busHealth.M_MapSlaveNode(SlaveIndex := 2, NodeIndex := 4);   // EL2809
+_busHealth.M_MapSlaveNode(SlaveIndex := 3, NodeIndex := 5);   // EL6001
+_busHealth.M_MapPassiveNode(NodeIndex := 2);                  // EK1200 coupler
+_busHealth.M_MapPassiveNode(NodeIndex := 6);                  // EL9011 end cap
 Setup := _attached;]]></ST></Implementation>
     </Method>
     <Method Name="M_ReadInputs" Id="{0808b97f-7dcc-44e8-9480-17a48c17ac6f}">

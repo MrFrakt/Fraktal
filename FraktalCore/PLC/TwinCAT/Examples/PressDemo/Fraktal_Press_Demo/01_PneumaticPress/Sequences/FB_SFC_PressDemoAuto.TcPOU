@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1">
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
   <POU Name="FB_SFC_PressDemoAuto" Id="{5a6ce38f-33a5-4b54-b6a4-05132bef8883}" SpecialFunc="None">
     <Declaration><![CDATA[// SFC rendition of FB_PressDemoAuto - identical behaviour, chart-language
 // transitions. Every step action below sets the shared `_retVal`; the chart's
@@ -4328,7 +4328,6 @@ Complete"</v>
                   <v n="BaseType">"INT"</v>
                 </o>
               </d2>
-              <v n="ImplId">9L</v>
             </o>
           </Data>
           <TypeList>
@@ -4444,7 +4443,7 @@ _conRetVal[2] := E_StepResult.ADVANCE;]]></ST>
 // `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 0, StepName := 'project.step.pressAutoInitialize',
-    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 _outCmd.CycleCompleted := FALSE;
 _retVal := E_StepResult.ADVANCE;]]></ST>
       </Implementation>
@@ -4454,7 +4453,7 @@ _retVal := E_StepResult.ADVANCE;]]></ST>
         <ST><![CDATA[// N100 step action. The §8.11.1 cycle-start marker; also the target of the
 // N190 two-hand abort, which returns here with the same part still in place.
 M_Step(StepNo := 100, StepName := 'project.step.pressAwaitTwoHand',
-    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S, Branch := 0);
 _outCmd.CycleCompleted := FALSE;
 _partReady := M_Await(Idx := 1, Label := 'project.condition.partPresent',
     Ok := _partPresentSensor.OutImm.Value AND _partPresentSensor.OutImm.Quality);
@@ -4487,7 +4486,7 @@ END_IF]]></ST>
 // `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 110, StepName := 'project.step.pressRamUp',
-    Awaits := _pressRam, AwaitingLabel := 'PressRam.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := _pressRam, AwaitingLabel := 'PressRam.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 IF M_TryIssue(Steppable := TRUE) THEN
     _pressRam.Abort := FALSE; _pressRam.Command := E_CylinderCommand.RETRACT; _pressRam.Execute := TRUE;
 END_IF
@@ -4500,7 +4499,7 @@ IF _pressRam.Done THEN _pressRam.Execute := FALSE; _retVal := E_StepResult.ADVAN
 // `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 130, StepName := 'project.step.pressDoorOpen',
-    Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 IF M_TryIssue(Steppable := TRUE) THEN
     _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
 END_IF
@@ -4513,7 +4512,7 @@ IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_
 // `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 150, StepName := 'project.step.pressSlideInside',
-    Awaits := _partSlide, AwaitingLabel := 'PartSlide.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := _partSlide, AwaitingLabel := 'PartSlide.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 IF M_TryIssue(Steppable := TRUE) THEN
     M_PartStarted();
     _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.EXTEND; _partSlide.Execute := TRUE;
@@ -4527,7 +4526,7 @@ IF _partSlide.Done THEN _partSlide.Execute := FALSE; _retVal := E_StepResult.ADV
 // `_retVal = E_StepResult.ADVANCE`. Body is the ST chart's branch verbatim,
 // without M_Advance - the chart runtime owns the transition.
 M_Step(StepNo := 170, StepName := 'project.step.pressTransferSettle',
-    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.TransferSettleTime);
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := _parCfg.TransferSettleTime, Branch := 0);
 _retVal := M_Delay(PT := _parCfg.TransferSettleTime);]]></ST>
       </Implementation>
     </Action>
@@ -4541,7 +4540,7 @@ _retVal := M_Delay(PT := _parCfg.TransferSettleTime);]]></ST>
 // the two-hand wait. Completion wins if the door finished in the same scan the
 // button was released.
 M_Step(StepNo := 180, StepName := 'project.step.pressDoorClose',
-    Awaits := _door, AwaitingLabel := 'Door.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := _door, AwaitingLabel := 'Door.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 _twoHandHeldDuringClose := M_Await(Idx := 1,
     Label := 'project.condition.twoHandHeldDuringDoorClose',
     Ok := _twoHand.OutImm.SafeActive OR NOT _parCfg.RequireTwoHandStart);
@@ -4569,7 +4568,7 @@ END_IF]]></ST>
         <ST><![CDATA[// N185 step action. Reached from A180 by JUMP1 when a two-hand button is
 // released while the door closes. Advances to A190.
 M_Step(StepNo := 185, StepName := 'project.step.pressDoorReopen',
-    Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := _door, AwaitingLabel := 'Door.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 IF M_TryIssue(Steppable := TRUE) THEN
     _door.Abort := FALSE; _door.Command := E_CylinderCommand.RETRACT; _door.Execute := TRUE;
 END_IF
@@ -4582,7 +4581,7 @@ IF _door.Done THEN _door.Execute := FALSE; _retVal := E_StepResult.ADVANCE; END_
 // transition jumps back to A100, the two-hand wait. The start latch is dropped
 // so the cycle cannot resume without a fresh two-hand press.
 M_Step(StepNo := 190, StepName := 'project.step.pressSlideOutsideAfterAbort',
-    Awaits := _partSlide, AwaitingLabel := 'PartSlide.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := _partSlide, AwaitingLabel := 'PartSlide.RETRACT', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 IF M_TryIssue(Steppable := TRUE) THEN
     _partSlide.Abort := FALSE; _partSlide.Command := E_CylinderCommand.RETRACT; _partSlide.Execute := TRUE;
 END_IF
@@ -4713,7 +4712,7 @@ _conRetVal[1] := M_RunSub(Chain := _loadPosition, BaseStepNo := 240);]]></ST>
       <Implementation>
         <ST><![CDATA[// N999 step action. Transition `_retVal = E_StepResult.ADVANCE` loops to A100.
 M_Step(StepNo := 999, StepName := 'project.step.pressAutoComplete',
-    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+    Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
 _outCmd.CycleCompleted := TRUE;
 IF _partDispositioned THEN
     _partDispositioned := FALSE;       // N260 already set the NOK verdict
@@ -4779,11 +4778,9 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_do
           <o xml:space="preserve" t="SFCProperty">
             <n n="SFCErrorAnalyzation" />
             <n n="SFCErrorAnalyzationTable" />
-            <n n="SFCCurrentSteps" />
-            <n n="SFCMetaSteps" />
             <v n="Title">"IecSfc"</v>
             <v n="Company">"System"</v>
-            <v n="Version">"4.4.0.0"</v>
+            <v n="Version">"3.4.2.0"</v>
             <v n="Namespace">""</v>
             <d2 n="Flags" ckt="Flags" cvt="SFCPropertyFlagData">
               <v>EnableLimit</v>
@@ -4856,11 +4853,6 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_do
                 <v n="Use">false</v>
                 <v n="Declare">true</v>
               </o>
-              <v>CurrentSteps</v>
-              <o>
-                <v n="Use">false</v>
-                <v n="Declare">true</v>
-              </o>
             </d2>
             <v n="CalcActiveTransOnly">false</v>
             <v n="UseDefaults">true</v>
@@ -4875,5 +4867,89 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_do
         </TypeList>
       </XmlArchive>
     </ObjectProperties>
+    <LineIds Name="FB_SFC_PressDemoAuto._aN250_active">
+      <LineId Id="2" Count="12" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto._aN300_active">
+      <LineId Id="2" Count="7" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto._aN310_active">
+      <LineId Id="2" Count="6" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A000_Initialize">
+      <LineId Id="2" Count="5" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A100_AwaitTwoHand">
+      <LineId Id="2" Count="26" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A110_RamUp">
+      <LineId Id="2" Count="7" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A130_DoorOpen">
+      <LineId Id="2" Count="7" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A150_SlideInside">
+      <LineId Id="2" Count="8" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A170_TransferSettle">
+      <LineId Id="2" Count="4" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A180_DoorClose">
+      <LineId Id="2" Count="27" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A185_DoorReopen">
+      <LineId Id="2" Count="6" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A190_SlideOutsideAfterAbort">
+      <LineId Id="2" Count="11" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A200_RamDown">
+      <LineId Id="2" Count="23" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A210_ConfirmPressFailure">
+      <LineId Id="2" Count="15" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A215_ScrapPart">
+      <LineId Id="2" Count="8" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A220_PressDwell">
+      <LineId Id="2" Count="20" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A230_RecordResult">
+      <LineId Id="2" Count="9" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A240_ReturnToLoadPosition">
+      <LineId Id="2" Count="5" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.A999_CycleComplete">
+      <LineId Id="2" Count="15" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.M_Reset">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SFC_PressDemoAuto.Setup">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
   </POU>
 </TcPlcObject>

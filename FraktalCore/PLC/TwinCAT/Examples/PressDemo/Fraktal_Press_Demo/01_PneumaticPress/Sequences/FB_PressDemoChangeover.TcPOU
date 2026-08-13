@@ -36,28 +36,28 @@ END_IF
 CASE _step OF
     0:  // initialize
         M_Step(StepNo := 0, StepName := 'project.step.pressChangeoverInitialize',
-            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
         _outCmd.ChangeoverCompleted := FALSE;
         _answer := 0;
         _decisionRequest.Prompt := '';
         M_ClearDecision();
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 800);
+        M_Advance(OnAdvance := 800, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     800:  // validate the transactionally-loaded model
         M_Step(StepNo := 800, StepName := 'project.step.pressChangeoverValidateModel',
-            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S, Branch := 0);
         _modelSelected := M_Await(Idx := 1, Label := 'project.condition.pressModelSelected',
             Ok := _model.ModelCode <> '');
         IF _modelSelected THEN
             _retVal := E_StepResult.ADVANCE;
         END_IF
-        M_Advance(OnAdvance := 810);
+        M_Advance(OnAdvance := 810, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     810:  // shared load-safe position (composite step)
         _retVal := M_RunSub(Chain := _loadPosition, BaseStepNo := 810);
-        M_Advance(OnAdvance := 870);
+        M_Advance(OnAdvance := 870, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     870:  // request tooling/material confirmation
         M_Step(StepNo := 870, StepName := 'project.step.pressChangeoverRequestConfirmation',
-            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S, Branch := 0);
         _decisionRequest.Prompt := 'project.decision.pressChangeoverConfirm';
         _decisionRequest.Options[1] := 'project.decision.confirmChangeover';
         _decisionRequest.Options[2] := 'project.decision.repeatChangeoverPosition';
@@ -65,10 +65,10 @@ CASE _step OF
         _decisionRequest.Timeout := T#0S;
         M_AskDecision(Req := _decisionRequest);
         _retVal := E_StepResult.ADVANCE;
-        M_Advance(OnAdvance := 880);
+        M_Advance(OnAdvance := 880, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
     880:  // await confirmation; JUMP1 = repeat the guided position
         M_Step(StepNo := 880, StepName := 'project.step.pressChangeoverAwaitConfirmation',
-            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S);
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WAIT_OPERATOR, ExpectedTime := T#0S, Branch := 0);
         _answer := M_TakeDecision();
         IF _answer = 1 THEN
             _retVal := E_StepResult.ADVANCE;
@@ -78,10 +78,10 @@ CASE _step OF
             _modelSelected := M_Await(Idx := 1,
                 Label := 'project.condition.pressChangeoverConfirmation', Ok := FALSE);
         END_IF
-        M_Advance(OnAdvance := 999, OnJump1 := 810);
+        M_Advance(OnAdvance := 999, OnJump1 := 810, OnJump2 := -1, OnJump3 := -1);
     999:  // complete
         M_Step(StepNo := 999, StepName := 'project.step.pressChangeoverComplete',
-            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
         _outCmd.ChangeoverCompleted := TRUE;
         M_Complete();
 ELSE
@@ -112,12 +112,10 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_outCmd) AND __ISVALIDREF(_mode
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_PressDemoChangeover.M_Reset">
-      <LineId Id="3" Count="2" />
-      <LineId Id="2" Count="0" />
+      <LineId Id="3" Count="1" />
     </LineIds>
     <LineIds Name="FB_PressDemoChangeover.M_Run">
-      <LineId Id="3" Count="68" />
-      <LineId Id="2" Count="0" />
+      <LineId Id="3" Count="56" />
     </LineIds>
     <LineIds Name="FB_PressDemoChangeover.Setup">
       <LineId Id="3" Count="2" />

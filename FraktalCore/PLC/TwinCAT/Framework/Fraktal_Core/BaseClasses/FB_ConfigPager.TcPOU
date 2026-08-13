@@ -137,7 +137,17 @@ VAR_INPUT
     Number : DINT;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_AppendNumber := M_Append(Scope := Scope, Item := Item,
-    ValueText := TO_STRING(Number));]]></ST></Implementation>
+    ValueText := TO_STRING(Number));
+// Declare the type the caller already knows. M_Append stores every entry as
+// TEXT, so without this the number crosses the wire indistinguishable from a
+// string and the consumer has to guess from the leaf NAME. The HMI did exactly
+// that, against a hand-maintained allowlist that did not include StepNo — so
+// every §3.13 flow-chart row rendered as "N0" with an empty drill-down while
+// the value was sitting there as the string "100". A type the sender knows
+// must never be re-derived by the receiver.
+IF (_pTarget <> 0) AND (_storedSlot > 0) THEN
+    _pTarget^.Entries[_storedSlot].ValueType := E_ConfigValueType.NUMBER;
+END_IF]]></ST></Implementation>
     </Method>
     <Method Name="M_Finish" Id="{92cf5e48-71b3-4da6-a5f2-3e08b19dc271}">
       <Declaration><![CDATA[// Close the walk: publish the total page count for the HMI's fetch loop.

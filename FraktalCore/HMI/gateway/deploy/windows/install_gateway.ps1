@@ -1,11 +1,15 @@
-param(
-  # The PLC OPC UA endpoint the gateway connects to. When bound, the value is
-  # written into gateway.args as the line immediately after `--plc-endpoint`
-  # (the documented one-option/value-per-line contract). When omitted, the
-  # example default is left in place so a standalone run stays self-documenting.
+﻿param(
+  # The authoritative gateway instance set, as written by the wizard:
+  # a JSON document of {Name, Endpoint, Port, PublicOrigin} entries, one per
+  # PLC. When bound it REPLACES the installed set — instances missing from it
+  # are retired (their arguments file is kept as gateway.args.removed).
+  [string]$InstancesFile,
+  # Single-instance shorthand kept for scripted deployments that predate
+  # multi-instance support: it retargets the FIRST instance's PLC endpoint and
+  # leaves any other configured instance alone.
   [string]$Endpoint,
   # Secure remote access is a separate listener. Caddy terminates HTTPS/WSS
-  # while the Dart gateway remains bound to 127.0.0.1.
+  # while every Dart gateway remains bound to 127.0.0.1.
   [switch]$EnableRemoteAccess,
   [string]$PublicOrigin,
   [string]$ProxyUsername = 'fraktal',
@@ -21,8 +25,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'fraktal_instances.ps1')
+
 $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\Fraktal Gateway'
-$dataRoot = Join-Path $env:LOCALAPPDATA 'Fraktal\Gateway'
+$dataRoot = Get-FraktalDataRoot
+$instanceRoot = Get-FraktalInstanceRoot
 $programsRoot = Join-Path ([Environment]::GetFolderPath('Programs')) 'Fraktal Gateway'
 $startupRoot = [Environment]::GetFolderPath('Startup')
 
@@ -34,6 +41,8 @@ if (Test-Path -LiteralPath $existingTray) {
 }
 Get-Process -Name 'fraktal_gateway_tray' -ErrorAction SilentlyContinue |
   Stop-Process -Force -ErrorAction SilentlyContinue
+# Every instance runs the same executable out of the install root, so one filter
+# stops them all.
 Get-Process -Name 'fraktal_gateway' -ErrorAction SilentlyContinue |
   Where-Object { $_.Path -like "$installRoot*" } |
   Stop-Process -Force -ErrorAction SilentlyContinue
@@ -41,7 +50,7 @@ Get-Process -Name 'caddy' -ErrorAction SilentlyContinue |
   Where-Object { $_.Path -like "$installRoot*" } |
   Stop-Process -Force -ErrorAction SilentlyContinue
 
-New-Item -ItemType Directory -Force -Path $installRoot, $dataRoot, (Join-Path $dataRoot 'logs'), $programsRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $installRoot, $dataRoot, $instanceRoot, (Join-Path $dataRoot 'logs'), $programsRoot | Out-Null
 
 $payload = @(
   'fraktal_gateway.exe',
@@ -53,6 +62,7 @@ $payload = @(
   'DEPLOYMENT.md',
   'WEB_HMI_GATEWAY_DEPLOYMENT.md',
   'gateway.args.example',
+  'fraktal_instances.ps1',
   'configure_reverse_proxy.ps1',
   'configure_proxy_firewall.ps1',
   'uninstall_gateway.ps1'
@@ -86,46 +96,94 @@ if (Test-Path -LiteralPath $webRoot) {
 }
 Move-Item -LiteralPath $webNext -Destination $webRoot
 
-Write-Output 'step: writing gateway.args'
-$configPath = Join-Path $dataRoot 'gateway.args'
-if (-not (Test-Path -LiteralPath $configPath)) {
-  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gateway.args.example') -Destination $configPath
+# ---- Instance set ----------------------------------------------------------
+# With no arguments at all this is an upgrade: keep exactly what is installed.
+$authoritative = $false
+if ($InstancesFile) {
+  $instances = @(Read-FraktalInstancesFile $InstancesFile)
+  $authoritative = $true
+} else {
+  $instances = @(Get-FraktalInstances)
+  if ($instances.Count -eq 0) {
+    # A first install with no instance file: one instance carrying the
+    # self-documenting example endpoint, which the operator then edits.
+    $instances = @(New-FraktalInstance 'default' 'opc.tcp://127.0.0.1:4840' 8080 '')
+  }
+  if ($Endpoint) { $instances[0].Endpoint = $Endpoint }
+  if ($EnableRemoteAccess -and $PublicOrigin) {
+    $instances[0].PublicOrigin = $PublicOrigin
+  }
+}
+$problem = Get-FraktalInstanceSetError $instances
+if ($problem) { throw $problem }
+
+Write-Output "step: configuring $($instances.Count) gateway instance(s)"
+
+# The pre-instances layout kept one gateway.args in the data root. Seed the
+# first instance from it so site edits — write roots, certificates, read
+# scoping — survive the move instead of being replaced by the example.
+$legacyConfig = Get-FraktalLegacyConfigPath
+$legacyConsumed = $false
+
+foreach ($instance in $instances) {
+  $instanceDirectory = Get-FraktalInstanceDirectory $instance.Name
+  New-Item -ItemType Directory -Force -Path $instanceDirectory | Out-Null
+  $configPath = Join-Path $instanceDirectory 'gateway.args'
+  $retiredPath = "$configPath.removed"
+  if (-not (Test-Path -LiteralPath $configPath)) {
+    if (Test-Path -LiteralPath $retiredPath) {
+      Move-Item -LiteralPath $retiredPath -Destination $configPath
+      Write-Output "  $($instance.Name): restored a previously retired configuration"
+    } elseif (-not $legacyConsumed -and (Test-Path -LiteralPath $legacyConfig)) {
+      Copy-Item -LiteralPath $legacyConfig -Destination $configPath
+      $legacyConsumed = $true
+      Write-Output "  $($instance.Name): migrated the single-instance gateway.args"
+    } else {
+      Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gateway.args.example') -Destination $configPath
+    }
+  }
+
+  # Installer-owned settings. Rewriting --port also repairs malformed legacy
+  # values such as `8080\`, which otherwise make Dart's int.parse abort before
+  # the gateway creates a listener.
+  Set-FraktalArgument -Path $configPath -Option '--instance-name' -Value $instance.Name
+  Set-FraktalArgument -Path $configPath -Option '--port' -Value "$($instance.Port)"
+  Set-FraktalArgument -Path $configPath -Option '--web-root' -Value $webRoot
+  if ($instance.Endpoint) {
+    Set-FraktalArgument -Path $configPath -Option '--plc-endpoint' -Value $instance.Endpoint
+  }
+  # The web path's command scope. An empty list removes --write-root, which is
+  # what makes the browser a read-only viewer: the gateway refuses every
+  # operator command before it reaches the PLC. Installer-owned, so it is
+  # rewritten on every run rather than left to drift.
+  $writeRoots = @($instance.WriteRoots | Where-Object { $_ })
+  Set-FraktalArgumentList -Path $configPath -Option '--write-root' -Values $writeRoots
+  if ($writeRoots.Count -eq 0) {
+    Write-Output "  $($instance.Name): READ-ONLY (no command scope; the browser can display but not command)"
+  } else {
+    Write-Output "  $($instance.Name): commands allowed for $($writeRoots -join ', ')"
+  }
 }
 
-# Replace one option and its following value without depending on the example's
-# previous literal. Duplicate occurrences are collapsed so one file has one
-# authoritative value for every installer-owned setting.
-function Set-FraktalArgument(
-  [string]$Path,
-  [string]$Option,
-  [string]$Value
-) {
-  $lines = Get-Content -LiteralPath $Path
-  $result = New-Object System.Collections.Generic.List[string]
-  $found = $false
-  for ($i = 0; $i -lt $lines.Count; $i++) {
-    if ($lines[$i].Trim() -eq $Option) {
-      if (-not $found) {
-        $result.Add($Option) | Out-Null
-        $result.Add($Value) | Out-Null
-        $found = $true
-      }
-      if ($i + 1 -lt $lines.Count -and
-          -not $lines[$i + 1].TrimStart().StartsWith('--')) {
-        $i++
-      }
-      continue
-    }
-    $result.Add($lines[$i]) | Out-Null
+if ($legacyConsumed) {
+  Move-Item -LiteralPath $legacyConfig -Destination "$legacyConfig.migrated" -Force
+}
+
+# Instances the operator removed. The arguments file is preserved under a name
+# discovery ignores, because it may hold hand-written site scoping the operator
+# would otherwise have to reconstruct from memory.
+if ($authoritative) {
+  $configuredNames = @($instances | ForEach-Object { $_.Name })
+  $existingDirectories = @(
+    Get-ChildItem -LiteralPath $instanceRoot -Directory -ErrorAction SilentlyContinue
+  )
+  foreach ($directory in $existingDirectories) {
+    if ($configuredNames -contains $directory.Name) { continue }
+    $orphan = Join-Path $directory.FullName 'gateway.args'
+    if (-not (Test-Path -LiteralPath $orphan)) { continue }
+    Move-Item -LiteralPath $orphan -Destination "$orphan.removed" -Force
+    Write-Output "  $($directory.Name): retired (configuration kept as gateway.args.removed)"
   }
-  if (-not $found) {
-    if ($result.Count -gt 0 -and $result[$result.Count - 1] -ne '') {
-      $result.Add('') | Out-Null
-    }
-    $result.Add($Option) | Out-Null
-    $result.Add($Value) | Out-Null
-  }
-  Set-Content -LiteralPath $Path -Value $result -Encoding UTF8
 }
 
 function Install-CurrentUserRootCertificate([string]$CertificatePath) {
@@ -208,56 +266,28 @@ function Install-CurrentUserRootCertificate([string]$CertificatePath) {
   }
 }
 
-# The local listener is installer-owned. Rewriting it also repairs malformed
-# legacy values such as `8080\`, which otherwise make Dart's int.parse abort
-# before the gateway creates a listener.
-Set-FraktalArgument -Path $configPath -Option '--port' -Value '8080'
-Set-FraktalArgument -Path $configPath -Option '--web-root' -Value $webRoot
-if ($Endpoint) {
-  Set-FraktalArgument -Path $configPath -Option '--plc-endpoint' -Value $Endpoint
-}
-
 if ($EnableRemoteAccess) {
-  $proxyConfig = Join-Path $dataRoot 'proxy\Caddyfile'
-  $proxyOrigin = Join-Path $dataRoot 'proxy\public-origin.txt'
-  if ([string]::IsNullOrWhiteSpace($PublicOrigin) -and
-      (Test-Path -LiteralPath $proxyOrigin)) {
-    $PublicOrigin = (Get-Content -LiteralPath $proxyOrigin -Raw).Trim()
-  }
-  if ([string]::IsNullOrWhiteSpace($PublicOrigin)) {
+  $sites = @($instances | Where-Object { -not [string]::IsNullOrWhiteSpace($_.PublicOrigin) })
+  if ($sites.Count -eq 0) {
     throw 'PublicOrigin is required when secure remote access is enabled.'
   }
-  $proxyPassword = [Environment]::GetEnvironmentVariable(
-    'FRAKTAL_PROXY_PASSWORD',
-    [EnvironmentVariableTarget]::Process
-  )
-  if ((Test-Path -LiteralPath $proxyConfig) -and
-      (Test-Path -LiteralPath $proxyOrigin) -and
-      [string]::IsNullOrEmpty($proxyPassword)) {
-    # Passwords are intentionally unrecoverable. An upgrade with no new
-    # password preserves the validated site Caddyfile, hash, CA, and firewall
-    # rule instead of silently replacing site security.
-    $normalizedOrigin = (Get-Content -LiteralPath $proxyOrigin -Raw).Trim()
-    $validation = Start-Process -FilePath (Join-Path $installRoot 'caddy.exe') `
-      -ArgumentList @(
-        'validate', '--config', "`"$proxyConfig`"", '--adapter', 'caddyfile'
-      ) `
-      -Wait -PassThru -WindowStyle Hidden
-    if ($validation.ExitCode -ne 0) {
-      throw "The preserved HTTPS proxy configuration is not valid with the packaged Caddy version (exit $($validation.ExitCode))."
-    }
-  } else {
+  Write-Output "step: configuring the HTTPS proxy for $($sites.Count) site(s)"
+  $sitesFile = Join-Path $env:TEMP `
+    ('fraktal-proxy-sites-' + [guid]::NewGuid().ToString('N') + '.json')
+  Write-FraktalInstancesFile $sitesFile $sites
+  try {
     $proxyScript = Join-Path $installRoot 'configure_reverse_proxy.ps1'
     & $proxyScript `
-      -PublicOrigin $PublicOrigin `
+      -SitesFile $sitesFile `
       -Username $ProxyUsername `
-      -GatewayPort 8080 `
       -InstallRoot $installRoot `
       -DataRoot $dataRoot `
       -ConfigureFirewall:$ConfigureFirewall `
       -Unattended:$Unattended
-    $normalizedOrigin = (Get-Content -LiteralPath $proxyOrigin -Raw).Trim()
+  } finally {
+    Remove-Item -LiteralPath $sitesFile -Force -ErrorAction SilentlyContinue
   }
+
   $proxyRoot = Join-Path $dataRoot 'proxy'
   $exportedRoot = Join-Path $proxyRoot 'FraktalGatewayRootCA.crt'
   if (-not (Test-Path -LiteralPath $exportedRoot)) {
@@ -282,7 +312,18 @@ if ($EnableRemoteAccess) {
   } else {
     Write-Output 'Gateway root CA exported but not added to Windows trust.'
   }
-  Set-FraktalArgument -Path $configPath -Option '--allow-origin' -Value $normalizedOrigin
+
+  # Each instance authorizes exactly its own browser origin. The gateway itself
+  # stays on loopback; this is the second, application-layer boundary.
+  foreach ($instance in $instances) {
+    $configPath = Get-FraktalInstanceConfigPath $instance.Name
+    if ([string]::IsNullOrWhiteSpace($instance.PublicOrigin)) {
+      Remove-FraktalArgument -Path $configPath -Option '--allow-origin'
+      continue
+    }
+    Set-FraktalArgument -Path $configPath -Option '--allow-origin' `
+      -Value (Get-NormalizedHttpsOrigin $instance.PublicOrigin)
+  }
 }
 
 Write-Output 'step: shortcuts and uninstall entry'
@@ -304,12 +345,26 @@ function Set-Shortcut(
 $trayExe = Join-Path $installRoot 'fraktal_gateway_tray.exe'
 Set-Shortcut -Path (Join-Path $startupRoot 'Fraktal Gateway.lnk') -Target $trayExe -WorkingDirectory $installRoot
 Set-Shortcut -Path (Join-Path $programsRoot 'Fraktal Gateway.lnk') -Target $trayExe -WorkingDirectory $installRoot
-Set-Shortcut -Path (Join-Path $programsRoot 'Edit Gateway Configuration.lnk') -Target 'notepad.exe' -WorkingDirectory $dataRoot
-$editShortcut = $shell.CreateShortcut((Join-Path $programsRoot 'Edit Gateway Configuration.lnk'))
-$editShortcut.TargetPath = "$env:SystemRoot\System32\notepad.exe"
-$editShortcut.Arguments = '"' + $configPath + '"'
-$editShortcut.WorkingDirectory = $dataRoot
-$editShortcut.Save()
+
+# One configuration shortcut per instance. Stale ones are removed first so a
+# renamed or retired instance cannot leave a shortcut to a file nobody reads.
+Get-ChildItem -LiteralPath $programsRoot -Filter 'Edit Gateway Configuration*.lnk' `
+  -ErrorAction SilentlyContinue |
+  Remove-Item -Force -ErrorAction SilentlyContinue
+foreach ($instance in $instances) {
+  $configPath = Get-FraktalInstanceConfigPath $instance.Name
+  $shortcutName = if ($instances.Count -eq 1) {
+    'Edit Gateway Configuration.lnk'
+  } else {
+    "Edit Gateway Configuration ($($instance.Name)).lnk"
+  }
+  Set-Shortcut `
+    -Path (Join-Path $programsRoot $shortcutName) `
+    -Target "$env:SystemRoot\System32\notepad.exe" `
+    -WorkingDirectory (Get-FraktalInstanceDirectory $instance.Name) `
+    -Arguments ('"' + $configPath + '"')
+}
+
 if ($EnableRemoteAccess) {
   $proxyRoot = Join-Path $dataRoot 'proxy'
   $legacyCaShortcut = Join-Path $programsRoot 'Client CA Certificate.lnk'
@@ -341,7 +396,8 @@ $uninstallScript = Join-Path $installRoot 'uninstall_gateway.ps1'
 $uninstallCommand = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $uninstallScript + '"'
 Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value $uninstallCommand
 
-# Launch the tray app. It is long-lived and deliberately outlives this script.
+# Launch the tray app. It supervises one gateway process per configured
+# instance and is long-lived, deliberately outliving this script.
 #
 # Callers must therefore wait on THIS process only, never on its process tree:
 # `Start-Process -Wait` puts the child in a job object and waits for the whole
@@ -352,11 +408,13 @@ Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value $uninstallComm
 Write-Output 'step: starting tray'
 Start-Process -FilePath $trayExe -WorkingDirectory $installRoot
 
-# Only pop Notepad for a direct/standalone run. Under the combined wizard the
-# child process tree is waited on, so opening an interactive editor here makes
-# the wizard appear hung (its Close button cannot run until this returns).
-if (-not $Unattended) {
-  Start-Process -FilePath 'notepad.exe' -ArgumentList ('"' + $configPath + '"')
+# Only pop Notepad for a direct/standalone run of a single-instance install.
+# Under the combined wizard the child process tree is waited on, so opening an
+# interactive editor here makes the wizard appear hung (its Close button cannot
+# run until this returns).
+if (-not $Unattended -and $instances.Count -eq 1) {
+  Start-Process -FilePath 'notepad.exe' `
+    -ArgumentList ('"' + (Get-FraktalInstanceConfigPath $instances[0].Name) + '"')
 }
 
 Write-Output 'step: done'

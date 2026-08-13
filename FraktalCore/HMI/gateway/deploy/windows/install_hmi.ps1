@@ -1,4 +1,4 @@
-param(
+﻿param(
   # The PLC endpoint the HMI connects to (e.g. ads://192.168.1.6.1.1:854 on a
   # TwinCAT host, or opc.tcp://plc:4840 elsewhere). Written into the HMI's
   # connection.json on first install only — never clobbering a completed setup.

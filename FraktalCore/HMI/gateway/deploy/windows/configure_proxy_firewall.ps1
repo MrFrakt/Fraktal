@@ -1,7 +1,9 @@
 param(
+  # Every port an instance's public origin listens on. One rule covers them all
+  # because they are the same program, profile, and scope.
   [Parameter(Mandatory = $true)]
   [ValidateRange(1, 65535)]
-  [int]$Port,
+  [int[]]$Port,
   [Parameter(Mandatory = $true)]
   [string]$ProgramPath
 )

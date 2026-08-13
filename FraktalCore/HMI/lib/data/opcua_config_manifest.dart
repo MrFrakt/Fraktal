@@ -117,8 +117,17 @@ Map<String, List<CfgField>> configFieldsFromManifest(
   };
 }
 
-/// Item leaves that carry integer values (enum ordinals and counts). Everything
-/// else stays a string — deterministic typing, no value-shape guessing.
+/// Item leaves that carry integer values (enum ordinals and counts).
+///
+/// **Fallback only.** The entry's own `ValueType` is authoritative and is used
+/// first; this list exists for a PLC built before `M_AppendNumber` stamped
+/// `NUMBER` on the entries it writes.
+///
+/// Keeping a hand-maintained name list as the PRIMARY rule is what broke the
+/// §3.13 flow chart: `StepNo` was never added, so every row's step number
+/// arrived as the string "100", `_integer()` fell back to 0, and the whole
+/// chart rendered as "N0" with empty drill-downs. A type the sender knows must
+/// never be re-derived by the receiver.
 const Set<String> _integerItemLeaves = {
   'Value',
   'Dir',
@@ -132,6 +141,11 @@ const Set<String> _integerItemLeaves = {
   'MetaCount',
   'ReasonCode',
   'StallTime',
+  // §3.13 flow-chart row definition (the leaves the PLC appends as numbers).
+  'StepNo',
+  'Branch',
+  'TimeClass',
+  'ExpectedTime',
 };
 
 const Set<String> _booleanItemLeaves = {'Forceable', 'Shelvable'};
@@ -156,9 +170,24 @@ Map<String, Object?> synthesizeManifestValues(
         : browseBaseByModulePath[entry.scope];
     if (base == null || base.isEmpty) continue;
     final leaf = entry.item.substring(entry.item.lastIndexOf('/') + 1);
-    values['$base/${entry.item}'] = _integerItemLeaves.contains(leaf)
-        ? int.tryParse(entry.valueText) ?? 0
-        : _booleanItemLeaves.contains(leaf)
+    // The entry's DECLARED type wins; the leaf-name lists are only consulted
+    // when the PLC did not say (an older build, where every entry is TEXT).
+    // Deriving the type from the name was the primary rule once and it silently
+    // stringified every flow-chart step number — see _integerItemLeaves.
+    final declared = entry.valueType >= 0 &&
+            entry.valueType < CfgType.values.length
+        ? CfgType.values[entry.valueType]
+        : CfgType.text;
+    // CfgType.time is the PLC's DURATION (renamed: TIME is reserved in ST); it
+    // travels as a millisecond count, so it is numeric here too.
+    final numeric = declared == CfgType.number ||
+        declared == CfgType.time ||
+        (declared == CfgType.text && _integerItemLeaves.contains(leaf));
+    final boolean = declared == CfgType.boolean ||
+        (declared == CfgType.text && _booleanItemLeaves.contains(leaf));
+    values['$base/${entry.item}'] = numeric
+        ? (int.tryParse(entry.valueText) ?? 0)
+        : boolean
             ? entry.valueText.toUpperCase() == 'TRUE'
             : entry.valueText;
   }

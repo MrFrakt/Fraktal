@@ -562,30 +562,49 @@ class _ModuleDetailState extends State<ModuleDetail> {
       _lastGuidanceFingerprint = null;
       return;
     }
+    // The Unit's ACTIVE mode gates the trigger: a WAIT_OPERATOR step in AUTO is
+    // routine (the press parks on a two-hand start) and must not take over the
+    // screen, while the same step in CHANGEOVER is exactly when the operator
+    // wants walking through. See kSetupGuidanceModes.
+    final modeIndex = node.modeActive?.index;
     final tab = visibleTabs.where((candidate) {
-      if (!candidate.triggers(step.stepNo, step.stepName)) return false;
+      if (!candidate.triggers(step.stepNo, step.stepName,
+          modeIndex: modeIndex)) {
+        return false;
+      }
       return candidate.triggerStepName.trim() != '*' ||
           step.timeClass == TimeClass.waitOperator;
     }).firstOrNull;
     if (tab == null) return;
+    // The mode is part of the identity: leaving CHANGEOVER and coming back is a
+    // new occasion to guide, even on the same step number.
     final fingerprint =
-        '${node.path}:${tab.id}:${step.stepNo}:${step.stepName}';
+        '${node.path}:${tab.id}:$modeIndex:${step.stepNo}:${step.stepName}';
     if (_guidanceOpen || _lastGuidanceFingerprint == fingerprint) return;
     _lastGuidanceFingerprint = fingerprint;
+    final forced = tab.guidanceMode == GuidanceMode.forced;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _guidanceOpen) return;
       _guidanceOpen = true;
       await showDialog<void>(
         context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => Dialog.fullscreen(
-          child: Scaffold(
+        // FORCED guidance is the step waiting on this person (a changeover
+        // model choice, confirming it is safe to open the doors). OPTIONAL
+        // guidance is reference material the operator may already know, so it
+        // must never trap them: tapping outside closes it and the rest of the
+        // HMI stays reachable.
+        barrierDismissible: !forced,
+        builder: (dialogContext) {
+          final body = Scaffold(
             appBar: AppBar(
-              leading: IconButton(
-                tooltip: dialogContext.tr('std.common.close'),
-                onPressed: () => Navigator.pop(dialogContext),
-                icon: const Icon(Icons.close),
-              ),
+              automaticallyImplyLeading: false,
+              leading: forced
+                  ? null
+                  : IconButton(
+                      tooltip: dialogContext.tr('std.common.close'),
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close),
+                    ),
               title: LText(tab.title),
               actions: [
                 Padding(
@@ -597,11 +616,41 @@ class _ModuleDetailState extends State<ModuleDetail> {
                     }),
                   ),
                 ),
+                if (forced)
+                  // The acknowledgement IS the point of a forced prompt, so it
+                  // is an explicit button rather than a corner X. It stays
+                  // available even when the PLC also wants a decision: the
+                  // operator can read, answer below, and close deliberately.
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Center(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.check),
+                        label: const LText('std.guidance.acknowledge'),
+                      ),
+                    ),
+                  ),
               ],
             ),
             body: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (forced)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Card(
+                      color: operatorActionContainer(context),
+                      child: const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Row(children: [
+                          Icon(Icons.pan_tool_alt_outlined),
+                          SizedBox(width: 10),
+                          Expanded(child: LText('std.guidance.forcedNotice')),
+                        ]),
+                      ),
+                    ),
+                  ),
                 CurrentStepCard(step: step),
                 DecisionPrompt(app: app, node: node),
                 SizedBox(
@@ -614,8 +663,14 @@ class _ModuleDetailState extends State<ModuleDetail> {
                 ),
               ],
             ),
-          ),
-        ),
+          );
+          // Only a forced prompt swallows the system Back gesture; an optional
+          // one must stay as easy to leave as any other panel.
+          return PopScope(
+            canPop: !forced,
+            child: Dialog.fullscreen(child: body),
+          );
+        },
       );
       _guidanceOpen = false;
     });

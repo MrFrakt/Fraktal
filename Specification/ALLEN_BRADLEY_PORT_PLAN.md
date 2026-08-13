@@ -1,13 +1,13 @@
 # Allen-Bradley (Logix) port — implementation plan
 
-Status: **plan, not a commitment**. Nothing in `FraktalCore/PLC/Allen-Bradley/`
-exists yet; the directory is reserved. This document states what a second
+Status: **plan, not a commitment; Phase 1/R0 complete**. No production runtime
+exists in `FraktalCore/PLC/Allen-Bradley/`; the directory is reserved. This document states what a second
 binding has to deliver, the architectural problems that make it hard, the
-recommended controller/HMI communication path, and the evidence-gated order in
+selected controller/HMI communication path, and the evidence-gated order in
 which to find out whether the plan survives contact with the platform.
 
 **Communication decision:** use **EtherNet/IP explicit messaging (CIP symbolic
-tag access)** as the recommended controller-facing interface. Put a **Fraktal
+tag access)** as the default controller-facing interface. Put a **Fraktal
 gateway** between Logix and the generic HMI; the gateway projects the live
 controller contract onto the existing versioned WebSocket/REST repository
 protocol. OPC UA remains a permitted interoperability projection, not a
@@ -45,21 +45,18 @@ binding whose conformance is a hope.
 
 ---
 
-## 2. The blocker, stated exactly
+## 2. The original Core-authority blocker and its resolution
 
-**Fraktal Core's technology baseline assumes the IEC 61131-3 OOP extensions.
-Logix has none of them.**
+**R0 is complete.** The original Core text coupled required lifecycle behavior to
+IEC 61131-3 OOP extensions that Logix does not have. Core now states the fixed
+single-owner lifecycle obligation and permits a binding to prove it through
+inheritance or machine-checked generated composition. TC3 retains inheritance;
+Part III binds Logix to generated AOI/routine/UDT composition. The normative
+crosswalk and O1–O10 audit are in
+[`AB_R0_CORE_AUTHORITY_EVIDENCE.md`](AB_R0_CORE_AUTHORITY_EVIDENCE.md).
 
-This is not a detail to work around late. Part I makes it normative today:
-
-- §2.2: *"New module types **shall** extend the appropriate tier base, never
-  re-implement the lifecycle."*
-- §3.14: *"Every overridden hook **shall** call `SUPER^.OnX(...)` as its first
-  statement."*
-- §5.5: base types *"rely on OOP (interfaces, methods, inheritance, constructor
-  injection) that only ST expresses."*
-- §1.1: *"The Core assumes only IEC 61131-3 (with the OOP extensions where the
-  framework requires them)."*
+The measured TC3 surface below remains useful as migration scope, but it is no
+longer a Core conformance blocker:
 
 Measured surface of what those clauses are load-bearing for:
 
@@ -103,10 +100,10 @@ sidesteps inheritance entirely, but it discards the type-level test story (§5.7
 proves *types*), and a table expressive enough for every device becomes its own
 undocumented language.
 
-**Recommendation: (A).** It is the only option that keeps O8 true, and the
-amendment it forces is one Core arguably owes anyway — the current wording
-confuses *what must be guaranteed* with *how TwinCAT happens to guarantee it*.
-Doing the port is what proves the distinction is real.
+**Decision: (A), completed at R0.** Core now distinguishes *what must be
+guaranteed* from *how each binding guarantees it*. The remaining question is not
+authority but evidence that the proposed Logix mechanism works on the named
+platform (R1–R6).
 
 ---
 
@@ -122,9 +119,9 @@ base AOI around its own logic.
 
 ```
 FRK_CylinderCM (AOI)
-  ├─ FRK_ModuleBase_Begin(Ctx)   ← edges, Execute latch, state entry, timing start
-  ├─ <the device CASE — the only hand-written part>
-  └─ FRK_ModuleBase_End(Ctx)     ← state mapping, drop-reset, publication, rollup
+  ├─ FRK_ModuleBase_Begin(Ctx)   ← reset/edge, lifecycle extensions, cyclic/rollup, abort
+  ├─ <generated BUSY-only dispatch around the declared device behavior>
+  └─ FRK_ModuleBase_End(Ctx)     ← held/timing/terminal state, diagnostics/publication
 ```
 
 `Ctx` is one InOut UDT carrying the module's whole contract, so the base halves
@@ -184,8 +181,8 @@ evaluating as a Core improvement rather than an AB workaround.
 
 ### 4.1 Decision and boundary
 
-The Allen-Bradley binding **should use EtherNet/IP/CIP between Logix and one
-Fraktal gateway**. The gateway then serves the existing Fraktal WebSocket/REST
+The Allen-Bradley binding uses **EtherNet/IP/CIP between Logix and one Fraktal
+gateway as its default**. The gateway then serves the existing Fraktal WebSocket/REST
 protocol consumed by the HMI repository abstraction:
 
 ```text
@@ -285,7 +282,7 @@ baseline.
 
 | Path | Status | Consequence |
 |---|---|---|
-| **EtherNet/IP → Fraktal gateway → Fraktal WebSocket/REST** | **Recommended** | One Logix-specific adapter, works for Web and native HMI, preserves the existing repository and generic UI |
+| **EtherNet/IP → Fraktal gateway → Fraktal WebSocket/REST** | **Default** | One Logix-specific adapter, works for Web and native HMI, preserves the existing repository and generic UI |
 | Direct EtherNet/IP from native HMI | Optional experiment only | Still needs a gateway for Web and duplicates the CIP implementation/security surface |
 | EtherNet/IP → commercial gateway → OPC UA → current OPC UA adapter | Permitted deployment alternative | Lowest custom transport work and useful for third-party interoperability, but adds middleware and still depends on OPC UA north-bound |
 | Embedded Logix OPC UA → current OPC UA adapter | Permitted where supported and proven | Preserves the TC3-style path, but controller/firmware/node-budget availability no longer gates the AB binding |
@@ -295,15 +292,10 @@ third-party MES/SCADA access remain valuable optional north-bound profiles. They
 shall be generated from the same live Fraktal model; EtherNet/IP does not create
 a competing identity or hierarchy.
 
-**Consequence for the conformance model.** §11.7 and Annexes F/J/K define those
-projections *as OPC UA companion mappings*. If the AB binding serves them only
-through the optional commercial-gateway route, then a composed claim such as
-*"Fraktal Core + PackML"* is unconditional on TC3 and **conditional on the
-deployment** on AB. §1.5 currently treats profile conformance as
-binding-independent. Either the projections are restated against the
-transport-neutral service of §4.5, or the conformance clause gains an explicit
-per-binding qualifier. This is a specification decision, not an implementation
-detail, and it belongs in Phase 1.
+**Conformance consequence, resolved at R0.** Core §1.5 now makes transport and
+companion projections binding-qualified. `Fraktal Core + Fraktal/AB` uses the
+default EtherNet/IP path; an additional claim such as `Fraktal/AB + PackML/OPC UA`
+is valid only when that optional projection is present and verified.
 
 ### 4.6 Two claims in this section that are aspirations, not inventories
 
@@ -329,22 +321,20 @@ gone until it restarts. Treat it as cell-local infrastructure with a supervised
 restart, and state the availability expectation in the AB Part III rather than
 discovering it during a night shift.
 
-### 4.5 Required Core and HMI-contract amendment
+### 4.5 Completed Core amendment; remaining HMI transport work
 
-Part I currently makes OPC UA itself normative throughout the model—notably in
-§3.10, §4.8, §7.7, and §11. To keep O8 honest, audit every such occurrence and
-amend the Core clauses around a transport-neutral **Fraktal Self-Description
-Service** whose required semantics are:
+Part I now defines a transport-neutral **Fraktal Self-Description Service** whose
+required semantics are:
 
 - live runtime discovery with stable canonical identities and hierarchy;
 - typed values with explicit freshness/quality and synchronized timestamps;
 - bounded subscriptions or equivalent bounded change detection;
 - the narrow acknowledged command/write vocabulary;
 - schema/protocol versioning and fail-closed compatibility handling;
-- authenticated, encrypted, least-privilege access; and
+- authenticated principals, least privilege, and conduit-appropriate integrity/confidentiality controls; and
 - generated optional industry projections from the same source of truth.
 
-The TC3 Part II binds that service to TF6100 OPC UA. The AB Part III binds it to
+TC3 Part II binds that service to TF6100 OPC UA. AB Part III binds it by default to
 EtherNet/IP/CIP plus the Fraktal gateway and `FRK_Manifest`, while allowing OPC
 UA as an alternative projection. `HMI_CONTRACT.md` should rename OPC-UA-specific
 transport wording where it is really a repository semantic, while retaining
@@ -361,8 +351,16 @@ Stated to keep the estimate honest — this is most of the standard:
 - the **data contract** `ParCfg`/`ParCmd`/`OutCmd`/`OutImm` — UDTs compose;
 - the **PLCopen handshake** (§6.1) — it is a state machine, not a language feature;
 - the **diagnostic model**, first-out, alarm rings, rationalization (§8);
-- **sequences** (§6.8) — Logix has ST, Ladder, **and** SFC; the step-table form
-  ports directly and the generator work already done applies;
+- **sequence semantics** (§6.8) port unchanged. Studio 5000 does support native
+  SFC routines; the limitation is that an AOI primary routine is LD/FBD/ST and
+  an AOI cannot `JSR` a project routine. The binding therefore keeps generated
+  ST/LD sequence AOIs as the reusable reference form and adds a generated
+  program-level JSR/SFR wrapper for application-owned Unit/EM SFC chains, with
+  one stateful routine/tag set per deployed owner.
+  The chart writes intent and calls sequence services; module AOIs still run
+  unconditionally once per periodic scan. S4/S11 must prove L5X fidelity,
+  ordering, one-scan intent latency, restart and branch parity before this SFC
+  form is claimed;
 - **safety separation** (§9) — GuardLogix is a different certified system with
   the same read-only boundary;
 - the **generic HMI domain and UI**. It binds `PlcRepository`, not PLC-platform
@@ -382,19 +380,25 @@ below is a question until Phase 0 records controller-backed evidence.
 
 | # | Spike | Kills the plan if… |
 |---|---|---|
-| S1 | **EtherNet/IP/CIP data path** on the target controller/firmware: symbolic reads/writes, controller- and program-scoped tags, UDTs, arrays, strings, fragmentation, connection limits, and External Access rules | the standard contract cannot be moved reliably or within the required update budget |
+| S1 | **EtherNet/IP/CIP data and time path** on the target controller/firmware: symbolic reads/writes, controller- and program-scoped tags, UDTs, arrays, strings, fragmentation, connection limits, External Access, wall clock and CIP Sync | the standard contract or synchronized diagnostic time cannot be moved reliably within budget |
 | S2 | **AOI parameter rules** for the target firmware: UDT In/Out, string handling, InOut aliasing, nesting depth | contract cannot be passed → §3.1's `Ctx` design fails |
-| S3 | **Scale**: instances, memory and scan cost for a realistic forest (say 60 modules), plus gateway read volume, update latency, and reconnect time | registry/rollup or the communication budget does not fit the application |
-| S4 | **Source-control form**: L5X export fidelity — is it round-trip stable and diffable? | no text form → no lint, no generation, no gates (§2.5 is a *shall*) |
-| S5 | **Unit-test framework**: what plays TcUnit's role on Logix | no runner → §5.7 per-type suites cannot be a shall |
+| S3 | **Scale and platform observability**: instances, memory/scan cost for a realistic forest (say 60 modules), gateway read volume/latency/reconnect, and exact `GSV`/module-object timing, health and topology fields | registry/rollup/communication budget does not fit, or required health claims must narrow |
+| S4 | **Source-control form**: L5X export fidelity for AOIs, ST/LD and native SFC routines—steps, actions/qualifiers, transitions, execution settings, JSR/SFR/reset targets—is it round-trip stable and diffable? | no faithful text form → no lint, generation or SFC claim (§2.5 is a *shall*) |
+| S5 | **Unit-test execution**: controller-resident harness plus supported Logix Echo/SDK or isolated-hardware CI matrix, clean snapshot and machine-readable result harvest | no automated runner → §5.7 per-type suites cannot be a shall |
 | S6 | **Online change** semantics vs. the module registry | registry cannot be extended online → commissioning workflow changes |
 | S7 | **Live manifest round trip**: generate `FRK_Manifest`, read it over CIP, reconstruct a multi-root tree, detect a revision, and reject a bad schema | runtime self-description cannot be made authoritative without per-station HMI configuration |
 | S8 | **Security and deployment**: supported CIP Security capability, otherwise the exact cell-zone/conduit controls; gateway TLS, identity, role mapping, certificate and update lifecycle | writes cannot be protected to the §14 threat model |
 | S9 | **Repository-semantic parity**: map Logix values to typed values, freshness/quality/timestamps, tiered subscriptions, acknowledged commands, disconnect behavior, and host-event traversal | the AB HMI behaves differently or can act on stale/ambiguous data |
 | S10 | **Optional OPC UA projections**: embedded-server and commercial-gateway support, budgets, and licensing on candidate deployments | never kills the native AB path; it only determines which optional interoperability profiles can be claimed |
+| S11 | **Execution-form and scan/restart semantics**: (a) nested module→sequence→service→child AOIs and (b) root module AOI→generated owner-local program SFC runners; per-owner chart state, ordering, current-active-step return, one-scan intent/result loop, SFR reset/re-entry, prescan, Program→Run, download, retention and parallel branches | neither sequence form can reproduce the lifecycle/sequence contract; failure isolated to SFC disables that form while ST/LD remains |
+| S12 | **Physical type map**: every Core type through Logix storage/CIP encoding to repository value, including unsigned/range, time/timestamp, strings, arrays, UDT layout and ordinals | the public contract narrows or changes meaning on the target |
+| S13 | **Byte transports**: claimed socket/serial adapters, buffers, concurrency, reconnect and simulator support | connector-derived module families must be excluded from the initial claim |
+| S14 | **Motion**: supported controller/axis families, instruction/HAL mapping, fault/reset/limits and Echo/hardware evidence | motion must be excluded or narrowed to a versioned profile |
+| S15 | **Automated executable gate**: Logix Designer SDK import, Verify/Build, diagnostics, canonical export and isolated download/test | L5X lint passes code that Studio 5000 cannot execute; Core's CI gate is not satisfied |
 
-S1, S4, S7, S8, and S9 decide whether this is a conforming port. S10 no longer
-decides whether the generic HMI is possible.
+S1, S2, S4, S7, S8, S9, S11, S12, and S15 decide whether this is a conforming
+base port. S10, S13, and S14 gate only the optional profiles/module families they
+name; none decides whether the generic HMI is possible.
 
 ---
 
@@ -406,26 +410,30 @@ Do not begin the full base or module library before the communication and
 source-control risks are closed. Quality gates are added with the feature they
 protect, not postponed until the end.
 
-**Phase 0 — platform and communication spikes.** Run S1–S10 against named
+**Phase 0 — platform and communication spikes.** Run S1–S15 against named
 controller, firmware, Studio 5000, gateway-host OS, and representative network
 hardware. Capture L5X, packet/latency measurements, screenshots/logs, and a
-repeatable test procedure. *Exit:* a written answer to every spike; S1/S4/S7/S8/
-S9 have a conforming mechanism and quantified budget; explicit go/no-go.
+repeatable test procedure. *Exit:* a written answer to every spike; all base-port
+spikes named above have a conforming mechanism and quantified budget; explicit
+go/no-go plus an initial optional-family/profile claim list.
 
-**Phase 1 — Core decisions and amendments.** Restate §2.2, §3.14 and §5.5 so the
+**Phase 1 — Core decisions and amendments — COMPLETE (R0).** Restate §2.2, §3.14 and §5.5 so the
 lifecycle obligation is neutral and `EXTENDS`/`SUPER^` are TC3 bindings. Define
 the Fraktal Self-Description Service from §4.5, then re-audit Part I for both OOP
 and OPC-UA mechanism leaks. Move TF6100/browse-node/session details to TC3 Part
-II without weakening the existing TC3 conformance claim. *Exit:* Part I names
+II without weakening the existing TC3 conformance claim. *Exit met:* Part I names
 required behavior rather than a platform mechanism; TC3 Part II still binds
-every moved requirement; the normative diff and objective impact are reviewed.
+every moved requirement; the normative diff and objective impact are reviewed in
+`AB_R0_CORE_AUTHORITY_EVIDENCE.md`.
 
-**Phase 2 — AB binding and gateway contract.** Write `Fraktal_AB_Part_III.md`, the
+**Phase 2 — AB binding and gateway contract.** Finalize `Fraktal_AB_Part_III.md`, the
 normative `FRK_Manifest` schema, the EtherNet/IP tag/external-access rules, the
-gateway protocol mapping, security profile, supported-version matrix, and
+root mailbox/acknowledgement and HostEvents schemas, physical type map, gateway
+protocol/quality mapping, security profile, supported-version matrix, and
 performance budgets. Update the transport-specific portions of
 `HMI_CONTRACT.md`. *Exit:* every Core `shall` has a named AB mechanism or a
-recorded deviation; manifest and gateway schemas are versioned before code.
+recorded deviation; all R0–R6 readiness gates in Part III pass before runtime
+base/library code (disposable spike and communication fixtures remain allowed).
 
 **Phase 3 — communication vertical slice.** Implement the smallest controller
 fixture containing one root, one simulated CM, `FRK_Manifest`, registry/status,
@@ -445,9 +453,11 @@ diagnostic, release, reset, abort, and communication tests against simulated I/O
 (**G2**) so composition boilerplate, manifest entries, numeric keys, and L5X
 shape are generated from one source. Add AB lint/build checks for Begin/End
 ordering, registry/manifest consistency, reason/key collisions, bounded indices,
-and forbidden raw project coupling. *Exit:* a new type is generated, round-trips,
-compiles, and passes; each deliberately broken invariant is rejected by a named
-gate.
+forbidden raw project coupling, and the Part III G-SFC rules. Generate one small
+ST/SFC parity chain from the same graph declaration and run S4/S11 before any
+larger native chart. *Exit:* a new type and both proved sequence forms generate,
+round-trip, compile, and pass; each deliberately broken invariant is rejected by
+a named gate.
 
 **Phase 6 — reusable module library.** Port the first representative set from
 `Fraktal_Modules`—cylinder, clamp, digital input, power group, two-hand, and air
@@ -466,7 +476,7 @@ same canonical identities.
 
 **Phase 8 — full conformance and objective audit.** Audit implementation,
 generator, gateway, HMI contract, AB Part III, and amended Core clause-by-clause
-against O1–O9. Close gaps in the owning layer: implementation when behavior is
+against O1–O10. Close gaps in the owning layer: implementation when behavior is
 wrong, binding/specification when a platform mechanism leaked into Core, or a
 new mechanism when neither satisfies the objective. Re-run security, scale,
 failure-recovery, source-round-trip, and compatibility tests. *Exit:* no
@@ -542,6 +552,17 @@ with the bad news deferred.
   Studio 5000 Logix Designer via
   EtherNet/IP*](https://www.rockwellautomation.com/en-us/docs/factorytalk-edge-gateway/distributed-1-00/ft-edge-gateway-help-ditamap/data-sources/data-source-configuration/add-ds-from-st5kld-via-ethip.html):
   vendor evidence for EtherNet/IP namespace acquisition and gateway use.
+- Rockwell Automation, [*Logix 5000 Controllers Add-On Instructions*
+  (`1756-PM010N`)](https://literature.rockwellautomation.com/idc/groups/literature/documents/pm/1756-pm010_-en-p.pdf):
+  complex InOut parameters, nested AOI/scan limits, supported AOI languages and
+  the prohibition on `JSR` from AOI logic.
+- Rockwell Automation, [*Logix 5000 Controllers Sequential Function Charts*
+  (`1756-PM006L`)](https://literature.rockwellautomation.com/idc/groups/literature/documents/pm/1756-pm006_-en-p.pdf):
+  SFC main/subroutine execution, actions/qualifiers, simultaneous branches,
+  current-active-step return, initial-step restart and `SFR` behavior.
+- Rockwell Automation, [*Industrial DevOps CI/CD for Logix Control Systems*
+  (`LOGIX-AT002`)](https://literature.rockwellautomation.com/idc/groups/literature/documents/at/logix-at002_-en-p.pdf):
+  Logix Designer SDK and Logix Echo SDK automation pattern.
 - ODVA, [*EtherNet/IP Technology
   Overview*](https://www.odva.org/publication_download/ethernet-ip-technology-overview/):
   explicit messaging, CIP object model, and HMI/client use; obtain the licensed

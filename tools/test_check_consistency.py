@@ -5,7 +5,9 @@ from tools.check_consistency import (
     Finding,
     _is_test_source,
     _ld_chain,
+    _reference_roots,
     _st_chain,
+    _st_step_writes,
     check_inventory,
     check_localization,
     check_parity,
@@ -101,6 +103,60 @@ ELSE
         # A rung whose gate was `EQ(215, 0)` would simply be absent here - that
         # is exactly how two dead rungs passed every other gate.
         self.assertIn(215, ld)
+
+
+class StepEffectTests(unittest.TestCase):
+    """Same steps and same transitions is not yet the same chain.
+
+    `FB_LD_PressDemoAuto` step 190 agreed on both and still dropped
+    `_startLatched := FALSE`, which looped the machine after a two-hand abort.
+    """
+
+    def test_only_state_that_escapes_the_chain_is_compared(self):
+        declaration = """FUNCTION_BLOCK FB_X EXTENDS FB_SequenceBase
+VAR
+    _scratch, _partProcessed : BOOL;
+    _door : REFERENCE TO FB_CylinderCM;
+    _startLatched : REFERENCE TO BOOL;
+END_VAR]]"""
+        self.assertEqual(_reference_roots(declaration),
+                         {"_door", "_startLatched"})
+
+    def test_step_writes_ignore_named_arguments_and_locals(self):
+        source = """CASE _step OF
+    190:
+        M_Step(StepNo := 190, Awaits := _partSlide, Branch := 0);
+        _scratch := M_TryIssue(Steppable := TRUE);
+        IF _partSlide.Done THEN
+            _door.Execute := FALSE;
+            _startLatched := FALSE;
+        END_IF
+ELSE
+"""
+        roots = {"_door", "_startLatched", "_partSlide"}
+        # `StepNo :=` and `Steppable :=` bind parameters; `_scratch` is a local.
+        self.assertEqual(_st_step_writes(source, roots),
+                         {190: {"_door.Execute", "_startLatched"}})
+
+    def test_the_dropped_effect_that_shipped_is_now_an_error(self):
+        # Rebuild the exact regression: the ladder rung for step 190 without its
+        # `_startLatched` reset coil, against the real ST twin.
+        import xml.etree.ElementTree as ET
+
+        from tools.check_consistency import _ld_step_writes
+        from tools.ld_dump import _value
+        from tools.ld_rung_gen import split_networks
+
+        ladder = (PLC_ROOT / "Examples/PressDemo/Fraktal_Press_Demo/01_PneumaticPress"
+                  / "Sequences/FB_LD_PressDemoAuto.TcPOU")
+        text = ladder.read_text(encoding="utf-8-sig")
+        per_step, continuous = _ld_step_writes(text, split_networks, ET, _value)
+        self.assertIn("_startLatched", per_step[190],
+                      "the shipped rung must carry the abort's start-latch reset")
+        # A plain coil drives its symbol every scan, so the ST twin's explicit
+        # clears in other steps have no ladder counterpart to find and must not
+        # be reported. `_outCmd` is written by exactly such a coil.
+        self.assertIn("_outCmd", continuous)
 
 
 class FindingTests(unittest.TestCase):

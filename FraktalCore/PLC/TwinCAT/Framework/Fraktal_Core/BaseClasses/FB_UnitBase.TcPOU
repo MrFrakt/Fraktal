@@ -1183,6 +1183,12 @@ IF hit = 0 THEN
     END_IF
     SequenceStepCount := SequenceStepCount + 1;
     hit := SequenceStepCount;
+    // §3.10.2 — the static half of this row (StepNo, StepName, the awaited path)
+    // is served through the manifest, NOT cyclically, and the HMI refetches only
+    // when ConfigRev changes. Rows are discovered by visit, so a chart that grows
+    // after the HMI's fetch would render every new row with StepNo 0 and no text.
+    // Only the append bumps it: a re-visit rewrites identical values.
+    ConfigRev := ConfigRev + 1;
 END_IF
 // The drill-down target is the module the step DECLARES it commands. Reading it
 // here is what makes the link unambiguous: no IF/CASE chose it (§3.13).
@@ -1249,7 +1255,14 @@ VAR
     a : ST_SequenceAnnotation;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR i := 1 TO SequenceStepCount DO
+        <ST><![CDATA[IF SequenceStepCount > 0 THEN
+    // §3.10.2 — the rows this clears are published through the manifest, so the
+    // HMI's cached copy is now describing a chart that no longer exists. Guarded
+    // by the count: a mode change with nothing published changed no manifest and
+    // must not cost a refetch.
+    ConfigRev := ConfigRev + 1;
+END_IF
+FOR i := 1 TO SequenceStepCount DO
     SequenceSteps[i] := e;             // zero-initialized local: clears every field
     SequenceStepDef[i] := x;
 END_FOR

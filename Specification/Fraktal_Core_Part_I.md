@@ -1,12 +1,12 @@
 # Fraktal Core — Modular Automation Architecture (Part I)
 *Unified PLC Programming Standard · **Part I: platform-neutral normative core***
 
-**Status:** Draft · Part I of III (Part II: the TwinCAT 3 binding, **Fraktal/TC3**; Part III: the Allen-Bradley Logix binding, **Fraktal/AB**, draft/pre-spike)
-**Platform:** none — this Part is platform-neutral. Platform-specific clauses live in a *binding* (Part II); the first binding is TwinCAT 3.
+**Status:** Draft · Part I of III (Part II: the TwinCAT 3 binding, **Fraktal/TC3**; Part III: the Allen-Bradley Logix binding, **Fraktal/AB**, draft/R0-complete/spike-ready)
+**Platform:** none — this Part is platform-neutral. Platform-specific clauses live in binding Parts (Part II: TwinCAT 3; Part III: Allen-Bradley Logix).
 **Grounded in:** ISA-88 / IEC 61512 (physical & procedural model), PLCopen (command-handshake vocabulary, motion & safety function blocks), ISA-TR88.00.02 PackML / OPC 30050 (optional overlay), ISA-95 / IEC 62264 (MES integration), ISA-18.2 / IEC 62682 (alarm management), IEC 62443 (cybersecurity), and OPC UA / IEC 62541 companion models — reconciled into a single recursive-module architecture.
 
 > Normative language: **shall/must** = requirement · **should** = recommendation · **may** = permitted · **can** = possible.
-> This document is **Part I (Core)**: Foreword and environment requirements (§1–2), the architecture and coding core (§3–8), and safety principles, I/O abstraction & motion model, connectivity mappings, worked-example index, change management, and cybersecurity (§9–14). Platform mechanics extracted to the binding are cited as **TC3 §x.y** (document `Fraktal_TC3_Part_II.md`); Core section numbering is preserved across the split, so a clause extracted to the binding keeps its number there.
+> This document is **Part I (Core)**: Foreword and environment requirements (§1–2), the architecture and coding core (§3–8), and safety principles, I/O abstraction & motion model, connectivity mappings, worked-example index, change management, and cybersecurity (§9–14). Platform mechanics are cited as **TC3 §x.y** (`Fraktal_TC3_Part_II.md`) or **AB §x.y** (`Fraktal_AB_Part_III.md`); Core section numbering is preserved across bindings where applicable.
 
 ---
 
@@ -14,35 +14,35 @@
 
 ### 1.1 Project description & objectives
 
-**Description.** This standard defines a single, unified way to write equipment software for the production line — defined platform-neutrally and delivered first as its **TwinCAT 3 binding** (O8). It synthesises established industry practice — the ISA-88 (IEC 61512) physical/procedural architecture with disciplined alarm (ISA-18.2), safety, and naming rules, and a proven object/handler framework of coding conventions — into one recursive three-tier module model (`FB_Unit` / `FB_EquipmentModule` / `FB_ControlModule`). Every module shares one data contract, one PLCopen command handshake, and one diagnostic model, and the whole station describes itself over OPC UA so a single generic Flutter HMI can render and navigate it without per-station screen building.
+**Description.** This standard defines a single, unified way to write equipment software for the production line — defined platform-neutrally and delivered first as its **TwinCAT 3 binding** (O8). It synthesises established industry practice — the ISA-88 (IEC 61512) physical/procedural architecture with disciplined alarm (ISA-18.2), safety, and naming rules, and a proven object/handler framework of coding conventions — into one recursive three-tier module model (`FB_Unit` / `FB_EquipmentModule` / `FB_ControlModule`). Every module shares one data contract, one PLCopen command handshake, and one diagnostic model, and the whole station describes itself through the transport-neutral **Fraktal Self-Description Service** (§3.10/§11) so a single generic Flutter HMI can render and navigate it without per-station screen building.
 
 **Concept.** The standard is organised around one intention: bring a machine into service with **as little application programming as possible**, so that what remains to be written is the part that is genuinely specific to that machine.
 
 - **Equipment is composed, not written.** A station is assembled from reusable module *types*, each of which ships with its own tests, its own reason-code band, and its own published contract. A type is declared and wired once (§3.11); it is then finished.
-- **Everything common is inherited, not repeated.** The command handshake (§6.1), mode and state machines (§6.2), first-out diagnosis (§6.9), the alarm model (§8), recipe load and migration (§3.8), traceability (§3.16), and the published data contract (§3.12) are defined **once at the level that owns them**. A concrete type overrides its device logic and nothing else (§2.2, §3.14).
-- **The operator interface is discovered, not engineered — and not generated.** Because every module publishes the same self-describing contract (§3.10), a generic HMI walks the forest at run time and renders the tree, its commands, its alarms and its flow charts (§3.13). Adding a module makes it appear. This is deliberately *not* a generation step: there is no per-station artifact to regenerate, redeploy, or keep synchronised when the machine changes.
-- **What the application author writes is the step sequence** — the process itself — in whichever of ST, SFC or Ladder suits the author and the site (§5.5, §6.8), all three being the same chain against the same base class.
+- **Everything common is reused, not repeated.** The command handshake (§6.1), mode and state machines (§6.2), first-out diagnosis (§6.9), the alarm model (§8), recipe load and migration (§3.8), traceability (§3.16), and the published data contract (§3.12) are defined **once at the level that owns them**. A concrete type supplies its device logic and declared lifecycle extensions, and nothing else (§2.2, §3.14). A binding may enforce that reuse through inheritance or through generated composition, but a project never re-implements the lifecycle.
+- **The operator interface is discovered, not engineered — and not generated.** Because every module publishes the same self-describing contract (§3.10), a generic HMI walks the live forest at run time and renders the tree, its commands, its alarms and its flow charts (§3.13). Adding a module makes it appear. A binding may generate the controller-side manifest or exposure metadata from the same authoritative declaration, but there is no separately hand-maintained per-station HMI artifact to regenerate, redeploy, or keep synchronised when the machine changes.
+- **What the application author writes is the step sequence** — the process itself — in whichever of ST, SFC or Ladder suits the author and the site (§5.5, §6.8), all three implementing the same sequence contract through the binding's proved execution form.
 
 The effort model that follows from this is stated in O1 and made normative by the trimming rule below: standardisation is paid **once per reusable module type**, and once per framework mechanism — never once per step, per station, or per screen.
 
-**Technology baseline.** The Core assumes only IEC 61131-3 (with the OOP extensions where the framework requires them), OPC UA for self-description and connectivity (§3.10, §11), a generic operator HMI that auto-discovers the module tree (§3.13), and pluggable recipe/type transports — local, OPC UA, socket (JSON/XML), or REST (§3.8). Each **binding** declares its concrete technology baseline — toolchain, fieldbus, safety system, OPC UA server — in its Part II (**TC3 §1** for the TwinCAT 3 binding).
+**Technology baseline.** The Core assumes a deterministic cyclic PLC environment capable of the bounded records and state machines defined here, a transport-neutral Fraktal Self-Description Service (§3.10, §11), a generic operator HMI that auto-discovers the module forest (§3.13), and pluggable recipe/type transports — local, OPC UA, socket (JSON/XML), REST, or a binding-defined equivalent (§3.8). It does **not** require IEC object-oriented extensions or a particular connectivity transport. Each **binding** declares its concrete technology baseline — toolchain, language mechanisms, fieldbus, safety system, self-description transport, and optional industry projections — in its own Part (**TC3 §1**, **AB §1**).
 
-**Deliverables.** This standard (§1–13), the worked-example annex set A–I (§12) exercising every contract end-to-end, and a two-page **quick-start** ("your first module": scaffold from the §2.2 base class, wire, test to the §5.7 checklist) with the Annex C chain also rendered in SFC (§6.8). The original core trio: three worked-example annexes that exercise every contract end-to-end and serve as reference implementations: a Control Module (Annex A — separator/stopper), an Equipment Module (Annex B — dual clamp with parent-child rollup), and a Unit (Annex C — station with a continuous mode chain, mode cascade, and the cross-tier stall diagnostic). A central framework library supplies the base types the annexes assume (§2.2).
+**Deliverables.** This standard (§1–13), the worked-example annex set A–I (§12) exercising every contract end-to-end, and a two-page **quick-start** ("your first module": scaffold from the binding's §2.2 lifecycle form, wire, test to the §5.7 checklist) with the Annex C chain also rendered in SFC (§6.8). The original core trio: three worked-example annexes that exercise every contract end-to-end and serve as reference implementations: a Control Module (Annex A — separator/stopper), an Equipment Module (Annex B — dual clamp with parent-child rollup), and a Unit (Annex C — station with a continuous mode chain, mode cascade, and the cross-tier stall diagnostic). Each binding supplies the framework artifacts those examples assume (§2.2).
 
 **Objectives** (in priority order):
 
-1. **Low development *and maintenance* effort.** Application logic stays lean — issue a command, wait for `Done` — with no per-step boilerplate. Standardisation is paid once per reusable module *type*, not once per step (§6.9); and a change to a shared contract, diagnostic, or transport is made **once at the owning level** and inherited everywhere, so the cost of evolving a fleet stays bounded as it grows rather than scaling with the number of modules or stations.
+1. **Low development *and maintenance* effort.** Application logic stays lean — issue a command, wait for `Done` — with no per-step boilerplate. Standardisation is paid once per reusable module *type*, not once per step (§6.9); and a change to a shared contract, diagnostic, or transport is made **once at the owning level** and reused everywhere through the binding's enforced mechanism, so the cost of evolving a fleet stays bounded as it grows rather than scaling with the number of modules or stations.
 2. **Easy to learn from any background.** SFC is the default, but sequences, interlocks, and conditions may also be written in ST or Ladder (§5.5); names follow the widely-known PLCopen convention (§6.1) so the interface feels native to programmers from any platform.
 3. **Diagnosable by construction.** When a sequence stalls, the operator always gets a precise root cause — *"Step N stalled → awaiting Module.Command → reason"* — produced automatically from the module contract, with no hand-coded per-step conditions (§6.9, §8).
 4. **Reusable, recursive, and scalable.** One module model scales structurally from a single device to the whole station; recurring assemblies are packaged as types and dropped in anywhere with a fresh mapping (§3.11). Scalability is also a *runtime and deployment* property: a station's published surface, discovery cost, and connectivity traffic **should** stay proportional to the data actually consumed, so a large forest does not degrade the HMI, MES, or server — data that is static, historical, or view-specific may be served on a lower cadence or on demand rather than continuously, without changing the module contract (§3.10, §11).
-5. **Flexible data & connectivity.** Recipe/type data may be local or fetched over OPC UA, socket (JSON/XML), or REST behind one provider interface (§3.8); the HMI and MES connect generically over OPC UA (§3.10, §11).
+5. **Flexible data & connectivity.** Recipe/type data may be local or fetched over OPC UA, socket (JSON/XML), REST, or another binding-defined provider behind one logical provider contract (§3.8); the HMI and MES consume the Fraktal Self-Description Service generically through the selected binding transport (§3.10, §11).
 6. **Simulatable.** Every module runs unchanged against simulated or real I/O through the HAL, enabling virtual commissioning before hardware exists (§2.6, §10).
 7. **Safe.** Safety lives in the certified safety system; application code consumes safety state read-only and never bypasses it (§9).
-8. **Portable.** The normative model — tiers, contracts, state machines, diagnostics, routing — is platform-neutral; each PLC platform is served by a *binding* that maps the model onto that platform's language extensions and services. TwinCAT 3 is the first binding; clauses specific to it are tagged **[TC3]**. The standard is named **Fraktal** — one contract, self-similar at every tier — with the platform-neutral core designated **Fraktal Core** and each binding **Fraktal/⟨platform⟩** (this document: **Fraktal/TC3**; future: Fraktal/TIA, Fraktal/Logix). Conformance claims compose as *"Fraktal Core + ⟨profiles⟩"* (e.g. + Robot, Annex I; + PackML, Annex F). Fraktal is published as an **open-source project** in the `MrFrakt/Fraktal` monorepo.
-9. **Good coding and engineering practice.** The preceding objectives are upheld through disciplined coding and engineering practice, which the standard treats as a first-class goal rather than a matter of individual style. Every fact — a contract member, a reason code, a diagnostic, a piece of configuration — has **one authoritative source** and is derived, never duplicated (§4.8, §8.8, §3.8); behaviour is written **once at the level that owns it** and inherited, so overrides add device logic only (§2.2, §3.14). Interfaces expose the **minimum surface** needed and no more (§3.2, §3.13); changes to a released type are **additive and versioned**, never silently breaking a consumer or a stored recipe (§1.5, §3.8). Machine-verifiable rules — naming, contract usage, step/condition records, per-type tests — are enforced by a **CI/lint gate on every commit** (§1.5, §5.5, §6.8) so conformance is continuous, not a review-time hope. New code **should** follow the idioms and structure of the code around it, keeping the codebase legible to any engineer from any binding. This objective is cross-cutting: it names explicitly the practices the other objectives assume, so that scalability and maintainability survive as the standard and its fleets grow.
+8. **Portable.** The normative model — tiers, contracts, state machines, diagnostics, routing — is platform-neutral; each PLC platform is served by a *binding* that maps the model onto that platform's language extensions and services. TwinCAT 3 is the first binding and Allen-Bradley Logix the draft second binding; platform clauses are tagged **[TC3]** or **[AB]**. The standard is named **Fraktal** — one contract, self-similar at every tier — with the platform-neutral core designated **Fraktal Core** and each binding **Fraktal/⟨platform⟩** (**Fraktal/TC3**, **Fraktal/AB**; future: Fraktal/TIA). Conformance claims compose as *"Fraktal Core + Fraktal/⟨binding⟩ (+ binding-qualified profiles)"* (for example `Fraktal Core + Fraktal/TC3 + Robot` or `Fraktal Core + Fraktal/AB`). Fraktal is published as an **open-source project** in the `MrFrakt/Fraktal` monorepo.
+9. **Good coding and engineering practice.** The preceding objectives are upheld through disciplined coding and engineering practice, which the standard treats as a first-class goal rather than a matter of individual style. Every fact — a contract member, a reason code, a diagnostic, a piece of configuration — has **one authoritative source** and is derived, never duplicated (§4.8, §8.8, §3.8); behaviour is written **once at the level that owns it** and reused through a binding mechanism that prevents project duplication, so concrete types add device logic only (§2.2, §3.14). Public capability contracts expose the **minimum surface** needed and no more (§3.2, §3.13); changes to a released type are **additive and versioned**, never silently breaking a consumer or a stored recipe (§1.5, §3.8). Machine-verifiable rules — naming, contract usage, lifecycle ordering, step/condition records, per-type tests — are enforced by a **CI/lint gate on every commit** (§1.5, §5.5, §6.8) so conformance is continuous, not a review-time hope. New code **should** follow the idioms and structure of the code around it, keeping the codebase legible to any engineer from any binding. This objective is cross-cutting: it names explicitly the practices the other objectives assume, so that scalability and maintainability survive as the standard and its fleets grow.
 10. **Industrial-grade robustness.** The framework is built to the reliability expected of production equipment software, not of a demonstrator. Every command, recipe payload, and external input is **validated before use**, and every behaviour-selection path has a defined fail-safe fallback — never a silent default or a stall (§5.6); bounded, statically-sized structures (fixed rings, no run-time allocation on the scan) keep timing and memory **deterministic** (§8.3, §8.11); faults **fail closed** and are never masked, and a lost transport or connection **queues nothing** and resumes cleanly rather than replaying stale actions (§7.8, §11, §14). The reference implementations are held to the same bar — warning-clean builds, green per-type tests against the simulated HAL before release (§1.5, §5.7), and honest status reporting that distinguishes proven behaviour from deferred work. Robustness is a **shall** wherever safety, data integrity, or command acceptance is at stake, so a Fraktal station behaves predictably under load, fault, and recovery in a real plant.
 
-**O1 in practice — the trimming rule.** O1 is not satisfied by *documenting* repeated project work; it is satisfied by *removing* it. Whenever the same wiring, latch, reset, or per-scan call has to be written in more than one project sequence, module, or Unit, that repetition **shall** be treated as a framework defect and absorbed into the base classes — even when absorbing it makes the library materially more complex. The cost is paid once by the standard's implementers; the saving recurs in every station, forever. Two consequences follow, and both are normative:
+**O1 in practice — the trimming rule.** O1 is not satisfied by *documenting* repeated project work; it is satisfied by *removing* it. Whenever the same wiring, latch, reset, or per-scan call has to be written in more than one project sequence, module, or Unit, that repetition **shall** be treated as a framework defect and absorbed into the binding's owning framework/generator mechanism — even when absorbing it makes that mechanism materially more complex. The cost is paid once by the standard's implementers; the saving recurs in every station, forever. Two consequences follow, and both are normative:
 
 - **A project shall never be required to remember a call for correctness.** If forgetting a call yields a wrong or intermittent result — a stale transition result, a latch that never re-arms, an unreset sub-chain — the call belongs in the framework, driven from a path the application already takes (attach, cyclic, step change). An obligation a project can forget is a defect the framework chose not to fix.
 - **Repeated glue is measured, not judged.** "More than once" is the threshold. The reference implementation absorbed the composite sub-chain pattern after it appeared four times at eight lines each, and the per-scan chain reset before it could appear even once in a project.
@@ -51,19 +51,19 @@ This rule is what keeps the effort model honest: standardisation is paid once pe
 
 **Non-goals.** The standard deliberately does **not** mandate PackML (it is an optional overlay, §6.6), does **not** tightly standardise step bodies the way heavily templated step-body standards do (that verbosity, slow to write and error-prone, is precisely what this standard sets out to avoid), and does **not** lock sequence authoring to a single language.
 
-**Platform-tagging convention (O8).** Clauses specific to the TwinCAT 3 binding — compiler pragmas/attributes, `REF=`/`__QUERYINTERFACE`, `FB_init` ordering (§3.11), TF6100/TwinSAFE services — are tagged **[TC3]** and live in **Part II** (`Fraktal_TC3_Part_II.md`), each referencing the Core contract it binds. Where a [TC3] fragment is inseparable from an otherwise-neutral Core example (e.g. one line of code), it remains here carrying the tag and a pointer to the binding clause. Untagged normative text is platform-neutral core; a port to another platform re-implements only Part II as a new binding, the core unchanged. All **new** platform-specific text **shall** carry the tag and land in Part II.
+**Platform-tagging convention (O8).** Binding-specific clauses carry their binding tag and live in that binding Part: **[TC3]** in Part II (`Fraktal_TC3_Part_II.md`), **[AB]** in Part III (`Fraktal_AB_Part_III.md`). Compiler pragmas/attributes, `REF=`/`__QUERYINTERFACE`, `FB_init` ordering, TF6100/TwinSAFE services, Logix AOI/UDT/L5X mechanics, CIP access, and gateway mechanics therefore do not become Core requirements. Where a binding fragment is inseparable from an otherwise-neutral Core example, it may remain here only with its tag and a pointer to the owning binding clause. Untagged normative text is platform-neutral Core; another platform implements its own binding Part without changing Core. All **new** platform-specific normative text **shall** land in its binding Part.
 
 ### 1.2 Purpose & scope
 
-This Part defines, platform-neutrally, how PLC application software is structured, named, sequenced, interlocked, alarmed, and exposed for equipment delivered into the production line; the platform is fixed by the binding in use (Part II — TwinCAT 3, TC3 §1). It applies to all equipment suppliers and to in-house controls work for the site. A project-specific specification may add to this standard and, only where explicitly agreed in writing, supersede a part of it.
+This Part defines, platform-neutrally, how PLC application software is structured, named, sequenced, interlocked, alarmed, and exposed for equipment delivered into the production line; the platform is fixed by the binding in use (Part II — TwinCAT 3, TC3 §1; Part III — Allen-Bradley Logix, AB §1). It applies to all equipment suppliers and to in-house controls work for the site. A project-specific specification may add to this standard and, only where explicitly agreed in writing, supersede a part of it.
 
 ### 1.3 Audience
 
-Equipment suppliers' PLC programmers, controls engineers, and commissioning and maintenance personnel. Readers are assumed competent in IEC 61131-3 and in the platform of the binding in use (TwinCAT 3 for Fraktal/TC3, TC3 §1).
+Equipment suppliers' PLC programmers, controls engineers, and commissioning and maintenance personnel. Readers are assumed competent in IEC 61131-3 and in the selected binding platform (for example TwinCAT 3 for Fraktal/TC3 or Studio 5000 Logix Designer for Fraktal/AB).
 
 ### 1.4 Relationship to source standards
 
-This standard is grounded in publicly available standards, not a proprietary lineage: the **ISA-88 / IEC 61512** physical and procedural model gives the tier architecture (§3.1); **PLCopen** supplies the command-handshake vocabulary (§6.1) and the motion (§10.6) and safety (§9.7) function-block sets; **ISA-TR88.00.02 (PackML)** with its OPC UA companion **OPC 30050** is supported as an optional overlay (§6.6, §11.7); **ISA-95 / IEC 62264** shapes MES integration (§11.6); **ISA-18.2 / IEC 62682** govern alarm rationalization (§8.9–§8.10); **IEC 62443** frames cybersecurity (§14); and **OPC UA (IEC 62541)** with its companion models — Machinery (OPC 40001), PackML (OPC 30050), Energy (OPC 34100), AAS/MTP, FX — carries self-description and connectivity (§3.10, §11). Where common industry practices diverge, the resolution is recorded in the relevant section — variable prefixing (§4.4), flow control and the lean-vs-diagnosable trade-off (§6), PackML made optional (§6.6), and the language policy (§5.5).
+This standard is grounded in publicly available standards, not a proprietary lineage: the **ISA-88 / IEC 61512** physical and procedural model gives the tier architecture (§3.1); **PLCopen** supplies the command-handshake vocabulary (§6.1) and the motion (§10.6) and safety (§9.7) function-block sets; **ISA-TR88.00.02 (PackML)** with its OPC UA companion **OPC 30050** is supported as an optional overlay (§6.6, §11.7); **ISA-95 / IEC 62264** shapes MES integration (§11.6); **ISA-18.2 / IEC 62682** govern alarm rationalization (§8.9–§8.10); **IEC 62443** frames cybersecurity (§14); and **OPC UA (IEC 62541)** with its companion models — Machinery (OPC 40001), PackML (OPC 30050), Energy (OPC 34100), AAS/MTP, FX — supplies one binding transport and several optional industry projections (§3.10, §11). Where common industry practices diverge, the resolution is recorded in the relevant section — variable prefixing (§4.4), flow control and the lean-vs-diagnosable trade-off (§6), PackML made optional (§6.6), and the language policy (§5.5).
 
 
 ![Figure 1](diagrams/synthesis.png)
@@ -77,6 +77,7 @@ This standard is grounded in publicly available standards, not a proprietary lin
 - A CI/lint gate (§5.5, §6.8) **shall** check the machine-verifiable requirements — naming, step records, condition records, and contract usage — on every commit.
 - Each reusable module **type shall** ship an automated test suite (§5.7) that runs in CI against simulation and covers its handshake, first-out diagnostics, and interlocks; the suite **shall** be green before the type is released or changed.
 - **Module-type versioning.** Released types follow semantic versioning: **major** = any change to the contract surface (commands, handshake members, `ParCfg` schema, reason codes, `SourcePath` semantics — anything a consumer or a stored recipe can observe); **minor** = additive members/commands with defaults preserving old behaviour; **patch** = internal fixes with no observable change. A major bump **shall** ship the §3.8 recipe migration for its `SchemaVersion` step, and consumers pin versions per §2.2/§5.4 — so "reusable library" is a compatibility promise, not a hope.
+- **Binding-qualified projections.** Core behavior-profile conformance is transport-independent. A claim for a transport or companion-model projection (for example `Fraktal/TC3 + PackML/OPC UA`) is additionally qualified by the selected binding and may be made only when that binding maps and verifies the projection. Absence of an optional projection does not invalidate base Fraktal Core conformance.
 
 ### 1.6 Definitions & abbreviations
 
@@ -84,7 +85,7 @@ This standard is grounded in publicly available standards, not a proprietary lin
 |------|---------|
 | Unit (`FB_Unit`) | Recursive mode-owning module (the **ModeHandler** role, §3.1). A Unit with no parent is a **root Unit** (§3.1a); a program may have several, one per station/conveyor/sub-line, forming a **forest**. |
 | Station | The independently controlled operational scope represented by one root Unit. |
-| PLC / cell scope | One PLC program and server endpoint hosting the module forest: one or more peer stations/root Units plus shared system services. |
+| PLC / cell scope | One PLC program and Self-Description Service endpoint hosting the module forest: one or more peer stations/root Units plus shared system services. |
 | Equipment Module / EM (`FB_EquipmentModule`) | Discrete-command module (the **CommandHandler** role, §3.1). |
 | Control Module / CM (`FB_ControlModule`) | Hardware-bound leaf module (one HAL channel). |
 | HAL | Hardware-Abstraction Layer between CM logic and the I/O driver; enables simulation. |
@@ -94,7 +95,8 @@ This standard is grounded in publicly available standards, not a proprietary lin
 | `ExecState` | Derived command/module state: `READY/BUSY/DONE/ERROR/ABORTED`. |
 | `ParCfg`/`ParCmd`/`OutCmd`/`OutImm` | The four-structure object data contract (§3.12). |
 | OEE / MES / HMI / SCADA | Overall-Equipment-Effectiveness / Manufacturing-Execution-System / Human-Machine-Interface / Supervisory-Control-And-Data-Acquisition. |
-| OPC UA | OPC Unified Architecture — the self-description/connectivity model of §3.10/§11. Binding server product: TC3 §11.1. |
+| Fraktal Self-Description Service | Transport-neutral live discovery, typed-value, quality/freshness, bounded-read, and acknowledged-mutation contract of §3.10/§11. |
+| OPC UA | OPC Unified Architecture — a permitted binding transport and optional companion-model projection. Fraktal/TC3 uses TF6100 (TC3 §3.10/§11.1); Fraktal/AB defaults to EtherNet/IP plus the Fraktal gateway (AB §1/§11). |
 | Safety system | The certified functional-safety platform of the binding (§9.1); Fraktal/TC3: TwinSAFE/FSoE (TC3 §1, TC3 §9). |
 | SFC / LD / ST / FBD / CFC | IEC 61131-3 languages: Sequential Function Chart / Ladder / Structured Text / Function Block Diagram / Continuous Function Chart. |
 | Capability study (Cmk/Cpk) | Repeated-cycle measurement run assessing machine/process capability; the `CAPABILITY` mode (§3.17). |
@@ -111,15 +113,17 @@ This standard is grounded in publicly available standards, not a proprietary lin
 
 ## 2. Development & Runtime Environment (platform-neutral requirements)
 
-> The toolchain-and-versions and project-and-solution-settings clauses are binding-level — see **TC3 §2.1** / **TC3 §2.4**. The requirements below are platform-neutral and bind every implementation regardless of platform. One neutral toolchain rule is retained here:
+> The toolchain-and-versions and project-and-solution-settings clauses are binding-level — see **TC3 §2.1/§2.4** and **AB §2.1/§2.4**. The requirements below are platform-neutral and bind every implementation regardless of platform. One neutral toolchain rule is retained here:
 
-- The build **shall** be warning-clean before release; **shall**-level compiler/lint findings are treated as errors. Exact toolchain builds **shall** be pinned per project and recorded (mechanics per binding, TC3 §2.1).
+- The build **shall** be warning-clean before release; **shall**-level compiler/lint findings are treated as errors. Exact toolchain builds **shall** be pinned per project and recorded (mechanics per binding, TC3 §2.1 / AB §2.1).
 
 ### 2.2 Libraries
 
-- System, framework, and vendor libraries **shall** be referenced by pinned version with their dependencies; local or relative library references are not permitted (§5.4). Reference/distribution mechanics per binding — TC3 §2.2.
-- The framework library — modules, `I_*` interfaces, the step-chain base, `FB_PermIntlk`, the alarm/diagnostic handlers, and the OPC UA exposure helpers — is distributed and versioned centrally. Projects consume a pinned release, never a copy.
-- **Module base classes (O1).** `FB_ModuleBase` implements the §6.1 lifecycle **once**: Execute edge, state/output mapping, Execute-drop reset, `ErrorID`, abort routing, status publication, command timing, and recipe-transaction defaults. `FB_CompositeModuleBase` adds child registration, recursive recipe handling, and diagnostic rollup without assigning a tier. `FB_ControlModuleBase`, `FB_EquipmentModuleBase`, and `FB_UnitBase` are tier-specific wrappers; a Unit therefore does not inherit Equipment-Module identity. A concrete type overrides only `_M_Dispatch` and, when needed, the §3.14 hooks (base first). New module types **shall** extend the appropriate tier base, never re-implement the lifecycle. Rows T1/T4 and the inherited T2/T6 mechanisms are proven once at their owning base (§5.7). Expanded annex forms remain pedagogical only.
+- System, framework, and vendor libraries **shall** be referenced by pinned version with their dependencies; local or relative library references are not permitted (§5.4). Reference/distribution mechanics are binding-owned (TC3 §2.2 / AB §2.2).
+- The framework distribution — module contracts, capability surfaces, the step-chain mechanism, permissive/interlock records, alarm/diagnostic handlers, and Self-Description Service exposure — is versioned centrally. Projects consume a pinned release, never a copy.
+- **Single lifecycle authority (O1).** The binding framework **shall** implement the §6.1 lifecycle **once**: Execute edge, state/output mapping, Execute-drop reset, `ErrorID`, abort routing, status publication, command timing, and recipe-transaction defaults. Its composite mechanism adds child registration, recursive recipe handling, and diagnostic rollup without assigning a tier; its tier forms add only Unit/EM/CM obligations, so a Unit never acquires Equipment-Module identity by implementation accident. A concrete type **shall** supply only its device/sequence dispatch and explicitly declared §3.14 extensions; it shall not re-implement lifecycle-owned behavior or write lifecycle-owned state directly.
+
+  Every binding **shall** define one non-optional cyclic execution path with this order: reset a previously published command-terminal state when §6.1's Execute-drop rule permits it, then sample/accept a new command edge; run one-shot initialization and accepted-command-start extensions; run cyclic management and child/rollup work; route abort/error-abort handling; run concrete device or sequence dispatch only while BUSY; resolve HELD, timing, terminal outputs, diagnostics, and the published status mirror; then release any framework-owned one-shot request for the next scan. The exact placement of a documented tier-specific derivation may vary only when the binding proves identical observable Core behavior. The mechanism may be inheritance (TC3 §2.2/§3.14) or generated composition (AB §3.14), but it **shall** make the required calls/order machine-checkable and shall not leave a project author to remember correctness wiring. Rows T1/T4 and the shared T2/T6 mechanisms are proven once at this owning lifecycle implementation (§5.7); generated-composition bindings additionally prove that every concrete type includes it. Expanded annex forms remain pedagogical only.
 
 ### 2.3 Tasks & timing
 
@@ -129,7 +133,7 @@ This standard is grounded in publicly available standards, not a proprietary lin
 
 ### 2.5 Source control
 
-- The project **shall** be held in text-diffable form under version control; binary-only storage is not acceptable. (Storage forms per binding — [TC3]: TC3 §2.5.)
+- The project **shall** be held in text-diffable form under version control; binary-only storage is not acceptable. Storage forms are binding-owned ([TC3]: TC3 §2.5; [AB]: AB §2.5).
 - One repository per solution/line as agreed; the pinned framework-library release is referenced rather than vendored where the tooling allows.
 - Commits are gated by the CI/lint checks of §1.5.
 
@@ -182,74 +186,48 @@ A `FB_Unit` may nest inside another `FB_Unit`; the recursion is what lets a sing
 
 *Figure 2 — Recursive three-tier module architecture and containment: a Unit may contain Units/EMs/CMs; an EM may contain EMs/CMs but never a Unit; a CM is a HAL-bound leaf.*
 
-### 3.2 Type catalogue and interfaces
+### 3.2 Type catalogue and capability surfaces
 
-Every archetype implements the base interface `I_Module`, which carries everything a parent needs to discover, monitor, roll up, and re-recipe a child regardless of tier:
+Every archetype provides the logical base capability `I_Module`, which carries everything a parent needs to discover, monitor, roll up, and re-recipe a child regardless of tier. The `I_*` names below are **Core capability-contract names**, not a requirement that a binding implement an IEC interface, method, property, pointer, or dynamic dispatch. A binding may realize them with language interfaces (TC3 §3.2) or with generated records, bounded registries, and typed operations (AB §3.2), provided the same behavior and minimum surface are available.
 
-```iecst
-INTERFACE I_Module
-    // Identity & discovery
-    PROPERTY Name       : STRING(80);    // get: = OPC UA browse-name leaf (§4.8)
-    PROPERTY ModuleType : E_ModuleType;  // get: UNIT | EQUIPMENT_MODULE | CONTROL_MODULE
-    // State & faults
-    PROPERTY State       : E_ExecState;  // get: READY/BUSY/DONE/ERROR/ABORTED (derived summary)
-    PROPERTY FaultActive : BOOL;         // get
-    METHOD GetFaultSummary : ST_Diagnostic;  // first-out rollup of this node + children (§8.8, §8.2)
-    // Recipe & cyclic execution
-    METHOD PrepareRecipe : BOOL (Model : ST_ModelId); // load/validate into staging only
-    METHOD CommitRecipe;                             // infallible bounded active-data swap after Prepare
-    METHOD AbortRecipe;                              // discard staging
-    METHOD Cyclic : BOOL;
-END_INTERFACE
+```text
+capability I_Module
+    Name, ModuleType                    // canonical identity and UNIT | EM | CM (§4.8)
+    State, FaultActive                  // derived state summary
+    GetFaultSummary() -> ST_Diagnostic  // first-out of this node + descendants (§8.2/§8.8)
+    PrepareRecipe(Model) -> BOOL        // validate/load staging only
+    CommitRecipe()                      // bounded, infallible active-data swap
+    AbortRecipe()                       // discard staging
+    Cyclic() -> BOOL                    // one required lifecycle invocation
+
+capability I_Unit includes I_Module
+    ModeActive
+    SetMode(Mode) -> BOOL; Start() -> BOOL; Stop() -> BOOL
+
+capability I_EquipmentModule includes I_Module
+    ExecuteCommand(Command : DINT) -> BOOL; AbortCommand() -> BOOL
+
+capability I_ControlModule includes I_Module
+    ExecuteCommand(Command : DINT) -> BOOL; AbortCommand() -> BOOL
 ```
 
-Two deliberate omissions keep this surface implementable and single-sourced: the interface carries **no numeric `ErrorID`**—the number lives only on the PLCopen output (§6.1)—and the fault summary is the `ST_Diagnostic` of §8.8. The recipe transaction is on the base interface because changeover must prepare, commit, or abort every descendant through one generic surface (O4).
+Two deliberate omissions keep this surface implementable and single-sourced: it carries **no numeric `ErrorID`**—the number lives only on the PLCopen output (§6.1)—and the fault summary is the `ST_Diagnostic` of §8.8. The recipe transaction is on the base capability because changeover must prepare, commit, or abort every descendant through one generic surface (O4).
 
-Tier-specific behaviour extends the base:
+**Generic command ids are the enum's numeric value (`DINT`), and the operations are named `ExecuteCommand`/`AbortCommand`.** A per-type `E_<Type>Command` cannot appear in a shared capability surface. The typed enum remains the **primary** surface (the `Command` input every step chain and HMI catalogue use); the generic operations let one logical contract serve every type ever written (O4), and an implementation **shall** validate the received value against its command set, rejecting out-of-range values with a `ReasonCode` per §5.6.
 
-```iecst
-INTERFACE I_Unit EXTENDS I_Module
-    PROPERTY ModeActive : E_Mode;       // get
-    METHOD SetMode  : BOOL  (Mode : E_Mode);   // returns FALSE if mode unsupported (§3.4/§3.7)
-    METHOD Start    : BOOL;
-    METHOD Stop     : BOOL;
-END_INTERFACE
+Every module additionally publishes the PLCopen signal set (`Execute`, `Busy`, `Done`, `Error`, `ErrorID`, `Abort`, `Aborted`, §6.1) as data for hand-written step code and the Self-Description Service; `State` is the single derived summary of those signals.
 
-INTERFACE I_EquipmentModule EXTENDS I_Module
-    METHOD ExecuteCommand : BOOL (Command : DINT);   // value of the type's E_<Type>Command
-    METHOD AbortCommand   : BOOL;
-END_INTERFACE
+A composite owns a bounded child collection through binding-defined validated handles and resolves tier capabilities for a common walk. Conceptually:
 
-INTERFACE I_ControlModule EXTENDS I_Module
-    METHOD ExecuteCommand : BOOL (Command : DINT);   // value of the type's E_<Type>Command
-    METHOD AbortCommand   : BOOL;
-END_INTERFACE
+```text
+for each child in Children
+    if Supports(child, I_Unit)
+        SetMode(child, ModeActive)
+    end_if
+end_for
 ```
 
-**Generic command ids are the enum's numeric value (`DINT`), and the methods are named `ExecuteCommand`/`AbortCommand`.** A per-type `E_<Type>Command` enum cannot appear in a shared interface, and methods named `Execute`/`Abort` would collide with the PLCopen inputs of the same name on the implementing FB (§6.1) — the same collision class as `ErrorID` above. The typed enum remains the **primary** surface (the `Command` input every step chain and the HMI use); the generic methods exist so one interface serves every type ever written (O4), and an implementation **shall** validate the received value against its command set, rejecting out-of-range values with a `ReasonCode` per §5.6. The framework base classes (§2.2) implement `I_Module`; a type additionally implements its tier interface when it exposes this generic surface.
-
-These interfaces are the *generic* programmatic surface a parent uses to orchestrate children. In addition, every module exposes the PLCopen signal set (`Execute`, `Busy`, `Done`, `Error`, `ErrorID`, `Abort`, `Aborted`, §6.1) as public I/O for hand-written step code and for HMI/OPC UA; `State` is the single derived summary of those signals.
-
-A parent holds its children for the common walk as an interface array and resolves capabilities at runtime:
-
-```iecst
-FUNCTION_BLOCK FB_Unit IMPLEMENTS I_Unit
-VAR
-    _children   : ARRAY[1..MAX_CHILDREN] OF I_Module;
-    _childCount : INT;
-    _childUnit  : I_Unit;            // transient resolution target
-    _childEm    : I_EquipmentModule;
-    i           : INT;
-END_VAR
-// Cyclic mode forwarding to child Units:
-FOR i := 1 TO _childCount DO
-    IF __QUERYINTERFACE(_children[i], _childUnit) THEN   // [TC3] capability query — TC3 §3.2
-        _childUnit.SetMode(THIS^.ModeActive);   // cascade (see 3.7)
-    END_IF
-END_FOR
-```
-
-This is the standard composite pattern: an interface array drives heterogeneous children, and a **capability query** upcasts to the richer interface only where a child supports it. *[TC3] The capability-query operator shown (`__QUERYINTERFACE`) is TwinCAT syntax; other bindings substitute their equivalent — TC3 §3.2.*
+The collection, capability lookup, and calls **shall** be bounded, fail closed for an invalid handle/capability, and preserve the same canonical child identity. TC3 binds this to an interface array and `__QUERYINTERFACE` (TC3 §3.2); AB binds it to generated registry indices and capability bits (AB §3.2). Neither representation changes the containment or rollup contract.
 
 ### 3.3 Containment rules
 
@@ -282,7 +260,7 @@ A Unit **shall** reject a `SetMode` for a mode it does not implement (returns `F
 unit (`_M_SequenceAuto`, `_M_SequenceHome`, `_M_SequenceChangeover`, or the equivalent SFC/LD/FBD
 POU). AUTO, HOME, and CHANGEOVER shall not be hidden as unrelated step-number ranges inside one
 monolithic dispatcher. This is a source-organization requirement, not a second lifecycle: every
-sequence still runs through the inherited Unit lifecycle, `_step`, `_M_SetStep`, and PLCopen child
+sequence still runs through the owning Unit lifecycle, the binding's step token/record service, and PLCopen child
 handshakes.
 
 **Application ownership.** A deployed Unit's concrete mode chains are application engineering and
@@ -330,18 +308,15 @@ A `FB_ControlModule` is the only tier bound to I/O, and it binds **through the H
 
 When a parent `FB_Unit` is Started, Stopped, or changes mode, each child `FB_Unit` **shall** follow **only if the mode is available for that child**:
 
-```iecst
-// In parent FB_Unit, on mode change:
-FOR i := 1 TO _childCount DO
-    IF __QUERYINTERFACE(_children[i], _childUnit) THEN   // [TC3] capability query — TC3 §3.2
-        IF NOT _childUnit.SetMode(_newMode) THEN
-            // Child does not support this mode:
-            // hold child in its current safe state and flag, do NOT force it.
-            _childUnit.Stop();          // bring to a defined safe state
-            SetEvent(EVENT_CHILD_MODE_UNSUPPORTED, _childUnit.Name);
-        END_IF
-    END_IF
-END_FOR
+```text
+for each child in Children
+    if Supports(child, I_Unit)
+        if not SetMode(child, RequestedMode)
+            Stop(child)  // defined safe state; do not force an unsupported mode
+            SetEvent(EVENT_CHILD_MODE_UNSUPPORTED, Name(child))
+        end_if
+    end_if
+end_for
 ```
 
 A parent in `CALIBRATION` therefore never drags a child that has no calibration mode into an undefined state — the child is brought to a defined safe state and the condition is reported. EMs and CMs do not have modes; they respond to the commands the active mode sequence issues.
@@ -357,7 +332,7 @@ A `FB_Unit` (and, where useful, an `FB_EquipmentModule`) **may** expose a typed 
 
 **Two kinds of persistent data, one placement rule (§3.8a).** The standard distinguishes **model/recipe data** (varies per model — servo target positions, speeds, tolerances; resolved by `ModelId` at changeover) from **station configuration** (varies per deployment, not per model — the MES IP/port, a scanner's baud, a scale's calibration, a fixed endpoint). Both are **persistent editable data**, and both follow the same rule: *each value lives in the module that needs it.* A servo's positions belong to the axis Control Module — or, at the programmer's discretion, to the EM of an XYZ gantry that owns the three axes; the MES endpoint belongs to the host-interface module; a scanner's config to the scanner CM. There is **no** central config blob. Concretely, a module holds its persistent values in its own `ParCfg` (model data, versioned per §3.8) and/or its own `StationCfg` (deployment data), both `PERSISTENT`. Read publication and write authority are distinct: an editable value **shall** be registered as an explicit typed write capability in the §3.10.2 manifest and changed only through the acknowledged root mailbox. Browsability or `DATA_WRITE` access alone never makes a value writable. Station config is **not** keyed by `ModelId` (it does not change at changeover) and **shall not** be bundled into a model recipe; a module that needs both simply declares both structures.
 
-**Source is pluggable.** Recipe/type data **shall not** be assumed to be local. The source is selected per deployment via `E_RecipeSource` and supplied through one provider interface, so the same module works whether data is held in the PLC or fetched at runtime:
+**Source is pluggable.** Recipe/type data **shall not** be assumed to be local. The source is selected per deployment via `E_RecipeSource` and supplied through one logical provider capability, so the same module works whether data is held in the PLC or fetched at runtime:
 
 | `E_RecipeSource` | Transport | Payload |
 |------------------|-----------|---------|
@@ -366,12 +341,11 @@ A `FB_Unit` (and, where useful, an `FB_EquipmentModule`) **may** expose a typed 
 | `SOCKET_JSON` / `SOCKET_XML` | TCP/UDP socket | JSON / XML (or other) |
 | `REST` | HTTP client | JSON over REST |
 
-```iecst
-INTERFACE I_RecipeProvider
-    METHOD Load  : BOOL (ModelCode : STRING; RecipeKey : STRING; pParCfg : PVOID; Size : UDINT);
-    PROPERTY Source : E_RecipeSource;  // get
-    PROPERTY Ready  : BOOL;            // get: data valid
-END_INTERFACE
+```text
+capability I_RecipeProvider
+    Load(ModelCode, RecipeKey, staged target, declared size/schema) -> BOOL
+    Source : E_RecipeSource
+    Ready  : BOOL
 ```
 
 `ModelCode` is the product/model selected at the root; `RecipeKey` identifies the consuming module role/type. They are distinct parts of the lookup key. An empty `ModelCode` may be registered explicitly as a deployment default. The provider implementation is injected at configuration time; a conforming framework ships a working local provider by default. External payloads load only into staging and shall be complete, size-checked, and schema-valid.
@@ -393,47 +367,45 @@ recipe store—and the active `ParCfg` remains the authoritative resolved recipe
 
 Each module advertises a `Features` flag set — e.g. `RecipeEnabled`, `CalibrationEnabled`, `ManualFunctionsEnabled`, plus per-command enables. Disabled features:
 
-- **shall** be suppressed from the OPC UA model (§3.10), so the Flutter HMI renders only what exists;
-- **should** be checkable by clients via the Optional/Mandatory ModellingRule and by PLC code via the capability query ([TC3]: `__QUERYINTERFACE`, TC3 §3.2).
+- **shall** be omitted from the Self-Description Service catalogues/data surface (§3.10), so the Flutter HMI renders only what exists and pays no read cost for it;
+- **should** be checkable by clients through declared capability metadata and by PLC code through the binding's capability lookup (TC3 §3.2; AB §3.2).
 
 This is what makes the same reusable type behave as a "stripped" or "full" instance purely by configuration.
 
-### 3.10 OPC UA self-description and Flutter auto-discovery
+### 3.10 Fraktal Self-Description Service and Flutter auto-discovery
 
-The operator app discovers and renders the tree generically over OPC UA (server per binding, TC3 §11.1). Three layers make this work without hand-coding the HMI:
+The operator app discovers and renders the module forest generically through the **Fraktal Self-Description Service**. The service is a logical runtime contract, not a prescribed wire protocol or server product. Fraktal/TC3 binds it to TF6100 OPC UA (TC3 §3.10/§11); Fraktal/AB binds it by default to EtherNet/IP explicit messaging plus the Fraktal gateway and permits OPC UA as an alternative projection (AB §3.10/§11).
 
-**(a) Exposure by deployed root.** Exposure starts only at an explicitly deployed root instance (and at a separately defined published data product such as the fieldbus topology). The marker is inherited through the root's real child-module members, so a new module type still needs no station-specific exposure code. Reusable type definitions shall not publish every instance globally: doing so turns implementation references and infrastructure aliases into additional browse roots and violates least privilege. Pointer, interface-reference, and reference-alias storage beneath a published root shall be explicitly excluded. *[TC3] mechanics — instance `OPC.UA.DA` pragmas, TMC symbol download, and the server's Filtered mode: TC3 §3.10.*
+A conforming service **shall** provide all of the following from one live source of truth:
 
-**(a′) The HMI contract is data, not accessors.** Properties and methods are invisible to the exposed namespace — they serve PLC code only. Everything a generic client renders **shall** therefore be published as members of the module's data mirror: the framework `Status : ST_ModuleStatus` (`Name`, `ModuleType`, `State`, `FaultActive`, the live `Diagnostic` per §6.9(a), `TileEnable` per §3.13), refreshed each scan by the base classes — so a type is HMI-complete with zero exposure code (O1), and a port re-binds the same structures (O8). On a Unit, a live stall (`Pending`, §6.9) surfaces on the mirror whenever no fault is active, so the tile message is always the most useful sentence available (O3).
+- live runtime discovery of every deployed root and its hierarchy, with stable canonical identities, declared tier/type/capabilities, and a monotonic configuration/discovery revision;
+- typed values with declared logical type/dimensions, explicit freshness and quality, and source timestamps plus synchronization quality where the PLC owns a timestamp;
+- bounded fast/slow/on-demand reads (or equivalent bounded change detection) so discovery and traffic stay proportional to actual demand;
+- one narrow, typed, acknowledged mutation vocabulary routed back through PLC access/release/validation, with no arbitrary symbol/tag write and no reconnect replay;
+- explicit protocol and schema versions with fail-closed incompatibility handling; and
+- authenticated principals, least privilege, and integrity/confidentiality controls appropriate to the binding's declared IEC 62443 conduit (§11.2, §14), plus optional industry projections generated from this same live model rather than maintained in parallel.
 
-**(a″) Remote commands are acknowledged data transactions.** An OPC UA client
-**shall not** depend on calling IEC properties or methods. Every root Unit shall
-publish one typed request mailbox and response mailbox. The client writes all
-arguments first and writes a monotonically changing `Sequence` last as the
-commit marker. The Unit samples each new sequence once, routes it through the
-same access/release-gated methods used by local PLC code, clears transported
-secrets immediately, and publishes `AckSequence` only after processing. A
-reconnect shall never replay an unacknowledged request automatically. Bindings
-may name the records (`ST_HmiRequest`/`ST_HmiResponse` in TC3), but their
-commit/acknowledgement semantics are normative.
+The following layers make that contract HMI-complete without station code:
 
-**(b) Type-aware browsing.** Because the archetypes use inheritance, the server publishes both the base type and the concrete derived type of each instance, and a client can determine an object's type from the OPC UA meta-model. The Flutter app walks from the root `FB_Unit` and selects a UI template per node by its `ModuleType` / derived type — no per-station wiring.
+**(a) Exposure by deployed root.** Exposure starts only at an explicitly deployed root instance (and at a separately defined published data product such as fieldbus topology). The binding carries that selection through the root's real child hierarchy or generated manifest, so a new module type still needs no station-specific exposure code. Reusable type definitions shall not publish every possible instance globally: doing so turns implementation storage and infrastructure aliases into additional roots and violates least privilege. Pointer/reference storage, private registry/provider state, scratch data, and aliases beneath a published root shall be excluded. Bindings define and gate the exact mechanism (TC3 §3.10; AB §3.10/G-EXTACCESS).
 
-**(c) Standard semantics.** Discovery is standardised; the **state model is the native command model by default**, with PackML available only as an option:
+**(a′) The HMI contract is data, not accessors.** A client **shall not** require PLC-language properties, methods, pointers, or type introspection. Everything it renders is published data in the module mirror: `Status : ST_ModuleStatus` (`Name`, `ModuleType`, `State`, `FaultActive`, the live `Diagnostic` per §6.9(a), `TileEnable` per §3.13), refreshed each scan by the owning lifecycle — so a type is HMI-complete with zero exposure code (O1), and a port re-binds the same structures (O8). On a Unit, a live stall (`Pending`, §6.9) surfaces on the mirror whenever no fault is active, so the tile message is always the most useful sentence available (O3).
 
-- **Default state semantics:** expose each module's `ExecState` and (for Units) `Mode` directly (§6.1, §3.4). This is the baseline — no companion specification required.
-- **OPC UA for Machinery — Basic Building Blocks (OPC 40001-1):** use the identification and component-discovery building blocks so the tree is discoverable and each module is identifiable in a standard way.
-- **PackML (OPC 30050) — optional:** sites needing OMAC line coordination **may** additionally expose a PackML `FiniteStateMachineType` mapped from mode + `ExecState` (§6.6); this is not required for conformance.
+**(a″) Remote commands are acknowledged data transactions.** Every root Unit shall publish one typed request mailbox and response mailbox through the service. The client writes all arguments before changing the commit sequence. The Unit samples each new complete sequence once, copies it to private storage, routes it through the same access/release-gated operations used by local PLC code, clears transported secrets immediately, and publishes the matching acknowledgement sequence only after processing. Transport write success is not PLC acceptance; `Accepted` plus the matching acknowledgement is. A reconnect shall never replay an unacknowledged request automatically. Bindings may name the records and fields (`ST_HmiRequest`/`ST_HmiResponse`, `Sequence`/`AckSequence` in TC3; AB §7.7's physical names are frozen after S9), but these commit/acknowledgement/no-replay semantics are normative.
 
-Each exposed module node **shall** present a consistent sub-structure mirroring the object data contract (§3.12): `Identity`, `Status` (plus `Mode` for Units), `ParCfg`, `ParCmd`, `OutCmd`, `OutImm`, `Features`, and `Children`. These are exact browse names, not aliases; clients read the execution summary from `Status.State`.
+**(b) Type-aware discovery.** Every module record explicitly declares `ModuleType`, concrete type identity, capability flags, canonical path, and parent/root identity. The Flutter app walks this hierarchy and selects standard UI templates from the declared semantics—never from a guessed tag name, optional-field absence, PLC-language inheritance relation, or transport metadata. A binding may project richer native type metadata, but clients do not depend on it.
+
+**(c) Standard semantics.** The **state model is the native command model by default**: expose each module's `ExecState` and, for Units, `Mode` directly (§6.1, §3.4). No companion specification is required for base conformance. OPC UA for Machinery (OPC 40001-1), PackML/OPC UA (OPC 30050), AAS/MTP, and the other §11.7–§11.11 mappings are optional, binding-qualified projections from the same service model.
+
+Each module **shall** present the same logical sub-structure mirroring §3.12: `Identity`, `Status` (plus `Mode` for Units), `ParCfg`, `ParCmd`, `OutCmd`, `OutImm`, `Features`, and `Children`; clients read the execution summary from `Status.State`. These are canonical repository path segments. A binding may obtain them from native namespace nodes or reconstruct them from a validated manifest, but it shall not expose a competing hierarchy or identity.
 
 ![Figure 5](diagrams/opcua_hmi.png)
 
-*Figure 5 — OPC UA self-description driving a generic HMI and MES (binding server: TC3 §11.1).*
+*Figure 5 — Live self-description driving a generic HMI and MES (TC3 transport: TF6100 OPC UA; AB default: EtherNet/IP plus gateway).*
 
 #### 3.10.1 Digital nameplate (asset identity)
 
-The runtime self-description (§3.10) answers *what the module is doing*; maintenance also needs *what the module **is***: who made it, which serial, which versions, where the manual lives. Every module therefore carries a **digital nameplate**, published over the same self-description surface:
+The runtime self-description (§3.10) answers *what the module is doing*; maintenance also needs *what the module **is***: who made it, which serial, which versions, where the manual lives. Every module therefore carries a **digital nameplate**, published through the same Self-Description Service:
 
 - **Fields** (aligned with the IDTA *Digital Nameplate for Industrial Equipment* submodel template, IDTA 02006, so the projection to AAS in Annex K is direct): product URI (globally unique asset identifier), manufacturer name, product designation, serial number, year of construction, hardware/firmware/software versions, order code, and a documentation link (manual/handover docs, cf. IDTA 02004). All fields are plain published data — **static identity, set at Setup, never runtime-mutated**.
 - **Cardinality.** A **root Unit shall** publish a nameplate (it is the sellable asset); **any module may** (a purchased CM — a robot, a camera — has its own identity worth keeping). Empty nameplate = none published; the HMI simply omits the card.
@@ -448,7 +420,7 @@ Activation-static identity and catalog data **should** be excluded from the cycl
 namespace when the binding can serve it on demand. Each root Unit therefore exposes a
 revisioned, bounded configuration-manifest page through its acknowledged mailbox. A
 deterministic walk emits entries containing `Scope` (qualified module identity), `Item`
-(browse fragment), and `ValueText`; paging shall not require a full manifest buffer in
+(canonical repository-path fragment), and `ValueText`; paging shall not require a full manifest buffer in
 the PLC. `ConfigRev` changes after activation, model/configuration changes, or restart so
 a client cannot retain stale metadata silently.
 
@@ -464,8 +436,8 @@ following capability data:
 
 An absent key/revision, `Writable=FALSE`, invalid metadata, or a duplicate
 `(Scope, WriteKey)` registration **shall fail closed** and produce no editor control.
-`Item` remains a browse/display identity; `WriteKey` is the mutation identity and shall
-not be inferred from `Item` or from a writable OPC UA attribute. For `WRITE_CONFIG`, the
+`Item` remains a path/display identity; `WriteKey` is the mutation identity and shall
+not be inferred from `Item` or from transport-level writability. For `WRITE_CONFIG`, the
 client sends `TargetPath=Scope`, `NameValue=WriteKey`, `IntValue=WriteRevision`, and the
 serialized candidate in `TextValue`, committing `Sequence` last.
 
@@ -480,15 +452,15 @@ capabilities, but is never an authorization or validation authority.
 
 ### 3.11 Reusable sub-trees (low-effort duplication)
 
-Reuse is achieved with native typing, not copy-paste:
+Reuse is achieved with a binding-native reusable type form, not copy-paste:
 
-- Any archetype is a **type**. To duplicate, instantiate it again and inject identity + HAL mapping at instantiation (**constructor injection**; for a root the injected `Name` is both its local OPC UA browse segment and qualified identity, while nested `Setup` extends that identity per §4.8). *[TC3] mechanics — the `FB_init` parameter list and reference binding (`REF=`): TC3 §3.11.*
-- A **recurring assembly** (e.g. a clamp = 1 cylinder + 2 sensors) is packaged as its own type — `FB_ClampEM EXTENDS FB_EquipmentModule` — that instantiates its children internally. That whole sub-tree then drops in anywhere as one named type with a fresh mapping.
-- **Nested children use a `Setup(...)` method, not constructor injection.** Constructor injection suits top-level, compile-time-fixed wiring; but a parent **shall not** rely on forwarding its own constructor parameters (name, HAL maps, recipe) into a child's constructor, because member-construction order is binding-dependent and may precede the parent's ([TC3]: it does — TC3 §3.11). A composite type therefore gives its children a one-shot `Setup(Name, HalRef, Recipe)` method and calls it from its own constructor/`Setup`, registering each child in its `Children` collection. Modules **shall** provide `Setup(...)` so they work at any nesting depth (Annex B).
+- Any archetype is a **type**. To duplicate, declare another instance with a fresh canonical identity and HAL/configuration mapping. The binding shall provide a deterministic, exactly-once initialization mechanism and shall fail closed before cyclic execution when wiring is invalid (TC3: constructor/`Setup`, TC3 §3.11; AB: generated first-scan setup, AB §3.11).
+- A **recurring assembly** (e.g. a clamp = 1 cylinder + 2 sensors) is packaged as one conforming Equipment-Module type that owns its children internally. That whole sub-tree then drops in anywhere as one named type with a fresh mapping.
+- **Nested wiring is explicit and order-safe.** A parent shall not rely on an unspecified member-construction or import order to forward identity, HAL, recipe, provider, or child registration. Each binding provides an order-safe one-shot setup form usable at any nesting depth and machine-checks exactly-once setup before first cyclic use (Annex B; TC3 §3.11; AB §3.11/G-SETUP).
 
 ### 3.12 Standard object data contract
 
-Every module — `FB_Unit`, `FB_EquipmentModule`, `FB_ControlModule` — exposes the same four-structure data contract, which is also exactly what is published over OPC UA (§3.10):
+Every module — `FB_Unit`, `FB_EquipmentModule`, `FB_ControlModule` — exposes the same four-structure data contract, which is also exactly what the Self-Description Service publishes (§3.10):
 
 | Structure | Suffix | Role | Distribution |
 |-----------|--------|------|--------------|
@@ -548,97 +520,72 @@ The module hierarchy maps directly onto an HMI navigation tree (`FB_Unit` = Mode
 - **Two views per module.** Each module type provides a *Tile* (compact: name, state LED, key status, quick manual buttons) and a *Detail/Overview* (manual functions, status LEDs with descriptions, parameters).
 - **Parent shows children as tiles.** A module flags whether it appears as a tile on its parent's child view (and whether it serves as a header control). The operator app renders a parent by laying out its children's tiles, and drills into a child on tap — the same parent→child path as the module tree.
 - **Status LEDs carry descriptions.** Every status LED binds to a condition with an adaptable, multilingual text description (sourced from the channel/`PermIntlk` descriptions of §7), so the operator reads *why*, not just red/green.
-- **Generic rendering.** Because the tree is self-describing over OPC UA (§3.10), every module carries the four-structure contract (§3.12) and `Features` flags (§3.9), the Flutter app builds tiles and detail views generically — no per-station screen building. New or duplicated modules (§3.11) appear in the HMI automatically.
+- **Generic rendering.** Because the tree is self-describing through the Fraktal Self-Description Service (§3.10), every module carries the four-structure contract (§3.12) and `Features` flags (§3.9), the Flutter app builds tiles and detail views generically — no per-station screen building. New or duplicated modules (§3.11) appear in the HMI automatically.
 - **Tabbed details and category facets.** Every module detail provides Overview and Description; typed/category data may add reusable Motion, Vision, Code Reader, or RFID tabs. An HMI-local Administrator may set each tab's minimum view level and add localized custom controls, but this layout cannot widen the §7.7/§14 PLC write surface or recover symbols excluded from publication. A one-visible-tab detail omits the tab strip.
 - **Guided Unit work.** A Unit guidance tab may match `CurrentStep.StepNo`/`StepName` (or all `WAIT_OPERATOR` steps) and opens a full-screen localized work instruction with the live wait conditions and typed `Decision`. The PLC sequence remains the sole owner of progress and acceptance; dismissing HMI guidance never advances a step.
 - **The stuck-step reason surfaces on the owning Unit's view**, exactly where the operator expects sequence state (see §6.9).
-- **Discovery & binding contract.** The client discovers the tree by walking the exposed instance nesting (§3.10) for nodes carrying a `Status : ST_ModuleStatus` member — that member *is* the module marker, tile caption, state LED, and message line (§3.10(a′)); child tiles are the child members with `Status.TileEnable`. Units additionally publish `Pending`, `CurrentStep`, `History` (the §6.9(a) ring), `GoodCount`/`NokCount` (§8.11), `Decision`, and the §8.11.4 profiler structures. The write surface is deliberately narrow and is committed through the acknowledged Unit mailbox of §3.10(a″): command execution/abort, decision answer, mode/start/stop, manual commands and the other explicitly gated actions of §7.7.
+- **Discovery & binding contract.** The client discovers the tree by walking the service's canonical hierarchy (§3.10) for module records carrying `Status : ST_ModuleStatus` — that record *is* the module marker, tile caption, state LED, and message line (§3.10(a′)); child tiles are the child records with `Status.TileEnable`. A binding may expose that hierarchy as a native namespace or reconstruct it from a manifest and bounded value services. Units additionally publish `Pending`, `CurrentStep`, `History` (the §6.9(a) ring), `GoodCount`/`NokCount` (§8.11), `Decision`, and the §8.11.4 profiler structures. The write surface is deliberately narrow and is committed through the acknowledged Unit mailbox of §3.10(a″): command execution/abort, decision answer, mode/start/stop, manual commands and the other explicitly gated actions of §7.7.
 - **Event path highlighting (tree).** The navigation tree **shall** tint the full ancestor path — from the root Unit down to the event's source module — with the colour of the highest-severity **active** event in each node's subtree (`ERROR` > `WARNING` > `MESSAGE`, §8.3); the source module renders strongest, ancestors as tint. An operator therefore sees *where to drill* from any depth with zero station code — the highlight derives from the same `Status.Diagnostic`/`AlarmLog` data every node already publishes (§8.2 rollup made visible).
-- **Cycle-profile view (§8.11.4).** Every Unit's detail view renders, generically from the fixed profiler structures, the last cycle as a **step waterfall** (start/duration per step, `ExpectedTime` overlaid) and a **Pareto of per-step Avg/Max**; tapping a step drills to the awaited module, whose detail shows its per-command timing table. Steps are coloured by **time class** and the view header splits **Total vs Work (the real cycle time) vs the waits** (`WAIT_UPSTREAM`/`WAIT_DOWNSTREAM`/`WAIT_OPERATOR`/`WAIT_EXTERNAL`, §8.11.4(f)) — so "the station is slow" and "the station is starved" are visibly different statements. No station adds screens or code for this — the chart exists because the step records and the base classes exist.
+- **Cycle-profile view (§8.11.4).** Every Unit's detail view renders, generically from the fixed profiler structures, the last cycle as a **step waterfall** (start/duration per step, `ExpectedTime` overlaid) and a **Pareto of per-step Avg/Max**; tapping a step drills to the awaited module, whose detail shows its per-command timing table. Steps are coloured by **time class** and the view header splits **Total vs Work (the real cycle time) vs the waits** (`WAIT_UPSTREAM`/`WAIT_DOWNSTREAM`/`WAIT_OPERATOR`/`WAIT_EXTERNAL`, §8.11.4(f)) — so "the station is slow" and "the station is starved" are visibly different statements. No station adds screens or code for this — the chart exists because the step records and the framework lifecycle exist.
 
 
 **Localized presentation and module content.** Every operator-facing string follows `LOCALIZATION_AND_MODULE_CONTENT.md`. PLC display fields **shall carry stable localization keys rather than prose**; the HMI composes standard/project catalogs and keeps identity, protocol data, and structured diagnostic context separate. First-run language selection, administrative CSV exchange, module descriptions/PDFs, and per-module section view policy are part of the generic HMI contract and add no station-specific screen code.
 
-### 3.14 Module lifecycle hooks (framework callbacks)
+### 3.14 Module lifecycle extensions (framework callbacks)
 
-Every module inherits a small set of **lifecycle hooks** from the base function block of its tier (`FB_Unit`, `FB_EquipmentModule`, `FB_ControlModule`, and the shared step-chain base). These are **`PROTECTED` virtual methods** that the framework's base FB calls at defined points in its own cyclic execution; an application **overrides** the ones it needs and the base provides the default for the rest. This is the standard template-method pattern.
+Every module has the same small set of **lifecycle extension points**. They are framework-internal callbacks at defined points in the authoritative cyclic lifecycle (§2.2), not public parent-facing capabilities. The binding **shall** state how each extension is represented and invoked. A binding with inheritance may use protected virtual methods; a binding without inheritance may use generated composition and explicit callouts. Either mechanism shall preserve the same ordering, one-shot semantics and default behaviour without project-authored correctness wiring.
 
-> **Provenance.** Hooks are members of the **base FB the module extends — not of any interface.** They are deliberately *not* part of `I_Module` / `I_Unit` / `I_EquipmentModule` / `I_ControlModule` (§3.2): IEC 61131-3 interfaces cannot declare `PROTECTED` access or carry an implementation, and these are framework-internal extension points, not the generic surface a parent orchestrates through. The interfaces remain the public, parent-facing contract (`Cyclic`, `Start`, `Stop`, `SetMode`, `Execute`, `Abort`, `GetFaultSummary`); the hooks are the private, framework-facing extension contract. A module therefore has two contracts: an interface it *implements* for callers, and a base FB it *extends* for the framework.
+These extension points replace ad-hoc callback sets and hand-written one-shot guards with one fixed contract. A module declares only the application reaction it needs; the framework or generator supplies the lifecycle behavior and the default for every omitted reaction. The `On<Event>` logical names are stable across bindings even when their native object names differ.
 
-These hooks replace the ad-hoc callback sets and hand-written one-shot guards of legacy handler frameworks with one fixed extension contract. The `On<Event>` naming follows the prevailing event-handler convention (.NET, Unity, Qt) and is retained for recognisability.
+#### 3.14.1 Extension catalogue
 
-#### 3.14.1 Hook catalogue
-
-| Standard hook | Tier (base FB) | Called by framework when | Return |
+| Standard extension | Owner | Invoked by framework when | Return |
 |---|---|---|---|
 | `OnInit` | any module | First operational scan only (one-shot, after recipe/type data is available) | `DINT` |
 | `OnCommandStart` | any module | Once for each accepted `Execute` rising edge, after `OnInit` and before cyclic/dispatch work | `DINT` |
 | `OnCyclic` | any module | Every scan, background management after data load | `DINT` |
-| `OnModeChanged` | `FB_Unit` only | After a `SetMode` is accepted and the new mode is committed | `DINT` |
-| `OnModeExit` | `FB_Unit` only | During a mode change, **before** leaving the old mode — lets a Unit stop gracefully instead of being cancelled outright | `DINT` |
+| `OnModeChanged` | Unit only | After a `SetMode` is accepted and the new mode is committed | `DINT` |
+| `OnModeExit` | Unit only | During a mode change, **before** leaving the old mode — lets a Unit stop gracefully instead of being cancelled outright | `DINT` |
 | `OnAbort` | any module | On cancel/abort, **not** during `ERROR` or `NOT_READY` | `DINT` |
 | `OnAbortInError` | any module | On cancel/abort **while** the module is in `ERROR` | `DINT` |
 | `OnManRelease` | any module exposing manual functions | To (re)evaluate manual-function release conditions (see §7.6) | — |
-| `OnChainAbort` | step-chain base | A chain is leaving via cancel | — |
-| `OnChainError` | step-chain base | A chain is leaving via error | — |
+| `OnChainAbort` | step chain | A chain is leaving via cancel | — |
+| `OnChainError` | step chain | A chain is leaving via error | — |
 
-`OnChainStart` / `OnChainDone` exist on the chain base but **shall not** be used; put init code in start step `N000` and teardown in finish step `N999` instead (they always run, the chain hooks do not). See §6.5 step-chain conventions.
+`OnChainStart` / `OnChainDone` logical points may exist in a binding but **shall not** be used by applications; put initialization in start step `N000` and teardown in finish step `N999` instead (they always run, optional callbacks may not). See §6.5 step-chain conventions.
 
-#### 3.14.2 Override contract (mandatory)
+#### 3.14.2 Extension-order contract (mandatory)
 
-1. **Call the base first.** Every overridden hook **shall** call `SUPER^.OnX(...)` as its first statement and **shall** propagate the base return value (assign it to the hook's own return and only override deliberately). Skipping this silently disables framework behaviour — most visibly, cancellation will not complete and the operating-mode bar will appear frozen.
-2. **Override only what you need.** An un-overridden hook uses the base implementation; do not create empty overrides.
-3. **Keep hooks side-effect-bounded.** A cyclic hook (`OnCyclic`) **shall** be idempotent per scan and **shall not** drive outputs directly — it manages state and raises events; movement stays in the step chains (§6.2–6.4).
-4. **One-shot init via `OnInit`, not via a `_first` flag in `OnCyclic`.** The standard provides `OnInit` so the old `IF NOT _first THEN … _first := TRUE; END_IF` idiom is no longer written by hand.
-5. **Command-local reset via `OnCommandStart`.** Reset or latch command-local wiring here when it must
-   run once for every accepted command, including a repeated finite command in the same mode. Keep
-   process initialization in the sequence's `N000` step and process completion in `N999`; the callback
-   shall not become a second sequence body.
-
-```iecst
-// Canonical override shape — applies to every hook
-METHOD PROTECTED OnModeChanged : DINT
-VAR_INPUT
-    NewMode : E_Mode;       // mode just committed
-    OldMode : E_Mode;       // mode being left
-END_VAR
-    OnModeChanged := SUPER^.OnModeChanged(NewMode, OldMode);   // (1) base first, keep return
-    // application-specific reaction below …
-```
+1. **Framework behavior first.** Except for `OnModeExit`, the framework-owned behavior associated with an extension **shall** execute before the application reaction and its return shall be propagated unless deliberately changed. [TC3] realizes this with a base-method call first; [AB] realizes it in generated lifecycle routines before the application callout. A project shall never have to remember this ordering.
+2. **Declare only what is needed.** An omitted extension uses the framework default; do not create empty reactions.
+3. **Keep extensions side-effect-bounded.** A cyclic extension (`OnCyclic`) **shall** be idempotent per scan and **shall not** drive outputs directly — it manages state and raises events; movement stays in the step chains (§6.2–6.4).
+4. **One-shot initialization belongs in `OnInit`.** Do not reproduce it with a first-scan flag in `OnCyclic`.
+5. **Command-local reset belongs in `OnCommandStart`.** Reset or latch command-local wiring there when it must run once for every accepted command, including a repeated finite command in the same mode. Keep process initialization in sequence step `N000` and process completion in `N999`; the extension shall not become a second sequence body.
+6. **The binding shall prove the assembly.** Generation and linting shall reject a module whose extension can bypass, reorder or duplicate the framework-owned portion of the lifecycle.
 
 #### 3.14.3 Worked example — `OnModeChanged` on a Unit
 
-A Unit limits actuator speed in `MANUAL` and restores it in `AUTO` — the textbook use of this hook. Because the base is called first, the framework's own mode bookkeeping still runs:
+A Unit limits actuator speed in `MANUAL` and restores it in `AUTO`. The binding-owned lifecycle first performs the common mode bookkeeping, then invokes this application reaction:
 
-```iecst
-METHOD PROTECTED OnModeChanged : DINT
-VAR_INPUT NewMode : E_Mode; OldMode : E_Mode; END_VAR
-    OnModeChanged := SUPER^.OnModeChanged(NewMode, OldMode);
-    CASE NewMode OF
-        E_Mode.MANUAL: OutImm.MaxOverride := 30;     // published active manual limit
-        E_Mode.AUTO:   OutImm.MaxOverride := 100;    // published active production limit
-    END_CASE
+```text
+OnModeChanged application reaction(NewMode, OldMode):
+    when NewMode = MANUAL: OutImm.MaxOverride := 30
+    when NewMode = AUTO:   OutImm.MaxOverride := 100
 ```
+
+The reaction contains no duplicate bookkeeping and is identical in intent whether the binding emits an override or a composed callout.
 
 #### 3.14.4 Mode change aborts immediately by default — `OnModeExit` provides graceful completion
 
-By framework default, a mode change performs an **immediate software abort**: all standard-control chains and commands are cancelled so the operator lands in a defined state. This is not an emergency stop and not a safety function (§9). Where a Unit must instead finish its cycle or move to a waiting position before yielding the mode, it **shall** implement `OnModeExit` to trigger a stop-after-cycle and hold the mode until the Unit is stopped (bounded by a timeout), rather than letting the immediate abort propagate to children. Return semantics (fixed by the base): the framework calls `OnModeExit` every scan while a mode request is pending; returning `0` consents to the default immediate abort, returning `>0` holds the transition while the override stops gracefully; the new mode commits only when the Unit leaves `BUSY`, after which `OnModeChanged` fires.
+By framework default, a mode change performs an **immediate software abort**: all standard-control chains and commands are cancelled so the operator lands in a defined state. This is not an emergency stop and not a safety function (§9). Where a Unit must instead finish its cycle or move to a waiting position before yielding the mode, it **shall** declare an `OnModeExit` reaction that triggers a stop-after-cycle and holds the mode until the Unit is stopped (bounded by a timeout), rather than immediately propagating abort to children. Return semantics are fixed: the framework invokes the reaction every scan while a mode request is pending; returning `0` consents to the default immediate abort, returning `>0` holds the transition while the Unit stops gracefully; the new mode commits only when the Unit leaves `BUSY`, after which `OnModeChanged` fires.
 
-```iecst
-METHOD PROTECTED OnModeExit : DINT
-VAR_INPUT FirstCall : BOOL; RequestedMode : E_Mode; END_VAR
-    // Do NOT call SUPER^ unconditionally here: the base call is what triggers the
-    // immediate cancel. Call it only once the graceful stop has completed.
-    // (See the staged pattern: request stop → wait IsModeRunning=FALSE → then base.)
-```
+`OnModeExit` is the deliberate exception to framework-first ordering: the application reaction runs before the framework cancel while it returns `>0`; when it returns `0`, the binding invokes the framework cancellation/commit portion exactly once. [TC3] stages the base call to the end; [AB] stages the generated cancel phase after the callout. Every binding shall document and test this exception.
 
-> Note the deliberate exception to rule (1): `OnModeExit` is the one hook where calling the base method *is* the cancel, so the base call is staged to the end of a graceful-stop sequence rather than the first statement. Document this explicitly at every `OnModeExit` override.
+#### 3.14.5 Source placement
 
-#### 3.14.5 Method-folder placement
+Per §6.7, lifecycle extensions **shall** be filed with the module's private/protected implementation (for example, a `Lifecycle` or `Transition States` group alongside `Steps`, `Commands`, `Sequences`). They are not step actions and **shall not** live in the `Steps` group.
 
-Per §6.7, hooks **shall** be filed with the module's protected methods (e.g. a `Lifecycle` or `Transition States` folder alongside `Steps`, `Commands`, `Sequences`). They are not step actions and **shall not** live in the `Steps` folder.
-
-*Cross-references: §3.2 (interfaces vs. base FB), §6.5/§6.7 (step chains and method organisation), §7.6 (`OnManRelease` is the manual-release member of this family), §8 (hooks raise events via the §8.7 constants, never ad-hoc strings).*
+*Cross-references: §2.2 (authoritative lifecycle), §3.2 (public capabilities), §6.5/§6.7 (step chains and source organisation), §7.6 (`OnManRelease` is the manual-release member of this family), §8 (extensions raise events via the §8.7 constants, never ad-hoc strings).*
 
 ### 3.15 External device connector & link supervision
 
@@ -646,19 +593,15 @@ The HAL (§3.6, §10.2) abstracts **bit/word I/O**. It does **not** cover **netw
 
 ### 3.15.1 The connector archetype
 
-A smart device is represented by an `I_DeviceConnector`, an `I_Module` (§3.2) extended with session and link concerns. It owns the transport; it is then composed **inside a Control Module** so the rest of the tree still commands it through the standard handshake (§6.1) and never sees the protocol.
+A smart device is represented by the logical `I_DeviceConnector` capability, which composes the `I_Module` capability (§3.2) with session and link concerns. It owns the transport; it is then composed **inside a Control Module** so the rest of the tree still commands it through the standard handshake (§6.1) and never sees the protocol. The capability surface is:
 
-```iecst
-INTERFACE I_DeviceConnector EXTENDS I_Module
-    // Session
-    METHOD Connect    : BOOL;
-    METHOD Disconnect : BOOL;
-    PROPERTY Linked   : BOOL;            // get: session up AND heartbeat healthy
-    // Link supervision
-    PROPERTY LastSeen : DT;              // get: timestamp of last healthy heartbeat (§2.7)
-    PROPERTY LinkReason : ST_Diagnostic; // get: first-out link/protocol reason when not Linked
-END_INTERFACE
+```text
+I_DeviceConnector capability
+  operations: Connect, Disconnect
+  state: Linked, LastSeen, LinkReason
 ```
+
+`Linked` means session up **and** heartbeat healthy; `LastSeen` uses the synchronized timestamp contract (§2.7); `LinkReason` carries the first-out link/protocol diagnostic. Bindings may realize this with an interface, a typed record plus routines, or a generated registry entry (§3.2).
 
 The protocol boundary (serialization, socket lifecycle, vendor SDK) lives **entirely inside** the connector — the `FC_PlcToTst_*` / `_00FB_Eth_*`-style bridge functions in the reference programs are exactly this layer and **shall not** leak into Control Modules or sequences.
 
@@ -666,12 +609,12 @@ The protocol boundary (serialization, socket lifecycle, vendor SDK) lives **enti
 
 Many peripheral devices — vision sensors, code readers, gauges, printers — speak a simple **byte protocol over TCP/IP or serial** (typically ASCII request/response). The framework therefore defines one platform-neutral transport seam, so device modules are written once and ported by swapping only the transport:
 
-- **`I_ByteChannel`.** Non-blocking, cyclic-poll semantics (PLC-friendly, no blocking calls): `Open(Host, Port)`, `Close()`, `Send(bytes)`, `Poll()` (drains received bytes into the caller's buffer), and a published `E_ByteChannelState` (`CLOSED` → `OPENING` → `OPEN`, plus `FAULT`). All methods return immediately; progress is observed over scans.
-- **The porting seam (O4/O8).** Platform bindings implement the interface — [TC3]: `Tc2_TcpIp`/TF6310 (TC3 §3.15); CODESYS: SysSocket/NBS; Siemens: `TSEND_C`/`TRCV_C` wrappers. **No device module names a socket API**: a device CM written against `I_ByteChannel` moves between PLC brands unmodified.
-- **`FB_AsciiDeviceCM`.** A CM base (extends the CM archetype §3.3) for ASCII request/response devices: configurable terminator framing, one-outstanding-request state machine (`SendRequest` → await → `_M_OnResponse` hook), response **timeout ⇒ fault** with a §8.8 band code, bounded reconnect via the channel, and link state published for the HMI (Annex D facet — no new HMI code). Device profiles (a specific sensor or reader) extend it: publish their manual commands (§7.6.1, e.g. *Trigger*), parse responses in `_M_OnResponse`, and keep **protocol strings as Setup parameters verified against the vendor manual — never hard-coded folklore**.
-- **Device-category CMs — configure first, extend second.** Consistent with the CM philosophy (modules are named for their *function*, never their vendor — a cylinder CM is not a Festo CM), the reusable units above `FB_AsciiDeviceCM` are **category CMs**: `FB_TcpVisionCM` (triggered inspection: configurable trigger command and OK/NG prefixes, publishes judgement + result payload) and `FB_TcpCodeReaderCM` (triggered read: configurable trigger and no-read token, optional match-code verification, publishes the decoded symbol). **Most devices are covered by configuration alone** (§3.8-able protocol strings, verified against the vendor manual). A model-specific type (e.g. an IV3 preset) is a *thin extension*: preconfigured strings, plus overrides only where the device has genuinely special features. Category CMs cover ASCII request/response devices; binary or unsolicited-streaming protocols need a different base (deferred until demanded).
-- **Testability.** A scripted `FB_SimByteChannel` implements the same interface, so device CMs are TcUnit-tested end-to-end (request → scripted reply → parse; silence → timeout fault) **without any socket or vendor hardware**.
-- The connector archetype (§3.15.1) and its link supervision (§3.15.2) sit *above* this seam unchanged: a TCP connector implements `_M_Open/_M_Close/_M_Hb*` over an `I_ByteChannel`.
+- **`I_ByteChannel`.** This logical capability has non-blocking, cyclic-poll semantics (PLC-friendly, no blocking calls): `Open(Host, Port)`, `Close()`, `Send(bytes)`, `Poll()` (drains received bytes into the caller's buffer), and a published `E_ByteChannelState` (`CLOSED` → `OPENING` → `OPEN`, plus `FAULT`). All operations return immediately; progress is observed over scans.
+- **The porting seam (O4/O8).** Platform bindings realize the capability — [TC3]: `Tc2_TcpIp`/TF6310 (TC3 §3.15); CODESYS: SysSocket/NBS; Siemens: `TSEND_C`/`TRCV_C` wrappers. **No device module names a socket API**: its protocol logic consumes `I_ByteChannel` semantics and moves between PLC brands with only its binding adapter regenerated or substituted.
+- **`FB_AsciiDeviceCM`.** This reusable CM category (§3.3) owns ASCII request/response behavior: configurable terminator framing, one-outstanding-request state machine (`SendRequest` → await → response-reaction extension), response **timeout ⇒ fault** with a §8.8 band code, bounded reconnect via the channel, and link state published for the HMI (Annex D facet — no new HMI code). Device profiles (a specific sensor or reader) compose it: publish their manual commands (§7.6.1, e.g. *Trigger*), supply a response parser reaction, and keep **protocol strings as Setup parameters verified against the vendor manual — never hard-coded folklore**.
+- **Device-category CMs — configure first, specialize second.** Consistent with the CM philosophy (modules are named for their *function*, never their vendor — a cylinder CM is not a Festo CM), the reusable categories above `FB_AsciiDeviceCM` are `FB_TcpVisionCM` (triggered inspection: configurable trigger command and OK/NG prefixes, publishes judgement + result payload) and `FB_TcpCodeReaderCM` (triggered read: configurable trigger and no-read token, optional match-code verification, publishes the decoded symbol). **Most devices are covered by configuration alone** (§3.8-able protocol strings, verified against the vendor manual). A model-specific type (e.g. an IV3 preset) is a *thin specialization*: preconfigured strings plus reactions only where the device has genuinely special features. Category CMs cover ASCII request/response devices; binary or unsolicited-streaming protocols need a different category (deferred until demanded).
+- **Testability.** A scripted `FB_SimByteChannel` realizes the same capability, so device CMs are binding-xUnit-tested end-to-end (request → scripted reply → parse; silence → timeout fault) **without any socket or vendor hardware**.
+- The connector archetype (§3.15.1) and its link supervision (§3.15.2) sit *above* this seam unchanged: a TCP connector realizes its open/close/heartbeat operations over an `I_ByteChannel` capability.
 
 *Reason band: TCP/ASCII device CM base `10401–10406` (§8.8 registry). Cross-references: §3.3, §7.6.1, §8.8, Annex D, TC3 §3.15.*
 
@@ -686,17 +629,7 @@ Every connector **shall** implement a heartbeat and a defined loss reaction:
 
 ### 3.15.3 Composition & wiring
 
-A connector is wired once via `Setup` (§3.11) like any reusable sub-tree, injecting its endpoint/credentials from configuration (never embedded — §11.4, §14). Because it presents `I_Module`, the parent CM ticks it every scan (`Cyclic`) so `Linked`/status stay live, exactly as a CM ticks its HAL.
-
-```iecst
-// Inside a Control Module that fronts a smart device:
-VAR  _conn : FB_RobotConnector;  END_VAR   // implements I_DeviceConnector
-// one-shot:
-_conn.Setup(Name := CONCAT(_name, '.Link'), Endpoint := StationCfg.RobotEndpoint, Recipe := Recipe);
-// cyclic:
-_conn();                                   // heartbeat + session managed here
-IF NOT _conn.Linked THEN _M_AdoptLinkFault(_conn);  END_IF
-```
+A connector is assembled once via `Setup` (§3.11) like any reusable sub-tree, injecting its endpoint/credentials from configuration (never embedded — §11.4, §14). Because it presents `I_Module` semantics, the parent CM's generated/native cyclic assembly services it every scan so `Linked`/status stay live, exactly as it services the HAL. The parent adopts a false `Linked` state through the common diagnostic rollup; a project does not hand-write recurring connector wiring.
 
 ### 3.15.4 HMI (§3.13)
 
@@ -725,7 +658,7 @@ TYPE ST_PartResult : STRUCT
     Verdict    : E_Verdict;      // NONE | OK | NOK | REWORK
     ReasonCode : E_Reason;       // first NOK reason (reuses §8.8 vocabulary)
     Records    : ARRAY[1..MAX_RESULTS] OF ST_MeasRecord;  // measured values (test cells)
-    StationPath : STRING(255);   // OPC UA browse path of the producing station (§4.8)
+    StationPath : STRING(255);   // canonical path of the producing station (§4.8)
     Stamp      : DT;             // synchronized timestamp (§2.7)
 END_STRUCT END_TYPE
 ```
@@ -734,14 +667,7 @@ END_STRUCT END_TYPE
 
 ### 3.16.2 The carrier is source-agnostic (like the recipe provider)
 
-A module reads/writes part data through an injected `I_PartCarrier`, mirroring `I_RecipeProvider` (§3.8) so the transport — RFID/data-tag, Data Matrix scan, position-tracked host lookup, or MES query — is configuration, not code:
-
-```iecst
-INTERFACE I_PartCarrier
-    METHOD ReadContext  : BOOL (VAR_IN_OUT Ctx : ST_PartContext);   // FALSE on read failure
-    METHOD WriteResult  : BOOL (Ctx : ST_PartContext);              // FALSE on write failure
-END_INTERFACE
-```
+A module reads/writes part data through an injected logical `I_PartCarrier` capability, mirroring `I_RecipeProvider` (§3.8) so the transport — RFID/data-tag, Data Matrix scan, position-tracked host lookup, or MES query — is configuration, not code. The capability has two operations: `ReadContext(Ctx) : BOOL` and `WriteResult(Ctx) : BOOL`; FALSE reports read/write failure. A binding may realize those operations with an interface or with a generated provider handle and typed routines (§3.2).
 
 A failed read **shall** fault the consuming module with `CARRIER_READ_FAILED`, a failed write with `CARRIER_WRITE_FAILED`, and a Uid that does not match the expected part with `PART_ID_MISMATCH` (Framework band, §8.8) — never a silent continue on a missing or wrong identity.
 
@@ -847,13 +773,13 @@ visibility. The objective-filtered comparison is recorded in `NEXEED_REFERENCE_I
 | Action | `A_` | | GVL | `GVL_` |
 | Program | `PRG_` (except `MAIN`) | | Parameter list | `PL_` |
 
-The `M_`/`P_` prefixes apply to application-specific implementation members. Standard-defined or interface methods/properties retain their canonical contract names (`Start`, `Stop`, `Setup`, `SetMode`, `Name`, `State`, `Diagnostic`), and lifecycle hooks retain the §3.14 `OnX` names. This keeps the public API identical across bindings while still making local extensions recognizable.
+The `M_`/`P_` prefixes apply to application-specific implementation members where the binding has methods/properties. Standard-defined logical operations/data retain their canonical contract names (`Start`, `Stop`, `Setup`, `SetMode`, `Name`, `State`, `Diagnostic`), and lifecycle extensions retain the §3.14 `OnX` names. This keeps the logical API identical across bindings while still making local extensions recognizable.
 
 ### 4.4 Variable naming
 
 - Ordinary variables and object instances **shall not** carry type prefixes (no Hungarian). Use `Clamp1 : FB_ControlModule`, not `fbClamp1`. The type is visible in IntelliSense/mouseover.
 - Interface tags (`VAR_INPUT` etc.) **shall not** be prefixed to denote declaration type or usage; group related signals into a named structure instead (`Commands.Open`, `Status.Closed`).
-- Three *access-semantic* markers are retained because they describe access, not data type:
+- Three *access-semantic* markers are retained in bindings that provide these constructs because they describe access, not data type:
   - `p` prefix for pointers, `r` for references, `i` for interface instances (`pData`, `rHal`, `iChild`);
   - leading `_` for symbols mapped to `%I`/`%Q`/`%M`, marking the HAL/hardware boundary.
 - A leading `_` on internal `VAR`-block members is **permitted** (so migrated legacy code stays conformant) but **not required**.
@@ -874,20 +800,19 @@ The `M_`/`P_` prefixes apply to application-specific implementation members. Sta
 
 Where a device is named in the electrical schematic, the software **shall** use that exact name above every other rule in this section (`VLV01`, not `Valve01`).
 
-### 4.8 OPC UA browse-name and qualified-identity rule
+### 4.8 Local segment and canonical qualified-identity rule
 
-A module node's **local** OPC UA browse-name segment **shall** equal its local
-PLC instance/schematic name. Its published `Status.Name` **shall** be the stable
-qualified Fraktal identity: the root's local name, followed for each nested
-module by `.` and that child's local name (for example
-`PneumaticPress.PressRam`). The root name passed at instantiation is therefore
-both its local browse name and qualified identity; a nested child's `Setup`
-receives or constructs the qualified identity while its containing PLC member
-supplies the local browse segment. The final segment of `Status.Name` shall
-equal the node's local browse name. A local module name shall not contain `.`;
-the dot is reserved as the identity-path separator. This keeps diagnostics, HMI paths and
-schematics identical without mistaking a `REFERENCE TO` alias for another
-module instance.
+A module record's **local** service-hierarchy segment **shall** equal its local PLC
+instance/schematic name. Its published `Status.Name` **shall** be the stable
+qualified Fraktal identity: the root's local name, followed for each nested module
+by `.` and that child's local name (for example `PneumaticPress.PressRam`). The
+root's declared name is therefore both its local segment and qualified identity;
+a nested child's setup assembles the qualified identity while its containing PLC
+member supplies the local segment. The final segment of `Status.Name` shall equal
+the record's local segment. A local module name shall not contain `.`; the dot is
+reserved as the identity-path separator. This keeps diagnostics, HMI paths,
+schematics and every transport projection identical without mistaking a binding
+reference/handle alias for another module instance.
 
 ---
 
@@ -910,19 +835,19 @@ module instance.
 
 - Keywords **shall** be UPPERCASE (`IF`, `THEN`, `END_IF`); enable editor auto-correction.
 - Prefer a bounded `FOR` over `WHILE`/`REPEAT`; avoid unbounded loops in cyclic code.
-- Conditions **shall** be explicitly parenthesised; use `AND_THEN`/`OR_ELSE` for short-circuit guards (e.g. null-checks before pointer/interface use).
+- Conditions **shall** be explicitly parenthesised. A guard that protects a handle/reference dereference shall use the binding's proved short-circuit operator where available ([TC3]: `AND_THEN`/`OR_ELSE`) or nested guards; the protected access shall never be evaluated after an invalidity check fails.
 - `//` comments are permitted in declaration sections.
 
 ### 5.4 Modularity and libraries
 
 - No local library references; system and vendor libraries pinned with their dependencies.
-- Each POU **should** be independently testable; cross-module communication goes through interfaces/structures, not globals.
+- Each implementation unit **should** be independently testable; cross-module communication goes through declared logical capabilities/structures, not globals.
 
 ### 5.5 Implementation-language policy
 
 To stay approachable from any background, the standard separates **framework** from **application logic**, and that split decides which IEC 61131-3 language may be used.
 
-- **Framework / base types are ST only.** `FB_Module`/`FB_Unit`/`FB_EquipmentModule`/`FB_ControlModule`, the `I_*` interfaces, the step-chain base, `FB_PermIntlk`, the alarm/diagnostic handlers, and OPC UA exposure rely on OOP (interfaces, methods, inheritance, constructor injection — [TC3]: `FB_init`, TC3 §3.11) that only ST expresses. These are written once and **shall** be ST.
+- **Framework language is binding-defined.** A binding **shall** implement the authoritative lifecycle, capability registry, step-chain engine, permission/interlock container, diagnostic/alarm handling, and Self-Description Service in the language/mechanism that its platform can generate, lint and test most reliably. [TC3] uses ST and OOP (`FB_init`, interfaces, methods and inheritance; TC3 §3.11). [AB] uses generated AOI/routine/UDT composition and Ladder/ST where appropriate (AB §3.14). Core conformance depends on observable behavior and machine-checkable single ownership, not IEC OOP availability.
 - **Application logic is the author's choice:**
 
 | Application logic | Languages allowed | Most natural |
@@ -982,7 +907,7 @@ The CI gate of §5.5/§6.8 checks *static* conformance (naming, step/condition r
 | T9 | **Stall walk**: a stalled step names the awaited module *or* the first FALSE condition record (§6.9(b)) | — | — | — | ✔ |
 | T10 | **Gate/report equivalence**: each Unit action accepts iff its release report is `Released`; custom mode-entry conditions are enforced and listed (§7.8) | — | — | — | ✔ |
 
-A reusable module type is "done" when every applicable row is green in CI; anything less is not a conformance claim. Rows **T1/T4** — and the T2/T6/T7/T10 *mechanisms* (lifecycle, first-out stamping, verbatim rollup, link supervision/backoff, and the base Unit consuming its own release result) — are satisfied by the framework base classes (§2.2) and proven **once** in the `fraktal-core` base suite. A type's suite re-proves **T2/T3/T5** and its tier rows with the type's *own* reasons and source paths; a Unit that adds mode-entry records shall exercise at least one such record through T10. Types otherwise **shall not** re-test inherited rows—verification, like standardization, is paid once at the level that owns the behaviour (§1.1 O1). (Worked coverage: Annex H = T1–T3, T6 for the cylinder/clamp; Annex I §I.14 = T1–T5, T7 plus the planner/resolver cases.)
+A reusable module type is "done" when every applicable row is green in CI; anything less is not a conformance claim. Rows **T1/T4** — and the T2/T6/T7/T10 *mechanisms* (lifecycle, first-out stamping, verbatim rollup, link supervision/backoff, and the Unit lifecycle consuming its own release result) — are satisfied by the binding's authoritative framework/generator (§2.2) and proven **once** in the `fraktal-core` base suite. A generated-composition binding also proves that every concrete type contains exactly one generated lifecycle assembly. A type's suite re-proves **T2/T3/T5** and its tier rows with the type's *own* reasons and source paths; a Unit that adds mode-entry records shall exercise at least one such record through T10. Types otherwise **shall not** re-test framework-owned rows—verification, like standardization, is paid once at the level that owns the behaviour (§1.1 O1). (Worked coverage: Annex H = T1–T3, T6 for the cylinder/clamp; Annex I §I.14 = T1–T5, T7 plus the planner/resolver cases.)
 
 *Cross-references: §1.1 (O1 per-type effort, O6 simulatable), §2.2/§2.6 (framework library, simulation), §3.11 (per-type reuse), §6.1/§6.9/§8.2 (handshake, first-out, rollup under test), §6.8 (CI gate this extends), §1.5 (conformance).*
 
@@ -1007,7 +932,7 @@ Every command — a CM device command or an EM command — runs through one PLCo
 | `Error` | out | command failed |
 | `ErrorID` | out | numeric reason (value of `E_Reason`, §8.8) |
 | `Aborted` | out | command was aborted |
-| `ExecState` | out | single derived state for HMI/OPC UA: `E_ExecState` = `READY`/`BUSY`/`DONE`/`ERROR`/`ABORTED` |
+| `ExecState` | out | single derived state for HMI/Self-Description Service: `E_ExecState` = `READY`/`BUSY`/`DONE`/`ERROR`/`ABORTED` |
 
 Lifecycle: the caller checks `Done = FALSE AND Busy = FALSE` (target `READY`), writes `ParCmd`, selects `Command`, and sets `Execute := TRUE`. The module goes `Busy`, latches `ParCmd` on the rising edge, then on success publishes `OutCmd` and raises `Done`; a fault raises `Error` + `ErrorID`; an abort raises `Aborted`. The caller treats `Done` as the step transition, clears `Execute`, and the module returns to `READY`.
 
@@ -1038,7 +963,7 @@ END_IF
 
 A `FB_Unit` runs the **active mode's** sequence as a **step chain** that runs continuously from Start to Stop. SFC is the default and recommended implementation; ST or Ladder are permitted (§6.8) and behave identically because they share the same contract:
 
-- the chain extends the standard step-chain base, whatever language implements it;
+- the chain uses the standard step-chain contract and binding engine, whatever language implements it;
 - steps are numbered in increments — `N000` init, `N100`, `N110`, …, `N999` finish — leaving gaps for insertion;
 - each step's action issues commands (§6.1) to child modules; the transition to the next step is the awaited command's `Done`;
 - the finish step loops back to `N000`, so the mode sequence **cycles until Stop** is requested — matching the ModeHandler "runs until Stop" lifecycle of §3.4.
@@ -1077,7 +1002,7 @@ A `FB_ControlModule` executes a primitive command bound to the HAL using the sam
 
 ### 6.6 Optional PackML overlay
 
-PackML (OPC 30050) is **optional**. A site that needs OMAC line coordination **may** additionally expose a PackML `FiniteStateMachineType` mapped from the Unit's mode + `ExecState` (for example `BUSY → Execute`, `DONE → Complete`, `ERROR → Aborted`). Conformance to this standard does **not** require it; the native `ExecState`/mode model of §6.1 and §3.4 is the default exposed over OPC UA (§3.10).
+PackML (OPC 30050) is **optional and binding-qualified**. A site that needs OMAC line coordination **may** additionally expose a PackML `FiniteStateMachineType` mapped from the Unit's mode + `ExecState` (for example `BUSY → Execute`, `DONE → Complete`, `ERROR → Aborted`). Conformance to this standard does **not** require it; the native `ExecState`/mode model of §6.1 and §3.4 is the default exposed through the Self-Description Service (§3.10).
 
 ### 6.7 Sequence ownership, roles, and organisation
 
@@ -1088,7 +1013,7 @@ Every chain **shall have one module owner and one writer of its step state**. It
 2. **Command sequence** — owned by an EM (or the primitive device logic of a CM), finite, and
    externally addressable only through that module's §6.1 command handshake (§6.3–§6.4).
 3. **Private sub-sequence** — a finite owner-local chain reused by one or more mode/command chains.
-   It has private step state but **no module identity, public `Execute`, independent mode, or OPC UA
+   It has private step state but **no module identity, public `Execute`, independent mode, or self-description
    node**; it aborts/resets with its owner and publishes progress through the caller's §6.5 step record.
 
 A private sub-sequence shall be promoted to an EM when it needs independent commandability,
@@ -1105,8 +1030,8 @@ the same scan.
 
 Folders follow §4.2: Mode/Command/Sub role folders live **inside the owning module branch** when the
 tool represents chains as objects. When they are methods, use distinct names and keep them under the
-owner POU. Inherited lifecycle hooks (`OnInit`, `OnCommandStart`, `OnCyclic`, `OnModeChanged`,
-`OnModeExit`, `OnAbort`, …) remain protected and separate from step bodies (§3.14).
+owner implementation unit. Lifecycle extensions (`OnInit`, `OnCommandStart`, `OnCyclic`, `OnModeChanged`,
+`OnModeExit`, `OnAbort`, …) remain separate from step bodies (§3.14); their native access form is binding-defined.
 
 ### 6.8 Sequence implementation languages
 
@@ -1122,7 +1047,7 @@ For an SFC+ST split, the SFC chart **shall be the only progression/token owner**
 step action shall contain that step's application behavior: populate the step/condition records, issue or
 complete the child handshake, evaluate decisions/timers, and set the transition result. An owner adapter
 may run the chart and bridge framework services that the separate SFC POU cannot legally access; the
-inherited `OnCommandStart` hook may own the reset edge. The adapter
+`OnCommandStart` lifecycle extension may own the reset edge. The adapter
 shall not select application behavior through `CASE ActiveStep OF`, reproduce the chain, or hide commands
 and waits behind one action-specific forwarding method. A token-only SFC plus an external active-step
 selector is therefore non-conforming as a claimed SFC implementation, even if the chart is the only writer
@@ -1136,7 +1061,7 @@ the ST `CASE StepNo OF` skeleton on `FB_SequenceBase` (Part II TC3 §3.5); their
 child handshake, evaluate waits/decisions/timers, and set the shared transition result, so the diagnostics
 are identical to a native SFC per §6.8.
 
-To keep all three languages cheap and consistent, the standard **provides**: (a) a shared step-chain base that handles step records, the `Done`/`Error` transition, and the §6.9 diagnostic walk, so no author re-implements flow control; and (b) a template per language — an SFC POU, an ST `CASE StepNo OF` skeleton, and an LD step-coil rung pattern — so authors only fill in step actions. A CI/lint check **shall** verify that any sequence, whatever its language, populates the step record and advances only on the standard transition, so no language can quietly bypass the contract the diagnostics depend on.
+To keep all three languages cheap and consistent, each binding **provides**: (a) one shared step-chain engine that handles step records, the `Done`/`Error` transition, and the §6.9 diagnostic walk, so no author re-implements flow control; and (b) a template per supported language — an SFC chart, an ST `CASE StepNo OF` skeleton, and an LD step-coil rung pattern — so authors only fill in step actions. A CI/lint check **shall** verify that any sequence, whatever its language, populates the step record and advances only on the standard transition, so no language can quietly bypass the contract the diagnostics depend on.
 
 The reference implementation of (a) is `FB_SequenceBase` [TC3]: a sequence POU extends it and receives
 the active step token (`_step`), the step record (`M_Step`), condition waits (`M_Await`), run-style
@@ -1179,7 +1104,7 @@ re-arming them every cycle would re-issue a child command each scan and prevent 
 
 Lean step bodies and rich per-step diagnostics are reconciled by moving the standardization **off the steps and onto the module types** — the cost is paid once per reusable module, not once per step.
 
-**(a) Self-diagnosing modules.** Every module **shall**, each scan, compute a single first-out reason it is not `Done` and publish it as `OutImm.Diagnostic` (fields per §8.8: `ReasonCode`, `SourcePath`, `Description`, `Severity`, `Since`) — the first FALSE interlock/permissive (with its §7 description) while `Busy`, or its timeout/fault (§6.1). Written once per module type, reused everywhere. Each module additionally **should** retain a small ring buffer of its last N first-out diagnostics (stamped per §2.7, exposed over OPC UA [TC3]) — shift-change post-mortem without a historian.
+**(a) Self-diagnosing modules.** Every module **shall**, each scan, compute a single first-out reason it is not `Done` and publish it as `OutImm.Diagnostic` (fields per §8.8: `ReasonCode`, `SourcePath`, `Description`, `Severity`, `Since`) — the first FALSE interlock/permissive (with its §7 description) while `Busy`, or its timeout/fault (§6.1). Written once per module type, reused everywhere. Each module additionally **should** retain a small ring buffer of its last N first-out diagnostics (stamped per §2.7, exposed through the Self-Description Service; [TC3]: OPC UA) — shift-change post-mortem without a historian.
 
 **(b) Self-describing steps.** Each step **shall** carry the thin record of §6.5 — `StepNo`, `StepName`, `Awaiting`, `ExpectedTime`. This is the command reference the step already sets, plus a name: near-zero extra effort, and language-agnostic (§6.8). A step that waits on a **plain condition** rather than a module **shall** additionally register each such wait as a named *condition record* — `_M_Await(n, 'Vacuum OK', VacuumOk)`, refreshed every scan — so the walk of (c) can name the first FALSE condition (*"Step N stalled → awaiting 'Vacuum OK' = FALSE"*) instead of reporting a blind `STEP_STALLED`. One line per condition closes the last non-module diagnostic gap (Annex C §C.6).
 
@@ -1562,35 +1487,9 @@ END_IF
 
 Because every condition carries a `Description` and `ReasonCode`, a blocked or dropped condition feeds straight into the first-out diagnostic (§6.9) and the message catalog (§8.8) — regardless of the language the condition was drawn in.
 
-**Canonical `FB_PermIntlk` interface (framework, ST).** The container has a fixed public surface so every module uses it the same way:
+**Canonical permission/interlock container.** The logical container has a fixed public surface so every module uses it the same way. `ST_IntlkCond` carries `Defined`, stable description key, `Reason`, and `Bypassable`; the bounded condition vector carries the live Boolean values. The derived outputs are `AllOk`, `AnyBypassed`, `FirstFailed` (lowest FALSE, non-bypassed index; `0` means none), and `Diagnostic` (the first-out record, or `ReasonCode = NONE` when all pass). Its operations are `Define(Index, Description, Reason, Bypassable)`, gated `SetBypass(Index, On) : BOOL`, and `ClearBypass()`.
 
-```iecst
-TYPE ST_IntlkCond : STRUCT
-    Defined     : BOOL;
-    Description : STRING(255);
-    Reason      : E_Reason;
-    Bypassable  : BOOL;
-END_STRUCT END_TYPE
-
-FUNCTION_BLOCK FB_PermIntlk
-VAR_INPUT
-    Cond : ARRAY[1..MAX_PERMINTLK_COND] OF BOOL;   // author drives these (TRUE = OK), ST or LD
-END_VAR
-VAR_OUTPUT
-    AllOk       : BOOL;   // every defined, non-bypassed condition is TRUE
-    AnyBypassed : BOOL;   // at least one defined condition is bypassed
-    FirstFailed : INT;    // lowest index of a FALSE, non-bypassed condition; 0 = none
-END_VAR
-// Methods:
-//   Define(Index : INT; Description : STRING(255); Reason : E_Reason; Bypassable : BOOL := FALSE)
-//   SetBypass(Index : INT; On : BOOL) : BOOL     // succeeds only if that condition is Bypassable
-//   ClearBypass()                                 // clears all bypasses
-// Property (get):
-//   Diagnostic : ST_Diagnostic                  // first-out: Reason + Description of FirstFailed
-//                                                 //   (ReasonCode = NONE when AllOk)
-```
-
-Usage contract: conditions are declared once with `Define(...)` (typically in the owner's constructor/`Setup`, §3.11); the author's ST/LD logic drives `Cond[i]`; the container is called cyclically; the owner reads `AllOk` to gate, and copies `Diagnostic` (setting its own `SourcePath`) to surface the first-out reason. `MAX_PERMINTLK_COND` is a framework constant (default 16).
+Conditions are declared once during binding-native setup (§3.11); the author's ST/LD logic drives `Cond[i]`; the framework evaluates the container cyclically; and the owner reads `AllOk` to gate and stamps its own `SourcePath` on `Diagnostic`. `MAX_PERMINTLK_COND` is a framework constant (default 16). [TC3] realizes the surface as `FB_PermIntlk` with methods; [AB] realizes it as bounded UDT/AOI composition. The representation shall not change the index, first-failed, bypass, or diagnostic semantics.
 
 #### 7.2.1 Condition ownership and provenance
 
@@ -1627,7 +1526,7 @@ During commissioning, manual functions and release conditions **may** be gated b
 
 ### 7.6 Manual-function release (`OnManRelease`)
 
-Manual mode does not bypass safety. `OnManRelease` is the manual-release member of the inherited lifecycle-hook family (§3.14): a `PROTECTED` method on the module's base FB, overridden per module, subject to the same call-base/return-value contract as the other hooks. Each module that exposes manual functions **shall** define their release conditions in one place — an `OnManRelease`-style method on the module (or its extension) — following one fixed pattern: each manual function's release is the **common release** ANDed with that function's specific permissives:
+Manual mode does not bypass safety. `OnManRelease` is the manual-release member of the lifecycle-extension family (§3.14), subject to the same framework-first ordering and generated/native assembly contract as the other extensions. Each module that exposes manual functions **shall** define their release conditions in one place — its `OnManRelease` reaction — following one fixed pattern: each manual function's release is the **common release** ANDed with that function's specific permissives:
 
 ```iecst
 // Release conditions for this module's manual functions:
@@ -1671,7 +1570,7 @@ Access level is the **who** dimension of release, ANDed with the **machine** dim
 
 **(c) Sessions & enforcement.** A per-root **access manager** holds the active level/user, authenticates through an injected **`I_AccessProvider`** — with a shipped local default (`FB_LocalAccessProvider`, persistent user/PIN table) mirroring §3.8's provider pattern — and auto-logs-out after a configurable idle timeout (`T#0S` = never). Idle time is measured since successful login or the last **accepted authenticated operator mutation**; background reads, manifest fetches, and release-report polling shall not keep an abandoned session alive. Login/logout is **data-driven** (request members in the exposed namespace, §3.10(a′)); the secret member is cleared immediately after each attempt. A transport/mailbox acknowledgement only proves that the attempt was consumed; clients **shall** determine authentication success from the resulting published `CurrentUser`, `CurrentLevel`, and `LoginFailed` state. A failed attempt shall receive explicit localized HMI feedback without revealing whether the user or secret was incorrect. Enforcement is **in the PLC** at every gated entry point (`SetMode`, `SetModel`, `Start`/`Stop`, `OperatorReset`, manual commands, decisions, power control, alarm shelving, force, and ParCfg/StationCfg writes): the HMI greys controls from the published level *and* the PLC re-checks — the client is never trusted (§14 defense in depth). Denied attempts, logins, logouts, and accepted privileged remote mutations **shall** be logged as `MESSAGE` events (§8.3), including the action identity and active user but never a secret. Thresholds are configured on the **root** the HMI addresses; framework-internal calls (the §3.7 cascade, step chains) are trusted — they only execute downstream of an already-authorized entry.
 
-**(d) Relation to transport security.** OPC UA session authentication/encryption remain the server's job (§11.2, TC3 §11.1); §7.7 is the *authorization* layer above it and works even where the transport is anonymous — the two compose, neither replaces the other (§14).
+**(d) Relation to transport security.** Transport authentication/encryption remain the selected binding endpoint's job (§11.2); §7.7 is the *application authorization* layer above it. Both are required for command-capable deployments: transport identity does not grant a PLC action, and application access does not replace a secured conduit (§14).
 
 *Cross-references: §7.6 (manual release ANDs access), §3.13 (HMI greys from published level), §3.8a (policy = station config), §8.3 (audit events), §8.9 (shelving roles now = these levels), §14 (defense in depth, commissioning checklist).*
 
@@ -1679,7 +1578,7 @@ Access level is the **who** dimension of release, ANDed with the **machine** dim
 
 An operator who presses a control that does not act **shall** be able to see *why* — never left guessing. The framework therefore requires every gated action to publish a **release report**: the complete list of currently-unmet preconditions, each with a human description and its §8.8 `ReasonCode`, so the HMI shows a full rollup rather than a single first-out.
 
-- **Structure.** `ST_ReleaseReport` — `Released : BOOL` plus `Reasons : ARRAY OF ST_ReleaseReason` (`Description`, `ReasonCode`, `SourcePath`, `Kind`, `Bypassable`). `SourcePath` is the qualified identity of the module that owns the condition; it is never an OPC UA alias path. The report is **complete**: it lists *every* failing precondition at once (mode wrong, access insufficient, a blocking alarm active, and each failed interlock condition), not just the top one — because a fault-list that hides the second cause makes an operator fix one thing and press again fruitlessly.
+- **Structure.** `ST_ReleaseReport` — `Released : BOOL` plus `Reasons : ARRAY OF ST_ReleaseReason` (`Description`, `ReasonCode`, `SourcePath`, `Kind`, `Bypassable`). `SourcePath` is the canonical qualified identity of the module that owns the condition; it is never a transport alias path. The report is **complete**: it lists *every* failing precondition at once (mode wrong, access insufficient, a blocking alarm active, and each failed interlock condition), not just the top one — because a fault-list that hides the second cause makes an operator fix one thing and press again fruitlessly.
 - **Layered rollup sources.** A Unit **Start** report aggregates framework-common state (ready/run state, mode transition, access, blocking alarms, and control-domain readiness), one single-sourced common Start set, and any **active mode-specific immediate entry/frontier conditions** owned under §7.2.1. Modes may share the common set; they do not copy it. Conditions awaited only by a later step—part arrival, an operator confirmation, or downstream availability—belong in that step's pending record (§6.5/§6.9) and shall not over-gate Start merely because the sequence will need them later. If Start immediately commands a child, that child's applicable release records are part of the frontier and are included. A **manual command** report aggregates the Unit's common manual conditions plus mode/access and only the selected target+direction's function-specific conditions (§7.6.1).
 - **One authoritative predicate; query has no side effects.** `ReleaseReport…` is a pure query, and its `Released` result is the machine gate consumed by the corresponding action after any required audited access check. The action shall not separately re-code the condition expression. Therefore `Released = TRUE` iff the action is accepted in the same stable state, and every FALSE source record is the report entry the operator sees. Pressing a blocked control commands nothing; it only surfaces the report.
 - **Safety boundary.** A standard-PLC release report may include read-only safety/control-domain status to explain a block, but it never grants, bypasses, mutes, bridges, or forces a certified safety condition (§9.8).
@@ -1721,7 +1620,7 @@ An operator reset **shall** close a `MANUAL_RESET` event from **either** `ACTIVE
 
 **(c) Automatic capture, manual raising.** The Unit base **shall** capture module faults automatically — entering `ERROR` raises a `MANUAL_RESET` event carrying the rolled-up first-out severity and diagnostic (§8.2, §6.9); leaving `ERROR` marks it gone. Application code raises other events explicitly with a chosen severity/reset class (one call, §8.7 `EVENT_` constants). Nothing is double-authored: the event *is* the diagnostic plus lifecycle.
 
-**(d) Browse & retention.** Each Unit publishes its **active list** and a fixed-size **closed-event ring** (newest-first, `Truncated` on overflow) over OPC UA (§3.10) — the HMI browses history with zero station code (§3.13), including each event's duration. In-PLC retention is bounded by design; **full history** is the historian's job: an **`I_EventSink`** is invoked at come and at close so a database/historian adapter (OPC UA A&C, SQL, MES) subscribes without touching the log — the sink interface is normative now, its implementations are deployment choices (deferred by design). The tag path **shall** be the module's OPC UA browse path (§4.8), so HMI, historian, and MES share one address.
+**(d) Discovery & retention.** Each Unit publishes its **active list** and a fixed-size **closed-event ring** (newest-first, `Truncated` on overflow) through the Self-Description Service (§3.10) — the HMI discovers history with zero station code (§3.13), including each event's duration. In-PLC retention is bounded by design; **full history** is the historian's job: a logical **`I_EventSink`** capability is invoked at come and at close so a database/historian adapter (OPC UA A&C, SQL, MES) subscribes without touching the log. Sink realizations are deployment choices. The record path **shall** be the module's canonical path (§4.8), so HMI, historian, and MES share one address.
 
 **(e) ISA-18.2 mapping.** `ACTIVE`/`WAIT_RESET`/closed correspond to Unack-Alarm/RTN-states of ISA-18.2 §8.9; the reset here doubles as acknowledge for the blocking class, keeping one operator action instead of two (rationalization per §8.10 decides which reasons are alarms vs logged-only events).
 
@@ -1766,7 +1665,7 @@ Legacy handler frameworks return a bare numeric error code (e.g. `-649231`) that
 TYPE ST_Diagnostic :
 STRUCT
     ReasonCode  : E_Reason;     // named reason; ErrorID = TO_DWORD(ReasonCode)
-    SourcePath  : STRING(255);  // OPC UA browse path of the module/condition (§4.8)
+    SourcePath  : STRING(255);  // canonical path of the module/condition (§4.8)
     Description : STRING(255);  // localization key (from PermIntlk/module, §7)
     IoTag       : STRING(80);   // exact, untranslated electrical/schematic tag; '' if N/A
     IoAddress   : STRING(80);   // terminal/channel locator; '' if N/A
@@ -1832,7 +1731,7 @@ single owning aggregator.
 
 - **Flood & nuisance handling (profile).** When the Alarm-performance profile is claimed, the owning Station Monitor or external historian **shall** debounce chattering annunciation according to a rationalized minimum-on/fleeting filter per reason and **shall** detect alarm **floods** (rate over a configured threshold in a rolling window). It shall retain every underlying event and shall never suppress control, blocking, first-out, or history semantics; it may replace repeated audible/banner annunciation with one conspicuous flood indication plus drill-through to the members.
 - **Shelving / suppression.** Only reasons flagged suppressible (§8.9) **may** be shelved, and only by an authorized role (§7.7 level, transported per §11.2). A shelf **shall** auto-expire (time-bounded, with auto-unshelve) and **shall** itself be logged. **Shelving suppresses annunciation only — never control**: a shelved blocking alarm (§8.3(b)) still blocks Start, interlocks (§7.2) are untouched, and release reports (§7.8) still list the condition; the HMI merely stops shouting about it (banner/list de-emphasis). Safety-category alarms (§8.6) are **never** shelvable regardless of flags. An alarm with no rationalization record (§8.9) is not shelvable — rationalize first, then shelve. Design-suppression (e.g. downstream alarms suppressed while a Unit is intentionally stopped) **shall** be defined in the philosophy, not improvised.
-- **Performance KPIs (profile).** When the profile is claimed, its owner **shall** expose alarm-rate (per 10 min), standing-alarm count, and **stale**-alarm count (active beyond a configured long threshold) as OPC UA nodes, so alarm health is measurable against ISA-18.2 targets. It consumes the complete §8.3 event stream through the bounded ring and/or `I_EventSink`; application modules shall not reimplement these aggregates.
+- **Performance KPIs (profile).** When the profile is claimed, its owner **shall** expose alarm-rate (per 10 min), standing-alarm count, and **stale**-alarm count (active beyond a configured long threshold) as Self-Description Service values, so alarm health is measurable against ISA-18.2 targets. It consumes the complete §8.3 event stream through the bounded ring and/or `I_EventSink`; application modules shall not reimplement these aggregates.
 - **Management of change.** Adding, removing, or re-prioritizing an alarm **shall** follow the change process of §13; because alarms are generated from the `E_Reason` enum and catalog, a diff of those artifacts is the alarm MOC record.
 
 *Cross-references: §8.4 (single-High), §8.5 (Station Monitor/OEE), §11.2 (roles for shelving), §13 (MOC).*
@@ -1850,7 +1749,7 @@ The Unit mode chain (§6.2) already has defined boundaries; performance capture 
 
 ### 8.11.2 Counts
 
-- The Unit **shall** maintain `GoodCount`, `NokCount`, and `ReworkCount`, incremented once at the part outcome. With traceability enabled this occurs at `EVENT_PART_PROCESSED` (§3.16) from the part `Verdict`; when the optional carrier is absent, the owning sequence uses the inherited outcome helper instead of fabricating a part record.
+- The Unit **shall** maintain `GoodCount`, `NokCount`, and `ReworkCount`, incremented once at the part outcome. With traceability enabled this occurs at `EVENT_PART_PROCESSED` (§3.16) from the part `Verdict`; when the optional carrier is absent, the owning sequence uses the framework outcome helper instead of fabricating a part record.
 - A NOK **shall** be attributed by its non-`NONE` first-out `ReasonCode` (§8.8) — the same reason vocabulary as a fault — so scrap is analysable by cause without a separate reject-code scheme. The owning NOK helper **shall** increment the counter and emit the fixed §11.6 `NOK` host event as one operation; `PartUid` is empty when traceability is not configured. Counters reset on a deliberate, logged action (shift/changeover), never silently.
 
 ### 8.11.3 Standardized machine state for OEE
@@ -1872,11 +1771,11 @@ This state set maps one-to-one onto the PackML state/admin model (§11.7) and on
 
 §8.11.1 measures the cycle *total*; diagnosing a slow or drifting cycle needs the *breakdown* — which step, which module, which command. The standard therefore captures timing at the two places every cycle already passes through, so the profile costs the application author nothing (O1) and explains time the way the stall walk explains stalls (O3):
 
-**(a) Command timing — in the module base (shall).** `FB_ModuleBase` (§2.2) **shall** measure every command's execution time (BUSY entry → DONE/ERROR/ABORTED) and maintain, per command id, a timing row `{Id, Label, Count, Last, Minimum, Maximum, Avg}` published in the module's standard `Timing` structure. This is written once in the framework and inherited by every module type; a type identifies its commands with **one inherited call** — `_M_TagCommand(TO_DINT(Command), '<label>')`, included in the scaffold — and adds no other timing code.
+**(a) Command timing — in the module lifecycle (shall).** The authoritative module lifecycle (§2.2) **shall** measure every command's execution time (BUSY entry → DONE/ERROR/ABORTED) and maintain, per command id, a timing row `{Id, Label, Count, Last, Minimum, Maximum, Avg}` published in the module's standard `Timing` structure. This is written once in the framework/generator; a type identifies its commands with one binding-native declaration and adds no other timing code.
 
 **(b) Step timing — from the step record (shall).** The step-chain base **shall** feed a **cycle profiler** from the step record the chain already maintains for diagnostics (§6.5/§6.9): each `_M_SetStep` closes the previous step's duration, and the finish step (the §8.11.1 cycle-complete marker) closes the cycle. The profiler publishes the last completed cycle and per-step aggregates (`Count/Last/Minimum/Maximum/Avg` keyed by `StepNo`). Application steps add no duplicate timing code.
 
-**(c) Generic HMI rendering (shall).** Because both structures are fixed framework types exposed over OPC UA (§3.10), the HMI **shall** render them generically for any Unit: a cycle waterfall, a Pareto of per-step `Avg`/`Maximum`, and drill-through to module command timing. `ExpectedTime` is drawn against each step so guard-versus-actual is visible.
+**(c) Generic HMI rendering (shall).** Because both structures are fixed framework types exposed through the Self-Description Service (§3.10), the HMI **shall** render them generically for any Unit: a cycle waterfall, a Pareto of per-step `Avg`/`Maximum`, and drill-through to module command timing. `ExpectedTime` is drawn against each step so guard-versus-actual is visible.
 
 **(d) Degradation is data, not downtime (should).** A step or command whose `Avg` drifts beyond a configured band above its baseline **should** raise a **maintenance** event via the condition-monitoring path (§8.12, Low severity, `ReasonCode := E_Reason.CYCLE_TIME_DEGRADED`) — creeping cycle time surfaces for planning before it becomes a stop, and the event names the exact step/command (O3).
 
@@ -1890,7 +1789,7 @@ This state set maps one-to-one onto the PackML state/admin model (§11.7) and on
 
 §10.5 already requires fieldbus/IPC diagnostics to surface as System alarms. This section **generalizes** that to a controller-health and condition-monitoring contract, so degradation is visible and trendable before it becomes downtime.
 
-- **Controller health.** The station **shall** monitor primary-task cycle time, **jitter**, and overruns; CPU and memory load; and, where the hardware exposes them, IPC temperature/fan and storage health. Threshold breaches raise System-category alarms (§8.6) with System-band reason codes — `TASK_OVERRUN`, `TASK_JITTER_HIGH`, `CPU_LOAD_HIGH`, `MEMORY_LOW`, `IPC_TEMP_HIGH` — and the live values **shall** also be exposed as OPC UA health nodes for trending/predictive maintenance, not only as pass/fail alarms.
+- **Controller health.** The station **shall** monitor primary-task cycle time, **jitter**, and overruns; CPU and memory load; and, where the hardware exposes them, IPC temperature/fan and storage health. Threshold breaches raise System-category alarms (§8.6) with System-band reason codes — `TASK_OVERRUN`, `TASK_JITTER_HIGH`, `CPU_LOAD_HIGH`, `MEMORY_LOW`, `IPC_TEMP_HIGH` — and the live values **shall** also be exposed through the Self-Description Service for trending/predictive maintenance, not only as pass/fail alarms.
 - **Fieldbus & device health.** Fieldbus master state, lost frames, slave errors, and distributed-clock sync (`FIELDBUS_MASTER_FAULT`, `DC_SYNC_LOST`) surface per §10.5 ([TC3]: EtherCAT specifics, TC3 §10); smart-device links (§3.15) contribute their heartbeat/last-seen. These are System/Low events that **shall not** be silently swallowed.
 - **Condition-based maintenance.** A Control Module or device connector **may** publish condition signals — actuation/cycle counts toward a service interval, drive load/temperature, vacuum/pressure trend — as **maintenance** events (Low severity, §8.1), distinct from production faults: they inform planning, they do not stop the cycle. Service thresholds are `ParCfg` (§3.8).
 - **Warning vs. alarm.** Where a distinct approach threshold is configured, approaching a limit raises a Low/Med warning and exceeding it raises the alarm; otherwise the configured limit produces the single Low System event. The two use `Severity` (§8.1) on the same reason, so trending and annunciation share one source without inventing a mandatory second threshold for every metric.
@@ -1936,7 +1835,7 @@ disconnects.
 
 A station that meters its utilities — electrical power, compressed air, coolant/water — **may** expose that consumption as a self-describing branch, so energy and utility use are visible for cost, sustainability (ISO 50001), and leak/anomaly detection. This is **optional**: a station without metering simply omits the branch, so the feature never burdens a simple station (§1.1 O1).
 
-- **Model.** Exposed values **shall** map to the OPC UA for Energy Consumption Management information model (OPC 34100), which scales from a device to a machine to a cell, so an energy-management system consumes the cell without a bespoke driver. Per-station (and optionally per-module) **instantaneous** and **accumulated** quantities are published — electrical kWh, compressed-air Nm³, coolant L — each with the synchronized timestamp (§2.7).
+- **Model.** Per-station (and optionally per-module) **instantaneous** and **accumulated** quantities are published through the Self-Description Service — electrical kWh, compressed-air Nm³, coolant L — each with the synchronized timestamp (§2.7). When the binding-qualified OPC 34100 projection is claimed, these same values **shall** map to the OPC UA for Energy Consumption Management information model; absence of that optional projection does not invalidate the native energy profile (§1.5).
 - **Performance indicators.** Combined with the good/NOK counts (§8.11), the Station Monitor (§8.5) **may** derive energy-per-part EnPIs (e.g. kWh per good part) and publish them north-bound (§11.9) for the plant energy/UNS layer.
 - **Anomaly / leak detection.** A consumption that drifts from its learned baseline (e.g. a rising idle-air draw) **may** raise a **maintenance** event via the condition-monitoring path (§8.12, Low severity, `ReasonCode := E_Reason.UTILITY_DEVIATION`) — informing planning, never stopping production.
 - **Not a safety or interlock function.** Utility *availability* that must gate operation (air-pressure-OK, coolant-flow-OK) remains a permissive/interlock (§7) or a safety alias (§9); §8.14 is **measurement and monitoring only** and **shall not** be used to gate motion.
@@ -2115,42 +2014,43 @@ The planner resolves the serving help **role-first** — direction is the higher
 
 ---
 
-## 11. OPC UA Connectivity & External Interfaces
+## 11. Connectivity & External Interfaces
 
-### 11.1 OPC UA server
+### 11.1 Fraktal Self-Description endpoint
 
-- The binding's OPC UA server **shall** publish the module tree per §3.10 — explicit deployed-root markers, explicit standalone-data markers, filtered/marked symbols, structured types, implementation-reference exclusions, and type-aware browsing ([TC3]: the TF6100 server, TC3 §3.10/§11.1).
-- Browse identity follows §4.8: each local browse segment equals the local PLC/schematic instance name, while `Status.Name` carries the complete dotted module path.
+- Every binding **shall** expose the Fraktal Self-Description Service of §3.10 and document its default transport, endpoint/gateway components, protocol/schema version, and any alternative projections. The service publishes only explicitly deployed roots and explicitly registered standalone data; implementation-only references/handles are excluded.
+- Fraktal/TC3 uses TF6100 OPC UA by default (TC3 §3.10/§11.1). Fraktal/AB uses EtherNet/IP explicit messaging through the Fraktal gateway by default and may expose OPC UA as an alternative projection (AB §3.10/§11). Neither choice changes the Core service model.
+- Canonical identity follows §4.8: each local hierarchy segment equals the local PLC/schematic instance name, while `Status.Name` carries the complete dotted module path. Every projection shall retain that identity.
 
 ### 11.2 Endpoint, namespace & security
 
-- The endpoint URL, namespace(s), and application URI **shall** be documented per station, using one consistent namespace for the application model.
-- Security **shall** be enabled: certificate-based trust, a sign-and-encrypt policy (e.g. Basic256Sha256), and user authentication with least-privilege roles (operator / maintenance / engineering). Anonymous write access is not permitted.
+- The selected endpoint(s), logical application namespace, protocol/schema version, and station identity **shall** be documented per station. A native hierarchical server may expose the namespace directly; a gateway may reconstruct it from the binding manifest and bounded value services.
+- Command-capable transports **shall** provide authenticated principals, integrity and confidentiality appropriate to the declared IEC 62443 conduit, and least-privilege roles (operator / maintenance / engineering). Anonymous or unauthenticated write access is not permitted. A projection that is read-only shall state that restriction explicitly.
+- A binding-specific security mechanism belongs in that binding: [TC3] certificate trust and sign-and-encrypt policy are defined in TC3 §11.1; [AB] gateway/controller trust boundaries and EtherNet/IP/OPC UA alternatives are defined in AB §11.
 
 ### 11.3 Clients
 
-The Flutter operator app and any MES/SCADA connect as OPC UA clients and render or consume the model generically (§3.10, §3.13). No client-specific symbol wiring is added to the PLC.
+The Flutter operator app and any MES/SCADA connect through a binding adapter and render or consume the model generically (§3.10, §3.13). No client-specific symbol wiring is added to the PLC and no transport-specific address becomes the module's canonical identity.
 
 A command-capable client **shall** distinguish and report transport reachability,
-SecureChannel/session activation, application-namespace visibility, Fraktal root
-discovery, request-leaf write/commit, PLC acknowledgement, and PLC acceptance as
-separate states. It shall not infer command success from an activated session or
-a successful write service alone: arguments are committed through the root
-mailbox and command success requires the matching acknowledgement plus
-`Accepted=TRUE`. `LOGIN` is the deliberate exception: `Accepted` confirms that
-the attempt was consumed, while authentication success is the resulting access
-state defined by §7.7(c).
-Repeated value refresh shall not starve or reorder a command, and reconnect
-shall not replay an unacknowledged write (§3.10, §3.13, §14).
+transport authentication/session readiness where applicable, Fraktal namespace/schema
+compatibility, root discovery, request staging/commit, controller acknowledgement, and
+controller acceptance as separate states. It shall not infer command success from a
+connected session or a successful transport write alone: arguments are committed through
+the root mailbox and command success requires the matching acknowledgement plus
+`Accepted=TRUE`. `LOGIN` is the deliberate exception: `Accepted` confirms that the attempt
+was consumed, while authentication success is the resulting access state defined by
+§7.7(c). Repeated value refresh shall not starve or reorder a command, and reconnect shall
+not replay an unacknowledged write (§3.10, §3.13, §14).
 
 ### 11.4 Recipe / type transports
 
-- Recipe/type sources (`LOCAL` / `OPCUA` / `SOCKET_JSON|XML` / `REST`, §3.8) are configured behind `I_RecipeProvider`; transport endpoints and credentials are documented per station and never embedded in module logic.
+- Recipe/type sources (`LOCAL` / `OPCUA` / `SOCKET_JSON|XML` / `REST`, §3.8) are configured behind the logical `I_RecipeProvider` capability; transport endpoints and credentials are documented per station and never embedded in module logic.
 - External payloads are validated before load (§3.8); a failed or partial fetch faults the consuming module with a `ReasonCode` (§8.8) rather than loading a half-recipe.
 
 ### 11.5 Alarm / event & historian
 
-The alarm queue and `AlarmQueueHandler` (§8.3) publish to the alarm database/historian using the module browse path as the tag path and the `ReasonCode`/catalog of §8.8, so PLC, HMI, historian, and MES share one address and one reason vocabulary.
+The alarm queue and `AlarmQueueHandler` (§8.3) publish to the alarm database/historian using the module's canonical path as the record path and the `ReasonCode`/catalog of §8.8, so PLC, HMI, historian, and MES share one address and one reason vocabulary.
 
 ### 11.6 MES / ISA-95 host-event & transaction mapping
 
@@ -2168,12 +2068,12 @@ The cell **shall** emit only these host events; sites do not invent new ones wit
 | `MODE_CHANGED` | `OnModeChanged` (§3.14) | equipment operational-mode change |
 | `NOK` / scrap | performance capture (§8.11) | quality / scrap transaction |
 
-Each event **shall** carry: the producing **station browse path** (§4.8), the part `Uid` where applicable (§3.16), a **synchronized timestamp** (§2.7), the `Verdict`/result, and the `ReasonCode` (§8.8) for an abort/NOK — so an MES receives a self-describing, reason-coded record.
+Each event **shall** carry: the producing **station canonical path** (§4.8), the part `Uid` where applicable (§3.16), a **synchronized timestamp** (§2.7), the `Verdict`/result, and the `ReasonCode` (§8.8) for an abort/NOK — so an MES receives a self-describing, reason-coded record.
 
 ### 11.6.2 Transport & shape
 
-- A root Unit **shall** publish one bounded, read-only `HostEvents` object containing a ring of `ST_HostEvent` records plus `RingHead`, valid `Count`, published `Capacity`, and an explicit `Wrapped` data-loss indicator. `ST_HostEvent` carries a monotonic sequence, fixed event kind, station path, optional part Uid/subject/value, timestamp and synchronization quality, verdict, and reason. This is the documented OPC UA data object on the cell's server (§11.1); it is on-demand data and never a command surface. Clients derive modulo/ring traversal from `Capacity`; they shall not duplicate the binding's array limit.
-- The same record **may** additionally be delivered over OPC UA A&C, socket/REST, or MQTT-Sparkplug (§11.9) behind `I_HostEventSink`, mirroring provider injection (§3.8/§11.4), so delivery transport is composition rather than Unit logic. The bounded PLC ring remains available when an optional sink is absent or unavailable.
+- A root Unit **shall** publish one bounded, read-only `HostEvents` object through the Self-Description Service, containing a ring of `ST_HostEvent` records plus `RingHead`, valid `Count`, published `Capacity`, and an explicit `Wrapped` data-loss indicator. `ST_HostEvent` carries a monotonic sequence, fixed event kind, station path, optional part Uid/subject/value, timestamp and synchronization quality, verdict, and reason. It is on-demand data and never a command surface. Clients derive modulo/ring traversal from `Capacity`; they shall not duplicate the binding's array limit.
+- The same record **may** additionally be delivered over OPC UA A&C, socket/REST, or MQTT-Sparkplug (§11.9) behind the logical `I_HostEventSink` capability, mirroring provider injection (§3.8/§11.4), so delivery transport is composition rather than Unit logic. The bounded PLC ring remains available when an optional sink is absent or unavailable.
 - The event shape **should** map cleanly to ISA-95 / B2MML transactions (production performance, material lot/genealogy), so an MES that speaks B2MML consumes the cell without a bespoke driver.
 
 ### 11.6.3 Direction & trust
@@ -2186,7 +2086,7 @@ Host events are **produced** by the cell; commands **into** the cell (work order
 
 > **Interoperability note (Annex J).** The same projection philosophy extends to **MTP** (VDI/VDE/NAMUR 2658 / IEC 63280): a root Unit exports as a PEA — services from its runnable modes, DataAssemblies from the Status mirror (§3.10), parameters from §3.8, alarms from §8.3 — so any MTP-conformant orchestration layer (POL) can integrate a Fraktal station with no bespoke driver. The mapping, its honest mismatches, and the exporter checklist are Annex J.
 
-§6.6 introduces PackML as an optional overlay. This section makes it a **fully-specified conformance option**: when a site needs OMAC line coordination (ISA-TR88.00.02, exposed over OPC UA as the OPC 30050 companion specification), the cell **shall** expose the complete PackML profile below while the native `ExecState`/mode model (§6.1, §3.4) remains the internal source of truth. The value of doing it completely — rather than partially — is that any compliant line controller coordinates the cell with **no** bespoke driver.
+§6.6 introduces PackML as an optional overlay. This section defines the **binding-qualified PackML/OPC UA conformance option**: only a deployment claiming that option shall expose the complete OPC 30050 projection below. The native `ExecState`/mode model (§6.1, §3.4) remains the internal source of truth, and a binding or deployment that does not claim this optional projection remains conformant to base Core (§1.5).
 
 ### 11.7.1 State-machine mapping
 
@@ -2222,9 +2122,9 @@ The profile **shall** expose the three PackTag groups, sourced from contracts th
 
 ### 11.7.4 Conformance
 
-When the PackML profile is claimed, the mapping above **shall** be complete and validated, and exposed through a `PackMLObjects` folder on the OPC UA server (§11.1). The native model is unaffected; this profile is an additional north-bound interface, coexisting with the ISA-95 host events (§11.6).
+When the `PackML/OPC UA` profile is claimed, the mapping above **shall** be complete and validated, and exposed through a `PackMLObjects` folder in that OPC UA projection. The conformance claim shall name the binding (for example `Fraktal/TC3 + PackML/OPC UA`). The native model is unaffected; this profile is an additional north-bound interface, coexisting with the ISA-95 host events (§11.6).
 
-*Cross-references: §6.6 (overlay intro — now specified here), §3.4/§3.7 (modes & rejection), §8/§8.8/§8.11 (alarms, reasons, counters), §11.1 (OPC UA server), §11.6 (ISA-95 events — complementary).*
+*Cross-references: §6.6 (overlay intro — now specified here), §3.4/§3.7 (modes & rejection), §8/§8.8/§8.11 (alarms, reasons, counters), §11.1 (Self-Description endpoint), §11.6 (ISA-95 events — complementary).*
 
 ### 11.8 Module self-description portability (AAS & MTP mapping)
 
@@ -2236,7 +2136,7 @@ Each module (Unit/EM/CM) maps to an AAS asset with submodels drawn from contract
 
 | AAS submodel | Source in this standard |
 |--------------|-------------------------|
-| Nameplate / Identification | module `Name`, `ModuleType`, OPC UA browse path (§3.2, §4.8) |
+| Nameplate / Identification | module `Name`, `ModuleType`, canonical path (§3.2, §4.8) |
 | TechnicalData | `ParCfg` schema (§3.8), feature flags (§3.9) |
 | OperationalData | `State`, `ModeActive`, `ST_Diagnostic` (§3.2, §8.8) |
 | ModuleContract (custom) | the four-structure contract (§3.12) + handshake surface (§6.1) |
@@ -2244,20 +2144,20 @@ Each module (Unit/EM/CM) maps to an AAS asset with submodels drawn from contract
 
 ### 11.8.2 MTP mapping
 
-The MTP manifest is assembled from the same model: module **commands/modes** (§3.4/§3.5) → MTP **Services**; the OPC UA nodes (§3.10) → MTP **Communication**; the tile/detail rendering (§3.13) → the MTP **HMI** template. The result is a manifest a Process Orchestration Layer can import for plug-and-produce, consistent with RAMI 4.0.
+The MTP manifest is assembled from the same model: module **commands/modes** (§3.4/§3.5) → MTP **Services**; the Self-Description Service records (§3.10) → MTP **Communication**; the tile/detail rendering (§3.13) → the MTP **HMI** template. The result is a manifest a Process Orchestration Layer can import for plug-and-produce, consistent with RAMI 4.0.
 
 ### 11.8.3 Conformance
 
-The AAS/MTP export is an **optional** conformance profile. When claimed, it **shall** be generated from the live self-description (never hand-maintained in parallel) so it cannot drift from the running cell, and it **shall** carry the same browse paths (§4.8) as every other interface, so AAS, MTP, OPC UA, HMI, and MES all address the module identically.
+The AAS/MTP export is an **optional, binding-qualified** conformance profile. When claimed, it **shall** be generated from the live self-description (never hand-maintained in parallel) so it cannot drift from the running cell, and it **shall** carry the same canonical paths (§4.8) as every other interface, so AAS, MTP, OPC UA, HMI, and MES all address the module identically.
 
 *Cross-references: §3.10/§3.13 (self-description & generic HMI — the source), §3.12 (data contract), §4.8 (one address everywhere), §11.7 (sibling north-bound profile).*
 
 ### 11.9 North-bound telemetry (OPC UA Pub/Sub, MQTT Sparkplug, UNS)
 
-§11.1's OPC UA server is client/server — ideal for control and on-demand reads. For telemetry fan-out to many consumers and for IIoT/cloud and a plant **Unified Namespace (UNS)**, the cell **may** additionally **publish** its data.
+§11.1's Self-Description Service supplies secured control and on-demand reads through the selected binding transport. For telemetry fan-out to many consumers and for IIoT/cloud and a plant **Unified Namespace (UNS)**, the cell **may** additionally **publish** its data.
 
-- **Optional publish path.** The cell **may** expose a north-bound profile over **OPC UA Pub/Sub (IEC 62541-14)** or **MQTT with Sparkplug B**, publishing a projection of the same self-describing model (§3.10): state, modes, diagnostics (§8.8), performance (§8.11), and health (§8.12). This **supplements**, never replaces, the secured client/server control interface.
-- **UNS-aligned addressing.** Published topics/datasets **shall** be keyed by the module browse path (§4.8) so the UNS topic hierarchy mirrors the module tree — one address across OPC UA, HMI, MES, AAS/MTP (§11.8), and the UNS.
+- **Optional publish path.** The cell **may** expose a north-bound profile over **OPC UA Pub/Sub (IEC 62541-14)** or **MQTT with Sparkplug B**, publishing a projection of the same self-describing model (§3.10): state, modes, diagnostics (§8.8), performance (§8.11), and health (§8.12). This **supplements**, never replaces, the secured command/on-demand service.
+- **UNS-aligned addressing.** Published topics/datasets **shall** be keyed by the module's canonical path (§4.8) so the UNS topic hierarchy mirrors the module tree — one address across the native service, OPC UA, HMI, MES, AAS/MTP (§11.8), and the UNS.
 - **Liveness by design.** Sparkplug birth/death certificates (or Pub/Sub keep-alive) give consumers connection liveness without polling — the publish-side analogue of the link-supervision philosophy (§3.15).
 - **Security.** The publish path is subject to §14: broker/endpoint authentication and TLS, least-privilege topics, no anonymous publish, and it lives on a documented conduit (§14.1).
 
@@ -2268,7 +2168,7 @@ The AAS/MTP export is an **optional** conformance profile. When claimed, it **sh
 §11.7 projects the cell *upward* to a line controller (machine-to-line) and §3.15 reaches *outward* to a single smart device. **OPC UA FX (Field eXchange)** covers the third direction: deterministic **controller-to-controller (C2C)** and **device-to-device (D2D)** peer exchange across the field level, typically over **TSN** for motion-grade timing. It is the standards-based path for stations to coordinate *directly* with each other and with OPC-UA-capable devices.
 
 - **Optional / watch profile.** Cross-vendor FX tooling is still maturing (multi-vendor demonstrations ongoing through 2026), so FX is a **may**, not a **shall**. It is **recommended where multi-station or multi-vendor-robot coordination is in scope** (e.g. an automotive line where adjacent stations or differently-branded robots hand off in lockstep, or gateway-free device integration); pilot it before committing it to a **shall**.
-- **Projection, not new logic.** What a station publishes or consumes over FX **shall** be a defined slice of the same self-describing model (§3.10) — typically handshake-level command/status (§6.1) between peer stations, or to a device — keyed by the module browse path (§4.8). FX adds a peer interface; it does not introduce a second control path or duplicate logic.
+- **Projection, not new logic.** What a station publishes or consumes over FX **shall** be a defined slice of the same self-describing model (§3.10) — typically handshake-level command/status (§6.1) between peer stations, or to a device — keyed by the module's canonical path (§4.8). FX adds a peer interface; it does not introduce a second control path or duplicate logic.
 - **Relationship to §3.15.** The smart-device connector (§3.15) fronts *proprietary* links (vendor sockets, S7, REST); FX is the **standards-based alternative** for OPC-UA-capable peers and devices. The same link-supervision philosophy applies — connection establishment, liveness, and a **defined loss reaction** (HOLD/ABORT/MODE_STOP, §3.15) — expressed over FX connection monitoring rather than a bespoke heartbeat.
 - **Time & security.** FX over TSN shares the synchronized time domain of §2.7; the FX conduit is subject to §14 (authentication, TLS, documented conduit, least privilege).
 
@@ -2294,7 +2194,7 @@ The recursive model maps onto the Machinery building blocks unusually directly �
 
 ### 11.11.2 Conformance
 
-When claimed, the Machinery mapping **shall** be **generated from the live self-description** (never hand-maintained), and **shall** carry the same browse paths (§4.8) as every other interface. It is a sibling projection to AAS/MTP (§11.8) and the PackML profile (§11.7): the same cell, addressed identically, speaking one more discovery dialect.
+When claimed, the Machinery mapping **shall** be **generated from the live self-description** (never hand-maintained), and **shall** carry the same canonical paths (§4.8) as every other interface. It is a sibling projection to AAS/MTP (§11.8) and the PackML profile (§11.7): the same cell, addressed identically, speaking one more discovery dialect.
 
 *Cross-references: §3.2/§3.11/§4.8 (identity, recursive components, one address), §8.11/§8.12/§8.14 (state, maintenance, energy blocks), §11.6 (job management ↔ ISA-95 events), §11.7/§11.8 (sibling projections), §13 (version/identity for the nameplate).*
 
@@ -2334,7 +2234,7 @@ Each annex **shall** show the same object in simulation and on hardware to demon
 
 ## 14. Cybersecurity (IEC 62443 & secure coding)
 
-Functional safety (§9) protects people from the machine; **cybersecurity protects the machine and its data from the network.** They are separate disciplines and this standard treats them separately. OPC UA endpoint security (§11.2) is necessary but is only one control; this section frames the cell within IEC 62443 and mandates secure-coding practice.
+Functional safety (§9) protects people from the machine; **cybersecurity protects the machine and its data from the network.** They are separate disciplines and this standard treats them separately. Binding endpoint security (§11.2) is necessary but is only one control; this section frames the cell within IEC 62443 and mandates secure-coding practice.
 
 ### 14.1 Security level & zones/conduits
 
@@ -2347,7 +2247,7 @@ The standard **shall** apply the recognized secure-PLC-coding practices; most ar
 
 - **Validate all external input.** Recipe/host payloads (§3.8/§11.4), carrier/part data (§3.16), and command arguments and array indices (the defensive-coding rule, §5.6) **shall** be range/format-checked before use, faulting with a `ReasonCode` rather than acting on bad data. This is both a reliability and a security control.
 - **Fail safe by default.** Outputs are non-stored and step-bound (§6.10); a lost link (§3.15), lost recipe (§3.8), lost time sync (§2.7), or lost safety alias (§9.2) drives a **defined safe reaction**, never an undefined state.
-- **Least privilege.** OPC UA roles (operator / maintenance / engineering, §11.2) **shall** gate writes, mode changes, shelving (§8.10), and reconnect/manual functions (§7.6); anonymous write is prohibited.
+- **Least privilege.** Authenticated binding roles (operator / maintenance / engineering, §11.2) **shall** gate writes, mode changes, shelving (§8.10), and reconnect/manual functions (§7.6); anonymous or unauthenticated write is prohibited.
 - **No secrets in source.** Endpoints, credentials, and keys **shall** be configuration/secret-store values (§11.4, §3.15), never literals in module code or version control.
 - **Integrity & monitoring.** The running project/firmware **shall** carry a version/identity stamp (§13) checkable at runtime; fieldbus, IPC, and link anomalies surface as System alarms (§8.6, §10.5, §3.15) so tampering or unexpected disconnects are visible, not silent.
 - **Minimize attack surface.** Unused services/ports on the IPC **shall** be disabled; only the documented conduits (§14.1) are reachable.
@@ -2356,7 +2256,7 @@ The standard **shall** apply the recognized secure-PLC-coding practices; most ar
 
 Security-relevant changes — conduit/endpoint changes, role changes, credential rotation — **shall** follow the change process of §13 (MOC), and the audit log **shall** record privileged actions (writes, mode changes, shelving, downloads).
 
-*Cross-references: §9 (functional safety — separate discipline), §11.2 (OPC UA security), §3.8/§11.4 (validated providers), §3.15 (device conduits/links), §3.16 (part-data input), §5.6 (defensive coding), §13 (MOC & versioning).*
+*Cross-references: §9 (functional safety — separate discipline), §11.2 (binding endpoint security), §3.8/§11.4 (validated providers), §3.15 (device conduits/links), §3.16 (part-data input), §5.6 (defensive coding), §13 (MOC & versioning).*
 
 ---
 

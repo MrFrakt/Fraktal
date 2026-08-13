@@ -43,7 +43,11 @@ can also serve the exact compiled Web HMI from the same loopback listener, so
 the browser page and `/fraktal` use one origin without a separate static server.
 Windows packages a tray/startup installer; Linux packages a systemd unit. The
 gateway process still runs independently from the operator UI and can own a
-dedicated service identity. See `gateway/DEPLOYMENT.md` and
+dedicated service identity. One process serves one PLC: a host with several
+controllers runs one *instance* per PLC — its own folder under
+`%LOCALAPPDATA%\Fraktal\Gateway\instances`, its own loopback port and published
+origin, supervised together by the tray (Linux: `fraktal-gateway@<name>`). See
+`gateway/DEPLOYMENT.md` and
 `../../Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`.
 
 See `Specification/OPCUA_TRANSPORT.md` for the ABI, snapshot schema, gateway
@@ -98,12 +102,43 @@ Fraktal discovery, and live-state publication instead of waiting indefinitely.
 
 ## Honest status
 Verified against Flutter 3.44.6 (2026-08-02 — the version CI pins): `flutter analyze`
-clean, **166 tests passing** with 4 intentional live-environment skips (`flutter test`),
+clean, **203 tests passing** with 4 intentional live-environment skips (`flutter test`),
 and `flutter build web` succeeds. The suite is offline by design — SimRepository and
 fakes, no PLC, no ADS, no network; anything needing hardware lives in `tool/probe_*.dart`
 and is deliberately not run. Enum **ordinals in `lib/domain/types.dart` are the PLC
 contract** (must match the Core DUTs); `plc_lint` rule E1 checks that parity on every
 commit, and they remain the first thing to verify against a real server.
+
+## Status colours and contrast
+
+The §8.1 status semantics are fixed across all 14 themes (READY/BUSY/DONE/
+ERROR/ABORTED, HIGH/MEDIUM/LOW) — but the **shade** is not, because the same
+colour is not legible on a light card and a dark one. Each semantic therefore
+has three forms in `ui/app_theme.dart`:
+
+| Use | API | Held to |
+|-----|-----|---------|
+| Glyph — dot, icon, border | `stateColor` · `severityColor` · `okColor` / `warningColor` / `infoColor` | 3:1 (WCAG non-text) |
+| Sentence — banner, message | `severityTextColor` | 4.5:1 |
+| Filled area under white text | `kOkFill` / `kWarningFill` / `kInfoFill`, `timeClassColor` | white-on-fill |
+
+Getting this wrong is invisible in review and obvious on a panel: the single
+light-card constants used before measured ~2:1 as a dot on a dark card, so the
+module header's state indicator, the tree dots and the link/release icons simply
+were not there. Two more rules follow from the same failure — never write a bare
+`TextStyle(fontSize: …)` (it carries no colour and inherits whatever ambient
+`DefaultTextStyle` applies), and any widget painting a `*Container` role or a
+fixed fill must pair it with `foregroundOn` / `onContainer`.
+
+`test/theme_contrast_test.dart` measures the palette against the **tinted**
+surface each indicator is drawn on. `test/rendered_contrast_test.dart` goes
+further and is the one that catches real defects: it boots the whole shell in
+every theme and checks each glyph the app actually paints against the fill it
+actually lands on. A correct palette is not enough — a widget can paint one of
+those fills and still forget to pair its foreground with it, which is exactly
+how the Modules/Fieldbus selector, the tree's expand chevron and the machine's
+STOP button each went invisible. Extend these rather than eyeballing a
+screenshot.
 
 ## Widget set & annex coverage
 

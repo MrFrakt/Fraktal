@@ -154,4 +154,86 @@ void main() {
 
     expect(fields, isEmpty);
   });
+  group('§3.13 flow-chart rows arrive as NUMBERS, not strings', () {
+    // Regression: the whole sequence flow chart rendered "N0" on every row with
+    // an empty drill-down. The static half of each row is served through the
+    // manifest, and the typing rule was a hand-maintained list of leaf NAMES
+    // that never included StepNo — so "100" arrived as a String, the mapper's
+    // _integer() fell back to 0, and every step became N0. The PLC now declares
+    // NUMBER on the entries M_AppendNumber writes, and the declared type wins.
+    const base = 'PLC1/MAIN/PneumaticPress';
+    const bases = {'PneumaticPress': base};
+
+    test('a declared NUMBER is parsed even for an unlisted leaf name', () {
+      final values = synthesizeManifestValues(
+        const [
+          // valueType 0 = E_ConfigValueType.NUMBER
+          ConfigManifestEntry('PneumaticPress', 'Anything/Unlisted', '4711',
+              valueType: 0),
+        ],
+        browseBaseByModulePath: bases,
+        topologyBase: null,
+      );
+      expect(values['$base/Anything/Unlisted'], 4711,
+          reason: 'the sender declared the type; the receiver must not guess');
+    });
+
+    test('every sequence row leaf the PLC sends as a number is numeric', () {
+      final values = synthesizeManifestValues(
+        const [
+          ConfigManifestEntry(
+              'PneumaticPress', 'SequenceSteps/SequenceSteps[1]/StepNo', '100',
+              valueType: 0),
+          ConfigManifestEntry(
+              'PneumaticPress', 'SequenceSteps/SequenceSteps[1]/Branch', '0',
+              valueType: 0),
+          ConfigManifestEntry('PneumaticPress',
+              'SequenceSteps/SequenceSteps[1]/TimeClass', '3',
+              valueType: 0),
+          ConfigManifestEntry('PneumaticPress',
+              'SequenceSteps/SequenceSteps[1]/ExpectedTime', '2500',
+              valueType: 0),
+          ConfigManifestEntry('PneumaticPress',
+              'SequenceSteps/SequenceSteps[1]/StepName',
+              'project.step.pressAwaitTwoHand'),
+        ],
+        browseBaseByModulePath: bases,
+        topologyBase: null,
+      );
+      const row = '$base/SequenceSteps/SequenceSteps[1]';
+      expect(values['$row/StepNo'], 100, reason: 'this is the N0 defect');
+      expect(values['$row/Branch'], 0);
+      expect(values['$row/TimeClass'], 3);
+      expect(values['$row/ExpectedTime'], 2500);
+      expect(values['$row/StepName'], 'project.step.pressAwaitTwoHand',
+          reason: 'text must stay text');
+    });
+
+    test('an older PLC that declares nothing still works by leaf name', () {
+      // Every entry TEXT (valueType 1) — a build predating the NUMBER stamp.
+      final values = synthesizeManifestValues(
+        const [
+          ConfigManifestEntry(
+              'PneumaticPress', 'SequenceSteps/SequenceSteps[2]/StepNo', '200'),
+        ],
+        browseBaseByModulePath: bases,
+        topologyBase: null,
+      );
+      expect(values['$base/SequenceSteps/SequenceSteps[2]/StepNo'], 200,
+          reason: 'the name-based fallback must still cover an old PLC');
+    });
+
+    test('a declared BOOLEAN is parsed without being in the name list', () {
+      final values = synthesizeManifestValues(
+        const [
+          // valueType 2 = BOOLEAN
+          ConfigManifestEntry('PneumaticPress', 'Some/Flag', 'TRUE',
+              valueType: 2),
+        ],
+        browseBaseByModulePath: bases,
+        topologyBase: null,
+      );
+      expect(values['$base/Some/Flag'], isTrue);
+    });
+  });
 }

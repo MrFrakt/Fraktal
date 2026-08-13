@@ -231,7 +231,120 @@ def check_parity(root: Path) -> list[Finding]:
                     "parity", "error", path.name,
                     f"step {step} goes to {sorted(ld[step])} here but "
                     f"{sorted(st[step])} in {twin.name}"))
+        findings += _check_step_effects(path, twin, split_networks, ET)
     return findings
+
+
+def _check_step_effects(path: Path, twin: Path, split_networks, ET
+                        ) -> list[Finding]:
+    """Every step writes the same SHARED state in both renditions.
+
+    Same steps and same transitions is not the same chain: `FB_LD_PressDemoAuto`
+    step 190 matched its ST twin on both and still dropped
+    `_startLatched := FALSE`, so the two-hand abort returned to the wait step
+    with the start still latched and the cycle ran again, forever. Nothing
+    caught it - which is why this compares what each step DOES, not just where
+    it goes.
+
+    Only state that escapes the chain is compared: the roots the ST twin
+    declares `REFERENCE TO` (child modules, published outputs, the Unit's
+    latch). A rendition's own locals are excluded on purpose - `_partProcessed`
+    in ST is `_processed` in ladder, and naming scratch differently is not a
+    divergence.
+
+    A PLAIN ladder coil is exempt everywhere: it writes its rail's value every
+    scan, so it already drives the symbol FALSE in every other step and the ST
+    twin's explicit clears have no ladder counterpart to find. Set/Reset coils
+    latch, so those ARE compared step by step.
+    """
+    from tools.ld_dump import _value
+
+    st_text, ld_text = _read(twin), _read(path)
+    roots = _reference_roots(st_text)
+    if not roots:
+        return []
+    st_writes = _st_step_writes(st_text, roots)
+    ld_writes, continuous = _ld_step_writes(ld_text, split_networks, ET, _value)
+
+    findings: list[Finding] = []
+    for step in sorted(set(st_writes) & set(ld_writes)):
+        for name in sorted(st_writes[step] - ld_writes[step]):
+            if name.split(".")[0] in continuous:
+                continue
+            findings.append(Finding(
+                "parity", "error", path.name,
+                f"step {step} assigns {name} in {twin.name} but no coil here "
+                f"writes it - the ladder rung silently drops that effect"))
+    return findings
+
+
+def _reference_roots(text: str) -> set[str]:
+    """Names the ST chain declares `REFERENCE TO`: the state that outlives it."""
+    declaration = re.search(r"FUNCTION_BLOCK.*?END_VAR\]\]", text, re.S)
+    if not declaration:
+        return set()
+    roots: set[str] = set()
+    for line in declaration.group(0).splitlines():
+        line = re.sub(r"//.*", "", line)
+        if "REFERENCE TO" not in line:
+            continue
+        names = line.partition(":")[0]
+        roots.update(name.strip() for name in names.split(",") if name.strip())
+    return roots
+
+
+def _st_step_writes(text: str, roots: set[str]) -> dict[int, set[str]]:
+    """`CASE _step OF` label -> the shared symbols that branch assigns."""
+    body = re.search(r"CASE _step OF(.*?)\nELSE", text, re.S)
+    if not body:
+        return {}
+    parts = re.split(r"\n    (\d+):", body.group(1))[1:]
+    writes: dict[int, set[str]] = {}
+    for number, branch in zip(parts[0::2], parts[1::2]):
+        branch = re.sub(r"//[^\n]*", "", branch)
+        # A statement lvalue, never a named argument: `Foo(Bar := x)` binds a
+        # parameter and assigns nothing.
+        lvalues = set(re.findall(
+            r"(?:^|;|\bTHEN\b|\bELSE\b|\bDO\b)\s*([A-Za-z_][\w.]*)\s*:=",
+            branch, re.M))
+        writes[int(number)] = {n for n in lvalues if n.split(".")[0] in roots}
+    return writes
+
+
+def _ld_step_writes(text: str, split_networks, ET, _value
+                    ) -> tuple[dict[int, set[str]], set[str]]:
+    """(`EQ(_step, N)` gate -> symbols its rung writes, continuously-driven roots)."""
+    from tools.ld_dump import gate_step
+
+    per_step: dict[int, set[str]] = {}
+    continuous: set[str] = set()
+    _, networks, _, _ = split_networks(text)
+    for raw in networks:
+        network = ET.fromstring(raw)
+        written: set[str] = set()
+        for node in network.iter("o"):
+            for slot in node.findall(
+                    "./o[@n='OutputItems']/l2[@n='OutputItems']/o"):
+                name = (_value(slot, "Operand") or "").strip('"')
+                if not name:
+                    continue
+                written.add(name)
+                flags = slot.find("./o[@n='Flags']")
+                if (node.get("t") == "BoxTreeAssign" and flags is not None
+                        and (_value(flags, "Flags") or "0") == "0"):
+                    continuous.add(name.split(".")[0])
+            # A box output bound to a variable (`M_TryIssue` -> `_doStep`).
+            for slot in node.findall("./l2[@n='OutputItems']/o"):
+                operand = slot.find("./o[@n='Operand']")
+                if operand is None:
+                    continue
+                name = (_value(operand, "Operand") or "").strip('"')
+                if name:
+                    written.add(name)
+        step = gate_step(network)
+        if step is not None:
+            per_step[step] = written
+    return per_step, continuous
 
 
 def _st_chain(text: str) -> dict[int, set[int]]:

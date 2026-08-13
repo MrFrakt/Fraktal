@@ -473,7 +473,9 @@ Fastest loop for HMI/PLC development against the shipped press demo.
    `WEB_HMI_GATEWAY_DEPLOYMENT.md`, install it for the kiosk/development user
    (select **Gateway + Web HMI** in the wizard), and set
    `commissioning-anonymous`, `--commissioning-ttl-minutes 120`, and
-   `--write-root PLC1/MAIN/PneumaticPress` in `gateway.args`. Restart from the
+   `--write-root PLC1/MAIN/PneumaticPress` in that instance's `gateway.args`
+   (`%LOCALAPPDATA%\Fraktal\Gateway\instances\<name>\gateway.args` — one
+   instance per PLC, reachable from its own tray submenu). Restart from the
    tray, require **Ready**, then open `http://127.0.0.1:8080/`; the packaged Web
    HMI derives `ws://127.0.0.1:8080/fraktal` automatically. A source
    `run_gateway.ps1` + `flutter run -d chrome` pair remains a development-only

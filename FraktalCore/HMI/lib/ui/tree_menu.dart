@@ -132,6 +132,15 @@ class TreeMenu extends StatelessWidget {
                     constraints:
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                     iconSize: 18,
+                    // Same pairing rule as the label and the type icon beside
+                    // it: a selected row is filled with secondaryContainer, so
+                    // the chevron must use onSecondaryContainer. Inheriting
+                    // onSurface is invisible on the high-contrast themes, where
+                    // that container role inverts to a DARK fill (2.33:1 light,
+                    // 1.77:1 dark).
+                    color: (selected && sev == null)
+                        ? cs.onSecondaryContainer
+                        : null,
                     icon: Icon(open ? Icons.expand_more : Icons.chevron_right),
                     onPressed: () => app.toggleExpand(n.path),
                   )

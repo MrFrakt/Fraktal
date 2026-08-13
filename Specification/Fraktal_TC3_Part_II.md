@@ -1,7 +1,7 @@
 # Fraktal/TC3 — TwinCAT 3 Binding (Part II)
 *Unified PLC Programming Standard · **Part II: the TwinCAT 3 binding of Fraktal Core***
 
-**Status:** Draft · Part II of II (Part I: `Fraktal_Core_Part_I.md`, repository `fraktal-core`)
+**Status:** Draft · Part II of III (Part I: `Fraktal_Core_Part_I.md`; Part III: `Fraktal_AB_Part_III.md`)
 **Platform:** Beckhoff TwinCAT 3 · IEC 61131-3 (ST, TwinCAT OOP extensions)
 
 > Every clause in this Part **binds** a Core contract and cites it as **Core §x.y**; a binding clause carries the number of the Core clause it realizes (numbering is preserved across the split). Nothing here introduces new normative model content — tiers, contracts, state machines, diagnostics, and routing live in Part I; this Part maps them onto TwinCAT 3 language extensions and services. A port to another platform re-implements this document only (Core §1.1 O8).
@@ -221,6 +221,31 @@ Clamp2 : FB_ControlModule(Name := 'Clamp2', HalRef := Hal.Clamp2);
 ```
 
 **Member ordering (the reason for Core §3.11's `Setup` rule):** TwinCAT runs a member's `FB_init` *before* the enclosing FB's, so a parent cannot forward its own `FB_init` parameters into a child's `FB_init`. Composite types therefore wire children through the Core-mandated one-shot `Setup(...)` called from the parent's `FB_init`/`Setup` (worked example: Annex B).
+
+### TC3 §3.14 Lifecycle-extension binding
+*Binds Core §2.2 and Core §3.14.*
+
+TwinCAT realizes Core's authoritative lifecycle through inheritance. Every module
+extends the base function block for its tier, and `FB_ModuleBase.Cyclic()` owns the
+non-optional scan path. Concrete module bodies call that inherited entry point;
+their application behavior is confined to `_M_Dispatch` and declared lifecycle
+extensions. The base owns command-edge/reset semantics, initialization,
+accepted-command start, cyclic/child rollup, abort routing, BUSY-only dispatch,
+HELD/timing/terminal resolution, diagnostics/status publication, and release of
+framework one-shot requests in the Core §2.2 order.
+
+Core lifecycle extensions bind to `PROTECTED` virtual methods on the relevant
+base FB. Except for `OnModeExit`, every override shall call `SUPER^.OnX(...)`
+first and propagate its return unless it deliberately changes it. `OnModeExit`
+is the specified exception: the base call performs cancellation, so a graceful
+override stages `SUPER^.OnModeExit(...)` until its application reaction consents.
+An omitted override uses the base default. The source lint and base/type suites
+prove these ordering rules; a project does not reproduce the lifecycle.
+
+This is a binding mechanism, not a Core requirement for inheritance. The R0
+authority audit in `AB_R0_CORE_AUTHORITY_EVIDENCE.md` confirms that the existing
+TC3 implementation remains the reference behavior while Fraktal/AB realizes the
+same Core order through generated composition.
 
 ### TC3 §10.2.1 I/O integration placement
 

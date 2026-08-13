@@ -4,6 +4,43 @@ import 'dart:convert';
 
 import '../domain/types.dart';
 
+/// The Unit modes in which auto-opening operator guidance is appropriate: the
+/// SETUP modes, where the operator is being walked through a procedure.
+///
+/// AUTO is deliberately absent. A production cycle waits for the operator as a
+/// matter of course — the press bench parks AUTO on a two-hand start, a
+/// WAIT_OPERATOR step — so a wildcard guidance trigger threw a fullscreen
+/// dialog over the machine view the instant AUTO was selected. Guidance that
+/// interrupts routine running teaches the operator to dismiss it, including
+/// when it matters.
+///
+/// Derived from the enum rather than written as ordinals: `UnitMode` is the PLC
+/// contract, and a literal list here would silently rot if a member moved.
+final List<int> kSetupGuidanceModes = List<int>.unmodifiable([
+  UnitMode.changeover.index,
+  UnitMode.home.index,
+  UnitMode.calibration.index,
+  UnitMode.capability.index,
+  UnitMode.adjustment.index,
+]);
+
+/// How insistent an auto-opened guidance tab is.
+///
+/// The distinction is about what the step NEEDS from the operator, not about
+/// how important the content is:
+///
+/// * [optional] — reference material. The operator may already know the job, so
+///   the panel offers it and gets out of the way: dismissible, and the rest of
+///   the HMI stays reachable while it is open.
+/// * [forced] — the step is *waiting on this person*. A changeover model
+///   selection, or confirming it is safe to open the doors before tooling is
+///   swapped. Acknowledgement is the point, so it cannot be waved away.
+///
+/// Forced is deliberately the narrower case. Guidance that blocks the screen
+/// when it did not need to is the fastest way to teach an operator to dismiss
+/// guidance without reading it — including the time it mattered.
+enum GuidanceMode { optional, forced }
+
 enum ModuleTabKind {
   overview,
   description,
@@ -405,6 +442,21 @@ class ModuleTabDefinition {
   final List<ModuleControlDefinition> controls;
   final int triggerStepNo;
   final String triggerStepName;
+
+  /// Unit modes this guidance may auto-open in, by `UnitMode.index`. Empty =
+  /// every mode.
+  ///
+  /// Without this a wildcard trigger fires in ANY mode: the press bench parks
+  /// AUTO on `pressAwaitTwoHand`, a WAIT_OPERATOR step, so simply selecting
+  /// AUTO threw a fullscreen dialog over the machine view before the operator
+  /// had done anything. Guidance that interrupts routine running is worse than
+  /// no guidance — the operator learns to dismiss it, including when it matters.
+  final List<int> triggerModes;
+
+  /// Whether the operator may dismiss this guidance and carry on, or must
+  /// acknowledge it. See [GuidanceMode]. Defaults to [GuidanceMode.optional]:
+  /// blocking the panel is opt-in, never the accident of leaving a field unset.
+  final GuidanceMode guidanceMode;
   final ModuleTabBackground? background;
   final ModuleTabIcon? tabIcon;
 
@@ -416,6 +468,8 @@ class ModuleTabDefinition {
     this.controls = const [],
     this.triggerStepNo = 0,
     this.triggerStepName = '',
+    this.triggerModes = const [],
+    this.guidanceMode = GuidanceMode.optional,
     this.background,
     this.tabIcon,
   });
@@ -444,7 +498,12 @@ class ModuleTabDefinition {
         'operator-guidance',
       }.contains(id);
 
-  bool triggers(int stepNo, String stepName) {
+  /// Whether this guidance tab should auto-open for the given live step.
+  ///
+  /// [modeIndex] is the Unit's active `UnitMode.index`, or null when unknown;
+  /// an unknown mode never satisfies a mode-scoped trigger, because opening a
+  /// fullscreen dialog on a guess is the failure this scoping exists to stop.
+  bool triggers(int stepNo, String stepName, {int? modeIndex}) {
     if (kind != ModuleTabKind.guidance || stepNo == 0) return false;
     final hasNumber = triggerStepNo > 0;
     final hasName = triggerStepName.trim().isNotEmpty;
@@ -453,6 +512,10 @@ class ModuleTabDefinition {
     if (hasName &&
         triggerStepName.trim() != '*' &&
         triggerStepName.trim() != stepName) {
+      return false;
+    }
+    if (triggerModes.isNotEmpty &&
+        (modeIndex == null || !triggerModes.contains(modeIndex))) {
       return false;
     }
     return true;
@@ -466,6 +529,8 @@ class ModuleTabDefinition {
     List<ModuleControlDefinition>? controls,
     int? triggerStepNo,
     String? triggerStepName,
+    List<int>? triggerModes,
+    GuidanceMode? guidanceMode,
     ModuleTabBackground? background,
     ModuleTabIcon? tabIcon,
   }) =>
@@ -477,6 +542,8 @@ class ModuleTabDefinition {
         controls: controls ?? this.controls,
         triggerStepNo: triggerStepNo ?? this.triggerStepNo,
         triggerStepName: triggerStepName ?? this.triggerStepName,
+        triggerModes: triggerModes ?? this.triggerModes,
+        guidanceMode: guidanceMode ?? this.guidanceMode,
         background: background ?? this.background,
         tabIcon: tabIcon ?? this.tabIcon,
       );
@@ -488,6 +555,9 @@ class ModuleTabDefinition {
         'requiredLevel': requiredLevel.name,
         'triggerStepNo': triggerStepNo,
         'triggerStepName': triggerStepName,
+        if (triggerModes.isNotEmpty) 'triggerModes': triggerModes,
+        if (guidanceMode != GuidanceMode.optional)
+          'guidanceMode': guidanceMode.name,
         if (background != null) 'background': background!.toJson(),
         if (tabIcon != null) 'tabIcon': tabIcon!.name,
         'controls': [for (final control in controls) control.toJson()],
@@ -524,6 +594,21 @@ class ModuleTabDefinition {
     }
     final triggerStepNo = source['triggerStepNo'];
     final triggerStepName = source['triggerStepName'];
+    // Absent in a profile exported before mode scoping existed: an empty list
+    // means "every mode", which is exactly the old behaviour, so an imported
+    // legacy bundle keeps working unchanged.
+    final rawModes = source['triggerModes'];
+    final triggerModes = <int>[];
+    if (rawModes is List) {
+      for (final item in rawModes) {
+        if (item is num) {
+          final index = item.toInt();
+          if (index >= 0 && index < 64 && !triggerModes.contains(index)) {
+            triggerModes.add(index);
+          }
+        }
+      }
+    }
     final rawBackground = source['background'];
     final background = ModuleTabBackground.fromJson(rawBackground);
     if (rawBackground != null && background == null) return null;
@@ -538,6 +623,13 @@ class ModuleTabDefinition {
           triggerStepName is String && triggerStepName.length <= 255
               ? triggerStepName
               : '',
+      triggerModes: triggerModes,
+      // Absent (or unrecognised) = optional: an imported profile can only ever
+      // become LESS insistent by accident, never more.
+      guidanceMode: GuidanceMode.values
+              .where((value) => value.name == source['guidanceMode'])
+              .firstOrNull ??
+          GuidanceMode.optional,
       background: background,
       tabIcon: ModuleTabIcon.values
           .where((value) => value.name == source['tabIcon'])
@@ -593,7 +685,11 @@ class ModuleTabDefinition {
           requiredLevel: AccessLevel.operator,
         ),
       if (capabilities.unit)
-        const ModuleTabDefinition(
+        // Not const: triggerModes is derived from the UnitMode enum rather than
+        // written as literal ordinals, so the list cannot be a compile-time
+        // constant. Deriving it is the point — a hand-written [3, 2, 4, 5, 6]
+        // would rot silently the day a mode is inserted.
+        ModuleTabDefinition(
           id: 'operator-guidance',
           title: 'std.module.tab.guidance',
           kind: ModuleTabKind.guidance,
@@ -601,6 +697,15 @@ class ModuleTabDefinition {
           // The renderer limits this wildcard to WAIT_OPERATOR steps. Admins
           // can replace it with an exact StepName or StepNo.
           triggerStepName: '*',
+          // ...and to the SETUP modes. A WAIT_OPERATOR step is not by itself a
+          // reason to take over the screen: a production AUTO cycle waits for
+          // the operator all the time (the press parks on a two-hand start),
+          // and throwing a fullscreen dialog there interrupts normal running
+          // the moment the mode is selected. Changeover, home, calibration,
+          // capability and adjustment are the modes where the operator IS
+          // being walked through something, so guidance belongs to them.
+          // Admins can widen or narrow this per Unit.
+          triggerModes: kSetupGuidanceModes,
         ),
     ];
   }

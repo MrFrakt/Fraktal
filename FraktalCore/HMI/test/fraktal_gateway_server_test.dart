@@ -90,6 +90,83 @@ void main() {
     await socket.close();
   });
 
+  test('one host runs an instance per PLC, each naming itself on /healthz',
+      () async {
+    // A multi-PLC host is several of these processes, one per controller. The
+    // health reply is the only thing that says WHICH PLC answered, so a probe
+    // on the wrong port must be obvious rather than plausible.
+    final pressClient = _FakeOpcUaClient()
+      ..document = {
+        'protocol': 'fraktal.opcua.snapshot.v1',
+        'nodeCount': 1,
+        'truncated': false,
+        'values': {'PLC1/MAIN/Press/Status/Name': 'Press'},
+      };
+    final ovenClient = _FakeOpcUaClient()
+      ..snapshotError = StateError('PLC session lost');
+    final press = FraktalGatewayServer(
+      pressClient,
+      config: FraktalGatewayConfig(port: 0, instanceName: 'press'),
+    );
+    final oven = FraktalGatewayServer(
+      ovenClient,
+      config: FraktalGatewayConfig(port: 0, instanceName: 'oven'),
+    );
+    addTearDown(press.close);
+    addTearDown(oven.close);
+    await press.start();
+    await oven.start();
+    expect(press.port, isNot(oven.port));
+
+    final http = HttpClient();
+    addTearDown(http.close);
+    Future<Map<Object?, Object?>> health(int port) async {
+      final request = await http.getUrl(
+        Uri.parse('http://127.0.0.1:$port/healthz'),
+      );
+      final response = await request.close();
+      return jsonDecode(await response.transform(utf8.decoder).join()) as Map;
+    }
+
+    final pressSocket = await WebSocket.connect(
+      'ws://127.0.0.1:${press.port}/fraktal',
+      headers: {'origin': 'http://localhost:7357'},
+    );
+    pressSocket.add(jsonEncode({
+      'protocol': kFraktalGatewayProtocol,
+      'id': 1,
+      'method': 'snapshot',
+      'params': <String, Object?>{},
+    }));
+    expect(
+      (jsonDecode(await pressSocket.first as String) as Map)['ok'],
+      isTrue,
+    );
+    await pressSocket.close();
+
+    // One PLC being unreachable says nothing about the other: the sessions are
+    // separate, and so is readiness.
+    expect((await health(press.port))['instance'], 'press');
+    expect((await health(press.port))['plcReady'], isTrue);
+    expect((await health(oven.port))['instance'], 'oven');
+    expect((await health(oven.port))['plcReady'], isFalse);
+
+    // A single-gateway host stays exactly as it was: no instance field.
+    server = FraktalGatewayServer(
+      _FakeOpcUaClient(),
+      config: FraktalGatewayConfig(port: 0),
+    );
+    await server!.start();
+    expect(await health(server!.port), isNot(contains('instance')));
+
+    // The name also becomes a folder and a log directory, so it is constrained
+    // rather than accepted verbatim.
+    expect(
+      () => FraktalGatewayConfig(port: 0, instanceName: '../evil'),
+      throwsArgumentError,
+    );
+  });
+
   test('truncated snapshots are refused and keep readiness degraded', () async {
     client.document = {
       'protocol': 'fraktal.opcua.snapshot.v1',
