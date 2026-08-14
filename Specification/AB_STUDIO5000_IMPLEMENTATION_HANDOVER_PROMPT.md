@@ -12,8 +12,8 @@ documents or writing another high-level plan.
 
 OUTCOME
 
-Establish the exact Rockwell platform baseline, close R1, and execute the
-highest-priority disposable Phase 0 spikes needed to determine whether a
+Preserve the proved Rockwell platform baseline and S1/S2 results, then close the
+next highest-priority disposable Phase 0 blocker needed to determine whether a
 conforming Fraktal/AB implementation is possible. Do not create production AB
 runtime/module-library code until every R0-R6 readiness gate in Part III is
 recorded PASS.
@@ -43,13 +43,19 @@ READ BEFORE EDITING
 2. `Specification/Fraktal_AB_Part_III.md`, especially section 0, R0-R6, every
    `[PROVISIONAL Sn]` clause, sections 3-5, and section 12
 3. `Specification/AB_R0_CORE_AUTHORITY_EVIDENCE.md`
-4. `Specification/ALLEN_BRADLEY_PORT_PLAN.md`
-5. `Specification/AB_IMPLEMENTATION_PLAN.md`
-6. `Specification/Fraktal_Core_Part_I.md`
-7. `Specification/HMI_CONTRACT.md`
-8. `Specification/Fraktal_TC3_Part_II.md` and
+4. `Specification/AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md` for the complete
+   status-marked inventory of interfaces/tools and the unfinished S11 checkpoint
+5. `Specification/AB_ENGINEERING_WORKSTATION_ACCESS_RUNBOOK.md` for the exact
+   verified Studio 5000, FactoryTalk Linx, SDK, direct-CIP, and PLC procedures
+6. `Specification/AB_S1_CIP_DATA_PATH_EVIDENCE.md` and
+   `Specification/AB_S2_AOI_PARAMETER_EVIDENCE.md`
+7. `Specification/ALLEN_BRADLEY_PORT_PLAN.md`
+8. `Specification/AB_IMPLEMENTATION_PLAN.md`
+9. `Specification/Fraktal_Core_Part_I.md`
+10. `Specification/HMI_CONTRACT.md`
+11. `Specification/Fraktal_TC3_Part_II.md` and
    `FraktalCore/PLC/TwinCAT/IMPLEMENTATION_NOTES.md` as behavioral evidence
-9. `Specification/FIRST_PROJECT_AGENT_GUIDE.md` for phase/evidence discipline
+12. `Specification/FIRST_PROJECT_AGENT_GUIDE.md` for phase/evidence discipline
 
 Inspect `git status`, the current branch, and recent commits first. Preserve all
 work already present. Re-read a file immediately before editing it. Never reset,
@@ -57,7 +63,36 @@ discard, or overwrite work you did not create.
 
 CURRENT STATE AND HARD BOUNDARY
 
-- R0 is PASS. R1-R6 are OPEN.
+- R0-R1 and S1-S2 are PASS. R2-R6 are OPEN.
+- The verified Ethernet route is `Fraktal_AB\192.168.100.89` from host
+  `192.168.100.99/24`. Studio 5000 v33 connects and matches the controller
+  identity, but Studio and SDK read-only uploads over Ethernet both timed out.
+  Studio later completed a read-only upload over USB at `Backplane\16` with
+  zero errors and warnings, and the fresh upload-derived v33 L5X passed an SDK
+  canonical conversion round trip. Studio's offline **Verify Controller** also
+  completed with zero errors and warnings; Studio v37 rejected the disposable
+  invalid-ST fixture with exactly two errors, proving the controlled Error List
+  path. Follow
+  `AB_ENGINEERING_WORKSTATION_ACCESS_RUNBOOK.md`; do not resume route-string
+  guessing or misstate the remaining issue as a general Studio upload failure.
+- The isolated physical controller is `1769-L24ER-QB1B/A`, firmware `33.014`,
+  serial `7036B510`. Under explicit user authorization with all I/O disconnected,
+  Studio first downloaded the expanded memory-only `FraktalPhase0` fixture
+  through USB, returned it to Remote Run, and the fixed EtherNet/IP probes passed
+  controller/program scope, DINT/REAL/STRING/UDT, arrays through fragmented 4
+  KiB, External Access, cleanup, transport/reconnect/timeout/concurrency, and
+  wall-clock cases. Inputs are clean; the clock is aligned to host UTC with PTP
+  disabled and `TimeSynchronized=FALSE`. The rollback ACD and exact hashes are
+  in `AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md` and shall not be committed.
+  S2 later replaced that fixture with the verified eight-level nested-AOI
+  fixture. Its UDT/STRING InOut execution, atomic parameters, member/private
+  External Access, cleanup, 64-InOut/16-level v33 boundaries, signature upgrade
+  rules, and exact post-download target binding passed. The controller is in
+  Remote Run with the S2 command/text inputs clean; see
+  `AB_S2_AOI_PARAMETER_EVIDENCE.md`.
+- S1 selected hash-pinned pylogix `1.1.5` as the initial private PLC-facing
+  adapter. Do not expose arbitrary CIP `Message()` forwarding. Repository and
+  browser security remain owned by the future transport-neutral gateway.
 - No production Fraktal/AB runtime has been implemented or proved.
 - Before R0-R6 all pass, permitted work is limited to specification/schema
   changes, generators and linters, non-production host tooling, disposable
@@ -95,9 +130,9 @@ baseline item is named and usable. Do not infer a controller or firmware family.
 
 STEP 2 - EXECUTE BLOCKER SPIKES IN THIS ORDER
 
-After R1 passes, run S1, S2/S11, S4/S15, and S12 first. Then run S7, S8, and S9.
-S10, S13, and S14 gate their optional scopes only. Follow Part III section 12
-and the port plan for exact acceptance criteria.
+R1, S1, and S2 are complete. Run S11 next, then finish S4/S15 and S12. After those
+blockers, run S7, S8, and S9. S10, S13, and S14 gate their optional scopes only.
+Follow Part III section 12 and the port plan for exact acceptance criteria.
 
 For every spike, leave:
 
@@ -116,13 +151,13 @@ For every spike, leave:
 
 Required emphasis:
 
-- S1: prove CIP symbolic read/write behavior for the required scalar, array,
-  nested UDT, string, time, quality/freshness, and batch cases. Measure request
-  sizes, fragmentation, latency, throughput, and failure responses on the named
-  route. Use acknowledged root-mailbox writes; do not expose arbitrary tag
-  mutation.
-- S2: prove AOI/UDT parameters, InOut behavior, external access, signatures,
-  nesting, ownership, and generated composition limits.
+- S1 (PASS): preserve
+  `Specification/AB_S1_CIP_DATA_PATH_EVIDENCE.md`; production-scale freshness,
+  manifest batches, and mailbox acknowledgement remain S3/S7/S9, not reasons to
+  reopen the completed physical data/time-path spike.
+- S2 (PASS): preserve `Specification/AB_S2_AOI_PARAMETER_EVIDENCE.md`; final
+  production type sizes remain S12 and lifecycle/restart behavior remains S11,
+  not reasons to reopen the completed AOI parameter/access spike.
 - S4/S11: generate a minimal ST/LD reference sequence and native Studio 5000 SFC
   rendition from the same graph declaration. Import and export it through
   Studio 5000; verify actions, transitions, branches, JSR/SFR ownership,

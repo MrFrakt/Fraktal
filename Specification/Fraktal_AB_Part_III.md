@@ -1,7 +1,7 @@
 # Fraktal/AB — Allen-Bradley (Logix) Binding (Part III)
 *Unified PLC Programming Standard · **Part III: the Allen-Bradley Logix binding of Fraktal Core***
 
-**Status:** **Draft — R0 complete; spike-ready, not implementation-ready.** Part III of III (Part I: `Fraktal_Core_Part_I.md`; Part II: `Fraktal_TC3_Part_II.md`)
+**Status:** **Draft — R0–R1 complete; spike-ready, not implementation-ready.** Part III of III (Part I: `Fraktal_Core_Part_I.md`; Part II: `Fraktal_TC3_Part_II.md`)
 **Platform:** Rockwell Automation Logix (ControlLogix / CompactLogix / GuardLogix) · Studio 5000 Logix Designer · IEC 61131-3 subset **without** the OOP extensions
 
 > Every clause in this Part **binds** a Core contract and cites it as **Core §x.y**; a binding clause carries the number of the Core clause it realizes. Nothing here introduces new normative model content — tiers, contracts, state machines, diagnostics and routing live in Part I. A port to another platform re-implements this document only (Core §1.1 O8).
@@ -32,10 +32,10 @@ not begin until all of these gates are recorded as PASS:
 | Gate | Status | Required evidence |
 |---|---|---|
 | R0 Core authority | **PASS** | OOP-neutral lifecycle and transport-neutral Self-Description Service accepted in Core, with TC3 re-audited; evidence: [`AB_R0_CORE_AUTHORITY_EVIDENCE.md`](AB_R0_CORE_AUTHORITY_EVIDENCE.md) |
-| R1 platform baseline | **OPEN** | named controller catalogue, firmware, Studio 5000 edition/version, communication module, and gateway-host baseline |
-| R2 executable shape | **OPEN** | S1/S2/S4/S11/S12 prove CIP, both sequence execution forms, L5X fidelity, scan ordering, restart behavior, and the physical type map |
-| R3 frozen contracts | **OPEN** | versioned manifest, mailbox, registry, repository-handshake, quality/timestamp, and host-event schemas |
-| R4 gates | **OPEN** | automated L5X regeneration/lint plus controller Verify/Build and import checks run from a clean checkout |
+| R1 platform baseline | **PASS** | named controller catalogue, firmware, Studio 5000 edition/version and usable licence, communication module/route, and gateway-host baseline; evidence: [`AB_R1_PLATFORM_BASELINE_EVIDENCE.md`](AB_R1_PLATFORM_BASELINE_EVIDENCE.md) |
+| R2 executable shape | **PASS** | S1/S2/S4/S11/S12 prove CIP, both sequence execution forms, L5X fidelity, scan ordering, restart behavior, and the physical type map, and **all five now record PASS**: [`AB_S1_CIP_DATA_PATH_EVIDENCE.md`](AB_S1_CIP_DATA_PATH_EVIDENCE.md), [`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AB_S2_AOI_PARAMETER_EVIDENCE.md), [`AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md), [`AB_S12_TYPE_MAP_EVIDENCE.md`](AB_S12_TYPE_MAP_EVIDENCE.md), [`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md), [`AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md`](AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md) |
+| R3 frozen contracts | **PASS** | versioned manifest, mailbox, registry, repository-handshake, quality/timestamp, and host-event schemas, frozen at version 1 in [`AB_FROZEN_CONTRACTS_V1.json`](AB_FROZEN_CONTRACTS_V1.json) and gated against this document by `tools/check_ab_contracts.py`; capacities remain owned holes. Evidence: [`AB_R3_FROZEN_CONTRACTS.md`](AB_R3_FROZEN_CONTRACTS.md) |
+| R4 gates | **OPEN** | automated L5X regeneration/lint plus controller Verify/Build and import checks run from a clean checkout; partial SDK evidence: [`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md) |
 | R5 test execution | **OPEN** | a disposable reference AOI suite runs through the intended Logix Echo or named isolated-hardware CI path and emits machine-readable results; full base/type suites then grow with implementation |
 | R6 security | **OPEN** | S8 records the controller zone/conduit, writable-tag allow-list, gateway identity/TLS/role model, secret handling, and update lifecycle |
 
@@ -100,6 +100,22 @@ and does not replace EtherNet/IP as the Fraktal/AB default.
 - The **exact** Studio 5000 Logix Designer version, controller catalogue number
   and firmware revision **shall** be pinned per project and recorded; every
   station on a line uses the same pinned versions.
+- The **recommended deployment baseline is firmware v37 or above** on a
+  CIP Security-capable controller family, because that is the only baseline
+  where AB §11.2.1's recommended security posture is available at all. Older
+  families remain supported through the legacy zone-and-conduit posture.
+
+> **The evidence baseline and the recommended baseline are not the same, and
+> this matters.** Every Phase 0 spike was proved on the available bench: a
+> `1769-L24ER-QB1B` at firmware `33.014` with Studio v33. Those results are
+> valid for what they measured and are the reason the legacy posture is
+> supported at all. They are **not** evidence about a v37+ controller. S2, S4,
+> S11 and S12 each record that a different family or revision reruns the spike,
+> and the S12 type map is explicitly a property of this controller — a v37+
+> family may well offer `LREAL` and a native `TIME`, which would *change the
+> generated contract*. A project pinning the recommended baseline therefore
+> owes a rerun of the target-specific spikes on that target before it can claim
+> conformance; it does not inherit the v33 numbers.
 - The framework requires **no** language extension beyond the Logix base
   instruction set and AOIs. Where Part II relies on OOP, this binding relies on
   **composition plus generation** (AB §3.14).
@@ -113,11 +129,14 @@ and does not replace EtherNet/IP as the Fraktal/AB default.
 - AOI definitions carry a **Revision** and **Revision Note**; the Fraktal
   semantic version **shall** be recorded there and in the manifest, so a running
   controller can be asked which framework version it holds.
-- **[PROVISIONAL S2]** Logix AOI *signature* changes are breaking for existing
-  instances on import. The Core §1.5 rule — additive minor, breaking major —
-  therefore binds more tightly here than on TC3: an added AOI parameter is
-  expected to be a **major** step in this binding, not a minor one. Confirm the
-  import/upgrade behaviour before fixing the rule.
+- AOI signature versioning follows the pinned-v33 S2 import/Verify result. An
+  **appended optional atomic Input with a compatible default** may be a minor
+  revision only when import and every existing invocation Verify with zero
+  errors/warnings. An added required parameter, any added `InOut`, removal,
+  retype, reorder, or meaning change is breaking and requires a major revision
+  plus coordinated regeneration. No optional-Output compatibility is inferred
+  without its own evidence. See
+  [`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AB_S2_AOI_PARAMETER_EVIDENCE.md).
 
 ### AB §2.4 Project & controller settings
 *Binds Core §2 note; baseline in AB §4.1.*
@@ -164,11 +183,17 @@ artifact.
 
 ### AB §2.7 Time-synchronization mechanics
 *Binds Core §2.7.*
-**[PROVISIONAL S1]** Timestamps for the §8 diagnostic model come from the
-controller wall clock, with CIP Sync (IEEE-1588) where the application requires
-correlated multi-controller ordering. The Core requirement is unchanged: a
-diagnostic carries the moment it became true, and whether that moment is
-synchronized.
+Timestamps for the §8 diagnostic model come from the controller wall clock.
+The AB adapter reads TimeSynchronize state independently and publishes the
+source timestamp with `TimeSynchronized=FALSE` whenever CIP Sync/PTP is disabled
+or `IsSynchronized=0`; gateway reception time is retained separately and never
+substituted for the source event time. Such an unsynchronized timestamp remains
+valid evidence of the controller's local event order but shall not be used to
+claim correlated ordering across controllers. An application requiring that
+ordering shall commission CIP Sync (IEEE-1588) and prove
+`IsSynchronized=1`. Commissioning shall set/verify WallClockTime and record a
+bounded host/reference offset. S1 evidence on the named v33 target is
+[`AB_S1_CIP_DATA_PATH_EVIDENCE.md`](AB_S1_CIP_DATA_PATH_EVIDENCE.md).
 
 ### AB §2.8 Restart, download, and retention classes
 *Binds Core §2.3, §3.14, §6.1, §8.3, §13.*
@@ -181,11 +206,17 @@ cannot self-resume. Retained recipe/configuration, access policy, lifetime
 counters, and closed-event history are explicitly declared and schema-versioned;
 everything not declared retained is treated as volatile.
 
-**[PROVISIONAL S11]** fixes the exact AOI prescan/first-scan implementation and
-proves that a download or mode transition cannot energize an output, re-issue an
-old command, or replay a committed HMI request. The generator and gate shall own
-the retention list; project engineers do not mark individual generated members
-ad hoc.
+S11 settled the first-scan half of this: the generated wrapper drives `SFR` to
+the declared initial step from the Program→Run edge with AOI prescan routines
+disabled, so re-entry does not depend on Rockwell prescan or postscan
+([evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)).
+
+**[PROVISIONAL S11]** still owes the output and replay half: that a download or
+mode transition cannot energize an output, re-issue an old command, or replay a
+committed HMI request. The S11 fixture is memory-only with output updating
+disabled and no mailbox, so it cannot carry that claim. The generator and gate
+shall own the retention list; project engineers do not mark individual generated
+members ad hoc.
 
 ---
 
@@ -254,6 +285,27 @@ Bounds are normative: every index **shall** be range-checked before use
 (Core §5.6), and a registry overflow is a fail-closed startup fault, never a
 silent truncation.
 
+**Logical registry schema, version 1.** Physical Logix member types, packing,
+array bounds and CIP encoding remain S3/S12 outputs, but the information model
+does not. The registry header contains `SchemaMajor`, `SchemaMinor`,
+`ConfigRevision`, `Count`, `Capacity`, and `Valid`. Each active nonzero row
+contains exactly these logical groups:
+
+| Group | Required logical fields |
+|---|---|
+| Identity | `RegistryIndex`, stable `ModuleId`, `RootId`, `ParentModuleId`, `Tier`, `TypeId`, `Capabilities`, `Valid` |
+| Execution | `ExecState`, `Busy`, `Done`, `Error`, `Aborted`, `Held`, `ErrorId` |
+| First-out | `ReasonCode`, source `ModuleId`, `Since`, `TimeSynchronized` |
+| Coherence | monotonically changing `DataRevision` covering every field in that row |
+
+`RegistryIndex` is the internal relation key; `ModuleId` is the manifest and
+repository identity. The two shall never be substituted. A missing/invalid row,
+identity disagreement, impossible state combination, or unstable
+`DataRevision` is rejected before rollup or publication. Operator-facing paths
+and localization keys remain manifest lookups rather than cyclic registry
+strings. Minor schema additions require an explicit capability and compatible
+default; removing/retyping a field or changing its meaning is a major change.
+
 **Why this is not merely a workaround.** The registry is a flat bounded array
 with static discovery cost (Core §1.1 O4), and it is exactly the shape the
 gateway must mirror. Evaluate it as a Core improvement for Part II too
@@ -281,11 +333,23 @@ structures/arrays to use `InOut` (passed by reference). The binding is therefore
 The Core rule is unchanged and is what matters: a client may request through the
 published request surface, and the PLC decides.
 
-**[PROVISIONAL S2]** verifies the exact target's InOut count/size, nested-AOI
-depth, member External Access behavior over CIP, local-tag visibility, and import
-upgrade behavior. If private state cannot be excluded while the public contract
-is readable, split `Ctx` into a read-only public UDT and an inaccessible private
-state UDT; never publish private state as the workaround.
+S2 fixes the pinned-v33 limits and access behavior:
+
+- the public module surface uses one `Ctx` `InOut`; a generated AOI shall not
+  exceed 64 `InOut` parameters, 512 combined Inputs/Outputs/local tags, or a
+  2 MB data instance, and the generator reports and gates each count/size;
+- the generated AOI invocation graph shall not exceed **eight** nested levels.
+  The v33 platform boundary is sixteen, but eight is the physically executed
+  Fraktal ceiling and Rockwell's current complexity recommendation;
+- member `Read Only`/`Read/Write`/`None`, private UDT members, AOI instance tags,
+  and private nested-AOI local storage behaved as declared over EtherNet/IP; and
+- production `Ctx` sizes and array/string bounds remain S12 outputs and shall be
+  materially below platform maxima according to the frozen polling budget.
+
+If a future pinned target cannot exclude private state while the public
+contract is readable, split `Ctx` into a read-only public UDT and an inaccessible
+private state UDT; never publish private state as the workaround. Evidence:
+[`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AB_S2_AOI_PARAMETER_EVIDENCE.md).
 
 ### AB §3.4, §3.6–§3.7 Mode, device, and cascade mechanics
 *Binds Core §3.4–§3.7, §6.1, §6.3, §6.4.*
@@ -379,13 +443,23 @@ in SFC, the chart runtime commits it and the generated transition result only
 declares the edge. Branching, decisions, private sub-chains and parallel legs
 retain the Core result/branch rules; no shared `RetVal` is written by two calls.
 
-**[PROVISIONAL S4] [PROVISIONAL S11]** S4 proves that generated SFC routines, step/action tags,
-transition expressions, qualifiers, execution settings, `SFR` targets and JSR
-parameters round-trip canonically through L5X. S11 compiles and times both the
-nested-AOI path and the program-owned SFC runner on the named target, including
-prescan/Program→Run, first/final scan, reset/re-entry, concurrent branches,
-command/result latency and watchdog behavior. Failure disables the SFC form;
-it does not invalidate the ST/LD reference form or get hidden by hand editing.
+**Settled by S4/S11 for the pinned v33 baseline.** Generated SFC routines,
+step/action tags, transition expressions, `NonStored` qualifiers, the three
+controller execution settings, `SFR` targets and `JSR` parameters round-trip
+canonically through L5X and pass Studio v33 **Verify Controller** with zero
+errors and warnings. On the named target, both the nested-AOI path and the
+program-owned SFC runner walked one declared graph with identical step traces
+in an identical four scans, with the module AOI unconditional and ahead of
+sequence intent, the command/result loop at exactly one scan, one numbered leg
+per simultaneous Core branch, deterministic `SFR` reset/re-entry, and no
+watchdog fault at a 10 ms period. Evidence:
+[`AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md).
+
+The SFC form is therefore enabled rather than provisional. It remains bounded
+by what was proved: ST and native SFC only, one minimal graph, and the start,
+reset and Program→Run edges. Generated Ladder, alternative branches, jumps,
+private sub-chains, and the abort/hold/mode-exit edges still owe their own
+evidence, and none of it may be supplied by hand editing.
 
 ### AB §3.8 Configuration, providers, and value-type binding
 *Binds Core §3.8, §3.10.2, §5.6.*
@@ -396,6 +470,49 @@ controller families/revisions differ. S12 selects native `TIME`/`TIME32` where
 their range/arithmetic/CIP encoding match the contract, otherwise a range-checked
 `DINT`-milliseconds representation. The repository value is identical either
 way; this is binding spelling, not a contract change.
+
+**On the pinned v33 baseline the choice is already made.** S12's type-acceptance
+matrix found that `1769-L24ER-QB1B` at `33.014` has no `TIME` or `TIME32` at all
+— the import fails closed — so duration binds to the range-checked
+`DINT`-milliseconds form on this target. The same matrix removed two more
+candidates and constrains what a generated contract may contain
+([evidence](AB_S12_TYPE_MAP_EVIDENCE.md)):
+
+| Core concept | Pinned v33 verdict |
+|---|---|
+| `SINT` / `INT` / `DINT` / `REAL` / `BOOL` / bit string / `STRING` / arrays / public UDT | usable |
+| `LINT` | **transport only** — declarable and carriable in a UDT, but no arithmetic form compiles |
+| `LREAL` | **unavailable** — Studio rejects the declaration for this controller type |
+| `TIME` / `TIME32` | **unavailable** — the project will not import |
+
+Because this section forbids silent narrowing, the two removals are explicit
+constraints rather than generator conveniences. A Core value requiring 64-bit
+float precision either states its `REAL` precision loss in the contract or the
+controller leaves the baseline; a Core value requiring 64-bit accumulation is
+computed in the gateway or represented as `DINT` with declared rollover. A
+generator shall not substitute either quietly.
+
+Note also that the SDK's import summary is not a type gate: `LREAL` imported
+with `Warnings="0" Errors="0"` and was caught only by Studio Verify.
+
+**The physical layout is measured, not assumed.** Reading a structured tag
+returns the CIP payload the gateway will decode. On the pinned baseline a flat
+`BOOL`/`SINT`/`INT`/`DINT`/`LINT`/`REAL` type laid out at offsets 0, 1, 2, 4, 8
+and 16 in a **24-byte payload with a 24-byte array stride** — naturally aligned,
+with four bytes of trailing padding that exist only because the `LINT` forces
+8-byte alignment. A generated contract that assumed dense packing would be
+wrong by four bytes per instance. Generated UDT layout **shall** be derived from
+a measured stride for the target, never from member widths alone.
+
+Two behavioral rules follow from the same run and are binding on generated code:
+
+- integer overflow wraps two's-complement on this target with
+  `ReportMinorOverflow` false, so a range check is the generator's
+  responsibility, not the controller's; and
+- **NaN shall be detected by bit pattern or range, never by `x <> x`.** The NaN
+  bit pattern transports faithfully over CIP, but Logix ST evaluated
+  `NaN <> NaN` as false, so the idiomatic IEEE test compiles, verifies, and
+  never fires.
 
 **Enumerations.** Core enum members bind to generated integer constants in
 `FRK_K`; the published ordinal remains the Core ordinal. Hand-written literals
@@ -410,13 +527,19 @@ the repository/HMI contract. This is a physical binding representation, not a
 change to Core identity. Names that must exist in the controller use a generated
 Logix string type sized for their declared maximum.
 
-**[PROVISIONAL S12]** freezes a complete Core→Logix→repository type table before
-any public UDT is generated: signed/unsigned widths, bit strings, `REAL`/`LREAL`,
-duration, timestamp plus synchronization quality, strings and UTF-8 policy,
-arrays/lower bounds, enum ordinals, NaN/overflow behavior, and CIP UDT layout.
-Unsupported target arithmetic shall use a range-checked representation or remove
-that controller from the baseline; silent narrowing is forbidden. `SchemaVersion`
-remains the first logical configuration member and migrate-or-fault still applies.
+S12 froze the Core→Logix→repository type table for the pinned baseline before
+any public UDT is generated: signed widths, bit strings, `REAL` (and the
+absence of `LREAL`), duration, arrays and their zero lower bound, enum
+ordinals, NaN and overflow behavior, and the measured CIP UDT layout
+([evidence](AB_S12_TYPE_MAP_EVIDENCE.md)). Unsupported target arithmetic shall
+use a range-checked representation or remove that controller from the baseline;
+silent narrowing is forbidden. `SchemaVersion` remains the first logical
+configuration member and migrate-or-fault still applies.
+
+**[PROVISIONAL S12]** still owes two entries of that table: the UTF-8 policy
+above ASCII, since only ASCII was written through the Logix `STRING`, and the
+timestamp plus synchronization-quality representation, which S1 established as
+a transport property but which is not yet pinned as a generated member.
 
 **Providers.** The logical `I_RecipeProvider`, `I_PartCarrier`, event-sink, and similar
 capabilities bind to `(ProviderKind, ProviderIdx)` plus one generated dispatch AOI
@@ -471,14 +594,46 @@ numbers copied into the gateway:
 | Localization/rationalization | stable numeric key to portable string key; reason code to priority/category/action/consequence/shelvable metadata |
 | Optional profiles | profile ID/version, capability and projection requirements |
 
+This is **manifest logical schema version 1**. Its canonical header field names
+are `Magic`, `SchemaMajor`, `SchemaMinor`, `CoreVersion`, `BindingVersion`,
+`FrameworkVersion`, `ConfigRevision`, `ContentHash`, `ControllerIdentity`,
+`Valid`, `Truncated`, and one `Count`/`Capacity` pair per table. `Magic` and a
+supported major are checked before any count is trusted. `ContentHash` covers
+the canonical logical rows and their order, excluding volatile transport
+framing; `ConfigRevision` changes whenever that content can change. The
+generated-content hash used in build evidence and this live `ContentHash` shall
+agree after canonical encoding is frozen.
+
+All unresolved bounds retain symbolic names (`FRK_MAX_ROOTS`,
+`FRK_MAX_MODULES`, `FRK_MAX_FIELDS`, `FRK_MAX_OPERATIONS`,
+`FRK_MAX_LOCALIZATION_KEYS`, `FRK_MAX_REASONS`, and
+`FRK_MAX_OPTIONAL_PROFILES`). Their numeric values, table splitting and CIP
+fragmentation are deliberately **not** frozen here. S3/S7/S12 either assign
+measured values and a physical representation or revise the binding; a
+generator shall reject an unresolved symbol when producing a deployable
+artifact.
+
 Counts greater than capacity, duplicate IDs/paths/write keys, unknown types,
 invalid parent/root links, hash disagreement, or `Valid = FALSE` invalidate the
 whole manifest. Partial discovery is not a degraded conformance mode. The
 gateway reports the exact validation reason and exposes no write surface.
 
-**[PROVISIONAL S7]** Manifest size, read cost and revision-change detection over
-CIP are unmeasured. If a single bounded manifest does not fit the budget, it is
-split by root with a per-root revision, and this clause is rewritten.
+**Settled by S7.** Manifest size, read cost and revision-change detection are
+measured on the named target: a 43,728-byte manifest at the resolved capacities
+read completely and coherently in **293 ms** at S1's conservative 500-byte
+connection and **62 ms** at 4000 bytes, with a **~32 ms header-only poll** in
+steady state. A single bounded manifest therefore holds and **is not split by
+root**. The eight capacity symbols above are resolved in
+[`AB_FROZEN_CONTRACTS_V1.json`](AB_FROZEN_CONTRACTS_V1.json) at the sizes
+actually measured; raising one is a cost-curve calculation against
+[`AB_S7_MANIFEST_EVIDENCE.md`](AB_S7_MANIFEST_EVIDENCE.md), not a new spike.
+
+The read shape matters and is now normative guidance: reading the manifest as
+arrays of UDT rows batches into far fewer round trips than one monolithic tag.
+S1's 4 KiB fragmented single-tag figure is a worst case for that access pattern,
+not the rate a manifest reader sees. A reader also pays a per-request floor of
+roughly 4.7 ms, so splitting the manifest into many small tables would cost
+more, not less.
 
 ### AB §3.11 Composition-root wiring
 *Binds Core §3.11 (constructor injection).*
@@ -529,10 +684,67 @@ Quality/timestamp mapping is explicit:
 - Bad/Uncertain data never enables a write and no cached value is promoted to
   Good after reconnect.
 
-**[PROVISIONAL S9]** freezes coherence-token behavior, freshness thresholds,
-poll budgets, reconnect discovery, quality codes, timestamp mapping, and the
-repository parity test against the TC3 adapter before the gateway implementation
-is accepted.
+Every repository value uses the same **logical value envelope, version 1**:
+
+| Field | Meaning |
+|---|---|
+| `PathId` | manifest field/path identity; never a registry ordinal |
+| `LogicalType` | S12/Core logical type ID |
+| `Value` | the typed value; absent when quality forbids a value |
+| `Quality` | exactly `GOOD`, `UNCERTAIN`, or `BAD` |
+| `QualityReason` | stable reason/key explaining every non-GOOD quality |
+| `SourceTimestamp` | optional PLC-owned timestamp |
+| `SourceTimeSynchronized` | whether the source clock met Core §2.7 |
+| `ServerTimestamp` | gateway receipt/publication timestamp |
+| `DataRevision` | coherence token of the accepted PLC sample |
+
+The envelope is repository semantics, not a CIP or OPC UA `DataValue`. A
+transport adapter may map a native status into it only through a documented,
+tested table. Unknown native status, type, or timestamp state maps fail-closed
+to `BAD`; it never defaults to `GOOD`.
+
+**The tier model is TC3's, not a new one.** Fraktal/AB adopts the same three
+read tiers the HMI contract and the TC3 transports already use — **live/fast**
+read every snapshot, **slow** read every snapshot where the transport affords it
+or on a heartbeat where it does not, and **on-demand/excluded** never read
+cyclically but served by bounded targeted reads. The gateway intersects every
+connected client's slow and on-demand sets before changing tier setup, exactly
+as the existing gateway does. A binding does not get to invent a tier vocabulary;
+the HMI classifies once and every adapter obeys it.
+
+Freshness thresholds and poll budgets are **per deployment, not per binding**.
+They are declared in the project's binding record against the measured cost of
+that station, and the measurement inputs now exist: S1's conservative four-reader
+and 500-byte ceiling, and S7's manifest cost — a 43,728-byte manifest in 293 ms
+at 500 bytes and 62 ms at 4000, with a ~32 ms header-only poll in steady state
+([evidence](AB_S7_MANIFEST_EVIDENCE.md)). TC3's measured figures are the
+reference point for what "interactive" means: ~15 ms steady-state ADS snapshot
+and ~86 ms median mode-change round trip.
+
+**Coherence-token behavior is settled** ([evidence](AB_S9_COHERENCE_EVIDENCE.md)).
+Under concurrent mutation the retry-until-stable guard never once accepted a
+torn snapshot, produced no false rejection on a quiet controller, and degraded
+to refusing service rather than to lying. Unguarded reads of the same array
+were directly observed straddling two generations, so the failure mode is real
+and the guard demonstrably catches it.
+
+The measurement yields a rule that binds generated snapshots:
+
+> Any data set guarded by a coherence token **shall** have a mutation interval
+> longer than its guarded read window, or it **shall** be double-buffered on the
+> PLC side. Retry is not a substitute for either.
+
+Measured on the named target, a 4 KiB payload guarded by two bracketing
+revision reads converged 0 % of the time at 10 ms mutation, 80 % at 50 ms, and
+100 % at 200 ms and above. This is why the contract guards what it does: the
+manifest changes only on configuration change, the HostEvents ring only on
+append, and a registry row is small enough to read in one request. A coherent
+snapshot of the entire live tier is not achievable by retry and Core does not
+ask for one — coherence is specified per row.
+
+**[PROVISIONAL S9]** still freezes the declared freshness thresholds and poll
+budget for the reference station, reconnect discovery, quality codes, and
+timestamp mapping before the gateway implementation is accepted.
 
 ### AB §3.14 Lifecycle binding — generated `Begin` / `End` composition
 *Binds Core §2.2, §3.14; R0 authority recorded in `AB_R0_CORE_AUTHORITY_EVIDENCE.md`.*
@@ -639,12 +851,17 @@ order, never channel assignments.
   are unverified. If adding a module online cannot extend the registry safely,
   commissioning gains a documented download step and this clause says so.
 
-**[PROVISIONAL S11]** proves the generated nested-AOI call graph and, when used,
-the root program's owner-local SFC runners. The proof covers parent command issue, child
-execution, child result/diagnostic rollup, concurrent branches, chart return,
-reset/re-entry and output withdrawal. The SFC form's declared one-scan intent
-latency is accepted only if Core-observable behavior remains equivalent; every
-other accidental delay from program ordering is a failed design.
+S11 proved the call graph and the owner-local SFC runner for chart return,
+concurrent branches, reset/re-entry, and the declared one-scan intent latency,
+which measured exactly one scan with both generated forms walking the same
+graph in the same number of scans
+([evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)). Core-observable
+equivalence therefore holds for the proved surface, and every other accidental
+delay from program ordering remains a failed design.
+
+**[PROVISIONAL S11]** still owes child result/diagnostic rollup and output
+withdrawal, which the memory-only fixture could not exercise, plus generated
+Ladder as the third §6.8 form and the abort/hold/mode-exit reset edges.
 
 ### AB §4.2 Startup and deployment state
 *Binds Core §2.3, §4.1, §6.1, §13.*
@@ -758,7 +975,8 @@ as drafted.
 Framework/base and reusable module AOI primary logic is Structured Text;
 generated Ladder is permitted for application chains whose parity/graph gates
 are in place. Generated native SFC is permitted for the program-owned form in
-AB §3.5 only after S4/S11 and G-SFC pass. No protected/encoded source is accepted
+AB §3.5 once G-SFC passes; S4/S11 have recorded their half
+([evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)). No protected/encoded source is accepted
 as conformance evidence. Every index, count, payload length, provider kind,
 operation kind, command, mode, logical type and motion target is validated before
 use. Every dispatcher has an explicit fail-closed `ELSE`/default. Integer overflow/
@@ -862,9 +1080,32 @@ External mutations use one generated mailbox per root Unit. This is the only
 Fraktal data with `External Access: Read/Write`; all target module/configuration
 data are read-only. Its logical contract is versioned before physical layout:
 
-| Request | Response |
+| Request field | Required logical meaning |
 |---|---|
-| `SchemaVersion`, `CommitSeq`, operation kind, root/target module ID, command/mode/direction/write key, typed arguments, credential/secret slot | `SchemaVersion`, `AckSeq`, `Accepted`, refusal reason/key, resulting access/command state, PLC timestamp |
+| `SchemaVersion` | mailbox major/minor; logically first and validated before all payload fields |
+| `CommitSeq` | nonzero monotonic transaction sequence; the only commit marker and physically written last |
+| `OperationId` | stable generated operation-catalogue ID; unknown IDs are refused |
+| `RootId` / `TargetModuleId` | stable manifest identities; registry ordinals are forbidden on the external surface |
+| `ArgumentSchema` / `Arguments` | operation-declared typed values; no free-form tag/path/value bag |
+| `Secret` | optional ephemeral credential slot, copied privately then cleared in the same consume path |
+
+| Response field | Required logical meaning |
+|---|---|
+| `SchemaVersion` | response/mailbox schema actually processed |
+| `AckSeq` | exact consumed `CommitSeq`; published only after processing completes |
+| `Accepted` | PLC decision, distinct from transport success |
+| `ReasonCode` / `DescriptionKey` | refusal or result explanation; never a transport-generated substitute for PLC refusal |
+| `ResultingState` | operation-declared access/command/configuration result snapshot |
+| `ReleaseReport` | complete act-or-explain report when the operation/query declares one |
+| `PlcTimestamp` / `TimeSynchronized` | completion/refusal time and Core §2.7 quality |
+| `ConfigRevision` | manifest revision under which the target/operation was resolved |
+
+This is **mailbox logical schema version 1**. `ArgumentSchema` comes from the
+manifest operation row and defines names, logical types, cardinality,
+range/domain and secret classification. Physical scalar slots, string buffers,
+packing and maximum argument count remain S9/S12 decisions; they may not change
+the logical operation meaning. Mailbox schema major mismatch is refused without
+copying, logging, or acting on payload/secret fields.
 
 The gateway serializes at most one in-flight mutation per root. It writes the
 payload first and commits it by writing the nonzero `CommitSeq` DINT last. The
@@ -888,11 +1129,50 @@ field force, lamp test, and control-power operations. Each entry names its
 release-report source. Unknown/free-form operations or paths are refused; the
 gateway exposes no generic CIP tag-write endpoint.
 
+**The request payload shall fit one unfragmented connected write.** A payload
+larger than the negotiated connection size fragments across CIP transactions,
+and a controller scan can then fall between fragments. The commit marker still
+gates action, so the design is likely to survive it — but "likely" is not a
+contract, and the cheapest way to make atomicity provable rather than arguable
+is to remove the fragmentation entirely. `FRK_MAX_MAILBOX_ARGUMENTS` is
+therefore derived from that rule at S1's conservative 500-byte connection size,
+not chosen for expressiveness. An operation needing more than that carries an
+operation ID plus a bounded argument set; genuinely large payloads are a staged
+configuration write, never a command.
+
+This mirrors TC3, where the client "writes all request arguments first and
+writes `Sequence` last" and the Unit "consumes each new sequence once … then
+publishes `AckSequence` last". The commit-marker design is shared, so a defect
+found here is a defect in both bindings.
+
+> **Open verification item — carried in both bindings.** Bounding the AB payload
+> removes fragmentation *for AB*, but it does not retire the underlying
+> question, and it does nothing for TC3, which has no equivalent bound. The
+> assumption both bindings rely on is that every argument becomes visible to the
+> scan before the commit marker does. That has never been tested against a
+> batched, segmented or reordered transport write — an ADS sum-write, a TF6100
+> multi-node write, or a CIP payload crossing the connection size. Both bindings
+> shall test it explicitly before a writable deployment: segmented request
+> writes, arguments committed out of order, and a scan deliberately interleaved
+> between the argument and sequence writes. The matching item is recorded in
+> TC3 §3.10, and the fallback — a two-slot or seqlock mailbox — would apply to
+> both bindings, not just this one.
+
 **[PROVISIONAL S9]** proves the mailbox against partial/multi-service CIP writes,
-duplicate/out-of-order sequences, gateway crash at every boundary, controller
-scan races, DINT wrap, secret clearing/log redaction, PLC refusal, and reconnect.
-If these atomicity assumptions fail, adopt a two-slot/seqlock mailbox before any
-writable deployment; do not relax the one-write-surface rule.
+duplicate/out-of-order sequences, controller scan races, DINT wrap, secret
+clearing/log redaction, PLC refusal, and reconnect. The single-slot design above
+is tested first; if its atomicity assumptions fail, adopt a two-slot/seqlock
+mailbox before any writable deployment and do not relax the one-write-surface
+rule.
+
+Crash testing is scoped to the boundaries that can actually produce a replay or
+a double-act, because that is what Core §11.3 forbids — *"reconnect shall not
+replay an unacknowledged write"*: crash after payload write and before commit;
+after commit and before the acknowledgement is observed; after observation and
+before local completion; reconnect holding a stale in-flight sequence; and
+sequence wrap. An exhaustive crash matrix is not required; these five are.
+Because the initial claim is read-only (AB §11.2.1), this work is owed when
+writes are enabled, not before.
 
 ### AB §7.8 Act-or-explain
 
@@ -1068,35 +1348,137 @@ runs separate instances with separate configuration, listener/origin, health,
 logs and restart state. There shall be one active write-owning instance per
 controller/root. Multiple read observers are permitted. Redundant gateways
 require an explicit single-writer lease/failover design proved against mailbox
-sequence ownership; two independently configured writers are forbidden. Service
+sequence ownership; two independently configured writers are forbidden.
+
+**Redundancy is out of scope for the initial claim**, matching TC3, where a host
+runs one supervised instance per PLC and no lease protocol exists. The
+consequence is accepted deliberately rather than omitted: a gateway restart
+removes the operator interface *including diagnostics* until it returns, while
+the machine keeps running, releases hold and safety is untouched. That sentence
+belongs in the project's binding record. Nothing in Core requires redundancy;
+a deployment that needs it shall first supply the lease/failover design this
+clause demands. Service
 supervision, startup ordering, health endpoint, bounded local logs/metrics,
 configuration backup, certificate renewal, and tested restore belong to the
 deployment evidence, not only to an operations README.
 
+**"Parity with the TC3 adapter" means semantic parity, and it is not an A/B test
+against a Beckhoff rig.** What Core actually requires is that one generic HMI
+renders any binding with no per-station code (Core §1.1 O8, §3.10): the HMI binds
+a single repository interface and every adapter is a swap-in behind it. What must
+therefore be identical is the **observable repository contract** — envelope
+fields, quality transitions and their fail-closed defaults, tier classification,
+discovery and configuration revision handling, mailbox commit/acknowledgement
+ordering, and no-replay on reconnect.
+
+Equal *latency* is explicitly **not** required, and demanding it would be
+arbitrary: ADS is Beckhoff's native fast path and CIP is not, so the numbers
+differ for reasons that have nothing to do with conformance. AB latency is
+recorded, not matched.
+
+The practical consequence is that parity is proven by making the AB adapter pass
+the **same adapter-agnostic repository contract suite** the existing adapters
+satisfy, rather than by running two rigs side by side. A Beckhoff bench is
+therefore not a prerequisite for S9, and its absence is not a blocker.
+
 **[PROVISIONAL S9]** proves discovery, typed decode, coherent reads, tier
-fairness, acknowledgement, quality/timestamps, disconnect/reconnect, manifest
-revision, and parity with the TC3 repository adapter. It is a conformance spike,
-not merely a throughput benchmark.
+fairness, acknowledgement, quality/timestamps, disconnect/reconnect and manifest
+revision, and that the AB adapter satisfies the shared repository contract suite.
+It is a conformance spike, not a throughput benchmark.
 
 ### AB §11.2.1 Endpoint and conduit security
 *Binds Core §11.2, §14.*
 
-**[PROVISIONAL S8]** Plain CIP explicit messaging is not assumed to provide the
-authenticated/encrypted session model required here. A deployment **shall**
-either prove a supported CIP Security configuration, or place the controller
-side in an IEC 62443-aligned zone with the gateway as the controlled conduit.
-The client-facing side **shall** use authenticated TLS with least-privilege
-roles. **Anonymous controller writes are not an acceptable baseline**, and
-PLC-side re-checking is defence in depth, not a substitute for transport
-security.
+Plain CIP explicit messaging does not provide the authenticated/encrypted
+session model Core §11.2/§14 requires. Two deployment postures are defined, and
+they are not equals.
+
+**Recommended posture — CIP Security.** New deployments **should** use a
+CIP Security-capable controller at **firmware v37 or above** and prove a
+supported CIP Security configuration. This is the only posture where the
+controller itself authenticates its peer, and it is the posture a project
+**should** choose unless the hardware is already fixed.
+
+**Legacy posture — zone and conduit.** Where the controller family cannot offer
+CIP Security — the `1769-L24ER-QB1B` at v33 used for Phase 0 evidence is such a
+controller — the deployment **shall** place the controller side in an IEC
+62443-aligned zone with the gateway as the controlled conduit, declare the
+target Security Level (Core §14.1), and record in the binding record that the
+transport itself is unauthenticated. This posture remains supported because the
+installed base is real, but it is explicitly the weaker one: **the network is
+the control**, and the project owns that risk knowingly.
+
+**The initial claim is read-only.** Core §11.2 attaches the authentication
+obligation to *command-capable* transports and requires that "a projection that
+is read-only shall state that restriction explicitly". Fraktal/AB therefore
+ships read-only by default: the gateway is configured with no write root, every
+operator command is refused at the gateway before the controller sees it, and
+the deployment states the restriction. On a strictly segregated line this is a
+proportionate posture, because no write surface is exposed to authenticate.
+
+**Enabling writes re-arms the full requirement.** Writes are switched on at the
+gateway, not by regenerating or downloading controller code — the generated
+allow-list already gives root mailboxes read/write and everything else read-only
+or None. The moment a write root is configured, the transport becomes
+command-capable and Core §14's rule applies without relaxation: authenticated
+principals, least-privilege roles (operator / maintenance / engineering), and
+**anonymous or unauthenticated write is prohibited**. PLC-side re-checking
+(Core §7.6/§7.7) is defence in depth, never a substitute.
+
+Because that switch changes the security obligations of the whole deployment,
+**an agent or engineer creating a new Fraktal/AB project shall ask explicitly
+whether the project is read-only or write-enabled, and shall record the answer
+in the binding record.** It is not a default to be inherited silently.
 
 The controller-side allow-list is generated and audited: manifest/public data
-read-only, root mailboxes read/write, everything else None. Engineering access
-is a separate role/conduit. Gateway secrets and private keys are OS-protected,
-never stored in L5X/customization exports, never logged, and rotated through a
-documented process. The gateway authenticates clients before root discovery,
-enforces assigned-root read/write scope, rate-limits mutation/login attempts,
-and records security-relevant failures without credential values.
+read-only, root mailboxes read/write, everything else None.
+
+**Client identity follows the TC3 model.** TC3 §11.1 permits anonymous
+membership with `SecurityPolicy=None` "only for a controlled commissioning
+activity" while the production requirement remains authenticated
+sign-and-encrypt with least privilege. Fraktal/AB adopts the same two-state
+rule, with the read-only claim as the third, weaker state:
+
+| State | Client authentication | Permitted |
+|---|---|---|
+| Commissioning | anonymous permitted | controlled activity only, time-bounded, recorded |
+| Read-only production | anonymous permitted on a declared isolated conduit | reads and diagnostics; no write root configured |
+| Write-enabled production | authenticated principals, least-privilege roles | the operator / maintenance / engineering roles of Core §11.2 |
+
+Roles restrict; they never decide. The PLC remains the access authority
+(Core §7.6/§7.7), and a gateway role can only narrow what the controller would
+already have permitted.
+
+**Secrets follow Core §14.2/§14.3 and the TC3 practice.** Endpoints,
+credentials and keys are configuration or secret-store values, never literals in
+generated code, L5X, customization exports or version control, and never logged.
+Rotation is a change-managed activity under Core §13/§14.3 with a named owner;
+the audit log records privileged actions without credential values.
+
+**Engineering access is a separate conduit and is not permanently open.**
+Core §14.1 requires the engineering conduit to be access-controlled and *"not
+permanently open on the production network"*. For Fraktal/AB this is satisfied
+by keeping Studio 5000 access off the gateway conduit — the Phase 0 evidence
+path, USB at `Backplane\16`, already meets it, and a routed engineering VLAN
+reachable only on demand is the alternative. The gateway conduit carries the
+repository protocol and nothing else; it is never a path to project download,
+online edit or firmware.
+
+When a write root is configured, the gateway additionally authenticates clients
+before root discovery, enforces assigned-root read/write scope, rate-limits
+mutation and login attempts, and records security-relevant failures without
+credential values.
+
+**[PROVISIONAL S8]** The posture above is decided and two of its inputs are
+measured ([evidence](AB_S8_SECURITY_EVIDENCE.md)): the Phase 0 controller
+implements none of the CIP Security object classes `0x5D`, `0x5E` or `0x5F` — a
+positive absence, since the device answers the session and refuses all three —
+and the allow-list audit this clause requires now exists and runs offline. S8
+still owes either a demonstrated CIP Security configuration on a v37-or-above
+capable controller, or the documented zone, conduit and declared Security Level
+for a legacy deployment, plus the audit run against a generated production
+project rather than a Phase 0 fixture. Deciding the posture is not evidence that
+it was implemented.
 
 ### AB §11.3 Protocol versioning
 *Binds Core §1.5.*
@@ -1120,6 +1502,30 @@ Every snapshot, manifest replacement, request acknowledgement, and error carries
 the selected protocol version plus connection/discovery revision needed to
 reject stale frames. Unknown fields are tolerated only under the declared
 additive-minor rule; unknown operation kinds and logical value types fail closed.
+
+**Repository negotiation schema, version 1.** The wire encoding remains the
+gateway implementation's concern, but the first application exchange on a new
+transport session is fixed:
+
+| Message | Required logical fields |
+|---|---|
+| `ClientHello` | `Protocol='fraktal.repository'`, supported `(Major, MinMinor, MaxMinor)` ranges, supported manifest/repository/mailbox schema majors, capability flags, non-secret `ClientInstanceId`, requested stable root IDs |
+| `ServerHello` | one exact `Major`/`Minor`, selected schema versions, negotiated capability intersection, `ServerInstanceId`, new nonzero `ConnectionRevision`, current `DiscoveryRevision`, granted root IDs |
+| `Incompatible` | stable reason/key plus server-supported ranges; no manifest, values, root names, or write surface; session then closes |
+
+No snapshot, discovery row, targeted read, subscription/tier request, mutation,
+or acknowledgement is accepted before `ServerHello`. Every subsequent frame
+contains the selected version and `ConnectionRevision`; frames addressing
+discovered data also contain `DiscoveryRevision`. Either mismatch is stale and
+rejected, not coerced. A new transport connection always gets a new
+`ConnectionRevision`, even when it reconnects to the same gateway process.
+
+Minor-version compatibility is additive only: a receiver may ignore an unknown
+field only when the negotiated capability says that field is optional and the
+operation/logical type is already understood. Unknown operation or logical type,
+missing required field, scope widening, or any major mismatch is fatal. The
+current `fraktal.opcua.gateway.v1` implementation has no such handshake and is
+therefore explicitly pre-contract; it is not evidence for this clause.
 
 ### AB §11.4 Recipe/type transport
 *Binds Core §11.4, §3.8.*
@@ -1155,6 +1561,23 @@ They use the validated recipe/host provider or root mailbox. Optional outbound
 sinks receive the same record and idempotency key; the PLC does not wait for
 them unless a particular process step explicitly awaits a host transaction.
 
+**HostEvents logical schema, version 1.** Ring metadata contains
+`SchemaVersion`, `Head`, `Count`, `Capacity`, `Wrapped`, `NewestSequence`, and
+`DataRevision`. Each active record contains the Core §11.6 fields
+`Sequence`, `Kind`, `StationPath`, `PartUid`, `Subject`, `Value`, `Stamp`,
+`TimeSynchronized`, `Verdict`, and `ReasonCode`. `Kind` uses the fixed
+append-only Core vocabulary; optional strings are empty only when the selected
+kind declares them inapplicable. Sequence zero is invalid. A record sequence is
+also its sink idempotency key.
+
+The gateway reads metadata before and after the requested record window and
+accepts the batch only when `DataRevision`, head and newest sequence are stable.
+Invalid count/capacity, duplicate/non-monotonic active sequences, an unknown
+kind, or an overwritten cursor interval produces an explicit `BAD`/data-loss
+result. Physical string bounds, timestamp representation, ring capacity and CIP
+fragmentation remain S7/S12 outputs; no physical choice may drop a logical field
+or turn wrap into silent continuity.
+
 ### AB §11.7–§11.11 Optional OPC UA and industry projections
 *Binds Core §11.7–§11.11, Annexes F/J/K where claimed.*
 
@@ -1170,35 +1593,39 @@ the additional claim only; it can no longer block the default EtherNet/IP path.
 
 ---
 
-## AB §12 — Provisional-clause register
+## AB §12 — Spike register
 
-Every `[PROVISIONAL]` clause, its spike, and what it costs if the assumption
-fails. This table is the Phase 0 work list.
+Every unresolved `[PROVISIONAL]` clause, its spike, and what it costs if the
+assumption fails are recorded here. Settled rows remain as immutable Phase 0
+decisions and link their evidence.
 
-| Clause | Spike | Assumption | If wrong |
-|---|---|---|---|
-| AB §2.2 | S2 | AOI signature change is breaking on import | version rule tightens: added parameter = major |
-| AB §2.5 | S4 | L5X round-trips stably and faithfully | **binding not viable as drafted**; gates lose their input |
-| AB §2.7 | S1 | controller clock + CIP Sync satisfy §2.7 | timestamp correlation limited; record as deviation |
-| AB §3.3 | S2 | target limits and External Access support one public `Ctx` plus inaccessible `Priv` | split public/private context; if private data cannot be hidden, binding fails security gate |
-| AB §3.10 | S7 | one bounded manifest fits the read budget | split per root with per-root revision |
-| AB §4.1 | S6 | registry/manifest survive online change | commissioning gains a documented download step |
-| AB §5.7 | S5 | the harness runs on Logix Echo or named isolated hardware CI | §5.7 remains unresolved; a manual run is not substituted |
-| AB §8.11/§8.12, §10 | S3 | `GSV` and module objects supply health and timing | §8.11/§8.12/§10.5.1 reduce to a declared subset |
-| AB §11.2.1 | S8 | CIP Security or a controlled zone/conduit is achievable | writes cannot meet §14; binding is read-only until fixed |
-| AB §3.13, §7.7, §11.2 | S9 | CIP polling reproduces coherence, quality/timestamps, mailbox acknowledgement and no-replay | redesign snapshot/mailbox/gateway; no writable claim until parity passes |
-| AB §11.7–§11.11 | S10 | optional OPC UA/companion projections are available where additionally claimed | omit or narrow that binding-qualified optional claim; the default EtherNet/IP base claim is unaffected |
-| AB §2.5, §3.5 | S4 | ST/LD plus native SFC routines, actions, transitions, settings and reset targets round-trip canonically | disable native SFC; ST/LD remains the reference sequence form |
-| AB §2.8, §3.5, §4.1 | S11 | nested AOIs and the program-owned SFC runner satisfy lifecycle/sequence order, one-scan intent latency and restart behavior | disable SFC or redesign the affected execution form before base implementation |
-| AB §3.8 | S12 | a lossless bounded Core→Logix→repository type map exists on the target | restrict target baseline or amend representation; no silent narrowing |
-| AB §3.15 | S13 | claimed socket/serial adapters meet byte-channel limits and reconnect semantics | exclude affected connector/module families from initial claim |
-| AB §10.6 | S14 | Rockwell motion maps Core motion semantics and is testable | exclude motion family or define a narrower versioned profile |
-| AB §5.4 | S15 | SDK can import, Verify/Build, export, download and capture diagnostics unattended | binding does not meet the automated build gate as drafted |
+| Clause | Spike | Status | Assumption or settled result | If wrong |
+|---|---|---|---|---|
+| AB §2.2 | S2 | **PASS** | appended optional atomic Input with compatible default preserves existing calls only after clean import/Verify; required/InOut/removal/retype/reorder/meaning changes are major; [evidence](AB_S2_AOI_PARAMETER_EVIDENCE.md) | settled by the evidence-gated optional-Input rule |
+| AB §2.5 | S4 | **PASS** | L5X round-trips stably and faithfully: the representative construct matrix — two task types with schedules, ST/RLL/SFC side by side, nested and tabular records, a sized string type, a generated constant, and the three AOI scan routines — imports `0/0`, verifies `0/0`, round-trips canonically, and passes a generated-vs-exported construct census; [evidence](AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md) | settled for the constructs the binding generates; FBD, alias and produced/consumed tags are out of scope and motion is S14 |
+| AB §2.7 | S1 | **PASS** | WallClockTime plus explicit TimeSynchronize quality satisfies Core §2.7; unsynchronized clocks remain `TimeSynchronized=FALSE`; [evidence](AB_S1_CIP_DATA_PATH_EVIDENCE.md) | settled by the quality-preserving rule; correlated multi-controller order requires separately proved CIP Sync |
+| AB §3.3 | S2 | **PASS** | one public UDT `Ctx` InOut executed through eight nested AOIs; External Access hid private members/instance storage; v33 boundaries are 64 InOuts and 16 nesting levels, with Fraktal ceiling eight; [evidence](AB_S2_AOI_PARAMETER_EVIDENCE.md) | settled for the pinned v33 baseline; future targets rerun S2 |
+| AB §3.10 | S7 | **PASS** | one bounded manifest fits: 43,728 bytes read completely and coherently in 293 ms at a 500-byte connection and 62 ms at 4000, with a ~32 ms header-only steady-state poll; the eight S7 capacity symbols are resolved at the measured sizes; [evidence](AB_S7_MANIFEST_EVIDENCE.md) | settled — no per-root split is required; raising a capacity is a cost-curve calculation, not a new spike |
+| AB §4.1 | S6 | OPEN | registry/manifest survive online change | commissioning gains a documented download step |
+| AB §5.7 | S5 | OPEN | the harness runs on Logix Echo or named isolated hardware CI | §5.7 remains unresolved; a manual run is not substituted |
+| AB §8.11/§8.12, §10 | S3 | OPEN | `GSV` and module objects supply health and timing | §8.11/§8.12/§10.5.1 reduce to a declared subset |
+| AB §11.2.1 | S8 | OPEN — posture decided, partly evidenced | CIP Security on v37+ recommended, zone/conduit the supported legacy posture, initial claim read-only so Core §14's write rule is armed by enabling a write root rather than relaxed. Measured: the Phase 0 controller implements **none** of CIP objects `0x5D`/`0x5E`/`0x5F`, and the required allow-list audit now exists and runs; [evidence](AB_S8_SECURITY_EVIDENCE.md). Still owed: a demonstrated CIP Security configuration on capable hardware, or the documented zone/conduit and declared SL | writes cannot meet §14; binding stays read-only until fixed |
+| AB §3.13, §7.7, §11.2 | S9 | OPEN — design decided, coherence proved | tiers are TC3's, freshness/poll budgets are declared per deployment, parity means the shared repository contract suite rather than an A/B rig, the mailbox payload is bounded to one unfragmented write, crash testing is scoped to the five replay-capable boundaries, redundancy is out of scope. Measured: the retry-until-stable guard never accepted a torn snapshot at any mutation rate, never falsely rejected a quiet controller, and converges whenever the mutation interval exceeds the guarded read window; [evidence](AB_S9_COHERENCE_EVIDENCE.md). Still owed: freshness/poll declaration, quality codes, timestamp mapping, reconnect discovery, the contract suite, and the mailbox matrix when writes are enabled | redesign snapshot/mailbox/gateway; no writable claim until the contract suite passes |
+| AB §11.7–§11.11 | S10 | OPEN | optional OPC UA/companion projections are available where additionally claimed | omit or narrow that binding-qualified optional claim; the default EtherNet/IP base claim is unaffected |
+| AB §2.5, §3.5 | S4 | OPEN | ST/LD plus native SFC routines, actions, transitions, settings and reset targets round-trip canonically | disable native SFC; ST/LD remains the reference sequence form |
+| AB §3.5 native SFC | S4 | **PASS** | generated steps, `NonStored` actions, transition expressions, simultaneous branches, execution settings, `SFR` target and `JSR` parameters survive import, Studio v33 Verify and repeated canonical export; [evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md) | settled for the pinned v33 baseline; the rest of the S4 construct matrix is still open above |
+| AB §2.8, §3.5, §4.1 | S11 | **PASS** | both generated forms walk one declared graph with identical traces and identical scan counts; module AOI runs unconditionally and before sequence intent; command/result latency is exactly one scan; simultaneous legs are per-branch; `SFR` re-entry repeats the run; [evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md) | settled for ST and native SFC on the pinned v33 baseline; generated Ladder, alternative branches and the abort/hold/mode-exit edges are not covered |
+| AB §3.8 | S12 | **PASS** | the bounded type map is measured: `TIME`/`TIME32`/`LREAL` are unavailable and `LINT` is transport-only; the public UDT's CIP payload, member offsets and 24-byte stride, two's-complement overflow, NaN transport, byte-counted `STRING.LEN`, zero-based arrays and the range-checked duration are all recorded; [evidence](AB_S12_TYPE_MAP_EVIDENCE.md) | settled for the pinned v33 baseline; any other controller family or revision reruns the spike |
+| AB §3.15 | S13 | OPEN | claimed socket/serial adapters meet byte-channel limits and reconnect semantics | exclude affected connector/module families from initial claim |
+| AB §10.6 | S14 | OPEN | Rockwell motion maps Core motion semantics and is testable | exclude motion family or define a narrower versioned profile |
+| AB §5.4 | S15 | OPEN | SDK can import, Verify/Build, export, download and capture diagnostics unattended | binding does not meet the automated build gate as drafted |
 
-Six are implementation blockers rather than incremental refinements: **S1**
-(transport), **S2/S11** (type/call shape), **S4/S15** (source and executable
-gate), and **S12** (public data contract). Run those first, then S7/S8/S9 before
-any gateway/runtime-library implementation. S13/S14/S10 gate only the optional
+The remaining implementation blockers are **S15** (the automated build gate),
+**S8** (security) and **S9** (mailbox and snapshot coherence). S1 transport,
+S2 AOI parameter shape, S4 source fidelity, S7 manifest read budget, S11
+sequence execution and S12 public data contract are all settled, which closes
+**R2** and supplies **R3** its resolved capacities. Close S8/S9/S15 before any
+gateway or runtime-library implementation. S13/S14/S10 gate only the optional
 families/profiles they name.
 
 ---
@@ -1218,7 +1645,8 @@ Phase 2:
 |---|---|
 | implementation-only with identical public UDT/AOI/manifest behavior | patch plus full regression |
 | additive optional field/capability understood by older peers | minor only if explicit negotiation/ignore rules prove compatibility |
-| AOI parameter/public UDT layout, ordinal, mailbox, manifest major, or command meaning change | major plus migration and coordinated download/gateway/HMI update |
+| appended optional atomic AOI Input with compatible default and clean import/Verify of all calls | minor is permitted; retain the S2 evidence shape |
+| required/InOut/removed/retyped/reordered AOI parameter, public UDT layout, ordinal, mailbox, manifest major, or command meaning change | major plus migration and coordinated download/gateway/HMI update |
 | recipe/configuration record change | new `SchemaVersion` and migrate-or-fault path |
 
 An online edit, AOI import, generated L5X replacement, firmware/toolchain update,
@@ -1255,20 +1683,23 @@ restart. Safety authority remains independent of every cybersecurity control.
 
 ## AB Annex A — What this binding does not claim
 
-- It has **not** been compiled, downloaded or run. No clause here is evidence.
-- R0's two Core authority amendments are complete and TC3 compatibility is
-  recorded. R1–R6 remain open, so production runtime/library implementation is
+- No production binding/runtime has been compiled, downloaded or run.
+  Disposable Phase 0 fixture results are evidence only where their linked
+  records say so; no normative clause is evidence by itself.
+- R0's two Core authority amendments and R1's named platform baseline are
+  complete. R2–R6 remain open, so production runtime/library implementation is
   still unauthorized (AB §0).
 - Where it is weaker than Part II, it says so: tier composition and lifecycle
   ordering are gate-enforced rather than compiler-enforced (AB §3.1, §3.11,
   §3.14), and per-type lifecycle correctness is an argument from generation
   rather than an inheritance guarantee (AB §5.7).
-- Native SFC is a provisional **program-owned application sequence form**, not an
-  AOI primary routine. Studio 5000 can execute it, but the initial claim depends
-  on S4/S11 proving the generated JSR/SFR wrapper, L5X fidelity, scan latency and
-  restart behavior. Application-owned Unit/EM charts get one generated stateful
-  routine/tag set per deployed owner; reusable AOI-contained sequences retain
-  ST/LD unless that materialization is separately proved (AB §3.5).
+- Native SFC is a **program-owned application sequence form**, not an AOI
+  primary routine. S4/S11 proved the generated JSR/SFR wrapper, L5X fidelity,
+  scan latency and restart behavior on the pinned v33 baseline, so the form is
+  enabled within that proved surface. Application-owned Unit/EM charts get one
+  generated stateful routine/tag set per deployed owner; reusable AOI-contained
+  sequences retain ST/LD unless that materialization is separately proved
+  (AB §3.5).
 - Connectors, motion, optional OPC UA/companion projections, and any controller
   family absent from the tested matrix are not claimed merely because a Core
   interface or manifest capability exists.

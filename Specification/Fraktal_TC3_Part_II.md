@@ -195,6 +195,25 @@ the `UDINT Sequence` leaf. The base writes `AckSequence` after invoking the
 existing gated IEC method. The sequence fields, request-kind enum ordinals, and
 mailbox member names are wire-contract data and are append-only.
 
+> **Open verification item — write-fragmentation atomicity (TC3 and AB).**
+> This commit-marker design assumes the argument leaves are all visible to the
+> PLC before the `Sequence` write becomes visible. The assumption is sound for
+> ordered, individually-committed leaf writes, but it has **never been tested
+> against a fragmented or reordered transport write** in either binding. If a
+> large `ST_HmiRequest` is written as a batched or segmented transfer — an ADS
+> sum-write, a TF6100 multi-node write, or in Fraktal/AB a CIP payload larger
+> than the negotiated connection size — a scan could in principle observe a new
+> `Sequence` alongside partially-written arguments.
+>
+> Fraktal/AB removes the question by construction: AB §7.7 bounds the request
+> payload to a single unfragmented connected write. **TC3 has no equivalent
+> bound and therefore still carries the risk.** Both bindings shall test this
+> explicitly — batched/segmented request writes, argument leaves committed out
+> of order, and a scan deliberately interleaved between argument and sequence
+> writes — before either claims a writable deployment. A defect here is a
+> defect in the shared design, not in one transport, and the fix (a two-slot or
+> seqlock mailbox) would likewise apply to both.
+
 ### TC3 §3.11 Constructor injection: `FB_init`, `REF=`, and member ordering
 *Binds Core §3.11.* Top-level identity/HAL injection uses `FB_init`:
 

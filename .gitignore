@@ -97,6 +97,14 @@ FraktalCore/PLC/**/*.tclrs
 *.~u
 _backup/
 
+# --- PLC: Allen-Bradley Phase 0 host tooling build output ---
+# The C# offline probe's sources and .csproj ARE tracked; its build output is
+# not. It restores Rockwell's redistributable Logix Designer SDK client and
+# copies it (plus FtspAdapter.exe) next to the exe, and those binaries are
+# licensed Rockwell material that must not be republished from this repo.
+FraktalCore/PLC/Allen-Bradley/tools/**/bin/
+FraktalCore/PLC/Allen-Bradley/tools/**/obj/
+
 # --- Python tooling caches (plc_lint + its fixture suite; regenerated on run) ---
 __pycache__/
 *.py[cod]

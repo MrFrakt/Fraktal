@@ -6,6 +6,8 @@
 
 **Date:** 2026-08-10
 
+**Local-tooling revalidation:** 2026-08-12
+
 **Scope:** specification authority only; this is not Rockwell compile, download,
 controller-runtime, gateway, security, or conformance evidence.
 
@@ -89,19 +91,30 @@ unproved until their named spikes and readiness gates pass.
 
 ## 5. Local tooling and platform audit
 
-Read-only discovery on the current host found no usable Rockwell baseline:
+The 2026-08-10 discovery result was stale for this workstation: it relied on
+`PATH` and a limited install-root probe and incorrectly concluded that no
+Rockwell baseline was installed. Read-only revalidation on 2026-08-12 found:
 
-- no Studio 5000/Logix Designer, RSLogix 5000, FactoryTalk Logix Echo, Logix/Echo
-  SDK executable, FactoryTalk Activation Manager or RSLinx executable on `PATH`;
-- no standard Rockwell Automation/FactoryTalk install roots under Program Files
-  or ProgramData;
-- no matching installed-product registry entry, service or running process; and
-- no `.ACD`, `.L5X`, `.L5K` or other controller project/baseline artifact in the
-  workspace.
+- Studio 5000 Logix Designer v21–v37, including v37;
+- Logix Designer SDK 2.00.00 / API build 2.0.861.0, its running Windows service,
+  and installed C#/C++ documentation and examples;
+- FactoryTalk Activation Manager 5.01.01 and running activation services;
+- FactoryTalk Linx services; and
+- Studio 5000 Logix Emulate through v35.
 
-Therefore R1–R6 remain **OPEN** and no S1–S15 result is claimed. A hand-authored
-L5X file would not close any gate because import/export fidelity and unattended
-Verify/Build are themselves provisional evidence questions.
+FactoryTalk Logix Echo/Echo SDK was not found. Installation does not prove a
+usable licence: the activation command utility failed to expose its scripting
+interface, and no SDK client operation was executed. No isolated controller,
+firmware, CIP route, communication module, or gateway-host conduit has been
+named. No `.ACD`, `.L5X`, or `.L5K` project exists in the workspace.
+
+The corrected, reproducible partial baseline is
+[`AB_R1_PLATFORM_BASELINE_EVIDENCE.md`](AB_R1_PLATFORM_BASELINE_EVIDENCE.md).
+At R0 completion, R1–R6 remained **OPEN** and no S1–S15 result was claimed.
+R1 subsequently passed in
+[`AB_R1_PLATFORM_BASELINE_EVIDENCE.md`](AB_R1_PLATFORM_BASELINE_EVIDENCE.md);
+R2–R6 remain open. This correction
+does not alter the R0 authority decision.
 
 ## 6. Next blocking acquisition (R1)
 
@@ -109,9 +122,10 @@ Before a Phase 0 spike can produce valid platform evidence, record and provision
 
 1. controller family and exact catalogue number;
 2. controller firmware revision;
-3. Studio 5000 Logix Designer edition, exact version/build and licence;
-4. Logix Designer SDK and FactoryTalk Logix Echo/SDK versions and licences, or a
-   named isolated hardware CI runner;
+3. selection of the installed Studio 5000 Logix Designer revision/edition and
+   proof that its activation is usable for the chosen controller project;
+4. proof that the installed Logix Designer SDK 2.00 licence is usable, plus
+   FactoryTalk Logix Echo/Echo SDK or a named isolated hardware CI runner;
 5. EtherNet/IP communication module/path and the gateway-host OS/runtime/network
    baseline; and
 6. whether the initial claim includes only the default EtherNet/IP gateway path or
@@ -128,9 +142,10 @@ remains prohibited by Part III R0–R6.
 - Trailing-whitespace checks passed for the new/untracked R0 plan and evidence
   files.
 - Every local Markdown link added or used by the changed R0 documents resolves.
-- Part III contains exactly seven readiness rows (`R0`–`R6`), and every
-  `[PROVISIONAL S1]`–`[PROVISIONAL S15]` marker is represented in AB §12 with no
-  unregistered spike.
+- At R0 acceptance, Part III contained exactly seven readiness rows (`R0`–`R6`),
+  and every `[PROVISIONAL S1]`–`[PROVISIONAL S15]` marker was represented in AB
+  §12 with no unregistered spike. S1 was subsequently settled and its normative
+  provisional marker removed; the spike remains registered with PASS evidence.
 - The user's interactive terminal reports Python 3.14.6. The managed repository
   shell cannot resolve its `python3` WindowsApps alias, so the gates were executed
   explicitly with the installed `C:\ProgramData\spyder-6\python.exe` (Python

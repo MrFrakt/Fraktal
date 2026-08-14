@@ -6,7 +6,7 @@ deliberately an execution prompt, not merely a request for another plan.
 ```text
 You are taking over the Fraktal/AB (Allen-Bradley Logix) implementation in:
 
-C:\Projects\Fraktal
+C:\Users\Rockwell Automation\Fraktal
 
 Work as the lead implementation and specification agent. Continue until the
 next evidence-based phase exit or a real authority/tooling blocker. Do not stop
@@ -80,11 +80,16 @@ Read these files before changing anything, in this order:
 4. `Specification/Fraktal_AB_Part_III.md`, especially AB §0, R0–R6, every
    `[PROVISIONAL Sn]` clause, AB §3.1–§3.5, §5 and §12
 5. `Specification/AB_IMPLEMENTATION_PLAN.md`
-6. `Specification/HMI_CONTRACT.md`
-7. `Specification/Fraktal_TC3_Part_II.md` and
+6. `Specification/AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md`
+7. `Specification/AB_ENGINEERING_WORKSTATION_ACCESS_RUNBOOK.md`
+8. `Specification/AB_S1_CIP_DATA_PATH_EVIDENCE.md`,
+   `Specification/AB_S2_AOI_PARAMETER_EVIDENCE.md`, and
+   `Specification/AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md`
+9. `Specification/HMI_CONTRACT.md`
+10. `Specification/Fraktal_TC3_Part_II.md` and
    `FraktalCore/PLC/TwinCAT/IMPLEMENTATION_NOTES.md` as behavioral/reference
    evidence—not as mandatory AB structure
-8. `Specification/FIRST_PROJECT_AGENT_GUIDE.md` for phase/evidence discipline
+11. `Specification/FIRST_PROJECT_AGENT_GUIDE.md` for phase/evidence discipline
 
 Inspect `git status` first. The worktree may contain changes made outside the
 chat. Preserve them, do not reset them, and do not overwrite overlapping work.
@@ -93,9 +98,10 @@ while you work.
 
 CURRENT STATUS AND HARD GATE
 
-Fraktal/AB is draft, **R0-complete**, spike-ready and not runtime-implementation-ready. Rediscover
-the present tool/repository state rather than assuming historical workstation
-facts are still true.
+Fraktal/AB is draft, **R0-R1 and S1-S2 complete**, and not
+runtime-implementation-ready. R2-R6 remain OPEN. Preserve the exact named
+workstation/controller evidence and recheck live identity before physical work;
+do not redo completed acquisition merely because a new chat started.
 
 Only these are authorized before R0–R6 pass:
 
@@ -138,6 +144,19 @@ KEY AB DECISIONS ALREADY MADE — VERIFY, DO NOT BLINDLY ASSUME
 
 - EtherNet/IP explicit messaging plus a Fraktal gateway is the default HMI/
   self-description path. OPC UA is an optional projection, not a prerequisite.
+- S1 selected hash-pinned pylogix `1.1.5` as the initial private PLC-facing
+  adapter. It passed the named v33 target's symbolic type, fragmentation,
+  External Access, transport/recovery/concurrency, and time matrix. The gateway
+  boundary remains versioned and allow-listed; arbitrary CIP `Message()` is not
+  exposed.
+- S2 proved one public UDT `Ctx` InOut through eight physically executing nested
+  AOIs, complex STRING and atomic parameter classes, private/member External
+  Access, cleanup, and signature-upgrade behavior. The pinned v33 hard limits
+  are 64 InOuts and 16 invocation levels; Fraktal's generated nesting ceiling is
+  eight. Production contract sizes remain S12.
+- Controller event time comes from WallClockTime with TimeSynchronize quality.
+  The current disposable fixture is PTP-disabled/unsynchronized, so publish
+  `TimeSynchronized=FALSE` and retain gateway reception time separately.
 - Native Studio 5000 SFC is supported. It is not an AOI primary routine and an
   AOI cannot `JSR`/`SFR`; Part III therefore proposes program-owned SFC routines
   with generated JSR/SFR runners and one stateful chart/tag set per deployed
@@ -162,27 +181,23 @@ FIRST EXECUTION ORDER
      named isolated controller information without modifying a controller.
    - Report facts, not assumptions.
 
-2. Verify the recorded R0 exit first (`AB_R0_CORE_AUTHORITY_EVIDENCE.md`). If it
-   has drifted, repair it before continuing; otherwise proceed to R1/Phase 2.
-   A. Make Core lifecycle language mechanism-neutral: behavior defined once,
-      fixed lifecycle order, concrete types supply device logic only. Bind TC3
-      back to `EXTENDS`/`SUPER^`; bind AB to generated composition/gates or a
-      better proved mechanism. Do not weaken TC3 behavior.
-   B. Define a transport-neutral Fraktal Self-Description Service. Move OPC UA/
-      TF6100 mechanisms to TC3 Part II; bind AB to EtherNet/IP + gateway while
-      retaining optional OPC UA projections.
-   C. Produce a normative diff/crosswalk and audit the change against every
-      O1–O10 objective before calling R0 complete.
+2. Verify that the recorded R0, R1, S1, and S2 PASS evidence still agrees with Part
+   III. Repair only real drift; do not repeat the completed baseline, physical
+   matrix, AOI/access matrix, or clock set. The isolated controller currently
+   holds the eight-level memory-only S2 nested-AOI fixture in Remote Run with
+   its command/text inputs cleaned. Use
+   the runbook for its serial, USB path, Ethernet route, rollback hash, and
+   current authorization boundary.
 
 3. Freeze only the logical Phase 2 contracts that do not require invented
    hardware numbers: manifest, registry identity, root request/ack mailbox,
    HostEvents and repository-protocol negotiation. Leave capacities, layouts and
    budgets explicitly provisional until their spikes provide evidence.
 
-4. Run Phase 0 blocker spikes in the evidence-driven order from the port plan.
-   Prioritize S1, S2/S11, S4/S15 and S12, then S7/S8/S9. Include a minimal ST/SFC
-   parity chain generated from one graph declaration. Do not hand-author L5X and
-   call it round-trip evidence.
+4. Run the remaining Phase 0 blocker spikes in evidence-driven order. Start with
+   S11, then finish S4/S15 and S12, followed by S7/S8/S9. Include a minimal
+   ST/SFC parity chain generated from one graph declaration. Do not hand-author
+   L5X and call it round-trip evidence.
 
 5. Update Part III provisional clauses and R0–R6 with exact evidence. Only after
    all readiness gates pass, proceed through port-plan Phases 3–8: communication

@@ -36,7 +36,7 @@ FraktalCore/
 │   │   │                                Compile path, so Tests/ cannot reach
 │   │   │                                Examples/ - run BOTH)
 │   │   └── scaffold/FB_TemplateCM/       copy-template (not compiled; born RED)
-│   └── Allen-Bradley/            reserved platform binding tree
+│   └── Allen-Bradley/            Fraktal/AB binding tree (Phase 0; R0-R3 PASS)
 └── HMI/               Generic operator HMI (Flutter). lib/{data,domain,state,ui}.
 ```
 
@@ -457,6 +457,40 @@ never deploy either as the machine boot application. On TC3, fill large bounded 
 `ST_ReleaseReport` through caller-owned `VAR_IN_OUT` storage—nested by-value returns can overflow the
 bounded task stack.
 SIM-only force hooks compile out of release builds.
+
+---
+
+## 3a. Allen-Bradley (Fraktal/AB) — ask before you assume
+
+The AB binding is in Phase 0. **R0–R3 record PASS; R4–R6 are open, and no
+production AB runtime or module library is authorized.** Read
+`FraktalCore/PLC/Allen-Bradley/README.md` and `Specification/Fraktal_AB_Part_III.md`
+before touching this tree; the fixed-vector tools there have deliberately narrow
+write surfaces, serial guards and fixture fingerprints that are safety
+properties, not boilerplate.
+
+**Two questions you shall ask the user, never answer by default:**
+
+1. **Read-only or write-enabled?** Fraktal/AB ships **read-only**: the gateway is
+   configured with no write root and refuses every operator command before the
+   controller sees it. Enabling writes is a gateway configuration change needing
+   no download — and it immediately arms Core §14 in full: authenticated
+   principals, least-privilege roles, no anonymous write (AB §11.2.1). Because
+   the security obligations of the whole deployment change, **any new AB project
+   shall be asked explicitly** and the answer recorded in the binding record.
+2. **Which controller baseline?** The recommended deployment baseline is
+   **firmware v37 or above** on a CIP Security-capable family. Older families —
+   including the `1769-L24ER-QB1B` at v33 that every Phase 0 spike was measured
+   on — are supported only through the legacy zone-and-conduit posture, where
+   the network is the control. The v33 evidence does **not** transfer to a v37+
+   target: S2, S4, S11 and S12 each rerun on a different family or revision, and
+   a v37+ controller may offer `LREAL` and a native `TIME`, which would change
+   the generated contract.
+
+Never perform a controller-changing operation — download, mode change, tag
+write, fault clear, clock set, firmware, network configuration — without current
+explicit authorization and an exact target check immediately before use. Prior
+authorization is historical and shall not be inferred.
 
 ---
 

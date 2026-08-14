@@ -1,13 +1,24 @@
 # Fraktal HMI Contract — what a generic client binds (Core §3.10(a′), §3.13)
 
-*The HMI never binds properties or calls methods: everything it renders is **data** in the exposed namespace, published by the framework bases. A station adds zero HMI code (O1); the same structures serve any future binding (O8).*
+*The HMI never binds PLC-language properties or calls PLC methods: everything it
+renders is **data** in the Fraktal Self-Description Service repository. A
+binding may obtain that data from a native namespace or reconstruct it from a
+validated live manifest. A station adds zero HMI code (O1); the same logical
+structures serve every binding (O8).*
 
 All displayed strings follow `LOCALIZATION_AND_MODULE_CONTENT.md`: PLC display fields carry stable `std.*`/`project.*` keys, never operator prose. Standard and project catalogs, first-run language selection, CSV administration, module PDF content, and per-section view policy are part of this contract.
 
 In the TwinCAT binding, externally written request/configuration data is `VAR_INPUT` and published result/status data is `VAR_OUTPUT`; implementation `VAR` is private. This IEC access classification is a transport mapping, not authorization: every write listed below is still release-gated and re-checked by the PLC.
 
 ## Discovery
-Walk the exposed instance tree (§3.10). **A node is a module iff it has a `Status : ST_ModuleStatus` member.** `Status.Name` = tile caption, `Status.ModuleType` = tile kind (Unit / EM / CM), `Status.TileEnable` = render on the parent's child view. Children = nested members that are themselves modules — the parent→child drill path is the namespace itself (§4.8).
+Walk the canonical hierarchy returned by the Self-Description Service (§3.10).
+**A record is a module iff it declares the standard module `Status` contract.**
+`Status.Name` = qualified identity/tile caption, `Status.ModuleType` = tile kind
+(Unit / EM / CM), `Status.TileEnable` = render on the parent's child view.
+Children are the records whose declared parent is that module. In a native
+hierarchical namespace such as Fraktal/TC3, that relation is the instance tree;
+in a manifest binding such as Fraktal/AB, the gateway reconstructs the identical
+repository hierarchy from stable module/parent IDs (§4.8).
 
 ## Per-tile bindings (every module)
 | UI element | Symbol |
@@ -25,8 +36,8 @@ the live operational, diagnostic, configuration, and history facets; Description
 the localized module information and uploaded documents. The tab strip is omitted when
 only one tab is visible. Each tab has an HMI-local minimum `AccessLevel`; only an
 authenticated `ADMIN` may change that threshold, title, order, trigger, or content.
-Like section policy, tab visibility is defense in depth rather than OPC UA read
-authorization.
+Like section policy, tab visibility is defense in depth rather than transport
+read authorization.
 
 Typed/category capabilities add reusable detail tabs without station screens:
 
@@ -45,10 +56,11 @@ use neutral surfaces and reserve strong colour for abnormal/judgement state.
 In `ADMIN` edit mode, a custom or guidance tab may contain localized text, scalar value
 outputs, Boolean LED indicators, bounded local trend charts, PLC-validated action
 buttons, configuration text inputs, and embedded images. The control editor presents
-an autocomplete/search selector populated only from scalar OPC UA values owned by the
-selected canonical module; it never accepts an invented free-text browse path. Values
+an autocomplete/search selector populated only from scalar repository values owned by the
+selected canonical module; it never accepts an invented free-text path. Values
 below child module nodes belong to that child. `OPC.UA.DA := '0'` therefore removes a
-value from custom binding just as it removes it from every OPC UA client. Value, LED,
+TC3 value from custom binding just as it removes it from every OPC UA client;
+other bindings enforce the same exclusion through their manifest/access gate. Value, LED,
 and configuration-input controls link one compatible value; a chart links up to eight
 numeric values and renders them as distinct series. Chart periods are clamped to
 250–60000 ms and histories to 20–600 points; these are volatile display samples, not
@@ -56,8 +68,10 @@ a historian or a control-time source. A temporarily unavailable imported link is
 shown as unavailable and retained for reconnect/change-resistant import rather than
 silently discarded.
 
-Each selected scalar retains its OPC UA `DataValue` status, source/server timestamp,
-and runtime type. Only Good-severity values are usable. Bad or Uncertain values are
+Each selected scalar retains the repository value envelope's quality,
+source/server timestamp, synchronization flag, and logical runtime type. A TC3
+OPC UA adapter maps its `DataValue` into that envelope; an AB adapter maps the
+CIP sample and gateway receipt state into the same fields. Only Good-severity values are usable. Bad or Uncertain values are
 shown with an explicit quality/status indication; LEDs do not imply an ON/OFF state,
 charts do not append a sample, and configuration inputs are disabled until Good data
 returns. The flat snapshot value map remains a Good-only compatibility surface.
@@ -120,7 +134,8 @@ An `ADMIN` can export/import one versioned UTF-8 JSON customization bundle. It i
 all persistent administrator-owned presentation state: module tabs and controls,
 per-tab and per-section access policy, tab icon choices, guidance triggers, embedded
 control and Overview background images with layout settings, module PDF
-documents/metadata, OPC UA control bindings, and both standard/project localization
+documents/metadata, canonical repository control bindings (including their
+binding-specific transport locator where required), and both standard/project localization
 overrides for every language. Import validates the complete bundle and explicitly
 confirms a merge:
 imported IDs/keys update matching items while target-only customization is preserved.
@@ -162,7 +177,7 @@ IndexedDB and migrates the older local-storage record when encountered.
 
 ## Safety and control-power facets (§9.8)
 
-Any module may publish `Safety : ST_SafetyStatus` and `ControlPower : ST_ControlPowerStatus`; `Present=FALSE` hides the card. A root Unit additionally publishes read-only `Domain : ST_ControlDomainStatus` and `Status.ControlDomainId` (`''` = no arrangement). Its application-fed `ControlDomain` input is excluded from OPC UA; clients bind only `Domain`. One domain may serve several root Units; mirrored cards with the same ID are one shared domain, not independent power controls. Safety rows are read-only and include device kind/state, demand, safe-state feedback, reset-required, fault, muting, keyed bridge, fieldbus health, and affected power groups. Muting/bridge are conspicuous and never rendered as normal bypass controls. Control power shows domain Control On/Off state, affected member Units, and each named power group's request, feedback, safety permit, fieldbus health, reaction, and rearm requirement. `Start` is unavailable when an assigned domain is not `ReadyForStart`; an unassigned Unit adds no gate. The ordinary HMI never writes safety reset, bridge, muting, or guard unlock.
+Any module may publish `Safety : ST_SafetyStatus` and `ControlPower : ST_ControlPowerStatus`; `Present=FALSE` hides the card. A root Unit additionally publishes read-only `Domain : ST_ControlDomainStatus` and `Status.ControlDomainId` (`''` = no arrangement). Its application-fed `ControlDomain` input is private and excluded from the Self-Description Service; clients bind only `Domain` (TC3 realizes the exclusion with OPC UA publication attributes). One domain may serve several root Units; mirrored cards with the same ID are one shared domain, not independent power controls. Safety rows are read-only and include device kind/state, demand, safe-state feedback, reset-required, fault, muting, keyed bridge, fieldbus health, and affected power groups. Muting/bridge are conspicuous and never rendered as normal bypass controls. Control power shows domain Control On/Off state, affected member Units, and each named power group's request, feedback, safety permit, fieldbus health, reaction, and rearm requirement. `Start` is unavailable when an assigned domain is not `ReadyForStart`; an unassigned Unit adds no gate. The ordinary HMI never writes safety reset, bridge, muting, or guard unlock.
 
 Control On/Off is data-driven through the selected root Unit's `HmiRequest` mailbox (`CONTROL_ON` / `CONTROL_OFF`). The base acknowledges only after applying the `POWER_CONTROL` access gate, then emits one-scan `ControlOnRequest` / `ControlOffRequest` outputs. A one-Unit application may consume those pulses locally; a shared-domain application shall route every member request to the single domain coordinator. Reconnection never replays either request.
 
@@ -192,11 +207,11 @@ The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Node
 When `FaultActive` is true the channel and its diagnostic are highlighted. A module alarm simultaneously shows `ST_Diagnostic.IoTag`/`IoAddress`, so a cylinder timeout can read, for example, “press did not reach DOWN” plus `_101B202A · EL1809 Ch5`; the same exact tag is highlighted in the fieldbus tree. Transport adapters shall copy these fields without normalizing case, stripping the leading mapping marker, translating, or substituting a friendly label.
 
 ## Tree & theming (client behaviour)
-**Tree highlighting (§3.13):** per node, effective severity = max(own active events, children's) with HIGH > MED > LOW; tint every ancestor down to the source, strongest at the source. Derived purely from `Status`/`AlarmLog` — no extra PLC symbols. **Themes:** Material 3, selectable (light/dark/high-contrast); theme *changing* is an HMI-local setting gated by a configurable minimum `Access.CurrentLevel` (default `NONE` = open) — it is client config, not a PLC gated action. **Transports:** desktop/mobile bind OPC UA directly (FFI client); **Web requires a WebSocket/REST gateway** (browsers cannot open raw TCP) — the client is written against an abstract repository so Sim/OPC UA/gateway swap without UI changes.
+**Tree highlighting (§3.13):** per node, effective severity = max(own active events, children's) with HIGH > MED > LOW; tint every ancestor down to the source, strongest at the source. Derived purely from `Status`/`AlarmLog` — no extra PLC symbols. **Themes:** Material 3, selectable (light/dark/high-contrast); theme *changing* is an HMI-local setting gated by a configurable minimum `Access.CurrentLevel` (default `NONE` = open) — it is client config, not a PLC gated action. **Transports:** every UI platform binds the abstract repository. Fraktal/TC3 native clients may use OPC UA directly and Web uses the repository gateway; Fraktal/AB uses its EtherNet/IP/CIP gateway for native and Web clients. Transport choice changes only the adapter, never the domain or UI contract.
 
 ## Connection bootstrap (fail-closed)
 
-Connection ownership precedes the operator shell. On first use—or whenever settings exist but have never produced a `LIVE` repository state—the HMI **shall open a connection wizard**. Step 1 configures and proves the endpoint. After `LIVE` discovery, step 2 lists root Unit browse paths and requires at least one Unit assignment for this HMI. The selected paths are saved locally and form both a display filter and a repository write boundary, including fieldbus branches through their channel-to-module paths; global connection status remains visible. `EverConnected` becomes true only after the repository is live and Unit assignment is complete; saving an endpoint alone is not proof.
+Connection ownership precedes the operator shell. On first use—or whenever settings exist but have never produced a `LIVE` repository state—the HMI **shall open a connection wizard**. Step 1 configures and proves the endpoint. After `LIVE` discovery, step 2 lists canonical root Unit repository paths and requires at least one Unit assignment for this HMI. The selected paths are saved locally and form both a display filter and a repository write boundary, including fieldbus branches through their channel-to-module paths; global connection status remains visible. `EverConnected` becomes true only after the repository is live and Unit assignment is complete; saving an endpoint alone is not proof.
 
 When settings have previously connected, startup goes directly to a full-screen **Connecting to PLC** view. The interactive HMI is not built while the repository is `CONNECTING`, `STALE`, or `DOWN`. A transition away from `LIVE` removes operator interaction immediately; commands are never queued or replayed across reconnection. After 30 seconds without `LIVE`, and not before, the view exposes **Edit connection settings**. A successful `LIVE` transition cancels that timer and opens the shell only if every saved Unit path is rediscovered; missing/renamed assignments return to step 2 fail-closed. An authenticated `ADMIN` may edit the Unit assignment later from the shell. Native settings use a local JSON file; Web uses browser local storage. Both are HMI-local connection configuration, not PLC recipe/station data.
 
@@ -229,12 +244,15 @@ For a guided model change, the HMI writes `CHANGEOVER` mode, submits the selecte
 transactional model request, then starts the Unit sequence. The live `CurrentStep` and `Decision`
 records drive the instructions and confirmation buttons; no press- or station-specific page is used.
 
-OPC UA clients shall issue those operations through the root Unit's generic
-`HmiRequest : ST_HmiRequest` / `HmiResponse : ST_HmiResponse` mailbox; they do
-not call IEC methods. Arguments are written first and `Sequence` last. The Unit
-samples a new sequence once, routes it through the same methods and release
-gates used internally, clears transported secrets, and writes `AckSequence`
-only after processing. See `OPCUA_TRANSPORT.md`.
+Every transport adapter shall issue those operations through the root Unit's
+typed request/response mailbox; it never calls PLC-language methods or exposes a
+generic symbol/tag write. Arguments are written first and the nonzero commit
+sequence last. The Unit samples a new sequence once, routes it through the same
+operations and release gates used internally, clears transported secrets, and
+writes the matching acknowledgement only after processing. TC3 names these
+records `HmiRequest : ST_HmiRequest` / `HmiResponse : ST_HmiResponse`; AB uses
+the logical schema in Part III §7.7 and freezes its physical layout after S9/S12.
+See `OPCUA_TRANSPORT.md` for the TC3 mapping.
 
 The repository shall serialize each mailbox transaction, shall not allow a
 periodic refresh to starve its writes, and shall wait for any already-running
@@ -243,30 +261,31 @@ refresh before evaluating acknowledgement data. Control success means the exact
 different results, and the PLC's localizable `Diagnostic` is logged/displayed
 for a rejection. Static browse discovery should be cached for the session;
 cyclic updates use subscriptions or bounded batch reads rather than recursively
-re-browsing the complete server namespace every refresh interval.
-
-The Web gateway exposes the same tier capability as direct clients through
-versioned path discovery, compact tier indices, and bounded targeted reads. The
+rediscovering the complete hierarchy every refresh interval.
+The repository gateway exposes the same tier capability as any direct adapter
+through versioned path discovery, compact tier indices, and bounded targeted reads. The
 gateway intersects every connected browser's slow/on-demand sets before changing
 its one shared PLC session, so one client can never reduce another client's live
 surface. Optional deployment `read-root` subtrees filter snapshots, discovery,
-tier setup, and targeted reads consistently; PLC/OPC-UA authorization remains the
-primary confidentiality boundary when no additional gateway read scope is set.
-
+tier setup, and targeted reads consistently; the selected PLC/transport
+authorization remains the primary confidentiality boundary when no additional
+gateway read scope is set.
 Discovery shall canonicalize module identity before rendering. `Status.Name` is
-the qualified dotted identity (`Root.Child`); a real module's final OPC UA
-browse-name segment equals the final segment of that identity. Candidates are
-deduplicated by the complete `Status.Name`, parentage comes from its dotted
-prefix, and the shallowest matching OPC UA path is canonical. A `REFERENCE TO`
-or owner alias whose local browse name differs from the final identity segment
-is not a module instance. Duplicate root identities are a contract/deployment
-diagnostic and shall never be passed unchanged into station selectors.
+the qualified dotted identity (`Root.Child`); a real module's declared local
+segment equals the final segment of that identity. Candidates are deduplicated
+by the complete `Status.Name`, and declared parent/root identity must agree with
+its dotted prefix. TC3 chooses the shallowest matching OPC UA path and rejects a
+`REFERENCE TO`/owner alias whose local browse segment disagrees; AB rejects an
+inconsistent manifest ID/path/parent row. Duplicate root identities are a
+contract/deployment diagnostic and shall never be passed unchanged into station
+selectors.
 
 ## Known deferred (tracked)
 §8.3(d) `I_EventSink` historian implementations (OPC UA A&C / SQL / MES
 adapters — interface is normative and shipped; adapters are deployment work) and
-external §11.6 `I_HostEventSink` deliveries. The fixed bounded `HostEvents` OPC UA
-projection, HMI hydration, and §8.8/§8.9 generated catalog are shipped and
+external §11.6 `I_HostEventSink` deliveries. The fixed bounded `HostEvents`
+Self-Description projection (OPC UA in TC3), HMI hydration, and §8.8/§8.9
+generated catalog are shipped and
 freshness-checked; historian/MES/REST/MQTT delivery adapters remain deployment
 profiles. Core §8.10's optional Alarm-performance profile (long-window
 rate/standing/stale/chatter/flood analytics) is likewise owned once by the chosen
@@ -339,7 +358,7 @@ how often each part changes, so that a 128-row chart costs ~47 kB per Unit inste
 
 | part | where it comes from | changes |
 |---|---|---|
-| `StepNo`, `Branch`, `TimeClass`, `ExpectedTime`, `StepName`, `AwaitingLabel`, `AwaitsPath` | the **§3.10.2 config manifest**, published under these same `SequenceSteps[i]/…` browse paths | never, after first visit |
+| `StepNo`, `Branch`, `TimeClass`, `ExpectedTime`, `StepName`, `AwaitingLabel`, `AwaitsPath` | the **§3.10.2 config manifest**, published under these same `SequenceSteps[i]/…` repository paths | never, after first visit |
 | `Active`, `Elapsed`, `TimedOut` | the `ActiveSteps` **cursor**, one entry per concurrent leg, joined by `RowIdx` — **live tier** | per scan |
 | `Visited`, `LastDuration`, `ErrorActive`, `WarningActive` | the `SequenceSteps` array (on-demand read) | over time, per row |
 | the text and link of an error/message | the `SequenceAnnotations` table, joined by `RowIdx` | rarely, and sparse |
@@ -362,7 +381,7 @@ client-side would silently skip fast steps, mistime visits, and lose transient e
 entirely — it would show what the client happened to catch rather than what the chain
 did (§1.1 O3).
 
-Because the manifest reproduces the live half's browse paths, the mapper reads
+Because the manifest reproduces the live half's repository paths, the mapper reads
 `SequenceSteps[i]/StepName` without knowing it arrived by a different route. The HMI
 should cache manifest values and re-fetch on `Status/ConfigRev`.
 
