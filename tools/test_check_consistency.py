@@ -1,6 +1,9 @@
 import unittest
 from pathlib import Path
 
+# check_consistency stays at the repository root (it spans PLC, HMI and
+# Specification) but reaches into the TwinCAT binding's own tools for the
+# ladder readers; importing it first is what puts them on sys.path.
 from tools.check_consistency import (
     Finding,
     _is_test_source,
@@ -95,7 +98,7 @@ ELSE
         self.assertTrue(ladder.is_file() and twin.is_file())
         import xml.etree.ElementTree as ET
 
-        from tools.ld_rung_gen import split_networks
+        from ld_rung_gen import split_networks
         st = _st_chain(twin.read_text(encoding="utf-8-sig"))
         ld = _ld_chain(ladder.read_text(encoding="utf-8-sig"), split_networks, ET)
         self.assertEqual(sorted(st), sorted(ld))
@@ -144,8 +147,8 @@ ELSE
         import xml.etree.ElementTree as ET
 
         from tools.check_consistency import _ld_step_writes
-        from tools.ld_dump import _value
-        from tools.ld_rung_gen import split_networks
+        from ld_dump import _value
+        from ld_rung_gen import split_networks
 
         ladder = (PLC_ROOT / "Examples/PressDemo/Fraktal_Press_Demo/01_PneumaticPress"
                   / "Sequences/FB_LD_PressDemoAuto.TcPOU")

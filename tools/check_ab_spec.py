@@ -21,12 +21,14 @@ from pathlib import Path
 
 PART_PATH = Path("Specification/Fraktal_AB_Part_III.md")
 HMI_PATH = Path("Specification/HMI_CONTRACT.md")
-R1_EVIDENCE_PATH = Path("Specification/AB_R1_PLATFORM_BASELINE_EVIDENCE.md")
-S1_EVIDENCE_PATH = Path("Specification/AB_S1_CIP_DATA_PATH_EVIDENCE.md")
-S2_EVIDENCE_PATH = Path("Specification/AB_S2_AOI_PARAMETER_EVIDENCE.md")
-S4_S15_EVIDENCE_PATH = Path(
-    "Specification/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md"
-)
+# Only Part I/II/III and the contracts they bind stay at the Specification
+# root; the Fraktal/AB working set and its dated evidence live beside them.
+AB_DIR = Path("Specification/AllenBradley")
+AB_EVIDENCE = AB_DIR / "Evidence"
+R1_EVIDENCE_PATH = AB_EVIDENCE / "AB_R1_PLATFORM_BASELINE_EVIDENCE.md"
+S1_EVIDENCE_PATH = AB_EVIDENCE / "AB_S1_CIP_DATA_PATH_EVIDENCE.md"
+S2_EVIDENCE_PATH = AB_EVIDENCE / "AB_S2_AOI_PARAMETER_EVIDENCE.md"
+S4_S15_EVIDENCE_PATH = AB_EVIDENCE / "AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md"
 OFFLINE_PROBE_PATH = Path(
     "FraktalCore/PLC/Allen-Bradley/tools/"
     "Fraktal.Ab.OfflineProbe/Program.cs"
@@ -41,9 +43,7 @@ EIP_READ_PROBE_PATH = Path(
 STUDIO_VERIFY_PROBE_PATH = Path(
     "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_studio_verify.ps1"
 )
-INTERFACE_CATALOG_PATH = Path(
-    "Specification/AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md"
-)
+INTERFACE_CATALOG_PATH = AB_DIR / "AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md"
 
 LOGICAL_CONTRACT_MARKERS = (
     "Logical registry schema, version 1",

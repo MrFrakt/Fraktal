@@ -139,8 +139,12 @@ ControlOnButton := GVL_PressIO._000BS901;
 ControlOffButton := GVL_PressIO._000BS902;]]></ST></Implementation>
     </Method>
     <Method Name="M_ClearOutputs" Id="{f625a4c1-e10f-4e07-b91a-6885860994d0}">
-      <Declaration><![CDATA[METHOD M_ClearOutputs]]></Declaration>
-      <Implementation><ST><![CDATA[GVL_PressIO._101K301A := FALSE; GVL_PressIO._101K301B := FALSE;
+      <Declaration><![CDATA[// Also withdraws every held §10.5.1 force: under USE_SIMULATION no physical
+// output is driven at all, so a set-point armed earlier must not survive here
+// and reappear the moment a real write path runs (§10.5.1 rule 3).
+METHOD M_ClearOutputs]]></Declaration>
+      <Implementation><ST><![CDATA[_publisher.M_ApplyForces(Enabled := FALSE);
+GVL_PressIO._101K301A := FALSE; GVL_PressIO._101K301B := FALSE;
 GVL_PressIO._101K201A := FALSE; GVL_PressIO._101K201B := FALSE;
 GVL_PressIO._101K202A := FALSE; GVL_PressIO._101K202B := FALSE;
 GVL_PressIO._101P101 := FALSE; GVL_PressIO._101P102 := FALSE;
@@ -155,15 +159,30 @@ VAR_INPUT
     PowerHal : ST_PowerGroupHal;
     LampsOn : BOOL;
     ControlCircuitMappingConfirmed : BOOL;
+    // Core §10.5.1 rule 3 - FB_UnitBase.M_ForcePermitted() of the owning Unit.
+    // The SAME predicate its ForceChannel accepted the request with, so a force
+    // can never be accepted under conditions in which it would not be applied,
+    // and leaving idle MANUAL withdraws every held set-point on that scan.
+    ForcePermitted : BOOL;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[GVL_PressIO._101K301A := SlideHal.ExtendOut;
-GVL_PressIO._101K301B := SlideHal.RetractOut;
-GVL_PressIO._101K201A := DoorHal.ExtendOut;
-GVL_PressIO._101K201B := DoorHal.RetractOut;
-GVL_PressIO._101K202A := PressHal.ExtendOut;
-GVL_PressIO._101K202B := PressHal.RetractOut;
-GVL_PressIO._101P101 := LampsOn;
-GVL_PressIO._101P102 := LampsOn;
+      <Implementation><ST><![CDATA[// One call decides whether held set-points apply this scan, and withdraws them
+// all on the falling edge. It runs BEFORE the writes below, so the very scan
+// the Unit leaves idle MANUAL is already driven by application logic again.
+_publisher.M_ApplyForces(Enabled := ForcePermitted);
+// M_EffectiveBool returns the value, so each line still reads as the plain
+// assignment it was: the application value, or the held force set-point while
+// forcing is permitted and this channel is forced.
+GVL_PressIO._101K301A := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 1, Value := SlideHal.ExtendOut);
+GVL_PressIO._101K301B := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 2, Value := SlideHal.RetractOut);
+GVL_PressIO._101K201A := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 3, Value := DoorHal.ExtendOut);
+GVL_PressIO._101K201B := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 4, Value := DoorHal.RetractOut);
+GVL_PressIO._101K202A := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 5, Value := PressHal.ExtendOut);
+GVL_PressIO._101K202B := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 6, Value := PressHal.RetractOut);
+GVL_PressIO._101P101 := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 7, Value := LampsOn);
+GVL_PressIO._101P102 := _publisher.M_EffectiveBool(NodeIndex := 4, ChannelIndex := 8, Value := LampsOn);
+// Ch9/Ch10 (_000K951_A1 / _000K911_A1) are never routed through the force
+// path: they drive the hardwired N54 D2 Control On relay chain and the
+// catalog never marks them forceable (§10.5.1 rule 4).
 IF ControlCircuitMappingConfirmed THEN
     // N54 D2: these are DIFFERENT signals. SwitchControlOn is the momentary
     // button coil (2 s pulse); EnableControlOn is the bus/air permissive that

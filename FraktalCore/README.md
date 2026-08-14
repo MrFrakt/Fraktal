@@ -41,7 +41,7 @@ forest and renders it — a station adds zero HMI code. Binds only `PlcRepositor
 The packaged gateway also serves the matched compiled Web HMI; Windows includes
 a tray/startup installer and Linux includes a systemd unit. See `HMI/README.md`,
 `../Specification/HMI_CONTRACT.md`, and
-`../Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`.
+`../Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md`.
 
 > **Status (2026-08-02):** HMI verified — `flutter analyze` clean, **166 tests passing**
 > (4 intentional live-environment skips) on the pinned Flutter 3.44.6;
@@ -55,5 +55,5 @@ a tray/startup installer and Linux includes a systemd unit. See `HMI/README.md`,
 > This is framework-integration evidence, not a production-machine claim. Still pending:
 > the PLC compile/TcUnit CI jobs exist but stay **skipped** until a licensed self-hosted
 > TwinCAT runner is registered (§1.5), plus the improvement items in
-> `../Specification/OBJECTIVES_AUDIT.md`. Add each `.plcproj`
+> `../Specification/Reports/OBJECTIVES_AUDIT.md`. Add each `.plcproj`
 > to a TwinCAT XAE solution via *PLC → Add Existing Item…* (see `PLC/TwinCAT/README.md` bring-up).

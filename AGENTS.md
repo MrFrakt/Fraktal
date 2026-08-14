@@ -21,8 +21,16 @@ station's published/discovered/streamed surface proportional to what is actually
 ## 1. Repository map
 
 ```
-Specification/        The standard. Part I (Core, platform-neutral) + Part II (Fraktal/TC3 binding)
-                      + annexes A–K (worked examples) + HMI_CONTRACT.md + split/audit notes.
+Specification/        The standard, and ONLY the standard at the top level: Part I (Core),
+                      Part II (Fraktal/TC3), Part III (Fraktal/AB), HMI_CONTRACT.md,
+                      OPCUA_TRANSPORT.md, the §9.8 safety profile, the localization
+                      contract, and reason_rationalization.json (§8.9, machine-read).
+├── Annexes/          worked examples A–K (Core §12)
+├── Guides/           HOW to apply it (first project, XAE workflow, deployment) — non-normative
+├── Reports/          audits, status, plans, one-off analyses — what IS, never what SHALL be
+├── Evidence/         dated TwinCAT runtime evidence; append-only, never edited to match today
+└── AllenBradley/     the Fraktal/AB working set + Evidence/ for its R-/S-gate spikes
+                      Read Specification/README.md before filing anything new here.
 FraktalCore/
 ├── PLC/
 │   ├── TwinCAT/                 Fraktal/TC3 reference implementation (IEC 61131-3)
@@ -44,7 +52,7 @@ Two source-of-truth documents beyond the spec:
 - `FraktalCore/PLC/TwinCAT/IMPLEMENTATION_NOTES.md` — **every** place the implementation diverged from the
   draft spec, with the reason. Read this before changing PLC code; it records what was decided and why.
 - `Specification/HMI_CONTRACT.md` — the exact symbol→widget bind table the HMI implements.
-- `Specification/FIRST_PROJECT_AGENT_GUIDE.md` — mandatory phase/evidence workflow when guiding a
+- `Specification/Guides/FIRST_PROJECT_AGENT_GUIDE.md` — mandatory phase/evidence workflow when guiding a
   first project, initial target deployment, TF6100 commissioning, or HMI connection troubleshoot.
 
 ---
@@ -132,7 +140,7 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   library change. That is the only form that scales — a hand-written `…Ld` twin per
   method per developer type does not. (`FB_SequenceBaseLd`, which took `Run : BOOL`
   because adding an input to an override is `C0094`, was exactly that mistake and has
-  been **deleted**; `convert_ld_boxes()` in `tools/ld_rung_gen.py` migrates a chain that
+  been **deleted**; `convert_ld_boxes()` in `FraktalCore/PLC/TwinCAT/tools/ld_rung_gen.py` migrates a chain that
   still carries it.) An `EN`-gated value-returning box has **two** outputs, `ENO` first
   and the return value second; wiring the wrong slot compiles clean and strands the
   intended variable. **Never nest a value-returning box or feed its result into another
@@ -146,17 +154,18 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
 - The `FB_SFC_` prefix in the press demo is **not a convention** — it only lets two
   renditions of one chain coexist. Name a real chain `FB_<Thing><Mode>`.
 - **Never hand-write an SFC/LD body — generate it, then read the graph back.**
-  It is a serialized object graph. For **LD**, `tools/ld_rung_gen.py` either clones an
+  It is a serialized object graph. For **LD**, `FraktalCore/PLC/TwinCAT/tools/ld_rung_gen.py` either clones an
   existing network (renumbering every `Id`/`VarId` into a fresh range, rewriting only
   leaf operands, every substitution asserting its hit count) or **declares** a rung
   outright: a `BoxTreeBox` is fully determined by the declaration of the method it
   calls, so `method("M_Delay", …)` or `method("_pressRam.WithdrawOutputs", …)` needs no
-  instance to copy. `tools/test_ld_rung_gen.py` proves split/rebuild is byte-identical
+  instance to copy. its sibling `test_ld_rung_gen.py` proves split/rebuild is byte-identical
   and regenerates an editor-drawn rung from a declaration, matching it node for node
   and flag for flag. Compile after **every** rung: `ImpVar<BoxId>_<n>` maps straight to
   that node's `<v n="Id">…L</v>`.
 - **A clean compile does not prove a generated node exists — dump the graph.**
-  `python tools/ld_dump.py <file>` (ladder) and `tools/sfc_dump.py <file>` (charts) are
+  `python FraktalCore/PLC/TwinCAT/tools/ld_dump.py <file>` (ladder) and the
+  sibling `sfc_dump.py <file>` (charts) are
   the verification step, not a convenience. An untyped `<o>` — a node that lost the
   type a `<l2 … cet="BoxTreeBox">` gave it collectively — parses and compiles while the
   box is simply absent; and a gate reading `EQ(215, 0)` instead of `EQ(_step, 215)` is
@@ -258,11 +267,16 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
 
 **The machine-checkable gates, in the order they get cheaper to fix:**
 ```
-python tools/plc_lint.py            # source rules, both profiles (--profile 4024)
+# The TwinCAT gates ship INSIDE the binding they check (like Allen-Bradley/tools),
+# so their tests import them flat and run by discovery from that directory.
+python FraktalCore/PLC/TwinCAT/tools/plc_lint.py    # both profiles (--profile 4024)
+python -m unittest discover -s FraktalCore/PLC/TwinCAT/tools \
+                            -t FraktalCore/PLC/TwinCAT/tools
+FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatBuild.ps1  # CheckAllObjects, 5 solutions
+
+# tools/ at the repository root keeps only the gates that span several trees.
 python tools/check_consistency.py   # agreement BETWEEN artifacts (see below)
-python -m unittest tools.test_plc_lint tools.test_tcunit_to_junit \
-                   tools.test_ld_rung_gen tools.test_check_consistency
-tools/Invoke-TwinCatBuild.ps1       # CheckAllObjects on all five solutions
+python -m unittest tools.test_check_consistency
 ```
 `check_consistency.py` covers what `plc_lint.py` structurally cannot, because it
 spans trees: every operator-facing localization key resolves in a shipped
@@ -273,8 +287,8 @@ one language has the same steps and transitions in each. The last one is what
 makes carrying three AUTO renditions legitimate rather than O9 duplication.
 
 **Compile before you claim.** There IS a TwinCAT compiler on the dev host:
-`tools/Invoke-TwinCatBuild.ps1` runs `CheckAllObjects()` on the two libraries and the two
-test solutions. Read `Specification/TWINCAT_XAE_WORKFLOW.md` §5.1 before concluding a
+`FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatBuild.ps1` runs `CheckAllObjects()` on the two libraries and the two
+test solutions. Read `Specification/Guides/TWINCAT_XAE_WORKFLOW.md` §5.1 before concluding a
 failure is undiagnosable — the Error List is reachable **only** through the `DTE2`
 interface (`envdte80.dll` from the same IDE), and base `EnvDTE.DTE` returns an empty or
 missing property that looks like a tooling dead end.
@@ -442,7 +456,7 @@ final for the project. In the internal Press test bench, `FB_PressDemoUnit`, `Se
   caller supplies a `BaseStepNo` window and publishes the private progress through the normal step record.
   In the press, AUTO/HOME/CHANGEOVER embed the shared `FB_PressDemoLoadPosition`; never copy that motion chain.
 - Cross-standard orientation (Bosch **Nexeed** reference, `NexeedReferenceOnly/`; decisions documented in
-  `Specification/NEXEED_REFERENCE_INSIGHTS.md`): `SqM` ≈ mode sequence, `SqC` ≈ module command, `SqS` ≈
+  `Specification/Reports/NEXEED_REFERENCE_INSIGHTS.md`): `SqM` ≈ mode sequence, `SqC` ≈ module command, `SqS` ≈
   private sub-sequence, location folders ≈ §4.2 ownership. Do **not** import Unit+Extension duplication,
   per-step wrappers, opaque summed releases, PLC-authored HMI visibility, direct raw-global coupling, or
   ordinary-PLC safety bridging. Fraktal base classes, hooks, condition records, and safety boundary own those.
@@ -457,6 +471,32 @@ never deploy either as the machine boot application. On TC3, fill large bounded 
 `ST_ReleaseReport` through caller-owned `VAR_IN_OUT` storage—nested by-value returns can overflow the
 bounded task stack.
 SIM-only force hooks compile out of release builds.
+
+**Commissioning gates and §10.5.1 output forcing (Core §7.5, TC3 §7.5) — the rules that bite:**
+- **A gate is a build constant.** `VAR_GLOBAL CONSTANT` / `VAR CONSTANT`, never a variable, never
+  writable, and a published mirror **shall have no consumer in control logic**. Declare it with
+  `FB_EngineeringMode.M_Declare(Name, DescriptionKey, Active := <the constant>)`. Passing a runtime
+  variable as `Active` is a conformance defect: a gate the machine can switch on is not auditable.
+- **Inactive means unregistered, not registered-and-off.** That is why `ST_EngineeringGate` has no
+  `Active` member and why a production station's register is empty — which is in turn what makes
+  the HMI force affordance *absent* rather than greyed (§3.9). Do not add an `Active` flag back.
+- **Output forcing needs the `FRAKTAL_ENGINEERING` compiler define**, on the library AND every
+  application in the solution (a pragma is evaluated per compiled project). Without it
+  `PL_FraktalEngineering.OUTPUT_FORCING` is FALSE, `Forceable` is FALSE on every channel, and
+  `ForceChannel` refuses before any resolver runs.
+- **The gate alarm is the weakest alarm in the system on purpose** — LOW, SYSTEM, `AUTO_RESET`,
+  `shelvable: false`. Do not "promote" it: `MANUAL_RESET` would refuse `Start` and block the
+  commissioning it exists to serve, and a louder severity would bury real process alarms in the
+  phase that produces the most of them. It is non-clearable by *shape*, not by strength.
+- **A force must never outlive idle MANUAL.** The hardware driver calls
+  `M_ApplyForces(Enabled := <Unit>.M_ForcePermitted())` once per scan before writing outputs; the
+  falling edge withdraws every force. `ForceChannel` gates the operator request on the *same*
+  predicate, so accepted and applied can never disagree. Keep the held set-point in
+  `ForceBool`/`ForceAnalog` — storing it in `BoolValue` lets the next publish overwrite it.
+- **Never mark a control-power or safety-adjacent coil forceable.** The press excludes
+  `_000K951_A1`/`_000K911_A1` (the hardwired N54 D2 Control On chain) even in a commissioning
+  image; energizing control power from a diagnostic screen is the one act this surface must not
+  offer (§10.5.1 rule 4).
 
 ---
 
@@ -546,7 +586,7 @@ authorization is historical and shall not be inferred.
 ## 5. Build, run, test
 
 For a first project or first deployment, read and follow
-`Specification/FIRST_PROJECT_AGENT_GUIDE.md` completely. Keep compile, target,
+`Specification/Guides/FIRST_PROJECT_AGENT_GUIDE.md` completely. Keep compile, target,
 runtime, OPC UA channel/session, namespace authorization, Fraktal discovery,
 mailbox acknowledgement, and PLC acceptance as separate checkpoints. Once the
 module tree is live, diagnose failed controls from the `HmiRequest` write/commit
@@ -569,12 +609,12 @@ so `Port_<ADS port>.tmc` is generated.
 
 **PLC (TwinCAT 3, 4024+):** a `.plcproj` is added *into* a TwinCAT XAE solution, not opened directly:
 create a TwinCAT XAE Project in TcXaeShell/VS, right-click **PLC → Add Existing Item…** → the `.plcproj`.
-Before any XAE work, read `Specification/TWINCAT_XAE_WORKFLOW.md`; it is the
+Before any XAE work, read `Specification/Guides/TWINCAT_XAE_WORKFLOW.md`; it is the
 authoritative interaction/evidence procedure. Its mandatory distinctions are:
 
 - nested IEC **Build/Rebuild** proves the selected PLC/platform and may regenerate
   TMC; **Check all objects** compiles every object but is not a full system build;
-- `tools/Invoke-TwinCatBuild.ps1` performs only isolated hidden-XAE
+- `FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatBuild.ps1` performs only isolated hidden-XAE
   `CheckAllObjects()` plus the boot-autostart assertion—it never selects a target,
   activates, downloads, runs tests, or installs a library;
 - `CheckAllObjects()` itself exposes only its Boolean. For diagnostics, use the
@@ -619,10 +659,10 @@ For the same GUID-ownership reason, never load `Fraktal_Press_Demo.plcproj` and
 `PressTests.plcproj` in one XAE solution: the press gate links the exact Press
 Unit/sequence/release source files. Use its dedicated isolated test solution,
 or unload/remove the Press application before adding the press tests.
-The current Core is `0.4.0.2` and Modules is `0.3.0.0`; downstream placeholders are pinned accordingly. Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
+The current Core is `0.5.0.0` and Modules is `0.3.0.0`; downstream placeholders are pinned accordingly. Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
 If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
-reason to edit each affected POU. Install Core `0.4.0.2`, resolve/build/install Modules `0.3.0.0`,
+reason to edit each affected POU. Install Core `0.5.0.0`, resolve/build/install Modules `0.3.0.0`,
 then reload the application placeholders and rebuild.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.
@@ -639,7 +679,7 @@ flutter run -d windows|chrome
 `analysis_options.yaml` is self-contained (no flutter_lints include) per the zero-package policy.
 
 **Gateway + Web HMI deployment:** follow
-`Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`. The platform package command
+`Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md`. The platform package command
 builds Flutter Web first and includes the exact output beside the gateway:
 ```
 cd FraktalCore/HMI
@@ -710,6 +750,12 @@ They are **`VAR CONSTANT` on purpose: they cannot be changed online.** Defeating
 source edit plus a download — a reviewable, auditable act, not a live write from an HMI or ADS client.
 Do not "helpfully" convert them back to writable variables.
 
+**Both are now declared into the §7.5 engineering-gate register** (`FB_EngineeringMode`, wired in
+`MAIN`), so while either is set the machine says so itself: one LOW/SYSTEM/`AUTO_RESET` event per
+active gate, a permanent non-dismissible HMI strip, and no operator action that closes either.
+That does not make the table above obsolete — read the constants first — but a station that looks
+broken should now be *telling* you which gate is on.
+
 `MAIN` also publishes inert read-only mirrors named `UseSimulation` / `ControlCircuitMappingConfirmed`,
 reassigned from the constants every cycle purely so the gate state stays visible over ADS (the compiler
 inlines constants and may publish no symbol). **Nothing reads the mirrors** — writing one online has no
@@ -770,14 +816,14 @@ compile-blocking regressions; see IMPLEMENTATION_NOTES §24).
 | Framework reason codes / constants | `PLC/TwinCAT/Framework/Fraktal_Core/Params/PL_Fraktal.TcGVL`; spec §8.8 |
 | A reusable CM/EM implementation | `PLC/TwinCAT/Framework/Fraktal_Modules/` (cylinder CM, clamp EM); Annexes A/B/C |
 | Internal Press test-bench Unit, mode chains, and releases | `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo/01_PneumaticPress/{FB_PressDemoUnit,Sequences,Release}` |
-| CX2030 press I/O and commissioning gaps | `Specification/CX2030_PRESS_IO_MAPPING.md`; physical XTI under `PLC/TwinCAT/Examples/PressDemo/_Config/IO/` and linked symbols in `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo/00_System/Hardware/` |
-| First project / deployment / OPC UA commissioning | `Specification/FIRST_PROJECT_AGENT_GUIDE.md` |
-| Web HMI + Windows/Linux gateway installation | `Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`; detailed switches in `HMI/gateway/DEPLOYMENT.md` |
+| CX2030 press I/O and commissioning gaps | `Specification/Reports/CX2030_PRESS_IO_MAPPING.md`; physical XTI under `PLC/TwinCAT/Examples/PressDemo/_Config/IO/` and linked symbols in `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo/00_System/Hardware/` |
+| First project / deployment / OPC UA commissioning | `Specification/Guides/FIRST_PROJECT_AGENT_GUIDE.md` |
+| Web HMI + Windows/Linux gateway installation | `Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md`; detailed switches in `HMI/gateway/DEPLOYMENT.md` |
 | Part traceability (§3.16) | `PLC/TwinCAT/Framework/Fraktal_Core/Connectivity/FB_LocalPartCarrier.TcPOU`, `Interfaces/I_PartCarrier.TcIO`, UnitBase `_M_Part*` helpers; Annex E |
 | Start a new module type | Copy `PLC/TwinCAT/scaffold/FB_TemplateCM/`, read its `SKELETON.md` |
 | HMI↔PLC bind table | `Specification/HMI_CONTRACT.md` |
 | HMI domain model (the contract types) | `HMI/lib/domain/types.dart` |
 | HMI transport seam | `HMI/lib/data/plc_repository.dart` (+ `sim_repository.dart`) |
-| What is generated vs. hand-written, and the AI-assisted lifecycle | `Specification/AI_DEVELOPMENT_AND_AUTOMATION.md` |
-| Nexeed comparison decisions (grouping/sequences/releases) | `Specification/NEXEED_REFERENCE_INSIGHTS.md` |
+| What is generated vs. hand-written, and the AI-assisted lifecycle | `Specification/Reports/AI_DEVELOPMENT_AND_AUTOMATION.md` |
+| Nexeed comparison decisions (grouping/sequences/releases) | `Specification/Reports/NEXEED_REFERENCE_INSIGHTS.md` |
 | Why the code differs from the draft spec | `PLC/TwinCAT/IMPLEMENTATION_NOTES.md` |

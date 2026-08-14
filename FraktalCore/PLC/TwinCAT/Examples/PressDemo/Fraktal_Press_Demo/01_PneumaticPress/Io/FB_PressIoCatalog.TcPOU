@@ -14,6 +14,10 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[METHOD Setup : BOOL
 VAR_INPUT
     UnitRef : REFERENCE TO FB_PressDemoUnit;
+    // Core §7.5 register. Only its OUTPUT_FORCING gate can mark a channel
+    // Forceable, so a production image publishes Forceable=FALSE everywhere and
+    // the HMI renders no force affordance at all (§3.9, §10.5.1 rule 1).
+    Engineering : REFERENCE TO FB_EngineeringMode;
 END_VAR
 VAR
     Ok : BOOL;
@@ -168,7 +172,57 @@ Ok := _M_DefinePoint(NodeIndex := 4, ChannelIndex := 9, Tag := '_000K951_A1',
 Ok := _M_DefinePoint(NodeIndex := 4, ChannelIndex := 10, Tag := '_000K911_A1',
     DescriptionKey := 'project.io.000K911_A1', Address := '=000+S-K010C1 Ch11',
     ModulePath := UnitRef.PneumaticPower.Name, Dir := E_ChannelDir.OUTPUT) AND Ok;
+Ok := _M_DeclareForceable(Engineering := Engineering) AND Ok;
 Setup := _publisher.M_Validate() AND Ok;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_DeclareForceable" Id="{3f1f3064-f2c4-4ca4-8d86-3420f780ebe8}">
+      <Declaration><![CDATA[// Core §10.5.1 rule 1 — mark the outputs this station allows to be forced from
+// the HMI, and ONLY while the §7.5 OUTPUT_FORCING build gate is active.
+//
+// Two channels of the EL2809 are deliberately excluded even in a commissioning
+// image: =000+S-K010C1 Ch10/Ch11 (_000K951_A1 / _000K911_A1) drive the hardwired
+// N54 D2 Control On relay chain. That chain is this machine's control-power
+// authority, and §10.5.1 rule 4 keeps the standard-PLC force surface out of
+// anything with that role. Forcing them would energize control power from a
+// diagnostic screen, which is exactly the act this surface must never offer.
+METHOD PRIVATE _M_DeclareForceable : BOOL
+VAR_INPUT
+    Engineering : REFERENCE TO FB_EngineeringMode;
+END_VAR
+VAR
+    c : INT;
+    allow : BOOL;
+    Ok : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[Ok := TRUE;
+allow := __ISVALIDREF(Engineering) AND_THEN Engineering.ForcingActive;
+// Ch1..Ch8: the six valve coils and the two lamps - actuators whose owning CM
+// still runs, still holds its interlocks, and reasserts them the moment the Unit
+// leaves the idle MANUAL state that made the force effective (§10.5.1 rule 3).
+FOR c := 1 TO 8 DO
+    Ok := _publisher.M_SetForceable(NodeIndex := 4, ChannelIndex := c,
+        Forceable := allow) AND Ok;
+END_FOR
+_M_DeclareForceable := Ok;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RouteForce" Id="{11084a1e-733a-4b24-9e4c-5bb60eec6f83}">
+      <Declaration><![CDATA[// Core §10.5.1 — apply one accepted force request to the approved channel join
+// this catalog owns (§10.2.1). Every authority check upstream of the physical
+// contract has already happened in FB_UnitBase.ForceChannel; the publisher
+// rechecks root ownership, OUTPUT direction and the Forceable capability, and
+// refuses anything else. This writes only the held set-point: the hardware
+// driver decides each scan whether set-points are applied at all.
+METHOD M_RouteForce : BOOL
+VAR_INPUT
+    ChannelPath : STRING(255);
+    OwnerRootPath : STRING(255);
+    Force : BOOL;
+    BoolValue : BOOL;
+    AnalogValue : REAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RouteForce := _publisher.M_SetForce(ChannelPath := ChannelPath,
+    OwnerRootPath := OwnerRootPath, Force := Force,
+    BoolValue := BoolValue, AnalogValue := AnalogValue);]]></ST></Implementation>
     </Method>
     <Method Name="_M_DefineIdentity" Id="{2bb31b26-6795-4795-860f-0bb952c52b59}">
       <Declaration><![CDATA[METHOD PRIVATE _M_DefineIdentity : BOOL

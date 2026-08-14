@@ -51,6 +51,11 @@ TYPE E_Reason :
     EVENT_PART_PROCESSED          := 2026,
     EVENT_PART_PROCESSING_ABORTED := 2027,
 
+    // ── Framework 2030–2039: engineering / commissioning build gates (Core §7.5) ──
+    // One LOW/SYSTEM event per ACTIVE gate: not clearable, not shelvable, and
+    // AUTO_RESET so it never blocks the commissioning it exists to serve.
+    COMMISSIONING_GATE_ACTIVE := 2030,
+
     // ── Framework 2900–2909: framework self-test (never raised in production) ──
     TEST_FAULT              := 2901
 ) DINT;

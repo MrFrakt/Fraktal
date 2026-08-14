@@ -200,9 +200,32 @@ station-specific page.
 ## Connector sub-tile
 `Status` as any module; link detail: LastSeen/Reaction are on the connector's mirror/diag (`Status.Diagnostic` = link first-out when unlinked).
 
+## Commissioning gates (§7.5)
+
+While a station's engineering-gate register is non-empty the PLC raises one
+`COMMISSIONING_GATE_ACTIVE` (reason 2030) event per active gate: `LOW` severity,
+`SYSTEM` category, `AUTO_RESET`, and rationalized **not shelvable**. The client
+**shall** render a **permanent, non-dismissible** indication for as long as any
+such event is active, listing each gate's localized description.
+
+It is deliberately a **separate strip from the global alarm banner**. That banner
+shows the single worst active event, and this is the lowest-priority event the
+framework raises — so during commissioning, the phase that produces the most
+process alarms, a severity-ordered banner would bury the one message that says
+the machine is not running its production software. For the same reason the strip
+is warning-tinted rather than error-tinted: the station is not faulted, and
+dressing a build statement as a fault trains operators to ignore real ones.
+
+Three things the client shall **not** do: offer a close/dismiss control (no
+operator action closes the underlying event, so a dismissible banner would give
+that capability back); filter the event by `Shelved` (the reason is not
+shelvable, and honouring a shelf would defeat the clause); or infer the gate set
+from anything but these events. The strip disappears when the PLC stops reporting
+gates, which — gates being build constants — means a new download.
+
 ## Fieldbus and I/O identity
 
-The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Nodes[] : ST_BusNode`, `MappingValid`, and `MappingDiagnostic`. An invalid mapping is a commissioning fault and shall be displayed rather than treated as an empty/healthy bus. Discovery reads `NodeCount` and each active node's `ChannelCount` before traversing the bounded arrays; unused fixed-array elements are not part of an HMI snapshot. For every `ST_IoChannel`, the client maps `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Dir`, `Kind`, values, `Unit`, `Forced`, `Quality`, `FaultActive`, `Diagnostic`, and `Forceable`. `Name` is the exact approved electrical/I/O-list tag and is shown verbatim in monospace; `DescriptionKey` and `Diagnostic` are localized by the project catalog. `Address` shows the terminal/channel locator. `Path` remains the unique forcing/audit identity, while `ModulePath` opens the owning module and defines the HMI assignment boundary. `Forceable` is an explicit PLC capability and defaults false when absent; output direction by itself never creates a force control. A snapshot marked `truncated=true` is rejected before mapping and shall never produce a `LIVE` repository or an empty-but-healthy fieldbus view.
+The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Nodes[] : ST_BusNode`, `MappingValid`, and `MappingDiagnostic`. An invalid mapping is a commissioning fault and shall be displayed rather than treated as an empty/healthy bus. Discovery reads `NodeCount` and each active node's `ChannelCount` before traversing the bounded arrays; unused fixed-array elements are not part of an HMI snapshot. For every `ST_IoChannel`, the client maps `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Dir`, `Kind`, values, `Unit`, `Forced`, `Quality`, `FaultActive`, `Diagnostic`, and `Forceable`. `Name` is the exact approved electrical/I/O-list tag and is shown verbatim in monospace; `DescriptionKey` and `Diagnostic` are localized by the project catalog. `Address` shows the terminal/channel locator. `Path` remains the unique forcing/audit identity, while `ModulePath` opens the owning module and defines the HMI assignment boundary. `Forceable` is an explicit PLC capability and defaults false when absent; output direction by itself never creates a force control. It is additionally FALSE on every channel unless the deployed image carries an active §7.5 `OUTPUT_FORCING` commissioning gate, so on a production station the client renders **no force affordance at all** — absent, not greyed (§3.9). The client shall not offer a local switch to reveal it: the capability is a property of the controller image, and a client that could turn it on would be exactly the authority §7.5.1 denies. The force dialog states both why the control exists (a commissioning gate) and how far it reaches (only while the owning Unit is idle in `MANUAL`; starting it or leaving `MANUAL` withdraws every force), so it can never be mistaken for the manual-command path that goes *through* a module. A snapshot marked `truncated=true` is rejected before mapping and shall never produce a `LIVE` repository or an empty-but-healthy fieldbus view.
 
 When `FaultActive` is true the channel and its diagnostic are highlighted. A module alarm simultaneously shows `ST_Diagnostic.IoTag`/`IoAddress`, so a cylinder timeout can read, for example, “press did not reach DOWN” plus `_101B202A · EL1809 Ch5`; the same exact tag is highlighted in the fieldbus tree. Transport adapters shall copy these fields without normalizing case, stripping the leading mapping marker, translating, or substituting a friendly label.
 

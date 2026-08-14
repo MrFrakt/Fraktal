@@ -76,7 +76,7 @@ it R2 closes.** S15 remains open on the unattended-gate and Ethernet questions.
 **R3 then closed offline.** The six logical contracts — registry, manifest,
 value envelope, mailbox, repository negotiation and the HostEvents ring — are
 frozen at version 1 in
-[`Specification/AB_FROZEN_CONTRACTS_V1.json`](../../../Specification/AB_FROZEN_CONTRACTS_V1.json),
+[`Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json`](../../../Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json),
 the one artifact a generator, a gateway and a gate all read. Part III's prose
 stays normative and `tools/check_ab_contracts.py` fails the build when the two
 drift, when a field uses a type this controller does not have, or when a
@@ -102,58 +102,58 @@ arbitrary CIP `Message()` surface to the HMI.
 
 Start with:
 
-- [`Specification/AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md`](../../../Specification/AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md)
+- [`Specification/AllenBradley/AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md`](../../../Specification/AllenBradley/AB_ENGINEERING_INTERFACE_AND_TOOL_CATALOG.md)
   for the complete status-marked inventory of every Studio 5000, FactoryTalk
   Linx, SDK, EtherNet/IP, Python, UI Automation, and repository tool interface
   used or discovered, plus the unfinished S11 checkpoint;
-- [`Specification/AB_ENGINEERING_WORKSTATION_ACCESS_RUNBOOK.md`](../../../Specification/AB_ENGINEERING_WORKSTATION_ACCESS_RUNBOOK.md)
+- [`Specification/AllenBradley/AB_ENGINEERING_WORKSTATION_ACCESS_RUNBOOK.md`](../../../Specification/AllenBradley/AB_ENGINEERING_WORKSTATION_ACCESS_RUNBOOK.md)
   for the verified fresh-chat paths, tools, commands, and safety boundaries used
   to access Studio 5000, FactoryTalk Linx, and the isolated PLC;
-- [`Specification/AB_STUDIO5000_IMPLEMENTATION_HANDOVER_PROMPT.md`](../../../Specification/AB_STUDIO5000_IMPLEMENTATION_HANDOVER_PROMPT.md)
+- [`Specification/AllenBradley/AB_STUDIO5000_IMPLEMENTATION_HANDOVER_PROMPT.md`](../../../Specification/AllenBradley/AB_STUDIO5000_IMPLEMENTATION_HANDOVER_PROMPT.md)
   on the Windows 10 Studio 5000 workstation;
-- [`Specification/AB_R0_CORE_AUTHORITY_EVIDENCE.md`](../../../Specification/AB_R0_CORE_AUTHORITY_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_R0_CORE_AUTHORITY_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_R0_CORE_AUTHORITY_EVIDENCE.md)
   for the completed R0 decision record;
-- [`Specification/AB_R1_PLATFORM_BASELINE_EVIDENCE.md`](../../../Specification/AB_R1_PLATFORM_BASELINE_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_R1_PLATFORM_BASELINE_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_R1_PLATFORM_BASELINE_EVIDENCE.md)
   for the completed platform baseline;
-- [`Specification/AB_S1_CIP_DATA_PATH_EVIDENCE.md`](../../../Specification/AB_S1_CIP_DATA_PATH_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S1_CIP_DATA_PATH_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S1_CIP_DATA_PATH_EVIDENCE.md)
   for the completed S1 CIP data/time/transport evidence and initial adapter
   decision;
-- [`Specification/AB_S2_AOI_PARAMETER_EVIDENCE.md`](../../../Specification/AB_S2_AOI_PARAMETER_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S2_AOI_PARAMETER_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S2_AOI_PARAMETER_EVIDENCE.md)
   for the completed nested-AOI, InOut/access, target-limit, and signature
   upgrade evidence;
-- [`Specification/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](../../../Specification/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)
   for the completed sequence-execution, scan-ordering, one-scan-latency,
   simultaneous-branch, `SFR` re-entry, and ST/SFC parity evidence, plus the
   native-SFC chart fidelity result;
-- [`Specification/AB_S12_TYPE_MAP_EVIDENCE.md`](../../../Specification/AB_S12_TYPE_MAP_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S12_TYPE_MAP_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S12_TYPE_MAP_EVIDENCE.md)
   for the completed type-acceptance matrix, the measured CIP UDT layout and
   stride, and the overflow/NaN/string/array/duration rules that bind generated
   code;
-- [`Specification/AB_S7_MANIFEST_EVIDENCE.md`](../../../Specification/AB_S7_MANIFEST_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S7_MANIFEST_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S7_MANIFEST_EVIDENCE.md)
   for the measured manifest size, per-table read cost at two connection sizes,
   coherence and revision-change results, and the resolved capacities;
-- [`Specification/AB_S9_COHERENCE_EVIDENCE.md`](../../../Specification/AB_S9_COHERENCE_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S9_COHERENCE_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S9_COHERENCE_EVIDENCE.md)
   for the snapshot-coherence result: the guard never accepted a torn read at any
   mutation rate, tearing was directly observed unguarded, and retry converges
   only when the mutation interval exceeds the guarded read window;
-- [`Specification/AB_S8_SECURITY_EVIDENCE.md`](../../../Specification/AB_S8_SECURITY_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S8_SECURITY_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S8_SECURITY_EVIDENCE.md)
   for the measured absence of CIP Security on this controller and the allow-list
   audit;
-- [`Specification/AB_S8_S9_DECISION_RECORD.md`](../../../Specification/AB_S8_S9_DECISION_RECORD.md)
+- [`Specification/AllenBradley/Evidence/AB_S8_S9_DECISION_RECORD.md`](../../../Specification/AllenBradley/Evidence/AB_S8_S9_DECISION_RECORD.md)
   for the settled security and repository/mailbox decisions — read this before
   starting a new AB project, because it fixes the read-only default, the write
   switch, and the recommended v37+ baseline;
-- [`Specification/AB_R3_FROZEN_CONTRACTS.md`](../../../Specification/AB_R3_FROZEN_CONTRACTS.md)
-  and [`Specification/AB_FROZEN_CONTRACTS_V1.json`](../../../Specification/AB_FROZEN_CONTRACTS_V1.json)
+- [`Specification/AllenBradley/AB_R3_FROZEN_CONTRACTS.md`](../../../Specification/AllenBradley/AB_R3_FROZEN_CONTRACTS.md)
+  and [`Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json`](../../../Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json)
   for the frozen version-1 contracts, what is deliberately still a hole, and
   which spike owns each one;
-- [`Specification/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](../../../Specification/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md)
   for the current disposable SDK Build and canonical L5X result;
-- [`Specification/AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md`](../../../Specification/AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md)
+- [`Specification/AllenBradley/Evidence/AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md)
   for the authorized v33 fixture generation, Studio Verify/download, physical
   EtherNet/IP execution matrix, access-control results, and rollback state; and
-- [`Specification/ALLEN_BRADLEY_PORT_PLAN.md`](../../../Specification/ALLEN_BRADLEY_PORT_PLAN.md)
-  plus [`Specification/AB_IMPLEMENTATION_PLAN.md`](../../../Specification/AB_IMPLEMENTATION_PLAN.md)
+- [`Specification/AllenBradley/ALLEN_BRADLEY_PORT_PLAN.md`](../../../Specification/AllenBradley/ALLEN_BRADLEY_PORT_PLAN.md)
+  plus [`Specification/AllenBradley/AB_IMPLEMENTATION_PLAN.md`](../../../Specification/AllenBradley/AB_IMPLEMENTATION_PLAN.md)
   for spike and phase order.
 
 Pre-gate tooling:

@@ -42,6 +42,11 @@ VAR_GLOBAL CONSTANT
     MAX_POS_SENSORS      : INT := 2;    // redundant sensors per cylinder position (duplex; raise for 2oo3)
     MAX_NODE_CHANNELS    : INT := 16;   // Core §10.5.1 — I/O channels per fieldbus node
     MAX_BUS_NODES        : INT := 64;   // Core §10.5.1 — nodes in the flat topology table
+    // Core §7.5.1 — commissioning/engineering gates one station may declare.
+    // Small on purpose: a station carrying more than a handful of deliberate
+    // departures from its production configuration has a process problem, not a
+    // table-size problem. Overflow sets FB_EngineeringMode.Truncated (§5.6).
+    MAX_ENGINEERING_GATES : INT := 8;
     MAX_CMD_CATALOG      : INT := 12;   // Core §7.6.1 — manual commands a module may publish
     MODE_COUNT           : INT := 7;    // Core §3.4 — E_Mode entries (AUTO..ADJUSTMENT), for policy array
     MAX_RELEASE_REASONS  : INT := 24;   // Core §7.8 — entries in a release report

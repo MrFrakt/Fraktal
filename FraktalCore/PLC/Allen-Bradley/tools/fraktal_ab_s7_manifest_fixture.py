@@ -7,7 +7,7 @@ from a table of estimated row widths: it needs a manifest of realistic shape
 resident in the controller and read over CIP.
 
 This fixture materialises the frozen R3 manifest contract
-([`AB_FROZEN_CONTRACTS_V1.json`](../../../../Specification/AB_FROZEN_CONTRACTS_V1.json))
+([`AB_FROZEN_CONTRACTS_V1.json`](../../../../Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json))
 as real Logix types: a header UDT plus one array-of-UDT per table, sized by the
 capacity symbols S7 owns. Capacities are parameters, not constants, so the same
 declaration can be generated at several sizes and the cost curve measured

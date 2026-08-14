@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="PL_FraktalEngineering" Id="{3218d573-4470-4008-9f52-f34112e7224c}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Fraktal Core — the framework's own commissioning/engineering build gates
+// (Core §7.5.1, TC3 §7.5).
+//
+// ---------------------------------------------------------------------------
+// WHY THESE ARE VAR_GLOBAL CONSTANT
+// ---------------------------------------------------------------------------
+// §7.5.1 requires a gate to be a BUILD constant, never a runtime variable:
+// defeating one must be a source change plus a download — a reviewable, auditable
+// act — and never an online write from an HMI, an ADS client or any other data
+// path. The compiler also inlines a constant, so there is usually no symbol for a
+// client to write at all. Do not "helpfully" convert these to writable variables,
+// and do not add a writable mirror with a consumer in control logic.
+//
+// The application's own gates (USE_SIMULATION, CONTROL_CIRCUIT_MAPPING_CONFIRMED,
+// …) stay where they are — in that project's MAIN — and are declared into the
+// same register through FB_EngineeringMode.M_Declare. This GVL holds only the
+// gates the FRAMEWORK owns.
+//
+// ---------------------------------------------------------------------------
+// HOW TO BUILD A COMMISSIONING (ENGINEERING) IMAGE
+// ---------------------------------------------------------------------------
+// Add the define to EVERY PLC project in the solution — a conditional pragma is
+// evaluated per compiled project, so the library and the application must agree:
+//
+//   XAE: PLC project -> Properties -> Compile -> "Compiler Defines"
+//        enter:  FRAKTAL_ENGINEERING
+//
+//   or in the .plcproj PropertyGroup:
+//        <CompilerDefines>FRAKTAL_ENGINEERING</CompilerDefines>
+//
+// A production image is simply one built WITHOUT that define. It is not a
+// configuration a commissioning engineer can change on the machine.
+VAR_GLOBAL CONSTANT
+    // Core §10.5.1 rule 1 — may this image force fieldbus OUTPUT channels from
+    // the HMI at all? FALSE keeps Forceable FALSE on every channel, so the HMI
+    // renders no force affordance whatsoever (§3.9), and FB_UnitBase.ForceChannel
+    // refuses every request before the resolver is ever reached.
+    //
+    // Forcing an INPUT is not offered by this surface in either build (§10.5.1
+    // rule 2): lying to the logic to bypass a sensor or an interlock is an
+    // engineering-tool act under separate authority, never an operating practice.
+{IF defined (FRAKTAL_ENGINEERING)}
+    OUTPUT_FORCING : BOOL := TRUE;
+{ELSE}
+    OUTPUT_FORCING : BOOL := FALSE;
+{END_IF}
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

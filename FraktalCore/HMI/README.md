@@ -48,7 +48,7 @@ controllers runs one *instance* per PLC — its own folder under
 `%LOCALAPPDATA%\Fraktal\Gateway\instances`, its own loopback port and published
 origin, supervised together by the tray (Linux: `fraktal-gateway@<name>`). See
 `gateway/DEPLOYMENT.md` and
-`../../Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`.
+`../../Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md`.
 
 See `Specification/OPCUA_TRANSPORT.md` for the ABI, snapshot schema, gateway
 messages, security boundary, and acknowledged PLC mailbox.

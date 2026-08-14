@@ -1,7 +1,19 @@
 /// Fieldbus topology tree (Core §10.5.1 / §3.13): the physical bus beside the
 /// logical module tree. Nodes coloured by state (worst-in-subtree tints ancestors,
 /// like the module tree); channels show live values — digital on/off, analog
-/// value+unit. Read/diagnostic; forcing would be a §7.6/§7.7-gated action.
+/// value+unit.
+///
+/// Read/diagnostic by default. The output-force control is driven entirely by
+/// the PLC's published `Forceable` capability, which is FALSE on every channel
+/// unless the §7.5 OUTPUT_FORCING commissioning gate is active in the deployed
+/// build — so on a production station this page renders no force affordance at
+/// all, not a greyed one (§3.9). There is deliberately no HMI-side switch for
+/// it: the capability is a property of the controller image, and a client that
+/// could turn it on would be exactly the authority §7.5.1 denies.
+///
+/// Forcing goes AROUND a module; a manual command goes THROUGH it (§7.6.1). The
+/// two must stay visually and functionally distinct, which is why the force
+/// dialog states its scope rather than reading like an ordinary command.
 library;
 
 import '../localization/localized_text.dart';
@@ -315,21 +327,21 @@ class _FieldbusTreeState extends State<FieldbusTree> {
           ),
         if (canForce)
           IconButton(
-            tooltip: context
-                .tr(c.forced ? 'Clear force' : 'Force (§7.6/§7.7, logged)'),
+            tooltip: context.tr(c.forced
+                ? 'std.fieldbus.forceClear'
+                : 'std.fieldbus.forceTitle'),
             icon: Icon(c.forced ? Icons.lock_open : Icons.push_pin_outlined,
                 color: c.forced ? warningColor(context) : null),
             onPressed: () => _force(context, c),
           )
         else if (isOutput && c.forceable)
           IconButton(
-            tooltip: context.tr('Why can\'t I force this?'),
+            tooltip: context.tr('std.fieldbus.forceWhyBlocked'),
             icon: const Icon(Icons.lock_outline, size: 18),
             onPressed: ownerRoot == null
-                ? () => _snack(
-                    context, 'Channel has no owning root; forcing is disabled.')
+                ? () => _snack(context, 'std.fieldbus.forceNoRoot')
                 : () => widget.app.showReleaseReportAction(ownerRoot.path,
-                    GatedAction.manual, 'Channel force blocked'),
+                    GatedAction.manual, 'std.fieldbus.forceBlocked'),
           ),
         // inputs are read-only: no force control (output-only rule, §10.5.1)
       ]),
@@ -339,12 +351,15 @@ class _FieldbusTreeState extends State<FieldbusTree> {
   Future<void> _force(BuildContext context, IoChannel c) async {
     final root = widget.app.rootOf(c.modulePath)?.path;
     if (root == null) {
-      _snack(context, 'Channel has no owning root; forcing is disabled.');
+      _snack(context, 'std.fieldbus.forceNoRoot');
       return;
     }
     if (c.forced) {
       final ok = await widget.app.repo.forceChannel(root, c.path, force: false);
-      if (context.mounted) _snack(context, ok ? 'Force cleared' : 'Denied');
+      if (context.mounted) {
+        _snack(context,
+            ok ? 'std.fieldbus.forceCleared' : 'std.fieldbus.forceDenied');
+      }
       return;
     }
     bool boolVal = !c.boolValue;
@@ -353,16 +368,21 @@ class _FieldbusTreeState extends State<FieldbusTree> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: LText('Force ${c.name}'),
+        title: LText('${context.tr('std.fieldbus.forceTitle')} — ${c.name}'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          LText(
-              'Forcing overrides the live process image. Logged manual action (§7.6/§7.7).',
-              style: Theme.of(ctx).textTheme.bodySmall),
+          // Two sentences, both load-bearing: WHY this control exists at all
+          // (a commissioning gate, §7.5) and HOW FAR the force reaches (idle
+          // MANUAL only, §10.5.1 rule 3). An operator who reads neither should
+          // still not be able to mistake this for a manual command.
+          const LText('std.fieldbus.forceWhy'),
+          const SizedBox(height: 8),
+          const LText('std.fieldbus.forceScope'),
           const SizedBox(height: 12),
           if (c.kind == ChannelKind.digital)
             StatefulBuilder(
                 builder: (_, set) => SwitchListTile(
-                    title: LText('Force value: ${boolVal ? 'ON' : 'OFF'}'),
+                    title: LText(
+                        '${context.tr('std.fieldbus.forceValue')}: ${boolVal ? 'ON' : 'OFF'}'),
                     value: boolVal,
                     onChanged: (v) => set(() => boolVal = v)))
           else
@@ -370,7 +390,8 @@ class _FieldbusTreeState extends State<FieldbusTree> {
                 controller: analogCtrl,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                    labelText: context.tr('Force value'), suffixText: c.unit)),
+                    labelText: context.tr('std.fieldbus.forceValue'),
+                    suffixText: c.unit)),
         ]),
         actions: [
           TextButton(
@@ -378,7 +399,7 @@ class _FieldbusTreeState extends State<FieldbusTree> {
               child: const LText('Cancel')),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const LText('Force')),
+              child: const LText('std.fieldbus.forceApply')),
         ],
       ),
     );
@@ -387,9 +408,10 @@ class _FieldbusTreeState extends State<FieldbusTree> {
         force: true,
         boolValue: boolVal,
         analogValue: double.tryParse(analogCtrl.text) ?? 0);
-    if (context.mounted)
+    if (context.mounted) {
       _snack(context,
-          ok ? 'Channel forced (logged)' : 'Denied — insufficient access');
+          ok ? 'std.fieldbus.forceApplied' : 'std.fieldbus.forceDenied');
+    }
   }
 
   void _snack(BuildContext context, String msg) =>

@@ -76,7 +76,8 @@ class AbSpecificationGateTests(unittest.TestCase):
 
     def test_missing_s1_evidence_link_is_reported(self):
         broken = self.part.replace(
-            "[`AB_S1_CIP_DATA_PATH_EVIDENCE.md`](AB_S1_CIP_DATA_PATH_EVIDENCE.md)",
+            "[`AB_S1_CIP_DATA_PATH_EVIDENCE.md`]"
+            "(AllenBradley/Evidence/AB_S1_CIP_DATA_PATH_EVIDENCE.md)",
             "S1 evidence pending",
             1,
         )
@@ -166,7 +167,8 @@ class AbSpecificationGateTests(unittest.TestCase):
 
     def test_missing_s4_s15_evidence_link_is_reported(self):
         broken = self.part.replace(
-            "[`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md)",
+            "[`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`]"
+            "(AllenBradley/Evidence/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md)",
             "S4/S15 evidence pending",
         )
         findings = self.audit(part=broken)

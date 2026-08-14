@@ -1,6 +1,6 @@
 # Fraktal Core — Implementation Notes (Milestone 1, 2026-07-02)
 
-*Scope: `Fraktal_Core` library + aggregate `Fraktal_Tests` gate + scaffold, implementing Core §2.2 (base classes), §3.2 (interfaces), §3.8/§3.15/§3.16 (provider/connector/carrier contracts), §6.1 (lifecycle), §6.5/§6.9(b)/§6.11 (step/condition/decision records), §7.2 (`FB_PermIntlk`), §8.2 (rollup), §8.8 (`E_Reason`). Source drafts: `Fraktal_Core_BaseClasses.md`, `Fraktal_QuickStart_and_Suite.md`. Status: **compiles under TwinCAT 3.1.4024.75** (0 errors, 0 warnings) and has been deployed to a runtime and exercised end-to-end from the HMI over ADS. A **pinned compile in CI is still pending** — it needs a self-hosted Windows runner with licensed TwinCAT XAE; the source-level rules (naming, §4.4 prefixes, 4024 compatibility, contract usage) do run on every commit via `tools/plc_lint.py`. See "Bring-up" in README and `Specification/OBJECTIVES_AUDIT.md` (O10 G7).*
+*Scope: `Fraktal_Core` library + aggregate `Fraktal_Tests` gate + scaffold, implementing Core §2.2 (base classes), §3.2 (interfaces), §3.8/§3.15/§3.16 (provider/connector/carrier contracts), §6.1 (lifecycle), §6.5/§6.9(b)/§6.11 (step/condition/decision records), §7.2 (`FB_PermIntlk`), §8.2 (rollup), §8.8 (`E_Reason`). Source drafts: `Fraktal_Core_BaseClasses.md`, `Fraktal_QuickStart_and_Suite.md`. Status: **compiles under TwinCAT 3.1.4024.75** (0 errors, 0 warnings) and has been deployed to a runtime and exercised end-to-end from the HMI over ADS. A **pinned compile in CI is still pending** — it needs a self-hosted Windows runner with licensed TwinCAT XAE; the source-level rules (naming, §4.4 prefixes, 4024 compatibility, contract usage) do run on every commit via `tools/plc_lint.py`. See "Bring-up" in README and `Specification/Reports/OBJECTIVES_AUDIT.md` (O10 G7).*
 
 ## 1. Draft pseudocode fixed in the implementation
 
@@ -214,7 +214,7 @@ Confirmed defects fixed at their shared seams: the Unit pending diagnostic now o
 
 ## 28. HMI connection bootstrap and execution roadmap (2026-07-12)
 
-Added `Specification/IMPLEMENTATION_ROADMAP.md`, converting the objective/coherence review into ordered phases with explicit exit gates: executable root-Unit forest; inherited composite behavior; physical four-structure contract and transactional recipes; authoritative manual release; trustworthy diagnostics/KPIs; production HMI transport; generated interoperability projections; security and a second binding.
+Added `Specification/Reports/IMPLEMENTATION_ROADMAP.md`, converting the objective/coherence review into ordered phases with explicit exit gates: executable root-Unit forest; inherited composite behavior; physical four-structure contract and transactional recipes; authoritative manual release; trustworthy diagnostics/KPIs; production HMI transport; generated interoperability projections; security and a second binding.
 
 The HMI now starts behind `ConnectionBootstrap`. First use or an endpoint never proven `LIVE` opens a wizard; previously proven settings reconnect behind a full-screen interaction lock. `STALE`/`DOWN` removes the shell immediately, no writes are queued, and connection editing appears only after 30 seconds without `LIVE`. `everConnected` is persisted only after a repository reports `LIVE`. SDK-only persistence keeps the zero-package policy (native JSON file / Web local storage). Widget tests prove first-use, 30-second timeout, and live-link-loss behavior. The production OPC UA/gateway repository remains deployment work and therefore fails closed rather than presenting an empty interactive HMI.
 
@@ -290,7 +290,7 @@ The simulation also moved safe-output filtering to final output authority. Ordin
 first; simulated certified logic then removes all requests on power loss and independently removes
 ram-down without guard plus evaluated two-hand permission. This fixes a one-scan overwrite hazard in
 the first draft and documents the required TwinSAFE/FSoE replacement. See
-`Specification/PNEUMATIC_PRESS_EXAMPLE.md`.
+`Specification/Reports/PNEUMATIC_PRESS_EXAMPLE.md`.
 
 ## 38. CX2030 training-station physical I/O binding (2026-07-13)
 
@@ -308,7 +308,7 @@ worksheet lists the E-stop and two-hand buttons only on ordinary EL1809 inputs a
 guard, safe pneumatic output/feedback, or evaluated two-hand result; these channels are therefore raw
 diagnostic mirrors, not a safety implementation. It also calls reserved output channel 9 `EL2810`
 while the other outputs are `EL2809`, and lists no physical Control On/Off input buttons. These items
-are tracked in `Specification/CX2030_PRESS_IO_MAPPING.md` rather than guessed in code.
+are tracked in `Specification/Reports/CX2030_PRESS_IO_MAPPING.md` rather than guessed in code.
 
 ## 39. Electrical-tag diagnostic join (2026-07-13)
 
@@ -440,7 +440,7 @@ logged without transported secrets. The request-kind and mode ordinals already
 matched the PLC DUTs; no wire-contract ordinal change was required.
 
 The resulting bring-up lessons are consolidated in
-`Specification/FIRST_PROJECT_AGENT_GUIDE.md`, referenced by `AGENTS.md`. Part I
+`Specification/Guides/FIRST_PROJECT_AGENT_GUIDE.md`, referenced by `AGENTS.md`. Part I
 now requires layer-specific client status and acknowledged command success;
 Part II records the TF6100 host, authorization, namespace, root, and mailbox
 acceptance ladder.
@@ -679,7 +679,7 @@ module command, and owner-private sub-sequence—with one owner/step writer, an 
 promotion rule to EM, and a requirement that private-chain progress stay in the caller's step record.
 §7.2.1/§7.8 preserve condition provenance through common + mode/function-specific layering and keep
 future step waits out of the Start frontier. The non-normative decision record is
-`Specification/NEXEED_REFERENCE_INSIGHTS.md`.
+`Specification/Reports/NEXEED_REFERENCE_INSIGHTS.md`.
 
 One Core defect became visible under that rule: `ReleaseReportStart()` appended a concrete Unit's
 `_M_AppendInterlocks`, while `Start()` independently checked only framework state. A Unit could thus
@@ -1634,7 +1634,7 @@ force and recovery contracts grew; the TwinCAT fourth component remains reserved
 for contract-neutral rebuilds as required by Part II.
 
 The complete objective scorecard, open findings and ordered gap-closing program
-are in `Specification/OBJECTIVES_AUDIT.md`. Highest priority is a licensed XAE
+are in `Specification/Reports/OBJECTIVES_AUDIT.md`. Highest priority is a licensed XAE
 build plus TcUnit/CI evidence, followed by decision lifecycle completion, a typed
 capability-driven write manifest, stronger conformance lint, controller/time
 health and a reusable signal-tower contract. A capability-driven/generated design
@@ -3739,3 +3739,83 @@ new leaf can never silently stringify again.
 Core advances to `0.4.0.2` (contract-neutral, Part II §2.2): no published type
 changed, but a fixed library must be distinguishable from the broken one in the
 repository.
+
+
+## 129. Output forcing existed in the contract and nowhere in the code (2026-08-14)
+
+**Symptom.** The HMI's fieldbus page had a complete force UI, `ST_IoChannel`
+carried `Forced`/`Forceable`, `E_HmiRequestKind.FORCE_CHANNEL` was routed and
+audited, and `FB_UnitBase.ForceChannel` proved access, mode and state. Then it
+called `_M_RouteForceChannel`, whose base implementation is one line:
+`_M_RouteForceChannel := FALSE;`. No Unit anywhere overrode it, and no project
+ever called `M_SetForceable`, so `Forceable` was FALSE on every channel and the
+whole path was unreachable. The feature was fully specified, fully plumbed, and
+did nothing — the kind of gap a compile and a lint both pass over.
+
+**What was missing was not the plumbing but the authority to turn it on.** Core
+§10.5.1 says a force is gated by §7.6 and §7.7; it did not say the surface should
+be *absent* from a production machine, only that it should be refused. Refusal is
+not enough: a greyed control still tells an operator the machine can be forced,
+and invites a call asking who can enable it.
+
+**§7.5 now owns that.** Core §7.5 had three lines about a `COMM_FLAG`
+commissioning constant, and no mechanism. It gains §7.5.1 (a gate is a build
+constant, and the set of active gates is a published register) and §7.5.2 (while
+any gate is active the station annunciates it, non-clearably). Forcing became the
+framework's own first gate:
+
+- `PL_FraktalEngineering.OUTPUT_FORCING`, selected by the `FRAKTAL_ENGINEERING`
+  compiler define, gates the whole surface. A production build publishes
+  `Forceable = FALSE` everywhere and the HMI draws nothing.
+- `FB_EngineeringMode` is the register. It is write-once, and declaring a gate IS
+  activating it: `M_Declare(..., Active := <the build constant>)` registers
+  nothing when the constant is FALSE. `ST_EngineeringGate` therefore has no
+  `Active` member, and a production station's register is genuinely empty rather
+  than a list of things that are off.
+- `FB_UnitBase.SetEngineeringMode` declares the framework's own force gate as a
+  side effect, so a station cannot arm forcing without annunciating it, and a
+  station that wires nothing simply cannot force (§1.1 O1, fail closed).
+
+**The annunciation is deliberately the weakest alarm in the system.** LOW,
+SYSTEM, `AUTO_RESET`. Every stronger choice is wrong for a specific reason:
+`MANUAL_RESET` refuses `Start` (§8.3(b)), which would make commissioning gates
+block the commissioning they exist to serve; a MED/HIGH severity would displace
+real process alarms in the phase that produces the most of them; PROCESS or
+SAFETY category would claim something about the machine that is not true. What
+makes it non-clearable is not its strength but its shape: `OperatorReset` reaches
+only `MANUAL_RESET` events, and the §8.9 record is `shelvable: false`, so neither
+of the two operator actions that can silence an alarm applies to it.
+
+**Two things had to move to make a force actually reach a terminal.** First, the
+held set-point could not live in `ST_IoChannel.BoolValue`: the hardware driver
+republishes that member every scan from the process image, so a set-point stored
+there survives exactly one cycle, and clearing a force would freeze the last
+forced value rather than restore the real one. `ForceBool`/`ForceAnalog` are
+separate members for that reason. Second, the per-scan permit could not live in
+the `FB_IoTopologyPublisher` instance: the press attaches *two* to the same table
+(the catalog defines identity, the driver moves values), and two copies of that
+flag would disagree about whether a force is live. `ST_FieldbusTopology.ForcesEnabled`
+is in the published table, and `M_ApplyForces` derives its falling edge from the
+flag itself, so every instance agrees and leaving idle MANUAL withdraws every
+force on that scan — §10.5.1's "a force cannot survive into automatic operation",
+enforced rather than assumed.
+
+**The press bench's two existing commissioning gates are now annunciated.**
+`USE_SIMULATION` and `CONTROL_CIRCUIT_MAPPING_CONFIRMED` have cost multiple
+debugging sessions each (see §6.0 of AGENTS.md); they were documented in three
+places and visible on the machine in none. They are declared into the register
+from the same `VAR CONSTANT` values, so the machine now says so itself.
+
+`_000K951_A1` and `_000K911_A1` are excluded from the forceable set even in a
+commissioning image: they drive the hardwired N54 D2 Control On relay chain, and
+energizing control power from a diagnostic screen is exactly the act this surface
+must never offer (§10.5.1 rule 4).
+
+Core advances to `0.5.0.0` — a MINOR bump (Part II §2.2). Everything here is
+additive: new types (`FB_EngineeringMode`, `ST_EngineeringGate`,
+`PL_FraktalEngineering`), new members (`ST_IoChannel.ForceBool`/`ForceAnalog`,
+`ST_FieldbusTopology.ForcesEnabled`), new methods, and one appended `E_Reason`.
+No existing member changed type or meaning and no `ST_*ParCfg` schema moved, so
+there is no §3.8 migration due and every prior consumer compiles unchanged — but
+an application still has to resolve the new library before it can see any of it,
+which is what the first `CheckAllObjects` run after this change reported.

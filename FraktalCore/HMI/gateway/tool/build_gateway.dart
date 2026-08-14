@@ -91,7 +91,7 @@ Future<void> main(List<String> arguments) async {
   await File('${project.path}/DEPLOYMENT.md')
       .copy('${output.path}/DEPLOYMENT.md');
   final walkthrough = File(
-    '${hmiRoot.parent.parent.path}/Specification/'
+    '${hmiRoot.parent.parent.path}/Specification/Guides/'
     'WEB_HMI_GATEWAY_DEPLOYMENT.md',
   );
   if (!walkthrough.existsSync()) {

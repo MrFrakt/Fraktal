@@ -53,6 +53,11 @@ class Shell extends StatelessWidget {
         drawer:
             wide ? null : Drawer(child: SafeArea(child: TreeMenu(app: app))),
         body: Column(children: [
+          // §7.5.2 above §8.3: the gate banner is the LOWEST priority message
+          // the station raises, so it must not compete with the alarm banner for
+          // the same strip - it would always lose, on exactly the builds where
+          // it matters most.
+          EngineeringModeBanner(app: app),
           GlobalAlarmBanner(app: app),
           if (!app.showFieldbus && !app.showOverview) ReleasePanel(app: app),
           Expanded(

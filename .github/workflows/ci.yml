@@ -48,9 +48,12 @@ jobs:
         with:
           python-version: '3.12'
       - name: Lint TwinCAT sources
-        run: python tools/plc_lint.py --profile ${{ matrix.profile }} FraktalCore/PLC/TwinCAT
-      - name: Test conformance-lint positive/negative fixtures
-        run: python -m unittest tools/test_plc_lint.py tools/test_tcunit_to_junit.py
+        run: python FraktalCore/PLC/TwinCAT/tools/plc_lint.py --profile ${{ matrix.profile }}
+      # The TwinCAT gate tools now ship inside the binding they check, and their
+      # tests import them flat (the Allen-Bradley tools convention), so discovery
+      # runs from that directory rather than as a repository-root package.
+      - name: Test the TwinCAT gate tools
+        run: python -m unittest discover -s FraktalCore/PLC/TwinCAT/tools/ -t FraktalCore/PLC/TwinCAT/tools/
 
   # ---- lint + test: HMI app (Flutter) -------------------------------------
   hmi:
@@ -146,7 +149,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check all PLC objects in both isolated test solutions
-        run: .\tools\Invoke-TwinCatBuild.ps1
+        run: .\FraktalCore\PLC\TwinCAT\tools\Invoke-TwinCatBuild.ps1
       - name: Archive XAE build logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -194,8 +197,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Press runner hook failed: $LASTEXITCODE" }
       - name: Validate summaries and emit JUnit
         run: |
-          python tools\tcunit_to_junit.py artifacts\tcunit\core-modules.log artifacts\tcunit\core-modules.xml --gate-name CoreModules --expected-tests 84 --expected-suites 26 --expected-runner PRG_TcUnitRunner
-          python tools\tcunit_to_junit.py artifacts\tcunit\press.log artifacts\tcunit\press.xml --gate-name Press --expected-tests 8 --expected-suites 2 --expected-runner PRG_PressTestRunner
+          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\core-modules.log artifacts\tcunit\core-modules.xml --gate-name CoreModules --expected-tests 98 --expected-suites 30 --expected-runner PRG_TcUnitRunner
+          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\press.log artifacts\tcunit\press.xml --gate-name Press --expected-tests 8 --expected-suites 2 --expected-runner PRG_PressTestRunner
       - name: Archive TcUnit logs and JUnit
         if: always()
         uses: actions/upload-artifact@v4

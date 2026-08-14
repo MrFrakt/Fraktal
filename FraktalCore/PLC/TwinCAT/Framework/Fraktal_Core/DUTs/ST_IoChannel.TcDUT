@@ -30,9 +30,21 @@ STRUCT
     FaultActive: BOOL;          // a module diagnostic implicates this exact channel
     Diagnostic : STRING(255);   // localization key; Name remains the exact I/O tag
     // Additive capability flag (Core 0.1.0.7). FALSE is the fail-closed default:
-    // output direction alone never authorizes a raw process-image force.
+    // output direction alone never authorizes a raw process-image force. It is
+    // also FALSE on every channel unless the §7.5 OUTPUT_FORCING gate is active,
+    // which is what makes the HMI force affordance absent - not greyed - in a
+    // production image (§3.9, §10.5.1 rule 1).
     {attribute 'OPC.UA.DA' := '0'}
     Forceable  : BOOL;
+    // §10.5.1 - the HELD force set-point. Kept apart from BoolValue/AnalogValue
+    // on purpose: those are overwritten every scan by the hardware driver's
+    // publish, so a set-point stored there would survive exactly one cycle, and
+    // clearing a force would freeze the last forced value instead of restoring
+    // the real one. Commissioning data, never cyclically published.
+    {attribute 'OPC.UA.DA' := '0'}
+    ForceBool  : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    ForceAnalog: REAL;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

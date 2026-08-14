@@ -24,7 +24,7 @@ same gateway protocol to browsers, so the Web HMI is identical either way):
 
 For the complete Windows installer and Linux systemd walkthrough, acceptance
 evidence, upgrades, and remote-browser topology, see
-`../../../Specification/WEB_HMI_GATEWAY_DEPLOYMENT.md`. The same walkthrough is
+`../../../Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md`. The same walkthrough is
 copied beside the binaries in every platform package.
 
 ## Instances: one gateway per PLC

@@ -9,6 +9,13 @@ STRUCT
     Nodes : ARRAY[1..PL_Fraktal.MAX_BUS_NODES] OF ST_BusNode;
     MappingValid : BOOL;
     MappingDiagnostic : STRING(255); // localization key; empty when valid
+    // §10.5.1 rule 3 - are held force set-points currently applied? This lives
+    // in the PUBLISHED table rather than in one FB_IoTopologyPublisher instance
+    // because a project attaches several to the same data (the catalog defines
+    // channel identity, the hardware driver moves live values), and two copies
+    // of this flag would let them disagree about whether a force is live.
+    {attribute 'OPC.UA.DA' := '0'}
+    ForcesEnabled : BOOL;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

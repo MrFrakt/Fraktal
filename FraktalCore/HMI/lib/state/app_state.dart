@@ -9,6 +9,7 @@ import '../data/plc_repository.dart';
 import '../domain/module_node.dart';
 import '../domain/fieldbus.dart';
 import '../domain/types.dart';
+import '../localization/reason_catalog.g.dart';
 import '../content/module_content_controller.dart';
 import '../localization/localization_controller.dart';
 import '../ui/on_screen_keyboard.dart';
@@ -353,6 +354,29 @@ class AppState extends ChangeNotifier {
 
     for (final r in forest) walk(r);
     out.sort((a, b) => b.severity.index - a.severity.index);
+    return out;
+  }
+
+  /// Core §7.5.2 — the station's ACTIVE commissioning/engineering gates, one
+  /// entry per gate, for the permanent banner.
+  ///
+  /// Matched by the generated reason SYMBOL rather than by a literal code, so
+  /// the number stays owned by the PLC `E_Reason` enum (§8.8) and this cannot
+  /// drift from it. Deliberately does NOT filter shelved events: the reason is
+  /// rationalized as not suppressible (§8.9), and a banner that could be
+  /// silenced would defeat the one property this annunciation exists to have.
+  ///
+  /// Every root raises its own event for a station-wide gate, so entries are
+  /// deduplicated by gate description — a two-Unit station shows one line per
+  /// gate, not one per Unit.
+  List<AlarmEvent> get activeEngineeringGates {
+    final seen = <String>{};
+    final out = <AlarmEvent>[];
+    for (final event in allActiveEvents) {
+      if (generatedReasonSymbolByCode[event.reasonCode] !=
+          'COMMISSIONING_GATE_ACTIVE') continue;
+      if (seen.add(event.description)) out.add(event);
+    }
     return out;
   }
 

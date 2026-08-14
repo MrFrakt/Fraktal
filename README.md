@@ -104,15 +104,21 @@ coherent architecture, defined platform-neutrally and delivered first as a
 ## Repository layout
 
 ```
-Specification/     The standard.
+Specification/     The standard — and ONLY the standard, at this level.
   Fraktal_Core_Part_I.md    Part I — platform-neutral normative core (§1–14)
   Fraktal_TC3_Part_II.md    Part II — the TwinCAT 3 binding (Fraktal/TC3)
   Fraktal_AB_Part_III.md    Part III — the Allen-Bradley Logix binding (draft, pre-spike)
   HMI_CONTRACT.md           the symbol → widget bind table the HMI implements
   OPCUA_TRANSPORT.md        the OPC UA transport, config manifest & read tiers
-  FIRST_PROJECT_AGENT_GUIDE.md   empty solution → deployed, HMI-commandable station
-  OBJECTIVES_AUDIT.md       current audit against O1–O10 + improvement plan
-  Annex_A … Annex_K         worked examples exercising every contract end-to-end
+  SAFETY_AND_CONTROL_POWER_PROFILE.md   the §9.8 profile
+  LOCALIZATION_AND_MODULE_CONTENT.md    the localization/content contract
+  reason_rationalization.json           the §8.9 registry (machine-read)
+  Annexes/           worked examples A–K exercising every contract end-to-end
+  Guides/            how to apply it: first project, XAE workflow, deployment
+  Reports/           audits, status, plans, one-off analyses
+  Evidence/          dated TwinCAT runtime evidence (append-only)
+  AllenBradley/      the Fraktal/AB working set + its spike evidence
+  README.md          what belongs at each level, and why
 
 FraktalCore/
   PLC/     One directory per platform binding (§1.1 O8: the model is portable,
@@ -128,19 +134,25 @@ FraktalCore/
         Fraktal_Tests.plcproj  the aggregate TcUnit manifest
         Fraktal_Tests/         Core + Modules suites (simulated HAL)
       scaffold/           copy-template for a new module type (ships SKELETON.md)
-    Allen-Bradley/        reserved — binding drafted (Part III), no code yet
+      tools/              the TwinCAT gates and generators (they ship inside the
+                          binding they check — see below)
+    Allen-Bradley/        binding drafted (Part III) + its own tools/ probe suite
   HMI/     Generic operator HMI (Flutter, Material 3) — Windows/Linux/Android/Web
     lib/                  the app (data / domain / state / ui)
     native/opcua/         native OPC UA client (open62541 + Mbed TLS via dart:ffi)
     gateway/              headless WebSocket gateway for the Web transport
 
-tools/     The gates and generators — what keeps the standard and the
-           implementation honest about each other
+FraktalCore/PLC/TwinCAT/tools/    The TwinCAT gates and generators. They live
+           inside the binding they check, beside Allen-Bradley/tools/, so a
+           binding carries its own toolchain and neither can silently drift.
   plc_lint.py             18 source rules, both build profiles
-  check_consistency.py    agreement BETWEEN artifacts (PLC ↔ HMI ↔ docs)
   ld_rung_gen.py          ladder rungs from a declaration; ld_dump / sfc_dump read them back
   Invoke-TwinCatBuild.ps1 CheckAllObjects on every solution
   Invoke-TwinCatTcUnitGate.ps1 / tcunit_to_junit.py   runtime gate + result validation
+
+tools/     The repository-level gates — the ones that span more than one tree
+  check_consistency.py    agreement BETWEEN artifacts (PLC ↔ HMI ↔ docs)
+  check_ab_spec.py / check_ab_contracts.py   the Fraktal/AB specification gates
 
 AGENTS.md          working briefing for AI coding agents editing this repo
 ```
@@ -150,47 +162,58 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 | You want to… | Read |
 |---|---|
 | Understand the model | [`Fraktal_Core_Part_I.md`](Specification/Fraktal_Core_Part_I.md) (§1 foreword, §3 architecture) |
-| Build your first module | [`Fraktal_QuickStart_and_Suite.md`](Specification/Fraktal_QuickStart_and_Suite.md) |
-| Deploy a station & connect the HMI | [`FIRST_PROJECT_AGENT_GUIDE.md`](Specification/FIRST_PROJECT_AGENT_GUIDE.md) |
-| Reproduce XAE compile, library install, and TcUnit runs | [`TWINCAT_XAE_WORKFLOW.md`](Specification/TWINCAT_XAE_WORKFLOW.md) |
+| Build your first module | [`Fraktal_QuickStart_and_Suite.md`](Specification/Guides/Fraktal_QuickStart_and_Suite.md) |
+| Deploy a station & connect the HMI | [`FIRST_PROJECT_AGENT_GUIDE.md`](Specification/Guides/FIRST_PROJECT_AGENT_GUIDE.md) |
+| Reproduce XAE compile, library install, and TcUnit runs | [`TWINCAT_XAE_WORKFLOW.md`](Specification/Guides/TWINCAT_XAE_WORKFLOW.md) |
 | Bring up the PLC (TwinCAT) | [`FraktalCore/PLC/TwinCAT/README.md`](FraktalCore/PLC/TwinCAT/README.md) |
 | Run / build the HMI | [`FraktalCore/HMI/README.md`](FraktalCore/HMI/README.md) |
-| See what's proven vs. pending | [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md) |
-| Know what is generated, checked, or still hand-written | [`AI_DEVELOPMENT_AND_AUTOMATION.md`](Specification/AI_DEVELOPMENT_AND_AUTOMATION.md) |
-| Port Fraktal to another PLC platform | [`ALLEN_BRADLEY_PORT_PLAN.md`](Specification/ALLEN_BRADLEY_PORT_PLAN.md) |
+| See what's proven vs. pending | [`OBJECTIVES_AUDIT.md`](Specification/Reports/OBJECTIVES_AUDIT.md) |
+| Know what is generated, checked, or still hand-written | [`AI_DEVELOPMENT_AND_AUTOMATION.md`](Specification/Reports/AI_DEVELOPMENT_AND_AUTOMATION.md) |
+| Enable output forcing for commissioning | [`Fraktal_Core_Part_I.md` §7.5](Specification/Fraktal_Core_Part_I.md) + [`Fraktal_TC3_Part_II.md` TC3 §7.5](Specification/Fraktal_TC3_Part_II.md) |
+| Port Fraktal to another PLC platform | [`ALLEN_BRADLEY_PORT_PLAN.md`](Specification/AllenBradley/ALLEN_BRADLEY_PORT_PLAN.md) |
 | Read the Allen-Bradley binding (draft, pre-spike) | [`Fraktal_AB_Part_III.md`](Specification/Fraktal_AB_Part_III.md) |
 
 ---
 
-## Status (2026-08-06)
+## Status (2026-08-14)
 
 **Proven at this revision**
 
-- **PLC compile** — `tools/Invoke-TwinCatBuild.ps1` runs `CheckAllObjects()` on
+- **PLC compile** — `FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatBuild.ps1` runs
+  `CheckAllObjects()` on
   **all five solutions** (Core, Modules, the Press bench, and both test
-  projects) under **TwinCAT 4026**, green. `Fraktal_Tests` compiles for the first
-  time; it had been carried as a known red, which also meant its runtime gate
-  could not run at all.
+  projects) under **TwinCAT 4026**, green — re-run at this revision against
+  Core **`0.5.0.0`** after save-as-library and install, which is the step the
+  applications need before they can resolve anything added to Core.
 - **PLC runtime tests, Press bench** — **8/8 tests across 2 suites, 0 failures**
-  on an isolated VM, validated by `tools/tcunit_to_junit.py` against the expected
+  on an isolated VM, validated by `FraktalCore/PLC/TwinCAT/tools/tcunit_to_junit.py`
+  against the expected
   runner identity and counts. Log, JUnit and SHA-256s in
   [`Specification/Evidence/`](Specification/Evidence/).
-- **PLC source gate** — `plc_lint.py`: **282 files clean in both build profiles**
+- **PLC source gate** — `plc_lint.py`: **287 files clean in both build profiles**
   (modern and the 4024 legacy profile).
 - **Cross-artifact gate** — `check_consistency.py`: test inventory and ST↔LD
   sequence-rendition parity clean.
-- **Toolchain** — **81 tests** over the tooling itself.
+- **Toolchain** — **120 tests** over the tooling itself (72 in the TwinCAT
+  binding's own `tools/`, 48 in the repository-level `tools/`).
+- **HMI** — `flutter analyze` clean and **235 tests passing** (4 intentional
+  live-environment skips) on the pinned Flutter 3.44.6, re-run at this revision.
 
 **Not proven at this revision**
 
-- **PLC runtime tests, Core + Modules** — expected **94 tests / 29 suites** from
+- **PLC runtime tests, Core + Modules** — expected **98 tests / 30 suites** from
   source; **not run** since the project started compiling. No result is claimed.
 - **Ladder and SFC renditions of the press AUTO chain** — compiled,
   graph-verified and cross-checked step-for-step against their ST twin, but the
   language selector ships at ST, so they have never executed on a runtime.
-- **HMI** — as of **2026-08-02**: `flutter analyze` clean, **166 tests passing**
-  (4 intentional live-environment skips) on the pinned Flutter 3.44.6;
-  `flutter build web`/`windows` succeed. Not re-verified since.
+- **HMI builds** — `flutter build web`/`windows` succeeded as of **2026-08-02**
+  and have not been re-run since; only analyze and the test suite were.
+- **§7.5 commissioning gates and §10.5.1 output forcing** — source-complete on
+  the TwinCAT binding and covered by a new TcUnit suite
+  (`FB_Engineering_Tests`) plus six HMI widget tests, but the PLC half has
+  **not executed on a runtime**: it inherits the Core + Modules gate below.
+  Forcing has never driven a physical terminal. Not implemented on
+  Allen-Bradley (Part III), deliberately.
 - **End-to-end over TF6100** — the Press bench has cycled on a *development*
   runtime, published over OPC UA and driven the generic HMI (config-manifest
   `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live commanding). A development runtime
@@ -207,7 +230,7 @@ AGENTS.md          working briefing for AI coding agents editing this repo
   until the backlog is cleared.
 - Gateway read-tier parity for Web, live-transport and deployment-profile
   acceptance, and the remaining items in
-  [`OBJECTIVES_AUDIT.md`](Specification/OBJECTIVES_AUDIT.md).
+  [`OBJECTIVES_AUDIT.md`](Specification/Reports/OBJECTIVES_AUDIT.md).
 
 This project reports status honestly (O10): it distinguishes what is proven from
 what is deferred, and names the gaps rather than hiding them. A framework that

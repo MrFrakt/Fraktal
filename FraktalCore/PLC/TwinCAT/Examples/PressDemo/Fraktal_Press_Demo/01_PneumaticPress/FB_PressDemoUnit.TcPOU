@@ -24,6 +24,11 @@ END_VAR
 VAR
     {attribute 'OPC.UA.DA' := '0'}
     _recipe : I_RecipeProvider;
+    // §10.5.1 - the project I/O catalog owns the approved channel identity join
+    // (§10.2.1), so it, not this Unit, resolves a force request to a physical
+    // channel. Absent = no force routing, which is the fail-closed default.
+    {attribute 'OPC.UA.DA' := '0'}
+    _ioCatalog : REFERENCE TO FB_PressIoCatalog;
     _parCfgStaged : ST_PneumaticPressParCfg;
     _recipePrepared : BOOL;
     _startLatched : BOOL;
@@ -159,6 +164,41 @@ _autoSequence.M_Reset();
 _sfcAutoSequence.M_Reset();
 _ldAutoSequence.M_Reset();]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="SetIoCatalog" Id="{b9a7dfe7-c1ec-40c6-a281-799efbec5326}">
+      <Declaration><![CDATA[// §10.2.1 — inject this station's I/O catalog so §10.5.1 force requests can be
+// resolved against the approved engineering-data join instead of against a
+// second copy of the channel map. Wired once by the composition root.
+METHOD SetIoCatalog
+VAR_INPUT
+    Catalog : REFERENCE TO FB_PressIoCatalog;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_ioCatalog REF= Catalog;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_RouteForceChannel" Id="{aaa1041a-686a-4de3-882b-72cec4eb8f00}">
+      <Declaration><![CDATA[// §10.5.1 — resolve an accepted force request onto a physical output channel.
+// FB_UnitBase.ForceChannel has already proved the §7.7 MANUAL access level, the
+// §7.5 OUTPUT_FORCING build gate, and that this Unit is idle in MANUAL; the
+// catalog then proves what only it knows — that the path names a channel of THIS
+// root, that it is an OUTPUT, and that the project marked it forceable.
+METHOD PROTECTED _M_RouteForceChannel : BOOL
+VAR_INPUT
+    ChannelPath : STRING(255);
+    Force       : BOOL;
+    BoolText    : STRING(255);
+    AnalogText  : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_RouteForceChannel := FALSE;
+IF NOT __ISVALIDREF(_ioCatalog) THEN
+    RETURN;
+END_IF
+// The transported value is text (the mailbox carries no variant), so a malformed
+// payload must decode to a defined value rather than to whatever the converter
+// leaves behind: anything that is not exactly 'true' is FALSE (§5.6).
+_M_RouteForceChannel := _ioCatalog.M_RouteForce(ChannelPath := ChannelPath,
+    OwnerRootPath := _name, Force := Force,
+    BoolValue := (BoolText = 'true'),
+    AnalogValue := STRING_TO_REAL(AnalogText));]]></ST></Implementation>
     </Method>
     <Method Name="_M_RouteManual" Id="{653016fc-4fc6-4987-b1a0-1cd3e2828844}">
       <Declaration><![CDATA[METHOD PROTECTED _M_RouteManual : BOOL

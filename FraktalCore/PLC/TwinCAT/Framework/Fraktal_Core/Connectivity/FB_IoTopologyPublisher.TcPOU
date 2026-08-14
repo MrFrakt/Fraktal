@@ -70,6 +70,152 @@ END_IF
 _data.Nodes[NodeIndex].Channels[ChannelIndex].Forceable := Forceable;
 M_SetForceable := TRUE;]]></ST></Implementation>
     </Method>
+    <Method Name="M_SetForce" Id="{c31f01f8-2797-4a20-89c9-c1f0e54c6f83}">
+      <Declaration><![CDATA[// Core §10.5.1 — arm or clear one held force set-point, addressed by the unique
+// channel Path (§4.8) the HMI sent. Called once per operator request, never per
+// scan, so the linear search over the bounded table is the right cost here.
+//
+// This method is NOT an authority. Access (§7.7 MANUAL), Unit mode/state and the
+// §7.5 OUTPUT_FORCING gate are all proved upstream in FB_UnitBase.ForceChannel;
+// what is rechecked here is the physical contract that only this table knows:
+// the channel exists, it is an OUTPUT, and the project marked it Forceable.
+METHOD M_SetForce : BOOL
+VAR_INPUT
+    ChannelPath : STRING(255);
+    // §4.8 - the qualified identity of the root routing this request. Only a
+    // channel owned by that root or one of its descendants may be forced, so a
+    // request routed through one root can never reach a peer station's outputs.
+    OwnerRootPath : STRING(255);
+    Force : BOOL;
+    BoolValue : BOOL;
+    AnalogValue : REAL;
+END_VAR
+VAR
+    n, c : INT;
+    ownerPrefix : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetForce := FALSE;
+IF NOT _attached OR (ChannelPath = '') OR (OwnerRootPath = '') THEN
+    RETURN;
+ELSE
+    ;
+END_IF
+ownerPrefix := CONCAT(OwnerRootPath, '.');
+FOR n := 1 TO _data.NodeCount DO
+    FOR c := 1 TO _data.Nodes[n].ChannelCount DO
+        IF _data.Nodes[n].Channels[c].Path = ChannelPath THEN
+            IF (_data.Nodes[n].Channels[c].Dir <> E_ChannelDir.OUTPUT)
+            OR NOT _data.Nodes[n].Channels[c].Forceable
+            OR ((_data.Nodes[n].Channels[c].ModulePath <> OwnerRootPath)
+                AND (FIND(_data.Nodes[n].Channels[c].ModulePath, ownerPrefix) <> 1)) THEN
+                RETURN;                      // §10.5.1 rules 1-2 + §4.8, fail closed
+            ELSE
+                ;
+            END_IF
+            // Clearing keeps the set-point members untouched: the live value is
+            // republished by the hardware driver on the very next scan, so the
+            // channel returns to the real process image rather than to a stale
+            // forced value written back over it.
+            _data.Nodes[n].Channels[c].Forced := Force;
+            IF Force THEN
+                _data.Nodes[n].Channels[c].ForceBool := BoolValue;
+                _data.Nodes[n].Channels[c].ForceAnalog := AnalogValue;
+            ELSE
+                ;
+            END_IF
+            M_SetForce := TRUE;
+            RETURN;
+        ELSE
+            ;
+        END_IF
+    END_FOR
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyForces" Id="{8d3d86d6-6c83-4d58-a489-060cc88f6074}">
+      <Declaration><![CDATA[// Core §10.5.1 rule 3 — the per-scan permit for held forces, called by the
+// project hardware driver with its owning Unit's FB_UnitBase.M_ForcePermitted().
+//
+// The falling edge is what makes the rule real: leaving MANUAL, starting a mode,
+// or a build without the §7.5 gate WITHDRAWS every force rather than leaving a
+// set-point contending with live application logic. Deriving the edge from the
+// published flag itself (not from instance state) keeps every publisher attached
+// to this table in agreement about whether a force is live.
+METHOD M_ApplyForces
+VAR_INPUT
+    Enabled : BOOL;
+END_VAR
+VAR
+    n, c : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT _attached THEN
+    RETURN;
+ELSE
+    ;
+END_IF
+IF _data.ForcesEnabled AND NOT Enabled THEN
+    FOR n := 1 TO _data.NodeCount DO
+        FOR c := 1 TO _data.Nodes[n].ChannelCount DO
+            _data.Nodes[n].Channels[c].Forced := FALSE;
+        END_FOR
+    END_FOR
+ELSE
+    ;
+END_IF
+_data.ForcesEnabled := Enabled;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_EffectiveBool" Id="{c8d480ac-5b9b-48a7-aa7b-3186a5d067fb}">
+      <Declaration><![CDATA[// Core §10.5.1 — the value the hardware driver should actually write to this
+// digital output: the held force set-point while forcing is permitted, otherwise
+// the application's own value. It RETURNS the value, so a driver line still reads
+// as a plain assignment (the same shape as _M_State on a module):
+//
+//     GVL_PressIO._101K301A := _publisher.M_EffectiveBool(
+//         NodeIndex := 4, ChannelIndex := 1, Value := SlideHal.ExtendOut);
+//
+// An out-of-range or unforced channel returns Value unchanged, so a mapping
+// mistake degrades to ordinary control rather than to a stuck output (§5.6).
+METHOD M_EffectiveBool : BOOL
+VAR_INPUT
+    NodeIndex : INT;
+    ChannelIndex : INT;
+    Value : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_EffectiveBool := Value;
+IF NOT _attached OR NOT _data.ForcesEnabled
+OR (NodeIndex < 1) OR (NodeIndex > _data.NodeCount)
+OR (ChannelIndex < 1) OR (ChannelIndex > _data.Nodes[NodeIndex].ChannelCount) THEN
+    RETURN;
+ELSE
+    ;
+END_IF
+IF _data.Nodes[NodeIndex].Channels[ChannelIndex].Forced THEN
+    M_EffectiveBool := _data.Nodes[NodeIndex].Channels[ChannelIndex].ForceBool;
+ELSE
+    ;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_EffectiveAnalog" Id="{90576b07-9b41-4d0f-be5b-a2f6cce48869}">
+      <Declaration><![CDATA[// Core §10.5.1 — the analog twin of M_EffectiveBool, same contract.
+METHOD M_EffectiveAnalog : REAL
+VAR_INPUT
+    NodeIndex : INT;
+    ChannelIndex : INT;
+    Value : REAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_EffectiveAnalog := Value;
+IF NOT _attached OR NOT _data.ForcesEnabled
+OR (NodeIndex < 1) OR (NodeIndex > _data.NodeCount)
+OR (ChannelIndex < 1) OR (ChannelIndex > _data.Nodes[NodeIndex].ChannelCount) THEN
+    RETURN;
+ELSE
+    ;
+END_IF
+IF _data.Nodes[NodeIndex].Channels[ChannelIndex].Forced THEN
+    M_EffectiveAnalog := _data.Nodes[NodeIndex].Channels[ChannelIndex].ForceAnalog;
+ELSE
+    ;
+END_IF]]></ST></Implementation>
+    </Method>
     <Method Name="M_DefineNode" Id="{f3c63915-4b75-4432-bc35-325d4ca2520a}">
       <Declaration><![CDATA[METHOD M_DefineNode : BOOL
 VAR_INPUT

@@ -19,7 +19,7 @@ void main() {
   });
 
   test('every generated reason has a standard English fallback', () {
-    expect(generatedReasonSymbolByCode, hasLength(51));
+    expect(generatedReasonSymbolByCode, hasLength(52));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

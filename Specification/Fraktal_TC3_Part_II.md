@@ -319,6 +319,58 @@ report argument in place.
 
 ---
 
+## TC3 §7 — Release & commissioning binding (TwinCAT 3)
+
+### TC3 §7.5 Commissioning gates and the engineering-gate register
+*Binds Core §7.5.* A Fraktal/TC3 gate is a `VAR_GLOBAL CONSTANT` or a program's
+`VAR CONSTANT`, never a variable. That is what makes Core §7.5.1 real on this
+platform: the compiler inlines a constant, so there is usually no symbol for an
+ADS or OPC UA client to write at all, and defeating a gate costs a source change
+plus a download. A published *mirror* of a gate (`MAIN.UseSimulation`) is
+permitted for observability only and **shall** have no consumer in control logic;
+adding one silently re-opens the online-write hole the constant closed.
+
+- **Framework gates** live in `Fraktal_Core/Params/PL_FraktalEngineering.TcGVL`
+  and are selected by the compiler define **`FRAKTAL_ENGINEERING`**, evaluated
+  per compiled project, so the library and every application in the solution
+  **shall** carry the same define. The only framework gate today is
+  `OUTPUT_FORCING` (Core §10.5.1 rule 1). A production image is one built without
+  the define; it is not a setting a commissioning engineer can change on the
+  machine.
+- **Project gates** stay where they already are — the application's own
+  `VAR CONSTANT` block — and are declared into the register with
+  `FB_EngineeringMode.M_Declare(Name, DescriptionKey, Active := <the constant>)`.
+  Passing a runtime variable as `Active` is a conformance defect, not a shortcut.
+- **The register** is `FB_EngineeringMode`, one instance in the composition root,
+  injected into every root Unit with `FB_UnitBase.SetEngineeringMode`. It is
+  write-once: an inactive gate is never registered, so `ST_EngineeringGate` needs
+  no `Active` member and a production station's `Count` is `0`. Wiring the
+  register is also what declares the framework's own `OUTPUT_FORCING` gate, so a
+  station cannot arm forcing without annunciating it; a station that wires
+  nothing simply cannot force. Overflow past
+  `PL_Fraktal.MAX_ENGINEERING_GATES` sets `Truncated` rather than dropping a
+  gate silently.
+- **The annunciation** is raised by `FB_UnitBase._M_EngineeringCyclic` on the
+  ordinary `OnCyclic` path — one `AlarmLog.Raise` per registered gate, LOW /
+  SYSTEM / `AUTO_RESET`, carrying the gate's `DescriptionKey`. It re-verifies its
+  own slot each scan and re-raises if the slot was ever reused, because an
+  annunciation that quietly disappears is the one failure mode Core §7.5.2 does
+  not tolerate. `COMMISSIONING_GATE_ACTIVE` (2030) is rationalized
+  `shelvable: false` in `Specification/reason_rationalization.json`, so §8.10
+  cannot silence it and `OperatorReset` — which reaches only `MANUAL_RESET`
+  events — cannot close it.
+
+The generic HMI renders the register as `EngineeringModeBanner` — a permanent,
+non-dismissible strip above the global alarm banner, listing one line per active
+gate (`HMI_CONTRACT.md`, "Commissioning gates").
+
+The Press bench is the worked example: `MAIN` declares `USE_SIMULATION` and
+`CONTROL_CIRCUIT_UNCONFIRMED` from the two `VAR CONSTANT` commissioning gates it
+already had, so those long-standing gates are now annunciated instead of only
+documented.
+
+---
+
 ## TC3 §8 — Diagnostics & performance binding (TwinCAT 3)
 
 ### TC3 §8.11 Timing sources for the cycle-time profile
@@ -376,6 +428,24 @@ through the paged configuration manifest. Static metadata is not a cyclic array.
 
 ### TC3 §10.6 Fieldbus topology & I/O diagnostics (EtherCAT/ADS)
 *Binds Core §10.5.1.* The conforming base profile is a three-authority composition: `FB_EcBusHealth` reads the EtherCAT master's reported slave count/order plus each slave's `deviceState`/`linkState`; `FB_<Project>IoCatalog` imports the reviewed XAE/ESI/TMC/electrical channel identity, scaling, address, and owning-module data; and `FB_IoTopologyPublisher` validates the bounded join and publishes `ST_FieldbusTopology`. The `deviceState` mismatch flags make configured vendor/product/revision/serial disagreement fail visible; `E_NodeState.FAULT` covers those flags and lost/no-response conditions. Channel values are copied by the sole project Hardware Driver from the same linked process-image/HAL variables used by control logic, not re-read through CoE. A runtime force, when a project explicitly enables one, resolves only a reviewed `Forceable` output and writes through that application's output authority behind the Core §7.6/§7.7 gates; it is never a raw master/process-image or input force, and every accepted request is logged as a §8.3 event. `I_FieldbusScanner`/`FB_EcFieldbusScanner` remain an optional compatibility seam for deployments needing richer vendor-specific runtime discovery; the fail-closed skeleton is not the default profile and is not required for base conformance. Master/slave state changes continue to raise the System alarms of TC3 §10.5 — the topology view and alarm list are two views of one source. The implementation and acceptance guide is **`FIELDBUS_ADS_ADAPTER.md`**.
+
+**Output forcing (Core §10.5.1) — the TC3 realization.** Forcing exists only in a
+build carrying the TC3 §7.5 `FRAKTAL_ENGINEERING` define; otherwise
+`FB_<Project>IoCatalog` publishes `Forceable=FALSE` on every channel and the
+generic HMI renders no force affordance at all. The held set-point lives in
+`ST_IoChannel.ForceBool`/`ForceAnalog`, kept apart from the live value that the
+Hardware Driver republishes each scan, and the per-scan permit lives in
+`ST_FieldbusTopology.ForcesEnabled` rather than in one `FB_IoTopologyPublisher`
+instance — a project attaches several to the same table (the catalog defines
+identity, the driver moves values) and they must not disagree about whether a
+force is live. The driver calls
+`M_ApplyForces(Enabled := <Unit>.M_ForcePermitted())` once per scan, which
+withdraws **every** force on the falling edge, then writes each output through
+`M_EffectiveBool`/`M_EffectiveAnalog`, so the application value is what reaches
+the terminal the moment the Unit leaves idle `MANUAL`. `FB_UnitBase.ForceChannel`
+gates the operator request on the identical predicate, so a request can never be
+accepted under conditions in which the force would not actually be applied.
+
 
 ---
 

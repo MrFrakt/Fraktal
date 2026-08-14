@@ -11,7 +11,7 @@
 ## AB §0 — How to read this document
 
 This Part was written **before** the Phase 0 spikes of
-[`ALLEN_BRADLEY_PORT_PLAN.md`](ALLEN_BRADLEY_PORT_PLAN.md). That is deliberate:
+[`ALLEN_BRADLEY_PORT_PLAN.md`](AllenBradley/ALLEN_BRADLEY_PORT_PLAN.md). That is deliberate:
 a binding document with explicit holes drives a spike programme far better than
 a spike list drives a document. But it means the two kinds of clause here must
 never be confused.
@@ -31,11 +31,11 @@ not begin until all of these gates are recorded as PASS:
 
 | Gate | Status | Required evidence |
 |---|---|---|
-| R0 Core authority | **PASS** | OOP-neutral lifecycle and transport-neutral Self-Description Service accepted in Core, with TC3 re-audited; evidence: [`AB_R0_CORE_AUTHORITY_EVIDENCE.md`](AB_R0_CORE_AUTHORITY_EVIDENCE.md) |
-| R1 platform baseline | **PASS** | named controller catalogue, firmware, Studio 5000 edition/version and usable licence, communication module/route, and gateway-host baseline; evidence: [`AB_R1_PLATFORM_BASELINE_EVIDENCE.md`](AB_R1_PLATFORM_BASELINE_EVIDENCE.md) |
-| R2 executable shape | **PASS** | S1/S2/S4/S11/S12 prove CIP, both sequence execution forms, L5X fidelity, scan ordering, restart behavior, and the physical type map, and **all five now record PASS**: [`AB_S1_CIP_DATA_PATH_EVIDENCE.md`](AB_S1_CIP_DATA_PATH_EVIDENCE.md), [`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AB_S2_AOI_PARAMETER_EVIDENCE.md), [`AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md), [`AB_S12_TYPE_MAP_EVIDENCE.md`](AB_S12_TYPE_MAP_EVIDENCE.md), [`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md), [`AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md`](AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md) |
-| R3 frozen contracts | **PASS** | versioned manifest, mailbox, registry, repository-handshake, quality/timestamp, and host-event schemas, frozen at version 1 in [`AB_FROZEN_CONTRACTS_V1.json`](AB_FROZEN_CONTRACTS_V1.json) and gated against this document by `tools/check_ab_contracts.py`; capacities remain owned holes. Evidence: [`AB_R3_FROZEN_CONTRACTS.md`](AB_R3_FROZEN_CONTRACTS.md) |
-| R4 gates | **OPEN** | automated L5X regeneration/lint plus controller Verify/Build and import checks run from a clean checkout; partial SDK evidence: [`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md) |
+| R0 Core authority | **PASS** | OOP-neutral lifecycle and transport-neutral Self-Description Service accepted in Core, with TC3 re-audited; evidence: [`AB_R0_CORE_AUTHORITY_EVIDENCE.md`](AllenBradley/Evidence/AB_R0_CORE_AUTHORITY_EVIDENCE.md) |
+| R1 platform baseline | **PASS** | named controller catalogue, firmware, Studio 5000 edition/version and usable licence, communication module/route, and gateway-host baseline; evidence: [`AB_R1_PLATFORM_BASELINE_EVIDENCE.md`](AllenBradley/Evidence/AB_R1_PLATFORM_BASELINE_EVIDENCE.md) |
+| R2 executable shape | **PASS** | S1/S2/S4/S11/S12 prove CIP, both sequence execution forms, L5X fidelity, scan ordering, restart behavior, and the physical type map, and **all five now record PASS**: [`AB_S1_CIP_DATA_PATH_EVIDENCE.md`](AllenBradley/Evidence/AB_S1_CIP_DATA_PATH_EVIDENCE.md), [`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AllenBradley/Evidence/AB_S2_AOI_PARAMETER_EVIDENCE.md), [`AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md), [`AB_S12_TYPE_MAP_EVIDENCE.md`](AllenBradley/Evidence/AB_S12_TYPE_MAP_EVIDENCE.md), [`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](AllenBradley/Evidence/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md), [`AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md`](AllenBradley/Evidence/AB_PHASE0_PHYSICAL_EXECUTION_EVIDENCE.md) |
+| R3 frozen contracts | **PASS** | versioned manifest, mailbox, registry, repository-handshake, quality/timestamp, and host-event schemas, frozen at version 1 in [`AB_FROZEN_CONTRACTS_V1.json`](AllenBradley/AB_FROZEN_CONTRACTS_V1.json) and gated against this document by `tools/check_ab_contracts.py`; capacities remain owned holes. Evidence: [`AB_R3_FROZEN_CONTRACTS.md`](AllenBradley/AB_R3_FROZEN_CONTRACTS.md) |
+| R4 gates | **OPEN** | automated L5X regeneration/lint plus controller Verify/Build and import checks run from a clean checkout; partial SDK evidence: [`AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md`](AllenBradley/Evidence/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md) |
 | R5 test execution | **OPEN** | a disposable reference AOI suite runs through the intended Logix Echo or named isolated-hardware CI path and emits machine-readable results; full base/type suites then grow with implementation |
 | R6 security | **OPEN** | S8 records the controller zone/conduit, writable-tag allow-list, gateway identity/TLS/role model, secret handling, and update lifecycle |
 
@@ -52,7 +52,7 @@ binding-qualified optional projections. Part II continues to bind that service
 to TF6100 OPC UA; this Part binds it by default to EtherNet/IP explicit messaging
 plus the Fraktal gateway, with OPC UA as an alternative. The exact amendments,
 objective check and TC3 compatibility audit are recorded in
-[`AB_R0_CORE_AUTHORITY_EVIDENCE.md`](AB_R0_CORE_AUTHORITY_EVIDENCE.md).
+[`AB_R0_CORE_AUTHORITY_EVIDENCE.md`](AllenBradley/Evidence/AB_R0_CORE_AUTHORITY_EVIDENCE.md).
 
 ---
 
@@ -136,7 +136,7 @@ and does not replace EtherNet/IP as the Fraktal/AB default.
   retype, reorder, or meaning change is breaking and requires a major revision
   plus coordinated regeneration. No optional-Output compatibility is inferred
   without its own evidence. See
-  [`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AB_S2_AOI_PARAMETER_EVIDENCE.md).
+  [`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AllenBradley/Evidence/AB_S2_AOI_PARAMETER_EVIDENCE.md).
 
 ### AB §2.4 Project & controller settings
 *Binds Core §2 note; baseline in AB §4.1.*
@@ -193,7 +193,7 @@ claim correlated ordering across controllers. An application requiring that
 ordering shall commission CIP Sync (IEEE-1588) and prove
 `IsSynchronized=1`. Commissioning shall set/verify WallClockTime and record a
 bounded host/reference offset. S1 evidence on the named v33 target is
-[`AB_S1_CIP_DATA_PATH_EVIDENCE.md`](AB_S1_CIP_DATA_PATH_EVIDENCE.md).
+[`AB_S1_CIP_DATA_PATH_EVIDENCE.md`](AllenBradley/Evidence/AB_S1_CIP_DATA_PATH_EVIDENCE.md).
 
 ### AB §2.8 Restart, download, and retention classes
 *Binds Core §2.3, §3.14, §6.1, §8.3, §13.*
@@ -209,7 +209,7 @@ everything not declared retained is treated as volatile.
 S11 settled the first-scan half of this: the generated wrapper drives `SFR` to
 the declared initial step from the Program→Run edge with AOI prescan routines
 disabled, so re-entry does not depend on Rockwell prescan or postscan
-([evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)).
+([evidence](AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)).
 
 **[PROVISIONAL S11]** still owes the output and replay half: that a download or
 mode transition cannot energize an output, re-issue an old command, or replay a
@@ -349,7 +349,7 @@ S2 fixes the pinned-v33 limits and access behavior:
 If a future pinned target cannot exclude private state while the public
 contract is readable, split `Ctx` into a read-only public UDT and an inaccessible
 private state UDT; never publish private state as the workaround. Evidence:
-[`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AB_S2_AOI_PARAMETER_EVIDENCE.md).
+[`AB_S2_AOI_PARAMETER_EVIDENCE.md`](AllenBradley/Evidence/AB_S2_AOI_PARAMETER_EVIDENCE.md).
 
 ### AB §3.4, §3.6–§3.7 Mode, device, and cascade mechanics
 *Binds Core §3.4–§3.7, §6.1, §6.3, §6.4.*
@@ -453,7 +453,7 @@ in an identical four scans, with the module AOI unconditional and ahead of
 sequence intent, the command/result loop at exactly one scan, one numbered leg
 per simultaneous Core branch, deterministic `SFR` reset/re-entry, and no
 watchdog fault at a 10 ms period. Evidence:
-[`AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md).
+[`AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md`](AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md).
 
 The SFC form is therefore enabled rather than provisional. It remains bounded
 by what was proved: ST and native SFC only, one minimal graph, and the start,
@@ -476,7 +476,7 @@ matrix found that `1769-L24ER-QB1B` at `33.014` has no `TIME` or `TIME32` at all
 — the import fails closed — so duration binds to the range-checked
 `DINT`-milliseconds form on this target. The same matrix removed two more
 candidates and constrains what a generated contract may contain
-([evidence](AB_S12_TYPE_MAP_EVIDENCE.md)):
+([evidence](AllenBradley/Evidence/AB_S12_TYPE_MAP_EVIDENCE.md)):
 
 | Core concept | Pinned v33 verdict |
 |---|---|
@@ -531,7 +531,7 @@ S12 froze the Core→Logix→repository type table for the pinned baseline befor
 any public UDT is generated: signed widths, bit strings, `REAL` (and the
 absence of `LREAL`), duration, arrays and their zero lower bound, enum
 ordinals, NaN and overflow behavior, and the measured CIP UDT layout
-([evidence](AB_S12_TYPE_MAP_EVIDENCE.md)). Unsupported target arithmetic shall
+([evidence](AllenBradley/Evidence/AB_S12_TYPE_MAP_EVIDENCE.md)). Unsupported target arithmetic shall
 use a range-checked representation or remove that controller from the baseline;
 silent narrowing is forbidden. `SchemaVersion` remains the first logical
 configuration member and migrate-or-fault still applies.
@@ -624,9 +624,9 @@ read completely and coherently in **293 ms** at S1's conservative 500-byte
 connection and **62 ms** at 4000 bytes, with a **~32 ms header-only poll** in
 steady state. A single bounded manifest therefore holds and **is not split by
 root**. The eight capacity symbols above are resolved in
-[`AB_FROZEN_CONTRACTS_V1.json`](AB_FROZEN_CONTRACTS_V1.json) at the sizes
+[`AB_FROZEN_CONTRACTS_V1.json`](AllenBradley/AB_FROZEN_CONTRACTS_V1.json) at the sizes
 actually measured; raising one is a cost-curve calculation against
-[`AB_S7_MANIFEST_EVIDENCE.md`](AB_S7_MANIFEST_EVIDENCE.md), not a new spike.
+[`AB_S7_MANIFEST_EVIDENCE.md`](AllenBradley/Evidence/AB_S7_MANIFEST_EVIDENCE.md), not a new spike.
 
 The read shape matters and is now normative guidance: reading the manifest as
 arrays of UDT rows batches into far fewer round trips than one monolithic tag.
@@ -717,11 +717,11 @@ They are declared in the project's binding record against the measured cost of
 that station, and the measurement inputs now exist: S1's conservative four-reader
 and 500-byte ceiling, and S7's manifest cost — a 43,728-byte manifest in 293 ms
 at 500 bytes and 62 ms at 4000, with a ~32 ms header-only poll in steady state
-([evidence](AB_S7_MANIFEST_EVIDENCE.md)). TC3's measured figures are the
+([evidence](AllenBradley/Evidence/AB_S7_MANIFEST_EVIDENCE.md)). TC3's measured figures are the
 reference point for what "interactive" means: ~15 ms steady-state ADS snapshot
 and ~86 ms median mode-change round trip.
 
-**Coherence-token behavior is settled** ([evidence](AB_S9_COHERENCE_EVIDENCE.md)).
+**Coherence-token behavior is settled** ([evidence](AllenBradley/Evidence/AB_S9_COHERENCE_EVIDENCE.md)).
 Under concurrent mutation the retry-until-stable guard never once accepted a
 torn snapshot, produced no false rejection on a quiet controller, and degraded
 to refusing service rather than to lying. Unguarded reads of the same array
@@ -855,7 +855,7 @@ S11 proved the call graph and the owner-local SFC runner for chart return,
 concurrent branches, reset/re-entry, and the declared one-scan intent latency,
 which measured exactly one scan with both generated forms walking the same
 graph in the same number of scans
-([evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)). Core-observable
+([evidence](AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)). Core-observable
 equivalence therefore holds for the proved surface, and every other accidental
 delay from program ordering remains a failed design.
 
@@ -976,7 +976,7 @@ Framework/base and reusable module AOI primary logic is Structured Text;
 generated Ladder is permitted for application chains whose parity/graph gates
 are in place. Generated native SFC is permitted for the program-owned form in
 AB §3.5 once G-SFC passes; S4/S11 have recorded their half
-([evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)). No protected/encoded source is accepted
+([evidence](AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md)). No protected/encoded source is accepted
 as conformance evidence. Every index, count, payload length, provider kind,
 operation kind, command, mode, logical type and motion target is validated before
 use. Every dispatcher has an explicit fail-closed `ELSE`/default. Integer overflow/
@@ -995,7 +995,8 @@ simulated HAL:
 - results published as a bounded UDT array with the same five summary fields
   TcUnit reports (suites, tests, successful, failed, duration);
 - results harvested over CIP by the gateway or the CI host and converted to
-  JUnit by an extension of the existing `tools/tcunit_to_junit.py`, so runner
+  JUnit by an extension of the existing
+  `FraktalCore/PLC/TwinCAT/tools/tcunit_to_junit.py`, so runner
   identity and expected counts are validated exactly as they are on TC3.
 - Core's inheritance-free reality changes what is provable once: Part II proves
   T1/T4 once in the base suite because every type *is* a base. Here the base
@@ -1470,7 +1471,7 @@ mutation and login attempts, and records security-relevant failures without
 credential values.
 
 **[PROVISIONAL S8]** The posture above is decided and two of its inputs are
-measured ([evidence](AB_S8_SECURITY_EVIDENCE.md)): the Phase 0 controller
+measured ([evidence](AllenBradley/Evidence/AB_S8_SECURITY_EVIDENCE.md)): the Phase 0 controller
 implements none of the CIP Security object classes `0x5D`, `0x5E` or `0x5F` — a
 positive absence, since the device answers the session and refuses all three —
 and the allow-list audit this clause requires now exists and runs offline. S8
@@ -1601,21 +1602,21 @@ decisions and link their evidence.
 
 | Clause | Spike | Status | Assumption or settled result | If wrong |
 |---|---|---|---|---|
-| AB §2.2 | S2 | **PASS** | appended optional atomic Input with compatible default preserves existing calls only after clean import/Verify; required/InOut/removal/retype/reorder/meaning changes are major; [evidence](AB_S2_AOI_PARAMETER_EVIDENCE.md) | settled by the evidence-gated optional-Input rule |
-| AB §2.5 | S4 | **PASS** | L5X round-trips stably and faithfully: the representative construct matrix — two task types with schedules, ST/RLL/SFC side by side, nested and tabular records, a sized string type, a generated constant, and the three AOI scan routines — imports `0/0`, verifies `0/0`, round-trips canonically, and passes a generated-vs-exported construct census; [evidence](AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md) | settled for the constructs the binding generates; FBD, alias and produced/consumed tags are out of scope and motion is S14 |
-| AB §2.7 | S1 | **PASS** | WallClockTime plus explicit TimeSynchronize quality satisfies Core §2.7; unsynchronized clocks remain `TimeSynchronized=FALSE`; [evidence](AB_S1_CIP_DATA_PATH_EVIDENCE.md) | settled by the quality-preserving rule; correlated multi-controller order requires separately proved CIP Sync |
-| AB §3.3 | S2 | **PASS** | one public UDT `Ctx` InOut executed through eight nested AOIs; External Access hid private members/instance storage; v33 boundaries are 64 InOuts and 16 nesting levels, with Fraktal ceiling eight; [evidence](AB_S2_AOI_PARAMETER_EVIDENCE.md) | settled for the pinned v33 baseline; future targets rerun S2 |
-| AB §3.10 | S7 | **PASS** | one bounded manifest fits: 43,728 bytes read completely and coherently in 293 ms at a 500-byte connection and 62 ms at 4000, with a ~32 ms header-only steady-state poll; the eight S7 capacity symbols are resolved at the measured sizes; [evidence](AB_S7_MANIFEST_EVIDENCE.md) | settled — no per-root split is required; raising a capacity is a cost-curve calculation, not a new spike |
+| AB §2.2 | S2 | **PASS** | appended optional atomic Input with compatible default preserves existing calls only after clean import/Verify; required/InOut/removal/retype/reorder/meaning changes are major; [evidence](AllenBradley/Evidence/AB_S2_AOI_PARAMETER_EVIDENCE.md) | settled by the evidence-gated optional-Input rule |
+| AB §2.5 | S4 | **PASS** | L5X round-trips stably and faithfully: the representative construct matrix — two task types with schedules, ST/RLL/SFC side by side, nested and tabular records, a sized string type, a generated constant, and the three AOI scan routines — imports `0/0`, verifies `0/0`, round-trips canonically, and passes a generated-vs-exported construct census; [evidence](AllenBradley/Evidence/AB_S4_S15_OFFLINE_ROUNDTRIP_EVIDENCE.md) | settled for the constructs the binding generates; FBD, alias and produced/consumed tags are out of scope and motion is S14 |
+| AB §2.7 | S1 | **PASS** | WallClockTime plus explicit TimeSynchronize quality satisfies Core §2.7; unsynchronized clocks remain `TimeSynchronized=FALSE`; [evidence](AllenBradley/Evidence/AB_S1_CIP_DATA_PATH_EVIDENCE.md) | settled by the quality-preserving rule; correlated multi-controller order requires separately proved CIP Sync |
+| AB §3.3 | S2 | **PASS** | one public UDT `Ctx` InOut executed through eight nested AOIs; External Access hid private members/instance storage; v33 boundaries are 64 InOuts and 16 nesting levels, with Fraktal ceiling eight; [evidence](AllenBradley/Evidence/AB_S2_AOI_PARAMETER_EVIDENCE.md) | settled for the pinned v33 baseline; future targets rerun S2 |
+| AB §3.10 | S7 | **PASS** | one bounded manifest fits: 43,728 bytes read completely and coherently in 293 ms at a 500-byte connection and 62 ms at 4000, with a ~32 ms header-only steady-state poll; the eight S7 capacity symbols are resolved at the measured sizes; [evidence](AllenBradley/Evidence/AB_S7_MANIFEST_EVIDENCE.md) | settled — no per-root split is required; raising a capacity is a cost-curve calculation, not a new spike |
 | AB §4.1 | S6 | OPEN | registry/manifest survive online change | commissioning gains a documented download step |
 | AB §5.7 | S5 | OPEN | the harness runs on Logix Echo or named isolated hardware CI | §5.7 remains unresolved; a manual run is not substituted |
 | AB §8.11/§8.12, §10 | S3 | OPEN | `GSV` and module objects supply health and timing | §8.11/§8.12/§10.5.1 reduce to a declared subset |
-| AB §11.2.1 | S8 | OPEN — posture decided, partly evidenced | CIP Security on v37+ recommended, zone/conduit the supported legacy posture, initial claim read-only so Core §14's write rule is armed by enabling a write root rather than relaxed. Measured: the Phase 0 controller implements **none** of CIP objects `0x5D`/`0x5E`/`0x5F`, and the required allow-list audit now exists and runs; [evidence](AB_S8_SECURITY_EVIDENCE.md). Still owed: a demonstrated CIP Security configuration on capable hardware, or the documented zone/conduit and declared SL | writes cannot meet §14; binding stays read-only until fixed |
-| AB §3.13, §7.7, §11.2 | S9 | OPEN — design decided, coherence proved | tiers are TC3's, freshness/poll budgets are declared per deployment, parity means the shared repository contract suite rather than an A/B rig, the mailbox payload is bounded to one unfragmented write, crash testing is scoped to the five replay-capable boundaries, redundancy is out of scope. Measured: the retry-until-stable guard never accepted a torn snapshot at any mutation rate, never falsely rejected a quiet controller, and converges whenever the mutation interval exceeds the guarded read window; [evidence](AB_S9_COHERENCE_EVIDENCE.md). Still owed: freshness/poll declaration, quality codes, timestamp mapping, reconnect discovery, the contract suite, and the mailbox matrix when writes are enabled | redesign snapshot/mailbox/gateway; no writable claim until the contract suite passes |
+| AB §11.2.1 | S8 | OPEN — posture decided, partly evidenced | CIP Security on v37+ recommended, zone/conduit the supported legacy posture, initial claim read-only so Core §14's write rule is armed by enabling a write root rather than relaxed. Measured: the Phase 0 controller implements **none** of CIP objects `0x5D`/`0x5E`/`0x5F`, and the required allow-list audit now exists and runs; [evidence](AllenBradley/Evidence/AB_S8_SECURITY_EVIDENCE.md). Still owed: a demonstrated CIP Security configuration on capable hardware, or the documented zone/conduit and declared SL | writes cannot meet §14; binding stays read-only until fixed |
+| AB §3.13, §7.7, §11.2 | S9 | OPEN — design decided, coherence proved | tiers are TC3's, freshness/poll budgets are declared per deployment, parity means the shared repository contract suite rather than an A/B rig, the mailbox payload is bounded to one unfragmented write, crash testing is scoped to the five replay-capable boundaries, redundancy is out of scope. Measured: the retry-until-stable guard never accepted a torn snapshot at any mutation rate, never falsely rejected a quiet controller, and converges whenever the mutation interval exceeds the guarded read window; [evidence](AllenBradley/Evidence/AB_S9_COHERENCE_EVIDENCE.md). Still owed: freshness/poll declaration, quality codes, timestamp mapping, reconnect discovery, the contract suite, and the mailbox matrix when writes are enabled | redesign snapshot/mailbox/gateway; no writable claim until the contract suite passes |
 | AB §11.7–§11.11 | S10 | OPEN | optional OPC UA/companion projections are available where additionally claimed | omit or narrow that binding-qualified optional claim; the default EtherNet/IP base claim is unaffected |
 | AB §2.5, §3.5 | S4 | OPEN | ST/LD plus native SFC routines, actions, transitions, settings and reset targets round-trip canonically | disable native SFC; ST/LD remains the reference sequence form |
-| AB §3.5 native SFC | S4 | **PASS** | generated steps, `NonStored` actions, transition expressions, simultaneous branches, execution settings, `SFR` target and `JSR` parameters survive import, Studio v33 Verify and repeated canonical export; [evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md) | settled for the pinned v33 baseline; the rest of the S4 construct matrix is still open above |
-| AB §2.8, §3.5, §4.1 | S11 | **PASS** | both generated forms walk one declared graph with identical traces and identical scan counts; module AOI runs unconditionally and before sequence intent; command/result latency is exactly one scan; simultaneous legs are per-branch; `SFR` re-entry repeats the run; [evidence](AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md) | settled for ST and native SFC on the pinned v33 baseline; generated Ladder, alternative branches and the abort/hold/mode-exit edges are not covered |
-| AB §3.8 | S12 | **PASS** | the bounded type map is measured: `TIME`/`TIME32`/`LREAL` are unavailable and `LINT` is transport-only; the public UDT's CIP payload, member offsets and 24-byte stride, two's-complement overflow, NaN transport, byte-counted `STRING.LEN`, zero-based arrays and the range-checked duration are all recorded; [evidence](AB_S12_TYPE_MAP_EVIDENCE.md) | settled for the pinned v33 baseline; any other controller family or revision reruns the spike |
+| AB §3.5 native SFC | S4 | **PASS** | generated steps, `NonStored` actions, transition expressions, simultaneous branches, execution settings, `SFR` target and `JSR` parameters survive import, Studio v33 Verify and repeated canonical export; [evidence](AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md) | settled for the pinned v33 baseline; the rest of the S4 construct matrix is still open above |
+| AB §2.8, §3.5, §4.1 | S11 | **PASS** | both generated forms walk one declared graph with identical traces and identical scan counts; module AOI runs unconditionally and before sequence intent; command/result latency is exactly one scan; simultaneous legs are per-branch; `SFR` re-entry repeats the run; [evidence](AllenBradley/Evidence/AB_S11_SEQUENCE_EXECUTION_EVIDENCE.md) | settled for ST and native SFC on the pinned v33 baseline; generated Ladder, alternative branches and the abort/hold/mode-exit edges are not covered |
+| AB §3.8 | S12 | **PASS** | the bounded type map is measured: `TIME`/`TIME32`/`LREAL` are unavailable and `LINT` is transport-only; the public UDT's CIP payload, member offsets and 24-byte stride, two's-complement overflow, NaN transport, byte-counted `STRING.LEN`, zero-based arrays and the range-checked duration are all recorded; [evidence](AllenBradley/Evidence/AB_S12_TYPE_MAP_EVIDENCE.md) | settled for the pinned v33 baseline; any other controller family or revision reruns the spike |
 | AB §3.15 | S13 | OPEN | claimed socket/serial adapters meet byte-channel limits and reconnect semantics | exclude affected connector/module families from initial claim |
 | AB §10.6 | S14 | OPEN | Rockwell motion maps Core motion semantics and is testable | exclude motion family or define a narrower versioned profile |
 | AB §5.4 | S15 | OPEN | SDK can import, Verify/Build, export, download and capture diagnostics unattended | binding does not meet the automated build gate as drafted |
@@ -1743,7 +1744,7 @@ implementation.
   Echo*](https://www.rockwellautomation.com/en-us/products/software/factorytalk/designsuite/logix-echo.html):
   supported virtual-controller families and SDK/test capabilities.
 - The EtherNet/IP/CIP references in
-  [`ALLEN_BRADLEY_PORT_PLAN.md`](ALLEN_BRADLEY_PORT_PLAN.md) apply to S1/S3/S7/S9;
+  [`ALLEN_BRADLEY_PORT_PLAN.md`](AllenBradley/ALLEN_BRADLEY_PORT_PLAN.md) apply to S1/S3/S7/S9;
   implementation requires the licensed current ODVA CIP Networks Library.
 
 ---

@@ -40,13 +40,15 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-# Run as a script (`python tools/check_consistency.py`) the repo root is not on
-# the path, so `tools.ld_dump` would not import; run as a module it already is.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# The ladder/chart readers ship inside the binding they parse
+# (FraktalCore/PLC/TwinCAT/tools). This gate stays at the repository root
+# because it spans PLC, HMI and Specification, so it reaches across for them.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent
+                       / "FraktalCore/PLC/TwinCAT/tools"))
 
 PLC_ROOT = Path("FraktalCore/PLC/TwinCAT")
 HMI_L10N = Path("FraktalCore/HMI/lib/localization")
-WORKFLOW_DOC = Path("Specification/TWINCAT_XAE_WORKFLOW.md")
+WORKFLOW_DOC = Path("Specification/Guides/TWINCAT_XAE_WORKFLOW.md")
 
 # A localization key literal in IEC source: 'project.step.foo' / 'std.error.bar'.
 KEY_LITERAL = re.compile(r"'((?:project|std)\.[A-Za-z0-9_.]+)'")
@@ -202,9 +204,9 @@ def check_parity(root: Path) -> list[Finding]:
     """
     findings: list[Finding] = []
     try:
-        from tools.ld_dump import gate_step          # noqa: F401  (import check)
+        from ld_dump import gate_step                # noqa: F401  (import check)
         import xml.etree.ElementTree as ET
-        from tools.ld_rung_gen import split_networks
+        from ld_rung_gen import split_networks
     except Exception as error:                        # pragma: no cover
         return [Finding("parity", "error", "tools", f"cannot load LD reader: {error}")]
 
@@ -257,7 +259,7 @@ def _check_step_effects(path: Path, twin: Path, split_networks, ET
     twin's explicit clears have no ladder counterpart to find. Set/Reset coils
     latch, so those ARE compared step by step.
     """
-    from tools.ld_dump import _value
+    from ld_dump import _value
 
     st_text, ld_text = _read(twin), _read(path)
     roots = _reference_roots(st_text)
@@ -314,7 +316,7 @@ def _st_step_writes(text: str, roots: set[str]) -> dict[int, set[str]]:
 def _ld_step_writes(text: str, split_networks, ET, _value
                     ) -> tuple[dict[int, set[str]], set[str]]:
     """(`EQ(_step, N)` gate -> symbols its rung writes, continuously-driven roots)."""
-    from tools.ld_dump import gate_step
+    from ld_dump import gate_step
 
     per_step: dict[int, set[str]] = {}
     continuous: set[str] = set()

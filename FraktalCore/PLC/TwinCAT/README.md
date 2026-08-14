@@ -14,7 +14,7 @@ The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit s
 > config manifest and `OPC.UA.DA` publication obscuring confirmed). That live result is
 > framework-integration evidence on a development runtime — not a machine acceptance,
 > safety or production claim, and not re-run against this snapshot. See
-> `../../../Specification/OBJECTIVES_AUDIT.md`. Per Core §2 / TC3 §2.1 pin your exact XAE/XAR build; the
+> `../../../Specification/Reports/OBJECTIVES_AUDIT.md`. Per Core §2 / TC3 §2.1 pin your exact XAE/XAR build; the
 > plcproj files target 4024+ (ABSTRACT FBs/methods). The sources are kept **source-compatible with
 > TwinCAT 3.1.4024**: no optional/defaulted method inputs (a 4026+ feature) — every method input is
 > passed explicitly at every call site (see `IMPLEMENTATION_NOTES.md` §62/§64/§69). File an issue for
@@ -65,6 +65,19 @@ Tests/                       the aggregate Core + Modules gate, self-contained
     FB_Timing_Tests            §8.11.4: exact math · classified cycle publication · command rows
     PRG_TcUnitRunner           TcUnit.RUN() — driven headless by TcUnit-Runner (TC3 §5.7)
   tools/                     source audits (e.g. Test-OpcUaPublication.ps1)
+tools/                       this binding's gates and generators. They live here,
+                             beside the sources they check and mirroring
+                             `PLC/Allen-Bradley/tools/`, so a binding carries its
+                             own toolchain and neither can silently drift from it.
+  plc_lint.py                18 source rules, both build profiles (§1.5/§5.5/§6.8)
+  ld_rung_gen.py             LD rungs by clone or declaration; ld_dump/sfc_dump
+                             read the generated body back as a graph (the gate)
+  Invoke-TwinCatBuild.ps1    hidden-XAE CheckAllObjects on all five solutions
+  Invoke-TwinCatLibraryInstall.ps1   save-as-library + install, in dependency order
+  Invoke-TwinCatTcUnitGate.ps1 / tcunit_to_junit.py   runtime gate + result validation
+  test_*.py                  their own suites; they import flat, so run them with
+                             `python -m unittest discover -s <this dir> -t <this dir>`
+                             (cross-tree gates stay in the repository-root `tools/`)
 scaffold/FB_TemplateCM/      "new CM type in 30 minutes" — pre-wired, initially RED (§5.7)
 IMPLEMENTATION_NOTES.md      every reconciliation vs. the drafts + proposed Core §3.2 amendments
 ```
@@ -72,7 +85,7 @@ IMPLEMENTATION_NOTES.md      every reconciliation vs. the drafts + proposed Core
 ## Bring-up (first compile)
 
 The authoritative interaction and evidence procedure is
-`../../../Specification/TWINCAT_XAE_WORKFLOW.md`. It records the exact
+`../../../Specification/Guides/TWINCAT_XAE_WORKFLOW.md`. It records the exact
 Core→Modules save/install order, nested-build versus `CheckAllObjects` boundary,
 hidden-XAE automation, isolated-runtime download/run sequence, and the 2026-08-01/02
 execution history.
@@ -357,7 +370,7 @@ identities and `VarId` power-rail nodes — roughly 40 kB per rung. Hand-writing
 not viable and cutting nodes with a regex has produced a file that stayed plausible
 while ceasing to be well-formed XML. What *is* viable is **cloning a rung that already
 compiles** — see the next section. After any edit, verify with `CheckAllObjects` (see
-`Specification/TWINCAT_XAE_WORKFLOW.md`) — the press demo resolves only once Core and
+`Specification/Guides/TWINCAT_XAE_WORKFLOW.md`) — the press demo resolves only once Core and
 Modules are installed as libraries.
 
 ### Generating a rung by cloning a worked example
@@ -656,12 +669,12 @@ There are **two** test projects and you must run both:
 
 | Gate | Covers | Solution |
 |---|---|---|
-| `Tests/Fraktal_Tests.plcproj` | Core + Modules (26 suites / 84 tests, simulated HAL) | `Tests/FraktalTests.slnx` |
+| `Tests/Fraktal_Tests.plcproj` | Core + Modules (30 suites / 98 tests, simulated HAL) | `Tests/FraktalTests.slnx` |
 | `Examples/PressDemo/PressTests.plcproj` | Internal Press feature bench (2 suites / 8 integration tests: `FB_PressDemoUnit_Tests`, `FB_FaultRecovery_Tests`) | `Examples/PressDemo/PressTests.slnx` |
 
 Accept a runtime result only when both its count and runner identity match the
 selected gate: Core/Modules output is rooted at `PRG_TcUnitRunner` and reports
-84 tests/26 suites; Press output is rooted at `PRG_PressTestRunner` and reports
+98 tests/30 suites; Press output is rooted at `PRG_PressTestRunner` and reports
 8 tests/2 suites. If a Press attempt reports the Core identity, either the wrong
 solution was downloaded or a previously created Core boot project restarted on
 that target. Source `BootProjectAutostart="false"` prevents creating a new
@@ -691,7 +704,8 @@ the same source objects and duplicate in-solution GUIDs make PLC Control rewrite
 the shared files.
 
 For a compiler-only local/CI check that does not activate or download a target,
-run `tools/Invoke-TwinCatBuild.ps1` from the repository root. It opens each test
+run `tools/Invoke-TwinCatBuild.ps1` (paths below are relative to this
+directory) from the repository root. It opens each test
 solution in a separate hidden XAE host, selects x64, asserts Autostart Boot Project
 is false, and runs the nested IEC project's `CheckAllObjects`. Runtime CI supplies
 the separate isolated-target hook and validates its raw TcUnit summaries with

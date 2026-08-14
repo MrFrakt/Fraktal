@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate the frozen Fraktal/AB R3 contracts and hold them to Part III.
 
-`Specification/AB_FROZEN_CONTRACTS_V1.json` is the machine-readable freeze of
+`Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json` is the machine-readable freeze of
 the six R3 logical contracts. `Fraktal_AB_Part_III.md` remains the normative
 prose. Two representations of one fact is exactly the duplication objective O9
 warns about, so this gate makes drift between them a build failure rather than
@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 
 
-CONTRACTS_PATH = Path("Specification/AB_FROZEN_CONTRACTS_V1.json")
+CONTRACTS_PATH = Path("Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json")
 PART_PATH = Path("Specification/Fraktal_AB_Part_III.md")
 
 REQUIRED_CONTRACTS = (

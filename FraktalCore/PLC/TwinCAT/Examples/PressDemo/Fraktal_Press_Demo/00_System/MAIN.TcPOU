@@ -15,6 +15,11 @@ VAR
     PneumaticPress : FB_PressDemoUnit;
     IoCatalog : FB_PressIoCatalog;
     IoDriver : FB_PressIoDriver;
+    // Core §7.5.1 — this station's commissioning/engineering gate register.
+    // Every gate below is a VAR CONSTANT of this program, so the register is
+    // decided at build time and cannot be edited on a running machine. While it
+    // holds anything, every root Unit carries the standing §7.5.2 annunciation.
+    EngineeringMode : FB_EngineeringMode;
     ControlDomain : FB_PressControlDomain;
     OutputAuthority : FB_PressOutputAuthority;
     SimulationDriver : FB_PressSimulationDriver;
@@ -98,8 +103,25 @@ IF NOT Init THEN
         SlideHal := SlideHal, TwoHandHal := TwoHandHal, PowerHal := PowerHal,
         PartPresentHal := PartPresentHal, AirPressureHal := AirPressureHal,
         Recipe := RecipeCatalog.Provider);
+    // §7.5.1 — declare this project's own gates. Passing the CONSTANT as `Active`
+    // is the point: an inactive gate registers nothing, so a production build
+    // publishes an empty register, annunciates nothing, and exposes no gated
+    // surface at all. Passing a runtime variable here would defeat §7.5.1.
+    EngineeringMode.M_Declare(Name := 'USE_SIMULATION',
+        DescriptionKey := 'std.engineering.simulation', Active := USE_SIMULATION);
+    EngineeringMode.M_Declare(Name := 'CONTROL_CIRCUIT_UNCONFIRMED',
+        DescriptionKey := 'std.engineering.controlCircuitUnconfirmed',
+        Active := NOT CONTROL_CIRCUIT_MAPPING_CONFIRMED);
+    // Wiring the register also declares the framework's own OUTPUT_FORCING gate
+    // from PL_FraktalEngineering, so forcing can never be armed without being
+    // annunciated. It must precede IoCatalog.Setup, which reads ForcingActive to
+    // decide whether any channel is published as Forceable at all.
+    PneumaticPress.SetEngineeringMode(Mode := EngineeringMode);
     IoDriver.Setup(UnitRef := PneumaticPress);
-    IoCatalog.Setup(UnitRef := PneumaticPress);
+    IoCatalog.Setup(UnitRef := PneumaticPress, Engineering := EngineeringMode);
+    // §10.5.1 — the catalog owns the approved channel join, so it is what
+    // resolves a force request; the Unit only routes an already-authorized one.
+    PneumaticPress.SetIoCatalog(Catalog := IoCatalog);
     ControlDomain.Setup(UnitRef := PneumaticPress);
     SimulationDriver.Setup(PressHal := PressHal, DoorHal := DoorHal, SlideHal := SlideHal);
     InitialModel.ModelCode := 'ALUMINUM';
@@ -261,7 +283,8 @@ ELSE
         AND PneumaticPress.OutImm.PartPresent AND PneumaticPress.OutImm.AirPressureOk;
     IoDriver.M_WriteOutputs(PressHal := PressHal, DoorHal := DoorHal,
         SlideHal := SlideHal, PowerHal := PowerHal, LampsOn := LampsOn,
-        ControlCircuitMappingConfirmed := CONTROL_CIRCUIT_MAPPING_CONFIRMED);
+        ControlCircuitMappingConfirmed := CONTROL_CIRCUIT_MAPPING_CONFIRMED,
+        ForcePermitted := PneumaticPress.M_ForcePermitted());
 END_IF
 // Node state comes from the real EtherCAT master. §10.5.1 is a diagnostic
 // surface, so the master is scanned only while a client is watching the bus

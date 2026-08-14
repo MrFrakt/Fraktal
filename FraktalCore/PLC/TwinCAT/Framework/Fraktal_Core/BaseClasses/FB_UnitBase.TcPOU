@@ -138,6 +138,13 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _sequences : ARRAY[1..PL_Fraktal.MAX_SEQUENCES] OF I_Sequence;
     _sequenceCount : INT;
+    // §7.5 commissioning/engineering gate register, injected by the composition
+    // root. Absent (the shipped default) = a production image: no gate is
+    // annunciated and ForceChannel refuses every request (fail closed).
+    {attribute 'OPC.UA.DA' := '0'}
+    _engineering : REFERENCE TO FB_EngineeringMode;
+    // §7.5.2 open standing event per registered gate (0 = none open yet)
+    _engineeringEvt : ARRAY[1..PL_Fraktal.MAX_ENGINEERING_GATES] OF INT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -2036,6 +2043,7 @@ _M_BeginSequenceScan();                               // §6.10 one-scan result 
 _M_TickChildren();
 _M_OeeUpdate();                                       // §8.5.1 time accounting + sampling
 AlarmLog.Cyclic();                                    // §8.10 shelf auto-expiry
+_M_EngineeringCyclic();                               // §7.5.2 standing gate annunciation
 _healthPublisher.Cyclic(Input := _healthInput, ParCfg := _healthParCfg,
     Configured := _healthConfigured);                 // §2.7/§8.12 alarm edges + values
 SystemHealth := _healthPublisher.Status;
@@ -2535,6 +2543,96 @@ IF WriteConfig THEN
     ConfigRev := ConfigRev + 1;
 END_IF]]></ST></Implementation>
     </Method>
+    <Method Name="SetEngineeringMode" Id="{28e702f3-e7d8-4e5a-8206-7208a16b6696}">
+      <Declaration><![CDATA[// Core §7.5.1 — inject the station's commissioning/engineering gate register at
+// Setup, the same shape as SetPartCarrier. Wiring it is what makes the §7.5.2
+// standing annunciation appear and what arms the §10.5.1 force surface; a Unit
+// with no register is a production Unit and both are simply absent.
+//
+// Declaring the framework's OWN force gate happens here rather than in the
+// project, so a composition root that wires the register cannot forget it
+// (§1.1 O1) and cannot arm forcing without also annunciating it.
+METHOD SetEngineeringMode
+VAR_INPUT
+    Mode : REFERENCE TO FB_EngineeringMode;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_engineering REF= Mode;
+IF __ISVALIDREF(_engineering) THEN
+    _engineering.M_DeclareOutputForcing();
+ELSE
+    ;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ForcePermitted" Id="{b9d8bf79-0c6d-4741-99f8-f427bda243e9}">
+      <Declaration><![CDATA[// Core §10.5.1 rules 1 and 3 — may a held force set-point be applied to this
+// Unit's outputs right now? The project hardware driver passes the result to
+// FB_IoTopologyPublisher.M_ApplyForces every scan, and ForceChannel gates the
+// operator request on the identical predicate, so "accepted" and "applied" can
+// never disagree. Everything else about a force (access, ownership, direction,
+// mapping) is proved elsewhere; this is only the build gate and the mode/state.
+METHOD M_ForcePermitted : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_ForcePermitted := FALSE;
+IF NOT __ISVALIDREF(_engineering) THEN
+    RETURN;
+END_IF
+IF NOT _engineering.ForcingActive THEN
+    RETURN;
+END_IF
+// A running module reasserts its own outputs, so a force is only honest while
+// the Unit is idle in MANUAL; leaving either withdraws every force (§10.5.1(3)).
+M_ForcePermitted := (_mode = E_Mode.MANUAL) AND (_exec = E_ExecState.READY);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_EngineeringCyclic" Id="{0b6876ea-bb0c-4e77-ab09-61eab13a8627}">
+      <Declaration><![CDATA[// Core §7.5.2 — the standing annunciation: one LOW/SYSTEM/AUTO_RESET event per
+// registered gate, for as long as that gate is registered.
+//
+// Why each choice is the way it is, because every one of them is load-bearing:
+//   AUTO_RESET  a MANUAL_RESET event refuses Start (§8.3(b)), which would make
+//               commissioning gates block the commissioning they exist to serve;
+//   LOW/SYSTEM  the lowest priority and the lowest risk class - this says how the
+//               software was BUILT, not that the process or safety is impaired,
+//               and a louder class would displace real alarms (§8.9);
+//   unclearable OperatorReset only closes MANUAL_RESET events, so no operator
+//               action reaches this one, and its §8.9 record is not shelvable, so
+//               §8.10 cannot silence it either. It closes when the gate is gone -
+//               which, gates being build constants, means a new download.
+METHOD PRIVATE _M_EngineeringCyclic
+VAR
+    i : INT;
+    gateCount : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT __ISVALIDREF(_engineering) THEN
+    RETURN;
+END_IF
+gateCount := _engineering.Count;
+IF gateCount > PL_Fraktal.MAX_ENGINEERING_GATES THEN
+    gateCount := PL_Fraktal.MAX_ENGINEERING_GATES;
+END_IF
+FOR i := 1 TO gateCount DO
+    // Self-healing on purpose. If this slot were ever closed and reused by
+    // another event, a remembered index would leave the annunciation silently
+    // absent for the rest of the run - the one failure mode a non-clearable
+    // message must not have. Re-verify identity, then re-raise.
+    IF _engineeringEvt[i] > 0 THEN
+        IF (AlarmLog.Active[_engineeringEvt[i]].State = E_AlarmState.CLOSED)
+        OR (AlarmLog.Active[_engineeringEvt[i]].ReasonCode <> E_Reason.COMMISSIONING_GATE_ACTIVE) THEN
+            _engineeringEvt[i] := 0;
+        ELSE
+            ;
+        END_IF
+    ELSE
+        ;
+    END_IF
+    IF _engineeringEvt[i] = 0 THEN
+        _engineeringEvt[i] := AlarmLog.Raise(Reason := E_Reason.COMMISSIONING_GATE_ACTIVE,
+            Text := _engineering.Gates[i].DescriptionKey, Source := _name,
+            Severity := E_Severity.LOW, Category := E_Category.SYSTEM,
+            ResetClass := E_ResetClass.AUTO_RESET);
+    ELSE
+        ;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
     <Method Name="ForceChannel" Id="{8bf9fd9d-8084-4dbf-b41b-c60e5e0cc995}">
       <Declaration><![CDATA[// §10.5.1 centralized force authority. Only an idle MANUAL Unit may reach the
 // application resolver; that resolver still proves root ownership, OUTPUT,
@@ -2550,7 +2648,10 @@ END_VAR]]></Declaration>
 IF NOT Access.PermitsLogged(Gate := E_GatedAction.MANUAL) THEN
     RETURN;
 END_IF
-IF (_mode <> E_Mode.MANUAL) OR (_exec <> E_ExecState.READY) OR (ChannelPath = '') THEN
+// §10.5.1 rules 1 and 3 in one predicate, the same one the hardware driver
+// applies each scan - so the request can never be accepted under conditions
+// under which the force would not actually be applied.
+IF NOT M_ForcePermitted() OR (ChannelPath = '') THEN
     RETURN;
 END_IF
 ForceChannel := _M_RouteForceChannel(ChannelPath := ChannelPath, Force := Force,

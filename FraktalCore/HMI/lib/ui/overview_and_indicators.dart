@@ -158,6 +158,65 @@ class StepParetoView extends StatelessWidget {
   }
 }
 
+/// Core §7.5.2 — the standing commissioning/engineering-gate annunciation.
+///
+/// This is the lowest-priority alarm the framework raises (LOW/SYSTEM), and that
+/// is exactly why it needs its own strip: [GlobalAlarmBanner] shows the single
+/// WORST active event, so during commissioning — the phase that generates the
+/// most process alarms — a severity-ordered banner would bury the one message
+/// that says the machine is not running its production software.
+///
+/// Three properties are deliberate and must not be "improved" away:
+///   * no dismiss control — no operator action closes the underlying event, and
+///     a banner the operator could tap away would give back exactly the
+///     capability §7.5.2 removes;
+///   * shown regardless of shelving — the reason is rationalized as not
+///     suppressible (§8.9), so shelving cannot reach it either;
+///   * a low-risk visual register — warning-tinted, not error-tinted. The
+///     station is not faulted: this reports how the software was BUILT, and
+///     dressing it as a fault would train operators to ignore real ones.
+///
+/// It disappears only when the PLC stops reporting a gate, which — gates being
+/// build constants (§7.5.1) — means a new download.
+class EngineeringModeBanner extends StatelessWidget {
+  final AppState app;
+  const EngineeringModeBanner({super.key, required this.app});
+  @override
+  Widget build(BuildContext context) {
+    final gates = app.activeEngineeringGates;
+    if (gates.isEmpty) return const SizedBox.shrink();
+    final c = warningColor(context);
+    return Material(
+      color: c.withValues(alpha: 0.14),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+            border: Border(left: BorderSide(width: 4, color: c))),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.construction, color: c),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LText('std.engineering.banner',
+                      // A sentence, not a glyph: the 4.5:1 shade (app_theme).
+                      style: TextStyle(
+                          color: severityTextColor(context, Severity.medium),
+                          fontWeight: FontWeight.w700)),
+                  for (final gate in gates)
+                    LText('• ${context.tr(gate.description)}',
+                        style: TextStyle(
+                            color: severityTextColor(context, Severity.medium))),
+                ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
 /// Global alarm banner: the single worst active event across the whole forest,
 /// visible from any screen (standard HMI safety pattern). Tapping selects it.
 class GlobalAlarmBanner extends StatelessWidget {

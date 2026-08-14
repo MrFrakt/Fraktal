@@ -103,6 +103,30 @@ const standardEnglish = <String, String>{
   'std.nav.fieldbus': 'Fieldbus',
   'std.fieldbus.openModule': 'Open owning module',
   'std.fieldbus.loading': 'Loading fieldbus topology…',
+  // Core §7.5.2 — the standing commissioning-gate annunciation. The gate keys
+  // are raised by the PLC (framework and project alike) and resolved here.
+  'std.engineering.banner':
+      'Commissioning build — this station is not running its production software.',
+  'std.engineering.outputForcing':
+      'Output forcing enabled: fieldbus outputs can be driven by hand from the HMI.',
+  'std.engineering.simulation':
+      'Simulation driver active: physical outputs are held off while the plant is simulated.',
+  'std.engineering.controlCircuitUnconfirmed':
+      'Control-circuit mapping not confirmed: the control-power coils are held off every cycle.',
+  'std.fieldbus.forceTitle': 'Force output',
+  'std.fieldbus.forceWhy':
+      'This control exists only because a commissioning gate is active (Core §7.5); a production build offers no forcing at all.',
+  'std.fieldbus.forceScope':
+      'The force is applied only while this Unit is idle in MANUAL. Starting it, or leaving MANUAL, withdraws every force immediately — the module owns its outputs and its interlocks throughout.',
+  'std.fieldbus.forceValue': 'Force value',
+  'std.fieldbus.forceApply': 'Force',
+  'std.fieldbus.forceClear': 'Clear force',
+  'std.fieldbus.forceApplied': 'Channel forced (logged)',
+  'std.fieldbus.forceCleared': 'Force cleared',
+  'std.fieldbus.forceDenied': 'Denied — the PLC refused this force',
+  'std.fieldbus.forceNoRoot': 'Channel has no owning root; forcing is disabled.',
+  'std.fieldbus.forceBlocked': 'Channel force blocked',
+  'std.fieldbus.forceWhyBlocked': 'Why is forcing unavailable here?',
   'std.nav.overview': 'Plant overview',
   'std.nav.language': 'Change language',
   'std.nav.languageSettings': 'Manage language catalogs',
@@ -725,6 +749,28 @@ const standardSpanish = <String, String>{
   'std.nav.fieldbus': 'Bus de campo',
   'std.fieldbus.openModule': 'Abrir el módulo propietario',
   'std.fieldbus.loading': 'Cargando topología de bus de campo…',
+  'std.engineering.banner':
+      'Compilación de puesta en marcha: esta estación no ejecuta su software de producción.',
+  'std.engineering.outputForcing':
+      'Forzado de salidas habilitado: las salidas de bus de campo pueden accionarse a mano desde el HMI.',
+  'std.engineering.simulation':
+      'Controlador de simulación activo: las salidas físicas se mantienen desactivadas mientras se simula la planta.',
+  'std.engineering.controlCircuitUnconfirmed':
+      'Mapeo del circuito de mando sin confirmar: las bobinas de mando se mantienen desactivadas en cada ciclo.',
+  'std.fieldbus.forceTitle': 'Forzar salida',
+  'std.fieldbus.forceWhy':
+      'Este control existe solo porque hay una puerta de puesta en marcha activa (Core §7.5); una compilación de producción no ofrece forzado alguno.',
+  'std.fieldbus.forceScope':
+      'El forzado se aplica solo mientras esta unidad está inactiva en MANUAL. Arrancarla, o salir de MANUAL, retira de inmediato todos los forzados: el módulo conserva sus salidas y sus enclavamientos en todo momento.',
+  'std.fieldbus.forceValue': 'Valor forzado',
+  'std.fieldbus.forceApply': 'Forzar',
+  'std.fieldbus.forceClear': 'Quitar forzado',
+  'std.fieldbus.forceApplied': 'Canal forzado (registrado)',
+  'std.fieldbus.forceCleared': 'Forzado retirado',
+  'std.fieldbus.forceDenied': 'Denegado: el PLC rechazó este forzado',
+  'std.fieldbus.forceNoRoot': 'El canal no tiene raíz propietaria; el forzado está deshabilitado.',
+  'std.fieldbus.forceBlocked': 'Forzado de canal bloqueado',
+  'std.fieldbus.forceWhyBlocked': '¿Por qué no puedo forzar esto?',
   'std.nav.overview': 'Vista general',
   'std.nav.language': 'Cambiar idioma',
   'std.nav.languageSettings': 'Gestionar catálogos de idioma',
