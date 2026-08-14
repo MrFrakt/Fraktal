@@ -94,7 +94,7 @@ TEST_FINISHED();]]></ST>
 METHOD T3_interlock_withholds_child_output]]></Declaration>
       <Implementation>
         <ST><![CDATA[TEST('T3_interlock_withholds_child_output');
-_emIntlk.CylA.SimForceInterlock(Id := 1, Ok := FALSE);   // SIM-only hook (§5.7)
+_emIntlk.CylA.SetAreaSafe(Ok := FALSE, DescriptionKey := '');   // the real §7.2 path
 _emIntlk.Command := E_ClampCommand.CLAMP;
 _emIntlk.Execute := TRUE;
 FOR _i := 1 TO 4 DO
@@ -115,7 +115,7 @@ AssertFalse(Condition := _emIntlk.Error, Message := 'a held child does not fault
 AssertFalse(Condition := _emIntlk.CylB.Error,
     Message := 'the partner keeps its command instead of being aborted');
 // Restoring the condition resumes the join with no operator action.
-_emIntlk.CylA.SimForceInterlock(Id := 1, Ok := TRUE);
+_emIntlk.CylA.SetAreaSafe(Ok := TRUE, DescriptionKey := '');
 FOR _i := 1 TO 6 DO
     _simIntlkA(); _simIntlkB(); _emIntlk();
 END_FOR

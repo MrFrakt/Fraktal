@@ -3819,3 +3819,64 @@ No existing member changed type or meaning and no `ST_*ParCfg` schema moved, so
 there is no §3.8 migration due and every prior consumer compiles unchanged — but
 an application still has to resolve the new library before it can see any of it,
 which is what the first `CheckAllObjects` run after this change reported.
+
+
+## 130. The interlock an operator reads was wired to a test hook (2026-08-14)
+
+**Symptom.** None visible. `plc_lint` was clean, all five solutions compiled,
+and the cylinder suites were green. The defect was found by reading Core §5.7
+against the source rather than against the audit.
+
+**What was there.** `FB_CylinderCM` and `FB_ConfigurableCylinderCM` each carried
+a `SimForceInterlock` method. §5.7 is explicit that such a hook "shall exist only
+under the SIM build configuration and be compiled out of release builds — every
+§7/§9 reaction is testable, and the bypass can[not ship]". The only occurrences
+of `{IF defined (SIM_HOOKS)}` in the Modules library were **two comments telling
+a future reader to add the guard**. Every release build shipped the bypass.
+`AGENTS.md` stated the opposite as settled fact.
+
+**The worse half.** The hook was the *only writer* of `Intlk.Cond[1]` — the
+condition both types publish to operators as "area safe". So a reusable type
+declared an interlock that its application had **no way to supply** (§7.2.1: a
+condition is owned at the lowest module with the context to name it, and the
+application drives `Cond[i]`), and on `FB_ConfigurableCylinderCM` that was its
+*only* interlock slot. The type advertised an area interlock and offered a test
+back door in its place.
+
+**Why guarding it would have been the wrong fix.** The obvious repair —
+`{IF defined (SIM_HOOKS)}` — runs into the build topology: `Fraktal_Tests`
+consumes the **installed** `Fraktal_Modules`, and an installed library's pragmas
+are resolved when the library is built, not when the consumer is. Keeping T3
+green would have meant two library flavours, a SIM one for the gate and a release
+one for machines, and a change to the install workflow. That is a lot of
+machinery to preserve a back door.
+
+**What was done instead.** Both types now expose
+`SetAreaSafe(Ok, DescriptionKey)` — the same shape as the existing
+`SetDirectionalPermits`: an application-supplied condition, a method rather than
+an OPC UA write, re-evaluated every scan so a manual command obeys it too, and
+defaulting TRUE so a station that declares no area interlock is not gated by one.
+`SimForceInterlock` and its `_force` member are deleted. The T3 rows in
+`FB_CylinderCM_Tests` and `FB_ClampEM_Tests` drive `SetAreaSafe`, which is
+strictly better evidence: they now exercise the surface a station actually uses.
+No define, no second library flavour, no workflow change.
+
+The `Intlk.Define` default also moved from `project.interlock.areaSafe` to
+`std.interlock.areaSafe`. A library type owning a `project.*` key was backwards;
+an application overrides the text through `SetAreaSafe` when its own condition is
+more specific.
+
+**Lint rule C8** now rejects an unguarded `Sim*` method in `Framework/` code, so
+the shape cannot return. Its fixtures assert all four cases that matter: the
+exact method that shipped fires, a properly guarded one does not, and neither a
+whole simulation *driver* type nor a test project is touched.
+
+Modules advances to `0.4.0.0` — removing a public method is a contract-surface
+change (§1.5), and a consumer that called the hook must be told by its resolver
+rather than by a compile error it cannot explain.
+
+**The general lesson, which is why this is worth a note.** A test that reaches
+for a back door stops testing the product. Both suites were green for months
+while proving something about `SimForceInterlock` and nothing about the interlock
+path a station uses — and the missing application path went unnoticed precisely
+*because* the test had a way in that the application did not.

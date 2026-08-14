@@ -470,7 +470,13 @@ the Unit base consumes its release report; any Unit adding mode-entry conditions
 never deploy either as the machine boot application. On TC3, fill large bounded records such as
 `ST_ReleaseReport` through caller-owned `VAR_IN_OUT` storage—nested by-value returns can overflow the
 bounded task stack.
-SIM-only force hooks compile out of release builds.
+There are **no SIM-only force hooks in the libraries** — lint rule **C8** rejects an unguarded
+`Sim*` method in `Framework/` code. The two cylinder CMs used to carry a `SimForceInterlock`
+whose only guard was a comment, so it shipped in every release build (§5.7 forbids exactly
+that) and it was the *only* writer of `Intlk.Cond[1]` — the slot an operator reads as "area
+safe". Both types now expose `SetAreaSafe(Ok, DescriptionKey)`, the ordinary §7.2 application
+path, and T3 drives that instead. **Test a condition through the surface a station uses**;
+a back door proves the back door works.
 
 **Commissioning gates and §10.5.1 output forcing (Core §7.5, TC3 §7.5) — the rules that bite:**
 - **A gate is a build constant.** `VAR_GLOBAL CONSTANT` / `VAR CONSTANT`, never a variable, never
@@ -659,10 +665,10 @@ For the same GUID-ownership reason, never load `Fraktal_Press_Demo.plcproj` and
 `PressTests.plcproj` in one XAE solution: the press gate links the exact Press
 Unit/sequence/release source files. Use its dedicated isolated test solution,
 or unload/remove the Press application before adding the press tests.
-The current Core is `0.5.0.0` and Modules is `0.3.0.0`; downstream placeholders are pinned accordingly. Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
+The current Core is `0.5.0.0` and Modules is `0.4.0.0`; downstream placeholders are pinned accordingly. Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
 If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
-reason to edit each affected POU. Install Core `0.5.0.0`, resolve/build/install Modules `0.3.0.0`,
+reason to edit each affected POU. Install Core `0.5.0.0`, resolve/build/install Modules `0.4.0.0`,
 then reload the application placeholders and rebuild.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.

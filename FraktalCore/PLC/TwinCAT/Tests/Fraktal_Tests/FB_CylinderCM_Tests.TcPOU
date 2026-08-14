@@ -119,7 +119,7 @@ TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[METHOD T3_interlock_withholds_output]]></Declaration>
       <Implementation>
         <ST><![CDATA[TEST('T3_interlock_withholds_output');
-_cm3.SimForceInterlock(Id := 1, Ok := FALSE);   // SIM-only hook (5.7)
+_cm3.SetAreaSafe(Ok := FALSE, DescriptionKey := '');   // the real §7.2 path
 _cm3.Command := E_CylinderCommand.EXTEND;
 _cm3.Execute := TRUE;
 _cm3();
@@ -139,7 +139,7 @@ AssertTrue(Condition := _cm3.Busy, Message := 'held command stays BUSY so its ow
 AssertEquals_DINT(Expected := TO_DINT(E_Severity.LOW), Actual := TO_DINT(_d.Severity),
                   Message := 'a declared wait is LOW, not a downtime event (8.1/8.4)');
 // ...and restoring the condition resumes it with no operator action at all.
-_cm3.SimForceInterlock(Id := 1, Ok := TRUE);
+_cm3.SetAreaSafe(Ok := TRUE, DescriptionKey := '');
 _cm3();
 AssertFalse(Condition := _cm3.Held, Message := 'hold clears itself when the condition returns');
 AssertTrue(Condition := _h3.ExtendOut, Message := 'resume re-energizes the direction output');

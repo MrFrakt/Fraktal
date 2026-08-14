@@ -19,7 +19,8 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _recipe : I_RecipeProvider;
     _tMove  : TON;
-    _force  : BOOL;                     // SIM hook — wrap in {IF defined (SIM_HOOKS)} for release (§5.7)
+    _areaSafe : BOOL := TRUE;           // §7.2 application-supplied area/process interlock
+    _areaSafeKey : STRING(255);
     _parCfgStaged : ST_CylinderParCfg;
     _recipePrepared : BOOL;
     _directionPermitsConfigured : BOOL;
@@ -38,7 +39,7 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
-Intlk.Cond[1] := NOT _force;            // real application: area-safe/air-ok signals (LD/ST, §5.5)
+Intlk.Cond[1] := _areaSafe;             // §7.2 area-safe/air-ok, supplied via SetAreaSafe
 IF NOT _directionPermitsConfigured OR (Command = E_CylinderCommand.NONE) THEN
     Intlk.Cond[2] := TRUE;
 ELSIF Command = E_CylinderCommand.EXTEND THEN
@@ -171,7 +172,9 @@ END_VAR]]></Declaration>
 _M_SetPresentation(DisplayNameKey := 'std.moduleType.cylinder.name', DescriptionKey := 'std.moduleType.cylinder.description');
 _hal REF= HalRef;                        // [TC3] TC3 §3.11
 _recipe := Recipe;
-Intlk.Define(Index := 1, Description := 'project.interlock.areaSafe', Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+// A library type owns a std.* key; an application overrides the text through
+// SetAreaSafe when its own condition is more specific (§7.2.1).
+Intlk.Define(Index := 1, Description := 'std.interlock.areaSafe', Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
 Intlk.Define(Index := 2, Description := 'std.interlock.directionPermitted', Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
 _M_PublishCommand(Value := TO_DINT(E_CylinderCommand.EXTEND), Label := 'std.command.extend');
 _M_PublishCommand(Value := TO_DINT(E_CylinderCommand.RETRACT), Label := 'std.command.retract');
@@ -179,16 +182,32 @@ Setup := PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="SimForceInterlock" Id="{2b863fba-53a5-4d97-a1bb-8a1c65d463e5}">
-      <Declaration><![CDATA[// §5.7 SIM-only force hook — wrap body in {IF defined (SIM_HOOKS)} for release builds
-METHOD SimForceInterlock : BOOL
+    <Method Name="SetAreaSafe" Id="{d171827b-01bb-4ec3-82bc-76f0b19118b9}">
+      <Declaration><![CDATA[// Core §7.2/§7.2.1 — the application supplies this type's area/process interlock,
+// the same shape as SetDirectionalPermits: a method (not an OPC UA write), and the
+// condition is re-evaluated every scan so a manual command obeys the same rule.
+//
+// This replaces a SIM-only force hook that used to drive Cond[1] directly. That
+// hook was the ONLY writer of the condition, so the slot an operator sees as
+// "area safe" could be moved by a test and by nothing else: a reusable type
+// published an interlock its application had no way to supply (§7.2.1), and the
+// bypass shipped in every release build (§5.7). Driving the real condition is
+// also strictly better test evidence - T3 now exercises the shipped path.
+//
+// Defaults TRUE: a station that declares no area interlock is not gated by one.
+METHOD SetAreaSafe
 VAR_INPUT
-    Id : INT;
     Ok : BOOL;
+    DescriptionKey : STRING(255);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_force := NOT Ok;
-SimForceInterlock := TRUE;]]></ST>
+        <ST><![CDATA[_areaSafe := Ok;
+_areaSafeKey := DescriptionKey;
+IF _areaSafeKey <> '' THEN
+    Intlk.Define(Index := 1, Description := _areaSafeKey, Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+ELSE
+    ;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{f4246abc-e03f-4d9d-9774-cf8b297a7d67}">

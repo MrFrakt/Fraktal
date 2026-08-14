@@ -27,6 +27,17 @@ def _method(name: str, code: str) -> str:
 <Implementation><ST><![CDATA[{code}]]></ST></Implementation></Method>'''
 
 
+def _sim_hook(name: str, guarded: bool) -> str:
+    body = ("{IF defined (SIM_HOOKS)}\n_force := NOT Ok;\n{END_IF}"
+            if guarded else "_force := NOT Ok;")
+    return f'''<Method Name="{name}" Id="{{20000000-0000-0000-0000-000000000001}}">
+<Declaration><![CDATA[METHOD {name} : BOOL
+VAR_INPUT
+    Ok : BOOL;
+END_VAR]]></Declaration>
+<Implementation><ST><![CDATA[{body}]]></ST></Implementation></Method>'''
+
+
 def _contract(extra: str = "") -> str:
     return f'''VAR_INPUT
     ParCfg : ST_TestParCfg;
@@ -53,6 +64,12 @@ class PlcLintConformanceTests(unittest.TestCase):
 
     def _rules(self, root: Path):
         return {finding.rule for finding in lint_repository([root])}
+
+    def _file_rules(self, path: Path):
+        """Per-file rules. lint_repository carries only the cross-file ones
+        (those that resolve an EXTENDS chain or a manifest), so a rule that
+        is decidable from a single file has to be asked for directly."""
+        return {finding.rule for finding in lint_file(path)}
 
     def test_d1_contract_and_schema_negative_fixtures(self):
         root = self._root()
@@ -527,6 +544,41 @@ Reason : DINT; END_STRUCT END_TYPE]]></Declaration></DUT></TcPlcObject>''')
             "FB_Seq", "FUNCTION_BLOCK FB_Seq EXTENDS FB_SequenceBase",
             "", _method("M_Run", body)))
         self.assertIn("S1", self._rules(root))
+
+    def test_c8_catches_the_sim_hook_that_actually_shipped(self):
+        '''Two cylinder CMs carried a SimForceInterlock whose only guard was a
+        comment telling a future reader to add one, so a release build shipped a
+        method that forced an interlock result. Reproduce that exact shape.
+        '''
+        root = self._root()
+        hook = self._write(root, "Framework/Fraktal_Modules/FB_Cyl.TcPOU", _pou(
+            "FB_Cyl",
+            "// SIM hook - wrap in {IF defined (SIM_HOOKS)} for release\n"
+            "FUNCTION_BLOCK FB_Cyl\nVAR\n    _force : BOOL;\nEND_VAR",
+            "", _sim_hook("SimForceInterlock", guarded=False)))
+        self.assertIn("C8", self._file_rules(hook))
+
+    def test_c8_accepts_a_properly_guarded_hook(self):
+        root = self._root()
+        hook = self._write(root, "Framework/Fraktal_Modules/FB_Cyl.TcPOU", _pou(
+            "FB_Cyl", "FUNCTION_BLOCK FB_Cyl\nVAR\n    _force : BOOL;\nEND_VAR",
+            "", _sim_hook("SimForceInterlock", guarded=True)))
+        self.assertNotIn("C8", self._file_rules(hook))
+
+    def test_c8_leaves_simulation_driver_types_and_test_projects_alone(self):
+        '''A whole simulation DRIVER is a legitimate library object, and a test
+        project may hold whatever scaffolding it likes. The rule is about a
+        Sim-prefixed METHOD hanging off a shipping module type.
+        '''
+        root = self._root()
+        driver = self._write(root, "Framework/Fraktal_Modules/FB_CylSim.TcPOU", _pou(
+            "FB_CylSim", "FUNCTION_BLOCK FB_CylSim", "",
+            _sim_hook("M_Refresh", guarded=False)))
+        probe = self._write(root, "Tests/Fraktal_Tests/FB_Probe.TcPOU", _pou(
+            "FB_Probe", "FUNCTION_BLOCK FB_Probe", "",
+            _sim_hook("SimForceInterlock", guarded=False)))
+        self.assertNotIn("C8", self._file_rules(driver))
+        self.assertNotIn("C8", self._file_rules(probe))
 
     def test_linter_is_clean_against_the_real_repository(self):
         """The guard that was missing.

@@ -32,6 +32,8 @@ Rules
         overrides call `SUPER^` first (except staged `OnModeExit`).
   C5  Every authored ST `CASE` has an `ELSE` safe reaction.
   C6  `CASE` labels are integral/enum labels, never string literals.
+  C8  No SIM-only `Sim*` test hook ships unguarded in a library type. A force
+        hook whose only guard is a comment is a bypass in every release build.
   C7  A guard never dereferences or indexes the symbol it is testing against 0
         in the same condition — TwinCAT does not short-circuit AND/OR, so the
         protected operand is evaluated anyway.
@@ -217,6 +219,15 @@ def _strip_comment(line: str) -> str:
     return line.split("//", 1)[0]
 
 
+def _in_library(path: Path) -> bool:
+    """True for the reusable Framework libraries - what a station consumes.
+
+    Applications and test projects may hold whatever simulation scaffolding
+    they like; the rule is about what ships inside a released library.
+    """
+    return "Framework" in path.parts
+
+
 def lint_file(path: Path, legacy_4024: bool = False) -> list[Finding]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -328,6 +339,32 @@ def lint_file(path: Path, legacy_4024: bool = False) -> list[Finding]:
                 f"duplicate Id {match.group(1)} (first seen line {seen[guid]})"))
         else:
             seen[guid] = line
+
+    # C8 - a SIM-only test hook may not ship inside a reusable library.
+    #
+    # Core 5.7: "Interlock/force test hooks shall exist only under the SIM build
+    # configuration and be compiled out of release builds ... the bypass cannot
+    # ship." Two cylinder CMs carried a SimForceInterlock method whose ONLY
+    # guard was a comment saying a future reader should add one, so every
+    # release build shipped a method that forced an interlock result - and the
+    # slot it drove was the one an operator reads as "area safe".
+    #
+    # A whole simulation DRIVER type (FB_CylinderSim, FB_SimByteChannel) is a
+    # legitimate library object and is not what this rule is about; the rule is
+    # about a Sim-prefixed METHOD hanging off a shipping module type.
+    if _in_library(path):
+        for match in re.finditer(r'<Method\s+Name="(Sim[A-Z][A-Za-z0-9_]*)"', text):
+            name = match.group(1)
+            line = _line_of(text, match.start())
+            block = text[match.start():]
+            end = block.find("</Method>")
+            guarded = "{IF defined" in (block[:end] if end > 0 else block)
+            if not guarded:
+                findings.append(Finding(
+                    path, line, "C8",
+                    f"SIM-only hook '{name}' ships unguarded in a library type; "
+                    f"drive the real condition instead, or guard it with "
+                    f"{{IF defined (SIM_HOOKS)}} (§5.7)"))
 
     return findings
 

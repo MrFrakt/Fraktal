@@ -101,6 +101,55 @@ const standardEnglish = <String, String>{
       'The PLC did not complete the login request. Check the connection and try again.',
   'std.nav.modules': 'Modules',
   'std.nav.fieldbus': 'Fieldbus',
+  // Core-owned operator text. These are raised by the framework itself, so they
+  // ship with the standard catalogue rather than a project's (Core §8.8).
+  'std.interlock.areaSafe': 'Area safe',
+  'std.audit.decisionRequested': 'Operator decision requested.',
+  'std.audit.decisionAnswerRejected':
+      'Decision answer rejected: it does not match the request that is open.',
+  'std.audit.decisionInvalidRejected':
+      'Decision answer rejected: the chosen option is not on the request.',
+  'std.audit.decisionOverlapRejected':
+      'Decision request rejected: another decision is already waiting.',
+  'std.audit.decisionOperatorResolved': 'Decision answered by the operator.',
+  'std.audit.decisionTimeoutResolved':
+      'Decision timed out; the configured safe default was applied.',
+  'std.audit.decisionWithdrawn':
+      'Decision withdrawn by the sequence before it was answered.',
+  'std.audit.localResetRequested': 'Reset requested at the machine.',
+  'std.error.invalidDecisionRequest':
+      'The sequence asked for a decision it did not define. Check the step.',
+  'std.error.hostEventRejected':
+      'The host rejected this record. Check the MES link, then reset.',
+  'std.error.nokReasonRequired':
+      'A NOK result needs a reason before it can be recorded.',
+  'std.error.parallelBranchOutOfRange':
+      'A parallel branch number is outside the range this chain supports.',
+  'std.error.partCarrierReadFailed':
+      'The part carrier could not be read. Check the reader and the carrier, then reset.',
+  'std.error.partCarrierWriteFailed':
+      'The part result could not be written to the carrier. Check the carrier, then reset.',
+  'std.maintenance.cycleTimeDegraded':
+      'Cycle time has drifted past its configured band. Production continues.',
+  'std.system.taskOverrun':
+      'The control task overran its cycle. Reduce task load before restarting.',
+  'std.system.taskJitterHigh':
+      'Control-task timing is unsteady. Timing-dependent results may be less reliable.',
+  'std.system.cpuLoadHigh': 'Controller CPU load is sustained high.',
+  'std.system.memoryLow': 'Controller memory is low. Stop nonessential consumers.',
+  'std.system.storageHealthLow':
+      'Controller storage health is low. Plan replacement before it fails.',
+  'std.system.ipcTemperatureHigh':
+      'Controller temperature is high. Check cabinet cooling, filters and fans.',
+  'std.system.ipcFanFault': 'A controller fan has failed. Check cabinet cooling.',
+  'std.system.fieldbusMasterFault':
+      'The fieldbus master is faulted. Field devices are not trustworthy.',
+  'std.system.dcSyncLost':
+      'Distributed-clock synchronization lost. Synchronized motion may drift.',
+  'std.system.timeSyncLost':
+      'Clock synchronization lost. Event times cannot be compared across systems.',
+  'std.system.controllerMetricsUnavailable':
+      'Controller health metrics are unavailable on this target.',
   'std.fieldbus.openModule': 'Open owning module',
   'std.fieldbus.loading': 'Loading fieldbus topology…',
   // Core §7.5.2 — the standing commissioning-gate annunciation. The gate keys
@@ -747,6 +796,55 @@ const standardSpanish = <String, String>{
       'El PLC no completó la solicitud de inicio de sesión. Verifique la conexión e inténtelo de nuevo.',
   'std.nav.modules': 'Módulos',
   'std.nav.fieldbus': 'Bus de campo',
+  'std.interlock.areaSafe': 'Área segura',
+  'std.audit.decisionRequested': 'Se solicitó una decisión del operador.',
+  'std.audit.decisionAnswerRejected':
+      'Respuesta rechazada: no corresponde a la solicitud abierta.',
+  'std.audit.decisionInvalidRejected':
+      'Respuesta rechazada: la opción elegida no figura en la solicitud.',
+  'std.audit.decisionOverlapRejected':
+      'Solicitud rechazada: ya hay otra decisión pendiente.',
+  'std.audit.decisionOperatorResolved': 'Decisión respondida por el operador.',
+  'std.audit.decisionTimeoutResolved':
+      'La decisión expiró; se aplicó el valor seguro configurado.',
+  'std.audit.decisionWithdrawn':
+      'La secuencia retiró la decisión antes de recibir respuesta.',
+  'std.audit.localResetRequested': 'Se solicitó un reinicio en la máquina.',
+  'std.error.invalidDecisionRequest':
+      'La secuencia pidió una decisión que no definió. Revise el paso.',
+  'std.error.hostEventRejected':
+      'El host rechazó este registro. Revise el enlace MES y reinicie.',
+  'std.error.nokReasonRequired':
+      'Un resultado NOK necesita un motivo antes de poder registrarse.',
+  'std.error.parallelBranchOutOfRange':
+      'El número de rama paralela está fuera del rango admitido por esta cadena.',
+  'std.error.partCarrierReadFailed':
+      'No se pudo leer el portador de pieza. Revise el lector y el portador, luego reinicie.',
+  'std.error.partCarrierWriteFailed':
+      'No se pudo escribir el resultado en el portador. Revise el portador y reinicie.',
+  'std.maintenance.cycleTimeDegraded':
+      'El tiempo de ciclo superó su banda configurada. La producción continúa.',
+  'std.system.taskOverrun':
+      'La tarea de control excedió su ciclo. Reduzca la carga antes de reiniciar.',
+  'std.system.taskJitterHigh':
+      'La temporización de la tarea es inestable. Los resultados por tiempo pueden ser menos fiables.',
+  'std.system.cpuLoadHigh': 'La carga de CPU del controlador es alta y sostenida.',
+  'std.system.memoryLow':
+      'Memoria baja en el controlador. Detenga los consumidores no esenciales.',
+  'std.system.storageHealthLow':
+      'El almacenamiento del controlador se está degradando. Prevea su reemplazo.',
+  'std.system.ipcTemperatureHigh':
+      'Temperatura alta del controlador. Revise refrigeración, filtros y ventiladores.',
+  'std.system.ipcFanFault':
+      'Falló un ventilador del controlador. Revise la refrigeración del armario.',
+  'std.system.fieldbusMasterFault':
+      'El maestro de bus de campo está en fallo. Los dispositivos no son fiables.',
+  'std.system.dcSyncLost':
+      'Se perdió la sincronización de reloj distribuido. El movimiento sincronizado puede desviarse.',
+  'std.system.timeSyncLost':
+      'Se perdió la sincronización horaria. No se pueden comparar tiempos entre sistemas.',
+  'std.system.controllerMetricsUnavailable':
+      'Las métricas de salud del controlador no están disponibles en este destino.',
   'std.fieldbus.openModule': 'Abrir el módulo propietario',
   'std.fieldbus.loading': 'Cargando topología de bus de campo…',
   'std.engineering.banner':
@@ -1207,6 +1305,41 @@ const standardSpanish = <String, String>{
 };
 
 const projectEnglish = <String, String>{
+  // Press feature-bench keys. Step names and conditions the §3.13 flow chart and
+  // the first-out diagnostic render verbatim, so they are operator sentences.
+  'project.step.pressSlideInside': 'Move the part slide inside',
+  'project.step.pressSlideOutsideAfterAbort':
+      'Return the part slide outside after abort',
+  'project.step.pressDoorClose': 'Close the access door',
+  'project.step.pressDoorOpen': 'Open the access door',
+  'project.step.pressDoorReopen': 'Reopen the access door',
+  'project.step.pressRamDown': 'Drive the press ram down',
+  'project.step.pressRamUp': 'Raise the press ram',
+  'project.step.pressNotReachedConfirm':
+      'Waiting for the operator to confirm the incomplete stroke',
+  'project.step.pressScrapPart': 'Scrap the part and return it',
+  'project.step.pressParallelWork': 'Run the parallel work branch',
+  'project.step.pressAwaitParallelBranch': 'Wait for the parallel branch',
+  'project.step.pressAwaitParallelJoin': 'Wait for the parallel branches to join',
+  'project.step.bothPositions': 'Both positions reached',
+  'project.condition.pressRamExtended': 'Press ram extended',
+  'project.condition.pressFailureConfirmation':
+      'Operator confirmation of the press failure',
+  'project.condition.twoHandHeldDuringDoorClose':
+      'Two-hand control held while the door closes',
+  'project.decision.pressNotReached':
+      'The ram did not reach its position. Scrap the part, or return it for another attempt?',
+  'project.decision.confirmScrapAndReturn': 'Scrap the part and return it',
+  'project.warning.twoHandReleasedDuringDoorClose':
+      'Two-hand control was released while the door was closing; the door stops until it is held again.',
+  'project.error.pressManualHasNoSequence':
+      'MANUAL mode runs no sequence on this station; command the devices individually.',
+  'project.state.atHome': 'At home position',
+  'project.state.pressAtLoadPosition': 'At load position',
+  'project.io.el6001Status': 'RS232 terminal status word',
+  'project.io.el6001Ctrl': 'RS232 terminal control word',
+  'project.io.el6001DataIn': 'RS232 terminal receive byte',
+  'project.io.el6001DataOut': 'RS232 terminal transmit byte',
   'project.module.StationA.name': 'Station A',
   'project.module.StationA.description':
       'Clamp and inspection station for the current product model.',
@@ -1420,6 +1553,39 @@ const projectEnglish = <String, String>{
 /// Shipped project translation for the demo. Imported project CSV values still
 /// take precedence, so integrators can change terminology without PLC edits.
 const projectSpanish = <String, String>{
+  'project.step.pressSlideInside': 'Mover el deslizador de pieza al interior',
+  'project.step.pressSlideOutsideAfterAbort':
+      'Devolver el deslizador al exterior tras la cancelación',
+  'project.step.pressDoorClose': 'Cerrar la puerta de acceso',
+  'project.step.pressDoorOpen': 'Abrir la puerta de acceso',
+  'project.step.pressDoorReopen': 'Volver a abrir la puerta de acceso',
+  'project.step.pressRamDown': 'Bajar el ariete de la prensa',
+  'project.step.pressRamUp': 'Subir el ariete de la prensa',
+  'project.step.pressNotReachedConfirm':
+      'Esperando que el operador confirme la carrera incompleta',
+  'project.step.pressScrapPart': 'Desechar la pieza y devolverla',
+  'project.step.pressParallelWork': 'Ejecutar la rama de trabajo paralela',
+  'project.step.pressAwaitParallelBranch': 'Esperar la rama paralela',
+  'project.step.pressAwaitParallelJoin': 'Esperar la unión de las ramas paralelas',
+  'project.step.bothPositions': 'Ambas posiciones alcanzadas',
+  'project.condition.pressRamExtended': 'Ariete de la prensa extendido',
+  'project.condition.pressFailureConfirmation':
+      'Confirmación del operador del fallo de prensado',
+  'project.condition.twoHandHeldDuringDoorClose':
+      'Mando a dos manos mantenido mientras se cierra la puerta',
+  'project.decision.pressNotReached':
+      'El ariete no alcanzó su posición. ¿Desechar la pieza o devolverla para otro intento?',
+  'project.decision.confirmScrapAndReturn': 'Desechar la pieza y devolverla',
+  'project.warning.twoHandReleasedDuringDoorClose':
+      'Se soltó el mando a dos manos mientras la puerta se cerraba; la puerta se detiene hasta volver a mantenerlo.',
+  'project.error.pressManualHasNoSequence':
+      'El modo MANUAL no ejecuta secuencia en esta estación; accione los dispositivos individualmente.',
+  'project.state.atHome': 'En posición de reposo',
+  'project.state.pressAtLoadPosition': 'En posición de carga',
+  'project.io.el6001Status': 'Palabra de estado del terminal RS232',
+  'project.io.el6001Ctrl': 'Palabra de control del terminal RS232',
+  'project.io.el6001DataIn': 'Byte de recepción del terminal RS232',
+  'project.io.el6001DataOut': 'Byte de transmisión del terminal RS232',
   'project.step.pressAutoInitialize': 'Inicializar ciclo automatico de prensa',
   'project.step.pressAutoComplete': 'Completar ciclo automatico de prensa',
   'project.step.pressRecordResult': 'Registrar resultado de prensado',

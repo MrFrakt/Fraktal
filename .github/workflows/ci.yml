@@ -55,6 +55,28 @@ jobs:
       - name: Test the TwinCAT gate tools
         run: python -m unittest discover -s FraktalCore/PLC/TwinCAT/tools/ -t FraktalCore/PLC/TwinCAT/tools/
 
+  # ---- lint: agreement BETWEEN artifacts (PLC <-> HMI <-> docs) -----------
+  # Runs --strict: every operator-facing key a shipping PLC object emits must
+  # resolve in a shipped catalogue. This was a standing warning backlog for
+  # months, which is exactly how a warning-only gate trains people to skip it.
+  # The backlog is now zero, so the gate holds it there.
+  cross-artifact:
+    name: Cross-artifact consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check agreement between PLC, HMI and specification
+        run: python tools/check_consistency.py --strict
+      - name: Test the repository-level gates
+        run: python -m unittest tools.test_check_consistency tools.test_check_ab_spec tools.test_check_ab_contracts
+      - name: Fraktal/AB specification gates
+        run: |
+          python tools/check_ab_spec.py
+          python tools/check_ab_contracts.py
+
   # ---- lint + test: HMI app (Flutter) -------------------------------------
   hmi:
     name: HMI analyze + test

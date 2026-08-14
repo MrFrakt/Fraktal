@@ -27,7 +27,8 @@ VAR
     _tDiscH  : TON;                             // home discrepancy timer
     _tDiscW  : TON;                             // work discrepancy timer
     _cfgOk   : BOOL;
-    _force   : BOOL;                            // SIM-only interlock force (§5.7)
+    _areaSafe : BOOL := TRUE;                   // §7.2 application-supplied area/process interlock
+    _areaSafeKey : STRING(255);
     _parCfgStaged : ST_ConfigurableCylinderParCfg;
     _recipePrepared : BOOL;
 END_VAR]]></Declaration>
@@ -51,7 +52,7 @@ _M_PublishCommand(Value := TO_DINT(E_ConfigurableCylinderCommand.TO_HOME), Label
 _M_PublishCommand(Value := TO_DINT(E_ConfigurableCylinderCommand.TO_WORK), Label := 'std.command.toWork');
 _hal REF= HalRef;                                        // [TC3] TC3 §3.11
 _recipe := Recipe;
-Intlk.Define(Index := 1, Description := 'project.interlock.areaSafe', Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+Intlk.Define(Index := 1, Description := 'std.interlock.areaSafe', Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
 Setup := PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF]]></ST>
       </Implementation>
@@ -154,7 +155,7 @@ _M_PosSplit := anyT AND anyF;]]></ST>
 METHOD PROTECTED OnCyclic : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
-Intlk.Cond[1] := NOT _force;
+Intlk.Cond[1] := _areaSafe;
 Intlk();
 IF NOT __ISVALIDREF(_hal) THEN
     RETURN;
@@ -202,15 +203,32 @@ ELSE
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="SimForceInterlock" Id="{53cb9394-32e8-4893-b131-e25a7d946278}">
-      <Declaration><![CDATA[// §5.7 SIM-only
-METHOD SimForceInterlock : BOOL
+    <Method Name="SetAreaSafe" Id="{c7a095d4-41be-46fd-ac44-180ddbc37b9b}">
+      <Declaration><![CDATA[// Core §7.2/§7.2.1 — the application supplies this type's area/process interlock,
+// the same shape as SetDirectionalPermits: a method (not an OPC UA write), and the
+// condition is re-evaluated every scan so a manual command obeys the same rule.
+//
+// This replaces a SIM-only force hook that used to drive Cond[1] directly. That
+// hook was the ONLY writer of the condition, so the slot an operator sees as
+// "area safe" could be moved by a test and by nothing else: a reusable type
+// published an interlock its application had no way to supply (§7.2.1), and the
+// bypass shipped in every release build (§5.7). Driving the real condition is
+// also strictly better test evidence - T3 now exercises the shipped path.
+//
+// Defaults TRUE: a station that declares no area interlock is not gated by one.
+METHOD SetAreaSafe
 VAR_INPUT
     Ok : BOOL;
+    DescriptionKey : STRING(255);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_force := NOT Ok;
-SimForceInterlock := TRUE;]]></ST>
+        <ST><![CDATA[_areaSafe := Ok;
+_areaSafeKey := DescriptionKey;
+IF _areaSafeKey <> '' THEN
+    Intlk.Define(Index := 1, Description := _areaSafeKey, Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+ELSE
+    ;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{ee37bbb6-46e7-4fe1-a54f-868b85f364fe}">
