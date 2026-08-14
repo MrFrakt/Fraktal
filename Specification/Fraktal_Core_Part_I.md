@@ -66,10 +66,6 @@ Equipment suppliers' PLC programmers, controls engineers, and commissioning and 
 This standard is grounded in publicly available standards, not a proprietary lineage: the **ISA-88 / IEC 61512** physical and procedural model gives the tier architecture (§3.1); **PLCopen** supplies the command-handshake vocabulary (§6.1) and the motion (§10.6) and safety (§9.7) function-block sets; **ISA-TR88.00.02 (PackML)** with its OPC UA companion **OPC 30050** is supported as an optional overlay (§6.6, §11.7); **ISA-95 / IEC 62264** shapes MES integration (§11.6); **ISA-18.2 / IEC 62682** govern alarm rationalization (§8.9–§8.10); **IEC 62443** frames cybersecurity (§14); and **OPC UA (IEC 62541)** with its companion models — Machinery (OPC 40001), PackML (OPC 30050), Energy (OPC 34100), AAS/MTP, FX — supplies one binding transport and several optional industry projections (§3.10, §11). Where common industry practices diverge, the resolution is recorded in the relevant section — variable prefixing (§4.4), flow control and the lean-vs-diagnosable trade-off (§6), PackML made optional (§6.6), and the language policy (§5.5).
 
 
-![Figure 1](diagrams/synthesis.png)
-
-*Figure 1 — The standard synthesises ISA-88 (IEC 61512) architecture discipline and object/handler framework practice into one recursive-module standard.*
-
 ### 1.5 Conformance
 
 - A project conforms when every **shall** requirement is met. **Should** items are strongly recommended; departures **should** be justified in the project documentation.
@@ -181,10 +177,6 @@ The application is built from exactly **three** function-block archetypes arrang
 | Leaf | `FB_ControlModule` | Control Module | Hardware-bound device (cylinder, valve, sensor, drive). One HAL channel. |
 
 A `FB_Unit` may nest inside another `FB_Unit`; the recursion is what lets a single type scale from a fixture to the entire station. Strict ISA-88 would insert a non-recursive *Process Cell* above *Unit* — this standard **collapses Process Cell into a recursive `FB_Unit`** as a deliberate, documented extension. The top-most `FB_Unit` instance plays the station/Process-Cell role.
-
-![Figure 2](diagrams/arch_tiers.png)
-
-*Figure 2 — Recursive three-tier module architecture and containment: a Unit may contain Units/EMs/CMs; an EM may contain EMs/CMs but never a Unit; a CM is a HAL-bound leaf.*
 
 ### 3.2 Type catalogue and capability surfaces
 
@@ -300,10 +292,6 @@ If an operation legitimately needs several CM actions in parallel, that is a sig
 
 A `FB_ControlModule` is the only tier bound to I/O, and it binds **through the HAL**, never to raw `%I`/`%Q` directly. The HAL is a data structure that sits between CM business logic and a hardware driver, so the CM can be exercised against either real I/O or a simulated driver (`DI SIM` / `DO SIM` / `Motor SIM`) without code change. Simulation is enabled at the driver, leaving the CM logic untouched — this is what allows virtual commissioning (e.g. Process Simulate) before hardware is available.
 
-![Figure 3](diagrams/hal_layers.png)
-
-*Figure 3 — HAL layering: identical CM logic runs against simulated or real I/O.*
-
 ### 3.7 Mode cascade (Unit → child Unit)
 
 When a parent `FB_Unit` is Started, Stopped, or changes mode, each child `FB_Unit` **shall** follow **only if the mode is available for that child**:
@@ -359,10 +347,6 @@ recipe store—and the active `ParCfg` remains the authoritative resolved recipe
 
 **Atomic changeover.** `SetModel` first calls `PrepareRecipe(Model)` recursively. Validation, migration, provider I/O, and every fallible operation occur only in this phase. Any rejection calls `AbortRecipe()` and leaves every active `ParCfg` and the root identity unchanged. After every participant accepts, `CommitRecipe()` is an infallible, bounded in-memory publication at the scan boundary; it performs no validation or I/O. The root publishes the new `ModelId` only after commit. Station configuration is outside this transaction.
 
-![Figure 4](diagrams/recipe_provider.png)
-
-*Figure 4 — Pluggable recipe/type source behind one I_RecipeProvider; data always lands in ParCfg.*
-
 ### 3.9 Feature selectability
 
 Each module advertises a `Features` flag set — e.g. `RecipeEnabled`, `CalibrationEnabled`, `ManualFunctionsEnabled`, plus per-command enables. Disabled features:
@@ -398,10 +382,6 @@ The following layers make that contract HMI-complete without station code:
 **(c) Standard semantics.** The **state model is the native command model by default**: expose each module's `ExecState` and, for Units, `Mode` directly (§6.1, §3.4). No companion specification is required for base conformance. OPC UA for Machinery (OPC 40001-1), PackML/OPC UA (OPC 30050), AAS/MTP, and the other §11.7–§11.11 mappings are optional, binding-qualified projections from the same service model.
 
 Each module **shall** present the same logical sub-structure mirroring §3.12: `Identity`, `Status` (plus `Mode` for Units), `ParCfg`, `ParCmd`, `OutCmd`, `OutImm`, `Features`, and `Children`; clients read the execution summary from `Status.State`. These are canonical repository path segments. A binding may obtain them from native namespace nodes or reconstruct them from a validated manifest, but it shall not expose a competing hierarchy or identity.
-
-![Figure 5](diagrams/opcua_hmi.png)
-
-*Figure 5 — Live self-description driving a generic HMI and MES (TC3 transport: TF6100 OPC UA; AB default: EtherNet/IP plus gateway).*
 
 #### 3.10.1 Digital nameplate (asset identity)
 
@@ -508,10 +488,6 @@ It is deliberately the same shape as the §6.9(b) named condition wait
 publishes", not two (§1.1 O9).
 
 This contract makes every module uniform and self-describing: the handshake of §6.1 reads/writes `ParCmd`/`OutCmd`, the recipe of §3.8 lives in `ParCfg`, and the Flutter HMI binds to `OutImm` for live state. Module-specific structure types **shall** be named `ST_<Module>ParCfg` / `ST_<Module>ParCmd` / `ST_<Module>OutCmd` / `ST_<Module>OutImm` (e.g. `ST_SeparatorParCfg`).
-
-![Figure 6](diagrams/data_contract.png)
-
-*Figure 6 — The four-structure data contract and its distribution timing.*
 
 ### 3.13 HMI navigation contract (drill-down model)
 
@@ -936,10 +912,6 @@ Every command — a CM device command or an EM command — runs through one PLCo
 
 Lifecycle: the caller checks `Done = FALSE AND Busy = FALSE` (target `READY`), writes `ParCmd`, selects `Command`, and sets `Execute := TRUE`. The module goes `Busy`, latches `ParCmd` on the rising edge, then on success publishes `OutCmd` and raises `Done`; a fault raises `Error` + `ErrorID`; an abort raises `Aborted`. The caller treats `Done` as the step transition, clears `Execute`, and the module returns to `READY`.
 
-![Figure 7](diagrams/handshake_state.png)
-
-*Figure 7 — PLCopen command handshake state model.*
-
 ```iecst
 // Step action issuing a command to a child (PLCopen handshake):
 IF NOT Clamp.Busy AND NOT Clamp.Done THEN
@@ -974,10 +946,6 @@ N100 (start child)     ──Done──▶ N110 (wait child done)
 N110 (wait done)       ──Done──▶ N999 (finish)
 N999 (finish)          ──Done──▶ N000  (loop)
 ```
-
-![Figure 8](diagrams/mode_chain.png)
-
-*Figure 8 — Continuous Unit mode step chain; loops until Stop.*
 
 ### 6.3 Equipment Module commands (CommandHandler)
 
@@ -1113,10 +1081,6 @@ Lean step bodies and rich per-step diagnostics are reconciled by moving the stan
 > Step `{StepNo}` `{StepName}` stalled → awaiting `{Module}.{Command}` → `{Module.OutImm.Diagnostic.Description}`
 
 The owning Unit exposes this as its current stall reason; the HMI (§3.13) shows it on the Unit's view, where the operator expects sequence state.
-
-![Figure 9](diagrams/stall_walk.png)
-
-*Figure 9 — Cross-tier first-out stall-diagnostic walk: Unit → EM → CM → operator.*
 
 A stall is a **pending** reason (Low severity, published live on the Unit), not a fault: the Unit keeps waiting while naming exactly what it waits for. The *fault* path is the awaited module's `Error`, which the Unit base adopts **immediately** through the §8.2 rollup — without waiting for the stall timer — so a real failure is never delayed behind a stall guard (`FB_UnitBase`). **Outcome.** Steps stay lean; the operator gets a precise root cause; and because the answer comes from the standardized module contract (§3.12, §7, §8) rather than hand-coded step conditions, it is identical in SFC, Ladder, or ST. Standardization effort scales with the number of module *types*, not the number of steps — which is the whole point.
 
