@@ -6,6 +6,12 @@
 FUNCTION_BLOCK FB_Unit_Tests EXTENDS TcUnit.FB_TestSuite
 VAR
     _u : FB_ProbeUnit;
+    // The config-capability test needs a Unit that is READY. _u is not: the
+    // stall test starts it and FB_ProbeUnit only reaches its _M_EndOfCycle stop
+    // point when SimB is set, so a Stop() is never granted and it stays BUSY.
+    // A shared fixture in a non-shareable state is what that test was really
+    // measuring; give it its own.
+    _uCfg : FB_ProbeUnit;
     _w : BOOL;
     _wCfg : BOOL;
     _pager : FB_ConfigPager;
@@ -69,23 +75,22 @@ END_VAR]]></Declaration>
 // than the capability it names.
 IF NOT _wCfg THEN
 _wCfg := TRUE;
-// The capability publishes RequiresReady, so put the Unit where that is true.
-_u.Stop();
-FOR i := 1 TO 10 DO
-    _u();
-END_FOR
-AssertFalse(Condition := _u.Busy,
+// Never started, so it is READY - which is what RequiresReady asks for.
+AssertTrue(Condition := _uCfg.Setup('Test.Unit'),
+    Message := 'the config fixture sets up under the owning path');
+_uCfg();
+AssertFalse(Condition := _uCfg.Busy,
     Message := 'the Unit is idle before a READY-gated write is attempted');
 found := FALSE;
 _pager.M_Setup(Target := ADR(_page), PageIndex := 0, Revision := 1);
-_u.M_AppendConfig(Pager := _pager);
+_uCfg.M_AppendConfig(Pager := _pager);
 _pager.M_Finish();
 pageCount := _page.PageCount;
 // The manifest is a bounded window. Search every advertised page instead of
 // coupling this contract test to the current number/order of base entries.
 FOR pageIndex := 0 TO pageCount - 1 DO
     _pager.M_Setup(Target := ADR(_page), PageIndex := pageIndex, Revision := 1);
-    _u.M_AppendConfig(Pager := _pager);
+    _uCfg.M_AppendConfig(Pager := _pager);
     _pager.M_Finish();
     FOR i := 1 TO _page.EntryCount DO
         IF _page.Entries[i].WriteKey = 'unit.modePolicy.3.shield' THEN
@@ -100,18 +105,18 @@ FOR pageIndex := 0 TO pageCount - 1 DO
     END_FOR
 END_FOR
 AssertTrue(Condition := found, Message := 'stable mode-policy key is manifest-served');
-AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Unit',
+AssertTrue(Condition := _uCfg.WriteConfig(TargetPath := 'Test.Unit',
     WriteKey := 'unit.modePolicy.3.shield', Revision := 1, TextValue := '0'),
     Message := 'registered exact enum value is accepted while READY');
 AssertEquals_DINT(Expected := TO_DINT(E_ModeSwitchShield.INTERRUPTIBLE),
-    Actual := TO_DINT(_u.ModePolicy[3].Shield), Message := 'typed handler applied value');
-AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.Unit',
+    Actual := TO_DINT(_uCfg.ModePolicy[3].Shield), Message := 'typed handler applied value');
+AssertFalse(Condition := _uCfg.WriteConfig(TargetPath := 'Test.Unit',
     WriteKey := 'unit.modePolicy.3.shield', Revision := 2, TextValue := '1'),
     Message := 'stale capability revision is rejected');
-AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.Unit',
+AssertFalse(Condition := _uCfg.WriteConfig(TargetPath := 'Test.Unit',
     WriteKey := 'unit.modePolicy.3.shield', Revision := 1, TextValue := '9'),
     Message := 'out-of-domain value is rejected');
-AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Other.Unit',
+AssertFalse(Condition := _uCfg.WriteConfig(TargetPath := 'Other.Unit',
     WriteKey := 'unit.modePolicy.3.shield', Revision := 1, TextValue := '1'),
     Message := 'foreign owner path is rejected');
 END_IF

@@ -86,8 +86,9 @@ IF NOT _w2 THEN
         Message := 'the chain resumes at the step that raised, not somewhere else');
     AssertEquals_UDINT(Expected := 2, Actual := _u.M_TestIssues(),
         Message := 're-evaluated: the command is issued again rather than assumed still running');
-    _u();                                // child takes the command and completes
-    _u();                                // Done -> advance to step 30
+    // The child is already Done, so the re-issued command completes on the same
+    // scan and the step advances once - a second call would run step 30 too.
+    _u();                                // re-issued command completes -> step 30
     AssertEquals_INT(Expected := 30, Actual := _u.M_TestChainStep(),
         Message := 'the chain carries on once the step actually completes');
     _w2 := TRUE;
