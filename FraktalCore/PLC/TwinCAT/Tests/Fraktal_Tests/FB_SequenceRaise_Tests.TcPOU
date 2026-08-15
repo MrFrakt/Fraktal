@@ -56,6 +56,14 @@ IF NOT _w1 THEN
     AssertEquals_STRING(Expected := 'Test.Raise.Child',
         Actual := M_NotePath(Unit := _u, RowIdx := 2, IsError := TRUE),
         Message := 'the row is click-through to the module that failed, even though the step passed Awaits := 0');
+    // One more cyclic pass WHILE the Unit is in ERROR. FB_UnitBase samples the
+    // error-cleared edge inside OnCyclic, which runs BEFORE _M_Dispatch - so the
+    // ERROR this scan's dispatch just raised is not visible to it yet, and if the
+    // reset lands before any later scan the edge is never seen and the chain is
+    // never re-armed. A real Unit sits in ERROR until an operator acts; a test
+    // that resets in the same breath does not, and was measuring that instead.
+    _u();
+    AssertTrue(Condition := _u.Error, Message := 'still faulted before the reset');
     _w1 := TRUE;
 END_IF
 TEST_FINISHED();]]></ST>
@@ -132,7 +140,11 @@ IF NOT _w4 THEN
     AssertTrue(Condition := _v.Setup(Name := 'Test.Warn'), Message := 'Unit sets up');
     _v.Enable := TRUE;
     _v.SimWarn := TRUE;
-    _v.M_TestSetChild(ChildDone := TRUE, ChildFault := FALSE);
+    // Hold the child OPEN so step 20 really is visited on two consecutive
+    // scans - that is what the dedupe assertion below measures. With the
+    // child pre-completed the step advanced on the scan it issued, so the
+    // 'once per visit' claim was never actually exercised.
+    _v.M_TestSetChild(ChildDone := FALSE, ChildFault := FALSE);
     AssertTrue(Condition := _v.Start(), Message := 'Unit starts');
     _v();                                // chain step 10 -> 20
     _ringBefore := _v.AlarmLog.RingHead;
@@ -154,6 +166,7 @@ IF NOT _w4 THEN
     AssertEquals_STRING(Expected := 'project.test.stepWarning',
         Actual := M_NoteKey(Unit := _v, RowIdx := 2, IsError := FALSE),
         Message := 'with the key the step chose');
+    _v.M_TestSetChild(ChildDone := TRUE, ChildFault := FALSE);
     _v();                                // child Done -> advance
     AssertEquals_INT(Expected := 30, Actual := _v.M_TestChainStep(),
         Message := 'the step completed normally: the warning changed no flow');
@@ -188,7 +201,9 @@ IF NOT _w5 THEN
         Message := 'and click-through to the module that failed, with Awaits := 0');
     AssertFalse(Condition := _r.SequenceSteps[2].ErrorActive,
         Message := 'a reported failure never borrows the error mark');
-    _r();
+    // The report and the ADVANCE happen in the SAME scan the child fails:
+    // M_ReportFromChild does not RETURN, so M_Advance(OnAdvance := 30) runs
+    // below it. An extra call here would run step 30 too and land on 999.
     AssertEquals_INT(Expected := 30, Actual := _r.M_TestChainStep(),
         Message := 'the chain took its own recovery branch instead of stopping');
     _w5 := TRUE;
