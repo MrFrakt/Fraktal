@@ -286,6 +286,34 @@ Reference: Microsoft's [`/Log` switch](https://learn.microsoft.com/en-us/visuals
 The runtime part of the recorded acceptance was performed by the operator under
 agent instructions, not by `Invoke-TwinCatBuild.ps1`.
 
+### 6.0 First check the host can run a gate at all
+
+An engineering-only install compiles every solution and runs the whole
+object-check gate, so a host can look fully capable and still have nowhere to
+download to. Establish this before planning a runtime session; it takes
+seconds and it is not visible from XAE succeeding.
+
+```powershell
+# 1. Is any usermode runtime instantiated, or only the shipped template?
+Get-ChildItem 'C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\Runtimes'
+# 2. Is a runtime registered at all?
+Test-Path 'HKLM:\SOFTWARE\WOW6432Node\Beckhoff\TwinCAT3\Runtimes'
+# 3. Does anything answer on the PLC's ADS port?
+cd FraktalCore/HMI/gateway; dart run tool/probe_sim_flag.dart <amsNetId> 851
+```
+
+`UmRT_Template` alone, no `Runtimes` registry key, and ADS error **6**
+(target port not found) together mean **engineering only**: `TcSysSrv` runs
+and the AMS router listens on 48898, but there is no PLC to activate,
+download or start. That is the state of the current development host as of
+2026-08-14, which is why every recorded runtime result in `Evidence/` names a
+separate isolated VM or commissioning session rather than this machine.
+
+Distinguish the two ADS failures, because they send you to different places:
+error **6** is "the router answered, nothing is on that port" (no runtime, or
+the PLC is in Config mode); error **7** is "no such target" (routing or
+AmsNetId wrong). Only the second is a network problem.
+
 ### 6.1 Target safeguards
 
 1. Use only the isolated test VM/runtime. Confirm its route/identity before any
