@@ -176,5 +176,40 @@ FOR i := 1 TO _nChild DO
     END_IF
 END_FOR]]></ST></Implementation>
     </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{a70d3e91-6c28-4b5d-83f7-92e10bd4c576}">
+      <Declaration><![CDATA[// §3.8b — own registrations first, then every registered child, in the same
+// depth-first order as M_AppendConfig. Scope makes the walk unambiguous: at most
+// one module answers, and the first TRUE ends it.
+METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR
+VAR
+    i    : INT;
+    iCfg : I_ConfigSource;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyConfigWrite := SUPER^.M_ApplyConfigWrite(Scope := Scope,
+    WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
+    RootReady := RootReady);
+IF M_ApplyConfigWrite THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nChild DO
+    IF _children[i] <> 0 THEN
+        IF __QUERYINTERFACE(_children[i], iCfg) THEN
+            IF iCfg.M_ApplyConfigWrite(Scope := Scope, WriteKey := WriteKey,
+                    Revision := Revision, TextValue := TextValue,
+                    RootReady := RootReady) THEN
+                M_ApplyConfigWrite := TRUE;
+                RETURN;
+            END_IF
+        END_IF
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

@@ -608,7 +608,8 @@ CASE HmiRequest.Kind OF
             Report := HmiResponse.Report);
         HmiResponse.Accepted := TRUE;
     E_HmiRequestKind.RELEASE_ACTION:
-        IF (HmiRequest.IntValue >= 0) AND (HmiRequest.IntValue <= 10) THEN
+        IF (HmiRequest.IntValue >= 0)
+        AND (HmiRequest.IntValue <= TO_DINT(E_GatedAction.CONFIG_SET)) THEN
             gateReq := HmiRequest.IntValue;
             ReleaseReportAction(Gate := gateReq, Report := HmiResponse.Report);
             HmiResponse.Accepted := TRUE;
@@ -672,7 +673,7 @@ CASE HmiRequest.Kind OF
         END_IF
         IF policyValueValid
         AND (HmiRequest.IntValue >= 0)
-        AND (HmiRequest.IntValue <= TO_DINT(E_GatedAction.POWER_CONTROL)) THEN
+        AND (HmiRequest.IntValue <= TO_DINT(E_GatedAction.CONFIG_SET)) THEN
             gateReq := HmiRequest.IntValue;
             HmiResponse.Accepted := SetAccessLevel(Gate := gateReq, Level := levelReq);
         ELSE
@@ -1063,10 +1064,15 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_RouteConfigWrite" Id="{4e524daf-e482-4764-8639-e58c1f363aa3}">
-      <Declaration><![CDATA[// Project/type override for published editable fields. WriteConfig already owns
-// access and root-path checks; the override must match a capability it appended,
-// then recheck revision, type/range/domain and current machine state. Base fails
-// closed; framework-owned keys are handled separately by _M_WriteBaseConfig.
+      <Declaration><![CDATA[// §3.8b — route a published editable field to the module that registered it.
+// WriteConfig already owns access and root-path checks; the recursive walk finds
+// the owner by Scope, and that module rechecks revision, type, range, domain and
+// its own invariants before storing. A type whose values are declared through
+// M_RegisterConfig* therefore needs no override at all, which is the point: a new
+// module type costs no routing code (§1.1 O1). Framework-owned keys never reach
+// here — _M_WriteBaseConfig answers those first. An override that adds
+// hand-written routing shall call SUPER^ first and keep its own answer only when
+// the base declines.
 METHOD PROTECTED _M_RouteConfigWrite : BOOL
 VAR_INPUT
     TargetPath : STRING(255);
@@ -1075,7 +1081,11 @@ VAR_INPUT
     TextValue  : STRING(255);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_M_RouteConfigWrite := FALSE;]]></ST>
+        <ST><![CDATA[// RequiresReady is a question about THIS root's state, which the owning child
+// cannot see from where it sits, so the root answers it on the way down.
+_M_RouteConfigWrite := M_ApplyConfigWrite(Scope := TargetPath,
+    WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
+    RootReady := (_exec = E_ExecState.READY));]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_WriteBaseConfig" Id="{c30f39b4-eae4-421d-a415-c6dc3b402679}">

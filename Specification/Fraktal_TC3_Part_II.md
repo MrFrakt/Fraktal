@@ -156,6 +156,43 @@ TwinCAT identifier. Its wire ordinal remains **3** and the generic HMI continues
 to name that transport value `time`; this is a binding spelling only, not a
 contract or schema change.
 
+### TC3 §3.8b Persistence mechanics
+*Binds Core §3.8b.*
+
+**`VAR PERSISTENT` is written on controlled shutdown, not on assignment.** An
+accepted configuration write changes RAM immediately and reaches the persistent
+image only when the runtime writes it — at a controlled stop, or when the
+application asks. Core §3.8b's bounded durability window therefore binds to an
+explicit `FB_WritePersistentData` (Tc2_Utilities) issued by the root's persistence
+manager from a dirty flag and rate-limited, never to shutdown alone: an
+uncontrolled power loss discards everything since the last flush, and a station
+that needs a clean shutdown to keep its parametrization does not really keep it.
+`PersistPending` stands from the accepted write until that call reports done;
+`PersistFailed` latches its error.
+
+**Retained state shall be self-describing, never a pointer table.** TwinCAT
+identifies a persistent member by its full instance path and restores it by that
+path. A persistent declaration shall therefore contain no pointer, reference or
+interface member (the same audit rule as TC3 §3.10), and a persistence registry
+shall key by the Core identity pair (`Scope`, `WriteKey`) held as values.
+
+A retained *count* paired with a volatile table is the specific defect this
+forbids: the count survives the restart, the entries do not, and every restart
+re-registers on top of the retained count until the table overruns — silently,
+because each individual operation still succeeds.
+
+**Layout changes and relocation drop retained values.** Changing a persistent
+structure's layout, renaming or moving an instance, or activating with persistent
+data cleared discards the retained image. Each is a Core §3.8b restore failure and
+shall be annunciated as one; the `SchemaVersion` first member is what separates a
+rejected image from a silently reinterpreted one.
+
+**File-backed stores are asynchronous.** `FILE_JSON`/`FILE_XML` bind to the
+Tc2_System file blocks on the runtime's file system, or to a host-side store
+reached through a §3.15 connector. File I/O shall never block the cyclic task: a
+set operation is an ordinary Core §6.1 command with `BUSY`/`DONE`/`ERROR` whose
+result publishes through the same acknowledged mailbox as every other mutation.
+
 ### TC3 §3.10 OPC UA exposure mechanics
 *Binds Core §3.10(a) and Core §11.1.* Publication begins at every deployed root Unit **instance**, making the intended forest explicit and independently auditable when TF6100 imports a TMC in **Filtered** mode. Reusable FB type definitions do not carry `OPC.UA.DA := 1`:
 

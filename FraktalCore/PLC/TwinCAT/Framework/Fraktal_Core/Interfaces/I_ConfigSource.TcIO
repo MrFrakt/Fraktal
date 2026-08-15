@@ -7,6 +7,9 @@
 // FB_ModuleBase implements it once for the base-owned facets; composites
 // recurse their children, so a new module type inherits participation and
 // only overrides M_AppendConfig to add type-owned static data (rare).
+// The same walk carries writes back (M_ApplyConfigWrite): read publication
+// and write authority stay one participation, so a module cannot end up
+// publishing an editable value it has no path to apply (§3.8b).
 INTERFACE I_ConfigSource EXTENDS __System.IQueryInterface]]></Declaration>
     <Method Name="M_AppendConfig" Id="{a7c40d92-58e6-4b1a-9f27-31d8ce6b40e5}">
       <Declaration><![CDATA[// Append this module's (and its children's) manifest entries to the pager.
@@ -14,6 +17,19 @@ INTERFACE I_ConfigSource EXTENDS __System.IQueryInterface]]></Declaration>
 METHOD M_AppendConfig : BOOL
 VAR_INPUT
     Pager : REFERENCE TO FB_ConfigPager;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{0b5f92c7-3a41-4de8-97b2-6c8d05e1743f}">
+      <Declaration><![CDATA[// Apply one registered configuration write to the module named by Scope.
+// TRUE only from the module that owns the key and accepted the value; a module
+// that does not own it returns FALSE so the walk continues past it.
+METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
 END_VAR]]></Declaration>
     </Method>
   </Itf>

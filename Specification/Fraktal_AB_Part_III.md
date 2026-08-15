@@ -462,7 +462,7 @@ private sub-chains, and the abort/hold/mode-exit edges still owe their own
 evidence, and none of it may be supplied by hand editing.
 
 ### AB §3.8 Configuration, providers, and value-type binding
-*Binds Core §3.8, §3.10.2, §5.6.*
+*Binds Core §3.8, §3.8b, §3.10.2, §5.6.*
 
 Core duration semantics are integer milliseconds and retain wire ordinal **3** /
 transport name `time`. Do not assume a native Logix `TIME` is absent or suitable:
@@ -547,6 +547,19 @@ per seam. Unknown kinds/indices fail closed. Recipe changeover remains fallible
 `PrepareRecipe(Model, RecipeKey)` → recursive readiness → bounded infallible
 `CommitRecipe()`; rejection invokes `AbortRecipe()`. Provider payloads are
 validated before mutation, and commit performs no validation or I/O.
+
+**Persistence (Core §3.8b).** Logix has no `PERSISTENT` variable class: retention
+is a property of controller memory and its nonvolatile medium, so this binding
+shall state which values survive a power cycle, a download, and a firmware upgrade
+rather than assume any of the three behaves like the others. A generated station
+keeps editable configuration in tags declared for retention, stamps every
+`StationCfg` UDT with the Core `SchemaVersion` first member, and treats a cleared
+or layout-changed image as a Core §3.8b restore failure. Set save/load binds to
+the gateway store rather than the controller: the controller owns the values and
+every validation, the gateway owns the document and the medium. **[PROVISIONAL]**
+the physical form — nonvolatile medium, the durability window measured on the
+pinned v33 baseline, and the download/upgrade retention matrix — is owed a spike
+before any AB deployment claims Core §3.8b conformance.
 
 ### AB §3.9 Feature selectability
 *Binds Core §3.9, §1.1 O4.*

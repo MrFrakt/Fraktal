@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <DUT Name="ST_AirPressureParCfg" Id="{bad76f9a-9f1b-4d9a-9479-1b5286b636b7}">
-    <Declaration><![CDATA[TYPE ST_AirPressureParCfg :
+    <Declaration><![CDATA[// v2 moved ConflictTime to ST_AirPressureStationCfg: it varies per
+// deployment, not per model, and §3.8a places such a value in station
+// configuration. This monitor has no model data of its own, so what remains
+// is the versioned shell the §3.12 contract asks every module to carry.
+TYPE ST_AirPressureParCfg :
 STRUCT
-    SchemaVersion : UINT := 1;       // §3.8: MUST remain first
-    ConflictTime  : TIME := T#500MS; // qualify contradictory mechanical switches
+    SchemaVersion : UINT := 2;       // §3.8: MUST remain first
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

@@ -26,6 +26,12 @@ VAR
     // read consistently in steady state yet the conflict fault stayed raised.
     // Same idiom as ST_ConfigurableCylinderParCfg.DiscrepancyTime.
     _conflictTimer : TON;
+END_VAR
+VAR PERSISTENT
+    // §3.8a/§3.8b — deployment data: editable from the HMI, retained across
+    // a restart, and never part of a model recipe. The Setup registration,
+    // not this declaration, is what permits a write (§3.10.2).
+    StationCfg : ST_AirPressureStationCfg;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
     <Method Name="Setup" Id="{9affcfde-9e41-401a-bfe2-d67dc9795c5c}">
@@ -38,7 +44,24 @@ END_VAR]]></Declaration>
 _M_SetPresentation(DisplayNameKey := 'std.moduleType.airPressure.name',
     DescriptionKey := 'std.moduleType.airPressure.description');
 _hal REF= HalRef;
-Setup := __ISVALIDREF(_hal);]]></ST></Implementation>
+// §3.8b — a retained image from an unrecognized layout is re-initialized,
+// never interpreted by field position. Version 0 is a first boot: nothing
+// was retained, so nothing was lost and nothing is announced.
+IF StationCfg.SchemaVersion <> 1 THEN
+    StationCfg.SchemaVersion := 1;
+    StationCfg.ConflictTime := T#500MS;
+END_IF
+// §3.10.2 — publish the one value a commissioning engineer tunes here.
+// READY is required: re-timing fault qualification underneath a running
+// cycle would change what counts as a fault while it is being judged.
+Setup := __ISVALIDREF(_hal)
+    AND M_RegisterConfigDuration(Key := 'airPressure.conflictTime',
+        Item := 'StationCfg/ConflictTime',
+        LabelKey := 'std.config.airPressure.conflictTime',
+        Kind := E_ConfigKind.STATION_CFG,
+        pTarget := ADR(StationCfg.ConflictTime),
+        MinimumMs := 0, MaximumMs := 10000,
+        RequiresReady := TRUE);]]></ST></Implementation>
     </Method>
     <Method Name="ConfigureIoIdentity" Id="{825e28ad-8325-464e-9a73-2d407b04b0fc}">
       <Declaration><![CDATA[METHOD ConfigureIoIdentity
@@ -58,10 +81,11 @@ IF __ISVALIDREF(_hal) THEN
     OutImm.LowPressure := _hal.LowPressure;
     OutImm.OperatingPressure := _hal.OperatingPressure;
     OutImm.Quality := _hal.Quality;
-    // Qualify the conflict over ParCfg.ConflictTime before treating it as a fault, so
-    // the transient overlap seen while air fills cannot latch a permanent fault.
+    // Qualify the conflict over StationCfg.ConflictTime before treating it as
+    // a fault, so the transient overlap seen while air fills cannot latch a
+    // permanent fault.
     _conflictTimer(IN := _hal.LowPressure AND _hal.OperatingPressure,
-        PT := ParCfg.ConflictTime);
+        PT := StationCfg.ConflictTime);
     OutImm.Contradictory := _conflictTimer.Q;
     OutImm.PressureOk := _hal.OperatingPressure AND NOT _hal.LowPressure AND _hal.Quality;
     IF OutImm.Contradictory THEN

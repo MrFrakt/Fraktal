@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <DUT Name="E_GatedAction" Id="{bc6de36b-7a16-4fbe-96f2-19a64c5a2bb0}">
-    <Declaration><![CDATA[// Core §7.7(a) — the enumerated protected actions (array index 0..10)
+    <Declaration><![CDATA[// Core §7.7(a) — the enumerated protected actions (array index 0..11)
 {attribute 'qualified_only'}
 TYPE E_GatedAction :
 (
@@ -15,7 +15,8 @@ TYPE E_GatedAction :
     ALARM_RESET   := 7,   // OperatorReset (§8.3(b))
     ACCESS_POLICY := 8,   // editing the policy itself
     ALARM_SHELVE  := 9,   // §8.10 shelve/unshelve an annunciated alarm
-    POWER_CONTROL := 10   // §9.8 Control On/Off and power-group requests
+    POWER_CONTROL := 10,  // §9.8 Control On/Off and power-group requests
+    CONFIG_SET    := 11   // §3.8b save/load/import a whole parameter set
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>

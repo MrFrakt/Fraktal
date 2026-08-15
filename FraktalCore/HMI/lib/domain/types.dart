@@ -45,6 +45,7 @@ enum GatedAction {
   accessPolicy,
   alarmShelve, // §8.10 (ordinal 9, mirrors E_GatedAction.ALARM_SHELVE)
   powerControl, // §9.8 Control On/Off (append-only ordinal 10)
+  configSet, // §3.8b parameter-set save/load (append-only ordinal 11)
 }
 
 enum UnitMode {
@@ -206,13 +207,14 @@ class AccessSession {
   final AccessLevel level;
   final String user;
   final bool loginFailed;
-  final List<AccessLevel> required; // index = GatedAction.index (11 entries)
+  final List<AccessLevel> required; // index = GatedAction.index (12 entries)
   final Duration sessionTimeout; // zero = no inactivity timeout
   const AccessSession({
     this.level = AccessLevel.none,
     this.user = '',
     this.loginFailed = false,
     this.required = const [
+      AccessLevel.none,
       AccessLevel.none,
       AccessLevel.none,
       AccessLevel.none,

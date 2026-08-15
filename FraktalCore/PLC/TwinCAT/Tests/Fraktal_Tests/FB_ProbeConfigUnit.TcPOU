@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeConfigUnit" Id="{4e91a730-58c6-42bd-9013-8ac25de7f146}" SpecialFunc="None">
+    <Declaration><![CDATA[// §3.8b probe root: one own editable value plus one child that owns three more.
+// The point of the pair is the walk — the root registers no routing code at all,
+// so a test that writes a child's value proves the generic path rather than a
+// hand-written override (§1.1 O1).
+FUNCTION_BLOCK FB_ProbeConfigUnit EXTENDS FB_UnitBase
+VAR_OUTPUT
+    Child : FB_ProbeConfigCM;
+END_VAR
+VAR_INPUT
+    CycleLimit : DINT := 100;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{a6d05f18-7be9-4c23-90a1-fd52b8347e06}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+StallTime := T#0S;
+Setup := M_RegisterConfigNumber(Key := 'probe.cycleLimit',
+    Item := 'StationCfg/CycleLimit', LabelKey := 'project.test.cycleLimit',
+    Unit := '', Kind := E_ConfigKind.STATION_CFG,
+    Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(CycleLimit),
+    Minimum := 1.0, Maximum := 1000.0, RequiresReady := FALSE);
+Setup := Child.Setup(Name := CONCAT(Name, '.Child')) AND Setup;
+IF Setup THEN
+    Setup := _M_Register(Child);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{8c37b1e4-05fa-496d-a72b-3e1d0954bc87}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetStep(StepNo := 100, StepName := 'project.test.stepA', Awaits := 0,
+    AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetChildRefuse" Id="{5d92e0b4-1a76-4c38-9b05-27ea41f3608d}">
+      <Declaration><![CDATA[// Test seam. The child is reachable from outside for READING, but a nested FB
+// behind an output is not an assignment target, so the owner sets it — which is
+// also how a real composite would configure its own child.
+METHOD M_SetChildRefuse
+VAR_INPUT
+    Text : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Child.RefuseText := Text;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

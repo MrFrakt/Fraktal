@@ -68,6 +68,15 @@ VAR
     _holdReq    : BOOL;          // §6.1 HELD: re-asserted by dispatch every scan it holds
     _holdSince  : DATE_AND_TIME; // hold onset, preserved across scans (§8.8 Since)
     _holdTimeSynchronized : BOOL;
+    // §3.8b/§3.10.2 — the editable values this module has registered about
+    // itself. One record serves both directions: the manifest publishes the
+    // capability from it and a write applies through it, so the metadata a
+    // client validated against and the target actually written cannot drift
+    // apart (§1.1 O1). Off the cyclic tree — pTarget must never reach a client.
+    {attribute 'OPC.UA.DA' := '0'}
+    _configWrite  : ARRAY[1..PL_Fraktal.MAX_CONFIG_WRITES] OF ST_ConfigWriteDef;
+    {attribute 'OPC.UA.DA' := '0'}
+    _nConfigWrite : INT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// FB body just runs the lifecycle; parents may call the instance or Cyclic() (I_Module)
@@ -719,6 +728,428 @@ FOR i := 1 TO CatalogCount DO
     Pager.M_AppendNumber(Scope := Status.Name, Item := item, Number := Catalog[i].Value);
     item := CONCAT('Catalog/Catalog[', CONCAT(TO_STRING(i), ']/Label'));
     Pager.M_Append(Scope := Status.Name, Item := item, ValueText := Catalog[i].Label);
+END_FOR
+// §3.8b — then everything this module declared editable about itself. The value
+// is read live and the metadata comes from the same record the write will be
+// validated against, so a client can never be shown a capability the PLC would
+// not honour.
+FOR i := 1 TO _nConfigWrite DO
+    Pager.M_AppendCapability(Scope := Status.Name, Item := _configWrite[i].Item,
+        ValueText := _M_ConfigValueText(Idx := i),
+        WriteKey := _configWrite[i].Key,
+        WriteRevision := _configWrite[i].Revision,
+        ConfigKind := _configWrite[i].Kind,
+        ValueType := _configWrite[i].ValueType,
+        Writable := TRUE,
+        RequiresReady := _configWrite[i].RequiresReady,
+        HasMinimum := _configWrite[i].HasMinimum,
+        HasMaximum := _configWrite[i].HasMaximum,
+        Minimum := _configWrite[i].Minimum,
+        Maximum := _configWrite[i].Maximum,
+        Unit := _configWrite[i].Unit,
+        LabelKey := _configWrite[i].LabelKey,
+        EnumDomain := _configWrite[i].EnumDomain);
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigWrite" Id="{c81f4a26-05d7-4e93-b6a1-3fd208e7c145}">
+      <Declaration><![CDATA[// §3.8b/§3.10.2 — declare one editable value, at Setup. Registration is the ONLY
+// thing that makes a value writable; publication, browsability and DATA_WRITE
+// never are. All inputs are explicit for TwinCAT 4024 compatibility.
+//
+// A duplicate key is refused and the FIRST registration stands, because nothing
+// here can tell which of the two the author meant. The refusal travels back
+// through Setup, where a composition root sees it — rather than an operator
+// discovering it later at a control that writes the wrong field.
+METHOD M_RegisterConfigWrite : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    Revision      : UDINT;
+    Kind          : E_ConfigKind;
+    ValueType     : E_ConfigValueType;
+    Storage       : E_ConfigStorage;
+    pTarget       : PVOID;
+    RequiresReady : BOOL;
+    HasMinimum    : BOOL;
+    HasMaximum    : BOOL;
+    Minimum       : LREAL;
+    Maximum       : LREAL;
+    Unit          : STRING(16);
+    LabelKey      : STRING(160);
+    MaxLength     : UINT;
+    EnumDomain    : STRING(255);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigWrite := FALSE;
+IF (Key = '') OR (Revision = 0) OR (pTarget = 0)
+OR (Storage = E_ConfigStorage.NONE)
+OR (_nConfigWrite >= PL_Fraktal.MAX_CONFIG_WRITES) THEN
+    RETURN;
+END_IF
+// A text target has a size this code cannot see. Storing 80 characters
+// into a STRING(16) would corrupt whatever follows it, so the capacity is
+// declared here and the store never exceeds it.
+IF (Storage = E_ConfigStorage.AS_STRING)
+AND ((MaxLength = 0) OR (MaxLength > 80)) THEN
+    RETURN;
+END_IF
+IF HasMinimum AND HasMaximum AND (Minimum > Maximum) THEN
+    RETURN;                                  // an empty range accepts nothing
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = Key THEN
+        RETURN;                              // duplicate (Scope, WriteKey): fail closed
+    END_IF
+END_FOR
+_nConfigWrite := _nConfigWrite + 1;
+_configWrite[_nConfigWrite].Key := Key;
+_configWrite[_nConfigWrite].Item := Item;
+_configWrite[_nConfigWrite].Revision := Revision;
+_configWrite[_nConfigWrite].Kind := Kind;
+_configWrite[_nConfigWrite].ValueType := ValueType;
+_configWrite[_nConfigWrite].Storage := Storage;
+_configWrite[_nConfigWrite].pTarget := pTarget;
+_configWrite[_nConfigWrite].RequiresReady := RequiresReady;
+_configWrite[_nConfigWrite].HasMinimum := HasMinimum;
+_configWrite[_nConfigWrite].HasMaximum := HasMaximum;
+_configWrite[_nConfigWrite].Minimum := Minimum;
+_configWrite[_nConfigWrite].Maximum := Maximum;
+_configWrite[_nConfigWrite].Unit := Unit;
+_configWrite[_nConfigWrite].LabelKey := LabelKey;
+_configWrite[_nConfigWrite].MaxLength := MaxLength;
+_configWrite[_nConfigWrite].EnumDomain := EnumDomain;
+M_RegisterConfigWrite := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigNumber" Id="{9e0a37b1-4c85-42df-a70e-6b1d5f92c308}">
+      <Declaration><![CDATA[// §3.8b — a numeric editable value. Bounds are mandatory here on purpose: an
+// unbounded number is the one a client can set to anything, and "what is the
+// valid range" is a question the owning module is the only one able to answer.
+// Use M_RegisterConfigWrite directly for an unbounded or higher-revision value.
+METHOD M_RegisterConfigNumber : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Unit          : STRING(16);
+    Kind          : E_ConfigKind;
+    Storage       : E_ConfigStorage;
+    pTarget       : PVOID;
+    Minimum       : LREAL;
+    Maximum       : LREAL;
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigNumber := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.NUMBER,
+    Storage := Storage, pTarget := pTarget, RequiresReady := RequiresReady,
+    HasMinimum := TRUE, HasMaximum := TRUE, Minimum := Minimum, Maximum := Maximum,
+    Unit := Unit, LabelKey := LabelKey, MaxLength := 0, EnumDomain := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigDuration" Id="{3b7d5c40-8e19-4a62-95cb-71e0f4a8d236}">
+      <Declaration><![CDATA[// §3.8b — an editable TIME, carried and edited as whole milliseconds (the HMI
+// validates DURATION as a number; TC3 §3.8 explains the enum spelling).
+METHOD M_RegisterConfigDuration : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Kind          : E_ConfigKind;
+    pTarget       : POINTER TO TIME;
+    MinimumMs     : UDINT;
+    MaximumMs     : UDINT;
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigDuration := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.DURATION,
+    Storage := E_ConfigStorage.AS_TIME, pTarget := pTarget,
+    RequiresReady := RequiresReady, HasMinimum := TRUE, HasMaximum := TRUE,
+    Minimum := TO_LREAL(MinimumMs), Maximum := TO_LREAL(MaximumMs),
+    Unit := 'ms', LabelKey := LabelKey, MaxLength := 0, EnumDomain := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigFlag" Id="{6d24e8f7-1b93-4057-8ca4-2e5906bd7f81}">
+      <Declaration><![CDATA[// §3.8b — an editable BOOL. The exact domain is declared so a client renders a
+// choice rather than a free-text field, and so 'yes' is rejected rather than
+// silently read as FALSE.
+METHOD M_RegisterConfigFlag : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Kind          : E_ConfigKind;
+    pTarget       : POINTER TO BOOL;
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigFlag := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.BOOLEAN,
+    Storage := E_ConfigStorage.AS_BOOL, pTarget := pTarget,
+    RequiresReady := RequiresReady, HasMinimum := FALSE, HasMaximum := FALSE,
+    Minimum := 0.0, Maximum := 0.0, Unit := '', LabelKey := LabelKey,
+    MaxLength := 0, EnumDomain := 'TRUE|FALSE');]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{4a95c7e3-2d68-41bf-9036-b8e1af0524d9}">
+      <Declaration><![CDATA[// §3.8b/§3.10.2 I_ConfigSource — apply one registered write to THIS module.
+// The root has already checked DATA_WRITE and subtree ownership; what is left is
+// everything only the owner knows. Scope selects the module, so the recursive
+// walk asks each module in turn and exactly the one that registered the key
+// answers TRUE. An unknown key, a stale revision, or a value the module refuses
+// all return FALSE and change nothing.
+METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyConfigWrite := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = WriteKey THEN
+        IF _configWrite[i].Revision <> Revision THEN
+            RETURN;              // stale capability — the client's metadata is old
+        END_IF
+        IF _configWrite[i].RequiresReady AND NOT RootReady THEN
+            RETURN;
+        END_IF
+        // The type-specific hook sees the candidate BEFORE anything is stored, so
+        // a refusal here is indistinguishable from a range refusal: nothing moved.
+        IF NOT _M_OnConfigWrite(WriteKey := WriteKey, TextValue := TextValue) THEN
+            RETURN;
+        END_IF
+        M_ApplyConfigWrite := _M_StoreConfigValue(Idx := i, TextValue := TextValue);
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_OnConfigWrite" Id="{8f30b1d5-6ea4-4c27-b95f-0d7a3e416c82}">
+      <Declaration><![CDATA[// §3.10.2 — module-specific invariants a generic type/range check cannot state:
+// a value that must stay below another, a device that must be idle first. The
+// base accepts; the framework still validates revision, type, range and domain
+// and stores only after this returns TRUE. Two rules for an override: it shall
+// have no side effects, because this runs on a candidate that may still be
+// rejected; and it sees the RAW text, not a parsed value — 'abc' reaches it
+// exactly as '7' does, so it must never assume the candidate is a number.
+METHOD PROTECTED _M_OnConfigWrite : BOOL
+VAR_INPUT
+    WriteKey  : STRING(160);
+    TextValue : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_OnConfigWrite := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_StoreConfigValue" Id="{b5c9026e-74a1-4d38-8be0-91f3ac57d264}">
+      <Declaration><![CDATA[// §3.8b/§5.6 — validate a candidate completely, then store it. Every rejection
+// happens before the first byte moves, so a refused write leaves the module
+// exactly as it was. Range is checked against BOTH the declared bounds and the
+// storage type's own limits: a DINT field with no declared maximum still cannot
+// be handed 1E30.
+METHOD PRIVATE _M_StoreConfigValue : BOOL
+VAR_INPUT
+    Idx       : INT;
+    TextValue : STRING(255);
+END_VAR
+VAR
+    num : LREAL;
+    pB  : POINTER TO BOOL;
+    pI  : POINTER TO INT;
+    pD  : POINTER TO DINT;
+    pU  : POINTER TO UDINT;
+    pR  : POINTER TO REAL;
+    pL  : POINTER TO LREAL;
+    pT  : POINTER TO TIME;
+    pS  : POINTER TO STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_StoreConfigValue := FALSE;
+IF (Idx < 1) OR (Idx > _nConfigWrite) OR (_configWrite[Idx].pTarget = 0) THEN
+    RETURN;
+END_IF
+// A declared domain is exact and is checked on the raw text, whatever the type.
+IF _configWrite[Idx].EnumDomain <> '' THEN
+    IF NOT _M_InEnumDomain(Domain := _configWrite[Idx].EnumDomain,
+            Text := TextValue) THEN
+        RETURN;
+    END_IF
+END_IF
+IF _configWrite[Idx].Storage = E_ConfigStorage.AS_BOOL THEN
+    pB := _configWrite[Idx].pTarget;
+    IF (TextValue = 'TRUE') OR (TextValue = 'true') OR (TextValue = 'True')
+    OR (TextValue = '1') THEN
+        pB^ := TRUE;
+    ELSIF (TextValue = 'FALSE') OR (TextValue = 'false') OR (TextValue = 'False')
+    OR (TextValue = '0') THEN
+        pB^ := FALSE;
+    ELSE
+        RETURN;
+    END_IF
+    _M_StoreConfigValue := TRUE;
+    RETURN;
+END_IF
+IF _configWrite[Idx].Storage = E_ConfigStorage.AS_STRING THEN
+    IF TO_UINT(LEN(TextValue)) > _configWrite[Idx].MaxLength THEN
+        RETURN;                              // would truncate: reject, never trim
+    END_IF
+    pS := _configWrite[Idx].pTarget;
+    pS^ := TextValue;
+    _M_StoreConfigValue := TRUE;
+    RETURN;
+END_IF
+// Everything else is numeric.
+IF NOT F_TryParseNumber(Text := TextValue, Value => num) THEN
+    RETURN;
+END_IF
+IF _configWrite[Idx].HasMinimum AND (num < _configWrite[Idx].Minimum) THEN
+    RETURN;
+END_IF
+IF _configWrite[Idx].HasMaximum AND (num > _configWrite[Idx].Maximum) THEN
+    RETURN;
+END_IF
+CASE _configWrite[Idx].Storage OF
+    E_ConfigStorage.AS_INT:
+        IF (num < -32768.0) OR (num > 32767.0) THEN
+            RETURN;
+        END_IF
+        // Two statements, not one condition: IEC 61131-3 does not mandate
+        // short-circuit evaluation and TwinCAT's option for it is off by
+        // default, so a combined test would still convert a value the range
+        // check is there to reject (§5.6).
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        pI := _configWrite[Idx].pTarget;
+        pI^ := LREAL_TO_INT(num);
+    E_ConfigStorage.AS_DINT:
+        IF (num < -2147483648.0) OR (num > 2147483647.0) THEN
+            RETURN;
+        END_IF
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        pD := _configWrite[Idx].pTarget;
+        pD^ := LREAL_TO_DINT(num);
+    E_ConfigStorage.AS_UDINT:
+        IF (num < 0.0) OR (num > 4294967295.0) THEN
+            RETURN;
+        END_IF
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        pU := _configWrite[Idx].pTarget;
+        pU^ := LREAL_TO_UDINT(num);
+    E_ConfigStorage.AS_REAL:
+        IF (num < -3.402823E38) OR (num > 3.402823E38) THEN
+            RETURN;
+        END_IF
+        pR := _configWrite[Idx].pTarget;
+        pR^ := LREAL_TO_REAL(num);
+    E_ConfigStorage.AS_LREAL:
+        pL := _configWrite[Idx].pTarget;
+        pL^ := num;
+    E_ConfigStorage.AS_TIME:
+        // Whole milliseconds: a duration is not a place for a rounding surprise.
+        IF (num < 0.0) OR (num > 4294967295.0) THEN
+            RETURN;
+        END_IF
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        pT := _configWrite[Idx].pTarget;
+        pT^ := UDINT_TO_TIME(LREAL_TO_UDINT(num));
+ELSE
+    RETURN;
+END_CASE
+_M_StoreConfigValue := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ConfigValueText" Id="{1c7e93a0-58b4-4f26-a8d3-e0471b295cf5}">
+      <Declaration><![CDATA[// §3.10.2 — the current value of a registered entry, in the serialization the
+// client validates and writes back. Read live from the target every walk: a
+// cached copy would let the manifest disagree with the machine.
+METHOD PRIVATE _M_ConfigValueText : STRING(255)
+VAR_INPUT
+    Idx : INT;
+END_VAR
+VAR
+    pB : POINTER TO BOOL;
+    pI : POINTER TO INT;
+    pD : POINTER TO DINT;
+    pU : POINTER TO UDINT;
+    pR : POINTER TO REAL;
+    pL : POINTER TO LREAL;
+    pT : POINTER TO TIME;
+    pS : POINTER TO STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ConfigValueText := '';
+IF (Idx < 1) OR (Idx > _nConfigWrite) OR (_configWrite[Idx].pTarget = 0) THEN
+    RETURN;
+END_IF
+CASE _configWrite[Idx].Storage OF
+    E_ConfigStorage.AS_BOOL:
+        pB := _configWrite[Idx].pTarget;
+        IF pB^ THEN
+            _M_ConfigValueText := 'TRUE';
+        ELSE
+            _M_ConfigValueText := 'FALSE';
+        END_IF
+    E_ConfigStorage.AS_INT:
+        pI := _configWrite[Idx].pTarget;
+        _M_ConfigValueText := TO_STRING(pI^);
+    E_ConfigStorage.AS_DINT:
+        pD := _configWrite[Idx].pTarget;
+        _M_ConfigValueText := TO_STRING(pD^);
+    E_ConfigStorage.AS_UDINT:
+        pU := _configWrite[Idx].pTarget;
+        _M_ConfigValueText := TO_STRING(pU^);
+    E_ConfigStorage.AS_REAL:
+        pR := _configWrite[Idx].pTarget;
+        _M_ConfigValueText := TO_STRING(pR^);
+    E_ConfigStorage.AS_LREAL:
+        pL := _configWrite[Idx].pTarget;
+        _M_ConfigValueText := TO_STRING(pL^);
+    E_ConfigStorage.AS_TIME:
+        pT := _configWrite[Idx].pTarget;
+        _M_ConfigValueText := TO_STRING(TIME_TO_UDINT(pT^));
+    E_ConfigStorage.AS_STRING:
+        pS := _configWrite[Idx].pTarget;
+        _M_ConfigValueText := pS^;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_InEnumDomain" Id="{e2b6408c-9d15-473a-b0f8-5c9147ae0362}">
+      <Declaration><![CDATA[// §3.10.2 — exact membership in a pipe-separated domain. Exact means exact: no
+// trimming, no case folding. The client was given this list and can send one of
+// its entries.
+METHOD PRIVATE _M_InEnumDomain : BOOL
+VAR_INPUT
+    Domain : STRING(255);
+    Text   : STRING(255);
+END_VAR
+VAR
+    rest  : STRING(255);
+    token : STRING(255);
+    pos   : INT;
+    i     : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InEnumDomain := FALSE;
+rest := Domain;
+FOR i := 1 TO 32 DO                          // bounded scan (§5.6)
+    IF rest = '' THEN
+        RETURN;
+    END_IF
+    pos := FIND(rest, '|');
+    IF pos = 0 THEN
+        token := rest;
+        rest := '';
+    ELSE
+        token := LEFT(rest, pos - 1);
+        rest := MID(rest, TO_INT(LEN(rest)) - pos, pos + 1);
+    END_IF
+    IF token = Text THEN
+        _M_InEnumDomain := TRUE;
+        RETURN;
+    END_IF
 END_FOR]]></ST></Implementation>
     </Method>
   </POU>

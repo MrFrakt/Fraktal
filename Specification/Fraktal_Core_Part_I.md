@@ -347,6 +347,110 @@ recipe store—and the active `ParCfg` remains the authoritative resolved recipe
 
 **Atomic changeover.** `SetModel` first calls `PrepareRecipe(Model)` recursively. Validation, migration, provider I/O, and every fallible operation occur only in this phase. Any rejection calls `AbortRecipe()` and leaves every active `ParCfg` and the root identity unchanged. After every participant accepts, `CommitRecipe()` is an infallible, bounded in-memory publication at the scan boundary; it performs no validation or I/O. The root publishes the new `ModelId` only after commit. Station configuration is outside this transaction.
 
+#### 3.8b Persistence lifecycle and parameter sets
+
+§3.8a says *where* an editable value lives; this section says what happens to it
+across a restart, and how a whole machine's parametrization is saved, moved, and
+restored as one named thing. Both concern the same data: persistence is a
+lifecycle over the values §3.10.2 already publishes, never a second copy of them.
+
+**Storage stays distributed; the root is the authority, not the store.** A
+parameter *set* is a projection produced by the same deterministic walk that
+builds the §3.10.2 manifest, keyed per value by `(Scope, WriteKey)`. It is not a
+central blob and confers no ownership: a set is applied by replaying each record
+through the owning module's typed handler, exactly as a single `WRITE_CONFIG`
+would be. A byte image of a station's configuration — one aggregate structure
+memory-copied in and out — **shall not** be used. It reinterprets retained bytes
+silently when a type changes, carries no per-value identity for a file, database,
+ORM or MES to bind to, and cannot reject one bad value without rejecting all of
+them.
+
+**`StationCfg` is versioned exactly like `ParCfg`.** Every `StationCfg` structure
+**shall** carry `SchemaVersion : UINT` as its first member. A retained image whose
+version is unrecognized **shall** initialize the module's declared defaults
+exactly once and **shall not** be interpreted by field position. Version zero
+means *never written*: a first boot has lost nothing and initializes silently.
+Any other unrecognized version means a real image was rejected, and that
+**shall** be annunciated — the difference between an empty machine and one that
+has just lost its commissioning is exactly what an operator needs told. Adding
+a member is a schema change (§13).
+
+**Durability is a stated property, not a hope.** An accepted configuration write
+**shall** reach non-volatile storage without further operator action, within a
+declared bounded window, and the root **shall** publish whether it has:
+`PersistPending` while any accepted write is not yet durable, `PersistFailed` when
+the store rejected or could not complete it. Transport acknowledgement and
+`Accepted` (§3.10(a″)) mean a value is *live*, not that it is *durable*. A station
+that cannot persist is a station that will silently revert at its next restart,
+and that shall be visible before the restart rather than discovered after it.
+
+**Restore is fail-closed and never silent.** At startup a module runs on its
+restored values, or — if the restore is absent, unreadable, or schema-rejected —
+on its declared defaults with an event carrying the §8.8 reason code and the
+owning module's canonical path. The deployment declares the consequence through
+`E_ConfigRestorePolicy`: `DEFAULTS_AND_ANNUNCIATE` (shipped default — the station
+runs and the annunciation stands until acknowledged) or
+`BLOCK_UNTIL_ACKNOWLEDGED` (no `START_STOP` release until an operator of at least
+`ENGINEER` level acknowledges the loss). Running on defaults while presenting
+itself as a commissioned machine is the failure this rule exists to prevent.
+
+**Named parameter sets.** A root Unit **may** expose bounded set operations — save,
+load, and list — over named sets. A set carries the root's canonical identity, the
+`ConfigRev` it was taken at, a set schema version, the creation timestamp on the
+synchronized clock (§2.7), and one record per registered write capability
+(`Scope`, `WriteKey`, `ValueType`, serialized value). Load is **staged and
+all-or-nothing**: every record is validated through its owning typed handler
+before any value changes, and one rejection aborts the whole load naming the
+offending `(Scope, WriteKey)`. A half-applied machine parametrization is never a
+valid outcome. Records whose capability no longer exists in the target are
+reported, never silently dropped. Credentials (§7.7) are **never** included in a
+set.
+
+**One mechanism, two kinds of set.** A set is scoped by `ConfigKind` (§3.10.2). A
+**station set** carries the `STATION_CFG` records of a root's subtree and restores
+deployment data in place. A **model set** carries the `PAR_CFG` records for one
+`ModelCode` — the same content §3.8 calls a recipe — and **shall** be applied
+through the §3.8 changeover transaction (`PrepareRecipe` → recursive readiness →
+infallible `CommitRecipe`), never as a sequence of per-field writes, so a model
+load keeps its atomicity and its migrate-or-fault behaviour. Loading a model set
+is therefore a changeover and is gated by `CHANGEOVER` as well as `CONFIG_SET`.
+This is also what makes a local recipe catalog editable and durable instead of a
+compiled-in constant: the §3.8 provider reads its records from the same
+`I_ConfigStore`, so *where recipes come from* and *how recipes survive a restart*
+stop being two unrelated answers.
+
+**The store is pluggable and untrusted.** Set persistence is supplied through one
+logical `I_ConfigStore` capability selected per deployment, mirroring §3.8's
+provider pattern:
+
+| `E_ConfigStore` | Medium | Payload |
+|-----------------|--------|---------|
+| `LOCAL_RETAIN` | in-PLC retentive memory | native structures |
+| `FILE_JSON` / `FILE_XML` | controller or host file system | serialized set document |
+| `EXTERNAL` | database, asset system or MES, reached through a connector (§3.15) | store-defined |
+
+The store moves bytes and nothing else. It does not validate, does not know what a
+value means, and is **never** an authorization authority; everything it returns is
+untrusted input, validated on the way in (§5.6, §14). `LOCAL_RETAIN` is the
+shipped default, so a conforming station persists its parametrization with no file
+system, no network, and no configuration.
+
+**Access.** Editing one value remains `DATA_WRITE`. Saving, loading or importing a
+*set* is the separate gated action `CONFIG_SET` (§7.7), because replacing a
+machine's entire parametrization is not the same decision as changing one number.
+Set operations require the owning root to be `READY`, and both acceptance and
+refusal are audited per §8.3 with the set name and record count.
+
+**Scope.** This mechanism covers registered editable configuration only. Retained
+operational data — counters, alarm history, OEE accumulators — persists under its
+own rules and is never part of a parameter set. The digital nameplate (§3.10.1) is
+identity rather than configuration and is likewise excluded.
+
+*Cross-references: §3.8/§3.8a (the two kinds of persistent data and their
+placement), §3.10.2 (capability registration — what a set contains), §7.7
+(`DATA_WRITE`, `CONFIG_SET`), §8.3 (audit), §8.8 (reason codes), §13 (schema
+change), §14 (untrusted input).*
+
 ### 3.9 Feature selectability
 
 Each module advertises a `Features` flag set — e.g. `RecipeEnabled`, `CalibrationEnabled`, `ManualFunctionsEnabled`, plus per-command enables. Disabled features:
@@ -488,6 +592,8 @@ It is deliberately the same shape as the §6.9(b) named condition wait
 publishes", not two (§1.1 O9).
 
 This contract makes every module uniform and self-describing: the handshake of §6.1 reads/writes `ParCmd`/`OutCmd`, the recipe of §3.8 lives in `ParCfg`, and the Flutter HMI binds to `OutImm` for live state. Module-specific structure types **shall** be named `ST_<Module>ParCfg` / `ST_<Module>ParCmd` / `ST_<Module>OutCmd` / `ST_<Module>OutImm` (e.g. `ST_SeparatorParCfg`).
+
+`StationCfg` (§3.8a, §3.8b) is deliberately **not** a fifth member of this contract. A module that needs deployment data declares its own persistent `ST_<Module>StationCfg`, and its editable values reach clients as §3.10.2 write capabilities. A binding may also mirror the structure cyclically for reading, but the capability — never the mirror — is what makes a value writable.
 
 ### 3.13 HMI navigation contract (drill-down model)
 
@@ -1550,7 +1656,7 @@ A maintenance user needs to command an individual device by hand — extend a cy
 
 Access level is the **who** dimension of release, ANDed with the **machine** dimensions of §7.2–§7.6: an action executes only when its permissives/interlocks allow it *and* the active user level suffices.
 
-**(a) Levels & actions.** Ordinal levels `E_AccessLevel` (`NONE`=0 < `OPERATOR` < `TECHNICIAN` < `ENGINEER` < `ADMIN`) and an enumerated set of **gated actions** `E_GatedAction`: `DATA_READ`, `DATA_WRITE` (ParCfg/StationCfg edits, §3.8a), `MANUAL` (manual movements), `CHANGEOVER` (`SetModel`, §3.1b), `MODE_CHANGE` (§3.4), `START_STOP`, `ALARM_HISTORY` (read, §8.3), `ALARM_RESET` (§8.3(b)), `ACCESS_POLICY` (editing this policy itself), append-only `ALARM_SHELVE` (shelve/unshelve annunciation, §8.10), and `POWER_CONTROL` (Control On/Off and power-group requests, §9.8). Ordinals are transport contract; new actions shall be appended, never inserted.
+**(a) Levels & actions.** Ordinal levels `E_AccessLevel` (`NONE`=0 < `OPERATOR` < `TECHNICIAN` < `ENGINEER` < `ADMIN`) and an enumerated set of **gated actions** `E_GatedAction`: `DATA_READ`, `DATA_WRITE` (ParCfg/StationCfg edits, §3.8a), `MANUAL` (manual movements), `CHANGEOVER` (`SetModel`, §3.1b), `MODE_CHANGE` (§3.4), `START_STOP`, `ALARM_HISTORY` (read, §8.3), `ALARM_RESET` (§8.3(b)), `ACCESS_POLICY` (editing this policy itself), append-only `ALARM_SHELVE` (shelve/unshelve annunciation, §8.10), `POWER_CONTROL` (Control On/Off and power-group requests, §9.8), and `CONFIG_SET` (saving, loading or importing a whole parameter set, §3.8b). Ordinals are transport contract; new actions shall be appended, never inserted.
 
 **(b) Per-station policy, PLC-authoritative and editable.** Each root Unit carries an **access policy** — a required level per gated action — held as persistent **station configuration** (§3.8a: deployment data, editable, never in a recipe). Any threshold set to `NONE` means that action needs no login; a station may therefore be **fully open** (every threshold `NONE`) or locked down per action — the deployment's deliberate choice. **Shipped default is fully open** (`NONE` everywhere): access control is never a silent lock-in (O1/O6), and the §14 commissioning checklist **shall** include provisioning an access provider and reviewing the policy. A generic HMI may edit the root's published policy, but each edit is routed through the root request mailbox and rechecked against `ACCESS_POLICY`; the policy editor is not a second authority. To prevent retained self-lockout, raising the `ACCESS_POLICY` threshold above the active session level **shall be rejected**. Per-function granularity for manual movements: `MANUAL` is the default threshold, and an individual manual function **may** declare its own higher required level in its `OnManRelease` definition (§7.6) — so "jog axis" and "open guard bypass" can differ.
 

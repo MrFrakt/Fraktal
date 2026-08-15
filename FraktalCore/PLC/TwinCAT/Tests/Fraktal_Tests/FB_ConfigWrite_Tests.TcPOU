@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ConfigWrite_Tests" Id="{6f0c2b73-4d81-49ea-95c7-3b18d0e7a542}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b/§3.10.2 under test: a module declares its own editable values, the
+// root's walk publishes them as complete capabilities and carries writes back to
+// the owner, and everything the owner did not agree to is refused without
+// changing a byte. The pair FB_ProbeConfigUnit/FB_ProbeConfigCM deliberately
+// contains no routing code — if these pass, a new module type needs none either.
+FUNCTION_BLOCK FB_ConfigWrite_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u : FB_ProbeConfigUnit;
+    _init : BOOL;
+    _setupOk : BOOL;
+    _pager : FB_ConfigPager;
+    _page : ST_ConfigPage;
+    _found : ST_ConfigEntry;
+    _dup : FB_ProbeConfigCM;
+    _dupOk : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Registration_publishes_a_complete_capability();
+Duplicate_key_is_refused_and_the_first_stands();
+Write_reaches_the_owning_child_through_the_walk();
+Stale_revision_is_refused();
+Range_type_and_domain_are_enforced();
+RequiresReady_follows_the_root_state();
+Unknown_key_and_foreign_scope_change_nothing();
+Module_invariant_hook_can_refuse();]]></ST>
+    </Implementation>
+    <Method Name="_M_Arm" Id="{b17e3f04-5a29-4c86-91d3-0e28fa5b7961}">
+      <Declaration><![CDATA[// One-time setup, on the first test to run rather than in a constructor: the
+// suite's own Setup return value is itself an assertion below.
+METHOD PRIVATE _M_Arm]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _init THEN
+    _init := TRUE;
+    _setupOk := _u.Setup(Name := 'Test.CfgUnit');
+    _u();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_FetchCapability" Id="{2c85d9a1-7f36-4b02-a4e8-95f10cb3d768}">
+      <Declaration><![CDATA[// Walk the real manifest the way a client does — page by page until the key
+// appears — so these tests read exactly what the HMI would be given, not an
+// internal shortcut into the registry.
+METHOD PRIVATE _M_FetchCapability : BOOL
+VAR_INPUT
+    Key : STRING(160);
+END_VAR
+VAR
+    page  : INT;
+    i     : INT;
+    pages : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_FetchCapability := FALSE;
+pages := 1;
+FOR page := 0 TO 63 DO
+    IF page >= pages THEN
+        RETURN;
+    END_IF
+    _pager.M_Setup(Target := ADR(_page), PageIndex := page, Revision := 1);
+    _u.M_AppendConfig(Pager := _pager);
+    _pager.M_Finish();
+    pages := _page.PageCount;
+    FOR i := 1 TO _page.EntryCount DO
+        IF _page.Entries[i].WriteKey = Key THEN
+            _found := _page.Entries[i];
+            _M_FetchCapability := TRUE;
+            RETURN;
+        END_IF
+    END_FOR
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Registration_publishes_a_complete_capability" Id="{d6a1470f-93b5-4c28-80e7-1a2f5b96c034}">
+      <Declaration><![CDATA[METHOD Registration_publishes_a_complete_capability]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Registration_publishes_a_complete_capability');
+_M_Arm();
+AssertTrue(Condition := _setupOk,
+    Message := 'a registration that fails must fail Setup, not go quiet');
+AssertTrue(Condition := _M_FetchCapability(Key := 'probe.settleTime'),
+    Message := 'a registered value appears in the root manifest walk');
+AssertEquals_STRING(Expected := 'Test.CfgUnit.Child', Actual := _found.Scope,
+    Message := 'the capability is scoped to the module that owns it');
+AssertTrue(Condition := _found.Writable,
+    Message := 'registration is what makes an entry writable (3.10.2)');
+AssertEquals_UDINT(Expected := 1, Actual := _found.WriteRevision,
+    Message := 'a writable entry carries a non-zero revision');
+AssertEquals_DINT(Expected := TO_DINT(E_ConfigValueType.DURATION),
+    Actual := TO_DINT(_found.ValueType),
+    Message := 'a TIME publishes as DURATION (TC3 3.8)');
+AssertEquals_DINT(Expected := TO_DINT(E_ConfigKind.STATION_CFG),
+    Actual := TO_DINT(_found.ConfigKind),
+    Message := 'deployment data publishes as STATION_CFG');
+AssertEquals_STRING(Expected := 'ms', Actual := _found.Unit,
+    Message := 'a duration carries its engineering unit');
+AssertEquals_STRING(Expected := '500', Actual := _found.ValueText,
+    Message := 'the published value is the live target, in whole milliseconds');
+AssertTrue(Condition := _found.RequiresReady,
+    Message := 'the declared state requirement reaches the client');
+AssertEquals_REAL(Expected := 5000.0, Actual := TO_REAL(_found.Maximum),
+    Delta := 0.001, Message := 'declared bounds reach the client');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Duplicate_key_is_refused_and_the_first_stands" Id="{e0f47b28-1c93-4d56-a721-8b350fc9e614}">
+      <Declaration><![CDATA[METHOD Duplicate_key_is_refused_and_the_first_stands]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Duplicate_key_is_refused_and_the_first_stands');
+_M_Arm();
+AssertTrue(Condition := _dup.Setup(Name := 'Test.CfgDup'),
+    Message := 'the probe registers cleanly the first time');
+// Re-registering the same key is the §3.10.2 duplicate case. It fails closed,
+// which here means the SECOND caller is refused and the first target stays bound
+// — nothing can tell which was meant, so the ambiguity is reported, not resolved.
+_dupOk := _dup.M_RegisterConfigNumber(Key := 'probe.retries',
+    Item := 'StationCfg/Retries2', LabelKey := '', Unit := '',
+    Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_DINT,
+    pTarget := ADR(_dup.Retries), Minimum := 0.0, Maximum := 99.0,
+    RequiresReady := FALSE);
+AssertFalse(Condition := _dupOk,
+    Message := 'a duplicate (Scope, WriteKey) registration is refused');
+// A registration with no target is the other fail-closed case: a capability
+// pointing nowhere would publish an editor control that writes into address 0.
+AssertFalse(Condition := _dup.M_RegisterConfigFlag(Key := 'probe.nowhere',
+        Item := 'StationCfg/Nowhere', LabelKey := '',
+        Kind := E_ConfigKind.STATION_CFG, pTarget := 0, RequiresReady := FALSE),
+    Message := 'a capability with no target is refused');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Write_reaches_the_owning_child_through_the_walk" Id="{a92c5e60-8b17-4d34-b0f9-63c1207de845}">
+      <Declaration><![CDATA[METHOD Write_reaches_the_owning_child_through_the_walk]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Write_reaches_the_owning_child_through_the_walk');
+_M_Arm();
+// The root has no routing code for this key. It finds the owner by Scope.
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '7'),
+    Message := 'a valid write is accepted by the owning child');
+AssertEquals_DINT(Expected := 7, Actual := _u.Child.Retries,
+    Message := 'the child value actually changed');
+AssertTrue(Condition := _M_FetchCapability(Key := 'probe.retries'),
+    Message := 'the entry is still published after the write');
+AssertEquals_STRING(Expected := '7', Actual := _found.ValueText,
+    Message := 'the manifest publishes the live value, not a cached copy');
+// The root's own registered value goes through the same path.
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit',
+        WriteKey := 'probe.cycleLimit', Revision := 1, TextValue := '250'),
+    Message := 'the root can own editable values too');
+AssertEquals_DINT(Expected := 250, Actual := _u.CycleLimit,
+    Message := 'the root value changed');
+// A text value with its own revision, proving revision is per capability.
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.label', Revision := 2, TextValue := 'line-4'),
+    Message := 'a TEXT capability accepts its declared revision');
+AssertEquals_STRING(Expected := 'line-4', Actual := _u.Child.Label,
+    Message := 'the text value changed');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Stale_revision_is_refused" Id="{f38b0a75-2e46-41c9-8d52-07e934a1b6c3}">
+      <Declaration><![CDATA[METHOD Stale_revision_is_refused]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Stale_revision_is_refused');
+_M_Arm();
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.label', Revision := 2, TextValue := 'keep-me'),
+    Message := 'baseline set through the same path under test');
+// A client holding an older manifest sends the revision it was given. Accepting
+// it would apply a value validated against metadata that no longer exists.
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.label', Revision := 1, TextValue := 'stale'),
+    Message := 'a revision the capability does not carry is refused');
+AssertEquals_STRING(Expected := 'keep-me', Actual := _u.Child.Label,
+    Message := 'a refused write changes nothing');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.label', Revision := 0, TextValue := 'stale'),
+    Message := 'revision zero is never a valid capability');
+AssertEquals_STRING(Expected := 'keep-me', Actual := _u.Child.Label,
+    Message := 'still unchanged');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Range_type_and_domain_are_enforced" Id="{5b7d146e-c082-4a93-91f7-2ea840b53d19}">
+      <Declaration><![CDATA[METHOD Range_type_and_domain_are_enforced]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Range_type_and_domain_are_enforced');
+_M_Arm();
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '4'),
+    Message := 'baseline');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '11'),
+    Message := 'above the declared maximum');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '-1'),
+    Message := 'below the declared minimum');
+// The conversion this replaces answers 0 for all three of these, which is why a
+// handler built on it accepts garbage as a valid zero (F_TryParseNumber).
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := 'abc'),
+    Message := 'text that is not a number');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := ''),
+    Message := 'empty text');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '5kg'),
+    Message := 'a number with a trailing unit');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '3.5'),
+    Message := 'a fraction into an integer field truncates silently, so it is refused');
+AssertEquals_DINT(Expected := 4, Actual := _u.Child.Retries,
+    Message := 'six refusals, no change');
+// A declared domain is exact: no case folding, no synonyms.
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.enabled', Revision := 1, TextValue := 'TRUE'),
+    Message := 'baseline');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.enabled', Revision := 1, TextValue := 'yes'),
+    Message := 'a value outside the exact enum domain');
+AssertTrue(Condition := _u.Child.Enabled, Message := 'flag unchanged');
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.enabled', Revision := 1, TextValue := 'FALSE'),
+    Message := 'a value inside the domain is accepted');
+AssertFalse(Condition := _u.Child.Enabled, Message := 'flag cleared');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="RequiresReady_follows_the_root_state" Id="{c17f2a95-64b8-4e03-92d1-5a80b7e6d4f2}">
+      <Declaration><![CDATA[METHOD RequiresReady_follows_the_root_state]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('RequiresReady_follows_the_root_state');
+_M_Arm();
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.settleTime', Revision := 1, TextValue := '750'),
+    Message := 'accepted while the root is READY');
+AssertEquals_TIME(Expected := T#750MS, Actual := _u.Child.SettleTime,
+    Message := 'milliseconds land as a duration');
+// RequiresReady is a fact about the ROOT, which the child cannot see: the root
+// answers it on the way down. Start the Unit and the same write must fail.
+AssertTrue(Condition := _u.Start(), Message := 'start');
+_u();
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.settleTime', Revision := 1, TextValue := '900'),
+    Message := 'refused while the root is running');
+AssertEquals_TIME(Expected := T#750MS, Actual := _u.Child.SettleTime,
+    Message := 'the running machine keeps the value it was judged with');
+// A value that did NOT ask for READY is still writable meanwhile.
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '2'),
+    Message := 'RequiresReady is per value, not per module');
+_u.Stop();
+_u();
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Unknown_key_and_foreign_scope_change_nothing" Id="{08e5b3c7-9142-4a6d-b8f0-3c716de29045}">
+      <Declaration><![CDATA[METHOD Unknown_key_and_foreign_scope_change_nothing]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Unknown_key_and_foreign_scope_change_nothing');
+_M_Arm();
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '5'),
+    Message := 'baseline');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.notRegistered', Revision := 1, TextValue := '1'),
+    Message := 'an unregistered key is refused');
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := '', Revision := 1, TextValue := '1'),
+    Message := 'an empty key is refused');
+// Right key, wrong owner: the walk asks each module whether the scope is its own,
+// so a key that exists elsewhere still finds nobody here.
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '1'),
+    Message := 'a child key addressed to the root is refused');
+// A path outside this root is rejected before routing even begins (§3.10.2).
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Other.Unit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '1'),
+    Message := 'a path outside this root is refused');
+AssertEquals_DINT(Expected := 5, Actual := _u.Child.Retries,
+    Message := 'nothing moved');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Module_invariant_hook_can_refuse" Id="{7a30f9d4-51b6-42c8-a09e-6d24e18b7350}">
+      <Declaration><![CDATA[METHOD Module_invariant_hook_can_refuse]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Module_invariant_hook_can_refuse');
+_M_Arm();
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '6'),
+    Message := 'baseline');
+_u.M_SetChildRefuse(Text := '9');
+// Type-valid, in range, right revision — and still the module's own answer is no.
+AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '9'),
+    Message := 'the owning module may refuse a well-formed candidate');
+AssertEquals_UDINT(Expected := 1, Actual := _u.Child.RefusedCount,
+    Message := 'the hook ran (the refusal is the module, not the range)');
+AssertEquals_DINT(Expected := 6, Actual := _u.Child.Retries,
+    Message := 'a hook refusal leaves the value exactly as it was');
+_u.M_SetChildRefuse(Text := '');
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.CfgUnit.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '9'),
+    Message := 'the same value is accepted once the module stops refusing it');
+AssertEquals_DINT(Expected := 9, Actual := _u.Child.Retries,
+    Message := 'and now it applied');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

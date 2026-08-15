@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ConfigWriteDef" Id="{7c418d55-9b02-4e37-8a6d-14f9b2e05c73}">
+    <Declaration><![CDATA[// Core §3.8b/§3.10.2 — one editable value a module has registered about itself.
+// The module declares it once at Setup; the framework then both PUBLISHES the
+// capability (M_AppendConfig) and APPLIES writes to it (M_ApplyConfigWrite) from
+// this single record, so the metadata a client validates against and the target
+// the PLC writes can never drift apart (§1.1 O1/O9).
+//
+// pTarget is a pointer held in ordinary VAR — never inside a persistent
+// declaration, where TwinCAT would retain an address that means nothing after a
+// restart (TC3 §3.8b).
+TYPE ST_ConfigWriteDef :
+STRUCT
+    Key           : STRING(160);  // §3.10.2 WriteKey — the mutation identity
+    Item          : STRING(255);  // browse/display fragment; never the write identity
+    Revision      : UDINT;        // non-zero; bump when the value's meaning changes
+    Kind          : E_ConfigKind;
+    ValueType     : E_ConfigValueType;
+    Storage       : E_ConfigStorage;
+    pTarget       : PVOID;
+    RequiresReady : BOOL;         // write refused unless the owning root is READY
+    HasMinimum    : BOOL;
+    HasMaximum    : BOOL;
+    Minimum       : LREAL;
+    Maximum       : LREAL;
+    Unit          : STRING(16);
+    LabelKey      : STRING(160);
+    MaxLength     : UINT;         // AS_STRING only: the target's declared capacity
+    EnumDomain    : STRING(255);  // pipe-separated exact accepted values ('' = none)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -19,7 +19,11 @@ END_VAR]]></Declaration>
     _inputIdentity.Tag := '_101B601'; _inputIdentity.Address := 'EL1809 Ch12';
     _input.ConfigureIoIdentity(Identity := _inputIdentity);
     _air.Setup(Name := 'Test.Air', HalRef := _airHal);
-    _air.ParCfg.ConflictTime := T#0S; // deterministic qualification in the test runtime
+    // Deterministic qualification in the test runtime, set through the registered
+// §3.10.2 capability rather than by touching the module's retained data: that
+// path is the only one a station has, so the test uses it too.
+_air.M_ApplyConfigWrite(Scope := 'Test.Air', WriteKey := 'airPressure.conflictTime',
+    Revision := 1, TextValue := '0', RootReady := TRUE);
     _lowIdentity.Tag := '_000MB085A_2'; _lowIdentity.Address := 'EL1809 Ch10';
     _operatingIdentity.Tag := '_000MB085A_4'; _operatingIdentity.Address := 'EL1809 Ch11';
     _air.ConfigureIoIdentity(LowSensor := _lowIdentity, OperatingSensor := _operatingIdentity);

@@ -244,6 +244,8 @@ const standardEnglish = <String, String>{
   'std.gatedAction.accessPolicy': 'Access-policy editing',
   'std.gatedAction.alarmShelve': 'Alarm shelving',
   'std.gatedAction.powerControl': 'Control power',
+  'std.gatedAction.configSet': 'Parameter sets',
+  'std.config.airPressure.conflictTime': 'Switch conflict qualification',
   'std.access.machineActions': 'Machine actions',
   'std.access.panelActions': 'Panel actions',
   'std.access.plcStillDecides':
@@ -934,6 +936,8 @@ const standardSpanish = <String, String>{
   'std.gatedAction.accessPolicy': 'Edición de política de acceso',
   'std.gatedAction.alarmShelve': 'Inhibición de alarmas',
   'std.gatedAction.powerControl': 'Potencia de control',
+  'std.gatedAction.configSet': 'Juegos de parámetros',
+  'std.config.airPressure.conflictTime': 'Cualificación de conflicto',
   'std.access.machineActions': 'Acciones de máquina',
   'std.access.panelActions': 'Acciones del panel',
   'std.access.plcStillDecides':

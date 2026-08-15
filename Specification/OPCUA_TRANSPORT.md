@@ -387,6 +387,18 @@ pipe-separated exact `EnumDomain`. Missing or conflicting metadata fails closed.
 not part of the contract. The PLC owning handler rechecks access, owner, revision,
 type, domain/range, state, and transactional recipe invariants.
 
+**Parameter sets (Core §3.8b).** Three append-only kinds carry the set-level
+operations: `SAVE_CONFIG_SET = 27` and `LOAD_CONFIG_SET = 28` (`TextValue` = set
+name, `NameValue` = `ModelCode` for a model set, empty for a station set), and
+`LIST_CONFIG_SETS = 29` (`IntValue` = page index, answered in the same paged
+response shape as `QUERY_CONFIG`). All three are gated by `CONFIG_SET` — a model
+set additionally by `CHANGEOVER` — and require the root `READY`. A load is staged
+and all-or-nothing, so a rejection names the offending `(Scope, WriteKey)` in
+`HmiResponse.Diagnostic` and changes nothing. The root publishes
+`PersistPending`/`PersistFailed` and the restore outcome cyclically beside
+`ConfigRev`, because *this value is live* and *this value will survive the next
+restart* are different claims and an operator is entitled to both.
+
 **HMI behavior.** The repository fetches all pages when a forest is live and
 the `ConfigRev` signature is new (startup, reconnect to a restarted PLC,
 config write, changeover), synthesizes flat browse-path values from the

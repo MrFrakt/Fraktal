@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeConfigCM" Id="{7d3e1c05-92b4-4a68-8f31-0c5ad2764e19}" SpecialFunc="None">
+    <Declaration><![CDATA[// §3.8b probe: a leaf module that declares one editable value of each storage
+// class, so the registry can be tested where it actually lives — on a child,
+// reached by the root's recursive walk rather than by the root's own handler.
+// Values are plain VAR_INPUT here (configuration data, per the transport
+// contract): this suite proves registration, validation and routing, while
+// retention is TwinCAT's job and is not what these tests assert.
+FUNCTION_BLOCK FB_ProbeConfigCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    SettleTime : TIME := T#500MS;
+    Retries    : DINT := 3;
+    Enabled    : BOOL := TRUE;
+    Label      : STRING(80) := 'default';
+    // Test seam for the module-invariant hook: the one candidate this module
+    // refuses whatever its type and range say.
+    RefuseText : STRING(255);
+END_VAR
+VAR_OUTPUT
+    RefusedCount : UDINT;            // proves the hook ran, not just that a write failed
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{1f8a4b93-6d27-4e50-b8c1-3907e5ad2f64}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+Setup := M_RegisterConfigDuration(Key := 'probe.settleTime',
+    Item := 'StationCfg/SettleTime', LabelKey := 'project.test.settleTime',
+    Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(SettleTime),
+    MinimumMs := 0, MaximumMs := 5000, RequiresReady := TRUE);
+Setup := M_RegisterConfigNumber(Key := 'probe.retries',
+    Item := 'StationCfg/Retries', LabelKey := 'project.test.retries', Unit := '',
+    Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_DINT,
+    pTarget := ADR(Retries), Minimum := 0.0, Maximum := 10.0,
+    RequiresReady := FALSE) AND Setup;
+Setup := M_RegisterConfigFlag(Key := 'probe.enabled',
+    Item := 'StationCfg/Enabled', LabelKey := 'project.test.enabled',
+    Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(Enabled),
+    RequiresReady := FALSE) AND Setup;
+Setup := M_RegisterConfigWrite(Key := 'probe.label',
+    Item := 'StationCfg/Label', Revision := 2, Kind := E_ConfigKind.STATION_CFG,
+    ValueType := E_ConfigValueType.TEXT, Storage := E_ConfigStorage.AS_STRING,
+    pTarget := ADR(Label), RequiresReady := FALSE, HasMinimum := FALSE,
+    HasMaximum := FALSE, Minimum := 0.0, Maximum := 0.0, Unit := '',
+    LabelKey := 'project.test.label', MaxLength := 80,
+    EnumDomain := '') AND Setup;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{c40b7e26-8951-4f3d-a207-6be1d9f45830}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Complete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_OnConfigWrite" Id="{9b26f0a8-3e14-47d2-85cb-71f0ae63d925}">
+      <Declaration><![CDATA[// §3.10.2 — the module-specific invariant hook. Refuses one candidate outright
+// so the suite can prove a hook rejection leaves the value untouched, exactly
+// like a range rejection does.
+METHOD PROTECTED _M_OnConfigWrite : BOOL
+VAR_INPUT
+    WriteKey  : STRING(160);
+    TextValue : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_OnConfigWrite := SUPER^._M_OnConfigWrite(WriteKey := WriteKey,
+    TextValue := TextValue);
+IF (RefuseText <> '') AND (TextValue = RefuseText) THEN
+    RefusedCount := RefusedCount + 1;
+    _M_OnConfigWrite := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
