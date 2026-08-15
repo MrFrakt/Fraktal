@@ -162,6 +162,39 @@ ELSE
         self.assertIn("_outCmd", continuous)
 
 
+class CommandLineTests(unittest.TestCase):
+    '''The invocation CI uses, which no test covered.
+
+    `checks` is a nargs="*" positional. Give argparse a `choices=` alongside
+    that and Python <= 3.12 validates the empty DEFAULT against choices, so the
+    documented no-argument form ("run everything") dies with
+    `invalid choice: '[]'` and exit 2 - a broken CLI, not a failing gate.
+    Python 3.13 stopped doing it, so on a newer interpreter the bug is
+    invisible. It survived because every caller either named all three checks
+    explicitly or ran a new enough Python; the first hosted job to run the bare
+    form found it immediately.
+
+    These call the parser in-process rather than shelling out, so they assert
+    the behaviour on whatever interpreter is running the suite.
+    '''
+
+    def _parse(self, argv):
+        import tools.check_consistency as cc
+        return cc.build_parser().parse_args(argv)
+
+    def test_no_arguments_selects_every_check(self):
+        self.assertEqual(self._parse([]).checks, [])
+
+    def test_named_checks_are_kept(self):
+        self.assertEqual(self._parse(["parity"]).checks, ["parity"])
+
+    def test_an_unknown_check_is_still_rejected(self):
+        import tools.check_consistency as cc
+        with self.assertRaises(SystemExit) as raised:
+            cc.main(["check_consistency.py", "bogus"])
+        self.assertEqual(raised.exception.code, 2)
+
+
 class FindingTests(unittest.TestCase):
     def test_severity_is_visible_at_a_glance(self):
         self.assertTrue(str(Finding("x", "error", "f", "m")).startswith("ERROR"))

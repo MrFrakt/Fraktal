@@ -97,7 +97,15 @@ Reported := FALSE;]]></ST>
         M_Step(StepNo := 30, StepName := 'project.test.raiseCustom', Awaits := 0,
             AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
         IF SimCustom THEN
-            IF M_RaiseCustom(Reason := E_Reason.TEST_FAULT,
+            // A PROJECT BAND code (10000+), deliberately: M_RaiseCustom documents
+            // that Severity/Category are a proposal the §8.8 rationalization
+            // overrides for any REGISTERED reason, and every E_Reason member is
+            // registered by construction (the catalog generator refuses one that
+            // is not). Raising E_Reason.TEST_FAULT here therefore asserted the
+            // opposite of what the test says it proves: the registry's LOW/SYSTEM
+            // correctly replaced the step's HIGH/PROCESS. Only a band code the
+            // registry does not know keeps the step's own choice.
+            IF M_RaiseCustom(Reason := 10999,
                 DescriptionKey := 'project.test.customRaise',
                 Severity := E_Severity.HIGH, Category := E_Category.PROCESS,
                 LinkPath := _child.Name) THEN

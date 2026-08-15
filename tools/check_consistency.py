@@ -407,10 +407,23 @@ def emit_stubs(missing: dict[str, set[str]]) -> str:
 CHECKS = {"localization": None, "inventory": check_inventory, "parity": check_parity}
 
 
-def main(argv: list[str]) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """Separate from main() so the CLI itself is testable.
+
+    The one bug this gate has ever shipped was in argument parsing, not in a
+    check, and no test could reach it while the parser was a local.
+    """
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("checks", nargs="*", choices=sorted(CHECKS) + [], default=[],
+    # No `choices=` here on purpose. With nargs="*", argparse in Python <= 3.12
+    # validates the DEFAULT against choices, so an empty default makes the
+    # no-argument form - the documented "run everything" invocation - die with
+    # "invalid choice: '[]'" and exit 2. Python 3.13+ stopped doing that, which
+    # is why this survived: every caller either passed all three check names
+    # explicitly or ran a newer interpreter. Validate by hand instead, and keep
+    # the same message argparse would have produced.
+    parser.add_argument("checks", nargs="*", default=[],
+                        metavar="{" + ",".join(sorted(CHECKS)) + "}",
                         help="checks to run (default: all)")
     parser.add_argument("--root", default=str(PLC_ROOT), type=Path)
     parser.add_argument("--strict", action="store_true",
@@ -418,8 +431,17 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--emit", action="store_true",
                         help="print Dart stubs for missing localization keys")
     parser.add_argument("--quiet", action="store_true", help="only findings")
+    return parser
+
+
+def main(argv: list[str]) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv[1:])
 
+    unknown = [c for c in args.checks if c not in CHECKS]
+    if unknown:
+        parser.error(f"argument checks: invalid choice: {unknown[0]!r} "
+                     f"(choose from {', '.join(sorted(CHECKS))})")
     selected = args.checks or sorted(CHECKS)
     findings: list[Finding] = []
     missing: dict[str, set[str]] = {}

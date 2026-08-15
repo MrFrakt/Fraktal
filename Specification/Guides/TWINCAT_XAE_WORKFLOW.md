@@ -288,31 +288,47 @@ agent instructions, not by `Invoke-TwinCatBuild.ps1`.
 
 ### 6.0 First check the host can run a gate at all
 
-An engineering-only install compiles every solution and runs the whole
+An engineering-only install compiles every solution and passes the whole
 object-check gate, so a host can look fully capable and still have nowhere to
-download to. Establish this before planning a runtime session; it takes
-seconds and it is not visible from XAE succeeding.
+download to. One command settles it, and it is the ONLY one that does:
 
 ```powershell
-# 1. Is any usermode runtime instantiated, or only the shipped template?
-Get-ChildItem 'C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\Runtimes'
-# 2. Is a runtime registered at all?
-Test-Path 'HKLM:\SOFTWARE\WOW6432Node\Beckhoff\TwinCAT3\Runtimes'
-# 3. Does anything answer on the PLC's ADS port?
-cd FraktalCore/HMI/gateway; dart run tool/probe_sim_flag.dart <amsNetId> 851
+cd FraktalCore/HMI/gateway
+dart run tool/probe_sim_flag.dart <amsNetId> 851
 ```
-
-`UmRT_Template` alone, no `Runtimes` registry key, and ADS error **6**
-(target port not found) together mean **engineering only**: `TcSysSrv` runs
-and the AMS router listens on 48898, but there is no PLC to activate,
-download or start. That is the state of the current development host as of
-2026-08-14, which is why every recorded runtime result in `Evidence/` names a
-separate isolated VM or commissioning session rather than this machine.
 
 Distinguish the two ADS failures, because they send you to different places:
 error **6** is "the router answered, nothing is on that port" (no runtime, or
 the PLC is in Config mode); error **7** is "no such target" (routing or
 AmsNetId wrong). Only the second is a network problem.
+
+**Do not conclude "no runtime" from the filesystem.** A TwinCAT 4026 usermode
+runtime is instantiated under
+
+```
+C:\ProgramData\Beckhoff\TwinCAT\3.1\Runtimes\<InstanceName>\3.1\
+```
+
+and **not** beside the shipped `UmRT_Template` under `Program Files (x86)`,
+which stays empty however many instances exist. There is likewise no
+`HKLM:\SOFTWARE\WOW6432Node\Beckhoff\TwinCAT3\Runtimes` key to consult. This note
+previously recommended exactly those two checks and drew the wrong conclusion
+from them on a host that did have a working `UmRT_Default` instance: absence
+under `Program Files` proves nothing. `TcSysSrv` running only means the AMS
+router is up; the process that indicates a usermode runtime is
+`TcSystemServiceUm`.
+
+The instance directory is also where the evidence lives: `Boot/Plc/Port_851.*`
+is the downloaded boot application, `Boot/CurrentConfig.xml` the activated
+configuration, and `Boot/LoggedEvents.db` the TcEventLogger store.
+
+**`LoggedEvents.db` does not contain TcUnit results.** It is the §‑alarm/event
+API store and is empty on a test runtime. TcUnit reports through `ADSLOGSTR`,
+which reaches the AMS router log that XAE renders in its event view and which
+TwinCAT does not persist to disk anywhere on the target. That, not a missing
+hook, is why §9 records the runtime gate as un-automated: the numbers exist
+only in a live view, so a result is read by a person or by something that
+subscribes to the router log.
 
 ### 6.1 Target safeguards
 
