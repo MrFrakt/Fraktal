@@ -175,7 +175,7 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 
 ---
 
-## Status (2026-08-14)
+## Status (2026-08-15)
 
 **Proven at this revision**
 
@@ -183,8 +183,14 @@ AGENTS.md          working briefing for AI coding agents editing this repo
   `CheckAllObjects()` on
   **all five solutions** (Core, Modules, the Press bench, and both test
   projects) under **TwinCAT 4026**, green — re-run at this revision against
-  Core **`0.5.0.0`** after save-as-library and install, which is the step the
-  applications need before they can resolve anything added to Core.
+  Core **`0.5.0.0`** / Modules **`0.4.0.0`** after save-as-library and install,
+  which is the step the applications need before they can resolve anything
+  added to a library.
+- **PLC runtime tests, Core + Modules** — **98/98 across 30 suites, 0 failures**
+  on the development usermode runtime (2026-08-15), driven end-to-end by
+  `Invoke-TwinCatTcUnitGate.ps1`. First result at the current inventory; the
+  four suites that had never executed now run. Evidence in
+  [`Specification/Evidence/`](Specification/Evidence/).
 - **PLC runtime tests, Press bench** — **8/8 tests across 2 suites, 0 failures**
   on an isolated VM, validated by `FraktalCore/PLC/TwinCAT/tools/tcunit_to_junit.py`
   against the expected
@@ -201,8 +207,6 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 
 **Not proven at this revision**
 
-- **PLC runtime tests, Core + Modules** — expected **98 tests / 30 suites** from
-  source; **not run** since the project started compiling. No result is claimed.
 - **Ladder and SFC renditions of the press AUTO chain** — compiled,
   graph-verified and cross-checked step-for-step against their ST twin, but the
   language selector ships at ST, so they have never executed on a runtime.
