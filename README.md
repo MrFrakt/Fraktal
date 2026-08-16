@@ -175,7 +175,7 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 
 ---
 
-## Status (2026-08-15)
+## Status (2026-08-16)
 
 **Proven at this revision**
 
@@ -186,20 +186,30 @@ AGENTS.md          working briefing for AI coding agents editing this repo
   Core **`0.5.0.0`** / Modules **`0.4.0.0`** after save-as-library and install,
   which is the step the applications need before they can resolve anything
   added to a library.
-- **PLC runtime tests, Core + Modules** — **98/98 across 30 suites, 0 failures**
-  on the development usermode runtime (2026-08-15), driven end-to-end by
-  `Invoke-TwinCatTcUnitGate.ps1`. First result at the current inventory; the
-  four suites that had never executed now run. Evidence in
-  [`Specification/Evidence/`](Specification/Evidence/).
+- **PLC runtime tests, Core + Modules** — **106/106 across 31 suites, 0 failures**
+  on the development usermode runtime (2026-08-16). Every suite that had never
+  executed now runs, including `ConfigWriteTests` and `FB_Engineering_Tests`.
+  Evidence in [`Specification/Evidence/`](Specification/Evidence/).
+  **Run by an operator following the §6.2 procedure, not by the gate** —
+  `Invoke-TwinCatTcUnitGate.ps1` automates target selection and activation, but
+  its PLC login does nothing (see *Open* below), so an earlier claim that it
+  drove the run end-to-end has been withdrawn.
 - **PLC runtime tests, Press bench** — **8/8 tests across 2 suites, 0 failures**
   on an isolated VM, validated by `FraktalCore/PLC/TwinCAT/tools/tcunit_to_junit.py`
   against the expected
   runner identity and counts. Log, JUnit and SHA-256s in
   [`Specification/Evidence/`](Specification/Evidence/).
-- **PLC source gate** — `plc_lint.py`: **287 files clean in both build profiles**
+- **Press AUTO chain in all three sequence languages** — the Ladder and SFC
+  renditions have now **executed on the test-bench PLC** with the press demo
+  (2026-08-16), alongside the ST twin that ships by default. This is what turns
+  O2's three-language promise from graph equivalence into execution. No log is
+  archived for this run yet, so by the §8 evidence rule it is a recorded
+  observation rather than release evidence.
+- **PLC source gate** — `plc_lint.py`: **294 files clean in both build profiles**
   (modern and the 4024 legacy profile).
-- **Cross-artifact gate** — `check_consistency.py`: test inventory and ST↔LD
-  sequence-rendition parity clean.
+- **Cross-artifact gate** — `check_consistency.py --strict`: **0 errors, 0
+  warnings** across test inventory, localization and ST↔LD sequence-rendition
+  parity. Runs hosted on every commit.
 - **Toolchain** — **120 tests** over the tooling itself (72 in the TwinCAT
   binding's own `tools/`, 48 in the repository-level `tools/`).
 - **HMI** — `flutter analyze` clean and **235 tests passing** (4 intentional
@@ -207,17 +217,14 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 
 **Not proven at this revision**
 
-- **Ladder and SFC renditions of the press AUTO chain** — compiled,
-  graph-verified and cross-checked step-for-step against their ST twin, but the
-  language selector ships at ST, so they have never executed on a runtime.
 - **HMI builds** — `flutter build web`/`windows` succeeded as of **2026-08-02**
   and have not been re-run since; only analyze and the test suite were.
-- **§7.5 commissioning gates and §10.5.1 output forcing** — source-complete on
-  the TwinCAT binding and covered by a new TcUnit suite
-  (`FB_Engineering_Tests`) plus six HMI widget tests, but the PLC half has
-  **not executed on a runtime**: it inherits the Core + Modules gate below.
-  Forcing has never driven a physical terminal. Not implemented on
-  Allen-Bradley (Part III), deliberately.
+- **§7.5 commissioning gates and §10.5.1 output forcing** — the PLC half now
+  executes: `FB_Engineering_Tests` is green in the Core + Modules run above, so
+  the gate register, the standing annunciation and the fail-closed force gate
+  are proven in execution rather than argued from source. **Forcing has still
+  never driven a physical terminal.** Not implemented on Allen-Bradley
+  (Part III), deliberately.
 - **End-to-end over TF6100** — the Press bench has cycled on a *development*
   runtime, published over OPC UA and driven the generic HMI (config-manifest
   `QUERY_CONFIG`, `OPC.UA.DA` obscuring, live commanding). A development runtime
@@ -225,13 +232,20 @@ AGENTS.md          working briefing for AI coding agents editing this repo
 
 **Open**
 
-- The PLC compile and TcUnit CI jobs exist ([`ci.yml`](.github/workflows/ci.yml))
-  but stay **skipped** until a licensed self-hosted TwinCAT runner is registered,
-  so the hosted gate still does not compile the PLC (§1.5 makes that a *shall*).
-- **52 localization keys** referenced by shipping PLC code resolve in no
-  catalogue and render on the HMI as raw keys — 15 of them from Core itself.
-  `check_consistency.py --emit` generates the entries; reported as a warning
-  until the backlog is cleared.
+- **The PLC compile job is armed; the TcUnit job is not.** A licensed
+  self-hosted runner is registered with the `twincat` label and
+  `HAS_TWINCAT_RUNNER` is set, so `ci.yml` compiles the PLC from now on.
+  `HAS_TWINCAT_TEST_RUNTIME` stays unset deliberately — see the next item — and
+  neither check can be made *required* while the host carries trial licences
+  only, since renewal is an interactive captcha (§1.5 makes CI a *shall*).
+- **The gate cannot log in to the PLC.** `ITcPlcOnline.Login()` returns without
+  error, writes nothing to any DTE output pane, and leaves `IsLoggedIn` false
+  indefinitely. Everything up to activation is verified. The eliminations, and
+  why guide §9's "no hidden script logged in" now reads as a constraint rather
+  than a preference, are recorded in
+  [`TWINCAT_XAE_WORKFLOW.md`](Specification/Guides/TWINCAT_XAE_WORKFLOW.md) §9.1.
+  Reading a result is solved — `Read-TcUnitResults.ps1` pulls TcUnit's own
+  per-test results over ADS — but nothing can start the run for it to read.
 - Gateway read-tier parity for Web, live-transport and deployment-profile
   acceptance, and the remaining items in
   [`OBJECTIVES_AUDIT.md`](Specification/Reports/OBJECTIVES_AUDIT.md).
