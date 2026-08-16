@@ -23,8 +23,13 @@
       * `CheckAllObjects()` returns TRUE. A project that does not compile cannot
         be downloaded, and finding that out after activation wastes a restart.
 
-    It never generates a boot project, and `Stop` + `Logoff` run in `finally` so
-    an aborted run does not leave the PLC executing. Activating REWRITES the
+    It DOES generate a boot application, contrary to what this header claimed
+    until 2026-08-16: `Port_851.app` and `Port_851_boot.tizip` update on every
+    activation. Measured on a run that then failed at the login assertion, so no
+    download was involved - activation alone writes them. What this gate does not
+    do is enable Autostart, so that boot application never starts by itself, and
+    the §5.7 rule holds. `Stop` + `Logoff` run in `finally` so an aborted run
+    does not leave the PLC executing. Activating REWRITES the
     source `.tsproj` and silently drops `BootProjectAutostart="false"` (XAE omits
     it because false is the default), so the file is snapshotted and restored.
 

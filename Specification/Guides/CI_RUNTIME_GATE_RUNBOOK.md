@@ -118,12 +118,20 @@ are listed in `TWINCAT_XAE_WORKFLOW.md` §9.1 — do not re-test them.
 
 ### Path C-1 — boot project + autostart (requires B2 narrowed)
 
-**C-1.0 Verify the premise first. Do not skip this.**
+**C-1.0 — verified 2026-08-16. The premise holds.**
 
-The claim is that activation already produces a runnable boot application. The
-evidence is suggestive but not conclusive, and
-`Invoke-TwinCatTcUnitGate.ps1`'s own header asserts the opposite ("It never
-generates a boot project"). One of those is wrong.
+Activation writes the boot application, with no login and no download involved.
+Measured on the local development runtime: the gate run started 14:33:56, failed
+at the login assertion (`IsLoggedIn` false, `OnlineOperationState` 0), and
+`Port_851.app` and `Port_851_boot.tizip` were nevertheless written at
+14:34:13–14. Nothing else was driving that runtime.
+
+`Invoke-TwinCatTcUnitGate.ps1`'s header asserted the opposite — "It never
+generates a boot project" — and has been corrected. **C-1 is therefore a live
+option, gated only on B2.**
+
+Repeat the check below on the isolated runtime before relying on it there, since
+the measurement above is from the development runtime:
 
 On the isolated runtime:
 
