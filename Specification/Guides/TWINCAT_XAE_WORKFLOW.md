@@ -222,9 +222,22 @@ and [`OutputWindowPane.TextDocument`](https://learn.microsoft.com/en-us/dotnet/a
 
 ### 5.2 Automated capture and visible fallback
 
-`FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatBuild.ps1` now loads the matching `EnvDTE80` interop,
-captures the DTE2 Error List, and snapshots every readable Output pane after the
-object check. Its per-solution log contains:
+`FraktalCore/PLC/TwinCAT/tools/TcXaeDte.ps1` loads the matching `EnvDTE80`
+interop, captures the DTE2 Error List, and snapshots every readable Output pane.
+It is dot-sourced by **both** `Invoke-TwinCatBuild.ps1` and
+`Invoke-TwinCatTcUnitGate.ps1`.
+
+That sharing is not tidiness. Until 2026-08-16 each gate carried its own copy,
+and the copies diverged: the TcUnit gate reached the Output window by walking
+`$Dte.Windows` probing `.Caption`, and read panes through `Selection.SelectAll()`.
+Both hit exactly the late-binding failure §5.1 warns about — `The property
+'Caption' cannot be found on this object` — so its capture threw on the first
+window and fell into a catch on *every* run. That gate had no Output-pane
+diagnostics at all, which is why an activation that silently did nothing was
+indistinguishable from a capture limitation for weeks. One implementation, so
+this section has one thing to be true about.
+
+The per-solution log contains:
 
 - `CheckAllObjects=True|False`;
 - `Dte2Interop=<loaded assembly>` or an explicit capture-unavailable reason;
@@ -450,3 +463,43 @@ Future automation may use the official Automation Interface, but target identity
 and destructive-state checks must remain explicit. Library creation can use
 `SaveAsLibrary(path, install := TRUE)`; online actions must stay isolated from all
 machine routes and preserve the same evidence boundaries.
+
+### 9.1 Attempted automation and what it measured (2026-08-16)
+
+`Invoke-TwinCatTcUnitGate.ps1` automates the engineering half of §6.2 under those
+conditions: it refuses to activate a target it was not given by name, asserts
+Autostart is disabled, and requires a clean `CheckAllObjects()`. Everything up to
+and including activation works — activation reports `Ready for download`, the
+runtime restarts into Run, and the application instance exists, is active, and
+reports ADS port 851.
+
+`ITcPlcOnline.Login()` does nothing. It returns immediately, writes no text to any
+of the ten DTE output panes, and leaves `IsLoggedIn` false with
+`OnlineOperationState` 0 indefinitely. Eliminated by measurement: all
+`PLC_LOGIN_FLAGS` combinations including `SILENT` and `FORCEDOWNLOAD`; 90 s of
+polling for asynchronous completion; an alternative DTE ProgID; the
+`Unknown TMC file version` warning, which also appears in *successful manual
+runs* and is therefore benign; releasing the tree item before use; and selecting
+the active application instance.
+
+The working explanation is that login requires answering the create/load prompt
+of §6.2 step 6, and a hidden `SuppressUI` DTE cannot answer it — a suppressed
+prompt is declined. On that reading the second bullet above records a
+**constraint, not a preference**, and closing it needs a mechanism that does not
+drive the IDE (TcUnit-Runner is the known one), not another login flag.
+
+Two rules follow, and they are the durable part:
+
+- **A void automation call that succeeds silently is not evidence.** `Login()`
+  and `Start()` both return `void` and both complete without error while doing
+  nothing. The gate now asserts `IsLoggedIn` and `PLC_APPSTATE_RUN` after them.
+  Revisions before this date asserted neither and reported clean exits for runs
+  in which no test executed — see the correction in
+  `Specification/Evidence/2026-08-15_Core_Modules_TcUnit.md`.
+- **Once the PLC is running by any route, the result no longer needs a human
+  reader.** `Read-TcUnitResults.ps1` reads TcUnit's own
+  `GVL_TcUnit.TestResults.TestSuiteResults` over ADS — per-suite and per-test,
+  with failure messages — and writes it in the summary format
+  `tcunit_to_junit.py` already validates. It waits on TcUnit's
+  `AllTestSuitesFinished` flag rather than a fixed window, and reads by name
+  through `ADSIGRP_SYM_VALBYNAME` so it consumes no symbol handles.

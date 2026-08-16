@@ -114,3 +114,9 @@ __pycache__/
 
 # --- Reference-only material kept locally, not published ---
 NexeedReferenceOnly/
+
+# --- Self-hosted GitHub Actions runner, if installed inside the working tree ---
+# The runner keeps a full second checkout under _work/, so an unguarded
+# `git add -A` would commit the runner binaries and a nested copy of this repo.
+# Installing it outside the repo is better; this is the safety net either way.
+actions-runner/

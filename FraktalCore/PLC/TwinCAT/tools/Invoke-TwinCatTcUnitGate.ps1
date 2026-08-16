@@ -34,16 +34,39 @@
 
     INCOMPLETE - DO NOT TREAT A CLEAN EXIT AS A PASSING GATE.
 
-    Everything up to and including PLC Start runs, and the log capture works:
-    the Error List yields the TwinCAT system rows around the restart. What has
-    NOT been observed is any `'PlcTask'` output at all - across a 40 s poll, zero
-    TcUnit rows appear, so the runner is not demonstrably executing and there is
-    no summary to validate. Either the download or the start is not taking
-    effect, or TcUnit's ADSLOGSTR output reaches a sink this does not read.
+    Measured 2026-08-16. Everything up to activation is verified: target
+    selection, the autostart assertion, a clean `CheckAllObjects()`, activation
+    ("Build complete -- 0 errors : Ready for download", "activating
+    configuration..."), the restart into Run, and an application instance that
+    exists, is already the active one, and reports ADS port 851.
 
-    Until that is resolved, a run of this script is evidence that the ENGINEERING
-    sequence is automatable, and nothing whatsoever about whether the tests pass.
-    Use the §6.2 operator procedure for an actual result.
+    `ITcPlcOnline.Login()` then does nothing at all. It returns immediately,
+    writes NO text to any of the ten DTE output panes, and leaves `IsLoggedIn`
+    false with `OnlineOperationState` 0 indefinitely. Tested and eliminated:
+    every `PLC_LOGIN_FLAGS` combination including SILENT and FORCEDOWNLOAD; 90 s
+    of polling in case the call is asynchronous; an alternative DTE ProgID; the
+    "Unknown TMC file version" warning (it appears in successful MANUAL runs
+    too, so it is benign); releasing the tree item before use; and selecting the
+    active application instance (§6.2 step 4, which this script had been
+    skipping - it was already correct).
+
+    What remains is that PLC login requires answering the create/load prompt of
+    §6.2 step 6, which a hidden `SuppressUI` DTE cannot answer - suppressing a
+    prompt declines it. On that reading §9's "no hidden script logged in,
+    downloaded, started, or stopped a PLC" records a CONSTRAINT, not merely a
+    policy choice, and automating the runtime step needs a different mechanism
+    (TcUnit-Runner drives it without DTE) rather than another flag.
+
+    This gate now FAILS at that point rather than continuing: it asserts
+    `IsLoggedIn` after login and `PLC_APPSTATE_RUN` after `Start()`, because both
+    calls are void and succeed silently when they do nothing. Revisions before
+    2026-08-16 asserted neither, and so reported clean exits - and produced
+    evidence - for runs in which no test ever executed. That is the failure this
+    header exists to prevent repeating.
+
+    Use the §6.2 operator procedure for an actual result. Once the PLC is running
+    by any route, `Read-TcUnitResults.ps1` reads the outcome over ADS with
+    per-test detail, so nobody has to transcribe the log window.
 
 .EXAMPLE
     powershell -File tools\Invoke-TwinCatTcUnitGate.ps1 `
@@ -59,6 +82,9 @@ param(
     [Parameter(Mandatory = $true)] [string] $ExpectedRunner,
     [Parameter(Mandatory = $true)] [int] $ExpectedTests,
     [Parameter(Mandatory = $true)] [int] $ExpectedSuites,
+    # Optional: point the solution at this runtime before the target assertion
+    # runs. The .tsproj is snapshotted and restored, so it never persists.
+    [string] $TargetNetId = '',
     [string] $Configuration = 'Debug',
     [string] $Platform = 'TwinCAT OS (x64)',
     [string] $DteProgId = 'VisualStudio.DTE.18.0',
@@ -97,26 +123,11 @@ namespace Fraktal.Tools {
 '@
 }
 
-# The Error List is reachable only through EnvDTE80.DTE2, and that interop
-# assembly has to be loaded explicitly - the base EnvDTE.DTE wrapper returns an
-# empty or missing property that looks exactly like a tooling dead end.
-$dteMajor = if ($DteProgId -match '\.(\d+)\.0$') { $Matches[1] } else { $null }
-$programFilesRoot = [Environment]::GetFolderPath('ProgramFiles')
-$dte2Candidates = [System.Collections.Generic.List[string]]::new()
-if ($null -ne $dteMajor) {
-    foreach ($edition in @('Community', 'Professional', 'Enterprise')) {
-        $dte2Candidates.Add((Join-Path $programFilesRoot "Microsoft Visual Studio\$dteMajor\$edition\Common7\IDE\PublicAssemblies\envdte80.dll"))
-    }
-}
-$dte2Candidates.Add((Join-Path $programFilesRoot 'Beckhoff\TcXaeShell\Common7\IDE\PublicAssemblies\envdte80.dll'))
-$dte2AssemblyPath = $dte2Candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if ($null -ne $dte2AssemblyPath) {
-    try { Add-Type -Path $dte2AssemblyPath -ErrorAction Stop } catch {
-        Write-Warning "envdte80.dll failed to load: $($_.Exception.Message)"
-    }
-} else {
-    Write-Warning 'envdte80.dll not found; the Error List cannot be captured'
-}
+# Release-ComObject, the envdte80 interop load, and Get-DteDiagnosticsSnapshot
+# are shared with Invoke-TwinCatBuild.ps1. This gate used to carry its own copy,
+# and that copy never captured a single Output pane - see TcXaeDte.ps1.
+. (Join-Path $PSScriptRoot 'TcXaeDte.ps1')
+Initialize-Dte2Interop -DteProgId $DteProgId
 
 function Get-PlcOnlineInterface {
     <#
@@ -135,16 +146,20 @@ function Get-PlcOnlineInterface {
       So query for the interface explicitly, exactly as the object-check gate
       does for `EnvDTE80.DTE2`.
     #>
-    param([object] $TreeItem)
+    param(
+        [object] $TreeItem,
+        [string] $InterfaceName = 'TCatSysManagerLib.ITcPlcOnline'
+    )
 
     $assembly = Get-ChildItem 'C:\Windows\assembly\GAC_MSIL\TCatSysManagerLib' -Recurse `
         -Filter 'TCatSysManagerLib.dll' -ErrorAction SilentlyContinue |
         Sort-Object FullName | Select-Object -Last 1
     if (-not $assembly) {
-        throw 'TCatSysManagerLib interop not found in the GAC; cannot reach ITcPlcOnline'
+        throw "TCatSysManagerLib interop not found in the GAC; cannot reach $InterfaceName"
     }
     $loaded = [System.Reflection.Assembly]::LoadFrom($assembly.FullName)
-    $interface = $loaded.GetType('TCatSysManagerLib.ITcPlcOnline')
+    $interface = $loaded.GetType($InterfaceName)
+    if ($null -eq $interface) { throw "$InterfaceName not present in the interop assembly" }
     $unknown = [System.Runtime.InteropServices.Marshal]::GetIUnknownForObject($TreeItem)
     $typed = $null
     try {
@@ -160,78 +175,6 @@ function Get-PlcOnlineInterface {
     ,$typed | Select-Object -First 1
 }
 
-function Release-ComObject {
-    param([object] $ComObject)
-    if ($null -ne $ComObject -and [System.Runtime.InteropServices.Marshal]::IsComObject($ComObject)) {
-        [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($ComObject)
-    }
-}
-
-function Get-CapturedLog {
-    <#
-      TcUnit reports through ADSLOGSTR, which XAE surfaces in the Error List and
-      the output panes - NOT in the runtime's event database, which stays empty
-      for these. Harvest both and let the caller's validator find the summary.
-    #>
-    param([object] $Dte)
-
-    $lines = [System.Collections.Generic.List[string]]::new()
-    $dte2 = $null
-    try {
-        $unknown = [System.Runtime.InteropServices.Marshal]::GetIUnknownForObject($Dte)
-        try {
-            $dte2 = [System.Runtime.InteropServices.Marshal]::GetTypedObjectForIUnknown(
-                $unknown, [EnvDTE80.DTE2])
-        } finally {
-            [void][System.Runtime.InteropServices.Marshal]::Release($unknown)
-        }
-        $toolWindows = [EnvDTE80.DTE2].GetProperty('ToolWindows').GetValue($dte2, $null)
-        $errorList = [EnvDTE80.ToolWindows].GetProperty('ErrorList').GetValue($toolWindows, $null)
-        $errorItems = [EnvDTE80.ErrorList].GetProperty('ErrorItems').GetValue($errorList, $null)
-        $count = [int][EnvDTE80.ErrorItems].GetProperty('Count').GetValue($errorItems, $null)
-        $lines.Add("# ErrorList rows: $count")
-        for ($index = 1; $index -le $count; $index++) {
-            $item = [EnvDTE80.ErrorItems].GetMethod('Item').Invoke($errorItems, @($index))
-            try {
-                $lines.Add([string][EnvDTE80.ErrorItem].GetProperty('Description').GetValue($item, $null))
-            } finally { Release-ComObject $item }
-        }
-        Release-ComObject $errorItems
-        Release-ComObject $errorList
-    } catch {
-        $lines.Add("# ErrorList capture failed: $($_.Exception.Message)")
-    }
-
-    try {
-        $outputWindow = $null
-        foreach ($window in $Dte.Windows) {
-            if ($window.Caption -eq 'Output' -or $window.Kind -eq 'Tool') {
-                try { if ($window.Object -and $window.Object.OutputWindowPanes) { $outputWindow = $window.Object; break } }
-                catch { }
-            }
-        }
-        if ($null -eq $outputWindow) { throw 'no Output window with panes' }
-        for ($paneIndex = 1; $paneIndex -le $outputWindow.OutputWindowPanes.Count; $paneIndex++) {
-            $pane = $outputWindow.OutputWindowPanes.Item($paneIndex)
-            try {
-                $document = $pane.TextDocument
-                $selection = $document.Selection
-                $selection.SelectAll()
-                $text = $selection.Text
-                if ($text) {
-                    $lines.Add("# ---- output pane: $($pane.Name) ----")
-                    $lines.Add($text)
-                }
-            } catch {
-                $lines.Add("# pane $paneIndex unreadable: $($_.Exception.Message)")
-            } finally { Release-ComObject $pane }
-        }
-    } catch {
-        $lines.Add("# Output pane capture failed: $($_.Exception.Message)")
-    }
-    return $lines -join [Environment]::NewLine
-}
-
 [Fraktal.Tools.GateMessageFilter]::Register()
 
 # This script ships inside the binding it builds, so the repository root - which
@@ -244,11 +187,25 @@ if (-not (Test-Path $artifactRoot)) { New-Item -ItemType Directory -Path $artifa
 $stamp = (Get-Date).ToString('yyyy-MM-dd_HHmmss')
 $rawLogPath = Join-Path $artifactRoot "$solutionName-$stamp.raw.log"
 
+# Snapshot the .tsproj BEFORE XAE is allowed to touch it. Merely OPENING the
+# solution rewrites the file and activating rewrites it again, and one of those
+# edits is destructive: XAE drops `BootProjectAutostart="false"` because false
+# is the default. That attribute is carried explicitly on purpose - it is the
+# record that a test application must never become a boot application, and the
+# .tsproj attribute alone did not take when it was first set, so losing it is
+# not cosmetic. Snapshotting after the open, as this did before, preserved XAE's
+# normalisation rather than the committed bytes. Taking it here is also what
+# makes -TargetNetId safe to apply. The activation's real output is on the
+# target, never in the source tree.
+$tsProjectPath = [System.IO.Path]::ChangeExtension($solutionPath, '.tsproj')
+$tsProjectBytes = $null
+if (Test-Path -LiteralPath $tsProjectPath) {
+    $tsProjectBytes = [System.IO.File]::ReadAllBytes($tsProjectPath)
+}
+
 $dte = $null
 $plcRoot = $null
 $online = $null
-$tsProjectPath = $null
-$tsProjectBytes = $null
 $started = $false
 $loggedIn = $false
 try {
@@ -284,6 +241,13 @@ try {
     $sysManager = $dte.Solution.Projects.Item(1).Object
 
     # ---- preconditions, all BEFORE anything is activated --------------------
+    # Selecting the target is the caller's job when -TargetNetId is supplied:
+    # CI's hook has to point this gate at an isolated runtime, and the only way
+    # to retarget before was to hand-edit a tracked .tsproj. The assertion below
+    # still runs, so a typo here is caught rather than activated.
+    if ($TargetNetId -ne '') {
+        $sysManager.SetTargetNetId($TargetNetId)
+    }
     $netId = [string]$sysManager.GetTargetNetId()
     Write-Host "  target NetId: $netId"
     if ($netId -ne $ExpectedNetId) {
@@ -305,18 +269,6 @@ try {
     Write-Host '  compiles clean'
 
     # ---- activate, download, run --------------------------------------------
-    # Activating REWRITES the .tsproj, and one of its edits is destructive: XAE
-    # drops `BootProjectAutostart="false"` because false is the default. The
-    # attribute is carried explicitly on purpose - it is the record that a test
-    # application must never become a boot application, and the .tsproj attribute
-    # alone did not take when it was first set, so losing it is not cosmetic.
-    # Snapshot the bytes and put them back; the activation's real output is on
-    # the target, not in the source tree.
-    $tsProjectPath = [System.IO.Path]::ChangeExtension($solutionPath, '.tsproj')
-        if (Test-Path -LiteralPath $tsProjectPath) {
-        $tsProjectBytes = [System.IO.File]::ReadAllBytes($tsProjectPath)
-    }
-
     Write-Host '  activating configuration'
     $sysManager.ActivateConfiguration()
     Write-Host '  restarting TwinCAT into Run'
@@ -331,39 +283,153 @@ try {
     # and a pointer taken before it survives as a stale generic __ComObject.
     $iecProject = $sysManager.LookupTreeItem($iecPath)
     $online = Get-PlcOnlineInterface -TreeItem $iecProject
-    Release-ComObject $iecProject
+    # Deliberately NOT released here. $online is a second RCW over the same COM
+    # identity as $iecProject, so dropping the tree item's reference while the
+    # online interface is still in use is a candidate reason Login() became a
+    # silent no-op - it returns cleanly, prints nothing to the Output pane, and
+    # leaves IsLoggedIn false. Released in the finally block with the rest.
+    Write-Host ("  online interface: loggedIn=$($online.IsLoggedIn)" +
+                " appState=$($online.OnlineApplicationState)" +
+                " opState=$($online.OnlineOperationState)")
 
-    # PLC_LOGIN_FLAGS_REGULAR (1) - a normal login that downloads when the
-    # target has no matching application. Not FORCEDOWNLOAD: that would hide a
-    # target mismatch by overwriting whatever was there.
+    # §6.2 step 4 of the workflow guide - "Select the test PLC as Active PLC
+    # Project" - has had no equivalent here, and PLC -> Login acts on the ACTIVE
+    # application instance. A login against no active instance is a no-op that
+    # returns cleanly and writes nothing to the Output pane, which is exactly
+    # what this gate has been doing. ITcPlcProjectInternal3 also reports the port
+    # the application really uses, worth logging rather than assuming 851.
+    $plcNodePath = (($iecPath -split '\^')[0..1] -join '^')
+    $plcNode = $sysManager.LookupTreeItem($plcNodePath)
+    $plcInternal = Get-PlcOnlineInterface -TreeItem $plcNode `
+        -InterfaceName 'TCatSysManagerLib.ITcPlcProjectInternal3'
+    # ITcPlcProjectInternal3 is IUnknown-only, so PowerShell cannot late-bind it
+    # ("does not contain a method named ..."). Go through reflection on the
+    # interface type, exactly as this file already does for the EnvDTE80 types.
+    $tcatAssembly = Get-ChildItem 'C:\Windows\assembly\GAC_MSIL\TCatSysManagerLib' -Recurse `
+        -Filter 'TCatSysManagerLib.dll' -ErrorAction SilentlyContinue |
+        Sort-Object FullName | Select-Object -Last 1
+    $iPlcInternal = [System.Reflection.Assembly]::LoadFrom($tcatAssembly.FullName).GetType(
+        'TCatSysManagerLib.ITcPlcProjectInternal3')
+    $invoke = {
+        param([string] $Method, [object[]] $MethodArgs)
+        $iPlcInternal.GetMethod($Method).Invoke($plcInternal, $MethodArgs)
+    }
+
+    $appName       = [string](& $invoke 'get_ApplicationName' $null)
+    $adsPort       = (& $invoke 'get_AdsPort' $null)
+    $instanceCount = [int](& $invoke 'GetApplicationInstanceCount' $null)
+    $activeInstance = [string](& $invoke 'GetActiveApplicationInstance' $null)
+    Write-Host ("  PLC app '$appName' adsPort=$adsPort" +
+                " instances=$instanceCount active='$activeInstance'")
+    if ([string]::IsNullOrWhiteSpace($activeInstance) -and $instanceCount -ge 1) {
+        $firstInstance = [string](& $invoke 'GetApplicationInstanceName' @([uint32]0))
+        Write-Host "  selecting active application instance '$firstInstance'"
+        & $invoke 'SetActiveApplicationInstance' @($firstInstance)
+        $activeInstance = [string](& $invoke 'GetActiveApplicationInstance' $null)
+        Write-Host "  active application instance is now '$activeInstance'"
+    }
+
+    # PLC_LOGIN_FLAGS_REGULAR (1) | PLC_LOGIN_FLAGS_SILENT (256).
+    #
+    # SILENT is not optional here, and leaving it off is why this gate reported
+    # success for weeks while testing nothing. A regular login asks before it
+    # downloads a changed application; `$dte.SuppressUI = $true` suppresses the
+    # question rather than answering it, so the login returns without error and
+    # without an application. Start() then starts nothing, also without error,
+    # and the run window polls a PLC that was never running - which is exactly
+    # the "0 rows from PlcTask" signature every run produced.
+    #
+    # FORCEDOWNLOAD (4) is the automation equivalent of the manual step the
+    # workflow guide prescribes: "PLC -> Login. When prompted to create/load the
+    # application, answer Yes; this downloads the PLC application"
+    # (Guides/TWINCAT_XAE_WORKFLOW.md §6.2). SILENT suppresses that prompt, and a
+    # suppressed prompt is declined, not accepted - so SILENT alone logs in
+    # against nothing. FORCEDOWNLOAD supplies the "Yes".
+    #
+    # The old objection to it - that it hides a target mismatch - is already
+    # answered by the -ExpectedNetId assertion above, which refuses to activate
+    # anything it did not name. §9 permits exactly this ("future automation may
+    # use the official Automation Interface, but target identity and
+    # destructive-state checks must remain explicit"); both checks are intact.
+    #
+    # Login is ASYNCHRONOUS. It returns as soon as the download is under way, so
+    # IsLoggedIn read on the next line is still false and proves nothing - the
+    # fixed `Start-Sleep 10` this replaces was covering exactly that, silently
+    # and with no idea whether ten seconds was enough for the project at hand.
+    # Poll the real property instead, and fail loudly if it never comes true.
     Write-Host '  PLC login (downloads the application)'
-    $online.Login(1)
+    $online.Login(1 -bor 4 -bor 256)
     $loggedIn = $true
-    Start-Sleep -Seconds 10   # let the download settle before Start()
+    $loginBy = [DateTime]::UtcNow.AddSeconds(90)
+    while (-not $online.IsLoggedIn) {
+        if ([DateTime]::UtcNow -ge $loginBy) {
+            # Dump XAE's own diagnostics before unwinding - the reason a silent
+            # login refused is in the Output pane and nowhere else.
+            try {
+                Set-Content -LiteralPath $rawLogPath -Encoding utf8 -Value (Get-DteDiagnosticsSnapshot -Dte $dte)
+            } catch { Write-Warning "diagnostic capture failed: $($_.Exception.Message)" }
+            throw ("PLC login never completed: IsLoggedIn stayed false, " +
+                   "operation state $($online.OnlineOperationState); " +
+                   "XAE diagnostics written to $rawLogPath")
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    Write-Host '  logged in (application downloaded)'
     Write-Host '  PLC start'
     $online.Start()
     $started = $true
 
-    # Poll rather than sample once at the end. The Error List is a live view, and
-    # a single read after the fact cannot tell "the tests never ran" apart from
-    # "the rows were there and I looked at the wrong moment".
-    Write-Host "  running, polling the log for $RunSeconds s"
-    $seen = [System.Collections.Generic.List[string]]::new()
-    $known = [System.Collections.Generic.HashSet[string]]::new()
-    $until = [DateTime]::UtcNow.AddSeconds($RunSeconds)
-    while ([DateTime]::UtcNow -lt $until) {
-        foreach ($row in (Get-CapturedLog -Dte $dte) -split "`r?`n") {
-            if ($row -and $known.Add($row)) { $seen.Add($row) }
+    # Assert the application actually runs. Start() is void and throws nothing
+    # when it starts nothing, so without this the gate cannot tell "the tests
+    # passed" from "the tests never executed" - and it silently chose the former.
+    $runBy = [DateTime]::UtcNow.AddSeconds(30)
+    while ($online.OnlineApplicationState -ne 1) {   # PLC_APPSTATE_RUN
+        if ([DateTime]::UtcNow -ge $runBy) {
+            throw ("PLC did not reach RUN after Start(): application state " +
+                   "$($online.OnlineApplicationState), operation state " +
+                   "$($online.OnlineOperationState)")
         }
-        Start-Sleep -Seconds 3
+        Start-Sleep -Milliseconds 500
     }
-    $captured = $seen -join [Environment]::NewLine
-    Set-Content -LiteralPath $rawLogPath -Encoding utf8 -Value $captured
-    $plcRows = @($seen | Where-Object { $_ -match "'PlcTask'" }).Count
-    Write-Host "  captured $($seen.Count) distinct rows, $plcRows from PlcTask"
-    Write-Host "  raw log: $rawLogPath"
-    if ($captured -notmatch 'Test suites:\s*\d+') {
-        Write-Warning 'No TcUnit summary in the captured text. The run may still have passed - harvest the TwinCAT log window manually before concluding anything.'
+    Write-Host '  PLC is RUNNING'
+
+    # The result comes out of the PLC itself over ADS. TcUnit keeps the whole run
+    # in GVL_TcUnit, so this waits on its own completion flag instead of a fixed
+    # window, and reports which test failed rather than how many. The log poll
+    # below is the fallback for a target whose symbols cannot be reached - it is
+    # what this gate used to rely on, and it never once captured a summary.
+    $adsOk = $false
+    try {
+        & (Join-Path $PSScriptRoot 'Read-TcUnitResults.ps1') `
+            -NetId $netId -OutputLog $rawLogPath -TimeoutSeconds $RunSeconds
+        $adsOk = $true
+        Write-Host "  raw log: $rawLogPath"
+    } catch {
+        Write-Warning "ADS result read failed: $($_.Exception.Message)"
+    }
+
+    if (-not $adsOk) {
+        # Poll rather than sample once at the end. The Error List is a live view, and
+        # a single read after the fact cannot tell "the tests never ran" apart from
+        # "the rows were there and I looked at the wrong moment".
+        Write-Host "  running, polling the log for $RunSeconds s"
+        $seen = [System.Collections.Generic.List[string]]::new()
+        $known = [System.Collections.Generic.HashSet[string]]::new()
+        $until = [DateTime]::UtcNow.AddSeconds($RunSeconds)
+        while ([DateTime]::UtcNow -lt $until) {
+            foreach ($row in (Get-DteDiagnosticsSnapshot -Dte $dte) -split "`r?`n") {
+                if ($row -and $known.Add($row)) { $seen.Add($row) }
+            }
+            Start-Sleep -Seconds 3
+        }
+        $captured = $seen -join [Environment]::NewLine
+        Set-Content -LiteralPath $rawLogPath -Encoding utf8 -Value $captured
+        $plcRows = @($seen | Where-Object { $_ -match "'PlcTask'" }).Count
+        Write-Host "  captured $($seen.Count) distinct rows, $plcRows from PlcTask"
+        Write-Host "  raw log: $rawLogPath"
+        if ($captured -notmatch 'Test suites:\s*\d+') {
+            Write-Warning 'No TcUnit summary in the captured text. The run may still have passed - harvest the TwinCAT log window manually before concluding anything.'
+        }
     }
 }
 finally {
@@ -373,6 +439,7 @@ finally {
         if ($loggedIn) { try { $online.Logoff() } catch { Write-Warning "Logoff failed: $($_.Exception.Message)" } }
         Release-ComObject $online
     }
+    Release-ComObject $iecProject
     Release-ComObject $plcRoot
     if ($null -ne $dte) {
         try { $dte.Solution.Close($false) } catch { }

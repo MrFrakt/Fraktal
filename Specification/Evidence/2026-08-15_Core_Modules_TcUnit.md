@@ -56,10 +56,23 @@ committed wrapper names — that VM was unreachable. A development runtime is no
 machine, and this is not a machine-acceptance result.
 
 Driven by `tools/Invoke-TwinCatTcUnitGate.ps1`, which performed target check,
-autostart assertion, activation, download, PLC login and PLC start
-automatically. It captured **no** TcUnit output: TcUnit reports through
-`ADSLOGSTR` to the AMS router log, which TwinCAT renders in a live view and
-persists nowhere on the target — `Boot/LoggedEvents.db` is the alarm/event store
-and stays empty. The summary above was therefore read from the TwinCAT log
-window, which is why this record carries no raw-log hash. Automating that capture
-means subscribing to the router log; until then this gate has a person in it.
+autostart assertion, activation and download automatically. The summary above was
+read from the TwinCAT log window, which is why this record carries no raw-log
+hash.
+
+> **Correction, 2026-08-16.** This section originally also credited the gate with
+> "PLC login and PLC start", and attributed the empty capture to `ADSLOGSTR`
+> output being unpersistable. Both claims were inferred from `Start()` returning
+> without error, and neither holds. Measured on 2026-08-16: after `Start()`, PLC
+> port 851 reports ADS state `Invalid` continuously and publishes no symbol table
+> at all, while the same ADS client reads `Run` correctly on ports 10000 and 300.
+> XAE also logs `Unknown TMC file version found - ignoring the file` for the
+> `Fraktal_Tests.tmc` it had just generated. **The application is downloaded but
+> never enters Run under this gate**, so there was never any TcUnit output to
+> capture — every run recorded 0 rows from `PlcTask`.
+>
+> The 98/98 result itself stands: 98 tests genuinely executed and passed, with a
+> real duration, and the test fixes and framework findings above are unaffected.
+> What is withdrawn is the claim that the automated gate executed them. It did
+> not; a person did, in XAE. Until the run step is fixed, this gate compiles,
+> activates and downloads — it does not test.
