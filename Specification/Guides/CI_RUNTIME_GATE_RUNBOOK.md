@@ -392,3 +392,62 @@ What replaces item 2 in practice: run the §6.2 operator procedure when a runtim
 result is wanted — before a release, or after a change to a reusable type — and
 read the outcome with `Read-TcUnitResults.ps1` rather than transcribing the log
 window. Retain the §8 evidence set for any run that is meant to support a claim.
+
+---
+
+## F. The manual runtime run
+
+Proven 2026-08-16 and recorded in
+`Specification/Evidence/2026-08-17_Core_Modules_TcUnit.md`. **This is now the only
+thing standing between a change and a regression**, because CI compiles but does
+not execute. Ten module types ship with suites today and nothing forces them to
+run; treat this as a discipline, not a convenience.
+
+### F1. When to run it
+
+- before a release;
+- after any change to `Fraktal_Core` or `Fraktal_Modules`;
+- after adding a module type — which is every step of phase 4.
+
+### F2. How
+
+1. Open the gate solution in XAE, select the local target, **Activate
+   Configuration**, then **PLC → Login → Yes → Start** (§6.2).
+2. While it is still running, read the result:
+
+```powershell
+.\FraktalCore\PLC\TwinCAT\tools\Read-TcUnitResults.ps1 `
+  -NetId <TARGET_NETID> -OutputLog artifacts\tcunit\manual.log
+
+python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py `
+  artifacts\tcunit\manual.log artifacts\tcunit\manual.junit.xml `
+  --gate-name CoreModules --expected-tests <N> --expected-suites <M> `
+  --expected-runner PRG_TcUnitRunner
+```
+
+3. For a run meant to support a claim, copy both files into
+   `Specification/Evidence/` under a dated name and write the record with the §8
+   identity set. `2026-08-17_Core_Modules_TcUnit.md` is the template.
+
+`Invoke-TwinCatTcUnitGate.ps1 -Interactive` automates steps 1 and 2 apart from the
+download prompt, which it puts on the operator's desktop. Useful, but it is not
+the documented path and it activates — read §6.1 before pointing it anywhere.
+
+### F3. The counts are pinned in three places
+
+`ci.yml`, guide §6.3, and every evidence record. **Every new module type changes
+all three.** Derive them from source rather than trusting any table: the suite
+count is the runner POU's `VAR` block, the test count is the `TEST('…')` calls in
+the suites it instantiates. A suite that exists but is not instantiated does not
+run, and would leave the log's own totals self-consistent while silently
+under-testing.
+
+Current: **106 tests / 31 suites** (Core+Modules), **8 / 2** (Press).
+
+### F4. Housekeeping that bites
+
+XAE strips `BootProjectAutostart="false"` and `TargetNetId` from the `.tsproj`
+whenever it opens or activates the solution. Both gates snapshot and restore
+them, but an abort between snapshot and restore leaves the stripped file in the
+tree — this happened three times on 2026-08-16. **Check `git status` after a
+manual session**, and `git checkout --` the wrapper if it shows modified.
