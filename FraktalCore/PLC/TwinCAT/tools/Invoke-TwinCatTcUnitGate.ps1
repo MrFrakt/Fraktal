@@ -93,6 +93,13 @@ param(
     [string] $Configuration = 'Debug',
     [string] $Platform = 'TwinCAT OS (x64)',
     [string] $DteProgId = 'VisualStudio.DTE.18.0',
+    # Show XAE and let it prompt. PLC login asks before downloading a changed
+    # application (guide §6.2 step 6); a hidden SuppressUI shell cannot answer,
+    # and a suppressed prompt is declined - which is why the automated login is a
+    # silent no-op (§9.1). With this switch the dialog appears on the operator's
+    # desktop, one click answers it, and the rest of the gate proceeds unattended.
+    # Not for CI: it needs a human present, by definition.
+    [switch] $Interactive,
     [int] $RunSeconds = 40,
     [string] $ArtifactDirectory = 'artifacts\tcunit'
 )
@@ -216,8 +223,11 @@ $loggedIn = $false
 try {
     Write-Host "Gate $solutionName -> $ExpectedNetId (expect $ExpectedRunner, $ExpectedTests tests / $ExpectedSuites suites)"
     $dte = New-Object -ComObject $DteProgId
-    $dte.SuppressUI = $true
-    $dte.MainWindow.Visible = $false
+    $dte.SuppressUI = -not $Interactive
+    $dte.MainWindow.Visible = [bool]$Interactive
+    if ($Interactive) {
+        Write-Host '  INTERACTIVE: XAE is visible. Answer the download prompt when it appears.'
+    }
     $dte.Solution.Open($solutionPath)
     $deadline = [DateTime]::UtcNow.AddMinutes(3)
     while (-not $dte.Solution.IsOpen) {
@@ -362,8 +372,21 @@ try {
     # fixed `Start-Sleep 10` this replaces was covering exactly that, silently
     # and with no idea whether ten seconds was enough for the project at hand.
     # Poll the real property instead, and fail loudly if it never comes true.
-    Write-Host '  PLC login (downloads the application)'
-    $online.Login(1 -bor 4 -bor 256)
+    # REGULAR (1) and FORCEDOWNLOAD (4) are MUTUALLY EXCLUSIVE. Measured
+    # 2026-08-16: passing both raises "Login aborted: Conflicting flag settings
+    # detected ('Regular' and '0x00000004')". With SILENT set that dialog is
+    # suppressed, so the login returns cleanly, IsLoggedIn stays false, and
+    # nothing appears in any Output pane - the exact signature that made this a
+    # silent no-op for weeks. Never combine them.
+    #
+    #   interactive : REGULAR alone, no SILENT. The download prompt reaches a
+    #                 person, who answers it.
+    #   unattended  : FORCEDOWNLOAD | SILENT. FORCEDOWNLOAD replaces REGULAR
+    #                 rather than supplementing it - it is the "download without
+    #                 asking" mode, so there is no prompt for SILENT to decline.
+    $loginFlags = if ($Interactive) { 1 } else { 4 -bor 256 }
+    Write-Host "  PLC login (downloads the application), flags=$loginFlags"
+    $online.Login($loginFlags)
     $loggedIn = $true
     $loginBy = [DateTime]::UtcNow.AddSeconds(90)
     while (-not $online.IsLoggedIn) {

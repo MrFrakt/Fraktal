@@ -69,7 +69,11 @@ function Get-TcUnitSymbolDiagnostics {
         $hits = [System.Collections.Generic.List[string]]::new()
         foreach ($sym in $loader) {
             $all++
-            if ($sym.Name -match 'TcUnit') { $hits.Add("    $($sym.Name) : $($sym.Type)") }
+            # Name only. TcAdsSymbolInfo exposes both `Datatype` and `DataType`,
+            # which PowerShell refuses to bind ("differs only in letter casing
+            # ... must be CLS compliant"), and that exception aborted the whole
+            # enumeration - hiding the very names this diagnostic exists to show.
+            if ($sym.Name -match 'TcUnit') { $hits.Add("    $($sym.Name)") }
         }
         $lines.Add("  published top-level symbols: $all")
         if ($hits.Count -eq 0) { $lines.Add('    (none contain "TcUnit")') }
@@ -91,7 +95,11 @@ try {
     $root = $null
     $resolveBy = [DateTime]::UtcNow.AddSeconds(20)
     while ($null -eq $root -and [DateTime]::UtcNow -lt $resolveBy) {
-        foreach ($candidate in @('GVL_TcUnit', 'TcUnit.GVL_TcUnit', 'Fraktal_Tests.GVL_TcUnit')) {
+        # `AllTestSuitesFinished` and `TestResults` are members of FB_TcUnitRunner,
+        # NOT of GVL_TcUnit itself - the GVL publishes only 14 symbols and neither
+        # is among them. The runner instance is `GVL_TcUnit.TcUnitRunner`, so that
+        # is the root everything hangs off. Verified against a live symbol upload.
+        foreach ($candidate in @('GVL_TcUnit.TcUnitRunner', 'TcUnit.GVL_TcUnit.TcUnitRunner', 'GVL_TcUnit')) {
             try {
                 [void](Read-SymBool $client "$candidate.AllTestSuitesFinished")
                 $root = $candidate
