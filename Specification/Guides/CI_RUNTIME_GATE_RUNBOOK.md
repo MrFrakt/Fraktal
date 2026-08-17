@@ -21,14 +21,27 @@ lives in a conversation gets re-litigated.
 
 | | Decision | Consequence |
 |---|---|---|
-| **Autostart rule** | Investigate **load-on-demand** first (§C-1.3) rather than narrowing §5.7 or building a separate toolchain | §5.7 stands unchanged for now |
-| **Licensing** | Stay on **trial**; may change if the project warrants it | Checks run **advisory**, never *required*; §E item 4 is out of scope |
-| **Isolated runtime** | **Hold.** Not standing up the isolated VM yet | §D is deferred; evidence stays qualified as development-runtime |
-| **Runner** | **On-demand, never left listening** | Registration persists; `run.cmd` is started deliberately, see §A5 |
+| **Autostart rule** | **§5.7 stands unchanged.** Not narrowed | C-1 is not implemented |
+| **Runtime gate** | **Stays manual**, by the §6.2 operator procedure | §C and §D are out of scope; §E item 2 is not pursued |
+| **Licensing** | Stay on **trial**; may change if the project warrants it | Checks run **advisory**, never *required*; §E item 4 out of scope |
+| **Isolated runtime** | **Hold.** Not standing up the isolated VM yet | Evidence stays qualified as development-runtime |
+| **Runner** | **On-demand, never left listening** | Registration persists; `run.cmd` started deliberately, see §A5 |
 
-The autostart decision matters most: §5.7's prohibition is **not** being narrowed,
-so path C-1 is on hold behind the C-1.3 investigation. Do not implement C-1
-without revisiting it.
+**What this means, stated plainly.** The compile gate is closed and running. The
+runtime gate is not being automated: §5.7 keeps its blanket autostart
+prohibition, and the only mechanisms that would start a PLC unattended either
+require narrowing that rule (C-1) or a separate toolchain (C-2). Neither is being
+taken.
+
+The honest consequence is that **§5.7's "green in CI" stays unreachable for every
+module type**, so conformance claims remain per-release and hand-run rather than
+continuous. That is a deliberate position, not an oversight: a §6.2 operator run
+produces genuine results, and `Read-TcUnitResults.ps1` removes the transcription
+step once a PLC is running by any route.
+
+§C and §D below are retained as the record of what was investigated and what the
+options cost, should the position change. **Do not implement them without
+revisiting the decisions above.**
 
 ---
 
@@ -250,34 +263,41 @@ Keep both existing safeguards intact; §9 permits automation only with them:
 the `-ExpectedNetId` refusal, and a hard failure if the target has any I/O
 configured.
 
-### Path C-1.3 — load the boot project on demand (investigate first)
+### Path C-1.3 — load the boot project on demand — **investigated, does not exist**
 
-**This is the chosen next step, ahead of both C-1 and C-2.**
+This was proposed as a way to avoid the §5.7 decision entirely: if the runtime
+could be told to load a boot project *as an action*, the gate would get a running
+application with no login and no prompt while Autostart stayed disabled. The
+premise was `PLC_OPSTATE_LOADBOOTPROJECT` (8192).
 
-C-1 requires narrowing §5.7 because *Autostart* is a persistent setting: it arms
-the application to start on every subsequent boot, which is exactly the hazard the
-rule names. But arming it permanently may not be necessary. `PLC_OPSTATE` includes
-`PLC_OPSTATE_LOADBOOTPROJECT` (8192), which suggests the runtime can be told to
-load a boot project **as an action** rather than configured to auto-load one.
+**It was a misreading, resolved 2026-08-16. Do not re-open it.**
 
-If that is reachable — over ADS, or through the automation interface — the gate
-gets what it needs (an application running with no login and no prompt) while
-Autostart stays disabled and §5.7 stands unchanged. No rule to narrow, no
-persistent armed state to clean up, and the Aug-6 stale-marker failure mode cannot
-recur.
+`PLC_OPSTATE` appears in `TCatSysManagerLib` *only* as the return type of
+`get_OnlineOperationState`. It is never a parameter to anything. It is a status
+readout: `LOADBOOTPROJECT` reports that the runtime **is** loading a boot project,
+and cannot be used to ask for one.
 
-Worth roughly thirty minutes before committing to either branch below:
+A full sweep of the library for members matching Boot / Load / Download /
+Activate / Restart gives the complete boot surface, and there is no load action in
+it:
 
-1. Enumerate what `ITcPlcOnline` and the PLC ADS port accept beyond
-   `Login`/`Start`/`Stop`/`Reset` — reflection over `TCatSysManagerLib` is how the
-   login enums were found (see §9.1 of the workflow guide).
-2. Check whether ADS port 851 accepts a state write that loads the resident boot
-   application, given activation has already written `Port_851.app`.
-3. If it works, the gate changes by a few lines and G9 closes without touching
-   any rule.
+| Member | Effect |
+|---|---|
+| `GenerateBootProject(Boolean)` | creates a boot project |
+| `get/set_BootProjectAutostart(Boolean)` | reads/sets the persistent flag |
+| `CreateOfflineBootPrj(String)` | offline creation |
+| `ActivateConfiguration()`, `StartRestartTwinCAT()` | already called by the gate |
+| `BeforeDownload` / `AfterDownload` | notification hooks, not commands |
 
-If it does not, return here and choose between C-1 (requires narrowing §5.7) and
-C-2.
+`TcXaeMgmt` is not installed, and would not change the conclusion: loading an
+application requires either a download or a boot-load. There is no third
+mechanism.
+
+**One useful result.** `set_BootProjectAutostart(Boolean)` is settable at runtime
+through automation, so C-1's *transient* variant — arm, activate, restart, run,
+read, disarm, re-activate within a single run — is mechanically clean and needs no
+file manipulation. The implementation is small. What blocks C-1 is therefore
+entirely the rule, and always was.
 
 ### Path C-2 — drive the runtime without the IDE (no rule change)
 
@@ -353,14 +373,22 @@ does not run, and would make the log self-consistent while silently under-testin
 
 ## E. Exit criteria
 
-Phase 2 is finished when all of these hold:
+Phase 2 as originally scoped is finished when all of these hold:
 
 1. `PLC object check` green on `main` from a clean clone, on a runner that
-   survives more than one job.
+   survives more than one job. — **met** (`0e16d51`, `313c317`, `e9af27f`).
 2. `PLC TcUnit` green on an isolated runtime, **started and read without a
-   person**, reporting 106/31 and 8/2 with matching runner identities.
-3. JUnit and log hashes archived under `Specification/Evidence/`.
-4. Both checks required on `main` — **gated on B1**, not on engineering.
+   person**, reporting 106/31 and 8/2 with matching runner identities. — **not
+   pursued**, per the decisions above.
+3. JUnit and log hashes archived under `Specification/Evidence/`. — follows 2.
+4. Both checks required on `main`. — **out of scope** while licences are trial.
 
-Items 1–3 are achievable now. Item 4 waits on a permanent licence, and saying so
-is more useful than pretending the gap is technical.
+**Only item 1 is being pursued, and it is done.** Recording the rest as *not
+pursued* rather than *pending* is the point: an exit criterion nobody intends to
+meet is not a plan, and a status page that lists it as outstanding work
+misrepresents where the project actually stands.
+
+What replaces item 2 in practice: run the §6.2 operator procedure when a runtime
+result is wanted — before a release, or after a change to a reusable type — and
+read the outcome with `Read-TcUnitResults.ps1` rather than transcribing the log
+window. Retain the §8 evidence set for any run that is meant to support a claim.
