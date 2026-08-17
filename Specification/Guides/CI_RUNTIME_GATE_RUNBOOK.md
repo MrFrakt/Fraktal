@@ -14,6 +14,24 @@ Read §A and §B before doing anything: §B contains two decisions that change w
 
 ---
 
+## Decisions taken (2026-08-16)
+
+Recorded here because §C and §D branch on them, and because a decision that only
+lives in a conversation gets re-litigated.
+
+| | Decision | Consequence |
+|---|---|---|
+| **Autostart rule** | Investigate **load-on-demand** first (§C-1.3) rather than narrowing §5.7 or building a separate toolchain | §5.7 stands unchanged for now |
+| **Licensing** | Stay on **trial**; may change if the project warrants it | Checks run **advisory**, never *required*; §E item 4 is out of scope |
+| **Isolated runtime** | **Hold.** Not standing up the isolated VM yet | §D is deferred; evidence stays qualified as development-runtime |
+| **Runner** | **On-demand, never left listening** | Registration persists; `run.cmd` is started deliberately, see §A5 |
+
+The autostart decision matters most: §5.7's prohibition is **not** being narrowed,
+so path C-1 is on hold behind the C-1.3 investigation. Do not implement C-1
+without revisiting it.
+
+---
+
 ## A. Restore the compile gate
 
 The runner was registered `--ephemeral`, which accepts exactly one job and then
@@ -58,7 +76,48 @@ Push anything, or use **Actions → CI → Run workflow**. Expect
 `PLC object check (self-hosted TwinCAT)` to complete in roughly three minutes
 with `PLC TcUnit (isolated runtime)` skipped.
 
-**Exit:** two consecutive green object-check runs on `main`.
+**Exit:** two consecutive green object-check runs on `main`. **Met** —
+`0e16d51` and `313c317`.
+
+### A5. Operating model: on-demand, never left listening
+
+The repository is public and the runner reaches a machine with a licensed XAE and
+a PLC runtime. GitHub advises self-hosted runners only on private repositories.
+Rather than leave a listener up unattended, the runner **stays registered but is
+started deliberately**.
+
+Because a runner with matching labels exists, `plc-object-check` **queues**
+instead of skipping when nothing is listening — GitHub holds it for roughly 24
+hours. `ci.yml` sets `cancel-in-progress: true` on a per-ref concurrency group,
+so consecutive pushes cancel the older queued run and only the newest survives.
+Work therefore accumulates as a single pending compile of the latest commit.
+
+To collect it:
+
+```powershell
+cd C:\Projects\actions-runner
+./run.cmd          # takes the queued job, ~3 minutes
+# Ctrl+C when it returns to "Listening for Jobs"
+```
+
+Do this before a release, and after any change to `Fraktal_Core` or
+`Fraktal_Modules` — a library change that breaks a consumer is the regression
+class this gate exists to catch, and it is the one that actually occurred here on
+2026-08-14.
+
+**Keep `HAS_TWINCAT_RUNNER` set to `true`.** Deleting it makes the job skip rather
+than queue, which looks tidier but discards the pending-compile behaviour that
+makes this model work. The cost of the model is that a run shows *in progress*
+until the runner is started; that is the intended trade, not a fault.
+
+Two standing conditions, since the runner is registered rather than removed:
+
+- **Fork-approval must stay at "Require approval for all outside collaborators."**
+  It is the control that prevents an unapproved fork PR queueing work that would
+  execute the moment `run.cmd` starts.
+- The runner lives at `C:\Projects\actions-runner`, outside the repository tree.
+  Keep it there; installed in-tree its `_work/` accumulates a second clone of
+  this repository inside itself.
 
 ---
 
@@ -190,6 +249,35 @@ problem.
 Keep both existing safeguards intact; §9 permits automation only with them:
 the `-ExpectedNetId` refusal, and a hard failure if the target has any I/O
 configured.
+
+### Path C-1.3 — load the boot project on demand (investigate first)
+
+**This is the chosen next step, ahead of both C-1 and C-2.**
+
+C-1 requires narrowing §5.7 because *Autostart* is a persistent setting: it arms
+the application to start on every subsequent boot, which is exactly the hazard the
+rule names. But arming it permanently may not be necessary. `PLC_OPSTATE` includes
+`PLC_OPSTATE_LOADBOOTPROJECT` (8192), which suggests the runtime can be told to
+load a boot project **as an action** rather than configured to auto-load one.
+
+If that is reachable — over ADS, or through the automation interface — the gate
+gets what it needs (an application running with no login and no prompt) while
+Autostart stays disabled and §5.7 stands unchanged. No rule to narrow, no
+persistent armed state to clean up, and the Aug-6 stale-marker failure mode cannot
+recur.
+
+Worth roughly thirty minutes before committing to either branch below:
+
+1. Enumerate what `ITcPlcOnline` and the PLC ADS port accept beyond
+   `Login`/`Start`/`Stop`/`Reset` — reflection over `TCatSysManagerLib` is how the
+   login enums were found (see §9.1 of the workflow guide).
+2. Check whether ADS port 851 accepts a state write that loads the resident boot
+   application, given activation has already written `Port_851.app`.
+3. If it works, the gate changes by a few lines and G9 closes without touching
+   any rule.
+
+If it does not, return here and choose between C-1 (requires narrowing §5.7) and
+C-2.
 
 ### Path C-2 — drive the runtime without the IDE (no rule change)
 
