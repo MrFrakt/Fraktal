@@ -241,5 +241,8 @@ try {
     [Fraktal.Tools.OleMessageFilter]::Revoke()
 }
 
-Write-Host ("Installed $($requested.Count) library/libraries. Reload placeholders and " +
+# @() so a single -Library argument still counts. A scalar has no .Count under
+# Set-StrictMode -Version Latest, which made the one-library path - the common
+# case when only Modules changed - fail AFTER a completely successful install.
+Write-Host ("Installed $(@($requested).Count) library/libraries. Reload placeholders and " +
             "compile every consumer before treating this as done (workflow 4.3).")

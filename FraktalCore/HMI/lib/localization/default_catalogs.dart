@@ -1315,7 +1315,7 @@ const standardSpanish = <String, String>{
       'Use Forzada solo cuando el paso realmente espera al operador, como '
       'seleccionar un modelo de cambio o confirmar que es seguro abrir las '
       'puertas. Bloquear el panel sin necesidad enseña a descartar la guía '
-      'sin leerla.'
+      'sin leerla.',
   'std.moduleType.separator.name': 'Separador',
   'std.moduleType.separator.description': 'Separador/tope que libera portapiezas de uno en uno',
   'std.command.separate': 'Separar',
