@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Separator_Tests" Id="{1dd48aaa-ee83-4019-95e1-ab2b602883aa}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex A separator/stopper. T1/T4 are proven once in FB_Base_Tests for every
+// inheriting type and are deliberately NOT repeated here (Core S5.7).
+//
+// The first test is the one that matters most: this type declares NO interlocks
+// of its own (S7.2.1), so the suite proves both halves of that contract - nothing
+// gates a station that declares nothing, and a condition the application declares
+// is fail-closed until the application drives it.
+FUNCTION_BLOCK FB_Separator_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _hal : ST_SeparatorHal;
+    _sep : FB_SeparatorCM;
+    _halT3 : ST_SeparatorHal;
+    _sepT3 : FB_SeparatorCM;
+    _halSep : ST_SeparatorHal;
+    _sepSep : FB_SeparatorCM;
+    _halNo : ST_SeparatorHal;
+    _sepNo : FB_SeparatorCM;
+    _halOc : ST_SeparatorHal;
+    _sepOc : FB_SeparatorCM;
+    _halBad : ST_SeparatorHal;
+    _sepBad : FB_SeparatorCM;
+    _i : INT;
+    _w1, _w2, _w3, _w4, _w5, _w6 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Library_declares_no_interlocks_and_application_conditions_are_fail_closed();
+Interlock_withholds_the_valve_and_holds_rather_than_faults();
+Separate_releases_one_carrier_and_completes();
+No_carrier_at_the_separator_faults_10001();
+Open_close_confirms_feedback_only_when_configured();
+Unsupported_command_is_rejected();]]></ST>
+    </Implementation>
+    <Method Name="Library_declares_no_interlocks_and_application_conditions_are_fail_closed" Id="{556120b1-3a6d-4e31-b91e-016f4db39071}">
+      <Declaration><![CDATA[METHOD Library_declares_no_interlocks_and_application_conditions_are_fail_closed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Library_declares_no_interlocks_and_application_conditions_are_fail_closed');
+IF NOT _w1 THEN
+    _sep.Setup(Name := 'Sep1', HalRef := _hal, Recipe := 0);
+    _sep();
+    // S7.2.1: a reusable type publishes no condition it cannot derive. A station
+    // that declares nothing is therefore not gated by anything.
+    AssertTrue(Condition := _sep.Intlk.AllOk,
+        Message := 'a library type that declares no interlock does not gate the station');
+    AssertTrue(Condition := _sep.DeclareCondition(Index := 1,
+            DescriptionKey := 'std.interlock.areaSafe',
+            Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE),
+        Message := 'the application may claim any index');
+    _sep();
+    // Declaring states an intent to gate, so the fail-closed default holds until
+    // the application actually drives it.
+    AssertFalse(Condition := _sep.Intlk.AllOk,
+        Message := 'a declared but undriven condition is fail-closed');
+    AssertTrue(Condition := _sep.SetCondition(Index := 1, Ok := TRUE),
+        Message := 'the application drives its own condition');
+    _sep();
+    AssertTrue(Condition := _sep.Intlk.AllOk,
+        Message := 'and the gate clears once it is satisfied');
+    AssertFalse(Condition := _sep.DeclareCondition(Index := 0,
+            DescriptionKey := 'std.interlock.areaSafe',
+            Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE),
+        Message := 'an out-of-range index is refused, not silently ignored');
+    _w1 := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Interlock_withholds_the_valve_and_holds_rather_than_faults" Id="{f73dd993-d3f9-45a4-9fcc-aeb6cb48e00e}">
+      <Declaration><![CDATA[METHOD Interlock_withholds_the_valve_and_holds_rather_than_faults]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Interlock_withholds_the_valve_and_holds_rather_than_faults');
+IF NOT _w2 THEN
+    _sepT3.Setup(Name := 'SepT3', HalRef := _halT3, Recipe := 0);
+    _sepT3.DeclareCondition(Index := 1, DescriptionKey := 'std.interlock.areaSafe',
+        Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+    _sepT3.SetCondition(Index := 1, Ok := FALSE);
+    _halT3.CarrierAt := TRUE;
+    _sepT3.Command := E_SeparatorCommand.SEPARATE;
+    _sepT3.Execute := TRUE;
+    FOR _i := 1 TO 5 DO
+        _sepT3();
+    END_FOR
+    // T3: the interlock withholds the output, and does so as a HELD wait rather
+    // than a fault - losing a condition mid-action is expected, not a defect.
+    AssertFalse(Condition := _halT3.ValveOpen,
+        Message := 'the valve is withheld while the condition is unsatisfied');
+    AssertTrue(Condition := _sepT3.Held, Message := 'and the module reports HELD');
+    AssertFalse(Condition := _sepT3.Error, Message := 'not an error');
+    AssertEquals_STRING(Expected := 'SepT3', Actual := _sepT3.Status.Diagnostic.SourcePath,
+        Message := 'the owning module sets the diagnostic source path');
+    _w2 := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Separate_releases_one_carrier_and_completes" Id="{67ae01ec-ce97-4d87-857e-242dec7ad010}">
+      <Declaration><![CDATA[METHOD Separate_releases_one_carrier_and_completes]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Separate_releases_one_carrier_and_completes');
+IF NOT _w3 THEN
+    _sepSep.Setup(Name := 'SepOk', HalRef := _halSep, Recipe := 0);
+    _sepSep.ParCfg.CheckAfter := FALSE;          // stopper variant: no downstream sensor
+    _halSep.CarrierAt := TRUE;
+    _sepSep.Command := E_SeparatorCommand.SEPARATE;
+    _sepSep.Execute := TRUE;
+    _sepSep(); _sepSep();
+    AssertTrue(Condition := _halSep.ValveOpen, Message := 'opening drives the valve');
+    _halSep.CarrierAt := FALSE;                  // the carrier leaves the separator
+    _sepSep(); _sepSep(); _sepSep();
+    AssertTrue(Condition := _sepSep.Done, Message := 'the command completes');
+    AssertTrue(Condition := _sepSep.OutCmd.SeparateOk, Message := 'and reports the release');
+    AssertFalse(Condition := _halSep.ValveOpen, Message := 'with the valve closed again');
+    _w3 := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="No_carrier_at_the_separator_faults_10001" Id="{9e18b139-53bd-41d9-9c8e-2103a0ca8849}">
+      <Declaration><![CDATA[METHOD No_carrier_at_the_separator_faults_10001]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('No_carrier_at_the_separator_faults_10001');
+IF NOT _w4 THEN
+    _sepNo.Setup(Name := 'SepNo', HalRef := _halNo, Recipe := 0);
+    _sepNo.ParCfg.MaxOpenTime := T#1MS;
+    _halNo.CarrierAt := FALSE;                   // nothing ever arrives
+    _sepNo.Command := E_SeparatorCommand.SEPARATE;
+    _sepNo.Execute := TRUE;
+    FOR _i := 1 TO 8 DO
+        _sepNo();
+    END_FOR
+    // T2: the first-out reason is the specific one, not a generic timeout.
+    AssertTrue(Condition := _sepNo.Error, Message := 'the command faults');
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.SEP_NO_CARRIER_AT),
+        Actual := _sepNo.ErrorID,
+        Message := 'with SEP_NO_CARRIER_AT, not a generic timeout');
+    AssertEquals_STRING(Expected := 'SepNo', Actual := _sepNo.Status.Diagnostic.SourcePath,
+        Message := 'and the module as its source path');
+    AssertFalse(Condition := _halNo.ValveOpen, Message := 'the valve is dropped on fault');
+    _w4 := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Open_close_confirms_feedback_only_when_configured" Id="{6e1a281b-2d2e-40e0-bdd1-9925ad511268}">
+      <Declaration><![CDATA[METHOD Open_close_confirms_feedback_only_when_configured]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Open_close_confirms_feedback_only_when_configured');
+IF NOT _w5 THEN
+    _sepOc.Setup(Name := 'SepOc', HalRef := _halOc, Recipe := 0);
+    _sepOc.ParCfg.UsesOpenFb := FALSE;           // no feedback wired at this station
+    _sepOc.ParCmd.OpenStopper := TRUE;
+    _sepOc.Command := E_SeparatorCommand.OPEN_CLOSE;
+    _sepOc.Execute := TRUE;
+    _sepOc(); _sepOc();
+    AssertTrue(Condition := _halOc.ValveOpen, Message := 'the stopper opens');
+    AssertTrue(Condition := _sepOc.Done,
+        Message := 'and completes without feedback when none is configured');
+    _sepOc.Execute := FALSE;
+    _sepOc();
+    _sepOc.ParCmd.OpenStopper := FALSE;
+    _sepOc.Execute := TRUE;
+    _sepOc(); _sepOc();
+    AssertFalse(Condition := _halOc.ValveOpen, Message := 'closing is immediate');
+    AssertTrue(Condition := _sepOc.Done, Message := 'and completes');
+    _w5 := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Unsupported_command_is_rejected" Id="{b84f6bf8-d129-4eb9-b9ea-3e1a1e84ff4c}">
+      <Declaration><![CDATA[METHOD Unsupported_command_is_rejected]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Unsupported_command_is_rejected');
+IF NOT _w6 THEN
+    _sepBad.Setup(Name := 'SepBad', HalRef := _halBad, Recipe := 0);
+    _sepBad.Command := E_SeparatorCommand.NONE;   // never a valid request (S5.6)
+    _sepBad.Execute := TRUE;
+    _sepBad(); _sepBad();
+    AssertTrue(Condition := _sepBad.Error, Message := 'an unset command is refused');
+    AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.UNSUPPORTED_COMMAND),
+        Actual := _sepBad.ErrorID, Message := 'with UNSUPPORTED_COMMAND');
+    _w6 := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

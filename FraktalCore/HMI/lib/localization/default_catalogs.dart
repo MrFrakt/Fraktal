@@ -726,6 +726,16 @@ const standardEnglish = <String, String>{
       'selecting a changeover model or confirming it is safe to open the '
       'doors. Blocking the panel when it was not necessary teaches operators '
       'to dismiss guidance without reading it.',
+  'std.moduleType.separator.name': 'Separator',
+  'std.moduleType.separator.description': 'Separator/stopper releasing carriers one at a time',
+  'std.command.separate': 'Separate',
+  'std.command.openClose': 'Open / Close',
+  'std.error.unsupportedSeparatorCommand': 'Unsupported separator command',
+  'std.error.separatorNoCarrierAt': 'No carrier at separator',
+  'std.error.separatorCarrierNotCleared': 'Carrier did not clear separator',
+  'std.error.separatorCarrierNotArrived': 'Carrier did not arrive after separator',
+  'std.error.separatorSonNotCleared': 'Carrier did not clear downstream sensor',
+  'std.error.separatorNotOpenedFb': 'Separator did not report open',
 };
 
 const standardSpanish = <String, String>{
@@ -1306,6 +1316,16 @@ const standardSpanish = <String, String>{
       'seleccionar un modelo de cambio o confirmar que es seguro abrir las '
       'puertas. Bloquear el panel sin necesidad enseña a descartar la guía '
       'sin leerla.'
+  'std.moduleType.separator.name': 'Separador',
+  'std.moduleType.separator.description': 'Separador/tope que libera portapiezas de uno en uno',
+  'std.command.separate': 'Separar',
+  'std.command.openClose': 'Abrir / Cerrar',
+  'std.error.unsupportedSeparatorCommand': 'Comando de separador no admitido',
+  'std.error.separatorNoCarrierAt': 'No hay portapiezas en el separador',
+  'std.error.separatorCarrierNotCleared': 'El portapiezas no liberó el separador',
+  'std.error.separatorCarrierNotArrived': 'El portapiezas no llegó tras el separador',
+  'std.error.separatorSonNotCleared': 'El portapiezas no liberó el sensor posterior',
+  'std.error.separatorNotOpenedFb': 'El separador no confirmó apertura',
 };
 
 const projectEnglish = <String, String>{

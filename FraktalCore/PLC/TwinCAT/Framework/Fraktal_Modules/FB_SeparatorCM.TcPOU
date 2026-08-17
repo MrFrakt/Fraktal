@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SeparatorCM" Id="{7a2eb006-5955-4c2b-b846-a2650f84c243}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex A worked example on the base class: the type is ONLY its device logic.
+//
+// It defines NO interlocks of its own, deliberately. Core S7.2.1 confines a
+// reusable library to "device-intrinsic conditions or explicitly injected generic
+// policy", and none of Annex A's four published conditions qualify: area-safe is
+// a S9.2 safety alias, air pressure is a utility, jam is a flag that is not even
+// on this device's HAL, and downstream-ready is line policy. All four belong to
+// the owning Unit's Release/Permissives object (S7.2.1, S4.2).
+//
+// So the application declares and drives them through DeclareCondition/
+// SetCondition. They land in this module's own FB_PermIntlk, which keeps the
+// provenance S7.2.1 requires - first-out, release report and HMI drill-down all
+// read the same ST_IntlkCond records - without the library naming policy it
+// cannot see. A per-condition setter was rejected: FB_CylinderCM.SetAreaSafe is
+// exactly that shape and no application has ever called it.
+FUNCTION_BLOCK FB_SeparatorCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_SeparatorCommand;
+    ParCfg : ST_SeparatorParCfg;
+    ParCmd : ST_SeparatorParCmd;
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_SeparatorOutCmd;
+    OutImm : ST_SeparatorOutImm;
+    Intlk  : FB_PermIntlk;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _hal    : REFERENCE TO ST_SeparatorHal;
+    {attribute 'OPC.UA.DA' := '0'}
+    _recipe : I_RecipeProvider;
+    _tPhase : TON;                       // per-phase timeout (open / clear / arrive)
+    _tClose : TON;                       // close delay
+    _parCfgStaged : ST_SeparatorParCfg;
+    _recipePrepared : BOOL;
+    // Application-owned conditions (S7.2.1). Declared FALSE so a declared-but-
+    // undriven condition holds the module rather than silently permitting it.
+    _appCond : ARRAY[1..PL_Fraktal.MAX_PERMINTLK_COND] OF BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="OnCyclic" Id="{7cadce27-dcec-4794-a66b-b295c2a85e43}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+// Re-drive every application condition each scan, so a manual command obeys the
+// same rule as a sequenced one (S7.2).
+_M_ApplyConditions();
+Intlk();
+IF __ISVALIDREF(_hal) THEN              // defensive (S5.6) [TC3]
+    OutImm.CarrierAt    := _hal.CarrierAt;
+    OutImm.CarrierAfter := _hal.CarrierAfter;
+    OutImm.OpenedFb     := _hal.OpenedFb;
+    OutImm.ValveOpen    := _hal.ValveOpen;
+    OutCmd.SeparatorOpen := _hal.ValveOpen;
+END_IF
+OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ApplyConditions" Id="{4ad83617-1b28-47c3-bbdb-0ab8ed8780ce}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_ApplyConditions
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO PL_Fraktal.MAX_PERMINTLK_COND DO
+    Intlk.Cond[i] := _appCond[i];
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DeclareCondition" Id="{b6380f5c-e2e1-4033-b534-4a2c035d7787}">
+      <Declaration><![CDATA[// Core S7.2.1 - the application names its own conditions on this module.
+// The library defines none, so every index is the application's to claim.
+// Returns FALSE on an out-of-range index rather than silently ignoring it (S5.6).
+//
+// Declared conditions start FALSE: declaring one states an intent to gate, so
+// the fail-closed default is to hold until the application drives it. A station
+// that wants no gate simply declares nothing.
+METHOD DeclareCondition : BOOL
+VAR_INPUT
+    Index : INT;
+    DescriptionKey : STRING(255);
+    Reason : E_Reason;
+    Bypassable : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (Index < 1) OR (Index > PL_Fraktal.MAX_PERMINTLK_COND) THEN
+    DeclareCondition := FALSE;
+    RETURN;
+END_IF
+_appCond[Index] := FALSE;
+DeclareCondition := Intlk.Define(Index := Index, Description := DescriptionKey,
+    Reason := Reason, Bypassable := Bypassable);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetCondition" Id="{52b91645-c9eb-4146-8812-46b19054cf47}">
+      <Declaration><![CDATA[// Drive a condition declared by DeclareCondition. Call it every scan from the
+// owning Unit's Release object; the value is re-applied in OnCyclic so dispatch
+// and the release report always read the same state.
+METHOD SetCondition : BOOL
+VAR_INPUT
+    Index : INT;
+    Ok : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (Index < 1) OR (Index > PL_Fraktal.MAX_PERMINTLK_COND) THEN
+    SetCondition := FALSE;
+    RETURN;
+END_IF
+_appCond[Index] := Ok;
+SetCondition := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Setup" Id="{0b220351-7d94-40fa-ad6f-097df9d655bc}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name   : STRING(80);
+    HalRef : REFERENCE TO ST_SeparatorHal;
+    Recipe : I_RecipeProvider;
+END_VAR
+VAR
+    InitialModel : ST_ModelId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+_M_SetPresentation(DisplayNameKey := 'std.moduleType.separator.name', DescriptionKey := 'std.moduleType.separator.description');
+_hal REF= HalRef;                        // [TC3] TC3 S3.11
+_recipe := Recipe;
+// No Intlk.Define here: this type publishes no condition it cannot itself
+// derive (S7.2.1). The application declares its own via DeclareCondition.
+_M_PublishCommand(Value := TO_DINT(E_SeparatorCommand.SEPARATE), Label := 'std.command.separate');
+_M_PublishCommand(Value := TO_DINT(E_SeparatorCommand.OPEN_CLOSE), Label := 'std.command.openClose');
+Setup := PrepareRecipe(Model := InitialModel);
+IF Setup THEN CommitRecipe(); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WithdrawOutputs" Id="{02df3d24-1924-4a9a-95c9-1d9a9a7ee2f7}">
+      <Declaration><![CDATA[// Functional stop used by an owning sequence on abort/interlock loss.
+// This is not a certified stop; the safety system remains authoritative (S9).
+METHOD WithdrawOutputs]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(_hal) THEN
+    _hal.ValveOpen := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbort" Id="{f3dad48b-ca87-45b7-8ba7-2ab61c1573b0}">
+      <Declaration><![CDATA[METHOD PROTECTED OnAbort : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnAbort := SUPER^.OnAbort();            // base first (S3.14.2)
+IF __ISVALIDREF(_hal) THEN
+    _hal.ValveOpen := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="PrepareRecipe" Id="{d51cba81-43bb-44ab-b8bf-e5b189f4222a}">
+      <Declaration><![CDATA[METHOD PrepareRecipe : BOOL
+VAR_INPUT
+    Model : ST_ModelId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _recipe = 0 THEN
+    _parCfgStaged := ParCfg;
+    _recipePrepared := TRUE;
+    PrepareRecipe := TRUE;
+ELSIF _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := 'SeparatorCM', pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
+    _recipePrepared := TRUE;
+    PrepareRecipe := TRUE;
+ELSE
+    _M_Fault(E_Reason.RECIPE_INVALID, 'std.error.recipeSchemaInvalid');
+    _recipePrepared := FALSE;
+    PrepareRecipe := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CommitRecipe" Id="{8af229c1-1e17-45aa-ab91-53075065fa24}">
+      <Declaration><![CDATA[METHOD CommitRecipe]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _recipePrepared THEN ParCfg := _parCfgStaged; END_IF
+_recipePrepared := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AbortRecipe" Id="{a950f016-6838-45f0-91e7-93972d9e1f27}">
+      <Declaration><![CDATA[METHOD AbortRecipe]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_recipePrepared := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_PublishStatus" Id="{90616d00-44cf-49ba-b498-280a98da32e9}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SUPER^._M_PublishStatus();
+OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{e8fe0d9d-b5ad-428d-9791-600654748b0f}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch
+VAR
+    dg : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _manualReq THEN
+    _manualReq := FALSE;
+    IF (_manualCmd = TO_DINT(E_SeparatorCommand.SEPARATE)) OR (_manualCmd = TO_DINT(E_SeparatorCommand.OPEN_CLOSE)) THEN
+        Command := _manualCmd;
+    ELSE
+        _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedSeparatorCommand');
+        RETURN;
+    END_IF
+END_IF
+IF (Command <> E_SeparatorCommand.SEPARATE) AND (Command <> E_SeparatorCommand.OPEN_CLOSE) THEN
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedSeparatorCommand');
+    RETURN;
+END_IF
+IF Command = E_SeparatorCommand.SEPARATE THEN
+    _M_TagCommand(Id := 1, Label := 'std.command.separate');      // S8.11.4(a)
+ELSE
+    _M_TagCommand(Id := 2, Label := 'std.command.openClose');
+END_IF
+_M_ApplyConditions();
+Intlk();
+IF NOT Intlk.AllOk THEN
+    // HELD, not a fault (S6.1): an interlock is a condition that must hold DURING
+    // the action, and losing one is often expected - the same reasoning as
+    // FB_CylinderCM. Outputs are withdrawn here by the same permit that gates
+    // them; only the classification and the way out differ. Rewinding to step 10
+    // re-arms the phase timer with a full window, so a hold cannot silently
+    // consume travel time the carrier was not moving for.
+    IF __ISVALIDREF(_hal) THEN
+        _hal.ValveOpen := FALSE;
+    END_IF
+    _tPhase(IN := FALSE);
+    dg := Intlk.Diagnostic;
+    dg.SourcePath := _name;                          // owner sets the path (S7.2)
+    _M_HoldDiag(Diag := dg);
+    _step := 10;
+    RETURN;
+END_IF
+IF Command = E_SeparatorCommand.OPEN_CLOSE THEN
+    _M_OpenClose();
+    RETURN;
+END_IF
+// ---- SEPARATE: release exactly one carrier (Annex A) ----------------------
+CASE _step OF
+    10:                                  // open, and require a carrier present
+        OutCmd.SeparateOk := FALSE;
+        _hal.ValveOpen := TRUE;
+        _tPhase(IN := TRUE, PT := ParCfg.MaxOpenTime);
+        IF _hal.CarrierAt THEN
+            _tPhase(IN := FALSE);
+            _step := 20;
+        ELSIF _tPhase.Q THEN
+            _tPhase(IN := FALSE);
+            _M_FaultN(Code := PL_ModuleReasons.SEP_NO_CARRIER_AT, Text := 'std.error.separatorNoCarrierAt');
+        END_IF
+    20:                                  // the carrier must clear CarrierAt
+        _tPhase(IN := TRUE, PT := ParCfg.MaxOpenTime);
+        IF NOT _hal.CarrierAt THEN
+            _tPhase(IN := FALSE);
+            IF ParCfg.CheckAfter THEN _step := 30; ELSE _step := 40; END_IF
+        ELSIF _tPhase.Q THEN
+            _tPhase(IN := FALSE);
+            _M_FaultN(Code := PL_ModuleReasons.SEP_CARRIER_NOT_CLEARED, Text := 'std.error.separatorCarrierNotCleared');
+        END_IF
+    30:                                  // arrival check past the separator
+        _tPhase(IN := TRUE, PT := ParCfg.SOnMaxTime);
+        IF _hal.CarrierAfter THEN
+            _tPhase(IN := FALSE);
+            _step := 40;
+        ELSIF _tPhase.Q THEN
+            _tPhase(IN := FALSE);
+            _M_FaultN(Code := PL_ModuleReasons.SEP_CARRIER_NOT_ARRIVED, Text := 'std.error.separatorCarrierNotArrived');
+        END_IF
+    40:                                  // close after the configured delay
+        _tClose(IN := TRUE, PT := ParCfg.CloseDelay);
+        IF _tClose.Q OR (ParCfg.CloseDelay = T#0S) THEN
+            _tClose(IN := FALSE);
+            _hal.ValveOpen := FALSE;
+            IF ParCfg.CheckAfter THEN
+                _tPhase(IN := TRUE, PT := ParCfg.SOnMaxTime);
+                _step := 50;
+            ELSE
+                OutCmd.SeparateOk := TRUE;
+                _M_Complete();
+            END_IF
+        END_IF
+    50:                                  // the carrier must clear CarrierAfter
+        _tPhase(IN := TRUE, PT := ParCfg.SOnMaxTime);
+        IF NOT _hal.CarrierAfter THEN
+            _tPhase(IN := FALSE);
+            OutCmd.SeparateOk := TRUE;
+            _M_Complete();
+        ELSIF _tPhase.Q THEN
+            _tPhase(IN := FALSE);
+            _M_FaultN(Code := PL_ModuleReasons.SEP_SON_NOT_CLEARED, Text := 'std.error.separatorSonNotCleared');
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_OpenClose" Id="{4a22231e-75cf-4571-a03f-04cb7d50df26}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_OpenClose]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Hold the stopper open or closed. Closing is immediate; opening optionally
+// confirms the feedback when the station has wired one (ParCfg.UsesOpenFb).
+_hal.ValveOpen := ParCmd.OpenStopper;
+IF NOT ParCmd.OpenStopper THEN
+    _tPhase(IN := FALSE);
+    _M_Complete();
+    RETURN;
+END_IF
+IF NOT ParCfg.UsesOpenFb THEN
+    _tPhase(IN := FALSE);
+    _M_Complete();
+    RETURN;
+END_IF
+_tPhase(IN := TRUE, PT := ParCfg.MaxOpenTime);
+IF _hal.OpenedFb THEN
+    _tPhase(IN := FALSE);
+    _M_Complete();
+ELSIF _tPhase.Q THEN
+    _tPhase(IN := FALSE);
+    _M_FaultN(Code := PL_ModuleReasons.SEP_NOT_OPENED_FB, Text := 'std.error.separatorNotOpenedFb');
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
