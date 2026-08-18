@@ -1,72 +1,72 @@
 # Annex A — Worked Example: Separator/Stopper Control Module
 
 *Companion to **Fraktal Core** (Part I) exercised through the **Fraktal/TC3** binding (Part II); slots under Core §12.*
-*Core concepts demonstrated: four-structure contract (§3.12), recipe provider (§3.8), PLCopen handshake (§6.1), first-out diagnostic (§6.9/§8.8), `FB_PermIntlk` (§7.2), HMI contract (§3.13), simulation (§2.6). / TC3 mechanics used: `OPC.UA.DA` pragmas (TC3 §3.10), `FB_init`/`REF=` injection (TC3 §3.11), driver SIM toggles.*
-*Reference implementation — illustrative, not compile-tested; validate against the pinned TwinCAT version and your HAL.*
+*Core concepts demonstrated: four-structure contract (§3.12), condition ownership (§7.2.1), recipe provider (§3.8), PLCopen handshake (§6.1), first-out diagnostic (§6.9/§8.8), HMI contract (§3.13), simulation (§2.6). / TC3 mechanics used: `OPC.UA.DA` pragmas (TC3 §3.10), `REF=` injection (TC3 §3.11), driver SIM toggles.*
 
-This annex builds one `FB_ControlModule` end-to-end — a separator/stopper that releases workpiece carriers one at a time, a common conveyor device — and shows every contract working together: the four-structure data model (§3.12), recipe via `I_RecipeProvider` (§3.8), the PLCopen handshake (§6.1), first-out `ST_Diagnostic` (§6.9, §8.8), interlocks in **Ladder** with device logic in **ST** (§5.5, §7.2), the HMI bindings (§3.13), and unchanged behaviour in simulation vs. hardware (§2.6).
+**Realized, not illustrative.** This annex describes shipping code:
+`FraktalCore/PLC/TwinCAT/Framework/Fraktal_Modules/FB_SeparatorCM.TcPOU` and its
+suite `Tests/Fraktal_Tests/FB_Separator_Tests.TcPOU`. Both compile under the
+pinned TwinCAT and executed green on 2026-08-17 —
+`Specification/Evidence/2026-08-17_Separator_TcUnit.md`, 112/112 across 32
+suites. Where this text and the source disagree, the source is correct and this
+document is a defect.
 
-The device has three inputs and one output, presented through the HAL:
+The device releases workpiece carriers one at a time — a common conveyor
+separator/stopper. Three inputs and one output, presented through the HAL:
 
 | HAL signal | Meaning (short signal name) |
 |------------|-----------------------|
 | `CarrierAt` | carrier present at the separator (`SAt`) |
 | `CarrierAfter` | carrier present just past the separator (`SOn`) |
 | `OpenedFb` | separator-opened feedback (`SOpen`, optional) |
-| `ValveOpen` | drives the open solenoid (`Value`) |
+| `ValveOpen` | drives the open solenoid (`Valve`) |
 
 ---
 
 ## A.1 Supporting types
 
+Commands and behaviour variants. `NONE` exists so an unset command is a value the
+dispatch can reject rather than a state it must guess at (§5.6):
+
 ```iecst
 {attribute 'qualified_only'}
-TYPE E_SepCommand : (
+TYPE E_SeparatorCommand : (
     NONE       := 0,
     SEPARATE   := 1,    // release exactly one carrier
-    OPEN_CLOSE := 2     // hold the stopper open or closed
+    OPEN_CLOSE := 2     // hold the stopper open or closed per ParCmd.OpenStopper
 ) DINT;
 END_TYPE
 
 {attribute 'qualified_only'}
-TYPE E_SepMode : (        // separation behaviour variants
+TYPE E_SeparatorMode : (
     SEPARATOR  := 0,      // check carrier at AND after
     STOPPER    := 1,      // check carrier at only
     ASISTOPPER := 2,
     LEADFRAME  := 3
 ) DINT;
 END_TYPE
-
-{attribute 'qualified_only'}
-TYPE E_ExecState : (READY := 0, BUSY := 1, DONE := 2, ERROR := 3, ABORTED := 4) DINT;
-END_TYPE
 ```
 
-Reason codes use the bands of §8.8 — framework reasons in `2000–9999`, this module type's reasons in its `10000–10999` block:
+**Reason codes are not redefined here.** Core already owns the framework band
+(`TIMEOUT := 2001`, `PERMISSIVE_NOT_MET := 2002`, `INTERLOCK_DROPPED := 2003`,
+`RECIPE_INVALID := 2004`, `UNSUPPORTED_COMMAND := 2008`, `STEP_STALLED := 2005`)
+in `E_Reason`. This type contributes only its own §8.8 band, in
+`PL_ModuleReasons` beside every other module type's:
 
 ```iecst
-{attribute 'qualified_only'}
-TYPE E_Reason : (
-    NONE                    := 0,
-    // 2000–9999  framework (common)
-    TIMEOUT                 := 2001,
-    PERMISSIVE_NOT_MET      := 2002,
-    INTERLOCK_DROPPED       := 2003,
-    RECIPE_INVALID          := 2004,
-    // 10000–10999  Separator/Stopper Control Module
-    SEP_NO_CARRIER_AT       := 10001,  // SAt never made
-    SEP_CARRIER_NOT_CLEARED := 10002,  // SAt did not clear after opening
-    SEP_CARRIER_NOT_ARRIVED := 10003,  // SOn did not arrive in time
-    SEP_NOT_OPENED_FB       := 10004,  // open feedback missing
-    SEP_SON_NOT_CLEARED     := 10005   // SOn did not clear after close
-) DINT;
-END_TYPE
+    // separator/stopper CM 10001-10005 (Annex A)
+    SEP_NO_CARRIER_AT       : DINT := 10001;   // SAt never made
+    SEP_CARRIER_NOT_CLEARED : DINT := 10002;   // SAt did not clear after opening
+    SEP_CARRIER_NOT_ARRIVED : DINT := 10003;   // SOn did not arrive in time
+    SEP_NOT_OPENED_FB       : DINT := 10004;   // open feedback missing
+    SEP_SON_NOT_CLEARED     : DINT := 10005;   // SOn did not clear after close
 ```
 
-The HAL channel for this device (the leading-underscore raw `%I`/`%Q` symbols live in the Hardware Driver, §10.2; the HAL presents clean, typed signals):
+The HAL channel — the leading-underscore raw `%I`/`%Q` symbols live in the
+Hardware Driver (§10.2); the HAL presents clean, typed signals:
 
 ```iecst
-TYPE ST_SepHal :
+TYPE ST_SeparatorHal :
 STRUCT
     CarrierAt    : BOOL;   // input  (driver applies invert/debounce config)
     CarrierAfter : BOOL;   // input
@@ -76,306 +76,236 @@ END_STRUCT
 END_TYPE
 ```
 
-The four-structure data contract (§3.12), named `Separator…`:
+The four-structure data contract (§3.12). `SchemaVersion` comes **first** in
+`ParCfg` (§3.8) so a migrate-or-fault decision can be made before reading
+anything else:
 
 ```iecst
-TYPE SeparatorParCfg :   // recipe/config — filled by I_RecipeProvider (§3.8)
+TYPE ST_SeparatorParCfg :   // recipe/config — filled by I_RecipeProvider (§3.8)
 STRUCT
-    Mode         : E_SepMode := E_SepMode.SEPARATOR;
-    CheckAfter   : BOOL := TRUE;          // require the carrier-after check
-    MaxOpenTime  : TIME := T#3S;          // SAt must clear within this after opening
-    SOnMaxTime   : TIME := T#3S;          // SOn must arrive/clear within this
-    CloseDelay   : TIME := T#0S;
-    Timeout      : TIME := T#10S;         // overall command timeout
+    SchemaVersion : UINT := 1;
+    Mode          : E_SeparatorMode := E_SeparatorMode.SEPARATOR;
+    CheckAfter    : BOOL := TRUE;    // require the carrier-after arrival/clear checks
+    UsesOpenFb    : BOOL := FALSE;   // require the open feedback on OPEN_CLOSE
+    MaxOpenTime   : TIME := T#3S;    // SAt must clear within this after opening
+    SOnMaxTime    : TIME := T#3S;    // SOn must arrive/clear within this
+    CloseDelay    : TIME := T#0S;
+    Timeout       : TIME := T#10S;   // overall command timeout
 END_STRUCT
 END_TYPE
 
-TYPE SeparatorParCmd :   // latched on the Execute rising edge
+TYPE ST_SeparatorParCmd :   // latched by the base on the Execute rising edge
 STRUCT
-    OpenStopper  : BOOL;                  // OPEN_CLOSE: TRUE = open, FALSE = close
+    OpenStopper : BOOL;                   // OPEN_CLOSE: TRUE = open, FALSE = close
 END_STRUCT
 END_TYPE
 
-TYPE SeparatorOutCmd :   // valid on Done
+TYPE ST_SeparatorOutCmd :   // valid on Done
 STRUCT
     SeparateOk    : BOOL;
     SeparatorOpen : BOOL;
 END_STRUCT
 END_TYPE
 
-TYPE SeparatorOutImm :   // cyclic live status + first-out diagnostic
+TYPE ST_SeparatorOutImm :   // cyclic live status + first-out diagnostic
 STRUCT
     CarrierAt    : BOOL;
     CarrierAfter : BOOL;
     OpenedFb     : BOOL;
     ValveOpen    : BOOL;
-    Diagnostic   : ST_Diagnostic;         // §8.8: ReasonCode, SourcePath, Description, Severity, Category, Since
+    Diagnostic   : ST_Diagnostic;         // §8.8
 END_STRUCT
 END_TYPE
 ```
 
 ---
 
-## A.2 Interlocks in Ladder
+## A.2 Interlocks: the library declares none
 
-The interlock conditions are authored in **Ladder** (§5.5, §7.2) — the natural form for an interlock — and feed the framework container `SepIntlk : FB_PermIntlk`. The condition records (index, description, reason) are set once in `FB_init`; the rungs only drive the boolean inputs:
+This is the part of the annex worth reading twice, because the obvious design is
+the wrong one.
 
-```text
-( Separator interlocks — Ladder rungs driving the FB_PermIntlk condition coils )
+A separator plainly *has* interlocks — area safe, air pressure, no jam
+downstream, downstream ready. The tempting move is to define them in the reusable
+type, since every separator needs them. **Core §7.2.1 forbids it:**
 
-  AllSafetyOk────────────────────────────────────( SepIntlk.Cond[1] )   // idx1 "Area safe"
-  _AirPressureOk─────────────────────────────────( SepIntlk.Cond[2] )   // idx2 "Air pressure OK"
-  _JamSensor/(NC)────────────────────────────────( SepIntlk.Cond[3] )   // idx3 "No jam at separator"
-  DownstreamReady────────────────────────────────( SepIntlk.Cond[4] )   // idx4 "Downstream ready"
+> A reusable type derives its conditions from its HAL, parameters, child
+> contracts, and explicitly injected semantic status—not by reaching into
+> application globals or raw schematic I/O. […] Cross-module collision rules,
+> active-mode entry permissives, and other project policy belong to the owning
+> Unit's application branch (§4.2), preferably in a visible `Release`/`Permissives`
+> object […] Reusable libraries retain only device-intrinsic conditions or
+> explicitly injected generic policy; they shall not hide station-specific
+> release logic.
+
+Check the four candidates against the device's own HAL:
+
+| Condition | Where it comes from | Library-ownable? |
+|---|---|---|
+| Area safe | `AllSafetyOk`, the §9.2 safety alias | No — injected system status |
+| Air pressure OK | a utility flag | No — injected utility status |
+| No jam at separator | a flag; **not on `ST_SeparatorHal`** | No — injected, not derived |
+| Downstream ready | conveyor/line state | No — line policy |
+
+Not one of them is device-intrinsic. **So `FB_SeparatorCM` defines no interlock
+conditions at all**, and the application declares and drives its own:
+
+```iecst
+METHOD DeclareCondition : BOOL      // returns FALSE on an out-of-range index
+VAR_INPUT
+    Index : INT;  DescriptionKey : STRING(255);
+    Reason : E_Reason;  Bypassable : BOOL;
+END_VAR
+
+METHOD SetCondition : BOOL
+VAR_INPUT  Index : INT;  Ok : BOOL;  END_VAR
 ```
 
-`AllSafetyOk` is the read-only safety alias from §9.2; `_AirPressureOk` / `_JamSensor` are HAL/flag signals (leading `_`, §4.4). Because each condition carries a description and `ReasonCode`, the *first* FALSE one becomes the module's first-out reason automatically (§6.9).
+The records still live in this module's own `FB_PermIntlk`, which is what §7.2.1
+requires — *"its constituent `ST_IntlkCond` records remain available so the gate,
+first-out diagnostic, and full release report all preserve provenance"*. First-out,
+the release report and the HMI drill-down are unchanged; only the *naming* moved
+to the layer that has the semantic context.
+
+In the owning Unit's `Release/` object (§4.2), authored in ST beside the rest of
+the station's policy:
+
+```iecst
+// once, at composition
+Separator1.DeclareCondition(Index := 1, DescriptionKey := 'project.interlock.areaSafe',
+    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+Separator1.DeclareCondition(Index := 2, DescriptionKey := 'project.interlock.airPressureOk',
+    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+Separator1.DeclareCondition(Index := 3, DescriptionKey := 'project.interlock.noJamAtSeparator',
+    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+Separator1.DeclareCondition(Index := 4, DescriptionKey := 'project.interlock.downstreamReady',
+    Reason := E_Reason.PERMISSIVE_NOT_MET, Bypassable := FALSE);
+
+// every scan
+Separator1.SetCondition(Index := 1, Ok := AllSafetyOk);
+Separator1.SetCondition(Index := 2, Ok := _AirPressureOk);
+Separator1.SetCondition(Index := 3, Ok := NOT _JamSensor);
+Separator1.SetCondition(Index := 4, Ok := DownstreamReady);
+```
+
+A declared condition starts **FALSE**. Declaring one states an intent to gate, so
+the fail-closed default holds the module until the application drives it; a
+station that wants no gate simply declares nothing.
+
+> **Why not one setter per condition.** An earlier revision of this annex, and of
+> the cylinder CM, exposed a named setter (`SetAreaSafe(Ok, DescriptionKey)`) per
+> condition. It does not scale, and in practice it went unused: `SetAreaSafe`
+> shipped, and no application ever called it, so `Cond[1]` sat at its `TRUE`
+> default and operators saw an "area safe" interlock that was permanently
+> satisfied and meant nothing. A library-declared condition that no application
+> supplies is worse than no condition, because it *looks* like a gate.
 
 ---
 
-## A.3 The Control Module (ST)
+## A.3 The Control Module
+
+`FB_SeparatorCM EXTENDS FB_ControlModuleBase`. The PLCopen handshake, the
+Execute-drop reset, ExecState mapping, `ErrorID` publication and abort routing are
+inherited and written once in `FB_ModuleBase` (§6.1); rows **T1** and **T4** are
+proven once for every inheriting type in `FB_Base_Tests` (§5.7) and are not
+retested here. **The type is only its device logic.**
 
 ```iecst
-// Publication is inherited from the explicitly marked deployed root instance.
-FUNCTION_BLOCK FB_SeparatorCM IMPLEMENTS I_ControlModule
+FUNCTION_BLOCK FB_SeparatorCM EXTENDS FB_ControlModuleBase
 VAR_INPUT
-    // PLCopen handshake (public I/O — §6.1)
-    Execute  : BOOL;
-    Command  : E_SepCommand;
-    Abort    : BOOL;
+    Command : E_SeparatorCommand;
+    ParCfg  : ST_SeparatorParCfg;
+    ParCmd  : ST_SeparatorParCmd;
 END_VAR
 VAR_OUTPUT
-    Busy     : BOOL;
-    Done     : BOOL;
-    Error    : BOOL;
-    ErrorID  : DWORD;          // = TO_DWORD(diagnostic reason), §8.8
-    Aborted  : BOOL;
+    OutCmd : ST_SeparatorOutCmd;
+    OutImm : ST_SeparatorOutImm;
+    Intlk  : FB_PermIntlk;
 END_VAR
-VAR
-    // Data contract (§3.12) — exposed over OPC UA
-    ParCfg   : SeparatorParCfg;
-    ParCmd   : SeparatorParCmd;
-    OutCmd   : SeparatorOutCmd;
-    OutImm   : SeparatorOutImm;
-
-    // Injected at instantiation (A.4)
-    _name    : STRING(80);
-    _hal     : REFERENCE TO ST_SepHal;
-    _recipe  : I_RecipeProvider;
-    _recipeLoaded : BOOL;
-
-    // Interlocks (framework container; conditions driven in Ladder, A.2)
-    SepIntlk : FB_PermIntlk;
-
-    // Internal sequencing
-    _exec    : E_ExecState := E_ExecState.READY;
-    _step    : INT;
-    _rTrig   : R_TRIG;
-    tCmd     : TON;            // overall command timeout
-    tPhase   : TON;           // per-phase timeout (open/clear/arrive)
-    tDeb     : TON;            // debounce helper
-END_VAR
-
-// ---------------------------------------------------------------------------
-// 1) Recipe load (once, when the provider has valid data) — §3.8
-IF NOT _recipeLoaded THEN
-    IF _recipe.Ready THEN
-        IF _recipe.Load(_name, ADR(ParCfg), SIZEOF(ParCfg)) THEN
-            _recipeLoaded := TRUE;
-        ELSE
-            _M_Fault(E_Reason.RECIPE_INVALID, 'Recipe load/validate failed');
-        END_IF
-    END_IF
-END_IF
-
-// 2) Read HAL into live status (device-logic, ST — §10.3)
-OutImm.CarrierAt    := _hal.CarrierAt;
-OutImm.CarrierAfter := _hal.CarrierAfter;
-OutImm.OpenedFb     := _hal.OpenedFb;
-
-// 3) Evaluate interlocks (Ladder rungs of A.2 ran this scan; container summarises)
-SepIntlk();
-
-// 4) Start on Execute rising edge — latch ParCmd, go Busy
-_rTrig(CLK := Execute);
-IF _rTrig.Q AND _exec = E_ExecState.READY THEN
-    IF SepIntlk.AllOk THEN
-        _exec := E_ExecState.BUSY;
-        _step := 10;
-        OutCmd.SeparateOk := FALSE;
-        tCmd(IN := FALSE); tCmd(IN := TRUE, PT := ParCfg.Timeout);
-    ELSE
-        _M_Fault(SepIntlk.Diagnostic.ReasonCode, SepIntlk.Diagnostic.Description);
-    END_IF
-END_IF
-
-// 5) Abort request
-IF Abort AND _exec = E_ExecState.BUSY THEN
-    _hal.ValveOpen := FALSE;
-    _exec := E_ExecState.ABORTED; _step := 0;
-END_IF
-
-// 6) Interlock dropped mid-action → immediate halt + first-out reason (§7.1)
-IF _exec = E_ExecState.BUSY AND NOT SepIntlk.AllOk THEN
-    _hal.ValveOpen := FALSE;
-    _M_Fault(SepIntlk.Diagnostic.ReasonCode, SepIntlk.Diagnostic.Description);
-END_IF
-
-// 7) Overall timeout
-tCmd(IN := (_exec = E_ExecState.BUSY));
-IF tCmd.Q THEN
-    _M_Fault(E_Reason.TIMEOUT, 'Command timed out');
-END_IF
-
-// 8) Command bodies
-IF _exec = E_ExecState.BUSY THEN
-    CASE Command OF
-        E_SepCommand.SEPARATE:   _M_Separate();
-        E_SepCommand.OPEN_CLOSE: _M_OpenClose();
-    END_CASE
-END_IF
-
-// 9) Map internal state → PLCopen outputs + ExecState/ErrorID + clear on de-assert
-Busy    := (_exec = E_ExecState.BUSY);
-Done    := (_exec = E_ExecState.DONE);
-Error   := (_exec = E_ExecState.ERROR);
-Aborted := (_exec = E_ExecState.ABORTED);
-ErrorID := TO_DWORD(OutImm.Diagnostic.ReasonCode);
-OutCmd.SeparatorOpen := _hal.ValveOpen;
-OutImm.ValveOpen     := _hal.ValveOpen;
-
-IF NOT Execute AND _exec IN (E_ExecState.DONE, E_ExecState.ERROR, E_ExecState.ABORTED) THEN
-    _exec := E_ExecState.READY;     // ready for the next command
-    Done := FALSE; Error := FALSE; Aborted := FALSE;
-END_IF
 ```
 
-### Command body — `SEPARATE` (private method `_M_Separate`)
+`OnCyclic` re-applies every application condition each scan — so a manual command
+obeys the same rule as a sequenced one — evaluates the container, mirrors the HAL
+into `OutImm`, and republishes the diagnostic.
+
+`_M_Dispatch` rejects an unsupported command, tags the command for §8.11.4(a)
+timing, and then:
+
+**Interlock loss is HELD, not a fault (§6.1).** An interlock is by definition a
+condition that must hold *during* the action, and losing one is often expected
+operator behaviour. The valve is withdrawn by the same permit that gates it, the
+phase timer is reset so a hold cannot silently consume the window it was not
+moving for, and the chain rewinds to its first step and resumes when the condition
+returns. Under §8.4 this is a wait, not a downtime event.
+
+**`SEPARATE`** is a five-step chain:
+
+| Step | Waits for | Fails with |
+|---:|---|---|
+| 10 | open the valve; `CarrierAt` present | `SEP_NO_CARRIER_AT` |
+| 20 | `CarrierAt` clears within `MaxOpenTime` | `SEP_CARRIER_NOT_CLEARED` |
+| 30 | `CarrierAfter` arrives within `SOnMaxTime` — skipped unless `CheckAfter` | `SEP_CARRIER_NOT_ARRIVED` |
+| 40 | close after `CloseDelay` | — |
+| 50 | `CarrierAfter` clears — skipped unless `CheckAfter` | `SEP_SON_NOT_CLEARED` |
+
+**`OPEN_CLOSE`** drives the valve from `ParCmd.OpenStopper`. Closing completes
+immediately; opening confirms `OpenedFb` only when `ParCfg.UsesOpenFb` says the
+station wired one, and otherwise completes at once.
+
+**Every fault withdraws the output first.** Faults go through a private
+`_M_FaultClosed(Code, Text)` that calls `WithdrawOutputs()` and *then* raises:
 
 ```iecst
-CASE _step OF
-  10:  // open and require a carrier present
-    _hal.ValveOpen := TRUE;
-    _M_Wait(E_Reason.SEP_NO_CARRIER_AT, 'No carrier at separator');
-    IF OutImm.CarrierAt THEN
-        tPhase(IN := FALSE); tPhase(IN := TRUE, PT := ParCfg.MaxOpenTime);
-        _step := 20;
-    END_IF
+METHOD PRIVATE _M_FaultClosed
+VAR_INPUT  Code : DINT;  Text : STRING(255);  END_VAR
 
-  20:  // carrier must clear SAt within MaxOpenTime
-    _M_Wait(E_Reason.SEP_CARRIER_NOT_CLEARED, 'Carrier did not clear separator');
-    IF NOT OutImm.CarrierAt THEN
-        tPhase(IN := FALSE); tPhase(IN := TRUE, PT := ParCfg.SOnMaxTime);
-        _step := SEL(ParCfg.CheckAfter, 40, 30);   // skip after-check if not required
-    ELSIF tPhase.Q THEN
-        _M_Fault(E_Reason.SEP_CARRIER_NOT_CLEARED, 'Carrier did not clear separator');
-    END_IF
-
-  30:  // arrival check (carrier reached SOn)
-    _M_Wait(E_Reason.SEP_CARRIER_NOT_ARRIVED, 'Carrier did not arrive after separator');
-    IF OutImm.CarrierAfter THEN
-        _step := 40;
-    ELSIF tPhase.Q THEN
-        _M_Fault(E_Reason.SEP_CARRIER_NOT_ARRIVED, 'Carrier did not arrive after separator');
-    END_IF
-
-  40:  // close and finish
-    tDeb(IN := TRUE, PT := ParCfg.CloseDelay);
-    IF tDeb.Q THEN
-        _hal.ValveOpen := FALSE;
-        tDeb(IN := FALSE);
-        OutCmd.SeparateOk := TRUE;
-        _exec := E_ExecState.DONE; _step := 0;
-        _M_ClearDiag();
-    END_IF
-END_CASE
+WithdrawOutputs();
+_M_FaultN(Code := Code, Text := Text);
 ```
 
-### Command body — `OPEN_CLOSE` (private method `_M_OpenClose`)
+This is not decoration. `_M_FaultN` raises the reason and does not touch outputs,
+so an earlier revision faulted from an open phase while leaving the stopper
+energised — reporting `ERROR` while the device kept releasing carriers it could no
+longer account for. The suite caught it on first execution; source review had not,
+because every individual line was correct and the defect was in what two correct
+lines together failed to do.
 
-```iecst
-_hal.ValveOpen := ParCmd.OpenStopper;
-IF ParCmd.OpenStopper THEN
-    // optional open-feedback confirmation
-    _M_Wait(E_Reason.SEP_NOT_OPENED_FB, 'Separator did not report open');
-    tPhase(IN := TRUE, PT := ParCfg.MaxOpenTime);
-    IF (NOT _UsesOpenFb) OR OutImm.OpenedFb THEN
-        _exec := E_ExecState.DONE; _M_ClearDiag();
-    ELSIF tPhase.Q THEN
-        _M_Fault(E_Reason.SEP_NOT_OPENED_FB, 'Separator did not report open');
-    END_IF
-ELSE
-    _exec := E_ExecState.DONE; _M_ClearDiag();   // close is immediate
-END_IF
-```
-
-### Diagnostic helpers (the heart of §6.9)
-
-```iecst
-// _M_Wait: while still waiting, publish the *pending* first-out reason (not yet an error)
-METHOD PRIVATE _M_Wait : BOOL
-VAR_INPUT  Reason : E_Reason;  Desc : STRING(255); END_VAR
-    OutImm.Diagnostic.ReasonCode := Reason;        // "waiting for: <Desc>"
-    OutImm.Diagnostic.Description := Desc;
-    OutImm.Diagnostic.SourcePath := _name;
-    OutImm.Diagnostic.Severity   := E_Severity.LOW;
-
-// _M_Fault: promote to ERROR with the first-out reason → ErrorID
-METHOD PRIVATE _M_Fault : BOOL
-VAR_INPUT  Reason : E_Reason;  Desc : STRING(255); END_VAR
-    OutImm.Diagnostic.ReasonCode := Reason;
-    OutImm.Diagnostic.Description := Desc;
-    OutImm.Diagnostic.SourcePath := _name;
-    OutImm.Diagnostic.Severity   := E_Severity.MED;
-    OutImm.Diagnostic.Since      := _M_Now();
-    _hal.ValveOpen := FALSE;
-    _exec := E_ExecState.ERROR; _step := 0;
-
-// _M_ClearDiag: reset to NONE on success
-```
-
-The interface properties of `I_Module` / `I_ControlModule` are trivial getters and are elided here: `Name` → `_name`, `ModuleType` → `CONTROL_MODULE`, `State` → `_exec`, `FaultActive` → `Error`, and `GetFaultSummary` → `OutImm.Diagnostic` (the numeric `ErrorID` lives only on the PLCopen output — §3.2/§6.1). `ExecuteCommand(cmd : DINT)` validates the value against `E_SepCommand` (§5.6) and enters the same lifecycle as the typed surface; `AbortCommand()` routes through the inherited abort path.
+Diagnostic text is a **localization key**, never prose: `_M_FaultN(Code :=
+PL_ModuleReasons.SEP_NO_CARRIER_AT, Text := 'std.error.separatorNoCarrierAt')`.
+The HMI resolves it per operator language (§3.13); a literal English string in a
+library is a defect the cross-artifact gate rejects.
 
 ---
 
 ## A.4 Instantiation & reuse (§3.11)
 
-Two separators, same type, different name + HAL mapping + recipe source — full logic reused:
+Two separators, same type, different name + HAL mapping + recipe source:
 
 ```iecst
 VAR
-    Separator1 : FB_SeparatorCM(Name := 'Separator1',
-                                HalRef := Hal.Sep1,
-                                Recipe := LineRecipe);   // I_RecipeProvider (OPC UA / REST / local …)
-    Separator2 : FB_SeparatorCM(Name := 'Separator2',
-                                HalRef := Hal.Sep2,
-                                Recipe := LineRecipe);
+    Separator1 : FB_SeparatorCM;
+    Separator2 : FB_SeparatorCM;
 END_VAR
+
+// composition root, once
+Separator1.Setup(Name := 'Separator1', HalRef := Hal.Sep1, Recipe := LineRecipe);
+Separator2.Setup(Name := 'Separator2', HalRef := Hal.Sep2, Recipe := LineRecipe);
 ```
 
-```iecst
-METHOD FB_init : BOOL
-VAR_INPUT
-    bInitRetains : BOOL;  bInCopyCode : BOOL;
-    Name   : STRING(80);
-    HalRef : REFERENCE TO ST_SepHal;
-    Recipe : I_RecipeProvider;
-END_VAR
-    THIS^._name   := Name;          // = OPC UA browse name = schematic name (§4.8)
-    THIS^._hal    REF= HalRef;
-    THIS^._recipe := Recipe;
-    // condition records set once (driven by the Ladder rungs of A.2)
-    SepIntlk.Define(1, 'Area safe',              E_Reason.INTERLOCK_DROPPED);
-    SepIntlk.Define(2, 'Air pressure OK',        E_Reason.INTERLOCK_DROPPED);
-    SepIntlk.Define(3, 'No jam at separator',    E_Reason.INTERLOCK_DROPPED);
-    SepIntlk.Define(4, 'Downstream ready',       E_Reason.PERMISSIVE_NOT_MET);
-```
+`Setup` sets the name (= OPC UA browse name = schematic name, §4.8), sets the
+presentation keys, binds the HAL by reference, publishes the two commands for the
+HMI, and runs the recipe prepare/commit transaction (§3.8). It defines **no**
+interlocks — see A.2.
 
-A step in an Equipment Module (Annex B) commands this CM through the standard handshake:
+`Recipe := 0` is supported and means "no provider": `ParCfg` is used as-is. That
+is what the test suite does, and what a station without a recipe source does.
+
+A step in an Equipment Module (Annex B) commands this CM through the standard
+handshake:
 
 ```iecst
 IF NOT Separator1.Busy AND NOT Separator1.Done THEN
-    Separator1.Command := E_SepCommand.SEPARATE;
+    Separator1.Command := E_SeparatorCommand.SEPARATE;
     Separator1.Execute := TRUE;
 END_IF
 IF Separator1.Done THEN
@@ -387,14 +317,15 @@ END_IF
 
 ## A.5 HMI views (§3.13)
 
-The Flutter app discovers the instance over OPC UA and renders it generically from the node sub-structure — no per-station screen building:
+The Flutter app discovers the instance and renders it generically from the node
+sub-structure — no per-station screen building:
 
 ```
 Station ▸ Infeed ▸ Separator1
   Identity   : { Name, ModuleType=CONTROL_MODULE }
-  State      : ExecState  (READY/BUSY/DONE/ERROR/ABORTED)
+  State      : ExecState  (READY/BUSY/DONE/ERROR/ABORTED) + Held
   Commands   : SEPARATE, OPEN_CLOSE          (Features-gated, §3.9; release-gated, §7.6)
-  ParCfg     : Mode, CheckAfter, MaxOpenTime, SOnMaxTime …   (recipe view)
+  ParCfg     : Mode, CheckAfter, UsesOpenFb, MaxOpenTime, SOnMaxTime …   (recipe view)
   OutImm     : CarrierAt, CarrierAfter, OpenedFb, ValveOpen, Diagnostic
 ```
 
@@ -403,13 +334,23 @@ Station ▸ Infeed ▸ Separator1
 | **Tile** | name; state LED ← `ExecState`; carrier LED ← `OutImm.CarrierAt`; open LED ← `OutImm.ValveOpen`; quick buttons *Separate* / *Open·Close*. |
 | **Detail** | manual *Separate* / *Open* / *Close* (each inhibited unless its §7.6 release is TRUE); status LEDs for `CarrierAt`/`CarrierAfter`/`OpenedFb`/`ValveOpen` with their interlock descriptions; the live **`Diagnostic.Description`** line (the first-out reason); the recipe (`ParCfg`) panel. |
 
-When a `SEPARATE` stalls — say a carrier never clears `SAt` — the Detail view shows *"Separator1: Carrier did not clear separator"* directly from `OutImm.Diagnostic`, and on timeout the same text becomes the `Error` with `ErrorID = 10002`. That is the §6.9 walk landing on the operator's screen with no per-step diagnostic code.
+When a `SEPARATE` stalls — say a carrier never clears `SAt` — the Detail view
+shows *"Separator1: Carrier did not clear separator"* directly from
+`OutImm.Diagnostic`, and on timeout the same text becomes the `Error` with
+`ErrorID = 10002`. That is the §6.9 walk landing on the operator's screen with no
+per-step diagnostic code.
+
+Because the interlock *descriptions* come from the application's
+`DeclareCondition` calls, the drill-down names the station's own condition —
+"Downstream conveyor not ready" — rather than a generic library phrase. Provenance
+travels with the record (§7.2.1).
 
 ---
 
 ## A.6 Simulation vs. hardware (§2.6)
 
-`FB_SeparatorCM` only ever touches `_hal`. Whether `_hal` is fed by the real Hardware Driver or by the DI/DO SIM is a driver-level choice; the CM is unchanged:
+`FB_SeparatorCM` only ever touches `_hal`. Whether `_hal` is fed by the real
+Hardware Driver or by the DI/DO SIM is a driver-level choice; the CM is unchanged:
 
 ```iecst
 IF GVL.SimEnabled THEN
@@ -424,8 +365,26 @@ ELSE
 END_IF
 ```
 
-So a `SEPARATE` validated in Process Simulate behaves identically on the line — same handshake, same timeouts, same first-out diagnostics — which is the whole point of routing every CM through the HAL.
+There are **no SIM-only force hooks** in the module (§5.7, lint rule C8). The
+suite drives the shipped surface: it declares conditions the way an application
+does and writes the HAL the way a driver does, so what the tests exercise is what
+ships.
 
 ---
 
-*End of Annex A (draft).*
+## A.7 Conformance rows (§5.7)
+
+| Row | Where |
+|---|---|
+| T1 handshake, Execute-drop reset | `FB_Base_Tests` — once for all inheriting types |
+| T4 abort, no self-resume | `FB_Base_Tests` — once for all inheriting types |
+| T2 first-out reason + `SourcePath` | `No_carrier_at_the_separator_faults_10001` |
+| T3 interlock withholds output | `Interlock_withholds_the_valve_and_holds_rather_than_faults` |
+| T5 recipe migrate-or-fault | `PrepareRecipe` faults `RECIPE_INVALID`; provider-less path covered by `Setup` |
+| Ownership (§7.2.1) | `Library_declares_no_interlocks_and_application_conditions_are_fail_closed` |
+
+Executed 2026-08-17: 6/6 in `SeparatorTests`, within 112/112 across 32 suites.
+
+---
+
+*End of Annex A — realized against `Fraktal_Modules 0.5.0.0`.*
