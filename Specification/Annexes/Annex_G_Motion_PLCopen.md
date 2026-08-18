@@ -38,93 +38,118 @@ The CM holds the standard `AXIS_REF` and the `MC_*` instances; soft limits and s
 
 ```iecst
 // Publication is inherited from the explicitly marked deployed root instance.
-FUNCTION_BLOCK FB_AxisCM IMPLEMENTS I_ControlModule
-VAR_INPUT  Execute : BOOL; Command : E_AxisCommand; Target : LREAL; Abort : BOOL; END_VAR
-VAR_OUTPUT Busy, Done, Error, Aborted : BOOL; ErrorID : DWORD; END_VAR
+// Execute/Abort arrive through the base's ExecuteCommand/AbortCommand, and
+// Busy/Done/Error/Aborted/ErrorID plus first-out stamping are base-owned (§2.2):
+// the type is only its device logic.
+FUNCTION_BLOCK FB_AxisCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_AxisCommand;
+    ParCfg  : ST_AxisParCfg;      // SchemaVersion, SoftMin/Max, Vel, Acc, Dec, MoveTimeout, HomeTimeout
+    ParCmd  : ST_AxisParCmd;      // Target — latched by the base on the Execute rising edge
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_AxisOutCmd;       // InPosition, Homed — valid on Done
+    OutImm : ST_AxisOutImm;       // ActPos, ActVelocity, Homed, DriveEnabled, Diagnostic
+    Intlk  : FB_PermIntlk;        // e.g. "STO cleared" / "Zone2 safe" (read-only, §9.2)
+END_VAR
 VAR
-    Axis    : AXIS_REF;
-    ParCfg  : AxisParCfg;         // SoftMin, SoftMax, Vel, Acc, Dec, MoveTimeout
-    OutImm  : AxisOutImm;         // ActPos, Homed, Diagnostic
-    _name   : STRING(80);
-    _exec   : E_ExecState;  _step : INT;  _homed : BOOL;
-    _pwr    : MC_Power;  _home : MC_Home;  _move : MC_MoveAbsolute;
-    _stop   : MC_Stop;   _reset: MC_Reset;
-    tMove   : TON;       _rTrig: R_TRIG;
-    SafeIntlk : FB_PermIntlk;     // e.g. "STO cleared" / "Zone2 safe" (read-only, §9.2)
+    _axis   : REFERENCE TO AXIS_REF;
+    _step   : INT;  _homed : BOOL;
+    _pwrFb  : MC_Power;  _homeFb : MC_Home;  _moveFb : MC_MoveAbsolute;
+    _stopFb : MC_Stop;   _resetFb: MC_Reset;
+    _tMove  : TON;
 END_VAR
 
 METHOD Setup : BOOL
 VAR_INPUT Name : STRING(80); AxisRef : REFERENCE TO AXIS_REF; Recipe : I_RecipeProvider; END_VAR
-    THIS^._name := Name;  THIS^.Axis REF= AxisRef;
-    SafeIntlk.Define(1, 'STO cleared', E_Reason.INTERLOCK_DROPPED);   // §9.2 status, read-only
+    THIS^._axis REF= AxisRef;
+    // This type declares NO interlock of its own: safe motion lives in the certified
+    // system and a library cannot name "STO cleared" for a station it has never seen.
+    // The application supplies that status through DeclareCondition/SetCondition (§9.2).
     // recipe wiring (limits, velocities) as Annex A …
 ```
 
 ### Cyclic body
 
+`OnCyclic` is the type's device logic only — the Execute edge, `ExecState`, the `Busy`/`Done`/
+`Error`/`Aborted`/`ErrorID` outputs, first-out stamping and reset are all base-owned (§2.2) and
+proven once in `FB_Base_Tests` (§5.7):
+
 ```iecst
-// power + safety: enable only while the safety alias is healthy (§9.2/§9.3)
-_pwr(Axis := Axis, Enable := TRUE, Enable_Positive := SafeIntlk.AllOk, Enable_Negative := SafeIntlk.AllOk);
+METHOD PROTECTED OnCyclic
+// power + safety: enable only while the application's safety condition is healthy (§9.2/§9.3)
+_pwrFb(Axis := _axis, Enable := TRUE, Enable_Positive := Intlk.AllOk, Enable_Negative := Intlk.AllOk);
 
-IF NOT SafeIntlk.AllOk AND _exec = E_ExecState.BUSY THEN
-    _M_SafeStop(E_Reason.INTERLOCK_DROPPED, 'STO/zone dropped during move');   // G.4
+IF NOT Intlk.AllOk AND Busy THEN
+    _M_SafeStop();                                   // G.4
 END_IF
 
-_rTrig(CLK := Execute);
-IF _rTrig.Q AND _exec = E_ExecState.READY THEN _exec := E_ExecState.BUSY; _step := 10; END_IF
-
-IF _exec = E_ExecState.BUSY THEN
-    CASE Command OF
-        E_AxisCommand.HOME:    _M_Home();
-        E_AxisCommand.MOVE_TO: _M_MoveTo();
-    END_CASE
-END_IF
-
-OutImm.ActPos := Axis.NcToPlc.ActPos;  OutImm.Homed := _homed;
-Busy := (_exec = E_ExecState.BUSY);  Done := (_exec = E_ExecState.DONE);
-Error := (_exec = E_ExecState.ERROR);  Aborted := (_exec = E_ExecState.ABORTED);
-ErrorID := TO_DWORD(OutImm.Diagnostic.ReasonCode);
-IF NOT Execute AND _exec IN (E_ExecState.DONE, E_ExecState.ERROR, E_ExecState.ABORTED) THEN
-    _exec := E_ExecState.READY;
-END_IF
+OutImm.ActPos       := _axis.NcToPlc.ActPos;
+OutImm.ActVelocity  := _axis.NcToPlc.ActVelo;
+OutImm.Homed        := _homed;
+OutImm.DriveEnabled := _pwrFb.Status;
 ```
-
-*With the framework base class (§2.2), this entire cyclic body is **inherited**: a conforming `FB_AxisCM EXTENDS FB_ControlModuleBase` keeps only the safety/power lines and the `_M_Home`/`_M_MoveTo` dispatch — the Execute edge, state mapping, reset, and `ErrorID` publication come from the base. The expanded form is shown here for pedagogy.*
 
 ---
 
 ## G.3 The move command — validate target first (§5.6), map `MC_*` to the handshake
 
-```iecst
-METHOD PRIVATE _M_MoveTo
-CASE _step OF
-  10:  // defensive coding: reject an out-of-range or un-homed move before commanding motion
-    IF NOT _homed THEN  _M_Fault(E_Reason.AXIS_NOT_HOMED, 'Move before home');  RETURN;  END_IF
-    IF (Target < ParCfg.SoftMin) OR (Target > ParCfg.SoftMax) THEN
-        _M_Fault(E_Reason.AXIS_TARGET_OOR, 'Target outside soft limits');  RETURN;        // §5.6
-    END_IF
-    _move(Axis := Axis, Execute := FALSE);  _step := 20;
+Validate the **request** before the **state**, and both before commanding motion: a target outside
+the soft limits is malformed whether or not the axis is homed, and reporting "not homed" for an
+impossible target sends the operator to the wrong problem. It also makes both rejections provable
+without a licensed NC axis, since neither issues an `MC_*` call.
 
-  20:  // issue the PLCopen move; map its outputs onto the CM handshake (§6.1)
-    _move(Axis := Axis, Execute := TRUE, Position := Target,
-          Velocity := ParCfg.Vel, Acceleration := ParCfg.Acc, Deceleration := ParCfg.Dec);
-    tMove(IN := TRUE, PT := ParCfg.MoveTimeout);
-    IF _move.Done THEN
-        _move(Axis := Axis, Execute := FALSE);  tMove(IN := FALSE);
-        _exec := E_ExecState.DONE;  _step := 0;  _M_ClearDiag();
-    ELSIF _move.Error THEN
-        _M_Fault(E_Reason.AXIS_DRIVE_FAULT, 'Drive/move error');
-    ELSIF _move.CommandAborted THEN
-        _exec := E_ExecState.ABORTED;  _step := 0;
-    ELSIF tMove.Q THEN
-        _M_Fault(E_Reason.AXIS_MOVE_TIMEOUT, 'Move did not complete');
-    END_IF
+```iecst
+METHOD PROTECTED _M_Dispatch
+IF (ParCmd.Target < ParCfg.SoftMin) OR (ParCmd.Target > ParCfg.SoftMax) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_TARGET_OOR, Text := 'std.error.axisTargetOutOfRange');
+    RETURN;
+END_IF
+IF NOT _homed THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_NOT_HOMED, Text := 'std.error.axisNotHomed');
+    RETURN;
+END_IF
+IF NOT __ISVALIDREF(_axis) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisNotBound');
+    RETURN;
+END_IF
+
+CASE _step OF
+    10:
+        OutCmd.InPosition := FALSE;
+        _moveFb(Axis := _axis, Execute := FALSE);
+        _tMove(IN := FALSE);
+        _step := 20;
+    20:  // issue the PLCopen move; map its outputs onto the CM handshake (§6.1)
+        _moveFb(Axis := _axis, Execute := TRUE, Position := ParCmd.Target,
+                Velocity := ParCfg.Velocity, Acceleration := ParCfg.Acceleration,
+                Deceleration := ParCfg.Deceleration);
+        _tMove(IN := TRUE, PT := ParCfg.MoveTimeout);
+        IF _moveFb.Done THEN
+            _moveFb(Axis := _axis, Execute := FALSE);
+            _tMove(IN := FALSE);
+            OutCmd.InPosition := TRUE;
+            _M_Complete();
+        ELSIF _moveFb.Error THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisDriveFault');
+        ELSIF _moveFb.CommandAborted THEN
+            // Another motion command took the axis: that is an abort, not a defect —
+            // route it through the base's own abort path rather than inventing a fault.
+            AbortCommand();
+        ELSIF _tMove.Q THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_MOVE_TIMEOUT, Text := 'std.error.axisMoveTimeout');
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');        // defined ELSE (§5.6)
 END_CASE
 ```
 
-`MC_MoveAbsolute`'s `Busy/Done/Error/CommandAborted` map one-to-one onto the CM's `ExecState`, so the parent Unit commands `MOVE_TO` exactly as it commands a cylinder `EXTEND` — it neither knows nor cares that a servo is involved (§6.1).
+`MC_MoveAbsolute`'s `Busy/Done/Error/CommandAborted` map one-to-one onto the CM handshake, so the
+parent Unit commands `MOVE_TO` exactly as it commands a cylinder `EXTEND` — it neither knows nor
+cares that a servo is involved (§6.1).
 
 ---
+
 
 ## G.4 Safe stop on a dropped alias (§9)
 
@@ -132,11 +157,13 @@ Safe-motion stays in the safety system; the CM only **reads** its status and rea
 
 ```iecst
 METHOD PRIVATE _M_SafeStop
-VAR_INPUT reason : E_Reason; text : STRING(120); END_VAR
-    _stop(Axis := Axis, Execute := TRUE, Deceleration := ParCfg.Dec);   // controlled stop
-    OutImm.Diagnostic := _M_MakeDiag(reason, text, _name);
-    _exec := E_ExecState.ERROR;
+    _stopFb(Axis := _axis, Execute := TRUE, Deceleration := ParCfg.Deceleration);   // controlled stop
+    _M_FaultStopped(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisSafetyDropped');
 ```
+
+The condition itself is **not** declared by this type: a library cannot name "STO cleared" for a
+station it has never seen, so the application supplies it through `DeclareCondition`/`SetCondition`
+and the type only reads `Intlk.AllOk` (§9.2).
 
 The motion is brought to the §6 defined safe stop; re-enable after the alias returns is a deliberate reset (`MC_Reset`, then re-home if required), never automatic (§9.3, §9.4).
 

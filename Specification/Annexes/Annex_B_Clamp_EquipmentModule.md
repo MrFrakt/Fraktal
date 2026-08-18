@@ -35,28 +35,36 @@ TYPE ST_CylinderHal : STRUCT
     ExtendedFb, RetractedFb : BOOL; // the two position sensors
 END_STRUCT END_TYPE
 
-// Publication is inherited from the explicitly marked deployed root instance.
-FUNCTION_BLOCK FB_CylinderCM IMPLEMENTS I_ControlModule
-VAR_INPUT  Execute : BOOL; Command : E_CylinderCommand; Abort : BOOL; END_VAR
-VAR_OUTPUT Busy, Done, Error, Aborted : BOOL; ErrorID : DWORD; END_VAR
+// Annex A/B pattern on the base class: the type is ONLY its device logic.
+// Execute/Abort arrive through ExecuteCommand/AbortCommand, and Busy/Done/Error/
+// Aborted/ErrorID, first-out stamping, rollup and publication are base-owned (§2.2).
+FUNCTION_BLOCK FB_CylinderCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_CylinderCommand;
+    ParCfg  : ST_CylinderParCfg;   // SchemaVersion, MoveTimeout …
+    ParCmd  : ST_CylinderParCmd;   // latched by the base on the Execute rising edge
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_CylinderOutCmd;    // valid on Done
+    OutImm : ST_CylinderOutImm;    // Extended, Retracted, Diagnostic (ST_Diagnostic)
+    Intlk  : FB_PermIntlk;         // conditions are DECLARED BY THE APPLICATION, not by this type
+END_VAR
 VAR
-    ParCfg : CylinderParCfg;   // MoveTimeout …
-    OutImm : CylinderOutImm;   // Extended, Retracted, Diagnostic (ST_Diagnostic)
-    _name  : STRING(80);
+    {attribute 'OPC.UA.DA' := '0'}
     _hal   : REFERENCE TO ST_CylinderHal;
-    CylIntlk : FB_PermIntlk;   // e.g. "Area safe", "Air pressure OK" (Ladder)
+    _tMove : TON;
 END_VAR
 
 METHOD Setup : BOOL                       // late binding for nested use (§3.11)
 VAR_INPUT Name : STRING(80); HalRef : REFERENCE TO ST_CylinderHal; Recipe : I_RecipeProvider; END_VAR
-    THIS^._name := Name;
-    THIS^._hal  REF= HalRef;
-    CylIntlk.Define(1, 'Area safe',       E_Reason.INTERLOCK_DROPPED);
-    CylIntlk.Define(2, 'Air pressure OK', E_Reason.INTERLOCK_DROPPED);
+    THIS^._hal REF= HalRef;
+    // No interlock is named here. "Area safe" / "Air pressure OK" are station facts, and a
+    // reusable library cannot name them for a station it has never seen: the application
+    // supplies them through DeclareCondition/SetCondition and the type only reads Intlk.AllOk (§7.2, §9.2).
     // recipe wiring as Annex A …
 ```
 
-Behaviour (body as Annex A): `EXTEND` drives `ExtendOut`, waits `ExtendedFb` within `MoveTimeout` → `Done`, else `Error` + `CYL_NOT_EXTENDED`; `RETRACT` is the mirror. `OutImm.Diagnostic.SourcePath` is the cylinder's own browse path (e.g. `ClampStation.CylA`).
+Behaviour (body as Annex A): `EXTEND` drives `ExtendOut`, waits `ExtendedFb` within `ParCfg.MoveTimeout` → `_M_Complete()`, else `_M_FaultStopped(Code := PL_ModuleReasons.CYL_NOT_EXTENDED, Text := 'std.error.cylinderNotExtended')`; `RETRACT` is the mirror. `OutImm.Diagnostic.SourcePath` is the cylinder's own browse path (e.g. `ClampStation.CylA`).
 
 ---
 
@@ -87,73 +95,56 @@ END_STRUCT END_TYPE
 
 ## B.3 The Equipment Module (ST step chain)
 
-The EM holds its children both directly (to command them) and through `I_ControlModule` (for the generic rollup walk, §3.2). Its command is a **short step chain that completes** — it does not loop (§6.3).
+The EM holds its children as **outputs**, so they publish on the module tree and the generic rollup
+walk (§3.2) reaches them without a parallel `I_ControlModule` array. Its command is a **short step
+chain that completes** — it does not loop (§6.3).
 
 ```iecst
+// Annex B on the EM base: orchestration only, no device logic (§3.5); rollup §8.2.
 // Publication is inherited from the explicitly marked deployed root instance.
-FUNCTION_BLOCK FB_ClampEM EXTENDS FB_EquipmentModule IMPLEMENTS I_EquipmentModule
-VAR_INPUT  Execute : BOOL; Command : E_ClampCommand; Abort : BOOL; END_VAR
-VAR_OUTPUT Busy, Done, Error, Aborted : BOOL; ErrorID : DWORD; END_VAR
+FUNCTION_BLOCK FB_ClampEM EXTENDS FB_EquipmentModuleBase
+VAR_INPUT
+    Command : E_ClampCommand;
+    ParCfg  : ST_ClampParCfg;
+    ParCmd  : ST_ClampParCmd;
+END_VAR
+VAR_OUTPUT
+    CylA, CylB : FB_CylinderCM;     // children are outputs: published, and reached by the rollup walk
+    OutCmd : ST_ClampOutCmd;
+    OutImm : ST_ClampOutImm;
+END_VAR
 VAR
-    CylA, CylB : FB_CylinderCM;
-    _children  : ARRAY[1..2] OF I_ControlModule;   // [CylA, CylB] — for rollup
-    ParCfg : ClampParCfg;
-    OutCmd : ClampOutCmd;
-    OutImm : ClampOutImm;
-    _name  : STRING(80);
-    _exec  : E_ExecState := E_ExecState.READY;
-    _step  : INT;
-    _rTrig : R_TRIG;
-    tSettle: TON;
+    {attribute 'OPC.UA.DA' := '0'}
+    _recipe  : I_RecipeProvider;
+    _step    : INT;
+    _tSettle : TON;
 END_VAR
 
 // ---- one-shot wiring (called from the Unit's init, §3.11) ----
 METHOD Setup : BOOL
 VAR_INPUT Name : STRING(80); HalA, HalB : REFERENCE TO ST_CylinderHal; Recipe : I_RecipeProvider; END_VAR
-    THIS^._name := Name;
     CylA.Setup(Name := CONCAT(Name, '.CylA'), HalRef := HalA, Recipe := Recipe);
     CylB.Setup(Name := CONCAT(Name, '.CylB'), HalRef := HalB, Recipe := Recipe);
-    _children[1] := CylA;   // FB implements I_ControlModule
-    _children[2] := CylB;
 
-// ---- cyclic body ----
-CylA();  CylB();                    // children always tick, so status stays live
-
-_rTrig(CLK := Execute);
-IF _rTrig.Q AND _exec = E_ExecState.READY THEN
-    _exec := E_ExecState.BUSY;  _step := 10;
-    OutCmd.Clamped := FALSE;  OutCmd.Unclamped := FALSE;
-END_IF
-
-IF _exec = E_ExecState.BUSY THEN
-    CASE Command OF
-        E_ClampCommand.CLAMP:   _M_Move(E_CylinderCommand.EXTEND);   // confirm Extended
-        E_ClampCommand.UNCLAMP: _M_Move(E_CylinderCommand.RETRACT);  // confirm Retracted
-    END_CASE
-END_IF
-
-Busy    := (_exec = E_ExecState.BUSY);
-Done    := (_exec = E_ExecState.DONE);
-Error   := (_exec = E_ExecState.ERROR);
-Aborted := (_exec = E_ExecState.ABORTED);
-ErrorID := TO_DWORD(OutImm.Diagnostic.ReasonCode);
-
-IF NOT Execute AND _exec IN (E_ExecState.DONE, E_ExecState.ERROR, E_ExecState.ABORTED) THEN
-    _exec := E_ExecState.READY;
-END_IF
+// ---- cyclic body: orchestration only; the base owns the handshake ----
+METHOD PROTECTED OnCyclic
+OnCyclic := SUPER^.OnCyclic();
+_M_TickChildren();                       // children stay live, so their status is always current
+OutImm.Diagnostic := Status.Diagnostic;
 ```
+
 
 The command body (one method serves both directions; `confirmExtended` decides which feedback to verify):
 
 ```iecst
-METHOD PRIVATE _M_Move : BOOL
+METHOD PROTECTED _M_Dispatch
 VAR_INPUT  Dir : E_CylinderCommand; END_VAR
 VAR  extend : BOOL; END_VAR
     extend := (Dir = E_CylinderCommand.EXTEND);
 CASE _step OF
   10:  // command both cylinders together (parallel)
-    CylA.Command := Dir;  CylA.Execute := TRUE;
-    CylB.Command := Dir;  CylB.Execute := TRUE;
+    CylA.Command := Dir;  CylA.ExecuteCommand(Dir);
+    CylB.Command := Dir;  CylB.ExecuteCommand(Dir);
     _M_Wait('Clamping');                       // pending reason while children run
     _step := 20;
 
@@ -161,21 +152,20 @@ CASE _step OF
     IF CylA.Error OR CylB.Error THEN
         _M_RollupFault();
     ELSIF CylA.Done AND CylB.Done THEN
-        CylA.Execute := FALSE;  CylB.Execute := FALSE;
-        tSettle(IN := TRUE, PT := ParCfg.SettleTime);
+        _tSettle(IN := TRUE, PT := ParCfg.SettleTime);
         _step := 30;
     END_IF
 
   30:  // settle, then confirm both feedbacks held
-    IF tSettle.Q THEN
-        tSettle(IN := FALSE);
+    IF _tSettle.Q THEN
+        _tSettle(IN := FALSE);
         IF (extend AND CylA.OutImm.Extended AND CylB.OutImm.Extended)
         OR (NOT extend AND CylA.OutImm.Retracted AND CylB.OutImm.Retracted) THEN
             OutCmd.Clamped   := extend;
             OutCmd.Unclamped := NOT extend;
-            _exec := E_ExecState.DONE;  _step := 0;  _M_ClearDiag();
+            _M_Complete();
         ELSE
-            _M_Fault(E_Reason.CLAMP_NOT_CONFIRMED, 'Clamp not confirmed after settle');
+            _M_FaultN(Code := PL_ModuleReasons.CLAMP_NOT_CONFIRMED, Text := 'std.error.clampNotConfirmed');
         END_IF
     END_IF
 END_CASE
@@ -191,15 +181,15 @@ When a child cylinder can't finish, the EM does not invent a reason — it **ado
 
 ```iecst
 METHOD PRIVATE _M_RollupFault : BOOL
-VAR  i : INT; END_VAR
-    FOR i := 1 TO 2 DO
-        IF _children[i].FaultActive THEN
-            OutImm.Diagnostic := _children[i].GetFaultSummary();  // child reason + child SourcePath
-            EXIT;
-        END_IF
-    END_FOR
-    CylA.Abort := TRUE;  CylB.Abort := TRUE;     // stop the partner safely
-    _exec := E_ExecState.ERROR;  _step := 0;
+    // Adopt the first faulted child's diagnostic VERBATIM — reason, SourcePath and Since (§8.2).
+    // No parallel I_ControlModule array is kept: the children are published members, and the
+    // base's rollup walk already reaches them.
+    IF CylA.FaultActive THEN
+        _M_AdoptFault(CylA.GetFaultSummary());
+    ELSIF CylB.FaultActive THEN
+        _M_AdoptFault(CylB.GetFaultSummary());
+    END_IF
+    CylA.AbortCommand();  CylB.AbortCommand();   // stop the partner safely
 ```
 
 So if `CylB`'s cylinder never reaches its extended sensor, the chain is:

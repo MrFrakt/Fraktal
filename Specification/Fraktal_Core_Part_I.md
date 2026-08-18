@@ -451,9 +451,70 @@ placement), §3.10.2 (capability registration — what a set contains), §7.7
 (`DATA_WRITE`, `CONFIG_SET`), §8.3 (audit), §8.8 (reason codes), §13 (schema
 change), §14 (untrusted input).*
 
+#### 3.8c Teach capture — acquiring a value from the machine
+
+§3.8a says *where* an editable value lives and §3.8b what happens to it across a
+restart. Neither says how the value is first **obtained**. For most parameters
+that is a non-question: an engineer knows the number and types it. But a class of
+values is knowable only by demonstration — a gripper's closed width *with a real
+part between the jaws*, a camera's exposure under the real lighting, a force or
+torque threshold, a tare, a mechanical offset. These cannot be calculated, so
+without a mechanism they are commissioned by reading a live display and
+transcribing the number by hand: a two-person job, repeated per variant, and one
+transcription error away from a wrong recipe.
+
+A module **may** therefore register a **capture** beside an editable value: an
+action that writes the module's **own live value** into its **own** `ParCfg` or
+`StationCfg` field. A capture is a write whose value comes from the machine
+instead of from the client. It is not a new authority and it adds no new gated
+action.
+
+**(a) A capture reaches only an already-editable field.** It **shall** be
+registered in the §3.10.2 manifest against the same `(Scope, WriteKey)` as the
+value it writes, and **shall** be routed through the same acknowledged root
+mailbox. A capture able to reach a field that is not independently an editable
+capability would be a back door around §3.8a, so it is not permitted: capture
+changes *how the number arrives*, never *which numbers may change*.
+
+**(b) The source shall be published.** The captured quantity **shall** be a value
+the module already publishes (§3.10) — never a private internal. The operator can
+then see the number that is about to be stored, on the same screen, before
+storing it; a capture whose input is invisible is unreviewable.
+
+**(c) Validation is not bypassed.** The captured value **shall** be validated
+against the same range, band and schema as a typed write, and a failure refused
+with the same reason (`RECIPE_INVALID`, §8.8). A machine-supplied number is not
+more trustworthy than a human-supplied one (§14).
+
+**(d) Same authority, same audit.** A capture **shall** be gated `DATA_WRITE`
+(§7.7) and audited per §8.3, recording the stored value, the field, and that the
+source was a capture rather than a client entry — so a later reader can tell how
+a recipe value came to hold what it holds.
+
+**(e) Deliberate setup only.** Capture **should** be offered only in modes where
+the machine is knowingly being set up rather than producing — `ADJUSTMENT` is the
+mode §3.4 defines for exactly this — and **shall** respect the same release and
+permissive rules as a manual movement (§7.6), because reaching the pose or state
+worth capturing is usually itself a manual movement.
+
+**(f) One value, not a set.** Capture writes a single registered value. Saving,
+loading or importing a whole parametrization remains the separate `CONFIG_SET`
+action of §3.8b, unchanged.
+
+Capture is optional and advertised through the ordinary `Features` flag set
+(§3.9), so a module with nothing worth demonstrating publishes nothing and pays
+no cost. Where it *is* offered it is paid once in the owning module type — a
+gripper CM, a camera CM, a force-monitor CM — and never re-invented per station,
+per device family, or per annex.
+
+*Cross-references: §3.8a (placement), §3.8b (persistence and sets), §3.4
+(`ADJUSTMENT`), §3.9 (feature flags), §3.10.2 (capability registration), §7.6
+(manual release), §7.7 (`DATA_WRITE`), §8.3 (audit), §8.8 (`RECIPE_INVALID`),
+§14 (untrusted input).*
+
 ### 3.9 Feature selectability
 
-Each module advertises a `Features` flag set — e.g. `RecipeEnabled`, `CalibrationEnabled`, `ManualFunctionsEnabled`, plus per-command enables. Disabled features:
+Each module advertises a `Features` flag set — e.g. `RecipeEnabled`, `CalibrationEnabled`, `CaptureEnabled` (§3.8c), `ManualFunctionsEnabled`, plus per-command enables. Disabled features:
 
 - **shall** be omitted from the Self-Description Service catalogues/data surface (§3.10), so the Flutter HMI renders only what exists and pays no read cost for it;
 - **should** be checkable by clients through declared capability metadata and by PLC code through the binding's capability lookup (TC3 §3.2; AB §3.2).
@@ -836,10 +897,13 @@ as an explicit, documented, extendable/replaceable choice—not as hidden final 
 infrastructure and calls **each root Unit's** `Cyclic()` in the defined scan order (§10.2.1). It does
 not own child sequence logic or channel assignments.
 
-**Non-normative comparison.** The reviewed Nexeed export’s location-owned folders and distinct
-Mode/Command/Sub chain roles are useful orientation, but Fraktal does not claim Nexeed compatibility
-and does not import its per-step wrappers, Unit/Extension pairs, Addon structure, or PLC-authored HMI
-visibility. The objective-filtered comparison is recorded in `NEXEED_REFERENCE_INSIGHTS.md`.
+**Deliberate non-adoptions.** Location-owned folders and distinct Mode/Command/Sub chain roles are
+common to several equipment-software conventions and are adopted here on their own merits. Fraktal
+does **not** adopt the patterns that usually accompany them: per-step command/error wrappers repeated
+in every step, a paired `<X>Unit` + `<X>Extension` object per module, an add-on object per optional
+concern, or PLC code deciding HMI visibility. The lifecycle is single-sourced (§2.2), optional
+concerns use §3.14 hooks or a narrow injected interface, and the HMI derives presentation from
+published capability/release data (§3.13).
 
 **One or more root Units per program (§3.1a).** A PLC program **shall** host one *or more* root `FB_Unit` instances — one per independently-controlled entity (a station, a conveyor system, a sub-line). Roots are peers: each owns its own mode, cycle, recipe/model identity (§3.1b), and diagnostic rollup, and there is **no** shared super-root in PLC code. `MAIN` holds them in a fixed root collection and ticks each every scan; the folder tree gains one `0N_<UnitName>` branch per root. This is the same recursion as any nested Unit — a root is just a Unit with no parent — so nothing in the contract changes; what changes is that "the tree" is formally a **forest**, and the HMI (§3.13) may render the whole forest (all roots) or be scoped to one root. `00_System` remains single (one clock, one safety project, one alarm spine serving all roots).
 
@@ -1794,7 +1858,7 @@ A generic code plus `SourcePath` renders instance-specific — *"Clamp3: part pr
 | Framework `2020–2029` | traceability / part context (§3.16): `CARRIER_READ_FAILED`=2020, `CARRIER_WRITE_FAILED`=2021, `PART_ID_MISMATCH`=2022, `RESULT_RECORD_REJECTED`=2023 |
 | Framework `2030–2039` | engineering/commissioning build gates (§7.5): `COMMISSIONING_GATE_ACTIVE`=2030 — one LOW/SYSTEM, non-clearable, non-shelvable event per active gate |
 | Framework `2900–2909` | framework self-test reasons, never raised in production (§5.7 base suite): `TEST_FAULT`=2901 |
-| Per module-type `10000+` | type-specific, one contiguous block per type — 100-wide CM sub-blocks within `10000–10999`, EM blocks from `11000` (registered: separator CM `10001–10005`, cylinder CM `10101–10103`, **basic cylinder CM `10110–10116`** (same 100-block; production variant of the cylinder type), axis CM `10201–10204`, robot CM `10301–10310`, **TCP/ASCII device CM `10401–10406`** (§3.15.1a base; device profiles extend within `10401–10499`), **power-group CM `10501–10502`** (§9.8), **air-pressure monitor CM `10601`**, clamp EM `11001`, per Annexes A–B, G, I) |
+| Per module-type `10000+` | type-specific, one contiguous block per type — 100-wide CM sub-blocks within `10000–10999`, EM blocks from `11000` (registered: separator CM `10001–10005`, cylinder CM `10101–10103`, **basic cylinder CM `10110–10116`** (same 100-block; production variant of the cylinder type), axis CM `10201–10204`, robot CM `10301–10315`, **TCP/ASCII device CM `10401–10406`** (§3.15.1a base; device profiles extend within `10401–10499`), **power-group CM `10501–10502`** (§9.8), **air-pressure monitor CM `10601`**, clamp EM `11001`, per Annexes A–B, G, I) |
 
 `TIME_SYNC_LOST` is a System-band code (17) because it is annunciated as a System-category alarm (§2.7, §8.6), even though the clock is configured in §2.
 
@@ -2061,7 +2125,7 @@ Axes and drives are wrapped as Control Modules (§10.4); this section fixes **ho
 - **Coordinated motion.** Multi-axis/coordinated moves **shall** use the PLCopen coordinated-motion blocks inside the owning CM/EM; the parent still commands a single named action through the §6.1 handshake.
 - **Limits & scaling.** Axis scaling, soft limits, and velocity/accel limits live in the CM/driver (§10.3); motion targets are validated against them before issue (§5.6). Vendor-specific drive detail stays inside the CM (§10.4).
 - **Safety.** Safe-motion functions (STO/SS1/SLS) remain in the safety system (§9); the motion CM consumes their status read-only and brings motion to the §6 defined safe stop when an alias drops.
-- **Full robots (multi-axis kinematic systems).** A complete robot is wrapped as a Control Module fronted by an `I_RobotConnector` — a specialization of the §3.15 device connector that adds an ID-addressed command surface. A robot framework is more than HMI teaching: it is a **motion-planning layer**, and the standard's rule is that *all of its geometry and kinematics are taught/generated configuration (§3.8) addressed by stable ID — never a coordinate, waypoint, motion mode, or route in a PLC sequence*. Specifically: **points and paths** (point-lists run by ID or sub-range, each point's motion mode — Joints/PTP/Linear, absolute/blended — taught data); **generated trajectories** (the application template assembles the route between a named *from* and *to* position at runtime, so the PLC issues `MOVE_TEMPLATE(from,to)` and never enumerates waypoints); **planning areas** (3-D zones for collision-free recovery from an undefined pose after an E-stop/mode change via `MOVE_FROM_AREA` (area-resolved), with deterministic priority — **distinct from the §9 functional-safety system**, which stays read-only and gates a deliberate §9.4 reset); and **parametric/symmetric pallets** plus **chained reference frames** (a grid generated from a few taught corners, frames defined relative to frames, so a moved fixture is re-taught in one place). The parent commands named/ID-addressed actions through the §6.1 handshake; a point, a 26-point path, a generated route, or a pallet nest is **one** command that runs to completion, so the robot looks identical to any other CM. In practice a thin **robot-handling Equipment Module** exposes the station's *semantic* operations (`PICK_PART`/`PLACE_PART`/`SCAN_PART`/`PROCESS_PART`…) above the robot CM's primitives, adding no device logic (§3.5). Route generation is expressed as **declarative routing data** (a help/nest graph plus a per-nest **help-affinity list**) resolved by one generic planner in the connector — so a **work position served by two or more help points is a native table entry, not hand-coded per-station branching** — and area-resolved motion (`MOVE_FROM_AREA`) is the primary form, with pose recovery its extreme case. Link supervision (§3.15.2), validation before motion (§5.6) and read-only safety (§9) all apply, and robot commands are **not** auto-repeated on error (resumption is deliberate, mirroring §3.15/§9.3). The framework controls robots **regardless of model or manufacturer** by capturing per-model facts (signal counts, Euler conventions, available functions) as data the connector reads — so a **portable, vendor-neutral teaching connector is the recommended default** implementation; per-manufacturer connectors **may** implement the same `I_RobotConnector` as conformant alternatives, with the parent Unit unchanged in either case. Exposing a robot through the portable framework is an **optional conformance profile** (claimed like §11.7), not a mandate, but is the recommended path. See Annex I.
+- **Full robots (multi-axis kinematic systems).** A complete robot is wrapped as a Control Module fronted by an `I_RobotConnector` — a specialization of the §3.15 device connector that adds an ID-addressed command surface. A robot framework is more than HMI teaching: it is a **motion-planning layer**, and the standard's rule is that *all of its geometry and kinematics are taught/generated configuration (§3.8) addressed by stable ID — never a coordinate, waypoint, motion mode, or route in a PLC sequence*. One bounded exception is permitted: where a target genuinely cannot be taught because it is located at runtime (vision-guided picking), a coordinate **may** enter PLC code only as a **correction to a taught reference**, never as an absolute pose, and **shall** be validated against a configured envelope before motion — a runtime pose is untrusted input (§14). A PLC-enumerated trajectory remains prohibited in every case. Specifically: **points and paths** (point-lists run by ID or sub-range, each point's motion mode — Joints/PTP/Linear, absolute/blended — taught data); **generated trajectories** (the application template assembles the route between a named *from* and *to* position at runtime, so the PLC issues `MOVE_TEMPLATE(from,to)` and never enumerates waypoints); **planning areas** (3-D zones for collision-free recovery from an undefined pose after an E-stop/mode change via `MOVE_FROM_AREA` (area-resolved), with deterministic priority — **distinct from the §9 functional-safety system**, which stays read-only and gates a deliberate §9.4 reset); and **parametric/symmetric pallets** plus **chained reference frames** (a grid generated from a few taught corners, frames defined relative to frames, so a moved fixture is re-taught in one place). The parent commands named/ID-addressed actions through the §6.1 handshake; a point, a 26-point path, a generated route, or a pallet nest is **one** command that runs to completion, so the robot looks identical to any other CM. In practice a thin **robot-handling Equipment Module** exposes the station's *semantic* operations (`PICK_PART`/`PLACE_PART`/`SCAN_PART`/`PROCESS_PART`…) above the robot CM's primitives, adding no device logic (§3.5). Route generation is expressed as **declarative routing data** (a help/nest graph plus a per-nest **help-affinity list**) resolved by one generic planner in the connector — so a **work position served by two or more help points is a native table entry, not hand-coded per-station branching** — and area-resolved motion (`MOVE_FROM_AREA`) is the primary form, with pose recovery its extreme case. Link supervision (§3.15.2), validation before motion (§5.6) and read-only safety (§9) all apply, and robot commands are **not** auto-repeated on error (resumption is deliberate, mirroring §3.15/§9.3). Three device facts are **mandatory** for a conformant robot CM, because none is derivable from the rest of the contract and a cell cannot be operated safely without them. **(i) Operating mode is a request/report pair:** the PLC **shall** request a controller operating mode and publish separately what the controller **reports** it actually is, **shall** default to the most restrictive supported mode on start-up or loss of report, and **shall** reject a command the reported mode does not permit rather than issue one the controller will ignore. Mode is read-only status and is never treated as a safety grant (§9). **(ii) Speed is a bounded scale held as configuration:** a per-mode station ceiling and a per-recipe process scale compose as their minimum, so reduced speed outside automatic is a property of the module type rather than per-project habit; a scale outside its configured band is rejected before motion (§5.6). Both are scalars — no coordinate or motion mode enters PLC code. **(iii) A protective stop is not a safety function:** collision/crash protection is detected and acted on by the ordinary PLC, **shall** carry its own reason distinct from the §9 safety reason so the alarm record does not misreport a process event as a safety event, and **shall not** resume automatically. A handling application **shall** additionally prove possession — part-present verified after grip and before release — rather than infer it from the gripper command. Two further requirements follow from the same reasoning. **A robot honours §6.1 `HELD` on its path:** a suspended motion **shall** stop on the programmed path retaining its resume point and continue from that point when the named condition returns; the connector **shall** publish whether resumption is still valid, and a resume requested after the arm has left the retained path **shall** be refused rather than executed. The active load case **should** be maintained as the robot grips and releases, because a move computed for the wrong mass degrades accuracy and brake margin silently. The framework controls robots **regardless of model or manufacturer** by capturing per-model facts (signal counts, Euler conventions, available functions) as data the connector reads — so a **portable, vendor-neutral teaching connector is the recommended default** implementation; per-manufacturer connectors **may** implement the same `I_RobotConnector` as conformant alternatives, with the parent Unit unchanged in either case. Exposing a robot through the portable framework is an **optional conformance profile** (claimed like §11.7), not a mandate, but is the recommended path. See Annex I.
 
 *Cross-references: §10.3/§10.4 (driver, CM wrapping, limits), §6.1 (handshake/status mapping), §5.6 (target validation), §3.15 (device connector & link supervision — the robot connector specializes it), §3.8 (taught points/frames/tools are recipe-class configuration), §9/§9.7 (safe motion stays in the safety system), §10.7 (routing model), Annex I (robot CM worked example).*
 
@@ -2076,7 +2140,7 @@ Axes and drives are wrapped as Control Modules (§10.4); this section fixes **ho
 ```iecst
 TYPE ST_RouteGraph : STRUCT
     HelpAdj  : ARRAY[1..MAX_HELPS, 1..MAX_HELPS] OF BOOL;   // help↔help adjacency (allowed transits)
-    NestHelp : ARRAY[1..MAX_NESTS] OF ST_NestHelpAffinity;  // each nest → one OR MORE serving help points
+    NestHelp : ARRAY[1..MAX_GRIPPERS, 1..MAX_NESTS] OF ST_NestHelpAffinity;  // per-gripper; each nest → one OR MORE serving helps
     DirectNest : ARRAY[1..MAX_NESTS,1..MAX_NESTS] OF DWORD; // optional direct nest→nest list id (else via help)
 END_STRUCT
 ```

@@ -97,23 +97,35 @@ METHOD Cyclic
 `FB_SupplyCM` exposes ordinary device commands (`OUTPUT_ON`, `SET_VOLTAGE`) through the standard handshake. Its only addition over a plain CM is that **every command first requires `Linked`** — a lost link is adopted as the module's fault:
 
 ```iecst
-FUNCTION_BLOCK FB_SupplyCM IMPLEMENTS I_ControlModule
-VAR_INPUT  Execute : BOOL; Command : E_PsCommand; Abort : BOOL; END_VAR
-VAR_OUTPUT Busy, Done, Error, Aborted : BOOL; ErrorID : DWORD; END_VAR
-VAR  _conn : FB_PsConnector;  OutImm : PsOutImm;  _exec : E_ExecState;  _name : STRING(80); END_VAR
+// The type is ONLY its device logic: Execute/Abort arrive through ExecuteCommand/
+// AbortCommand, and Busy/Done/Error/Aborted/ErrorID are base-owned (§2.2).
+FUNCTION_BLOCK FB_SupplyCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_PsCommand;
+    ParCfg  : ST_PsParCfg;
+    ParCmd  : ST_PsParCmd;        // e.g. Voltage for SET_VOLTAGE — latched on the Execute rising edge
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_PsOutCmd;
+    OutImm : ST_PsOutImm;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _conn : FB_PsConnector;
+END_VAR
 
 METHOD Setup : BOOL
 VAR_INPUT Name : STRING(80); Endpoint : STRING(255); Recipe : I_RecipeProvider; END_VAR
-    THIS^._name := Name;
     _conn.Setup(Name := CONCAT(Name, '.Link'), Endpoint := Endpoint, Recipe := Recipe);
 
 // ---- cyclic body ----
+METHOD PROTECTED OnCyclic
+OnCyclic := SUPER^.OnCyclic();
 _conn.Cyclic();                                   // heartbeat/session managed here
-IF NOT _conn.Linked AND _exec = E_ExecState.BUSY THEN
+IF NOT _conn.Linked AND Busy THEN
     _M_AdoptLink();                               // link loss → CM fault (D.4)
 END_IF
-// … normal command step chain (SET_VOLTAGE → OUTPUT_ON) when Linked …
-ErrorID := TO_DWORD(OutImm.Diagnostic.ReasonCode);
+// … normal command step chain (SET_VOLTAGE → OUTPUT_ON) when Linked, in _M_Dispatch …
 ```
 
 The loss **reaction** is honoured here: `HOLD` freezes the chain awaiting reconnect; `ABORT` safe-stops the command and reports `Error`; `MODE_STOP` additionally asks the owning Unit to stop after cycle (the Unit handles it in `OnModeExit`, §3.14).
@@ -126,8 +138,9 @@ The loss **reaction** is honoured here: `HOLD` freezes the chain awaiting reconn
 
 ```iecst
 METHOD PRIVATE _M_AdoptLink
-    OutImm.Diagnostic := _conn.LinkReason;        // reason + "InfeedUnit.Supply1.Link" path
-    _exec := E_ExecState.ERROR;
+    // Adopt the connector's first-out link reason VERBATIM — reason, SourcePath and Since (§8.2);
+    // the base moves the module to Error and stamps it.
+    _M_AdoptFault(_conn.LinkReason);              // reason + "InfeedUnit.Supply1.Link" path
 ```
 
 Concrete trace — the supply is unplugged mid-cycle:

@@ -455,11 +455,11 @@ final for the project. In the internal Press test bench, `FB_PressDemoUnit`, `Se
 - Extract a coherent chain when reused, branch/cleanup-heavy, or materially clearer—not every step. The
   caller supplies a `BaseStepNo` window and publishes the private progress through the normal step record.
   In the press, AUTO/HOME/CHANGEOVER embed the shared `FB_PressDemoLoadPosition`; never copy that motion chain.
-- Cross-standard orientation (Bosch **Nexeed** reference, `NexeedReferenceOnly/`; decisions documented in
-  `Specification/Reports/NEXEED_REFERENCE_INSIGHTS.md`): `SqM` ≈ mode sequence, `SqC` ≈ module command, `SqS` ≈
-  private sub-sequence, location folders ≈ §4.2 ownership. Do **not** import Unit+Extension duplication,
-  per-step wrappers, opaque summed releases, PLC-authored HMI visibility, direct raw-global coupling, or
-  ordinary-PLC safety bridging. Fraktal base classes, hooks, condition records, and safety boundary own those.
+- Cross-standard orientation (if you arrive from another equipment-software convention): `SqM` ≈ mode
+  sequence, `SqC` ≈ module command, `SqS` ≈ private sub-sequence, location folders ≈ §4.2 ownership.
+  Do **not** import Unit+Extension duplication, per-step wrappers, opaque summed releases, PLC-authored
+  HMI visibility, direct raw-global coupling, or ordinary-PLC safety bridging. Fraktal base classes,
+  hooks, condition records, and safety boundary own those.
 
 **Testing (§5.7):** every reusable module **type** ships a TcUnit suite run against the sim HAL in CI.
 Rows **T1** (handshake + Execute-drop reset) and **T4** (abort, no self-resume) are proven **once** in
@@ -831,5 +831,4 @@ compile-blocking regressions; see IMPLEMENTATION_NOTES §24).
 | HMI domain model (the contract types) | `HMI/lib/domain/types.dart` |
 | HMI transport seam | `HMI/lib/data/plc_repository.dart` (+ `sim_repository.dart`) |
 | What is generated vs. hand-written, and the AI-assisted lifecycle | `Specification/Reports/AI_DEVELOPMENT_AND_AUTOMATION.md` |
-| Nexeed comparison decisions (grouping/sequences/releases) | `Specification/Reports/NEXEED_REFERENCE_INSIGHTS.md` |
 | Why the code differs from the draft spec | `PLC/TwinCAT/IMPLEMENTATION_NOTES.md` |

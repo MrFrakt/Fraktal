@@ -30,7 +30,7 @@ belongs below.
 | Folder | Holds | Rule of thumb |
 |---|---|---|
 | [`Guides/`](Guides/) | Procedures: first project, XAE workflow, gateway deployment, the fieldbus adapter, I/O architecture, quick start. | Non-normative. Tells you *how*; the standard tells you *what*. |
-| [`Reports/`](Reports/) | Audits, status, plans and one-off analyses: objectives audit and its review, the automation/AI review, the implementation roadmap, the ADS migration, the Nexeed comparison, and the press-bench records. | Describes what **is** or what was **decided**, never what **shall** be. |
+| [`Reports/`](Reports/) | Audits, status, plans and one-off analyses: objectives audit and its review, the automation/AI review, the implementation roadmap, the ADS migration, and the press-bench records. | Describes what **is** or what was **decided**, never what **shall** be. |
 | [`Evidence/`](Evidence/) | Dated TwinCAT runtime evidence — logs, JUnit, SHA-256s. | Append-only. Never edit a past record to match the present. |
 | [`AllenBradley/`](AllenBradley/) | The Fraktal/AB working set: port plan, implementation plan, handover prompts, engineering runbooks, the frozen contracts, and `Evidence/` for the R- and S-gate spikes. | Part III itself stays at the root; everything used to *produce* it lives here. |
 
