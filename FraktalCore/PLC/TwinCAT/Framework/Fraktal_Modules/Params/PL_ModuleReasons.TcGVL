@@ -9,13 +9,18 @@ VAR_GLOBAL CONSTANT
     CYL_NOT_RETRACTED   : DINT := 10102;
     CYL_BOTH_SENSORS    : DINT := 10103;
     CLAMP_NOT_CONFIRMED : DINT := 11001;
-    // basic cylinder 10200-10299
+    // basic cylinder 10110-10119
     CYL_HOME_NOT_REACHED : DINT := 10111;   // timeout moving to home
     CYL_WORK_NOT_REACHED : DINT := 10112;   // timeout moving to work
     CYL_POS_IMPLAUSIBLE  : DINT := 10113;   // home AND work sensor confirmed at once (implausible)
     CYL_SENSOR_LOST      : DINT := 10114;   // confirmed position sensor dropped while holding
     CYL_DISCREPANCY      : DINT := 10116;   // redundant sensors for one position disagree > DiscrepancyTime
     CYL_CFG_INVALID      : DINT := 10115;   // TravelTime >= MoveTimeout, or no sensor+no travel
+    // axis CM 10201-10204 (Annex G)
+    AXIS_TARGET_OOR   : DINT := 10201;   // target outside soft limits (rejected)
+    AXIS_MOVE_TIMEOUT : DINT := 10202;   // MC move did not complete within the timeout
+    AXIS_DRIVE_FAULT  : DINT := 10203;   // MC_* .Error / drive fault
+    AXIS_NOT_HOMED    : DINT := 10204;   // MOVE_TO before a valid home
     // power-group CM 10500-10599
     POWER_ENABLE_WITHHELD : DINT := 10501;
     POWER_FEEDBACK_TIMEOUT: DINT := 10502;

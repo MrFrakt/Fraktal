@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Axis_Tests" Id="{e77b010f-8406-471f-9868-60241a7bf803}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex G axis CM. T1/T4 are proven once in FB_Base_Tests and not repeated (S5.7).
+//
+// SCOPE, stated plainly: this host has no NC PTP licence, so no test here moves a
+// real axis. Every test below asserts behaviour that occurs BEFORE any MC_* call
+// is issued - request validation, the ownership contract, and the handshake. The
+// MC_* interaction itself is unproven and recorded as such in the evidence.
+//
+// That is also why _M_MoveTo validates the request (soft limits) before the state
+// (homed): both rejections are provable without a drive, and reporting "not
+// homed" for an impossible target would send an operator to the wrong problem.
+FUNCTION_BLOCK FB_Axis_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _ax1 : AXIS_REF;
+    _cm1 : FB_AxisCM;
+    _ax2 : AXIS_REF;
+    _cm2 : FB_AxisCM;
+    _ax3 : AXIS_REF;
+    _cm3 : FB_AxisCM;
+    _ax4 : AXIS_REF;
+    _cm4 : FB_AxisCM;
+    _w1, _w2, _w3, _w4 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Library_declares_no_interlocks_and_the_application_owns_safe_motion_status();
+Target_outside_soft_limits_is_rejected_before_any_motion();
+Move_before_home_is_rejected();
+Unsupported_command_is_rejected();]]></ST>
+    </Implementation>
+    <Method Name="Library_declares_no_interlocks_and_the_application_owns_safe_motion_status" Id="{dc7882ed-4046-424d-8286-f48c13823ecd}">
+      <Declaration><![CDATA[METHOD Library_declares_no_interlocks_and_the_application_owns_safe_motion_status]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Library_declares_no_interlocks_and_the_application_owns_safe_motion_status');
+IF NOT _w1 THEN
+    _cm1.Setup(Name := 'Axis1', AxisRef := _ax1, Recipe := 0);
+    _cm1();
+    // S7.2.1 + S9.2: a library cannot name "STO cleared" for a station it has
+    // never seen, so it declares nothing and the application supplies the
+    // read-only safe-motion status it can see.
+    AssertTrue(Condition := _cm1.Intlk.AllOk,
+        Message := 'a library type that declares no interlock does not gate the axis');
+    AssertTrue(Condition := _cm1.DeclareCondition(Index := 1,
+            DescriptionKey := 'std.interlock.areaSafe',
+            Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE),
+        Message := 'the application declares its own safe-motion condition');
+    _cm1();
+    AssertFalse(Condition := _cm1.Intlk.AllOk,
+        Message := 'a declared but undriven condition is fail-closed');
+    _cm1.SetCondition(Index := 1, Ok := TRUE);
+    _cm1();
+    AssertTrue(Condition := _cm1.Intlk.AllOk, Message := 'and clears once driven');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Target_outside_soft_limits_is_rejected_before_any_motion" Id="{35e98516-83f6-4ef9-add1-8d80e92f0c84}">
+      <Declaration><![CDATA[METHOD Target_outside_soft_limits_is_rejected_before_any_motion]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Target_outside_soft_limits_is_rejected_before_any_motion');
+IF NOT _w2 THEN
+    _cm2.Setup(Name := 'Axis2', AxisRef := _ax2, Recipe := 0);
+    _cm2.ParCfg.SoftMin := 0.0;
+    _cm2.ParCfg.SoftMax := 100.0;
+    _cm2.ParCmd.Target := 150.0;                  // beyond SoftMax
+    _cm2.Command := E_AxisCommand.MOVE_TO;
+    _cm2.Execute := TRUE;
+    _cm2(); _cm2();
+    // S5.6: reject the malformed request rather than commanding motion and
+    // discovering the problem at a limit switch.
+    AssertTrue(Condition := _cm2.Error, Message := 'an out-of-range target is refused');
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_TARGET_OOR),
+        Actual := _cm2.ErrorID, Message := 'with AXIS_TARGET_OOR');
+    AssertEquals_STRING(Expected := 'Axis2', Actual := _cm2.Status.Diagnostic.SourcePath,
+        Message := 'and the module as its source path');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Move_before_home_is_rejected" Id="{7be773ea-f79a-4e73-865a-611045f708a6}">
+      <Declaration><![CDATA[METHOD Move_before_home_is_rejected]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Move_before_home_is_rejected');
+IF NOT _w3 THEN
+    _cm3.Setup(Name := 'Axis3', AxisRef := _ax3, Recipe := 0);
+    _cm3.ParCfg.SoftMin := 0.0;
+    _cm3.ParCfg.SoftMax := 100.0;
+    _cm3.ParCmd.Target := 50.0;                   // in range, but the axis is not homed
+    _cm3.Command := E_AxisCommand.MOVE_TO;
+    _cm3.Execute := TRUE;
+    _cm3(); _cm3();
+    AssertTrue(Condition := _cm3.Error, Message := 'a move before homing is refused');
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_NOT_HOMED),
+        Actual := _cm3.ErrorID, Message := 'with AXIS_NOT_HOMED');
+    AssertFalse(Condition := _cm3.OutImm.Homed, Message := 'and the axis reports not homed');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Unsupported_command_is_rejected" Id="{0d55281d-00ad-4fb5-ab40-5d0a766130ce}">
+      <Declaration><![CDATA[METHOD Unsupported_command_is_rejected]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Unsupported_command_is_rejected');
+IF NOT _w4 THEN
+    _cm4.Setup(Name := 'Axis4', AxisRef := _ax4, Recipe := 0);
+    _cm4.Command := E_AxisCommand.NONE;           // never a valid request (S5.6)
+    _cm4.Execute := TRUE;
+    _cm4(); _cm4();
+    AssertTrue(Condition := _cm4.Error, Message := 'an unset command is refused');
+    AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.UNSUPPORTED_COMMAND),
+        Actual := _cm4.ErrorID, Message := 'with UNSUPPORTED_COMMAND');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

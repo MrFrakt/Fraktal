@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AxisParCfg" Id="{2d7c7acb-8469-4180-9e90-3497a2d9d678}">
+    <Declaration><![CDATA[// Core S3.8: SchemaVersion FIRST. Soft limits and dynamics are recipe/config,
+// never sequence literals (S10.3) - scaling and hard limits stay in the axis
+// configuration where the drive integrator owns them.
+TYPE ST_AxisParCfg :
+STRUCT
+    SchemaVersion : UINT := 1;
+    SoftMin       : LREAL := 0.0;
+    SoftMax       : LREAL := 100.0;
+    Velocity      : LREAL := 50.0;
+    Acceleration  : LREAL := 500.0;
+    Deceleration  : LREAL := 500.0;
+    MoveTimeout   : TIME := T#10S;
+    HomeTimeout   : TIME := T#30S;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

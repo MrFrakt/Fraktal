@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AxisCM" Id="{67f6d9e3-e1d3-4e52-8c0e-a2b82552da28}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex G worked example on the base class: PLCopen Motion behind the standard
+// handshake (S10.6). The parent Unit commands MOVE_TO exactly as it commands a
+// cylinder EXTEND - it neither knows nor cares that a servo is involved (S6.1).
+//
+// The drive is reached ONLY through AXIS_REF and Tc2_MC2. That is what makes the
+// type drive-agnostic: a Jenny Science XENAX linked as a CiA402 EtherCAT axis, a
+// Beckhoff AX5000, or a simulated NC axis are the same code here. Any
+// vendor-specific facility belongs in the driver layer (S10.2), never in a
+// reusable CM.
+//
+// Like FB_SeparatorCM this type declares NO interlocks of its own (S7.2.1). Safe
+// motion lives in the certified system; this module only READS its status, and
+// the application supplies that status - and any station policy - through
+// DeclareCondition/SetCondition. A library cannot name "STO cleared" for a
+// station it has never seen.
+FUNCTION_BLOCK FB_AxisCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_AxisCommand;
+    ParCfg : ST_AxisParCfg;
+    ParCmd : ST_AxisParCmd;
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_AxisOutCmd;
+    OutImm : ST_AxisOutImm;
+    Intlk  : FB_PermIntlk;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _axis : REFERENCE TO AXIS_REF;
+    {attribute 'OPC.UA.DA' := '0'}
+    _recipe : I_RecipeProvider;
+    {attribute 'OPC.UA.DA' := '0'}
+    _power : MC_Power;
+    {attribute 'OPC.UA.DA' := '0'}
+    _homeFb : MC_Home;
+    {attribute 'OPC.UA.DA' := '0'}
+    _moveFb : MC_MoveAbsolute;
+    {attribute 'OPC.UA.DA' := '0'}
+    _stopFb : MC_Stop;
+    {attribute 'OPC.UA.DA' := '0'}
+    _resetFb : MC_Reset;
+    _tMove : TON;
+    _homed : BOOL;
+    _parCfgStaged : ST_AxisParCfg;
+    _recipePrepared : BOOL;
+    _appCond : ARRAY[1..PL_Fraktal.MAX_PERMINTLK_COND] OF BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="OnCyclic" Id="{2294d08b-7382-44fe-95ee-1e560113af12}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+_M_ApplyConditions();
+Intlk();
+IF __ISVALIDREF(_axis) THEN                  // defensive (S5.6) [TC3]
+    // Enable follows the declared conditions. Losing one drops the enable in the
+    // same scan it is lost; re-enabling after it returns is a deliberate command,
+    // never automatic (S9.3, S9.4).
+    _power(Axis := _axis, Enable := Intlk.AllOk, Enable_Positive := Intlk.AllOk,
+        Enable_Negative := Intlk.AllOk, Override := 100.0);
+    OutImm.ActPos := _axis.NcToPlc.ActPos;
+    OutImm.ActVelocity := _axis.NcToPlc.ActVelo;
+    OutImm.DriveEnabled := _power.Status;
+END_IF
+OutImm.Homed := _homed;
+OutCmd.Homed := _homed;
+OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ApplyConditions" Id="{7c42158c-5f9f-4b6d-9d24-a2ceb651080e}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_ApplyConditions
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO PL_Fraktal.MAX_PERMINTLK_COND DO
+    Intlk.Cond[i] := _appCond[i];
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DeclareCondition" Id="{523d6056-ce78-4c1f-bac4-a4fb8c004e4b}">
+      <Declaration><![CDATA[// Core S7.2.1 - the application names its own conditions on this module; the
+// library declares none. Safe-motion status (S9.2) is read-only application
+// input, so "STO cleared" is declared here by the station that can see it.
+// Declared conditions start FALSE: declaring one states an intent to gate.
+METHOD DeclareCondition : BOOL
+VAR_INPUT
+    Index : INT;
+    DescriptionKey : STRING(255);
+    Reason : E_Reason;
+    Bypassable : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (Index < 1) OR (Index > PL_Fraktal.MAX_PERMINTLK_COND) THEN
+    DeclareCondition := FALSE;
+    RETURN;
+END_IF
+_appCond[Index] := FALSE;
+DeclareCondition := Intlk.Define(Index := Index, Description := DescriptionKey,
+    Reason := Reason, Bypassable := Bypassable);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetCondition" Id="{4bd35f8a-650f-45f8-b8f5-2559d8a0b7f9}">
+      <Declaration><![CDATA[// Drive a condition declared by DeclareCondition, every scan.
+METHOD SetCondition : BOOL
+VAR_INPUT
+    Index : INT;
+    Ok : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (Index < 1) OR (Index > PL_Fraktal.MAX_PERMINTLK_COND) THEN
+    SetCondition := FALSE;
+    RETURN;
+END_IF
+_appCond[Index] := Ok;
+SetCondition := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Setup" Id="{b344bdf9-c716-4e60-b22e-283b03a3f9b4}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name    : STRING(80);
+    AxisRef : REFERENCE TO AXIS_REF;
+    Recipe  : I_RecipeProvider;
+END_VAR
+VAR
+    InitialModel : ST_ModelId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+_M_SetPresentation(DisplayNameKey := 'std.moduleType.axis.name', DescriptionKey := 'std.moduleType.axis.description');
+_axis REF= AxisRef;                      // [TC3] TC3 S3.11
+_recipe := Recipe;
+// No Intlk.Define here: safe-motion status and station policy are the
+// application's to name (S7.2.1).
+_M_PublishCommand(Value := TO_DINT(E_AxisCommand.HOME), Label := 'std.command.home');
+_M_PublishCommand(Value := TO_DINT(E_AxisCommand.MOVE_TO), Label := 'std.command.moveTo');
+Setup := PrepareRecipe(Model := InitialModel);
+IF Setup THEN CommitRecipe(); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WithdrawOutputs" Id="{7048fa32-48b6-4490-a0f4-1a93a00524fb}">
+      <Declaration><![CDATA[// Functional stop used by an owning sequence on abort/interlock loss. This is a
+// controlled MC_Stop, NOT a certified safe stop: the safety system remains
+// authoritative and STO is its business, not this module's (S9).
+METHOD WithdrawOutputs]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(_axis) THEN
+    _moveFb(Axis := _axis, Execute := FALSE);
+    _homeFb(Axis := _axis, Execute := FALSE);
+    _stopFb(Axis := _axis, Execute := TRUE, Deceleration := ParCfg.Deceleration);
+END_IF
+_tMove(IN := FALSE);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbort" Id="{e9fcd5a6-e437-44a3-9c68-4beda7d104fb}">
+      <Declaration><![CDATA[METHOD PROTECTED OnAbort : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnAbort := SUPER^.OnAbort();            // base first (S3.14.2)
+WithdrawOutputs();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="PrepareRecipe" Id="{06ac63ce-5078-4aaa-8399-955a5acacc2e}">
+      <Declaration><![CDATA[METHOD PrepareRecipe : BOOL
+VAR_INPUT
+    Model : ST_ModelId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _recipe = 0 THEN
+    _parCfgStaged := ParCfg;
+    _recipePrepared := TRUE;
+    PrepareRecipe := TRUE;
+ELSIF _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := 'AxisCM', pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
+    _recipePrepared := TRUE;
+    PrepareRecipe := TRUE;
+ELSE
+    _M_Fault(E_Reason.RECIPE_INVALID, 'std.error.recipeSchemaInvalid');
+    _recipePrepared := FALSE;
+    PrepareRecipe := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CommitRecipe" Id="{4c30e8ed-295f-4209-bc77-bb72e178711b}">
+      <Declaration><![CDATA[METHOD CommitRecipe]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _recipePrepared THEN ParCfg := _parCfgStaged; END_IF
+_recipePrepared := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AbortRecipe" Id="{8126c3c3-0571-4320-8290-d4bd17d0b684}">
+      <Declaration><![CDATA[METHOD AbortRecipe]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_recipePrepared := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_FaultStopped" Id="{64e28450-10e9-4a76-9816-bbd8fc289187}">
+      <Declaration><![CDATA[// Stop the axis, THEN fault. _M_FaultN raises the reason without touching
+// motion, so faulting mid-move would leave the drive commanded - the same defect
+// the separator's _M_FaultClosed exists to prevent, and worse here because the
+// load is moving.
+METHOD PRIVATE _M_FaultStopped
+VAR_INPUT
+    Code : DINT;
+    Text : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[WithdrawOutputs();
+_M_FaultN(Code := Code, Text := Text);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_PublishStatus" Id="{e9a88f13-6d14-431a-a265-e23cd64cdaeb}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SUPER^._M_PublishStatus();
+OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{fd1c6a2e-126f-4404-a707-69fd01270561}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch
+VAR
+    dg : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _manualReq THEN
+    _manualReq := FALSE;
+    IF (_manualCmd = TO_DINT(E_AxisCommand.HOME)) OR (_manualCmd = TO_DINT(E_AxisCommand.MOVE_TO)) THEN
+        Command := _manualCmd;
+    ELSE
+        _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedAxisCommand');
+        RETURN;
+    END_IF
+END_IF
+IF (Command <> E_AxisCommand.HOME) AND (Command <> E_AxisCommand.MOVE_TO) THEN
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedAxisCommand');
+    RETURN;
+END_IF
+IF Command = E_AxisCommand.HOME THEN
+    _M_TagCommand(Id := 1, Label := 'std.command.home');          // S8.11.4(a)
+ELSE
+    _M_TagCommand(Id := 2, Label := 'std.command.moveTo');
+END_IF
+_M_ApplyConditions();
+Intlk();
+IF NOT Intlk.AllOk THEN
+    // HELD, not a fault (S6.1). Losing a declared condition mid-move is expected
+    // - an operator releasing an enable is the designed way to stop. The axis is
+    // brought to a controlled stop by the same permit that gates the enable, and
+    // the move resumes from step 10 with a full MoveTimeout window so a hold
+    // cannot silently consume travel time the axis was not moving for.
+    WithdrawOutputs();
+    dg := Intlk.Diagnostic;
+    dg.SourcePath := _name;                          // owner sets the path (S7.2)
+    _M_HoldDiag(Diag := dg);
+    _step := 10;
+    RETURN;
+END_IF
+IF Command = E_AxisCommand.HOME THEN
+    _M_Home();
+ELSE
+    _M_MoveTo();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Home" Id="{186051b1-bda7-4b8e-9bd9-ab8bf047605f}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Home]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT __ISVALIDREF(_axis) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisNotBound');
+    RETURN;
+END_IF
+CASE _step OF
+    10:
+        OutCmd.InPosition := FALSE;
+        _homed := FALSE;                       // homing invalidates any previous datum
+        _homeFb(Axis := _axis, Execute := FALSE);
+        _tMove(IN := FALSE);
+        _step := 20;
+    20:
+        _homeFb(Axis := _axis, Execute := TRUE, Position := 0.0, HomingMode := MC_DefaultHoming);
+        _tMove(IN := TRUE, PT := ParCfg.HomeTimeout);
+        IF _homeFb.Done THEN
+            _homeFb(Axis := _axis, Execute := FALSE);
+            _tMove(IN := FALSE);
+            _homed := TRUE;
+            _M_Complete();
+        ELSIF _homeFb.Error THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisDriveFault');
+        ELSIF _homeFb.CommandAborted THEN
+            // CommandAborted means another motion command took the axis, which is
+            // an abort and not a defect - route it through the base's own abort
+            // path rather than inventing a fault for it.
+            AbortCommand();
+        ELSIF _tMove.Q THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_MOVE_TIMEOUT, Text := 'std.error.axisMoveTimeout');
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_MoveTo" Id="{95306de5-b879-4b0c-a486-0cd807e9bc83}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_MoveTo]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Validate the REQUEST before the STATE, and both before commanding motion
+// (S5.6). Annex G checked homed-first; range-first is used here because a target
+// outside the soft limits is malformed regardless of whether the axis is homed,
+// and reporting "not homed" for an impossible target sends the operator to the
+// wrong problem. It also makes both rejections provable without a licensed NC
+// axis, since neither issues an MC_* call.
+IF (ParCmd.Target < ParCfg.SoftMin) OR (ParCmd.Target > ParCfg.SoftMax) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_TARGET_OOR, Text := 'std.error.axisTargetOutOfRange');
+    RETURN;
+END_IF
+IF NOT _homed THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_NOT_HOMED, Text := 'std.error.axisNotHomed');
+    RETURN;
+END_IF
+IF NOT __ISVALIDREF(_axis) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisNotBound');
+    RETURN;
+END_IF
+CASE _step OF
+    10:
+        OutCmd.InPosition := FALSE;
+        _moveFb(Axis := _axis, Execute := FALSE);
+        _tMove(IN := FALSE);
+        _step := 20;
+    20:
+        // MC_MoveAbsolute's Busy/Done/Error/CommandAborted map one-to-one onto
+        // the CM handshake, which is what lets a parent Unit command MOVE_TO
+        // exactly as it commands a cylinder EXTEND (S6.1).
+        _moveFb(Axis := _axis, Execute := TRUE, Position := ParCmd.Target,
+            Velocity := ParCfg.Velocity, Acceleration := ParCfg.Acceleration,
+            Deceleration := ParCfg.Deceleration);
+        _tMove(IN := TRUE, PT := ParCfg.MoveTimeout);
+        IF _moveFb.Done THEN
+            _moveFb(Axis := _axis, Execute := FALSE);
+            _tMove(IN := FALSE);
+            OutCmd.InPosition := TRUE;
+            _M_Complete();
+        ELSIF _moveFb.Error THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisDriveFault');
+        ELSIF _moveFb.CommandAborted THEN
+            // CommandAborted means another motion command took the axis, which is
+            // an abort and not a defect - route it through the base's own abort
+            // path rather than inventing a fault for it.
+            AbortCommand();
+        ELSIF _tMove.Q THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_MOVE_TIMEOUT, Text := 'std.error.axisMoveTimeout');
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

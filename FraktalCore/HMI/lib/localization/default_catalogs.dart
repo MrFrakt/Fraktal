@@ -736,6 +736,16 @@ const standardEnglish = <String, String>{
   'std.error.separatorCarrierNotArrived': 'Carrier did not arrive after separator',
   'std.error.separatorSonNotCleared': 'Carrier did not clear downstream sensor',
   'std.error.separatorNotOpenedFb': 'Separator did not report open',
+  'std.moduleType.axis.name': 'Axis',
+  'std.moduleType.axis.description': 'Servo axis driven through PLCopen Motion',
+  'std.command.home': 'Home',
+  'std.command.moveTo': 'Move to',
+  'std.error.unsupportedAxisCommand': 'Unsupported axis command',
+  'std.error.axisNotBound': 'Axis reference not bound',
+  'std.error.axisDriveFault': 'Drive reported a fault',
+  'std.error.axisMoveTimeout': 'Move did not complete in time',
+  'std.error.axisTargetOutOfRange': 'Target outside soft limits',
+  'std.error.axisNotHomed': 'Move requested before homing',
 };
 
 const standardSpanish = <String, String>{
@@ -1326,6 +1336,16 @@ const standardSpanish = <String, String>{
   'std.error.separatorCarrierNotArrived': 'El portapiezas no llegó tras el separador',
   'std.error.separatorSonNotCleared': 'El portapiezas no liberó el sensor posterior',
   'std.error.separatorNotOpenedFb': 'El separador no confirmó apertura',
+  'std.moduleType.axis.name': 'Eje',
+  'std.moduleType.axis.description': 'Eje servo accionado mediante PLCopen Motion',
+  'std.command.home': 'Referenciar',
+  'std.command.moveTo': 'Mover a',
+  'std.error.unsupportedAxisCommand': 'Comando de eje no admitido',
+  'std.error.axisNotBound': 'Referencia de eje no vinculada',
+  'std.error.axisDriveFault': 'El variador notificó un fallo',
+  'std.error.axisMoveTimeout': 'El movimiento no terminó a tiempo',
+  'std.error.axisTargetOutOfRange': 'Destino fuera de los límites de software',
+  'std.error.axisNotHomed': 'Movimiento solicitado antes de referenciar',
 };
 
 const projectEnglish = <String, String>{
