@@ -255,7 +255,7 @@ CASE _step OF
             _step := 20;
         ELSIF _tPhase.Q THEN
             _tPhase(IN := FALSE);
-            _M_FaultN(Code := PL_ModuleReasons.SEP_NO_CARRIER_AT, Text := 'std.error.separatorNoCarrierAt');
+            _M_FaultClosed(Code := PL_ModuleReasons.SEP_NO_CARRIER_AT, Text := 'std.error.separatorNoCarrierAt');
         END_IF
     20:                                  // the carrier must clear CarrierAt
         _tPhase(IN := TRUE, PT := ParCfg.MaxOpenTime);
@@ -264,7 +264,7 @@ CASE _step OF
             IF ParCfg.CheckAfter THEN _step := 30; ELSE _step := 40; END_IF
         ELSIF _tPhase.Q THEN
             _tPhase(IN := FALSE);
-            _M_FaultN(Code := PL_ModuleReasons.SEP_CARRIER_NOT_CLEARED, Text := 'std.error.separatorCarrierNotCleared');
+            _M_FaultClosed(Code := PL_ModuleReasons.SEP_CARRIER_NOT_CLEARED, Text := 'std.error.separatorCarrierNotCleared');
         END_IF
     30:                                  // arrival check past the separator
         _tPhase(IN := TRUE, PT := ParCfg.SOnMaxTime);
@@ -273,7 +273,7 @@ CASE _step OF
             _step := 40;
         ELSIF _tPhase.Q THEN
             _tPhase(IN := FALSE);
-            _M_FaultN(Code := PL_ModuleReasons.SEP_CARRIER_NOT_ARRIVED, Text := 'std.error.separatorCarrierNotArrived');
+            _M_FaultClosed(Code := PL_ModuleReasons.SEP_CARRIER_NOT_ARRIVED, Text := 'std.error.separatorCarrierNotArrived');
         END_IF
     40:                                  // close after the configured delay
         _tClose(IN := TRUE, PT := ParCfg.CloseDelay);
@@ -296,7 +296,7 @@ CASE _step OF
             _M_Complete();
         ELSIF _tPhase.Q THEN
             _tPhase(IN := FALSE);
-            _M_FaultN(Code := PL_ModuleReasons.SEP_SON_NOT_CLEARED, Text := 'std.error.separatorSonNotCleared');
+            _M_FaultClosed(Code := PL_ModuleReasons.SEP_SON_NOT_CLEARED, Text := 'std.error.separatorSonNotCleared');
         END_IF
 ELSE
     _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
@@ -325,8 +325,24 @@ IF _hal.OpenedFb THEN
     _M_Complete();
 ELSIF _tPhase.Q THEN
     _tPhase(IN := FALSE);
-    _M_FaultN(Code := PL_ModuleReasons.SEP_NOT_OPENED_FB, Text := 'std.error.separatorNotOpenedFb');
+    _M_FaultClosed(Code := PL_ModuleReasons.SEP_NOT_OPENED_FB, Text := 'std.error.separatorNotOpenedFb');
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_FaultClosed" Id="{c0271226-0937-45a9-b1a1-de980d3176bd}">
+      <Declaration><![CDATA[// Withdraw the valve, THEN fault. _M_FaultN only raises the reason; it does not
+// touch outputs, so faulting from an open phase would leave the stopper
+// energised while the module reported ERROR. Annex A faults and closes in one
+// step for exactly this reason, and a separator that stays open on a fault
+// keeps releasing carriers it can no longer account for.
+METHOD PRIVATE _M_FaultClosed
+VAR_INPUT
+    Code : DINT;
+    Text : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[WithdrawOutputs();
+_M_FaultN(Code := Code, Text := Text);]]></ST>
       </Implementation>
     </Method>
   </POU>

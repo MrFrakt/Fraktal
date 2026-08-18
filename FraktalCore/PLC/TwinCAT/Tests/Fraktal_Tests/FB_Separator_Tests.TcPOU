@@ -63,7 +63,8 @@ IF NOT _w1 THEN
             Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE),
         Message := 'an out-of-range index is refused, not silently ignored');
     _w1 := TRUE;
-END_IF]]></ST>
+END_IF
+TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="Interlock_withholds_the_valve_and_holds_rather_than_faults" Id="{f73dd993-d3f9-45a4-9fcc-aeb6cb48e00e}">
@@ -90,7 +91,8 @@ IF NOT _w2 THEN
     AssertEquals_STRING(Expected := 'SepT3', Actual := _sepT3.Status.Diagnostic.SourcePath,
         Message := 'the owning module sets the diagnostic source path');
     _w2 := TRUE;
-END_IF]]></ST>
+END_IF
+TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="Separate_releases_one_carrier_and_completes" Id="{67ae01ec-ce97-4d87-857e-242dec7ad010}">
@@ -111,7 +113,8 @@ IF NOT _w3 THEN
     AssertTrue(Condition := _sepSep.OutCmd.SeparateOk, Message := 'and reports the release');
     AssertFalse(Condition := _halSep.ValveOpen, Message := 'with the valve closed again');
     _w3 := TRUE;
-END_IF]]></ST>
+END_IF
+TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="No_carrier_at_the_separator_faults_10001" Id="{9e18b139-53bd-41d9-9c8e-2103a0ca8849}">
@@ -120,13 +123,15 @@ END_IF]]></ST>
         <ST><![CDATA[TEST('No_carrier_at_the_separator_faults_10001');
 IF NOT _w4 THEN
     _sepNo.Setup(Name := 'SepNo', HalRef := _halNo, Recipe := 0);
-    _sepNo.ParCfg.MaxOpenTime := T#1MS;
+    // T#0S is the deterministic-timeout idiom used by the sibling suites: a TON
+    // with PT := T#0S expires on the call that starts it, so the expiry does not
+    // depend on task time elapsing. Calling the FB N times inside one test scan
+    // does NOT advance a TON, which is why a small non-zero PT never fires here.
+    _sepNo.ParCfg.MaxOpenTime := T#0S;
     _halNo.CarrierAt := FALSE;                   // nothing ever arrives
     _sepNo.Command := E_SeparatorCommand.SEPARATE;
     _sepNo.Execute := TRUE;
-    FOR _i := 1 TO 8 DO
-        _sepNo();
-    END_FOR
+    _sepNo(); _sepNo(); _sepNo();
     // T2: the first-out reason is the specific one, not a generic timeout.
     AssertTrue(Condition := _sepNo.Error, Message := 'the command faults');
     AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.SEP_NO_CARRIER_AT),
@@ -136,7 +141,8 @@ IF NOT _w4 THEN
         Message := 'and the module as its source path');
     AssertFalse(Condition := _halNo.ValveOpen, Message := 'the valve is dropped on fault');
     _w4 := TRUE;
-END_IF]]></ST>
+END_IF
+TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="Open_close_confirms_feedback_only_when_configured" Id="{6e1a281b-2d2e-40e0-bdd1-9925ad511268}">
@@ -161,7 +167,8 @@ IF NOT _w5 THEN
     AssertFalse(Condition := _halOc.ValveOpen, Message := 'closing is immediate');
     AssertTrue(Condition := _sepOc.Done, Message := 'and completes');
     _w5 := TRUE;
-END_IF]]></ST>
+END_IF
+TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="Unsupported_command_is_rejected" Id="{b84f6bf8-d129-4eb9-b9ea-3e1a1e84ff4c}">
@@ -177,7 +184,8 @@ IF NOT _w6 THEN
     AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.UNSUPPORTED_COMMAND),
         Actual := _sepBad.ErrorID, Message := 'with UNSUPPORTED_COMMAND');
     _w6 := TRUE;
-END_IF]]></ST>
+END_IF
+TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
   </POU>
