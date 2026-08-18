@@ -541,6 +541,35 @@ device concern, so the common case stays small.
 ---
 
 
+## I.5c Simulation is part of the connector contract, not a test fixture
+
+O6 requires every module to run unchanged against simulated or real I/O so a cell can be
+commissioned before hardware exists. For most modules the seam is the HAL. **For a robot the seam is
+the connector**, so a robot CM with no simulating connector cannot satisfy O6 at all — and a station
+containing one cannot be virtually commissioned, however well the rest of it simulates.
+
+A conformant robot implementation **shall** therefore provide a simulation connector implementing
+`I_RobotConnector` alongside the real one, selected as configuration (§2.6). It is not required to be
+a kinematic simulator, and should not pretend to be one. It **shall**:
+
+- honour the handshake — accept a command, report `Busy`, complete after a configurable time, so
+  sequence timing and step records are exercised (§6.1, §6.5);
+- maintain a **plausible pose**, so `ActualPosition` moves and `CurrentArea` resolves through the
+  ordinary area check (I.11) — a simulator that leaves the area unresolved makes every template move
+  fail and tests nothing;
+- report `Referenced`, `ActualMode`, `Linked` and payload state consistently with the commands it has
+  accepted; and
+- **inject failures on demand** — unreachable point, no route, link loss, protective stop,
+  non-resumable hold — because the reasons of §I.2 are exactly what cannot be proven against a real
+  arm without deliberately breaking a cell.
+
+The reference framework supplies this from its own base, so the application's simulation object is an
+empty declaration. That is the right shape and worth copying: simulation is paid once in the
+connector family, never per station (§1.1 O1).
+
+---
+
+
 ## I.6 The two tiers — robot **CM** (primitive) vs. handling **EM** (semantic)
 
 The reference application does not command the robot with pick/place semantics directly. It uses **two tiers**, which map exactly onto the standard:
@@ -648,7 +677,7 @@ Each planning first-out surfaces the same clean way: no route between two positi
 
 ## I.8 Paths are taught point-lists — run by ID, by sub-range, with per-point motion mode
 
-A **path** is a robot point list run sequentially by index; the framework runs it by name/ID, or a **sub-path** between a start and end index — so the station's 10-point `ProcessG1-1` or 26-point `ProcessG2` is *one* `RUN_PATH` command. Each point carries its own **motion mode** as taught data — Joints, PTP, or Linear, absolute or blended (all three observed in the real application) — blending rounds intermediate points for a smoother, faster move. The PLC never chooses a motion type; it names a list. Approach/retract **pre-positions** are *computed* by the framework (offset from the nest, Linear), not taught per nest — confirming the trajectory is generated, not enumerated.
+A **path** is a robot point list run sequentially by index; the framework runs it by name/ID, or a **sub-path** between a start and end index — so the station's 10-point `ProcessG1-1` or 26-point `ProcessG2` is *one* `RUN_PATH` command. Each point carries its own **motion mode** as taught data — Joints, PTP, or Linear, absolute or blended (all three observed in the real application) — blending rounds intermediate points for a smoother, faster move. The PLC never chooses a motion type; it names a list. Approach and retract **pre-positions** are *generated from a corridor descriptor* rather than taught pose-by-pose for every nest (I.10.2) — which is what makes the trajectory generated rather than enumerated, while still leaving the geometry editable.
 
 **The last point of a path shall be reached exactly.** Blending rounds a corner by leaving the taught
 position early, which is correct for intermediate points and wrong for the final one: a pick or place
@@ -747,6 +776,8 @@ TYPE ST_HelpAffinity : STRUCT
     HelpId   : DWORD;        // a help point serving this nest
     Role     : E_HelpRole;   // APPROACH into the nest / DEPART from it / EITHER (default)
     RegionId : DWORD;        // OPTIONAL transit region this help connects to (0 = any); e.g. DRAWER / PROCESS
+    Approach : ST_Corridor;  // how the nest is ENTERED from this help  (I.10.2)
+    Depart   : ST_Corridor;  // how it is LEFT toward this help — not the approach reversed
 END_STRUCT
 TYPE ST_NestHelpAffinity : STRUCT
     Helps : ARRAY[1..MAX_HELPS_PER_NEST] OF ST_HelpAffinity;  Count : INT;
@@ -797,6 +828,60 @@ The retract then resolves correctly **by construction**: the `ProcessNest` leg r
 
 ---
 
+### I.10.2 The corridor — approach and retract geometry, generated not enumerated
+
+Reaching a nest is never a single move. The reviewed cell lifts and clears in stages, and the stages
+differ with what the arm is carrying: with a gripper coupled it backs out `Y-100`, then rises to
+`Y-100, Z+200`; with no gripper it simply clears by `Z+50`; and the help point itself is then reached
+PTP at fast velocity while the pre-positions run Linear at low velocity. That is real geometry, it is
+cell-specific, and earlier drafts of this annex had nowhere to put it — §I.8 claimed pre-positions
+were "computed by the framework" while §I.10.1 claimed approach and retract were "distinct list
+definitions". Both could not be the model, and the planner is the first thing anyone implements.
+
+A **corridor** is the descriptor that closes it: a short, ordered, bounded sequence of offsets from
+the nest pose out to its serving help, each step carrying how it is flown.
+
+```iecst
+{attribute 'qualified_only'}
+TYPE E_MoveClass : (SLOW_LINEAR := 0, FAST_PTP := 1, SLOW_JOINTS := 2) DINT; END_TYPE
+//   The class selects motion mode AND which velocity of the module's move parameters applies,
+//   so speed stays configuration (I.4a(b)) and never a literal in the graph.
+
+TYPE ST_ApproachStep : STRUCT
+    D         : ST_RobotPose;   // offset from the nest pose, expressed in the nest's own frame
+    MoveClass : E_MoveClass;
+END_STRUCT END_TYPE
+
+TYPE ST_Corridor : STRUCT
+    Steps     : ARRAY[1..MAX_APPROACH_STEPS] OF ST_ApproachStep;   // nest-ward → help-ward order
+    StepCount : INT;            // 0 = this corridor is taught, use ListId instead
+    ListId    : DWORD;          // taught alternative for geometry offsets cannot express
+END_STRUCT END_TYPE
+```
+
+Three properties make this worth having rather than just taught lists everywhere:
+
+- **It is written in the nest's frame, so it is reusable.** "Back out 100, lift 200" is the same
+  descriptor for every drawer nest in the cell; re-teaching the drawer frame moves all of them. Ten
+  nests sharing an approach share one corridor definition, which is the O1 win the reference was
+  reaching for with its computed pre-positions.
+- **Tool-dependence needs no new mechanism.** The reference branches on the clutch to choose between
+  a tall and a short approach. Affinity is already indexed `[gripper, nest]` (I.12), so "carrying a
+  gripper" and "carrying nothing" are simply different gripper indices with different corridors —
+  the state-dependence falls out of a dimension the model already has, rather than an `IF` in the
+  connector or a condition concept invented for it (§1.1 O9).
+- **It degrades to taught when it must.** `StepCount := 0` with a `ListId` names a taught list for a
+  corridor whose geometry is not a few axis offsets — a curved extraction, a joint-space unwind.
+  Generation is the default, teaching the escape hatch, and both are ordinary configuration
+  (§3.10.2a) rather than code.
+
+`MAX_APPROACH_STEPS` is fixed at compile time (O10). A corridor is validated with the rest of the
+graph: a step count beyond the bound, or a `StepCount := 0` naming an unknown list, is refused at
+configuration time rather than discovered mid-move.
+
+---
+
+
 ## I.11 Area-resolved motion & recovery from an undefined pose — distinct from functional safety (§9)
 
 `MoveFromArea` (AREA_TO_POS) plans from **whichever area the TCP currently occupies** — queried live (`IsRobotInArea`) — to a target. It is the application's *primary* motion command because it needs no assumption about the start pose; its extreme case is **recovery after an E-stop or mode change**, when the pose is undefined: the framework resolves the current area and drives to a defined position with **no operator jogging** and **no hand-coded geometric conditions**. Overlapping areas carry a **deterministic priority** so resolution is unambiguous.
@@ -839,6 +924,28 @@ any other — a robot cell does **not** get a private MES vocabulary (I.13).
 ---
 
 
+## I.12b `CAPABILITY` mode needs nothing from the robot CM
+
+Core §3.4 defines `CAPABILITY` as an optional mode in which a Unit runs a defined, repeated cycle
+collecting measurements for a machine- or process-capability study. The reviewed cell implements it
+for its robot, which invites the question of what a robot CM owes the mode. The answer is
+**nothing**, and stating that is the point of this section — an unanswered hole in a worked example
+is read as an oversight and re-solved per project.
+
+A capability study is repeated motion to defined poses at a defined speed, with measurements
+collected between repeats. Every part of that already exists: the poses are ordinary taught points
+(a collection, §3.10.2a), the speed is the recipe scale of I.4a(b), the repetition and the
+measurement collection are a Unit mode chain (§6.2), and the operator surface — go to the X position,
+the Y position, back to the start, exit — is an **Equipment Module** command set, exactly as the
+reference implements it at handling level rather than at the robot.
+
+So a robot in `CAPABILITY` is commanded through the same `MOVE_TO` / `MOVE_TEMPLATE` it uses in
+production, and the CM neither knows nor needs to know which mode is running. A robot CM that grew a
+capability command would be putting a study procedure inside a device type (§3.5) and would have to
+grow another for the next procedure that comes along.
+
+---
+
 ## I.13 Composition with Annexes E / F (no duplication)
 
 - **Traceability (Annex E).** The `SCAN_PART` / DMC reader **is** the `I_PartCarrier` of Annex E; the robot presents the part (a `MoveFromArea` to the scan position resolved via I.10) and the `Uid`/verdict flow through the four lifecycle events. A robot-caused NOK carries the robot's **own first-out reason** — one vocabulary, no parallel taxonomy.
@@ -879,6 +986,11 @@ TEST('Resume_faults_ROBOT_RESUME_INVALID_when_the_arm_was_jogged_while_held');  
 TEST('Held_rolls_up_as_LOW_severity_information_and_opens_no_reset_event');         // I.4b, §6.1
 TEST('Offset_within_envelope_shifts_the_taught_target');                            // I.8a
 TEST('Offset_outside_envelope_faults_ROBOT_PARAM_OOR_before_any_motion');           // I.8a, §14
+TEST('Corridor_generates_approach_steps_in_nest_frame_with_declared_move_classes');  // I.10.2
+TEST('Corridor_differs_per_gripper_index_without_conditional_code');                 // I.10.2
+TEST('Corridor_with_StepCount_zero_runs_the_taught_ListId_instead');                 // I.10.2
+TEST('SimConnector_resolves_an_area_so_template_moves_complete');                    // I.5c, O6
+TEST('SimConnector_injects_each_I2_reason_on_demand');                               // I.5c
 ```
 
 The multi-help resolver being a **tested type** (not per-station code) is the whole point of I.10 — a station that adds a two-approach nest adds a table row, not logic.
@@ -963,6 +1075,12 @@ otherwise it trades a list someone can read for a graph they cannot.
   renders every one of them with **no robot-specific screen**, where the reference hand-builds five
   wizard object pairs. Kinematics, jogging and reachability stay with the robot, which is the real
   boundary.
+- **Corridors** (I.10.2): approach and retract geometry as a reusable, nest-frame offset descriptor —
+  closing the one hole that had no home in the graph, with tool-dependence falling out of the
+  existing per-gripper index rather than a condition mechanism invented for it.
+- **Simulation as part of the connector contract** (I.5c): for a robot the connector *is* the HAL, so
+  O6 is unsatisfiable without a simulating one — including deliberate fault injection, since the
+  reasons of I.2 cannot otherwise be proven without breaking a real cell.
 - **Route preview as a requirement** (I.15): a generated route is only an O3 improvement over a
   taught list if the operator can see it.
 - **Optional capability groups** (I.5b) — conveyor tracking, work-area/zone interlocking, force
