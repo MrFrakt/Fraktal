@@ -43,12 +43,21 @@ The defining rule: **everything geometric, kinematic, or routing-related is taug
 | **Planning areas** — 3-D zones for area-resolved motion & recovery | (in recovery) a **target position** to reach |
 | Vendor config STRING; per-model facts (signal counts, Euler conventions) | nothing — consulted by the connector, never branched on |
 
-**Where the database physically lives is a deployment choice, and it shall be stated.** Some
-frameworks keep points, frames, tools, pallets and areas in the robot controller; others keep them
-on the PLC and download them. Either is conformant — the rule is only that the PLC program holds
-*identifiers*, never geometry. But the choice determines who owns backup, restore and changeover, so
-a conformance claim (§12) **shall** name it. Everything in this annex is written so that neither
-choice changes a line of application code: the connector hides it (§3.15).
+**Where the database lives is not a free choice.** Points, frames, tools, pallets and areas
+**should** be held as Fraktal configuration — bounded collection capabilities (§3.10.2a) in the
+owning module — and pushed to the controller by the connector, rather than living only inside the
+robot's own engineering tool. The rule that the PLC program holds *identifiers and never geometry*
+is about **application code**; it says nothing about where the configuration is governed, and the
+two were conflated in earlier drafts of this annex.
+
+The difference is the whole post-commissioning lifecycle. Geometry held as Fraktal configuration is
+inside recipe resolution and changeover (§3.8), parameter sets that save and restore a whole
+machine (§3.8b), access control (§7.7) and the audit log (§8.3), and it renders in the generic HMI
+with no robot-specific screen (§3.13). Geometry held only in the vendor tool is outside all of them:
+adding a model, a gripper or a re-taught tray then needs a laptop, a licence and someone trained on
+that vendor, and the change leaves no record the standard can see. A controller that cannot accept
+downloaded geometry is a documented exception, named in the conformance claim (§12) — not the
+default.
 
 **Commands run to completion; there is no asynchronous variant.** Real frameworks often offer a
 "start and don't wait" flag on motion. This annex deliberately does not: the §6.1 handshake *is* the
@@ -798,7 +807,7 @@ The retract then resolves correctly **by construction**: the `ProcessNest` leg r
 
 ## I.12 Parametric & symmetric pallets, per-gripper nests, and chained frames
 
-The framework **generates the whole pallet grid from a few taught corners** — 1-D (2 points), 2-D (3 corners), 3-D (3 bottom corners + first top nest); the nests live in a referenced point list, and the PLC just **indexes a nest** (`RunPallet(PalletId, Nest)`). Next-nest tracking stays application-side — it is production state, not device state — but it **shall** be retained across a power cycle and republished, because a cell that forgets which nest it was on re-picks an empty one or overfills a full one on the next start. Nests are **per-gripper**, so a cell that mounts different grippers keeps one nest set per gripper rather than re-teaching on every tool change. Re-teaching the corners regenerates every nest (the reviewed cell's drawer trays are exactly this). **Chained frames** compound it: a pallet taught in a drawer frame follows the drawer — re-teach the one frame and every dependent pallet/point moves, no PLC change. Points → pallets → frames → RCS, each a re-teachable link.
+The framework **generates the whole pallet grid from a few taught corners** — the corner set being a bounded collection capability (§3.10.2a) with captured pose cells (§3.8c), so re-teaching a tray is an HMI task — — 1-D (2 points), 2-D (3 corners), 3-D (3 bottom corners + first top nest); the nests live in a referenced point list, and the PLC just **indexes a nest** (`RunPallet(PalletId, Nest)`). Next-nest tracking stays application-side — it is production state, not device state — but it **shall** be retained across a power cycle and republished, because a cell that forgets which nest it was on re-picks an empty one or overfills a full one on the next start. Nests are **per-gripper**, so a cell that mounts different grippers keeps one nest set per gripper rather than re-teaching on every tool change. Re-teaching the corners regenerates every nest (the reviewed cell's drawer trays are exactly this). **Chained frames** compound it: a pallet taught in a drawer frame follows the drawer — re-teach the one frame and every dependent pallet/point moves, no PLC change. Points → pallets → frames → RCS, each a re-teachable link.
 
 ---
 
@@ -876,27 +885,53 @@ The multi-help resolver being a **tested type** (not per-station code) is the wh
 
 ---
 
-## I.15 HMI (§3.13)
+## I.15 HMI (§3.13) — what the generic client renders, and what stays with the robot
 
-The robot renders as a CM tile under the handling EM; **teaching, pallets, areas, the route graph and affinities stay in the robot controller's engineer tool** — the PLC HMI shows status + release-gated manual commands, not a re-hosted teach pendant.
+The robot renders as a CM tile under the handling EM. The dividing line is **not** "everything taught
+belongs to the vendor" — that was the wrong cut, and it is the one that makes a cell expensive to own
+after commissioning. The right cut is between **kinematics** and **structured data**:
 
-**The boundary is about geometry, not about every taught number.** Robot *poses* — points, frames,
-pallet corners, area volumes — belong to the robot's own tool, because that is where the kinematics,
-the jog pendant and the reachability check already live, and re-hosting them would duplicate a
-solved problem badly. But the *device* parameters of the CMs around the robot are ordinary recipe
-values in their owning module, and some of them are only knowable by demonstration: a gripper's
-closed width is meaningful only with a real part between the jaws. Those use the standard
-**teach capture** of §3.8c — the gripper CM publishes its live position, an operator in `ADJUSTMENT`
-closes on a sample and captures it into that CM's own `ParCfg`, gated `DATA_WRITE` and audited. No
-robot-specific teach mechanism is introduced here, and none is needed: the robot's geometry stays
-with the robot, and everything else is a normal module parameter acquired the normal way.
+| Stays with the robot's own tool | Rendered by the generic HMI (§3.13) |
+|---|---|
+| Jogging the arm; the enabling device; reachability and singularity checking; the kinematic model | Which points are in a list, and in what order |
+| The safety-rated hand-guiding function | Pallet corner sets and the grid they generate |
+| Vendor calibration routines (mastering, absolute accuracy) | Tool and frame tables; planning-area definitions |
+| — | Motion parameters, speed ceilings, offsets, list selection and active-point counts |
+
+Everything in the right-hand column is a **bounded collection capability** (§3.10.2a) or an ordinary
+scalar (§3.10.2) on the owning module. It therefore needs **no robot-specific HMI code at all**: the
+generic client walks the module, finds the capabilities, and renders a grid or a form with the
+editor it already has for each field type. Where the reference framework hand-builds five wizard
+object pairs — point list, reference coordinate system, pallet, tool, area — this annex specifies
+none, because publishing the data as capability *is* the wizard (§1.1 O1: paid once per mechanism,
+never once per module type).
+
+Pose-valued cells are filled by **teach capture** (§3.8c), not by typing six numbers. The operator
+takes the robot to the position with its own jog under the §7.6 release, and captures: the module
+writes its own published `ActualPosition` into that cell, `DATA_WRITE`-gated and audited. The
+kinematics stayed with the robot; the number landed in Fraktal configuration.
+
+What this buys is the case that actually recurs. **A new model** changes which list is selected and
+how many of its points are active — scalars, resolved by `ModelId` at changeover like any other
+recipe value, with no geometry edited at all. **A new gripper** adds a tool row and a nest set.
+**A re-taught tray** is three captured corners, and every nest regenerates. None of it requires the
+vendor's engineering tool, and all of it appears in the parameter set (§3.8b) and the audit log.
 
 | View | Binding |
 |------|---------|
-| **Tile** | name; state LED ← `ExecState`; **link LED** ← `_conn.Linked`; **Referenced**; **CurrentArea**; current point/path. |
-| **Detail** | release-gated `HOME` / `MOVE_TO` / `RUN_PATH` / `MOVE_TEMPLATE` / `MOVE_FROM_AREA` / jog (§7.6); live `Diagnostic.Description` (incl. *"no help for nest …"*, *"no route …"*, *"pose undefined …"*); last-seen; Reconnect. No auto-resume. |
+| **Tile** | name; state LED ← `ExecState`; **link LED** ← `_conn.Linked`; `Referenced`; `CurrentArea`; `ActualMode`; current point/path. |
+| **Detail** | release-gated `HOME` / `MOVE_TO` / `RUN_PATH` / `MOVE_TEMPLATE` / `MOVE_FROM_AREA` / jog (§7.6); the **resolved route preview** (below); live `Diagnostic.Description` (incl. *"no help for nest …"*, *"no route …"*, *"pose undefined …"*); last-seen; Reconnect. No auto-resume. |
+| **Configuration** | the collection capabilities of §3.10.2a — point lists, pallet corners, tools, frames, areas — rendered generically, with per-cell capture (§3.8c). |
+
+**Route preview is not optional decoration.** A route produced by the planner (I.9) is a *generated*
+artifact: unlike a taught list, no one has ever seen it. The connector **shall** publish the resolved
+point sequence for the pending move as read-only status, so an operator can see the path before
+authorising it and a commissioning engineer can tell a bad affinity table from a bad taught point.
+Generating routes instead of enumerating them is only an O3 improvement if the result is visible;
+otherwise it trades a list someone can read for a graph they cannot.
 
 ---
+
 
 ## I.16 What this annex demonstrated
 
@@ -922,6 +957,14 @@ with the robot, and everything else is a normal module parameter acquired the no
 - **An open multi-vendor standard named as the default binding** (I.5a: SRCI), turning §I.5's
   "conformant alternatives on the same interface" from a promise into a published contract, with
   everything the standard does not cover (routing, areas, pallets, the module contract) staying above it.
+- **Taught geometry kept as Fraktal configuration** (I.1, I.15): point lists, pallet corners, tools,
+  frames and areas are bounded collection capabilities (§3.10.2a) with captured pose cells (§3.8c),
+  so they live inside changeover, parameter sets, access control and audit — and the generic HMI
+  renders every one of them with **no robot-specific screen**, where the reference hand-builds five
+  wizard object pairs. Kinematics, jogging and reachability stay with the robot, which is the real
+  boundary.
+- **Route preview as a requirement** (I.15): a generated route is only an O3 improvement over a
+  taught list if the operator can see it.
 - **Optional capability groups** (I.5b) — conveyor tracking, work-area/zone interlocking, force
   control, brake test and the rest — declared through `Features` and added as narrow secondary
   interfaces, so the common case keeps a small surface.

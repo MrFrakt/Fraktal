@@ -595,6 +595,62 @@ without mutation. Recipe-backed changes remain migrate-or-fault and transactiona
 requests follow the §8.3 audit rules. A generic HMI may render editors from these
 capabilities, but is never an authorization or validation authority.
 
+#### 3.10.2a Bounded collection capabilities (repeating editable data)
+
+The capability of §3.10.2 describes **one value**. A class of real configuration is instead a
+**bounded, repeating** structure: a list of taught positions in path order, the corner set that
+generates a pallet, a table of tools, a set of planning zones, a table of reject codes. Published as
+scalars these explode — a forty-position list is over three hundred write keys, and six of them are
+two thousand, which violates O4's rule that published surface stay proportional to what is actually
+consumed. Published not at all, they migrate into a vendor engineering tool and leave the standard's
+recipe, parameter-set, access and audit machinery entirely (§3.8, §3.8b, §7.7, §8.3) — which is the
+larger failure, because it is what makes routine post-commissioning work (a new model, a new
+gripper, a re-taught tray) require a laptop, a licence and a specialist instead of an HMI.
+
+A module **may** therefore register a **collection capability**: one manifest entry describing a
+bounded collection of records and the schema of a record, rather than one entry per cell.
+
+**(a) The manifest carries the schema; the data is paged on demand.** A collection entry adds
+`ConfigShape := COLLECTION` (append-only beside `SCALAR`), a compile-time `MaxRecords`, the current
+`RecordCount`, an `Ordered` flag, and a bounded list of **field descriptors** — each carrying exactly
+the scalar metadata of §3.10.2 (`ValueType`, bounds, enum domain, unit, label key). Record *contents*
+are **not** manifest entries; they are fetched by page through the same mailbox when an editor opens.
+Discovery cost therefore stays proportional to the number of collections, not to the number of cells
+(O4), while the whole collection remains editable.
+
+**(b) One capability, addressed per cell.** Mutation extends `WRITE_CONFIG` with a record index; the
+field is named by its ordinal in the schema. `(Scope, WriteKey)` uniqueness is unchanged — a
+collection is one registered capability, not a family of them. Because each field descriptor is an
+ordinary scalar descriptor, a generic HMI renders each cell with the editor it already has, and needs
+no per-type knowledge to present the collection as a grid or a form.
+
+**(c) Record operations are enumerated and bounded.** Beyond setting a field, a collection **may**
+permit `AppendRecord`, `DeleteRecord` and — only where `Ordered` is TRUE — `MoveRecord`. Ordering is
+declared rather than assumed: a path's record order is its execution order and must be editable, a
+tool table's is meaningless and the HMI should not offer it. `MaxRecords` is fixed at compile time
+and an append beyond it is refused, never allocated (O10).
+
+**(d) Same authority, same validation, same audit.** Every record operation is a `DATA_WRITE`
+(§7.7), audited per §8.3, and routed to the owning typed handler, which rechecks revision, type,
+range/domain and **collection invariants** before mutating — a path with fewer than two points, a
+pallet with a degenerate corner set, a duplicate identifier. Collection-valued configuration is
+recipe- or station-class like any other (§3.8a) and takes part in parameter sets (§3.8b), where it
+replays as its records in order under the same deterministic walk.
+
+**(e) Capture applies per cell.** A field whose value can only be demonstrated rather than
+calculated uses the teach capture of §3.8c — the operator brings the machine to the state, and the
+module writes its own published live value into that cell. This is what makes a taught-position
+collection editable from the generic HMI without re-hosting a vendor teach tool: the *pose* comes
+from the machine, the *structure* is ordinary configuration.
+
+**(f) It stays optional and bounded in ambition.** A collection is for configuration a person edits.
+Operational data — counters, histories, traceability records, measurement series — is not
+configuration and **shall not** be published this way (§3.8b scope rule).
+
+*Cross-references: §3.10.2 (scalar capabilities this extends), §3.8a (placement), §3.8b (parameter
+sets), §3.8c (capture), §3.13 (generic rendering), §7.7 (`DATA_WRITE`), §8.3 (audit), §1.1 O4
+(proportional surface), O10 (bounded structures).*
+
 ### 3.11 Reusable sub-trees (low-effort duplication)
 
 Reuse is achieved with a binding-native reusable type form, not copy-paste:
