@@ -225,7 +225,7 @@ void main() {
     expect(unit.ringEvents.single.timestampsSynchronized, isTrue);
     final interlockMeta =
         unit.alarmMeta.singleWhere((meta) => meta.reasonCode == 2003);
-    expect(unit.alarmMeta, hasLength(52));
+    expect(unit.alarmMeta, hasLength(61));
     expect(interlockMeta.shelvable, isTrue);
     expect(interlockMeta.priority, Severity.medium);
     expect(interlockMeta.category, AlarmCategory.process);
