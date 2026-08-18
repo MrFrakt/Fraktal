@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotGeometry" Id="{bbb8573f-1b49-4f54-9830-f9e30872a3e3}">
+    <Declaration><![CDATA[// Annex I I.1 - taught geometry held as Fraktal configuration and pushed to the
+// controller by the connector, so it lives inside changeover (S3.8), parameter
+// sets (S3.8b), access control (S7.7) and audit (S8.3) rather than only inside a
+// vendor engineering tool. Editable through bounded collection capabilities
+// (S3.10.2a) with pose cells filled by teach capture (S3.8c).
+TYPE ST_RobotGeometry :
+STRUCT
+    HelpPose : ARRAY[1..PL_RobotPlanner.MAX_HELPS] OF ST_RobotPose;
+    NestPose : ARRAY[1..PL_RobotPlanner.MAX_GRIPPERS, 1..PL_RobotPlanner.MAX_NESTS] OF ST_RobotPose;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

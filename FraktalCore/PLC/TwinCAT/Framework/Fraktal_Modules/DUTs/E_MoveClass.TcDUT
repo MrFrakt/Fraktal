@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_MoveClass" Id="{699389e8-7547-4c68-acaf-4b377673f184}">
+    <Declaration><![CDATA[// Annex I I.10.2 - how a generated step is flown. The class selects the motion
+// mode AND which configured velocity applies, so speed stays configuration
+// (I.4a(b)) and never becomes a literal in the route graph.
+{attribute 'qualified_only'}
+TYPE E_MoveClass :
+(
+    SLOW_LINEAR := 0,
+    FAST_PTP    := 1,
+    SLOW_JOINTS := 2
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

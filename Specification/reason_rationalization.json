@@ -433,6 +433,20 @@
       "shelvable": false,
       "action": "Home the axis before commanding an absolute move.",
       "consequence": "Absolute positions are meaningless without a datum, so the move was refused."
+    },
+    "ROBOT_NO_ROUTE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the robot route graph: the two positions have no connected transit path. Add the missing help-to-help link or correct the nest's help affinity.",
+      "consequence": "The move cannot be planned, so the sequence stops before the robot leaves its current position."
+    },
+    "ROBOT_NO_HELP_FOR_NEST": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the nest's help affinity: no serving help point is valid for this direction of travel. A one-way nest cannot be left the way it was entered unless a DEPART corridor is defined.",
+      "consequence": "The move cannot be planned; the robot holds position rather than approaching the nest from an untaught direction."
     }
   }
 }

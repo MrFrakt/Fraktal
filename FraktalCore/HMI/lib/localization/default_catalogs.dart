@@ -744,6 +744,8 @@ const standardEnglish = <String, String>{
   'std.error.axisNotBound': 'Axis reference not bound',
   'std.error.axisDriveFault': 'Drive reported a fault',
   'std.error.axisMoveTimeout': 'Move did not complete in time',
+  'std.error.robotNoRoute': 'No route between these positions',
+  'std.error.robotNoHelpForNest': 'No approach path for this position',
   'std.error.axisTargetOutOfRange': 'Target outside soft limits',
   'std.error.axisNotHomed': 'Move requested before homing',
 };
@@ -1344,6 +1346,8 @@ const standardSpanish = <String, String>{
   'std.error.axisNotBound': 'Referencia de eje no vinculada',
   'std.error.axisDriveFault': 'El variador notificó un fallo',
   'std.error.axisMoveTimeout': 'El movimiento no terminó a tiempo',
+  'std.error.robotNoRoute': 'No hay ruta entre estas posiciones',
+  'std.error.robotNoHelpForNest': 'No hay trayecto de aproximación para esta posición',
   'std.error.axisTargetOutOfRange': 'Destino fuera de los límites de software',
   'std.error.axisNotHomed': 'Movimiento solicitado antes de referenciar',
 };

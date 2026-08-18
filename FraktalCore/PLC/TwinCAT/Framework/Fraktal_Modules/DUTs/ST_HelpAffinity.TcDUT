@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_HelpAffinity" Id="{61cabbb1-55a7-4ec9-8090-9978c883dbcd}">
+    <Declaration><![CDATA[// Annex I I.10 - one help point serving a nest, with the direction it is legal
+// for and the transit region it connects to. Region is needed only where a nest
+// has two corridors for the SAME direction; most nests need only the role.
+TYPE ST_HelpAffinity :
+STRUCT
+    HelpId   : INT;          // index into the help arrays; 0 = unused entry
+    Role     : E_HelpRole;
+    RegionId : DWORD;        // 0 = any
+    Approach : ST_Corridor;  // how the nest is ENTERED from this help
+    Depart   : ST_Corridor;  // how it is LEFT toward this help - not the approach reversed
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
