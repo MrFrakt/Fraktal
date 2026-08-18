@@ -1592,6 +1592,8 @@ const projectEnglish = <String, String>{
   'project.decision.confirmChangeover': 'Confirm changeover',
   'project.decision.repeatChangeoverPosition':
       'Repeat safe changeover positioning',
+  'project.interlock.feedRequiresControlPower': 'Part feed requires control power on',
+  'project.interlock.feedRequiresGuardClosed': 'Part feed requires the guard closed',
 };
 
 /// Shipped project translation for the demo. Imported project CSV values still
@@ -1725,4 +1727,6 @@ const projectSpanish = <String, String>{
   'project.decision.confirmChangeover': 'Confirmar cambio de modelo',
   'project.decision.repeatChangeoverPosition':
       'Repetir posicionamiento seguro para cambio',
+  'project.interlock.feedRequiresControlPower': 'El avance de pieza requiere mando activado',
+  'project.interlock.feedRequiresGuardClosed': 'El avance de pieza requiere el resguardo cerrado',
 };
