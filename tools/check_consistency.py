@@ -49,6 +49,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent
 PLC_ROOT = Path("FraktalCore/PLC/TwinCAT")
 HMI_L10N = Path("FraktalCore/HMI/lib/localization")
 WORKFLOW_DOC = Path("Specification/Guides/TWINCAT_XAE_WORKFLOW.md")
+CI_WORKFLOW = Path(".github/workflows/ci.yml")
 
 # A localization key literal in IEC source: 'project.step.foo' / 'std.error.bar'.
 KEY_LITERAL = re.compile(r"'((?:project|std)\.[A-Za-z0-9_.]+)'")
@@ -162,6 +163,7 @@ def check_inventory(root: Path) -> list[Finding]:
         live = [m for m in members if m in suites]
         totals = (len(live), sum(suites[m] for m in live))
         findings += _check_documented_counts(runner, totals)
+        findings += _check_ci_counts(runner, totals)
     return findings
 
 
@@ -189,6 +191,39 @@ def _check_documented_counts(runner: str, totals: tuple[int, int]) -> list[Findi
             findings.append(Finding(
                 "inventory", "error", WORKFLOW_DOC.name,
                 f"{runner}: document expects {stated_tests} tests / "
+                f"{stated_suites} suites, source has {tests} / {suites}"))
+    return findings
+
+
+def _check_ci_counts(runner: str, totals: tuple[int, int]) -> list[Finding]:
+    """`ci.yml` grades the TcUnit gate against these numbers too.
+
+    The counts live in three places - this workflow, the guide's S6.3 table, and
+    every evidence record - and only the guide was checked. That is not
+    hypothetical: the robot planner suite landed with the guide updated to
+    126/34 while `ci.yml` stayed at 116/33, so the gate would have failed on
+    counts rather than on tests, and nothing would have said why until someone
+    read the job log. A pin no gate reads is a pin that drifts.
+    """
+    if not CI_WORKFLOW.is_file():
+        return []
+    suites, tests = totals
+    text = _read(CI_WORKFLOW)
+    # Rows read "--expected-tests 126 --expected-suites 34 --expected-runner PRG_X".
+    rows = re.findall(
+        r"--expected-tests\s+(\d+)\s+--expected-suites\s+(\d+)\s+"
+        r"--expected-runner\s+" + re.escape(runner) + r"",
+        text)
+    if not rows:
+        return [Finding("inventory", "warning", CI_WORKFLOW.name,
+                        f"{runner} has {tests} tests / {suites} suites in source "
+                        f"but no --expected-tests row")]
+    findings = []
+    for stated_tests, stated_suites in rows:
+        if (int(stated_tests), int(stated_suites)) != (tests, suites):
+            findings.append(Finding(
+                "inventory", "error", CI_WORKFLOW.name,
+                f"{runner}: workflow expects {stated_tests} tests / "
                 f"{stated_suites} suites, source has {tests} / {suites}"))
     return findings
 
