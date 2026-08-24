@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
-  <POU Name="FB_RobotConnector_Tests" Id="{b6b8ae67-f5d5-45f2-94fb-5e546900f4e5}" SpecialFunc="None">
+  <POU Name="FB_RobotConnector_Tests" Id="{dc5e0fca-eaee-44bb-a584-b0c619ee9c62}" SpecialFunc="None">
     <Declaration><![CDATA[// Annex I I.3/I.5 - the Staubli VAL3 connector over the SIM channel. No socket,
 // no emulator, no arm: FB_SimByteChannel scripts request/reply pairs, so the wire
 // protocol and every refusal path are provable in CI (S5.7, Annex H).
@@ -32,9 +32,9 @@ Id_addressed_commands_are_framed_on_the_wire();
 Status_poll_publishes_the_controllers_reported_facts();
 Controller_error_is_carried_verbatim_and_faults();
 Resume_is_refused_when_the_arm_left_the_retained_path();
-Jog_is_refused_unless_the_controller_is_in_a_manual_mode();]]></ST>
+Unknown_mode_request_is_refused_outright();]]></ST>
     </Implementation>
-      <Method Name="_M_Settle" Id="{de4aa28c-7a7b-4898-9a56-d0e3e0a0dd76}">
+      <Method Name="_M_Settle" Id="{977d9008-3547-4221-8d88-7d877a55af61}">
         <Declaration><![CDATA[// Run connector + channel for a few scans so the base can open the channel,
 // flush the request and deliver the scripted reply.
 METHOD PRIVATE _M_Settle
@@ -51,7 +51,7 @@ END_VAR]]></Declaration>
 END_FOR]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Link_down_refuses_every_command_rather_than_dropping_it" Id="{b781e267-85bb-4e9b-8a4c-b88cb233d0fe}">
+      <Method Name="Link_down_refuses_every_command_rather_than_dropping_it" Id="{ce24fe50-b1bd-4599-ac24-7c1223c8a3f1}">
         <Declaration><![CDATA[METHOD PRIVATE Link_down_refuses_every_command_rather_than_dropping_it]]></Declaration>
         <Implementation>
           <ST><![CDATA[TEST('Link_down_refuses_every_command_rather_than_dropping_it');
@@ -73,7 +73,7 @@ END_IF
 TEST_FINISHED();]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Id_addressed_commands_are_framed_on_the_wire" Id="{46afe873-6414-4bba-9248-e8dfc21640ce}">
+      <Method Name="Id_addressed_commands_are_framed_on_the_wire" Id="{7d6065f0-81a1-434b-a53e-2d75346f7635}">
         <Declaration><![CDATA[METHOD PRIVATE Id_addressed_commands_are_framed_on_the_wire]]></Declaration>
         <Implementation>
           <ST><![CDATA[TEST('Id_addressed_commands_are_framed_on_the_wire');
@@ -94,18 +94,26 @@ END_IF
 TEST_FINISHED();]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Status_poll_publishes_the_controllers_reported_facts" Id="{c41c1261-2939-4208-8c38-19930d4f5e12}">
+      <Method Name="Status_poll_publishes_the_controllers_reported_facts" Id="{fa78ee37-e9e9-4f21-b601-5281d6c921be}">
         <Declaration><![CDATA[METHOD PRIVATE Status_poll_publishes_the_controllers_reported_facts]]></Declaration>
         <Implementation>
           <ST><![CDATA[TEST('Status_poll_publishes_the_controllers_reported_facts');
+// The idle poll is TON-driven, so this test must run ACROSS SCANS - a loop of
+// Cyclic() calls inside one scan advances no time and the timer never fires.
+// Same shape as FB_TcpDev_Tests.Timeout_faults_10402, for the same reason.
 IF NOT _w3 THEN
     // STA,OK,busy,ref,mode,area,prot,resumable,x,y,z,rx,ry,rz
     _chanC.Script(Expect := 'STA$R',
         Reply := 'STA,OK,0,1,AUTO,4,0,1,100.5,200,300,0,0,90$R');
     _connC.Setup(Name := 'Test.RobotC', Chan := _chanC, DevHost := '10.0.0.21', DevPort := 11000);
-    _M_Settle(Conn := _connC, N := 30);
-    AssertTrue(Condition := _connC.Referenced,
-        Message := 'the reported reference state is published');
+    _w3 := TRUE;
+END_IF
+_connC.Cyclic();
+_i := _i + 1;
+
+IF _connC.Referenced THEN
+    // Referenced only becomes TRUE once a status reply was parsed, so reaching
+    // here proves the poll fired, framed STA, and the reply was decoded.
     AssertTrue(Condition := _connC.ActualMode = E_RobotOpMode.AUTO_REMOTE,
         Message := 'ActualMode is what the controller REPORTS, not what we asked for');
     AssertEquals_DWORD(Expected := 4, Actual := _connC.CurrentArea,
@@ -117,12 +125,22 @@ IF NOT _w3 THEN
         Message := 'the live pose is readable for display and diagnostics');
     AssertEquals_LREAL(Expected := 90, Actual := _pose.RZ, Delta := 0.001,
         Message := 'including orientation');
-    _w3 := TRUE;
-END_IF
-TEST_FINISHED();]]></ST>
+    // Jogging is bounded by the CONTROLLER's mode, not by a PLC release alone.
+    // Asserted here because this is where a LINKED connector reporting AUTO
+    // exists - proving the refusal comes from the mode gate and not the link.
+    AssertFalse(Condition := _connC.Jog(Mode := E_RobotJogMode.JOINT, Axis := 1, Dir := 1),
+        Message := 'jogging is refused while the controller reports auto');
+    TEST_FINISHED();
+ELSIF _i > 1000 THEN
+    // Bounded so a regression fails loudly here instead of hanging the runner
+    // with no message, which is the worse failure.
+    AssertTrue(Condition := FALSE,
+        Message := 'the idle status poll never delivered a reply');
+    TEST_FINISHED();
+END_IF]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Controller_error_is_carried_verbatim_and_faults" Id="{bfb6b685-b4db-46e3-801b-300189ecc850}">
+      <Method Name="Controller_error_is_carried_verbatim_and_faults" Id="{6b3683ef-43c0-4588-8bb8-8cc304187f2f}">
         <Declaration><![CDATA[METHOD PRIVATE Controller_error_is_carried_verbatim_and_faults]]></Declaration>
         <Implementation>
           <ST><![CDATA[TEST('Controller_error_is_carried_verbatim_and_faults');
@@ -147,7 +165,7 @@ END_IF
 TEST_FINISHED();]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Resume_is_refused_when_the_arm_left_the_retained_path" Id="{0e225db6-edc2-432b-a865-eeddabd5a12f}">
+      <Method Name="Resume_is_refused_when_the_arm_left_the_retained_path" Id="{b4d21257-73b9-41d0-b9fd-e98a9902a534}">
         <Declaration><![CDATA[METHOD PRIVATE Resume_is_refused_when_the_arm_left_the_retained_path]]></Declaration>
         <Implementation>
           <ST><![CDATA[TEST('Resume_is_refused_when_the_arm_left_the_retained_path');
@@ -164,20 +182,17 @@ END_IF
 TEST_FINISHED();]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Jog_is_refused_unless_the_controller_is_in_a_manual_mode" Id="{65b882b8-19ec-4f56-840f-778856c4824f}">
-        <Declaration><![CDATA[METHOD PRIVATE Jog_is_refused_unless_the_controller_is_in_a_manual_mode]]></Declaration>
+      <Method Name="Unknown_mode_request_is_refused_outright" Id="{1558bc16-a131-4003-9497-4383dd2e5e51}">
+        <Declaration><![CDATA[METHOD PRIVATE Unknown_mode_request_is_refused_outright]]></Declaration>
         <Implementation>
-          <ST><![CDATA[TEST('Jog_is_refused_unless_the_controller_is_in_a_manual_mode');
+          <ST><![CDATA[TEST('Unknown_mode_request_is_refused_outright');
 IF NOT _w6 THEN
-    // _connC reported AUTO. Jogging is bounded by the CONTROLLER's mode, not by a
-    // PLC release alone, so the request must not reach the floor (I.4a(a)).
-    AssertTrue(Condition := _connC.ActualMode = E_RobotOpMode.AUTO_REMOTE,
-        Message := 'precondition: the controller reports auto');
-    AssertFalse(Condition := _connC.Jog(Mode := E_RobotJogMode.JOINT, Axis := 1, Dir := 1),
-        Message := 'jogging is refused while the controller is in auto');
-    // Requesting UNKNOWN is meaningless and must never be transmitted.
-    AssertFalse(Condition := _connC.RequestMode(Mode := E_RobotOpMode.UNKNOWN),
-        Message := 'and an UNKNOWN mode request is refused outright');
+    // Requesting UNKNOWN is meaningless and must never reach the controller: an
+    // uninitialised or unparsed mode must not travel as though it were a real
+    // request. Self-contained on purpose - the previous version asserted a
+    // precondition owned by another test, so one root cause failed two tests.
+    AssertFalse(Condition := _connB.RequestMode(Mode := E_RobotOpMode.UNKNOWN),
+        Message := 'an UNKNOWN mode request is refused before the transport');
     _w6 := TRUE;
 END_IF
 TEST_FINISHED();]]></ST>
