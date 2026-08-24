@@ -447,6 +447,13 @@
       "shelvable": false,
       "action": "Check the nest's help affinity: no serving help point is valid for this direction of travel. A one-way nest cannot be left the way it was entered unless a DEPART corridor is defined.",
       "consequence": "The move cannot be planned; the robot holds position rather than approaching the nest from an untaught direction."
+    },
+    "ROBOT_CONTROLLER_FAULT": {
+      "priority": "HIGH",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Read the fault on the robot's own teach pendant or controller display - its text is carried in the diagnostic - clear the cause there, then acknowledge the controller before restarting the sequence.",
+      "consequence": "The robot has stopped and will accept no motion command until its own fault is acknowledged."
     }
   }
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_StaubliConnOutImm" Id="{f242b9f1-d214-4476-85ae-5210872ee398}">
+    <Declaration><![CDATA[// Live connector status, published for the robot CM and the HMI (I.15).
+TYPE ST_StaubliConnOutImm :
+STRUCT
+    LinkState      : E_ByteChannelState;
+    Linked         : BOOL;
+    Busy           : BOOL;
+    Referenced     : BOOL;
+    ArmPowerOn     : BOOL;
+    ActualMode     : E_RobotOpMode;   // what the controller REPORTS (I.4a(a))
+    RequestedMode  : E_RobotOpMode;   // what we asked for - kept separate on purpose
+    CurrentArea    : DWORD;           // 0 = none/undefined (I.11)
+    ProtectiveStop : BOOL;            // crash device tripped - NOT S9 safety (I.4a(c))
+    Resumable      : BOOL;            // resume still valid on the retained path (I.4b)
+    SpeedScale     : REAL;
+    ActualPosition : ST_RobotPose;
+    LastResponse   : STRING(255);
+    Diagnostic     : ST_Diagnostic;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

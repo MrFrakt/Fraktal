@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_RobotConnector" Id="{5d582802-74ac-4f2f-a9e5-8ddf28ca8c82}">
+    <Declaration><![CDATA[// Annex I I.3 - the primitive robot surface, below the robot CM and above the
+// protocol. Everything under it (transport, point database, kinematics, path
+// planning) is confined to the implementation (Core S3.15).
+//
+// MOST OF THIS SURFACE IS NOT FRAKTAL'S TO DEFINE. SRCI (Standard Robot Command
+// Interface, PROFIBUS/PROFINET International) already standardises the PLC/robot
+// command boundary, so the members below are DEFINED BY their SRCI equivalent and
+// are not re-described here - re-describing them would create a second authority
+// for someone else's contract and guarantee drift (S1.1 O9). The mapping is
+// normative and lives in Annex I I.3:
+//
+//   PowerOn/PowerOff  = EnableRobot        Interrupt/Resume = GroupInterrupt/Continue
+//   Home              = referencing        Abort            = GroupStop
+//   MoveToPoint       = MoveDirectAbsolute ResetController  = GroupReset
+//   RunPath           = sequential moves   RequestMode      = SetOperationMode
+//   ActualPosition    = ReadActualPosition SetSpeedScale    = ChangeSpeedOverride
+//   ControllerMessage = ReadMessages       SetTool/SetFrame = Read Tool/FrameData
+//   SetPayload        = Read/WriteLoadData Jog              = GroupJog
+//
+// Seven members have NO SRCI equivalent, because they express this annex's own
+// model: RunPallet, MoveTemplate, MoveFromArea, CurrentArea, ProtectiveStop,
+// Resumable and LastResult. They are what the standard adds over an ordinary
+// robot command interface.
+//
+// Every method returns immediately: FALSE means the request was refused outright
+// (unknown id, unreachable, no route, not linked) and LastResult carries the
+// first-out reason. Motion progress is observed over scans via Busy, never awaited.
+INTERFACE I_RobotConnector EXTENDS I_DeviceConnector]]></Declaration>
+      <Method Name="PowerOn" Id="{fd849e62-945a-41d2-943f-683cbc73336d}">
+        <Declaration><![CDATA[// SRCI EnableRobot (Core). Arm power on.
+METHOD PowerOn : BOOL]]></Declaration>
+      </Method>
+      <Method Name="PowerOff" Id="{70bd9f43-e7f8-48a6-9f4e-69e9eb8cad63}">
+        <Declaration><![CDATA[// SRCI EnableRobot (Core). Arm power off.
+METHOD PowerOff : BOOL]]></Declaration>
+      </Method>
+      <Method Name="Home" Id="{d5c02763-a96b-4728-b35f-eeba10e25f03}">
+        <Declaration><![CDATA[// SRCI referencing. Drive to the home/reference configuration.
+METHOD Home : BOOL]]></Declaration>
+      </Method>
+      <Method Name="MoveToPoint" Id="{5f8afb65-ee7d-4636-8b25-32197efa26df}">
+        <Declaration><![CDATA[// SRCI MoveDirectAbsolute/MoveLinearAbsolute, target resolved from the ID.
+METHOD MoveToPoint : BOOL
+VAR_INPUT
+    PointId : DWORD;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="RunPath" Id="{b268d704-42bd-4f08-a745-e5075a63bb71}">
+        <Declaration><![CDATA[// Sequential SRCI moves over a stored list. (-1,-1) = the whole list.
+METHOD RunPath : BOOL
+VAR_INPUT
+    ListId   : DWORD;
+    StartIdx : DINT;
+    EndIdx   : DINT;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="Interrupt" Id="{1fe8395a-5979-4705-b21d-20d90e92dd9e}">
+        <Declaration><![CDATA[// SRCI GroupInterrupt (Core). Stop ON PATH, retaining the resume point - the
+// robot half of the S6.1 HELD contract (I.4b). A cylinder honours HELD by
+// de-energising; a robot cannot, because resuming a 26-point path by
+// re-commanding it would re-run executed points or approach from an untaught pose.
+METHOD Interrupt : BOOL]]></Declaration>
+      </Method>
+      <Method Name="Resume" Id="{87effc8c-de58-44c8-afe9-e36255652d75}">
+        <Declaration><![CDATA[// SRCI GroupContinue (Core). Continue FROM the retained path point. Callers
+// must check Resumable first: resuming onto a path the tool has left is how a
+// robot drives through a fixture (I.4b).
+METHOD Resume : BOOL]]></Declaration>
+      </Method>
+      <Method Name="Abort" Id="{6c579fe2-46e0-4a6d-8e36-9bbefdfeff92}">
+        <Declaration><![CDATA[// SRCI GroupStop (Core). Commands are NOT auto-repeated; resumption is
+// deliberate (Annex D / S9.3).
+METHOD Abort : BOOL]]></Declaration>
+      </Method>
+      <Method Name="ResetController" Id="{85a9e743-cb79-4620-b10f-6ce1719a7feb}">
+        <Declaration><![CDATA[// SRCI GroupReset (Core). Acknowledge the robot's OWN messages. Without this a
+// controller fault can be detected but never cleared.
+METHOD ResetController : BOOL]]></Declaration>
+      </Method>
+      <Method Name="RequestMode" Id="{77216ad7-5ad8-43ea-8d35-fb7d88228ce3}">
+        <Declaration><![CDATA[// SRCI SetOperationMode (Core). REQUEST only - the controller grants. Compare
+// with ActualMode, which reports what it actually is (I.4a(a)).
+METHOD RequestMode : BOOL
+VAR_INPUT
+    Mode : E_RobotOpMode;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="SetSpeedScale" Id="{339facbe-6c8d-4d0f-b804-d24b7791fa22}">
+        <Declaration><![CDATA[// SRCI ChangeSpeedOverride (Core). Ceiling on path speed, as a percentage of
+// taught. The CM applies MIN(mode ceiling, recipe scale) (I.4a(b)).
+METHOD SetSpeedScale : BOOL
+VAR_INPUT
+    Percent : REAL;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="SetTool" Id="{9879e26c-9abf-4cc1-a646-55fcee215ef7}">
+        <Declaration><![CDATA[// SRCI ReadToolData (Core) - selection by ID. Geometry stays taught data.
+METHOD SetTool : BOOL
+VAR_INPUT
+    ToolId : DWORD;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="SetFrame" Id="{16dbc2c3-b2f6-4222-bbf6-e2f1cbfa5bea}">
+        <Declaration><![CDATA[// SRCI ReadFrameData (Core) - selection by ID. The frame may be chained (I.12).
+METHOD SetFrame : BOOL
+VAR_INPUT
+    FrameId : DWORD;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="SetPayload" Id="{2c7c5f6b-7dc4-4c05-81f1-3eb75ffac927}">
+        <Declaration><![CDATA[// SRCI Read/WriteLoadData. The active load case, which changes the moment a part
+// is gripped or released; a move computed for the wrong mass degrades accuracy
+// and brake margin silently (I.3).
+METHOD SetPayload : BOOL
+VAR_INPUT
+    LoadId : DWORD;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="Jog" Id="{db0bfb6c-c6f6-412c-80f3-66501300ee13}">
+        <Declaration><![CDATA[// SRCI GroupJog (Core). Manual only, release-gated (S7.6), and refused unless
+// ActualMode is a manual mode (I.4a(a)).
+METHOD Jog : BOOL
+VAR_INPUT
+    Mode : E_JogMode;
+    Axis : INT;
+    Dir  : INT;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="RunPallet" Id="{973f70af-29bf-4402-b687-9dc61b69dabd}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT. One nest of a generated pallet grid, addressed by pallet
+// ID and nest index; the grid itself is generated from taught corners (I.12).
+METHOD RunPallet : BOOL
+VAR_INPUT
+    PalletId : DWORD;
+    Nest     : DINT;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="MoveTemplate" Id="{2caacfb2-62e4-428a-a2d5-41f77a0a0084}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT. Route generated by the declarative help/nest graph between
+// two KNOWN positions (I.9) - the PLC names from and to, never the waypoints.
+METHOD MoveTemplate : BOOL
+VAR_INPUT
+    FromPosId : DWORD;
+    ToPosId   : DWORD;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="MoveFromArea" Id="{8119b404-aaad-48a8-8d95-9263f9f0b474}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT. Route planned from WHICHEVER planning area the TCP
+// currently occupies, resolved live. The application's primary motion command,
+// because it needs no assumption about the start pose; pose recovery after an
+// E-stop is its extreme case, not a separate mode (I.11).
+METHOD MoveFromArea : BOOL
+VAR_INPUT
+    ToPosId : DWORD;
+END_VAR]]></Declaration>
+      </Method>
+      <Property Name="Busy" Id="{f19c5e53-3e7d-416b-9bc5-af1c937c2c6c}">
+        <Declaration><![CDATA[// A command is executing. Progress is observed over scans, never awaited.
+PROPERTY Busy : BOOL]]></Declaration>
+        <Get Name="Get" Id="{8d96ecd1-f74a-4e8a-ad21-0868a732b5c2}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="Referenced" Id="{ff7e5e82-146e-4892-ac89-26d1d6e35815}">
+        <Declaration><![CDATA[// A valid home/reference exists. MOVE/RUN before this is refused (S5.6).
+PROPERTY Referenced : BOOL]]></Declaration>
+        <Get Name="Get" Id="{6219c6dc-ea66-433e-aa6a-a5b5c6da191d}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="ActualMode" Id="{7c78cca6-282e-4227-a509-5b7080a236ec}">
+        <Declaration><![CDATA[// What the controller REPORTS its operating mode to be - read-only status, and
+// never treated as a safety grant (S9). Deliberately separate from the request.
+PROPERTY ActualMode : E_RobotOpMode]]></Declaration>
+        <Get Name="Get" Id="{d7c75131-c31c-41e9-beda-dbb725315925}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="ActualPosition" Id="{1583d3f5-1abe-4aea-9edd-89ad940f5a18}">
+        <Declaration><![CDATA[// SRCI ReadActualPosition (Core). Live TCP pose, for display and diagnostics.
+// Reading a pose is not commanding one, so I.1's boundary is untouched.
+PROPERTY ActualPosition : ST_RobotPose]]></Declaration>
+        <Get Name="Get" Id="{934f1745-29fa-4cf1-a92b-71211f7d1f1b}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="ControllerMessage" Id="{eb81b73e-7602-4d87-b3f4-638cac8e8db7}">
+        <Declaration><![CDATA[// SRCI ReadMessages (Core). The robot's OWN message, carried verbatim - what a
+// service technician actually needs, rather than a Fraktal paraphrase.
+PROPERTY ControllerMessage : ST_Diagnostic]]></Declaration>
+        <Get Name="Get" Id="{8fa8d0bc-0aaa-40f7-9bf9-9fa7039bb985}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="CurrentArea" Id="{1358bc02-2630-4f27-acf1-51c4fa15d700}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT. The planning area the TCP is in; 0 = none/undefined, which
+// is what makes ROBOT_AREA_UNRESOLVED an explicit first-out instead of a silent
+// stall (I.11).
+PROPERTY CurrentArea : DWORD]]></Declaration>
+        <Get Name="Get" Id="{a3fd9c67-a0a6-4e78-94c2-1c06131331bd}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="ProtectiveStop" Id="{164c12ca-7305-477c-b6a7-e4be5baaa2b4}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT. Collision/crash-protection device tripped. This is PROCESS
+// protection, detected and acted on by the ordinary PLC - NOT a S9 safety
+// function, and deliberately carrying its own reason so the alarm record does not
+// misreport a process event as a safety event (I.4a(c)).
+PROPERTY ProtectiveStop : BOOL]]></Declaration>
+        <Get Name="Get" Id="{9b836080-38dc-4f29-b354-f742c02be3ae}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="Resumable" Id="{a63161de-9535-4ceb-bd3c-9013e38da3da}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT. Whether Resume is still valid on the retained path. A hold
+// is exactly the window in which an operator is most likely to jog the arm - that
+// is what the pause was for - so this turns "the arm was moved while suspended"
+// into a clean refusal instead of a move through untaught space (I.4b).
+PROPERTY Resumable : BOOL]]></Declaration>
+        <Get Name="Get" Id="{69d13e4f-956b-418c-b0df-fa882da06232}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="LastResult" Id="{f169b2f6-1bdb-49eb-ac17-d5efb47b15ee}">
+        <Declaration><![CDATA[// First-out reason and SourcePath of the last refused or failed request, adopted
+// verbatim by the owning CM's rollup (S8.2).
+PROPERTY LastResult : ST_Diagnostic]]></Declaration>
+        <Get Name="Get" Id="{7325c0b0-6ac5-4fbe-9925-263a00044264}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+  </Itf>
+</TcPlcObject>

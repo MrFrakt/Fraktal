@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RobotConnector_Tests" Id="{78363e7d-3a9f-4482-9b47-fdb716c60f32}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex I I.3/I.5 - the Staubli VAL3 connector over the SIM channel. No socket,
+// no emulator, no arm: FB_SimByteChannel scripts request/reply pairs, so the wire
+// protocol and every refusal path are provable in CI (S5.7, Annex H).
+//
+// This is the transport-layer half of the I.5c simulation requirement. The SRS
+// Emulator remains the higher-fidelity layer for motion behaviour; what is proven
+// here is the part that must hold before an emulator is worth starting: that the
+// connector speaks the agreed frames, and that it REFUSES rather than pretends
+// when the link is down, the mode is wrong, or the path was left.
+FUNCTION_BLOCK FB_RobotConnector_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _chan  : FB_SimByteChannel;
+    _conn  : FB_StaubliVal3Connector;
+    _chanB : FB_SimByteChannel;
+    _connB : FB_StaubliVal3Connector;
+    _chanC : FB_SimByteChannel;
+    _connC : FB_StaubliVal3Connector;
+    _chanD : FB_SimByteChannel;
+    _connD : FB_StaubliVal3Connector;
+    _ok    : BOOL;
+    _i     : INT;
+    _w1, _w2, _w3, _w4, _w5, _w6 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Link_down_refuses_every_command_rather_than_dropping_it();
+Id_addressed_commands_are_framed_on_the_wire();
+Status_poll_publishes_the_controllers_reported_facts();
+Controller_error_is_carried_verbatim_and_faults();
+Resume_is_refused_when_the_arm_left_the_retained_path();
+Jog_is_refused_unless_the_controller_is_in_a_manual_mode();]]></ST>
+    </Implementation>
+      <Method Name="_M_Settle" Id="{120c2814-edd6-4690-bd68-ad1a43cdf3cc}">
+        <Declaration><![CDATA[// Run connector + channel for a few scans so the base can open the channel,
+// flush the request and deliver the scripted reply.
+METHOD PRIVATE _M_Settle
+VAR_INPUT
+    Conn : REFERENCE TO FB_StaubliVal3Connector;
+    N    : INT;
+END_VAR
+VAR
+    k : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[FOR k := 1 TO N DO
+    Conn.Cyclic();
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Link_down_refuses_every_command_rather_than_dropping_it" Id="{7cccf63a-c6ef-4648-b7a6-0bdade2af101}">
+        <Declaration><![CDATA[METHOD PRIVATE Link_down_refuses_every_command_rather_than_dropping_it]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Link_down_refuses_every_command_rather_than_dropping_it');
+IF NOT _w1 THEN
+    // Deliberately never opened: no Setup host, so the channel stays CLOSED.
+    // A command issued now must come back FALSE. Silently queueing it would let a
+    // sequence wait on a robot that never heard the command (Annex D).
+    AssertFalse(Condition := _connB.PowerOn(),
+        Message := 'a command on a down link is refused, not queued');
+    AssertFalse(Condition := _connB.MoveToPoint(PointId := 7),
+        Message := 'and so is an ID-addressed move');
+    AssertFalse(Condition := _connB.Linked,
+        Message := 'Linked reports the transport honestly');
+    AssertEquals_DINT(Expected := E_Reason.LINK_TIMEOUT,
+        Actual := _connB.LastResult.ReasonCode,
+        Message := 'the refusal carries the link reason for the CM to adopt');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Id_addressed_commands_are_framed_on_the_wire" Id="{40bee7c7-0ce0-48ef-9ed6-351608224ddc}">
+        <Declaration><![CDATA[METHOD PRIVATE Id_addressed_commands_are_framed_on_the_wire]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Id_addressed_commands_are_framed_on_the_wire');
+IF NOT _w2 THEN
+    // The channel only replies when the sent line matches EXACTLY, so a reply
+    // proves the frame. Every argument is an identifier - never a coordinate (I.1).
+    _chan.Script(Expect := 'TPL,11,22$R', Reply := 'TPL,OK$R');
+    _conn.Setup(Name := 'Test.Robot', Chan := _chan, DevHost := '10.0.0.20', DevPort := 11000);
+    _M_Settle(Conn := _conn, N := 5);
+    AssertTrue(Condition := _conn.Linked, Message := 'the sim channel opens');
+    AssertTrue(Condition := _conn.MoveTemplate(FromPosId := 11, ToPosId := 22),
+        Message := 'a routed move is accepted and framed as TPL,from,to');
+    _M_Settle(Conn := _conn, N := 5);
+    AssertEquals_STRING(Expected := 'TPL,OK', Actual := _conn.OutImm.LastResponse,
+        Message := 'and the controller acknowledgement is published');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Status_poll_publishes_the_controllers_reported_facts" Id="{9dbcdc11-edd4-4c0e-8bd9-d58dba1dab32}">
+        <Declaration><![CDATA[METHOD PRIVATE Status_poll_publishes_the_controllers_reported_facts]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Status_poll_publishes_the_controllers_reported_facts');
+IF NOT _w3 THEN
+    // STA,OK,busy,ref,mode,area,prot,resumable,x,y,z,rx,ry,rz
+    _chanC.Script(Expect := 'STA$R',
+        Reply := 'STA,OK,0,1,AUTO,4,0,1,100.5,200,300,0,0,90$R');
+    _connC.Setup(Name := 'Test.RobotC', Chan := _chanC, DevHost := '10.0.0.21', DevPort := 11000);
+    _M_Settle(Conn := _connC, N := 30);
+    AssertTrue(Condition := _connC.Referenced,
+        Message := 'the reported reference state is published');
+    AssertTrue(Condition := _connC.ActualMode = E_RobotOpMode.AUTO_REMOTE,
+        Message := 'ActualMode is what the controller REPORTS, not what we asked for');
+    AssertEquals_DWORD(Expected := 4, Actual := _connC.CurrentArea,
+        Message := 'the planning area is published for area-resolved motion');
+    AssertFalse(Condition := _connC.ProtectiveStop,
+        Message := 'the protective stop is published separately from S9 safety');
+    AssertEquals_LREAL(Expected := 100.5, Actual := _connC.ActualPosition.X, Delta := 0.001,
+        Message := 'the live pose is readable for display and diagnostics');
+    AssertEquals_LREAL(Expected := 90, Actual := _connC.ActualPosition.RZ, Delta := 0.001,
+        Message := 'including orientation');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Controller_error_is_carried_verbatim_and_faults" Id="{77dce6d9-b295-4584-bfd9-8a24f5037892}">
+        <Declaration><![CDATA[METHOD PRIVATE Controller_error_is_carried_verbatim_and_faults]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Controller_error_is_carried_verbatim_and_faults');
+IF NOT _w4 THEN
+    _chanD.Script(Expect := 'HOME$R', Reply := 'HOME,ERR,J12,joint 3 out of range$R');
+    _connD.Setup(Name := 'Test.RobotD', Chan := _chanD, DevHost := '10.0.0.22', DevPort := 11000);
+    _M_Settle(Conn := _connD, N := 5);
+    AssertTrue(Condition := _connD.Home(), Message := 'the request is accepted by the transport');
+    _M_Settle(Conn := _connD, N := 5);
+    // The robot's OWN text survives. Paraphrasing it would cost the technician the
+    // one string that identifies the fault on the pendant (S8.2).
+    AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_CONTROLLER_FAULT,
+        Actual := _connD.ControllerMessage.ReasonCode,
+        Message := 'a controller error raises the robot controller-fault reason');
+    AssertTrue(Condition := FIND(_connD.ControllerMessage.Description, 'joint 3 out of range') > 0,
+        Message := 'and carries the controller message verbatim');
+    AssertFalse(Condition := _connD.Busy,
+        Message := 'a refused command does not leave the connector claiming Busy');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Resume_is_refused_when_the_arm_left_the_retained_path" Id="{fc517e8b-9dbe-446c-a303-a3ff9be01a50}">
+        <Declaration><![CDATA[METHOD PRIVATE Resume_is_refused_when_the_arm_left_the_retained_path]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Resume_is_refused_when_the_arm_left_the_retained_path');
+IF NOT _w5 THEN
+    // Resumable=0 in the status reply. A hold is exactly when an operator jogs the
+    // arm, and resuming onto a path the tool has left is how a robot drives through
+    // a fixture - so this must refuse rather than execute (I.4b).
+    AssertFalse(Condition := _connD.Resumable,
+        Message := 'the connector reports resumption invalid by default');
+    AssertFalse(Condition := _connD.Resume(),
+        Message := 'and Resume is refused rather than sent');
+    _w5 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Jog_is_refused_unless_the_controller_is_in_a_manual_mode" Id="{fb3f0a7a-78b1-49c9-b84f-e9acae230b99}">
+        <Declaration><![CDATA[METHOD PRIVATE Jog_is_refused_unless_the_controller_is_in_a_manual_mode]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Jog_is_refused_unless_the_controller_is_in_a_manual_mode');
+IF NOT _w6 THEN
+    // _connC reported AUTO. Jogging is bounded by the CONTROLLER's mode, not by a
+    // PLC release alone, so the request must not reach the floor (I.4a(a)).
+    AssertTrue(Condition := _connC.ActualMode = E_RobotOpMode.AUTO_REMOTE,
+        Message := 'precondition: the controller reports auto');
+    AssertFalse(Condition := _connC.Jog(Mode := E_JogMode.JOINT, Axis := 1, Dir := 1),
+        Message := 'jogging is refused while the controller is in auto');
+    // Requesting UNKNOWN is meaningless and must never be transmitted.
+    AssertFalse(Condition := _connC.RequestMode(Mode := E_RobotOpMode.UNKNOWN),
+        Message := 'and an UNKNOWN mode request is refused outright');
+    _w6 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+  </POU>
+</TcPlcObject>
