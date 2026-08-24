@@ -272,6 +272,12 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
 python FraktalCore/PLC/TwinCAT/tools/plc_lint.py    # both profiles (--profile 4024)
 python -m unittest discover -s FraktalCore/PLC/TwinCAT/tools \
                             -t FraktalCore/PLC/TwinCAT/tools
+# Changed a LIBRARY (Fraktal_Core / Fraktal_Modules)? Install it BEFORE the build
+# gate. Consumers resolve an INSTALLED placeholder, never library source, so a new
+# type stays invisible to Tests/ and the build fails with a wall of "not defined"
+# that names everything except the actual cause (workflow S4.1/4.2). Core first:
+# Modules consumes it, and the script enforces that order.
+FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatLibraryInstall.ps1
 FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatBuild.ps1  # CheckAllObjects, 5 solutions
 
 # tools/ at the repository root keeps only the gates that span several trees.
@@ -292,10 +298,26 @@ test solutions. Read `Specification/Guides/TWINCAT_XAE_WORKFLOW.md` §5.1 before
 failure is undiagnosable — the Error List is reachable **only** through the `DTE2`
 interface (`envdte80.dll` from the same IDE), and base `EnvDTE.DTE` returns an empty or
 missing property that looks like a tooling dead end.
+**Never ship ST behind a disclaimer.** Writing "build not run", "not compile-tested"
+or the like into a commit message, report or evidence note is not a caveat, it is
+skipping the one gate that separates plausible ST from correct ST - and the compiler
+routinely finds contract violations review does not: an unimplemented interface
+method, an unimplemented ABSTRACT hook, a member that silently collides with the
+base. If the gate genuinely cannot run, say precisely why; if it can, run it.
 - **A ladder facade is not an override.** Adding `Run : BOOL` for rung power flow changes
   the signature, which is `C0094`. Give it its own name (`M_StepLd`), and remember a
   method returns through **its own** name — renaming the method without retargeting
   `<name> :=` in the body silently rebinds it to the inherited method.
+- **A property getter is a function call.** `obj.SomeProperty.Member` is `C0185`;
+  assign the property to a help variable first. Same for any struct-returning method.
+- **Base members are in scope and collide silently.** Declaring `Busy` on a type
+  extending `FB_ModuleBase` is `C0097` - the base already publishes it for the command
+  handshake. Read the base VAR block before naming a member, and prefer a name that
+  says *which* question it answers (`MotionBusy` = the arm is moving, not the command).
+- **Short type names collide with Beckhoff libraries.** `E_JogMode` resolves fine
+  inside the library and is ambiguous (`C0136`) only in a consumer that also
+  references the motion library - so it compiles where you wrote it and fails where
+  it is used. Prefix domain types (`E_RobotJogMode`).
 
 **Where a type lives, and when to declare a flag (lint rule L1):**
 - **A library declares only what a library object owns.** The test is not "who uses

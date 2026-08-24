@@ -127,9 +127,20 @@ not a claim that a signed release library was distributed.
 8. Verify the intended version in **PLC → Library Repository**, save, and close.
 
 TwinCAT's Automation Interface exposes the equivalent
-`ITcPlcIECProject.SaveAsLibrary(path, install)` method, but no maintained Fraktal
-script used it for the recorded install. The library save/install step was an XAE
-interaction; only the target-independent object check is currently scripted.
+`ITcPlcIECProject.SaveAsLibrary(path, install)`, and `tools/Invoke-TwinCatLibraryInstall.ps1`
+now automates the §4.1/§4.2 sequence above: it installs Core then Modules in that
+order (Modules consumes Core through an installed reference, so the order is not
+optional), opens each solution in its own isolated hidden XAE, and runs
+`CheckAllObjects()` first so a library that does not compile never replaces a good
+one in the repository. Its evidence boundary is exactly the GUI action’s — a local
+development install, not a released or distributed package, and no proof that any
+consumer was rebuilt against it (§4.3 still applies).
+
+**This step is not optional after changing a library.** A consumer such as
+`Tests/Fraktal_Tests` resolves `Fraktal_Modules` as an *installed placeholder*, never
+from library source, so a newly added type stays invisible until the library is
+reinstalled. The symptom is the object-check gate failing the consumer with a wall of
+`C0046: Identifier ... not defined` naming everything except the real cause.
 
 ### 4.3 Reload and compile consumers
 
