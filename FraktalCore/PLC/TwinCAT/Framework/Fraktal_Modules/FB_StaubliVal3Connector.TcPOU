@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
-  <POU Name="FB_StaubliVal3Connector" Id="{107b80eb-7941-4e9a-8301-df4b0b4ceccd}" SpecialFunc="None">
+  <POU Name="FB_StaubliVal3Connector" Id="{148d5d06-5fd6-472d-bac6-13f4e37f8a5f}" SpecialFunc="None">
     <Declaration><![CDATA[// Annex I I.3/I.5 - Staubli VAL3 connector: one conformant implementation of
 // I_RobotConnector, speaking a line protocol to a `fraktal_server` VAL3
 // application on the robot controller.
@@ -53,11 +53,12 @@ VAR
     _lastResult  : ST_Diagnostic;
     _tPoll       : TON;
     _statusPend  : BOOL;   // the outstanding request is a status poll, not a command
+    _lastSeen    : DT;     // stamped on every healthy reply (Annex D heartbeat facet)
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
     </Implementation>
-      <Method Name="Setup" Id="{2ab9ef6b-94bc-46bf-a3a7-70ce26795032}">
+      <Method Name="Setup" Id="{c6f5de91-c6a9-4cc1-9bf9-e1a86e3db4d8}">
         <Declaration><![CDATA[// Wire identity and transport. Called once from the owning CM (S3.11).
 METHOD Setup : BOOL
 VAR_INPUT
@@ -73,7 +74,7 @@ ParCfg.Port := DevPort;
 Setup := SetupDevice(Chan := Chan, DevHost := DevHost, DevPort := DevPort);]]></ST>
         </Implementation>
       </Method>
-      <Method Name="OnCyclic" Id="{66df20c0-afec-439f-bb07-cfc354124aa2}">
+      <Method Name="OnCyclic" Id="{baed0918-2248-4ecf-a74e-e80249f9963d}">
         <Declaration><![CDATA[// Mirror configuration into the inherited transport fields, let the base run the
 // channel and framing, then poll status while idle.
 METHOD PROTECTED OnCyclic : DINT]]></Declaration>
@@ -108,7 +109,7 @@ END_IF
 
 OutImm.LinkState      := LinkState;
 OutImm.Linked         := Linked;
-OutImm.Busy           := _busy;
+OutImm.MotionBusy     := _busy;
 OutImm.Referenced     := _referenced;
 OutImm.ActualMode     := _mode;
 OutImm.RequestedMode  := _reqMode;
@@ -120,7 +121,7 @@ OutImm.LastResponse   := LastResponse;
 OutImm.Diagnostic     := Status.Diagnostic;]]></ST>
         </Implementation>
       </Method>
-      <Method Name="_M_OnResponse" Id="{fa794d39-2cb6-4c87-8e0c-671647f7334b}">
+      <Method Name="_M_OnResponse" Id="{eb7e03b9-de4a-4d32-a586-eb95e27bab48}">
         <Declaration><![CDATA[// Parse one terminated reply. Status replies refresh the published facts; command
 // replies clear Busy or record the controller's own first-out.
 METHOD PROTECTED _M_OnResponse
@@ -132,7 +133,10 @@ VAR
     _stat : STRING(16);
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[_cmd  := _M_Field(Response, 1);
+          <ST><![CDATA[// Any well-formed reply is evidence the controller is alive (Annex D S3.15.2).
+_lastSeen := F_Now();
+
+_cmd  := _M_Field(Response, 1);
 _stat := _M_Field(Response, 2);
 
 IF _stat = 'ERR' THEN
@@ -171,7 +175,7 @@ END_IF
 _statusPend := FALSE;]]></ST>
         </Implementation>
       </Method>
-      <Method Name="_M_Request" Id="{a1a8ce97-d7db-4d57-9570-06e0497470e7}">
+      <Method Name="_M_Request" Id="{e5e3fff0-dd2d-4ce2-a901-18cf94100a4d}">
         <Declaration><![CDATA[// Issue one ID-addressed request. FALSE = refused outright, with LastResult set,
 // which is what the CM turns into a first-out (S5.6).
 METHOD PRIVATE _M_Request : BOOL
@@ -199,7 +203,7 @@ _busy := TRUE;
 _M_Request := TRUE;]]></ST>
         </Implementation>
       </Method>
-      <Method Name="_M_Field" Id="{728a2a6c-7785-4233-aaf1-493b568661ce}">
+      <Method Name="_M_Field" Id="{2419b959-478b-45c5-b8bd-e7eae777b749}">
         <Declaration><![CDATA[// n-th comma-separated field of a response, 1-based; '' when absent. Bounded and
 // allocation-free (O10).
 METHOD PRIVATE _M_Field : STRING(64)
@@ -232,7 +236,7 @@ IF count = N THEN
 END_IF]]></ST>
         </Implementation>
       </Method>
-      <Method Name="_M_ToMode" Id="{3050c82d-2baa-4bae-8090-fc39f356486b}">
+      <Method Name="_M_ToMode" Id="{29bb4005-178d-47ae-a9a5-2d09792c0ea9}">
         <Declaration><![CDATA[// Controller mode text -> E_RobotOpMode. Anything unrecognised is UNKNOWN, never
 // a permissive mode: an unparsed reply must not read as "auto is granted".
 METHOD PRIVATE _M_ToMode : E_RobotOpMode
@@ -251,7 +255,7 @@ ELSE
 END_IF]]></ST>
         </Implementation>
       </Method>
-      <Method Name="_M_MakeCtrlDiag" Id="{b20ddfb2-52ef-4096-9475-23f9418de394}">
+      <Method Name="_M_MakeCtrlDiag" Id="{d519db20-deb7-4591-bca1-846188b4f473}">
         <Declaration><![CDATA[// Wrap the controller's own error into a Fraktal diagnostic without translating it.
 METHOD PRIVATE _M_MakeCtrlDiag : ST_Diagnostic
 VAR_INPUT
@@ -264,7 +268,7 @@ _M_MakeCtrlDiag.Description := CONCAT(CONCAT(Code, ' '), Text);
 _M_MakeCtrlDiag.SourcePath  := Name;]]></ST>
         </Implementation>
       </Method>
-      <Method Name="_M_MakeLinkDiag" Id="{72ca8a17-8249-4534-8a4c-3f027db6896a}">
+      <Method Name="_M_MakeLinkDiag" Id="{6e83df8a-719c-4ade-9443-312017ac002f}">
         <Declaration><![CDATA[// The link is the reason a request was refused; reuse the Framework band rather
 // than minting a robot code for a transport fact (Annex D).
 METHOD PRIVATE _M_MakeLinkDiag : ST_Diagnostic]]></Declaration>
@@ -274,25 +278,69 @@ _M_MakeLinkDiag.Description := 'std.error.robotLinkDown';
 _M_MakeLinkDiag.SourcePath  := Name;]]></ST>
         </Implementation>
       </Method>
-      <Method Name="PowerOn" Id="{c6ff1b71-a65c-4e2d-b8d3-2cc4a2bb7e41}">
+      <Method Name="Connect" Id="{572c645d-0cb9-46e8-880d-143f68653217}">
+        <Declaration><![CDATA[// Annex D. The base already opens and re-opens with bounded backoff; this is the
+// EXPLICIT operator reconnect of I.15, not a second state machine competing with it.
+METHOD Connect : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF _chan = 0 THEN
+    Connect := FALSE;
+    RETURN;
+END_IF
+Connect := _chan.Open(Host := ParCfg.Host, Port := ParCfg.Port);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Disconnect" Id="{7ad2728c-e961-48c8-8a46-e0d0f39e65ed}">
+        <Declaration><![CDATA[// Annex D. Drops the session; the base's backoff governs any re-open.
+METHOD Disconnect : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF _chan = 0 THEN
+    Disconnect := FALSE;
+    RETURN;
+END_IF
+Disconnect := _chan.Close();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Dispatch" Id="{18c21a15-b4f3-46dd-8592-0ff76a4bcf73}">
+        <Declaration><![CDATA[// The connector's OWN command surface is the service action of Annex I I.15 -
+// reconnect the link. Robot MOTION is never commanded through this handshake; the
+// robot CM calls I_RobotConnector methods directly, which is why this dispatch is
+// so small.
+METHOD PROTECTED _M_Dispatch]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT Linked THEN
+    Connect();
+    RETURN;                      // stay BUSY until the transport actually comes up
+END_IF
+IF ParCmd.AcknowledgeController THEN
+    // Clearing the robot's own fault is part of a deliberate reconnect, never
+    // automatic: a controller fault must not evaporate because a link blipped.
+    _M_Request('RST');
+END_IF
+OutCmd.Reconnected    := TRUE;
+OutCmd.ControllerCode := _ctrlMsg.Description;
+_M_Complete();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="PowerOn" Id="{bbd99df2-eba9-4dfc-88ab-75ad65d57d61}">
         <Declaration><![CDATA[METHOD PowerOn : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[PowerOn := _M_Request('PWR,1');]]></ST>
         </Implementation>
       </Method>
-      <Method Name="PowerOff" Id="{a0dac453-4140-407e-a8c3-28edc0fd7e65}">
+      <Method Name="PowerOff" Id="{55270009-dace-45f8-8f1e-10268c8359a5}">
         <Declaration><![CDATA[METHOD PowerOff : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[PowerOff := _M_Request('PWR,0');]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Home" Id="{d0d275f4-66b4-4825-85c7-7b4a278a2a03}">
+      <Method Name="Home" Id="{5f449656-2352-4bf8-aba9-b50defe8f7ef}">
         <Declaration><![CDATA[METHOD Home : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[Home := _M_Request('HOME');]]></ST>
         </Implementation>
       </Method>
-      <Method Name="MoveToPoint" Id="{0cffe19b-84fe-4503-a4de-32d5d08b45e6}">
+      <Method Name="MoveToPoint" Id="{7f11d6f5-f3ca-4b5d-b5a0-eb0f3261cea3}">
         <Declaration><![CDATA[METHOD MoveToPoint : BOOL
 VAR_INPUT
     PointId : DWORD;
@@ -301,7 +349,7 @@ END_VAR]]></Declaration>
           <ST><![CDATA[MoveToPoint := _M_Request(CONCAT('MOV,', DWORD_TO_STRING(PointId)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="RunPath" Id="{528e1dba-eb2b-4c5f-abbb-cdbf0d1b1d36}">
+      <Method Name="RunPath" Id="{04b0ab0c-3312-4a06-b1d8-a7965da81da9}">
         <Declaration><![CDATA[METHOD RunPath : BOOL
 VAR_INPUT
     ListId   : DWORD;
@@ -314,13 +362,13 @@ END_VAR]]></Declaration>
     DINT_TO_STRING(EndIdx)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Interrupt" Id="{98888fa7-0223-4a39-9f3b-e14e54611c9b}">
+      <Method Name="Interrupt" Id="{327c88cb-1c44-44b0-ae81-226778fe9147}">
         <Declaration><![CDATA[METHOD Interrupt : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[Interrupt := _M_Request('INT');]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Resume" Id="{d4487cee-891d-47c2-b6d1-0bfc12401395}">
+      <Method Name="Resume" Id="{59a5e84a-60c3-4452-98ad-d7b2a0090c74}">
         <Declaration><![CDATA[METHOD Resume : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[// Refuse rather than execute when the arm has left the retained path (I.4b).
@@ -331,20 +379,20 @@ END_IF
 Resume := _M_Request('RES');]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Abort" Id="{70f2b8cb-1fd2-437d-90b4-86bb25aeec27}">
+      <Method Name="Abort" Id="{7a25c84d-c5d6-4caa-9b67-4021e7088ac1}">
         <Declaration><![CDATA[METHOD Abort : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[Abort := _M_Request('ABT');
 _busy := FALSE;]]></ST>
         </Implementation>
       </Method>
-      <Method Name="ResetController" Id="{4e42b1ac-2a66-4bd0-ae36-0c0cb53031c3}">
+      <Method Name="ResetController" Id="{0f479641-7552-4115-836c-726980761004}">
         <Declaration><![CDATA[METHOD ResetController : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[ResetController := _M_Request('RST');]]></ST>
         </Implementation>
       </Method>
-      <Method Name="RequestMode" Id="{06ef02cb-2045-4636-831a-93be2a87c53d}">
+      <Method Name="RequestMode" Id="{eea2ae8b-2d1d-4c73-b27d-2443d7f719e2}">
         <Declaration><![CDATA[METHOD RequestMode : BOOL
 VAR_INPUT
     Mode : E_RobotOpMode;
@@ -368,7 +416,7 @@ _reqMode := Mode;
 RequestMode := _M_Request(CONCAT('MOD,', _s));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="SetSpeedScale" Id="{e9725cc9-62ee-4a2d-8783-0828b4044eb1}">
+      <Method Name="SetSpeedScale" Id="{98f50278-213d-414d-8f96-c6d33430fcd0}">
         <Declaration><![CDATA[METHOD SetSpeedScale : BOOL
 VAR_INPUT
     Percent : REAL;
@@ -382,7 +430,7 @@ OutImm.SpeedScale := Percent;
 SetSpeedScale := _M_Request(CONCAT('SPD,', REAL_TO_STRING(Percent)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="SetTool" Id="{17112eaf-c006-4f8b-be7a-52eb101f7981}">
+      <Method Name="SetTool" Id="{129e2a2e-a7c1-4ec4-8af9-f4bd07dfc4a6}">
         <Declaration><![CDATA[METHOD SetTool : BOOL
 VAR_INPUT
     ToolId : DWORD;
@@ -391,7 +439,7 @@ END_VAR]]></Declaration>
           <ST><![CDATA[SetTool := _M_Request(CONCAT('TOO,', DWORD_TO_STRING(ToolId)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="SetFrame" Id="{bdbb8b65-cc51-4f6e-8d24-d690193d65e2}">
+      <Method Name="SetFrame" Id="{c1c45f1f-4fbe-447a-9d6b-a8a6f0209775}">
         <Declaration><![CDATA[METHOD SetFrame : BOOL
 VAR_INPUT
     FrameId : DWORD;
@@ -400,7 +448,7 @@ END_VAR]]></Declaration>
           <ST><![CDATA[SetFrame := _M_Request(CONCAT('FRM,', DWORD_TO_STRING(FrameId)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="SetPayload" Id="{08696659-8ab9-4282-aa4e-abae3ce54197}">
+      <Method Name="SetPayload" Id="{35ef4ac1-97ef-4267-a95d-15585babd33d}">
         <Declaration><![CDATA[METHOD SetPayload : BOOL
 VAR_INPUT
     LoadId : DWORD;
@@ -409,10 +457,10 @@ END_VAR]]></Declaration>
           <ST><![CDATA[SetPayload := _M_Request(CONCAT('PLD,', DWORD_TO_STRING(LoadId)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="Jog" Id="{3e5ba430-55e1-47b7-8fd6-551169aad177}">
+      <Method Name="Jog" Id="{76bf5120-d5cf-476e-acf6-48a865a9e98c}">
         <Declaration><![CDATA[METHOD Jog : BOOL
 VAR_INPUT
-    Mode : E_JogMode;
+    Mode : E_RobotJogMode;
     Axis : INT;
     Dir  : INT;
 END_VAR]]></Declaration>
@@ -428,7 +476,7 @@ Jog := _M_Request(CONCAT(CONCAT(CONCAT(CONCAT(CONCAT(
     INT_TO_STRING(Dir)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="RunPallet" Id="{4c0aa57f-cb99-46e8-b416-53279d736788}">
+      <Method Name="RunPallet" Id="{a95bf979-7b9b-4afb-a12c-79bf849afc6a}">
         <Declaration><![CDATA[METHOD RunPallet : BOOL
 VAR_INPUT
     PalletId : DWORD;
@@ -439,7 +487,7 @@ END_VAR]]></Declaration>
     'PAL,', DWORD_TO_STRING(PalletId)), ','), DINT_TO_STRING(Nest)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="MoveTemplate" Id="{17f1a1b5-42ba-471a-aa35-db56c26fb106}">
+      <Method Name="MoveTemplate" Id="{b797f910-7b11-46e1-a786-6cdd195a3c4e}">
         <Declaration><![CDATA[METHOD MoveTemplate : BOOL
 VAR_INPUT
     FromPosId : DWORD;
@@ -450,7 +498,7 @@ END_VAR]]></Declaration>
     'TPL,', DWORD_TO_STRING(FromPosId)), ','), DWORD_TO_STRING(ToPosId)));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="MoveFromArea" Id="{bb2ff923-2a9b-4b6c-8dc1-b443e8c144d6}">
+      <Method Name="MoveFromArea" Id="{008dd993-f65f-4557-b03e-d598268a793f}">
         <Declaration><![CDATA[METHOD MoveFromArea : BOOL
 VAR_INPUT
     ToPosId : DWORD;
@@ -459,19 +507,21 @@ END_VAR]]></Declaration>
           <ST><![CDATA[MoveFromArea := _M_Request(CONCAT('ARE,', DWORD_TO_STRING(ToPosId)));]]></ST>
         </Implementation>
       </Method>
-      <Property Name="Busy" Id="{292f5a9f-faa7-4ee2-a8fa-653566c70150}">
-        <Declaration><![CDATA[PROPERTY Busy : BOOL]]></Declaration>
-        <Get Name="Get" Id="{21bced08-1f2d-4591-ad02-635b97f40dec}">
+      <Property Name="MotionBusy" Id="{f0956d54-6d38-48f0-9562-e484f5918809}">
+        <Declaration><![CDATA[// The ROBOT is moving. The base already owns Busy for its own command handshake;
+// conflating the two would make "is the arm moving" unanswerable.
+PROPERTY MotionBusy : BOOL]]></Declaration>
+        <Get Name="Get" Id="{a5381892-da6c-4060-99a7-114875be5e15}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
-            <ST><![CDATA[Busy := _busy;]]></ST>
+            <ST><![CDATA[MotionBusy := _busy;]]></ST>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="Referenced" Id="{64170174-3fed-4764-b177-1a7e29a21e6c}">
+      <Property Name="Referenced" Id="{f6da5bbd-9170-46fe-aab6-4ba2d163df1f}">
         <Declaration><![CDATA[PROPERTY Referenced : BOOL]]></Declaration>
-        <Get Name="Get" Id="{a83bac4b-f13c-4522-b3d4-41e11d8a0f0c}">
+        <Get Name="Get" Id="{e4d5b359-438b-4310-af83-4702546b2dcf}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -479,9 +529,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="ActualMode" Id="{74f45d64-1d8f-458f-b388-05e60663f9ff}">
+      <Property Name="ActualMode" Id="{89af3eb8-a92d-4ccd-98bd-6cb0964afaec}">
         <Declaration><![CDATA[PROPERTY ActualMode : E_RobotOpMode]]></Declaration>
-        <Get Name="Get" Id="{9c8836ae-76db-412a-8fc7-d89996f0bc47}">
+        <Get Name="Get" Id="{280d8792-f34a-4c51-812b-f5e5a39ecaca}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -489,9 +539,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="ActualPosition" Id="{4b4c2213-c785-4bfb-bd75-9f795503f02c}">
+      <Property Name="ActualPosition" Id="{3f97e406-bf94-4b90-8f90-d380f1ec8a44}">
         <Declaration><![CDATA[PROPERTY ActualPosition : ST_RobotPose]]></Declaration>
-        <Get Name="Get" Id="{1625105a-0b5b-4731-a2f5-d65fb93aba39}">
+        <Get Name="Get" Id="{bfdc57d0-4645-4125-8e1d-5461943ae690}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -499,9 +549,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="ControllerMessage" Id="{7461bed2-4188-46fe-9107-b6fceb720130}">
+      <Property Name="ControllerMessage" Id="{db7e9172-e4a0-43b1-9b84-93f282013242}">
         <Declaration><![CDATA[PROPERTY ControllerMessage : ST_Diagnostic]]></Declaration>
-        <Get Name="Get" Id="{80acff38-9415-4f0d-b8bd-d669f3669af3}">
+        <Get Name="Get" Id="{ef80fc41-950d-4a20-b2c7-426cd57bc522}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -509,9 +559,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="CurrentArea" Id="{627cb382-0170-46c2-a261-237ca6abc966}">
+      <Property Name="CurrentArea" Id="{57b20bde-713f-4c6e-a7e5-838fa857a0b4}">
         <Declaration><![CDATA[PROPERTY CurrentArea : DWORD]]></Declaration>
-        <Get Name="Get" Id="{ed3fc4ff-cfde-4a8e-ba50-9b1e3bbe8216}">
+        <Get Name="Get" Id="{38bfd89e-d8e1-4126-aa32-7ec41929589c}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -519,9 +569,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="ProtectiveStop" Id="{fe27691a-1aae-4d69-b2f5-32271e31030e}">
+      <Property Name="ProtectiveStop" Id="{60832d5a-56a5-4fcf-b9d2-86725d1e1509}">
         <Declaration><![CDATA[PROPERTY ProtectiveStop : BOOL]]></Declaration>
-        <Get Name="Get" Id="{aa898d12-fd7b-466d-ae6e-e411ac76b378}">
+        <Get Name="Get" Id="{1dcc023c-0a2c-4c1c-9cc5-abc19da6b6bf}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -529,9 +579,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="Resumable" Id="{baf06605-0314-40eb-820d-f5aeab3d525e}">
+      <Property Name="Resumable" Id="{c10d40f8-2956-48c3-af3f-f5e5e71f0541}">
         <Declaration><![CDATA[PROPERTY Resumable : BOOL]]></Declaration>
-        <Get Name="Get" Id="{280cc3ab-1129-453f-8ac4-78eb4ccc43de}">
+        <Get Name="Get" Id="{dbb1a353-2dba-49ac-b0d5-54f1a8bd5884}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -539,9 +589,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="LastResult" Id="{ae153d42-ee00-49fa-bcb5-fb8366b9f11f}">
+      <Property Name="LastResult" Id="{7dbf588b-8388-44db-bd78-d2b17a4d29c5}">
         <Declaration><![CDATA[PROPERTY LastResult : ST_Diagnostic]]></Declaration>
-        <Get Name="Get" Id="{28d8f7b8-74ba-42dd-8b0d-24f8338247c8}">
+        <Get Name="Get" Id="{286175bc-89fc-47a8-a259-2b7d9f8d9c40}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -549,10 +599,10 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="Linked" Id="{7a6e74f5-5bd2-4ecc-8560-5389d42f1512}">
+      <Property Name="Linked" Id="{8c096d5e-d9b2-45f3-9f2a-0cd9d746388d}">
         <Declaration><![CDATA[// Annex D link facet: session up AND transport healthy.
 PROPERTY Linked : BOOL]]></Declaration>
-        <Get Name="Get" Id="{202725c4-76bd-4993-a2dc-41fb3a0ab9e2}">
+        <Get Name="Get" Id="{a44b5ef4-f0ed-4e61-ac0d-cc25a0502599}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -560,9 +610,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="LastSeen" Id="{9e1e5797-1390-4adf-8dff-dc277b0805de}">
+      <Property Name="LastSeen" Id="{84055663-b4da-4b8e-a3a6-0afa9e223c28}">
         <Declaration><![CDATA[PROPERTY LastSeen : DT]]></Declaration>
-        <Get Name="Get" Id="{300247f3-2654-4c85-9930-feba1a2a260a}">
+        <Get Name="Get" Id="{bf1a1fcb-9e13-437d-beed-7d5ba543b6f3}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>
@@ -570,9 +620,9 @@ END_VAR]]></Declaration>
           </Implementation>
         </Get>
       </Property>
-      <Property Name="LinkReason" Id="{14df9034-0639-4d52-a428-27b0a0d550a2}">
+      <Property Name="LinkReason" Id="{bff882ef-5fdb-46b6-bf41-904a39b9b0ce}">
         <Declaration><![CDATA[PROPERTY LinkReason : ST_Diagnostic]]></Declaration>
-        <Get Name="Get" Id="{4ea8084c-32d7-4eec-b882-e819746a755f}">
+        <Get Name="Get" Id="{541dd47f-5974-43ce-868a-a0d3be19f1dd}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
           <Implementation>

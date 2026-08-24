@@ -124,7 +124,7 @@ END_VAR]]></Declaration>
 // ActualMode is a manual mode (I.4a(a)).
 METHOD Jog : BOOL
 VAR_INPUT
-    Mode : E_JogMode;
+    Mode : E_RobotJogMode;
     Axis : INT;
     Dir  : INT;
 END_VAR]]></Declaration>
@@ -157,9 +157,11 @@ VAR_INPUT
     ToPosId : DWORD;
 END_VAR]]></Declaration>
       </Method>
-      <Property Name="Busy" Id="{f19c5e53-3e7d-416b-9bc5-af1c937c2c6c}">
-        <Declaration><![CDATA[// A command is executing. Progress is observed over scans, never awaited.
-PROPERTY Busy : BOOL]]></Declaration>
+      <Property Name="MotionBusy" Id="{f19c5e53-3e7d-416b-9bc5-af1c937c2c6c}">
+        <Declaration><![CDATA[// The ROBOT is executing motion. Deliberately NOT called Busy: the module base
+// already publishes Busy for its own command handshake, and the two are different
+// questions - "is my command running" versus "is the arm moving".
+PROPERTY MotionBusy : BOOL]]></Declaration>
         <Get Name="Get" Id="{8d96ecd1-f74a-4e8a-ad21-0868a732b5c2}">
           <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
