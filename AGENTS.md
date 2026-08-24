@@ -284,6 +284,21 @@ FraktalCore/PLC/TwinCAT/tools/Invoke-TwinCatBuild.ps1  # CheckAllObjects, 5 solu
 python tools/check_consistency.py   # agreement BETWEEN artifacts (see below)
 python -m unittest tools.test_check_consistency
 ```
+
+**Enable the pre-commit hook once per clone** — `core.hooksPath` is local config, so
+a tracked hook does nothing until you point Git at it:
+
+```
+git config core.hooksPath .githooks
+```
+
+`.githooks/pre-commit` runs the CHEAP half of the list above and nothing else:
+`check_consistency` always (0.3 s), `plc_lint` in both profiles only when a PLC object
+is staged (~6 s), and the tool suites only when the tools change. It deliberately does
+not run the object check, the library install or TcUnit — a hook that takes minutes
+gets disabled within a week, and those need XAE. It is a fast guard against the
+embarrassing half, **not** a substitute for the sequence above or for CI. `--no-verify`
+exists for emergencies; if you reach for it routinely the gate is wrong, so fix the gate.
 `check_consistency.py` covers what `plc_lint.py` structurally cannot, because it
 spans trees: every operator-facing localization key resolves in a shipped
 catalogue (**warning** — there is a backlog; `--emit` prints the stubs,
