@@ -2553,7 +2553,35 @@ IF WriteConfig THEN
     ConfigRev := ConfigRev + 1;
 END_IF]]></ST></Implementation>
     </Method>
-    <Method Name="SetEngineeringMode" Id="{28e702f3-e7d8-4e5a-8206-7208a16b6696}">
+          <Method Name="CaptureConfig" Id="{6657c29b-54a9-410f-b368-d4a1ad1bb646}">
+        <Declaration><![CDATA[// §3.8c - the root authority for a capture. Deliberately the same gate, the same
+// ownership check and the same ConfigRev bump as WriteConfig: a capture is a
+// write whose value came from the machine, and it is no more and no less
+// privileged than one the operator typed (§3.8c(d)).
+METHOD CaptureConfig : BOOL
+VAR_INPUT
+    TargetPath : STRING(255);
+    WriteKey   : STRING(160);
+    Revision   : DINT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CaptureConfig := FALSE;
+IF NOT Access.PermitsLogged(Gate := E_GatedAction.DATA_WRITE) THEN
+    RETURN;
+END_IF
+IF (WriteKey = '') OR (Revision <= 0)
+OR NOT _M_OwnsModulePath(Path := TargetPath) THEN
+    RETURN;
+END_IF
+// Framework-owned keys offer no capture: they are policy, not measurements.
+CaptureConfig := M_ApplyCapture(Scope := TargetPath, WriteKey := WriteKey,
+    Revision := TO_UDINT(Revision), RootReady := (_exec = E_ExecState.READY));
+IF CaptureConfig THEN
+    ConfigRev := ConfigRev + 1;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="SetEngineeringMode" Id="{28e702f3-e7d8-4e5a-8206-7208a16b6696}">
       <Declaration><![CDATA[// Core §7.5.1 — inject the station's commissioning/engineering gate register at
 // Setup, the same shape as SetPartCarrier. Wiring it is what makes the §7.5.2
 // standing annunciation appear and what arms the §10.5.1 force surface; a Unit

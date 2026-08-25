@@ -32,5 +32,20 @@ VAR_INPUT
     RootReady : BOOL;
 END_VAR]]></Declaration>
     </Method>
+    <Method Name="M_ApplyCapture" Id="{bccc12ea-7a33-4c09-a534-e0399aef0a0a}">
+      <Declaration><![CDATA[// §3.8c - capture: store this module's OWN live value into the registered
+// field named by WriteKey. No TextValue: the whole point is that the number
+// comes from the machine, not from the client. Everything else - revision,
+// RequiresReady, the type's own invariants, range, domain, storage - is the
+// write path unchanged, so a capture can never accept what a typed write
+// would refuse.
+METHOD M_ApplyCapture : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+    </Method>
   </Itf>
 </TcPlcObject>

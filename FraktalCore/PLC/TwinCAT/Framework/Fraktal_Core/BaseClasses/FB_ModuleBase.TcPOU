@@ -863,7 +863,94 @@ _configWrite[_nConfigWrite].MaxLength := MaxLength;
 _configWrite[_nConfigWrite].EnumDomain := EnumDomain;
 M_RegisterConfigWrite := TRUE;]]></ST></Implementation>
     </Method>
-    <Method Name="M_RegisterConfigNumber" Id="{9e0a37b1-4c85-42df-a70e-6b1d5f92c308}">
+          <Method Name="M_RegisterCapture" Id="{a1ff216f-afb4-4582-a46e-a56828775efb}">
+        <Declaration><![CDATA[// §3.8c - offer a capture for an ALREADY-REGISTERED editable value. Called at
+// Setup, after the M_RegisterConfigWrite that declares the field.
+//
+// Refused when the key is not registered, which is §3.8c(a) enforced where it
+// cannot be bypassed: capture changes how the number arrives, never which
+// numbers may change. pSource shall point at a value the module already
+// publishes (§3.8c(b)) - the operator has to be able to see the number that is
+// about to be stored, on the same screen, before storing it.
+METHOD M_RegisterCapture : BOOL
+VAR_INPUT
+    WriteKey       : STRING(160);
+    pSource        : PVOID;
+    SourceStorage  : E_ConfigStorage;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_RegisterCapture := FALSE;
+IF (WriteKey = '') OR (pSource = 0) OR (SourceStorage = E_ConfigStorage.NONE) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = WriteKey THEN
+        _configWrite[i].pCapture       := pSource;
+        _configWrite[i].CaptureStorage := SourceStorage;
+        M_RegisterCapture := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_ReadCaptureText" Id="{d49bad20-ce18-4920-a6f1-093576637e7f}">
+        <Declaration><![CDATA[// §3.8c - read the live source as text, so the capture rejoins the ordinary
+// write path instead of growing a second typed store. One conversion, one
+// validator, one storage routine.
+METHOD PRIVATE _M_ReadCaptureText : STRING(255)
+VAR_INPUT
+    Idx : INT;
+END_VAR
+VAR
+    pB : POINTER TO BOOL;
+    pI : POINTER TO INT;
+    pD : POINTER TO DINT;
+    pU : POINTER TO UDINT;
+    pR : POINTER TO REAL;
+    pL : POINTER TO LREAL;
+    pT : POINTER TO TIME;
+    pS : POINTER TO STRING(80);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_ReadCaptureText := '';
+CASE _configWrite[Idx].CaptureStorage OF
+    E_ConfigStorage.AS_BOOL:
+        pB := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := SEL(pB^, 'FALSE', 'TRUE');
+    E_ConfigStorage.AS_INT:
+        pI := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := INT_TO_STRING(pI^);
+    E_ConfigStorage.AS_DINT:
+        pD := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := DINT_TO_STRING(pD^);
+    E_ConfigStorage.AS_UDINT:
+        pU := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := UDINT_TO_STRING(pU^);
+    E_ConfigStorage.AS_REAL:
+        pR := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := REAL_TO_STRING(pR^);
+    E_ConfigStorage.AS_LREAL:
+        pL := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := LREAL_TO_STRING(pL^);
+    E_ConfigStorage.AS_TIME:
+        // Whole milliseconds, per the HMI number contract (§3.8b).
+        pT := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := DWORD_TO_STRING(TIME_TO_DWORD(pT^));
+    E_ConfigStorage.AS_STRING:
+        pS := _configWrite[Idx].pCapture;
+        _M_ReadCaptureText := pS^;
+ELSE
+    // Defined ELSE (S5.6): an unset or unknown source class yields empty text,
+    // which the write path then refuses to parse. Fail-closed - a capture that
+    // cannot read its source stores nothing rather than storing a zero.
+    _M_ReadCaptureText := '';
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="M_RegisterConfigNumber" Id="{9e0a37b1-4c85-42df-a70e-6b1d5f92c308}">
       <Declaration><![CDATA[// §3.8b — a numeric editable value. Bounds are mandatory here on purpose: an
 // unbounded number is the one a client can set to anything, and "what is the
 // valid range" is a question the owning module is the only one able to answer.
@@ -968,7 +1055,42 @@ FOR i := 1 TO _nConfigWrite DO
     END_IF
 END_FOR]]></ST></Implementation>
     </Method>
-    <Method Name="_M_OnConfigWrite" Id="{8f30b1d5-6ea4-4c27-b95f-0d7a3e416c82}">
+          <Method Name="M_ApplyCapture" Id="{07907dc2-f18a-4b43-8a95-1f84ccaa585f}">
+        <Declaration><![CDATA[// §3.8c - apply a capture to THIS module. Resolves the live value and then hands
+// it to the ordinary write path, so validation, the type's own invariants, range,
+// domain and storage are the SAME code a typed write goes through. A machine-
+// supplied number is not more trustworthy than a human-supplied one (§14).
+METHOD M_ApplyCapture : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    RootReady : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_ApplyCapture := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = WriteKey THEN
+        // No capture registered for this field: refuse rather than fall back to
+        // some default, so an unoffered capture can never quietly store a zero.
+        IF _configWrite[i].pCapture = 0 THEN
+            RETURN;
+        END_IF
+        M_ApplyCapture := M_ApplyConfigWrite(Scope := Scope, WriteKey := WriteKey,
+            Revision := Revision, TextValue := _M_ReadCaptureText(Idx := i),
+            RootReady := RootReady);
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="_M_OnConfigWrite" Id="{8f30b1d5-6ea4-4c27-b95f-0d7a3e416c82}">
       <Declaration><![CDATA[// §3.10.2 — module-specific invariants a generic type/range check cannot state:
 // a value that must stay below another, a device that must be idle first. The
 // base accepts; the framework still validates revision, type, range and domain

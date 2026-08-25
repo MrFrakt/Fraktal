@@ -8,6 +8,10 @@ STRUCT
     ActVelocity  : LREAL;
     Homed        : BOOL;
     DriveEnabled : BOOL;
+    // The stored taught position (S3.8b PERSISTENT), published beside the live
+    // ActPos so an operator can compare what is stored with where the axis is
+    // before capturing over it (S3.8c(b)).
+    TaughtPosition : LREAL;
     Jogging      : BOOL;   // a held jog is driving the axis right now (§7.6.1)
     // Why the last jog stopped: 0 = released normally, otherwise the §8.8 reason.
     // Published status, deliberately NOT an alarm - a jog that stops because the

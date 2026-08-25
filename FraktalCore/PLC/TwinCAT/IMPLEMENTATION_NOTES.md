@@ -3925,3 +3925,51 @@ or a socket. The reasons of §I.2 are exactly the ones that cannot be proven
 against real hardware without deliberately breaking a cell, which is why the
 ability to inject them is part of the connector contract rather than a test
 fixture.
+
+## 132. Jogging to a position nothing could keep (2026-08-24)
+
+The axis teach jog went in first: hold an enabling device, move the axis by
+hand, let go. Then the obvious question — *does the position it reached
+actually get saved?* — turned out to have a five-part answer, and every part
+was "no".
+
+1. **§3.8c teach capture had no implementation at all.** Zero call sites, zero
+   mechanism. The only trace in the repo was a comment in `ST_RobotGeometry`
+   claiming its pose cells are "filled by teach capture (§3.8c)" — describing a
+   thing that did not exist.
+2. **`FB_AxisCM` registered no editable values whatsoever.** The whole
+   `M_RegisterConfigWrite` registry had exactly one user, and it was
+   `FB_ProbeConfigCM` — a test fixture.
+3. **There was no taught-position field** anywhere on the axis to write into.
+4. **`ParCfg` would have been the wrong home even so.** `I_RecipeProvider` has
+   `Load` and no `Store`, so a taught number parked there is overwritten by the
+   next changeover. Machine geometry is not recipe data.
+5. **The durability layer §3.8b specifies is entirely unbuilt.**
+   `PersistPending`, `PersistFailed`, `E_ConfigRestorePolicy`, and named
+   parameter sets (save/load/list) are all zero implementations.
+
+Capture is now built, and built the way that makes the dangerous case
+impossible rather than merely forbidden: **the capture source lives on the same
+record as the write it targets.** `M_RegisterCapture` refuses a key that is not
+already registered as editable, so §3.8c(a)'s "a capture reaches only an
+already-editable field" cannot be violated by a caller — there is nowhere to
+put a source that has no field. The capture then resolves its live value to
+text and rejoins `M_ApplyConfigWrite`, so revision, the type's invariant hook,
+range, domain and storage are literally the same code a typed write runs. A
+capture cannot accept what a typed write would refuse, because it *is* one.
+
+**The lesson worth keeping is about half-features.** Jog without capture is a
+control that moves a machine and remembers nothing — worse than no jog, because
+it looks finished. The feature was not "jog"; it was "teach", and jog is one of
+its two halves. Asking what the feature is *for* found the missing half in one
+question, and no amount of testing the jog would have.
+
+**Still missing, and named rather than quietly left:** durability is a stated
+property in §3.8b — an accepted write shall reach non-volatile storage within a
+bounded window and the root shall publish whether it has. Today the taught value
+is retained by `VAR PERSISTENT` and nothing more. A station cannot save its
+parametrization to a file, carry it to another machine, or warn an operator that
+an accepted write has not become durable. Also worth flagging: §3.8b forbids
+"a byte image ... one aggregate structure memory-copied in and out", and
+`FB_LocalStationConfig.Load` is a `MEMCPY` of exactly that shape. It predates the
+clause and now contradicts it.

@@ -517,6 +517,13 @@
       "shelvable": false,
       "action": "None if you released the control deliberately. If you were still holding it, the connection to the panel was interrupted - check the handheld's link before jogging again.",
       "consequence": "The axis stopped because the jog request stopped arriving."
+    },
+    "AXIS_TEACH_LOST": {
+      "priority": "HIGH",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Re-teach the axis position before running production: jog to the position and capture it. The stored value was written by an older software version and could not be read safely.",
+      "consequence": "The axis is running on its default position instead of the one that was taught, so any move that relies on it will go to the wrong place."
     }
   }
 }

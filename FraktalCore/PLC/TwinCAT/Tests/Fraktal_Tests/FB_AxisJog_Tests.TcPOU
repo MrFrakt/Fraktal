@@ -14,7 +14,8 @@ VAR
     _en   : ST_ManualEnableStatus;
     _axA  : FB_AxisCM;   _refA : AXIS_REF;   _sA : INT;   _nA : INT;
     _axB  : FB_AxisCM;   _refB : AXIS_REF;   _sB : INT;   _nB : INT;
-    _w1, _w2, _w3, _w4, _w5 : BOOL;
+    _axC  : FB_AxisCM;   _refC : AXIS_REF;
+    _w1, _w2, _w3, _w4, _w5, _w6, _w7 : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[No_enabling_device_mirrored_means_never_enabled();
@@ -22,7 +23,9 @@ A_released_enabling_device_does_not_permit();
 A_held_enabling_device_permits_and_names_itself();
 A_safety_fault_withdraws_the_permission();
 Jog_is_refused_without_a_held_enabling_device();
-Jog_stops_when_the_request_stops_arriving();]]></ST>
+Jog_stops_when_the_request_stops_arriving();
+Capture_stores_the_modules_own_live_value();
+Capture_is_refused_for_a_key_that_offers_none();]]></ST>
     </Implementation>
       <Method Name="_M_Enable" Id="{b5ab576b-add6-471a-83c9-321e73bc40d2}">
         <Declaration><![CDATA[// Build a safety facet carrying one enabling device in a given state.
@@ -214,6 +217,48 @@ CASE _sB OF
             TEST_FINISHED();
         END_IF
 END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Capture_stores_the_modules_own_live_value" Id="{8d5164af-e4f5-47cd-83fa-bcbbc6a6f67d}">
+        <Declaration><![CDATA[METHOD PRIVATE Capture_stores_the_modules_own_live_value]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Capture_stores_the_modules_own_live_value');
+IF NOT _w6 THEN
+    // §3.8c: the point of jogging is to keep where you got to. The capture writes
+    // the module's OWN published ActPos into its OWN registered field - it does
+    // not accept a number from the client, which is what makes it a capture.
+    _axC.Setup(Name := 'Test.AxisC', AxisRef := _refC, Recipe := 0);
+    _axC();
+    AssertTrue(Condition := _axC.M_ApplyCapture(Scope := 'Test.AxisC',
+            WriteKey := 'axis.taughtPosition', Revision := 1, RootReady := TRUE),
+        Message := 'the capture is accepted by the field that registered it');
+    _axC();
+    AssertEquals_LREAL(Expected := _axC.OutImm.ActPos,
+        Actual := _axC.OutImm.TaughtPosition, Delta := 0.0001,
+        Message := 'and the stored value IS the live one, not a client-supplied number');
+    _w6 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Capture_is_refused_for_a_key_that_offers_none" Id="{99f541c4-a7e0-4f92-958d-9c6e8d0cebc6}">
+        <Declaration><![CDATA[METHOD PRIVATE Capture_is_refused_for_a_key_that_offers_none]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Capture_is_refused_for_a_key_that_offers_none');
+IF NOT _w7 THEN
+    // An unregistered key stores nothing. Falling back to a default here would let
+    // an unoffered capture quietly write a zero over a taught position (§5.6).
+    AssertFalse(Condition := _axC.M_ApplyCapture(Scope := 'Test.AxisC',
+            WriteKey := 'axis.notAThing', Revision := 1, RootReady := TRUE),
+        Message := 'an unknown key is refused');
+    // A stale revision is refused on the capture path too, because the capture
+    // rejoins the ordinary write path rather than going around it (§3.8c).
+    AssertFalse(Condition := _axC.M_ApplyCapture(Scope := 'Test.AxisC',
+            WriteKey := 'axis.taughtPosition', Revision := 99, RootReady := TRUE),
+        Message := 'and so is a stale revision - same validation as a typed write');
+    _w7 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
         </Implementation>
       </Method>
   </POU>

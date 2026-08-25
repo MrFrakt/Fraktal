@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AxisStationCfg" Id="{651a37a8-bd64-4f17-92ce-43cf9ee00b33}">
+    <Declaration><![CDATA[// Core §3.8a/§3.8b - deployment data for one axis: what this MACHINE is, as
+// opposed to what the current product needs. A taught position belongs here and
+// not in ParCfg, because I_RecipeProvider loads and never stores: the next
+// changeover would overwrite a number an operator spent time teaching.
+//
+// SchemaVersion is FIRST and is mandatory (§3.8b). Version 0 means never
+// written - a first boot has lost nothing. Any OTHER unrecognized version means
+// a real image was rejected, which is annunciated, because the difference
+// between an empty machine and one that has just lost its commissioning is
+// exactly what an operator needs told.
+TYPE ST_AxisStationCfg :
+STRUCT
+    SchemaVersion  : UINT;      // 0 = never written; 1 = this layout
+    TaughtPosition : LREAL;     // captured from the live ActPos (§3.8c)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

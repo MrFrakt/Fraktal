@@ -218,6 +218,48 @@ same `RequestHeldCommand` contract (O8).
 
 ---
 
+## G.4b Teaching the position — the other half of the jog (§3.8c)
+
+Jogging an axis is only useful if where you got to can be kept. The axis therefore registers a
+taught position as an ordinary editable value and offers a **capture** for it:
+
+```iecst
+M_RegisterConfigNumber(Key := 'axis.taughtPosition', Kind := E_ConfigKind.STATION_CFG,
+    Storage := E_ConfigStorage.AS_LREAL, pTarget := ADR(_station.TaughtPosition),
+    Minimum := ParCfg.SoftMin, Maximum := ParCfg.SoftMax, ...);
+M_RegisterCapture(WriteKey := 'axis.taughtPosition',
+    pSource := ADR(OutImm.ActPos), SourceStorage := E_ConfigStorage.AS_LREAL);
+```
+
+- **`STATION_CFG`, not `PAR_CFG`.** A taught position is what this *machine* is, not what the current
+  product needs. It also could not live in `ParCfg` even if one wanted it to: `I_RecipeProvider` has
+  `Load` and no `Store`, so the next changeover would overwrite a number an operator spent time
+  teaching.
+- **The capture rides the field it writes.** `M_RegisterCapture` refuses a key that is not already
+  registered as editable, so §3.8c(a)'s "a capture reaches only an already-editable field" is
+  structural rather than a check someone could forget. The source is `OutImm.ActPos`, which the module
+  already publishes, so the operator sees the number before storing it (§3.8c(b)).
+- **Validation is the write path, unchanged.** The capture resolves the live value to text and then
+  goes through the same revision check, the same `_M_OnConfigWrite` invariant hook, the same range and
+  domain validation and the same storage as a typed write. A machine-supplied number is not more
+  trustworthy than a human-supplied one (§14).
+- **Schema-versioned restore.** `ST_AxisStationCfg` carries `SchemaVersion` first (§3.8b). Version 0
+  is a first boot and initializes silently; any other unrecognized version means a real image was
+  rejected, which initializes defaults **and annunciates** `AXIS_TEACH_LOST` — because running on
+  defaults while presenting itself as a commissioned machine is the failure that rule exists to
+  prevent.
+
+> **What is not yet behind this.** §3.8b requires durability to be a *stated property*:
+> `PersistPending` / `PersistFailed` published by the root, `E_ConfigRestorePolicy`, and named
+> parameter sets saved and loaded as a projection keyed by `(Scope, WriteKey)`. **None of that is
+> implemented yet.** The taught value is retained by the platform (`VAR PERSISTENT`), which is one
+> valid backing, but a station cannot currently save its parametrization to a file, move it to
+> another machine, or tell an operator that an accepted write has not reached non-volatile storage.
+> The registration above is deliberately the shape that will project into a set store unchanged when
+> that layer lands.
+
+---
+
 ## G.5 HMI (§3.13)
 
 ```

@@ -211,5 +211,38 @@ FOR i := 1 TO _nChild DO
     END_IF
 END_FOR]]></ST></Implementation>
     </Method>
-  </POU>
+        <Method Name="M_ApplyCapture" Id="{c0b4cd5b-84d7-416b-bdf4-d6788138d8ab}">
+        <Declaration><![CDATA[// §3.8c - the capture walk is the write walk. Same order, same "first owner
+// answers TRUE" rule, so a capture reaches exactly the module a write would.
+METHOD M_ApplyCapture : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    RootReady : BOOL;
+END_VAR
+VAR
+    i    : INT;
+    iCfg : I_ConfigSource;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_ApplyCapture := SUPER^.M_ApplyCapture(Scope := Scope, WriteKey := WriteKey,
+    Revision := Revision, RootReady := RootReady);
+IF M_ApplyCapture THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nChild DO
+    IF _children[i] <> 0 THEN
+        IF __QUERYINTERFACE(_children[i], iCfg) THEN
+            IF iCfg.M_ApplyCapture(Scope := Scope, WriteKey := WriteKey,
+                    Revision := Revision, RootReady := RootReady) THEN
+                M_ApplyCapture := TRUE;
+                RETURN;
+            END_IF
+        END_IF
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+</POU>
 </TcPlcObject>

@@ -27,6 +27,22 @@ VAR_OUTPUT
     OutImm : ST_AxisOutImm;
     Intlk  : FB_PermIntlk;
 END_VAR
+VAR CONSTANT
+    // §3.8b - the layout version of this module's StationCfg. It belongs with
+    // the type that owns the structure, not in the reason band. Bump it when a
+    // member is added or its meaning changes (§13).
+    AXIS_STATIONCFG_SCHEMA : UINT := 1;
+END_VAR
+VAR PERSISTENT
+    // §3.8b - the retained image. PERSISTENT is the BACKING, not the architecture:
+    // the value is registered per (Scope, WriteKey) like every other editable
+    // value, so when a set store (file/JSON/XML, MES, asset system) is wired it
+    // projects this through the same walk with no change here.
+    // Only the VALUE is persistent - the registry's pTarget stays in ordinary
+    // VAR, because a retained POINTER names nothing after a restart
+    // (ST_ConfigWriteDef, TC3 §3.8b).
+    _station : ST_AxisStationCfg;
+END_VAR
 VAR
     {attribute 'OPC.UA.DA' := '0'}
     _axis : REFERENCE TO AXIS_REF;
@@ -75,6 +91,7 @@ IF __ISVALIDREF(_axis) THEN                  // defensive (S5.6) [TC3]
     OutImm.DriveEnabled := _power.Status;
 END_IF
 _M_JogCyclic();
+OutImm.TaughtPosition := _station.TaughtPosition;
 OutImm.Homed := _homed;
 OutCmd.Homed := _homed;
 OutImm.Diagnostic := Status.Diagnostic;]]></ST>
@@ -252,7 +269,38 @@ _M_PublishCommand(Value := TO_DINT(E_AxisCommand.MOVE_TO), Label := 'std.command
 _M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_POS), Label := 'std.command.jogPositive');
 _M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_NEG), Label := 'std.command.jogNegative');
 Setup := PrepareRecipe(Model := InitialModel);
-IF Setup THEN CommitRecipe(); END_IF]]></ST>
+IF Setup THEN CommitRecipe(); END_IF
+
+// §3.8b restore. Reading an unrecognized image BY FIELD POSITION is how a
+// changed layout silently becomes a wrong taught position, so it is not done:
+// an unknown version initializes the declared defaults instead.
+IF _station.SchemaVersion = 0 THEN
+    _station.SchemaVersion  := AXIS_STATIONCFG_SCHEMA;
+    _station.TaughtPosition := 0.0;          // never written - nothing was lost
+ELSIF _station.SchemaVersion <> AXIS_STATIONCFG_SCHEMA THEN
+    // A real image was rejected. The station runs on defaults, and says so - the
+    // difference between an empty machine and one that just lost its
+    // commissioning is exactly what the operator needs told.
+    _station.SchemaVersion  := AXIS_STATIONCFG_SCHEMA;
+    _station.TaughtPosition := 0.0;
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_TEACH_LOST,
+              Text := 'std.error.axisTaughtPositionLost');
+END_IF
+
+// §3.8a - the taught position is an ordinary editable value: typeable by an
+// engineer who knows the number, and validated against the same soft limits
+// whichever way it arrives.
+Setup := M_RegisterConfigNumber(Key := 'axis.taughtPosition',
+    Item := 'StationCfg/TaughtPosition', LabelKey := 'std.config.axisTaughtPosition',
+    Unit := 'mm', Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(_station.TaughtPosition), Minimum := ParCfg.SoftMin, Maximum := ParCfg.SoftMax,
+    RequiresReady := FALSE) AND Setup;
+
+// §3.8c - and it can be DEMONSTRATED instead of typed: jog the axis to the
+// position, then capture. The source is OutImm.ActPos, which this module already
+// publishes, so the operator sees the number before storing it (§3.8c(b)).
+Setup := M_RegisterCapture(WriteKey := 'axis.taughtPosition',
+    pSource := ADR(OutImm.ActPos), SourceStorage := E_ConfigStorage.AS_LREAL) AND Setup;]]></ST>
       </Implementation>
     </Method>
     <Method Name="WithdrawOutputs" Id="{7048fa32-48b6-4490-a0f4-1a93a00524fb}">

@@ -28,6 +28,13 @@ STRUCT
     LabelKey      : STRING(160);
     MaxLength     : UINT;         // AS_STRING only: the target's declared capacity
     EnumDomain    : STRING(255);  // pipe-separated exact accepted values ('' = none)
+    // §3.8c teach capture. The live source lives on the SAME record as the value
+    // it writes, so a capture cannot reach a field that is not independently
+    // editable - the back door §3.8c(a) forbids is structurally impossible here
+    // rather than prevented by a check somebody could forget.
+    // 0 = this value offers no capture, which is the default and most values.
+    pCapture       : PVOID;
+    CaptureStorage : E_ConfigStorage;   // how to READ the source (may differ from Storage)
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>
