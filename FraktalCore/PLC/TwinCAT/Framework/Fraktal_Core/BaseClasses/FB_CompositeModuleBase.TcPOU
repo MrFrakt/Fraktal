@@ -315,5 +315,67 @@ FOR i := 1 TO _nChild DO
 END_FOR]]></ST>
         </Implementation>
       </Method>
+      <Method Name="M_ApplyManual" Id="{6b28f4d0-19ac-4e73-8520-d7196f3ba04e}">
+        <Declaration><![CDATA[// §7.6.1 - own registration first, then every registered child in the same
+// depth-first order as the config walk. Scope makes it unambiguous: at most one
+// module answers and the first TRUE ends it.
+METHOD M_ApplyManual : BOOL
+VAR_INPUT
+    Scope : STRING(255);
+    Value : DINT;
+END_VAR
+VAR
+    i    : INT;
+    iMan : I_ManualTarget;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_ApplyManual := SUPER^.M_ApplyManual(Scope := Scope, Value := Value);
+IF M_ApplyManual THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nChild DO
+    IF _children[i] <> 0 THEN
+        IF __QUERYINTERFACE(_children[i], iMan) THEN
+            IF iMan.M_ApplyManual(Scope := Scope, Value := Value) THEN
+                M_ApplyManual := TRUE;
+                RETURN;
+            END_IF
+        END_IF
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="M_ApplyHeld" Id="{85e0c7a3-2f14-4b96-a5d8-3c06729bf14e}">
+        <Declaration><![CDATA[// §7.6.1a - the held walk is the manual walk. Same order, same "first owner
+// answers TRUE" rule, so a hold reaches exactly the module a one-shot would.
+METHOD M_ApplyHeld : BOOL
+VAR_INPUT
+    Scope  : STRING(255);
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR
+VAR
+    i    : INT;
+    iMan : I_ManualTarget;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_ApplyHeld := SUPER^.M_ApplyHeld(Scope := Scope, Value := Value,
+    Enable := Enable);
+IF M_ApplyHeld THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nChild DO
+    IF _children[i] <> 0 THEN
+        IF __QUERYINTERFACE(_children[i], iMan) THEN
+            IF iMan.M_ApplyHeld(Scope := Scope, Value := Value,
+                    Enable := Enable) THEN
+                M_ApplyHeld := TRUE;
+                RETURN;
+            END_IF
+        END_IF
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
 </POU>
 </TcPlcObject>

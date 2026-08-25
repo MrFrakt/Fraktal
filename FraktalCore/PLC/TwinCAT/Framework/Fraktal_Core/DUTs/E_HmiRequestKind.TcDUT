@@ -52,7 +52,12 @@ TYPE E_HmiRequestKind :
     // BoolValue = this is the last one). Paged for the same reason QUERY_CONFIG
     // is: no full set document ever has to exist in PLC memory.
     EXPORT_CONFIG_SET := 32,
-    IMPORT_CONFIG_SET := 33
+    IMPORT_CONFIG_SET := 33,
+    // §7.6.1a hold-to-run. TargetPath = module, IntValue = command value,
+    // BoolValue = TRUE while the operator holds it. The client REFRESHES this
+    // while held; the root drops the hold on its own if refreshes stop, so a
+    // closed HMI or a dead link stops the motion rather than latching it.
+    MANUAL_HELD := 34
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>

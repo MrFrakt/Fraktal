@@ -165,6 +165,16 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _setJson : FB_ConfigSetJson;       // §3.8b text projection (export/import)
     _importOpen : BOOL;                // an IMPORT_CONFIG_SET save is in progress
+    // §7.6.1a hold-to-run. The request is LATCHED and re-asserted every scan,
+    // because a mailbox delivers one request per sequence and the axis expects
+    // to be asked every scan it should keep moving. The latch is what makes
+    // that work over a transport; the deadline is what keeps it safe, since a
+    // client that stops refreshing - closed, crashed, unplugged - lets the hold
+    // expire instead of leaving the machine moving.
+    _heldPath  : STRING(255);
+    _heldValue : DINT;
+    _heldActive : BOOL;
+    _heldSinceMs : DWORD;
     {attribute 'OPC.UA.DA' := '0'}
     _carrier  : I_PartCarrier;         // §3.16.2 injected part carrier (0 = traceability off)
     {attribute 'OPC.UA.DA' := '0'}
@@ -656,6 +666,9 @@ CASE HmiRequest.Kind OF
             Report := HmiResponse.Report);
     E_HmiRequestKind.MANUAL_COMMAND:
         HmiResponse.Accepted := ManualCommandTo(TargetPath := HmiRequest.TargetPath, Value := HmiRequest.IntValue);
+    E_HmiRequestKind.MANUAL_HELD:
+        HmiResponse.Accepted := ManualHeldTo(TargetPath := HmiRequest.TargetPath,
+            Value := HmiRequest.IntValue, Held := HmiRequest.BoolValue);
     E_HmiRequestKind.SET_RUN_STYLE:
         IF (HmiRequest.IntValue >= 0) AND (HmiRequest.IntValue <= 2) THEN
             styleReq := HmiRequest.IntValue;
@@ -1271,15 +1284,26 @@ END_VAR]]></Declaration>
       </Implementation>
     </Method>
     <Method Name="_M_RouteManual" Id="{9fa4e2c2-3f5f-4681-aed5-559f1df0d2c6}">
-      <Declaration><![CDATA[// §7.6.1 — concrete Units override to map a target path to a child module and call
-// its ManualCommand. Base returns FALSE (no commandable children).
+      <Declaration><![CDATA[// §7.6.1 — route a manual command to the module that owns TargetPath, through
+// the SAME registered-child walk that already carries configuration writes.
+//
+// This used to return FALSE and leave every Unit to hand-write its own routing
+// chain. That is a call a project must remember for correctness (§1.1 O1), and
+// it failed exactly as O1 predicts: the press registered eight children and
+// routed three, so five modules published manual commands the HMI rendered and
+// the Unit silently refused. A registered child is now commandable BECAUSE it
+// is registered.
+//
+// An override still wins, so a Unit with genuinely special routing keeps it;
+// it should call SUPER^ first and keep its own answer only when the base
+// declines.
 METHOD PROTECTED _M_RouteManual : BOOL
 VAR_INPUT
     TargetPath : STRING(255);
     Value : DINT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_M_RouteManual := FALSE;]]></ST>
+        <ST><![CDATA[_M_RouteManual := M_ApplyManual(Scope := TargetPath, Value := Value);]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_RecordSequenceStep" Id="{bae7334e-b67d-46db-a917-aa05f1522e0f}">
@@ -2702,6 +2726,116 @@ METHOD M_SequenceStopPending : BOOL]]></Declaration>
         <ST><![CDATA[M_SequenceTakeDecision := _M_TakeDecision();]]></ST>
       </Implementation>
     </Method>
+    <Method Name="ManualHeldTo" Id="{9a41c8e0-5b73-4d26-81fa-06e5327d94b1}">
+      <Declaration><![CDATA[// §7.6.1a — single gated entry for a HELD manual action (hold-to-run). Same
+// gates as ManualCommandTo: this Unit in MANUAL (§3.4) and MANUAL access
+// (§7.7). Held := TRUE latches the request; FALSE releases it immediately.
+//
+// The release is explicit AND the latch expires, deliberately both: an explicit
+// release stops the motion the moment the operator lets go, and the deadline
+// stops it when no release ever arrives because the client vanished. Relying on
+// either alone leaves one of those two cases moving.
+//
+// Hold-to-run over a transport is NON-SAFETY (no dead-man, TC3 §7.6): the
+// enabling device is the safety-rated fact, derived below from the §9 facet and
+// carried to the module, which weighs it itself.
+METHOD ManualHeldTo : BOOL
+VAR_INPUT
+    TargetPath : STRING(255);
+    Value      : DINT;
+    Held       : BOOL;
+END_VAR
+VAR
+    auditSlot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ManualHeldTo := FALSE;
+IF NOT Held THEN
+    // A release is always honoured, whatever the mode or access says now. The
+    // operator letting go must never depend on a gate that may have changed
+    // since they took hold of it.
+    _heldActive := FALSE;
+    _heldPath := '';
+    _heldValue := 0;
+    ManualHeldTo := TRUE;
+    RETURN;
+END_IF
+IF _mode <> E_Mode.MANUAL THEN
+    auditSlot := AlarmLog.Raise(Reason := E_Reason.NONE,
+        Text := 'std.audit.manualCommandWrongMode', Source := TargetPath,
+        Severity := E_Severity.LOW, Category := E_Category.SYSTEM,
+        ResetClass := E_ResetClass.AUTO_RESET);
+    IF auditSlot > 0 THEN AlarmLog.Gone(Slot := auditSlot); END_IF
+    RETURN;
+END_IF
+IF NOT Access.PermitsLogged(Gate := E_GatedAction.MANUAL) THEN
+    RETURN;                              // §7.7 denial already audited
+END_IF
+// Prove the target accepts it BEFORE latching, so a hold on a module that
+// refuses never becomes a standing request nobody can see the source of.
+IF NOT _M_RouteHeld(TargetPath := TargetPath, Value := Value) THEN
+    RETURN;
+END_IF
+_heldPath := TargetPath;
+_heldValue := Value;
+_heldActive := TRUE;
+_heldSinceMs := TIME_TO_DWORD(TIME());
+ManualHeldTo := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_RouteHeld" Id="{3c78e05b-1246-4a9d-b0e7-52f8146c93da}">
+      <Declaration><![CDATA[// §7.6.1a — derive the enabling-device fact from THIS root's §9 safety facet and
+// carry it to the owning module through the registered-child walk.
+//
+// F_ManualEnable is the single place the fact is derived, so grepping for it
+// lists every path by which motion is authorised by an enabling device. Until
+// now it had no production caller at all - the capability existed and nothing
+// reached it.
+METHOD PROTECTED _M_RouteHeld : BOOL
+VAR_INPUT
+    TargetPath : STRING(255);
+    Value      : DINT;
+END_VAR
+VAR
+    enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[enable := F_ManualEnable(Safety := Safety);
+_M_RouteHeld := M_ApplyHeld(Scope := TargetPath, Value := Value,
+    Enable := enable);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_HeldCyclic" Id="{d51937ae-64c2-408f-9b13-27e0a4586cf7}">
+      <Declaration><![CDATA[// §7.6.1a — re-assert the latched hold every scan, and drop it when the client
+// stops refreshing. The module's own freshness timer stops the motion; this
+// stops the ROOT from going on asking for it.
+METHOD PRIVATE _M_HeldCyclic
+VAR
+    elapsed : DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _heldActive THEN
+    RETURN;
+END_IF
+// Leaving MANUAL, or losing the access that granted it, ends the hold at once.
+IF _mode <> E_Mode.MANUAL THEN
+    _heldActive := FALSE;
+    RETURN;
+END_IF
+IF NOT Access.Permits(Gate := E_GatedAction.MANUAL) THEN
+    _heldActive := FALSE;
+    RETURN;
+END_IF
+// Unsigned subtraction, so the monotonic counter wrapping cannot fabricate an
+// expired hold (TC3 §8.11).
+elapsed := TIME_TO_DWORD(TIME()) - _heldSinceMs;
+IF elapsed > PL_Fraktal.MANUAL_HELD_REFRESH_MS THEN
+    _heldActive := FALSE;                // client went quiet: let go for it
+    RETURN;
+END_IF
+_M_RouteHeld(TargetPath := _heldPath, Value := _heldValue);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="ManualCommandTo" Id="{4de99325-2725-4710-8292-b2f11cd5c61c}">
       <Declaration><![CDATA[// §7.6.1 — single gated manual-command entry for the HMI. Accepts ONLY when this
 // Unit is in MANUAL (§3.4) AND the user holds MANUAL access (§7.7). Routes to the
@@ -2794,6 +2928,7 @@ _M_EngineeringCyclic();                               // §7.5.2 standing gate a
 _healthPublisher.Cyclic(Input := _healthInput, ParCfg := _healthParCfg,
     Configured := _healthConfigured);                 // §2.7/§8.12 alarm edges + values
 SystemHealth := _healthPublisher.Status;
+_M_HeldCyclic();                                      // §7.6.1a hold-to-run re-assert
 _M_ConfigPersistCyclic();                             // §3.8b durability window
 _M_DrainRestoreLoss();                                // §3.8b restore annunciation
 _M_HandleHmiRequest();                                // §3.10 request mailbox

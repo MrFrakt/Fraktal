@@ -69,6 +69,11 @@ VAR_GLOBAL CONSTANT
     // is a stated property, not a hope", and a station whose store cannot meet it
     // says so through PersistFailed instead of reverting silently at the next start.
     CONFIG_PERSIST_WINDOW_MS : UDINT := 5000;
+    // Core §7.6.1a — how long a latched hold-to-run request survives without a
+    // refresh from the client. Long enough to ride out transport jitter, short
+    // enough that a closed HMI or a dead link lets go rather than leaving the
+    // machine moving. The module's own JogTimeout is the second, shorter net.
+    MANUAL_HELD_REFRESH_MS : DWORD := 750;
     MAX_SAFETY_DEVICES   : INT := 16;   // Core §9 — published safety aliases per module/zone
     MAX_POWER_GROUPS     : INT := 8;    // Core §9 — independently controlled energy groups
     MAX_CONTROL_DOMAIN_UNITS : INT := 16; // Core §9.8 — root Units sharing one arrangement

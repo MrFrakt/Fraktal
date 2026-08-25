@@ -238,25 +238,6 @@ _M_RouteForceChannel := _ioCatalog.M_RouteForce(ChannelPath := ChannelPath,
     BoolValue := (BoolText = 'true'),
     AnalogValue := STRING_TO_REAL(AnalogText));]]></ST></Implementation>
     </Method>
-    <Method Name="_M_RouteManual" Id="{653016fc-4fc6-4987-b1a0-1cd3e2828844}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_RouteManual : BOOL
-VAR_INPUT
-    TargetPath : STRING(255);
-    Value : DINT;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_M_RouteManual := FALSE;
-IF TargetPath = PressRam.Name THEN
-    _M_RouteManual := PressRam.ManualCommand(Value := Value);
-ELSIF TargetPath = Door.Name THEN
-    _M_RouteManual := Door.ManualCommand(Value := Value);
-ELSIF TargetPath = PartSlide.Name THEN
-    _M_RouteManual := PartSlide.ManualCommand(Value := Value);
-ELSE
-    _M_RouteManual := FALSE;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="_M_SequenceAuto" Id="{b1aa9e5f-1282-4e96-92a6-ed37b454daaa}">
       <Declaration><![CDATA[// Wiring-only AUTO adapter. Every production command, wait, timer, decision,
 // traceability action, and transition lives in the §6.8 chain.
@@ -793,10 +774,6 @@ _partFeedConfigured := TRUE;]]></ST>
     </LineIds>
     <LineIds Name="FB_PressDemoUnit._M_ResetModeSequences">
       <LineId Id="3" Count="5" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_PressDemoUnit._M_RouteManual">
-      <LineId Id="3" Count="8" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_PressDemoUnit._M_SequenceAuto">

@@ -7,7 +7,7 @@
 // Edge handling, ExecState mapping, Execute-drop reset, ErrorID publication, and
 // abort routing are inherited. Conformance rows T1/T4 (Core §5.7) are satisfied here
 // and proven once in FB_Base_Tests.
-FUNCTION_BLOCK ABSTRACT FB_ModuleBase IMPLEMENTS I_Module, I_ConfigSource
+FUNCTION_BLOCK ABSTRACT FB_ModuleBase IMPLEMENTS I_Module, I_ConfigSource, I_ManualTarget
 VAR_INPUT
     Execute : BOOL;    // rising edge starts the command (Core §6.1)
     Abort   : BOOL;    // requests a controlled abort
@@ -1463,6 +1463,40 @@ Path := Status.Name;
 Expected := _restoreExpected;
 Found := _restoreFound;
 M_TakeRestoreLoss := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyManual" Id="{2f9b40e7-56c1-4d38-a072-8e13c5904bd6}">
+      <Declaration><![CDATA[// §7.6.1 I_ManualTarget - answer for THIS module only. Same shape as
+// M_ApplyConfigWrite: the walk asks every module and exactly the one whose
+// Scope matches replies, so routing is a property of registration rather than
+// of a chain somebody maintains by hand.
+METHOD M_ApplyManual : BOOL
+VAR_INPUT
+    Scope : STRING(255);
+    Value : DINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyManual := FALSE;
+IF Scope <> Status.Name THEN
+    RETURN;
+END_IF
+// ManualCommand still validates the value against the published catalogue and
+// still runs the §6.1 lifecycle. Reaching the module is all this adds.
+M_ApplyManual := ManualCommand(Value := Value);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyHeld" Id="{c30d17a5-4e82-49f6-b158-70a3e2946c81}">
+      <Declaration><![CDATA[// §7.6.1a I_ManualTarget - the held-command twin of M_ApplyManual. A type with
+// no held commands inherits RequestHeldCommand's refusal, so an unsupported
+// hold is a defined FALSE.
+METHOD M_ApplyHeld : BOOL
+VAR_INPUT
+    Scope  : STRING(255);
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyHeld := FALSE;
+IF Scope <> Status.Name THEN
+    RETURN;
+END_IF
+M_ApplyHeld := RequestHeldCommand(Value := Value, Enable := Enable);]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>
