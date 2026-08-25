@@ -9,6 +9,23 @@ Sources:
 The XTI is authoritative for the installed EtherCAT terminal order, terminal names, PDO-entry names,
 and channel numbers. The worksheet remains authoritative for the approved electrical descriptions and
 module roles.
+
+**The device runs REAL, and that is deliberate (2026-08-25).** The XTI carried
+`SimulationMode="true"` on the EtherCAT device from the initial import until this date, while the PLC
+carried `USE_SIMULATION := FALSE` -- the bus simulated while the application believed it was driving
+real terminals. These are inline cards on the CX2030 and the station has been hardware-tested, AUTO
+mode included, so the flag was removed to make the I/O configuration agree with the application.
+
+Do not "restore" it. `SimulationMode` is invisible to the Core 7.5 engineering-gate register: unlike
+`USE_SIMULATION` and `CONTROL_CIRCUIT_MAPPING_CONFIRMED`, which are `VAR CONSTANT`s declared into
+`FB_EngineeringMode` and annunciated while active, a simulated EtherCAT device announces nothing. It
+produces exactly the symptom Section 6.0 of AGENTS.md warns about -- a healthy station whose
+terminals stay dark while forcing in XAE works perfectly. Bench-testing without the cabinet is a
+local, uncommitted change.
+
+Note also that `PressDemo.tsproj` (TcVersion 3.1.4026.24) and `PressDemoX32.tsproj` (3.1.4024.75)
+reference this same XTI, so its `TcVersion` stamp is rewritten to whichever engineering last opened
+it. That churn is expected and carries no configuration meaning.
 Target: `Fraktal_Press_Demo` on a CX2030 with locally attached EtherCAT terminals.
 
 Status: application mapping implemented; electrical and safety commissioning items below remain
