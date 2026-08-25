@@ -62,6 +62,45 @@ Implementations should start with small capabilities and compose specifics:
 
 Purchased/vendor-specific valve terminals, guard-lock devices, drives, and scanners extend these basics by mapping vendor status into the same records. Sequences remain unchanged.
 
+## 4a. The manual-enable fact (teaching with the guards open)
+
+Teaching needs motion with the guards open, and the only thing that may permit it is the certified
+safety system: a three-position enabling device, a deliberate mode selection, guard muting done by
+the safety program, and a **safety-rated** reduced speed (the robot's safe-speed function, or drive
+SLS). None of that is standard-PLC work, and none of it is defined here.
+
+What the standard defines is how application code **observes** it, so a release (§7.6) can be written
+against a fact that has a provenance instead of a boolean a station assembled from ordinary inputs:
+
+```iecst
+TYPE ST_ManualEnableStatus :    // derived, never authored
+STRUCT
+    Present    : BOOL;          // at least one enabling device is mirrored
+    Held       : BOOL;          // one is permitting NOW — safety-evaluated
+    DeviceName : STRING(80);    // which one, for the §7.6.0 release report
+END_STRUCT
+END_TYPE
+
+FUNCTION F_ManualEnable : ST_ManualEnableStatus
+VAR_INPUT  Safety : ST_SafetyStatus;  END_VAR
+```
+
+- **Derived from the device rows that already exist.** An enabling switch is an ordinary safety-device
+  CM (`E_SafetyDeviceKind.ENABLE_SWITCH`, §4.1). The aggregate is computed from those rows, so the
+  fact keeps one authoritative source and no station walks the array by hand.
+- **Permitting is the positive state.** A held enabling device publishes `Ready` / not `DemandActive`,
+  exactly as an E-stop that is not pressed does. Released **and** panic-squeezed both demand the safe
+  state — which is the entire reason the device has three positions rather than two.
+- **Fail-closed.** No mirrored enabling device means never enabled, so a cell that never wired one
+  cannot jog with its guards open by omission. A safety fault, or an unhealthy safety fieldbus,
+  withdraws the permission however the switch itself reads.
+- **Status, never authority.** The module still applies its own interlocks; this is an *additional*
+  requirement on manual motion, never a way around them. §9 remains read-only, and the PLC never
+  infers "safe" from this record.
+
+Grepping for `F_ManualEnable` lists every place in a codebase where motion is authorised by an
+enabling device. That auditability is why the derivation lives here rather than in each station.
+
 ## 5. Optional behavior as data
 
 The following are configuration policies, not bespoke branches:

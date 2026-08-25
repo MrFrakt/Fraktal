@@ -7,6 +7,11 @@ TYPE ST_CommandInfo :
 STRUCT
     Value : DINT;
     Label : STRING(120);   // localization key; resolved by the HMI catalog
+    // §7.6.1 - ONESHOT (default) goes to ExecuteCommand; HELD is re-asserted
+    // every scan through RequestHeldCommand and stops when the asking stops.
+    // Additive with a zero default, so a consumer that predates it reads
+    // every existing entry as ONESHOT, which is what they all were (§1.5).
+    Style : E_CommandStyle;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

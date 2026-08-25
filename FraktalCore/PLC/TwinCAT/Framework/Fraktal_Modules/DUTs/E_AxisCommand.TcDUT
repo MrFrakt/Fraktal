@@ -6,7 +6,13 @@
 TYPE E_AxisCommand : (
     NONE    := 0,
     HOME    := 1,
-    MOVE_TO := 2
+    MOVE_TO := 2,
+    // HELD commands (§7.6.1). Two entries rather than one plus a direction, so
+    // the generic HMI renders two hold-buttons with no axis-specific code.
+    // They never reach _M_Dispatch: a jog is not an Execute/Done command, and
+    // PLCopen models it with level inputs for the same reason.
+    JOG_POS := 3,
+    JOG_NEG := 4
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>

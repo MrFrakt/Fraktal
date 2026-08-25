@@ -219,7 +219,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Press runner hook failed: $LASTEXITCODE" }
       - name: Validate summaries and emit JUnit
         run: |
-          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\core-modules.log artifacts\tcunit\core-modules.xml --gate-name CoreModules --expected-tests 140 --expected-suites 36 --expected-runner PRG_TcUnitRunner
+          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\core-modules.log artifacts\tcunit\core-modules.xml --gate-name CoreModules --expected-tests 146 --expected-suites 37 --expected-runner PRG_TcUnitRunner
           python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\press.log artifacts\tcunit\press.xml --gate-name Press --expected-tests 8 --expected-suites 2 --expected-runner PRG_PressTestRunner
       - name: Archive TcUnit logs and JUnit
         if: always()

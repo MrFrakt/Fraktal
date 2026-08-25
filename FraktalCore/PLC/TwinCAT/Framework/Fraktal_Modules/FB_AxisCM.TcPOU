@@ -42,6 +42,13 @@ VAR
     _stopFb : MC_Stop;
     {attribute 'OPC.UA.DA' := '0'}
     _resetFb : MC_Reset;
+    {attribute 'OPC.UA.DA' := '0'}
+    _jogFb : MC_Jog;
+    _jogSeen   : BOOL;   // a held request arrived THIS scan (freshness, O10)
+    _jogReqDir : INT;    // +1 / -1 / 0 as last asked
+    _jogEnabled: BOOL;   // an enabling device was held when it was asked
+    _jogDriving: BOOL;   // the axis is being jogged right now
+    _tJogStale : TON;
     _tMove : TON;
     _homed : BOOL;
     _parCfgStaged : ST_AxisParCfg;
@@ -67,6 +74,7 @@ IF __ISVALIDREF(_axis) THEN                  // defensive (S5.6) [TC3]
     OutImm.ActVelocity := _axis.NcToPlc.ActVelo;
     OutImm.DriveEnabled := _power.Status;
 END_IF
+_M_JogCyclic();
 OutImm.Homed := _homed;
 OutCmd.Homed := _homed;
 OutImm.Diagnostic := Status.Diagnostic;]]></ST>
@@ -121,7 +129,108 @@ _appCond[Index] := Ok;
 SetCondition := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="Setup" Id="{b344bdf9-c716-4e60-b22e-283b03a3f9b4}">
+          <Method Name="RequestHeldCommand" Id="{8b520989-3ece-43bf-8be8-d0b6fb508907}">
+        <Declaration><![CDATA[// §7.6.1 held command - JOG_POS / JOG_NEG. Called EVERY SCAN while the
+// operator holds the button; silence stops the axis (see _M_JogCyclic).
+//
+// This method only RECORDS the request. Nothing moves from here: the decision to
+// drive is taken once per scan in _M_JogCyclic, where the interlock, the enabling
+// device, the freshness deadline and the command handshake are all weighed
+// together. Keeping the decision in one place is what makes it reviewable.
+METHOD RequestHeldCommand : BOOL
+VAR_INPUT
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// IF rather than CASE: a CASE label must be a compile-time constant, and
+// TO_DINT(enum) is a call. The intent is the same - a defined ELSE (§5.6).
+IF Value = TO_DINT(E_AxisCommand.JOG_POS) THEN
+    _jogReqDir :=  1;
+ELSIF Value = TO_DINT(E_AxisCommand.JOG_NEG) THEN
+    _jogReqDir := -1;
+ELSE
+    // Not a held command of this type. Refuse, and do not record it - an unknown
+    // value must never leave a stale direction behind.
+    RequestHeldCommand := FALSE;
+    RETURN;
+END_IF
+
+_jogSeen    := TRUE;
+_jogEnabled := Enable.Held;
+
+// Refused up front, with the reason, when no safety-rated enabling device is
+// permitting. The axis ALSO has to pass its interlocks in _M_JogCyclic - this is
+// an additional requirement, never a way around them (§9).
+IF NOT Enable.Held THEN
+    OutImm.JogStopReason := PL_ModuleReasons.AXIS_JOG_NOT_ENABLED;
+    RequestHeldCommand := FALSE;
+    RETURN;
+END_IF
+RequestHeldCommand := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_JogCyclic" Id="{8ac1844d-58f5-43a2-9230-a4104ef57973}">
+        <Declaration><![CDATA[// The one place a jog is allowed to start, continue, or stop. Runs every scan
+// from OnCyclic, whether or not anybody asked - because "nobody asked" is
+// precisely the condition that has to stop the axis.
+METHOD PRIVATE _M_JogCyclic
+VAR
+    drive : BOOL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Freshness (O10). The timer accumulates while no request arrives, so a caller
+// that goes quiet - operator released, HMI closed, network stalled with the
+// button still down - stops the axis after JogTimeout. A few scans of jitter are
+// tolerated; a dead transport is not.
+_tJogStale(IN := NOT _jogSeen, PT := ParCfg.JogTimeout);
+
+// Every gate that must hold for the axis to move by hand, in one expression so
+// there is one place to review. Interlocks are NOT bypassed for teaching: the
+// station is expected to have wired its guard condition so the safety system's
+// teach grant satisfies it, and if it has not, the axis simply does not jog
+// (§7.2.1, fail-closed).
+drive := (_jogReqDir <> 0)
+    AND NOT _tJogStale.Q
+    AND _jogEnabled
+    AND Intlk.AllOk
+    AND NOT Busy                        // a commanded move owns the axis (§6.1)
+    AND __ISVALIDREF(_axis);
+
+// Say why it stopped, once, on the transition. Published status, not an alarm.
+IF _jogDriving AND NOT drive THEN
+    // The PLC genuinely cannot tell "operator let go" from "link died" - both
+    // are simply the request no longer arriving - so it reports what it knows
+    // rather than inventing a distinction. The HMI CAN tell, because it knows
+    // whether it is still sending, and surfaces the difference there.
+    IF _tJogStale.Q THEN
+        OutImm.JogStopReason := PL_ModuleReasons.AXIS_JOG_RELEASED;
+    ELSIF NOT _jogEnabled THEN
+        OutImm.JogStopReason := PL_ModuleReasons.AXIS_JOG_NOT_ENABLED;
+    ELSIF NOT Intlk.AllOk THEN
+        OutImm.JogStopReason := TO_DINT(E_Reason.INTERLOCK_DROPPED);
+    ELSE
+        OutImm.JogStopReason := PL_ModuleReasons.AXIS_JOG_RELEASED;
+    END_IF
+    _jogReqDir := 0;
+END_IF
+
+IF __ISVALIDREF(_axis) THEN
+    _jogFb(Axis := _axis,
+           JogForward   := drive AND (_jogReqDir > 0),
+           JogBackwards  := drive AND (_jogReqDir < 0),
+           Mode         := MC_JOGMODE_CONTINOUS,
+           Velocity     := ParCfg.JogVelocity,
+           Acceleration := ParCfg.JogAcceleration,
+           Deceleration := ParCfg.Deceleration);
+END_IF
+
+_jogDriving    := drive;
+OutImm.Jogging := drive;
+_jogSeen       := FALSE;   // consumed: the caller must ask again next scan]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="Setup" Id="{b344bdf9-c716-4e60-b22e-283b03a3f9b4}">
       <Declaration><![CDATA[METHOD Setup : BOOL
 VAR_INPUT
     Name    : STRING(80);
@@ -140,6 +249,8 @@ _recipe := Recipe;
 // application's to name (S7.2.1).
 _M_PublishCommand(Value := TO_DINT(E_AxisCommand.HOME), Label := 'std.command.home');
 _M_PublishCommand(Value := TO_DINT(E_AxisCommand.MOVE_TO), Label := 'std.command.moveTo');
+_M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_POS), Label := 'std.command.jogPositive');
+_M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_NEG), Label := 'std.command.jogNegative');
 Setup := PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF]]></ST>
       </Implementation>
@@ -153,8 +264,15 @@ METHOD WithdrawOutputs]]></Declaration>
         <ST><![CDATA[IF __ISVALIDREF(_axis) THEN
     _moveFb(Axis := _axis, Execute := FALSE);
     _homeFb(Axis := _axis, Execute := FALSE);
+    // A held jog is an output of this module like any other, so it is withdrawn
+    // here too - otherwise an abort would stop the commanded move and leave a
+    // jog running.
+    _jogFb(Axis := _axis, JogForward := FALSE, JogBackwards := FALSE);
     _stopFb(Axis := _axis, Execute := TRUE, Deceleration := ParCfg.Deceleration);
 END_IF
+_jogReqDir  := 0;
+_jogDriving := FALSE;
+OutImm.Jogging := FALSE;
 _tMove(IN := FALSE);]]></ST>
       </Implementation>
     </Method>

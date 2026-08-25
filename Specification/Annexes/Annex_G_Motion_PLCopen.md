@@ -24,9 +24,14 @@ InfeedUnit (FB_InfeedUnit : FB_Unit)                       ← Annex C
 //   AXIS_MOVE_TIMEOUT  := 10202   // MC move did not complete within MoveTimeout
 //   AXIS_DRIVE_FAULT   := 10203   // MC_* .Error / drive fault
 //   AXIS_NOT_HOMED     := 10204   // MOVE_TO before a valid home
+//   AXIS_JOG_NOT_ENABLED := 10205 // teach jog asked with no enabling device held (G.4a)
+//   AXIS_JOG_RELEASED    := 10206 // the held jog request stopped arriving (G.4a)
 
 {attribute 'qualified_only'}
-TYPE E_AxisCommand : (NONE := 0, HOME := 1, MOVE_TO := 2) DINT;
+// JOG_POS/JOG_NEG are HELD commands (§7.6.1a): two entries rather than one plus a
+// direction, so a generic HMI renders two hold-buttons with no axis-specific code.
+// They never reach _M_Dispatch — a jog is not an Execute/Done command.
+TYPE E_AxisCommand : (NONE := 0, HOME := 1, MOVE_TO := 2, JOG_POS := 3, JOG_NEG := 4) DINT;
 END_TYPE
 ```
 
@@ -169,6 +174,50 @@ The motion is brought to the §6 defined safe stop; re-enable after the alias re
 
 ---
 
+## G.4a Teach jog under an enabling device (§7.6.1a, §9)
+
+An axis has no teach pendant. Where a robot arrives with its own enabling device and its own jog, a
+servo axis has neither — so if Fraktal does not offer a conformant way to move one by hand, there
+isn't one, and the gap gets filled per station with something worse.
+
+The axis therefore publishes two **held** commands and accepts them through `RequestHeldCommand`:
+
+```iecst
+_M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_POS), Label := 'std.command.jogPositive');
+_M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_NEG), Label := 'std.command.jogNegative');
+```
+
+Every gate is weighed once per scan, in one place, so there is one thing to review:
+
+```iecst
+drive := (_jogReqDir <> 0)
+    AND NOT _tJogStale.Q      // the request is still arriving (§7.6.1a, O10)
+    AND _jogEnabled           // a safety-rated enabling device is permitting (§9)
+    AND Intlk.AllOk           // the module's own interlocks — NOT bypassed for teaching
+    AND NOT Busy              // a commanded move owns the axis (§6.1)
+    AND __ISVALIDREF(_axis);
+```
+
+Four things about this are deliberate:
+
+- **Interlocks are not bypassed.** The station is expected to have wired its guard condition so the
+  safety system's teach grant satisfies it. If it has not, the axis simply does not jog. The enabling
+  device is an **additional** requirement layered on the interlock, never a replacement — so a
+  mis-wired station fails safe rather than gaining a back door.
+- **`ParCfg.JogVelocity` is defence in depth, not the protection.** The safety-rated reduced speed is
+  the drive's SLS or the cell's safe-speed monitor. A limit a scan overrun or a download can remove is
+  not what keeps a person safe.
+- **Stopping is not a fault.** A jog that ends because the operator let go is the designed behaviour,
+  so it publishes `OutImm.JogStopReason` as status and raises no alarm — the same argument §6.1 makes
+  for `HELD`. Filing it as a fault would fill the record with events that were never faults.
+- **A functional stop stops the jog too.** `WithdrawOutputs` withdraws it like any other output;
+  otherwise an abort would stop the commanded move and leave a jog running.
+
+The `MC_Jog` realization is **[TC3]**; another binding supplies its own level-driven jog behind the
+same `RequestHeldCommand` contract (O8).
+
+---
+
 ## G.5 HMI (§3.13)
 
 ```
@@ -188,7 +237,10 @@ Station ▸ Indexer            (CM tile: state LED ← ExecState; pos 124.80 mm;
 - **Target validation before motion** (`AXIS_TARGET_OOR`, `AXIS_NOT_HOMED`) — defensive coding (§5.6) producing a clean first-out reason instead of a drive crash.
 - **Limits/scaling in the driver/axis** (§10.3), not in sequences.
 - **Safe-motion read-only**: a dropped safety alias triggers `MC_Stop` and a fault, with no automatic re-enable (§9.2–§9.4).
-- A new **per-module-type reason block** (axis CM `10201–10204`) registered per §8.8.
+- A **held manual action** (§7.6.1a): jogging under a safety-rated enabling device, level-driven
+  because PLCopen models it that way, stopping when the request stops arriving — including when it
+  stops because the transport died rather than because the operator let go.
+- A new **per-module-type reason block** (axis CM `10201–10206`) registered per §8.8.
 
 ---
 

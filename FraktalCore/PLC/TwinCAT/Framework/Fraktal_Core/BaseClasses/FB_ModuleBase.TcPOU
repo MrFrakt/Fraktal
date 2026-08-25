@@ -639,7 +639,48 @@ CatalogCount := CatalogCount + 1;
 Catalog[CatalogCount].Value := Value;
 Catalog[CatalogCount].Label := Label;]]></ST></Implementation>
     </Method>
-    <Method Name="ManualCommand" Id="{0208fca9-aa4b-4e28-85ae-b94b8780ebca}">
+          <Method Name="_M_PublishHeldCommand" Id="{01af0f1c-f80f-489a-8ba6-67215d1a2b01}">
+        <Declaration><![CDATA[// §7.6.1 - register a HELD manual command (a jog). Same catalog, same
+// idempotence; the style tells the HMI to render press-and-hold and to route it
+// to RequestHeldCommand instead of ExecuteCommand.
+METHOD PROTECTED _M_PublishHeldCommand
+VAR_INPUT
+    Value : DINT;
+    Label : STRING(120);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_PublishCommand(Value := Value, Label := Label);
+FOR i := 1 TO CatalogCount DO
+    IF Catalog[i].Value = Value THEN
+        Catalog[i].Style := E_CommandStyle.HELD;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RequestHeldCommand" Id="{5a80fbe1-2bd4-493d-aae5-92ba8ef683a3}">
+        <Declaration><![CDATA[// §7.6.1 - the entry point for a HELD manual command, called EVERY SCAN while
+// the operator holds the control. Silence is a stop: a module that implements
+// this shall stop the action when the calls stop, whether the operator let go or
+// the transport died (O10 - a lost connection queues nothing).
+//
+// Enable carries the §9 manual-enable fact for actions that need one (motion
+// with the guards open). It is STATUS, never authority: the module still applies
+// its own interlocks, and the safety system remains what actually permits the
+// movement. Modules with no held commands inherit this refusal unchanged.
+METHOD RequestHeldCommand : BOOL
+VAR_INPUT
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RequestHeldCommand := FALSE;   // no held commands on this type (§5.6 defined ELSE)]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="ManualCommand" Id="{0208fca9-aa4b-4e28-85ae-b94b8780ebca}">
       <Declaration><![CDATA[// §7.6.1 — apply a manual command, routed THROUGH the normal command surface so
 // interlocks/first-out/timing still apply (§3.2). The owning Unit is the single
 // gate: it calls this ONLY after verifying MANUAL mode (§3.4) + MANUAL access

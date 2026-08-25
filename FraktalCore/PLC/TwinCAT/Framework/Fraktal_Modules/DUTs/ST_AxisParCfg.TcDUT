@@ -14,6 +14,16 @@ STRUCT
     Deceleration  : LREAL := 500.0;
     MoveTimeout   : TIME := T#10S;
     HomeTimeout   : TIME := T#30S;
+    // Teach jog (§7.6.1). JogVelocity is DEFENCE IN DEPTH, not the protection:
+    // the safety-rated reduced speed is the drive's own SLS or the cell's safe
+    // speed monitor, because a scan overrun or a download must not be able to
+    // remove the limit that keeps a person safe (§9).
+    JogVelocity     : LREAL := 5.0;
+    JogAcceleration : LREAL := 100.0;
+    // How long a held request may go unheard before the axis stops. This is the
+    // backstop for a stalled transport, NOT the normal stop: releasing the
+    // control sends Dir=0 and stops immediately (O10).
+    JogTimeout      : TIME := T#200MS;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

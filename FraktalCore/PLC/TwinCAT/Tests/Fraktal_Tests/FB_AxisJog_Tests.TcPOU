@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AxisJog_Tests" Id="{f964d77c-a583-4bf0-865b-2b9843d704d2}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §9 / §7.6.1 — jogging an axis by hand under a safety-rated enabling
+// device, and the derivation that decides whether one is permitting.
+//
+// The derivation tests matter more than they look: every one of them is a way a
+// cell could end up jogging with its guards open when it should not. They are
+// written as the fail-closed cases first, because that is the direction in which
+// being wrong is dangerous.
+FUNCTION_BLOCK FB_AxisJog_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _sfy  : ST_SafetyStatus;
+    _en   : ST_ManualEnableStatus;
+    _axA  : FB_AxisCM;   _refA : AXIS_REF;   _sA : INT;   _nA : INT;
+    _axB  : FB_AxisCM;   _refB : AXIS_REF;   _sB : INT;   _nB : INT;
+    _w1, _w2, _w3, _w4, _w5 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[No_enabling_device_mirrored_means_never_enabled();
+A_released_enabling_device_does_not_permit();
+A_held_enabling_device_permits_and_names_itself();
+A_safety_fault_withdraws_the_permission();
+Jog_is_refused_without_a_held_enabling_device();
+Jog_stops_when_the_request_stops_arriving();]]></ST>
+    </Implementation>
+      <Method Name="_M_Enable" Id="{b5ab576b-add6-471a-83c9-321e73bc40d2}">
+        <Declaration><![CDATA[// Build a safety facet carrying one enabling device in a given state.
+METHOD PRIVATE _M_Enable
+VAR_INPUT
+    Permitting : BOOL;
+    Faulted    : BOOL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_sfy.Present := TRUE;
+_sfy.FaultActive := Faulted;
+_sfy.Devices[1].Present         := TRUE;
+_sfy.Devices[1].Name            := 'TeachEnable01';
+_sfy.Devices[1].Kind            := E_SafetyDeviceKind.ENABLE_SWITCH;
+_sfy.Devices[1].FieldbusHealthy := TRUE;
+// Permitting is the POSITIVE state, exactly as for an E-stop that is not pressed.
+_sfy.Devices[1].Ready           := Permitting;
+_sfy.Devices[1].DemandActive    := NOT Permitting;
+_sfy.Devices[1].SafeStateActive := NOT Permitting;
+_sfy.Devices[1].FaultActive     := FALSE;
+_sfy.Devices[1].State           := SEL(Permitting, E_SafetyState.DEMAND, E_SafetyState.READY);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="No_enabling_device_mirrored_means_never_enabled" Id="{a9b3ef9d-2e40-4807-bd47-fcaf7b5ba95c}">
+        <Declaration><![CDATA[METHOD PRIVATE No_enabling_device_mirrored_means_never_enabled]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('No_enabling_device_mirrored_means_never_enabled');
+IF NOT _w1 THEN
+    // A cell that never wired an enabling device must not be able to jog with the
+    // guards open BY OMISSION. Absence is the commonest way this goes wrong, so
+    // it is the first case.
+    MEMSET(ADR(_sfy), 0, SIZEOF(_sfy));
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertFalse(Condition := _en.Present, Message := 'no device is reported as present');
+    AssertFalse(Condition := _en.Held,    Message := 'and nothing is permitting');
+
+    // A safety facet that exists but carries only OTHER kinds is the same answer.
+    _sfy.Present := TRUE;
+    _sfy.Devices[1].Present := TRUE;
+    _sfy.Devices[1].Kind    := E_SafetyDeviceKind.GUARD_DOOR;
+    _sfy.Devices[1].Ready   := TRUE;
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertFalse(Condition := _en.Held,
+        Message := 'a closed guard is not an enabling device');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_released_enabling_device_does_not_permit" Id="{c1f01ef5-227e-4064-ae13-fff7e2439074}">
+        <Declaration><![CDATA[METHOD PRIVATE A_released_enabling_device_does_not_permit]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_released_enabling_device_does_not_permit');
+IF NOT _w2 THEN
+    // Released AND panic-squeezed are the same answer here, which is the whole
+    // reason the device has three positions rather than two: both non-middle
+    // positions demand the safe state.
+    _M_Enable(Permitting := FALSE, Faulted := FALSE);
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertTrue(Condition := _en.Present,
+        Message := 'the device is mirrored');
+    AssertFalse(Condition := _en.Held,
+        Message := 'but it is not permitting, so nothing may move');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_held_enabling_device_permits_and_names_itself" Id="{bcbe7cb8-290d-489f-8054-7bc1960fe631}">
+        <Declaration><![CDATA[METHOD PRIVATE A_held_enabling_device_permits_and_names_itself]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_held_enabling_device_permits_and_names_itself');
+IF NOT _w3 THEN
+    _M_Enable(Permitting := TRUE, Faulted := FALSE);
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertTrue(Condition := _en.Held,
+        Message := 'a held enabling device permits manual motion');
+    // Named so a release report can say WHICH device, rather than "not released".
+    AssertEquals_STRING(Expected := 'TeachEnable01', Actual := _en.DeviceName,
+        Message := 'and names itself for the release report (S7.6.0)');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_safety_fault_withdraws_the_permission" Id="{75ff2fcc-2c6d-430d-9148-ab2ff2f30254}">
+        <Declaration><![CDATA[METHOD PRIVATE A_safety_fault_withdraws_the_permission]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_safety_fault_withdraws_the_permission');
+IF NOT _w4 THEN
+    // The device still reads as held, but the safety system is reporting a fault.
+    // A safety system that is not healthy is not one to take permission from.
+    _M_Enable(Permitting := TRUE, Faulted := TRUE);
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertFalse(Condition := _en.Held,
+        Message := 'a faulted safety facet grants nothing, however the switch reads');
+
+    // Same for the device's own fieldbus: a stale mirror is not a permission.
+    _M_Enable(Permitting := TRUE, Faulted := FALSE);
+    _sfy.Devices[1].FieldbusHealthy := FALSE;
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertFalse(Condition := _en.Held,
+        Message := 'and neither does an unhealthy safety fieldbus');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Jog_is_refused_without_a_held_enabling_device" Id="{dc9144ec-7f7f-4889-b0dd-e63bf45c69f6}">
+        <Declaration><![CDATA[METHOD PRIVATE Jog_is_refused_without_a_held_enabling_device]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Jog_is_refused_without_a_held_enabling_device');
+IF NOT _w5 THEN
+    _axA.Setup(Name := 'Test.AxisA', AxisRef := _refA, Recipe := 0);
+    _axA.DeclareCondition(Index := 1, DescriptionKey := 'std.interlock.areaSafe',
+        Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+    _axA.SetCondition(Index := 1, Ok := TRUE);
+
+    // Not permitting -> the request is refused at the door, with its reason.
+    _M_Enable(Permitting := FALSE, Faulted := FALSE);
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertFalse(Condition := _axA.RequestHeldCommand(
+            Value := TO_DINT(E_AxisCommand.JOG_POS), Enable := _en),
+        Message := 'jog is refused when no enabling device is permitting');
+    _axA();
+    AssertFalse(Condition := _axA.OutImm.Jogging,
+        Message := 'and the axis is not jogging');
+    AssertEquals_DINT(Expected := PL_ModuleReasons.AXIS_JOG_NOT_ENABLED,
+        Actual := _axA.OutImm.JogStopReason,
+        Message := 'the operator is told why, not left guessing (O3)');
+
+    // An unknown held value is refused too, and leaves no direction behind (S5.6).
+    _M_Enable(Permitting := TRUE, Faulted := FALSE);
+    _en := F_ManualEnable(Safety := _sfy);
+    AssertFalse(Condition := _axA.RequestHeldCommand(Value := 9999, Enable := _en),
+        Message := 'an unknown held command is refused');
+    _axA();
+    AssertFalse(Condition := _axA.OutImm.Jogging,
+        Message := 'and starts no motion');
+    _w5 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Jog_stops_when_the_request_stops_arriving" Id="{484ec8bf-5416-4770-ae8d-babf0c24b01f}">
+        <Declaration><![CDATA[METHOD PRIVATE Jog_stops_when_the_request_stops_arriving]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Jog_stops_when_the_request_stops_arriving');
+// O10, and the reason this whole surface is level-driven: a held jog delivered
+// over a network must stop when the asking stops - whether the operator let go
+// or the transport died. Runs ACROSS SCANS because the deadline is a TON.
+CASE _sB OF
+    0:
+        _axB.Setup(Name := 'Test.AxisB', AxisRef := _refB, Recipe := 0);
+        _axB.DeclareCondition(Index := 1, DescriptionKey := 'std.interlock.areaSafe',
+            Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+        _axB.ParCfg.JogTimeout := T#100MS;
+        _sB := 1;
+    1:
+        // Ask every scan, as a held control does, with everything permitting.
+        _axB.SetCondition(Index := 1, Ok := TRUE);
+        _M_Enable(Permitting := TRUE, Faulted := FALSE);
+        _en := F_ManualEnable(Safety := _sfy);
+        _axB.RequestHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_POS), Enable := _en);
+        _axB();
+        IF _axB.OutImm.Jogging THEN
+            _sB := 2;
+        END_IF
+        _nB := _nB + 1;
+        IF _nB > 2000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the jog never started');
+            TEST_FINISHED();
+        END_IF
+    2:
+        // Now stop asking. Nothing else changes: the interlock still holds and the
+        // enabling device is still held. Only the asking stopped.
+        _axB.SetCondition(Index := 1, Ok := TRUE);
+        _axB();
+        IF NOT _axB.OutImm.Jogging THEN
+            AssertEquals_DINT(Expected := PL_ModuleReasons.AXIS_JOG_RELEASED,
+                Actual := _axB.OutImm.JogStopReason,
+                Message := 'and says the request stopped arriving');
+            TEST_FINISHED();
+        END_IF
+        _nB := _nB + 1;
+        IF _nB > 4000 THEN
+            AssertTrue(Condition := FALSE,
+                Message := 'the axis kept jogging after the requests stopped');
+            TEST_FINISHED();
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+  </POU>
+</TcPlcObject>

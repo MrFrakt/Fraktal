@@ -503,6 +503,20 @@
       "shelvable": false,
       "action": "Check that the correct tool and frame are selected for this product, then verify the taught point is still within reach. Re-teach the point if the fixture or gripper has changed.",
       "consequence": "The move is refused before it starts because the robot cannot reach the commanded point with the tool and frame now active."
+    },
+    "AXIS_JOG_NOT_ENABLED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Hold the enabling device on the handheld terminal in its middle position while jogging. If it is held and this persists, the enabling device or its safety connection needs attention before teaching continues.",
+      "consequence": "Manual jogging is refused because no safety-rated enabling device is currently permitting motion."
+    },
+    "AXIS_JOG_RELEASED": {
+      "priority": "LOW",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "None if you released the control deliberately. If you were still holding it, the connection to the panel was interrupted - check the handheld's link before jogging again.",
+      "consequence": "The axis stopped because the jog request stopped arriving."
     }
   }
 }

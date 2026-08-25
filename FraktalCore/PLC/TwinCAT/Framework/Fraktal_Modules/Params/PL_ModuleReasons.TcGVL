@@ -16,11 +16,13 @@ VAR_GLOBAL CONSTANT
     CYL_SENSOR_LOST      : DINT := 10114;   // confirmed position sensor dropped while holding
     CYL_DISCREPANCY      : DINT := 10116;   // redundant sensors for one position disagree > DiscrepancyTime
     CYL_CFG_INVALID      : DINT := 10115;   // TravelTime >= MoveTimeout, or no sensor+no travel
-    // axis CM 10201-10204 (Annex G)
-    AXIS_TARGET_OOR   : DINT := 10201;   // target outside soft limits (rejected)
-    AXIS_MOVE_TIMEOUT : DINT := 10202;   // MC move did not complete within the timeout
-    AXIS_DRIVE_FAULT  : DINT := 10203;   // MC_* .Error / drive fault
-    AXIS_NOT_HOMED    : DINT := 10204;   // MOVE_TO before a valid home
+    // axis CM 10201-10206 (Annex G)
+    AXIS_TARGET_OOR      : DINT := 10201;   // target outside soft limits (rejected)
+    AXIS_MOVE_TIMEOUT    : DINT := 10202;   // MC move did not complete within the timeout
+    AXIS_DRIVE_FAULT     : DINT := 10203;   // MC_* .Error / drive fault
+    AXIS_NOT_HOMED       : DINT := 10204;   // MOVE_TO before a valid home
+    AXIS_JOG_NOT_ENABLED : DINT := 10205;   // teach jog asked with no enabling device held
+    AXIS_JOG_RELEASED    : DINT := 10206;   // the held jog request stopped arriving
     // power-group CM 10500-10599
     POWER_ENABLE_WITHHELD : DINT := 10501;
     POWER_FEEDBACK_TIMEOUT: DINT := 10502;

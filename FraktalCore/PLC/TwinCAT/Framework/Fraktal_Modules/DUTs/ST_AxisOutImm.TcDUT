@@ -8,6 +8,12 @@ STRUCT
     ActVelocity  : LREAL;
     Homed        : BOOL;
     DriveEnabled : BOOL;
+    Jogging      : BOOL;   // a held jog is driving the axis right now (§7.6.1)
+    // Why the last jog stopped: 0 = released normally, otherwise the §8.8 reason.
+    // Published status, deliberately NOT an alarm - a jog that stops because the
+    // operator let go is the designed behaviour, and filing it as a fault would
+    // fill the record with events that were never faults (§6.1).
+    JogStopReason : DINT;
     Diagnostic   : ST_Diagnostic;
 END_STRUCT
 END_TYPE]]></Declaration>

@@ -1770,7 +1770,44 @@ A maintenance user needs to command an individual device by hand — extend a cy
 - **Routing, not bypassing.** The manual command is delivered to the module's existing command surface (§3.2) — the *same* entry the automatic sequence uses — never to the I/O directly. This is the opposite of a fieldbus channel force (§10.5.1): a manual command is *defended* by the module (interlocks, first-out, timing all apply); a channel force goes *around* it. The two **shall** be visually and functionally distinct in the HMI so the two risk levels are never confused.
 - **Audit.** Every accepted manual command, and every rejected one, **shall** be logged as a §8.3 event (manual actions are always traceable).
 
-*Cross-references: §3.2 (command surface), §3.4 (mode), §3.13 (generic HMI), §7.6 (release), §7.7 (`MANUAL` level), §8.3 (audit), §8.11.4 (command labels), §10.5.1 (contrast with channel force).*
+##### 7.6.1a Held manual actions (jogging)
+
+Some manual actions only act *while the operator keeps asking* — jogging an axis is the archetype.
+These do **not** fit the `Execute`/`Done` handshake, and PLCopen does not force them to: `MC_Jog`
+takes level inputs for exactly this reason. A module that offers one **shall** publish it in the
+same catalog with `Style = HELD` and accept it through a level entry point rather than
+`ExecuteCommand`:
+
+```iecst
+// Called EVERY SCAN while the control is held; silence is a stop.
+METHOD RequestHeldCommand : BOOL
+VAR_INPUT
+    Value  : DINT;                     // the catalog Value being held
+    Enable : ST_ManualEnableStatus;    // §9 manual-enable fact, for actions that need one
+END_VAR
+```
+
+- **Silence stops the action.** The module **shall** stop a held action when the calls stop, within a
+  configured deadline. This is not a convenience: a held request that is delivered over a network can
+  stop arriving because the operator let go, because the client closed, **or because the transport
+  died with the control still pressed** — and only the first is a deliberate stop. Treating all three
+  identically is what makes the surface safe, and it is the same rule as §11/§14's "a lost transport
+  queues nothing."
+- **The module cannot distinguish them, and shall not pretend to.** It reports that the request
+  stopped arriving. A client that knows it is still sending can surface the difference; the PLC
+  cannot, and inventing the distinction would be a diagnostic that lies.
+- **`Style` is additive.** `ST_CommandInfo.Style` defaults to `ONESHOT`, so every catalog entry that
+  predates this clause keeps its existing meaning and no consumer breaks (§1.5).
+- A held action remains subject to everything in §7.6.1 — MANUAL mode, its §7.6 release, the `MANUAL`
+  access level, and the module's own interlocks. `Style` changes how it is *operated*, never what it
+  is *allowed*.
+
+> **Held is not a dead-man.** A held action delivered from an HMI is a **non-safety** convenience, as
+> §3.4.2/§9 already require of `HOLD_TO_RUN`. Where a held action moves an axis with the guards open,
+> the permission comes from a safety-rated enabling device published through §9 (see
+> `ST_ManualEnableStatus`), never from the fact that a button is being held.
+
+*Cross-references: §3.2 (command surface), §3.4 (mode), §3.13 (generic HMI), §7.6 (release), §7.7 (`MANUAL` level), §8.3 (audit), §8.11.4 (command labels), §9 (manual enable), §10.5.1 (contrast with channel force).*
 
 ### 7.7 User access levels (gated actions)
 
@@ -1914,7 +1951,7 @@ A generic code plus `SourcePath` renders instance-specific — *"Clamp3: part pr
 | Framework `2020–2029` | traceability / part context (§3.16): `CARRIER_READ_FAILED`=2020, `CARRIER_WRITE_FAILED`=2021, `PART_ID_MISMATCH`=2022, `RESULT_RECORD_REJECTED`=2023 |
 | Framework `2030–2039` | engineering/commissioning build gates (§7.5): `COMMISSIONING_GATE_ACTIVE`=2030 — one LOW/SYSTEM, non-clearable, non-shelvable event per active gate |
 | Framework `2900–2909` | framework self-test reasons, never raised in production (§5.7 base suite): `TEST_FAULT`=2901 |
-| Per module-type `10000+` | type-specific, one contiguous block per type — 100-wide CM sub-blocks within `10000–10999`, EM blocks from `11000` (registered: separator CM `10001–10005`, cylinder CM `10101–10103`, **basic cylinder CM `10110–10116`** (same 100-block; production variant of the cylinder type), axis CM `10201–10204`, robot CM `10301–10315`, **TCP/ASCII device CM `10401–10406`** (§3.15.1a base; device profiles extend within `10401–10499`), **power-group CM `10501–10502`** (§9.8), **air-pressure monitor CM `10601`**, clamp EM `11001`, per Annexes A–B, G, I) |
+| Per module-type `10000+` | type-specific, one contiguous block per type — 100-wide CM sub-blocks within `10000–10999`, EM blocks from `11000` (registered: separator CM `10001–10005`, cylinder CM `10101–10103`, **basic cylinder CM `10110–10116`** (same 100-block; production variant of the cylinder type), axis CM `10201–10206`, robot CM `10301–10315`, **TCP/ASCII device CM `10401–10406`** (§3.15.1a base; device profiles extend within `10401–10499`), **power-group CM `10501–10502`** (§9.8), **air-pressure monitor CM `10601`**, clamp EM `11001`, per Annexes A–B, G, I) |
 
 `TIME_SYNC_LOST` is a System-band code (17) because it is annunciated as a System-category alarm (§2.7, §8.6), even though the clock is configured in §2.
 
