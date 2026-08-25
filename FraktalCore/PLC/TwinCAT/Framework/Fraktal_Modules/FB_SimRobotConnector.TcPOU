@@ -1,0 +1,592 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SimRobotConnector" Id="{c00d6d40-44c4-4eba-8168-658bf9c5fe6f}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex I I.5c - the SIMULATION connector. O6 requires every module to run
+// unchanged against simulated or real I/O; for a robot the seam is the connector,
+// not the HAL, so without this type a robot CM cannot be virtually commissioned
+// at all and a station containing one cannot be dry-run before the arm arrives.
+//
+// It is deliberately NOT a kinematic simulator and does not pretend to be one.
+// What it is faithful about is the CONTRACT: the handshake and its timing, the
+// facts it publishes about itself, and its refusals. The pose it reports is a
+// plausible synthetic interpolation so displays and area checks have something
+// real to move on - never a claim about where an actual arm would be.
+//
+// Selected as configuration (S2.6): the CM holds I_RobotConnector, so swapping
+// this for FB_StaubliVal3Connector changes a declaration and nothing else. That
+// is the whole point - simulation is paid once in the connector family, never
+// per station (S1.1 O1).
+FUNCTION_BLOCK FB_SimRobotConnector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector
+VAR_INPUT
+    MoveTime : TIME  := T#200MS;              // how long an accepted motion takes
+    HomeTime : TIME  := T#500MS;
+    HomeArea : DWORD := 1;                    // area reported once homed (I.11)
+    Inject   : E_RobotSimFault;               // I.5c - level, cleared by the caller
+END_VAR
+VAR
+    _busy       : BOOL;
+    _referenced : BOOL;
+    _powered    : BOOL;
+    _protStop   : BOOL;
+    _held       : BOOL;
+    _mode       : E_RobotOpMode := E_RobotOpMode.AUTO_REMOTE;
+    _area       : DWORD;
+    _pose       : ST_RobotPose;               // published live pose
+    _from       : ST_RobotPose;               // motion start, for interpolation
+    _to         : ST_RobotPose;               // motion target
+    _tMove      : TON;
+    _pt         : TIME;
+    _toArea     : DWORD;                      // area that resolves on completion
+    _homing     : BOOL;
+    _speed      : REAL := 100.0;
+    _tool       : DWORD;
+    _frame      : DWORD;
+    _payload    : DWORD;
+    _res        : ST_Diagnostic;              // LastResult
+    _ctrl       : ST_Diagnostic;              // ControllerMessage
+    _f          : LREAL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+      <Method Name="_M_Open" Id="{b17c4747-9a96-46c1-b8c0-570ed8b87ec8}">
+        <Declaration><![CDATA[// No socket to open. The session is up the moment it is asked for, which is
+// what makes a dry run start instantly instead of waiting out a backoff.
+METHOD PROTECTED _M_Open : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_Open := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Close" Id="{84b9390e-2c0d-4cca-baf0-04917f53c2bc}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_Close : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_busy := FALSE;
+_tMove(IN := FALSE);
+_M_Close := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_HbStart" Id="{4861a4a4-4ced-422d-ad0d-f5514eb0ac3f}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_HbStart : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_HbStart := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_HbPoll" Id="{8f22d630-fa23-498e-8f13-a86e0901f3a8}">
+        <Declaration><![CDATA[// The one place link loss is injected: failing the heartbeat drives the REAL
+// loss path in the base - loss confirm, then bounded backoff reconnect - rather
+// than a shortcut that would prove nothing about how the cell behaves (I.5c).
+METHOD PROTECTED _M_HbPoll : E_HbResult]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF Inject = E_RobotSimFault.LINK_LOSS THEN
+    _M_HbPoll := E_HbResult.FAIL;
+ELSE
+    _M_HbPoll := E_HbResult.OK;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Cyclic" Id="{f19e5c06-eae6-4910-83e0-c565d7b2e5b9}">
+        <Declaration><![CDATA[// Advance simulated motion. Override contract: SUPER^ FIRST, so the session,
+// heartbeat and reconnect all behave exactly as they do on a real transport.
+METHOD Cyclic : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Cyclic := SUPER^.Cyclic();
+
+// A protective stop is injectable at rest as well as in motion: a crash device
+// can trip while the arm is parked, and a cell that only handles the moving case
+// discovers that the hard way.
+IF Inject = E_RobotSimFault.PROTECTIVE_STOP THEN
+    _protStop := TRUE;
+    IF _busy THEN
+        _busy := FALSE;
+        _tMove(IN := FALSE);
+    END_IF
+END_IF
+
+IF NOT Linked THEN
+    // The arm is not commanded from here while the link is down; motion stops
+    // rather than silently completing behind a dropped connection.
+    _busy := FALSE;
+    _tMove(IN := FALSE);
+    RETURN;
+END_IF
+
+IF _busy AND NOT _held THEN
+    _tMove(IN := TRUE, PT := _pt);
+    // Plausible pose: linear interpolation start -> target over the move time.
+    // Enough for a display to move and for an area check to resolve; never a
+    // claim about the path a real arm would take.
+    IF _pt > T#0S THEN
+        _f := TIME_TO_LREAL(_tMove.ET) / TIME_TO_LREAL(_pt);
+    ELSE
+        _f := 1.0;
+    END_IF
+    IF _f > 1.0 THEN
+        _f := 1.0;
+    END_IF
+    _pose.X  := _from.X  + (_to.X  - _from.X)  * _f;
+    _pose.Y  := _from.Y  + (_to.Y  - _from.Y)  * _f;
+    _pose.Z  := _from.Z  + (_to.Z  - _from.Z)  * _f;
+    _pose.RX := _from.RX + (_to.RX - _from.RX) * _f;
+    _pose.RY := _from.RY + (_to.RY - _from.RY) * _f;
+    _pose.RZ := _from.RZ + (_to.RZ - _from.RZ) * _f;
+    IF _tMove.Q THEN
+        _tMove(IN := FALSE);
+        _busy  := FALSE;
+        _pose  := _to;
+        _area  := _toArea;
+        IF _homing THEN
+            _homing     := FALSE;
+            _referenced := TRUE;     // homing is what ESTABLISHES the reference
+        END_IF
+    END_IF
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Refuse" Id="{bd4e5d23-7e47-466e-9358-6eab2ea83b7d}">
+        <Declaration><![CDATA[// Refuse with a reason. Every FALSE this type returns leaves a reason behind:
+// the CM adopts LastResult verbatim (S8.2), so a silent refusal would surface as
+// a fault with a zero code and send the technician nowhere.
+METHOD PRIVATE _M_Refuse : BOOL
+VAR_INPUT
+    Code : DINT;
+    Text : STRING(255);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_res.ReasonCode  := Code;
+_res.Description := Text;
+_res.SourcePath  := Name;
+_M_Refuse := FALSE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Accept" Id="{d3f54956-4a17-4de4-8cf1-7675b940de36}">
+        <Declaration><![CDATA[METHOD PRIVATE _M_Accept : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_res.ReasonCode  := E_Reason.NONE;
+_res.Description := '';
+_M_Accept := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_CanCommand" Id="{6b32204b-c8ca-4d95-81bd-f319fef28be2}">
+        <Declaration><![CDATA[// Shared gate for everything that reaches the "controller": the link must be up
+// and the crash device must not be tripped. Refusals, never queueing (Annex D).
+METHOD PRIVATE _M_CanCommand : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT Linked THEN
+    _M_CanCommand := _M_Refuse(E_Reason.LINK_TIMEOUT, 'std.error.robotLinkDown');
+    RETURN;
+END_IF
+IF _protStop THEN
+    _M_CanCommand := _M_Refuse(PL_ModuleReasons.ROBOT_PROTECTIVE_STOP, 'std.error.robotProtectiveStop');
+    RETURN;
+END_IF
+IF _busy THEN
+    _M_CanCommand := _M_Refuse(E_Reason.DEVICE_NOT_READY, 'std.error.robotBusy');
+    RETURN;
+END_IF
+_M_CanCommand := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_PoseOf" Id="{6a56c328-cdbc-44ae-9aea-febe679da3de}">
+        <Declaration><![CDATA[// A deterministic synthetic pose per position ID, so the same ID always reports
+// the same place and a test can assert movement without a taught database.
+METHOD PRIVATE _M_PoseOf : ST_RobotPose
+VAR_INPUT
+    PosId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_PoseOf.X  := DWORD_TO_LREAL(PosId) * 100.0;
+_M_PoseOf.Y  := DWORD_TO_LREAL(PosId) * 50.0;
+_M_PoseOf.Z  := 200.0;
+_M_PoseOf.RX := 0.0;
+_M_PoseOf.RY := 0.0;
+_M_PoseOf.RZ := 0.0;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Start" Id="{8b7d7fb6-086e-4801-890a-dde0c832e50c}">
+        <Declaration><![CDATA[// Begin a simulated motion toward a position ID. Injected motion failures are
+// applied HERE - before anything starts - because I.2's rejection reasons are
+// rejections (S5.6), not mid-move surprises.
+METHOD PRIVATE _M_Start : BOOL
+VAR_INPUT
+    ToPosId : DWORD;
+    PT      : TIME;
+    Routed  : BOOL;     // a template move, which is what NO_ROUTE applies to
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_CanCommand() THEN
+    _M_Start := FALSE;
+    RETURN;
+END_IF
+IF NOT _powered THEN
+    _M_Start := _M_Refuse(PL_ModuleReasons.ROBOT_CONTROLLER_FAULT, 'std.error.robotNotPowered');
+    RETURN;
+END_IF
+IF Inject = E_RobotSimFault.POINT_UNREACHABLE THEN
+    _M_Start := _M_Refuse(PL_ModuleReasons.ROBOT_POINT_UNREACHABLE, 'std.error.robotPointUnreachable');
+    RETURN;
+END_IF
+IF Routed AND (Inject = E_RobotSimFault.NO_ROUTE) THEN
+    _M_Start := _M_Refuse(PL_ModuleReasons.ROBOT_NO_ROUTE, 'std.error.robotNoRoute');
+    RETURN;
+END_IF
+_from   := _pose;
+_to     := _M_PoseOf(ToPosId);
+_toArea := ToPosId;                  // the sim treats each position as its own area
+_pt     := PT;
+_held   := FALSE;
+_busy   := TRUE;
+_tMove(IN := FALSE);
+_M_Start := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="PowerOn" Id="{4f2a5260-21dc-4c3c-b232-082e96bf9e33}">
+        <Declaration><![CDATA[METHOD PowerOn : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_CanCommand() THEN
+    PowerOn := FALSE;
+    RETURN;
+END_IF
+_powered := TRUE;
+PowerOn := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="PowerOff" Id="{555d783c-24db-4954-b9f2-1c3102148688}">
+        <Declaration><![CDATA[METHOD PowerOff : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT Linked THEN
+    PowerOff := _M_Refuse(E_Reason.LINK_TIMEOUT, 'std.error.robotLinkDown');
+    RETURN;
+END_IF
+_powered := FALSE;
+_busy    := FALSE;
+_tMove(IN := FALSE);
+PowerOff := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Home" Id="{e3aea05a-4ffd-41de-a716-c34ed7c26447}">
+        <Declaration><![CDATA[// Homing is what establishes the reference, so it is the one motion that does
+// NOT require one - see FB_RobotCM's validation ladder for the matching exemption.
+METHOD Home : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_Start(ToPosId := 0, PT := HomeTime, Routed := FALSE) THEN
+    Home := FALSE;
+    RETURN;
+END_IF
+_homing := TRUE;
+_toArea := HomeArea;
+Home := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="MoveToPoint" Id="{fadf7a1e-8872-43e0-b63c-867c927bc17a}">
+        <Declaration><![CDATA[METHOD MoveToPoint : BOOL
+VAR_INPUT
+    PointId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MoveToPoint := _M_Start(ToPosId := PointId, PT := MoveTime, Routed := FALSE);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RunPath" Id="{92d302fe-38a3-457c-9129-a3ecd7deab63}">
+        <Declaration><![CDATA[METHOD RunPath : BOOL
+VAR_INPUT
+    ListId   : DWORD;
+    StartIdx : DINT;
+    EndIdx   : DINT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF EndIdx < StartIdx THEN
+    RunPath := _M_Refuse(PL_ModuleReasons.ROBOT_PARAM_OOR, 'std.error.robotPathRangeInvalid');
+    RETURN;
+END_IF
+RunPath := _M_Start(ToPosId := ListId, PT := MoveTime, Routed := FALSE);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RunPallet" Id="{631272cd-6af3-4dd2-94d1-4bdc11add5e4}">
+        <Declaration><![CDATA[METHOD RunPallet : BOOL
+VAR_INPUT
+    PalletId : DWORD;
+    Nest     : DINT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF Nest < 0 THEN
+    RunPallet := _M_Refuse(PL_ModuleReasons.ROBOT_PARAM_OOR, 'std.error.robotNestInvalid');
+    RETURN;
+END_IF
+RunPallet := _M_Start(ToPosId := PalletId, PT := MoveTime, Routed := FALSE);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="MoveTemplate" Id="{3d4bd6f4-e591-48eb-bc5a-f02a68452230}">
+        <Declaration><![CDATA[METHOD MoveTemplate : BOOL
+VAR_INPUT
+    FromPosId : DWORD;
+    ToPosId   : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MoveTemplate := _M_Start(ToPosId := ToPosId, PT := MoveTime, Routed := TRUE);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="MoveFromArea" Id="{09cfa2fb-c4f1-4f55-93a5-5bb9bdc3bbe7}">
+        <Declaration><![CDATA[METHOD MoveFromArea : BOOL
+VAR_INPUT
+    ToPosId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MoveFromArea := _M_Start(ToPosId := ToPosId, PT := MoveTime, Routed := TRUE);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Interrupt" Id="{cdeff3f7-2a27-400e-8231-8f1aa2577fdc}">
+        <Declaration><![CDATA[// Pause on-path. The retained path is what Resume returns to, and whether it
+// is still valid is exactly what NOT_RESUMABLE injects (I.4b).
+METHOD Interrupt : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT Linked THEN
+    Interrupt := _M_Refuse(E_Reason.LINK_TIMEOUT, 'std.error.robotLinkDown');
+    RETURN;
+END_IF
+_held := TRUE;
+Interrupt := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Resume" Id="{7978c0b6-f44c-4c1a-ad49-480405e69218}">
+        <Declaration><![CDATA[METHOD Resume : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT Linked THEN
+    Resume := _M_Refuse(E_Reason.LINK_TIMEOUT, 'std.error.robotLinkDown');
+    RETURN;
+END_IF
+IF NOT Resumable THEN
+    Resume := _M_Refuse(PL_ModuleReasons.ROBOT_RESUME_INVALID, 'std.error.robotResumeInvalid');
+    RETURN;
+END_IF
+_held  := FALSE;
+Resume := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Abort" Id="{0854a998-f800-460e-8c63-8d16ec7e567d}">
+        <Declaration><![CDATA[METHOD Abort : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_busy := FALSE;
+_held := FALSE;
+_tMove(IN := FALSE);
+Abort := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="ResetController" Id="{2b313025-09f6-4afe-b4ab-899caa4f9cf8}">
+        <Declaration><![CDATA[// Acknowledge at the "controller" - the crash trip clears here and nowhere else,
+// mirroring an arm that will not move again until acknowledged on the pendant.
+METHOD ResetController : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT Linked THEN
+    ResetController := _M_Refuse(E_Reason.LINK_TIMEOUT, 'std.error.robotLinkDown');
+    RETURN;
+END_IF
+_protStop := FALSE;
+_ctrl.ReasonCode  := E_Reason.NONE;
+_ctrl.Description := '';
+ResetController := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RequestMode" Id="{e132e2c1-ab6e-4387-bec6-a58113bb72c4}">
+        <Declaration><![CDATA[// The PLC REQUESTS; a real controller grants or does not. The sim grants, but
+// never grants UNKNOWN: an uninitialised value must not travel as a request.
+METHOD RequestMode : BOOL
+VAR_INPUT
+    Mode : E_RobotOpMode;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF Mode = E_RobotOpMode.UNKNOWN THEN
+    RequestMode := _M_Refuse(PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED, 'std.error.robotModeNotPermitted');
+    RETURN;
+END_IF
+IF NOT Linked THEN
+    RequestMode := _M_Refuse(E_Reason.LINK_TIMEOUT, 'std.error.robotLinkDown');
+    RETURN;
+END_IF
+_mode := Mode;
+RequestMode := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetSpeedScale" Id="{9a789790-424b-4db1-8a77-07d44efa17fd}">
+        <Declaration><![CDATA[METHOD SetSpeedScale : BOOL
+VAR_INPUT
+    Percent : REAL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Percent < 0.0) OR (Percent > 100.0) THEN
+    SetSpeedScale := _M_Refuse(PL_ModuleReasons.ROBOT_PARAM_OOR, 'std.error.robotSpeedScaleOutOfRange');
+    RETURN;
+END_IF
+_speed := Percent;
+SetSpeedScale := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetTool" Id="{98e12804-8c1e-434a-8e4e-8e0006a711b8}">
+        <Declaration><![CDATA[METHOD SetTool : BOOL
+VAR_INPUT
+    ToolId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_CanCommand() THEN
+    SetTool := FALSE;
+    RETURN;
+END_IF
+_tool := ToolId;
+SetTool := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetFrame" Id="{e1483898-6b2f-49c0-a193-00c00f71f89b}">
+        <Declaration><![CDATA[METHOD SetFrame : BOOL
+VAR_INPUT
+    FrameId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_CanCommand() THEN
+    SetFrame := FALSE;
+    RETURN;
+END_IF
+_frame := FrameId;
+SetFrame := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetPayload" Id="{73228804-fe5a-4995-ae4e-abd64332412c}">
+        <Declaration><![CDATA[METHOD SetPayload : BOOL
+VAR_INPUT
+    LoadId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_CanCommand() THEN
+    SetPayload := FALSE;
+    RETURN;
+END_IF
+_payload := LoadId;
+SetPayload := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Jog" Id="{1e3a0b54-568a-4125-9c07-8be1c2c3e3de}">
+        <Declaration><![CDATA[// Bounded by the CONTROLLER's reported mode, not by a PLC release alone: jogging
+// under automatic is exactly the move nobody is standing ready for.
+METHOD Jog : BOOL
+VAR_INPUT
+    Mode : E_RobotJogMode;
+    Axis : INT;
+    Dir  : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_CanCommand() THEN
+    Jog := FALSE;
+    RETURN;
+END_IF
+IF (_mode <> E_RobotOpMode.MANUAL_REDUCED) AND (_mode <> E_RobotOpMode.MANUAL_HIGH) THEN
+    Jog := _M_Refuse(PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED, 'std.error.robotModeNotPermitted');
+    RETURN;
+END_IF
+IF (Axis < 1) OR (Dir = 0) THEN
+    Jog := _M_Refuse(PL_ModuleReasons.ROBOT_PARAM_OOR, 'std.error.robotJogParamInvalid');
+    RETURN;
+END_IF
+// Jogging leaves the retained path - which is why Resumable goes false.
+_pose.X := _pose.X + DINT_TO_LREAL(Dir) * 10.0;
+Jog := _M_Accept();]]></ST>
+        </Implementation>
+      </Method>
+      <Property Name="MotionBusy" Id="{ba307395-ae98-400c-aa53-a460ea50f9fa}">
+        <Declaration><![CDATA[PROPERTY MotionBusy : BOOL]]></Declaration>
+        <Get Name="Get" Id="{7ae9472a-8e43-4d60-89df-fac38bf247e7}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[MotionBusy := _busy;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="Referenced" Id="{bddc1e8b-97b0-4bda-80bd-2e1b0503b539}">
+        <Declaration><![CDATA[PROPERTY Referenced : BOOL]]></Declaration>
+        <Get Name="Get" Id="{1c430bfb-e8b6-413e-8bf5-9df894cca559}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[Referenced := _referenced;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ActualMode" Id="{79a32572-055d-4a0d-b1db-9ddfe7e90b22}">
+        <Declaration><![CDATA[// What the controller REPORTS, never what was asked for (I.4a(a)).
+PROPERTY ActualMode : E_RobotOpMode]]></Declaration>
+        <Get Name="Get" Id="{ded184ae-8816-4549-81e1-b1649b428777}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ActualMode := _mode;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ActualPosition" Id="{02980768-e3e3-4a1d-b95c-fd41673467c3}">
+        <Declaration><![CDATA[PROPERTY ActualPosition : ST_RobotPose]]></Declaration>
+        <Get Name="Get" Id="{8f4e10da-8450-45ac-b667-6e8a8e9bffbc}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ActualPosition := _pose;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ControllerMessage" Id="{78676c8c-3fd5-44fa-afa5-70829a43e9b4}">
+        <Declaration><![CDATA[PROPERTY ControllerMessage : ST_Diagnostic]]></Declaration>
+        <Get Name="Get" Id="{4375f4d2-1395-4d71-8ad1-f48de7aeb2a2}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ControllerMessage := _ctrl;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="CurrentArea" Id="{9be2348a-42dc-4dde-8bfd-f44d00bf15a7}">
+        <Declaration><![CDATA[// Resolves through the ordinary area check (I.11): a sim that left this
+// unresolved would fail every template move and prove nothing.
+PROPERTY CurrentArea : DWORD]]></Declaration>
+        <Get Name="Get" Id="{ff380a71-eea2-436a-bc40-249bded9f232}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[CurrentArea := _area;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ProtectiveStop" Id="{5fed21a4-ce3c-4b8e-aebe-10bab22d2a1f}">
+        <Declaration><![CDATA[// The robot's OWN crash device - deliberately NOT a S9 safety function.
+PROPERTY ProtectiveStop : BOOL]]></Declaration>
+        <Get Name="Get" Id="{66e61abb-2bfc-4bd2-b965-c210d88877ce}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ProtectiveStop := _protStop;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="Resumable" Id="{08689621-7455-4a17-8861-471811712cb9}">
+        <Declaration><![CDATA[// TRUE only while a hold is outstanding and the path is still retained.
+PROPERTY Resumable : BOOL]]></Declaration>
+        <Get Name="Get" Id="{43128bfc-b531-43aa-8451-0fe8124b61bb}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[IF Inject = E_RobotSimFault.NOT_RESUMABLE THEN
+    Resumable := FALSE;
+ELSE
+    Resumable := _held AND NOT _protStop;
+END_IF]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="LastResult" Id="{dd72d781-ebeb-4083-b43f-83722de694c4}">
+        <Declaration><![CDATA[PROPERTY LastResult : ST_Diagnostic]]></Declaration>
+        <Get Name="Get" Id="{d520bc68-c684-4d18-91e0-fe76a03ef0b4}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[LastResult := _res;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+  </POU>
+</TcPlcObject>

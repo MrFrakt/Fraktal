@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotOutImm" Id="{defdeb7d-be4a-4822-95c3-71b0d2a24669}">
+    <Declaration><![CDATA[// Cyclic live status mirrored from the connector, plus the first-out diagnostic.
+TYPE ST_RobotOutImm :
+STRUCT
+    Linked         : BOOL;
+    Referenced     : BOOL;
+    MotionBusy     : BOOL;           // the ARM is moving - not the command handshake
+    ActualMode     : E_RobotOpMode;  // what the controller REPORTS (I.4a(a))
+    CurrentArea    : DWORD;          // 0 = none/undefined (I.11)
+    ProtectiveStop : BOOL;           // process protection, NOT S9 safety (I.4a(c))
+    Resumable      : BOOL;           // resume still valid on the retained path (I.4b)
+    SpeedScale     : REAL;           // scale actually in force
+    Diagnostic     : ST_Diagnostic;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

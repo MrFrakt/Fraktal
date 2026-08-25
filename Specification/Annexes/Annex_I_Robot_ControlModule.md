@@ -241,8 +241,11 @@ STRUCT
     OffsetLimit   : ST_RobotPose;   // per-axis envelope for a runtime target correction (I.8a)
     SpeedScaleMin : REAL := 1.0;    // band a recipe SpeedScale is validated against (I.4a(b))
     SpeedScaleMax : REAL := 100.0;
-    // Ceiling per controller operating mode; the CM applies MIN(ceiling, ParCmd.SpeedScale)
-    SpeedCeiling  : ARRAY[E_RobotOpMode] OF REAL := [0.0, 100.0, 25.0, 100.0];   // I.4a(a),(b)
+    // Ceiling per controller operating mode; the CM applies MIN(ceiling, ParCmd.SpeedScale).
+    // Indexed by E_RobotOpMode's ordinals - an array bound is a RANGE, never an enum
+    // type name. UNKNOWN is 0.0 on purpose: a mode the controller has not reported
+    // earns no speed allowance at all.
+    SpeedCeiling  : ARRAY[0..3] OF REAL := [0.0, 100.0, 25.0, 100.0];   // I.4a(a),(b)
 END_STRUCT
 END_TYPE
 
@@ -254,12 +257,15 @@ END_TYPE
 
 TYPE ST_RobotOutImm :   // cyclic live status + first-out diagnostic
 STRUCT
-    Linked      : BOOL;             // mirrored from the connector (Annex D)
-    Referenced  : BOOL;
-    ArmPowerOn  : BOOL;
-    CurrentArea : DWORD;            // planning area the TCP is in (0 = none/undefined)
-    ActualMode  : E_RobotOpMode;    // what the controller reports (I.4a(a)) — read-only status
-    SpeedScale  : REAL;             // scale actually in force = MIN(mode ceiling, recipe scale)
+    Linked         : BOOL;          // mirrored from the connector (Annex D)
+    Referenced     : BOOL;
+    MotionBusy     : BOOL;          // the ARM is moving — distinct from the CM's own Busy
+    ActualMode     : E_RobotOpMode; // what the controller reports (I.4a(a)) — read-only status
+    CurrentArea    : DWORD;         // planning area the TCP is in (0 = none/undefined)
+    ProtectiveStop : BOOL;          // the robot's own crash device — NOT a §9 safety function
+    Resumable      : BOOL;          // a held move can still resume on-path (I.4b)
+    SpeedScale     : REAL;          // scale actually in force = MIN(mode ceiling, recipe scale)
+    Diagnostic     : ST_Diagnostic; // republished first-out (§8.2)
 END_STRUCT
 END_TYPE
 
@@ -275,7 +281,7 @@ VAR_OUTPUT
     OutImm : ST_RobotOutImm;
     Intlk  : FB_PermIntlk;          // read-only safety alias (§9.2) — declared by the application, not by this type
 END_VAR
-VAR  _conn : I_RobotConnector;  _step : INT;  _tMove : TON;  END_VAR
+VAR  _conn : I_RobotConnector;  _tMove : TON;  END_VAR   // _step is base-owned (FB_ModuleBase) — re-declaring it collides
 ```
 
 `OnCyclic` runs the Annex D link supervision, mirrors the connector into `OutImm`, republishes the
@@ -308,8 +314,10 @@ END_IF
 IF NOT _M_ModePermits(Command, _conn.ActualMode) THEN                                        // I.4a(a)
     _M_FaultN(Code := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED, Text := 'std.error.robotModeNotPermitted');  RETURN;
 END_IF
-IF (Command IN (E_RobotCommand.MOVE_TO, E_RobotCommand.RUN_PATH, E_RobotCommand.RUN_PALLET,
-                E_RobotCommand.MOVE_TEMPLATE, E_RobotCommand.MOVE_FROM_AREA)) AND NOT _conn.Referenced THEN
+// HOME is deliberately absent from this check: homing is what ESTABLISHES the
+// reference, so gating it on one leaves the robot permanently unhomeable. ST has
+// no `IN` operator — the set test is a helper (`_M_IsMotion`), not syntax.
+IF _M_IsMotion(Command) AND (Command <> E_RobotCommand.HOME) AND NOT _conn.Referenced THEN
     _M_FaultN(Code := PL_ModuleReasons.ROBOT_NOT_REFERENCED, Text := 'std.error.robotNotReferenced');  RETURN;
 END_IF
 
@@ -321,11 +329,11 @@ CASE _step OF
             E_RobotCommand.POWER_ON:       _conn.PowerOn();
             E_RobotCommand.POWER_OFF:      _conn.PowerOff();
             E_RobotCommand.HOME:           _conn.Home();
-            E_RobotCommand.MOVE_TO:        IF NOT _conn.MoveToPoint(ParCmd.TargetId)                          THEN _M_FaultN(_conn.LastResult); RETURN; END_IF
-            E_RobotCommand.RUN_PATH:       IF NOT _conn.RunPath(ParCmd.TargetId, ParCmd.StartIdx, ParCmd.EndIdx) THEN _M_FaultN(_conn.LastResult); RETURN; END_IF
-            E_RobotCommand.RUN_PALLET:     IF NOT _conn.RunPallet(ParCmd.TargetId, ParCmd.Nest)               THEN _M_FaultN(_conn.LastResult); RETURN; END_IF
-            E_RobotCommand.MOVE_TEMPLATE:  IF NOT _conn.MoveTemplate(ParCmd.FromId, ParCmd.TargetId)          THEN _M_FaultN(_conn.LastResult); RETURN; END_IF  // I.9
-            E_RobotCommand.MOVE_FROM_AREA: IF NOT _conn.MoveFromArea(ParCmd.TargetId)                         THEN _M_FaultN(_conn.LastResult); RETURN; END_IF  // I.11
+            E_RobotCommand.MOVE_TO:        IF NOT _conn.MoveToPoint(ParCmd.TargetId)                          THEN _M_AdoptRefusal(); RETURN; END_IF
+            E_RobotCommand.RUN_PATH:       IF NOT _conn.RunPath(ParCmd.TargetId, ParCmd.StartIdx, ParCmd.EndIdx) THEN _M_AdoptRefusal(); RETURN; END_IF
+            E_RobotCommand.RUN_PALLET:     IF NOT _conn.RunPallet(ParCmd.TargetId, ParCmd.Nest)               THEN _M_AdoptRefusal(); RETURN; END_IF
+            E_RobotCommand.MOVE_TEMPLATE:  IF NOT _conn.MoveTemplate(ParCmd.FromId, ParCmd.TargetId)          THEN _M_AdoptRefusal(); RETURN; END_IF  // I.9
+            E_RobotCommand.MOVE_FROM_AREA: IF NOT _conn.MoveFromArea(ParCmd.TargetId)                         THEN _M_AdoptRefusal(); RETURN; END_IF  // I.11
             E_RobotCommand.SET_TOOL:       _conn.SetTool(ParCmd.TargetId);
             E_RobotCommand.SET_FRAME:      _conn.SetFrame(ParCmd.TargetId);
         ELSE
@@ -333,11 +341,15 @@ CASE _step OF
         END_CASE
         _tMove(IN := TRUE, PT := SEL(Command = E_RobotCommand.HOME, ParCfg.MoveTimeout, ParCfg.HomeTimeout));
         _step := 20;
-    20:  // map the controller's Busy/Done/Error/timeout onto the CM handshake (§6.1)
-        IF NOT _conn.Busy AND _conn.LastResult.ReasonCode = 0 THEN
+    20:  // map the controller's motion/error/timeout onto the CM handshake (§6.1).
+         // `LastResult` is a PROPERTY, so `.ReasonCode` on it is a component access on
+         // a function result — read it into a help variable first. `MotionBusy`, not
+         // `Busy`: the base already owns `Busy` for the CM's own handshake.
+        _cd := _conn.LastResult;
+        IF _cd.ReasonCode <> _startResult.ReasonCode THEN
+            _M_FaultDiag(Diag := _cd);                      // adopt the connector's first-out verbatim (§8.2)
+        ELSIF NOT _conn.MotionBusy THEN
             _tMove(IN := FALSE);  OutCmd.ReachedId := ParCmd.TargetId;  _M_Complete();
-        ELSIF _conn.LastResult.ReasonCode <> 0 THEN
-            _M_FaultStopped(_conn.LastResult);              // adopt the connector's first-out verbatim (§8.2)
         ELSIF _tMove.Q THEN
             _M_FaultStopped(Code := PL_ModuleReasons.ROBOT_MOVE_TIMEOUT, Text := 'std.error.robotMoveTimeout');
         END_IF
@@ -345,6 +357,25 @@ ELSE
     _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');        // defined ELSE (§5.6)
 END_CASE
 ```
+
+> **`_M_AdoptRefusal`** is the one-line helper the four routed commands share: it reads
+> `_conn.LastResult` into a variable and calls `_M_FaultDiag` with it, so a refusal keeps the
+> connector's own reason instead of being re-classified (§8.2). A refusal that carries *no* new
+> reason means nothing was sent, which is an unsupported command — adopting an empty diagnostic
+> there would erase the fault with a zero code.
+
+### What the reference implementation realizes
+
+`FB_RobotCM` as shipped realizes this section, I.4a and I.4b in full, over `I_RobotConnector`, and
+is proven against `FB_SimRobotConnector` (I.5c) in `FB_RobotCM_Tests` (I.14). Three things I.4
+describes are **specified but not yet built**, each for the same reason — the trimming rule (§1.1
+O1) keeps a type free of members no code drives, and a reason lands with the code that raises it:
+
+| Specified | Status | Why |
+|---|---|---|
+| `ParCmd.Offset` / `ParCfg.OffsetLimit` / `_M_OffsetWithin` | not built | I.8a runtime-computed targets are unimplemented; the bounded-correction envelope arrives with the vision path that needs it, not before. |
+| `OutImm.ArmPowerOn` | not built | `I_RobotConnector` publishes no arm-power fact to mirror. Adding one to the interface is the prerequisite, not a field on the CM. |
+| `ROBOT_SAFETY_DROPPED` and the safe-stop block | not built | Safety status is read-only application input (§9.2) and nothing feeds this type a safety alias yet. The reason is registered in §I.2 and stays out of `PL_ModuleReasons` until code raises it. |
 
 An abort is routed through the base's own `AbortCommand()` rather than invented as a fault. A point,
 a 26-point path, a generated route, or a pallet nest is **one** command that runs to completion — so
@@ -992,6 +1023,21 @@ TEST('Corridor_with_StepCount_zero_runs_the_taught_ListId_instead');            
 TEST('SimConnector_resolves_an_area_so_template_moves_complete');                    // I.5c, O6
 TEST('SimConnector_injects_each_I2_reason_on_demand');                               // I.5c
 ```
+
+### Realized today
+
+The list above is the target. What runs in CI now is **24 tests across three suites**, all green on
+the runtime, against `FB_SimRobotConnector` and `FB_SimByteChannel` — no arm, no emulator, no socket:
+
+| Suite | Tests | Covers |
+|---|---:|---|
+| `FB_RobotPlanner_Tests` | 10 | I.9 route graph — reachability, no-route, bounded search |
+| `FB_RobotConnector_Tests` | 6 | I.3/I.5 wire contract — ID-addressed framing, refusal on a down link, status decode, controller error carried verbatim, resume refused off-path, unknown mode refused |
+| `FB_RobotCM_Tests` | 8 | I.4 validation ladder (link, speed band, mode, reference), the HOME exemption, I.4b HELD-and-resume, completion, I.4a(c) protective stop |
+
+The frontier is where the code is: the help resolver (I.10), grip verification (I.6a), runtime
+offsets (I.8a) and the safety-alias stop (§9.3) have no tests because they have no implementation —
+see *What the reference implementation realizes* in I.4. Each lands with the code that raises it.
 
 The multi-help resolver being a **tested type** (not per-station code) is the whole point of I.10 — a station that adds a two-approach nest adds a table row, not logic.
 

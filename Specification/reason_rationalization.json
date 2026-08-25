@@ -454,6 +454,55 @@
       "shelvable": false,
       "action": "Read the fault on the robot's own teach pendant or controller display - its text is carried in the diagnostic - clear the cause there, then acknowledge the controller before restarting the sequence.",
       "consequence": "The robot has stopped and will accept no motion command until its own fault is acknowledged."
+    },
+    "ROBOT_MOVE_TIMEOUT": {
+      "priority": "HIGH",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check for obstruction along the taught path, then acknowledge and repeat the command. If the robot reports its own fault, read it on the pendant first.",
+      "consequence": "The robot stopped mid-motion and the sequence cannot advance until the move is repeated."
+    },
+    "ROBOT_NOT_REFERENCED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Home the robot before commanding motion. Run the HOME command, or reference from the robot controller, and wait for Referenced to turn true.",
+      "consequence": "Motion is refused because the robot has no valid position reference."
+    },
+    "ROBOT_MODE_NOT_PERMITTED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Set the robot controller to Automatic/Remote mode and wait for the reported mode to change, then repeat the command. Jogging requires a manual mode instead.",
+      "consequence": "Motion is refused because the controller mode does not permit it."
+    },
+    "ROBOT_PROTECTIVE_STOP": {
+      "priority": "HIGH",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Clear the collision or crash-protection trip at the robot controller, check the tool and fixture for damage, then acknowledge the controller before restarting.",
+      "consequence": "The robot stopped on its protective device and accepts no motion until the trip is acknowledged there."
+    },
+    "ROBOT_PARAM_OOR": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Correct the commanded speed scale to the configured range for this product, or have engineering widen the band if the product genuinely needs it.",
+      "consequence": "The command is refused before motion because a parameter is outside its configured band."
+    },
+    "ROBOT_RESUME_INVALID": {
+      "priority": "HIGH",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "The arm was moved while the sequence was held. Recover by driving to a defined position from the current area, or jog back to a known position, then restart the step.",
+      "consequence": "The held motion cannot resume where it stopped; recovery is required before the sequence continues."
+    },
+    "ROBOT_POINT_UNREACHABLE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check that the correct tool and frame are selected for this product, then verify the taught point is still within reach. Re-teach the point if the fixture or gripper has changed.",
+      "consequence": "The move is refused before it starts because the robot cannot reach the commanded point with the tool and frame now active."
     }
   }
 }

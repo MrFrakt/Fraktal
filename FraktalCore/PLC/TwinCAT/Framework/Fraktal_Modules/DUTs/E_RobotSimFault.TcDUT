@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_RobotSimFault" Id="{c5dcd82b-dd3c-4e14-bbd0-c21da400d87e}">
+    <Declaration><![CDATA[// Annex I I.5c - the failures the simulation connector can be told to inject.
+// Bounded and enumerated (O10): the reasons of I.2 are exactly what cannot be
+// proven against a real arm without deliberately breaking a cell, so the sim
+// must be able to produce them on demand - but only the ones some test or
+// commissioning rehearsal actually needs, never a knob per reason.
+{attribute 'qualified_only'}
+TYPE E_RobotSimFault :
+(
+    NONE            := 0,
+    POINT_UNREACHABLE := 1,   // the next motion command is refused before it starts
+    NO_ROUTE          := 2,   // the next template move finds no path (I.9)
+    LINK_LOSS         := 3,   // the heartbeat fails; the base drops and re-backs off
+    PROTECTIVE_STOP   := 4,   // the crash device trips, in motion or at rest
+    NOT_RESUMABLE     := 5    // a held move cannot resume - the arm left the path (I.4b)
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -3880,3 +3880,48 @@ for a back door stops testing the product. Both suites were green for months
 while proving something about `SimForceInterlock` and nothing about the interlock
 path a station uses — and the missing application path went unnoticed precisely
 *because* the test had a way in that the application did not.
+
+## 131. The validation ladder that would have made the robot unhomeable (2026-08-24)
+
+`FB_RobotCM` (Annex I §I.4) landed with the §5.6 rule applied faithfully: validate
+the request, then the state, then command motion. Motion requires a valid position
+reference, so the ladder refused any motion command while `Referenced` was false.
+
+`HOME` was in the set of motion commands.
+
+Homing is what *establishes* the reference. Gating it on one means the robot can
+never be homed: unreferenced, so `HOME` is refused; refused, so still
+unreferenced. The cell would have arrived on site with an arm that could not be
+started, and the reason code would have told the technician "motion before
+homing" — the truth, and completely useless.
+
+The annex already had this right. §I.4's referenced check lists `MOVE_TO`,
+`RUN_PATH`, `RUN_PALLET`, `MOVE_TEMPLATE`, `MOVE_FROM_AREA` and deliberately not
+`HOME`; the implementation collapsed that list into a single "is this motion?"
+helper and lost the distinction. **Reading the spec's set as a set, rather than as
+an example of a category, was the whole difference.** The fix restores it, and
+`Home_is_exempt_from_the_reference_check` now holds it in place — the one test
+that asserts a command *is not* refused for a specific reason.
+
+**The compiler found three more, all of them the same kind of mistake:** assuming
+a base member was ours to declare, or that a property behaved like a field.
+
+- `_step` is `PROTECTED` in `FB_ModuleBase` and set to 10 on the accepted Execute
+  edge. Re-declaring it in the CM is a C0097 collision. `FB_AxisCM` never declares
+  it — that was the signal, and it was there to be read.
+- `_conn.LastResult.ReasonCode` is a component access on a *function result*
+  (C0185): `LastResult` is a property. Third occurrence of this trap in this
+  repo; it is now in `AGENTS.md`.
+- `ARRAY[E_RobotOpMode] OF REAL` does not compile (C0006). An array bound is a
+  range. The annex carried the same illegal declaration, so §I.4 has been
+  corrected too — spec text that cannot compile is worse than none, because it is
+  copied with confidence.
+
+**`FB_SimRobotConnector` is the reason any of this is testable.** §I.5c is
+normative about it and states why in one line: for a robot the simulation seam is
+the *connector*, not the HAL. Eight CM tests drive it — including a protective
+stop and a lost permissive mid-move — and none of them needs an arm, an emulator
+or a socket. The reasons of §I.2 are exactly the ones that cannot be proven
+against real hardware without deliberately breaking a cell, which is why the
+ability to inject them is part of the connector contract rather than a test
+fixture.

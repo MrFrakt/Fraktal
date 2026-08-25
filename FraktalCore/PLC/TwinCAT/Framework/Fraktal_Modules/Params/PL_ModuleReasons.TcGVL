@@ -31,9 +31,16 @@ VAR_GLOBAL CONSTANT
     SEP_NOT_OPENED_FB       : DINT := 10004;   // open feedback missing
     SEP_SON_NOT_CLEARED     : DINT := 10005;   // CarrierAfter did not clear after close
     // robot route planner 10301-10315 (Annex I) - only what the planner raises today
-    ROBOT_CONTROLLER_FAULT : DINT := 10304;   // drive/controller fault reported by the robot itself
-    ROBOT_NO_ROUTE         : DINT := 10308;   // help graph defines no path between the two positions
-    ROBOT_NO_HELP_FOR_NEST : DINT := 10310;   // no help point resolves for a nest given the move endpoints
+    ROBOT_POINT_UNREACHABLE  : DINT := 10301;   // taught point not reachable with the active tool/frame
+    ROBOT_MOVE_TIMEOUT       : DINT := 10303;   // motion did not complete within ParCfg timeout
+    ROBOT_CONTROLLER_FAULT   : DINT := 10304;   // drive/controller fault reported by the robot itself
+    ROBOT_NOT_REFERENCED     : DINT := 10305;   // motion commanded before a valid home/reference
+    ROBOT_NO_ROUTE           : DINT := 10308;   // help graph defines no path between the two positions
+    ROBOT_NO_HELP_FOR_NEST   : DINT := 10310;   // no help point resolves for a nest given the move endpoints
+    ROBOT_MODE_NOT_PERMITTED : DINT := 10311;   // controller mode does not permit this command
+    ROBOT_PROTECTIVE_STOP    : DINT := 10313;   // collision/crash device tripped - NOT a S9 safety function
+    ROBOT_PARAM_OOR          : DINT := 10314;   // a command parameter is outside its configured band
+    ROBOT_RESUME_INVALID     : DINT := 10315;   // resume after hold, but the arm left the retained path
     // air-pressure monitor CM 10600-10699
     AIR_SWITCH_CONFLICT    : DINT := 10601;
 END_VAR]]></Declaration>

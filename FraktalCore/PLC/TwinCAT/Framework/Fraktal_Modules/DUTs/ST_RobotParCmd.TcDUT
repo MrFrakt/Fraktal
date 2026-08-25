@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotParCmd" Id="{8ad8756b-f5a3-45e3-8f6a-e02b3d546c35}">
+    <Declaration><![CDATA[// Latched by the base on the Execute rising edge (S6.1). No Offset field yet:
+// the runtime-correction exception of I.8a is deferred with the connector support
+// for it - declaring a field no consumer reads would be dead surface, and an
+// unvalidated offset would be worse (S14).
+TYPE ST_RobotParCmd :
+STRUCT
+    TargetId   : DWORD := 0;   // point / list / pallet / tool / frame - or the TO position
+    FromId     : DWORD := 0;   // FROM position (MOVE_TEMPLATE only)
+    Nest       : DINT := 0;    // nest index (RUN_PALLET only)
+    StartIdx   : DINT := -1;   // sub-path bounds (RUN_PATH; -1,-1 = whole list)
+    EndIdx     : DINT := -1;
+    SpeedScale : REAL := 100.0;   // process speed for THIS command, % of taught (I.4a(b))
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
