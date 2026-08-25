@@ -116,13 +116,23 @@ class ReleasePanel extends StatelessWidget {
     };
     final owner = reason.sourcePath.isEmpty ? '' : '${reason.sourcePath}: ';
     final code = reason.reasonCode == 0 ? '' : ' (#${reason.reasonCode})';
+    // The chip paints its OWN fill inside a panel filled with errorContainer,
+    // so it must pair its own foreground: the label inherited the panel's
+    // on-colour and rendered white on the chip's white surface. A bare label
+    // with no colour is worse than a wrong one - it cannot even be measured
+    // (app_theme.foregroundOn).
+    final chipFill = Theme.of(context).colorScheme.surface;
+    final ink = foregroundOn(context, chipFill);
     return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Text(owner +
-          context.tr(reason.description) +
-          code +
-          (reason.bypassable ? context.tr(' (bypassable)') : '')),
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      avatar: Icon(icon, size: 18, color: ink),
+      label: Text(
+        owner +
+            context.tr(reason.description) +
+            code +
+            (reason.bypassable ? context.tr(' (bypassable)') : ''),
+        style: TextStyle(color: ink),
+      ),
+      backgroundColor: chipFill,
     );
   }
 }

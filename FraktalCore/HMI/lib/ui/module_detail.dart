@@ -913,12 +913,19 @@ class _ModuleOverviewTab extends StatelessWidget {
     // card with a hand icon, on the module itself (routes THROUGH the module).
     // Blue, not the theme's tertiary role — a manual command is a normal operator
     // action, and red/pink on a machine panel reads as a fault (see app_theme).
+    // The card paints a tinted fill, so its content is wrapped in onContainer:
+    // a Card only paints, it does not re-pair the foreground, and without this
+    // every glyph inside inherits whatever style encloses the card (app_theme).
+    final cardFill = operatorActionContainer(context);
     return Card(
-      color: operatorActionContainer(context),
+      color: cardFill,
       shape: RoundedRectangleBorder(
           side: const BorderSide(color: kOperatorActionColor),
           borderRadius: BorderRadius.circular(12)),
-      child: Padding(
+      child: onContainer(
+        context,
+        cardFill,
+        Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -927,12 +934,12 @@ class _ModuleOverviewTab extends StatelessWidget {
             LText('Manual commands',
                 style: Theme.of(context).textTheme.titleMedium),
             const Spacer(),
+            // Each chip paints its own fill inside the tinted card, so each
+            // pairs its own foreground rather than inheriting the card's.
             if (!inManual)
-              const Chip(label: LText('Unit not in MANUAL'))
+              _blockedChip(context, null, 'Unit not in MANUAL')
             else if (!canManual)
-              const Chip(
-                  avatar: Icon(Icons.lock_outline, size: 16),
-                  label: LText('MANUAL access')),
+              _blockedChip(context, Icons.lock_outline, 'MANUAL access'),
           ]),
           const SizedBox(height: 4),
           LText('Routed through the module — interlocks still apply (§7.6.1).',
@@ -955,7 +962,21 @@ class _ModuleOverviewTab extends StatelessWidget {
               ),
           ]),
         ]),
+        ),
       ),
+    );
+  }
+
+  /// A chip stating why manual is blocked, with its label and icon explicitly
+  /// paired to the chip's OWN fill. Inheriting the enclosing card's foreground
+  /// is what rendered these white on white.
+  Widget _blockedChip(BuildContext context, IconData? icon, String label) {
+    final fill = Theme.of(context).colorScheme.surface;
+    final ink = foregroundOn(context, fill);
+    return Chip(
+      backgroundColor: fill,
+      avatar: icon == null ? null : Icon(icon, size: 16, color: ink),
+      label: LText(label, style: TextStyle(color: ink)),
     );
   }
 
