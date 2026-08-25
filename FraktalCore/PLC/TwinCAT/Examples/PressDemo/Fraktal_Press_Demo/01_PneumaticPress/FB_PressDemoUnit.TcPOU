@@ -432,10 +432,13 @@ END_IF
 // child, and _M_TickChildren already ticks every registered child from
 // SUPER^.OnCyclic above. Calling it here as well would run the whole S6.1
 // lifecycle twice per scan.
-IF _partFeedConfigured THEN
-    PartFeed.SetCondition(Index := 1, Ok := PneumaticPower.OutCmd.PowerOn);
-    PartFeed.SetCondition(Index := 2, Ok := ReleaseConditions.RamGuardClosed);
-END_IF
+// No conditions are driven here any more. Both that used to be - the press's
+// pneumatic power and its ram guard - describe the PRESS, and the Xvi is
+// physically outside it on a separate EtherCAT device. Gating a bench servo on
+// whether a pneumatic valve zone somewhere else is energised is not an
+// interlock, it is an unrelated fact that happens to block motion, and S7.2.1
+// says a condition is defined at the module with enough semantic context to own
+// it. This Unit has none for that drive.
 
 // Latch access-gated Unit requests, then observe one full Execute-low scan before
 // starting another power-group command (PLCopen edge discipline).
@@ -736,11 +739,23 @@ ConfigurePartFeedAxis := PartFeed.Setup(Name := CONCAT(Name, '.PartFeed'),
 IF NOT ConfigurePartFeedAxis THEN
     RETURN;
 END_IF
-// Project-owned conditions (S7.2.1): this Unit can name them, the library cannot.
-PartFeed.DeclareCondition(Index := 1, DescriptionKey := 'project.interlock.feedRequiresControlPower',
-    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
-PartFeed.DeclareCondition(Index := 2, DescriptionKey := 'project.interlock.feedRequiresGuardClosed',
-    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+// No project conditions are declared for this axis, and the absence is the
+// point rather than an omission. The two that used to be here required the
+// press's pneumatic power and its ram guard to be satisfied before the axis
+// could move - but the Xvi sits on =000+S-A620, a separate EtherCAT device
+// outside the press, with its own power. Neither fact says anything about
+// whether that drive may move.
+//
+// Declaring a condition that does not describe the device is worse than
+// declaring none: it blocks motion for a reason the operator cannot act on, and
+// it puts a name in the release report that is simply not about this axis
+// (S7.2.1 - a condition belongs to the module with the semantic context to own
+// it). If this drive is ever mounted INTO a cell, its real conditions get
+// declared here then, from that cell's guard and power.
+//
+// The device-intrinsic gates are untouched and still apply: the axis will not
+// jog stale, will not jog while a command owns it, and will not jog without a
+// linked NC axis (FB_AxisCM._M_JogCyclic).
 // Registered only once it is REAL. A registered child is ticked every scan,
 // joins the S8.2 first-out rollup, and appears in the S3.10.2 config walk - and
 // therefore in station parameter sets (S3.8b). Registering it unconditionally at
