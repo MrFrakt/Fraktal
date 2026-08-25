@@ -146,12 +146,20 @@ IF NOT Init THEN
     // provider it mirrors. Composition-root wiring, one line, no per-value glue:
     // every capability any module in this tree registered is already in the set.
     PneumaticPress.SetConfigStore(Store := ConfigStore);
-    // §3.8b — this press declares the STRICT restore policy. Its station data is
-    // the two-hand requirement and the axis's taught position: running on
-    // defaults would mean a machine that presents itself as commissioned while
-    // feeding parts to a position nobody taught it. DEFAULTS_AND_ANNUNCIATE is
+    // §3.8b — this press declares the STRICT restore policy. Its station data
+    // today is the two-hand requirement and the step stall guard, and the
+    // two-hand requirement is the reason: losing it would mean a machine that
+    // presents itself as commissioned while no longer waiting for the start
+    // control this cell's risk assessment requires. DEFAULTS_AND_ANNUNCIATE is
     // the shipped default and is right for a station whose lost values are
     // conveniences; this one's are not.
+    //
+    // The PartFeed axis's taught position is NOT in this set. FB_AxisCM
+    // registers it (Annex G §G.4b), but PartFeed is neither bound by
+    // ConfigurePartFeedAxis nor registered as a child of this Unit while no NC
+    // axis exists in the System Manager — so it is outside the walk, and a
+    // station set taken here does not contain it. It joins the set the day the
+    // axis is linked, with no change to this line.
     PneumaticPress.SetConfigRestorePolicy(
         Policy := E_ConfigRestorePolicy.BLOCK_UNTIL_ACKNOWLEDGED);
     // §7.7/§14: provider secrets are retained deployment configuration, never
