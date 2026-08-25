@@ -17,7 +17,9 @@ VAR_OUTPUT
     PneumaticPower: FB_PowerGroupCM;
     PartPresentSensor : FB_DigitalInputCM;
     AirPressureMonitor : FB_AirPressureMonitorCM;
-    PartFeed      : FB_AxisCM;              // Jenny Science LINAX, PLCopen Motion (Annex G)
+    // Jenny Science XENAX Xvi servo (Annex G, PLCopen Motion). NOT CABINET
+    // HARDWARE - read the note on PartFeedAxis before looking for it there.
+    PartFeed      : FB_AxisCM;
     ReleaseConditions : FB_PressDemoRelease; // project-owned, browseable condition state
     OutCmd        : ST_PneumaticPressOutCmd;
     OutImm        : ST_PneumaticPressOutImm;
@@ -30,9 +32,25 @@ VAR
     // never called: MC_Power against an unlinked AXIS_REF would otherwise run
     // every scan on a bench whose eight tests are green. Absent hardware is
     // absent, not silently pretended.
+    //
+    // WHAT THIS AXIS IS, AND IS NOT (2026-08-25). The delivered CX2030 cabinet
+    // has NO SERVO. Its approved I/O list is five Beckhoff terminals
+    // (=000+S-K010: EK1200 / EL1809 / EL2809 / EL6001 / EL9011 -- see
+    // Specification/Reports/CX2030_PRESS_IO_MAPPING.md), and the part feeder in
+    // that cabinet is PNEUMATIC: PartSlide above, driven by the digital outputs
+    // _101K301A/_101K301B. Do not go looking for this axis on the cabinet bus.
+    //
+    // The drive behind it is a Jenny Science XENAX Xvi (vendor #x557, product
+    // #x7508) on the DEV PC's own EtherCAT adapter, a second and separate bus.
+    // It is outside the press entirely and stands in for a feed axis so a real
+    // process can be simulated against real motion hardware. Anything it teaches
+    // (S3.8c) or persists (S3.8b) is BENCH data, not commissioning data for the
+    // press -- which is also why =000+S-A610-A1 (EtherCAT).xti, the faithful
+    // record of the delivered cabinet, does not mention it.
     {attribute 'OPC.UA.DA' := '0'}
     PartFeedAxis : AXIS_REF;
     _partFeedConfigured : BOOL;
+    _partFeedArmed : BOOL;             // last arming attempt's result (S5.6: no discarded return)
     // §10.5.1 - the project I/O catalog owns the approved channel identity join
     // (§10.2.1), so it, not this Unit, resolves a force request to a physical
     // channel. Absent = no force routing, which is the fail-closed default.
@@ -394,13 +412,28 @@ ELSE
         AirPressure := AirPressureMonitor);
 END_IF
 
+// S1.1 O1 - the axis ARMS ITSELF on the first scan a real NC axis is behind
+// it, rather than through a call a composition root has to remember. Forgetting
+// such a call produces a silently dead module, which is exactly the class of
+// defect the objective says to drive from a path the application already takes.
+// ConfigurePartFeedAxis is idempotent and fails closed, so calling it until it
+// succeeds costs one comparison per scan on a bench with no drive.
+IF NOT _partFeedConfigured THEN
+    // THIS^ is required: an unqualified same-FB call resolves only when its
+    // return value is discarded, and this one is not (C0009/C0035 otherwise).
+    _partFeedArmed := THIS^.ConfigurePartFeedAxis(AxisRef := PartFeedAxis);
+END_IF
 // The feed axis runs only once an NC axis has been linked (S10.6). Its
 // conditions are re-driven every scan so a manual move obeys the same rule as
 // a sequenced one (S7.2).
+//
+// The module itself is NOT called here: ConfigurePartFeedAxis registers it as a
+// child, and _M_TickChildren already ticks every registered child from
+// SUPER^.OnCyclic above. Calling it here as well would run the whole S6.1
+// lifecycle twice per scan.
 IF _partFeedConfigured THEN
     PartFeed.SetCondition(Index := 1, Ok := PneumaticPower.OutCmd.PowerOn);
     PartFeed.SetCondition(Index := 2, Ok := ReleaseConditions.RamGuardClosed);
-    PartFeed();
 END_IF
 
 // Latch access-gated Unit requests, then observe one full Execute-low scan before
@@ -659,6 +692,66 @@ Setup := Ok AND PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="ConfigurePartFeedAxis" Id="{792558b2-7746-4345-ab3f-f30cd23c917a}">
+      <Declaration><![CDATA[// Bind the NC axis for the part-feed servo and arm the module.
+//
+// Called from OnCyclic until it succeeds, so the axis arms itself the moment an
+// NC axis is linked and stays dormant forever on a bench without one. It is
+// idempotent and fails closed on both an invalid reference and an unlinked one
+// (AxisId 0), which is what makes calling it every scan safe.
+//
+// The drive is a Jenny Science XENAX Xvi over EtherCAT/CiA402 on the DEV PC's
+// own bus - a stand-in for a feed axis, not press cabinet hardware. See the
+// note on PartFeedAxis.
+//
+// The conditions are declared HERE rather than in FB_PressDemoRelease only
+// because the axis is not yet in the AUTO chain. When it joins the chain they
+// belong beside the other project permits in the Release object, which S7.2.1
+// prefers as a single visible component, and this method should shrink to
+// binding the reference.
+//
+// ParCfg limits are deliberately NOT set here. Soft limits, velocity and
+// acceleration come from the axis configuration and the recipe (S10.3); a Unit
+// that hard-codes a stroke is wrong the first time the mechanics change.
+METHOD ConfigurePartFeedAxis : BOOL
+VAR_INPUT
+    AxisRef : REFERENCE TO AXIS_REF;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT __ISVALIDREF(AxisRef) THEN
+    ConfigurePartFeedAxis := FALSE;
+    RETURN;
+END_IF
+// An AXIS_REF the System Manager has not linked to an NC axis carries AxisId 0.
+// This is the test that keeps "absent hardware is absent" true now that arming
+// is automatic: without it, a bench with no drive would Setup the module and
+// start commanding MC_Power against nothing.
+IF AxisRef.NcToPlc.AxisId = 0 THEN
+    ConfigurePartFeedAxis := FALSE;
+    RETURN;
+END_IF
+ConfigurePartFeedAxis := PartFeed.Setup(Name := CONCAT(Name, '.PartFeed'),
+    AxisRef := AxisRef, Recipe := 0);
+IF NOT ConfigurePartFeedAxis THEN
+    RETURN;
+END_IF
+// Project-owned conditions (S7.2.1): this Unit can name them, the library cannot.
+PartFeed.DeclareCondition(Index := 1, DescriptionKey := 'project.interlock.feedRequiresControlPower',
+    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+PartFeed.DeclareCondition(Index := 2, DescriptionKey := 'project.interlock.feedRequiresGuardClosed',
+    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+// Registered only once it is REAL. A registered child is ticked every scan,
+// joins the S8.2 first-out rollup, and appears in the S3.10.2 config walk - and
+// therefore in station parameter sets (S3.8b). Registering it unconditionally at
+// Setup would put an unnamed module in the published tree and a taught position
+// in every saved set for hardware that is not there.
+ConfigurePartFeedAxis := _M_Register(PartFeed);
+IF NOT ConfigurePartFeedAxis THEN
+    RETURN;                            // no free child slot: stay dormant
+END_IF
+_partFeedConfigured := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <LineIds Name="FB_PressDemoUnit">
       <LineId Id="2" Count="0" />
     </LineIds>
@@ -764,44 +857,5 @@ IF Setup THEN CommitRecipe(); END_IF]]></ST>
       <LineId Id="3" Count="50" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <Method Name="ConfigurePartFeedAxis" Id="{792558b2-7746-4345-ab3f-f30cd23c917a}">
-      <Declaration><![CDATA[// Bind the NC axis for the part-feed servo and arm the module.
-//
-// Called by the composition root ONCE an NC axis exists in the System Manager
-// and is linked to the drive (a Jenny Science LINAX over EtherCAT/CiA402 on
-// this bench). Until then the Unit does not call the module at all, so an
-// unlinked AXIS_REF is never commanded.
-//
-// The conditions are declared HERE rather than in FB_PressDemoRelease only
-// because the axis is not yet in the AUTO chain. When it joins the chain they
-// belong beside the other project permits in the Release object, which S7.2.1
-// prefers as a single visible component, and this method should shrink to
-// binding the reference.
-//
-// ParCfg limits are deliberately NOT set here. Soft limits, velocity and
-// acceleration come from the axis configuration and the recipe (S10.3); a Unit
-// that hard-codes a stroke is wrong the first time the mechanics change.
-METHOD ConfigurePartFeedAxis : BOOL
-VAR_INPUT
-    AxisRef : REFERENCE TO AXIS_REF;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF NOT __ISVALIDREF(AxisRef) THEN
-    ConfigurePartFeedAxis := FALSE;
-    RETURN;
-END_IF
-ConfigurePartFeedAxis := PartFeed.Setup(Name := CONCAT(Name, '.PartFeed'),
-    AxisRef := AxisRef, Recipe := 0);
-IF NOT ConfigurePartFeedAxis THEN
-    RETURN;
-END_IF
-// Project-owned conditions (S7.2.1): this Unit can name them, the library cannot.
-PartFeed.DeclareCondition(Index := 1, DescriptionKey := 'project.interlock.feedRequiresControlPower',
-    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
-PartFeed.DeclareCondition(Index := 2, DescriptionKey := 'project.interlock.feedRequiresGuardClosed',
-    Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
-_partFeedConfigured := TRUE;]]></ST>
-      </Implementation>
-    </Method>
   </POU>
 </TcPlcObject>
