@@ -26,6 +26,15 @@ local, uncommitted change.
 Note also that `PressDemo.tsproj` (TcVersion 3.1.4026.24) and `PressDemoX32.tsproj` (3.1.4024.75)
 reference this same XTI, so its `TcVersion` stamp is rewritten to whichever engineering last opened
 it. That churn is expected and carries no configuration meaning.
+
+**A second EtherCAT device exists and is NOT cabinet I/O.** `=000+S-A620 (EtherCAT)`, kept beside
+this one at `_Config/IO/=000+S-A620 (EtherCAT).xti`, carries a single Jenny Science XENAX Xvi servo
+(`Drive 6 (Xvi)`, vendor `#x00000557`, product `#x00007508`) driven through NC axis `Axis 2` and
+linked to `MAIN.PneumaticPress.PartFeedAxis`. The drive is outside the press: it stands in for a feed
+axis so a process can be simulated against real motion hardware. The delivered cabinet has no servo,
+and its part feeder is the pneumatic `PartSlide` on `_101K301A`/`_101K301B` above. Nothing that axis
+teaches or persists is commissioning data for this press, and the five terminals listed here remain
+the whole of the approved cabinet I/O.
 Target: `Fraktal_Press_Demo` on a CX2030 with locally attached EtherCAT terminals.
 
 Status: application mapping implemented; electrical and safety commissioning items below remain

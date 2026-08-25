@@ -41,12 +41,13 @@ VAR
     // _101K301A/_101K301B. Do not go looking for this axis on the cabinet bus.
     //
     // The drive behind it is a Jenny Science XENAX Xvi (vendor #x557, product
-    // #x7508) on the DEV PC's own EtherCAT adapter, a second and separate bus.
-    // It is outside the press entirely and stands in for a feed axis so a real
-    // process can be simulated against real motion hardware. Anything it teaches
-    // (S3.8c) or persists (S3.8b) is BENCH data, not commissioning data for the
-    // press -- which is also why =000+S-A610-A1 (EtherCAT).xti, the faithful
-    // record of the delivered cabinet, does not mention it.
+    // #x7508) on a SECOND EtherCAT device, =000+S-A620 (EtherCAT), kept in its
+    // own XTI beside the cabinet's. It is outside the press entirely and stands
+    // in for a feed axis so a real process can be simulated against real motion
+    // hardware. Anything it teaches (S3.8c) or persists (S3.8b) is BENCH data,
+    // not commissioning data for the press -- which is why =000+S-A610-A1
+    // (EtherCAT).xti, the faithful record of the delivered cabinet, does not
+    // mention it and must not be made to.
     {attribute 'OPC.UA.DA' := '0'}
     PartFeedAxis : AXIS_REF;
     _partFeedConfigured : BOOL;
