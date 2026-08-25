@@ -28,6 +28,9 @@ VAR
     _airPressureMonitor : REFERENCE TO FB_AirPressureMonitorCM;
     {attribute 'OPC.UA.DA' := '0'}
     _parCfg : REFERENCE TO ST_PneumaticPressParCfg;
+    // §3.8a - the cell's own policy, referenced like _parCfg.
+    {attribute 'OPC.UA.DA' := '0'}
+    _stationCfg : REFERENCE TO ST_PneumaticPressStationCfg;
     {attribute 'OPC.UA.DA' := '0'}
     _outCmd : REFERENCE TO ST_PneumaticPressOutCmd;
     {attribute 'OPC.UA.DA' := '0'}
@@ -1257,7 +1260,7 @@ END_VAR]]></Declaration>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"_parCfg.RequireTwoHandStart"</v>
+                                <v n="Operand">"_stationCfg.RequireTwoHandStart"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -1418,7 +1421,7 @@ END_VAR]]></Declaration>
                           </o>
                           <o t="BoxTreeOperand">
                             <o n="Operand" t="Operand">
-                              <v n="Operand">"_parCfg.RequireTwoHandStart"</v>
+                              <v n="Operand">"_stationCfg.RequireTwoHandStart"</v>
                               <v n="Type">"BOOL"</v>
                               <v n="Comment">""</v>
                               <v n="SymbolComment">""</v>
@@ -6704,7 +6707,7 @@ END_VAR]]></Declaration>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"_parCfg.RequireTwoHandStart"</v>
+                                <v n="Operand">"_stationCfg.RequireTwoHandStart"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -12396,7 +12399,7 @@ END_VAR]]></Declaration>
                             </o>
                             <o t="BoxTreeOperand">
                               <o n="Operand" t="Operand">
-                                <v n="Operand">"_parCfg.RequireTwoHandStart"</v>
+                                <v n="Operand">"_stationCfg.RequireTwoHandStart"</v>
                                 <v n="Type">"BOOL"</v>
                                 <v n="Comment">""</v>
                                 <v n="SymbolComment">""</v>
@@ -15257,6 +15260,7 @@ VAR_IN_OUT
     PartPresentSensor : FB_DigitalInputCM;
     AirPressureMonitor : FB_AirPressureMonitorCM;
     ParCfg : ST_PneumaticPressParCfg;
+    StationCfg : ST_PneumaticPressStationCfg;
     OutCmd : ST_PneumaticPressOutCmd;
     StartLatched : BOOL;
 END_VAR]]></Declaration>
@@ -15268,6 +15272,7 @@ _twoHand REF= TwoHand;
 _partPresentSensor REF= PartPresentSensor;
 _airPressureMonitor REF= AirPressureMonitor;
 _parCfg REF= ParCfg;
+_stationCfg REF= StationCfg;
 _outCmd REF= OutCmd;
 _startLatched REF= StartLatched;
 Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_door)

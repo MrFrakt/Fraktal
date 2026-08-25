@@ -271,20 +271,19 @@ _M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_NEG), Label := 'std.com
 Setup := PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF
 
-// §3.8b restore. Reading an unrecognized image BY FIELD POSITION is how a
-// changed layout silently becomes a wrong taught position, so it is not done:
-// an unknown version initializes the declared defaults instead.
-IF _station.SchemaVersion = 0 THEN
-    _station.SchemaVersion  := AXIS_STATIONCFG_SCHEMA;
-    _station.TaughtPosition := 0.0;          // never written - nothing was lost
-ELSIF _station.SchemaVersion <> AXIS_STATIONCFG_SCHEMA THEN
-    // A real image was rejected. The station runs on defaults, and says so - the
-    // difference between an empty machine and one that just lost its
-    // commissioning is exactly what the operator needs told.
-    _station.SchemaVersion  := AXIS_STATIONCFG_SCHEMA;
-    _station.TaughtPosition := 0.0;
-    _M_FaultN(Code := PL_ModuleReasons.AXIS_TEACH_LOST,
-              Text := 'std.error.axisTaughtPositionLost');
+// §3.8b restore, in one call. The rule - version 0 is a first boot that lost
+// nothing, any other unrecognized version means a real image was rejected and
+// is annunciated with this module's own path - is written ONCE in
+// FB_ModuleBase, because every module type with a StationCfg needs exactly it
+// (§1.1 O1). This type supplies only the part that is genuinely its own: what
+// its declared defaults are.
+//
+// The CONSEQUENCE of a loss is the deployment's, not this module's: the root
+// applies E_ConfigRestorePolicy. Faulting the axis here, as this used to,
+// forced BLOCK_UNTIL_ACKNOWLEDGED on every station that ever used an axis.
+IF NOT M_RestoreStationCfg(pVersion := ADR(_station.SchemaVersion),
+        SchemaVersion := AXIS_STATIONCFG_SCHEMA) THEN
+    _station.TaughtPosition := 0.0;          // this type's declared default
 END_IF
 
 // §3.8a - the taught position is an ordinary editable value: typeable by an

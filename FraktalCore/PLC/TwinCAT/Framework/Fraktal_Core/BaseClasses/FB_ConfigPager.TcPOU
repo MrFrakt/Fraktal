@@ -6,6 +6,16 @@
 // appended entry and stores only the requested page window into the published
 // ST_ConfigPage, so no full manifest buffer ever exists in PLC memory and the
 // walk order alone defines the paging. Exporters call M_Append*/ignore paging.
+//
+// §3.8b — it is ALSO the sink for a parameter-set save, and that is the whole
+// point of putting it here. A set is "a projection produced by the same
+// deterministic walk that builds the §3.10.2 manifest, keyed per value by
+// (Scope, WriteKey)". Making the set a second walk would be a second authority
+// on what a station's configuration consists of, and the two would drift the
+// first time a module registered a value (§1.1 O9). So M_SetupSetSave puts the
+// pager in record mode, the ordinary M_AppendConfig walk runs unchanged, and
+// every capability it emits is offered to the store. No exporter knows which
+// mode it is feeding, and none can be written to feed only one of them.
 FUNCTION_BLOCK FB_ConfigPager
 VAR
     {attribute 'OPC.UA.DA' := '0'}
@@ -13,6 +23,12 @@ VAR
     _cursor  : DINT;   // entries appended so far in this walk
     _first   : DINT;   // first cursor index stored in the window (0-based)
     _storedSlot : INT; // 1-based slot written by the last M_Append; 0 if absent
+    // §3.8b set-save mode. Exactly one of _pTarget / _setStore is ever live.
+    {attribute 'OPC.UA.DA' := '0'}
+    _setStore  : I_ConfigStore;
+    _setKind   : E_ConfigKind;
+    _setCount  : INT;
+    _setFailed : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[; // stateless between requests — driven entirely by M_Setup/M_Append/M_Finish]]></ST>
@@ -28,6 +44,7 @@ END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_Setup := FALSE;
 _pTarget := 0;
 _storedSlot := 0;
+_setStore := 0;                 // a manifest walk never writes set records
 IF Target = 0 THEN
     RETURN;
 END_IF
@@ -111,6 +128,12 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_AppendCapability := M_Append(Scope := Scope, Item := Item,
     ValueText := ValueText);
+// §3.8b — offered to an open set save BEFORE the page-window test, because a
+// set has no window: it takes every record the walk produces, whichever page
+// the same walk would have put it on.
+_M_OfferRecord(Scope := Scope, ValueText := ValueText, WriteKey := WriteKey,
+    WriteRevision := WriteRevision, ConfigKind := ConfigKind,
+    ValueType := ValueType, Writable := Writable);
 IF (_pTarget = 0) OR (_storedSlot <= 0) THEN
     RETURN;
 END_IF
@@ -128,6 +151,115 @@ _pTarget^.Entries[_storedSlot].Maximum := Maximum;
 _pTarget^.Entries[_storedSlot].Unit := Unit;
 _pTarget^.Entries[_storedSlot].LabelKey := LabelKey;
 _pTarget^.Entries[_storedSlot].EnumDomain := EnumDomain;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_OfferRecord" Id="{3e91d5a7-06c2-4b48-8f13-72a0c64e5b91}">
+      <Declaration><![CDATA[// §3.8b — offer one capability to an open set save. Called from
+// M_AppendCapability, so the set contains exactly what the manifest publishes
+// as editable and nothing else: no unregistered value can enter a set, and no
+// registered one can be forgotten by it.
+//
+// Only records of the set's own ConfigKind are taken — a station set carries
+// STATION_CFG, a model set carries PAR_CFG (§3.8b "one mechanism, two kinds").
+// Anything that will not fit a record FAILS the save rather than shortening a
+// value: a set that quietly lost a character restores a machine to almost its
+// commissioned state, which is worse than not restoring it.
+METHOD PRIVATE _M_OfferRecord
+VAR_INPUT
+    Scope         : STRING(255);
+    ValueText     : STRING(255);
+    WriteKey      : STRING(160);
+    WriteRevision : UDINT;
+    ConfigKind    : E_ConfigKind;
+    ValueType     : E_ConfigValueType;
+    Writable      : BOOL;
+END_VAR
+VAR
+    record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF _setStore = 0 THEN
+    RETURN;
+END_IF
+IF _setFailed THEN
+    RETURN;                     // a failed transaction takes no further records
+END_IF
+IF NOT Writable THEN
+    RETURN;                     // read-only publication is not configuration
+END_IF
+IF (WriteKey = '') OR (WriteRevision = 0) THEN
+    RETURN;                     // fails closed exactly as the manifest does
+END_IF
+IF ConfigKind <> _setKind THEN
+    RETURN;                     // the other kind of set owns this record
+END_IF
+IF TO_INT(LEN(Scope)) > 80 THEN
+    _setFailed := TRUE;
+    RETURN;
+END_IF
+IF TO_INT(LEN(ValueText)) > 80 THEN
+    _setFailed := TRUE;
+    RETURN;
+END_IF
+record.Scope := Scope;
+record.WriteKey := WriteKey;
+record.Revision := WriteRevision;
+record.Kind := ConfigKind;
+record.ValueType := ValueType;
+record.ValueText := ValueText;
+IF _setStore.M_SaveRecord(Record := record) THEN
+    _setCount := _setCount + 1;
+ELSE
+    _setFailed := TRUE;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SetupSetSave" Id="{7c48b23e-9105-4d6f-a927-b0e3546f18cd}">
+      <Declaration><![CDATA[// §3.8b — begin a parameter-set save. The caller then runs the ordinary
+// M_AppendConfig walk and closes with M_FinishSetSave.
+METHOD M_SetupSetSave : BOOL
+VAR_INPUT
+    Store : I_ConfigStore;
+    Info  : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetupSetSave := FALSE;
+_pTarget := 0;                  // a set walk never writes a manifest page
+_storedSlot := 0;
+_setStore := 0;
+_setCount := 0;
+_setFailed := FALSE;
+IF Store = 0 THEN
+    RETURN;
+END_IF
+IF NOT Store.M_SaveBegin(Info := Info) THEN
+    RETURN;
+END_IF
+_setStore := Store;
+_setKind := Info.Kind;
+M_SetupSetSave := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_FinishSetSave" Id="{2a0fe671-d3b9-4c07-85ae-916bc4d270e3}">
+      <Declaration><![CDATA[// §3.8b — close the set save. FALSE means nothing was stored: an empty set, a
+// record that would not fit, or a store that refused the commit. The previous
+// set of that name is left exactly as it was.
+METHOD M_FinishSetSave : BOOL
+VAR_OUTPUT
+    Records : INT;
+END_VAR
+VAR
+    store : I_ConfigStore;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_FinishSetSave := FALSE;
+Records := _setCount;
+store := _setStore;
+_setStore := 0;
+IF store = 0 THEN
+    RETURN;
+END_IF
+IF _setFailed OR (_setCount = 0) THEN
+    // An empty set is refused rather than stored: a named set that restores
+    // nothing is the one somebody loads believing it did something.
+    store.M_SaveAbort();
+    RETURN;
+END_IF
+M_FinishSetSave := store.M_SaveCommit();]]></ST></Implementation>
     </Method>
     <Method Name="M_AppendNumber" Id="{f0b6c823-5a1d-4e97-8b40-1c9ea6d0742f}">
       <Declaration><![CDATA[METHOD M_AppendNumber : BOOL

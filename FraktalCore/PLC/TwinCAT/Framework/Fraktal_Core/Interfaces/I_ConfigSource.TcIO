@@ -47,5 +47,41 @@ VAR_INPUT
     RootReady : BOOL;
 END_VAR]]></Declaration>
     </Method>
+    <Method Name="M_StageConfigWrite" Id="{5b18e0c4-73a9-4d26-91f8-e07c5a2d3b96}">
+      <Declaration><![CDATA[// §3.8b — validate one write WITHOUT applying it. Same module, same key lookup,
+// same revision check, same RequiresReady rule, same type-specific invariant
+// hook, same range and domain checks as M_ApplyConfigWrite — and then nothing
+// is stored.
+//
+// This exists because a parameter-set load is staged and all-or-nothing: every
+// record must be proven acceptable BEFORE any value changes, since a
+// half-applied machine parametrization is never a valid outcome. A separate
+// validation predicate would be free to drift from the write path; this one
+// shares the single validator with it, so "would be accepted" and "was
+// accepted" cannot disagree.
+METHOD M_StageConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_TakeRestoreLoss" Id="{a3c07e91-6425-4b8d-bf03-19e582c74011}">
+      <Declaration><![CDATA[// §3.8b — hand the root ONE not-yet-reported configuration restore loss from
+// this module or its children, so the root can annunciate it with the owning
+// module's canonical path and apply the deployment's E_ConfigRestorePolicy.
+//
+// The module marks each loss reported as it hands it over, so the root simply
+// drains this until it returns FALSE. That is what makes the annunciation
+// exactly-once without either side keeping a list.
+METHOD M_TakeRestoreLoss : BOOL
+VAR_OUTPUT
+    Path     : STRING(80);   // canonical identity of the module that lost it
+    Expected : UINT;         // schema version this build understands
+    Found    : UINT;         // schema version actually retained
+END_VAR]]></Declaration>
+    </Method>
   </Itf>
 </TcPlcObject>

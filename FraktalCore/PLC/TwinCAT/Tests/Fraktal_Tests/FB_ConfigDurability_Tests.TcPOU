@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ConfigDurability_Tests" Id="{6b48f0c2-9d31-47ae-85b0-72e419c6d503}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b under test, the half that is about TIME rather than content:
+//
+//   * a retained image is restored, or the module runs on declared defaults -
+//     and the difference between "never written" and "written by a build that
+//     laid it out differently" is the difference between silence and an alarm;
+//   * an accepted write is LIVE, and stays PUBLISHED AS NOT DURABLE until the
+//     store says otherwise, within a window the deployment declares;
+//   * what a lost image COSTS is the deployment's declaration, not the module's:
+//     the same loss either annunciates and runs, or refuses START_STOP until an
+//     ENGINEER acknowledges it.
+//
+// The fixture is the same FB_ProbeConfigUnit/FB_ProbeConfigCM pair the §3.10.2
+// write suite uses, on purpose: neither probe contains one line of persistence
+// code, so if these pass, a station gets all of it for free (§1.1 O1).
+FUNCTION_BLOCK FB_ConfigDurability_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u        : FB_ProbeConfigUnit;
+    _init     : BOOL;
+    _store    : FB_LocalConfigStore;
+    _persist  : FB_ProbeConfigPersistence;
+    _users    : FB_LocalAccessProvider;
+    _report   : ST_ReleaseReport;
+    _version  : UINT;                 // a stand-in retained StationCfg image
+    _path     : STRING(80);
+    _expected : UINT;
+    _found    : UINT;
+    _taken    : BOOL;
+    _released : BOOL;
+    _i        : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[First_boot_initializes_silently();
+A_matching_version_restores_and_reports_nothing();
+An_unrecognized_version_is_reported_once_with_its_owner();
+The_root_annunciates_a_loss_without_blocking_on_its_own();
+Blocking_policy_refuses_start_until_an_engineer_acknowledges();
+An_accepted_write_is_pending_until_the_store_completes();
+A_store_that_refuses_publishes_PersistFailed();
+An_elapsed_window_publishes_PersistFailed();]]></ST>
+    </Implementation>
+    <Method Name="_M_Arm" Id="{9b0e7412-a6c3-4d58-82f1-4e7305cb96da}">
+      <Declaration><![CDATA[// One-time wiring, on the first test rather than in a constructor. The store and
+// the durability stub are INJECTED the way a composition root injects them, so
+// these tests drive the same surface MAIN does.
+METHOD PRIVATE _M_Arm]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _init THEN
+    RETURN;
+END_IF
+_init := TRUE;
+_u.Setup(Name := 'Test.Durability');
+_u();
+_u.SetConfigStore(Store := _store);
+_u.SetConfigPersistence(Provider := _persist);
+_users.Register(User := 'eng', Pin := '4242', Level := E_AccessLevel.ENGINEER);
+_u.Access.Setup(Provider := _users, pAlarmLog := ADR(_u.AlarmLog));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_TakeLoss" Id="{1d84f60b-27ae-4935-b0c6-59e83f107a2d}">
+      <Declaration><![CDATA[// Take every outstanding restore loss from the root, exactly as OnCyclic does,
+// and leave the LAST one in the suite's fields.
+METHOD PRIVATE _M_TakeLoss : BOOL
+VAR
+    guard : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_TakeLoss := FALSE;
+FOR guard := 1 TO 8 DO
+    IF NOT _u.M_TakeRestoreLoss(Path => _path, Expected => _expected,
+            Found => _found) THEN
+        RETURN;
+    END_IF
+    _M_TakeLoss := TRUE;
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="First_boot_initializes_silently" Id="{4a92c7e0-b135-486d-9fe2-70c518a3b649}">
+      <Declaration><![CDATA[METHOD First_boot_initializes_silently]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('First_boot_initializes_silently');
+_M_Arm();
+_M_TakeLoss();                            // clear anything an earlier test left
+_version := 0;                            // never written
+AssertFalse(Condition := _u.Child.M_RestoreStationCfg(pVersion := ADR(_version),
+    SchemaVersion := 1),
+    Message := 'a first boot has no values to restore, so the caller defaults');
+AssertEquals_UINT(Expected := 1, Actual := _version,
+    Message := 'the version is stamped forward, so the next boot is an ordinary restore');
+AssertFalse(Condition := _M_TakeLoss(),
+    Message := 'a first boot LOST nothing and shall not annunciate (3.8b)');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_matching_version_restores_and_reports_nothing" Id="{7f31de05-84b9-42c6-a70d-1c95e2740b83}">
+      <Declaration><![CDATA[METHOD A_matching_version_restores_and_reports_nothing]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_matching_version_restores_and_reports_nothing');
+_M_Arm();
+_M_TakeLoss();
+_version := 1;
+AssertTrue(Condition := _u.Child.M_RestoreStationCfg(pVersion := ADR(_version),
+    SchemaVersion := 1),
+    Message := 'a recognized image restores, and the caller keeps its values');
+AssertFalse(Condition := _M_TakeLoss(),
+    Message := 'a successful restore reports nothing');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="An_unrecognized_version_is_reported_once_with_its_owner" Id="{c05a8b73-6e42-49f1-83d0-b27e415c96fa}">
+      <Declaration><![CDATA[METHOD An_unrecognized_version_is_reported_once_with_its_owner]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('An_unrecognized_version_is_reported_once_with_its_owner');
+_M_Arm();
+_M_TakeLoss();
+_version := 7;                            // a real image, written by another layout
+AssertFalse(Condition := _u.Child.M_RestoreStationCfg(pVersion := ADR(_version),
+    SchemaVersion := 1),
+    Message := 'an unrecognized image is REJECTED, never read by field position');
+AssertEquals_UINT(Expected := 1, Actual := _version,
+    Message := 'the version is stamped forward so the loss annunciates once, not every boot');
+AssertTrue(Condition := _M_TakeLoss(),
+    Message := 'losing a real image is reported (3.8b: never silent)');
+AssertEquals_STRING(Expected := 'Test.Durability.Child', Actual := _path,
+    Message := 'the report names the OWNING module, which is what makes it actionable');
+AssertEquals_UINT(Expected := 1, Actual := _expected,
+    Message := 'the report carries the schema this build understands');
+AssertEquals_UINT(Expected := 7, Actual := _found,
+    Message := 'and the schema actually found');
+AssertFalse(Condition := _M_TakeLoss(),
+    Message := 'taking a loss clears it: one annunciation per boot, not one per scan');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="The_root_annunciates_a_loss_without_blocking_on_its_own" Id="{2e7048ca-19b5-4d73-96e8-5f0c31da7b24}">
+      <Declaration><![CDATA[// §3.8b: the annunciation is AUTO_RESET and therefore never blocking. The
+// consequence belongs to E_ConfigRestorePolicy, so a station that declared
+// DEFAULTS_AND_ANNUNCIATE really does keep running while the alarm stands.
+METHOD The_root_annunciates_a_loss_without_blocking_on_its_own]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('The_root_annunciates_a_loss_without_blocking_on_its_own');
+_M_Arm();
+_M_TakeLoss();
+_u.SetConfigRestorePolicy(Policy := E_ConfigRestorePolicy.DEFAULTS_AND_ANNUNCIATE);
+_version := 9;
+_u.Child.M_RestoreStationCfg(pVersion := ADR(_version), SchemaVersion := 1);
+_u();                                     // OnCyclic drains and annunciates
+AssertTrue(Condition := _u.ConfigPersist.RestoreLost,
+    Message := 'the root publishes that something in its subtree lost its image');
+AssertEquals_STRING(Expected := 'Test.Durability.Child',
+    Actual := _u.ConfigPersist.LostPath,
+    Message := 'and publishes whose');
+AssertFalse(Condition := _u.ConfigPersist.RestoreAcknowledged,
+    Message := 'nobody has accepted the loss yet');
+AssertFalse(Condition := _u.AlarmLog.Blocking,
+    Message := 'the standing annunciation is AUTO_RESET: loud, never a Start block');
+_released := _u.ReleaseReportStart(Report := _report);
+AssertTrue(Condition := _released,
+    Message := 'DEFAULTS_AND_ANNUNCIATE runs the station and lets the alarm stand');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Blocking_policy_refuses_start_until_an_engineer_acknowledges" Id="{8d16b4f9-30c7-4a25-be08-1739ea5c40d6}">
+      <Declaration><![CDATA[// §3.8b BLOCK_UNTIL_ACKNOWLEDGED: no START_STOP release until an operator of at
+// least ENGINEER level accepts the loss. The release is restored by the
+// ACKNOWLEDGEMENT, never by the loss going away - nothing brings a lost image back.
+METHOD Blocking_policy_refuses_start_until_an_engineer_acknowledges]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Blocking_policy_refuses_start_until_an_engineer_acknowledges');
+_M_Arm();
+_M_TakeLoss();
+_u.SetConfigRestorePolicy(Policy := E_ConfigRestorePolicy.BLOCK_UNTIL_ACKNOWLEDGED);
+_version := 11;
+_u.Child.M_RestoreStationCfg(pVersion := ADR(_version), SchemaVersion := 1);
+_u();
+AssertTrue(Condition := _u.ConfigPersist.RestoreLost,
+    Message := 'the loss is published');
+_released := _u.ReleaseReportStart(Report := _report);
+AssertFalse(Condition := _released,
+    Message := 'a station that lost its commissioning does not start pretending it did not');
+AssertFalse(Condition := _u.Start(),
+    Message := 'and Start consumes that same report, so the two cannot disagree');
+// An operator below ENGINEER cannot make this go away.
+_u.Access.RequestLogout();
+AssertFalse(Condition := _u.AcknowledgeConfigRestore(),
+    Message := 'acknowledging a lost commissioning is an ENGINEER-level act (3.8b)');
+AssertFalse(Condition := _u.ConfigPersist.RestoreAcknowledged,
+    Message := 'a refused acknowledgement changes nothing');
+AssertTrue(Condition := _u.Access.RequestLogin(User := 'eng', Secret := '4242'),
+    Message := 'the fixture provides an ENGINEER session');
+AssertTrue(Condition := _u.AcknowledgeConfigRestore(),
+    Message := 'an ENGINEER may accept the loss');
+_released := _u.ReleaseReportStart(Report := _report);
+AssertTrue(Condition := _released,
+    Message := 'the acknowledgement, not the condition, is what releases Start again');
+AssertTrue(Condition := _u.ConfigPersist.RestoreLost,
+    Message := 'and the loss itself is still published: acknowledged is not undone');
+_u.Access.RequestLogout();
+_u.SetConfigRestorePolicy(Policy := E_ConfigRestorePolicy.DEFAULTS_AND_ANNUNCIATE);
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="An_accepted_write_is_pending_until_the_store_completes" Id="{b3402fe7-c586-4901-8d7a-6014c3b95e28}">
+      <Declaration><![CDATA[// §3.8b: "Transport acknowledgement and Accepted mean a value is LIVE, not that
+// it is DURABLE." This is that sentence as a test.
+METHOD An_accepted_write_is_pending_until_the_store_completes]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('An_accepted_write_is_pending_until_the_store_completes');
+_M_Arm();
+_u.SetConfigPersistWindow(WindowMs := 60000);
+_persist.M_SetOutcome(Failed := FALSE, Refuse := FALSE);
+_persist.M_SetHold(Hold := TRUE);         // the store does not finish yet
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Durability',
+    WriteKey := 'probe.cycleLimit', Revision := 1, TextValue := '42'),
+    Message := 'the write is accepted');
+AssertTrue(Condition := _u.ConfigPersist.Pending,
+    Message := 'accepted means LIVE - the root publishes that it is not yet durable');
+AssertFalse(Condition := _u.ConfigPersist.Failed,
+    Message := 'pending is not failed');
+_u();
+AssertTrue(Condition := _u.ConfigPersist.Pending,
+    Message := 'and it stays pending for as long as the store is still working');
+_persist.M_SetHold(Hold := FALSE);
+_u();
+_u();
+AssertFalse(Condition := _u.ConfigPersist.Pending,
+    Message := 'the value is durable once the store completes');
+AssertFalse(Condition := _u.ConfigPersist.Failed,
+    Message := 'a completed write is not a failed one');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_store_that_refuses_publishes_PersistFailed" Id="{5c9871ad-4b30-42e6-97f1-0a28de63b47c}">
+      <Declaration><![CDATA[METHOD A_store_that_refuses_publishes_PersistFailed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_store_that_refuses_publishes_PersistFailed');
+_M_Arm();
+_u.SetConfigPersistWindow(WindowMs := 60000);
+_persist.M_SetHold(Hold := FALSE);
+_persist.M_SetOutcome(Failed := FALSE, Refuse := TRUE);
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Durability',
+    WriteKey := 'probe.cycleLimit', Revision := 1, TextValue := '43'),
+    Message := 'the VALUE is still accepted: it is live, and that is not in doubt');
+AssertTrue(Condition := _u.ConfigPersist.Failed,
+    Message := 'a store that will not even start is a failure, not a quiet no-op');
+AssertTrue(Condition := _u.ConfigPersist.Pending,
+    Message := 'and the value is STILL not durable, so it stays pending');
+AssertFalse(Condition := _u.AlarmLog.Blocking,
+    Message := 'the annunciation does not stop a machine that can still finish its parts');
+// A store that starts working again clears both on the next accepted write.
+_persist.M_SetOutcome(Failed := FALSE, Refuse := FALSE);
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Durability',
+    WriteKey := 'probe.cycleLimit', Revision := 1, TextValue := '44'),
+    Message := 'a later write is accepted');
+_u();
+_u();
+AssertFalse(Condition := _u.ConfigPersist.Failed,
+    Message := 'a successful write clears the failure it re-armed');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="An_elapsed_window_publishes_PersistFailed" Id="{0f6d29b8-51e4-4c37-a95b-8e2703da1465}">
+      <Declaration><![CDATA[// §3.8b declares a BOUNDED window, and a bound nobody measures is not a bound.
+// WindowMs := 0 declares "durable in the same scan or not at all", which is the
+// honest declaration for a store that cannot be slow.
+METHOD An_elapsed_window_publishes_PersistFailed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('An_elapsed_window_publishes_PersistFailed');
+_M_Arm();
+_persist.M_SetOutcome(Failed := FALSE, Refuse := FALSE);
+_persist.M_SetHold(Hold := TRUE);         // never completes
+_u.SetConfigPersistWindow(WindowMs := 0);
+AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Durability',
+    WriteKey := 'probe.cycleLimit', Revision := 1, TextValue := '45'),
+    Message := 'the write is accepted');
+AssertTrue(Condition := _u.ConfigPersist.Pending, Message := 'and is pending');
+FOR _i := 1 TO 3 DO
+    _u();
+END_FOR
+AssertTrue(Condition := _u.ConfigPersist.Failed,
+    Message := 'a store still working past the DECLARED window has failed the declaration');
+AssertTrue(Condition := _u.ConfigPersist.Pending,
+    Message := 'the value is still not durable, so it is still pending');
+_persist.M_SetHold(Hold := FALSE);
+_u.SetConfigPersistWindow(WindowMs := PL_Fraktal.CONFIG_PERSIST_WINDOW_MS);
+_u();
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

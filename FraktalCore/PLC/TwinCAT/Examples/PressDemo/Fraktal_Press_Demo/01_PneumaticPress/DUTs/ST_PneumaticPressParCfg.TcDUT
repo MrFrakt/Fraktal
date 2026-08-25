@@ -5,12 +5,22 @@
 // v2 adds the §8.11 performance references: per-model ideal cycle (OEE
 // Performance denominator, §8.5.1) and the WORK-time degradation baseline
 // (§8.11.4(d); 0 = watch off).
+//
+// v3 REMOVES RequireTwoHandStart. It was recipe data in name only - every one of
+// the four catalog records set it TRUE - and §3.8a's test is whether the value
+// changes with the model. It does not: it answers whether this CELL's risk
+// assessment demands a two-hand start, which is deployment data and now lives in
+// ST_PneumaticPressStationCfg. A recipe that could switch it off would let a
+// changeover quietly remove a required operator protection.
+//
+// TransferSettleTime deliberately STAYED. Its catalog values genuinely differ per
+// model (80/100/120/150 ms): a heavier steel blank settles on the slide more
+// slowly than a plastic one, so it is a fact about the part, not the mechanism.
 TYPE ST_PneumaticPressParCfg :
 STRUCT
-    SchemaVersion       : UINT := 2;
+    SchemaVersion       : UINT := 3;
     PressSettleTime     : TIME := T#500MS;
     TransferSettleTime  : TIME := T#100MS;
-    RequireTwoHandStart : BOOL := TRUE;
     IdealCycleMs        : UDINT := 0;    // §8.5.1 — 0 = Performance not computed
     BaselineWorkMs      : UDINT := 0;    // §8.11.4(d) — 0 = degradation watch off
 END_STRUCT

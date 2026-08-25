@@ -231,6 +231,34 @@
       "action": "Rebuild and download this station without the named engineering gate before FAT/SAT and before production release (Core 7.5).",
       "consequence": "This controller is running a commissioning build that deliberately departs from its production configuration."
     },
+    "CONFIG_RESTORE_LOST": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Restore the named module's configuration before running production: re-enter its values or load a saved parameter set, then acknowledge the loss at ENGINEER level.",
+      "consequence": "The named module is running on its compiled-in defaults instead of the values this machine was commissioned with."
+    },
+    "CONFIG_PERSIST_FAILED": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Investigate the controller's persistent storage before restarting: configuration accepted since the last successful write will not survive a restart.",
+      "consequence": "Accepted configuration changes are live but not durable, so the station will silently revert to older values at its next restart."
+    },
+    "CONFIG_SET_REJECTED": {
+      "priority": "LOW",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Correct the value named by the reported scope and key in the parameter set, or take a fresh set from a machine on this software version, then load it again.",
+      "consequence": "The parameter set was not applied; the machine kept its previous parametrization in full."
+    },
+    "EVENT_CONFIG_SET_APPLIED": {
+      "priority": "LOW",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "",
+      "consequence": "A named parameter set replaced this root's configuration; the set name and record count are in the audit record."
+    },
     "TEST_FAULT": {
       "priority": "LOW",
       "category": "SYSTEM",
@@ -517,13 +545,6 @@
       "shelvable": false,
       "action": "None if you released the control deliberately. If you were still holding it, the connection to the panel was interrupted - check the handheld's link before jogging again.",
       "consequence": "The axis stopped because the jog request stopped arriving."
-    },
-    "AXIS_TEACH_LOST": {
-      "priority": "HIGH",
-      "category": "PROCESS",
-      "shelvable": false,
-      "action": "Re-teach the axis position before running production: jog to the position and capture it. The stored value was written by an older software version and could not be read safely.",
-      "consequence": "The axis is running on its default position instead of the one that was taught, so any move that relies on it will go to the wrong place."
     }
   }
 }

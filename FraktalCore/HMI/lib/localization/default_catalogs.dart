@@ -340,6 +340,23 @@ const standardEnglish = <String, String>{
       'The requested access-policy level is invalid.',
   'std.error.alarmIdentityNotUnique':
       'No unique active alarm matches the requested identity.',
+  // Core §3.8b — configuration durability and parameter sets.
+  'std.error.configRestoreLost':
+      'This module started on its default configuration: the stored values could not be read by this software version.',
+  'std.error.configPersistFailed':
+      'Configuration changes are active but could not be saved to permanent storage. They will be lost if the controller restarts.',
+  'std.error.configRestoreAckRefused':
+      'Acknowledging a lost configuration requires an Engineer-level login.',
+  'std.error.configSetRejected':
+      'The parameter set was not applied. Nothing on the machine was changed.',
+  'std.error.configSetHalfApplied':
+      'A parameter set failed partway through applying. Check the reported value before running production.',
+  'std.error.configSetKindInvalid':
+      'The requested parameter-set type is not station configuration or model data.',
+  'std.error.configSetLineRejected':
+      'That line of the parameter-set document could not be read.',
+  'std.release.configRestoreUnacknowledged':
+      'A lost configuration must be acknowledged by an Engineer before this station can start.',
   'std.release.noActiveDecision':
       'No decision is currently awaiting an answer.',
   'std.release.invalidDecisionOption':
@@ -477,6 +494,10 @@ const standardEnglish = <String, String>{
   'std.audit.manualCommandAccepted': 'Manual command accepted.',
   'std.audit.manualCommandRejected': 'Manual command rejected.',
   'std.audit.oeeReset': 'OEE counters reset.',
+  // Press bench §3.8b station configuration (project band, project.* keys).
+  'project.config.pressRequireTwoHandStart': 'Require two-hand start',
+  'project.config.pressStallGuardMs': 'Step stall guard',
+  'std.audit.configSetApplied': 'Parameter set applied.',
   'std.audit.alarmShelved': 'Alarm shelved.',
   'std.audit.alarmUnshelved': 'Alarm unshelved.',
   'std.changeover.requestRejected':
@@ -1061,6 +1082,23 @@ const standardSpanish = <String, String>{
       'El nivel solicitado para la política de acceso no es válido.',
   'std.error.alarmIdentityNotUnique':
       'Ninguna alarma activa coincide de forma única con la identidad solicitada.',
+  // Core §3.8b — durabilidad de la configuración y juegos de parámetros.
+  'std.error.configRestoreLost':
+      'Este módulo arrancó con su configuración por defecto: esta versión del software no pudo leer los valores guardados.',
+  'std.error.configPersistFailed':
+      'Los cambios de configuración están activos pero no se pudieron guardar en memoria permanente. Se perderán si el controlador se reinicia.',
+  'std.error.configRestoreAckRefused':
+      'Reconocer una configuración perdida requiere una sesión de nivel Ingeniero.',
+  'std.error.configSetRejected':
+      'El juego de parámetros no se aplicó. No se modificó nada en la máquina.',
+  'std.error.configSetHalfApplied':
+      'Un juego de parámetros falló a mitad de la aplicación. Revise el valor indicado antes de producir.',
+  'std.error.configSetKindInvalid':
+      'El tipo de juego de parámetros solicitado no es configuración de estación ni datos de modelo.',
+  'std.error.configSetLineRejected':
+      'No se pudo leer esa línea del documento del juego de parámetros.',
+  'std.release.configRestoreUnacknowledged':
+      'Un Ingeniero debe reconocer la configuración perdida antes de que esta estación pueda arrancar.',
   'std.release.noActiveDecision': 'No hay una decisión esperando respuesta.',
   'std.release.invalidDecisionOption':
       'La respuesta elegida no pertenece a las opciones activas.',

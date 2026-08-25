@@ -70,7 +70,17 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _ldReleaseConditions : FB_LD_PressDemoRelease;
 END_VAR
+VAR PERSISTENT
+    // §3.8b - this station's deployment data. PERSISTENT is the BACKING, not the
+    // architecture: the values are reached as (Scope, WriteKey) capabilities like
+    // every other editable value, never as an aggregate copied in and out.
+    _station : ST_PneumaticPressStationCfg;
+END_VAR
 VAR CONSTANT
+    // §3.8b - layout version of the retained image above. Bump it when a member
+    // is added, and the old image is rejected and annunciated instead of read by
+    // field position.
+    PRESS_STATIONCFG_SCHEMA : UINT := 1;
     // Which rendition of the AUTO chain runs. VAR CONSTANT on purpose, like the
     // §6.0 commissioning gates in MAIN: switching language is a source edit plus a
     // download, never an online write. The compiler folds the unselected branches.
@@ -367,6 +377,11 @@ _M_ResetModeSequences();]]></ST>
       <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+// §3.8b/§3.12 — the step guard is DERIVED from the station value every scan, not
+// latched at Setup. An operator who edits press.stallGuardMs gets the new guard
+// on the next step, and the published StallTime can never disagree with the
+// configuration it came from.
+StallTime := UDINT_TO_TIME(_station.StallGuardMs);
 // Project release engineering is a separate visible component. It owns the
 // functional collision permits and mode-entry conditions consumed below.
 IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
@@ -582,20 +597,36 @@ Ok := _changeoverSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Doo
     PartSlide := PartSlide, OutCmd := OutCmd, Model := Model) AND Ok;
 // Only the selected rendition is attached: M_Attach registers the chain with the
 // Unit, so attaching all three would put three chains on one step pointer.
+// §3.8b restore, BEFORE the chains are set up: they take _station by reference
+// and the first scan must already see either the commissioned values or the
+// declared defaults, never a half-initialized image. The rule itself lives in
+// FB_ModuleBase - this type supplies only what is genuinely its own, which is
+// what its defaults are.
+IF NOT M_RestoreStationCfg(pVersion := ADR(_station.SchemaVersion),
+        SchemaVersion := PRESS_STATIONCFG_SCHEMA) THEN
+    // Fail-safe defaults: two-hand REQUIRED (a lost risk-assessment policy must
+    // never come back as the permissive one), and the framework's own 30 s
+    // stall guard.
+    _station.RequireTwoHandStart := TRUE;
+    _station.StallGuardMs := 30000;
+END_IF
 IF AUTO_SEQUENCE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
     Ok := _ldAutoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
         PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
-        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg, OutCmd := OutCmd,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg,
+        StationCfg := _station, OutCmd := OutCmd,
         StartLatched := _startLatched) AND Ok;
 ELSIF AUTO_SEQUENCE_LANGUAGE = E_RenditionLanguage.SEQUENTIAL_FUNCTION_CHART THEN
     Ok := _sfcAutoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
         PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
-        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg, OutCmd := OutCmd,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg,
+        StationCfg := _station, OutCmd := OutCmd,
         StartLatched := _startLatched) AND Ok;
 ELSE
     Ok := _autoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
         PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
-        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg, OutCmd := OutCmd,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg,
+        StationCfg := _station, OutCmd := OutCmd,
         StartLatched := _startLatched) AND Ok;
 END_IF
 PneumaticPower.ParCfg.Kind := E_PowerGroupKind.VALVE_ZONE;
@@ -608,6 +639,22 @@ Ok := _M_Register(TwoHand) AND Ok;
 Ok := _M_Register(PneumaticPower) AND Ok;
 Ok := _M_Register(PartPresentSensor) AND Ok;
 Ok := _M_Register(AirPressureMonitor) AND Ok;
+// §3.8a/§3.10.2 - the two deployment values become editable CAPABILITIES. That
+// registration, not publication and not DATA_WRITE, is what makes them writable,
+// and it is also what puts them into a station parameter set: SaveConfigSet walks
+// the same registry (§3.8b), so a value registered here needs no separate line
+// anywhere to be saved, listed, exported and restored.
+Ok := M_RegisterConfigFlag(Key := 'press.requireTwoHandStart',
+    Item := 'StationCfg/RequireTwoHandStart',
+    LabelKey := 'project.config.pressRequireTwoHandStart',
+    Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(_station.RequireTwoHandStart),
+    RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigNumber(Key := 'press.stallGuardMs',
+    Item := 'StationCfg/StallGuardMs',
+    LabelKey := 'project.config.pressStallGuardMs', Unit := 'ms',
+    Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_UDINT,
+    pTarget := ADR(_station.StallGuardMs), Minimum := 1000.0, Maximum := 600000.0,
+    RequiresReady := TRUE) AND Ok;
 Setup := Ok AND PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF]]></ST>
       </Implementation>

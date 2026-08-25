@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeConfigPersistence" Id="{2c7b95e1-40d6-4a83-91f7-b83e0d5169a4}" SpecialFunc="None">
+    <Declaration><![CDATA[// §3.8b test double for I_ConfigPersistence. A real durability provider talks
+// to the runtime over ADS and completes when it completes, which is not
+// something a scan-stepped test can drive; this one is driven explicitly so a
+// suite can hold a write PENDING, complete it, or fail it on demand.
+//
+// It is a TEST fixture and lives in the test project, not in the library: C8
+// forbids exactly this shape shipping inside a reusable type (§5.7).
+FUNCTION_BLOCK FB_ProbeConfigPersistence IMPLEMENTS I_ConfigPersistence
+VAR_OUTPUT
+    Requests : UDINT;         // proves the root actually asked, not just published
+END_VAR
+VAR
+    _busy       : BOOL;
+    _failed     : BOOL;
+    _refuse     : BOOL;       // M_Request itself is refused (a store that will not start)
+    _holdBusy   : BOOL;       // stay busy until the test says otherwise
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="M_Request" Id="{8f14c02b-6d95-4e37-a801-c47bf3e02159}">
+      <Declaration><![CDATA[METHOD M_Request : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Requests := Requests + 1;
+IF _refuse THEN
+    M_Request := FALSE;
+    RETURN;
+END_IF
+_busy := TRUE;
+M_Request := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Cyclic" Id="{b6023de4-1c78-45a9-83f0-27ed14c96b58}">
+      <Declaration><![CDATA[METHOD M_Cyclic : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _busy AND NOT _holdBusy THEN
+    _busy := FALSE;                      // completes on the very next scan
+END_IF
+M_Cyclic := _busy;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Failed" Id="{47e91b6c-3a20-4d58-bf19-05c8720de3a1}">
+      <Declaration><![CDATA[METHOD M_Failed : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Failed := _failed;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetHold" Id="{d5107fa8-92c4-4b06-8e73-1ba6905cf24d}">
+      <Declaration><![CDATA[// Keep an accepted write in flight, so a suite can observe PersistPending.
+METHOD M_SetHold
+VAR_INPUT
+    Hold : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_holdBusy := Hold;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetOutcome" Id="{6a3c81df-70e5-4297-b04a-e916283bc705}">
+      <Declaration><![CDATA[// Decide what the NEXT completion reports. Refuse = the store will not even
+// start, which §3.8b treats as a failure and not as a quiet no-op.
+METHOD M_SetOutcome
+VAR_INPUT
+    Failed : BOOL;
+    Refuse : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_failed := Failed;
+_refuse := Refuse;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

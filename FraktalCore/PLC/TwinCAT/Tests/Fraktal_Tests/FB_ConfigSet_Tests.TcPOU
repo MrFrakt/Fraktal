@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ConfigSet_Tests" Id="{af31b60d-7c92-4e58-b013-6d5487ea92c1}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b under test, the half that is about CONTENT:
+//
+//   * a set is a PROJECTION of the same deterministic walk that builds the
+//     §3.10.2 manifest - not a second list of what a station's configuration
+//     consists of, which would be free to drift from the first;
+//   * it is records keyed by (Scope, WriteKey), never a byte image, which is
+//     what lets one bad value be rejected without rejecting all of them;
+//   * a load is STAGED and ALL-OR-NOTHING, so a set that is wrong anywhere
+//     changes nothing anywhere;
+//   * and the whole set moves as TEXT, because a set that cannot leave the
+//     controller is just retentive memory with a name on it.
+FUNCTION_BLOCK FB_ConfigSet_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u       : FB_ProbeConfigUnit;
+    _init    : BOOL;
+    _store   : FB_LocalConfigStore;
+    _json    : FB_ConfigSetJson;
+    _pager   : FB_ConfigPager;
+    _page    : ST_ConfigPage;
+    _info    : ST_ConfigSetInfo;
+    _record  : ST_ConfigRecord;
+    _decoded : ST_ConfigRecord;
+    _line    : STRING(480);
+    _i       : INT;
+    _capabilities : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A_saved_set_is_the_manifest_walk_projected();
+A_set_round_trips_through_the_store();
+Loading_a_set_restores_every_value_it_carries();
+One_bad_record_aborts_the_whole_load_and_names_it();
+A_capability_that_no_longer_exists_is_reported_not_dropped();
+A_set_from_another_root_is_refused();
+A_record_round_trips_through_its_json_line();
+A_malformed_json_line_is_refused_whole();
+A_model_set_is_not_applied_as_per_field_writes();
+Set_operations_need_a_store_and_the_CONFIG_SET_gate();]]></ST>
+    </Implementation>
+    <Method Name="_M_Arm" Id="{3e70b195-6c48-4a02-91df-7b5e0248ca36}">
+      <Declaration><![CDATA[// One-time wiring. Nothing here is persistence-specific: a store is injected
+// exactly as a composition root injects it, and every value in the resulting
+// sets came from an ordinary M_RegisterConfig* call on the probes.
+METHOD PRIVATE _M_Arm]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _init THEN
+    RETURN;
+END_IF
+_init := TRUE;
+_u.Setup(Name := 'Test.CfgSet');
+_u();
+_u.SetConfigStore(Store := _store);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_CountStationCapabilities" Id="{a4d18e37-052b-49c6-83f0-e14d76b9528c}">
+      <Declaration><![CDATA[// Count the writable STATION_CFG capabilities the MANIFEST publishes, by walking
+// it exactly as a client does. The set has to contain the same number - that
+// equality is what "a set is a projection of the same walk" means in practice.
+METHOD PRIVATE _M_CountStationCapabilities : INT
+VAR
+    page  : INT;
+    i     : INT;
+    pages : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_CountStationCapabilities := 0;
+pages := 1;
+FOR page := 0 TO 63 DO
+    IF page >= pages THEN
+        RETURN;
+    END_IF
+    _pager.M_Setup(Target := ADR(_page), PageIndex := page, Revision := 1);
+    _u.M_AppendConfig(Pager := _pager);
+    _pager.M_Finish();
+    pages := _page.PageCount;
+    FOR i := 1 TO _page.EntryCount DO
+        IF _page.Entries[i].Writable THEN
+            IF _page.Entries[i].ConfigKind = E_ConfigKind.STATION_CFG THEN
+                _M_CountStationCapabilities := _M_CountStationCapabilities + 1;
+            END_IF
+        END_IF
+    END_FOR
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Import" Id="{c81f3d5a-b046-4e29-97b3-05fa4126e83d}">
+      <Declaration><![CDATA[// Push one JSON line into the store through the ordinary import route, so a
+// suite can build a DELIBERATELY WRONG set the same way a foreign tool would.
+METHOD PRIVATE _M_Import : BOOL
+VAR_INPUT
+    Line   : STRING(480);
+    Commit : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Import := _u.ImportConfigSetLine(Line := Line, Commit := Commit);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_saved_set_is_the_manifest_walk_projected" Id="{72b9048c-e5d1-4736-a0f8-4c9d13e6572b}">
+      <Declaration><![CDATA[METHOD A_saved_set_is_the_manifest_walk_projected]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_saved_set_is_the_manifest_walk_projected');
+_M_Arm();
+_capabilities := _M_CountStationCapabilities();
+AssertTrue(Condition := _capabilities > 0,
+    Message := 'the fixture publishes STATION_CFG capabilities to project');
+AssertTrue(Condition := _u.SaveConfigSet(SetName := 'baseline',
+    Kind := E_ConfigKind.STATION_CFG),
+    Message := 'a station set saves');
+AssertTrue(Condition := _store.M_ReadInfo(SetName := 'baseline', Info := _info),
+    Message := 'and is readable back out of the store');
+AssertEquals_INT(Expected := _capabilities, Actual := _info.RecordCount,
+    Message := 'the set contains exactly the capabilities the manifest publishes - one walk, not two');
+AssertEquals_STRING(Expected := 'Test.CfgSet', Actual := _info.RootIdentity,
+    Message := 'a set carries the identity of the root that produced it');
+AssertTrue(Condition := _info.ConfigRev > 0,
+    Message := 'and the ConfigRev it was taken at');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_set_round_trips_through_the_store" Id="{d5390fa7-14c8-4b62-8e07-91b3de740c25}">
+      <Declaration><![CDATA[METHOD A_set_round_trips_through_the_store]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_set_round_trips_through_the_store');
+_M_Arm();
+_u.SaveConfigSet(SetName := 'baseline', Kind := E_ConfigKind.STATION_CFG);
+AssertTrue(Condition := _store.M_ReadInfo(SetName := 'baseline', Info := _info),
+    Message := 'the header reads back');
+AssertTrue(Condition := _store.M_ReadRecord(SetName := 'baseline', Index := 1,
+    Record := _record), Message := 'and so does record 1');
+AssertTrue(Condition := _record.WriteKey <> '',
+    Message := 'every record carries the mutation identity it will be replayed through');
+AssertFalse(Condition := _store.M_ReadRecord(SetName := 'baseline',
+    Index := _info.RecordCount + 1, Record := _record),
+    Message := 'reading past the end is refused, not clamped');
+AssertFalse(Condition := _store.M_ReadInfo(SetName := 'nosuchset', Info := _info),
+    Message := 'an absent set is absent, not empty');
+AssertTrue(Condition := _u.ListConfigSets(),
+    Message := 'the listing is served');
+AssertTrue(Condition := _u.ConfigSetCount >= 1,
+    Message := 'and shows the set that was just saved');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Loading_a_set_restores_every_value_it_carries" Id="{0a6e2c94-873f-41d5-b096-25e8143fa7b0}">
+      <Declaration><![CDATA[METHOD Loading_a_set_restores_every_value_it_carries]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Loading_a_set_restores_every_value_it_carries');
+_M_Arm();
+_u.WriteConfig(TargetPath := 'Test.CfgSet', WriteKey := 'probe.cycleLimit',
+    Revision := 1, TextValue := '250');
+AssertTrue(Condition := _u.SaveConfigSet(SetName := 'commissioned',
+    Kind := E_ConfigKind.STATION_CFG), Message := 'save the commissioned state');
+// Somebody then changes the machine.
+_u.WriteConfig(TargetPath := 'Test.CfgSet', WriteKey := 'probe.cycleLimit',
+    Revision := 1, TextValue := '7');
+AssertEquals_DINT(Expected := 7, Actual := _u.CycleLimit,
+    Message := 'the live value really changed');
+AssertTrue(Condition := _u.LoadConfigSet(SetName := 'commissioned'),
+    Message := 'the saved set loads');
+AssertEquals_DINT(Expected := 250, Actual := _u.CycleLimit,
+    Message := 'and the commissioned value is back, replayed through the owning handler');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="One_bad_record_aborts_the_whole_load_and_names_it" Id="{9c14b70e-5a83-4269-81fd-c0742e9b3568}">
+      <Declaration><![CDATA[// §3.8b: "one rejection aborts the whole load naming the offending
+// (Scope, WriteKey)" and "a half-applied machine parametrization is never a
+// valid outcome". The set below is valid in every record but one.
+METHOD One_bad_record_aborts_the_whole_load_and_names_it]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('One_bad_record_aborts_the_whole_load_and_names_it');
+_M_Arm();
+_u.WriteConfig(TargetPath := 'Test.CfgSet', WriteKey := 'probe.cycleLimit',
+    Revision := 1, TextValue := '99');
+// A set whose FIRST record is fine and whose SECOND is out of the declared
+// range - built as text, exactly as a foreign tool or a hand edit would.
+AssertTrue(Condition := _M_Import(Line :=
+    '{"set":"tainted","root":"Test.CfgSet","schema":1,"configRev":1,"kind":1,"model":"","records":2,"created":0,"clock":0}',
+    Commit := FALSE), Message := 'the header opens the import');
+AssertTrue(Condition := _M_Import(Line :=
+    '{"scope":"Test.CfgSet.Child","key":"probe.retries","rev":1,"kind":1,"type":0,"value":"4"}',
+    Commit := FALSE), Message := 'a good record is taken');
+AssertTrue(Condition := _M_Import(Line :=
+    '{"scope":"Test.CfgSet","key":"probe.cycleLimit","rev":1,"kind":1,"type":0,"value":"99999"}',
+    Commit := TRUE), Message := 'and so is the out-of-range one: the STORE does not validate');
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'tainted'),
+    Message := 'the LOAD validates, and one bad record refuses the whole set');
+AssertEquals_DINT(Expected := 99, Actual := _u.CycleLimit,
+    Message := 'nothing was applied - not even the record that came BEFORE the bad one');
+AssertEquals_DINT(Expected := 3, Actual := _u.Child.Retries,
+    Message := 'and not the good record in another module either');
+AssertEquals_STRING(Expected := 'Test.CfgSet',
+    Actual := _u.ConfigPersist.LastRejectScope,
+    Message := 'the refusal names the scope of the offending record');
+AssertEquals_STRING(Expected := 'probe.cycleLimit',
+    Actual := _u.ConfigPersist.LastRejectKey,
+    Message := 'and its write key');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_capability_that_no_longer_exists_is_reported_not_dropped" Id="{48e0d75b-2916-4c3a-90b7-6e15c2843fda}">
+      <Declaration><![CDATA[// §3.8b: "Records whose capability no longer exists in the target are reported,
+// never silently dropped." A set that quietly skipped the one value that
+// mattered would restore a machine to ALMOST its commissioned state, which is
+// the failure that is hardest to notice.
+METHOD A_capability_that_no_longer_exists_is_reported_not_dropped]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_capability_that_no_longer_exists_is_reported_not_dropped');
+_M_Arm();
+_M_Import(Line :=
+    '{"set":"fromolder","root":"Test.CfgSet","schema":1,"configRev":1,"kind":1,"model":"","records":1,"created":0,"clock":0}',
+    Commit := FALSE);
+_M_Import(Line :=
+    '{"scope":"Test.CfgSet","key":"probe.valueThatWasRemoved","rev":1,"kind":1,"type":0,"value":"1"}',
+    Commit := TRUE);
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'fromolder'),
+    Message := 'a record nothing owns any more refuses the load');
+AssertEquals_STRING(Expected := 'probe.valueThatWasRemoved',
+    Actual := _u.ConfigPersist.LastRejectKey,
+    Message := 'and is REPORTED by name rather than passed over');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_set_from_another_root_is_refused" Id="{1b7f5cd0-a234-4e91-8760-fd3948e1c256}">
+      <Declaration><![CDATA[METHOD A_set_from_another_root_is_refused]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_set_from_another_root_is_refused');
+_M_Arm();
+_M_Import(Line :=
+    '{"set":"otherstation","root":"SomeOtherPress","schema":1,"configRev":1,"kind":1,"model":"","records":1,"created":0,"clock":0}',
+    Commit := FALSE);
+_M_Import(Line :=
+    '{"scope":"SomeOtherPress","key":"probe.cycleLimit","rev":1,"kind":1,"type":0,"value":"5"}',
+    Commit := TRUE);
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'otherstation'),
+    Message := 'a set carries the identity of the root that produced it so this can be asked');
+AssertEquals_STRING(Expected := 'SomeOtherPress',
+    Actual := _u.ConfigPersist.LastRejectScope,
+    Message := 'and the refusal names the root it actually came from');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_record_round_trips_through_its_json_line" Id="{e620419a-c7b8-4d05-93e1-8a25f076bc41}">
+      <Declaration><![CDATA[// A set that cannot leave the controller is retentive memory with a name on it.
+// One JSON object per record is what makes it movable - and keeps every value
+// independently identified and independently rejectable, which is exactly the
+// property §3.8b says a byte image loses.
+METHOD A_record_round_trips_through_its_json_line]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_record_round_trips_through_its_json_line');
+_M_Arm();
+_record.Scope := 'Test.CfgSet.Child';
+_record.WriteKey := 'probe.label';
+_record.Revision := 2;
+_record.Kind := E_ConfigKind.STATION_CFG;
+_record.ValueType := E_ConfigValueType.TEXT;
+_record.ValueText := 'a "quoted" value';   // the two characters JSON must escape
+_line := _json.M_Record(Record := _record);
+AssertTrue(Condition := _line <> '',
+    Message := 'a valid record renders');
+AssertTrue(Condition := _json.M_ParseRecord(Line := _line, Record := _decoded),
+    Message := 'and parses back');
+AssertEquals_STRING(Expected := 'Test.CfgSet.Child', Actual := _decoded.Scope,
+    Message := 'the owning scope survives the round trip');
+AssertEquals_STRING(Expected := 'probe.label', Actual := _decoded.WriteKey,
+    Message := 'so does the mutation identity');
+AssertEquals_STRING(Expected := 'a "quoted" value', Actual := _decoded.ValueText,
+    Message := 'and so does a value containing the delimiter itself');
+AssertEquals_UDINT(Expected := 2, Actual := _decoded.Revision,
+    Message := 'the capability revision travels with the record, so a load can reject a value whose meaning changed');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_malformed_json_line_is_refused_whole" Id="{5f83a021-6be4-47dc-8905-71ce2a4b93f7}">
+      <Declaration><![CDATA[METHOD A_malformed_json_line_is_refused_whole]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_malformed_json_line_is_refused_whole');
+_M_Arm();
+_decoded.WriteKey := 'untouched';
+AssertFalse(Condition := _json.M_ParseRecord(
+    Line := '{"scope":"x","key":"y","rev":1,"kind":1,"type":0', Record := _decoded),
+    Message := 'a truncated line is not a record');
+AssertFalse(Condition := _json.M_ParseRecord(
+    Line := '{"scope":"x","key":"y","rev":"notanumber","kind":1,"type":0,"value":"1"}',
+    Record := _decoded), Message := 'nor is one whose revision is not a number');
+AssertFalse(Condition := _json.M_ParseRecord(
+    Line := '{"scope":"x","key":"y","rev":1,"kind":9,"type":0,"value":"1"}',
+    Record := _decoded), Message := 'nor one whose kind is outside E_ConfigKind');
+AssertEquals_STRING(Expected := 'untouched', Actual := _decoded.WriteKey,
+    Message := 'a refused line leaves the caller record exactly as it was');
+AssertFalse(Condition := _json.M_ParseHeader(
+    Line := '{"scope":"x","key":"y","rev":1,"kind":1,"type":0,"value":"1"}',
+    Info := _info), Message := 'a record line is not a header, and says so');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_model_set_is_not_applied_as_per_field_writes" Id="{7d05c9e3-38a1-4f24-b8e6-0937142ade5c}">
+      <Declaration><![CDATA[// §3.8b: a MODEL set "shall be applied through the §3.8 changeover transaction
+// ... never as a sequence of per-field writes". Replaying it here would be
+// exactly that forbidden sequence, so it is refused. Saving one is supported;
+// loading one is a changeover this build does not implement, and refusing is
+// the honest half of that.
+METHOD A_model_set_is_not_applied_as_per_field_writes]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_model_set_is_not_applied_as_per_field_writes');
+_M_Arm();
+_M_Import(Line :=
+    '{"set":"modelset","root":"Test.CfgSet","schema":1,"configRev":1,"kind":0,"model":"ALU","records":1,"created":0,"clock":0}',
+    Commit := FALSE);
+_M_Import(Line :=
+    '{"scope":"Test.CfgSet","key":"probe.cycleLimit","rev":1,"kind":0,"type":0,"value":"12"}',
+    Commit := TRUE);
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'modelset'),
+    Message := 'a model set is not replayed as per-field writes');
+AssertEquals_STRING(Expected := 'ALU', Actual := _u.ConfigPersist.LastRejectScope,
+    Message := 'and the refusal names the model it was for');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Set_operations_need_a_store_and_the_CONFIG_SET_gate" Id="{b90417ce-2d68-4a53-97f0-e5813c024b7d}">
+      <Declaration><![CDATA[// §3.8b/§7.7: saving, loading or importing a SET is the separate gated action
+// CONFIG_SET, "because replacing a machine's entire parametrization is not the
+// same decision as changing one number". And a root with no store offers the
+// operations not at all rather than failing when somebody finally tries.
+METHOD Set_operations_need_a_store_and_the_CONFIG_SET_gate
+VAR
+    bare : FB_ProbeConfigUnit;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Set_operations_need_a_store_and_the_CONFIG_SET_gate');
+_M_Arm();
+bare.Setup(Name := 'Test.NoStore');
+bare();
+AssertFalse(Condition := bare.ConfigPersist.StorePresent,
+    Message := 'a root with no store says so, rather than pretending');
+AssertFalse(Condition := bare.SaveConfigSet(SetName := 'x',
+    Kind := E_ConfigKind.STATION_CFG),
+    Message := 'and refuses to save');
+AssertFalse(Condition := bare.LoadConfigSet(SetName := 'x'),
+    Message := 'and to load');
+AssertTrue(Condition := _u.ConfigPersist.StorePresent,
+    Message := 'a wired root publishes that sets are available');
+AssertEquals_DINT(Expected := TO_DINT(E_ConfigStore.LOCAL_RETAIN),
+    Actual := TO_DINT(_u.ConfigPersist.StoreKind),
+    Message := 'and publishes WHERE they live, so a saved set is not taken on faith');
+AssertTrue(Condition := _u.Access.RequestLogout(),
+    Message := 'no session is required by the shipped fully-open policy');
+AssertTrue(Condition := _u.SaveConfigSet(SetName := 'open',
+    Kind := E_ConfigKind.STATION_CFG),
+    Message := 'so an open station saves without a login - access control is never a silent lock-in');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

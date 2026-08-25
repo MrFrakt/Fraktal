@@ -1,0 +1,91 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_ConfigStore" Id="{6a1f83d5-2e47-4b90-85c3-9d07e2b164fa}">
+    <Declaration><![CDATA[// Core §3.8b — bounded save / read / list over NAMED parameter sets.
+//
+// The interface is RECORD-oriented, not document-oriented, and that is the
+// whole design. §3.8b forbids a byte image because it carries no per-value
+// identity and cannot reject one bad value without rejecting all of them; a
+// store that took an opaque blob would reintroduce exactly that one level up.
+// Every implementation therefore moves (Scope, WriteKey, ValueType, value)
+// records, whatever medium is behind it - retentive memory, a JSON or XML file,
+// a database or an MES connector (§3.15).
+//
+// The store moves records and NOTHING else. It does not validate, does not know
+// what a value means, and is never an authorization authority: everything it
+// returns is untrusted input, validated on the way in by the owning module's
+// typed handler (§5.6, §14).
+//
+// Save is a three-part transaction - begin, record*, commit - so a half-written
+// set never becomes loadable. Read is stateless and addressed by (SetName,
+// Index): a cursor would be one more thing to get wrong across a scan boundary.
+INTERFACE I_ConfigStore]]></Declaration>
+    <Method Name="M_Count" Id="{3849b4e4-525e-4960-9d2f-1926a89dad43}">
+      <Declaration><![CDATA[// How many named sets this store holds, so a client can enumerate them.
+METHOD M_Count : INT]]></Declaration>
+    </Method>
+    <Method Name="M_InfoAt" Id="{a3e5be72-2ece-42e8-949f-2f6032cec7fc}">
+      <Declaration><![CDATA[// Header of the Index-th stored set, 1..M_Count, for a bounded listing.
+METHOD M_InfoAt : BOOL
+VAR_INPUT
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_Kind" Id="{588c00f5-988c-4440-82bd-1bd645077db8}">
+      <Declaration><![CDATA[// Which medium is behind this store - published so an operator can see WHERE
+// a saved set actually lives (§3.8b store table).
+METHOD M_Kind : E_ConfigStore]]></Declaration>
+    </Method>
+    <Method Name="M_ReadInfo" Id="{9b535e89-9ecd-4ecf-8321-0388125a463f}">
+      <Declaration><![CDATA[// Header of one stored set. FALSE = no set of that name (Info untouched).
+METHOD M_ReadInfo : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ReadRecord" Id="{9f2baf94-4e61-4d75-8b63-6a9f7629f7c5}">
+      <Declaration><![CDATA[// One record of a stored set, addressed 1..Info.RecordCount. FALSE = absent
+// set or out-of-range index (Record untouched).
+METHOD M_ReadRecord : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+    Index   : INT;
+END_VAR
+VAR_IN_OUT
+    Record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_SaveAbort" Id="{0aa9e3fc-6a69-4cc7-a307-a261f2fe2a69}">
+      <Declaration><![CDATA[// Discard an open save. Always safe to call, including when none is open.
+METHOD M_SaveAbort : BOOL]]></Declaration>
+    </Method>
+    <Method Name="M_SaveBegin" Id="{44353b34-8761-4ff6-a7a6-5c5aa542e9f0}">
+      <Declaration><![CDATA[// Open a save transaction for Info.SetName, overwriting any set of that name
+// only when M_SaveCommit succeeds. FALSE = refused (no free slot, empty name,
+// a save already open); nothing stored.
+METHOD M_SaveBegin : BOOL
+VAR_INPUT
+    Info : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_SaveCommit" Id="{69e8e96f-80d5-4542-851e-8bd8c3096edc}">
+      <Declaration><![CDATA[// Close the save and make the set visible to a later read. FALSE = the set was
+// not stored; the previous set of that name, if any, is left untouched.
+METHOD M_SaveCommit : BOOL]]></Declaration>
+    </Method>
+    <Method Name="M_SaveRecord" Id="{b1daccb0-7fdb-4b8f-8f24-22cf3a241fc2}">
+      <Declaration><![CDATA[// Append one record to the open save. FALSE = the set is full or no save is
+// open; the transaction is then failed and M_SaveCommit shall refuse it.
+METHOD M_SaveRecord : BOOL
+VAR_INPUT
+    Record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

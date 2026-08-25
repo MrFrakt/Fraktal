@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LocalConfigStore" Id="{4c9e0b73-a218-45df-96b1-0e83725cd4a9}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b — the SHIPPED DEFAULT parameter-set store: named sets of
+// (Scope, WriteKey) records held in the PLC's own retentive memory, so a
+// conforming station persists its parametrization with no file system, no
+// network and no configuration (E_ConfigStore.LOCAL_RETAIN).
+//
+// It stores RECORDS, not an image. That is not a stylistic choice: §3.8b says a
+// byte image of a station's configuration shall not be used, because it
+// reinterprets retained bytes silently when a type changes, carries no
+// per-value identity for a file/database/MES to bind to, and cannot reject one
+// bad value without rejecting all of them. Every value in here is individually
+// addressable by (Scope, WriteKey) and is replayed through the owning module's
+// typed handler on load, exactly as a single WRITE_CONFIG would be - so a set
+// from a slightly different build fails on the one record that no longer fits
+// instead of corrupting the machine wholesale.
+//
+// This store validates NOTHING and authorizes NOTHING (§5.6, §14). It moves
+// records. The root owns CONFIG_SET, and the owning module owns the value.
+//
+// Memory: MAX_CONFIG_SETS × MAX_SET_RECORDS records of ~340 B live in the
+// PERSISTENT area, so raising either constant costs the controller's persistent
+// budget linearly. A deployment that needs more sets sizes the PLC persistent
+// area to match, or substitutes a FILE_JSON/EXTERNAL store.
+FUNCTION_BLOCK FB_LocalConfigStore IMPLEMENTS I_ConfigStore
+VAR PERSISTENT
+    // §3.8b - versioned exactly like every other retained image. Version 0 means
+    // never written, so a first boot initializes silently; any other
+    // unrecognized version means a real image was rejected and the whole table
+    // is cleared rather than read by field position.
+    _schema  : UINT;
+    _info    : ARRAY[1..PL_Fraktal.MAX_CONFIG_SETS] OF ST_ConfigSetInfo;
+    _records : ARRAY[1..PL_Fraktal.MAX_CONFIG_SETS,
+                     1..PL_Fraktal.MAX_SET_RECORDS] OF ST_ConfigRecord;
+END_VAR
+VAR
+    // Open save transaction. A set becomes visible only at M_SaveCommit, so a
+    // save interrupted by a power loss or a refused record can never leave a
+    // half-written set that a later load would apply (§3.8b all-or-nothing).
+    _saveSlot   : INT;              // 0 = no save open
+    _saveInfo   : ST_ConfigSetInfo;
+    _saveCount  : INT;
+    _saveFailed : BOOL;
+    _initialized : BOOL;
+END_VAR
+VAR CONSTANT
+    STORE_SCHEMA : UINT := 1;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// No cyclic behaviour: a store is called, never scanned. Every public method
+// runs _M_Init first, so the retained-image check cannot be missed by a
+// composition root that never calls the instance.
+;]]></ST>
+    </Implementation>
+    <Method Name="_M_Init" Id="{1a58c30e-9b47-42d6-85f1-c96703e2b48d}">
+      <Declaration><![CDATA[// §3.8b - one-shot retained-image check. Exactly the rule every StationCfg
+// follows: version 0 initializes silently because nothing was lost; any other
+// unrecognized version means a real image was rejected, so the table is cleared
+// rather than interpreted by field position. A rejected SET table is reported
+// through M_Count going to zero - the sets are simply not there, which is the
+// honest answer and the one a client can act on.
+METHOD PRIVATE _M_Init
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _initialized THEN
+    RETURN;
+END_IF
+_initialized := TRUE;
+IF _schema = STORE_SCHEMA THEN
+    RETURN;
+END_IF
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    _info[i].Used := FALSE;
+    _info[i].SetName := '';
+    _info[i].RecordCount := 0;
+END_FOR
+_schema := STORE_SCHEMA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Find" Id="{6e0472bd-5c19-4a83-b2fe-8d41a06c7935}">
+      <Declaration><![CDATA[// Slot holding the named set, or 0. Exact match: a set name is an identity a
+// client chose, not a prefix to guess at.
+METHOD PRIVATE _M_Find : INT
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Find := 0;
+IF SetName = '' THEN
+    RETURN;
+END_IF
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF _info[i].Used AND (_info[i].SetName = SetName) THEN
+        _M_Find := i;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Kind" Id="{0d4c9a13-b7e6-4258-91fd-3a60e58c7b42}">
+      <Declaration><![CDATA[METHOD M_Kind : E_ConfigStore]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Kind := E_ConfigStore.LOCAL_RETAIN;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveBegin" Id="{71e0b52f-4d38-49ca-a6b1-c0937f4d2e85}">
+      <Declaration><![CDATA[// Open a save. The target slot is chosen now - reusing the one that already
+// holds this name, else a free one - but nothing in it is touched until commit.
+METHOD M_SaveBegin : BOOL
+VAR_INPUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Init();
+M_SaveBegin := FALSE;
+_saveSlot := 0;
+_saveCount := 0;
+_saveFailed := FALSE;
+IF Info.SetName = '' THEN
+    RETURN;
+END_IF
+_saveSlot := _M_Find(SetName := Info.SetName);
+IF _saveSlot = 0 THEN
+    FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+        IF NOT _info[i].Used THEN
+            _saveSlot := i;
+            EXIT;
+        END_IF
+    END_FOR
+END_IF
+IF _saveSlot = 0 THEN
+    RETURN;                               // full: refuse, never evict somebody's set
+END_IF
+_saveInfo := Info;
+_saveInfo.Used := TRUE;
+_saveInfo.RecordCount := 0;
+M_SaveBegin := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveRecord" Id="{c9a4610d-3f52-4b87-8e29-16d0b7c5934e}">
+      <Declaration><![CDATA[// Append one record. Written straight into the target slot's row: the slot is
+// not published until commit sets Used/RecordCount, so a partially written row
+// range is unreachable by any read.
+METHOD M_SaveRecord : BOOL
+VAR_INPUT
+    Record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_SaveRecord := FALSE;
+IF _saveSlot = 0 THEN
+    RETURN;
+END_IF
+IF Record.WriteKey = '' THEN
+    _saveFailed := TRUE;                  // a record with no identity is not a record
+    RETURN;
+END_IF
+IF _saveCount >= PL_Fraktal.MAX_SET_RECORDS THEN
+    // Overflow FAILS the transaction rather than truncating it. A silently
+    // short set is the one that restores a machine to almost its commissioned
+    // state, which is worse than not restoring it at all (§5.6).
+    _saveFailed := TRUE;
+    RETURN;
+END_IF
+_saveCount := _saveCount + 1;
+_records[_saveSlot, _saveCount] := Record;
+M_SaveRecord := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveCommit" Id="{2b58f7e1-9c04-4a6d-b3f8-45e027a19c60}">
+      <Declaration><![CDATA[// Publish the set. This single assignment of Used/RecordCount is what makes
+// the save atomic from a reader's point of view.
+METHOD M_SaveCommit : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_SaveCommit := FALSE;
+IF (_saveSlot = 0) OR _saveFailed THEN
+    M_SaveAbort();
+    RETURN;
+END_IF
+_saveInfo.RecordCount := _saveCount;
+_info[_saveSlot] := _saveInfo;
+_saveSlot := 0;
+_saveCount := 0;
+M_SaveCommit := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveAbort" Id="{84d17b93-6e2a-4f15-90c7-b358e4a0d296}">
+      <Declaration><![CDATA[METHOD M_SaveAbort : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_saveSlot := 0;
+_saveCount := 0;
+_saveFailed := FALSE;
+M_SaveAbort := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReadInfo" Id="{f30c96a8-5b71-4d2e-8496-07e1a2fb5c38}">
+      <Declaration><![CDATA[METHOD M_ReadInfo : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Init();
+M_ReadInfo := FALSE;
+slot := _M_Find(SetName := SetName);
+IF slot = 0 THEN
+    RETURN;
+END_IF
+Info := _info[slot];
+M_ReadInfo := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReadRecord" Id="{1cb47e05-d829-4306-a5f1-9407b6e2d51c}">
+      <Declaration><![CDATA[METHOD M_ReadRecord : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+    Index   : INT;
+END_VAR
+VAR_IN_OUT
+    Record : ST_ConfigRecord;
+END_VAR
+VAR
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Init();
+M_ReadRecord := FALSE;
+slot := _M_Find(SetName := SetName);
+IF slot = 0 THEN
+    RETURN;
+END_IF
+// Two statements, not one condition: TwinCAT does not short-circuit, so a
+// combined test would index _records with an out-of-range Index anyway.
+IF (Index < 1) OR (Index > PL_Fraktal.MAX_SET_RECORDS) THEN
+    RETURN;
+END_IF
+IF Index > _info[slot].RecordCount THEN
+    RETURN;
+END_IF
+Record := _records[slot, Index];
+M_ReadRecord := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Count" Id="{9e625af4-70b3-41d8-bc09-2f817d6a3e94}">
+      <Declaration><![CDATA[METHOD M_Count : INT
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Init();
+M_Count := 0;
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF _info[i].Used THEN
+        M_Count := M_Count + 1;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_InfoAt" Id="{45f8d3b6-c197-4e02-83ad-6b70e15c928f}">
+      <Declaration><![CDATA[// Index runs over the OCCUPIED sets in slot order, so a client enumerating
+// 1..M_Count sees every set exactly once and no empty slots.
+METHOD M_InfoAt : BOOL
+VAR_INPUT
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    i    : INT;
+    seen : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Init();
+M_InfoAt := FALSE;
+IF Index < 1 THEN
+    RETURN;
+END_IF
+seen := 0;
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF _info[i].Used THEN
+        seen := seen + 1;
+        IF seen = Index THEN
+            Info := _info[i];
+            M_InfoAt := TRUE;
+            RETURN;
+        END_IF
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

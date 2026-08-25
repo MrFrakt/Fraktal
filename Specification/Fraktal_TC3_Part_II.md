@@ -193,6 +193,40 @@ reached through a §3.15 connector. File I/O shall never block the cyclic task: 
 set operation is an ordinary Core §6.1 command with `BUSY`/`DONE`/`ERROR` whose
 result publishes through the same acknowledged mailbox as every other mutation.
 
+**What this binding ships.** `FB_PersistentDataWriter` (`I_ConfigPersistence`)
+wraps `FB_WritePersistentData` in `SPDM_2PASS` mode against the runtime's **own**
+`_AppInfo.AdsPort`, so a station on port 852 cannot silently persist port 851's
+image; it is the root's default with no wiring, and a deployment substitutes
+another through `SetConfigPersistence`. At most one write is in flight and at
+most one queued, so a burst of accepted writes coalesces into one further write
+rather than a storm; a completed failure latches `PersistFailed` and is **not**
+retried automatically, because a store that cannot write is not repaired by
+asking again every scan and a retry storm buries the annunciation. The declared
+window is `SetConfigPersistWindow` (default `PL_Fraktal.CONFIG_PERSIST_WINDOW_MS`).
+`FB_LocalConfigStore` is the `LOCAL_RETAIN` set store, holding
+`MAX_CONFIG_SETS × MAX_SET_RECORDS` records of `ST_ConfigRecord` in the
+persistent area — a real claim on the controller's persistent budget, so a
+deployment that raises either constant sizes that area to match.
+
+**A set is the manifest walk, not a second walk.** `FB_ConfigPager` gains a
+record sink: `M_SetupSetSave` puts it in record mode and the ordinary
+`M_AppendConfig` walk runs unchanged, so the set and the §3.10.2 manifest cannot
+enumerate different things. A load stages every record through
+`M_StageConfigWrite`, which is `M_ApplyConfigWrite`'s own validator with the
+store step suppressed — a separate validation predicate would be free to accept
+what the writer then refuses, and the load's all-or-nothing guarantee would be
+fiction.
+
+**A set moves as text.** `FB_ConfigSetJson` renders and parses **one JSON object
+per record**, plus one header. Per record rather than per document on purpose:
+§3.8b's objection to a byte image is that it carries no per-value identity and
+cannot reject one bad value without rejecting all of them, and a whole-document
+parser in the PLC would reintroduce both. A line is emitted or refused, never
+truncated. `EXPORT_CONFIG_SET` serves one line per mailbox request and
+`IMPORT_CONFIG_SET` takes one back into the store — import writes to the store,
+never to the machine, so bringing a document in and applying it stay two
+decisions and the applying one is still staged.
+
 ### TC3 §3.10 OPC UA exposure mechanics
 *Binds Core §3.10(a) and Core §11.1.* Publication begins at every deployed root Unit **instance**, making the intended forest explicit and independently auditable when TF6100 imports a TMC in **Filtered** mode. Reusable FB type definitions do not carry `OPC.UA.DA := 1`:
 

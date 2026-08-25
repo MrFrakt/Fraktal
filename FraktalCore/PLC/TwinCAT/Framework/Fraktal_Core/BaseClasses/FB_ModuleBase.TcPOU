@@ -77,6 +77,17 @@ VAR
     _configWrite  : ARRAY[1..PL_Fraktal.MAX_CONFIG_WRITES] OF ST_ConfigWriteDef;
     {attribute 'OPC.UA.DA' := '0'}
     _nConfigWrite : INT;
+    // §3.8b — one restore-loss slot. ONE, not a list: a module with two retained
+    // structures that both lost their schema lost them for the same reason (its
+    // own layout changed), and one annunciation naming the module is exactly
+    // what the operator needs. The slot is cleared as the root takes it, so the
+    // event is raised exactly once per boot.
+    {attribute 'OPC.UA.DA' := '0'}
+    _restoreLost     : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _restoreExpected : UINT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _restoreFound    : UINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// FB body just runs the lifecycle; parents may call the instance or Cyclic() (I_Module)
@@ -1050,7 +1061,8 @@ FOR i := 1 TO _nConfigWrite DO
         IF NOT _M_OnConfigWrite(WriteKey := WriteKey, TextValue := TextValue) THEN
             RETURN;
         END_IF
-        M_ApplyConfigWrite := _M_StoreConfigValue(Idx := i, TextValue := TextValue);
+        M_ApplyConfigWrite := _M_StoreConfigValue(Idx := i, TextValue := TextValue,
+            Commit := TRUE);
         RETURN;
     END_IF
 END_FOR]]></ST></Implementation>
@@ -1111,10 +1123,17 @@ END_VAR]]></Declaration>
 // exactly as it was. Range is checked against BOTH the declared bounds and the
 // storage type's own limits: a DINT field with no declared maximum still cannot
 // be handed 1E30.
+//
+// Commit := FALSE runs the IDENTICAL validation and stores nothing. That is the
+// staging pass of a §3.8b set load, and it deliberately shares this code rather
+// than restating the rules: a validator that can disagree with the writer is
+// worse than no validator, because it makes an all-or-nothing load claim an
+// atomicity it does not have.
 METHOD PRIVATE _M_StoreConfigValue : BOOL
 VAR_INPUT
     Idx       : INT;
     TextValue : STRING(255);
+    Commit    : BOOL;
 END_VAR
 VAR
     num : LREAL;
@@ -1142,10 +1161,14 @@ IF _configWrite[Idx].Storage = E_ConfigStorage.AS_BOOL THEN
     pB := _configWrite[Idx].pTarget;
     IF (TextValue = 'TRUE') OR (TextValue = 'true') OR (TextValue = 'True')
     OR (TextValue = '1') THEN
-        pB^ := TRUE;
+        IF Commit THEN
+            pB^ := TRUE;
+        END_IF
     ELSIF (TextValue = 'FALSE') OR (TextValue = 'false') OR (TextValue = 'False')
     OR (TextValue = '0') THEN
-        pB^ := FALSE;
+        IF Commit THEN
+            pB^ := FALSE;
+        END_IF
     ELSE
         RETURN;
     END_IF
@@ -1156,8 +1179,10 @@ IF _configWrite[Idx].Storage = E_ConfigStorage.AS_STRING THEN
     IF TO_UINT(LEN(TextValue)) > _configWrite[Idx].MaxLength THEN
         RETURN;                              // would truncate: reject, never trim
     END_IF
-    pS := _configWrite[Idx].pTarget;
-    pS^ := TextValue;
+    IF Commit THEN
+        pS := _configWrite[Idx].pTarget;
+        pS^ := TextValue;
+    END_IF
     _M_StoreConfigValue := TRUE;
     RETURN;
 END_IF
@@ -1183,8 +1208,10 @@ CASE _configWrite[Idx].Storage OF
         IF num <> TO_LREAL(TO_LINT(num)) THEN
             RETURN;
         END_IF
-        pI := _configWrite[Idx].pTarget;
-        pI^ := LREAL_TO_INT(num);
+        IF Commit THEN
+            pI := _configWrite[Idx].pTarget;
+            pI^ := LREAL_TO_INT(num);
+        END_IF
     E_ConfigStorage.AS_DINT:
         IF (num < -2147483648.0) OR (num > 2147483647.0) THEN
             RETURN;
@@ -1192,8 +1219,10 @@ CASE _configWrite[Idx].Storage OF
         IF num <> TO_LREAL(TO_LINT(num)) THEN
             RETURN;
         END_IF
-        pD := _configWrite[Idx].pTarget;
-        pD^ := LREAL_TO_DINT(num);
+        IF Commit THEN
+            pD := _configWrite[Idx].pTarget;
+            pD^ := LREAL_TO_DINT(num);
+        END_IF
     E_ConfigStorage.AS_UDINT:
         IF (num < 0.0) OR (num > 4294967295.0) THEN
             RETURN;
@@ -1201,17 +1230,23 @@ CASE _configWrite[Idx].Storage OF
         IF num <> TO_LREAL(TO_LINT(num)) THEN
             RETURN;
         END_IF
-        pU := _configWrite[Idx].pTarget;
-        pU^ := LREAL_TO_UDINT(num);
+        IF Commit THEN
+            pU := _configWrite[Idx].pTarget;
+            pU^ := LREAL_TO_UDINT(num);
+        END_IF
     E_ConfigStorage.AS_REAL:
         IF (num < -3.402823E38) OR (num > 3.402823E38) THEN
             RETURN;
         END_IF
-        pR := _configWrite[Idx].pTarget;
-        pR^ := LREAL_TO_REAL(num);
+        IF Commit THEN
+            pR := _configWrite[Idx].pTarget;
+            pR^ := LREAL_TO_REAL(num);
+        END_IF
     E_ConfigStorage.AS_LREAL:
-        pL := _configWrite[Idx].pTarget;
-        pL^ := num;
+        IF Commit THEN
+            pL := _configWrite[Idx].pTarget;
+            pL^ := num;
+        END_IF
     E_ConfigStorage.AS_TIME:
         // Whole milliseconds: a duration is not a place for a rounding surprise.
         IF (num < 0.0) OR (num > 4294967295.0) THEN
@@ -1220,8 +1255,10 @@ CASE _configWrite[Idx].Storage OF
         IF num <> TO_LREAL(TO_LINT(num)) THEN
             RETURN;
         END_IF
-        pT := _configWrite[Idx].pTarget;
-        pT^ := UDINT_TO_TIME(LREAL_TO_UDINT(num));
+        IF Commit THEN
+            pT := _configWrite[Idx].pTarget;
+            pT^ := UDINT_TO_TIME(LREAL_TO_UDINT(num));
+        END_IF
 ELSE
     RETURN;
 END_CASE
@@ -1314,6 +1351,118 @@ FOR i := 1 TO 32 DO                          // bounded scan (§5.6)
         RETURN;
     END_IF
 END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_StageConfigWrite" Id="{4d81b0f7-25ce-4936-a1b8-6072e5c3941d}">
+      <Declaration><![CDATA[// §3.8b I_ConfigSource — would this write be accepted? Byte-for-byte the
+// lookup and gating of M_ApplyConfigWrite, then the shared validator with
+// Commit := FALSE. Nothing in this module changes, including through the
+// type-specific invariant hook, which §3.10.2 already requires to be free of
+// side effects because it runs on a candidate that may still be rejected.
+METHOD M_StageConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_StageConfigWrite := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = WriteKey THEN
+        IF _configWrite[i].Revision <> Revision THEN
+            RETURN;
+        END_IF
+        IF _configWrite[i].RequiresReady AND NOT RootReady THEN
+            RETURN;
+        END_IF
+        IF NOT _M_OnConfigWrite(WriteKey := WriteKey, TextValue := TextValue) THEN
+            RETURN;
+        END_IF
+        M_StageConfigWrite := _M_StoreConfigValue(Idx := i, TextValue := TextValue,
+            Commit := FALSE);
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RestoreStationCfg" Id="{9f0a4c68-b31d-475e-8267-c04e1b95a3d2}">
+      <Declaration><![CDATA[// §3.8b — the restore rule for one retained StationCfg image, written ONCE here
+// so no module type carries its own copy of it (§1.1 O1).
+//
+// Every StationCfg structure shall carry SchemaVersion : UINT as its FIRST
+// member, and this decides what a given value of it means:
+//
+//   version = SchemaVersion  -> restored. Returns TRUE; the caller keeps the
+//                               retained values and does nothing.
+//   version = 0              -> never written. A first boot has lost nothing,
+//                               so it initializes SILENTLY: returns FALSE with
+//                               no annunciation, and the caller writes defaults.
+//   anything else            -> a REAL image was rejected. Returns FALSE and
+//                               records the loss for the root to annunciate with
+//                               this module's canonical path.
+//
+// The version is stamped forward either way, so the next boot is an ordinary
+// restore rather than a repeated annunciation. What is NOT done is reading the
+// unrecognized image by field position: that is precisely how a changed layout
+// becomes a plausible wrong number instead of an honest default.
+//
+// The consequence of a loss belongs to the deployment, not to this module —
+// E_ConfigRestorePolicy at the root decides whether the station runs and
+// annunciates or refuses START_STOP until an ENGINEER acknowledges. A module
+// that faulted itself here would take that decision away from the deployment.
+METHOD M_RestoreStationCfg : BOOL
+VAR_INPUT
+    pVersion      : POINTER TO UINT;   // ADR of the structure's FIRST member
+    SchemaVersion : UINT;              // the layout this build understands
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RestoreStationCfg := FALSE;
+IF pVersion = 0 THEN
+    RETURN;                              // unwired: defaults, and never a claim
+END_IF
+IF SchemaVersion = 0 THEN
+    RETURN;                              // 0 is reserved for "never written"
+END_IF
+IF pVersion^ = SchemaVersion THEN
+    M_RestoreStationCfg := TRUE;
+    RETURN;
+END_IF
+IF pVersion^ <> 0 THEN
+    // A real image was rejected. The station will run on defaults and it will
+    // say so — the difference between an empty machine and one that has just
+    // lost its commissioning is exactly what an operator needs told.
+    _restoreLost := TRUE;
+    _restoreFound := pVersion^;
+    _restoreExpected := SchemaVersion;
+END_IF
+pVersion^ := SchemaVersion;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_TakeRestoreLoss" Id="{c2716e94-08fb-4d35-b9a0-5e83f1c407d6}">
+      <Declaration><![CDATA[// §3.8b I_ConfigSource — hand the root this module's unreported restore loss,
+// exactly once. Taking it clears the slot, so the root can drain the whole
+// subtree in a loop and each loss is annunciated one time per boot.
+METHOD M_TakeRestoreLoss : BOOL
+VAR_OUTPUT
+    Path     : STRING(80);
+    Expected : UINT;
+    Found    : UINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_TakeRestoreLoss := FALSE;
+Path := '';
+Expected := 0;
+Found := 0;
+IF NOT _restoreLost THEN
+    RETURN;
+END_IF
+_restoreLost := FALSE;
+Path := Status.Name;
+Expected := _restoreExpected;
+Found := _restoreFound;
+M_TakeRestoreLoss := TRUE;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

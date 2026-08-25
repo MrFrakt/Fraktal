@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ConfigSetJson" Id="{0f7b52d8-91c4-4a36-b8e5-274d09163cae}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b — the TEXT projection of a parameter set: one JSON object per
+// record, one per header. This is what makes a set MOVABLE - to a file, to a
+// version-control system, to an asset manager, to another controller - which is
+// the whole point of having named sets rather than just retentive memory.
+//
+// FORMAT DECISION (JSON, and per RECORD rather than per document):
+//
+//   * JSON over XML because the consumers are a Flutter HMI, a Dart gateway and
+//     ordinary MES tooling, all of which parse it natively; nothing in the set
+//     needs attributes, namespaces or mixed content.
+//
+//   * Per RECORD, because §3.8b's central prohibition is the byte image, and
+//     the stated reasons are that it carries no per-value identity to bind to
+//     and cannot reject one bad value without rejecting all of them. A
+//     line-per-record document keeps both properties in the serialization
+//     itself: every line is independently identified by (scope, key) and
+//     independently rejectable. A single monolithic JSON document would parse
+//     back to the same records, but a PLC-side parser for one would need an
+//     unbounded buffer and would fail the whole file on one bad character -
+//     which is the byte image again, in a friendlier syntax.
+//
+//   * A line is emitted or refused, NEVER truncated. Every render measures the
+//     result before building it, so an over-long value produces an empty string
+//     the caller must handle, not a silently shortened value (§5.6).
+//
+// The projection is pure: no state, no I/O, no allocation. Writing the lines to
+// a file, an ADS client or an MES connector is a deployment adapter's job
+// (§3.15), not the framework's.
+FUNCTION_BLOCK FB_ConfigSetJson
+VAR CONSTANT
+    // A record line holds a STRING(80) scope, a STRING(160) key, a STRING(80)
+    // value with every character escaped, and ~70 characters of fixed syntax.
+    LINE_MAX : INT := 480;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Pure projection: called, never scanned.
+;]]></ST>
+    </Implementation>
+    <Method Name="_M_Escape" Id="{b4e1907c-58a3-4d62-9f07-3ac5e19d6284}">
+      <Declaration><![CDATA[// JSON string-escaping of one field. Only the two characters JSON REQUIRES
+// escaping in a plain string are handled - a backslash and a double quote -
+// plus control characters, which are replaced rather than emitted raw because a
+// stray control byte in a config value would produce a document no parser
+// accepts. Ok is FALSE when the result would not fit, and the caller then
+// refuses the whole line instead of shipping half a value.
+METHOD PRIVATE _M_Escape : STRING(480)
+VAR_INPUT
+    Text : STRING(255);
+END_VAR
+VAR_OUTPUT
+    Ok : BOOL;
+END_VAR
+VAR
+    pIn  : POINTER TO BYTE;
+    pOut : POINTER TO BYTE;
+    buf  : STRING(480);
+    i    : INT;
+    j    : INT;
+    n    : INT;
+    ch   : BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Ok := FALSE;
+_M_Escape := '';
+buf := '';
+pIn := ADR(Text);
+pOut := ADR(buf);
+n := TO_INT(LEN(Text));
+j := 0;
+FOR i := 0 TO n - 1 DO
+    IF j >= (LINE_MAX - 2) THEN
+        RETURN;                            // would not fit: refuse, never trim
+    END_IF
+    ch := pIn[i];
+    IF (ch = 16#5C) OR (ch = 16#22) THEN   // backslash, double quote
+        pOut[j] := 16#5C;
+        j := j + 1;
+        pOut[j] := ch;
+        j := j + 1;
+    ELSIF ch < 16#20 THEN
+        pOut[j] := 16#20;                  // control byte -> space (never raw)
+        j := j + 1;
+    ELSE
+        pOut[j] := ch;
+        j := j + 1;
+    END_IF
+END_FOR
+pOut[j] := 0;
+_M_Escape := buf;
+Ok := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Record" Id="{e37f0b95-2c48-41ad-b6e0-597c3d81a462}">
+      <Declaration><![CDATA[// Render one set record as a JSON object. Empty result = refused (no key, or
+// the escaped line would exceed LINE_MAX); the caller shall treat that as a
+// failed export rather than writing an empty line.
+//
+// The revision travels with the record on purpose. §3.8b lists (Scope, WriteKey,
+// ValueType, value) as the minimum; carrying the capability revision too is
+// what lets a load REJECT a value whose meaning changed since the set was taken,
+// instead of replaying an old number into a field that now means something else.
+METHOD M_Record : STRING(480)
+VAR_INPUT
+    Record : ST_ConfigRecord;
+END_VAR
+VAR
+    scopeText : STRING(480);
+    keyText   : STRING(480);
+    valueText : STRING(480);
+    line      : STRING(480);
+    ok        : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Record := '';
+IF Record.WriteKey = '' THEN
+    RETURN;
+END_IF
+scopeText := _M_Escape(Text := Record.Scope, Ok => ok);
+IF NOT ok THEN
+    RETURN;
+END_IF
+keyText := _M_Escape(Text := Record.WriteKey, Ok => ok);
+IF NOT ok THEN
+    RETURN;
+END_IF
+valueText := _M_Escape(Text := Record.ValueText, Ok => ok);
+IF NOT ok THEN
+    RETURN;
+END_IF
+// Measured before it is built: CONCAT truncates at the target width, so the
+// only way to guarantee "emitted or refused, never truncated" is to know the
+// length first.
+IF (TO_INT(LEN(scopeText)) + TO_INT(LEN(keyText)) + TO_INT(LEN(valueText)) + 96)
+        > LINE_MAX THEN
+    RETURN;
+END_IF
+line := CONCAT('{"scope":"', scopeText);
+line := CONCAT(line, '","key":"');
+line := CONCAT(line, keyText);
+line := CONCAT(line, '","rev":');
+line := CONCAT(line, UDINT_TO_STRING(Record.Revision));
+line := CONCAT(line, ',"kind":');
+line := CONCAT(line, DINT_TO_STRING(TO_DINT(Record.Kind)));
+line := CONCAT(line, ',"type":');
+line := CONCAT(line, DINT_TO_STRING(TO_DINT(Record.ValueType)));
+line := CONCAT(line, ',"value":"');
+line := CONCAT(line, valueText);
+line := CONCAT(line, '"}');
+M_Record := line;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Header" Id="{5a90c7e2-38b1-4076-9d4f-c1e628037ba5}">
+      <Declaration><![CDATA[// Render the set header as a JSON object. The timestamp is emitted as the
+// §2.7 clock's seconds value rather than a formatted date: a set document is
+// machine input, and a numeric instant cannot be misread by a reader in another
+// locale. TimeSynchronized travels with it, so a consumer can tell a trustworthy
+// instant from one stamped while the clock had lost its source.
+METHOD M_Header : STRING(480)
+VAR_INPUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    nameText  : STRING(480);
+    rootText  : STRING(480);
+    modelText : STRING(480);
+    line      : STRING(480);
+    ok        : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Header := '';
+IF Info.SetName = '' THEN
+    RETURN;
+END_IF
+nameText := _M_Escape(Text := Info.SetName, Ok => ok);
+IF NOT ok THEN
+    RETURN;
+END_IF
+rootText := _M_Escape(Text := Info.RootIdentity, Ok => ok);
+IF NOT ok THEN
+    RETURN;
+END_IF
+modelText := _M_Escape(Text := Info.ModelCode, Ok => ok);
+IF NOT ok THEN
+    RETURN;
+END_IF
+IF (TO_INT(LEN(nameText)) + TO_INT(LEN(rootText)) + TO_INT(LEN(modelText)) + 150)
+        > LINE_MAX THEN
+    RETURN;
+END_IF
+line := CONCAT('{"set":"', nameText);
+line := CONCAT(line, '","root":"');
+line := CONCAT(line, rootText);
+line := CONCAT(line, '","schema":');
+line := CONCAT(line, UINT_TO_STRING(Info.SetSchema));
+line := CONCAT(line, ',"configRev":');
+line := CONCAT(line, UDINT_TO_STRING(Info.ConfigRev));
+line := CONCAT(line, ',"kind":');
+line := CONCAT(line, DINT_TO_STRING(TO_DINT(Info.Kind)));
+line := CONCAT(line, ',"model":"');
+line := CONCAT(line, modelText);
+line := CONCAT(line, '","records":');
+line := CONCAT(line, INT_TO_STRING(Info.RecordCount));
+line := CONCAT(line, ',"created":');
+line := CONCAT(line, UDINT_TO_STRING(DT_TO_UDINT(Info.CreatedAt)));
+line := CONCAT(line, ',"clock":');
+IF Info.TimeSynchronized THEN
+    line := CONCAT(line, '1}');
+ELSE
+    line := CONCAT(line, '0}');
+END_IF
+M_Header := line;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Field" Id="{c8206f4b-9e17-45d3-82a6-70b41ed5c396}">
+      <Declaration><![CDATA[// Read one field out of a flat JSON object line. Deliberately NOT a general
+// JSON parser: the accepted shape is exactly what M_Record and M_Header emit -
+// a single object of scalar members, no nesting, no arrays. Anything else is
+// refused rather than half-understood, which is the §14 rule for untrusted
+// input applied to a format instead of to a value.
+METHOD PRIVATE _M_Field : BOOL
+VAR_INPUT
+    Line : STRING(480);
+    Name : STRING(32);
+END_VAR
+VAR_OUTPUT
+    Value : STRING(255);
+END_VAR
+VAR
+    pIn   : POINTER TO BYTE;
+    pOut  : POINTER TO BYTE;
+    buf   : STRING(255);
+    token : STRING(40);
+    found : INT;
+    i     : INT;
+    j     : INT;
+    n     : INT;
+    ch    : BYTE;
+    quoted : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Field := FALSE;
+Value := '';
+buf := '';
+token := CONCAT('"', CONCAT(Name, '":'));
+found := TO_INT(FIND(Line, token));
+IF found = 0 THEN
+    RETURN;                                // absent: the caller decides if that is fatal
+END_IF
+pIn := ADR(Line);
+n := TO_INT(LEN(Line));
+i := found - 1 + TO_INT(LEN(token));          // 0-based index of the first value byte
+IF i >= n THEN
+    RETURN;
+END_IF
+pOut := ADR(buf);
+j := 0;
+quoted := (pIn[i] = 16#22);
+IF quoted THEN
+    i := i + 1;
+END_IF
+WHILE i < n DO
+    ch := pIn[i];
+    IF quoted THEN
+        IF ch = 16#22 THEN
+            EXIT;                          // closing quote
+        END_IF
+        IF ch = 16#5C THEN
+            i := i + 1;                    // unescape: the next byte is literal
+            IF i >= n THEN
+                RETURN;                    // trailing escape: malformed, refuse
+            END_IF
+            ch := pIn[i];
+        END_IF
+    ELSE
+        IF (ch = 16#2C) OR (ch = 16#7D) THEN
+            EXIT;                          // ',' or '}' ends a bare number
+        END_IF
+    END_IF
+    IF j >= 254 THEN
+        RETURN;                            // longer than any value we can store
+    END_IF
+    pOut[j] := ch;
+    j := j + 1;
+    i := i + 1;
+END_WHILE
+IF quoted AND (i >= n) THEN
+    RETURN;                                // unterminated string: malformed
+END_IF
+pOut[j] := 0;
+Value := buf;
+_M_Field := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ParseRecord" Id="{72d5843a-6b09-4c71-ae83-1f905b7c62e4}">
+      <Declaration><![CDATA[// Parse one record line back into a record. FALSE = the line is not a record
+// line this build understands, and NOTHING in Record has been changed.
+//
+// This is untrusted input in the fullest sense - it may have been edited by
+// hand, produced by another vendor's tool, or moved between machines - so it is
+// parsed into a record and then still validated by the owning module's typed
+// handler before any value changes (§5.6, §14). Getting a well-formed record
+// out of here proves the SYNTAX, never the value.
+METHOD M_ParseRecord : BOOL
+VAR_INPUT
+    Line : STRING(480);
+END_VAR
+VAR_IN_OUT
+    Record : ST_ConfigRecord;
+END_VAR
+VAR
+    scopeText : STRING(255);
+    keyText   : STRING(255);
+    valueText : STRING(255);
+    revText   : STRING(255);
+    kindText  : STRING(255);
+    typeText  : STRING(255);
+    revValue  : LREAL;
+    kindValue : LREAL;
+    typeValue : LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ParseRecord := FALSE;
+IF NOT _M_Field(Line := Line, Name := 'key', Value => keyText) THEN
+    RETURN;
+END_IF
+IF keyText = '' THEN
+    RETURN;                                // a record without an identity is not one
+END_IF
+IF TO_INT(LEN(keyText)) > 160 THEN
+    RETURN;                                // wider than the mutation identity: refuse
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'scope', Value => scopeText) THEN
+    RETURN;
+END_IF
+IF TO_INT(LEN(scopeText)) > 80 THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'value', Value => valueText) THEN
+    RETURN;
+END_IF
+IF TO_INT(LEN(valueText)) > 80 THEN
+    RETURN;                                // wider than any registered text target
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'rev', Value => revText) THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'kind', Value => kindText) THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'type', Value => typeText) THEN
+    RETURN;
+END_IF
+IF NOT F_TryParseNumber(Text := revText, Value => revValue) THEN
+    RETURN;
+END_IF
+IF (revValue < 1.0) OR (revValue > 4294967295.0) THEN
+    RETURN;
+END_IF
+IF NOT F_TryParseNumber(Text := kindText, Value => kindValue) THEN
+    RETURN;
+END_IF
+IF (kindValue < 0.0) OR (kindValue > 1.0) THEN
+    RETURN;                                // outside E_ConfigKind: fail closed
+END_IF
+IF NOT F_TryParseNumber(Text := typeText, Value => typeValue) THEN
+    RETURN;
+END_IF
+IF (typeValue < 0.0) OR (typeValue > 3.0) THEN
+    RETURN;                                // outside E_ConfigValueType: fail closed
+END_IF
+// Every field is now known-good, so the record is filled in one go: a partially
+// overwritten record handed back on a later failure would be worse than none.
+Record.Scope := scopeText;
+Record.WriteKey := keyText;
+Record.ValueText := valueText;
+Record.Revision := LREAL_TO_UDINT(revValue);
+Record.Kind := LREAL_TO_DINT(kindValue);
+Record.ValueType := LREAL_TO_DINT(typeValue);
+M_ParseRecord := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ParseHeader" Id="{8b47e05c-3d21-4f96-a708-15ce6b0d2947}">
+      <Declaration><![CDATA[// §3.8b — parse a set HEADER line. FALSE = not a header (no "set" member), or
+// one this build cannot make sense of; Info is untouched either way.
+//
+// A header and a record are unambiguous by shape - a header carries "set" and a
+// record carries "key", and neither carries the other - so a caller can offer a
+// line to both and let the document tell it what the line is.
+METHOD M_ParseHeader : BOOL
+VAR_INPUT
+    Line : STRING(480);
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    nameText  : STRING(255);
+    rootText  : STRING(255);
+    modelText : STRING(255);
+    schemaText : STRING(255);
+    revText   : STRING(255);
+    kindText  : STRING(255);
+    countText : STRING(255);
+    createdText : STRING(255);
+    clockText : STRING(255);
+    schema    : LREAL;
+    configRev : LREAL;
+    kind      : LREAL;
+    records   : LREAL;
+    created   : LREAL;
+    clock     : LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ParseHeader := FALSE;
+IF NOT _M_Field(Line := Line, Name := 'set', Value => nameText) THEN
+    RETURN;                                // not a header line
+END_IF
+IF nameText = '' THEN
+    RETURN;
+END_IF
+IF TO_INT(LEN(nameText)) > 80 THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'root', Value => rootText) THEN
+    RETURN;
+END_IF
+IF TO_INT(LEN(rootText)) > 80 THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'model', Value => modelText) THEN
+    RETURN;
+END_IF
+IF TO_INT(LEN(modelText)) > 64 THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'schema', Value => schemaText) THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'configRev', Value => revText) THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'kind', Value => kindText) THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'records', Value => countText) THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'created', Value => createdText) THEN
+    RETURN;
+END_IF
+IF NOT _M_Field(Line := Line, Name := 'clock', Value => clockText) THEN
+    RETURN;
+END_IF
+IF NOT F_TryParseNumber(Text := schemaText, Value => schema) THEN
+    RETURN;
+END_IF
+IF (schema < 0.0) OR (schema > 65535.0) THEN
+    RETURN;
+END_IF
+IF NOT F_TryParseNumber(Text := revText, Value => configRev) THEN
+    RETURN;
+END_IF
+IF (configRev < 0.0) OR (configRev > 4294967295.0) THEN
+    RETURN;
+END_IF
+IF NOT F_TryParseNumber(Text := kindText, Value => kind) THEN
+    RETURN;
+END_IF
+IF (kind < 0.0) OR (kind > 1.0) THEN
+    RETURN;                                // outside E_ConfigKind: fail closed
+END_IF
+IF NOT F_TryParseNumber(Text := countText, Value => records) THEN
+    RETURN;
+END_IF
+IF (records < 0.0) OR (records > 32767.0) THEN
+    RETURN;
+END_IF
+IF NOT F_TryParseNumber(Text := createdText, Value => created) THEN
+    RETURN;
+END_IF
+IF (created < 0.0) OR (created > 4294967295.0) THEN
+    RETURN;
+END_IF
+IF NOT F_TryParseNumber(Text := clockText, Value => clock) THEN
+    RETURN;
+END_IF
+// Filled only once every field is known-good: a partially overwritten header
+// handed back on a later failure would describe a set that does not exist.
+Info.Used := TRUE;
+Info.SetName := nameText;
+Info.RootIdentity := rootText;
+Info.ModelCode := modelText;
+Info.SetSchema := LREAL_TO_UINT(schema);
+Info.ConfigRev := LREAL_TO_UDINT(configRev);
+Info.Kind := LREAL_TO_DINT(kind);
+Info.RecordCount := LREAL_TO_INT(records);
+Info.CreatedAt := UDINT_TO_DT(LREAL_TO_UDINT(created));
+Info.TimeSynchronized := (clock <> 0.0);
+M_ParseHeader := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

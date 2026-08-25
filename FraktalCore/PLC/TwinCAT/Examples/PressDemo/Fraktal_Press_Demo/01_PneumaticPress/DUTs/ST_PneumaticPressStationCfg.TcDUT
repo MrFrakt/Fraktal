@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_PneumaticPressStationCfg" Id="{7e5c1a09-4d38-42b6-9f07-c8241be5307a}">
+    <Declaration><![CDATA[// Core §3.8a/§3.8b — what this PRESS is, as opposed to what the current product
+// needs. Both members were assessed against one question: does the value change
+// when the MODEL changes?
+//
+//   RequireTwoHandStart came OUT of ST_PneumaticPressParCfg. It was recipe data
+//   in name only - all four catalog records set it TRUE - and it answers a
+//   question about the CELL: does this installation's risk assessment demand a
+//   two-hand start? A model recipe able to switch it off would let a changeover
+//   quietly remove a required operator protection, which is not a decision a
+//   product record should be able to take. (The certified two-hand evaluation
+//   stays in TwinSAFE regardless, §9.8; this flag selects whether the AUTO cycle
+//   WAITS for it, and can never weaken the safety function itself.)
+//
+//   StallGuardMs is the step guard for a step that declares no ExpectedTime
+//   (§6.9). How long a pneumatic motion may take before it counts as stalled is
+//   a fact about this machine's cylinders and air supply, not about the part.
+//
+// SchemaVersion is FIRST and mandatory (§3.8b). Version 0 means never written, so
+// a first boot initializes silently; any other unrecognized version means a real
+// image was rejected, and FB_ModuleBase.M_RestoreStationCfg reports it for the
+// root to annunciate with this Unit's canonical path.
+TYPE ST_PneumaticPressStationCfg :
+STRUCT
+    SchemaVersion       : UINT;    // 0 = never written; 1 = this layout
+    RequireTwoHandStart : BOOL;    // cell risk-assessment policy, not recipe data
+    StallGuardMs        : UDINT;   // §6.9 step guard when a step declares none
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

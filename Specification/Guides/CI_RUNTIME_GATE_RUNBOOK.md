@@ -363,7 +363,7 @@ port, autostart state, runner identity, all five TcUnit summary fields, the raw
 log and the generated JUnit. A result without those identities is diagnostic
 information, not release evidence.
 
-Note the expected counts are **148 tests / 37 suites** (Core+Modules) and
+Note the expected counts are **166 tests / 39 suites** (Core+Modules) and
 **8 / 2** (Press). Derive them from source rather than trusting any table: the
 suite count is the runner POU's `VAR` block, the test count is the `TEST('…')`
 calls in the suites it instantiates. A suite that exists but is not instantiated
@@ -442,7 +442,7 @@ the suites it instantiates. A suite that exists but is not instantiated does not
 run, and would leave the log's own totals self-consistent while silently
 under-testing.
 
-Current: **148 tests / 37 suites** (Core+Modules), **8 / 2** (Press).
+Current: **166 tests / 39 suites** (Core+Modules), **8 / 2** (Press).
 
 ### F4. Housekeeping that bites
 

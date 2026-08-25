@@ -3973,3 +3973,131 @@ an accepted write has not become durable. Also worth flagging: §3.8b forbids
 "a byte image ... one aggregate structure memory-copied in and out", and
 `FB_LocalStationConfig.Load` is a `MEMCPY` of exactly that shape. It predates the
 clause and now contradicts it.
+
+
+## 133. Configuration that survives a restart, and says so when it did not (2026-08-25)
+
+§3.8c gave the axis a taught position. §3.8b is the clause that decides whether
+that number is still there tomorrow, and it had **zero implementation**:
+`PersistPending`, `PersistFailed`, `E_ConfigRestorePolicy`, `SaveConfigSet`,
+`LoadConfigSet` and `ListConfigSets` returned no hits anywhere in the repository.
+A station could accept a value, publish it, retain it in `VAR PERSISTENT` — and
+lose it at the next power cut with nobody told, because nothing ever asked the
+runtime to write the retentive image out.
+
+### What the clause actually demands, and what each demand cost
+
+**"Storage stays distributed; the root is the authority, not the store."** A
+parameter set is *a projection produced by the same deterministic walk that
+builds the §3.10.2 manifest*. The cheap implementation is a second walk that
+collects values into a set. That is also the wrong one: two enumerations of
+"what this station's configuration consists of" drift the first time a module
+registers a value, and then a set silently stops containing something (§1.1 O9).
+
+So the set save is not a walk at all. `FB_ConfigPager` — the object the manifest
+already pages through — gained a **record sink**. `M_SetupSetSave` puts it in
+record mode, the ordinary `M_AppendConfig` walk runs completely unchanged, and
+every capability it emits is offered to the store. No exporter knows which mode
+it is feeding and none can be written to feed only one of them. The suite asserts
+the consequence directly: the saved record count equals the number of writable
+`STATION_CFG` capabilities the manifest publishes, counted by walking the
+manifest the way a client does.
+
+**"A byte image shall not be used."** The interface is record-oriented
+(`I_ConfigStore` moves `(Scope, WriteKey, ValueType, value)`), because a
+document- or blob-oriented store interface would reintroduce exactly the
+prohibited property one level up: no per-value identity, and no way to reject one
+bad value without rejecting all of them.
+
+**"Durability is a stated property, not a hope."** On TwinCAT the persistent
+image is written by the runtime, normally at a controlled shutdown, so every
+configuration write since the last one is lost to a power cut. That is the
+failure the clause exists to replace — and replacing it needs an explicit act
+with a latency and a failure mode, not a comment. `FB_PersistentDataWriter`
+(`I_ConfigPersistence`, `SPDM_2PASS`, the runtime's **own** `_AppInfo.AdsPort`
+rather than a hard-coded 851) is the shipped LOCAL_RETAIN default and is used
+with no wiring at all, so a conforming station persists its parametrization with
+no file system, no network, and no project code. The root marks every accepted
+write pending, drives the provider each scan, and holds the declared window to
+account: exceeding it publishes `PersistFailed` rather than waiting quietly.
+
+**"Restore is fail-closed and never silent."** `FB_ModuleBase.M_RestoreStationCfg`
+writes the rule once: version 0 is a first boot that lost nothing and initializes
+**silently**; any other unrecognized version means a real image was rejected and
+is reported for the root to annunciate **with the owning module's canonical
+path**. `FB_AxisCM` had a hand-written copy of this and it was subtly wrong in
+two ways — it treated both cases identically at the CM in one branch, and it
+resolved a loss by **faulting the module**, which forced the strictest possible
+consequence on every station that ever instantiated an axis. The consequence is
+the deployment's declaration (`E_ConfigRestorePolicy`), never the module's; the
+axis lost twelve lines and gained the right behaviour.
+
+### Three decisions worth recording
+
+**1. `FB_LocalStationConfig` was deleted, not fenced off.** Its `Load`/`Store` are
+`MEMCPY` of a whole aggregate keyed by name **and size** — so two different
+structures of equal size pass its check — which is precisely the byte image
+§3.8b forbids. It predated the clause. It had **no caller anywhere**: one
+declaration in the CoreDemo `MAIN` that nothing ever touched. Keeping a shipped
+type of the forbidden shape only invites its use, and "documented as
+discouraged" is not a property a compiler enforces. `I_StationConfig` went with
+it, since its only implementer was that type.
+
+**2. An unmatched record ABORTS the load.** §3.8b says records whose capability no
+longer exists are "reported, never silently dropped" and, separately, that "one
+rejection aborts the whole load". The permissive reading — report it and apply
+the rest — produces a machine restored to *almost* its commissioned state, which
+is the failure mode hardest to notice and the one all-or-nothing exists to
+prevent. So an unknown `(Scope, WriteKey)` fails staging like any other record
+and the refusal names it.
+
+**3. A model set can be SAVED and cannot be LOADED, and that is deliberate.**
+§3.8b requires a `PAR_CFG` set to be applied through the §3.8 changeover
+transaction — `PrepareRecipe` → recursive readiness → infallible `CommitRecipe`
+— "never as a sequence of per-field writes". Replaying its records through
+`M_ApplyConfigWrite` is exactly that forbidden sequence. Building the supported
+path needs `I_RecipeProvider` to gain a `Store` it does not have, which is its
+own design decision. So the load is **refused, naming the model**, and the gap
+is named here rather than filled with the version the clause prohibits.
+
+### `AXIS_TEACH_LOST` (10207) was retired
+
+It said the same thing as the new framework code `CONFIG_RESTORE_LOST` (2040),
+one band down, for one module type. §8.8's own rule is that a generic code plus
+`SourcePath` renders instance-specific — *"Loc130.PartFeed: configuration lost"*
+— so a per-type duplicate of a framework fact is the duplication O9 forbids. Its
+rationalization was more pointed (HIGH/PROCESS, "re-teach the axis position"),
+and that is a real trade: the generic entry cannot say "re-teach". The answer
+§3.8b actually provides for "this station's lost values are dangerous" is
+`BLOCK_UNTIL_ACKNOWLEDGED`, which refuses `START_STOP` outright — a stronger
+guarantee than a louder alarm, and the press bench declares it.
+
+### The press: what moved, and what deliberately did not
+
+The bench registered **no** editable configuration of its own. It now carries
+`ST_PneumaticPressStationCfg`, and one member was **taken out of the recipe**:
+
+- `RequireTwoHandStart` → `STATION_CFG`. It was recipe data in name only — all
+  four catalog records set it `TRUE` — and §3.8a's test is whether the value
+  changes with the model. It does not; it answers whether this *cell's* risk
+  assessment demands a two-hand start. A model recipe able to switch it off
+  would let a changeover quietly remove a required operator protection.
+- `TransferSettleTime` **stayed** in `ParCfg`. Its catalog values genuinely
+  differ per model (80/100/120/150 ms) — a heavier steel blank settles on the
+  slide more slowly than a plastic one. That is a fact about the part.
+- `StallGuardMs` is new `STATION_CFG` and is **derived** into `StallTime` every
+  scan rather than latched at Setup, so an edited guard takes effect on the next
+  step and the published value can never disagree with its configuration.
+
+The move touched all three AUTO renditions. The ladder edit was a **leaf operand
+substitution only** — no node id, no wiring, no box type — and `ld_dump.py`
+confirmed all four operands retyped as `BOOL` with their `NEG` flags and ids
+intact, because a clean compile does not prove a generated node still exists.
+
+### Proven, and not
+
+`plc_lint` clean in both profiles, `check_consistency --strict` clean, all five
+TwinCAT solutions pass `CheckAllObjects`, and 166 tests / 39 suites build. The
+**runtime TcUnit gate has not been run** — those counts are derived from source,
+not from a green runner, and no evidence record exists for this work. Nothing
+here is claimed to have executed on a PLC.

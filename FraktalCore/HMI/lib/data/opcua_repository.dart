@@ -39,6 +39,27 @@ enum _HmiRequestKind {
   setAccessLevel,
   setSessionTimeout,
   lampTest,
+  // Core §3.8c / §3.8b. Ordinals are the PLC transport contract
+  // (E_HmiRequestKind), so these are appended in the PLC's order and never
+  // reordered. No HMI control drives them yet, but they are declared here
+  // because plc_lint rule E1 compares the two enums member for member: an
+  // ordinal that exists on the PLC and not here is how a client ends up sending
+  // LOAD_CONFIG_SET when it meant LAMP_TEST. The ignores are deliberate and
+  // come off as each control is built.
+  // ignore: unused_field
+  captureConfig,
+  // ignore: unused_field
+  saveConfigSet,
+  // ignore: unused_field
+  loadConfigSet,
+  // ignore: unused_field
+  listConfigSets,
+  // ignore: unused_field
+  ackConfigRestore,
+  // ignore: unused_field
+  exportConfigSet,
+  // ignore: unused_field
+  importConfigSet,
 }
 
 /// Direct native OPC UA repository for Dart-native Flutter platforms. The

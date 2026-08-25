@@ -75,6 +75,30 @@ VAR_OUTPUT
     OeeTrendHead: INT;                 // newest sample index (0 = none yet)
     HmiResponse : ST_HmiResponse;
     ConfigRev   : UDINT;                // §3.10.2 manifest revision — HMI refetches on change
+    // §3.8b — is this station's configuration actually SAFE? Transport
+    // acknowledgement and Accepted mean a value is LIVE; this says whether it is
+    // DURABLE, whether anything was lost at the last restart, and what the last
+    // set operation did. Published cyclically because the answer changes without
+    // anybody asking, and because it has to be visible BEFORE the restart that
+    // would otherwise reveal it.
+    ConfigPersist : ST_ConfigPersistStatus;
+    // §3.8b — the store's set listing, refreshed on a LIST_CONFIG_SETS request.
+    // Off the cyclic tree: it is catalog data a client fetches when a set dialog
+    // opens, not something every scan should carry (§1.1 O4).
+    {attribute 'OPC.UA.DA' := '0'}
+    ConfigSets : ARRAY[1..PL_Fraktal.MAX_CONFIG_SETS] OF ST_ConfigSetInfo;
+    {attribute 'OPC.UA.DA' := '0'}
+    ConfigSetCount : INT;
+    // §3.8b — one line of a set's JSON document, served by EXPORT_CONFIG_SET.
+    // Line 0 is the header and 1..RecordCount are the records, so a client pulls
+    // a movable document a line at a time without a full buffer in the PLC —
+    // the same paging discipline QUERY_CONFIG already uses.
+    {attribute 'OPC.UA.DA' := '0'}
+    ConfigSetDocument : STRING(480);
+    {attribute 'OPC.UA.DA' := '0'}
+    ConfigSetDocumentLine : INT;
+    {attribute 'OPC.UA.DA' := '0'}
+    ConfigSetDocumentLines : INT;
     ModeActivePublished : E_Mode;       // properties are not OPC UA-visible
     RunningPublished : BOOL;
     StopPendingPublished : BOOL;
@@ -121,6 +145,26 @@ VAR
     _hmiLastSequence : UDINT;
     {attribute 'OPC.UA.DA' := '0'}
     _configPager : FB_ConfigPager;     // §3.10.2 QUERY_CONFIG window writer
+    // §3.8b — the parameter-set store. Absent (the shipped default for a Unit
+    // nobody wired one into) means save/load/list are simply not offered, which
+    // is published as StorePresent = FALSE rather than failing at the first
+    // request an operator makes.
+    {attribute 'OPC.UA.DA' := '0'}
+    _configStore : I_ConfigStore;
+    // §3.8b durability. _persistWriter is the shipped LOCAL_RETAIN default and
+    // is used unless a deployment injects something else, so a conforming
+    // station persists its parametrization with no file system, no network and
+    // no configuration — and with no line of project code either (§1.1 O1).
+    {attribute 'OPC.UA.DA' := '0'}
+    _persistWriter : FB_PersistentDataWriter;
+    {attribute 'OPC.UA.DA' := '0'}
+    _persistence : I_ConfigPersistence;
+    _persistSinceMs : DWORD;           // monotonic ms the current window started at
+    _persistEvt : INT;                 // open PersistFailed event slot (0 = none)
+    _restoreEvt : INT;                 // open restore-loss event slot (0 = none)
+    {attribute 'OPC.UA.DA' := '0'}
+    _setJson : FB_ConfigSetJson;       // §3.8b text projection (export/import)
+    _importOpen : BOOL;                // an IMPORT_CONFIG_SET save is in progress
     {attribute 'OPC.UA.DA' := '0'}
     _carrier  : I_PartCarrier;         // §3.16.2 injected part carrier (0 = traceability off)
     {attribute 'OPC.UA.DA' := '0'}
@@ -145,6 +189,16 @@ VAR
     _engineering : REFERENCE TO FB_EngineeringMode;
     // §7.5.2 open standing event per registered gate (0 = none open yet)
     _engineeringEvt : ARRAY[1..PL_Fraktal.MAX_ENGINEERING_GATES] OF INT;
+END_VAR
+VAR CONSTANT
+    // §3.8b — layout version of the retained ModePolicy image. Bump it when a
+    // member is added to ST_ModePolicy or the array is resized; the retained
+    // image is then rejected and annunciated instead of read by field position.
+    MODE_POLICY_SCHEMA : UINT := 1;
+    // §3.8b — schema version stamped into every set this root produces, so a set
+    // document that outlives the build that wrote it can be recognized rather
+    // than guessed at (§13).
+    CONFIG_SET_SCHEMA : UINT := 1;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -486,7 +540,10 @@ CASE Kind OF
     E_HmiRequestKind.RESET_OEE, E_HmiRequestKind.WRITE_CONFIG,
     E_HmiRequestKind.SHELVE_ALARM, E_HmiRequestKind.UNSHELVE_ALARM,
     E_HmiRequestKind.FORCE_CHANNEL, E_HmiRequestKind.SET_ACCESS_LEVEL,
-    E_HmiRequestKind.SET_SESSION_TIMEOUT, E_HmiRequestKind.LAMP_TEST:
+    E_HmiRequestKind.SET_SESSION_TIMEOUT, E_HmiRequestKind.LAMP_TEST,
+    E_HmiRequestKind.CAPTURE_CONFIG, E_HmiRequestKind.SAVE_CONFIG_SET,
+    E_HmiRequestKind.LOAD_CONFIG_SET, E_HmiRequestKind.ACK_CONFIG_RESTORE,
+    E_HmiRequestKind.IMPORT_CONFIG_SET:
         auditable := TRUE;
 ELSE
     auditable := FALSE;
@@ -498,6 +555,15 @@ Access.RecordActivity();
 textValue := CONCAT('std.audit.hmiAccepted kind=', TO_STRING(TO_DINT(Kind)));
 textValue := CONCAT(textValue, ' user=');
 textValue := CONCAT(textValue, Access.CurrentUser);
+// §3.8b — a set operation is audited WITH the set name and record count: "the
+// operator loaded a set" is not an audit record anyone can act on later.
+IF (Kind = E_HmiRequestKind.SAVE_CONFIG_SET)
+OR (Kind = E_HmiRequestKind.LOAD_CONFIG_SET) THEN
+    textValue := CONCAT(textValue, ' set=');
+    textValue := CONCAT(textValue, ConfigPersist.LastSetName);
+    textValue := CONCAT(textValue, ' records=');
+    textValue := CONCAT(textValue, INT_TO_STRING(ConfigPersist.LastSetRecords));
+END_IF
 sourcePath := TargetPath;
 IF sourcePath = '' THEN
     sourcePath := _name;
@@ -546,6 +612,7 @@ VAR
     levelReq : E_AccessLevel;
     alarmSlot : INT;
     policyValueValid : BOOL;
+    configKindReq : E_ConfigKind;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF HmiRequest.Sequence = _hmiLastSequence THEN
@@ -683,6 +750,42 @@ CASE HmiRequest.Kind OF
         HmiResponse.Accepted := SetSessionTimeout(TimeoutMs := HmiRequest.DurationMs);
     E_HmiRequestKind.LAMP_TEST:
         HmiResponse.Accepted := RequestLampTest();
+    E_HmiRequestKind.CAPTURE_CONFIG:
+        // §3.8c(a) — a capture is routed through the SAME acknowledged mailbox as
+        // the typed write it replaces, with the same arguments minus the value:
+        // the number comes from the machine, not from the client.
+        HmiResponse.Accepted := CaptureConfig(TargetPath := HmiRequest.TargetPath,
+            WriteKey := HmiRequest.NameValue, Revision := HmiRequest.IntValue);
+    E_HmiRequestKind.SAVE_CONFIG_SET:
+        IF (HmiRequest.IntValue >= 0)
+        AND (HmiRequest.IntValue <= TO_DINT(E_ConfigKind.STATION_CFG)) THEN
+            configKindReq := HmiRequest.IntValue;
+            HmiResponse.Accepted := SaveConfigSet(SetName := HmiRequest.TextValue,
+                Kind := configKindReq);
+        ELSE
+            HmiResponse.Diagnostic := 'std.error.configSetKindInvalid';
+        END_IF
+    E_HmiRequestKind.LOAD_CONFIG_SET:
+        HmiResponse.Accepted := LoadConfigSet(SetName := HmiRequest.TextValue);
+        IF NOT HmiResponse.Accepted THEN
+            HmiResponse.Diagnostic := 'std.error.configSetRejected';
+        END_IF
+    E_HmiRequestKind.LIST_CONFIG_SETS:
+        HmiResponse.Accepted := ListConfigSets();
+    E_HmiRequestKind.ACK_CONFIG_RESTORE:
+        HmiResponse.Accepted := AcknowledgeConfigRestore();
+        IF NOT HmiResponse.Accepted THEN
+            HmiResponse.Diagnostic := 'std.error.configRestoreAckRefused';
+        END_IF
+    E_HmiRequestKind.EXPORT_CONFIG_SET:
+        HmiResponse.Accepted := ExportConfigSetLine(SetName := HmiRequest.TextValue,
+            Line := TO_INT(HmiRequest.IntValue));
+    E_HmiRequestKind.IMPORT_CONFIG_SET:
+        HmiResponse.Accepted := ImportConfigSetLine(Line := HmiRequest.TextValue,
+            Commit := HmiRequest.BoolValue);
+        IF NOT HmiResponse.Accepted THEN
+            HmiResponse.Diagnostic := 'std.error.configSetLineRejected';
+        END_IF
     E_HmiRequestKind.NONE:
         HmiResponse.Diagnostic := 'std.error.emptyHmiRequest';
 ELSE
@@ -1091,16 +1194,24 @@ _M_RouteConfigWrite := M_ApplyConfigWrite(Scope := TargetPath,
     <Method Name="_M_WriteBaseConfig" Id="{c30f39b4-eae4-421d-a415-c6dc3b402679}">
       <Declaration><![CDATA[// Framework-owned typed handlers. Stable keys are independent of browse paths;
 // capability revision 1 accepts exact enum ordinals and only while READY.
+//
+// Commit := FALSE validates and stores nothing — the staging pass of a §3.8b set
+// load. The root's own ModePolicy keys are published as STATION_CFG
+// capabilities, so they are in every station set and have to stage through the
+// same validator that writes them, for the same reason every module's do.
 METHOD PRIVATE _M_WriteBaseConfig : BOOL
 VAR_INPUT
     TargetPath : STRING(255);
     WriteKey   : STRING(160);
     Revision   : UDINT;
     TextValue  : STRING(255);
+    Commit     : BOOL;
 END_VAR
 VAR
-    i   : INT;
-    key : STRING(160);
+    i      : INT;
+    key    : STRING(160);
+    shield : E_ModeSwitchShield;
+    style  : E_ModeSwitchStyle;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[_M_WriteBaseConfig := FALSE;
 IF (TargetPath <> Status.Name) OR (Revision <> 1) OR (_exec <> E_ExecState.READY) THEN
@@ -1110,28 +1221,34 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
     key := CONCAT('unit.modePolicy.', CONCAT(TO_STRING(i), '.shield'));
     IF WriteKey = key THEN
         IF TextValue = '0' THEN
-            ModePolicy[i].Shield := E_ModeSwitchShield.INTERRUPTIBLE;
+            shield := E_ModeSwitchShield.INTERRUPTIBLE;
         ELSIF TextValue = '1' THEN
-            ModePolicy[i].Shield := E_ModeSwitchShield.CONFIRM;
+            shield := E_ModeSwitchShield.CONFIRM;
         ELSIF TextValue = '2' THEN
-            ModePolicy[i].Shield := E_ModeSwitchShield.BLOCKED_WHILE_RUNNING;
+            shield := E_ModeSwitchShield.BLOCKED_WHILE_RUNNING;
         ELSE
             RETURN;
         END_IF
-        _modePolicyStored[i].Shield := ModePolicy[i].Shield;
+        IF Commit THEN
+            ModePolicy[i].Shield := shield;
+            _modePolicyStored[i].Shield := shield;
+        END_IF
         _M_WriteBaseConfig := TRUE;
         RETURN;
     END_IF
     key := CONCAT('unit.modePolicy.', CONCAT(TO_STRING(i), '.style'));
     IF WriteKey = key THEN
         IF TextValue = '0' THEN
-            ModePolicy[i].Style := E_ModeSwitchStyle.GRACEFUL;
+            style := E_ModeSwitchStyle.GRACEFUL;
         ELSIF TextValue = '1' THEN
-            ModePolicy[i].Style := E_ModeSwitchStyle.IMMEDIATE;
+            style := E_ModeSwitchStyle.IMMEDIATE;
         ELSE
             RETURN;
         END_IF
-        _modePolicyStored[i].Style := ModePolicy[i].Style;
+        IF Commit THEN
+            ModePolicy[i].Style := style;
+            _modePolicyStored[i].Style := style;
+        END_IF
         _M_WriteBaseConfig := TRUE;
         RETURN;
     END_IF
@@ -1660,6 +1777,626 @@ FOR seqIdx := 1 TO SequenceStepCount DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
+    <Method Name="SetConfigStore" Id="{1f6b90d4-38a2-4c57-9e01-b47d2c85a3f6}">
+      <Declaration><![CDATA[// §3.8b — inject this deployment's parameter-set store at Setup, the same shape
+// as SetPartCarrier and the §3.8 recipe provider. Absent means save/load/list are
+// not offered at all, published as StorePresent = FALSE — a stated fact rather
+// than a request that fails the first time an operator tries it.
+METHOD SetConfigStore : BOOL
+VAR_INPUT
+    Store : I_ConfigStore;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SetConfigStore := FALSE;
+IF Store = 0 THEN
+    RETURN;
+END_IF
+_configStore := Store;
+ConfigPersist.StorePresent := TRUE;
+ConfigPersist.StoreKind := Store.M_Kind();
+SetConfigStore := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetConfigPersistence" Id="{a5c37e08-9412-4bd6-83f9-6e05b17c94a2}">
+      <Declaration><![CDATA[// §3.8b — substitute the durability provider. The shipped LOCAL_RETAIN writer is
+// used when nothing is injected, so this exists for a deployment whose
+// configuration genuinely lives somewhere else (a file, a database, an MES) —
+// not as one more thing every station has to remember to wire (§1.1 O1).
+METHOD SetConfigPersistence : BOOL
+VAR_INPUT
+    Provider : I_ConfigPersistence;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SetConfigPersistence := FALSE;
+IF Provider = 0 THEN
+    RETURN;
+END_IF
+_persistence := Provider;
+SetConfigPersistence := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetConfigPersistWindow" Id="{5db2740a-9e18-4c63-b0f5-8a2914e7c036}">
+      <Declaration><![CDATA[// §3.8b — declare how long an accepted write may take to become durable. The
+// clause says "within a declared bounded window", and the point of DECLARING it
+// is that different stores have honestly different latencies: a retentive write
+// is milliseconds, an MES round trip is not. A deployment that leaves this alone
+// gets PL_Fraktal.CONFIG_PERSIST_WINDOW_MS.
+//
+// Zero means "durable immediately or not at all", which is the correct
+// declaration for a store that either completes in the same scan or has failed.
+METHOD SetConfigPersistWindow : BOOL
+VAR_INPUT
+    WindowMs : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ConfigPersist.WindowMs := WindowMs;
+SetConfigPersistWindow := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetConfigRestorePolicy" Id="{72e4a1b9-c530-46df-8127-93b605ea4d78}">
+      <Declaration><![CDATA[// §3.8b — declare what this station DOES about a lost configuration image.
+// DEFAULTS_AND_ANNUNCIATE is the shipped default; a station whose commissioned
+// values are the difference between a good part and a wrecked tool declares
+// BLOCK_UNTIL_ACKNOWLEDGED instead. It is a DEPLOYMENT decision on purpose: no
+// module type is in a position to know which of the two its station is, which is
+// why a module reporting a loss never decides the consequence of one.
+METHOD SetConfigRestorePolicy : BOOL
+VAR_INPUT
+    Policy : E_ConfigRestorePolicy;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ConfigPersist.RestorePolicy := Policy;
+SetConfigRestorePolicy := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_MarkPersistPending" Id="{6d09fb35-2a84-41ce-b7f0-58d2e1937a4b}">
+      <Declaration><![CDATA[// §3.8b — an accepted write is LIVE. This starts the clock on it becoming
+// DURABLE, and the root publishes PersistPending until it is. Called from every
+// path that accepts a value, so no project and no module type has to remember
+// that a write it just made is not yet safe (§1.1 O1).
+METHOD PROTECTED _M_MarkPersistPending]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT ConfigPersist.Pending THEN
+    ConfigPersist.Pending := TRUE;
+    ConfigPersist.PendingSince := F_Now();
+END_IF
+// The window runs from the LATEST accepted write, because that is the one whose
+// durability is in question; PendingSince stays at the start of the episode so
+// an operator can see how long this station has been unsafe.
+_persistSinceMs := TIME_TO_DWORD(TIME());
+ConfigPersist.Failed := FALSE;
+IF _persistEvt > 0 THEN
+    AlarmLog.Gone(Slot := _persistEvt);
+    _persistEvt := 0;
+END_IF
+IF _persistence = 0 THEN
+    RETURN;                                // no provider: the window will expire
+END_IF
+IF NOT _persistence.M_Request() THEN
+    _M_ConfigPersistFailed();              // refused before it began is a failure
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ConfigPersistFailed" Id="{3a81c6e7-40b2-4d95-916f-c82705bd4e13}">
+      <Declaration><![CDATA[// §3.8b — the store rejected the write, or the declared window elapsed with it
+// still not durable. Pending stays TRUE because the value is STILL not durable;
+// Failed says it will not get there on its own.
+//
+// Deliberately NOT retried in a loop: a store that cannot write is not fixed by
+// asking again every scan, and a retry storm would bury the one annunciation an
+// operator needs. The next accepted write re-arms it.
+METHOD PRIVATE _M_ConfigPersistFailed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ConfigPersist.Failed := TRUE;
+IF _persistEvt > 0 THEN
+    RETURN;                                // one standing event, not one per scan
+END_IF
+// AUTO_RESET: loud enough to see, never blocking. A station whose configuration
+// will not persist can still finish the parts already in it, and the operator is
+// told BEFORE the restart that would otherwise reveal this silently.
+_persistEvt := AlarmLog.Raise(Reason := E_Reason.CONFIG_PERSIST_FAILED,
+    Text := 'std.error.configPersistFailed', Source := _name,
+    Severity := E_Severity.MED, Category := E_Category.SYSTEM,
+    ResetClass := E_ResetClass.AUTO_RESET);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ConfigPersistCyclic" Id="{9c0d4318-b7a5-42e6-8f13-05ea7c9b2d40}">
+      <Declaration><![CDATA[// §3.8b — drive the durability provider and hold the declared window to
+// account. "Within a declared bounded window" is a promise, and a promise
+// nobody measures is the hope the clause replaces: the window is checked here
+// every scan, and exceeding it publishes PersistFailed.
+METHOD PRIVATE _M_ConfigPersistCyclic
+VAR
+    busy    : BOOL;
+    elapsed : DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[busy := FALSE;
+IF _persistence <> 0 THEN
+    busy := _persistence.M_Cyclic();
+END_IF
+IF NOT ConfigPersist.Pending THEN
+    RETURN;
+END_IF
+IF busy THEN
+    // Unsigned subtraction, so the monotonic millisecond counter wrapping does
+    // not fabricate an expired window (TC3 §8.11).
+    elapsed := TIME_TO_DWORD(TIME()) - _persistSinceMs;
+    IF elapsed > TO_DWORD(ConfigPersist.WindowMs) THEN
+        _M_ConfigPersistFailed();
+    END_IF
+    RETURN;
+END_IF
+// Nothing in flight. Either it finished, or there is no provider to finish it.
+IF _persistence = 0 THEN
+    elapsed := TIME_TO_DWORD(TIME()) - _persistSinceMs;
+    IF elapsed > TO_DWORD(ConfigPersist.WindowMs) THEN
+        _M_ConfigPersistFailed();
+    END_IF
+    RETURN;
+END_IF
+IF _persistence.M_Failed() THEN
+    _M_ConfigPersistFailed();
+    RETURN;
+END_IF
+ConfigPersist.Pending := FALSE;
+ConfigPersist.Failed := FALSE;
+IF _persistEvt > 0 THEN
+    AlarmLog.Gone(Slot := _persistEvt);
+    _persistEvt := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_DrainRestoreLoss" Id="{0b7e5294-16ad-43c1-a8f6-249d038be715}">
+      <Declaration><![CDATA[// §3.8b — "restore is fail-closed and never silent". Every module that ran
+// M_RestoreStationCfg and found an unrecognized image is holding one report;
+// this takes them and annunciates each with the OWNING module's canonical path,
+// which is what makes the message actionable instead of "something was lost".
+//
+// The event is AUTO_RESET and therefore never blocking: the consequence belongs
+// to E_ConfigRestorePolicy, evaluated in ReleaseReportStart, so a station that
+// declared DEFAULTS_AND_ANNUNCIATE really does run while the annunciation
+// stands. It stays open until an ENGINEER acknowledges it, because nothing
+// makes a lost image come back and an event that closed itself would be a lie.
+METHOD PRIVATE _M_DrainRestoreLoss
+VAR
+    guard    : INT;
+    path     : STRING(80);
+    expected : UINT;
+    found    : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Bounded per scan (§5.6): losses are one-shot, so a large subtree simply
+// finishes draining over the next few scans instead of stretching one.
+FOR guard := 1 TO PL_Fraktal.MAX_EM_CHILDREN DO
+    IF NOT M_TakeRestoreLoss(Path => path, Expected => expected, Found => found) THEN
+        RETURN;
+    END_IF
+    ConfigPersist.RestoreLost := TRUE;
+    ConfigPersist.RestoreAcknowledged := FALSE;
+    ConfigPersist.LostPath := path;
+    IF _restoreEvt = 0 THEN
+        _restoreEvt := AlarmLog.Raise(Reason := E_Reason.CONFIG_RESTORE_LOST,
+            Text := 'std.error.configRestoreLost', Source := path,
+            Severity := E_Severity.MED, Category := E_Category.SYSTEM,
+            ResetClass := E_ResetClass.AUTO_RESET);
+    ELSE
+        // A second losing module gets its own ring entry naming ITS path: a
+        // summary that named only the first would hide the rest of the damage.
+        _M_RaiseMaintenance(Reason := E_Reason.CONFIG_RESTORE_LOST,
+            Text := 'std.error.configRestoreLost');
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AcknowledgeConfigRestore" Id="{e18c47b3-5029-4ed6-9a71-b3406fc25d89}">
+      <Declaration><![CDATA[// §3.8b — an operator of at least ENGINEER level accepts that a configuration
+// image was lost. Under BLOCK_UNTIL_ACKNOWLEDGED this is what releases
+// START_STOP again; under DEFAULTS_AND_ANNUNCIATE it is what clears the
+// standing annunciation.
+//
+// The level is checked directly rather than through a gated action, because
+// §3.8b names ENGINEER specifically and a station may legitimately have left
+// DATA_WRITE or CONFIG_SET open to a lower level. Acknowledging a lost
+// commissioning is a different decision from editing a value.
+METHOD AcknowledgeConfigRestore : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AcknowledgeConfigRestore := FALSE;
+IF Access.CurrentLevel < E_AccessLevel.ENGINEER THEN
+    RETURN;
+END_IF
+IF NOT ConfigPersist.RestoreLost THEN
+    RETURN;                                // nothing to acknowledge
+END_IF
+ConfigPersist.RestoreAcknowledged := TRUE;
+IF _restoreEvt > 0 THEN
+    AlarmLog.Gone(Slot := _restoreEvt);
+    _restoreEvt := 0;
+END_IF
+Access.RecordActivity();
+AcknowledgeConfigRestore := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_RejectConfigSet" Id="{5f2a90c6-8b41-4d73-bec0-172e845f39ab}">
+      <Declaration><![CDATA[// §3.8b — refuse a set operation, naming the offending record. "One rejection
+// aborts the whole load naming the offending (Scope, WriteKey)": a refusal that
+// says only "rejected" leaves an engineer diffing two machines by hand.
+METHOD PRIVATE _M_RejectConfigSet
+VAR_INPUT
+    Scope : STRING(80);
+    Key   : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ConfigPersist.LastRejectScope := Scope;
+ConfigPersist.LastRejectKey := Key;
+_M_RaiseMaintenance(Reason := E_Reason.CONFIG_SET_REJECTED,
+    Text := 'std.error.configSetRejected');]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SetOpAllowed" Id="{3d70b95e-c284-41f0-86ba-9e15c703da42}">
+      <Declaration><![CDATA[// §3.8b — the gate every set operation shares: CONFIG_SET (never DATA_WRITE —
+// replacing a machine's entire parametrization is not the same decision as
+// changing one number), a wired store, and the owning root READY.
+METHOD PRIVATE _M_SetOpAllowed : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetOpAllowed := FALSE;
+IF NOT Access.PermitsLogged(Gate := E_GatedAction.CONFIG_SET) THEN
+    RETURN;
+END_IF
+IF _configStore = 0 THEN
+    RETURN;
+END_IF
+IF _exec <> E_ExecState.READY THEN
+    RETURN;
+END_IF
+_M_SetOpAllowed := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SaveConfigSet" Id="{8a4d1e07-63b9-4c25-90fd-e7285a1cb046}">
+      <Declaration><![CDATA[// §3.8b — save the current parametrization as a named set.
+//
+// The set is a PROJECTION of the same deterministic walk that builds the
+// §3.10.2 manifest: M_AppendConfig runs exactly as a QUERY_CONFIG would run it,
+// and the pager files every capability of the requested ConfigKind as a
+// (Scope, WriteKey) record. There is no second enumeration of "what this
+// station's configuration consists of" to drift from the first (§1.1 O9).
+//
+// Kind selects which of the two kinds of set this is: STATION_CFG for a station
+// set (deployment data), PAR_CFG for a model set (one model's recipe data).
+METHOD SaveConfigSet : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+    Kind    : E_ConfigKind;
+END_VAR
+VAR
+    info    : ST_ConfigSetInfo;
+    records : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SaveConfigSet := FALSE;
+ConfigPersist.LastSetName := SetName;
+ConfigPersist.LastSetRecords := 0;
+IF NOT _M_SetOpAllowed() THEN
+    RETURN;
+END_IF
+IF SetName = '' THEN
+    RETURN;
+END_IF
+info.Used := TRUE;
+info.SetName := SetName;
+info.RootIdentity := Status.Name;
+info.SetSchema := CONFIG_SET_SCHEMA;
+info.ConfigRev := ConfigRev;
+info.Kind := Kind;
+IF Kind = E_ConfigKind.PAR_CFG THEN
+    info.ModelCode := Model.ModelCode;     // a model set belongs to ONE model
+ELSE
+    info.ModelCode := '';
+END_IF
+info.RecordCount := 0;
+info.CreatedAt := F_Now();
+info.TimeSynchronized := F_TimeSynchronized();
+IF NOT _configPager.M_SetupSetSave(Store := _configStore, Info := info) THEN
+    RETURN;
+END_IF
+M_AppendConfig(Pager := _configPager);     // the SAME walk as the manifest
+SaveConfigSet := _configPager.M_FinishSetSave(Records => records);
+ConfigPersist.LastSetRecords := records;
+IF SaveConfigSet THEN
+    // The set now lives in the store's retained memory, which is not durable
+    // until it is written out - the same promise as any other accepted write.
+    _M_MarkPersistPending();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="LoadConfigSet" Id="{c93f5b28-047e-41da-b6c1-5820ae74f3d9}">
+      <Declaration><![CDATA[// §3.8b — apply a named set. STAGED and ALL-OR-NOTHING.
+//
+// Pass 1 validates every record through its owning module's typed handler and
+// changes nothing. Only if all of them pass does pass 2 apply them. A
+// half-applied machine parametrization is never a valid outcome, and the only
+// way to guarantee that is to know the answer for every record before touching
+// the first one.
+//
+// A record whose capability no longer exists fails pass 1 like any other and is
+// REPORTED by name - never silently dropped, because a set that quietly skipped
+// the one value that mattered restores a machine to almost its commissioned
+// state, which is the failure that is hardest to notice.
+METHOD LoadConfigSet : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR
+    info    : ST_ConfigSetInfo;
+    record  : ST_ConfigRecord;
+    i       : INT;
+    applied : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[LoadConfigSet := FALSE;
+ConfigPersist.LastSetName := SetName;
+ConfigPersist.LastSetRecords := 0;
+ConfigPersist.LastRejectScope := '';
+ConfigPersist.LastRejectKey := '';
+IF NOT _M_SetOpAllowed() THEN
+    RETURN;
+END_IF
+IF NOT _configStore.M_ReadInfo(SetName := SetName, Info := info) THEN
+    _M_RejectConfigSet(Scope := '', Key := SetName);
+    RETURN;
+END_IF
+IF info.RootIdentity <> Status.Name THEN
+    // The set carries the identity of the root that produced it precisely so
+    // this can be asked. Every record's Scope is prefixed by that identity, so
+    // a mismatch would fail record by record anyway - naming the root instead
+    // tells the operator WHY in one line.
+    _M_RejectConfigSet(Scope := info.RootIdentity, Key := '');
+    RETURN;
+END_IF
+IF info.Kind = E_ConfigKind.PAR_CFG THEN
+    // §3.8b: a MODEL set "shall be applied through the §3.8 changeover
+    // transaction (PrepareRecipe -> recursive readiness -> infallible
+    // CommitRecipe), never as a sequence of per-field writes". Applying it here
+    // would be exactly that forbidden sequence, so it is refused. Saving a
+    // model set is supported; loading one is a changeover this build does not
+    // implement, and refusing is the honest half of that.
+    _M_RejectConfigSet(Scope := info.ModelCode, Key := '');
+    RETURN;
+END_IF
+// ---- pass 1: stage. Nothing in the machine changes in this loop. ----
+FOR i := 1 TO info.RecordCount DO
+    IF NOT _configStore.M_ReadRecord(SetName := SetName, Index := i,
+            Record := record) THEN
+        _M_RejectConfigSet(Scope := '', Key := SetName);
+        RETURN;
+    END_IF
+    IF NOT _M_StageOneRecord(Record := record) THEN
+        _M_RejectConfigSet(Scope := record.Scope, Key := record.WriteKey);
+        RETURN;
+    END_IF
+END_FOR
+// ---- pass 2: apply. Every record already proved acceptable on the SAME
+// validator, so a refusal here cannot be a data problem. ----
+FOR i := 1 TO info.RecordCount DO
+    IF NOT _configStore.M_ReadRecord(SetName := SetName, Index := i,
+            Record := record) THEN
+        _M_ConfigSetHalfApplied(Scope := record.Scope, Key := record.WriteKey);
+        RETURN;
+    END_IF
+    applied := _M_WriteBaseConfig(TargetPath := record.Scope,
+        WriteKey := record.WriteKey, Revision := record.Revision,
+        TextValue := record.ValueText, Commit := TRUE);
+    IF NOT applied THEN
+        applied := M_ApplyConfigWrite(Scope := record.Scope,
+            WriteKey := record.WriteKey, Revision := record.Revision,
+            TextValue := record.ValueText,
+            RootReady := (_exec = E_ExecState.READY));
+    END_IF
+    IF NOT applied THEN
+        _M_ConfigSetHalfApplied(Scope := record.Scope, Key := record.WriteKey);
+        RETURN;
+    END_IF
+END_FOR
+ConfigRev := ConfigRev + 1;
+ConfigPersist.LastSetRecords := info.RecordCount;
+_M_MarkPersistPending();
+_M_RaiseMaintenance(Reason := E_Reason.EVENT_CONFIG_SET_APPLIED,
+    Text := 'std.audit.configSetApplied');
+LoadConfigSet := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_StageOneRecord" Id="{b6014e8d-72c3-49a5-80fe-c1738d92406b}">
+      <Declaration><![CDATA[// §3.8b — would this record be accepted? The same two-step the write path
+// takes: framework-owned keys first, then the recursive walk to the owning
+// module. Sharing the writers' own code with Commit := FALSE is what makes
+// "staged" mean something: a separate validator could pass a record the write
+// path would then refuse, and the load would be half-applied after all.
+METHOD PRIVATE _M_StageOneRecord : BOOL
+VAR_INPUT
+    Record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_StageOneRecord := _M_WriteBaseConfig(TargetPath := Record.Scope,
+    WriteKey := Record.WriteKey, Revision := Record.Revision,
+    TextValue := Record.ValueText, Commit := FALSE);
+IF _M_StageOneRecord THEN
+    RETURN;
+END_IF
+_M_StageOneRecord := M_StageConfigWrite(Scope := Record.Scope,
+    WriteKey := Record.WriteKey, Revision := Record.Revision,
+    TextValue := Record.ValueText,
+    RootReady := (_exec = E_ExecState.READY));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ConfigSetHalfApplied" Id="{47db6015-9a2e-4c38-b7f0-d5216e409a83}">
+      <Declaration><![CDATA[// §3.8b — a record passed staging and then failed to apply. This cannot
+// happen: both run the same validator on the same data in the same scan. If it
+// ever does, the machine is half-parametrized and that is a state the standard
+// says is never valid - so it is escalated as a BLOCKING alarm rather than
+// returned as a FALSE somebody might retry. A framework defect that leaves a
+// machine half-configured has to stop it, not inconvenience it.
+METHOD PRIVATE _M_ConfigSetHalfApplied
+VAR_INPUT
+    Scope : STRING(80);
+    Key   : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ConfigPersist.LastRejectScope := Scope;
+ConfigPersist.LastRejectKey := Key;
+AlarmLog.Raise(Reason := E_Reason.CONFIG_SET_REJECTED,
+    Text := 'std.error.configSetHalfApplied', Source := Scope,
+    Severity := E_Severity.HIGH, Category := E_Category.SYSTEM,
+    ResetClass := E_ResetClass.MANUAL_RESET);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ListConfigSets" Id="{2e85d740-c6b1-4930-a5df-08417b3ce629}">
+      <Declaration><![CDATA[// §3.8b — refresh the published listing of stored sets. Read-only, so it is
+// gated on CONFIG_SET without the audited write path: seeing which sets exist
+// is not replacing a machine's parametrization.
+METHOD ListConfigSets : BOOL
+VAR
+    i     : INT;
+    total : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ListConfigSets := FALSE;
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    ConfigSets[i].Used := FALSE;
+    ConfigSets[i].SetName := '';
+    ConfigSets[i].RecordCount := 0;
+END_FOR
+ConfigSetCount := 0;
+IF NOT Access.Permits(Gate := E_GatedAction.CONFIG_SET) THEN
+    RETURN;
+END_IF
+IF _configStore = 0 THEN
+    RETURN;
+END_IF
+total := _configStore.M_Count();
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF i > total THEN
+        EXIT;
+    END_IF
+    IF _configStore.M_InfoAt(Index := i, Info := ConfigSets[i]) THEN
+        ConfigSetCount := i;
+    END_IF
+END_FOR
+ListConfigSets := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExportConfigSetLine" Id="{6c1908fe-b432-4a07-95d8-e2603ba7145c}">
+      <Declaration><![CDATA[// §3.8b — serve one line of a set's JSON document. Line 0 is the header and
+// 1..RecordCount are the records, so a client pulls a movable document a line
+// at a time and no full document buffer ever exists in the PLC - the same
+// paging discipline QUERY_CONFIG already uses for the manifest.
+//
+// This is what makes a set MOVABLE, which is the point of naming sets at all: a
+// station's commissioning can leave the controller as text, be reviewed,
+// diffed, version-controlled and put on the next machine.
+METHOD ExportConfigSetLine : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+    Line    : INT;
+END_VAR
+VAR
+    info   : ST_ConfigSetInfo;
+    record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ExportConfigSetLine := FALSE;
+ConfigSetDocument := '';
+ConfigSetDocumentLine := Line;
+ConfigSetDocumentLines := 0;
+IF NOT Access.Permits(Gate := E_GatedAction.CONFIG_SET) THEN
+    RETURN;
+END_IF
+IF _configStore = 0 THEN
+    RETURN;
+END_IF
+IF NOT _configStore.M_ReadInfo(SetName := SetName, Info := info) THEN
+    RETURN;
+END_IF
+ConfigSetDocumentLines := info.RecordCount;
+IF Line <= 0 THEN
+    ConfigSetDocument := _setJson.M_Header(Info := info);
+ELSE
+    IF NOT _configStore.M_ReadRecord(SetName := SetName, Index := Line,
+            Record := record) THEN
+        RETURN;
+    END_IF
+    ConfigSetDocument := _setJson.M_Record(Record := record);
+END_IF
+// An empty line means the projection REFUSED to render it rather than shorten
+// it, so the export fails here instead of shipping a document with a hole.
+ExportConfigSetLine := (ConfigSetDocument <> '');]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ImportConfigSetLine" Id="{d0a76321-8e54-4bc9-97a2-3f16054eb7d8}">
+      <Declaration><![CDATA[// §3.8b — take one line of a set's JSON document back in. A header line opens
+// a store save, record lines append to it, and Commit closes it.
+//
+// Import writes into the STORE, never into the machine. Bringing a document in
+// and applying it to the equipment are two decisions, and keeping them apart is
+// what lets LoadConfigSet stay staged and all-or-nothing: an imported set is
+// validated against THIS machine's capabilities when somebody chooses to load
+// it, not silently as it arrives.
+//
+// Everything here is untrusted input in the fullest sense - hand-edited, from
+// another vendor's tool, from another machine - so the line is parsed into a
+// typed record and nothing more is assumed about it (§5.6, §14).
+METHOD ImportConfigSetLine : BOOL
+VAR_INPUT
+    Line   : STRING(480);
+    Commit : BOOL;
+END_VAR
+VAR
+    info   : ST_ConfigSetInfo;
+    record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ImportConfigSetLine := FALSE;
+IF NOT _M_SetOpAllowed() THEN
+    _importOpen := FALSE;
+    RETURN;
+END_IF
+IF _setJson.M_ParseHeader(Line := Line, Info := info) THEN
+    _importOpen := FALSE;
+    info.Used := TRUE;
+    info.RecordCount := 0;
+    IF NOT _configStore.M_SaveBegin(Info := info) THEN
+        RETURN;
+    END_IF
+    _importOpen := TRUE;
+    ConfigPersist.LastSetName := info.SetName;
+    ImportConfigSetLine := TRUE;
+    RETURN;
+END_IF
+IF NOT _importOpen THEN
+    RETURN;                                // a record before its header: refuse
+END_IF
+IF _setJson.M_ParseRecord(Line := Line, Record := record) THEN
+    ImportConfigSetLine := _configStore.M_SaveRecord(Record := record);
+    IF NOT ImportConfigSetLine THEN
+        _configStore.M_SaveAbort();
+        _importOpen := FALSE;
+        RETURN;
+    END_IF
+ELSIF NOT Commit THEN
+    // Neither a header nor a record, and not the closing call: the document is
+    // not one this build understands. Abort rather than commit a partial set.
+    _configStore.M_SaveAbort();
+    _importOpen := FALSE;
+    RETURN;
+END_IF
+IF Commit THEN
+    ImportConfigSetLine := _configStore.M_SaveCommit();
+    _importOpen := FALSE;
+    IF ImportConfigSetLine THEN
+        _M_MarkPersistPending();
+    END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_SequenceAskDecision" Id="{099b4f9d-bc09-44d1-a376-b2e504dbb242}">
       <Declaration><![CDATA[METHOD M_SequenceAskDecision
 VAR_INPUT
@@ -2057,6 +2794,8 @@ _M_EngineeringCyclic();                               // §7.5.2 standing gate a
 _healthPublisher.Cyclic(Input := _healthInput, ParCfg := _healthParCfg,
     Configured := _healthConfigured);                 // §2.7/§8.12 alarm edges + values
 SystemHealth := _healthPublisher.Status;
+_M_ConfigPersistCyclic();                             // §3.8b durability window
+_M_DrainRestoreLoss();                                // §3.8b restore annunciation
 _M_HandleHmiRequest();                                // §3.10 request mailbox
 _M_DecisionCyclic();                                  // §6.11 timeout/default/overlap resolver
 Access.Cyclic();
@@ -2268,21 +3007,33 @@ SequenceViewEnabled := TRUE;   // §3.13 a Unit has a chain worth drawing;
 Access.Setup(Provider := 0, pAlarmLog := ADR(AlarmLog)); // preserves an injected provider
 _healthPublisher.Setup(SourcePath := CONCAT(Status.Name, '.SystemHealth'),
     pAlarmLog := ADR(AlarmLog));
-IF _modePolicyVersion <> 1 THEN
+// §3.10.2 — seed the manifest revision from boot time so every PLC restart or
+// re-activation yields a NEW value (a plain counter would repeat after reboot
+// and an HMI could keep a stale manifest undetected). Config writes increment.
+ConfigRev := DT_TO_UDINT(F_Now());
+// §3.8b — the durability provider defaults to the shipped LOCAL_RETAIN writer.
+// SetConfigPersistence may already have replaced it, so this never overwrites an
+// injected one.
+IF _persistence = 0 THEN
+    _persistence := _persistWriter;
+END_IF
+// The framework's OWN station config is subject to the same rule it imposes on
+// every module: version 0 is a first boot that lost nothing, any other
+// unrecognized version means a real ModePolicy image was rejected and that is
+// annunciated with this root's path. The base used to treat both cases as a
+// silent re-initialize, which is exactly the "runs on defaults while presenting
+// itself as commissioned" failure §3.8b exists to prevent.
+IF NOT M_RestoreStationCfg(pVersion := ADR(_modePolicyVersion),
+        SchemaVersion := MODE_POLICY_SCHEMA) THEN
     _M_InitModePolicy();
     FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         _modePolicyStored[i] := ModePolicy[i];
     END_FOR
-    _modePolicyVersion := 1;
 ELSE
     FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         ModePolicy[i] := _modePolicyStored[i];
     END_FOR
-END_IF
-// §3.10.2 — seed the manifest revision from boot time so every PLC restart or
-// re-activation yields a NEW value (a plain counter would repeat after reboot
-// and an HMI could keep a stale manifest undetected). Config writes increment.
-ConfigRev := DT_TO_UDINT(F_Now());]]></ST>
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="OnModeChanged" Id="{4307796c-f352-4515-b104-1671ef41b10c}">
@@ -2544,13 +3295,14 @@ OR NOT _M_OwnsModulePath(Path := TargetPath) THEN
     RETURN;
 END_IF
 WriteConfig := _M_WriteBaseConfig(TargetPath := TargetPath, WriteKey := WriteKey,
-    Revision := TO_UDINT(Revision), TextValue := TextValue);
+    Revision := TO_UDINT(Revision), TextValue := TextValue, Commit := TRUE);
 IF NOT WriteConfig THEN
     WriteConfig := _M_RouteConfigWrite(TargetPath := TargetPath,
         WriteKey := WriteKey, Revision := TO_UDINT(Revision), TextValue := TextValue);
 END_IF
 IF WriteConfig THEN
     ConfigRev := ConfigRev + 1;
+    _M_MarkPersistPending();           // §3.8b: accepted is LIVE, not yet DURABLE
 END_IF]]></ST></Implementation>
     </Method>
           <Method Name="CaptureConfig" Id="{6657c29b-54a9-410f-b368-d4a1ad1bb646}">

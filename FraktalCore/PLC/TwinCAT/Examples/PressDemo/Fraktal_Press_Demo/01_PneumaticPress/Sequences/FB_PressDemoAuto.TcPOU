@@ -34,6 +34,11 @@ VAR
     _airPressureMonitor : REFERENCE TO FB_AirPressureMonitorCM;
     {attribute 'OPC.UA.DA' := '0'}
     _parCfg : REFERENCE TO ST_PneumaticPressParCfg;
+    // §3.8a - the CELL's own policy, held separately from the MODEL's data and
+    // referenced exactly like _parCfg, so each step reads whichever structure
+    // actually owns the value it is asking about.
+    {attribute 'OPC.UA.DA' := '0'}
+    _stationCfg : REFERENCE TO ST_PneumaticPressStationCfg;
     {attribute 'OPC.UA.DA' := '0'}
     _outCmd : REFERENCE TO ST_PneumaticPressOutCmd;
     {attribute 'OPC.UA.DA' := '0'}
@@ -75,7 +80,7 @@ CASE _step OF
             Ok := _partPresentSensor.OutImm.Value AND _partPresentSensor.OutImm.Quality);
         _airReady := M_Await(Idx := 2, Label := 'project.condition.airPressureOk',
             Ok := _airPressureMonitor.OutImm.PressureOk);
-        IF _parCfg.RequireTwoHandStart THEN
+        IF _stationCfg.RequireTwoHandStart THEN
             _startReady := M_Await(Idx := 3, Label := 'project.condition.twoHandStart', Ok := _startLatched);
         ELSE
             _startReady := TRUE;
@@ -133,7 +138,7 @@ CASE _step OF
             Awaits := _door, AwaitingLabel := 'Door.EXTEND', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
         _twoHandHeldDuringClose := M_Await(Idx := 1,
             Label := 'project.condition.twoHandHeldDuringDoorClose',
-            Ok := _twoHand.OutImm.SafeActive OR NOT _parCfg.RequireTwoHandStart);
+            Ok := _twoHand.OutImm.SafeActive OR NOT _stationCfg.RequireTwoHandStart);
         IF M_TryIssue(Steppable := TRUE) THEN
             _door.Abort := FALSE; _door.Command := E_CylinderCommand.EXTEND; _door.Execute := TRUE;
         END_IF
@@ -237,7 +242,7 @@ CASE _step OF
         // again restores the force and finishes the remaining dwell. Faulting here
         // charged an unrecoverable downtime event for normal operator behaviour.
         _dwellTwoHandHeld := M_Await(Idx := 1, Label := 'project.condition.twoHandHeldDuringPress',
-            Ok := _twoHand.OutImm.SafeActive OR NOT _parCfg.RequireTwoHandStart);
+            Ok := _twoHand.OutImm.SafeActive OR NOT _stationCfg.RequireTwoHandStart);
         IF NOT _dwellTwoHandHeld THEN
             _pressRam.WithdrawOutputs();
         ELSE
@@ -296,6 +301,7 @@ VAR_IN_OUT
     PartPresentSensor : FB_DigitalInputCM;
     AirPressureMonitor : FB_AirPressureMonitorCM;
     ParCfg : ST_PneumaticPressParCfg;
+    StationCfg : ST_PneumaticPressStationCfg;
     OutCmd : ST_PneumaticPressOutCmd;
     StartLatched : BOOL;
 END_VAR]]></Declaration>
@@ -307,6 +313,7 @@ _twoHand REF= TwoHand;
 _partPresentSensor REF= PartPresentSensor;
 _airPressureMonitor REF= AirPressureMonitor;
 _parCfg REF= ParCfg;
+_stationCfg REF= StationCfg;
 _outCmd REF= OutCmd;
 _startLatched REF= StartLatched;
 Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_door)

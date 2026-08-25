@@ -42,7 +42,10 @@ END_VAR]]></Declaration>
     Cfg.TransferSettleTime := T#0S;
     Cfg.IdealCycleMs := 1000;
     Cfg.BaselineWorkMs := 900;
-    Cfg.RequireTwoHandStart := TRUE;
+    // RequireTwoHandStart is STATION config now (S3.8a), not recipe data. The
+    // bench takes it from the Unit's own persistent image, which Setup
+    // initializes to the fail-safe TRUE on a first boot - and which no recipe
+    // can reach, which is exactly why it was moved.
     Recipe.Register(ModelCode := '', RecipeKey := 'PneumaticPressUnit', pData := ADR(Cfg), Size := SIZEOF(Cfg));
     PressHal.RetractedFb := TRUE; DoorHal.RetractedFb := TRUE; SlideHal.RetractedFb := TRUE;
     Press.Setup(Name := 'Test.Recovery', PressHal := PressHal, DoorHal := DoorHal,

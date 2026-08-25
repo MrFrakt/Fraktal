@@ -32,7 +32,27 @@ TYPE E_HmiRequestKind :
     QUERY_CONFIG     := 23,   // §3.10.2 config-manifest page request (IntValue = page)
     SET_ACCESS_LEVEL := 24,   // §7.7 policy: IntValue=gate, TextValue=level ordinal
     SET_SESSION_TIMEOUT := 25, // §7.7 policy: DurationMs, 0 = never
-    LAMP_TEST        := 26     // §8.13 bounded signal-tower test
+    LAMP_TEST        := 26,    // §8.13 bounded signal-tower test
+    // §3.8c — a capture is a write whose value comes from the machine. The root
+    // already owned CaptureConfig; without a request kind no client could reach
+    // it, and §3.8c(a) requires a capture to be routed through this same
+    // acknowledged mailbox. TargetPath=Scope, NameValue=WriteKey, IntValue=rev.
+    CAPTURE_CONFIG   := 27,
+    // §3.8b parameter sets. TextValue = set name; IntValue = E_ConfigKind for a
+    // save (which class of records the set carries). All three are CONFIG_SET,
+    // separately from the DATA_WRITE that edits one value.
+    SAVE_CONFIG_SET  := 28,
+    LOAD_CONFIG_SET  := 29,
+    LIST_CONFIG_SETS := 30,
+    // §3.8b — an ENGINEER-level operator accepts a restore loss. Under
+    // BLOCK_UNTIL_ACKNOWLEDGED this is what releases START_STOP again.
+    ACK_CONFIG_RESTORE := 31,
+    // §3.8b — move a set as TEXT. Export serves one JSON line per request
+    // (IntValue = line; 0 = header), import takes one back (TextValue = the line,
+    // BoolValue = this is the last one). Paged for the same reason QUERY_CONFIG
+    // is: no full set document ever has to exist in PLC memory.
+    EXPORT_CONFIG_SET := 32,
+    IMPORT_CONFIG_SET := 33
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>

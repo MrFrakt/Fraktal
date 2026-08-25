@@ -7,6 +7,11 @@
 PROGRAM MAIN
 VAR
     RecipeCatalog : FB_PressRecipeCatalog;
+    // §3.8b - this station's parameter-set store. LOCAL_RETAIN is the shipped
+    // default: named sets of (Scope, WriteKey) records in the controller's own
+    // retentive memory, so the press persists and restores its parametrization
+    // with no file system, no network and no further configuration.
+    ConfigStore : FB_LocalConfigStore;
     PartCarrier : FB_LocalPartCarrier;    // §3.16.2 BY_POSITION identity + local result ring
     AccessUsers : FB_LocalAccessProvider; // §7.7 commissioning user/PIN table
     // TF6100 TMC-Filtered publication starts at the deployed root instance.
@@ -137,6 +142,18 @@ IF NOT Init THEN
     // §3.16 traceability: station-local BY_POSITION serials; RFID/host substitutes later
     PartCarrier.Setup(UidPrefix := 'PRESS-2026-');
     PneumaticPress.SetPartCarrier(Carrier := PartCarrier);
+    // §3.8b — the parameter-set store, beside the recipe provider and the access
+    // provider it mirrors. Composition-root wiring, one line, no per-value glue:
+    // every capability any module in this tree registered is already in the set.
+    PneumaticPress.SetConfigStore(Store := ConfigStore);
+    // §3.8b — this press declares the STRICT restore policy. Its station data is
+    // the two-hand requirement and the axis's taught position: running on
+    // defaults would mean a machine that presents itself as commissioned while
+    // feeding parts to a position nobody taught it. DEFAULTS_AND_ANNUNCIATE is
+    // the shipped default and is right for a station whose lost values are
+    // conveniences; this one's are not.
+    PneumaticPress.SetConfigRestorePolicy(
+        Policy := E_ConfigRestorePolicy.BLOCK_UNTIL_ACKNOWLEDGED);
     // §7.7/§14: provider secrets are retained deployment configuration, never
     // source literals. Provision them before raising any policy threshold.
     IF GVL_PressCommissioning.OperatorPin <> '' THEN

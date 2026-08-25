@@ -19,7 +19,12 @@ void main() {
   });
 
   test('every generated reason has a standard English fallback', () {
-    expect(generatedReasonSymbolByCode, hasLength(61));
+    // This pin was already stale before the §3.8b reasons were added (61 vs the
+    // 74 the catalog then held): a count assertion nobody updates stops being a
+    // check. 77 = 74 + CONFIG_RESTORE_LOST, CONFIG_PERSIST_FAILED,
+    // CONFIG_SET_REJECTED, EVENT_CONFIG_SET_APPLIED, minus the retired
+    // AXIS_TEACH_LOST, which the framework band now owns (§8.8).
+    expect(generatedReasonSymbolByCode, hasLength(77));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

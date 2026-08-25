@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ConfigPersistStatus" Id="{5e83b1c7-06d4-49f2-8a35-c71e94062db8}">
+    <Declaration><![CDATA[// Core §3.8b — the root's published answer to "is my configuration actually
+// safe?". Transport acknowledgement and Accepted (§3.10(a″)) mean a value is
+// LIVE; they say nothing about whether it is DURABLE, and a station that cannot
+// persist is a station that will silently revert at its next restart. That has
+// to be visible BEFORE the restart rather than discovered after it, which is
+// what this record exists for.
+TYPE ST_ConfigPersistStatus :
+STRUCT
+    // Durability of ordinary accepted writes.
+    Pending      : BOOL;   // an accepted write has not yet reached non-volatile storage
+    Failed       : BOOL;   // the store rejected it, or the declared window elapsed
+    // The DECLARED bounded window a write has to become durable. Defaulted HERE
+    // rather than in the root's OnInit on purpose: a composition root declares
+    // its window at Setup, which runs BEFORE the first cyclic scan, and an
+    // OnInit assignment would silently overwrite the declaration it was given.
+    WindowMs     : UDINT := PL_Fraktal.CONFIG_PERSIST_WINDOW_MS;
+    PendingSince : DT;     // when the oldest still-pending write was accepted
+    StorePresent : BOOL;   // a set store is wired (save/load/list are offered)
+    StoreKind    : E_ConfigStore;
+
+    // Restore (§3.8b fail-closed startup).
+    RestorePolicy       : E_ConfigRestorePolicy;
+    RestoreLost         : BOOL;       // a retained image was rejected somewhere in this subtree
+    RestoreAcknowledged : BOOL;       // an ENGINEER-level operator has accepted the loss
+    LostPath            : STRING(80); // canonical path of the LAST module that reported one
+
+    // Last set operation, so a refusal names the offending value rather than
+    // just failing (§3.8b: one rejection aborts the load NAMING the record).
+    LastSetName     : STRING(80);
+    LastSetRecords  : INT;
+    LastRejectScope : STRING(80);
+    LastRejectKey   : STRING(160);
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

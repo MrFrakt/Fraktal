@@ -244,5 +244,76 @@ FOR i := 1 TO _nChild DO
 END_FOR]]></ST>
         </Implementation>
       </Method>
+        <Method Name="M_StageConfigWrite" Id="{6b93df20-4a17-4c58-80e6-d925a3f1748b}">
+        <Declaration><![CDATA[// §3.8b — the staging walk is the write walk. Same order, same "first owner
+// answers TRUE" rule, so a record that stages here is the record that will
+// apply there, on the same module.
+METHOD M_StageConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR
+VAR
+    i    : INT;
+    iCfg : I_ConfigSource;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_StageConfigWrite := SUPER^.M_StageConfigWrite(Scope := Scope,
+    WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
+    RootReady := RootReady);
+IF M_StageConfigWrite THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nChild DO
+    IF _children[i] <> 0 THEN
+        IF __QUERYINTERFACE(_children[i], iCfg) THEN
+            IF iCfg.M_StageConfigWrite(Scope := Scope, WriteKey := WriteKey,
+                    Revision := Revision, TextValue := TextValue,
+                    RootReady := RootReady) THEN
+                M_StageConfigWrite := TRUE;
+                RETURN;
+            END_IF
+        END_IF
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="M_TakeRestoreLoss" Id="{e470a8c1-2f63-49bd-95d0-1a86c72b503f}">
+        <Declaration><![CDATA[// §3.8b — own loss first, then the children in registration order. One loss per
+// call: the root drains until FALSE, so a subtree that lost several images
+// annunciates each of them with its own owning path rather than one summary
+// that names nobody.
+METHOD M_TakeRestoreLoss : BOOL
+VAR_OUTPUT
+    Path     : STRING(80);
+    Expected : UINT;
+    Found    : UINT;
+END_VAR
+VAR
+    i    : INT;
+    iCfg : I_ConfigSource;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_TakeRestoreLoss := SUPER^.M_TakeRestoreLoss(Path => Path,
+    Expected => Expected, Found => Found);
+IF M_TakeRestoreLoss THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nChild DO
+    IF _children[i] <> 0 THEN
+        IF __QUERYINTERFACE(_children[i], iCfg) THEN
+            IF iCfg.M_TakeRestoreLoss(Path => Path, Expected => Expected,
+                    Found => Found) THEN
+                M_TakeRestoreLoss := TRUE;
+                RETURN;
+            END_IF
+        END_IF
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
 </POU>
 </TcPlcObject>

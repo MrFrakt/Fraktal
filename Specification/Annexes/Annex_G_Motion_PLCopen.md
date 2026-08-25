@@ -243,20 +243,27 @@ M_RegisterCapture(WriteKey := 'axis.taughtPosition',
   goes through the same revision check, the same `_M_OnConfigWrite` invariant hook, the same range and
   domain validation and the same storage as a typed write. A machine-supplied number is not more
   trustworthy than a human-supplied one (§14).
-- **Schema-versioned restore.** `ST_AxisStationCfg` carries `SchemaVersion` first (§3.8b). Version 0
-  is a first boot and initializes silently; any other unrecognized version means a real image was
-  rejected, which initializes defaults **and annunciates** `AXIS_TEACH_LOST` — because running on
-  defaults while presenting itself as a commissioned machine is the failure that rule exists to
-  prevent.
+- **Schema-versioned restore, written once in the base.** `ST_AxisStationCfg` carries
+  `SchemaVersion` first (§3.8b), and the axis calls `M_RestoreStationCfg` rather than carrying its
+  own copy of the rule: version 0 is a first boot and initializes **silently**; any other
+  unrecognized version means a real image was rejected, so the module runs on its declared defaults
+  and the loss is reported to the root, which annunciates it with the axis's own canonical path and
+  the framework reason `CONFIG_RESTORE_LOST` (§8.8 band 2040–2049). Running on defaults while
+  presenting itself as a commissioned machine is the failure that rule exists to prevent.
+- **The axis does not decide what a loss costs.** The consequence is the deployment's, through
+  `E_ConfigRestorePolicy`: `DEFAULTS_AND_ANNUNCIATE` runs the station with the annunciation standing,
+  `BLOCK_UNTIL_ACKNOWLEDGED` refuses `START_STOP` until an operator of at least `ENGINEER` level
+  acknowledges the loss. An axis that faulted itself — which this annex previously described — would
+  impose the strictest reading on every station that instantiates one.
 
-> **What is not yet behind this.** §3.8b requires durability to be a *stated property*:
-> `PersistPending` / `PersistFailed` published by the root, `E_ConfigRestorePolicy`, and named
-> parameter sets saved and loaded as a projection keyed by `(Scope, WriteKey)`. **None of that is
-> implemented yet.** The taught value is retained by the platform (`VAR PERSISTENT`), which is one
-> valid backing, but a station cannot currently save its parametrization to a file, move it to
-> another machine, or tell an operator that an accepted write has not reached non-volatile storage.
-> The registration above is deliberately the shape that will project into a set store unchanged when
-> that layer lands.
+> **Durability is now behind this (§3.8b).** An accepted write is marked pending and driven to
+> non-volatile storage within a declared bounded window, and the root publishes `PersistPending` /
+> `PersistFailed`; the taught position takes part in named parameter sets as an ordinary
+> `(Scope, WriteKey)` record, so a commissioned axis position can be saved, listed, exported as a
+> JSON document, carried to another machine and replayed through this same validation. What remains
+> unbuilt is the **model-set load**: a `PAR_CFG` set must be applied through the §3.8 changeover
+> transaction rather than as per-field writes, which needs a recipe provider that can store as well
+> as load, so that load is refused rather than performed the forbidden way.
 
 ---
 
