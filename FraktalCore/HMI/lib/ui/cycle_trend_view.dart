@@ -213,7 +213,7 @@ class _TrendPainter extends CustomPainter {
 }
 
 /// §8.11.4(a)/(c) — drill-through: the module command timing table. When a step
-/// in the waterfall is slow, this names the command (and its Min/Avg/Max drift)
+/// in the cycle Gantt is slow, this names the command (and its Min/Avg/Max drift)
 /// that consumed the time. Plain table = the accessibility fallback by design.
 class CommandTimingView extends StatelessWidget {
   final String moduleName;

@@ -852,9 +852,9 @@ class _ModuleOverviewTab extends StatelessWidget {
         const SizedBox(height: 8),
         _controls(context, n, s),
         const SizedBox(height: 12),
-        // §8.11.4(c) cycle-time analysis: trend (why it moved) -> waterfall
-        // (which step) -> Pareto (which step, over time) -> command timing
-        // per child module (which command) below.
+        // §8.11.4(c) cycle-time analysis: trend (why it moved) -> Gantt
+        // (which step, and where in the cycle) -> Pareto (which step, over
+        // time) -> command timing per child module (which command) below.
         CycleTrendView(history: n.cycleHistory, minCycleTime: n.minCycleTime),
         if (n.cycle != null) CycleProfileView(profile: n.cycle!),
         if (n.stepStats.isNotEmpty) StepParetoView(stats: n.stepStats),

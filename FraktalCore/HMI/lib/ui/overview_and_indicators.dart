@@ -82,7 +82,7 @@ class CurrentStepCard extends StatelessWidget {
 }
 
 /// §8.11.4 — step Pareto: per-step Avg (bar) with Max marker, worst-first, so the
-/// dominant cycle-time contributor is obvious. Complements the waterfall.
+/// dominant cycle-time contributor is obvious. Complements the cycle Gantt.
 class StepParetoView extends StatelessWidget {
   final List<StepStat> stats;
   const StepParetoView({super.key, required this.stats});

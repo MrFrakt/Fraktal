@@ -406,7 +406,7 @@ class MotionFacet {
       this.homed = true});
 }
 
-/// §8.11.4 — one step of the cycle profile (waterfall row) with time class.
+/// §8.11.4 — one step of the cycle profile (Gantt row) with time class.
 enum TimeClass {
   work,
   waitUpstream,
