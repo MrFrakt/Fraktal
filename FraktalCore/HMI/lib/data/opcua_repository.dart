@@ -89,6 +89,7 @@ class OpcUaRepository implements PlcRepository {
   Map<String, List<String>> _onDemandByScope = const {};
   final Set<String> _activeOnDemandScopes = {};
   List<String> _lastTierPaths = const [];
+  List<String> _lastTierRoots = const [];
   // Interactive (operator-initiated) requests in flight. While > 0 the periodic
   // full-tree refresh yields the single native worker so the command's small
   // ack polls are not queued behind a full snapshot (Core §14 responsiveness).
@@ -100,6 +101,10 @@ class OpcUaRepository implements PlcRepository {
   String? _manifestRevSignature; // null = never hydrated
   bool _manifestFetchInFlight = false;
   DateTime _manifestRetryAfter = DateTime.fromMillisecondsSinceEpoch(0);
+  // §3.10.2 refetch coalescing: the signature we are waiting to settle, and when
+  // it last moved. See [_configRevSettle].
+  String? _manifestSettlingSignature;
+  DateTime _manifestSignatureMovedAt = DateTime.fromMillisecondsSinceEpoch(0);
   String _rootChildren = '';
   String _namespaceUris = '';
   String _aliasSignature = '';
@@ -151,10 +156,17 @@ class OpcUaRepository implements PlcRepository {
       // with its own refresh, so the live view stays current without competing
       // for the worker against the operation the operator is waiting on.
       repository._timer = Timer.periodic(refreshInterval, (_) {
-        if (repository._manifestFetchInFlight ||
-            repository._interactiveInFlight > 0) {
+        // Yield to the INITIAL hydration — there is no tree to keep alive yet,
+        // so the fastest route to a first complete picture is to leave the
+        // worker to it. A REFETCH is different: the operator is already looking
+        // at a live screen, and standing the cyclic poll down for the duration
+        // is what made a mode change look like a freeze rather than a lag. It
+        // costs the refetch some worker time and keeps the machine on screen.
+        if (repository._manifestFetchInFlight &&
+            repository._manifestRevSignature == null) {
           return;
         }
+        if (repository._interactiveInFlight > 0) return;
         repository._refresh();
       });
       return repository;
@@ -241,18 +253,51 @@ class OpcUaRepository implements PlcRepository {
   // `paths`) and push the excluded (on-demand) set to the native client. These
   // paths are never read in the cyclic snapshot — only when their owning view
   // activates the scope. Every non-excluded, non-config leaf is fast (live).
-  // Re-runs only when the discovered node count changes (first snapshot, online
-  // change, reconnect). The classifier runs over `paths`, not `_values`, since
-  // excluded paths are absent from the snapshot values.
+  // Re-runs when the discovered path set or the discovered root set changes
+  // (first snapshot, online change, reconnect). The classifier runs over
+  // `paths`, not `_values`, since excluded paths are absent from the values.
   void _maybeUpdatePathTiers() {
-    if (listEquals(_lastTierPaths, _discoveredPaths)) return;
+    // The DEPLOYED root Units only — browsePathByModulePath carries every
+    // module, and the published-contract boundary is drawn at the roots
+    // TF6100 publishes (`OPC.UA.DA := '1'`), not at each module under one.
+    final rootBases = <String>[
+      for (final root in _projection.forest)
+        if (_browseBase(root.path) case final base?) base,
+    ];
+    // Re-run on a new path set OR on a new root set. The roots come from the
+    // mapped projection, so a first snapshot that discovers paths before it
+    // resolves the forest would otherwise pin an unscoped classification for
+    // the whole session.
+    if (listEquals(_lastTierPaths, _discoveredPaths) &&
+        listEquals(_lastTierRoots, rootBases)) {
+      return;
+    }
     _lastTierPaths = List.unmodifiable(_discoveredPaths);
+    _lastTierRoots = List.unmodifiable(rootBases);
     if (_discoveredPaths.isEmpty) return;
     final roots = _projection.browsePathByModulePath.values;
     final slow = <String>[];
     final excluded = <String>[];
     final onDemandByScope = <String, List<String>>{};
+    var offContract = 0;
+    var manifestServed = 0;
     for (final path in _discoveredPaths) {
+      // Match what TF6100 publishes before asking which tier a leaf is in: a
+      // path outside the published roots has no tier, because over OPC UA it has
+      // no node. Excluded, never scoped — no view can ask for it.
+      if (OpcUaFieldTier.isOutsidePublishedRoots(path, rootBases)) {
+        excluded.add(path);
+        offContract++;
+        continue;
+      }
+      // Served by the §3.10.2 manifest under these same paths, so the cyclic
+      // read owes them nothing. The overlay in _performRefresh puts them back
+      // under the live values before the mapper ever sees the tree.
+      if (OpcUaFieldTier.isManifestServed(path)) {
+        excluded.add(path);
+        manifestServed++;
+        continue;
+      }
       switch (OpcUaFieldTier.classify(path)) {
         case FieldTier.slow:
           slow.add(path);
@@ -287,7 +332,8 @@ class OpcUaRepository implements PlcRepository {
     debugPrint('[Fraktal/Connection] stage=opcua-read-tiers '
         'discovered=${_discoveredPaths.length} '
         'fast=${_discoveredPaths.length - slow.length - excluded.length} '
-        'slow=${slow.length} onDemand=${excluded.length} '
+        'slow=${slow.length} excluded=${excluded.length} '
+        'offContract=$offContract manifest=$manifestServed '
         'scopes=${onDemandByScope.length}');
     unawaited(_client.setSlowPaths(slow).then((_) {}, onError: (_, __) {}));
     unawaited(
@@ -377,6 +423,12 @@ class OpcUaRepository implements PlcRepository {
     }
   }
 
+  /// How long the published `ConfigRev` signature must hold still before a
+  /// REFETCH is charged. Long enough to swallow a burst of §3.13 row
+  /// discoveries at mode entry, short enough that a config write the operator
+  /// just made comes back within one interaction. The first hydration ignores it.
+  static const Duration _configRevSettle = Duration(milliseconds: 750);
+
   // §3.10.2 — fetch (or refetch) the config manifest when a root forest exists
   // and the published ConfigRev signature differs from the hydrated one. The
   // revision is seeded from PLC boot time and bumped on config writes, model
@@ -392,6 +444,27 @@ class OpcUaRepository implements PlcRepository {
     if (signature.isEmpty) return;
     if (signature == _manifestRevSignature) return;
     if (DateTime.now().isBefore(_manifestRetryAfter)) return;
+    // Coalesce a BURST of revisions into one fetch. §3.13 rows are discovered by
+    // visit and each newly appended row bumps the Unit's ConfigRev, so entering a
+    // mode with a long chain used to charge one full paged refetch per row —
+    // AUTO (15 steps) paid roughly eight times what HOME (2 steps) did, which is
+    // exactly the asymmetry the operator feels. The PLC coalesces this too
+    // (FB_UnitBase._M_ChartRevCyclic), but the HMI cannot assume the PLC in front
+    // of it has that library, so the client holds its own guard.
+    //
+    // The first hydration is exempt: there is no manifest yet, nothing to
+    // coalesce, and delaying it would delay the first complete tree.
+    if (_manifestRevSignature != null) {
+      if (signature != _manifestSettlingSignature) {
+        _manifestSettlingSignature = signature;
+        _manifestSignatureMovedAt = DateTime.now();
+        return; // still moving — refetch once it stops
+      }
+      if (DateTime.now().difference(_manifestSignatureMovedAt) <
+          _configRevSettle) {
+        return;
+      }
+    }
     _manifestFetchInFlight = true;
     unawaited(_fetchConfigManifest(signature).whenComplete(() {
       _manifestFetchInFlight = false;

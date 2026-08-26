@@ -12,6 +12,8 @@ import 'dart:io';
 
 import 'package:fraktal_opcua_client/fraktal_opcua_client.dart';
 
+import 'probe_read_tiers.dart';
+
 Future<void> main(List<String> args) async {
   final netId = args.isNotEmpty ? args[0] : '192.168.1.6.1.1';
   final port = args.length > 1 ? int.parse(args[1]) : 851;
@@ -19,7 +21,8 @@ Future<void> main(List<String> args) async {
 
   final client = await AdsSessionClient.connect(amsNetId: netId, amsPort: port);
   try {
-    await client.snapshot(); // discovery
+    final first = await client.snapshot(); // discovery
+    await applyReadTiers(client, first);
     final doc = await client.snapshot();
     final values = doc['values'];
     if (values is! Map) {
@@ -37,6 +40,7 @@ Future<void> main(List<String> args) async {
     final rows = byPrefix.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     stdout.writeln('[sym] total symbols in cyclic snapshot: $total');
+    stdout.writeln('[sym] (read tiers applied - this is what the HMI polls)');
     stdout.writeln('[sym] top ${rows.length < 25 ? rows.length : 25} '
         'prefixes at depth $depth:');
     for (final row in rows.take(25)) {

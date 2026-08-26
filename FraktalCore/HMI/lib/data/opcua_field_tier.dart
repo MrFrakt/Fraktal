@@ -96,6 +96,33 @@ class OpcUaFieldTier {
     'ParCfg',
     'StationCfg',
     'Meta',
+    // §3.13 static half of each flow-chart row. Marked `OPC.UA.DA := '0'` on
+    // FB_UnitBase, so TF6100 never publishes it; the manifest re-serves the same
+    // fields under the LIVE `SequenceSteps/SequenceSteps[i]/…` paths, which is
+    // what the mapper reads. Nothing in the HMI ever names `SequenceStepDef`.
+    'SequenceStepDef',
+  };
+
+  /// Config containers the §3.10.2 manifest **re-serves**, so the cyclic read
+  /// owes them nothing (Core §3.10.2, OPCUA_TRANSPORT "config" tier).
+  ///
+  /// This is the container half of the config tier and it is matched on a path
+  /// SEGMENT, which is why it can be excluded when [configLeaves] cannot: a
+  /// container name is unambiguous, whereas the leaf list is a heuristic that
+  /// also catches cyclically-required fields (`Status/Name`, the
+  /// `SupportedModes` capability) whose exclusion emptied the module tree and
+  /// the mode dropdown. Every entry here was checked against `M_AppendConfig`:
+  /// the manifest appends the identical browse paths (`Nameplate/*`,
+  /// `Catalog/Catalog[i]/*`, `AlarmLog/Meta/Meta[i]/*`, `ModePolicy/*`,
+  /// `AvailableModels/AvailableModels[i]/ModelCode`), so excluding them makes
+  /// ADS read exactly what TF6100 publishes instead of the whole symbol table.
+  static const Set<String> manifestContainers = {
+    'Nameplate',
+    'Catalog',
+    'AvailableModels',
+    'ModePolicy',
+    'Meta',
+    'SequenceStepDef',
   };
 
   /// Static leaves that sit on a mixed struct next to live siblings.
@@ -142,6 +169,59 @@ class OpcUaFieldTier {
     'BoolValue', // digital channel state
     'AnalogValue', // the analog channel's equivalent — same role, same argument
   };
+
+  /// True when [browsePath] lies inside a subtree the PLC marks
+  /// `OPC.UA.DA := '0'` and the §3.10.2 manifest re-serves under the same browse
+  /// paths — so the cyclic read may skip it and still show a complete tree.
+  ///
+  /// Container-matched on purpose: see [manifestContainers] for why the leaf
+  /// half of the config tier stays cyclic.
+  static bool isManifestServed(String browsePath) {
+    for (final raw in browsePath.split('/')) {
+      if (manifestContainers.contains(_stripIndex(raw))) return true;
+    }
+    return false;
+  }
+
+  /// True when [browsePath] sits under a program container that owns a
+  /// discovered root Unit (`PLC1/MAIN`) but outside every root in [rootBases].
+  ///
+  /// TF6100 TMC-Filtered publication starts at the instances explicitly marked
+  /// `{attribute 'OPC.UA.DA' := '1'}` — the deployed root Units — and their
+  /// inherited children (OPCUA_TRANSPORT, Part II §3.10). ADS has no such
+  /// filter: `SYM_UPLOAD` exposes the entire program, so the direct transport
+  /// discovers the composition root's private instances too — the part carrier
+  /// and its result ring, the I/O driver and its bus health, the recipe
+  /// catalogue, the config store, the access provider, the HAL structs and the
+  /// simulation controls. None of that is in the published contract, no widget
+  /// reads it, and over OPC UA it does not exist. Reading it every cycle is the
+  /// direct transport inventing work for itself.
+  ///
+  /// Discovery still enumerates these leaves, so they stay writable by path —
+  /// which is what `MAIN.FieldbusViewActive`, the §10.5.1 demand gate, needs.
+  ///
+  /// The containers are derived from the discovered roots rather than matched
+  /// against the name `MAIN`, so this holds for any program name and for a
+  /// forest whose roots sit side by side (Core §3.1a). With no roots discovered
+  /// yet, nothing is outside them: the first snapshot reads everything, which is
+  /// how the roots become known in the first place.
+  static bool isOutsidePublishedRoots(
+      String browsePath, Iterable<String> rootBases) {
+    var underContainer = false;
+    for (final base in rootBases) {
+      final cut = base.lastIndexOf('/');
+      if (cut <= 0) continue;
+      if (browsePath.startsWith('${base.substring(0, cut)}/')) {
+        underContainer = true;
+        break;
+      }
+    }
+    if (!underContainer) return false;
+    for (final base in rootBases) {
+      if (browsePath == base || browsePath.startsWith('$base/')) return false;
+    }
+    return true;
+  }
 
   static FieldTier classify(String browsePath) {
     final segments = browsePath.split('/');

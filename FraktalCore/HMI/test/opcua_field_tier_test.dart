@@ -104,6 +104,103 @@ void main() {
     }
   });
 
+  group('MANIFEST-SERVED — excluded from the cyclic read', () {
+    // Every one of these is marked `OPC.UA.DA := '0'` in the PLC source and
+    // re-appended by M_AppendConfig under the SAME browse path, so dropping it
+    // from the cyclic read makes ADS carry exactly what TF6100 publishes.
+    const served = [
+      'PLC1/MAIN/PneumaticPress/Nameplate/SerialNumber',
+      'PLC1/MAIN/PneumaticPress/Catalog/Catalog[2]/Label',
+      'PLC1/MAIN/PneumaticPress/AvailableModels/AvailableModels[1]/ModelCode',
+      'PLC1/MAIN/PneumaticPress/ModePolicy/ModePolicy[0]/Style',
+      'PLC1/MAIN/PneumaticPress/AlarmLog/Meta/Meta[3]/OperatorAction',
+      // 128 rows x 7 fields per Unit, read every cycle over ADS and named by
+      // nothing in the HMI: the mapper reads the LIVE SequenceSteps paths, which
+      // is where M_AppendConfig re-serves these same fields.
+      'PLC1/MAIN/PneumaticPress/SequenceStepDef/SequenceStepDef[1]/StepName',
+    ];
+    for (final path in served) {
+      test(path, () => expect(OpcUaFieldTier.isManifestServed(path), isTrue));
+    }
+
+    // The leaf half of the config tier stays cyclic: these names also occur on
+    // live structs, and excluding them emptied the module tree and the mode
+    // dropdown once already.
+    const notServed = [
+      'PLC1/MAIN/PneumaticPress/Status/Name',
+      'PLC1/MAIN/PneumaticPress/Status/ModuleType',
+      'PLC1/MAIN/PneumaticPress/CatalogCount',
+      'PLC1/MAIN/PneumaticPress/ParCfg/DwellMs',
+      'PLC1/MAIN/PneumaticPress/StationCfg/LineId',
+      'PLC1/MAIN/PneumaticPress/SupportedModesPublished',
+    ];
+    for (final path in notServed) {
+      test('kept: $path',
+          () => expect(OpcUaFieldTier.isManifestServed(path), isFalse));
+    }
+  });
+
+  group('OFF-CONTRACT — under the program root, outside every published Unit',
+      () {
+    // TF6100 publishes only the DA:='1' root instances; ADS SYM_UPLOAD exposes
+    // the whole program, so the composition root's private instances reach the
+    // direct client and nothing else.
+    const roots = ['PLC1/MAIN/PneumaticPress'];
+
+    const outside = [
+      'PLC1/MAIN/PartCarrier/Produced/Produced[1]/Verdict',
+      'PLC1/MAIN/IoDriver/_busHealth/Slaves/Slaves[3]/State',
+      'PLC1/MAIN/ControlDomain/Status/State',
+      'PLC1/MAIN/RecipeCatalog/Records/Records[1]/ModelCode',
+      'PLC1/MAIN/SimEStopNc',
+      'PLC1/MAIN/FieldbusViewActive',
+    ];
+    for (final path in outside) {
+      test(path,
+          () => expect(
+              OpcUaFieldTier.isOutsidePublishedRoots(path, roots), isTrue));
+    }
+
+    const inside = [
+      'PLC1/MAIN/PneumaticPress/Status/Name',
+      'PLC1/MAIN/PneumaticPress/PressRam/OutImm/Extended',
+      'PLC1/MAIN/PneumaticPress',
+    ];
+    for (final path in inside) {
+      test('kept: $path',
+          () => expect(
+              OpcUaFieldTier.isOutsidePublishedRoots(path, roots), isFalse));
+    }
+
+    test('a separately published GVL is not under the program root', () {
+      expect(
+          OpcUaFieldTier.isOutsidePublishedRoots(
+              'PLC1/GVL_PressFieldbus/Topology/NodeCount', roots),
+          isFalse);
+    });
+
+    test('a forest of peer roots keeps every root (Core 3.1a)', () {
+      const forest = ['PLC1/MAIN/PneumaticPress', 'PLC1/MAIN/Bench'];
+      expect(
+          OpcUaFieldTier.isOutsidePublishedRoots(
+              'PLC1/MAIN/Bench/Status/Name', forest),
+          isFalse);
+      expect(
+          OpcUaFieldTier.isOutsidePublishedRoots(
+              'PLC1/MAIN/PartCarrier/ProducedHead', forest),
+          isTrue);
+    });
+
+    test('before discovery nothing is outside the roots', () {
+      // The first snapshot is how the roots become known, so an empty forest
+      // must read everything rather than exclude everything.
+      expect(
+          OpcUaFieldTier.isOutsidePublishedRoots(
+              'PLC1/MAIN/PartCarrier/ProducedHead', const []),
+          isFalse);
+    });
+  });
+
   test('unknown leaf defaults to LIVE (never wrongly stale)', () {
     expect(
         OpcUaFieldTier.classify('PLC1/MAIN/X/SomeFutureField'), FieldTier.live);

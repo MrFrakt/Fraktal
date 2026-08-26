@@ -10,6 +10,8 @@ import 'dart:io';
 import 'package:fraktal_hmi/data/opcua_snapshot_mapper.dart';
 import 'package:fraktal_opcua_client/fraktal_opcua_client.dart';
 
+import 'probe_read_tiers.dart';
+
 String _stats(List<int> us) {
   if (us.isEmpty) return 'n/a';
   final s = [...us]..sort();
@@ -23,8 +25,10 @@ Future<void> main(List<String> args) async {
 
   final client = await AdsSessionClient.connect(amsNetId: netId, amsPort: port);
   try {
-    // First snapshot performs discovery; take a second for steady state.
-    await client.snapshot();
+    // First snapshot performs discovery; apply the HMI's read tiers to it,
+    // then take a second for steady state. Without the tiers this measures a
+    // client nobody ships (see probe_read_tiers.dart).
+    await applyReadTiers(client, await client.snapshot());
 
     final transportUs = <int>[];
     final validateUs = <int>[];

@@ -4101,3 +4101,144 @@ TwinCAT solutions pass `CheckAllObjects`, and 166 tests / 39 suites build. The
 **runtime TcUnit gate has not been run** — those counts are derived from source,
 not from a green runner, and no evidence record exists for this work. Nothing
 here is claimed to have executed on a PLC.
+
+
+## 134. The direct ADS client read the whole program, not the contract (2026-08-26)
+
+Switching the press Unit HOME → AUTO took about ten seconds to settle. Other mode
+changes did not. The obvious suspect was the §3.13 flow chart — AUTO has 15
+distinct steps against HOME's 2, rows are discovered by visit, and each newly
+appended row bumped `ConfigRev`, so entering AUTO charged roughly sixteen full
+paged manifest refetches where HOME charged three. §133's predecessor commit
+coalesced those bumps in the PLC (`_M_ChartRevCyclic`). The operator reported no
+improvement.
+
+### What the measurement actually said, and why it was misleading
+
+A probe reported a 2.7 s cyclic snapshot over 21,585 symbols, and that number
+was used to conclude the transport was saturated. Two things were wrong with it.
+
+**The probe measured a client nobody ships.** `probe_map_cost` and
+`probe_symbol_weight` connect an `AdsSessionClient` and call `snapshot()`.
+`OpcUaRepository` does not: it classifies the discovered contract through
+`opcua_field_tier.dart` and pushes an excluded set to the transport before it
+ever polls. The probes never called `setExcludedPaths`, so they read every
+discovered leaf and reported a cyclic cost several times the real one. That
+over-report is not conservative — it points the next fix at subtrees the HMI
+already skips. The worked example is the headline item: `MAIN.PartCarrier.Produced`
+at 17.0% of the snapshot is 16 × `ST_PartResult` = 16 × 229 = 3,664 leaves, of
+which the `Records` sub-arrays (16 × 32 × 7 = 3,584, **97.8%**) were already
+on-demand. The "biggest single lever" was already pulled. Both probes now apply
+the real tiers through `tool/probe_read_tiers.dart`.
+
+**A snapshot cost is mode-independent.** It is the same work in HOME as in AUTO,
+so it cannot explain an asymmetry between them. Whatever made AUTO slow had to
+be the mode-dependent term, which is the manifest refetch count — not the
+snapshot size. The snapshot still mattered, but as the *multiplier* every
+refetch competes with, never as the cause.
+
+### The defect the correct measurement exposes
+
+TF6100 TMC-Filtered publication starts at the instances explicitly marked
+`{attribute 'OPC.UA.DA' := '1'}` — the deployed root Units — and their inherited
+children. In the press demo's `MAIN` that is `PneumaticPress`, and nothing else.
+
+ADS has no such filter. `SYM_UPLOAD` exposes the entire program, and the bridge
+scoped discovery with `name.rfind("MAIN.", 0) == 0` — *everything* under MAIN. So
+the direct client read, every cycle, the composition root's private instances:
+the part carrier and its result ring, the I/O driver and its `_busHealth`, the
+recipe catalogue, the config store, the access provider, the HAL structs, the
+simulation controls. None of it is in the published contract, no widget reads it,
+and over OPC UA it does not exist. The same blindness covered every member the
+framework marks `OPC.UA.DA := '0'`: `Nameplate` and `Catalog` on **every**
+module, `_configWrite` (12 × 18 = 216 leaves per module, also on every module),
+`AlarmLog/Meta`, `ModePolicy`, `AvailableModels`, and `SequenceStepDef` — 128
+rows × 7 fields = **896 leaves per Unit**, read at 4 Hz, named by nothing in the
+HMI. The mapper reads the *live* `SequenceSteps/…` paths, which is exactly where
+`M_AppendConfig` re-serves those same static fields.
+
+That is the honest form of the question "should the ADS transport honour
+`OPC.UA.DA := '0'`". The answer is yes, and the reason is stronger than
+performance: **a transport that shows a different address space from the one the
+contract publishes is not a second view of the same machine.** Anything the HMI
+came to rely on there would work over ADS and vanish over OPC UA.
+
+### What was changed, and where the rule lives
+
+The rule belongs in the HMI's existing single classifier, not in a second copy
+of the PLC's declarations:
+
+- `OpcUaFieldTier.isOutsidePublishedRoots` — a path under a program container
+  that owns a discovered root, but outside every root, is off-contract. The
+  containers are **derived from the discovered roots**, not matched against the
+  name `MAIN`, so it holds for any program name and for a peer forest (§3.1a).
+  With no roots discovered yet nothing is outside them, because the first
+  snapshot is how the roots become known.
+- `OpcUaFieldTier.isManifestServed` — the **container** half of the config tier,
+  every entry checked against `M_AppendConfig` to confirm the manifest re-serves
+  the identical browse path. The **leaf** half deliberately stays cyclic: that
+  list is a heuristic that also catches `Status/Name` and the `SupportedModes`
+  capability, and excluding those emptied the module tree and the mode dropdown
+  once already. A container name is unambiguous; a leaf name is not.
+
+Discovery still enumerates the excluded leaves, so they stay writable by path —
+which is what `MAIN.FieldbusViewActive`, the §10.5.1 demand gate, needs.
+
+Over OPC UA and the gateway this is a **no-op**: those paths are unpublished, so
+they never reach the classifier. It changes the direct ADS client only, which is
+the transport that had diverged.
+
+### The refetch storm, and the part of it that is not fixed
+
+Two client-side guards, neither of which needs a PLC download:
+
+- A refetch now waits for the published `ConfigRev` signature to hold still
+  (`_configRevSettle`, 750 ms) before it is charged. The first hydration is
+  exempt — there is no manifest to coalesce and delaying it would delay the
+  first complete tree. The PLC coalesces too, but the HMI cannot assume the
+  library in front of it does.
+- The cyclic poll **no longer stands down for a refetch**. It yielded for any
+  manifest fetch, which is right for the initial hydration (no tree to keep
+  alive) and wrong for a refetch: the operator is already looking at a live
+  screen, and freezing it for the duration is what made a mode change read as a
+  hang rather than a lag.
+
+**Not fixed, and worth stating plainly.** A newly discovered chart row genuinely
+needs the manifest, because that is where its `StepName` lives — so a chain that
+discovers 15 steps over a production cycle still charges refetches spread across
+it. The settle window bounds a *burst* (mode entry clears and re-records rows in
+one scan); it cannot coalesce rows that appear seconds apart. Making that cheap
+needs an incremental or scope-limited `QUERY_CONFIG`, which is a protocol change,
+not a tuning change.
+
+**The next measurable lever, deliberately not taken here.**
+`AdsSessionClient.writeBatch` is a `for` loop of single writes — ten sequential
+round trips per mailbox request, paid by every operator command and by every
+manifest page. The bridge already sum-writes (`kSumWrite`, used for handle
+release), so batching is structurally available. It was left alone because it
+carries the §6.1 commit contract — `Sequence` is written **last** on purpose —
+and whether an ADS sum-write preserves sub-command ordering is a question about
+the runtime, not about this code. It should be answered against hardware before
+the write path changes.
+
+### Proven, and not
+
+`flutter analyze` clean; 268 HMI tests pass, 4 skip, and the 2 failures
+(`cycle_gantt_test.dart` §8.11.4(c) guard ink, `opcua_snapshot_mapper_test.dart`
+facet hydration) were verified to fail **identically at `HEAD`** by stashing this
+work and re-running them. `plc_lint` clean in both profiles,
+`check_consistency --strict` clean. No PLC source changed, so the library-install
+and `CheckAllObjects` gates were not applicable and were not run.
+
+**Nothing here was measured against a PLC.** The controller became unavailable
+before a baseline could be taken — the one probe that did run failed at
+`SYM_UPLOADINFO2` with ADS `1861` (client sync timeout) on the symbol upload
+itself, which also means it was never confirmed whether the running controller
+carries the PLC-side coalescing at all. Every quantity above is derived from
+source arithmetic (array bounds × struct members, cross-checked against the
+probe's own per-subtree counts, which it reproduces exactly for `Produced` = 3,664
+and `SequenceStepDef` = 896). The expected reduction in cyclic leaves is
+therefore **predicted, not observed**, and the before/after the task asked for is
+still owed. `probe_read_tiers.dart` exists so that when the PLC returns, one run
+of `probe_map_cost` reports what the HMI actually polls rather than what an
+unconfigured client would.

@@ -423,7 +423,38 @@ the client can classify paths it never reads.
 | **fast** | every snapshot (500 ms) | tiles, PLCopen state, counters, current step, active alarms (`AlarmLog/Active` — the global banner), OEE snapshot, live cycle profile, Unit `SystemHealth`/`TimeQuality`, and semantic `SignalTower` state |
 | **slow** | once + ~2 s heartbeat | always-visible but slow-changing facets published redundantly on every module: `Safety`, `ControlPower` (read-only §9 status mirrors — display lag is bounded by the heartbeat; the PLC safety authority is unaffected) |
 | **on-demand** | only while the owning view is visible | drill-down rings/trends read via a targeted batch call, never cyclically: per module — `AlarmLog/Ring`, `Profiler/History`/`StepStats`, `OeeTrend`, `Part/Result/Records`, command `Timing`; and the fieldbus I/O tree (`GVL_<Project>Fieldbus.Topology` state/values) |
-| **config** | manifest (above), never cyclic | activation-static identity (`OPC.UA.DA := '0'`) |
+| **config** | manifest (above), never cyclic | activation-static identity (`OPC.UA.DA := '0'`) — container-matched subtrees are excluded from the cyclic read; leaf-matched names stay cyclic (see below) |
+
+### Scoping the direct ADS read to the published contract
+
+A transport **shall not** read outside the address space the contract publishes.
+TF6100 enforces this for free: TMC-Filtered publication starts at the instances
+marked `{attribute 'OPC.UA.DA' := '1'}` and their inherited children, so a
+composition root's private instances — part carrier, I/O driver, recipe
+catalogue, config store, access provider, HAL structs, simulation controls —
+are simply not there. ADS has no such filter: `SYM_UPLOAD` exposes the whole
+program, so a direct client that scopes discovery by program prefix reads all of
+it, at the cyclic rate, for data no view renders and no OPC UA client can see.
+Two rules restore parity, both applied before tier classification:
+
+- **Outside the published roots.** A path under a program container that owns a
+  discovered root Unit, but outside every such root, is off-contract: excluded
+  from the cyclic read and never given an activation scope. The containers are
+  derived from the discovered roots rather than matched against the name `MAIN`,
+  so this holds for any program name and for a peer forest (Core §3.1a). Before
+  any root is discovered nothing is outside them — the first snapshot is how the
+  roots become known.
+- **Manifest-served containers.** A subtree the PLC marks `OPC.UA.DA := '0'` and
+  `M_AppendConfig` re-serves under the same browse path is excluded from the
+  cyclic read; the manifest overlay supplies it before the mapper runs. This is
+  the **container** half of the config tier. The **leaf** half stays cyclic: leaf
+  names such as `Name` and `ModuleType` also occur on live structs, and a
+  classifier cannot tell those apart from the path alone.
+
+Discovery still enumerates excluded leaves, so they remain writable by path —
+which is what the §10.5.1 fieldbus demand gate needs. Over OPC UA and the
+gateway both rules are inert, because those paths are unpublished and never
+reach the classifier.
 
 On-demand data is grouped by **activation scope**: a module's drill-down data
 scopes to its owning root Unit's browse base; the fieldbus tree shares a reserved
