@@ -74,6 +74,21 @@ VAR_GLOBAL CONSTANT
     // enough that a closed HMI or a dead link lets go rather than leaving the
     // machine moving. The module's own JogTimeout is the second, shorter net.
     MANUAL_HELD_REFRESH_MS : DWORD := 750;
+    // Core §3.13/§3.10.2 — how long the flow chart must stop growing before the
+    // manifest revision is raised for it.
+    //
+    // §3.13 rows are discovered by VISIT, one at a time, while the manifest is
+    // invalidated ALL AT ONCE. A per-row bump therefore asked a client to
+    // refetch the entire manifest once per row: entering AUTO on the press
+    // discovers 15 rows where HOME discovers 2, which is why HOME->AUTO stalled
+    // and HOME->HOME did not.
+    //
+    // Waiting for the burst to settle is strictly better than bumping per row,
+    // on BOTH counts: far fewer refetches, and the client fetches AFTER the
+    // chart stops growing rather than during it - which is the very failure the
+    // per-row bump was written to avoid ("a chart that grows after the HMI's
+    // fetch would render every new row with StepNo 0 and no text").
+    CHART_REV_SETTLE_MS : DWORD := 1000;
     MAX_SAFETY_DEVICES   : INT := 16;   // Core §9 — published safety aliases per module/zone
     MAX_POWER_GROUPS     : INT := 8;    // Core §9 — independently controlled energy groups
     MAX_CONTROL_DOMAIN_UNITS : INT := 16; // Core §9.8 — root Units sharing one arrangement

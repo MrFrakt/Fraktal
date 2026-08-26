@@ -100,14 +100,42 @@ class _CycleProfileViewState extends State<CycleProfileView> {
       starts.add(allStarts[i]);
     }
 
-    // The axis spans the whole cycle and does NOT rescale when filtering. Total
-    // is the authority (§8.11.1 reconciles with it); the step sum only wins if a
-    // profile arrives inconsistent, so the last bar can never run off the end.
-    final spanMs = math.max(
+    // The FULL cycle extent. Total is the authority (§8.11.1 reconciles with
+    // it); the step sum only wins if a profile arrives inconsistent, so the last
+    // bar can never run off the end.
+    final cycleMs = math.max(
       1,
       math.max(p.total.inMilliseconds,
           allStarts.last + p.steps.last.duration.inMilliseconds),
     );
+
+    // §8.11.4(c) - the axis ZOOMS to the time still charted, so filtering out a
+    // class that dominates the cycle does not leave the survivors as slivers
+    // against an axis mostly describing bars that are no longer drawn.
+    //
+    // Zooming is not RE-FLOWING, and the difference is the whole point. Every
+    // surviving bar keeps its TRUE start offset: only the window the axis
+    // describes changes, so a step that really began at 4.2 s is still drawn at
+    // 4.2 s and still labelled from the same clock. Re-flowing the survivors to
+    // close the gaps would silently falsify when each step ran, which is the one
+    // thing this chart exists to show.
+    var originMs = 0;
+    var endMs = cycleMs;
+    if (_hidden.isNotEmpty && steps.isNotEmpty) {
+      var lo = starts.first;
+      var hi = starts.first + steps.first.duration.inMilliseconds;
+      for (var i = 1; i < steps.length; i++) {
+        final s = starts[i];
+        final e = s + steps[i].duration.inMilliseconds;
+        if (s < lo) lo = s;
+        if (e > hi) hi = e;
+      }
+      // Never zoom past the cycle, and never invert: a profile that arrives
+      // inconsistent degrades to the full axis rather than to a broken one.
+      originMs = lo.clamp(0, cycleMs);
+      endMs = hi.clamp(originMs + 1, cycleMs);
+    }
+    final spanMs = math.max(1, endMs - originMs);
 
     final present = [
       for (final c in TimeClass.values)
@@ -192,6 +220,7 @@ class _CycleProfileViewState extends State<CycleProfileView> {
                       steps: steps,
                       startMs: starts,
                       spanMs: spanMs,
+                      originMs: originMs,
                       rowH: rowH,
                       barH: barH,
                       axisH: axisH,
@@ -376,7 +405,12 @@ class _CycleProfileViewState extends State<CycleProfileView> {
 class _GanttPainter extends CustomPainter {
   final List<StepTiming> steps;
   final List<int> startMs;
+
+  /// Width of the drawn window, and the offset it begins at. [originMs] is
+  /// non-zero only when a filter has zoomed the axis in; bars keep their true
+  /// start and the window moves under them.
   final int spanMs;
+  final int originMs;
   final double rowH, barH, axisH, textScale;
   final Color gridInk, guideInk, errorInk;
 
@@ -384,6 +418,7 @@ class _GanttPainter extends CustomPainter {
     required this.steps,
     required this.startMs,
     required this.spanMs,
+    this.originMs = 0,
     required this.rowH,
     required this.barH,
     required this.axisH,
@@ -396,8 +431,10 @@ class _GanttPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final plotH = size.height - axisH;
-    final ticks = _ticks(spanMs);
-    double x(int ms) => size.width * ms / spanMs;
+    final ticks = _ticks(originMs, spanMs);
+    // The window, not the cycle: a bar's true offset is mapped through the
+    // origin so filtering changes the SCALE and never the story.
+    double x(int ms) => size.width * (ms - originMs) / spanMs;
 
     // Recessive solid hairline grid — one rule per axis tick, run through the
     // whole stack so every row is read against the same time marks.
@@ -475,8 +512,9 @@ class _GanttPainter extends CustomPainter {
   static double _fit(double v, double lo, double hi) =>
       v < lo ? lo : (v > hi ? hi : v);
 
-  /// Nice 1/2/5 tick steps, targeting at most six rules across the track.
-  static List<int> _ticks(int spanMs) {
+  /// Nice 1/2/5 tick steps, targeting at most six rules across the track, laid
+  /// out over the drawn window [originMs, originMs + spanMs].
+  static List<int> _ticks(int originMs, int spanMs) {
     const candidates = [
       50, 100, 200, 500, //
       1000, 2000, 5000, 10000, 15000, 30000, //
@@ -489,11 +527,24 @@ class _GanttPainter extends CustomPainter {
         break;
       }
     }
-    return [for (var v = 0; v <= spanMs; v += step) v];
+    // Start at the first round multiple inside the window so the labels stay
+    // readable clock offsets (2.0s, 2.5s ...) rather than an arbitrary origin
+    // plus a step. The window edge itself is always marked.
+    final end = originMs + spanMs;
+    final first = (originMs / step).ceil() * step;
+    final ticks = <int>[if (first > originMs) originMs];
+    for (var v = first; v <= end; v += step) {
+      ticks.add(v);
+    }
+    return ticks;
   }
 
   static String _tickText(int ms, List<int> ticks) {
-    final step = ticks.length > 1 ? ticks[1] : ms;
+    // The step is the GAP between ticks, which is not ticks[1] once the window
+    // opens with a partial first interval.
+    final step = ticks.length > 2
+        ? ticks[2] - ticks[1]
+        : (ticks.length > 1 ? ticks[1] - ticks[0] : ms);
     return '${(ms / 1000).toStringAsFixed(step < 1000 ? 1 : 0)}s';
   }
 
@@ -501,6 +552,7 @@ class _GanttPainter extends CustomPainter {
   bool shouldRepaint(_GanttPainter old) =>
       old.steps != steps ||
       old.spanMs != spanMs ||
+      old.originMs != originMs ||
       old.rowH != rowH ||
       old.gridInk != gridInk ||
       old.errorInk != errorInk;

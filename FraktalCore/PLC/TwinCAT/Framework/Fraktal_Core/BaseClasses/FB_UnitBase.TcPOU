@@ -175,6 +175,11 @@ VAR
     _heldValue : DINT;
     _heldActive : BOOL;
     _heldSinceMs : DWORD;
+    // §3.13 - the flow chart changed and the manifest revision owes it a bump.
+    // Held until the growth settles, so one burst of row discovery costs one
+    // refetch instead of one per row (PL_Fraktal.CHART_REV_SETTLE_MS).
+    _chartDirty : BOOL;
+    _chartTouchedMs : DWORD;
     {attribute 'OPC.UA.DA' := '0'}
     _carrier  : I_PartCarrier;         // §3.16.2 injected part carrier (0 = traceability off)
     {attribute 'OPC.UA.DA' := '0'}
@@ -1345,8 +1350,13 @@ IF hit = 0 THEN
     // is served through the manifest, NOT cyclically, and the HMI refetches only
     // when ConfigRev changes. Rows are discovered by visit, so a chart that grows
     // after the HMI's fetch would render every new row with StepNo 0 and no text.
-    // Only the append bumps it: a re-visit rewrites identical values.
-    ConfigRev := ConfigRev + 1;
+    // Only the append marks it: a re-visit rewrites identical values.
+    //
+    // MARKED, not bumped: the revision is raised once the chart stops growing
+    // (_M_ChartRevCyclic). Invalidating the whole manifest per discovered row
+    // made entering a 15-step mode cost fifteen full refetches.
+    _chartDirty := TRUE;
+    _chartTouchedMs := TIME_TO_DWORD(TIME());
 END_IF
 // The drill-down target is the module the step DECLARES it commands. Reading it
 // here is what makes the link unambiguous: no IF/CASE chose it (§3.13).
@@ -1418,7 +1428,12 @@ END_VAR]]></Declaration>
     // HMI's cached copy is now describing a chart that no longer exists. Guarded
     // by the count: a mode change with nothing published changed no manifest and
     // must not cost a refetch.
-    ConfigRev := ConfigRev + 1;
+    //
+    // Marked rather than bumped, and for the same reason as the append: the
+    // clear and the regrow that follows it are ONE episode, so they should cost
+    // one refetch between them, not one plus one per rediscovered row.
+    _chartDirty := TRUE;
+    _chartTouchedMs := TIME_TO_DWORD(TIME());
 END_IF
 FOR i := 1 TO SequenceStepCount DO
     SequenceSteps[i] := e;             // zero-initialized local: clears every field
@@ -2805,6 +2820,36 @@ _M_RouteHeld := M_ApplyHeld(Scope := TargetPath, Value := Value,
     Enable := enable);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_M_ChartRevCyclic" Id="{b40f7e26-95a1-4d83-b217-0c6e59a71e34}">
+      <Declaration><![CDATA[// §3.13/§3.10.2 — raise the manifest revision ONCE the flow chart has stopped
+// growing, rather than once per row discovered.
+//
+// The rows are the manifest's largest and most volatile contributor and they
+// appear one at a time as the chain visits them, so a per-row bump turned one
+// mode entry into one full-manifest refetch per step. This waits for the burst
+// to settle and then charges for it once.
+//
+// The delay is bounded and small (PL_Fraktal.CHART_REV_SETTLE_MS): the chart
+// appears fractionally later and COMPLETE, instead of promptly and then being
+// refetched fourteen more times.
+METHOD PRIVATE _M_ChartRevCyclic
+VAR
+    elapsed : DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _chartDirty THEN
+    RETURN;
+END_IF
+// Unsigned subtraction, so the monotonic counter wrapping cannot fabricate a
+// settled chart (TC3 §8.11).
+elapsed := TIME_TO_DWORD(TIME()) - _chartTouchedMs;
+IF elapsed < PL_Fraktal.CHART_REV_SETTLE_MS THEN
+    RETURN;                            // still growing: let the burst finish
+END_IF
+_chartDirty := FALSE;
+ConfigRev := ConfigRev + 1;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_M_HeldCyclic" Id="{d51937ae-64c2-408f-9b13-27e0a4586cf7}">
       <Declaration><![CDATA[// §7.6.1a — re-assert the latched hold every scan, and drop it when the client
 // stops refreshing. The module's own freshness timer stops the motion; this
@@ -2928,6 +2973,7 @@ _M_EngineeringCyclic();                               // §7.5.2 standing gate a
 _healthPublisher.Cyclic(Input := _healthInput, ParCfg := _healthParCfg,
     Configured := _healthConfigured);                 // §2.7/§8.12 alarm edges + values
 SystemHealth := _healthPublisher.Status;
+_M_ChartRevCyclic();                                  // §3.13 coalesced chart revision
 _M_HeldCyclic();                                      // §7.6.1a hold-to-run re-assert
 _M_ConfigPersistCyclic();                             // §3.8b durability window
 _M_DrainRestoreLoss();                                // §3.8b restore annunciation
