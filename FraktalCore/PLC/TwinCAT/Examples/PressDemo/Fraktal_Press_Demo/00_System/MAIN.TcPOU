@@ -91,6 +91,13 @@ VAR CONSTANT
     // electrical semantics on the cabinet; per N54 D2 SwitchControlOn and
     // EnableControlOn are distinct signals.
     CONTROL_CIRCUIT_MAPPING_CONFIRMED : BOOL := TRUE;
+    // §G.4a - does THIS bench have a safety-rated enabling device for manual
+    // motion? It does not: the Xvi is an 80 N magnetic linear motor standing on
+    // the desk, outside the press. Declaring that here makes the axis's
+    // StationCfg say the same thing, and the §7.5 gate below makes the machine
+    // announce the departure for as long as it is true. A real cell with a
+    // person inside it sets this TRUE and the §G.4a rule applies unchanged.
+    JOG_ENABLE_DEVICE_REQUIRED : BOOL := FALSE;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// Mirror the compile-time gates so they remain observable (see declaration).
@@ -117,6 +124,9 @@ IF NOT Init THEN
     EngineeringMode.M_Declare(Name := 'CONTROL_CIRCUIT_UNCONFIRMED',
         DescriptionKey := 'std.engineering.controlCircuitUnconfirmed',
         Active := NOT CONTROL_CIRCUIT_MAPPING_CONFIRMED);
+    EngineeringMode.M_Declare(Name := 'JOG_ENABLE_DEVICE_NOT_REQUIRED',
+        DescriptionKey := 'std.engineering.jogEnableDeviceNotRequired',
+        Active := NOT JOG_ENABLE_DEVICE_REQUIRED);
     // Wiring the register also declares the framework's own OUTPUT_FORCING gate
     // from PL_FraktalEngineering, so forcing can never be armed without being
     // annunciated. It must precede IoCatalog.Setup, which reads ForcingActive to
@@ -162,6 +172,12 @@ IF NOT Init THEN
     // axis is linked, with no change to this line.
     PneumaticPress.SetConfigRestorePolicy(
         Policy := E_ConfigRestorePolicy.BLOCK_UNTIL_ACKNOWLEDGED);
+    // §G.4a - the axis's own retained StationCfg is the authority; this states
+    // the bench's fact into it. Stamps the schema version too, so the value
+    // survives the axis's later Setup/restore rather than being defaulted over.
+    IF NOT JOG_ENABLE_DEVICE_REQUIRED THEN
+        PneumaticPress.PartFeed.SetJogRequiresEnable(Required := FALSE);
+    END_IF
     // §7.7/§14: provider secrets are retained deployment configuration, never
     // source literals. Provision them before raising any policy threshold.
     IF GVL_PressCommissioning.OperatorPin <> '' THEN

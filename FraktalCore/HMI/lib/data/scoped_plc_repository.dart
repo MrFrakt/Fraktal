@@ -154,6 +154,13 @@ class ScopedPlcRepository implements PlcRepository {
       !_allows(unitPath) || !_allows(targetPath)
           ? Future.value(false)
           : source.manualCommand(unitPath, targetPath, value);
+
+  @override
+  Future<bool> manualHeld(
+          String unitPath, String targetPath, int value, bool held) =>
+      !_allows(unitPath)
+          ? Future.value(false)
+          : source.manualHeld(unitPath, targetPath, value, held);
   @override
   Future<bool> setRunStyle(String unitPath, RunStyle style) =>
       _bool(unitPath, () => source.setRunStyle(unitPath, style));

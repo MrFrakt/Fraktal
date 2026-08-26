@@ -1126,6 +1126,17 @@ class SimRepository implements PlcRepository {
   }
 
   @override
+  Future<bool> manualHeld(
+      String unitPath, String targetPath, int value, bool held) async {
+    // §7.6.1a - same gates as a one-shot manual command; the hold adds no
+    // authority, only a longer presence.
+    if (held) {
+      return manualCommand(unitPath, targetPath, value);
+    }
+    return true; // a release is always honoured
+  }
+
+  @override
   void setFieldbusViewActive(bool active) {
     // Simulation publishes everything in-memory; there is no read tier to gate.
   }

@@ -7,6 +7,8 @@ library;
 
 import 'dart:convert';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
@@ -947,19 +949,25 @@ class _ModuleOverviewTab extends StatelessWidget {
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final c in n.commands)
-              FilledButton.tonal(
-                style: enabled
-                    ? FilledButton.styleFrom(
-                        backgroundColor: kOperatorActionColor,
-                        foregroundColor: Colors.white)
-                    : null,
-                // §7.6.0: a blocked manual button reveals WHY instead of being inert
-                onPressed: enabled
-                    ? () => _manual(context, n, c)
-                    : () => app.showReleaseReportManual(
-                        app.rootOf(n.path)?.path ?? '', n.path, c.value),
-                child: LText(c.label),
-              ),
+              // §7.6.1a - a HELD command is hold-to-run, not a click: the control
+              // refreshes the request while it is down and releases it on lift,
+              // cancel, dispose - anything that ends the asking stops the motion.
+              if (c.style == CommandStyle.held)
+                _HeldManualButton(app: app, node: n.path, command: c)
+              else
+                FilledButton.tonal(
+                  style: enabled
+                      ? FilledButton.styleFrom(
+                          backgroundColor: kOperatorActionColor,
+                          foregroundColor: Colors.white)
+                      : null,
+                  // §7.6.0: a blocked manual button reveals WHY instead of being inert
+                  onPressed: enabled
+                      ? () => _manual(context, n, c)
+                      : () => app.showReleaseReportManual(
+                          app.rootOf(n.path)?.path ?? '', n.path, c.value),
+                  child: LText(c.label),
+                ),
           ]),
         ]),
         ),
@@ -1197,4 +1205,117 @@ String _flagLabel(StateFlag f, DateTime now) {
   if (held.inMinutes < 1) return '${f.key} · ${held.inSeconds}s';
   if (held.inHours < 1) return '${f.key} · ${held.inMinutes}m';
   return '${f.key} · ${held.inHours}h';
+}
+
+/// §7.6.1a refresh cadence for hold-to-run: 300 ms against the PLC's 750 ms
+/// MANUAL_HELD_REFRESH_MS deadline, so two lost frames are tolerated before the
+/// hold lapses. One constant, shared by every held control, so the cadence can
+/// never drift per-button.
+const _heldManualRefresh = Duration(milliseconds: 300);
+
+/// §7.6.1a — the press-and-hold control for a `Style = HELD` manual command.
+///
+/// Pointer DOWN latches the request on the PLC and starts a refresh timer;
+/// pointer UP, pointer CANCEL, the widget's disposal, or the app going stale
+/// releases it. Every path that ends the asking ends the motion — that is the
+/// whole property of hold-to-run, and it is enforced on both ends: the PLC's
+/// own `MANUAL_HELD_REFRESH_MS` deadline lets go if refreshes stop for any
+/// reason this widget did not foresee.
+///
+/// Non-safety by construction (§9): no panel control is a dead-man. The
+/// enabling-device fact is derived on the PLC from the §9 safety facet and
+/// weighed there; this control only asks.
+class _HeldManualButton extends StatefulWidget {
+  final AppState app;
+  final String node;
+  final CommandInfo command;
+  const _HeldManualButton(
+      {required this.app, required this.node, required this.command});
+
+  @override
+  State<_HeldManualButton> createState() => _HeldManualButtonState();
+}
+
+class _HeldManualButtonState extends State<_HeldManualButton> {
+  Timer? _refresh;
+  bool _down = false;
+
+  String get _root => widget.app.rootOf(widget.node)?.path ?? '';
+
+  Future<void> _send(bool held) async {
+    try {
+      await widget.app.repo
+          .manualHeld(_root, widget.node, widget.command.value, held);
+    } catch (_) {
+      // Transport gone: stop asking. The PLC deadline is the backstop; this
+      // merely stops paying refreshes into a dead link.
+      _stop();
+    }
+  }
+
+  void _start() {
+    if (_down) return;
+    _down = true;
+    _send(true);
+    _refresh?.cancel();
+    // §7.6.1a refresh cadence: 300 ms against the PLC's 750 ms deadline, so two
+    // lost frames are tolerated before the hold lapses.
+    _refresh = Timer.periodic(_heldManualRefresh, (_) {
+      if (_down) {
+        _send(true);
+      } else {
+        _stop();
+      }
+    });
+    if (mounted) setState(() {});
+  }
+
+  void _stop() {
+    if (!_down) return;
+    _down = false;
+    _refresh?.cancel();
+    _refresh = null;
+    _send(false);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    // Disposal while held is the "operator navigated away mid-hold" case: the
+    // release is issued without awaiting, because there is no frame left to
+    // await it in. The PLC deadline covers the case where even this does not
+    // get through.
+    if (_down) {
+      _send(false);
+    }
+    _refresh?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      // Pointer-level rather than GestureDetector: a tap detector can swallow
+      // the UP event in drag contexts, and a hold control must never miss the
+      // release. onPointerCancel covers focus loss and route pops.
+      onPointerDown: (_) => _start(),
+      onPointerUp: (_) => _stop(),
+      onPointerCancel: (_) => _stop(),
+      child: FilledButton.tonal(
+        style: FilledButton.styleFrom(
+          backgroundColor:
+              _down ? kOperatorActionColor : null,
+          foregroundColor: _down ? Colors.white : null,
+        ),
+        onPressed: () {
+          // Keyboard/assistive-tech activation has no "hold" semantics. For a
+          // hold-to-run control, a click must NOT latch motion it cannot later
+          // release through the same gesture - so it explains instead.
+          widget.app.showReleaseReportManual(_root, widget.node,
+              widget.command.value);
+        },
+        child: LText(widget.command.label),
+      ),
+    );
+  }
 }

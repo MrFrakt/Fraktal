@@ -788,6 +788,12 @@ class OpcUaRepository implements PlcRepository {
           targetPath: targetPath, intValue: value);
 
   @override
+  Future<bool> manualHeld(
+          String unitPath, String targetPath, int value, bool held) =>
+      _request(unitPath, _HmiRequestKind.manualHeld,
+          targetPath: targetPath, intValue: value, boolValue: held);
+
+  @override
   Future<bool> setRunStyle(String unitPath, RunStyle style) =>
       _request(unitPath, _HmiRequestKind.setRunStyle, intValue: style.index);
 

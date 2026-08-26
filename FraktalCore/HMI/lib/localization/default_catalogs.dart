@@ -494,6 +494,9 @@ const standardEnglish = <String, String>{
   'std.audit.manualCommandAccepted': 'Manual command accepted.',
   'std.audit.manualCommandRejected': 'Manual command rejected.',
   'std.audit.oeeReset': 'OEE counters reset.',
+  'std.config.axisJogRequiresEnable': 'Jog requires an enabling device',
+  'std.engineering.jogEnableDeviceNotRequired':
+      'Manual motion without a safety-rated enabling device.',
   // Press bench §3.8b station configuration (project band, project.* keys).
   'project.config.pressRequireTwoHandStart': 'Require two-hand start',
   'project.config.pressStallGuardMs': 'Step stall guard',
@@ -927,6 +930,9 @@ const standardSpanish = <String, String>{
       'Controlador de simulación activo: las salidas físicas se mantienen desactivadas mientras se simula la planta.',
   'std.engineering.controlCircuitUnconfirmed':
       'Mapeo del circuito de mando sin confirmar: las bobinas de mando se mantienen desactivadas en cada ciclo.',
+  'std.engineering.jogEnableDeviceNotRequired':
+      'Movimiento manual sin un dispositivo de habilitación calificado para seguridad.',
+  'std.config.axisJogRequiresEnable': 'El jog requiere un dispositivo de habilitación',
   'std.fieldbus.forceTitle': 'Forzar salida',
   'std.fieldbus.forceWhy':
       'Este control existe solo porque hay una puerta de puesta en marcha activa (Core §7.5); una compilación de producción no ofrece forzado alguno.',

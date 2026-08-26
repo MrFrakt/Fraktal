@@ -780,6 +780,13 @@ FOR i := 1 TO CatalogCount DO
     Pager.M_AppendNumber(Scope := Status.Name, Item := item, Number := Catalog[i].Value);
     item := CONCAT('Catalog/Catalog[', CONCAT(TO_STRING(i), ']/Label'));
     Pager.M_Append(Scope := Status.Name, Item := item, ValueText := Catalog[i].Label);
+    // §7.6.1a - how the command is OPERATED. Without this a generic client
+    // cannot tell a jog from a one-shot, and renders a hold-to-run control as a
+    // click: pressing it once would latch motion nothing releases. The HMI
+    // treats an absent Style as ONESHOT, so an older PLC still reads correctly.
+    item := CONCAT('Catalog/Catalog[', CONCAT(TO_STRING(i), ']/Style'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item,
+        Number := TO_DINT(Catalog[i].Style));
 END_FOR
 // §3.8b — then everything this module declared editable about itself. The value
 // is read live and the metadata comes from the same record the write will be

@@ -31,7 +31,7 @@ VAR CONSTANT
     // §3.8b - the layout version of this module's StationCfg. It belongs with
     // the type that owns the structure, not in the reason band. Bump it when a
     // member is added or its meaning changes (§13).
-    AXIS_STATIONCFG_SCHEMA : UINT := 1;
+    AXIS_STATIONCFG_SCHEMA : UINT := 2;   // v2 added JogRequiresEnable
 END_VAR
 VAR PERSISTENT
     // §3.8b - the retained image. PERSISTENT is the BACKING, not the architecture:
@@ -179,7 +179,13 @@ _jogEnabled := Enable.Held;
 // Refused up front, with the reason, when no safety-rated enabling device is
 // permitting. The axis ALSO has to pass its interlocks in _M_JogCyclic - this is
 // an additional requirement, never a way around them (§9).
-IF NOT Enable.Held THEN
+//
+// StationCfg.JogRequiresEnable is what an installation WITHOUT an enabling
+// device declares (§3.8a). It relaxes exactly this one requirement: the
+// interlocks, the freshness deadline and the command handshake are untouched,
+// so a station that declares it still cannot jog through a dropped interlock
+// or on a stale request.
+IF _station.JogRequiresEnable AND NOT Enable.Held THEN
     OutImm.JogStopReason := PL_ModuleReasons.AXIS_JOG_NOT_ENABLED;
     RequestHeldCommand := FALSE;
     RETURN;
@@ -209,7 +215,7 @@ _tJogStale(IN := NOT _jogSeen, PT := ParCfg.JogTimeout);
 // (§7.2.1, fail-closed).
 drive := (_jogReqDir <> 0)
     AND NOT _tJogStale.Q
-    AND _jogEnabled
+    AND (_jogEnabled OR NOT _station.JogRequiresEnable)
     AND Intlk.AllOk
     AND NOT Busy                        // a commanded move owns the axis (§6.1)
     AND __ISVALIDREF(_axis);
@@ -222,7 +228,7 @@ IF _jogDriving AND NOT drive THEN
     // whether it is still sending, and surfaces the difference there.
     IF _tJogStale.Q THEN
         OutImm.JogStopReason := PL_ModuleReasons.AXIS_JOG_RELEASED;
-    ELSIF NOT _jogEnabled THEN
+    ELSIF NOT _jogEnabled AND _station.JogRequiresEnable THEN
         OutImm.JogStopReason := PL_ModuleReasons.AXIS_JOG_NOT_ENABLED;
     ELSIF NOT Intlk.AllOk THEN
         OutImm.JogStopReason := TO_DINT(E_Reason.INTERLOCK_DROPPED);
@@ -284,6 +290,10 @@ IF Setup THEN CommitRecipe(); END_IF
 IF NOT M_RestoreStationCfg(pVersion := ADR(_station.SchemaVersion),
         SchemaVersion := AXIS_STATIONCFG_SCHEMA) THEN
     _station.TaughtPosition := 0.0;          // this type's declared default
+    // The default is the SAFE reading: an axis that lost its configuration
+    // requires an enabling device again, rather than inheriting a bench's
+    // relaxation into a machine that never declared one.
+    _station.JogRequiresEnable := TRUE;
 END_IF
 
 // §3.8a - the taught position is an ordinary editable value: typeable by an
@@ -299,7 +309,37 @@ Setup := M_RegisterConfigNumber(Key := 'axis.taughtPosition',
 // position, then capture. The source is OutImm.ActPos, which this module already
 // publishes, so the operator sees the number before storing it (§3.8c(b)).
 Setup := M_RegisterCapture(WriteKey := 'axis.taughtPosition',
-    pSource := ADR(OutImm.ActPos), SourceStorage := E_ConfigStorage.AS_LREAL) AND Setup;]]></ST>
+    pSource := ADR(OutImm.ActPos), SourceStorage := E_ConfigStorage.AS_LREAL) AND Setup;
+
+// §3.8a - published as an editable capability so "does this installation have
+// an enabling device?" is visible, audited and carried in a station parameter
+// set, instead of being a silent assumption nobody can see.
+Setup := M_RegisterConfigFlag(Key := 'axis.jogRequiresEnable',
+    Item := 'StationCfg/JogRequiresEnable',
+    LabelKey := 'std.config.axisJogRequiresEnable',
+    Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(_station.JogRequiresEnable),
+    RequiresReady := TRUE) AND Setup;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetJogRequiresEnable" Id="{6e2f90a4-53d1-4c78-b0a6-9d3417e285fb}">
+      <Declaration><![CDATA[// §3.8a/§G.4a - declare whether this INSTALLATION has a safety-rated enabling
+// device for manual motion. Called by the composition root; it also stamps the
+// schema version forward, so a call made before Setup survives the restore
+// (a matching version is restored as-is rather than defaulted).
+//
+// FALSE relaxes exactly one requirement - the enabling device - and nothing
+// else: interlocks, the freshness deadline and the command handshake all still
+// apply, and jog still refuses a stale request. A station that declares FALSE
+// should declare a §7.5 engineering gate with it, so the machine says out loud
+// that it is jogging without one.
+METHOD SetJogRequiresEnable : BOOL
+VAR_INPUT
+    Required : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_station.JogRequiresEnable := Required;
+_station.SchemaVersion := AXIS_STATIONCFG_SCHEMA;
+SetJogRequiresEnable := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="WithdrawOutputs" Id="{7048fa32-48b6-4490-a0f4-1a93a00524fb}">

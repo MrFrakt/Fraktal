@@ -125,6 +125,12 @@ class OpcUaSnapshotMapper {
         commands.add(CommandInfo(
           _integer(values['$prefix/Value']),
           _string(values['$prefix/Label']),
+          // E_CommandStyle: 0 = ONESHOT, 1 = HELD. Anything else is treated as
+          // oneShot, which is fail-safe - a held control rendered as one-shot
+          // cannot leave motion running.
+          style: _integer(values['$prefix/Style']) == 1
+              ? CommandStyle.held
+              : CommandStyle.oneShot,
         ));
       }
       final children = candidate.children.map(project).toList()

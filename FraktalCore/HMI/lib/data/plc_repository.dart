@@ -56,6 +56,13 @@ abstract class PlcRepository {
   /// through the module so interlocks still defend. Returns false if rejected.
   Future<bool> manualCommand(String unitPath, String targetPath, int value);
 
+  /// §7.6.1a hold-to-run. [held] true latches/refreshes the request; false
+  /// releases it. Implementations do NOT need the client to poll - but a held
+  /// control MUST refresh within the PLC's MANUAL_HELD_REFRESH_MS window or the
+  /// root lets go on the client's behalf.
+  Future<bool> manualHeld(
+      String unitPath, String targetPath, int value, bool held);
+
   // §3.4.2 run style + single-step (Units)
   Future<bool> setRunStyle(String unitPath, RunStyle style);
   Future<void> stepRequest(String unitPath);

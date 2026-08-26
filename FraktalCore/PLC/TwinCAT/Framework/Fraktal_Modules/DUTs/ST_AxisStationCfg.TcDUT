@@ -13,8 +13,22 @@
 // exactly what an operator needs told.
 TYPE ST_AxisStationCfg :
 STRUCT
-    SchemaVersion  : UINT;      // 0 = never written; 1 = this layout
+    SchemaVersion  : UINT;      // 0 = never written; 2 = this layout
     TaughtPosition : LREAL;     // captured from the live ActPos (§3.8c)
+    // v2. Does THIS INSTALLATION have a safety-rated enabling device for manual
+    // motion? A deployment fact, not a preference, which is why it is station
+    // configuration (§3.8a) rather than a recipe value or a compiled-in
+    // assumption in the reusable type.
+    //
+    // TRUE - the default, and what every restore that predates this member and
+    // every rejected image falls back to - keeps the §G.4a rule: no enabling
+    // device permitting, no jog. FALSE says this installation has none, and a
+    // station shall declare that only when it is true AND the consequence has
+    // been assessed: a bench with a low-force motor on a desk is the case it
+    // exists for, a cell with a person inside it is not. A station declaring
+    // FALSE should declare a §7.5 engineering gate with it, so the machine
+    // annunciates the departure instead of hiding it in a value nobody reads.
+    JogRequiresEnable : BOOL;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

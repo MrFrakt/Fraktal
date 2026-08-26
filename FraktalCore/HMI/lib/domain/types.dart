@@ -675,10 +675,19 @@ class StepStat {
 enum LinkState { connecting, live, stale, down }
 
 /// §7.6.1 — one entry in a module's published manual-command catalog.
+/// §7.6.1 how a manual command is driven.
+enum CommandStyle { oneShot, held }
+
 class CommandInfo {
   final int value;
   final String label;
-  const CommandInfo(this.value, this.label);
+
+  /// §7.6.1a - held commands are hold-to-run: the client re-asserts the request
+  /// while the operator keeps the control down, and the PLC stops the motion
+  /// when the asking stops. Defaults to oneShot, which is what every command
+  /// was before the field existed, so a PLC that predates it reads correctly.
+  final CommandStyle style;
+  const CommandInfo(this.value, this.label, {this.style = CommandStyle.oneShot});
 }
 
 /// §3.4.2 run style (HMI-selectable per mode).
