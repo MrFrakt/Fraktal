@@ -157,7 +157,11 @@ class _ModuleDetailState extends State<ModuleDetail> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Chip(label: LText(node.state.name.toUpperCase())),
+            // The state badge. The coloured dot to the left already carries the
+            // §8.1 state semantics as a GLYPH; this chip is a SENTENCE and only
+            // has to be readable on its own fill (4.5:1), so it pairs rather
+            // than tinting itself.
+            _pairedChip(context, null, node.state.name.toUpperCase()),
             if (isAdmin) ...[
               const SizedBox(width: 8),
               IconButton.filledTonal(
@@ -939,9 +943,9 @@ class _ModuleOverviewTab extends StatelessWidget {
             // Each chip paints its own fill inside the tinted card, so each
             // pairs its own foreground rather than inheriting the card's.
             if (!inManual)
-              _blockedChip(context, null, 'Unit not in MANUAL')
+              _pairedChip(context, null, 'Unit not in MANUAL')
             else if (!canManual)
-              _blockedChip(context, Icons.lock_outline, 'MANUAL access'),
+              _pairedChip(context, Icons.lock_outline, 'MANUAL access'),
           ]),
           const SizedBox(height: 4),
           LText('Routed through the module — interlocks still apply (§7.6.1).',
@@ -972,19 +976,6 @@ class _ModuleOverviewTab extends StatelessWidget {
         ]),
         ),
       ),
-    );
-  }
-
-  /// A chip stating why manual is blocked, with its label and icon explicitly
-  /// paired to the chip's OWN fill. Inheriting the enclosing card's foreground
-  /// is what rendered these white on white.
-  Widget _blockedChip(BuildContext context, IconData? icon, String label) {
-    final fill = Theme.of(context).colorScheme.surface;
-    final ink = foregroundOn(context, fill);
-    return Chip(
-      backgroundColor: fill,
-      avatar: icon == null ? null : Icon(icon, size: 16, color: ink),
-      label: LText(label, style: TextStyle(color: ink)),
     );
   }
 
@@ -1212,6 +1203,27 @@ String _flagLabel(StateFlag f, DateTime now) {
 /// hold lapses. One constant, shared by every held control, so the cadence can
 /// never drift per-button.
 const _heldManualRefresh = Duration(milliseconds: 300);
+
+/// A chip whose label and icon are explicitly paired to the chip's OWN fill.
+///
+/// Every bare `Chip` in this file was a latent white-on-white: Material gives it
+/// a fill but leaves the label to whatever DefaultTextStyle encloses it, so the
+/// ink came out with NO colour at all and landed on whatever the ancestor
+/// happened to set — which is how the READY/BUSY/DONE state badge and the manual
+/// card's blocked chip both went invisible on the light themes.
+///
+/// Library-level, not a method, so BOTH the detail state and the overview tab
+/// share one pairing rule and a new chip cannot reintroduce the defect by
+/// omission (app_theme.foregroundOn).
+Widget _pairedChip(BuildContext context, IconData? icon, String label) {
+  final fill = Theme.of(context).colorScheme.surface;
+  final ink = foregroundOn(context, fill);
+  return Chip(
+    backgroundColor: fill,
+    avatar: icon == null ? null : Icon(icon, size: 16, color: ink),
+    label: LText(label, style: TextStyle(color: ink)),
+  );
+}
 
 /// §7.6.1a — the press-and-hold control for a `Style = HELD` manual command.
 ///
