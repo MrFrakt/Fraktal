@@ -1,7 +1,7 @@
 # Fraktal/AB engineering interface and tool catalog
 
-**Inventory cutoff:** 2026-08-13 on `DESKTOP-07VCTIN`, revised after the
-completed S11 run
+**Inventory cutoff:** 2026-08-13 on `DESKTOP-07VCTIN`, revised 2026-08-26
+after the Studio v38 / SDK 2.02 preflight
 
 This is the complete known interface inventory from the Allen-Bradley Phase 0
 work completed through S2 and S11. It complements the
@@ -61,9 +61,9 @@ CompactLogix port.
 
 ## 3. FactoryTalk Linx interfaces
 
-FactoryTalk Linx `6.50.00` is the supported communications server used here.
-The global point-to-point display alias is `Fraktal_AB`; Linx reported internal
-driver name `Ethernet 2`.
+FactoryTalk Linx `6.60.00` is the current communications server; the historical
+Phase 0 runs through 2026-08-13 used `6.50.00`. The global point-to-point
+display alias is `Fraktal_AB`; Linx reported internal driver name `Ethernet 2`.
 
 | Interface | Status | Scope |
 |---|---|---|
@@ -87,6 +87,7 @@ The exact browse and add-driver commands are in the runbook.
 |---|---|---|
 | Studio v33 executable | **Proved** | `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v33\Bin\LogixDesigner.Exe`; exact live firmware revision, manual Who Active, USB upload/download, and offline Verify Controller. |
 | Studio v37 executable | **Proved offline only** | `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v37\Bin\LogixDesigner.Exe`; SDK Build fixtures and negative semantic Verify. It was never used to download or upgrade the v33 controller. |
+| Studio v38 executable | **Discovered only; SDK family enumeration proved** | `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v38\Bin\LogixDesigner.Exe`, file version `V38.02.00`. SDK 2.02 enumerates 106 v38 processor types, including 5380/5580 candidates, but licensed project creation is currently blocked; no v38 project has been created, imported, built or verified. |
 | Ethernet Who Active | **Proved connection; failed/limited upload** | Selected `Fraktal_AB\192.168.100.89` and matched identity. Upload reached late processing then failed `Error 731-0` / communications timeout and reverted the disposable ACD. |
 | USB Who Active | **Proved** | Selected `16, 1769-L24ER-QB1B, FIS_Aptiv_Rev1` under USB; selected route `Backplane\16`; upload completed 0 errors/0 warnings. |
 | Offline Verify Controller | **Proved semantic gate** | `Logic > Verify > Controller`; v33 positive project returned 0/0, while a deliberately invalid v37 ST body returned two errors. This is stronger than SDK `BuildAsync`. |
@@ -133,18 +134,20 @@ Installed material:
 
 ```text
 C:\Users\Public\Documents\Studio 5000\Logix Designer SDK\dotnet\
-C:\Users\Public\Documents\Studio 5000\Logix Designer SDK\dotnet\RockwellAutomation.LogixDesigner.CSClient.2.0.861.nupkg
+C:\Users\Public\Documents\Studio 5000\Logix Designer SDK\dotnet\RockwellAutomation.LogixDesigner.CSClient.2.2.1109.nupkg
 C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer SDK\LdSdkServer.exe
 ```
 
-`LdSdkService` was running with Automatic startup. The client must be 32-bit;
-the proven target runtime is .NET 8 `win-x86`. A later x64 .NET SDK can build a
-`win-x86` target, but it does not change the Rockwell client architecture.
+`LdSdkService` is running with Automatic startup. The current service is SDK
+`2.02` (`LdSdkServer.exe` file version `2.2.1109.0`) and the current C# client
+is `2.2.1109`. The historical Phase 0 evidence through 2026-08-13 used SDK
+`2.00` / client `2.0.861`. The client must be 32-bit; the current proved build
+target is .NET 10 `win-x86`.
 
 | API/workflow | Status | Finding |
 |---|---|---|
-| `GetProcessorTypesAsync` | **Proved offline** | Enumerated available controller targets. |
-| `CreateNewProjectAsync` | **Proved offline** | Created disposable projects. The repository offline probe now exposes it as `--create-seed`, so the empty v33 skeleton every generator consumes is reproducible from a clean checkout instead of being a hand-made temporary file. The scripted seed is canonically identical to the original hand-made one. |
+| `GetProcessorTypesAsync` | **Proved offline on SDK 2.00 and 2.02** | SDK 2.02 returned 93 v33 and 106 v38 processor types. Both contain `1769-L24ER-QB1B`; v38 also lists 5380/5580 candidate families including `5069-L310ER` and `1756-L81E`. Enumeration alone is not a controller-capability or type-map result. |
+| `CreateNewProjectAsync` | **Proved historically; BLOCKED current** | SDK 2.00 created the disposable Phase 0 projects. On 2026-08-26, after the v38/SDK 2.02 installation, both the old and current clients reached the SDK service but project creation failed `No valid license`. The repository probe remains `--create-seed`, but the v33 regression and v38 S12 project cannot proceed until the SDK entitlement is restored. |
 | `OpenLogixProjectAsync` | **Proved offline** | Opened ACD, L5K, and L5X through repository tooling. |
 | `ConvertAsync` / complete-project L5X import | **Proved offline, but not a type gate** | Converted generated complete L5X into a disposable ACD with import warnings/errors gated. S12 found it accepts an `LREAL` tag with `Warnings="0" Errors="0"` that Studio Verify then rejects as unsupported by the controller type; a clean import summary is necessary, never sufficient. |
 | `BuildAsync` | **Proved but limited** | Works for v37 SDK evidence; unsupported for v33 physical-target projects in SDK 2.00 and does not detect all semantic ST errors. Never substitute it for Studio Verify. |
@@ -157,7 +160,35 @@ The repository `Fraktal.Ab.OfflineProbe` intentionally exposes only open,
 saved-path read, and save-as/export operations. It contains no online, upload,
 download, controller-mode, tag-write, fault, firmware, safety, or SD-card API.
 
-### 5.1 Installed Rockwell SDK examples
+### 5.1 Current v38 / SDK 2.02 regression status
+
+The repository probe was rebuilt against the installed `2.2.1109` package as
+.NET 10 `win-x86`; that build passes. `GetProcessorTypesAsync(33)` and `(38)`
+also pass through the same installed service. The required regression command
+
+```text
+python FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py
+```
+
+does not reach seed generation: `CreateNewProjectAsync` returns
+`OperationFailedException: No valid license`. Repeating the call directly with
+both client `2.0.861` and client `2.2.1109` gives the same result. Studio v33 is
+separately healthy: it re-opened and verified the preserved upload-derived ACD
+at `0 errors / 0 warnings`, left its SHA-256 unchanged, and closed cleanly.
+
+FactoryTalk Diagnostics identifies the requested feature as `LDSDK.EXE`: its
+grace period has expired, and the local FlexNet server answers `No such feature
+exists`. Rockwell's installed SDK 2.02 requirements specify a Professional
+Edition licence or toolkit. The local activation store has no issued
+`LDSDK.EXE` feature, so a reinstall or service restart is not a recovery path.
+
+**Status: BLOCKED - SDK licence/entitlement.** Do not treat processor
+enumeration as permission to create the v38 S12 baseline, do not edit the
+frozen type table, and do not reinterpret the v33 evidence. Exact hashes and
+the negative result are recorded in
+[`AB_S12_V38_PREFLIGHT_BLOCKER_2026-08-26.md`](Evidence/AB_S12_V38_PREFLIGHT_BLOCKER_2026-08-26.md).
+
+### 5.2 Installed Rockwell SDK examples
 
 All example folders discovered under the installed SDK are listed here so a
 fresh agent can distinguish available reference code from exercised evidence:

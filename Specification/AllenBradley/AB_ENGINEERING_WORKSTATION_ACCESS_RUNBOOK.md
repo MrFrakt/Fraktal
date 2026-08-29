@@ -1,6 +1,7 @@
 # Fraktal/AB engineering workstation and PLC access runbook
 
-**Verified:** 2026-08-13 on `DESKTOP-07VCTIN`
+**Verified:** 2026-08-13 on `DESKTOP-07VCTIN`; SDK/Studio preflight rechecked
+2026-08-26
 
 This is the fresh-chat operational handoff for the Allen-Bradley Phase 0
 workstation. It records the interfaces that actually reached Studio 5000 and
@@ -28,10 +29,10 @@ application logic, activation details, or credentials. Use a disposable copy in
 | Pre-test controller project observed by Linx | `FIS_Aptiv_Rev1` |
 | Current isolated test project | S9 coherence memory-only fixture retained in Remote Run; `FRK_S9_Freeze` at zero and `FRK_S9_MutationPeriod` at its default 10; clock host-aligned with PTP disabled/unsynchronized |
 | USB identity when attached | `USB\VID_14C0&PID_001F\7036B510`, Rockwell USB CIP driver |
-| FactoryTalk Linx | `6.50.00`, point-to-point driver alias `Fraktal_AB` |
+| FactoryTalk Linx | current `6.60.00`; historical Phase 0 `6.50.00`; point-to-point driver alias `Fraktal_AB` |
 | Studio executable used | `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v33\Bin\LogixDesigner.Exe` |
-| Logix Designer SDK | `2.00.00`; C# client package `2.0.861`; `LdSdkService` |
-| Proven .NET host | .NET SDK `8.0.423`, `win-x86` |
+| Logix Designer SDK | current `2.02` / C# client `2.2.1109`; historical Phase 0 runs used `2.00` / `2.0.861`; `LdSdkService` |
+| Proven .NET host | current .NET SDK `10.0.400`, `win-x86`; historical Phase 0 host .NET 8 |
 | Python | `C:\Users\Rockwell Automation\AppData\Local\Python\bin\python.exe` |
 
 The controller is a CompactLogix 5370 with an integral Ethernet port. Its
@@ -488,12 +489,13 @@ Installed material:
 
 ```text
 C:\Users\Public\Documents\Studio 5000\Logix Designer SDK\dotnet\
-C:\Users\Public\Documents\Studio 5000\Logix Designer SDK\dotnet\RockwellAutomation.LogixDesigner.CSClient.2.0.861.nupkg
+C:\Users\Public\Documents\Studio 5000\Logix Designer SDK\dotnet\RockwellAutomation.LogixDesigner.CSClient.2.2.1109.nupkg
 C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer SDK\LdSdkServer.exe
 ```
 
-`LdSdkService` is automatic and was running after reboot. The proven client
-host was 32-bit .NET 8 (`win-x86`). Rockwell's installed examples were used for
+`LdSdkService` is automatic and running. The current client host is 32-bit
+.NET 10 (`win-x86`); the historical Phase 0 runs used 32-bit .NET 8.
+Rockwell's installed examples were used for
 `GetProcessorTypesAsync`, `CreateNewProjectAsync`, `ConvertAsync`,
 `BuildAsync`, `SaveAsync`, `SaveAsAsync`, `GetCommunicationsPathAsync`, and
 `UploadToNewProjectAsync`.
@@ -506,6 +508,21 @@ controller-write operation. The ACD form is the proven SDK conversion path for
 generated complete-project L5X before Studio Verify.
 
 Important findings for a fresh agent:
+
+- **Current blocker (2026-08-26):** the SDK 2.02 client builds as
+  `net10.0/win-x86`, and processor enumeration succeeds for both v33 and v38,
+  but every licensed project-creation attempt returns `No valid license`.
+  FactoryTalk Diagnostics names the missing feature as `LDSDK.EXE`; the grace
+  period is expired and the local FlexNet server reports `No such feature
+  exists`. Rockwell's installed requirements call for a Professional Edition
+  licence or toolkit, and the local activation store contains no issued
+  `LDSDK.EXE` feature. Do not spend the next run reinstalling SDK binaries or
+  restarting already-running services; restore the applicable entitlement.
+  The required v33 `fraktal_ab_phase0_gate.py` therefore stops before seed
+  generation. Studio v33 itself still opens and verifies the preserved ACD at
+  `0/0`; this is specifically an SDK licence/entitlement blocker. Restore that
+  entitlement and rerun the unchanged v33 gate before any v38 S12 work. See
+  `Evidence/AB_S12_V38_PREFLIGHT_BLOCKER_2026-08-26.md`;
 
 - only FactoryTalk Linx is supported by this SDK; RSLinx Classic is not;
 - Rockwell's example route has the form

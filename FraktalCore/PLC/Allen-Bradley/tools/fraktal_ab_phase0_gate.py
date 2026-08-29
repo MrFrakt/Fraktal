@@ -58,7 +58,7 @@ SEED_NAME = "FraktalPhase0"
 
 TOOLS = Path(__file__).resolve().parent
 DEFAULT_PROBE = (
-    TOOLS / "Fraktal.Ab.OfflineProbe" / "bin" / "Debug" / "net8.0" / "win-x86"
+    TOOLS / "Fraktal.Ab.OfflineProbe" / "bin" / "Debug" / "net10.0" / "win-x86"
     / "Fraktal.Ab.OfflineProbe.exe"
 )
 DEFAULT_VERIFY = TOOLS / "fraktal_ab_studio_verify.ps1"

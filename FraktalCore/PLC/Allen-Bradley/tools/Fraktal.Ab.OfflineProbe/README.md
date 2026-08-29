@@ -11,15 +11,19 @@ existing export.
 
 Prerequisites:
 
-- .NET 8 SDK matching the installed Rockwell client architecture;
-- Logix Designer SDK 2.00 and its required activation; and
+- .NET 10 SDK targeting the installed Rockwell client's 32-bit architecture;
+- Logix Designer SDK 2.02 / C# client `2.2.1109` and its required activation; and
 - the Rockwell C# NuGet package supplied with the SDK installation.
 
-Build with the Rockwell package directory plus NuGet.org configured as package
-sources, then run:
+Restore with the installed Rockwell package directory plus NuGet.org, build the
+required 32-bit target, then run:
 
 ```powershell
-dotnet run --project Fraktal.Ab.OfflineProbe.csproj -- `
+dotnet restore Fraktal.Ab.OfflineProbe.csproj -r win-x86 `
+  --source 'C:\Users\Public\Documents\Studio 5000\Logix Designer SDK\dotnet' `
+  --source 'https://api.nuget.org/v3/index.json'
+dotnet build Fraktal.Ab.OfflineProbe.csproj -c Debug -r win-x86 --no-restore
+bin\Debug\net10.0\win-x86\Fraktal.Ab.OfflineProbe.exe `
   C:\work\DisposableProject.ACD `
   --export C:\work\DisposableProject.L5X
 ```
@@ -28,7 +32,7 @@ The same isolated SDK path converts a complete generated controller L5X into
 a new ACD for Studio Verify:
 
 ```powershell
-dotnet run --project Fraktal.Ab.OfflineProbe.csproj -- `
+bin\Debug\net10.0\win-x86\Fraktal.Ab.OfflineProbe.exe `
   C:\work\GeneratedProject.L5X `
   --export C:\work\GeneratedProject.ACD
 ```
