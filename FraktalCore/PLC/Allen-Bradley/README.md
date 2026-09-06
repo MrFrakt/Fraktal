@@ -161,6 +161,11 @@ Start with:
   layout with a declared **SL-T 1 / SL-C 0** (and why SL 2 is unreachable on this
   family rather than exceptable), and the reference station's tier poll periods,
   freshness thresholds, reader budget and manifest-mutation convergence limit;
+- [`Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md)
+  for the measured reconnect budget, the two distinct bad-path quality codes and
+  what each obliges a reader to do, and why a value's timestamp is the gateway's
+  read time carrying `TimeSynchronized = FALSE`; it also records the wall-clock
+  read the S1 fixture guard correctly refused rather than being widened;
 - [`Specification/AllenBradley/Evidence/AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md)
   for the second engineering PC surveyed on 2026-09-06 — **read it before
   planning any v33 or SDK work on a new machine**, because that PC has Studio
