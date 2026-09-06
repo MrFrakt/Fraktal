@@ -61,6 +61,13 @@ pattern transports faithfully while Logix ST's `NaN <> NaN` evaluates false, so
 generated code must test NaN by bit pattern. **S12 is PASS.** The controller
 retains the clean S12 fixture in Remote Run.
 
+A later Studio-only v38 exploration on a disposable `5069-L310ER` revision
+38.11 project imported all 28 declaration/use probes and ran Verify on each;
+26 were clean, while the two duration cases correctly rejected an untyped
+integer operand. It exposed family-specific differences, but the SDK licence,
+unchanged v33 regression, and SDK-import evidence are still missing, so it is
+explicitly not a second S12 baseline and does not change the frozen v33 contract.
+
 S4 then closed offline with a representative construct matrix: two task types
 with their schedules, ST, RLL and SFC routines side by side, nested and tabular
 record shapes, a sized `StringFamily` type, a generated `Constant` tag, and an
@@ -129,6 +136,9 @@ Start with:
   for the completed type-acceptance matrix, the measured CIP UDT layout and
   stride, and the overflow/NaN/string/array/duration rules that bind generated
   code;
+- [`Specification/AllenBradley/Evidence/AB_S12_V38_STUDIO_EXPLORATORY_2026-08-29.md`](../../../Specification/AllenBradley/Evidence/AB_S12_V38_STUDIO_EXPLORATORY_2026-08-29.md)
+  for the explicitly provisional Studio-only 5380/v38 declaration/use matrix
+  and the acceptance work still blocked by the SDK licence;
 - [`Specification/AllenBradley/Evidence/AB_S7_MANIFEST_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_S7_MANIFEST_EVIDENCE.md)
   for the measured manifest size, per-table read cost at two connection sizes,
   coherence and revision-change results, and the resolved capacities;
@@ -210,7 +220,12 @@ Pre-gate tooling:
 - [`tools/fraktal_ab_s12_type_probe.py`](tools/fraktal_ab_s12_type_probe.py)
   emits one minimal project per candidate Logix type, twice — declaration alone
   and declaration plus one operation — so a failure names exactly one type and
-  separates an unknown type from an uncompilable expression.
+  separates an unknown type from an uncompilable expression. Its default
+  `v33-5370` profile is the accepted 28-case Phase 0 baseline. The explicit
+  `v38-5380-exploratory` profile targets `5069-L310ER` revision 38, remains
+  machine-labeled `exploratory-not-accepted`, and adds the four typed-literal and
+  matched-operand duration discriminator cases from the Studio-only exploration:
+  `python tools/fraktal_ab_s12_type_probe.py <v38-seed.L5X> <output-directory> --profile v38-5380-exploratory`.
 - [`tools/fraktal_ab_s12_fixture.py`](tools/fraktal_ab_s12_fixture.py) and
   [`tools/fraktal_ab_s12_execute.py`](tools/fraktal_ab_s12_execute.py) generate
   and execute the memory-only type-map fixture. The controller copies its own

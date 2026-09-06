@@ -7,9 +7,11 @@ which candidate Logix types the pinned v33 target accepts at all: Part III
 cannot assume a native `TIME`/`TIME32` exists, and controller families and
 revisions differ on the wider atomics.
 
-This tool emits one minimal full-project L5X per probe case from the same empty
-v33 seed the other fixtures use. Each case is deliberately tiny so an import or
-Verify failure names exactly one type. Every candidate is emitted twice:
+This tool emits one minimal full-project L5X per probe case from a named target
+profile. The accepted v33 profile remains the default used by the Phase 0 gate;
+other profiles are explicit and carry their acceptance status in the result.
+Each case is deliberately tiny so an import or Verify failure names exactly one
+type. Every base candidate is emitted twice:
 
 * ``declare`` puts the tag in the project and nothing else, so a failure means
   the target does not accept the data type; and
@@ -27,7 +29,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
+import xml.etree.ElementTree as ElementTree
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,7 +39,7 @@ from fraktal_ab_phase0_fixture import replace_once, sha256
 
 
 SCHEMA = "fraktal.ab.s12-type-probe"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 CONTROLLER = "1769-L24ER-QB1B"
 REVISION = "33"
 
@@ -57,6 +61,20 @@ class Candidate:
     dimensions: int
     # The operation a generated Fraktal contract would actually perform.
     use_statement: str
+
+
+@dataclass(frozen=True)
+class ProbeProfile:
+    """A target-bound case set whose status cannot be mistaken for acceptance."""
+
+    key: str
+    controller: str
+    revision: str
+    status: str
+    candidates: tuple[Candidate, ...]
+    # These are operation-only discriminator cases. Their declarations are
+    # already covered by the corresponding base candidate.
+    supplemental_uses: tuple[Candidate, ...] = ()
 
 
 def _udt(name: str) -> str:
@@ -110,6 +128,154 @@ CANDIDATES: tuple[Candidate, ...] = (
 
 MODES = ("declare", "use")
 
+V38_DURATION_USES: tuple[Candidate, ...] = (
+    Candidate(
+        "time_typed_literal",
+        "duration, native TIME with typed literal",
+        "TIME",
+        None,
+        0,
+        f"{TAG} := {TAG} + T#1ms;",
+    ),
+    Candidate(
+        "time32_typed_literal",
+        "duration, native TIME32 with typed literal",
+        "TIME32",
+        None,
+        0,
+        f"{TAG} := {TAG} + T32#1ms;",
+    ),
+    Candidate(
+        "time_matched",
+        "duration, native TIME with matched operands",
+        "TIME",
+        None,
+        0,
+        f"{TAG} := {TAG} + {TAG};",
+    ),
+    Candidate(
+        "time32_matched",
+        "duration, native TIME32 with matched operands",
+        "TIME32",
+        None,
+        0,
+        f"{TAG} := {TAG} + {TAG};",
+    ),
+)
+
+V33_PROFILE = ProbeProfile(
+    key="v33-5370",
+    controller=CONTROLLER,
+    revision=REVISION,
+    status="accepted-baseline",
+    candidates=CANDIDATES,
+)
+
+V38_EXPLORATORY_PROFILE = ProbeProfile(
+    key="v38-5380-exploratory",
+    controller="5069-L310ER",
+    revision="38",
+    status="exploratory-not-accepted",
+    candidates=CANDIDATES,
+    supplemental_uses=V38_DURATION_USES,
+)
+
+PROFILES = {
+    profile.key: profile
+    for profile in (V33_PROFILE, V38_EXPLORATORY_PROFILE)
+}
+
+
+def _empty(element: ElementTree.Element | None) -> bool:
+    return (
+        element is not None
+        and len(element) == 0
+        and not (element.text or "").strip()
+    )
+
+
+def _studio_default_programs(programs: ElementTree.Element) -> bool:
+    if len(programs) != 1:
+        return False
+    program = programs[0]
+    if (
+        program.tag != "Program"
+        or program.get("Name") != "MainProgram"
+        or program.get("MainRoutineName") != "MainRoutine"
+    ):
+        return False
+    if [child.tag for child in program] != ["Tags", "Routines"]:
+        return False
+    tags = program.find("Tags")
+    routines = program.find("Routines")
+    if not _empty(tags) or routines is None or len(routines) != 1:
+        return False
+    routine = routines[0]
+    return (
+        routine.tag == "Routine"
+        and routine.get("Name") == "MainRoutine"
+        and routine.get("Type") == "RLL"
+        and _empty(routine)
+    )
+
+
+def _studio_default_tasks(tasks: ElementTree.Element) -> bool:
+    if len(tasks) != 1:
+        return False
+    task = tasks[0]
+    if (
+        task.tag != "Task"
+        or task.get("Name") != "MainTask"
+        or task.get("Type") != "CONTINUOUS"
+    ):
+        return False
+    if [child.tag for child in task] != ["ScheduledPrograms"]:
+        return False
+    scheduled = task.find("ScheduledPrograms")
+    return (
+        scheduled is not None
+        and len(scheduled) == 1
+        and scheduled[0].tag == "ScheduledProgram"
+        and scheduled[0].get("Name") == "MainProgram"
+        and _empty(scheduled[0])
+    )
+
+
+def _replace_container(text: str, name: str) -> str:
+    pattern = re.compile(rf"<{name}(?:\s[^>]*)?>.*?</{name}>", re.DOTALL)
+    matches = tuple(pattern.finditer(text))
+    if len(matches) != 1:
+        raise ValueError(f"source has {len(matches)} expanded <{name}> containers")
+    match = matches[0]
+    return text[:match.start()] + f"<{name}/>" + text[match.end():]
+
+
+def normalize_empty_seed(text: str) -> str:
+    """Normalize only Studio's exact inert default program/task seed shape."""
+
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError as exc:
+        raise ValueError(f"source is not well-formed XML: {exc}") from exc
+    controller = root.find("Controller")
+    if controller is None:
+        raise ValueError("source has no Controller element")
+
+    programs = controller.find("Programs")
+    tasks = controller.find("Tasks")
+    if programs is None or tasks is None:
+        return text
+
+    if len(programs) > 0:
+        if not _studio_default_programs(programs):
+            raise ValueError("source Programs are not the inert Studio default")
+        text = _replace_container(text, "Programs")
+    if len(tasks) > 0:
+        if not _studio_default_tasks(tasks):
+            raise ValueError("source Tasks are not the inert Studio default")
+        text = _replace_container(text, "Tasks")
+    return text
+
 
 def tag_element(candidate: Candidate) -> str:
     dimensions = (
@@ -159,7 +325,12 @@ TASKS = f"""<Tasks>
 
 
 def generate_case(
-    source: Path, output: Path, candidate: Candidate, mode: str
+    source: Path,
+    output: Path,
+    candidate: Candidate,
+    mode: str,
+    *,
+    profile: ProbeProfile = V33_PROFILE,
 ) -> dict[str, object]:
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")
@@ -172,10 +343,10 @@ def generate_case(
     if output.exists():
         raise ValueError(f"refusing to overwrite output: {output}")
 
-    text = source.read_text(encoding="utf-8-sig")
+    text = normalize_empty_seed(source.read_text(encoding="utf-8-sig"))
     required = (
-        f'ProcessorType="{CONTROLLER}"',
-        f'MajorRev="{REVISION}"',
+        f'ProcessorType="{profile.controller}"',
+        f'MajorRev="{profile.revision}"',
         "<DataTypes/>",
         "<Tags/>",
         "<Programs/>",
@@ -183,7 +354,9 @@ def generate_case(
     )
     missing = [marker for marker in required if marker not in text]
     if missing:
-        raise ValueError(f"source is not the expected empty v33 seed: {missing}")
+        raise ValueError(
+            f"source is not the expected empty {profile.key} seed: {missing}"
+        )
 
     if candidate.user_type is not None:
         text = replace_once(
@@ -206,6 +379,10 @@ def generate_case(
     return {
         "Schema": SCHEMA,
         "SchemaVersion": SCHEMA_VERSION,
+        "Profile": profile.key,
+        "ProfileStatus": profile.status,
+        "Controller": profile.controller,
+        "MajorRevision": profile.revision,
         "Case": f"{candidate.key}-{mode}",
         "CoreConcept": candidate.core_concept,
         "DataType": candidate.data_type,
@@ -217,24 +394,42 @@ def generate_case(
     }
 
 
-def generate_all(source: Path, directory: Path) -> list[dict[str, object]]:
+def generate_all(
+    source: Path,
+    directory: Path,
+    profile: ProbeProfile = V33_PROFILE,
+) -> list[dict[str, object]]:
     directory = directory.resolve()
     directory.mkdir(parents=True, exist_ok=True)
     results = []
-    for candidate in CANDIDATES:
+    for candidate in profile.candidates:
         for mode in MODES:
             output = directory / f"s12_{candidate.key}_{mode}.L5X"
-            results.append(generate_case(source, output, candidate, mode))
+            results.append(
+                generate_case(source, output, candidate, mode, profile=profile)
+            )
+    for candidate in profile.supplemental_uses:
+        output = directory / f"s12_{candidate.key}_use.L5X"
+        results.append(
+            generate_case(source, output, candidate, "use", profile=profile)
+        )
     return results
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", type=Path, help="empty v33 seed L5X")
+    parser.add_argument("source", type=Path, help="empty target seed L5X")
     parser.add_argument("directory", type=Path, help="output directory")
+    parser.add_argument(
+        "--profile",
+        choices=tuple(PROFILES),
+        default=V33_PROFILE.key,
+        help=f"target profile (default: {V33_PROFILE.key})",
+    )
     args = parser.parse_args()
+    profile = PROFILES[args.profile]
     try:
-        results = generate_all(args.source, args.directory)
+        results = generate_all(args.source, args.directory, profile)
     except (OSError, ValueError) as exc:
         print(f"ERROR [s12-type-probe] {exc}", file=sys.stderr)
         return 1
@@ -242,7 +437,12 @@ def main() -> int:
         {
             "Schema": SCHEMA,
             "SchemaVersion": SCHEMA_VERSION,
-            "Candidates": len(CANDIDATES),
+            "Profile": profile.key,
+            "ProfileStatus": profile.status,
+            "Controller": profile.controller,
+            "MajorRevision": profile.revision,
+            "Candidates": len(profile.candidates),
+            "SupplementalUseCases": len(profile.supplemental_uses),
             "Cases": results,
         },
         indent=2,

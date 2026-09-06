@@ -87,7 +87,7 @@ The exact browse and add-driver commands are in the runbook.
 |---|---|---|
 | Studio v33 executable | **Proved** | `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v33\Bin\LogixDesigner.Exe`; exact live firmware revision, manual Who Active, USB upload/download, and offline Verify Controller. |
 | Studio v37 executable | **Proved offline only** | `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v37\Bin\LogixDesigner.Exe`; SDK Build fixtures and negative semantic Verify. It was never used to download or upgrade the v33 controller. |
-| Studio v38 executable | **Discovered only; SDK family enumeration proved** | `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v38\Bin\LogixDesigner.Exe`, file version `V38.02.00`. SDK 2.02 enumerates 106 v38 processor types, including 5380/5580 candidates, but licensed project creation is currently blocked; no v38 project has been created, imported, built or verified. |
+| Studio v38 executable | **Proved offline, exploratory only** | Current host: `C:\Program Files (x86)\Rockwell Software\Studio 5000\Logix Designer\ENU\v38\Bin\LogixDesigner.Exe`, file version `V38.01.00`; the 2026-08-26 host record observed `V38.02.00`. Studio created a disposable `5069-L310ER` revision 38.11 project, imported 28 full-project L5X cases, and Verify checked every case. SDK project operations remain unlicensed, so this is not an accepted S12 baseline. |
 | Ethernet Who Active | **Proved connection; failed/limited upload** | Selected `Fraktal_AB\192.168.100.89` and matched identity. Upload reached late processing then failed `Error 731-0` / communications timeout and reverted the disposable ACD. |
 | USB Who Active | **Proved** | Selected `16, 1769-L24ER-QB1B, FIS_Aptiv_Rev1` under USB; selected route `Backplane\16`; upload completed 0 errors/0 warnings. |
 | Offline Verify Controller | **Proved semantic gate** | `Logic > Verify > Controller`; v33 positive project returned 0/0, while a deliberately invalid v37 ST body returned two errors. This is stronger than SDK `BuildAsync`. |
@@ -182,10 +182,16 @@ exists`. Rockwell's installed SDK 2.02 requirements specify a Professional
 Edition licence or toolkit. The local activation store has no issued
 `LDSDK.EXE` feature, so a reinstall or service restart is not a recovery path.
 
-**Status: BLOCKED - SDK licence/entitlement.** Do not treat processor
-enumeration as permission to create the v38 S12 baseline, do not edit the
-frozen type table, and do not reinterpret the v33 evidence. Exact hashes and
-the negative result are recorded in
+At the user's direction, a later Studio-only exploratory run created a
+`5069-L310ER` revision 38.11 seed, imported all 28 declaration/use cases, and
+ran Verify Controller on each. It did not run the required v33 regression or
+SDK-import any case. The exact provisional results and limitations are in
+[`AB_S12_V38_STUDIO_EXPLORATORY_2026-08-29.md`](Evidence/AB_S12_V38_STUDIO_EXPLORATORY_2026-08-29.md).
+
+**Status: BLOCKED FOR ACCEPTANCE - SDK licence/entitlement.** Do not treat
+processor enumeration or the Studio-only exploratory run as permission to
+create the v38 S12 baseline, do not edit the frozen type table, and do not
+reinterpret the v33 evidence. The original licence diagnosis is recorded in
 [`AB_S12_V38_PREFLIGHT_BLOCKER_2026-08-26.md`](Evidence/AB_S12_V38_PREFLIGHT_BLOCKER_2026-08-26.md).
 
 ### 5.2 Installed Rockwell SDK examples
