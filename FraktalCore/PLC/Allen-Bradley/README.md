@@ -161,6 +161,13 @@ Start with:
   layout with a declared **SL-T 1 / SL-C 0** (and why SL 2 is unreachable on this
   family rather than exceptable), and the reference station's tier poll periods,
   freshness thresholds, reader budget and manifest-mutation convergence limit;
+- [`Specification/AllenBradley/Evidence/AB_S16_COMMAND_HANDSHAKE_DECLARATION_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S16_COMMAND_HANDSHAKE_DECLARATION_2026-09-06.md)
+  for the S16 declaration: the Core §6.1 handshake and §6.2 mode chain fit one
+  context UDT and two AOIs with no runtime base structure invented, which is the
+  finding that lets the spike proceed. It carries the import package and the
+  nine-phase execution matrix for the licensed v33 workstation, and it records
+  the Core §6.1 ambiguity it had to resolve — whether a HELD command may time
+  out — as something Phase 3 must settle rather than let each binding guess;
 - [`Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md)
   for the measured reconnect budget, the two distinct bad-path quality codes and
   what each obliges a reader to do, and why a value's timestamp is the gateway's
@@ -235,6 +242,18 @@ Pre-gate tooling:
   fixed S11 execution vector. It requires the exact serial, fixture fingerprint
   and arm flag, writes only `FRK_S11_Command` and `FRK_S11_ResetRequest`, drives
   one run plus one `SFR` re-entry run, and restores both inputs.
+- [`tools/fraktal_ab_s16_fixture.py`](tools/fraktal_ab_s16_fixture.py) generates
+  the memory-only command-handshake fixture: one `DINT`-only context UDT and two
+  AOIs — a module carrying the Core §6.1 handshake over a simulated plant, and a
+  mode owner running an AUTO step chain and a MANUAL behavior over it. A test
+  fails the build if the fixture grows a recipe, manifest, registry, mailbox or
+  any other runtime-base structure; fixtures stay disposable by construction.
+- [`tools/fraktal_ab_s16_execute.py`](tools/fraktal_ab_s16_execute.py) is the
+  fixed S16 nine-phase vector. It requires the exact serial, fixture fingerprint
+  and arm flag, writes only the five named command tags, restores all five in a
+  `finally` block, and fails closed — a held condition that raises `Error`, a
+  broken call order, or a command/result latency other than one scan each fail
+  the run rather than being reported as a pass.
 - [`tools/fraktal_ab_s12_type_probe.py`](tools/fraktal_ab_s12_type_probe.py)
   emits one minimal project per candidate Logix type, twice — declaration alone
   and declaration plus one operation — so a failure names exactly one type and
