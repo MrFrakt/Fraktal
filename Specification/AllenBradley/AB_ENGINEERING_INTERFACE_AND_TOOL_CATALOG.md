@@ -3,6 +3,15 @@
 **Inventory cutoff:** 2026-08-13 on `DESKTOP-07VCTIN`, revised 2026-08-26
 after the Studio v38 / SDK 2.02 preflight
 
+> **This catalog describes one workstation.** Every table below is the
+> `DESKTOP-07VCTIN` inventory unless a row says otherwise. A **second**
+> engineering PC was surveyed read-only on 2026-09-06 and differs materially —
+> Studio v37/v38 with **no v33**, Logix Designer SDK **2.01.974** rather than
+> 2.02, **no .NET SDK**, no `LDSDK.EXE` activation, and FactoryTalk Logix Echo
+> installed for the first time. Its facts, and the legs they block, are in
+> [`AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md`](Evidence/AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md).
+> Do not read a row here as true of that machine.
+
 This is the complete known interface inventory from the Allen-Bradley Phase 0
 work completed through S2 and S11. It complements the
 procedural
@@ -374,7 +383,7 @@ then re-established on generated artifacts.
 
 | Product/path | Status | Decision |
 |---|---|---|
-| FactoryTalk Logix Echo and Echo SDK | **Not installed** | No Echo evidence is available on this workstation. |
+| FactoryTalk Logix Echo and Echo SDK | **Not installed** on `DESKTOP-07VCTIN` | No Echo evidence is available on this workstation. Echo `4.00.3672` **is** installed on the 2026-09-06 engineering PC, but its service is stopped and its entitlement is unconfirmed, so it remains an unproved path there too — see [`AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md`](Evidence/AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md) §6. |
 | RSLogix Emulate 5000 | **Installed, not selected** | Versions through the installed v33-era product tree were found. It is not a substitute for the current CompactLogix/modern SDK/physical-target evidence. |
 | Studio/firmware v37 upgrade | **Explicitly excluded** | v37 is offline tooling only; do not upgrade the physical controller for this work. |
 | OPC UA on the physical PLC | **Not required/likely unavailable** | Default Fraktal/AB communication is EtherNet/IP explicit symbolic access through the future gateway. OPC UA remains an optional projection, not a gate prerequisite. |

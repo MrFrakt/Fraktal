@@ -58,8 +58,11 @@ milliseconds. The public UDT's CIP payload was measured member by member: 24
 bytes with a 24-byte array stride, four of them trailing padding forced by the
 `LINT`'s alignment. Integer overflow wraps two's-complement, and a NaN bit
 pattern transports faithfully while Logix ST's `NaN <> NaN` evaluates false, so
-generated code must test NaN by bit pattern. **S12 is PASS.** The controller
-retains the clean S12 fixture in Remote Run.
+generated code must test NaN by bit pattern. **S12 is PASS.** The S12 fixture
+was later replaced: S9 downloaded its coherence fixture on 2026-08-14, and the
+controller has held that clean S9 fixture in Remote Run ever since. Its identity
+and Remote Run state were re-confirmed read-only on 2026-09-06
+([`AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md) §7).
 
 A later Studio-only v38 exploration on a disposable `5069-L310ER` revision
 38.11 project imported all 28 declaration/use probes and ran Verify on each;
@@ -153,6 +156,16 @@ Start with:
   for the settled security and repository/mailbox decisions — read this before
   starting a new AB project, because it fixes the read-only default, the write
   switch, and the recommended v37+ baseline;
+- [`Specification/AllenBradley/Evidence/AB_S8_S9_REFERENCE_STATION_DECLARATIONS_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S8_S9_REFERENCE_STATION_DECLARATIONS_2026-09-06.md)
+  for the two declarations those decisions deferred: the bench's zone/conduit
+  layout with a declared **SL-T 1 / SL-C 0** (and why SL 2 is unreachable on this
+  family rather than exceptable), and the reference station's tier poll periods,
+  freshness thresholds, reader budget and manifest-mutation convergence limit;
+- [`Specification/AllenBradley/Evidence/AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06.md)
+  for the second engineering PC surveyed on 2026-09-06 — **read it before
+  planning any v33 or SDK work on a new machine**, because that PC has Studio
+  v37/v38 with no v33, SDK `2.01.974` rather than 2.02, no .NET SDK, and no
+  issued `LDSDK.EXE` activation;
 - [`Specification/AllenBradley/AB_R3_FROZEN_CONTRACTS.md`](../../../Specification/AllenBradley/AB_R3_FROZEN_CONTRACTS.md)
   and [`Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json`](../../../Specification/AllenBradley/AB_FROZEN_CONTRACTS_V1.json)
   for the frozen version-1 contracts, what is deliberately still a hole, and
