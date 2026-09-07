@@ -175,15 +175,37 @@ class Step:
     time_class: str = "WORK"
 
 
+# The languages a chain's graph may be rendered in. The graph is declared once;
+# a rendition is an emission of it, never a second maintained source. TC3 keeps
+# the same rule for its press: one graph, several renditions, machine-checked
+# for equality.
+ST = "ST"
+SFC = "SFC"
+LD = "LD"
+RENDITIONS = (ST, SFC, LD)
+
+
 @dataclass(frozen=True)
 class Chain:
-    """One mode's step graph."""
+    """One mode's step graph, and the languages it is rendered in."""
 
     name: str
     mode_ordinal: int
     steps: tuple[Step, ...]
     comment: str = ""
     loops: bool = False
+    renditions: tuple[str, ...] = (ST,)
+
+    @property
+    def multi_rendition(self) -> bool:
+        """True when this chain is carried in more than one language.
+
+        A multi-rendition chain is hosted in program routines rather than inside
+        the mode-owner AOI: an Add-On Instruction cannot contain an SFC routine,
+        so the only way to render the same graph in all three languages is to
+        put each rendition where all three can live.
+        """
+        return len(self.renditions) > 1
 
 
 # --- the application --------------------------------------------------------
@@ -309,6 +331,18 @@ def _validate_chain(app: Application, chain: Chain) -> list[str]:
     if chain.steps and not chain.loops:
         if not any(s.action == COMPLETE for s in chain.steps):
             findings.append(f"{chain.name}: a non-looping chain needs a COMPLETE step")
+
+    if not chain.renditions:
+        findings.append(f"{chain.name}: a chain must be rendered in at least one language")
+    for rendition in chain.renditions:
+        if rendition not in RENDITIONS:
+            findings.append(f"{chain.name}: unknown rendition {rendition!r}")
+    if len(set(chain.renditions)) != len(chain.renditions):
+        findings.append(f"{chain.name}: duplicate renditions {list(chain.renditions)}")
+    if chain.renditions and chain.renditions[0] != ST:
+        # ST is the reference rendition every other one is compared against, so
+        # it is the one that must always exist and be listed first.
+        findings.append(f"{chain.name}: ST is the reference rendition and comes first")
     return findings
 
 

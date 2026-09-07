@@ -117,6 +117,10 @@ def application() -> decl.Application:
         name="AUTO",
         mode_ordinal=MODE_AUTO,
         loops=True,
+        # The AUTO graph is declared once and rendered in all three languages,
+        # the way the TwinCAT press carries its own. MANUAL and HOME stay
+        # single-rendition ST, also as the TwinCAT press keeps them.
+        renditions=(decl.ST, decl.LD),
         comment="the continuous production cycle",
         steps=(
             decl.Step(0, "autoInitialize", decl.MARK,

@@ -36,6 +36,13 @@ import fraktal_ab_declaration as decl
 
 
 SCHEMA = "fraktal.ab.generated-application"
+
+# Emitted verbatim ahead of every CASE ELSE. The fallback assigns a step number
+# but it is not an edge of the declared graph, and the read-back gate has to be
+# able to tell the difference without guessing.
+MARKER_CASE_ELSE = (
+    "(* CASE ELSE - undeclared step. A stall fallback, not a declared transition. *)"
+)
 SCHEMA_VERSION = 1
 
 # Execution-state ordinals are Core §6.1's and are never renumbered.
@@ -370,30 +377,72 @@ def ordered_steps(app: decl.Application) -> list[int]:
     return seen
 
 
-def _mark_step(app: decl.Application, index: int) -> list[str]:
+class Names:
+    """How a rendition refers to the things a step touches.
+
+    Inside an Add-On Instruction everything is a parameter; inside a program
+    routine everything is a controller-scoped tag. The step logic is identical
+    either way, so the difference lives here rather than in every emitter - and
+    that is what lets one declared graph be rendered in three languages without
+    a second maintained source.
+    """
+
+    def __init__(self, app: decl.Application, *, in_aoi: bool):
+        self.app = app
+        self.in_aoi = in_aoi
+
+    @property
+    def unit(self) -> str:
+        return "Ctx" if self.in_aoi else f"FRK_{self.app.name}_Unit"
+
+    @property
+    def chart(self) -> str:
+        return "Chart" if self.in_aoi else f"FRK_{self.app.name}_Chart"
+
+    @property
+    def cfg(self) -> str:
+        return "Cfg" if self.in_aoi else f"{self.app.records[0].name}Tag"
+
+    @property
+    def scan(self) -> str:
+        return "Scan" if self.in_aoi else f"FRK_{self.app.name}_ScanCount"
+
+    def module(self, name: str) -> str:
+        return f"Ctx{name}" if self.in_aoi else ctx_tag_for(self.app, name)
+
+    def sim(self, tag: str) -> str:
+        return sim_param(self.app, tag) if self.in_aoi else tag
+
+
+
+def _mark_step(app: decl.Application, index: int, names: Names) -> list[str]:
+    """Enter the step: move the cursor, mark it visited, restart its clock."""
+    u, c = names.unit, names.chart
     return [
-        "IF Ctx.Step <> Ctx.PrevStep THEN",
-        f"Chart.StepCursor := {index};",
-        "Chart.ActiveStepNumber := Ctx.Step;",
-        f"Chart.Visited[{index}] := 1;",
-        f"Chart.EnterCount[{index}] := Chart.EnterCount[{index}] + 1;",
-        "Chart.CurrentStepMs := 0;",
-        "Ctx.StepScan := Scan;",
-        "Ctx.PrevStep := Ctx.Step;",
-        "Chart.StallReason := 0;",
+        f"IF {u}.Step <> {u}.PrevStep THEN",
+        f"{c}.StepCursor := {index};",
+        f"{c}.ActiveStepNumber := {u}.Step;",
+        f"{c}.Visited[{index}] := 1;",
+        f"{c}.EnterCount[{index}] := {c}.EnterCount[{index}] + 1;",
+        f"{c}.CurrentStepMs := 0;",
+        f"{u}.StepScan := {names.scan};",
+        f"{u}.PrevStep := {u}.Step;",
+        f"{c}.StallReason := 0;",
         "END_IF;",
-        f"Chart.CurrentStepMs := (Scan - Ctx.StepScan) * {app.task_period_ms};",
+        f"{c}.CurrentStepMs := ({names.scan} - {u}.StepScan) * {app.task_period_ms};",
     ]
 
 
-def _advance(app: decl.Application, step: decl.Step, index: int) -> list[str]:
+def _advance(app: decl.Application, step: decl.Step, index: int,
+             names: Names) -> list[str]:
     return [
-        f"Chart.LastMs[{index}] := Chart.CurrentStepMs;",
-        f"Ctx.Step := {step.on_advance};",
+        f"{names.chart}.LastMs[{index}] := {names.chart}.CurrentStepMs;",
+        f"{names.unit}.Step := {step.on_advance};",
     ]
 
 
-def _entry_reset(ctx: str) -> list[str]:
+
+def _entry_reset(ctx: str, names: "Names") -> list[str]:
     """Drop Execute on the step's own entry scan, then command from the next.
 
     This is Core §6.1's Execute-drop reset used as the generator intends it: a
@@ -404,7 +453,7 @@ def _entry_reset(ctx: str) -> list[str]:
     rising edge the module latches its request on.
     """
     return [
-        "IF Scan = Ctx.StepScan THEN",
+        f"IF {names.scan} = {names.unit}.StepScan THEN",
         f"{ctx}.Execute := 0;",
         "ELSE",
     ]
@@ -432,24 +481,32 @@ def ctx_tag_for(app: decl.Application, module_name: str) -> str:
 
 
 def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
-               index: int) -> list[str]:
+               index: int, names: Names | None = None) -> list[str]:
     """Emit one step's body. Every branch marks the chart before it decides."""
+    names = names or Names(app, in_aoi=True)
+    u, c = names.unit, names.chart
     lines: list[str] = [f"{step.number}:", f"(* {step.name}: {step.comment} *)"]
-    lines += _mark_step(app, index)
+    lines += _mark_step(app, index, names)
+    adv = _advance(app, step, index, names)
 
-    if step.action == decl.ISSUE:
-        module = next(m for m in app.modules if m.name == step.module)
-        command = next(c for c in module.commands if c.name == step.command)
-        ctx = _module_ref(app, step.module)
-        lines += _entry_reset(ctx) + [
+    def commanded(action_name: str) -> tuple[str, list[str]]:
+        module = next(m for m in app.modules if m.name == action_name)
+        command = next(cm for cm in module.commands if cm.name == step.command)
+        ctx = names.module(step.module)
+        return ctx, [
             f"{ctx}.ParCmd_Command := {command.ordinal};",
             f"{ctx}.ParCmd_Target := {command.target_position};",
             f"{ctx}.Execute := 1;",
+        ]
+
+    if step.action == decl.ISSUE:
+        ctx, issue = commanded(step.module)
+        lines += _entry_reset(ctx, names) + issue + [
             f"IF {ctx}.Done <> 0 THEN",
             f"{ctx}.Execute := 0;",
-        ] + _advance(app, step, index) + [
+        ] + adv + [
             f"ELSIF {ctx}.Error <> 0 THEN",
-            f"Chart.StallReason := {ctx}.ErrorID;",
+            f"{c}.StallReason := {ctx}.ErrorID;",
             "END_IF;",
             "END_IF;",
         ]
@@ -457,24 +514,19 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
     elif step.action == decl.ADOPT:
         # An awaited child: its first-out is adopted verbatim and the chain stops
         # on this step. This is the rollup - the parent does not invent a reason.
-        module = next(m for m in app.modules if m.name == step.module)
-        command = next(c for c in module.commands if c.name == step.command)
-        ctx = _module_ref(app, step.module)
-        source = app.modules.index(module) + 1
-        lines += _entry_reset(ctx) + [
-            f"{ctx}.ParCmd_Command := {command.ordinal};",
-            f"{ctx}.ParCmd_Target := {command.target_position};",
-            f"{ctx}.Execute := 1;",
+        ctx, issue = commanded(step.module)
+        source = [m.name for m in app.modules].index(step.module) + 1
+        lines += _entry_reset(ctx, names) + issue + [
             f"IF {ctx}.Done <> 0 THEN",
             f"{ctx}.Execute := 0;",
-        ] + _advance(app, step, index) + [
+        ] + adv + [
             f"ELSIF {ctx}.Error <> 0 THEN",
             "(* Adopt the child's first-out verbatim: same reason, no translation *)",
-            "Ctx.Error := 1;",
-            f"Ctx.ErrorID := {ctx}.ErrorID;",
-            f"Ctx.ErrorSource := {source};",
-            f"Chart.StallReason := {ctx}.ErrorID;",
-            "Ctx.Running := 0;",
+            f"{u}.Error := 1;",
+            f"{u}.ErrorID := {ctx}.ErrorID;",
+            f"{u}.ErrorSource := {source};",
+            f"{c}.StallReason := {ctx}.ErrorID;",
+            f"{u}.Running := 0;",
             "(* Release the child: adopting its fault must not also pin it in *)",
             "(* the faulted state, or nothing could ever clear it. *)",
             f"{ctx}.Execute := 0;",
@@ -485,125 +537,104 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
     elif step.action == decl.REPORT:
         # Reported, NOT adopted: a message. The chain owns the recovery below, so
         # adopting here would replace a designed recovery with a stop.
-        module = next(m for m in app.modules if m.name == step.module)
-        command = next(c for c in module.commands if c.name == step.command)
-        ctx = _module_ref(app, step.module)
-        lines += _entry_reset(ctx) + [
-            f"{ctx}.ParCmd_Command := {command.ordinal};",
-            f"{ctx}.ParCmd_Target := {command.target_position};",
-            f"{ctx}.Execute := 1;",
+        ctx, issue = commanded(step.module)
+        lines += _entry_reset(ctx, names) + issue + [
             f"IF {ctx}.Done <> 0 THEN",
             f"{ctx}.Execute := 0;",
-        ] + _advance(app, step, index) + [
+        ] + adv + [
             f"ELSIF {ctx}.Error <> 0 THEN",
             "(* Report the child's own first-out; do NOT adopt it *)",
-            f"Ctx.ReportedReason := {ctx}.ErrorID;",
-            "Ctx.ReportedCount := Ctx.ReportedCount + 1;",
+            f"{u}.ReportedReason := {ctx}.ErrorID;",
+            f"{u}.ReportedCount := {u}.ReportedCount + 1;",
             f"{ctx}.Execute := 0;",
-            f"Chart.LastMs[{index}] := Chart.CurrentStepMs;",
-            f"Ctx.Step := {step.on_jump};",
+            f"{c}.LastMs[{index}] := {c}.CurrentStepMs;",
+            f"{u}.Step := {step.on_jump};",
             "END_IF;",
             "END_IF;",
         ]
 
     elif step.action == decl.DELAY:
-        member = step.duration_member
-        scans = None
-        for record in app.records:
-            for m in record.members:
-                if m.name == member:
-                    scans = decl.scans_for(app, m.initial)
         lines += [
-            f"(* {member} = {scans} scans at the declared {app.task_period_ms} ms period *)",
-            f"IF Chart.CurrentStepMs >= Cfg.{member} THEN",
-        ] + _advance(app, step, index) + [
+            f"IF {c}.CurrentStepMs >= {names.cfg}.{step.duration_member} THEN",
+        ] + adv + [
             "ELSE",
-            f"Chart.StallReason := {app.reasons.get('WAIT_DELAY', 6110)};",
+            f"{c}.StallReason := {app.reasons.get('WAIT_DELAY', 6110)};",
             "END_IF;",
         ]
 
     elif step.action == decl.AWAIT:
         condition = " AND ".join(
-            f"({sim_param(app, c)} <> 0)" for c in step.conditions
-        ) or "(1 = 1)"
-        lines += [
-            f"IF {condition} THEN",
-        ] + _advance(app, step, index) + [
+            f"({names.sim(x)} <> 0)" for x in step.conditions) or "(1 = 1)"
+        lines += [f"IF {condition} THEN"] + adv + [
             "ELSE",
-            f"Chart.StallReason := {step.hold_reason or app.reasons.get('WAIT_CONDITION', 6111)};",
+            f"{c}.StallReason := "
+            f"{step.hold_reason or app.reasons.get('WAIT_CONDITION', 6111)};",
             "END_IF;",
         ]
 
     elif step.action == decl.HELD_AWAIT:
         # The S16 held rule, restated for a chain step: BUSY, a LOW named reason,
         # no Error, and progress resumes on its own when the condition returns.
-        ctx = _module_ref(app, step.module) if step.module else ""
-        command_lines: list[str] = []
-        if step.module and step.command:
-            module = next(m for m in app.modules if m.name == step.module)
-            command = next(c for c in module.commands if c.name == step.command)
-            command_lines = [
-                f"{ctx}.ParCmd_Command := {command.ordinal};",
-                f"{ctx}.ParCmd_Target := {command.target_position};",
-            ]
-        lines += ([f"IF Scan = Ctx.StepScan THEN", f"{ctx}.Execute := 0;", "END_IF;"]
-                  if ctx else []) + [
-            f"IF ({sim_param(app, step.hold_condition)} <> 0) THEN",
-            "Ctx.Held := 0;",
-            "Ctx.HeldReason := 0;",
-            f"Ctx.HeldSeverity := {SEVERITY_LOW};",
-            "Chart.StallReason := 0;",
-        ] + command_lines + ([f"{ctx}.Execute := 1;"] if ctx else []) + [
+        ctx, issue = commanded(step.module) if step.module else ("", [])
+        lines += ([f"IF {names.scan} = {u}.StepScan THEN", f"{ctx}.Execute := 0;",
+                   "END_IF;"] if ctx else []) + [
+            f"IF ({names.sim(step.hold_condition)} <> 0) THEN",
+            f"{u}.Held := 0;",
+            f"{u}.HeldReason := 0;",
+            f"{u}.HeldSeverity := {SEVERITY_LOW};",
+            f"{c}.StallReason := 0;",
+        ] + issue + [
             f"IF {ctx}.Done <> 0 THEN" if ctx else "IF 1 = 1 THEN",
             f"{ctx}.Execute := 0;" if ctx else "",
-        ] + _advance(app, step, index) + [
+        ] + adv + [
             "END_IF;",
             "ELSE",
             "(* Held: the motion stands still, a LOW named reason is published, *)",
             "(* no Error is raised, and nothing times out. It self-resumes. *)",
-            "Ctx.Held := 1;",
-            f"Ctx.HeldReason := {step.hold_reason};",
-            f"Ctx.HeldSeverity := {SEVERITY_LOW};",
-            f"Chart.StallReason := {step.hold_reason};",
+            f"{u}.Held := 1;",
+            f"{u}.HeldReason := {step.hold_reason};",
+            f"{u}.HeldSeverity := {SEVERITY_LOW};",
+            f"{c}.StallReason := {step.hold_reason};",
         ] + ([f"{ctx}.Execute := 0;"] if ctx else []) + [
             "END_IF;",
         ]
 
     elif step.action == decl.DECISION:
         # A decision the chain waits on without faulting. A scrap is deliberate,
-        # so there is no timeout default (Core §6.11).
+        # so there is no timeout default (Core 6.11).
         lines += [
-            f"Ctx.DecisionId := {step.decision_id};",
-            "IF Ctx.DecisionAnswer <> 0 THEN",
-            "Ctx.DecisionCount := Ctx.DecisionCount + 1;",
-            "IF Ctx.DecisionAnswer = 1 THEN",
-        ] + _advance(app, step, index) + [
+            f"{u}.DecisionId := {step.decision_id};",
+            f"IF {u}.DecisionAnswer <> 0 THEN",
+            f"{u}.DecisionCount := {u}.DecisionCount + 1;",
+            f"IF {u}.DecisionAnswer = 1 THEN",
+        ] + adv + [
             "ELSE",
-            f"Chart.LastMs[{index}] := Chart.CurrentStepMs;",
-            f"Ctx.Step := {step.on_jump};",
+            f"{c}.LastMs[{index}] := {c}.CurrentStepMs;",
+            f"{u}.Step := {step.on_jump};",
             "END_IF;",
-            "Ctx.DecisionId := 0;",
-            "Ctx.DecisionAnswer := 0;",
+            f"{u}.DecisionId := 0;",
+            f"{u}.DecisionAnswer := 0;",
             "ELSE",
-            f"Chart.StallReason := {app.reasons.get('WAIT_DECISION', 6112)};",
+            f"{c}.StallReason := {app.reasons.get('WAIT_DECISION', 6112)};",
             "END_IF;",
         ]
 
     elif step.action == decl.MARK:
         for mark in step.marks:
-            lines.append(f"{mark};")
-        lines += _advance(app, step, index)
+            lines.append(mark.replace("Ctx.", f"{u}.") + ";")
+        lines += adv
 
     elif step.action == decl.COMPLETE:
         lines += [
-            "Ctx.Complete := 1;",
-            "Ctx.Running := 0;",
-            "Chart.StallReason := 0;",
+            f"{u}.Complete := 1;",
+            f"{u}.Running := 0;",
+            f"{c}.StallReason := 0;",
         ]
         if step.on_advance != -1:
-            lines += _advance(app, step, index)
+            lines += adv
 
     return [line for line in lines if line != ""]
+
 
 
 def unit_logic(app: decl.Application) -> tuple[str, ...]:
@@ -670,6 +701,13 @@ def unit_logic(app: decl.Application) -> tuple[str, ...]:
         "IF Ctx.Running <> 0 THEN",
     ]
     for chain in app.chains:
+        if chain.multi_rendition:
+            # Hosted in program routines instead: an AOI cannot contain an SFC
+            # routine, so a chain carried in three languages cannot live here.
+            # The owner still owns the latches and the ordering check for it.
+            lines.append(f"(* {chain.name}: rendered in "
+                         f"{', '.join(chain.renditions)} as program routines *)")
+            continue
         lines.append(f"IF Ctx.Mode = {chain.mode_ordinal} THEN")
         lines.append(f"Chart.ActiveChain := {chain.mode_ordinal};")
         lines.append("CASE Ctx.Step OF")
@@ -678,6 +716,7 @@ def unit_logic(app: decl.Application) -> tuple[str, ...]:
             lines += step_logic(app, chain, step, index)
         lines += [
             "ELSE",
+            MARKER_CASE_ELSE,
             f"Chart.StallReason := {app.reasons.get('STEP_STALLED', 6120)};",
             "Ctx.Step := 0;",
             "END_CASE;",
@@ -702,6 +741,291 @@ def unit_parameters(app: decl.Application) -> tuple[str, ...]:
         params.append(_parameter(sim_param(app, tag), "DINT", "Input",
                                  radix="Decimal"))
     return tuple(params)
+
+
+def chain_routine_name(app: decl.Application, chain: decl.Chain,
+                       rendition: str) -> str:
+    return f"FRK_{app.name}{chain.name.title()}{rendition.title()}"
+
+
+def sfc_runner_name(app: decl.Application, chain: decl.Chain) -> str:
+    return f"FRK_{app.name}{chain.name.title()}SfcRun"
+
+
+def chain_st_logic(app: decl.Application, chain: decl.Chain) -> tuple[str, ...]:
+    """The ST rendition of a multi-rendition chain, as a program routine.
+
+    Byte for byte the same step bodies the AOI would have carried; only the
+    names differ, because a program routine reaches controller tags directly.
+    """
+    names = Names(app, in_aoi=False)
+    steps_order = ordered_steps(app)
+    u = names.unit
+    lines = [
+        f"(* {chain.name} - ST rendition. Generated from the declared graph. *)",
+        f"{names.chart}.ActiveChain := {chain.mode_ordinal};",
+        f"CASE {u}.Step OF",
+    ]
+    for step in chain.steps:
+        lines += step_logic(app, chain, step, steps_order.index(step.number), names)
+    lines += [
+        "ELSE",
+        MARKER_CASE_ELSE,
+        f"{names.chart}.StallReason := {app.reasons.get('STEP_STALLED', 6120)};",
+        f"{u}.Step := 0;",
+        "END_CASE;",
+    ]
+    return tuple(lines)
+
+
+# --- the ladder rendition ---------------------------------------------------
+#
+# An RLL integer state machine: one rung per declared step, gated on
+# EQU(Step,N). Two rules make it walk the same trace as ST and SFC:
+#
+# * **One step per scan.** Rung order is execution order, so a forward
+#   transition would otherwise fall straight into the next step's rung in the
+#   same scan and run a whole chain in a single pass. Every transition sets an
+#   advanced flag and every rung's rung-in requires it clear - the same
+#   ordering rule the TwinCAT binding enforces for its ladder rendition.
+# * **Rungs ascend by step number**, asserted by the emitter, so the text reads
+#   in the order it executes.
+#
+# No instruction's result is fed into another instruction's condition inside a
+# rung; where a value must be computed first it goes to a named scratch tag.
+
+def ld_advanced_tag(app: decl.Application) -> str:
+    return f"FRK_{app.name}_LdAdvanced"
+
+
+def ld_scratch_tag(app: decl.Application) -> str:
+    return f"FRK_{app.name}_LdScratch"
+
+
+def _leg(*parts: str) -> str:
+    return "".join(p for p in parts if p)
+
+
+def _ld_entry_marking(app: decl.Application, index: int, names: Names) -> str:
+    u, c = names.unit, names.chart
+    return _leg(
+        f"NEQ({u}.Step,{u}.PrevStep)",
+        f"MOV({index},{c}.StepCursor)",
+        f"MOV({u}.Step,{c}.ActiveStepNumber)",
+        f"MOV(1,{c}.Visited[{index}])",
+        f"ADD({c}.EnterCount[{index}],1,{c}.EnterCount[{index}])",
+        f"MOV(0,{c}.CurrentStepMs)",
+        f"MOV({names.scan},{u}.StepScan)",
+        f"MOV({u}.Step,{u}.PrevStep)",
+        f"MOV(0,{c}.StallReason)",
+    )
+
+
+def _ld_advance(app: decl.Application, step: decl.Step, index: int,
+                names: Names, target: int) -> str:
+    return _leg(
+        f"MOV({names.chart}.CurrentStepMs,{names.chart}.LastMs[{index}])",
+        f"MOV({target},{names.unit}.Step)",
+        f"MOV(1,{ld_advanced_tag(app)})",
+    )
+
+
+def ld_step_rung(app: decl.Application, chain: decl.Chain, step: decl.Step,
+                 index: int, names: Names) -> str:
+    """One rung for one step; the legs below are branch legs of that rung."""
+    u, c = names.unit, names.chart
+    adv = ld_advanced_tag(app)
+    legs: list[str] = [_ld_entry_marking(app, index, names)]
+    entered = f"NEQ({names.scan},{u}.StepScan)"
+    fresh = f"EQU({names.scan},{u}.StepScan)"
+
+    def commanded(mod: str):
+        module = next(m for m in app.modules if m.name == mod)
+        command = next(cm for cm in module.commands if cm.name == step.command)
+        ctx = names.module(mod)
+        return ctx, _leg(
+            f"MOV({command.ordinal},{ctx}.ParCmd_Command)",
+            f"MOV({command.target_position},{ctx}.ParCmd_Target)",
+            f"MOV(1,{ctx}.Execute)",
+        )
+
+    if step.action in (decl.ISSUE, decl.ADOPT, decl.REPORT):
+        ctx, issue = commanded(step.module)
+        legs.append(_leg(fresh, f"MOV(0,{ctx}.Execute)"))
+        legs.append(_leg(entered, issue))
+        legs.append(_leg(entered, f"NEQ({ctx}.Done,0)", f"MOV(0,{ctx}.Execute)",
+                         _ld_advance(app, step, index, names, step.on_advance)))
+        if step.action == decl.ISSUE:
+            legs.append(_leg(entered, f"NEQ({ctx}.Error,0)",
+                             f"MOV({ctx}.ErrorID,{c}.StallReason)"))
+        elif step.action == decl.ADOPT:
+            source = [m.name for m in app.modules].index(step.module) + 1
+            legs.append(_leg(
+                entered, f"NEQ({ctx}.Error,0)",
+                f"MOV(1,{u}.Error)", f"MOV({ctx}.ErrorID,{u}.ErrorID)",
+                f"MOV({source},{u}.ErrorSource)",
+                f"MOV({ctx}.ErrorID,{c}.StallReason)",
+                f"MOV(0,{u}.Running)", f"MOV(0,{ctx}.Execute)"))
+        else:
+            legs.append(_leg(
+                entered, f"NEQ({ctx}.Error,0)",
+                f"MOV({ctx}.ErrorID,{u}.ReportedReason)",
+                f"ADD({u}.ReportedCount,1,{u}.ReportedCount)",
+                f"MOV(0,{ctx}.Execute)",
+                _ld_advance(app, step, index, names, step.on_jump)))
+
+    elif step.action == decl.DELAY:
+        member = f"{names.cfg}.{step.duration_member}"
+        legs.append(_leg(f"GEQ({c}.CurrentStepMs,{member})",
+                         _ld_advance(app, step, index, names, step.on_advance)))
+        legs.append(_leg(f"LES({c}.CurrentStepMs,{member})",
+                         f"MOV({app.reasons.get('WAIT_DELAY', 6110)},{c}.StallReason)"))
+
+    elif step.action == decl.AWAIT:
+        ready = "".join(f"NEQ({names.sim(x)},0)" for x in step.conditions)
+        legs.append(_leg(ready, _ld_advance(app, step, index, names, step.on_advance)))
+        missing = ",".join(f"EQU({names.sim(x)},0)" for x in step.conditions)
+        reason = step.hold_reason or app.reasons.get("WAIT_CONDITION", 6111)
+        legs.append(f"[{missing}]MOV({reason},{c}.StallReason)")
+
+    elif step.action == decl.HELD_AWAIT:
+        ctx, issue = commanded(step.module)
+        held = names.sim(step.hold_condition)
+        legs.append(_leg(fresh, f"MOV(0,{ctx}.Execute)"))
+        legs.append(_leg(f"NEQ({held},0)", entered, f"MOV(0,{u}.Held)",
+                         f"MOV(0,{u}.HeldReason)",
+                         f"MOV({SEVERITY_LOW},{u}.HeldSeverity)",
+                         f"MOV(0,{c}.StallReason)", issue))
+        legs.append(_leg(f"NEQ({held},0)", entered, f"NEQ({ctx}.Done,0)",
+                         f"MOV(0,{ctx}.Execute)",
+                         _ld_advance(app, step, index, names, step.on_advance)))
+        legs.append(_leg(f"EQU({held},0)", f"MOV(1,{u}.Held)",
+                         f"MOV({step.hold_reason},{u}.HeldReason)",
+                         f"MOV({SEVERITY_LOW},{u}.HeldSeverity)",
+                         f"MOV({step.hold_reason},{c}.StallReason)",
+                         f"MOV(0,{ctx}.Execute)"))
+
+    elif step.action == decl.DECISION:
+        legs.append(f"MOV({step.decision_id},{u}.DecisionId)")
+        legs.append(_leg(f"EQU({u}.DecisionAnswer,1)",
+                         f"ADD({u}.DecisionCount,1,{u}.DecisionCount)",
+                         _ld_advance(app, step, index, names, step.on_advance),
+                         f"MOV(0,{u}.DecisionId)", f"MOV(0,{u}.DecisionAnswer)"))
+        legs.append(_leg(f"GRT({u}.DecisionAnswer,1)",
+                         f"ADD({u}.DecisionCount,1,{u}.DecisionCount)",
+                         _ld_advance(app, step, index, names, step.on_jump),
+                         f"MOV(0,{u}.DecisionId)", f"MOV(0,{u}.DecisionAnswer)"))
+        legs.append(_leg(f"EQU({u}.DecisionAnswer,0)",
+                         f"MOV({app.reasons.get('WAIT_DECISION', 6112)},"
+                         f"{c}.StallReason)"))
+
+    elif step.action == decl.MARK:
+        outputs = []
+        for mark in step.marks:
+            target, expression = [part.strip() for part in mark.split(":=")]
+            target = target.replace("Ctx.", f"{u}.")
+            if "+" in expression:
+                base = expression.split("+")[0].strip().replace("Ctx.", f"{u}.")
+                outputs.append(f"ADD({base},1,{target})")
+            else:
+                outputs.append(f"MOV({expression.strip()},{target})")
+        legs.append(_leg(*outputs,
+                         _ld_advance(app, step, index, names, step.on_advance)))
+
+    elif step.action == decl.COMPLETE:
+        legs.append(_leg(f"MOV(1,{u}.Complete)", f"MOV(0,{u}.Running)",
+                         f"MOV(0,{c}.StallReason)"))
+
+    body = ",".join(leg for leg in legs if leg)
+    return f"EQU({u}.Step,{step.number})EQU({adv},0)[{body}];"
+
+
+def chain_ld_rungs(app: decl.Application, chain: decl.Chain) -> list[str]:
+    """The rungs of one ladder rendition, in execution order."""
+    names = Names(app, in_aoi=False)
+    steps_order = ordered_steps(app)
+    u, c = names.unit, names.chart
+    adv, scratch = ld_advanced_tag(app), ld_scratch_tag(app)
+    rungs = [
+        f"MOV(0,{adv})MOV({chain.mode_ordinal},{c}.ActiveChain);",
+        f"SUB({names.scan},{u}.StepScan,{scratch})"
+        f"MUL({scratch},{app.task_period_ms},{c}.CurrentStepMs);",
+    ]
+    ordered = sorted(chain.steps, key=lambda s: s.number)
+    for step in ordered:
+        rungs.append(ld_step_rung(app, chain, step,
+                                  steps_order.index(step.number), names))
+    return rungs
+
+
+def st_program_routine(name: str, logic) -> str:
+    lines = "\n".join(
+        f'<Line Number="{i}"><![CDATA[{statement}]]></Line>'
+        for i, statement in enumerate(logic)
+    )
+    return (f'<Routine Name="{name}" Type="ST">\n<STContent>\n{lines}\n'
+            "</STContent>\n</Routine>")
+
+
+def ld_program_routine(name: str, rungs) -> str:
+    body = "\n".join(
+        f'<Rung Number="{i}" Type="N"><Text><![CDATA[{rung}]]></Text></Rung>'
+        for i, rung in enumerate(rungs)
+    )
+    return (f'<Routine Name="{name}" Type="RLL">\n<RLLContent>\n{body}\n'
+            "</RLLContent>\n</Routine>")
+
+
+def rendition_tag(app: decl.Application) -> str:
+    return f"FRK_{app.name}_RenditionSelect"
+
+
+def multi_chains(app: decl.Application):
+    return [c for c in app.chains if c.multi_rendition]
+
+
+def rendition_ordinal(rendition: str) -> int:
+    return decl.RENDITIONS.index(rendition)
+
+
+def chain_routines(app: decl.Application) -> list[str]:
+    """Every rendition of every multi-rendition chain, as program routines."""
+    out: list[str] = []
+    for chain in multi_chains(app):
+        for rendition in chain.renditions:
+            name = chain_routine_name(app, chain, rendition)
+            if rendition == decl.ST:
+                out.append(st_program_routine(name, chain_st_logic(app, chain)))
+            elif rendition == decl.LD:
+                out.append(ld_program_routine(name, chain_ld_rungs(app, chain)))
+            elif rendition == decl.SFC:
+                out.append(chain_sfc_routine(app, chain))
+                out.append(st_program_routine(sfc_runner_name(app, chain),
+                                              sfc_runner_logic(app, chain)))
+    return out
+
+
+def dispatch_logic(app: decl.Application) -> list[str]:
+    """JSR exactly one rendition of the active multi-rendition chain.
+
+    The owner AOI has already run, so the latches and the ordering check are
+    settled before any rendition executes - sequence intent still comes second.
+    """
+    lines: list[str] = []
+    unit = f"FRK_{app.name}_Unit"
+    select = rendition_tag(app)
+    for chain in multi_chains(app):
+        lines.append(f"(* {chain.name}: one rendition runs, chosen by {select} *)")
+        lines.append(f"IF ({unit}.Mode = {chain.mode_ordinal}) "
+                     f"AND ({unit}.Running <> 0) THEN")
+        for rendition in chain.renditions:
+            target = (sfc_runner_name(app, chain) if rendition == decl.SFC
+                      else chain_routine_name(app, chain, rendition))
+            lines.append(f"IF {select} = {rendition_ordinal(rendition)} THEN")
+            lines.append(f"JSR({target},0);")
+            lines.append("END_IF;")
+        lines.append("END_IF;")
+    return lines
 
 
 def unit_aoi(app: decl.Application) -> str:
@@ -764,15 +1088,22 @@ def writable_inputs(app: decl.Application) -> tuple[str, ...]:
     # Simulated operator and sensor inputs are writable too: the harness drives
     # the plant's world through them, and nothing else may write them.
     names.extend(app.sim_inputs)
+    if multi_chains(app):
+        # Which rendition of a multi-rendition chain runs. Writable so the
+        # harness can walk one graph in each language in a single session.
+        names.append(rendition_tag(app))
     return tuple(names)
 
 
 def evidence_tags(app: decl.Application) -> tuple[str, ...]:
-    return (
+    tags = [
         f"FRK_{app.name}_ScanCount",
         f"FRK_{app.name}_OrderFail",
         f"FRK_{app.name}_TaskPeriodMs",
-    )
+    ]
+    if any(decl.LD in c.renditions for c in app.chains):
+        tags.extend([ld_advanced_tag(app), ld_scratch_tag(app)])
+    return tuple(tags)
 
 
 def controller_tags(app: decl.Application) -> str:
@@ -845,23 +1176,21 @@ def routine_logic(app: decl.Application) -> tuple[str, ...]:
         "",
         f"FRK_{n}_OrderFail := FRK_{n}_Unit.OrderFail;",
     ]
+    dispatch = dispatch_logic(app)
+    if dispatch:
+        lines += [""] + dispatch
     return tuple(lines)
 
 
 def programs(app: decl.Application) -> str:
-    lines = "\n".join(
-        f'<Line Number="{i}"><![CDATA[{s}]]></Line>'
-        for i, s in enumerate(routine_logic(app))
+    routines = "\n".join(
+        [st_program_routine(app.routine, routine_logic(app))] + chain_routines(app)
     )
     return f"""<Programs>
 <Program Name="{app.program}" TestEdits="false" MainRoutineName="{app.routine}" Disabled="false" UseAsFolder="false">
 <Tags/>
 <Routines>
-<Routine Name="{app.routine}" Type="ST">
-<STContent>
-{lines}
-</STContent>
-</Routine>
+{routines}
 </Routines>
 </Program>
 </Programs>"""
