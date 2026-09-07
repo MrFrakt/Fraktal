@@ -393,6 +393,23 @@ def _advance(app: decl.Application, step: decl.Step, index: int) -> list[str]:
     ]
 
 
+def _entry_reset(ctx: str) -> list[str]:
+    """Drop Execute on the step's own entry scan, then command from the next.
+
+    This is Core §6.1's Execute-drop reset used as the generator intends it: a
+    module clears Done/Error/Aborted only when its Execute falls, so a step that
+    asserted Execute unconditionally could never release a child that had
+    already terminated - the child would stay faulted and every later step
+    aiming at it would stall forever. Dropping on entry also guarantees the
+    rising edge the module latches its request on.
+    """
+    return [
+        "IF Scan = Ctx.StepScan THEN",
+        f"{ctx}.Execute := 0;",
+        "ELSE",
+    ]
+
+
 def _module_ref(app: decl.Application, name: str) -> str:
     """Inside the mode owner a child context is a parameter, not a tag.
 
@@ -424,7 +441,7 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
         module = next(m for m in app.modules if m.name == step.module)
         command = next(c for c in module.commands if c.name == step.command)
         ctx = _module_ref(app, step.module)
-        lines += [
+        lines += _entry_reset(ctx) + [
             f"{ctx}.ParCmd_Command := {command.ordinal};",
             f"{ctx}.ParCmd_Target := {command.target_position};",
             f"{ctx}.Execute := 1;",
@@ -433,6 +450,7 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
         ] + _advance(app, step, index) + [
             f"ELSIF {ctx}.Error <> 0 THEN",
             f"Chart.StallReason := {ctx}.ErrorID;",
+            "END_IF;",
             "END_IF;",
         ]
 
@@ -443,7 +461,7 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
         command = next(c for c in module.commands if c.name == step.command)
         ctx = _module_ref(app, step.module)
         source = app.modules.index(module) + 1
-        lines += [
+        lines += _entry_reset(ctx) + [
             f"{ctx}.ParCmd_Command := {command.ordinal};",
             f"{ctx}.ParCmd_Target := {command.target_position};",
             f"{ctx}.Execute := 1;",
@@ -457,6 +475,10 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
             f"Ctx.ErrorSource := {source};",
             f"Chart.StallReason := {ctx}.ErrorID;",
             "Ctx.Running := 0;",
+            "(* Release the child: adopting its fault must not also pin it in *)",
+            "(* the faulted state, or nothing could ever clear it. *)",
+            f"{ctx}.Execute := 0;",
+            "END_IF;",
             "END_IF;",
         ]
 
@@ -466,7 +488,7 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
         module = next(m for m in app.modules if m.name == step.module)
         command = next(c for c in module.commands if c.name == step.command)
         ctx = _module_ref(app, step.module)
-        lines += [
+        lines += _entry_reset(ctx) + [
             f"{ctx}.ParCmd_Command := {command.ordinal};",
             f"{ctx}.ParCmd_Target := {command.target_position};",
             f"{ctx}.Execute := 1;",
@@ -480,6 +502,7 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
             f"{ctx}.Execute := 0;",
             f"Chart.LastMs[{index}] := Chart.CurrentStepMs;",
             f"Ctx.Step := {step.on_jump};",
+            "END_IF;",
             "END_IF;",
         ]
 
@@ -523,7 +546,8 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
                 f"{ctx}.ParCmd_Command := {command.ordinal};",
                 f"{ctx}.ParCmd_Target := {command.target_position};",
             ]
-        lines += [
+        lines += ([f"IF Scan = Ctx.StepScan THEN", f"{ctx}.Execute := 0;", "END_IF;"]
+                  if ctx else []) + [
             f"IF ({sim_param(app, step.hold_condition)} <> 0) THEN",
             "Ctx.Held := 0;",
             "Ctx.HeldReason := 0;",

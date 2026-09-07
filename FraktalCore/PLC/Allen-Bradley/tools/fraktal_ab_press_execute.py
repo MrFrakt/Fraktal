@@ -140,6 +140,39 @@ def await_unit(comm: Any, predicate: Any, settle: float):
     return last, (time.monotonic() - started) * 1000.0
 
 
+def await_chart(comm: Any, predicate: Any, settle: float):
+    """Poll the chart until it settles. Step entry zeroes the marks, so a single
+    read taken the moment a step is reached can catch that scan and report a
+    cleared stall reason that was never the steady state."""
+    deadline = time.monotonic() + settle
+    started = time.monotonic()
+    last = None
+    while time.monotonic() < deadline:
+        observed = read_chart(comm)
+        if observed is None:
+            return None, (time.monotonic() - started) * 1000.0
+        last = observed
+        if predicate(observed):
+            return observed, (time.monotonic() - started) * 1000.0
+        time.sleep(0.005)
+    return last, (time.monotonic() - started) * 1000.0
+
+
+def await_module(comm: Any, name: str, predicate: Any, settle: float):
+    deadline = time.monotonic() + settle
+    started = time.monotonic()
+    last = None
+    while time.monotonic() < deadline:
+        observed = read_module(comm, name)
+        if observed is None:
+            return None, (time.monotonic() - started) * 1000.0
+        last = observed
+        if predicate(observed):
+            return observed, (time.monotonic() - started) * 1000.0
+        time.sleep(0.005)
+    return last, (time.monotonic() - started) * 1000.0
+
+
 def row(name: str, expectation: str, observed, elapsed_ms: float, holds: bool):
     return {
         "test": name,
@@ -285,21 +318,33 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, FAULT["PartSlide"], 1)
     write(comm, RUN, 1)
     faulted, elapsed = await_unit(comm, lambda o: o["Error"] != 0, settle)
-    chart_fault = read_chart(comm)
+    chart_fault, _ = await_chart(
+        comm, lambda c: c["StallReason"] == R["DEVICE_FAULT"], settle)
     slide = read_module(comm, "PartSlide")
+    slide_index = [m.name for m in APP.modules].index("PartSlide") + 1
+    # The child's live ErrorID is deliberately NOT the place to check "verbatim":
+    # adopting releases the child (Execute drops) so it resets to READY, which is
+    # the behaviour that makes the fault clearable at all. What must hold is that
+    # the parent republished the child's own first-out code rather than inventing
+    # one, that it names which child it came from, and that the child was freed.
     rows.append(row(
         "awaited_child_fault_adopted_first_out",
-        "the unit adopts the child's ErrorID verbatim and stops on that step",
+        "the unit adopts the child's first-out verbatim, names the source, "
+        "stops on that step, and releases the child",
         {"unit": faulted,
-         "child_error_id": None if slide is None else slide["ErrorID"],
+         "child_error_id_after_release": None if slide is None else slide["ErrorID"],
+         "child_exec_state": None if slide is None else slide["OutImm_ExecState"],
          "stall_reason": None if chart_fault is None else chart_fault["StallReason"]},
         elapsed,
         faulted is not None and slide is not None
         and faulted["Error"] != 0
-        and faulted["ErrorID"] == slide["ErrorID"]
         and faulted["ErrorID"] == R["DEVICE_FAULT"]
+        and faulted["ErrorSource"] == slide_index
         and faulted["Step"] == 150
-        and faulted["Running"] == 0,
+        and faulted["Running"] == 0
+        and chart_fault is not None
+        and chart_fault["StallReason"] == R["DEVICE_FAULT"]
+        and slide["Execute"] == 0,
     ))
 
     # 5 - restart by re-issue after clearing the fault.
@@ -342,8 +387,13 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     ))
 
     # 7 - the chain waits on the decision without faulting, and the stall reason says so.
-    waiting = read_unit(comm)
-    chart_wait = read_chart(comm)
+    # Each structure is read coherently, but a unit read and a chart read are two
+    # separate requests and can land on different scans - single-request coherence
+    # buys a coherent structure, not a coherent pair. Wait for the steady state.
+    waiting, _ = await_unit(
+        comm, lambda o: o["DecisionId"] == demo.DECISION_PRESS_NOT_REACHED, settle)
+    chart_wait, _ = await_chart(
+        comm, lambda c: c["StallReason"] == R["WAIT_DECISION"], settle)
     rows.append(row(
         "decision_step_waits_without_faulting",
         "the decision is published and the chain waits with a named stall reason",
@@ -402,8 +452,11 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, RUN, 1)
     before_jog = read_module(comm, "PartSlide")
     write(comm, JOG, 1)
-    jogged, elapsed = await_unit(comm, lambda o: o["Step"] in (10, 20), settle)
-    slide_jog = read_module(comm, "PartSlide")
+    slide_jog, elapsed = await_module(
+        comm, "PartSlide",
+        lambda o: before_jog is not None and o["RunCount"] > before_jog["RunCount"],
+        settle)
+    jogged = read_unit(comm)
     write(comm, JOG, 0)
     rows.append(row(
         "manual_jog",
@@ -472,8 +525,10 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, MODE, MODE_AUTO)
     write(comm, PART_PRESENT, 0)
     write(comm, RUN, 1)
-    blocked, elapsed = await_unit(comm, lambda o: o["Step"] == 100, settle)
-    chart_block = read_chart(comm)
+    await_unit(comm, lambda o: o["Step"] == 100, settle)
+    chart_block, elapsed = await_chart(
+        comm, lambda c: c["StallReason"] == R["PART_NOT_PRESENT"], settle)
+    blocked = read_unit(comm)
     write(comm, PART_PRESENT, 1)
     rows.append(row(
         "blocked_condition_publishes_a_stall_reason",

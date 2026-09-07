@@ -245,6 +245,35 @@ class EmittedProjectTests(unittest.TestCase):
         app = demo.application()
         self.assertLessEqual(self.evidence["DistinctSteps"], app.chart_steps)
 
+    def test_every_commanding_step_drops_execute_on_entry(self):
+        """Core 6.1 Execute-drop reset: without it a terminated child is pinned.
+
+        A step that asserted Execute unconditionally could never release a child
+        that had already faulted, so the fault would be permanent and every later
+        step aiming at that module would stall forever.
+        """
+        app = demo.application()
+        commanding = (decl.ISSUE, decl.ADOPT, decl.REPORT)
+        checked = 0
+        for chain in app.chains:
+            for step in chain.steps:
+                if step.action not in commanding:
+                    continue
+                body = chr(10).join(gen.step_logic(app, chain, step, 0))
+                self.assertIn("IF Scan = Ctx.StepScan THEN", body, step.name)
+                self.assertIn("Ctx" + step.module + ".Execute := 0;", body, step.name)
+                checked += 1
+        self.assertGreater(checked, 0)
+
+    def test_adopting_a_fault_also_releases_the_child(self):
+        """Adopting must not pin the child in the state nothing can then clear."""
+        app = demo.application()
+        auto = next(c for c in app.chains if c.name == "AUTO")
+        step = next(s for s in auto.steps if s.action == decl.ADOPT)
+        body = chr(10).join(gen.step_logic(app, auto, step, 0))
+        adopt = body.split("ELSIF Ctx" + step.module + ".Error <> 0 THEN")[1]
+        self.assertIn("Ctx" + step.module + ".Execute := 0;", adopt)
+
     def test_the_awaited_child_fault_is_adopted_verbatim(self):
         """The rollup: the parent republishes the child's reason, not its own."""
         app = demo.application()
