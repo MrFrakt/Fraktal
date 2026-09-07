@@ -27,7 +27,11 @@ ST, native SFC and ladder - each emitted from that one declaration, read back
 and machine-checked for graph equality, and walked on the bench with identical
 traces. MANUAL and HOME stay single-rendition ST, as the TwinCAT press keeps
 them. **Hand-authored ladder is forbidden along with hand-authored L5X**: a
-rendition is an emission, never a second maintained source.
+rendition is an emission, never a second maintained source. And the published
+contract will describe that graph **once, rendition-agnostic** - the rendition
+selector is a harness input, probe-only and never published, because which
+language ran is a property of how the application is measured, not of the
+machine it describes.
 
 **This is still not a runtime library.** Module AOIs are generated *per
 application*; the reusable library form is Phase 6. Recipes, changeover, part

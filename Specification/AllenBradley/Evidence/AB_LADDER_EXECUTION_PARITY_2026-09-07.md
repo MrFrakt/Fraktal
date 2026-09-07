@@ -292,6 +292,38 @@ is the artifact as Verified and downloaded.
    as a sub-chain is inlined here in all three renditions, as the Phase 4 record
    already noted for ST.
 
+## 11a. What the published contract will say about renditions
+
+Recorded here because the manifest does not exist yet, and this is the point at
+which the rule is cheap to hold: **the published contract describes the declared
+graph once, rendition-agnostic.**
+
+A chain carried in three languages has one graph; each rendition is an emission
+of it. So a manifest publishes that graph's steps, transitions and named
+conditions, and says nothing about which language rendered it - the same way the
+TC3 HMI sees one chart whichever rendition ran. **The rendition selector is not
+operator data.** It selects which emission runs, which is a property of how this
+application is being measured, not of the machine it describes; publishing it
+would invite a client to choose a language, and a language is not a machine-level
+concept at all. It stays probe-only: writable, because the parity harness drives
+it, and absent from anything published. The ladder rendition's one-step-per-scan
+guard and its arithmetic scratch are excluded for the mirror reason - they are
+how one rendition happens to work, not anything the graph means.
+
+The split is declared now, in the generator, as `harness_only_tags` and
+`publishable_tags`, so the future manifest emitter inherits it rather than
+having to remember it. The load-bearing test requires the publishable set to be
+**identical whether AUTO is rendered once or three times**; if adding a rendition
+changed what a client can see, the contract would be describing the emission
+rather than the machine.
+
+| Tag | Writable by the harness | Published |
+|---|---|---|
+| `FRK_Press_RenditionSelect` | yes | **no** |
+| `FRK_Press_LdAdvanced`, `FRK_Press_LdScratch` | no (owner-written) | **no** |
+| unit context, chart, ParCfg, module contexts | - | yes |
+| command, mode, decision and simulated inputs | yes | yes |
+
 ## 12. Bench handoff state
 
 The controller **retains the clean three-rendition press demo in Remote Run**,

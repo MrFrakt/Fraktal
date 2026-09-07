@@ -1414,6 +1414,53 @@ def writable_inputs(app: decl.Application) -> tuple[str, ...]:
     return tuple(names)
 
 
+# --- what a manifest may describe, and what it may not ----------------------
+#
+# The published contract describes the declared graph **once**, and says nothing
+# about which language rendered it - the same way the TC3 HMI sees one chart
+# whichever rendition ran. A rendition is an emission of the graph, so publishing
+# a way to select one would describe the evidence apparatus rather than the
+# machine, and would invite a client to choose a language, which is not a
+# machine-level concept at all.
+#
+# These tags are therefore **probe-only**: writable, because the parity harness
+# drives them, and deliberately absent from anything published. The split is
+# declared here rather than left to the future manifest emitter to remember.
+#
+# The ladder scratch and guard tags are here for the same reason from the other
+# direction: they are how one rendition happens to be implemented, not anything
+# the graph means.
+
+def harness_only_tags(app: decl.Application) -> tuple[str, ...]:
+    """Tags that exist for the evidence apparatus, never for an operator."""
+    tags: list[str] = []
+    if multi_chains(app):
+        tags.append(rendition_tag(app))
+    if any(decl.LD in c.renditions for c in app.chains):
+        tags.extend([ld_advanced_tag(app), ld_scratch_tag(app)])
+    return tuple(tags)
+
+
+def publishable_tags(app: decl.Application) -> tuple[str, ...]:
+    """Every emitted tag a manifest may describe: everything else is excluded.
+
+    Nothing publishes a manifest yet - that is owed work, and the blocking one
+    for the gateway. This exists so the rule is enforceable when it does, rather
+    than being a sentence someone has to remember.
+    """
+    excluded = set(harness_only_tags(app))
+    published: list[str] = []
+    for record in app.records:
+        published.append(f"{record.name}Tag")
+    for module in app.modules:
+        published.append(ctx_tag_for(app, module.name))
+    published.append(f"FRK_{app.name}_Unit")
+    published.append(f"FRK_{app.name}_Chart")
+    published.extend(writable_inputs(app))
+    published.extend(evidence_tags(app))
+    return tuple(t for t in dict.fromkeys(published) if t not in excluded)
+
+
 def evidence_tags(app: decl.Application) -> tuple[str, ...]:
     tags = [
         f"FRK_{app.name}_ScanCount",
@@ -1652,6 +1699,8 @@ def generate(app: decl.Application, source: Path, output: Path) -> dict[str, obj
         "ChartSteps": app.chart_steps,
         "WritableInputs": list(writable_inputs(app)),
         "EvidenceTags": list(evidence_tags(app)),
+        "HarnessOnlyTags": list(harness_only_tags(app)),
+        "PublishableTags": list(publishable_tags(app)),
         "Programs": 1,
         "Routines": 1,
         "Tasks": 1,

@@ -580,6 +580,24 @@ qualified path, tier, type and capability flags; the registry location of its
 contract data; the command / manual / decision / state / I/O catalogues by
 numeric key; and declared limits and feature flags.
 
+**The manifest describes the declared graph once, rendition-agnostic.** A chain
+carried in more than one language (AB §3.5) has exactly one graph; each
+rendition is an emission of it. The manifest therefore publishes the steps,
+transitions and named conditions of that graph and says **nothing** about which
+language rendered it, and nothing that would let a client select one - the same
+way the TC3 HMI sees one chart whichever rendition ran. A rendition selector is
+a property of how an application is being *measured*, not of the machine it
+describes, so it stays **probe-only**: writable for a parity harness, and absent
+from anything published. The same applies to tags that exist only because of how
+a rendition is implemented, such as a ladder rendition's one-step-per-scan guard
+and its arithmetic scratch.
+
+The split is declared in the generator (`harness_only_tags` / `publishable_tags`)
+rather than left for the manifest emitter to remember, and a test requires the
+publishable set to be **identical whether a chain is rendered once or three
+times** - otherwise the contract would be describing the emission rather than
+the machine.
+
 Three rules make it trustworthy:
 
 1. **It is live.** A generated L5X on disk is an engineering artifact; the

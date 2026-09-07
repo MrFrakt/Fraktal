@@ -345,6 +345,12 @@ next session starts from the real position rather than from "Phase 4 is done".
 
 So the honest distance to the gateway/generic-HMI session is:
 
+0. **A constraint that binds it, decided before it is built:** the manifest
+   describes the declared graph **once, rendition-agnostic**. A chain rendered
+   in several languages still has one graph, and the rendition selector is a
+   harness input - probe-only, never published. Recorded in
+   [`AB_LADDER_EXECUTION_PARITY_2026-09-07.md`](AB_LADDER_EXECUTION_PARITY_2026-09-07.md)
+   §11a and enforced in the generator's `publishable_tags`.
 1. **Manifest publication is the blocking one.** Core §3.10 and AB §11.2 have the
    HMI discover a station by reading its manifest; S7 already measured what one
    costs to read (43,728 bytes in 293 ms at a 500-byte connection, 62 ms at

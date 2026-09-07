@@ -411,5 +411,78 @@ class ParityHarnessTests(unittest.TestCase):
         self.assertEqual(sorted(self.parity.AUTO_INDEXES),
                          sorted(s.number for s in self.auto.steps))
 
+
+class PublishedContractTests(unittest.TestCase):
+    """The published contract describes the graph once, rendition-agnostic.
+
+    The TC3 HMI sees one chart whichever rendition ran, and the AB contract says
+    the same thing: which language executed is a property of how this
+    application is being measured, not of the machine it describes.
+    """
+
+    def setUp(self):
+        self.app = demo.application()
+        self.selector = gen.rendition_tag(self.app)
+
+    def test_the_rendition_selector_is_harness_only(self):
+        self.assertIn(self.selector, gen.harness_only_tags(self.app))
+
+    def test_the_rendition_selector_is_not_published(self):
+        """Publishing it would invite a client to choose a language."""
+        self.assertNotIn(self.selector, gen.publishable_tags(self.app))
+
+    def test_the_selector_is_still_probe_writable(self):
+        """Probe-only means unpublished, not hidden: the harness drives it."""
+        self.assertIn(self.selector, gen.writable_inputs(self.app))
+
+    def test_ladder_implementation_tags_are_not_published(self):
+        """The guard and scratch are how one rendition happens to work."""
+        for tag in (gen.ld_advanced_tag(self.app), gen.ld_scratch_tag(self.app)):
+            self.assertIn(tag, gen.harness_only_tags(self.app))
+            self.assertNotIn(tag, gen.publishable_tags(self.app))
+
+    def test_the_published_set_does_not_change_with_the_number_of_renditions(self):
+        """The load-bearing one: one graph, one published contract.
+
+        Rendering AUTO once or three times must make no difference to what a
+        client can see - otherwise the contract would be describing the emission
+        rather than the machine.
+        """
+        auto = next(c for c in self.app.chains if c.name == "AUTO")
+        single = dataclasses.replace(auto, renditions=(decl.ST,))
+        one_rendition = dataclasses.replace(
+            self.app,
+            chains=tuple(single if c.name == "AUTO" else c for c in self.app.chains))
+        self.assertEqual(gen.publishable_tags(one_rendition),
+                         gen.publishable_tags(self.app))
+
+    def test_no_published_tag_names_a_rendition(self):
+        for tag in gen.publishable_tags(self.app):
+            for rendition in decl.RENDITIONS:
+                self.assertNotIn(rendition.title(), tag, tag)
+                self.assertNotIn(f"_{rendition}", tag, tag)
+
+    def test_the_contract_structures_are_published(self):
+        """Excluding the harness must not exclude the machine."""
+        published = gen.publishable_tags(self.app)
+        for expected in (f"FRK_{self.app.name}_Unit", f"FRK_{self.app.name}_Chart",
+                         f"{self.app.records[0].name}Tag"):
+            self.assertIn(expected, published)
+        for module in self.app.modules:
+            self.assertIn(gen.ctx_tag_for(self.app, module.name), published)
+
+    def test_harness_only_and_published_do_not_overlap(self):
+        self.assertEqual(
+            set(gen.harness_only_tags(self.app)) & set(gen.publishable_tags(self.app)),
+            set())
+
+    def test_an_application_with_no_multi_rendition_chain_has_no_selector(self):
+        """A single-rendition application should not carry the concept at all."""
+        chains = tuple(dataclasses.replace(c, renditions=(decl.ST,))
+                       for c in self.app.chains)
+        plain = dataclasses.replace(self.app, chains=chains)
+        self.assertNotIn(gen.rendition_tag(plain), gen.writable_inputs(plain))
+        self.assertNotIn(gen.rendition_tag(plain), gen.harness_only_tags(plain))
+
 if __name__ == "__main__":
     unittest.main()
