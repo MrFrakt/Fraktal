@@ -1,7 +1,7 @@
 # Fraktal/AB — Allen-Bradley (Logix) Binding (Part III)
 *Unified PLC Programming Standard · **Part III: the Allen-Bradley Logix binding of Fraktal Core***
 
-**Status:** **Draft — R0–R6 all record PASS; implementation-ready, implementation not begun.** Part III of III (Part I: `Fraktal_Core_Part_I.md`; Part II: `Fraktal_TC3_Part_II.md`)
+**Status:** **Draft — R0–R6 all record PASS; Phase 4 in progress: the runtime base runs in its generated form and the press demo executes on the bench.** Part III of III (Part I: `Fraktal_Core_Part_I.md`; Part II: `Fraktal_TC3_Part_II.md`)
 **Platform:** Rockwell Automation Logix (ControlLogix / CompactLogix / GuardLogix) · Studio 5000 Logix Designer · IEC 61131-3 subset **without** the OOP extensions
 
 > Every clause in this Part **binds** a Core contract and cites it as **Core §x.y**; a binding clause carries the number of the Core clause it realizes. Nothing here introduces new normative model content — tiers, contracts, state machines, diagnostics and routing live in Part I. A port to another platform re-implements this document only (Core §1.1 O8).
@@ -1747,11 +1747,15 @@ restart. Safety authority remains independent of every cybersecurity control.
 - No production binding/runtime has been compiled, downloaded or run.
   Disposable Phase 0 fixture results are evidence only where their linked
   records say so; no normative clause is evidence by itself.
-- Every readiness gate R0–R6 now records PASS, so production runtime/library
-  implementation is authorized to **begin** (AB §0) — against the bounds those
-  gates record, not around them: R6 passes for the declared read-only claim
-  only, S15 is narrowed, and S5's CI path carries an authorized manual
-  deployment step.
+- Every readiness gate R0–R6 records PASS, and **Phase 4 has begun**: one
+  committed declaration emits the contract UDTs, module AOIs, mode owner and
+  L5X, and the press demo emitted from it runs on the bench with all fifteen
+  matrix rows passing
+  ([evidence](AllenBradley/Evidence/AB_PHASE4_RUNTIME_BASE_AND_PRESS_DEMO_2026-09-07.md)).
+  That is against the bounds those gates record, not around them: R6 passes for
+  the declared read-only claim only, S15 is narrowed, and S5's CI path carries
+  an authorized manual deployment step. The reusable module library (Phase 6),
+  the gateway/repository adapter and the generic HMI remain unbuilt.
 - Where it is weaker than Part II, it says so: tier composition and lifecycle
   ordering are gate-enforced rather than compiler-enforced (AB §3.1, §3.11,
   §3.14), and per-type lifecycle correctness is an argument from generation

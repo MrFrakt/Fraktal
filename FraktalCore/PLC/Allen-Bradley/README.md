@@ -14,9 +14,19 @@ logged-in desktop, and download is deliberately not automated. **S5's CI path**
 is the named isolated bench with the download as an authorized manual step, not
 zero-touch CI.
 
-Until implementation actually starts, this tree still contains only disposable
-Phase 0 fixtures and the evidence, generator, lint, gate or host tooling that
-closed those gates. Nothing here is a runtime library.
+**Phase 4 has begun.** The runtime base exists in its generated form: one
+committed Python declaration emits the contract UDTs, the module AOIs, the mode
+owner, the routine and the full-project L5X, and the press demo emitted from it
+imports at `0/0`, clears Studio v33 Verify at `0/0`, is a registered gate leg,
+and runs on the bench with all fifteen matrix rows passing on three consecutive
+runs. **Hand-authored L5X remains forbidden** - the declaration and the
+generator are the committed sources and the L5X is output.
+
+**This is still not a runtime library.** Module AOIs are generated *per
+application*; the reusable library form is Phase 6. Recipes, changeover, part
+traceability, release reports, the gateway/repository adapter, the generic HMI,
+physical I/O and any control-power domain are all out of scope and recorded as
+deferrals, not omissions.
 
 The current Phase 0 workstation target is `192.168.100.89`, historically from
 host adapter `192.168.100.99/24`. FactoryTalk Linx 6.50 browsed it through the
@@ -210,6 +220,12 @@ Start with:
   Access allow-list audit actually run against both downloaded fixtures, the
   three-state client identity model, secret handling, and the update lifecycle
   — with CIP Security, SL 2 and writes each named as **not** claimed;
+- [`Specification/AllenBradley/Evidence/AB_PHASE4_RUNTIME_BASE_AND_PRESS_DEMO_2026-09-07.md`](../../../Specification/AllenBradley/Evidence/AB_PHASE4_RUNTIME_BASE_AND_PRESS_DEMO_2026-09-07.md)
+  for **Phase 4**: what the generator emits, the step-graph comparison against
+  the TwinCAT press demo with its two behavioural divergences named rather than
+  absorbed, the fifteen-row bench matrix, and the four defects found on the way
+  — including the one only hardware could find, where adopting a child's fault
+  never released it and pinned the module in a state nothing could clear;
 - [`Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md)
   for the measured reconnect budget, the two distinct bad-path quality codes and
   what each obliges a reader to do, and why a value's timestamp is the gateway's
@@ -300,6 +316,23 @@ Pre-gate tooling:
   mutates every 10 ms, so a per-member sweep spans tens of scans and reports a
   state the controller never held — the tearing S9 measured, and the reason a
   phase could pass on one run and fail on the next with nothing changed.
+- [`tools/fraktal_ab_declaration.py`](tools/fraktal_ab_declaration.py) is the
+  declaration: the committed source an application is emitted from, and the
+  rules that refuse a bad one. Each S16 finding is a rule here only because it
+  can reject something - unnamed held reasons, timeouts that are not whole task
+  scans, a ParCfg record that does not lead with `SchemaVersion`, a condition on
+  an undeclared input, a transition to a step that does not exist.
+- [`tools/fraktal_ab_generate.py`](tools/fraktal_ab_generate.py) turns a
+  declaration into contract UDTs, one module AOI per declared type, the mode
+  owner, the routine and the L5X. It asserts at emit time that the task it
+  writes carries the declared period the millisecond timeouts were converted
+  from, that no public UDT carries a `BOOL`, and that nothing it emitted names a
+  physical I/O operand.
+- [`tools/fraktal_ab_press_demo.py`](tools/fraktal_ab_press_demo.py) is the press
+  demo declaration - the first application, mirroring the TwinCAT oracle's
+  observable behaviour with a simulated plant in tags and no control power.
+- [`tools/fraktal_ab_press_execute.py`](tools/fraktal_ab_press_execute.py) is its
+  fixed fifteen-row harness, reading each structure in one request.
 - [`tools/fraktal_ab_reference_suite.py`](tools/fraktal_ab_reference_suite.py)
   generates the **disposable reference suite** for R5. It is gate tooling, not
   the production module library, and the same scope fence that keeps the S16
