@@ -368,5 +368,48 @@ class SfcEmissionTests(unittest.TestCase):
         self.assertFalse(report["Equal"])
         self.assertTrue(any("SFC" in f for f in report["Findings"]))
 
+
+class ParityHarnessTests(unittest.TestCase):
+    """The measurement window must be defined by the graph, not by the observer."""
+
+    def setUp(self):
+        import fraktal_ab_press_parity as parity
+        self.parity = parity
+        self.app = demo.application()
+        self.auto = next(c for c in self.app.chains if c.name == "AUTO")
+
+    def test_the_park_step_is_where_the_loop_closes(self):
+        terminal = max(self.auto.steps, key=lambda s: s.number)
+        self.assertEqual(self.parity.PARK_STEP, terminal.on_advance)
+
+    def test_the_withdrawal_point_is_past_the_park_step(self):
+        """Waiting for 'not the start step' would fire on the init step."""
+        park = next(s for s in self.auto.steps
+                    if s.number == self.parity.PARK_STEP)
+        self.assertEqual(self.parity.AFTER_PARK, park.on_advance)
+        self.assertNotEqual(self.parity.AFTER_PARK, self.parity.PARK_STEP)
+        self.assertNotEqual(self.parity.AFTER_PARK,
+                            min(s.number for s in self.auto.steps))
+
+    def test_the_withdrawn_condition_is_read_only_by_the_park_step(self):
+        """Withdrawing it must not affect the cycle being measured."""
+        readers = [s.number for s in self.auto.steps
+                   if self.parity.px.PART_PRESENT in s.conditions
+                   or s.hold_condition == self.parity.px.PART_PRESENT]
+        self.assertEqual(readers, [self.parity.PARK_STEP])
+
+    def test_every_rendition_is_walked(self):
+        self.assertEqual(list(self.auto.renditions), list(decl.RENDITIONS))
+
+    def test_the_rendition_selector_is_writable_and_ordinals_are_stable(self):
+        self.assertIn(gen.rendition_tag(self.app), self.parity.px.WRITABLE)
+        self.assertEqual(gen.rendition_ordinal(decl.ST), 0)
+        self.assertEqual(
+            [gen.rendition_ordinal(r) for r in decl.RENDITIONS], [0, 1, 2])
+
+    def test_the_entry_vector_covers_every_declared_auto_step(self):
+        self.assertEqual(sorted(self.parity.AUTO_INDEXES),
+                         sorted(s.number for s in self.auto.steps))
+
 if __name__ == "__main__":
     unittest.main()

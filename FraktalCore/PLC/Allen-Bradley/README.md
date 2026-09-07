@@ -22,6 +22,13 @@ and runs on the bench with all fifteen matrix rows passing on three consecutive
 runs. **Hand-authored L5X remains forbidden** - the declaration and the
 generator are the committed sources and the L5X is output.
 
+The press AUTO graph is declared once and **rendered in all three languages** -
+ST, native SFC and ladder - each emitted from that one declaration, read back
+and machine-checked for graph equality, and walked on the bench with identical
+traces. MANUAL and HOME stay single-rendition ST, as the TwinCAT press keeps
+them. **Hand-authored ladder is forbidden along with hand-authored L5X**: a
+rendition is an emission, never a second maintained source.
+
 **This is still not a runtime library.** Module AOIs are generated *per
 application*; the reusable library form is Phase 6. Recipes, changeover, part
 traceability, release reports, the gateway/repository adapter, the generic HMI,
@@ -220,6 +227,14 @@ Start with:
   Access allow-list audit actually run against both downloaded fixtures, the
   three-state client identity model, secret handling, and the update lifecycle
   — with CIP Security, SL 2 and writes each named as **not** claimed;
+- [`Specification/AllenBradley/Evidence/AB_LADDER_EXECUTION_PARITY_2026-09-07.md`](../../../Specification/AllenBradley/Evidence/AB_LADDER_EXECUTION_PARITY_2026-09-07.md)
+  for the three-form press result and **the first executing ladder sequence on
+  this bench** - S4 proved RLL round-trips, never that one runs. It carries the
+  trace comparison, the two Logix constraints the graph was *not* bent to fit,
+  and the defect only hardware could find: a chart whose JSR/SFR wrapper fired
+  on a level its own first step kept true, so it reset itself every scan and
+  never advanced. It also records three faults in the measurement itself, and
+  why the trace window is now closed by the machine rather than by the observer;
 - [`Specification/AllenBradley/Evidence/AB_PHASE4_RUNTIME_BASE_AND_PRESS_DEMO_2026-09-07.md`](../../../Specification/AllenBradley/Evidence/AB_PHASE4_RUNTIME_BASE_AND_PRESS_DEMO_2026-09-07.md)
   for **Phase 4**: what the generator emits, the step-graph comparison against
   the TwinCAT press demo with its two behavioural divergences named rather than
@@ -333,6 +348,19 @@ Pre-gate tooling:
   observable behaviour with a simulated plant in tags and no control power.
 - [`tools/fraktal_ab_press_execute.py`](tools/fraktal_ab_press_execute.py) is its
   fixed fifteen-row harness, reading each structure in one request.
+- [`tools/fraktal_ab_rendition_gate.py`](tools/fraktal_ab_rendition_gate.py) reads
+  every emitted rendition **back** out of the L5X and recovers its step set and
+  transition set in that rendition's own language - a `CASE` for ST, `EQU`
+  rung-ins and `MOV`s for ladder, steps and directed links for a chart - then
+  requires all of them to equal the declaration. A rendition that cannot be
+  parsed back fails the build: silence is not parity.
+- [`tools/fraktal_ab_press_parity.py`](tools/fraktal_ab_press_parity.py) walks the
+  AUTO graph on the bench in each rendition and requires identical traces. It
+  closes its measurement window with the machine rather than the observer -
+  withdrawing the start condition once the chain has passed the start step, so
+  every rendition parks on the same declared step whatever its speed - because a
+  window defined by an observer's reaction time would make a parity claim depend
+  on which language happened to be faster.
 - [`tools/fraktal_ab_reference_suite.py`](tools/fraktal_ab_reference_suite.py)
   generates the **disposable reference suite** for R5. It is gate tooling, not
   the production module library, and the same scope fence that keeps the S16

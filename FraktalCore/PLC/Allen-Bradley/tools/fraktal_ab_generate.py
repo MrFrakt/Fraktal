@@ -1313,8 +1313,13 @@ def sfc_runner_logic(app: decl.Application, chain: decl.Chain) -> tuple[str, ...
     chart = chain_routine_name(app, chain, decl.SFC)
     entry = sorted(chain.steps, key=lambda s: s.number)[0]
     return (
-        "(* Reset the chart to its initial step whenever the owner stood down *)",
-        f"IF {unit}.Step = {entry.number} THEN",
+        "(* Reset the chart to its initial step on a genuine restart edge only. *)",
+        "(* PrevStep is -1 exactly on the scan after the owner stood the chain  *)",
+        "(* down, and the first step to mark itself clears it. Conditioning the  *)",
+        "(* SFR on the step number instead would be self-perpetuating: the first *)",
+        "(* step's own action writes that number, so the chart would be reset    *)",
+        "(* every scan and could never advance past it.                          *)",
+        f"IF {unit}.PrevStep < 0 THEN",
         f"SFR({chart},{sfc_step_tag(app, chain, entry.number)});",
         "END_IF;",
         f"JSR({chart},0);",
