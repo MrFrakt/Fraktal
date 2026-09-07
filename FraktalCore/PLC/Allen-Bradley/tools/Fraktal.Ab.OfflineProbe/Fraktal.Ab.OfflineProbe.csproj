@@ -1,13 +1,33 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The framework and the Rockwell client version are overridable because they
+    are properties of the workstation, not of this source. The probe must build
+    win-x86 to match Rockwell's 32-bit client, so it can only target a .NET the
+    machine has an x86 runtime for, and the CSClient package ships with the
+    installed SDK rather than from nuget.org - so the two must agree with what
+    is actually installed. Naming one pair here made the regeneration gate
+    unrunnable on a licensed workstation carrying the other pair.
+
+    Defaults match the licensed v33 bench workstation: SDK 2.00 / client
+    2.0.861, x86 runtime 8.0. For SDK 2.02 / client 2.2.1109 on an x86 .NET 10
+    runtime, build with:
+
+      dotnet build -r win-x86 -p:FraktalProbeTargetFramework=net10.0                               -p:FraktalSdkClientVersion=2.2.1109
+  -->
+  <PropertyGroup>
+    <FraktalProbeTargetFramework Condition="'$(FraktalProbeTargetFramework)' == ''">net8.0</FraktalProbeTargetFramework>
+    <FraktalSdkClientVersion Condition="'$(FraktalSdkClientVersion)' == ''">2.0.861</FraktalSdkClientVersion>
+  </PropertyGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>$(FraktalProbeTargetFramework)</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="RockwellAutomation.LogixDesigner.CSClient" Version="2.2.1109" />
+    <PackageReference Include="RockwellAutomation.LogixDesigner.CSClient" Version="$(FraktalSdkClientVersion)" />
   </ItemGroup>
 </Project>

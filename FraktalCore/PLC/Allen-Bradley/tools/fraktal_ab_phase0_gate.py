@@ -11,8 +11,8 @@ Rockwell toolchain.
 Stages:
 
 1. create the empty v33 seed through the SDK and record its canonical hash;
-2. regenerate the S1 data-path, S2 nested-AOI, S11 sequence-execution and S12
-   type-probe fixtures from that seed;
+2. regenerate the S1 data-path, S2 nested-AOI, S11 sequence-execution, S12
+   type-probe and S16 command-handshake fixtures from that seed;
 3. import each full fixture through the SDK, requiring a clean import summary
    and no SDK error event;
 4. export, re-import and re-export each, requiring canonical equality; and
@@ -46,6 +46,7 @@ import fraktal_ab_s9_coherence_fixture
 import fraktal_ab_s11_fixture
 import fraktal_ab_s12_fixture
 import fraktal_ab_s12_type_probe
+import fraktal_ab_s16_fixture
 import fraktal_ab_sfc_roundtrip_compare
 from fraktal_ab_sdk_log_gate import audit_log
 
@@ -57,10 +58,21 @@ REVISION = 33
 SEED_NAME = "FraktalPhase0"
 
 TOOLS = Path(__file__).resolve().parent
-DEFAULT_PROBE = (
-    TOOLS / "Fraktal.Ab.OfflineProbe" / "bin" / "Debug" / "net10.0" / "win-x86"
-    / "Fraktal.Ab.OfflineProbe.exe"
-)
+PROBE_ROOT = TOOLS / "Fraktal.Ab.OfflineProbe" / "bin" / "Debug"
+PROBE_EXE = "Fraktal.Ab.OfflineProbe.exe"
+
+
+def default_probe() -> Path:
+    """Find the built probe under whichever target framework it was built for.
+
+    The probe has to be ``win-x86`` to match Rockwell's 32-bit client, but which
+    .NET it can target depends on the x86 runtime the workstation actually
+    carries - one licensed machine has only 8.0. Naming a single framework here
+    made the gate unrunnable on a machine carrying the other one, which is the
+    opposite of what a clean-checkout gate is for.
+    """
+    found = sorted(PROBE_ROOT.glob(f"*/win-x86/{PROBE_EXE}"))
+    return found[-1] if found else PROBE_ROOT / "win-x86" / PROBE_EXE
 DEFAULT_VERIFY = TOOLS / "fraktal_ab_studio_verify.ps1"
 
 
@@ -193,6 +205,7 @@ def run_gate(
         ("s4matrix", fraktal_ab_s4_matrix_fixture.generate),
         ("s7manifest", fraktal_ab_s7_manifest_fixture.generate),
         ("s9coherence", fraktal_ab_s9_coherence_fixture.generate),
+        ("s16", fraktal_ab_s16_fixture.generate),
     ):
         output = workspace / f"{label}_fixture.L5X"
         evidence = generator(seed_l5x, output)
@@ -238,13 +251,15 @@ def main(argv: list[str] | None = None) -> int:
         "--workspace", type=Path,
         help="directory for disposable artifacts; a temporary one is used if omitted",
     )
-    parser.add_argument("--probe", type=Path, default=DEFAULT_PROBE)
+    parser.add_argument("--probe", type=Path, default=None)
     parser.add_argument(
         "--verify", action="store_true",
         help="also run Studio Verify Controller; needs a logged-in desktop session",
     )
     parser.add_argument("--verify-timeout", type=int, default=240)
     args = parser.parse_args(argv)
+    if args.probe is None:
+        args.probe = default_probe()
 
     if not args.probe.is_file():
         print(
