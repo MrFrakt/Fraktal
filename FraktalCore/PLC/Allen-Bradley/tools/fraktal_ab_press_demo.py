@@ -120,7 +120,7 @@ def application() -> decl.Application:
         # The AUTO graph is declared once and rendered in all three languages,
         # the way the TwinCAT press carries its own. MANUAL and HOME stay
         # single-rendition ST, also as the TwinCAT press keeps them.
-        renditions=(decl.ST, decl.LD),
+        renditions=(decl.ST, decl.SFC, decl.LD),
         comment="the continuous production cycle",
         steps=(
             decl.Step(0, "autoInitialize", decl.MARK,

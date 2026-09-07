@@ -20,7 +20,7 @@ import fraktal_ab_press_demo as demo
 
 SEED = """<?xml version="1.0" encoding="UTF-8"?>
 <RSLogix5000Content SchemaRevision="1.0" TargetName="FraktalPhase0" ExportDate="x">
-<Controller Use="Target" Name="FraktalPhase0" ProcessorType="1769-L24ER-QB1B" MajorRev="33">
+<Controller Use="Target" Name="FraktalPhase0" ProcessorType="1769-L24ER-QB1B" MajorRev="33" SFCExecutionControl="CurrentActive" SFCRestartPosition="MostRecent" SFCLastScan="DontScan">
 <DataTypes/>
 <Modules>
 <Module Name="Local" Inhibited="false"></Module>

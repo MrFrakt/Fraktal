@@ -257,5 +257,116 @@ class EmittedRenditionTests(unittest.TestCase):
         self.assertNotIn(f"IF Ctx.Mode = {auto.mode_ordinal} THEN", body)
 
 
+
+class SfcEmissionTests(unittest.TestCase):
+    """The chart is a real SFC rendering, not an ST chain wearing a chart."""
+
+    def setUp(self):
+        self.app = demo.application()
+        self.auto = next(c for c in self.app.chains if c.name == "AUTO")
+        self.root = emit_project()
+        self.chart = [r for r in self.root.findall(".//Program/Routines/Routine")
+                      if r.get("Type") == "SFC"][0].find(".//SFCContent")
+
+    def test_one_step_and_one_action_per_declared_step(self):
+        steps = self.chart.findall("./Step")
+        self.assertEqual(len(steps), len(self.auto.steps))
+        for step in steps:
+            self.assertEqual(len(step.findall("./Action")), 1)
+
+    def test_one_transition_per_declared_edge(self):
+        edges = gen.sfc_edges(self.auto)
+        self.assertEqual(len(self.chart.findall("./Transition")), len(edges))
+
+    def test_the_first_step_is_the_initial_step_and_the_only_one(self):
+        initial = [s for s in self.chart.findall("./Step")
+                   if s.get("InitialStep") == "true"]
+        self.assertEqual(len(initial), 1)
+        first = sorted(self.auto.steps, key=lambda s: s.number)[0]
+        self.assertEqual(initial[0].get("Operand"),
+                         gen.sfc_step_tag(self.app, self.auto, first.number))
+
+    def test_a_selection_diverge_wherever_a_step_has_two_outgoing_edges(self):
+        forks = [s for s in self.auto.steps if s.on_jump != -1]
+        diverges = [b for b in self.chart.findall("./Branch")
+                    if b.get("BranchFlow") == "Diverge"]
+        self.assertEqual(len(diverges), len(forks))
+        for branch in diverges:
+            self.assertEqual(branch.get("BranchType"), "Selection")
+
+    def test_a_selection_converge_wherever_a_step_has_several_parents(self):
+        """Logix accepts one directed link into a step; the graph converges twice."""
+        incoming = {}
+        for source, target, kind in gen.sfc_edges(self.auto):
+            incoming.setdefault(target, []).append(source)
+        joins = [t for t, sources in incoming.items() if len(sources) > 1]
+        converges = [b for b in self.chart.findall("./Branch")
+                     if b.get("BranchFlow") == "Converge"]
+        self.assertEqual(len(converges), len(joins))
+        self.assertEqual(sorted(len(b.findall("./Leg")) for b in converges),
+                         sorted(len(incoming[t]) for t in joins))
+
+    def test_no_step_takes_more_than_one_directed_link(self):
+        step_ids = {s.get("ID") for s in self.chart.findall("./Step")}
+        incoming = {}
+        for link in self.chart.findall("./DirectedLink"):
+            incoming.setdefault(link.get("ToID"), []).append(link.get("FromID"))
+        for target, sources in incoming.items():
+            if target in step_ids:
+                self.assertEqual(len(sources), 1, f"step {target} has {sources}")
+
+    def test_the_action_does_the_work_and_the_transition_carries_the_condition(self):
+        """Splitting them is what makes this SFC rather than ST in a chart."""
+        names = gen.Names(self.app, in_aoi=False)
+        issue = next(s for s in self.auto.steps if s.action == decl.ISSUE)
+        action = "\n".join(gen.sfc_action_logic(
+            self.app, self.auto, issue, 0, names))
+        self.assertIn("ParCmd_Command", action)
+        self.assertNotIn(f"Step := {issue.on_advance};", action)
+        condition = gen.sfc_condition(self.app, issue, "A", names)
+        self.assertIn("Done", condition)
+
+    def test_the_runner_is_the_generated_jsr_sfr_wrapper(self):
+        runner = [r for r in self.root.findall(".//Program/Routines/Routine")
+                  if r.get("Name") == gen.sfc_runner_name(self.app, self.auto)][0]
+        body = "\n".join((l.text or "") for l in runner.findall(".//STContent/Line"))
+        self.assertIn("SFR(", body)
+        self.assertIn("JSR(", body)
+
+    def test_the_controller_executes_current_active_steps_only(self):
+        """One JSR advances one step, which is what makes traces comparable."""
+        controller = self.root.find(".//Controller")
+        self.assertEqual(controller.get("SFCExecutionControl"), "CurrentActive")
+        self.assertEqual(controller.get("SFCRestartPosition"), "InitialStep")
+        self.assertEqual(controller.get("SFCLastScan"), "DontScan")
+
+    def test_the_chart_declares_its_step_action_and_transition_tags(self):
+        tags = {t.get("Name"): t.get("DataType")
+                for t in self.root.findall(".//Program/Tags/Tag")}
+        for step in self.auto.steps:
+            self.assertEqual(tags.get(gen.sfc_step_tag(self.app, self.auto, step.number)),
+                             "SFC_STEP")
+            self.assertEqual(tags.get(gen.sfc_action_tag(self.app, self.auto, step.number)),
+                             "SFC_ACTION")
+
+    def test_a_chart_with_a_bent_link_is_rejected_by_the_gate(self):
+        """The gate must notice when the chart stops matching the declaration."""
+        root = copy.deepcopy(self.root)
+        chart = [r for r in root.findall(".//Program/Routines/Routine")
+                 if r.get("Type") == "SFC"][0].find(".//SFCContent")
+        steps = {s.get("Operand"): s.get("ID") for s in chart.findall("./Step")}
+        first = gen.sfc_step_tag(self.app, self.auto, 110)
+        last = gen.sfc_step_tag(self.app, self.auto, 999)
+        for link in chart.findall("./DirectedLink"):
+            if link.get("ToID") == steps[first]:
+                link.set("ToID", steps[last])
+                break
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "app.L5X"
+            path.write_bytes(ET.tostring(root))
+            report = gate.compare(self.app, path)
+        self.assertFalse(report["Equal"])
+        self.assertTrue(any("SFC" in f for f in report["Findings"]))
+
 if __name__ == "__main__":
     unittest.main()

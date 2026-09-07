@@ -1028,6 +1028,320 @@ def dispatch_logic(app: decl.Application) -> list[str]:
     return lines
 
 
+# --- the SFC rendition ------------------------------------------------------
+#
+# The S11 emission pattern, generalised: a program-owned chart driven by a
+# generated JSR/SFR wrapper, with the controller set to execute current active
+# steps only so one JSR advances one step.
+#
+# The split between an action and a transition is what makes this a real SFC
+# rendering rather than an ST chain wearing a chart's clothes. The action does
+# the step's *work* and the transition carries its *condition*; both are derived
+# from the same declared step, so neither is a second source.
+
+SFC_EXECUTION_CONTROL = "CurrentActive"
+SFC_RESTART_POSITION = "InitialStep"
+SFC_LAST_SCAN = "DontScan"
+
+
+def sfc_step_tag(app: decl.Application, chain: decl.Chain, number: int) -> str:
+    return f"FRK_{app.name}{chain.name.title()}S{number}"
+
+
+def sfc_action_tag(app: decl.Application, chain: decl.Chain, number: int) -> str:
+    return f"FRK_{app.name}{chain.name.title()}A{number}"
+
+
+def sfc_transition_tag(app: decl.Application, chain: decl.Chain,
+                       number: int, kind: str) -> str:
+    return f"FRK_{app.name}{chain.name.title()}T{number}{kind}"
+
+
+def sfc_edges(chain: decl.Chain):
+    """Every declared edge, as (from, to, kind)."""
+    edges = []
+    for step in chain.steps:
+        if step.on_advance != -1:
+            edges.append((step.number, step.on_advance, "A"))
+        if step.on_jump != -1:
+            edges.append((step.number, step.on_jump, "J"))
+    return edges
+
+
+def sfc_condition(app: decl.Application, step: decl.Step, kind: str,
+                  names: Names) -> str:
+    """The transition condition for one declared edge.
+
+    Derived from the same step the action is derived from - the graph is
+    declared once, and neither half of the chart is hand-written.
+    """
+    u, c = names.unit, names.chart
+    ctx = names.module(step.module) if step.module else ""
+    if step.action in (decl.ISSUE, decl.ADOPT):
+        return f"{ctx}.Done <> 0"
+    if step.action == decl.REPORT:
+        return f"{ctx}.Done <> 0" if kind == "A" else f"{ctx}.Error <> 0"
+    if step.action == decl.DELAY:
+        return f"{c}.CurrentStepMs >= {names.cfg}.{step.duration_member}"
+    if step.action == decl.AWAIT:
+        return " AND ".join(f"({names.sim(x)} <> 0)" for x in step.conditions) or "1=1"
+    if step.action == decl.HELD_AWAIT:
+        return f"({names.sim(step.hold_condition)} <> 0) AND ({ctx}.Done <> 0)"
+    if step.action == decl.DECISION:
+        return (f"{u}.DecisionAnswer = 1" if kind == "A"
+                else f"{u}.DecisionAnswer > 1")
+    return "1=1"
+
+
+def sfc_action_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
+                     index: int, names: Names) -> tuple[str, ...]:
+    """The step's work, without the transition: the chart owns the advance."""
+    u, c = names.unit, names.chart
+    lines = [f"(* {step.name}: {step.comment} *)", f"{u}.Step := {step.number};"]
+    lines += _mark_step(app, index, names)
+    # The chart advances on its transition, so the duration is published every
+    # scan; the last value written is the duration of the visit.
+    lines.append(f"{c}.LastMs[{index}] := {c}.CurrentStepMs;")
+
+    if step.module and step.command:
+        module = next(m for m in app.modules if m.name == step.module)
+        command = next(cm for cm in module.commands if cm.name == step.command)
+        ctx = names.module(step.module)
+        issue = [
+            f"{ctx}.ParCmd_Command := {command.ordinal};",
+            f"{ctx}.ParCmd_Target := {command.target_position};",
+            f"{ctx}.Execute := 1;",
+        ]
+        if step.action == decl.HELD_AWAIT:
+            lines += [
+                f"IF ({names.sim(step.hold_condition)} <> 0) THEN",
+                f"{u}.Held := 0;",
+                f"{u}.HeldReason := 0;",
+                f"{u}.HeldSeverity := {SEVERITY_LOW};",
+                f"{c}.StallReason := 0;",
+            ] + issue + [
+                "ELSE",
+                "(* Held: stand still, publish a LOW named reason, raise no Error *)",
+                f"{u}.Held := 1;",
+                f"{u}.HeldReason := {step.hold_reason};",
+                f"{u}.HeldSeverity := {SEVERITY_LOW};",
+                f"{c}.StallReason := {step.hold_reason};",
+                f"{ctx}.Execute := 0;",
+                "END_IF;",
+            ]
+        else:
+            lines += [f"IF {names.scan} = {u}.StepScan THEN", f"{ctx}.Execute := 0;",
+                      "ELSE"] + issue + ["END_IF;"]
+            if step.action == decl.ADOPT:
+                source = [m.name for m in app.modules].index(step.module) + 1
+                lines += [
+                    f"IF {ctx}.Error <> 0 THEN",
+                    "(* Adopt the child's first-out verbatim *)",
+                    f"{u}.Error := 1;",
+                    f"{u}.ErrorID := {ctx}.ErrorID;",
+                    f"{u}.ErrorSource := {source};",
+                    f"{c}.StallReason := {ctx}.ErrorID;",
+                    f"{u}.Running := 0;",
+                    f"{ctx}.Execute := 0;",
+                    "END_IF;",
+                ]
+            elif step.action == decl.REPORT:
+                lines += [
+                    f"IF {ctx}.Error <> 0 THEN",
+                    "(* Report the child's own first-out; do NOT adopt it *)",
+                    f"{u}.ReportedReason := {ctx}.ErrorID;",
+                    f"{u}.ReportedCount := {u}.ReportedCount + 1;",
+                    f"{ctx}.Execute := 0;",
+                    "END_IF;",
+                ]
+            else:
+                lines += [
+                    f"IF {ctx}.Error <> 0 THEN",
+                    f"{c}.StallReason := {ctx}.ErrorID;",
+                    "END_IF;",
+                ]
+
+    elif step.action == decl.DELAY:
+        lines += [
+            f"IF {c}.CurrentStepMs < {names.cfg}.{step.duration_member} THEN",
+            f"{c}.StallReason := {app.reasons.get('WAIT_DELAY', 6110)};",
+            "END_IF;",
+        ]
+    elif step.action == decl.AWAIT:
+        ready = " AND ".join(f"({names.sim(x)} <> 0)" for x in step.conditions)
+        reason = step.hold_reason or app.reasons.get("WAIT_CONDITION", 6111)
+        lines += [f"IF NOT ({ready}) THEN", f"{c}.StallReason := {reason};", "END_IF;"]
+    elif step.action == decl.DECISION:
+        lines += [
+            f"{u}.DecisionId := {step.decision_id};",
+            f"IF {u}.DecisionAnswer = 0 THEN",
+            f"{c}.StallReason := {app.reasons.get('WAIT_DECISION', 6112)};",
+            "ELSE",
+            f"{u}.DecisionCount := {u}.DecisionCount + 1;",
+            f"{u}.DecisionId := 0;",
+            "END_IF;",
+        ]
+    elif step.action == decl.MARK:
+        for mark in step.marks:
+            lines.append(mark.replace("Ctx.", f"{u}.") + ";")
+    elif step.action == decl.COMPLETE:
+        lines += [f"{u}.Complete := 1;", f"{u}.Running := 0;",
+                  f"{c}.StallReason := 0;"]
+    return tuple(line for line in lines if line)
+
+
+def chain_sfc_routine(app: decl.Application, chain: decl.Chain) -> str:
+    """Serialize the chart from the same declared graph the other renditions use."""
+    names = Names(app, in_aoi=False)
+    steps_order = ordered_steps(app)
+    ordered = sorted(chain.steps, key=lambda s: s.number)
+    by_number = {s.number: s for s in ordered}
+    edges = sfc_edges(chain)
+
+    identifiers: dict[str, int] = {}
+    body: list[str] = []
+    next_id = 0
+    entry = ordered[0]
+
+    for row, step in enumerate(ordered):
+        x, y = 240, 60 + row * 120
+        step_id, action_id = next_id, next_id + 1
+        next_id += 2
+        identifiers[f"S{step.number}"] = step_id
+        lines = "\n".join(
+            f'<Line Number="{i}"><![CDATA[{statement}]]></Line>'
+            for i, statement in enumerate(
+                sfc_action_logic(app, chain, step, steps_order.index(step.number), names))
+        )
+        body.append(
+            f'<Step ID="{step_id}" X="{x}" Y="{y}" '
+            f'Operand="{sfc_step_tag(app, chain, step.number)}" '
+            f'HideDesc="true" DescX="{x + 54}" DescY="{y - 15}" DescWidth="0" '
+            f'InitialStep="{str(step is entry).lower()}" '
+            'PresetUsesExpr="false" LimitHighUsesExpr="false" '
+            'LimitLowUsesExpr="false" ShowActions="true">\n'
+            f'<Action ID="{action_id}" '
+            f'Operand="{sfc_action_tag(app, chain, step.number)}" '
+            'Qualifier="NonStored" IsBoolean="false" PresetUsesExpr="false">\n'
+            "<Body>\n<STContent>\n"
+            f"{lines}\n"
+            "</STContent>\n</Body>\n</Action>\n</Step>"
+        )
+
+    for source, target, kind in edges:
+        step = by_number[source]
+        key = f"T{source}{kind}"
+        identifiers[key] = next_id
+        x, y = 240, 120 + ordered.index(step) * 120
+        body.append(
+            f'<Transition ID="{next_id}" X="{x}" Y="{y}" '
+            f'Operand="{sfc_transition_tag(app, chain, source, kind)}" '
+            f'HideDesc="true" DescX="{x + 35}" DescY="{y - 15}" DescWidth="0">\n'
+            "<Condition>\n<STContent>\n"
+            f'<Line Number="0"><![CDATA[{sfc_condition(app, step, kind, names)}]]></Line>\n'
+            "</STContent>\n</Condition>\n</Transition>"
+        )
+        next_id += 1
+
+    links: list[tuple[int, int]] = []
+    outgoing: dict[int, list[tuple[int, int, str]]] = {}
+    for source, target, kind in edges:
+        outgoing.setdefault(source, []).append((source, target, kind))
+
+    for source, group in outgoing.items():
+        if len(group) == 1:
+            _, target, kind = group[0]
+            links.append((identifiers[f"S{source}"], identifiers[f"T{source}{kind}"]))
+        else:
+            diverge_id = next_id
+            leg_ids = [next_id + 1 + i for i in range(len(group))]
+            next_id += 1 + len(group)
+            y = 120 + ordered.index(by_number[source]) * 120
+            body.append(
+                f'<Branch ID="{diverge_id}" Y="{y}" BranchType="Selection" '
+                'BranchFlow="Diverge">\n'
+                + "\n".join(f'<Leg ID="{leg}"/>' for leg in leg_ids)
+                + "\n</Branch>"
+            )
+            links.append((identifiers[f"S{source}"], diverge_id))
+            for leg, (_, _, kind) in zip(leg_ids, group):
+                links.append((leg, identifiers[f"T{source}{kind}"]))
+
+    # Logix accepts exactly one directed link into a step. Where the declared
+    # graph converges - the loop back to the first working step, and the three
+    # ways of reaching the return-to-safe-position step - the chart needs an
+    # explicit selection converge, which is the chart's way of saying the same
+    # thing the other renditions say with two transitions to one step number.
+    incoming: dict[int, list[tuple[int, int, str]]] = {}
+    for source, target, kind in edges:
+        incoming.setdefault(target, []).append((source, target, kind))
+
+    for target, group in incoming.items():
+        if len(group) == 1:
+            source, _, kind = group[0]
+            links.append((identifiers[f"T{source}{kind}"], identifiers[f"S{target}"]))
+            continue
+        converge_id = next_id
+        leg_ids = [next_id + 1 + i for i in range(len(group))]
+        next_id += 1 + len(group)
+        y = 60 + ordered.index(by_number[target]) * 120 - 30
+        body.append(
+            f'<Branch ID="{converge_id}" Y="{y}" BranchType="Selection" '
+            'BranchFlow="Converge">\n'
+            + "\n".join(f'<Leg ID="{leg}"/>' for leg in leg_ids)
+            + "\n</Branch>"
+        )
+        for leg, (source, _, kind) in zip(leg_ids, group):
+            links.append((identifiers[f"T{source}{kind}"], leg))
+        links.append((converge_id, identifiers[f"S{target}"]))
+
+    body.extend(
+        f'<DirectedLink FromID="{a}" ToID="{b}" Show="true"/>'
+        for a, b in sorted(links)
+    )
+    content = "\n".join(body)
+    name = chain_routine_name(app, chain, decl.SFC)
+    return (f'<Routine Name="{name}" Type="SFC">\n'
+            '<SFCContent SheetSize="Letter - 8.5 x 11 in" SheetOrientation="Landscape" '
+            'StepName="Step" TransitionName="Tran" ActionName="Action" StopName="Stop">\n'
+            f"{content}\n</SFCContent>\n</Routine>")
+
+
+def sfc_runner_logic(app: decl.Application, chain: decl.Chain) -> tuple[str, ...]:
+    """The generated JSR/SFR wrapper of AB 3.5, as S11 proved it."""
+    unit = f"FRK_{app.name}_Unit"
+    chart = chain_routine_name(app, chain, decl.SFC)
+    entry = sorted(chain.steps, key=lambda s: s.number)[0]
+    return (
+        "(* Reset the chart to its initial step whenever the owner stood down *)",
+        f"IF {unit}.Step = {entry.number} THEN",
+        f"SFR({chart},{sfc_step_tag(app, chain, entry.number)});",
+        "END_IF;",
+        f"JSR({chart},0);",
+    )
+
+
+def sfc_program_tags(app: decl.Application) -> list[str]:
+    """Step, action and transition tags for every emitted chart."""
+    tags: list[str] = []
+    for chain in app.chains:
+        if decl.SFC not in chain.renditions:
+            continue
+        for step in sorted(chain.steps, key=lambda s: s.number):
+            tags.append(
+                f'<Tag Name="{sfc_step_tag(app, chain, step.number)}" TagType="Base" '
+                'DataType="SFC_STEP" Constant="false" ExternalAccess="Read/Write"/>')
+            tags.append(
+                f'<Tag Name="{sfc_action_tag(app, chain, step.number)}" TagType="Base" '
+                'DataType="SFC_ACTION" Constant="false" ExternalAccess="Read/Write"/>')
+        for source, _, kind in sfc_edges(chain):
+            tags.append(
+                f'<Tag Name="{sfc_transition_tag(app, chain, source, kind)}" '
+                'TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" '
+                'ExternalAccess="Read/Write"/>')
+    return tags
+
+
 def unit_aoi(app: decl.Application) -> str:
     return _aoi(
         unit_aoi_name(app),
@@ -1182,13 +1496,18 @@ def routine_logic(app: decl.Application) -> tuple[str, ...]:
     return tuple(lines)
 
 
+def program_tags(app: decl.Application) -> str:
+    tags = sfc_program_tags(app)
+    return "<Tags>\n" + "\n".join(tags) + "\n</Tags>" if tags else "<Tags/>"
+
+
 def programs(app: decl.Application) -> str:
     routines = "\n".join(
         [st_program_routine(app.routine, routine_logic(app))] + chain_routines(app)
     )
     return f"""<Programs>
 <Program Name="{app.program}" TestEdits="false" MainRoutineName="{app.routine}" Disabled="false" UseAsFolder="false">
-<Tags/>
+{program_tags(app)}
 <Routines>
 {routines}
 </Routines>
@@ -1274,6 +1593,21 @@ def generate(app: decl.Application, source: Path, output: Path) -> dict[str, obj
     text = replace_once(text, "<Tags/>", controller_tags(app))
     text = replace_once(text, "<Programs/>", programs(app))
     text = replace_once(text, "<Tasks/>", tasks_xml)
+
+    if any(decl.SFC in c.renditions for c in app.chains):
+        # AB 3.5 requires current-active execution so one JSR advances one
+        # step, which is what makes the chart's trace comparable with ST's.
+        for attribute, value in (
+            ("SFCExecutionControl", SFC_EXECUTION_CONTROL),
+            ("SFCRestartPosition", SFC_RESTART_POSITION),
+            ("SFCLastScan", SFC_LAST_SCAN),
+        ):
+            text, count = re.subn(
+                rf'{attribute}="[A-Za-z]+"', f'{attribute}="{value}"',
+                text, count=1)
+            if count != 1:
+                raise ValueError(
+                    f"source did not carry exactly one {attribute}")
 
     text, inhibited = re.subn(
         r'(<Module Name="Discrete_IO"[^>]*\bInhibited=")false("[^>]*>)',

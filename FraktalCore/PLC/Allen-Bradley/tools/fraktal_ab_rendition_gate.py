@@ -143,13 +143,18 @@ def sfc_graph(root: ET.Element, name: str) -> dict[int, set[int]]:
     successors: dict[str, list[str]] = {}
     for link in content.findall("./DirectedLink"):
         successors.setdefault(link.get("FromID"), []).append(link.get("ToID"))
-
-    kinds = {element.get("ID"): element.tag
-             for element in content
-             if element.tag in ("Step", "Transition", "Branch")}
+    # A branch and its legs are joined by XML containment, not by a directed
+    # link, so the walk has to follow that edge too - otherwise a branch looks
+    # like a dead end and the chart reads as having no transitions at all. The
+    # direction depends on the flow: a divergence fans out from the branch into
+    # its legs, a convergence gathers its legs back into the branch.
     for branch in content.findall("./Branch"):
+        diverging = (branch.get("BranchFlow") or "").lower() == "diverge"
         for leg in branch.findall("./Leg"):
-            kinds[leg.get("ID")] = "Leg"
+            if diverging:
+                successors.setdefault(branch.get("ID"), []).append(leg.get("ID"))
+            else:
+                successors.setdefault(leg.get("ID"), []).append(branch.get("ID"))
 
     def reachable_steps(start: str, seen: set[str] | None = None) -> set[int]:
         """Walk forward through transitions and branch legs to the next steps."""
