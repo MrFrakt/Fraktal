@@ -241,7 +241,10 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, MODE, MODE_AUTO)
     write(comm, TWO_HAND, 1)
     write(comm, RUN, 1)
-    held_observed, elapsed = await_unit(comm, lambda o: o["Step"] == 180, settle)
+    # Arm the hold during the transfer settle (a declared 200 ms window) rather
+    # than during the door close itself, which is four scans wide. Racing a
+    # 40 ms window would make this row flaky rather than wrong.
+    await_unit(comm, lambda o: o["Step"] == 170, settle)
     write(comm, TWO_HAND, 0)
     held_observed, elapsed = await_unit(comm, lambda o: o["Held"] != 0, settle)
     chart_held = read_chart(comm)
@@ -320,7 +323,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, MODE, MODE_AUTO)
     write(comm, TWO_HAND, 1)
     write(comm, RUN, 1)
-    await_unit(comm, lambda o: o["Step"] == 180, settle)
+    await_unit(comm, lambda o: o["Step"] == 170, settle)
     write(comm, FAULT["PressRam"], 1)
     reported, elapsed = await_unit(comm, lambda o: o["Step"] == 210, settle)
     chart_dec = read_chart(comm)
@@ -375,7 +378,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, MODE, MODE_AUTO)
     write(comm, TWO_HAND, 1)
     write(comm, RUN, 1)
-    await_unit(comm, lambda o: o["Step"] == 180, settle)
+    await_unit(comm, lambda o: o["Step"] == 170, settle)
     write(comm, FAULT["PressRam"], 1)
     await_unit(comm, lambda o: o["Step"] == 210, settle)
     write(comm, FAULT["PressRam"], 0)

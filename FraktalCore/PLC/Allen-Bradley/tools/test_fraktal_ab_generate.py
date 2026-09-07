@@ -235,6 +235,12 @@ class EmittedProjectTests(unittest.TestCase):
                          "EnterCount", "CurrentStepMs"):
             self.assertIn(expected, names)
 
+    def test_a_completed_chain_does_not_re_arm_itself(self):
+        """Otherwise Running oscillates while the run request is held."""
+        body = chr(10).join(gen.unit_logic(demo.application()))
+        latch = body.split("Ctx.RunRequest <> 0")[1].split("END_IF;")[0]
+        self.assertIn("Ctx.Complete = 0", latch)
+
     def test_every_declared_step_has_a_chart_slot(self):
         app = demo.application()
         self.assertLessEqual(self.evidence["DistinctSteps"], app.chart_steps)
