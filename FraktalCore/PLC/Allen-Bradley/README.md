@@ -168,6 +168,16 @@ Start with:
   nine-phase execution matrix for the licensed v33 workstation, and it records
   the Core §6.1 ambiguity it had to resolve — whether a HELD command may time
   out — as something Phase 3 must settle rather than let each binding guess;
+- [`Specification/AllenBradley/Evidence/AB_S16_EXECUTION_EVIDENCE_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S16_EXECUTION_EVIDENCE_2026-09-06.md)
+  for that package executed on the licensed v33 bench: the real generated L5X
+  hash the declaration deliberately withheld, SDK import `0/0`, Studio v33
+  Verify `0/0`, an identical canonical round trip, and all nine matrix phases
+  passing identically on three consecutive runs. It also records why the first
+  runs were not evidence — the executor assembled each observation from 25
+  separate reads of a fixture mutating every 10 ms, so phases passed on one run
+  and failed on the next until the context was read in a single request — and
+  that two automated download attempts crashed Studio v33 with two different
+  faults and no root cause, leaving the successful download a manual one;
 - [`Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md)
   for the measured reconnect budget, the two distinct bad-path quality codes and
   what each obliges a reader to do, and why a value's timestamp is the gateway's
@@ -253,7 +263,11 @@ Pre-gate tooling:
   and arm flag, writes only the five named command tags, restores all five in a
   `finally` block, and fails closed — a held condition that raises `Error`, a
   broken call order, or a command/result latency other than one scan each fail
-  the run rather than being reported as a pass.
+  the run rather than being reported as a pass. It reads the whole context in
+  **one** request and unpacks it against the declared member layout: the fixture
+  mutates every 10 ms, so a per-member sweep spans tens of scans and reports a
+  state the controller never held — the tearing S9 measured, and the reason a
+  phase could pass on one run and fail on the next with nothing changed.
 - [`tools/fraktal_ab_s12_type_probe.py`](tools/fraktal_ab_s12_type_probe.py)
   emits one minimal project per candidate Logix type, twice — declaration alone
   and declaration plus one operation — so a failure names exactly one type and

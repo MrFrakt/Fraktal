@@ -1,7 +1,13 @@
+import contextlib
+import io
+import struct
+import sys
+import types
 import unittest
 
 from fraktal_ab_s16_execute import (
     CTX,
+    CTX_MEMBERS,
     EXPECTED_SPEED,
     EXPECTED_TIMEOUT_MS,
     FINGERPRINT_TAGS,
@@ -17,7 +23,9 @@ from fraktal_ab_s16_execute import (
     _disarm,
     _fingerprint,
     _normalize_serial,
+    _read_context,
     _write,
+    main,
     run,
 )
 
@@ -64,13 +72,24 @@ class FakeController:
         device = type("D", (), {})()
         device.ProductName = "1769-L24ER-QB1B/A"
         device.Revision = "33.14"
-        device.SerialNumber = int(self.serial, 16)
+        # Real pylogix hands back the serial as a string; modelling it as an
+        # int is what let a raw ':08X' format reach the controller untested.
+        device.SerialNumber = self.serial
         return Reply(value=device)
 
     def Read(self, tag):
         if self.faults.get("read_fails"):
             return Reply(status="Path segment error")
+        if tag == CTX:
+            return Reply(value=self._context_payload())
         return Reply(value=self.values.get(tag, 0))
+
+    def _context_payload(self) -> bytes:
+        """Serve the whole context as one CIP payload, as the controller does."""
+        return struct.pack(
+            f"<{len(CTX_MEMBERS)}i",
+            *(int(self.values.get(f"{CTX}.{name}", 0)) for name in CTX_MEMBERS),
+        )
 
     def Write(self, tag, value):
         self.writes.append((tag, value))
@@ -90,7 +109,8 @@ class FakeController:
             self._set(Mode=value, ModeSwitches=self.values[f"{CTX}.ModeSwitches"] + 1)
         if tag == "FRK_S16_Abort" and value:
             self._set(
-                Aborted=1, Busy=0, AbortCount=1,
+                Aborted=1, Busy=0,
+                AbortCount=self.values[f"{CTX}.AbortCount"] + 1,
                 OutImm_ExecState=4, OutImm_Reason=6104,
             )
             return
@@ -102,13 +122,17 @@ class FakeController:
                     OutImm_Severity=SEVERITY_LOW, Error=0, HeldScans=3,
                 )
             else:
-                self._set(OutImm_Held=0, OutImm_Reason=0, DoneCount=1, Done=1)
+                self._set(
+                    OutImm_Held=0, OutImm_Reason=0, Done=1,
+                    DoneCount=self.values[f"{CTX}.DoneCount"] + 1,
+                )
             return
         if tag == "FRK_S16_FaultRequest":
             if value:
                 self._set(
                     Error=1, Busy=0, ErrorID=REASON_DEVICE_FAULT,
-                    OutImm_ExecState=STATE_ERROR, ErrorCount=1,
+                    OutImm_ExecState=STATE_ERROR,
+                    ErrorCount=self.values[f"{CTX}.ErrorCount"] + 1,
                 )
             else:
                 self._set(Error=0, ErrorID=0, OutImm_ExecState=STATE_READY)
@@ -117,12 +141,19 @@ class FakeController:
             if value:
                 if self.values[f"{CTX}.OutImm_Held"] or self.values[f"{CTX}.Error"]:
                     return
+                # Counters accumulate, as the free-running fixture's do.
                 self._set(
-                    Busy=1, OutImm_ExecState=STATE_BUSY, RunCount=1,
-                    CycleCount=1, DoneCount=1, LatencyScans=1, LatencyBad=0,
+                    Busy=1, OutImm_ExecState=STATE_BUSY,
+                    RunCount=self.values[f"{CTX}.RunCount"] + 1,
+                    CycleCount=self.values[f"{CTX}.CycleCount"] + 1,
+                    DoneCount=self.values[f"{CTX}.DoneCount"] + 1,
+                    LatencyScans=1, LatencyBad=0,
                 )
             else:
-                self._set(Busy=0, Done=0, OutImm_ExecState=STATE_READY, ResetCount=1)
+                self._set(
+                    Busy=0, Done=0, OutImm_ExecState=STATE_READY,
+                    ResetCount=self.values[f"{CTX}.ResetCount"] + 1,
+                )
 
 
 class NormalizeSerialTests(unittest.TestCase):
@@ -251,6 +282,40 @@ class VectorTests(unittest.TestCase):
     def test_a_modelled_good_run_passes(self):
         self.assertTrue(run(FakeController(), settle=0.05)["passed"])
 
+    def test_a_fixture_that_has_already_run_still_passes(self):
+        """The bench fixture free runs and nothing resets it.
+
+        After the first vector its lifetime AbortCount and ErrorCount are
+        permanently non-zero, so a phase that compares them with zero could
+        only ever pass once per download. The claim is about this cycle.
+        """
+        controller = FakeController()
+        controller.values[f"{CTX}.CycleCount"] = 16
+        controller.values[f"{CTX}.AbortCount"] = 50
+        controller.values[f"{CTX}.ErrorCount"] = 13
+        result = run(controller, settle=0.05)
+        auto = next(
+            phase for phase in result["phases"] if phase["phase"] == "auto_cycle"
+        )
+        self.assertTrue(auto["passed"])
+
+    def test_auto_cycle_fails_when_no_further_cycle_completes(self):
+        """A phase that cannot fail is not evidence."""
+        controller = FakeController()
+        original = controller._advance
+
+        def advance(tag, value):
+            original(tag, value)
+            controller.values[f"{CTX}.CycleCount"] = 7
+
+        controller._advance = advance
+        controller.values[f"{CTX}.CycleCount"] = 7
+        result = run(controller, settle=0.05)
+        auto = next(
+            phase for phase in result["phases"] if phase["phase"] == "auto_cycle"
+        )
+        self.assertFalse(auto["passed"])
+
     def test_an_ordering_violation_fails_the_vector(self):
         controller = FakeController()
         original = controller._advance
@@ -323,6 +388,117 @@ class VectorTests(unittest.TestCase):
         for phase in result["phases"]:
             self.assertIn("expectation", phase)
             self.assertIn("elapsed_ms", phase)
+
+
+class GenerationController(FakeController):
+    """A controller whose fixture advances on every request.
+
+    Each member carries the current generation, mirroring the S9 coherence
+    fixture: a coherent snapshot is all-equal, and a torn one names the two
+    generations it straddles.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.generation = 0
+        self.reads: list[str] = []
+
+    def Read(self, tag):
+        self.reads.append(tag)
+        self.generation += 1
+        for name in CTX_MEMBERS:
+            self.values[f"{CTX}.{name}"] = self.generation
+        return super().Read(tag)
+
+
+class ContextCoherenceTests(unittest.TestCase):
+    """The observation must be a state the controller actually held.
+
+    The fixture task runs at 10 ms and every counter moves on its own, so an
+    observation assembled from many requests reports a state that never
+    existed - the tearing AB_S9_COHERENCE_EVIDENCE.md measured, and the reason
+    a phase could pass on one run and fail on the next with nothing changed.
+    """
+
+    def test_a_snapshot_is_coherent_while_the_fixture_mutates(self):
+        controller = GenerationController()
+        observed = _read_context(controller)
+        self.assertEqual(
+            len(set(observed.values())), 1,
+            "members came from more than one generation: the snapshot tore",
+        )
+
+    def test_a_snapshot_costs_exactly_one_request(self):
+        controller = GenerationController()
+        _read_context(controller)
+        self.assertEqual(controller.reads, [CTX])
+
+    def test_a_per_member_sweep_would_tear(self):
+        """The guard above is not vacuous: the old strategy really does tear."""
+        controller = GenerationController()
+        torn = {
+            member: controller.Read(f"{CTX}.{member}").Value
+            for member in OBSERVED
+        }
+        self.assertGreater(
+            len(set(torn.values())), 1,
+            "the mutating controller must tear a per-member sweep, "
+            "or the coherence test proves nothing",
+        )
+
+    def test_a_short_payload_fails_closed(self):
+        class ShortPayload(FakeController):
+            def Read(self, tag):
+                if tag == CTX:
+                    return Reply(value=bytes(8))
+                return super().Read(tag)
+
+        self.assertIsNone(_read_context(ShortPayload()))
+
+    def test_a_non_binary_payload_fails_closed(self):
+        class ScalarPayload(FakeController):
+            def Read(self, tag):
+                if tag == CTX:
+                    return Reply(value=0)
+                return super().Read(tag)
+
+        self.assertIsNone(_read_context(ScalarPayload()))
+
+    def test_every_observed_member_is_declared_in_the_layout(self):
+        self.assertEqual(len(CTX_MEMBERS), 39)
+        for member in OBSERVED:
+            self.assertIn(member, CTX_MEMBERS)
+
+
+class MainPathTests(unittest.TestCase):
+    """Cover main() itself: its identity read is what reaches real hardware."""
+
+    def _run_main(self, controller):
+        module = types.ModuleType("pylogix")
+        module.PLC = lambda: controller
+        saved = sys.modules.get("pylogix")
+        sys.modules["pylogix"] = module
+        try:
+            # main() reports on stdout; keep the suite's output clean.
+            with contextlib.redirect_stdout(io.StringIO()):
+                return main([
+                    "192.168.100.89", "--expect-serial", "7036B510",
+                    "--execute-fixture", "--settle", "1",
+                ])
+        finally:
+            if saved is None:
+                sys.modules.pop("pylogix", None)
+            else:
+                sys.modules["pylogix"] = saved
+
+    def test_a_string_serial_from_the_controller_is_accepted(self):
+        controller = FakeController(serial="7036B510")
+        self.assertIn(self._run_main(controller), (0, 1))
+
+    def test_a_mismatched_serial_stops_before_any_write(self):
+        controller = FakeController(serial="DEADBEEF")
+        self.assertEqual(self._run_main(controller), 1)
+        self.assertEqual(controller.writes, [])
 
 
 if __name__ == "__main__":

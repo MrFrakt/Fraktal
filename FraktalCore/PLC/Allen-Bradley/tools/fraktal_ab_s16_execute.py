@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import string
+import struct
 import sys
 import time
 from typing import Any
@@ -75,6 +76,54 @@ SEVERITY_LOW = 0
 
 MODE_AUTO = 0
 MODE_MANUAL = 1
+
+# The context UDT exactly as FRK_T_S16Ctx declares it: 39 DINT members, in
+# declaration order. A structured read returns the whole record as one CIP
+# payload, so this table is what turns those 156 bytes back into members.
+CTX_MEMBERS = (
+    "SchemaVersion",
+    "Par_Speed",
+    "Par_TimeoutMs",
+    "ParCmd_Target",
+    "ParCmd_Latched",
+    "OutCmd_FinalPos",
+    "OutCmd_Ok",
+    "OutImm_Pos",
+    "OutImm_ExecState",
+    "OutImm_Held",
+    "OutImm_Reason",
+    "OutImm_Severity",
+    "Execute",
+    "ExecutePrev",
+    "Abort",
+    "Busy",
+    "Done",
+    "Error",
+    "Aborted",
+    "ErrorID",
+    "ElapsedMs",
+    "RunCount",
+    "DoneCount",
+    "AbortCount",
+    "ErrorCount",
+    "HeldScans",
+    "ResetCount",
+    "ModuleScan",
+    "SeqScan",
+    "OrderFail",
+    "CmdIssueScan",
+    "IntentScan",
+    "LatencyScans",
+    "LatencyBad",
+    "Step",
+    "Mode",
+    "ModeSwitches",
+    "CycleCount",
+    "ManualCount",
+)
+
+CTX_MEMBER_COUNT = len(CTX_MEMBERS)
+CTX_PAYLOAD_BYTES = CTX_MEMBER_COUNT * 4
 
 # Observation members read back after each phase.
 OBSERVED = (
@@ -151,14 +200,28 @@ def _value(reply: Any) -> Any:
 
 
 def _read_context(comm: Any) -> dict[str, Any] | None:
-    """Read the observed members, returning None if any read fails."""
-    observed: dict[str, Any] = {}
-    for member in OBSERVED:
-        reply = comm.Read(f"{CTX}.{member}")
-        if not _success(reply):
-            return None
-        observed[member] = _value(reply)
-    return observed
+    """Read the whole context in ONE request, returning None if it fails.
+
+    Reading the members one at a time cannot produce evidence about this
+    fixture. The task runs at 10 ms and every counter in the record moves on
+    its own, so a 25-request sweep spans tens of scans and returns a state the
+    controller never held - the tearing AB_S9_COHERENCE_EVIDENCE.md measured,
+    where a mutation interval shorter than the read window never converges.
+    The context is 39 DINTs, so one structured read carries the entire record
+    in a single CIP payload and is atomic on the wire; S9's own rule is that a
+    row small enough for one request needs no retry at all.
+    """
+    reply = comm.Read(CTX)
+    if not _success(reply):
+        return None
+    payload = _value(reply)
+    if not isinstance(payload, (bytes, bytearray)):
+        return None
+    if len(payload) < CTX_PAYLOAD_BYTES:
+        return None
+    values = struct.unpack_from(f"<{CTX_MEMBER_COUNT}i", payload, 0)
+    record = dict(zip(CTX_MEMBERS, values))
+    return {member: record[member] for member in OBSERVED}
 
 
 def _fingerprint(comm: Any) -> dict[str, Any]:
@@ -226,21 +289,31 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     phases: list[dict[str, Any]] = []
 
     # Phase 1 - a full AUTO cycle completes.
+    # Measured against a baseline taken now, not against zero. The fixture free
+    # runs from the moment it is downloaded and nothing here resets it, so its
+    # lifetime counters are only zero on the first vector after a download:
+    # comparing them with zero makes this phase unpassable ever after, while
+    # "CycleCount >= 1" would equally pass on history alone without a single
+    # cycle completing during the phase. The claim is about this cycle.
     _write(comm, MODE_SELECT, MODE_AUTO)
+    baseline = _read_context(comm)
     _write(comm, COMMAND, 1)
     observed, elapsed = _await_state(
-        comm, lambda o: o["CycleCount"] >= 1, settle
+        comm,
+        lambda o: baseline is not None and o["CycleCount"] > baseline["CycleCount"],
+        settle,
     )
     phases.append(
         _phase(
             "auto_cycle",
-            "AUTO chain reaches CycleCount >= 1 with no Error and no Aborted",
+            "AUTO chain completes a further cycle with no Error and no Aborted",
             observed,
             elapsed,
             observed is not None
-            and observed["CycleCount"] >= 1
-            and observed["ErrorCount"] == 0
-            and observed["AbortCount"] == 0,
+            and baseline is not None
+            and observed["CycleCount"] > baseline["CycleCount"]
+            and observed["ErrorCount"] == baseline["ErrorCount"]
+            and observed["AbortCount"] == baseline["AbortCount"],
         )
     )
 
@@ -433,7 +506,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
         device = _value(identity)
-        serial = f"{getattr(device, 'SerialNumber', 0):08X}"
+        serial = _normalize_serial(getattr(device, "SerialNumber", 0))
         evidence["identity"] = {
             "product_name": getattr(device, "ProductName", ""),
             "revision": getattr(device, "Revision", ""),
