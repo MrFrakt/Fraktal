@@ -46,11 +46,26 @@ were distinguished before anything was run:
 | .NET SDK | `10.0.400` present | none installed |
 | Host address | `Ethernet1` `192.168.100.123/24` | no `192.168.100.0/24` adapter |
 
-Two divergences from the runbook's own baseline table are recorded rather than
+Three divergences from the runbook's own baseline are recorded rather than
 silently accepted: the host address is `192.168.100.123`, not the proven
 `192.168.100.99` (same adapter and subnet; the download used USB, so it is not
-load-bearing here), and the SDK is the **historical** `2.00`/`2.0.861`, not the
-`2.02`/`2.2.1109` the runbook calls current.
+load-bearing here); the SDK is the **historical** `2.00`/`2.0.861`, not the
+`2.02`/`2.2.1109` the runbook calls current; and the runbook's Linx
+command-line browse does not work on this workstation at all.
+
+That last one is an end-of-session check that **failed**, and it is recorded as
+a failure. `FTLinxCfgIETool.exe /Browse` returns
+`Failed to browse Fraktal_AB92.168.100.89, status is 2.`, and it returns the
+same `status is 2` for `Ethernet92.168.100.89` — a driver that demonstrably
+exists, since Studio's **Who Active** listed it as `Ethernet, Ethernet` beside
+`1789-A17, Backplane` and `USB`, and there is no `Fraktal_AB` alias in that
+tree. So the utility itself is failing here, not merely the documented alias.
+No driver was added or altered to work around it: that would be a workstation
+configuration change, and nothing in this record needed it. Controller
+reachability is proved twice over without Linx — Studio's Who Active browsed
+USB and downloaded through `Backplane`, and every probe here speaks raw
+EtherNet/IP or pylogix directly. Treat the runbook's step 4 as unverified on
+this machine until someone establishes why the tool fails.
 
 ## 2. The SDK entitlement question, answered
 
@@ -426,6 +441,9 @@ physical-I/O operation occurred at any point.
    contract UDT is an S12 rerun, not an assumption.
 6. **MANUAL mode is only lightly exercised** — one command per request, observed
    through the mode switch of phase 8. The AUTO chain carried the evidence.
+7. **The Linx command-line browse fails on this workstation** with `status is 2`
+   for every path tried, including a driver Studio can see. The runbook's
+   step 4 end-of-session check cannot currently be satisfied here.
 
 ## 10. Status
 
