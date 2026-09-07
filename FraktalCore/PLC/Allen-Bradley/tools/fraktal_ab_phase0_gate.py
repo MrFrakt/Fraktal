@@ -12,7 +12,8 @@ Stages:
 
 1. create the empty v33 seed through the SDK and record its canonical hash;
 2. regenerate the S1 data-path, S2 nested-AOI, S11 sequence-execution, S12
-   type-probe and S16 command-handshake fixtures from that seed;
+   type-probe and S16 command-handshake fixtures, and the disposable R5
+   reference suite, from that seed;
 3. import each full fixture through the SDK, requiring a clean import summary
    and no SDK error event;
 4. export, re-import and re-export each, requiring canonical equality; and
@@ -46,6 +47,7 @@ import fraktal_ab_s9_coherence_fixture
 import fraktal_ab_s11_fixture
 import fraktal_ab_s12_fixture
 import fraktal_ab_s12_type_probe
+import fraktal_ab_reference_suite
 import fraktal_ab_s16_fixture
 import fraktal_ab_sfc_roundtrip_compare
 from fraktal_ab_sdk_log_gate import audit_log
@@ -206,6 +208,7 @@ def run_gate(
         ("s7manifest", fraktal_ab_s7_manifest_fixture.generate),
         ("s9coherence", fraktal_ab_s9_coherence_fixture.generate),
         ("s16", fraktal_ab_s16_fixture.generate),
+        ("reference", fraktal_ab_reference_suite.generate),
     ):
         output = workspace / f"{label}_fixture.L5X"
         evidence = generator(seed_l5x, output)

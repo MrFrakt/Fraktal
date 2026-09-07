@@ -269,7 +269,15 @@ def aoi_definition(
     note: str,
     parameters: tuple[str, ...],
     logic: tuple[str, ...],
+    ctx_type: str | None = None,
 ) -> str:
+    """Emit one AOI definition.
+
+    ``ctx_type`` names the context UDT this AOI declares a dependency on. It is
+    a parameter so the reference suite can reuse this machinery verbatim under
+    its own type name rather than growing a second copy of it.
+    """
+    ctx_type = ctx_type or CTX_TYPE
     parameter_block = "\n".join(parameters)
     lines = "\n".join(
         f'<Line Number="{index}"><![CDATA[{statement}]]></Line>'
@@ -289,7 +297,7 @@ def aoi_definition(
 </Routine>
 </Routines>
 <Dependencies>
-<Dependency Type="DataType" Name="{CTX_TYPE}"/>
+<Dependency Type="DataType" Name="{ctx_type}"/>
 </Dependencies>
 </AddOnInstructionDefinition>"""
 
