@@ -545,8 +545,13 @@ a back door proves the back door works.
 
 ## 3a. Allen-Bradley (Fraktal/AB) — ask before you assume
 
-The AB binding is in Phase 0. **R0–R3 record PASS; R4–R6 are open, and no
-production AB runtime or module library is authorized.** Read
+The AB binding is in Phase 0. **R0–R6 all record PASS, so production AB
+runtime and module-library implementation is authorized to begin — against the
+bounds those gates record, not around them.** R6 passes for the declared
+**read-only** claim only; S15 is narrowed (Studio Verify needs a logged-in
+desktop, download is deliberately not automated); and S5's CI path is the named
+isolated bench with an authorized **manual** deployment step, not zero-touch CI.
+Nothing in this tree is a runtime library yet. Read
 `FraktalCore/PLC/Allen-Bradley/README.md` and `Specification/Fraktal_AB_Part_III.md`
 before touching this tree; the fixed-vector tools there have deliberately narrow
 write surfaces, serial guards and fixture fingerprints that are safety

@@ -55,15 +55,15 @@ command-line browse does not work on this workstation at all.
 
 That last one is an end-of-session check that **failed**, and it is recorded as
 a failure. `FTLinxCfgIETool.exe /Browse` returns
-`Failed to browse Fraktal_AB92.168.100.89, status is 2.`, and it returns the
-same `status is 2` for `Ethernet92.168.100.89` — a driver that demonstrably
+`Failed to browse Fraktal_AB\192.168.100.89, status is 2.`, and it returns the
+same `status is 2` for `Ethernet\192.168.100.89` — a driver that demonstrably
 exists, since Studio's **Who Active** listed it as `Ethernet, Ethernet` beside
 `1789-A17, Backplane` and `USB`, and there is no `Fraktal_AB` alias in that
 tree. So the utility itself is failing here, not merely the documented alias.
 No driver was added or altered to work around it: that would be a workstation
 configuration change, and nothing in this record needed it. Controller
 reachability is proved twice over without Linx — Studio's Who Active browsed
-USB and downloaded through `Backplane`, and every probe here speaks raw
+USB and downloaded through `Backplane\16`, and every probe here speaks raw
 EtherNet/IP or pylogix directly. Treat the runbook's step 4 as unverified on
 this machine until someone establishes why the tool fails.
 
@@ -220,6 +220,76 @@ measurement rather than by the on-screen message:
   `FRK_S16_Command` all read `Success`;
 - `FRK_S9_Freeze` now returns **`Path segment error`** — the S9 fixture is gone,
   replaced, exactly as intended.
+
+## 4a. Addendum — the download crash, diagnosed from the dumps
+
+Added after the fact, from the two crash dumps Studio left behind. They are
+evidence, and they were read before anything was deleted.
+
+**Both crashes are the same fault.** §4 above reported "two different faults"
+from the two codes in Studio's own fatal-error log. Read from the minidumps
+themselves, the exception records are identical:
+
+| | first crash | second crash |
+|---|---|---|
+| exception code | `0xC0000005` | `0xC0000005` |
+| meaning | `EXCEPTION_ACCESS_VIOLATION` | `EXCEPTION_ACCESS_VIOLATION` |
+| faulting address | `mfc140u.dll` **+0x2A6C04** | `mfc140u.dll` **+0x2A6C04** |
+| access | **read of `0x74`**, unmapped | **read of `0x74`**, unmapped |
+
+The `0xc0150010` in the first log is what Studio's own crash handler reported,
+not the fault that occurred. Reading offset `0x74` from a null base is a
+null-pointer dereference — a member access on an object that was expected to
+exist and did not — inside the shared MFC runtime, at the same instruction both
+times.
+
+**It is not "UI Automation crashes Studio".** That hypothesis was tested and
+falsified: with the same dialog open, the same selected node and the same UIA
+`InvokePattern`, invoking the harmless **Set Project Path** button (`1456`)
+left Studio running, and the effect was confirmed on screen — the *Path in
+Project* pane changed from `<none>` to `Backplane\16`. Programmatic invocation
+of this dialog's native buttons is therefore not inherently fatal. **The fault
+is specific to Studio v33's Download command path when it is invoked
+programmatically on this workstation.**
+
+Two further facts, both measured, neither sufficient to close the question:
+
+* the MFC runtime is the shared `C:\Windows\System32\mfc140u.dll` at
+  **14.40.33816** (VC++ 2015-2022 redistributable, dated 2024). Studio v33 is a
+  2020 product and ships no private copy, so it runs against an MFC several
+  years newer than the one it was built against. That is a plausible
+  contributing condition — but the **manual** download succeeded under exactly
+  the same MFC, so the version alone is not the cause;
+* disk (131 GB free) and memory (21.5 GB free) were ruled out.
+
+**Root cause, as far as the evidence supports it:** a null-pointer dereference
+inside the MFC runtime, reached only through Studio v33's Download command path
+under programmatic invocation, on a Studio build running against a much newer
+shared MFC than it shipped with. What is *not* established is which pointer, or
+why the manual path initialises it and the programmatic path does not — that
+needs Studio symbols this workstation does not have.
+
+**Bounded workaround, and its boundary.** The download is performed by a person
+in the Studio session, with the target identity re-read immediately beforehand
+and all I/O disconnected. That path is proved: it completed here with the
+controller-minor rebinding visible in the title bar and the fixture live on the
+bench. The boundary is that this is a **deployment** step, not a test step — it
+does not make S15's unattended-automation claim true, and §9 keeps that owed.
+
+### The downloaded artifact's provenance
+
+Studio saved the project during the download session, so the file at
+`C:\work\s16_fixture.ACD` **no longer hashes to the value §7 records**. That is
+the expected post-download rebinding S2 documented (`controller minor 11 → 14`),
+not drift in the evidence. Studio's own pre-save backup preserves the artifact
+that was Verified `0/0` and downloaded, and it hashes to exactly the recorded
+value:
+
+`0AEAF984F4EA97C880979E1884CC971592AFD3A1D836B12FC05FA9E842568904`
+
+The hash in §7 is therefore correct as recorded, and the artifact behind it is
+still recoverable. A later diagnostic copy was taken from the post-save file and
+did not alter either.
 
 ## 5. Two executor defects the unit tests could not catch
 

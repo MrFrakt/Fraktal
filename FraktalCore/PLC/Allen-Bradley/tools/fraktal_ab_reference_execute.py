@@ -296,6 +296,12 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, COMMAND_A, 0)
 
     # 8 - the second instance runs on its own.
+    # Let A come to rest before sampling it. In AUTO the chain only *restarts*
+    # while Run is set, but an in-flight cycle finishes on its own after Run
+    # drops - so a baseline taken the instant the command clears can still be
+    # overtaken by A's own last cycle, and this row would race rather than
+    # measure independence.
+    await_state(comm, CTX_A, lambda o: o["Busy"] == 0 and o["Step"] == 0, settle)
     before_b = read_context(comm, CTX_B)
     before_a = read_context(comm, CTX_A)
     write(comm, COMMAND_B, 1)

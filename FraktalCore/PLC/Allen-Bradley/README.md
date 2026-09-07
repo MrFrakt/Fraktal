@@ -4,14 +4,28 @@ This tree is reserved for the Allen-Bradley Logix binding. The authoritative
 implementation specification is
 [`Specification/Fraktal_AB_Part_III.md`](../../../Specification/Fraktal_AB_Part_III.md).
 
-Current status: **R0-R3 PASS; R4-R6 OPEN**. No production AB runtime or module
-library is authorized until every readiness gate in Part III records PASS.
-Before that point, this tree may contain only disposable Phase 0 fixtures and
-the evidence, generator, lint, or host tooling needed to close the gates.
+Current status: **R0-R6 all PASS**. Every readiness gate in Part III now records
+PASS, so production AB runtime and module-library implementation is authorized
+to begin - against the bounds those gates record, not around them. **R6 passes
+for the declared read-only claim only**: CIP Security, Security Level 2 and
+write-enabled operation are explicitly not claimed, and enabling writes reopens
+Core 14 in full. **S15 is narrowed**: Studio Verify is automated but needs a
+logged-in desktop, and download is deliberately not automated. **S5's CI path**
+is the named isolated bench with the download as an authorized manual step, not
+zero-touch CI.
 
-The current Phase 0 workstation target is `192.168.100.89` from host adapter
-`192.168.100.99/24`. FactoryTalk Linx 6.50 successfully browses it through the
-point-to-point alias `Fraktal_AB`; direct CIP identity and symbolic reads also
+Until implementation actually starts, this tree still contains only disposable
+Phase 0 fixtures and the evidence, generator, lint, gate or host tooling that
+closed those gates. Nothing here is a runtime library.
+
+The current Phase 0 workstation target is `192.168.100.89`, historically from
+host adapter `192.168.100.99/24`. FactoryTalk Linx 6.50 browsed it through the
+point-to-point alias `Fraktal_AB` on 2026-08-13; **neither still holds on the
+2026-09-06 bench workstation**, where the host address is `192.168.100.123` and
+`FTLinxCfgIETool.exe /Browse` fails with `status is 2` for every path tried,
+including a driver Studio can see. Reachability is unaffected — Studio's Who
+Active browses USB and every probe speaks EtherNet/IP directly — see the S16
+execution record. Historically, direct CIP identity and symbolic reads also
 pass. Studio 5000 v33 positively connected through
 `Fraktal_AB\192.168.100.89`, but Studio and SDK read-only uploads over Ethernet
 timed out. After USB was reconnected, Studio uploaded successfully through
@@ -178,6 +192,24 @@ Start with:
   and failed on the next until the context was read in a single request — and
   that two automated download attempts crashed Studio v33 with two different
   faults and no root cause, leaving the successful download a manual one;
+- [`Specification/AllenBradley/Evidence/AB_R4_REGENERATION_GATE_EVIDENCE_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_R4_REGENERATION_GATE_EVIDENCE_2026-09-06.md)
+  for **R4**: a fresh clone regenerating every fixture from an SDK seed and
+  clearing import, canonical round trip, census and Studio v33 Verify at `0/0`
+  on all nine legs — including the proof that canonical form is stable across
+  seeds, which is what makes every hash in every earlier record checkable. It
+  itemises what still cannot run unattended rather than rounding up;
+- [`Specification/AllenBradley/Evidence/AB_R5_REFERENCE_SUITE_EVIDENCE_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_R5_REFERENCE_SUITE_EVIDENCE_2026-09-06.md)
+  for **R5**: the disposable reference suite — two reference types with the
+  module type instantiated twice — executed on the named bench for nine
+  machine-readable rows, all passing on three consecutive runs with the
+  controller's own cross-talk counter at zero. It records why the CI path is
+  named isolated hardware rather than Echo, and why the download step is an
+  authorized manual operation;
+- [`Specification/AllenBradley/Evidence/AB_R6_SECURITY_EVIDENCE.md`](../../../Specification/AllenBradley/Evidence/AB_R6_SECURITY_EVIDENCE.md)
+  for **R6**: the zone/conduit layout and declared Security Level, the External
+  Access allow-list audit actually run against both downloaded fixtures, the
+  three-state client identity model, secret handling, and the update lifecycle
+  — with CIP Security, SL 2 and writes each named as **not** claimed;
 - [`Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md`](../../../Specification/AllenBradley/Evidence/AB_S9_RECONNECT_QUALITY_TIMESTAMP_2026-09-06.md)
   for the measured reconnect budget, the two distinct bad-path quality codes and
   what each obliges a reader to do, and why a value's timestamp is the gateway's
@@ -268,6 +300,22 @@ Pre-gate tooling:
   mutates every 10 ms, so a per-member sweep spans tens of scans and reports a
   state the controller never held — the tearing S9 measured, and the reason a
   phase could pass on one run and fail on the next with nothing changed.
+- [`tools/fraktal_ab_reference_suite.py`](tools/fraktal_ab_reference_suite.py)
+  generates the **disposable reference suite** for R5. It is gate tooling, not
+  the production module library, and the same scope fence that keeps the S16
+  fixture disposable guards it. It promotes the handshake module and the mode
+  owner to the binding's first two reference types — importing the declaration
+  machinery from the S16 generator rather than copying it — and instantiates the
+  module type **twice** over independent contexts, with an on-controller
+  cross-talk counter. That second instance is what AB §5.7's G-GENERATED
+  argument needs: an extension argument never exercised on a second instance is
+  an assertion.
+- [`tools/fraktal_ab_reference_execute.py`](tools/fraktal_ab_reference_execute.py)
+  is the R5 harness. Same guards as the S16 vector — exact serial, fixture
+  fingerprint, explicit arm flag, six-tag write surface restored in a `finally`
+  block — and it emits one row per test plus the five summary fields AB §5.7
+  names, so the output converts to JUnit the way TC3's does. It reads each
+  context in a single request.
 - [`tools/fraktal_ab_s12_type_probe.py`](tools/fraktal_ab_s12_type_probe.py)
   emits one minimal project per candidate Logix type, twice — declaration alone
   and declaration plus one operation — so a failure names exactly one type and
