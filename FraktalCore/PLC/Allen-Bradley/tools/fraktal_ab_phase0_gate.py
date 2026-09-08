@@ -155,6 +155,39 @@ def import_and_roundtrip(
     return Stage(f"{label}:roundtrip", passed, detail)
 
 
+def string_payloads(text: str) -> list[str]:
+    """Every ASCII string payload in an L5X, in order."""
+    lines = text.split("\n")
+    found = []
+    for index, line in enumerate(lines[:-1]):
+        if 'Radix="ASCII"' in line and "DataValueMember" in line:
+            payload = lines[index + 1].strip()
+            if payload.startswith("<![CDATA[") and payload.endswith("]]>"):
+                payload = payload[len("<![CDATA["):-len("]]>")]
+            found.append(payload)
+    return found
+
+
+def string_readback(source: Path, first: Path) -> Stage:
+    """Require the strings the generator emitted to be in the imported project.
+
+    A manifest whose every name is blank imports with warnings and no errors,
+    which is indistinguishable from a benign import unless someone reads the
+    project back. That happened: 208 strings emitted, 208 accepted, none stored.
+    So the count of *non-empty* strings has to survive the round trip, and this
+    is a gate stage rather than a note in a record.
+    """
+    emitted = [p for p in string_payloads(source.read_text(encoding="utf-8")) if p]
+    survived = [p for p in string_payloads(first.read_text(encoding="utf-8")) if p]
+    detail = {
+        "emittedNonEmpty": len(emitted),
+        "survivedNonEmpty": len(survived),
+        "lost": sorted(set(emitted) - set(survived))[:8],
+    }
+    return Stage(f"{first.stem.split('_')[0]}:strings",
+                 len(emitted) == len(survived) and not detail["lost"], detail)
+
+
 def studio_verify(verify_script: Path, acd: Path, timeout: int) -> Stage:
     completed = subprocess.run(
         [
@@ -226,6 +259,9 @@ def run_gate(
 
     for label, source in generated:
         stages.append(import_and_roundtrip(probe, source, workspace, label))
+        first = workspace / f"{label}_pass1.L5X"
+        if first.is_file():
+            stages.append(string_readback(source, first))
 
     if verify_script is not None:
         for label, _ in generated:

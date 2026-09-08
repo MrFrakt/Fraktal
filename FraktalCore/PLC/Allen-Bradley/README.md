@@ -347,6 +347,17 @@ Pre-gate tooling:
   writes carries the declared period the millisecond timeouts were converted
   from, that no public UDT carries a `BOOL`, and that nothing it emitted names a
   physical I/O operand.
+- [`tools/fraktal_ab_manifest.py`](tools/fraktal_ab_manifest.py) emits the
+  controller-resident manifest from that same declaration, so a client can
+  discover the station from the controller rather than from an L5X on disk. It
+  describes the declared graph **once, rendition-agnostic**: the field list comes
+  from `publishable_tags`, so the rendition selector and any tag that exists only
+  because of how one rendition is implemented are absent by construction, and
+  declaring AUTO in one language or three produces the identical manifest. Two
+  things it learned the hard way are enforced rather than remembered: Logix
+  stores an ASCII string only when it is quoted and `$`-escaped, and a key that
+  does not fit the published string fails the build instead of being truncated
+  into a name it shares with another path.
 - [`tools/fraktal_ab_press_demo.py`](tools/fraktal_ab_press_demo.py) is the press
   demo declaration - the first application, mirroring the TwinCAT oracle's
   observable behaviour with a simulated plant in tags and no control power.

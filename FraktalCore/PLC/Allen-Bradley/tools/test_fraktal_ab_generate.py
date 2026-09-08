@@ -165,10 +165,34 @@ class EmittedProjectTests(unittest.TestCase):
         self.assertIn("FRK_U_Press", names)
 
     def test_every_contract_member_is_a_dint(self):
+        # The one exception is a Logix string, whose layout Logix dictates: a
+        # StringFamily type is LEN plus a SINT array and there is no DINT-based
+        # string to choose instead. It is exempted as a shape, not as a type -
+        # the next test pins that shape so the exemption cannot widen.
+        strings = {d.get("Name") for d in self.root.findall(".//DataType")
+                   if d.get("Family") == "StringFamily"}
         for data_type in self.root.findall(".//DataType"):
+            if data_type.get("Name") in strings:
+                continue
             for member in data_type.findall("./Members/Member"):
+                if member.get("DataType") in strings:
+                    continue
                 self.assertEqual(member.get("DataType"), "DINT",
                                  f"{data_type.get('Name')}.{member.get('Name')}")
+
+    def test_a_string_family_type_carries_nothing_but_the_logix_string_layout(self):
+        found = 0
+        for data_type in self.root.findall(".//DataType"):
+            if data_type.get("Family") != "StringFamily":
+                continue
+            found += 1
+            members = data_type.findall("./Members/Member")
+            self.assertEqual([m.get("Name") for m in members], ["LEN", "DATA"],
+                             data_type.get("Name"))
+            self.assertEqual(members[0].get("DataType"), "DINT")
+            self.assertEqual(members[1].get("DataType"), "SINT")
+            self.assertGreater(int(members[1].get("Dimension")), 0)
+        self.assertEqual(found, 1, "only the manifest key string may be a string")
 
     def test_no_bool_member_in_any_public_contract_udt(self):
         self.assertEqual(self.evidence["BoolMembersInPublicUdt"], 0)
@@ -317,8 +341,22 @@ class EmittedProjectTests(unittest.TestCase):
                 gen.generate(demo.application(), source, Path(directory) / "a.L5X")
 
     def test_out_of_scope_constructs_are_fenced_out(self):
+        # Two frozen-contract manifest members name structures that do not exist
+        # yet - a module's registry index, a root's mailbox identity. They are
+        # published as zero references under the names the contract requires, so
+        # the fence exempts those two names and nothing else.
+        fenced = self.text
+        for allowed in gen.SCOPE_FENCE_ALLOWED:
+            fenced = fenced.replace(allowed, "")
         for term in gen.EXCLUDED_SCOPE_TERMS:
-            self.assertNotIn(term, self.text)
+            self.assertNotIn(term, fenced)
+
+    def test_the_fence_exemptions_are_the_only_way_those_words_appear(self):
+        """The negative test: the exemption is by exact name, not by substring."""
+        for allowed in gen.SCOPE_FENCE_ALLOWED:
+            self.assertTrue(
+                any(term in allowed for term in gen.EXCLUDED_SCOPE_TERMS),
+                f"{allowed} exempts nothing and should not be in the list")
 
     def test_a_task_period_that_disagrees_with_the_declaration_is_refused(self):
         """The build-time assertion: the shipped task carries the declared period."""

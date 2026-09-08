@@ -110,33 +110,63 @@ try {
 
     $verifyDeadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $attempt = 0
+    $activated = $false
     do {
         $attempt++
-        [Microsoft.VisualBasic.Interaction]::AppActivate($studio.Id)
-        Start-Sleep -Milliseconds 750
-        [System.Windows.Forms.SendKeys]::SendWait('%l')
-        Start-Sleep -Milliseconds 600
-        [System.Windows.Forms.SendKeys]::SendWait('v')
-        Start-Sleep -Milliseconds 600
-        [System.Windows.Forms.SendKeys]::SendWait('c')
 
-        $attemptDeadline = (Get-Date).AddSeconds(20)
-        do {
-            Start-Sleep -Milliseconds 500
-            $summaryElement = Get-AutomationElementById -Root $root -AutomationId '33652'
-            if ($null -ne $summaryElement) {
-                $summary = $summaryElement.Current.Name
+        # AppActivate throws when Studio's window is not present at that exact
+        # instant, and a large project is briefly without one. An unguarded
+        # throw here aborted a whole ten-project gate run over a window that was
+        # back a second later, and reported it as a Verify failure. Retry the
+        # activation; if Studio still will not come forward, send nothing at
+        # all - keystrokes aimed at whichever window does hold focus are far
+        # worse than a missed attempt.
+        $activated = $false
+        foreach ($try in 1..5) {
+            try {
+                $studio.Refresh()
+                [Microsoft.VisualBasic.Interaction]::AppActivate($studio.Id)
+                $activated = $true
+                break
             }
-        } until (
-            ($summary -match 'Complete\s+-\s+(\d+)\s+error\(s\),\s+(\d+)\s+warning\(s\)') -or
-            (Get-Date) -ge $attemptDeadline -or
-            (Get-Date) -ge $verifyDeadline
-        )
+            catch {
+                Start-Sleep -Milliseconds 1000
+            }
+        }
+
+        if ($activated) {
+            Start-Sleep -Milliseconds 750
+            [System.Windows.Forms.SendKeys]::SendWait('%l')
+            Start-Sleep -Milliseconds 600
+            [System.Windows.Forms.SendKeys]::SendWait('v')
+            Start-Sleep -Milliseconds 600
+            [System.Windows.Forms.SendKeys]::SendWait('c')
+
+            $attemptDeadline = (Get-Date).AddSeconds(20)
+            do {
+                Start-Sleep -Milliseconds 500
+                $summaryElement = Get-AutomationElementById -Root $root -AutomationId '33652'
+                if ($null -ne $summaryElement) {
+                    $summary = $summaryElement.Current.Name
+                }
+            } until (
+                ($summary -match 'Complete\s+-\s+(\d+)\s+error\(s\),\s+(\d+)\s+warning\(s\)') -or
+                (Get-Date) -ge $attemptDeadline -or
+                (Get-Date) -ge $verifyDeadline
+            )
+        }
     } until (
         ($summary -match 'Complete\s+-\s+(\d+)\s+error\(s\),\s+(\d+)\s+warning\(s\)') -or
         $attempt -ge 3 -or
         (Get-Date) -ge $verifyDeadline
     )
+
+    # Say which gap this is. "Studio never came forward" is not the same claim as
+    # "Verify ran and produced no summary", and a gate that conflates them
+    # records a harness flake as a verification result.
+    if (-not $activated) {
+        throw "Studio v$Revision would not come to the foreground; Verify was not run."
+    }
 
     if ($summary -notmatch 'Complete\s+-\s+(\d+)\s+error\(s\),\s+(\d+)\s+warning\(s\)') {
         throw 'Studio Verify did not expose a complete Error List summary before timeout.'

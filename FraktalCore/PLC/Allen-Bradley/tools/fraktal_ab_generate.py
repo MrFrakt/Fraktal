@@ -33,9 +33,13 @@ from pathlib import Path
 
 from fraktal_ab_phase0_fixture import replace_once, scalar_tag, sha256
 import fraktal_ab_declaration as decl
+import fraktal_ab_manifest as manifest
 
 
 SCHEMA = "fraktal.ab.generated-application"
+# Published in the manifest header so a reader can tell which controller
+# the description belongs to without inferring it from the connection.
+CONTROLLER_IDENTITY = "1769-L24ER-QB1B/A 33.014"
 
 # Emitted verbatim ahead of every CASE ELSE. The fallback assigns a step number
 # but it is not an edge of the declared graph, and the read-back gate has to be
@@ -172,6 +176,7 @@ def data_types(app: decl.Application) -> str:
             f'<DataType Name="{record.name}" Family="NoFamily" Class="User">'
             f"{description}\n<Members>\n{members}\n</Members>\n</DataType>"
         )
+    blocks.extend(manifest.data_types(app))
     return "<DataTypes>\n" + "\n".join(blocks) + "\n</DataTypes>"
 
 
@@ -1444,9 +1449,10 @@ def harness_only_tags(app: decl.Application) -> tuple[str, ...]:
 def publishable_tags(app: decl.Application) -> tuple[str, ...]:
     """Every emitted tag a manifest may describe: everything else is excluded.
 
-    Nothing publishes a manifest yet - that is owed work, and the blocking one
-    for the gateway. This exists so the rule is enforceable when it does, rather
-    than being a sentence someone has to remember.
+    ``fraktal_ab_manifest.content`` derives the published field list from this,
+    so the rendition selector and a rendition's implementation tags are absent
+    from the contract by construction rather than by anyone remembering to leave
+    them out.
     """
     excluded = set(harness_only_tags(app))
     published: list[str] = []
@@ -1505,6 +1511,10 @@ def controller_tags(app: decl.Application) -> str:
         f'<Tag Name="FRK_{app.name}_InstUnit" TagType="Base" '
         f'DataType="{unit_aoi_name(app)}" Constant="false" ExternalAccess="None"/>'
     )
+    # Core 3.10: the manifest is the runtime source of truth, so it
+    # ships in the project rather than being assembled at scan time -
+    # a client reads the same bytes the gate verified.
+    tags.extend(manifest.tags(app, CONTROLLER_IDENTITY))
     return "<Tags>\n" + "\n".join(tags) + "\n</Tags>"
 
 
@@ -1579,10 +1589,24 @@ def tasks(app: decl.Application) -> str:
 
 # --- emit -------------------------------------------------------------------
 
+# The scope fence keeps the application from growing runtime-base structure it
+# is not authorized to have. It changed once, deliberately: publishing a
+# manifest is now in scope (Core 3.10 makes it the runtime source of truth, and
+# nothing could discover the station without it), so "Manifest" is no longer
+# forbidden. Everything else still is.
+#
+# Two frozen-contract manifest members name a structure that does not exist yet -
+# a module's registry index and a root's mailbox identity. They are *references*,
+# published as zero, and the contract requires the fields by those names. Naming
+# them differently to slip past a substring check would be worse than the check:
+# it would put the manifest out of step with the frozen schema to keep a fence
+# quiet. They are allowed by exact name, and only by exact name.
 EXCLUDED_SCOPE_TERMS = (
-    "Recipe", "ParCfgRecord", "Manifest", "Registry", "Mailbox",
+    "Recipe", "ParCfgRecord", "Registry", "Mailbox",
     "Traceability", "ReleaseReport",
 )
+
+SCOPE_FENCE_ALLOWED = ("RegistryIndex", "MailboxId")
 
 
 def all_generated_logic(app: decl.Application) -> str:
@@ -1667,8 +1691,11 @@ def generate(app: decl.Application, source: Path, output: Path) -> dict[str, obj
     if inhibited != 1:
         raise ValueError("embedded Discrete_IO module was not inhibited exactly once")
 
+    fenced = text
+    for allowed in SCOPE_FENCE_ALLOWED:
+        fenced = fenced.replace(allowed, "")
     for term in EXCLUDED_SCOPE_TERMS:
-        if term in text:
+        if term in fenced:
             raise AssertionError(f"out-of-scope construct emitted: {term}")
 
     output.write_text(text, encoding="utf-8", newline="\n")
@@ -1701,6 +1728,7 @@ def generate(app: decl.Application, source: Path, output: Path) -> dict[str, obj
         "EvidenceTags": list(evidence_tags(app)),
         "HarnessOnlyTags": list(harness_only_tags(app)),
         "PublishableTags": list(publishable_tags(app)),
+        "Manifest": manifest.evidence(app),
         "Programs": 1,
         "Routines": 1,
         "Tasks": 1,

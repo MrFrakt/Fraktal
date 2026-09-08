@@ -548,9 +548,13 @@ a back door proves the back door works.
 The AB binding has **R0–R6 all recording PASS and Phase 4 in progress**: the
 runtime base exists in its generated form and the press demo emitted from it
 runs on the bench. **One committed declaration is the source; the L5X is
-output. Hand-authored L5X is forbidden — regenerate, never edit.** Module AOIs
-are generated **per application**; the reusable library is Phase 6, and the
-gateway adapter and generic HMI are unbuilt. R6 passes for the declared
+output. Hand-authored L5X is forbidden — regenerate, never edit.** The press
+demo now publishes a generated **manifest**, so a client discovers the station
+from the controller; it describes the declared graph **once, rendition-agnostic**
+— the ST/SFC/LD selector is a harness input and is excluded from the published
+contract by construction, so never add one to it. Module AOIs are generated
+**per application**; the reusable library is Phase 6, and the gateway adapter and
+generic HMI are unbuilt. R6 passes for the declared
 **read-only** claim only; S15 is narrowed (Studio Verify needs a logged-in
 desktop, download is deliberately not automated); and S5's CI path is the named
 isolated bench with an authorized **manual** deployment step, not zero-touch CI.
