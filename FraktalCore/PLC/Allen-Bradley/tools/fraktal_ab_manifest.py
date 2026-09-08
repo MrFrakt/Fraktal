@@ -531,8 +531,17 @@ def evidence(app: decl.Application) -> dict[str, object]:
         "Tables": {t.name: {"rows": len(rows[t.name]), "capacity": t.capacity}
                    for t in tables(app)},
         "Truncated": any(len(rows[t.name]) > t.capacity for t in tables(app)),
-        "EstimatedBytes": sum(
-            t.capacity * sum((key_string_length(app) + 4) if dt == KEY32 else 4
-                             for _, dt in t.members)
-            for t in tables(app)),
+        # The whole manifest a client would read, header included - the tables
+        # alone would understate what it costs to discover the station.
+        "EstimatedBytes": estimated_bytes(app),
     }
+
+
+def estimated_bytes(app: decl.Application) -> int:
+    """Every byte a client reads to take the manifest, at declared capacity."""
+    width = key_string_length(app)
+    total = len(HEADER_SCALARS) * 4 + 2 * (width + 4) + 2 * 4 * len(tables(app))
+    for table in tables(app):
+        total += table.capacity * sum(
+            (width + 4) if dt == KEY32 else 4 for _, dt in table.members)
+    return total

@@ -164,10 +164,33 @@ that is now taken literally:
 ContentHash     42334AD69FD1A3AB
 ConfigRevision  4338506
 KeyLength       48
-EstimatedBytes  21904
+EstimatedBytes  22112
 Valid           1
 Truncated       0
 ```
+
+Against S7's measured budget, at the published `KeyLength` of 48:
+
+| tag | row bytes | rows | bytes |
+|---|---|---|---|
+| `FRK_Press_MfHeader` | | | 208 |
+| `FRK_Press_MfRoots` | 20 | 4 | 80 |
+| `FRK_Press_MfModules` | 40 | 16 | 640 |
+| `FRK_Press_MfNameplates` | 36 | 16 | 576 |
+| `FRK_Press_MfFields` | 32 | 192 | 6,144 |
+| `FRK_Press_MfOperations` | 32 | 32 | 1,024 |
+| `FRK_Press_MfLocalization` | 56 | 224 | 12,544 |
+| `FRK_Press_MfRationalization` | 24 | 32 | 768 |
+| `FRK_Press_MfOptionalProfiles` | 16 | 8 | 128 |
+| **total** | | | **22,112** |
+
+That is half the 43,728-byte manifest S7 read completely and coherently in
+293 ms at a 500-byte connection, so this manifest sits inside a budget already
+measured on this target rather than one assumed for it. The largest single tag
+is `MfLocalization` at 12,544 bytes, which needs fragmented reads at every
+connection size S7 measured — the same read shape S7 already made normative.
+**None of this is a runtime measurement:** it is arithmetic over the published
+capacities, and the actual read stays owed until a download is authorized.
 
 `Nameplates` and `OptionalProfiles` are empty because this application declares
 none. They are published as zero rows rather than as zero-filled rows pretending
