@@ -156,7 +156,14 @@ def import_and_roundtrip(
 
 
 def string_payloads(text: str) -> list[str]:
-    """Every ASCII string payload in an L5X, in order."""
+    """Every ASCII string payload in an L5X, in order, as its content.
+
+    The generator writes a Logix string quoted - the empty one included, as
+    ``''`` - and Studio exports an empty string as no content at all. Both say
+    the same thing, so the quoting is stripped here: this stage is about whether
+    the *content* survived, and counting a quote pair as content would fail a
+    project over eighteen unused capacity slots.
+    """
     lines = text.split("\n")
     found = []
     for index, line in enumerate(lines[:-1]):
@@ -164,6 +171,8 @@ def string_payloads(text: str) -> list[str]:
             payload = lines[index + 1].strip()
             if payload.startswith("<![CDATA[") and payload.endswith("]]>"):
                 payload = payload[len("<![CDATA["):-len("]]>")]
+            if len(payload) >= 2 and payload[0] == "'" and payload[-1] == "'":
+                payload = payload[1:-1]
             found.append(payload)
     return found
 

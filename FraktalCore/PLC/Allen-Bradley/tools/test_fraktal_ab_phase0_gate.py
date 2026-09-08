@@ -39,7 +39,7 @@ def run(source_text, exported_text):
 class StringPayloadTests(unittest.TestCase):
     def test_it_unwraps_the_cdata(self):
         self.assertEqual(gate.string_payloads(project("'a'", "'b'")),
-                         ["'a'", "'b'"])
+                         ["a", "b"])
 
     def test_an_empty_payload_is_reported_as_empty(self):
         self.assertEqual(gate.string_payloads(project("")), [""])
@@ -50,6 +50,26 @@ class StringPayloadTests(unittest.TestCase):
     def test_a_trailing_ascii_member_cannot_read_past_the_end(self):
         text = '<DataValueMember Name="DATA" DataType="K" Radix="ASCII">'
         self.assertEqual(gate.string_payloads(text), [])
+
+
+class QuotingTests(unittest.TestCase):
+    """A Logix string is quoted; an exported empty one is not. Both are content."""
+
+    def test_the_quotes_are_not_counted_as_content(self):
+        self.assertEqual(gate.string_payloads(project("'a'")), ["a"])
+
+    def test_a_quoted_empty_string_is_empty(self):
+        # The recorded false failure: unused capacity slots emit as '' and come
+        # back as nothing at all. Counting the quote pair failed a clean project.
+        self.assertEqual(gate.string_payloads(project("''")), [""])
+
+    def test_a_quoted_empty_string_matches_an_exported_empty_one(self):
+        stage = run(project("'real'", "''"), project("'real'", ""))
+        self.assertTrue(stage.passed, stage.detail)
+        self.assertEqual(stage.detail["emittedNonEmpty"], 1)
+
+    def test_escapes_are_left_alone(self):
+        self.assertEqual(gate.string_payloads(project("'a$$b'")), ["a$$b"])
 
 
 class StringReadbackTests(unittest.TestCase):
@@ -65,17 +85,17 @@ class StringReadbackTests(unittest.TestCase):
         stage = run(project("'one'", "'two'"), project("", ""))
         self.assertFalse(stage.passed)
         self.assertEqual(stage.detail["survivedNonEmpty"], 0)
-        self.assertEqual(stage.detail["lost"], ["'one'", "'two'"])
+        self.assertEqual(stage.detail["lost"], ["one", "two"])
 
     def test_it_fails_when_one_string_is_dropped(self):
         stage = run(project("'one'", "'two'"), project("'one'", ""))
         self.assertFalse(stage.passed)
-        self.assertIn("'two'", stage.detail["lost"])
+        self.assertIn("two", stage.detail["lost"])
 
     def test_it_fails_when_a_string_comes_back_changed(self):
         stage = run(project("'one'"), project("'on'"))
         self.assertFalse(stage.passed)
-        self.assertEqual(stage.detail["lost"], ["'one'"])
+        self.assertEqual(stage.detail["lost"], ["one"])
 
     def test_a_project_with_no_strings_passes_without_claiming_anything(self):
         stage = run("<RSLogix5000Content/>", "<RSLogix5000Content/>")
