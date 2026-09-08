@@ -14,6 +14,11 @@ controller. That needs a download, no download was authorized for this build,
 and none was performed — so this record claims a correct manifest *in the
 project*, and the discovery read stays owed.
 
+> **Closed 2026-09-08.** That read is now done: ten requests, 91 ms, every
+> published row equal to the declaration, on the bench controller. See
+> [`AB_MANIFEST_CONTROLLER_READ_2026-09-08.md`](AB_MANIFEST_CONTROLLER_READ_2026-09-08.md).
+> This record stands as written; the pointer is the only addition.
+
 **Date:** 2026-09-07
 
 **Repository revision:** the series beginning `ce373c8`. The recorded gate run

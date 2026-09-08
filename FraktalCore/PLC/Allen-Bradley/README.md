@@ -358,6 +358,16 @@ Pre-gate tooling:
   stores an ASCII string only when it is quoted and `$`-escaped, and a key that
   does not fit the published string fails the build instead of being truncated
   into a name it shares with another path.
+- [`tools/fraktal_ab_manifest_read.py`](tools/fraktal_ab_manifest_read.py) reads
+  the manifest back off a controller and requires every published row to equal
+  the declaration it was generated from. It is read-only by construction - there
+  is no write path in the file - and its serial guard is required rather than
+  optional. It reads array tags with an explicit element count, because an array
+  read without one returns row zero and **succeeds**: the first bench run took
+  the manifest apart in 526 requests and 1.5 seconds before that was noticed,
+  and it was a defect here, not a controller limit. The run records which path
+  each table took, so a fallback announces itself rather than costing 500 quiet
+  requests.
 - [`tools/fraktal_ab_press_demo.py`](tools/fraktal_ab_press_demo.py) is the press
   demo declaration - the first application, mirroring the TwinCAT oracle's
   observable behaviour with a simulated plant in tags and no control power.

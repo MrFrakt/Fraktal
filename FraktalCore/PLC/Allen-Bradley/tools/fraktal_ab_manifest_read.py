@@ -99,10 +99,17 @@ def header_bytes() -> int:
     return sum(member_bytes(dt) for _, dt in header_layout())
 
 
-def _read_raw(comm: Any, tag: str) -> tuple[bytes | None, str, float]:
-    """One read, returning the raw payload, the CIP status and the elapsed ms."""
+def _read_raw(comm: Any, tag: str,
+              count: int | None = None) -> tuple[bytes | None, str, float]:
+    """One read, returning the raw payload, the CIP status and the elapsed ms.
+
+    An array tag needs its element count. Asking for an array without one
+    returns element zero and succeeds, which reads like a short reply rather
+    than like the wrong question - so the count is passed explicitly wherever
+    the tag is an array, and never inferred from the size that came back.
+    """
     started = time.perf_counter()
-    reply = comm.Read(tag)
+    reply = comm.Read(tag) if count is None else comm.Read(tag, count)
     elapsed = (time.perf_counter() - started) * 1000.0
     if not _success(reply):
         return None, _status(reply), elapsed
@@ -113,15 +120,18 @@ def _read_raw(comm: Any, tag: str) -> tuple[bytes | None, str, float]:
 
 
 def read_table(comm: Any, table: manifest.Table) -> dict[str, Any]:
-    """A whole table, preferring one request and falling back to per element.
+    """A whole table in one request, falling back to per element if that fails.
 
-    A 224-row table is larger than a single unfragmented reply, so which path
-    the controller actually serves is a measurement, not an assumption - the
-    result records which one was used rather than implying the fast one.
+    The fallback is not decoration. The first bench run took the whole manifest
+    element by element - 526 requests and 1.5 seconds - because the array read
+    was issued without an element count and came back holding row zero. That
+    looked exactly like a controller that would not serve a whole array, and it
+    was a harness defect. So the path taken is recorded rather than assumed, and
+    a run that falls back says so instead of quietly costing 500 requests.
     """
     tag = manifest.manifest_tag(APP, table)
     width = row_bytes(table)
-    payload, status, elapsed = _read_raw(comm, tag)
+    payload, status, elapsed = _read_raw(comm, tag, table.capacity)
 
     if payload is not None and len(payload) >= width * table.capacity:
         rows = [decode_row(table, payload, index * width)
