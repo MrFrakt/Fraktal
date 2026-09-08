@@ -285,6 +285,49 @@ class HashTests(unittest.TestCase):
         self.assertNotEqual(manifest.config_revision(changed),
                             manifest.config_revision(app))
 
+    def test_the_config_revision_is_not_ordered(self):
+        # It is derived from the content hash, so a later revision can be
+        # numerically smaller. A client that caches "the highest revision seen"
+        # would silently miss a change; this pins the fact so nobody writes one.
+        app = demo.application()
+        base = manifest.config_revision(app)
+        smaller = [
+            manifest.config_revision(
+                dataclasses.replace(app, reasons=dict(app.reasons,
+                                                      **{f"EXTRA_{n}": 6200 + n})))
+            for n in range(12)
+        ]
+        self.assertTrue(any(value < base for value in smaller),
+                        "no smaller revision found; the claim needs rechecking")
+
+
+class KeyIdentityTests(unittest.TestCase):
+    """The portable string is the identity; the number is a per-revision index."""
+
+    def numeric_keys(self, app):
+        return {row["PortableKey"]: row["NumericKey"]
+                for row in manifest.content(app)["Localization"]}
+
+    def test_the_same_declaration_assigns_the_same_numbers(self):
+        self.assertEqual(self.numeric_keys(demo.application()),
+                         self.numeric_keys(demo.application()))
+
+    def test_a_changed_declaration_may_renumber_an_unchanged_name(self):
+        # Keys are assigned in first-encounter order, so inserting a module
+        # renumbers everything discovered after it. A client must resolve names
+        # through the Localization table it read with the tables it is reading.
+        app = demo.application()
+        moved = dataclasses.replace(app, modules=tuple(reversed(app.modules)))
+        before, after = self.numeric_keys(app), self.numeric_keys(moved)
+        shared = set(before) & set(after)
+        self.assertTrue(shared)
+        self.assertTrue(any(before[name] != after[name] for name in shared),
+                        "reordering the declaration renumbered nothing")
+
+    def test_every_numeric_key_resolves_to_exactly_one_name(self):
+        keys = self.numeric_keys(demo.application())
+        self.assertEqual(len(set(keys.values())), len(keys))
+
 
 class ProjectEmissionTests(unittest.TestCase):
     """The manifest has to survive the generator, not only its own module."""

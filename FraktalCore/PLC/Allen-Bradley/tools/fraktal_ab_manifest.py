@@ -146,11 +146,17 @@ def tables(app: decl.Application) -> tuple[Table, ...]:
 # --- the localization catalogue ---------------------------------------------
 
 class Keys:
-    """Stable numeric key to portable string key.
+    """Numeric key to portable string key, assigned in first-encounter order.
 
     Numeric keys are what the manifest tables carry; the portable key is what an
     HMI resolves against its own string catalogue. Assigning them here, from the
     declaration, is what keeps the two in step.
+
+    **A numeric key is meaningful only within one manifest revision.** Adding a
+    module renumbers everything discovered after it, so a client resolves names
+    through the Localization table it read *with* the tables it is reading, and
+    never caches a numeric key across a `ConfigRevision` change. The portable
+    string is the stable identity; the number is a per-revision index into it.
     """
 
     def __init__(self) -> None:
@@ -327,7 +333,15 @@ def content_hash(app: decl.Application) -> str:
 
 
 def config_revision(app: decl.Application) -> int:
-    """Monotonic in the published content: a client re-reads when it moves."""
+    """Changes whenever the published content changes. **Not ordered.**
+
+    It is derived from the content hash, so a later revision may be numerically
+    smaller than an earlier one. Compare it for *inequality* only: the S7
+    coherence protocol reads it, reads every table, reads it again and accepts
+    the snapshot only if it did not change, which needs difference and never
+    ordering. A client that caches "the highest revision seen" would silently
+    miss a change, so do not write one.
+    """
     return int(content_hash(app)[:6], 16)
 
 

@@ -16,8 +16,10 @@ project*, and the discovery read stays owed.
 
 **Date:** 2026-09-07
 
-**Repository revision:** `ce373c8`, with the read-back stage corrected in
-`bc95017`
+**Repository revision:** the series beginning `ce373c8`. The recorded gate run
+is from a clean checkout at `bc95017`; every commit after it changes comments,
+documentation or the size *estimate* only — the emitted L5X is byte-identical
+(`F7A5D752…` from the standalone seed, before and after).
 
 **Scope:** offline generation, SDK import, canonical round trip and Studio
 Verify only. **No download was requested or performed for this build.** The
@@ -205,7 +207,28 @@ exempts exactly those two names, by exact name — renaming them to slip past a
 substring check would have put the manifest out of step with the frozen schema
 in order to keep a fence quiet.
 
-## 6. One typed exception, stated
+## 6. Two things a gateway must not assume
+
+Both were written into this module as guarantees it does not actually keep, and
+both are now stated in the code and pinned by tests — because the gateway is
+about to be written against exactly these words.
+
+**`ConfigRevision` is not ordered.** It is derived from the content hash, so a
+later revision can be numerically smaller than an earlier one: adding one reason
+to the press demo moves it from `4338506` to `12600`. This is sound for the
+coherence protocol S7 made normative — read the revision, read every table, read
+it again, accept only if it did not change — because that needs difference and
+never ordering. It is *not* sound for a client that caches "the highest revision
+seen", which would silently miss a change. Compare for inequality only.
+
+**A numeric localization key is meaningful only within one revision.** Keys are
+assigned in first-encounter order, so inserting or reordering a module renumbers
+everything discovered after it. The portable string is the stable identity; the
+number is a per-revision index into it. A client resolves names through the
+Localization table it read *with* the tables it is reading, and never caches a
+number across a revision change.
+
+## 7. One typed exception, stated
 
 The all-DINT contract rule has exactly one exception, and it is a shape Logix
 dictates rather than a type anyone chose: a `StringFamily` UDT is `LEN` (DINT)
@@ -215,7 +238,7 @@ members must be exactly `LEN`/`DATA`, exactly DINT/SINT, and exactly one such
 type may exist in the project. **No BOOL member is introduced anywhere**; the
 recorded S12 hole stays closed, and `BoolMembersInPublicUdt` is still 0.
 
-## 7. Verification
+## 8. Verification
 
 | check | result |
 |---|---|
@@ -225,7 +248,48 @@ recorded S12 hole stays closed, and `BoolMembersInPublicUdt` is still 0.
 | read-back, longest key | `project.reason.two_hand_released.consequence` intact at 44 characters |
 | read-back, string width | `DATA` `SINT` `Dimension="48"` |
 | manifest tag access | every manifest tag `ExternalAccess="Read Only"` |
-| test suite | 398 tests, up from 346 |
+| test suite | 402 tests, up from 346 |
+| full gate, clean checkout | 42 stages, 0 failures |
+
+### The full gate, from a clean checkout
+
+Cloned at `bc95017`, offline probe rebuilt from source, seed created by the
+probe (`609B7F7A2F6C805E3E7DA83617F4D91804F34068658FA214F917B9B6D0F7FF08`):
+
+**42 stages, 0 failures.** Ten fixtures generated, imported `0/0`, round-tripped
+canonically, census-compared and Studio-verified:
+
+| project | Verify |
+|---|---|
+| s1, s2, s11, s12, s4matrix | 0 errors, 0 warnings |
+| s7manifest, s9coherence, s16, reference | 0 errors, 0 warnings |
+| **pressdemo** (manifest-carrying) | **0 errors, 0 warnings**, 0 of 12 messages |
+
+For the press demo specifically:
+
+```
+generated            53F8459439AA3FEEDFBCEE6E4D37C7BE381006869A02A5F1B8B576BCE7B89EDF
+import               Warnings 0, Errors 0
+canonical round trip true   (24ECD51B73422D51824242C44CC943C882A233188B018F615B84EF76098423CA)
+construct census     true   14 DataTypes, 4 AOIs, 40 controller tags, 1 program, 1 task
+chart comparison     true   FRK_PressProgram/FRK_PressAutoSfc
+string read-back     208 emitted, 208 survived, none lost
+```
+
+The generated hash differs from `press11` above because the gate creates its own
+seed; regenerating from the standalone seed still produces `F7A5D752…`.
+
+**One stage failed on the first attempt and it was not a verification result.**
+`s4matrix:verify` came back failed because the harness threw from `AppActivate`
+— Studio's window was momentarily absent — and the exception aborted the stage.
+Re-run alone, `s4matrix` verifies `0/0`. Rather than leave a flake that reports
+itself as a Verify failure, the harness now retries activation, **sends no
+keystrokes at all** when Studio will not come forward (keys aimed at whatever
+window does hold focus are worse than a missed attempt), and raises "Verify was
+not run", which is a different claim from "Verify produced no summary". The gate
+run recorded above is the one taken after that fix, and it needed no re-runs.
+
+### The read-back is a gate stage
 
 The read-back is now a gate stage rather than a one-time check.
 `fraktal_ab_phase0_gate.string_readback` counts the non-empty ASCII strings the
@@ -234,7 +298,7 @@ project, for **every** fixture — not only the press demo. Its own tests includ
 the recorded failure: emitted with content, read back blank, stage fails and
 names what was lost.
 
-## 8. Deferrals still standing
+## 9. Deferrals still standing
 
 Publishing the manifest does not close what Phase 4 recorded as owed: the
 registry, the event core, release/access enforcement and the provider seam. The
