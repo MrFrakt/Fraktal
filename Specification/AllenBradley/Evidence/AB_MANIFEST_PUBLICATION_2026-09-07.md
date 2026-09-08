@@ -2,18 +2,22 @@
 
 **Spike:** S7 manifest — moving it from a measured shape to published content
 
-**Result:** **The press demo now carries a controller-resident manifest emitted
-from the same declaration as its AOIs, and a client can discover the station
-from the controller alone.** The first two builds published a manifest that was
-wrong in two different ways, and neither way announced itself: one imported with
-a warning and stored nothing at all, the other would have published two
-different paths under one name. Both are fixed, both are pinned by tests, and
-the read-back proves the content is in the project rather than merely accepted
-by it.
+**Result:** **The press demo project now carries a manifest emitted from the same
+declaration as its AOIs, verified offline and proved to be stored rather than
+merely accepted.** The first two builds published a manifest that was wrong in
+two different ways, and neither way announced itself: one imported with warnings
+and stored nothing at all, the other would have published two different paths
+under one name. Both are fixed and both are pinned by tests.
+
+**What is not claimed here.** The manifest has not been read from a running
+controller. That needs a download, no download was authorized for this build,
+and none was performed — so this record claims a correct manifest *in the
+project*, and the discovery read stays owed.
 
 **Date:** 2026-09-07
 
-**Repository revision:** `eb38243` plus the manifest work recorded here
+**Repository revision:** `ce373c8`, with the read-back stage corrected in
+`bc95017`
 
 **Scope:** offline generation, SDK import, canonical round trip and Studio
 Verify only. **No download was requested or performed for this build.** The
@@ -57,6 +61,16 @@ declaring AUTO as `(ST,)` and as `(ST, SFC, LD)` produces **the identical
 manifest, byte for byte, with the same ContentHash**. A manifest that changed
 when a rendition was added would be describing an emission instead of a
 declaration.
+
+**What is published is the chart surface, not a step table.** The graph reaches
+a client as the Core §3.13 marks — step cursor, active step, per-step visited
+and duration, stall reason — which is how the TC3 HMI renders one chart whatever
+rendition ran: from the marks, not from a static topology. The declared step and
+transition lists are **not** a manifest table, because the frozen v1 schema has
+eight tables and none of them is a graph. A client therefore reconstructs the
+chart at runtime rather than reading the topology up front. That is a limitation
+of the frozen schema; it is recorded here rather than worked around by inventing
+a ninth table.
 
 ## 3. First defect: a manifest that imported and stored nothing
 

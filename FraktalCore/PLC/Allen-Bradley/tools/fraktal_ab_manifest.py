@@ -13,12 +13,20 @@ That is exactly why it is emitted here from the same `Application` the AOIs come
 from, and why a mismatch is a generator bug rather than a maintenance task.
 
 **It describes the declared graph once, rendition-agnostic.** A chain carried in
-several languages has one graph; each rendition is an emission of it. The
-manifest therefore publishes steps, transitions and named conditions and says
-nothing about which language rendered them, and nothing that would let a client
-select one - the same way the TC3 HMI sees one chart whichever rendition ran.
-The rendition selector and a rendition's implementation tags are excluded by
-construction, through ``publishable_tags``.
+several languages has one graph; each rendition is an emission of it. What the
+manifest publishes is the *chart surface* that graph is observed through - the
+step cursor, the active step, the per-step visited and duration marks, the stall
+reason (Core §3.13) - and it says nothing about which language rendered them,
+and nothing that would let a client select one. This is the same way the TC3 HMI
+sees one chart whichever rendition ran: it renders from the marks, not from a
+static step list. The rendition selector and a rendition's implementation tags
+are excluded by construction, through ``publishable_tags``.
+
+Note what this does *not* do: the declared step and transition lists are not a
+manifest table. The frozen v1 schema has eight tables and none of them is a
+graph, so a client reconstructs the chart from the marks at runtime rather than
+reading the topology up front. That is a limitation of the frozen schema, not an
+omission here, and it is recorded rather than worked around.
 
 The logical schema is the frozen v1 contract in ``AB_FROZEN_CONTRACTS_V1.json``
 and the table shape S7 measured: eight tables behind ``FRK_MAX_*`` capacities,
