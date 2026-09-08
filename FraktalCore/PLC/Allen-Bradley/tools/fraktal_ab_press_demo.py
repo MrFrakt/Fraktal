@@ -56,7 +56,12 @@ REASONS = {
     "SLIDE_FAULT": 6133,
 }
 
-MODE_MANUAL, MODE_AUTO, MODE_HOME = 0, 1, 2
+# Core E_Mode, and not a local choice: AUTO := 0, MANUAL := 1, HOME := 2. These
+# were declared MANUAL=0, AUTO=1 until 2026-09-08, which put every published
+# Mode and ModeRequest value one place out from the contract the HMI resolves
+# against - an operator screen would have rendered MANUAL as AUTO. Ordinals are
+# the contract; see the cross-binding test that reads E_Mode.TcDUT directly.
+MODE_AUTO, MODE_MANUAL, MODE_HOME = 0, 1, 2
 
 DECISION_PRESS_NOT_REACHED = 1
 
