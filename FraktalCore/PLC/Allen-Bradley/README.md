@@ -368,6 +368,16 @@ Pre-gate tooling:
   and it was a defect here, not a controller limit. The run records which path
   each table took, so a fallback announces itself rather than costing 500 quiet
   requests.
+- [`tools/fraktal_ab_projection.py`](tools/fraktal_ab_projection.py) projects a
+  controller into the **transport-neutral snapshot document the HMI's mapper
+  already consumes** - a flat `{browsePath: value}` map in which a module is
+  anything publishing `Status/Name` and `Status/ModuleType`, with parentage from
+  the dotted identity. The generic HMI therefore needs no AB screens and no AB
+  repository. It is fail-closed on Core 3.10 grounds: an invalid, truncated or
+  disagreeing manifest refuses the whole projection, because a half-drawn plant
+  is a worse answer than a refusal. What this binding cannot publish is listed in
+  `absent` with a reason rather than left out, since the mapper coerces a missing
+  key into a default and silence would render as data.
 - [`tools/fraktal_ab_press_demo.py`](tools/fraktal_ab_press_demo.py) is the press
   demo declaration - the first application, mirroring the TwinCAT oracle's
   observable behaviour with a simulated plant in tags and no control power.
