@@ -1497,6 +1497,17 @@ operator command is refused at the gateway before the controller sees it, and
 the deployment states the restriction. On a strictly segregated line this is a
 proportionate posture, because no write surface is exposed to authenticate.
 
+**This gateway now exists and has been proved read-only against the bench
+controller.** [`tools/fraktal_ab_gateway.py`](../FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_gateway.py)
+serves the projection over the HMI's `fraktal.opcua.gateway.v1` protocol and,
+configured with no write root, refuses `write`/`writeBatch` with a clear reason
+before the controller. Through that gateway the unmodified generic HMI renders
+the live press — the root Unit and its three control modules, with modes, states,
+step and counts — over the same production code path the desktop app uses, and
+the write refusal was exercised and seen to degrade the HMI rather than command
+the machine. Evidence:
+[`AB_HMI_GATEWAY_2026-09-21.md`](AllenBradley/Evidence/AB_HMI_GATEWAY_2026-09-21.md).
+
 **Enabling writes re-arms the full requirement.** Writes are switched on at the
 gateway, not by regenerating or downloading controller code — the generated
 allow-list already gives root mailboxes read/write and everything else read-only

@@ -80,6 +80,10 @@ class ProjectionRefused(Exception):
     """Discovery failed its own validity check, so nothing is projected."""
 
 
+class ReadFailed(Exception):
+    """A controller read returned nothing, so there is no state to project."""
+
+
 def validate(header: dict[str, Any]) -> None:
     """Core §3.10: partial discovery is not a degraded conformance mode."""
     reasons: list[str] = []
@@ -205,6 +209,52 @@ def project(header: dict[str, Any], rows: dict[str, Any],
     }
 
 
+def verify_serial(comm: Any, expected: str) -> tuple[str, bool]:
+    """The controller's serial, and whether it is the one we were told to read.
+
+    Read-only: the same ``GetDeviceProperties`` identity read the S1 tools use.
+    A gateway pins one controller and checks before it trusts a manifest, whose
+    ContentHash is identical across builds and cannot by itself tell two
+    controllers apart.
+    """
+    from fraktal_ab_s16_execute import _normalize_serial, _status, _value
+
+    identity = comm.GetDeviceProperties()
+    device = _value(identity)
+    if device is None:
+        raise ReadFailed(f"identity read failed: {_status(identity)}")
+    serial = _normalize_serial(getattr(device, "SerialNumber", 0))
+    return serial, serial == _normalize_serial(expected)
+
+
+def read_document(comm: Any) -> dict[str, Any]:
+    """Read the live station off an open controller and project it. Read-only.
+
+    The imports are deferred so the pure ``project`` stays importable without
+    pylogix or the reader/execute tools - the projection unit test relies on
+    that - while this stays the single source of the live-read sequence, shared
+    by the CLI below and by the gateway.
+    """
+    import fraktal_ab_manifest_read as reader
+    import fraktal_ab_press_execute as execute
+
+    payload, status, _ = reader._read_raw(comm, manifest.header_tag(APP))
+    if payload is None:
+        raise ReadFailed(f"manifest header did not read: {status}")
+    header = reader.decode_header(payload)
+    rows = {table.name: reader.read_table(comm, table)["rows"]
+            for table in manifest.tables(APP)}
+    rows = {name: read[:header[f"{name}Count"]] for name, read in rows.items()}
+
+    unit = execute.read_unit(comm)
+    chart = execute.read_chart(comm)
+    contexts = {m.name: execute.read_module(comm, m.name) for m in APP.modules}
+    if unit is None or any(c is None for c in contexts.values()):
+        raise ReadFailed("a live context did not read; refusing to project")
+
+    return project(header, rows, unit, contexts, chart)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", help="controller IPv4 address or path")
@@ -212,50 +262,33 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--slot", type=int, default=0)
     args = parser.parse_args(argv)
 
-    import fraktal_ab_manifest_read as reader
-    import fraktal_ab_press_execute as execute
     from pylogix import PLC
 
-    from fraktal_ab_s16_execute import _normalize_serial, _status, _value
+    from fraktal_ab_s16_execute import _normalize_serial
 
-    expected = _normalize_serial(args.expect_serial)
     with PLC() as comm:
         comm.IPAddress = args.target
         comm.ProcessorSlot = args.slot
-        identity = comm.GetDeviceProperties()
-        device = _value(identity)
-        if device is None:
-            print(f"identity read failed: {_status(identity)}", file=sys.stderr)
+        try:
+            serial, ok = verify_serial(comm, args.expect_serial)
+        except ReadFailed as failure:
+            print(str(failure), file=sys.stderr)
             return 2
-        serial = _normalize_serial(getattr(device, "SerialNumber", 0))
-        if serial != expected:
-            print(f"serial {serial} is not the expected {expected}; refusing",
+        if not ok:
+            print(f"serial {serial} is not the expected "
+                  f"{_normalize_serial(args.expect_serial)}; refusing",
                   file=sys.stderr)
             return 2
 
-        payload, status, _ = reader._read_raw(comm, manifest.header_tag(APP))
-        if payload is None:
-            print(f"manifest header: {status}", file=sys.stderr)
+        try:
+            document = read_document(comm)
+        except ReadFailed as failure:
+            print(str(failure), file=sys.stderr)
             return 2
-        header = reader.decode_header(payload)
-        rows = {table.name: reader.read_table(comm, table)["rows"]
-                for table in manifest.tables(APP)}
-        rows = {name: read[:header[f"{name}Count"]] for name, read in rows.items()}
-
-        unit = execute.read_unit(comm)
-        chart = execute.read_chart(comm)
-        contexts = {m.name: execute.read_module(comm, m.name) for m in APP.modules}
-        if unit is None or any(c is None for c in contexts.values()):
-            print("a live context did not read; refusing to project",
-                  file=sys.stderr)
-            return 2
-
-    try:
-        document = project(header, rows, unit, contexts, chart)
-    except ProjectionRefused as refusal:
-        print(json.dumps({"schema": SCHEMA, "projected": False,
-                          "reason": str(refusal)}, indent=2))
-        return 1
+        except ProjectionRefused as refusal:
+            print(json.dumps({"schema": SCHEMA, "projected": False,
+                              "reason": str(refusal)}, indent=2))
+            return 1
 
     print(json.dumps(document, indent=2, sort_keys=True))
     return 0

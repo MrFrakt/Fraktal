@@ -378,6 +378,17 @@ Pre-gate tooling:
   is a worse answer than a refusal. What this binding cannot publish is listed in
   `absent` with a reason rather than left out, since the mapper coerces a missing
   key into a default and silence would render as data.
+- [`tools/fraktal_ab_gateway.py`](tools/fraktal_ab_gateway.py) serves that
+  projection to the generic HMI over the `fraktal.opcua.gateway.v1` WebSocket
+  protocol the HMI already speaks, so it renders a live AB controller with no AB
+  screens and no AB repository. It is **read-only**: configured with no write
+  root, it refuses `write`/`writeBatch` before the controller (§11.2.1), binds
+  loopback only, checks the Origin, and holds the discovery revision stable. It
+  reuses the projection's shared `read_document`, pins the controller serial and
+  re-validates the manifest hash on every poll. Its dependencies are pinned in
+  [`tools/requirements-gateway.txt`](tools/requirements-gateway.txt); the live
+  HMI run is recorded in
+  [`../../../Specification/AllenBradley/Evidence/AB_HMI_GATEWAY_2026-09-21.md`](../../../Specification/AllenBradley/Evidence/AB_HMI_GATEWAY_2026-09-21.md).
 - [`tools/fraktal_ab_press_demo.py`](tools/fraktal_ab_press_demo.py) is the press
   demo declaration - the first application, mirroring the TwinCAT oracle's
   observable behaviour with a simulated plant in tags and no control power.
