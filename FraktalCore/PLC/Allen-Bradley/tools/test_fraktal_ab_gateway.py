@@ -391,6 +391,25 @@ class WriteValidationTests(unittest.TestCase):
                  "value": 1}]})
 
 
+class WriteTokenSourceTests(unittest.TestCase):
+    """Core §14.2/§14.3: the secret comes from the environment, not from argv."""
+
+    def test_the_environment_supplies_the_token(self):
+        self.assertEqual(
+            gw.resolve_write_token({gw.WRITE_TOKEN_ENV: "from-env"}, ""),
+            "from-env")
+
+    def test_the_environment_wins_over_a_command_line_token(self):
+        self.assertEqual(
+            gw.resolve_write_token({gw.WRITE_TOKEN_ENV: "from-env"}, "from-argv"),
+            "from-env")
+
+    def test_argv_still_works_and_absence_means_read_only(self):
+        self.assertEqual(gw.resolve_write_token({}, "from-argv"), "from-argv")
+        # The paired negative: neither source means no gate and no writer.
+        self.assertEqual(gw.resolve_write_token({}, ""), "")
+
+
 class WritePostureTests(unittest.TestCase):
     def _gw(self, **kw):
         station, _ = _station()
@@ -455,6 +474,47 @@ class WritePostureTests(unittest.TestCase):
             _run(g._write_batch(_authed(), batch(9)))
         self.assertIn("sequence", str(raised.exception).lower())
         self.assertTrue(_run(g._write_batch(_authed(), batch(6))))
+
+    def test_the_first_commit_is_judged_against_the_controller(self):
+        # A mailbox the controller has already answered up to 7: the next commit
+        # must be 8, and a replay of 7 - or anything else - is refused even
+        # though this gateway has committed nothing itself.
+        writes = _Writes()
+        station, _ = _station(
+            lambda: _doc(extra={"Press/HmiRequest/Sequence": 7}))
+        g = gw.Gateway(station, write_token="s3cret",
+                       allow_all_root_mailboxes=True, write_fn=writes)
+
+        def batch(seq):
+            return {"writes": [
+                {"path": "Press/HmiRequest/IntValue", "valueType": "int32",
+                 "value": 1},
+                {"path": "Press/HmiRequest/Sequence", "valueType": "uint32",
+                 "value": seq}]}
+
+        with self.assertRaises(gw.WriteRefused) as raised:
+            _run(g._write_batch(_authed(), batch(7)))  # a replay
+        self.assertIn("stale", str(raised.exception).lower())
+        self.assertEqual(writes.calls, [], "a replay must not reach the PLC")
+        # The paired positive: the sequence the controller is actually owed.
+        self.assertTrue(_run(g._write_batch(_authed(), batch(8))))
+
+    def test_a_committed_sequence_outranks_a_lagging_controller_read(self):
+        # After this gateway commits 8, a controller that has not yet scanned it
+        # still reads 7. Seeding must not walk the expectation backwards.
+        writes = _Writes()
+        station, _ = _station(
+            lambda: _doc(extra={"Press/HmiRequest/Sequence": 7}))
+        g = gw.Gateway(station, write_token="s3cret",
+                       allow_all_root_mailboxes=True, write_fn=writes)
+
+        def batch(seq):
+            return {"writes": [
+                {"path": "Press/HmiRequest/Sequence", "valueType": "uint32",
+                 "value": seq}]}
+
+        self.assertTrue(_run(g._write_batch(_authed(), batch(8))))
+        self.assertTrue(_run(g._write_batch(_authed(), batch(9))))
 
     def test_dispatch_wraps_an_anonymous_write_as_ok_false(self):
         g = self._gw(write_fn=_Writes())

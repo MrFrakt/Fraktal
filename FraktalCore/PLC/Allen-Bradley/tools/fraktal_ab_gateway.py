@@ -33,6 +33,7 @@ import ipaddress
 import json
 import logging
 import math
+import os
 import sys
 import time
 from typing import Any, Callable, Optional
@@ -49,6 +50,12 @@ DEFAULT_PORT = 8080
 # cyclic snapshot+readValues pair sees one consistent station state and the
 # controller is read about once per HMI cycle rather than once per method.
 CACHE_TTL_S = 0.25
+
+# Where the Core §14 write token is read from. An environment variable rather
+# than argv: a process listing is readable by any user on the host, and §14.2/
+# §14.3 keeps credentials out of literals. The HMI client is symmetric, taking
+# its bearer from FRAKTAL_GATEWAY_BEARER_TOKEN.
+WRITE_TOKEN_ENV = "FRAKTAL_GATEWAY_WRITE_TOKEN"
 
 # Write refusals. Read-only stays the default: writes are enabled only when a
 # write token is configured, and even then never anonymously (Core §14).
@@ -344,6 +351,17 @@ def permits_write(path: str, write_roots: frozenset[str] = frozenset(),
     return "/".join(parts[:mailbox]) in write_roots
 
 
+def resolve_write_token(environ: Any, argv_token: str) -> str:
+    """Where the Core §14 write token comes from, environment first.
+
+    §14.2/§14.3 keeps a credential out of literals, and argv is world-readable
+    in a process listing, so the environment wins over the flag rather than the
+    other way round: a host that configures the secret properly cannot have it
+    silently overridden by something left on a command line.
+    """
+    return environ.get(WRITE_TOKEN_ENV, "") or argv_token
+
+
 def _utcnow_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -616,6 +634,26 @@ class Gateway:
         if not state.authenticated:
             raise WriteRefused(ANON_WRITE_REFUSED)
 
+    def seed_sequences(self, doc: dict[str, Any]) -> None:
+        """Adopt the sequence the controller has already answered.
+
+        The reference server seeds the same way, and without it the first batch
+        after a gateway restart carries no expectation at all: any sequence
+        would be accepted, including one the controller has already consumed.
+        A client that replayed a stale commit would then re-run a command the
+        operator issued once. Seeding makes the guard mean something from the
+        first write rather than only from the second.
+
+        ``setdefault``, not assignment: once this gateway has committed a
+        sequence its own record is authoritative, and re-reading a controller
+        that has not yet scanned the write must not walk it backwards.
+        """
+        for path, value in doc.get("values", {}).items():
+            if (path.endswith("/HmiRequest/Sequence")
+                    and isinstance(value, int) and not isinstance(value, bool)):
+                self._mailbox_sequences.setdefault(
+                    path[: -len("/Sequence")], value)
+
     async def _write(self, state: _ConnState, params: dict[str, Any]) -> bool:
         self._guard_write(state)
         path, vtype, value = validate_write(params)
@@ -637,6 +675,10 @@ class Gateway:
             if not permits_write(path, self._write_roots,
                                  self._allow_all_root_mailboxes):
                 raise WriteRefused(WRITE_SCOPE_REFUSED)
+        # Seed from the controller before judging the sequence, so the very
+        # first commit is checked against what the machine has actually
+        # answered rather than against nothing.
+        self.seed_sequences(await self.station.document())
         previous = self._mailbox_sequences.get(mailbox)
         if previous is not None and sequence != ((previous + 1) & 0xFFFFFFFF):
             raise WriteRefused(
@@ -741,7 +783,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--write-token", default="",
                         help="enable the Core §14 write gate: a client must present "
                              "this as an Authorization: Bearer token. Anonymous "
-                             "writes are always refused. Read-only when unset.")
+                             "writes are always refused. Read-only when unset. "
+                             "Prefer " + WRITE_TOKEN_ENV + " in the environment: "
+                             "argv is world-readable in a process listing, and "
+                             "Core §14.2/§14.3 keeps a secret out of literals.")
     parser.add_argument("--write-root", action="append", default=[],
                         help="a root whose HmiRequest mailbox may be written; "
                              "repeatable. With --write-token and none given, all "
@@ -751,6 +796,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s")
+
+    # Core §14.2/§14.3: a credential is a configuration or secret-store value,
+    # never a literal. The environment is the supported way in - it keeps the
+    # token out of argv, which any user on the host can read from a process
+    # listing - and it is symmetric with the HMI client, which takes its bearer
+    # from FRAKTAL_GATEWAY_BEARER_TOKEN.
+    write_token = resolve_write_token(os.environ, args.write_token)
 
     if not _is_loopback_host(args.host):
         parser.error(
@@ -762,20 +814,21 @@ def main(argv: Optional[list[str]] = None) -> int:
     # every request has already passed the Core §14 bearer gate and
     # permits_write. Without a token there is no writer at all and the gateway
     # is read-only, which stays the default.
-    if args.write_token:
-        log.warning("stage=write-gate-enabled detail=Core §14 write gate is on "
-                    "(authenticated writes only); writes reach the root command "
-                    "mailbox and nothing else")
+    if write_token:
+        log.warning("stage=write-gate-enabled source=%s detail=Core §14 write "
+                    "gate is on (authenticated writes only); writes reach the "
+                    "root command mailbox and nothing else",
+                    WRITE_TOKEN_ENV if os.environ.get(WRITE_TOKEN_ENV) else "argv")
 
     station = Station(build_reader(args.target, args.slot, args.expect_serial))
     gateway = Gateway(
         station,
         allowed_origins=frozenset(_normalize_origin(o) for o in args.allow_origin),
-        write_token=args.write_token,
+        write_token=write_token,
         write_roots=frozenset(args.write_root),
-        allow_all_root_mailboxes=bool(args.write_token) and not args.write_root,
+        allow_all_root_mailboxes=bool(write_token) and not args.write_root,
         write_fn=(MailboxWriter(args.target, args.slot, args.expect_serial)
-                  if args.write_token else None))
+                  if write_token else None))
     try:
         asyncio.run(serve_gateway(gateway, args.host, args.port))
     except KeyboardInterrupt:
