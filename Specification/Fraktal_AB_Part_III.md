@@ -1434,8 +1434,16 @@ the environment rather than from `argv` (§14.2/§14.3). Where a workstation's
 endpoint-security product intercepts TLS — including on loopback — it re-signs
 the gateway's certificate with an untrusted root and no client-side trust
 configuration can repair that; the deployment has to exclude the port or trust
-the bench CA. That is a host decision, and it is the one narrowing on the
-command evidence above.
+the bench CA. That is a host decision, not a binding defect, and
+`tool/probe_gateway_tls.dart` distinguishes it from a misconfigured trust store
+by reporting the certificate actually offered.
+
+**The generic HMI itself now commands the press.** With that exception in place,
+the unmodified `OpcUaRepository` issued the six routed kinds over an
+authenticated `wss://` session and received the three refusals with their
+reasons, returning `false` to its caller for each — so an operator control
+cannot render success for a command the machine declined. Evidence:
+[`AB_HMI_COMMAND_2026-09-22.md`](AllenBradley/Evidence/AB_HMI_COMMAND_2026-09-22.md).
 
 **Availability, stated plainly.** On TC3 a native server lets any conforming
 client reach the controller; here the gateway is the only path for every client.
