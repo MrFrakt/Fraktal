@@ -88,6 +88,116 @@ class WriteRefused(ValueError):
 
 # --- pure protocol bookkeeping, testable without a socket or a controller ---
 
+# --- the controller write path -----------------------------------------------
+
+
+class MailboxWriter:
+    """Map an ``HmiRequest`` browse path to its controller tag and write it.
+
+    This is the only thing in the binding that writes to a controller, and it
+    writes to one place: the root Unit's command mailbox. Everything reaching it
+    has already passed the Core 14 bearer gate and ``permits_write``.
+
+    **Order is the contract.** ``validate_batch`` puts the ``Sequence`` commit
+    last and this preserves that, aborting the moment any payload write fails.
+    A commit written after a failed argument would run a command with a stale
+    argument - a mode change carrying the previous request's value - which is
+    exactly what a commit marker exists to prevent.
+
+    Strings are written as ``LEN`` plus ``DATA`` rather than through the
+    client's string handling, because these are user ``StringFamily`` types and
+    not the built-in ``STRING``. Every kind this binding routes takes no string
+    content, so the common path writes one length per string member.
+    """
+
+    def __init__(self, target, slot, expect_serial, app=None):
+        self._target = target
+        self._slot = slot
+        self._expect_serial = expect_serial
+        import fraktal_ab_projection as projection
+
+        self._app = app if app is not None else projection.APP
+
+    def tag_for(self, path):
+        """``Press/HmiRequest/Kind`` maps to ``FRK_Press_HmiRequest.Kind``."""
+        import fraktal_ab_mailbox as mailbox
+
+        parts = path.split("/")
+        if len(parts) < 3 or parts[-2] != "HmiRequest":
+            raise WriteRefused("not an HmiRequest member: " + path)
+        member = parts[-1]
+        declared = set(name for name, _, _, _ in mailbox.REQUEST_MEMBERS)
+        if member not in declared:
+            raise WriteRefused(member + " is not a declared mailbox member")
+        root = ".".join(parts[:-2])
+        if root != self._app.name:
+            raise WriteRefused(root + " is not this controller's root")
+        return mailbox.request_tag_name(self._app) + "." + member
+
+    def writes_for(self, tag, vtype, value):
+        """The controller writes that one browse-path write becomes."""
+        import fraktal_ab_mailbox as mailbox
+
+        member = tag.rsplit(".", 1)[-1]
+        kinds = dict((name, kind)
+                     for name, kind, _, _ in mailbox.REQUEST_MEMBERS)
+        if kinds[member] == mailbox.STRING_MEMBER:
+            text = "" if value is None else str(value)
+            width = dict((name, length)
+                         for name, _, length, _ in mailbox.REQUEST_MEMBERS)[member]
+            if len(text) > width:
+                raise WriteRefused(
+                    "%s holds %d characters, not %d" % (member, width, len(text)))
+            out = [(tag + ".LEN", len(text))]
+            if text:
+                out.append((tag + ".DATA", [ord(c) for c in text]))
+            return out
+        if vtype == "boolean":
+            return [(tag, 1 if value else 0)]
+        # Every scalar member is a DINT: v33 has no UDINT, and a BOOL member in
+        # a public UDT is the unmeasured S12 hole.
+        return [(tag, int(value))]
+
+    def __call__(self, writes, mailbox_path):
+        from pylogix import PLC
+
+        from fraktal_ab_s16_execute import _normalize_serial, _success, _value
+
+        planned = [(self.tag_for(path), vtype, value)
+                   for path, vtype, value in writes]
+
+        with PLC() as comm:
+            comm.IPAddress = self._target
+            comm.ProcessorSlot = self._slot
+            identity = comm.GetDeviceProperties()
+            device = _value(identity)
+            if device is None:
+                log.error("stage=write-refused detail=identity read failed")
+                return False
+            serial = _normalize_serial(getattr(device, "SerialNumber", 0))
+            if serial != self._expect_serial:
+                # An exact target check immediately before the write, every
+                # time. A command aimed at the wrong controller is not a failed
+                # test, it is an incident.
+                log.error("stage=write-refused detail=serial %s is not %s",
+                          serial, self._expect_serial)
+                return False
+
+            for index, item in enumerate(planned):
+                tag, vtype, value = item
+                for target, payload in self.writes_for(tag, vtype, value):
+                    reply = comm.Write(target, payload)
+                    if not _success(reply):
+                        log.error(
+                            "stage=write-aborted detail=%s failed before the "
+                            "commit (%s); no Sequence was written",
+                            target, getattr(reply, "Status", "unknown"))
+                        return False
+                log.info("stage=write-ok detail=%s (%d of %d)",
+                         tag, index + 1, len(planned))
+        return True
+
+
 def _is_loopback_host(host: str) -> bool:
     if host.lower() == "localhost":
         return True
@@ -647,14 +757,15 @@ def main(argv: Optional[list[str]] = None) -> int:
             "the gateway is loopback-only; put an authenticated TLS reverse "
             "proxy in front of it for remote access")
 
-    # The controller has no HmiRequest mailbox yet (manifest MailboxId 0), so
-    # write_fn stays unwired: an authenticated, in-scope write is refused as
-    # "not connected" rather than reaching the controller. Enabling the token
-    # here proves the §14 gate; connecting a write is the owed command binding.
+    # The root now publishes a command mailbox, so a write can reach it - and
+    # reaches nothing else: the writer maps only HmiRequest members to tags, and
+    # every request has already passed the Core §14 bearer gate and
+    # permits_write. Without a token there is no writer at all and the gateway
+    # is read-only, which stays the default.
     if args.write_token:
         log.warning("stage=write-gate-enabled detail=Core §14 write gate is on "
-                    "(authenticated writes only); no controller write path is "
-                    "wired, so writes are refused as not-yet-connected")
+                    "(authenticated writes only); writes reach the root command "
+                    "mailbox and nothing else")
 
     station = Station(build_reader(args.target, args.slot, args.expect_serial))
     gateway = Gateway(
@@ -663,7 +774,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         write_token=args.write_token,
         write_roots=frozenset(args.write_root),
         allow_all_root_mailboxes=bool(args.write_token) and not args.write_root,
-        write_fn=None)
+        write_fn=(MailboxWriter(args.target, args.slot, args.expect_serial)
+                  if args.write_token else None))
     try:
         asyncio.run(serve_gateway(gateway, args.host, args.port))
     except KeyboardInterrupt:

@@ -478,3 +478,89 @@ class WritePostureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MailboxWriterTests(unittest.TestCase):
+    """The only thing in this binding that writes to a controller."""
+
+    def setUp(self):
+        self.writer = gw.MailboxWriter("192.168.100.89", 0, "7036B510")
+
+    def test_it_maps_a_browse_path_to_the_emitted_tag(self):
+        self.assertEqual(self.writer.tag_for("Press/HmiRequest/Kind"),
+                         "FRK_Press_HmiRequest.Kind")
+
+    def test_it_maps_every_declared_member(self):
+        import fraktal_ab_mailbox as mailbox
+
+        for name, _, _, _ in mailbox.REQUEST_MEMBERS:
+            self.assertEqual(self.writer.tag_for(f"Press/HmiRequest/{name}"),
+                             f"FRK_Press_HmiRequest.{name}")
+
+    def test_it_refuses_the_response(self):
+        # The answer is the machine's. A client that could write it could
+        # manufacture an acknowledgement for a command never issued.
+        with self.assertRaises(gw.WriteRefused):
+            self.writer.tag_for("Press/HmiResponse/Accepted")
+
+    def test_it_refuses_an_undeclared_member(self):
+        with self.assertRaises(gw.WriteRefused):
+            self.writer.tag_for("Press/HmiRequest/Nonsense")
+
+    def test_it_refuses_another_controllers_root(self):
+        with self.assertRaises(gw.WriteRefused):
+            self.writer.tag_for("SomeOtherUnit/HmiRequest/Kind")
+
+    def test_it_refuses_a_path_that_is_not_a_mailbox_at_all(self):
+        for path in ("Press/Status/State", "Press", "HmiRequest/Kind"):
+            with self.assertRaises(gw.WriteRefused):
+                self.writer.tag_for(path)
+
+    def test_a_scalar_becomes_one_dint_write(self):
+        self.assertEqual(
+            self.writer.writes_for("FRK_Press_HmiRequest.Kind", "int32", 3),
+            [("FRK_Press_HmiRequest.Kind", 3)])
+
+    def test_a_boolean_becomes_zero_or_one(self):
+        # BoolValue is a DINT: a BOOL member in a public UDT is the S12 hole.
+        self.assertEqual(
+            self.writer.writes_for("FRK_Press_HmiRequest.BoolValue", "boolean", True),
+            [("FRK_Press_HmiRequest.BoolValue", 1)])
+        self.assertEqual(
+            self.writer.writes_for("FRK_Press_HmiRequest.BoolValue", "boolean", False),
+            [("FRK_Press_HmiRequest.BoolValue", 0)])
+
+    def test_an_empty_string_writes_only_its_length(self):
+        self.assertEqual(
+            self.writer.writes_for("FRK_Press_HmiRequest.TargetPath", "string", ""),
+            [("FRK_Press_HmiRequest.TargetPath.LEN", 0)])
+
+    def test_a_string_writes_its_length_then_its_characters(self):
+        self.assertEqual(
+            self.writer.writes_for("FRK_Press_HmiRequest.User", "string", "ab"),
+            [("FRK_Press_HmiRequest.User.LEN", 2),
+             ("FRK_Press_HmiRequest.User.DATA", [97, 98])])
+
+    def test_a_string_longer_than_its_member_is_refused_not_truncated(self):
+        import fraktal_ab_mailbox as mailbox
+
+        too_long = "x" * (mailbox.USER_LENGTH + 1)
+        with self.assertRaises(gw.WriteRefused):
+            self.writer.writes_for("FRK_Press_HmiRequest.User", "string", too_long)
+
+    def test_a_string_exactly_filling_its_member_is_accepted(self):
+        import fraktal_ab_mailbox as mailbox
+
+        exact = "x" * mailbox.USER_LENGTH
+        writes = self.writer.writes_for("FRK_Press_HmiRequest.User", "string", exact)
+        self.assertEqual(writes[0][1], mailbox.USER_LENGTH)
+
+    def test_the_commit_is_the_last_planned_write(self):
+        # validate_batch guarantees the ordering; this pins that the writer
+        # preserves it, because a commit after a failed argument would run a
+        # command carrying the previous request's value.
+        writes = [("Press/HmiRequest/Kind", "int32", 3),
+                  ("Press/HmiRequest/IntValue", "int32", 0),
+                  ("Press/HmiRequest/Sequence", "uint32", 9)]
+        planned = [self.writer.tag_for(p) for p, _, _ in writes]
+        self.assertEqual(planned[-1], "FRK_Press_HmiRequest.Sequence")
