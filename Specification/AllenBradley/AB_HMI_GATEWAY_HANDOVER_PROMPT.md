@@ -173,7 +173,7 @@ HOUSE RULES THAT HAVE TEETH HERE
 | Controller | `1769-L24ER-QB1B/A LOGIX5324ER`, firmware `33.014`, serial `7036B510` |
 | Address | `192.168.100.89:44818`; bench host adapter `Ethernet1` `192.168.100.123/24` |
 | USB | Rockwell Automation USB CIP Device present; Studio route `Backplane\16` |
-| Loaded program | **as written, the press demo built before the mode-ordinal correction.** The corrected build `press_modes.ACD` (`E8FC0B77D1F390F56CD634ACFFAE2CF79558976FB8BA3DF32328BBF23943589C`, SDK import 0/0, Studio v33 Verify 0/0) was ready but not yet downloaded |
+| Loaded program | **the mode-ordinal correction is loaded** as of 2026-09-21, recorded in [`Evidence/AB_MODE_ORDINAL_DOWNLOAD_2026-09-21.md`](Evidence/AB_MODE_ORDINAL_DOWNLOAD_2026-09-21.md). `Mode 0` means AUTO. Before that download the build was the earlier one: The corrected build `press_modes.ACD` (`E8FC0B77D1F390F56CD634ACFFAE2CF79558976FB8BA3DF32328BBF23943589C`, SDK import 0/0, Studio v33 Verify 0/0) was ready but not yet downloaded |
 | Rollback ACD | recorded in the tool catalog, outside the repository, not executed |
 
 **Check which build is actually loaded before trusting `Mode`.** The manifest

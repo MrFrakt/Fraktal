@@ -168,7 +168,10 @@ HOUSE RULES WITH TEETH HERE
 ## Bench state at handover
 
 Unchanged from `AB_HMI_GATEWAY_HANDOVER_PROMPT.md`: controller
-`1769-L24ER-QB1B/A`, firmware `33.014`, serial `7036B510`, `192.168.100.89`. The
-loaded build is, as written, the press demo built **before** the mode-ordinal
-correction; confirm before any SET_MODE. The corrected `press_modes.ACD` is
-recorded in the tool catalog, outside the repository.
+`1769-L24ER-QB1B/A`, firmware `33.014`, serial `7036B510`, `192.168.100.89`. **The mode-ordinal
+correction was downloaded on 2026-09-21** and is the loaded build, recorded in
+[`Evidence/AB_MODE_ORDINAL_DOWNLOAD_2026-09-21.md`](Evidence/AB_MODE_ORDINAL_DOWNLOAD_2026-09-21.md),
+so `Mode 0` means AUTO and step 8's precondition is met. Read §4 of that
+record before leaning on it: the loaded build rests on the operator's
+confirmation, because no read-only discriminator exists while the unit is
+idle. The first live SET_MODE will be the first machine evidence of it.
