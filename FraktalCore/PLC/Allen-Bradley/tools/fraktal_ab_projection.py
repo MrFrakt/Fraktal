@@ -166,9 +166,43 @@ def unit_status(unit: dict[str, int], chart: dict[str, Any] | None) -> dict[str,
     return values
 
 
+def mailbox_values(rows: dict[str, Any], response: dict[str, int],
+                   request_sequence: int) -> dict[str, Any]:
+    """The command mailbox as the HMI's repository reads it.
+
+    ``opcua_repository.dart`` writes ``HmiRequest/*`` and then polls
+    ``HmiResponse/{AckSequence, Accepted, Diagnostic}`` until the ack matches
+    the sequence it wrote. It expects ``Diagnostic`` to be text, and the
+    controller answers with a numeric key - Logix v33 ST cannot assign a string
+    literal - so the key is resolved here.
+
+    It is resolved against the **controller's own** Localization table, the one
+    read in this same snapshot, rather than against the local declaration. A
+    numeric key is only meaningful within the revision that published it, so
+    resolving it from anywhere else would be reading this controller's answer
+    through another build's catalogue.
+    """
+    import fraktal_ab_mailbox as mailbox
+
+    catalogue = {row["NumericKey"]: row["PortableKey"]
+                 for row in rows["Localization"]}
+    key = response.get("DiagnosticKey", 0)
+    return {
+        "HmiRequest/Sequence": request_sequence,
+        "HmiResponse/AckSequence": response.get("AckSequence", 0),
+        "HmiResponse/Accepted": response.get("Accepted", 0) != 0,
+        # An unresolvable key is reported as such rather than as no reason at
+        # all: blank would read as "accepted without comment".
+        "HmiResponse/Diagnostic": (
+            "" if key == 0
+            else catalogue.get(key, f"{mailbox.UNKNOWN_KEY}#{key}")),
+    }
+
+
 def project(header: dict[str, Any], rows: dict[str, Any],
             unit: dict[str, int], contexts: dict[str, dict[str, int]],
-            chart: dict[str, Any] | None = None) -> dict[str, Any]:
+            chart: dict[str, Any] | None = None,
+            mailbox_state: dict[str, Any] | None = None) -> dict[str, Any]:
     """The snapshot document, from a validated manifest and the live contexts."""
     validate(header)
 
@@ -182,6 +216,11 @@ def project(header: dict[str, Any], rows: dict[str, Any],
         if module["type"] == MODULE_TYPE_UNIT:
             for suffix, value in unit_status(unit, chart).items():
                 values[f"{base}/{suffix}"] = value
+            if mailbox_state is not None:
+                for suffix, value in mailbox_values(
+                        rows, mailbox_state["response"],
+                        mailbox_state["requestSequence"]).items():
+                    values[f"{base}/{suffix}"] = value
         else:
             name = module["identity"].rsplit(".", 1)[-1]
             context = contexts.get(name)
@@ -252,7 +291,40 @@ def read_document(comm: Any) -> dict[str, Any]:
     if unit is None or any(c is None for c in contexts.values()):
         raise ReadFailed("a live context did not read; refusing to project")
 
-    return project(header, rows, unit, contexts, chart)
+    return project(header, rows, unit, contexts, chart, read_mailbox(comm))
+
+
+def read_mailbox(comm: Any) -> dict[str, Any]:
+    """The mailbox answer in one request, plus the request's own sequence.
+
+    The response is read as a whole structure rather than member by member.
+    The controller writes ``AckSequence`` last precisely so a client can trust
+    a matching ack to mean the rest is present, and three separate reads are
+    three separate scans - S9's lesson - so they could straddle a command and
+    pair one request's ack with another's verdict.
+    """
+    import struct
+
+    import fraktal_ab_manifest_read as reader
+    import fraktal_ab_mailbox as mailbox
+
+    payload, status, _ = reader._read_raw(comm, mailbox.response_tag_name(APP))
+    members = [name for name, _, _, _ in mailbox.RESPONSE_MEMBERS]
+    if payload is None or len(payload) < 4 * len(members):
+        raise ReadFailed(f"the mailbox answer did not read: {status}")
+    response = dict(zip(members, struct.unpack_from(f"<{len(members)}i", payload, 0)))
+
+    sequence, status, _ = reader._read_raw(
+        comm, f"{mailbox.request_tag_name(APP)}.Sequence")
+    if sequence is None or len(sequence) < 4:
+        # A scalar read comes back as an int on this client; fall back to it.
+        raw = comm.Read(f"{mailbox.request_tag_name(APP)}.Sequence")
+        value = getattr(raw, "Value", None)
+        if not isinstance(value, int):
+            raise ReadFailed(f"the mailbox request sequence did not read: {status}")
+    else:
+        (value,) = struct.unpack_from("<i", sequence, 0)
+    return {"response": response, "requestSequence": value}
 
 
 def main(argv: list[str] | None = None) -> int:

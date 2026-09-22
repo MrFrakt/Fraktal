@@ -79,6 +79,7 @@ def build(**kwargs):
         kwargs.pop("unit", unit_values()),
         kwargs.pop("contexts", contexts()),
         kwargs.pop("chart", chart_values()),
+        kwargs.pop("mailbox_state", None),
     )
 
 
@@ -273,3 +274,66 @@ class AbsenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MailboxProjectionTests(unittest.TestCase):
+    """What the HMI's repository polls after it commits a command."""
+
+    def setUp(self):
+        import fraktal_ab_manifest as manifest
+
+        self.manifest = manifest
+        self.rows = manifest.content(APP)
+
+    def values(self, **response):
+        state = {"AckSequence": 0, "Accepted": 0, "DiagnosticKey": 0}
+        state.update(response)
+        return projection.mailbox_values(
+            self.rows, state, state["AckSequence"])
+
+    def test_it_publishes_the_paths_the_repository_reads(self):
+        values = self.values()
+        for path in ("HmiResponse/AckSequence", "HmiResponse/Accepted",
+                     "HmiResponse/Diagnostic", "HmiRequest/Sequence"):
+            self.assertIn(path, values)
+
+    def test_accepted_is_a_boolean_for_the_client(self):
+        self.assertIs(self.values(Accepted=1)["HmiResponse/Accepted"], True)
+        self.assertIs(self.values(Accepted=0)["HmiResponse/Accepted"], False)
+
+    def test_a_refusal_key_resolves_to_its_portable_name(self):
+        key = self.manifest.numeric_key(
+            APP, "project.mailbox.refused.no_control_power")
+        self.assertEqual(self.values(DiagnosticKey=key)["HmiResponse/Diagnostic"],
+                         "project.mailbox.refused.no_control_power")
+
+    def test_an_accepted_command_carries_no_reason(self):
+        self.assertEqual(self.values(Accepted=1)["HmiResponse/Diagnostic"], "")
+
+    def test_an_unresolvable_key_is_reported_rather_than_blanked(self):
+        # Blank would read as "accepted without comment", which is the one thing
+        # a refusal must never look like.
+        text = self.values(DiagnosticKey=999999)["HmiResponse/Diagnostic"]
+        self.assertNotEqual(text, "")
+        self.assertIn("999999", text)
+
+    def test_every_refusal_the_handler_can_write_resolves(self):
+        import fraktal_ab_mailbox as mailbox
+
+        for portable in mailbox.localization_keys():
+            key = self.manifest.numeric_key(APP, portable)
+            self.assertEqual(
+                self.values(DiagnosticKey=key)["HmiResponse/Diagnostic"],
+                portable)
+
+    def test_the_mailbox_reaches_the_document_under_the_root(self):
+        document = build(mailbox_state={
+            "response": {"AckSequence": 4, "Accepted": 1, "DiagnosticKey": 0},
+            "requestSequence": 4,
+        })
+        self.assertEqual(document["values"]["Press/HmiResponse/AckSequence"], 4)
+        self.assertIs(document["values"]["Press/HmiResponse/Accepted"], True)
+
+    def test_a_document_without_mailbox_state_omits_it_rather_than_faking_it(self):
+        values = build()["values"]
+        self.assertNotIn("Press/HmiResponse/AckSequence", values)
