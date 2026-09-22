@@ -308,5 +308,173 @@ class HealthTests(unittest.TestCase):
         self.assertEqual(int(conn.status), 200)
 
 
+class _Writes:
+    """Captures what the write path would send to the controller."""
+
+    def __init__(self, accept=True):
+        self.calls = []
+        self._accept = accept
+
+    def __call__(self, writes, mailbox):
+        self.calls.append((list(writes), mailbox))
+        return self._accept
+
+
+class _AuthConn:
+    def __init__(self, authorization=None):
+        headers = {} if authorization is None else {"Authorization": authorization}
+        self.request = type("Req", (), {"headers": headers})()
+
+
+def _authed():
+    state = gw._ConnState()
+    state.authenticated = True
+    return state
+
+
+class WriteValidationTests(unittest.TestCase):
+    def test_only_hmirequest_mailboxes_are_writable(self):
+        self.assertTrue(gw.permits_write(
+            "Press/HmiRequest/IntValue", allow_all_root_mailboxes=True))
+        self.assertTrue(gw.permits_write(
+            "Press/HmiRequest/IntValue", frozenset({"Press"})))
+        # paired negatives
+        self.assertFalse(gw.permits_write(
+            "Press/Status/State", allow_all_root_mailboxes=True))
+        self.assertFalse(gw.permits_write(
+            "HmiRequest/IntValue", allow_all_root_mailboxes=True))  # first segment
+        self.assertFalse(gw.permits_write(
+            "Press/HmiRequest", allow_all_root_mailboxes=True))  # last segment
+        self.assertFalse(gw.permits_write(
+            "Press/../HmiRequest/IntValue", allow_all_root_mailboxes=True))
+        self.assertFalse(gw.permits_write(
+            "Press/HmiRequest/IntValue", frozenset({"Other"})))
+        self.assertFalse(gw.permits_write("Press/HmiRequest/IntValue"))  # off by default
+
+    def test_write_value_must_match_its_type(self):
+        self.assertEqual(
+            gw.validate_write(
+                {"path": "a/HmiRequest/x", "valueType": "int32", "value": 5}),
+            ("a/HmiRequest/x", "int32", 5))
+        self.assertEqual(
+            gw.validate_write(
+                {"path": "p", "valueType": "doubleValue", "value": 2})[2], 2.0)
+        for bad in (
+            {"path": "", "valueType": "int32", "value": 1},
+            {"path": "p", "valueType": "nope", "value": 1},
+            {"path": "p", "valueType": "boolean", "value": 1},   # 1 is not a bool
+            {"path": "p", "valueType": "int32", "value": True},  # bool is not int32
+            {"path": "p", "valueType": "uint32", "value": -1},
+            {"path": "p", "valueType": "int32", "value": 0x80000000},
+            {"path": "p", "valueType": "string", "value": 123},
+        ):
+            with self.assertRaises(gw.WriteRefused):
+                gw.validate_write(bad)
+
+    def test_batch_requires_a_sequence_commit_on_one_mailbox(self):
+        writes, mailbox, seq = gw.validate_batch({"writes": [
+            {"path": "Press/HmiRequest/IntValue", "valueType": "int32", "value": 1},
+            {"path": "Press/HmiRequest/Sequence", "valueType": "uint32", "value": 7},
+        ]})
+        self.assertEqual((mailbox, seq), ("Press/HmiRequest", 7))
+        # paired negatives
+        with self.assertRaises(gw.WriteRefused):
+            gw.validate_batch({"writes": []})
+        with self.assertRaises(gw.WriteRefused):  # no Sequence commit last
+            gw.validate_batch({"writes": [
+                {"path": "Press/HmiRequest/IntValue", "valueType": "int32",
+                 "value": 1}]})
+        with self.assertRaises(gw.WriteRefused):  # two mailboxes
+            gw.validate_batch({"writes": [
+                {"path": "A/HmiRequest/IntValue", "valueType": "int32", "value": 1},
+                {"path": "Press/HmiRequest/Sequence", "valueType": "uint32",
+                 "value": 1}]})
+
+
+class WritePostureTests(unittest.TestCase):
+    def _gw(self, **kw):
+        station, _ = _station()
+        return gw.Gateway(station, write_token="s3cret",
+                          allow_all_root_mailboxes=True, **kw)
+
+    def test_read_only_gateway_refuses_every_write(self):
+        station, _ = _station()
+        g = gw.Gateway(station)  # no write token
+        with self.assertRaises(gw.WriteRefused) as raised:
+            _run(g._write(_authed(), {"path": "Press/HmiRequest/IntValue",
+                                      "valueType": "int32", "value": 1}))
+        self.assertIn("read-only", str(raised.exception))
+        self.assertIn("11.2.1", str(raised.exception))
+
+    def test_anonymous_write_is_refused_when_the_gate_is_on(self):
+        writes = _Writes()
+        g = self._gw(write_fn=writes)
+        with self.assertRaises(gw.WriteRefused) as raised:
+            _run(g._write(gw._ConnState(), {"path": "Press/HmiRequest/IntValue",
+                                            "valueType": "int32", "value": 1}))
+        self.assertIn("anonymous", str(raised.exception).lower())
+        self.assertEqual(writes.calls, [], "must not reach the controller")
+
+    def test_authenticated_in_scope_write_forwards_to_the_controller(self):
+        writes = _Writes()
+        g = self._gw(write_fn=writes)
+        self.assertTrue(_run(g._write(_authed(), {
+            "path": "Press/HmiRequest/IntValue", "valueType": "int32", "value": 3})))
+        self.assertEqual(writes.calls[0][0],
+                         [("Press/HmiRequest/IntValue", "int32", 3)])
+
+    def test_an_off_scope_write_is_refused(self):
+        writes = _Writes()
+        g = self._gw(write_fn=writes)
+        with self.assertRaises(gw.WriteRefused) as raised:
+            _run(g._write(_authed(), {"path": "Press/Status/State",
+                                      "valueType": "int32", "value": 1}))
+        self.assertIn("scope", str(raised.exception).lower())
+        self.assertEqual(writes.calls, [])
+
+    def test_write_is_not_connected_without_a_write_path(self):
+        g = self._gw(write_fn=None)  # the current controller state
+        with self.assertRaises(gw.WriteRefused) as raised:
+            _run(g._write(_authed(), {"path": "Press/HmiRequest/IntValue",
+                                      "valueType": "int32", "value": 1}))
+        self.assertIn("not connected", str(raised.exception).lower())
+
+    def test_batch_commit_enforces_a_monotonic_sequence(self):
+        writes = _Writes()
+        g = self._gw(write_fn=writes)
+
+        def batch(seq):
+            return {"writes": [
+                {"path": "Press/HmiRequest/IntValue", "valueType": "int32",
+                 "value": 1},
+                {"path": "Press/HmiRequest/Sequence", "valueType": "uint32",
+                 "value": seq}]}
+
+        self.assertTrue(_run(g._write_batch(_authed(), batch(5))))
+        with self.assertRaises(gw.WriteRefused) as raised:  # next must be 6
+            _run(g._write_batch(_authed(), batch(9)))
+        self.assertIn("sequence", str(raised.exception).lower())
+        self.assertTrue(_run(g._write_batch(_authed(), batch(6))))
+
+    def test_dispatch_wraps_an_anonymous_write_as_ok_false(self):
+        g = self._gw(write_fn=_Writes())
+        sends = _Sends()
+        _run(g.dispatch(sends, gw._ConnState(), json.dumps({
+            "protocol": gw.PROTOCOL, "id": 1, "method": "write",
+            "params": {"path": "Press/HmiRequest/IntValue",
+                       "valueType": "int32", "value": 1}})))
+        self.assertFalse(sends.last["ok"])
+        self.assertIn("anonymous", sends.last["error"].lower())
+
+    def test_authenticate_matches_only_the_configured_bearer(self):
+        station, _ = _station()
+        g = gw.Gateway(station, write_token="s3cret")
+        self.assertTrue(g._authenticate(_AuthConn("Bearer s3cret")))
+        self.assertFalse(g._authenticate(_AuthConn("Bearer wrong")))
+        self.assertFalse(g._authenticate(_AuthConn(None)))
+        # a gateway with no token never authenticates, even with a header
+        self.assertFalse(gw.Gateway(station)._authenticate(_AuthConn("Bearer s3cret")))
+
+
 if __name__ == "__main__":
     unittest.main()

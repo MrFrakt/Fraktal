@@ -27,10 +27,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import datetime
+import hmac
 import http
 import ipaddress
 import json
 import logging
+import math
 import sys
 import time
 from typing import Any, Callable, Optional
@@ -48,16 +50,40 @@ DEFAULT_PORT = 8080
 # controller is read about once per HMI cycle rather than once per method.
 CACHE_TTL_S = 0.25
 
-WRITE_REFUSED = (
-    "read-only Allen-Bradley gateway (AB §11.2.1): configured with no write "
-    "root; operator commands are refused before the controller sees them"
+# Write refusals. Read-only stays the default: writes are enabled only when a
+# write token is configured, and even then never anonymously (Core §14).
+READ_ONLY_REFUSED = (
+    "read-only Allen-Bradley gateway (AB §11.2.1): no write root is configured; "
+    "operator commands are refused before the controller sees them"
 )
+ANON_WRITE_REFUSED = (
+    "write requires authentication; anonymous or unauthenticated write is "
+    "prohibited (Core §14)"
+)
+# The controller exposes no HmiRequest mailbox yet (manifest MailboxId 0), so a
+# permitted, authenticated write still has nothing on the controller to target.
+# The token proves the Core §14 gate; connecting the write to the controller is
+# the owed AB command binding.
+WRITE_NOT_CONNECTED = (
+    "the write path is not connected to this controller yet: the AB command "
+    "binding (an HmiRequest mailbox) is owed work"
+)
+WRITE_SCOPE_REFUSED = "write path is outside the allowed HmiRequest scope"
+
+WRITE_TYPES = ("boolean", "int32", "uint32", "int64", "doubleValue", "string")
+_MAX_BATCH_WRITES = 32
+_MAX_STRING_VALUE = 4096
+_MAX_WRITE_PATH = 2048
 
 log = logging.getLogger("fraktal.ab.gateway")
 
 
 class StaleRevision(Exception):
     """The client's discovery revision no longer matches; it must discover again."""
+
+
+class WriteRefused(ValueError):
+    """A write was refused by policy: read-only, unauthenticated, scope or sequence."""
 
 
 # --- pure protocol bookkeeping, testable without a socket or a controller ---
@@ -128,6 +154,84 @@ def validate_indices(raw: Any, count: int, *, maximum: Optional[int] = None,
             raise ValueError(f"index {item} is outside 0..{count - 1}")
         out.append(item)
     return out
+
+
+def _write_value_ok(vtype: str, value: Any) -> bool:
+    if vtype == "boolean":
+        return isinstance(value, bool)
+    if vtype in ("int32", "uint32", "int64"):
+        if not isinstance(value, int) or isinstance(value, bool):
+            return False
+        if vtype == "int32":
+            return -0x80000000 <= value <= 0x7FFFFFFF
+        if vtype == "uint32":
+            return 0 <= value <= 0xFFFFFFFF
+        return True  # int64 accepts any JSON integer
+    if vtype == "doubleValue":
+        return (isinstance(value, (int, float)) and not isinstance(value, bool)
+                and math.isfinite(value))
+    if vtype == "string":
+        return isinstance(value, str) and len(value) <= _MAX_STRING_VALUE
+    return False
+
+
+def validate_write(params: dict[str, Any]) -> tuple[str, str, Any]:
+    """One `{path, valueType, value}` write, checked the way the reference does."""
+    path = params.get("path")
+    vtype = params.get("valueType")
+    value = params.get("value")
+    if not isinstance(path, str) or not path or len(path) > _MAX_WRITE_PATH \
+            or any(ord(ch) < 0x20 for ch in path):
+        raise WriteRefused("write path is invalid")
+    if vtype not in WRITE_TYPES:
+        raise WriteRefused("write valueType is unsupported")
+    if not _write_value_ok(vtype, value):
+        raise WriteRefused("write value does not match valueType")
+    return path, vtype, (float(value) if vtype == "doubleValue" else value)
+
+
+def validate_batch(params: dict[str, Any]) -> tuple[list[tuple[str, str, Any]], str, int]:
+    """A mailbox commit: payload writes then the uint32 `HmiRequest/Sequence`."""
+    raw = params.get("writes")
+    if not isinstance(raw, list) or not raw:
+        raise WriteRefused("writeBatch requires a non-empty writes list")
+    if len(raw) > _MAX_BATCH_WRITES:
+        raise WriteRefused(f"writeBatch exceeds the {_MAX_BATCH_WRITES}-write limit")
+    writes = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise WriteRefused("each batch write must be an object")
+        writes.append(validate_write(item))
+    paths = [w[0] for w in writes]
+    if len(set(paths)) != len(paths):
+        raise WriteRefused("batch write paths must be unique")
+    commit_path, commit_type, commit_value = writes[-1]
+    if not commit_path.endswith("/HmiRequest/Sequence") or commit_type != "uint32":
+        raise WriteRefused(
+            "the final batch write must be the uint32 HmiRequest/Sequence commit")
+    if any(p.endswith("/HmiRequest/Sequence") for p in paths[:-1]):
+        raise WriteRefused("Sequence may appear only as the final write")
+    mailbox = commit_path[: -len("/Sequence")]
+    if any(not p.startswith(f"{mailbox}/") for p in paths):
+        raise WriteRefused("all batch writes must use one HmiRequest mailbox")
+    return writes, mailbox, commit_value
+
+
+def permits_write(path: str, write_roots: frozenset[str] = frozenset(),
+                  allow_all_root_mailboxes: bool = False) -> bool:
+    """Mirror of the reference server's `permitsWrite`: HmiRequest mailboxes only."""
+    parts = path.split("/")
+    try:
+        mailbox = len(parts) - 1 - parts[::-1].index("HmiRequest")
+    except ValueError:
+        return False
+    if mailbox <= 0 or mailbox >= len(parts) - 1:
+        return False
+    if any(part in ("", ".", "..") for part in parts):
+        return False
+    if not write_roots:
+        return allow_all_root_mailboxes
+    return "/".join(parts[:mailbox]) in write_roots
 
 
 def _utcnow_iso() -> str:
@@ -201,13 +305,16 @@ class Station:
 
 
 class _ConnState:
-    __slots__ = ("configured",)
+    __slots__ = ("configured", "authenticated")
 
     def __init__(self) -> None:
         # Once the client has installed a read-tier profile it no longer needs
         # the path list echoed on every snapshot, so we stop resending it - the
         # same optimization the reference server makes.
         self.configured = False
+        # Set once at connect from the WebSocket's Authorization header; a write
+        # is refused unless this is true (Core §14: no anonymous write).
+        self.authenticated = False
 
 
 def _ok(rid: int, result: Any) -> str:
@@ -220,10 +327,32 @@ def _error(rid: Optional[int], message: str) -> str:
 
 class Gateway:
     def __init__(self, station: Station, *,
-                 allowed_origins: frozenset[str] = frozenset()):
+                 allowed_origins: frozenset[str] = frozenset(),
+                 write_token: str = "",
+                 write_roots: frozenset[str] = frozenset(),
+                 allow_all_root_mailboxes: bool = False,
+                 write_fn: Optional[Callable[[list[tuple[str, str, Any]],
+                                              Optional[str]], bool]] = None):
         self.station = station
         self.allowed_origins = allowed_origins
+        # Writes are off unless a token is configured (read-only default), never
+        # anonymous (Core §14), confined to HmiRequest mailboxes (permits_write),
+        # and only actually reach the controller when write_fn is wired.
+        self._write_token = write_token
+        self._write_roots = write_roots
+        self._allow_all_root_mailboxes = allow_all_root_mailboxes
+        self._write_fn = write_fn
+        self._mailbox_sequences: dict[str, int] = {}
         self._closing = False
+
+    def _authenticate(self, connection: Any) -> bool:
+        if not self._write_token:
+            return False
+        try:
+            header = connection.request.headers.get("Authorization") or ""
+        except Exception:
+            header = ""
+        return hmac.compare_digest(header, f"Bearer {self._write_token}")
 
     # --- HTTP: health routes and the upgrade gate -------------------------
 
@@ -265,8 +394,10 @@ class Gateway:
 
     async def handler(self, connection: Any) -> None:
         state = _ConnState()
+        state.authenticated = self._authenticate(connection)
         peer = getattr(connection, "remote_address", None)
-        log.info("stage=connected peer=%s", peer)
+        log.info("stage=connected peer=%s authenticated=%s", peer,
+                 state.authenticated)
         try:
             async for message in connection:
                 await self.dispatch(connection.send, state, message)
@@ -305,8 +436,10 @@ class Gateway:
                 await send(_ok(rid, await self._read_values(params)))
             elif method == "setReadTiers":
                 await send(_ok(rid, await self._set_read_tiers(state, params)))
-            elif method in ("write", "writeBatch"):
-                await send(_error(rid, WRITE_REFUSED))
+            elif method == "write":
+                await send(_ok(rid, await self._write(state, params)))
+            elif method == "writeBatch":
+                await send(_ok(rid, await self._write_batch(state, params)))
             else:
                 await send(_error(rid, "Unsupported gateway method."))
         except StaleRevision as exc:
@@ -366,6 +499,45 @@ class Gateway:
         # by no longer echoing the (small, static) path list on each snapshot.
         state.configured = True
         return True
+
+    def _guard_write(self, state: _ConnState) -> None:
+        if not self._write_token:
+            raise WriteRefused(READ_ONLY_REFUSED)
+        if not state.authenticated:
+            raise WriteRefused(ANON_WRITE_REFUSED)
+
+    async def _write(self, state: _ConnState, params: dict[str, Any]) -> bool:
+        self._guard_write(state)
+        path, vtype, value = validate_write(params)
+        if not permits_write(path, self._write_roots,
+                             self._allow_all_root_mailboxes):
+            raise WriteRefused(WRITE_SCOPE_REFUSED)
+        if path.endswith("/HmiRequest/Sequence"):
+            raise WriteRefused("Sequence is a commit field and requires writeBatch")
+        if self._write_fn is None:
+            raise WriteRefused(WRITE_NOT_CONNECTED)
+        return bool(await asyncio.to_thread(self._write_fn, [(path, vtype, value)],
+                                            None))
+
+    async def _write_batch(self, state: _ConnState,
+                           params: dict[str, Any]) -> bool:
+        self._guard_write(state)
+        writes, mailbox, sequence = validate_batch(params)
+        for path, _vtype, _value in writes:
+            if not permits_write(path, self._write_roots,
+                                 self._allow_all_root_mailboxes):
+                raise WriteRefused(WRITE_SCOPE_REFUSED)
+        previous = self._mailbox_sequences.get(mailbox)
+        if previous is not None and sequence != ((previous + 1) & 0xFFFFFFFF):
+            raise WriteRefused(
+                f"stale mailbox sequence: expected "
+                f"{(previous + 1) & 0xFFFFFFFF}, got {sequence}")
+        if self._write_fn is None:
+            raise WriteRefused(WRITE_NOT_CONNECTED)
+        accepted = bool(await asyncio.to_thread(self._write_fn, writes, mailbox))
+        if accepted:
+            self._mailbox_sequences[mailbox] = sequence
+        return accepted
 
 
 class SerialMismatch(Exception):
@@ -456,6 +628,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--allow-origin", action="append", default=[],
                         help="an extra allowed browser origin (loopback is always allowed)")
+    parser.add_argument("--write-token", default="",
+                        help="enable the Core §14 write gate: a client must present "
+                             "this as an Authorization: Bearer token. Anonymous "
+                             "writes are always refused. Read-only when unset.")
+    parser.add_argument("--write-root", action="append", default=[],
+                        help="a root whose HmiRequest mailbox may be written; "
+                             "repeatable. With --write-token and none given, all "
+                             "root mailboxes are permitted.")
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -467,10 +647,23 @@ def main(argv: Optional[list[str]] = None) -> int:
             "the gateway is loopback-only; put an authenticated TLS reverse "
             "proxy in front of it for remote access")
 
+    # The controller has no HmiRequest mailbox yet (manifest MailboxId 0), so
+    # write_fn stays unwired: an authenticated, in-scope write is refused as
+    # "not connected" rather than reaching the controller. Enabling the token
+    # here proves the §14 gate; connecting a write is the owed command binding.
+    if args.write_token:
+        log.warning("stage=write-gate-enabled detail=Core §14 write gate is on "
+                    "(authenticated writes only); no controller write path is "
+                    "wired, so writes are refused as not-yet-connected")
+
     station = Station(build_reader(args.target, args.slot, args.expect_serial))
     gateway = Gateway(
         station,
-        allowed_origins=frozenset(_normalize_origin(o) for o in args.allow_origin))
+        allowed_origins=frozenset(_normalize_origin(o) for o in args.allow_origin),
+        write_token=args.write_token,
+        write_roots=frozenset(args.write_root),
+        allow_all_root_mailboxes=bool(args.write_token) and not args.write_root,
+        write_fn=None)
     try:
         asyncio.run(serve_gateway(gateway, args.host, args.port))
     except KeyboardInterrupt:

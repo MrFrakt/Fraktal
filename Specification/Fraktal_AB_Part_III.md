@@ -1508,6 +1508,23 @@ the write refusal was exercised and seen to degrade the HMI rather than command
 the machine. Evidence:
 [`AB_HMI_GATEWAY_2026-09-21.md`](AllenBradley/Evidence/AB_HMI_GATEWAY_2026-09-21.md).
 
+**The project owner authorized write-enablement on 2026-09-21, which re-arms this
+requirement in full.** The gateway now carries the §14 write gate: a write is
+refused unless the client presents a configured bearer token (no anonymous
+write), is confined to the `<root>/HmiRequest/<member>` mailbox surface, and — for
+a command — carries the monotonic `HmiRequest/Sequence` commit. That gate and its
+paired negatives are proved offline. It is **not yet a commanding HMI**: the
+controller publishes no `HmiRequest` mailbox (`MailboxId 0`) and the projection
+publishes no command catalog, so an authenticated in-scope write is refused as
+"not connected" until the AB command binding is built — either a gateway
+translation onto the controller's existing command tags or a controller-side
+mailbox downloaded on the bench. The decision, the posture and the owed work are
+recorded in
+[`AB_HMI_GATEWAY_WRITE_ENABLE_2026-09-21.md`](AllenBradley/Evidence/AB_HMI_GATEWAY_WRITE_ENABLE_2026-09-21.md).
+The per-use rule still binds: a specific controller write needs current
+authorization and an exact target check, and no mode write may issue until the
+loaded build's `E_Mode` ordinals are confirmed.
+
 **Enabling writes re-arms the full requirement.** Writes are switched on at the
 gateway, not by regenerating or downloading controller code — the generated
 allow-list already gives root mailboxes read/write and everything else read-only
