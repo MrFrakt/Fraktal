@@ -33,6 +33,7 @@ from pathlib import Path
 
 from fraktal_ab_phase0_fixture import replace_once, scalar_tag, sha256
 import fraktal_ab_declaration as decl
+import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
 
 
@@ -176,6 +177,7 @@ def data_types(app: decl.Application) -> str:
             f'<DataType Name="{record.name}" Family="NoFamily" Class="User">'
             f"{description}\n<Members>\n{members}\n</Members>\n</DataType>"
         )
+    blocks.extend(mailbox.data_types(app))
     blocks.extend(manifest.data_types(app))
     return "<DataTypes>\n" + "\n".join(blocks) + "\n</DataTypes>"
 
@@ -1514,6 +1516,10 @@ def controller_tags(app: decl.Application) -> str:
     # Core 3.10: the manifest is the runtime source of truth, so it
     # ships in the project rather than being assembled at scan time -
     # a client reads the same bytes the gate verified.
+    # Core 3.10/14: the command mailbox is the one writable surface a
+    # client is given. It ships with the application because a mailbox that
+    # appeared only once something wrote to it could not be discovered.
+    tags.extend(mailbox.tags(app))
     tags.extend(manifest.tags(app, CONTROLLER_IDENTITY))
     return "<Tags>\n" + "\n".join(tags) + "\n</Tags>"
 

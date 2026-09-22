@@ -15,6 +15,8 @@ from pathlib import Path
 
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
+import fraktal_ab_mailbox as mailbox
+import fraktal_ab_manifest as manifest
 import fraktal_ab_press_demo as demo
 
 
@@ -181,18 +183,28 @@ class EmittedProjectTests(unittest.TestCase):
                                  f"{data_type.get('Name')}.{member.get('Name')}")
 
     def test_a_string_family_type_carries_nothing_but_the_logix_string_layout(self):
-        found = 0
+        found = set()
         for data_type in self.root.findall(".//DataType"):
             if data_type.get("Family") != "StringFamily":
                 continue
-            found += 1
+            found.add(data_type.get("Name"))
             members = data_type.findall("./Members/Member")
             self.assertEqual([m.get("Name") for m in members], ["LEN", "DATA"],
                              data_type.get("Name"))
             self.assertEqual(members[0].get("DataType"), "DINT")
             self.assertEqual(members[1].get("DataType"), "SINT")
             self.assertGreater(int(members[1].get("Dimension")), 0)
-        self.assertEqual(found, 1, "only the manifest key string may be a string")
+        # The exemption widened once, deliberately. It was "only the manifest
+        # key string"; the command mailbox then needed the oracle's own string
+        # fields - TargetPath, TextValue, the Diagnostic an operator reads - and
+        # a contract cannot carry those as DINTs. So the allowed set is named
+        # rather than counted, and anything else that becomes a string still
+        # fails here.
+        app = demo.application()
+        allowed = {manifest.key_string_type(app)}
+        allowed |= {mailbox.string_type_name(app, n)
+                    for n in mailbox.string_lengths()}
+        self.assertEqual(found, allowed)
 
     def test_no_bool_member_in_any_public_contract_udt(self):
         self.assertEqual(self.evidence["BoolMembersInPublicUdt"], 0)
