@@ -389,6 +389,20 @@ Pre-gate tooling:
   [`tools/requirements-gateway.txt`](tools/requirements-gateway.txt); the live
   HMI run is recorded in
   [`../../../Specification/AllenBradley/Evidence/AB_HMI_GATEWAY_2026-09-21.md`](../../../Specification/AllenBradley/Evidence/AB_HMI_GATEWAY_2026-09-21.md).
+- [`tools/fraktal_ab_mailbox_execute.py`](tools/fraktal_ab_mailbox_execute.py) is
+  the command mailbox's evidence harness. It speaks the HMI's own gateway
+  protocol, commits a request the way the HMI does - arguments first, `Sequence`
+  last - and proves each command by reading the controller's `AckSequence` back,
+  because a write that returned true is not evidence. It also drives the
+  refusals and the three gate negatives, refuses unless the controller publishes
+  the expected content hash, and is armed explicitly. It exists because the
+  Flutter HMI cannot be the client on a host whose endpoint security intercepts
+  TLS; the controller half is identical whoever holds the socket.
+- [`tools/fraktal_ab_mailbox_probe.py`](tools/fraktal_ab_mailbox_probe.py)
+  measures whether pylogix can write a user `StringFamily` member through `LEN`
+  and `DATA`. It writes arguments only and never `Sequence`, so it cannot commit
+  a request. The answer is yes, which is a type-map fact about this baseline and
+  sits with the S12 findings.
 - [`tools/fraktal_ab_press_demo.py`](tools/fraktal_ab_press_demo.py) is the press
   demo declaration - the first application, mirroring the TwinCAT oracle's
   observable behaviour with a simulated plant in tags and no control power.

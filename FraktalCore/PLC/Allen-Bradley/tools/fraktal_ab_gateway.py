@@ -762,12 +762,31 @@ def build_reader(target: str, slot: int, expected_serial: str) -> Callable[[], d
     return read
 
 
-async def serve_gateway(gateway: Gateway, host: str, port: int) -> None:
+def tls_context(certfile: str, keyfile: str) -> Any:
+    """The server TLS context, when the gateway is asked to serve ``wss``.
+
+    A credential may not cross a plaintext hop. The HMI enforces exactly that
+    and refuses to attach a bearer token to a ``ws://`` endpoint
+    (``IoGatewaySecurityOptions.validate``), so a gateway that accepts an
+    authenticated write has to offer TLS - on loopback too, because the rule is
+    about the credential, not about the distance.
+    """
+    import ssl
+
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile, keyfile)
+    return context
+
+
+async def serve_gateway(gateway: Gateway, host: str, port: int,
+                        ssl_context: Any = None) -> None:
     from websockets.asyncio.server import serve
 
     async with serve(gateway.handler, host, port,
-                     process_request=gateway.process_request):
-        log.info("stage=listening endpoint=ws://%s:%d%s", host, port, WS_PATH)
+                     process_request=gateway.process_request,
+                     ssl=ssl_context):
+        log.info("stage=listening endpoint=%s://%s:%d%s",
+                 "wss" if ssl_context else "ws", host, port, WS_PATH)
         await asyncio.Future()  # run until cancelled
 
 
@@ -791,6 +810,12 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="a root whose HmiRequest mailbox may be written; "
                              "repeatable. With --write-token and none given, all "
                              "root mailboxes are permitted.")
+    parser.add_argument("--tls-cert", default="",
+                        help="serve wss:// with this PEM certificate. A client "
+                             "will not send a bearer token over plaintext, so "
+                             "an authenticated write needs this.")
+    parser.add_argument("--tls-key", default="",
+                        help="the private key for --tls-cert")
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -808,6 +833,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         parser.error(
             "the gateway is loopback-only; put an authenticated TLS reverse "
             "proxy in front of it for remote access")
+
+    if bool(args.tls_cert) != bool(args.tls_key):
+        parser.error("--tls-cert and --tls-key are configured together")
+    ssl_context = (tls_context(args.tls_cert, args.tls_key)
+                   if args.tls_cert else None)
 
     # The root now publishes a command mailbox, so a write can reach it - and
     # reaches nothing else: the writer maps only HmiRequest members to tags, and
@@ -829,8 +859,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         allow_all_root_mailboxes=bool(write_token) and not args.write_root,
         write_fn=(MailboxWriter(args.target, args.slot, args.expect_serial)
                   if write_token else None))
+    if write_token and ssl_context is None:
+        # Not fatal - the gate still refuses anonymous writes - but a client
+        # that honours the credential rule cannot authenticate here, so say so
+        # rather than let it look like the gate rejected a well-formed command.
+        log.warning("stage=write-gate-plaintext detail=the write gate is on but "
+                    "this endpoint is ws://; a client that refuses to send a "
+                    "bearer over plaintext cannot authenticate. Use --tls-cert.")
+
     try:
-        asyncio.run(serve_gateway(gateway, args.host, args.port))
+        asyncio.run(serve_gateway(gateway, args.host, args.port, ssl_context))
     except KeyboardInterrupt:
         pass
     return 0

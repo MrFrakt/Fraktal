@@ -1417,6 +1417,26 @@ acceptance are decided in the PLC and re-checked there (Core §7.6, §7.7). A
 gateway that decides anything has moved a safety-relevant decision off the
 controller.
 
+**The write vocabulary and the acknowledgement rule are now proved on
+hardware.** The root's `HmiRequest`/`HmiResponse` mailbox was commanded through
+the gateway on 2026-09-22: every argument written first and `Sequence` last, the
+answer taken from the controller's own `AckSequence` rather than from a write
+returning true, and a mode change observed in what the controller publishes. The
+six routed kinds were accepted, three unsupported kinds refused by name, and an
+anonymous write, an off-mailbox write and a replayed sequence were all refused at
+the gateway before the controller saw them. Evidence:
+[`AB_MAILBOX_COMMAND_2026-09-22.md`](AllenBradley/Evidence/AB_MAILBOX_COMMAND_2026-09-22.md).
+
+**A credential may not cross a plaintext hop, so the gateway serves TLS.** A
+conforming client refuses to attach a bearer token to a `ws://` endpoint, which
+is why the gateway takes `--tls-cert`/`--tls-key` and its write token comes from
+the environment rather than from `argv` (§14.2/§14.3). Where a workstation's
+endpoint-security product intercepts TLS — including on loopback — it re-signs
+the gateway's certificate with an untrusted root and no client-side trust
+configuration can repair that; the deployment has to exclude the port or trust
+the bench CA. That is a host decision, and it is the one narrowing on the
+command evidence above.
+
 **Availability, stated plainly.** On TC3 a native server lets any conforming
 client reach the controller; here the gateway is the only path for every client.
 The PLC never depends on it — the machine runs, releases hold, safety is
