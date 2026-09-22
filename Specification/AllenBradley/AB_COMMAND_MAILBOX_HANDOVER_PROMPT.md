@@ -151,6 +151,26 @@ VERIFY AND PROVE (bench only)
     update Part III §11.2, the README and the tool catalog, run the full suite,
     commit imperative and push.
 
+OWED, AND DEFERRED BY THE USER ON 2026-09-21
+
+The mailbox is NOT yet the only externally writable surface. The generator still
+emits the contract structures and the routed request tags as Read/Write -
+FRK_Press_Unit, FRK_Press_Chart, the module contexts, and
+FRK_Press_{Run,Abort,Reset,Mode}Request plus FRK_Press_DecisionAnswer - so a CIP
+client can write them directly and never meet the gateway's bearer gate. AB
+11.2.1 wants mailbox Read/Write, public Read Only, everything else None, and
+fraktal_ab_access_audit.py already encodes that rule.
+
+Closing it breaks the evidence harnesses: fraktal_ab_press_execute.py drives its
+fifteen-row matrix by writing FRK_Press_RunRequest directly. The fork is either
+the harnesses command through the mailbox, or they keep a declared harness-only
+writable surface recorded as a narrowing. That is a decision for the user, not
+for whoever picks this up.
+
+test_fraktal_ab_mailbox.py::test_the_mailbox_does_not_yet_have_the_write_surface_to_itself
+asserts the gap on purpose, so closing it breaks that test rather than passing
+unnoticed. Replace it with the 11.2.1 assertion once the decision is made.
+
 HOUSE RULES WITH TEETH HERE
 
 * Enum ordinals are the PLC contract — pin E_HmiRequestKind the way E_Mode is
