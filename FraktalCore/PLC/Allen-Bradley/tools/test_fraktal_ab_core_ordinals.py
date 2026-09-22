@@ -18,6 +18,7 @@ import unittest
 from pathlib import Path
 
 import fraktal_ab_generate as gen
+import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 
 CORE_DUTS = (Path(__file__).resolve().parents[2]
@@ -92,6 +93,102 @@ class ModeOrdinalTests(unittest.TestCase):
         app = demo.application()
         ordinals = [c.mode_ordinal for c in app.chains]
         self.assertEqual(len(ordinals), len(set(ordinals)))
+
+
+class HmiRequestKindOrdinalTests(unittest.TestCase):
+    """The mailbox kinds, against the DUT every HMI adapter shares.
+
+    This enum is the one most able to do damage if it drifts: a request is a
+    single DINT on the wire, so an off-by-one turns a lamp test into a config-set
+    load. E_Mode already drifted once in this binding.
+    """
+
+    def setUp(self):
+        self.core = core_enum("E_HmiRequestKind")
+
+    def test_every_oracle_kind_is_transcribed(self):
+        # A kind added to the oracle and not here fails, rather than silently
+        # being treated as unknown by a controller a client thinks supports it.
+        self.assertEqual(set(mailbox.KINDS), set(self.core))
+
+    def test_every_transcribed_ordinal_matches_the_oracle(self):
+        for name, value in mailbox.KINDS.items():
+            self.assertEqual(value, self.core[name], name)
+
+    def test_the_supported_kinds_are_real_kinds(self):
+        for kind in mailbox.SUPPORTED:
+            self.assertIn(kind, set(self.core.values()))
+
+    def test_the_refused_kinds_are_real_kinds(self):
+        for kind in mailbox.REFUSED:
+            self.assertIn(kind, set(self.core.values()))
+
+    def test_no_kind_is_both_supported_and_refused(self):
+        self.assertEqual(set(mailbox.SUPPORTED) & set(mailbox.REFUSED), set())
+
+    def test_every_kind_is_decided_except_none(self):
+        # A kind that is neither routed nor refused would be answered by
+        # falling through, which is how a client comes to believe a machine
+        # accepted a command it never saw.
+        decided = set(mailbox.SUPPORTED) | set(mailbox.REFUSED) | {mailbox.NONE}
+        self.assertEqual(decided, set(self.core.values()))
+
+    def test_none_is_not_a_command(self):
+        self.assertEqual(mailbox.UNCOMMANDED, self.core["NONE"])
+        self.assertNotIn(mailbox.NONE, mailbox.SUPPORTED)
+        self.assertNotIn(mailbox.NONE, mailbox.REFUSED)
+
+    def test_a_refusal_carries_a_localization_key(self):
+        for kind, key in mailbox.REFUSED.items():
+            self.assertTrue(key.startswith("project.mailbox.refused."), key)
+
+    def test_an_unknown_kind_still_refuses(self):
+        self.assertFalse(mailbox.is_supported(9999))
+        self.assertEqual(mailbox.refusal_key(9999),
+                         "project.mailbox.refused.unknown_kind")
+
+    def test_set_mode_is_routed_because_the_mode_owner_exists(self):
+        self.assertTrue(mailbox.is_supported(self.core["SET_MODE"]))
+
+    def test_control_power_is_refused_because_there_is_none(self):
+        self.assertFalse(mailbox.is_supported(self.core["CONTROL_ON"]))
+        self.assertIn("control_power", mailbox.refusal_key(self.core["CONTROL_ON"]))
+
+
+class MailboxContractTests(unittest.TestCase):
+    """The forced deviations from the oracle's field types, stated as tests."""
+
+    def test_no_public_member_is_a_bool(self):
+        for members in (mailbox.REQUEST_MEMBERS, mailbox.RESPONSE_MEMBERS):
+            for name, kind, _, _ in members:
+                self.assertIn(kind, (mailbox.DINT_MEMBER, mailbox.STRING_MEMBER),
+                              name)
+
+    def test_the_oracle_bools_became_zero_one_dints(self):
+        request = {n: k for n, k, _, _ in mailbox.REQUEST_MEMBERS}
+        response = {n: k for n, k, _, _ in mailbox.RESPONSE_MEMBERS}
+        self.assertEqual(request["BoolValue"], mailbox.DINT_MEMBER)
+        self.assertEqual(response["Accepted"], mailbox.DINT_MEMBER)
+
+    def test_sequence_is_the_last_request_member(self):
+        # It is the commit marker; the client writes it last and so must the
+        # contract's own ordering, or a reader could sample a torn request.
+        self.assertEqual(mailbox.REQUEST_MEMBERS[-1][0], "Sequence")
+
+    def test_ack_sequence_is_the_first_response_member_a_client_polls(self):
+        self.assertEqual(mailbox.RESPONSE_MEMBERS[0][0], "AckSequence")
+
+    def test_the_string_lengths_are_the_oracle_lengths(self):
+        self.assertEqual(mailbox.TARGET_PATH_LENGTH, 255)
+        self.assertEqual(mailbox.NAME_VALUE_LENGTH, 160)
+        self.assertEqual(mailbox.TEXT_VALUE_LENGTH, 255)
+        self.assertEqual(mailbox.USER_LENGTH, 32)
+        self.assertEqual(mailbox.SECRET_LENGTH, 32)
+
+    def test_the_response_claims_no_surface_this_binding_lacks(self):
+        names = {n for n, _, _, _ in mailbox.RESPONSE_MEMBERS}
+        self.assertNotIn("Report", names)
+        self.assertNotIn("ConfigPage", names)
 
 
 class ExecStateOrdinalTests(unittest.TestCase):
