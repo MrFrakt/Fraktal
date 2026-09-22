@@ -189,3 +189,96 @@ class InitialValueTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HandlerTests(unittest.TestCase):
+    """The handshake's ordering is the contract; none of it is incidental."""
+
+    def setUp(self):
+        self.lines = list(mailbox.handler_logic(APP))
+        self.body = chr(10).join(self.lines)
+
+    def index(self, fragment):
+        for i, line in enumerate(self.lines):
+            if fragment in line:
+                return i
+        raise AssertionError(f"{fragment!r} is not in the handler")
+
+    def test_it_consumes_a_request_only_when_the_sequence_changes(self):
+        self.assertLess(self.index("IF FRK_Press_HmiRequest.Sequence <>"),
+                        self.index("CASE FRK_Press_HmiRequest.Kind"))
+
+    def test_the_retained_sequence_moves_before_dispatch(self):
+        # Otherwise a command that faults mid-dispatch would run again next scan.
+        self.assertLess(self.index("FRK_Press_HmiLastSequence :="),
+                        self.index("CASE FRK_Press_HmiRequest.Kind"))
+
+    def test_the_answer_is_cleared_before_dispatch(self):
+        self.assertLess(self.index("Accepted := 0;"),
+                        self.index("CASE FRK_Press_HmiRequest.Kind"))
+        self.assertLess(self.index("DiagnosticKey := 0;"),
+                        self.index("CASE FRK_Press_HmiRequest.Kind"))
+
+    def test_the_acknowledgement_is_written_last(self):
+        # A client polls AckSequence to learn the whole answer is present.
+        ack = self.index("AckSequence :=")
+        for fragment in ("Accepted := 1;", "END_CASE;", "Secret.LEN := 0;"):
+            self.assertLess(self.index(fragment), ack, fragment)
+
+    def test_the_secret_is_wiped_by_bytes_not_just_by_length(self):
+        self.assertIn("Secret.LEN := 0;", self.body)
+        self.assertIn("Secret.DATA[FRK_Press_HmiWipe] := 0;", self.body)
+
+    def test_the_secret_is_wiped_after_it_could_have_been_sampled(self):
+        self.assertLess(self.index("END_CASE;"),
+                        self.index("Secret.LEN := 0;"))
+
+    def test_no_string_literal_is_assigned(self):
+        # Logix v33 ST will not assign a string literal to a StringFamily
+        # member: the SDK imported 21 such assignments at 0 errors and Studio
+        # Verify then rejected exactly 21. The answer is a numeric key instead.
+        self.assertNotIn(":= '", self.body)
+
+    def test_every_routed_kind_has_a_branch(self):
+        for kind in mailbox.SUPPORTED:
+            self.assertIn(f"{kind}:", self.body)
+
+    def test_every_refused_kind_has_a_branch(self):
+        branches = {int(part)
+                    for line in self.lines if line.rstrip().endswith(":")
+                    for part in line.rstrip()[:-1].split(",")
+                    if part.strip().isdigit()}
+        self.assertTrue(set(mailbox.REFUSED) <= branches,
+                        set(mailbox.REFUSED) - branches)
+
+    def test_a_refusal_names_a_published_key(self):
+        import fraktal_ab_manifest as manifest
+
+        published = {row["NumericKey"]
+                     for row in manifest.content(APP)["Localization"]}
+        for portable in mailbox.localization_keys():
+            key = manifest.numeric_key(APP, portable)
+            self.assertIn(key, published, portable)
+            self.assertNotEqual(key, 0, portable)
+
+    def test_an_unaccepted_request_always_carries_a_reason(self):
+        self.assertIn("(Accepted = 0)".replace("Accepted",
+                      "FRK_Press_HmiResponse.Accepted"), self.body)
+
+    def test_an_undeclared_mode_is_refused_rather_than_clamped(self):
+        declared = sorted({c.mode_ordinal for c in APP.chains})
+        for ordinal in declared:
+            self.assertIn(f"IntValue = {ordinal})", self.body)
+        self.assertIn(str(manifest_key(mailbox.MODE_NOT_DECLARED_KEY)), self.body)
+
+    def test_an_addressed_manual_command_is_refused(self):
+        # The declared manual chain jogs one module; honouring an address it
+        # cannot target would be worse than refusing.
+        self.assertIn("TargetPath.LEN = 0", self.body)
+        self.assertIn(str(manifest_key(mailbox.TARGET_KEY)), self.body)
+
+
+def manifest_key(portable):
+    import fraktal_ab_manifest as manifest
+
+    return manifest.numeric_key(APP, portable)

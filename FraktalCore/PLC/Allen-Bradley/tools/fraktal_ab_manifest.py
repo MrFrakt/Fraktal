@@ -131,7 +131,11 @@ def tables(app: decl.Application) -> tuple[Table, ...]:
                ("GatedAction", "DINT"), ("Minimum", "DINT"), ("Maximum", "DINT"),
                ("OperationKind", "DINT")), 32),
         Table("Localization", "FRK_MAX_LOCALIZATION_KEYS", f"FRK_T_{p}MfLocale",
-              (("NumericKey", "DINT"), ("PortableKey", KEY32)), 224),
+              # Raised from 224 when the mailbox's refusal keys took the count to
+              # 225 and the truncation flag caught it. 256 is the ceiling S7
+              # measured and froze, so this spends headroom already costed
+              # rather than moving the limit.
+              (("NumericKey", "DINT"), ("PortableKey", KEY32)), 256),
         Table("Rationalization", "FRK_MAX_REASONS", f"FRK_T_{p}MfReason",
               (("ReasonCode", "DINT"), ("Priority", "DINT"), ("Category", "DINT"),
                ("ActionKey", "DINT"), ("ConsequenceKey", "DINT"),
@@ -310,6 +314,17 @@ def content(app: decl.Application) -> dict[str, object]:
             "Shelvable": 1 if (held or waiting) else 0,
         })
 
+    # The command mailbox answers a refusal with a numeric key rather than a
+    # string, because Logix v33 ST cannot assign a string literal to a
+    # StringFamily member. Registering those keys here is what makes the answer
+    # resolvable: the controller publishes a number and this catalogue is where
+    # a client turns it back into a name. Registered last and in sorted order so
+    # the numbering is a function of the declaration, not of import order.
+    import fraktal_ab_mailbox as mailbox
+
+    for portable in mailbox.localization_keys():
+        keys.key(portable)
+
     return {
         "Roots": roots,
         "Modules": modules,
@@ -321,6 +336,19 @@ def content(app: decl.Application) -> dict[str, object]:
         "Rationalization": rationalization,
         "OptionalProfiles": [],
     }
+
+
+def numeric_key(app: decl.Application, portable: str) -> int:
+    """The published numeric key for a portable string, or 0 if unpublished.
+
+    Zero is "no key", never key zero: the catalogue numbers from 1, so a caller
+    that looks up something unregistered gets a value a client will not resolve
+    rather than one that resolves to whatever happens to be first.
+    """
+    for row in content(app)["Localization"]:
+        if row["PortableKey"] == portable:
+            return row["NumericKey"]
+    return 0
 
 
 def content_hash(app: decl.Application) -> str:

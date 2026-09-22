@@ -1527,6 +1527,9 @@ def controller_tags(app: decl.Application) -> str:
 def routine_logic(app: decl.Application) -> tuple[str, ...]:
     n = app.name
     lines = [
+        # The mailbox runs before anything else reads a request tag, so a
+        # command lands in the scan it was committed in rather than the next.
+        f"JSR({mailbox.routine_name(app)},0);",
         f"FRK_{n}_ScanCount := FRK_{n}_ScanCount + 1;",
         f"FRK_{n}_TaskPeriodMs := {app.task_period_ms};",
         "",
@@ -1571,7 +1574,9 @@ def program_tags(app: decl.Application) -> str:
 
 def programs(app: decl.Application) -> str:
     routines = "\n".join(
-        [st_program_routine(app.routine, routine_logic(app))] + chain_routines(app)
+        [st_program_routine(app.routine, routine_logic(app)),
+         st_program_routine(mailbox.routine_name(app), mailbox.handler_logic(app))]
+        + chain_routines(app)
     )
     return f"""<Programs>
 <Program Name="{app.program}" TestEdits="false" MainRoutineName="{app.routine}" Disabled="false" UseAsFolder="false">
@@ -1601,18 +1606,25 @@ def tasks(app: decl.Application) -> str:
 # nothing could discover the station without it), so "Manifest" is no longer
 # forbidden. Everything else still is.
 #
-# Two frozen-contract manifest members name a structure that does not exist yet -
-# a module's registry index and a root's mailbox identity. They are *references*,
-# published as zero, and the contract requires the fields by those names. Naming
-# them differently to slip past a substring check would be worse than the check:
-# it would put the manifest out of step with the frozen schema to keep a fence
-# quiet. They are allowed by exact name, and only by exact name.
+# It changed a second time, also deliberately: the root Unit now has a Core
+# §3.10/§14 command mailbox. The project owner authorized writes on 2026-09-21
+# and chose the controller-side mailbox over translating in the gateway, so
+# "Mailbox" is no longer forbidden either. The two changes are the only ones,
+# and each followed a decision recorded in the binding record rather than an
+# implementer finding the fence inconvenient.
+#
+# One frozen-contract manifest member still names a structure that does not
+# exist - a module's registry index. It is a *reference*, published as zero, and
+# the contract requires the field by that name. Naming it differently to slip
+# past a substring check would be worse than the check: it would put the
+# manifest out of step with the frozen schema to keep a fence quiet. It is
+# allowed by exact name, and only by exact name.
 EXCLUDED_SCOPE_TERMS = (
-    "Recipe", "ParCfgRecord", "Registry", "Mailbox",
+    "Recipe", "ParCfgRecord", "Registry",
     "Traceability", "ReleaseReport",
 )
 
-SCOPE_FENCE_ALLOWED = ("RegistryIndex", "MailboxId")
+SCOPE_FENCE_ALLOWED = ("RegistryIndex",)
 
 
 def all_generated_logic(app: decl.Application) -> str:

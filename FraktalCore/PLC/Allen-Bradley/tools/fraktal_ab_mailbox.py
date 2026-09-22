@@ -111,11 +111,15 @@ SUPPORTED: dict[int, str] = {
     STOP: "the abort request the mode chain already consumes",
     OPERATOR_RESET: "the reset request",
     DECISION_ANSWER: "the operator decision the AUTO chain waits on; IntValue",
-    MANUAL_COMMAND: "the per-module manual command; TargetPath and IntValue",
-    STEP_REQUEST: "the sequence step control",
-    SET_HOLD_RUN: "the sequence hold control; BoolValue",
-    LAMP_TEST: "the bounded signal-tower test",
+    MANUAL_COMMAND: "the declared manual jog; only with an empty TargetPath",
 }
+
+# The command-mailbox handover listed STEP_REQUEST, SET_HOLD_RUN and LAMP_TEST
+# as routable. They are not, and the declaration is the authority: the press
+# demo has no step-request tag and no signal tower, and its Hold* tags are the
+# S16 per-module hold *injections* the evidence harness uses, not a sequence
+# hold-run control. Routing a command to the nearest similarly-named tag is how
+# an operator ends up holding a cylinder when they asked to hold the sequence.
 
 # The reason is a localization key, because a Diagnostic an operator reads has to
 # survive translation. Each names the owed work rather than saying "unsupported".
@@ -145,6 +149,9 @@ REFUSED: dict[int, str] = {
     UNSHELVE_ALARM: "project.mailbox.refused.no_event_core",
     FORCE_CHANNEL: "project.mailbox.refused.no_physical_io",
     MANUAL_HELD: "project.mailbox.refused.no_hold_to_run",
+    STEP_REQUEST: "project.mailbox.refused.no_step_control",
+    SET_HOLD_RUN: "project.mailbox.refused.no_hold_run_control",
+    LAMP_TEST: "project.mailbox.refused.no_signal_tower",
 }
 
 # NONE is neither: a mailbox holding Kind 0 has not been commanded, and treating
@@ -160,7 +167,18 @@ NAME_VALUE_LENGTH = 160
 TEXT_VALUE_LENGTH = 255
 USER_LENGTH = 32
 SECRET_LENGTH = 32
-DIAGNOSTIC_LENGTH = 255
+# The oracle answers with `Diagnostic : STRING(255)`. This binding answers with a
+# numeric localization key instead, and that is a *measured* deviation rather
+# than a preference. Logix v33 ST will not assign a string literal to a
+# StringFamily member: the SDK imported 21 such assignments at 0 errors and
+# Studio Verify then rejected exactly 21. Setting a string from logic would mean
+# a constant tag per key, or writing DATA byte by byte.
+#
+# Publishing the key is also the better answer here. The manifest already
+# carries the numeric-to-portable catalogue an HMI resolves against, so a
+# refusal survives translation instead of shipping one hard-coded language, and
+# the controller contract stays all-DINT. The projection resolves the key back
+# into the string the mapper reads.
 
 # Sequence is a DINT because v33 has no UDINT. It is compared for inequality and
 # never ordered, so a wrap is not a fault - but a client that treats it as
@@ -186,7 +204,7 @@ REQUEST_MEMBERS: tuple[tuple[str, str, int, str], ...] = (
 RESPONSE_MEMBERS: tuple[tuple[str, str, int, str], ...] = (
     ("AckSequence", DINT_MEMBER, 0, "set last, so a matching ack means the whole answer is present"),
     ("Accepted", DINT_MEMBER, 0, "0/1, not a BOOL: the S12 hole"),
-    ("Diagnostic", STRING_MEMBER, DIAGNOSTIC_LENGTH, "a localization key, so a refusal translates"),
+    ("DiagnosticKey", DINT_MEMBER, 0, "the manifest's numeric localization key for the reason"),
 )
 
 
@@ -325,4 +343,163 @@ def tags(app) -> list[str]:
         f'<Tag Name="FRK_{app.name}_HmiLastSequence" TagType="Base" '
         f'DataType="DINT" Radix="Decimal" Constant="false" '
         f'ExternalAccess="None"/>',
+        # The secret-wipe loop index. Also unreachable: it exists for one FOR
+        # and nothing outside this routine has any business with it.
+        f'<Tag Name="FRK_{app.name}_HmiWipe" TagType="Base" '
+        f'DataType="DINT" Radix="Decimal" Constant="false" '
+        f'ExternalAccess="None"/>',
     ]
+
+
+# --- the handler -------------------------------------------------------------
+
+
+def routine_name(app) -> str:
+    return f"FRK_{app.name}HmiMailbox"
+
+
+def _request(app, member: str) -> str:
+    return f"{request_tag_name(app)}.{member}"
+
+
+def _response(app, member: str) -> str:
+    return f"{response_tag_name(app)}.{member}"
+
+
+def _key(app, portable: str) -> int:
+    import fraktal_ab_manifest as manifest
+
+    return manifest.numeric_key(app, portable)
+
+
+def _accept(app, *statements: str) -> list[str]:
+    return list(statements) + [f"{_response(app, 'Accepted')} := 1;"]
+
+
+def _refuse(app, portable: str) -> list[str]:
+    return [f"{_response(app, 'DiagnosticKey')} := {_key(app, portable)}; "
+            f"(* {portable} *)"]
+
+
+def _dispatch(app) -> list[str]:
+    """One CASE branch per routed kind, then the refusals grouped by reason."""
+    n = app.name
+    lines: list[str] = []
+
+    declared_modes = sorted({c.mode_ordinal for c in app.chains})
+    guard = " OR ".join(f"({_request(app, 'IntValue')} = {m})"
+                        for m in declared_modes)
+    lines.append(f"{SET_MODE}: (* SET_MODE *)")
+    lines.append(f"IF {guard} THEN")
+    lines.extend(_accept(app, f"FRK_{n}_ModeRequest := {_request(app, 'IntValue')};"))
+    lines.append("ELSE")
+    # A mode the oracle defines but this application does not declare is refused
+    # by name, not clamped: selecting CHANGEOVER on a press that has no
+    # changeover must fail visibly rather than land in AUTO.
+    lines.extend(_refuse(app, MODE_NOT_DECLARED_KEY))
+    lines.append("END_IF;")
+
+    lines.append(f"{START}: (* START *)")
+    lines.extend(_accept(app, f"FRK_{n}_RunRequest := 1;"))
+
+    lines.append(f"{STOP}: (* STOP *)")
+    lines.extend(_accept(app, f"FRK_{n}_AbortRequest := 1;"))
+
+    lines.append(f"{OPERATOR_RESET}: (* OPERATOR_RESET *)")
+    lines.extend(_accept(app, f"FRK_{n}_ResetRequest := 1;"))
+
+    lines.append(f"{DECISION_ANSWER}: (* DECISION_ANSWER *)")
+    lines.append(f"IF {_request(app, 'IntValue')} >= 1 THEN")
+    lines.extend(_accept(app,
+                         f"FRK_{n}_DecisionAnswer := {_request(app, 'IntValue')};"))
+    lines.append("ELSE")
+    lines.extend(_refuse(app, DECISION_RANGE_KEY))
+    lines.append("END_IF;")
+
+    lines.append(f"{MANUAL_COMMAND}: (* MANUAL_COMMAND *)")
+    # The declared manual chain jogs one module. An addressed request cannot be
+    # honoured, and honouring it against the wrong module would be worse than
+    # refusing, so only an unaddressed jog is accepted. Testing LEN avoids a
+    # string comparison, which is not a settled construct on this baseline.
+    lines.append(f"IF {_request(app, 'TargetPath')}.LEN = 0 THEN")
+    lines.extend(_accept(app, f"FRK_{n}_JogCommand := 1;"))
+    lines.append("ELSE")
+    lines.extend(_refuse(app, TARGET_KEY))
+    lines.append("END_IF;")
+
+    by_key: dict[str, list[int]] = {}
+    for kind, portable in sorted(REFUSED.items()):
+        by_key.setdefault(portable, []).append(kind)
+    for portable, kinds in sorted(by_key.items()):
+        lines.append(",".join(str(k) for k in kinds) + ":")
+        lines.extend(_refuse(app, portable))
+
+    lines.append("ELSE")
+    lines.extend(_refuse(app, UNKNOWN_KEY))
+    return lines
+
+
+def handler_logic(app) -> tuple[str, ...]:
+    """Core §3.10/§14, mirroring the oracle's ``_M_HandleHmiRequest``.
+
+    The ordering is the contract and none of it is incidental. A request is
+    consumed only when ``Sequence`` changes, and the retained value moves first,
+    so a command runs exactly once however many scans it sits there. The
+    response is cleared before dispatch, so nothing of the previous answer can
+    be read as part of this one. ``Secret`` is wiped after sampling, as the
+    oracle does. And ``AckSequence`` is written **last**, because a client polls
+    it to learn the whole answer is present - set it early and a client can read
+    an acknowledgement attached to a half-written response.
+    """
+    n = app.name
+    lines = [
+        "(* Core 3.10/14: consume one committed request exactly once. *)",
+        f"IF {_request(app, 'Sequence')} <> FRK_{n}_HmiLastSequence THEN",
+        f"FRK_{n}_HmiLastSequence := {_request(app, 'Sequence')};",
+        "",
+        "(* Clear the answer before dispatch: no part of the previous one may",
+        "   be read as part of this one. *)",
+        f"{_response(app, 'Accepted')} := 0;",
+        f"{_response(app, 'DiagnosticKey')} := 0;",
+        "",
+        f"CASE {_request(app, 'Kind')} OF",
+    ]
+    lines.extend(_dispatch(app))
+    lines.extend([
+        "END_CASE;",
+        "",
+        "(* A refusal that named no reason would be indistinguishable from a",
+        "   command that silently did nothing. *)",
+        f"IF ({_response(app, 'Accepted')} = 0) AND "
+        f"({_response(app, 'DiagnosticKey')} = 0) THEN",
+        f"{_response(app, 'DiagnosticKey')} := {_key(app, REJECTED_KEY)};",
+        "END_IF;",
+        "",
+        "(* Wipe the secret, as the oracle does. Clearing LEN alone would leave",
+        "   the characters in DATA for anyone reading the member directly, so",
+        "   the bytes go too. *)",
+        f"{_request(app, 'Secret')}.LEN := 0;",
+        f"FOR FRK_{n}_HmiWipe := 0 TO {SECRET_LENGTH - 1} DO",
+        f"{_request(app, 'Secret')}.DATA[FRK_{n}_HmiWipe] := 0;",
+        "END_FOR;",
+        "",
+        f"{_response(app, 'AckSequence')} := FRK_{n}_HmiLastSequence;",
+        "END_IF;",
+    ])
+    return tuple(lines)
+
+
+# --- the localization keys this mailbox can answer with ----------------------
+
+REJECTED_KEY = "project.mailbox.refused.rejected"
+UNKNOWN_KEY = "project.mailbox.refused.unknown_kind"
+MODE_NOT_DECLARED_KEY = "project.mailbox.refused.mode_not_declared"
+DECISION_RANGE_KEY = "project.mailbox.refused.decision_out_of_range"
+TARGET_KEY = "project.mailbox.refused.target_not_addressable"
+
+
+def localization_keys() -> tuple[str, ...]:
+    """Every key the handler can write, sorted so the numbering is stable."""
+    extra = {REJECTED_KEY, UNKNOWN_KEY, MODE_NOT_DECLARED_KEY,
+             DECISION_RANGE_KEY, TARGET_KEY}
+    return tuple(sorted(set(REFUSED.values()) | extra))
