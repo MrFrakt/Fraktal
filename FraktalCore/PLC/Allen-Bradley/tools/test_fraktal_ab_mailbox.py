@@ -282,3 +282,57 @@ def manifest_key(portable):
     import fraktal_ab_manifest as manifest
 
     return manifest.numeric_key(APP, portable)
+
+
+class ManifestPublicationTests(unittest.TestCase):
+    """A mailbox a client cannot discover is a tag someone was told about."""
+
+    def setUp(self):
+        import fraktal_ab_manifest as manifest
+
+        self.manifest = manifest
+        self.content = manifest.content(APP)
+        self.keys = {row["NumericKey"]: row["PortableKey"]
+                     for row in self.content["Localization"]}
+
+    def test_the_root_publishes_a_non_zero_mailbox_id(self):
+        # Zero is how the manifest says a station cannot be commanded at all.
+        self.assertEqual(self.content["Roots"][0]["MailboxId"],
+                         self.manifest.MAILBOX_ID)
+        self.assertNotEqual(self.content["Roots"][0]["MailboxId"], 0)
+
+    def test_every_request_member_is_published_as_writable(self):
+        paths = {self.keys[f["PathKey"]]: f for f in self.content["Fields"]}
+        for name, _, _, _ in mailbox.REQUEST_MEMBERS:
+            path = f"{APP.name}.HmiRequest.{name}"
+            self.assertIn(path, paths)
+            self.assertEqual(paths[path]["AccessClass"],
+                             self.manifest.ACCESS_WRITE, path)
+
+    def test_every_response_member_is_published_read_only(self):
+        paths = {self.keys[f["PathKey"]]: f for f in self.content["Fields"]}
+        for name, _, _, _ in mailbox.RESPONSE_MEMBERS:
+            path = f"{APP.name}.HmiResponse.{name}"
+            self.assertIn(path, paths)
+            self.assertEqual(paths[path]["AccessClass"],
+                             self.manifest.ACCESS_READ, path)
+
+    def test_the_answer_is_live_and_the_request_is_on_demand(self):
+        # A client polls the answer until AckSequence matches; nothing polls the
+        # request, because the client is the one writing it.
+        paths = {self.keys[f["PathKey"]]: f for f in self.content["Fields"]}
+        self.assertEqual(paths[f"{APP.name}.HmiResponse.AckSequence"]["ReadTier"],
+                         self.manifest.TIER_LIVE)
+        self.assertEqual(paths[f"{APP.name}.HmiRequest.Sequence"]["ReadTier"],
+                         self.manifest.TIER_ON_DEMAND)
+
+    def test_the_manifest_still_fits(self):
+        evidence = self.manifest.evidence(APP)
+        self.assertFalse(evidence["Truncated"])
+        # S7 measured 43,728 bytes read coherently at a 4002-byte connection.
+        self.assertLess(evidence["EstimatedBytes"], 43728)
+
+    def test_the_refusal_keys_are_all_resolvable(self):
+        published = set(self.keys.values())
+        for portable in mailbox.localization_keys():
+            self.assertIn(portable, published, portable)

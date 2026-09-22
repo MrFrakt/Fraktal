@@ -88,6 +88,11 @@ OP_DECISION = 3
 TIER_ROOT = 0
 TIER_MODULE = 1
 
+# The root's command mailbox. One root, one mailbox, so the id is 1 -
+# but it is published rather than assumed, because zero is how the
+# manifest says a station cannot be commanded at all.
+MAILBOX_ID = 1
+
 
 @dataclass(frozen=True)
 class Table:
@@ -203,9 +208,12 @@ def content(app: decl.Application) -> dict[str, object]:
         "RootId": 1,
         "ModuleIndex": 0,
         "RepositoryScope": 1,
-        # No mailbox and no host-event ring exist yet; the initial claim is
-        # read-only, and a zero here says "not published" rather than "id 0".
-        "MailboxId": 0,
+        # The root now has a Core 3.10/14 command mailbox, so this is its id
+        # rather than the zero that meant "not published". A client reads a
+        # non-zero MailboxId to learn the station can be commanded at all.
+        "MailboxId": MAILBOX_ID,
+        # No host-event ring exists yet; zero still says "not published" there,
+        # and never "id 0".
         "HostEventId": 0,
     }]
 
@@ -267,6 +275,36 @@ def content(app: decl.Application) -> dict[str, object]:
             "ModuleId": unit_id, "PathKey": keys.key(tag),
             "LogicalType": LOGICAL_INT32, "Dimensions": 0,
             "ReadTier": TIER_LIVE, "AccessClass": ACCESS_WRITE,
+            "QualitySource": QUALITY_GATEWAY_READ_TIME,
+            "WriteCapabilityIndex": 0,
+        })
+
+    # The mailbox members a client writes to command the station. They are
+    # published as writable fields rather than left to be guessed: a client that
+    # cannot discover where to put a request has no mailbox, only a tag someone
+    # told it about out of band.
+    import fraktal_ab_mailbox as mailbox
+
+    for name, kind, _, _ in mailbox.REQUEST_MEMBERS:
+        fields.append({
+            "ModuleId": unit_id,
+            "PathKey": keys.key(f"{app.name}.HmiRequest.{name}"),
+            "LogicalType": LOGICAL_INT32,
+            "Dimensions": 0,
+            "ReadTier": TIER_ON_DEMAND,
+            "AccessClass": ACCESS_WRITE,
+            "QualitySource": QUALITY_GATEWAY_READ_TIME,
+            "WriteCapabilityIndex": 0,
+        })
+    for name, kind, _, _ in mailbox.RESPONSE_MEMBERS:
+        fields.append({
+            "ModuleId": unit_id,
+            "PathKey": keys.key(f"{app.name}.HmiResponse.{name}"),
+            "LogicalType": LOGICAL_INT32,
+            "Dimensions": 0,
+            # The answer is polled until AckSequence matches, so it is live.
+            "ReadTier": TIER_LIVE,
+            "AccessClass": ACCESS_READ,
             "QualitySource": QUALITY_GATEWAY_READ_TIME,
             "WriteCapabilityIndex": 0,
         })
