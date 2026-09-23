@@ -1372,7 +1372,17 @@ def aoi_definitions(app: decl.Application) -> str:
 
 # --- tags -------------------------------------------------------------------
 
-def _structure_tag(name: str, data_type: str, members: tuple[decl.Member, ...]) -> str:
+def _structure_tag(name: str, data_type: str, members: tuple[decl.Member, ...],
+                   external_access: str = "Read Only") -> str:
+    """A contract structure tag.
+
+    ``Read Only`` by default, which is AB §11.2.1's rule for public data. These
+    are what the machine publishes about itself - its contexts, its chart, its
+    configuration record - and a client that could write them could set a
+    module's state without the module ever running, or edit configuration
+    outside the request that is supposed to carry it. Commands and configuration
+    changes arrive through the mailbox, which validates and acknowledges them.
+    """
     parts = []
     for member in members:
         if member.dimension:
@@ -1391,7 +1401,7 @@ def _structure_tag(name: str, data_type: str, members: tuple[decl.Member, ...]) 
                 f'Radix="Decimal" Value="{member.initial}"/>'
             )
     body = "\n".join(parts)
-    return f"""<Tag Name="{name}" TagType="Base" DataType="{data_type}" Constant="false" ExternalAccess="Read/Write">
+    return f"""<Tag Name="{name}" TagType="Base" DataType="{data_type}" Constant="false" ExternalAccess="{external_access}">
 <Data Format="Decorated">
 <Structure DataType="{data_type}">
 {body}
@@ -1400,25 +1410,75 @@ def _structure_tag(name: str, data_type: str, members: tuple[decl.Member, ...]) 
 </Tag>"""
 
 
-def writable_inputs(app: decl.Application) -> tuple[str, ...]:
-    names = [
+def command_inputs(app: decl.Application) -> tuple[str, ...]:
+    """The request tags the mailbox routes into.
+
+    These are the mailbox's *outputs*, not a client's inputs. A command arrives
+    through ``HmiRequest``, where it is validated against the declared modes,
+    refused by name when this binding does not support it, and acknowledged with
+    the sequence that asked. Leaving these externally writable would let a CIP
+    client set ``RunRequest`` directly and skip every one of those checks, so
+    they are emitted ``None``: the mailbox is the only way in, and therefore the
+    only place a command is recorded.
+    """
+    return (
         f"FRK_{app.name}_RunRequest",
         f"FRK_{app.name}_AbortRequest",
         f"FRK_{app.name}_ResetRequest",
         f"FRK_{app.name}_ModeRequest",
         f"FRK_{app.name}_DecisionAnswer",
-    ]
+        f"FRK_{app.name}_JogCommand",
+    )
+
+
+def stimulus_inputs(app: decl.Application) -> tuple[str, ...]:
+    """The simulated world, and the evidence apparatus' injections.
+
+    A command mailbox cannot carry these and should not try: "the part-present
+    sensor went true" is the plant's world, not something an operator asks the
+    machine to do, and a request kind invented for it would be a command no
+    operator ever issues. They are writable only in a declared test build - see
+    ``externally_writable`` - so a shipped build exposes the mailbox and nothing
+    else.
+    """
+    commands = set(command_inputs(app))
+    names: list[str] = []
     for module in app.modules:
         names.append(f"FRK_{app.name}_Fault{module.name}")
         names.append(f"FRK_{app.name}_Hold{module.name}")
-    # Simulated operator and sensor inputs are writable too: the harness drives
-    # the plant's world through them, and nothing else may write them.
-    names.extend(app.sim_inputs)
+    names.extend(t for t in app.sim_inputs if t not in commands)
     if multi_chains(app):
-        # Which rendition of a multi-rendition chain runs. Writable so the
-        # harness can walk one graph in each language in a single session.
+        # Which rendition of a multi-rendition chain runs, so the harness can
+        # walk one graph in each language in a single session.
         names.append(rendition_tag(app))
     return tuple(names)
+
+
+def writable_inputs(app: decl.Application) -> tuple[str, ...]:
+    """Every input tag the application emits, whatever its external access.
+
+    The name is historical: it predates the mailbox, when all of these really
+    were externally writable. What a build actually exposes is
+    ``externally_writable``; this is the emission list.
+    """
+    return command_inputs(app) + stimulus_inputs(app)
+
+
+def externally_writable(app: decl.Application) -> tuple[str, ...]:
+    """What a CIP client may write besides the mailbox itself.
+
+    AB §11.2.1 wants the mailbox ``Read/Write``, public data ``Read Only`` and
+    everything else ``None``. What remains here is the simulated plant, and it
+    remains for a reason that is a property of *this application* rather than of
+    the binding: the press demo declares no physical I/O, so the signals a real
+    machine would take from a card are tags instead. A real application has no
+    such tags, and this list is empty for it.
+
+    That is a narrowing worth stating plainly rather than hiding behind a build
+    flag: on this demo, a CIP client can still move the simulated world. What it
+    can no longer do is issue a command - see ``command_inputs``.
+    """
+    return stimulus_inputs(app)
 
 
 # --- what a manifest may describe, and what it may not ----------------------
@@ -1456,7 +1516,11 @@ def publishable_tags(app: decl.Application) -> tuple[str, ...]:
     from the contract by construction rather than by anyone remembering to leave
     them out.
     """
-    excluded = set(harness_only_tags(app))
+    # A tag the mailbox routes into is not public data: it is the mailbox's own
+    # output, it is emitted None, and describing it in the manifest would
+    # advertise a surface the controller refuses. The request arrives at
+    # HmiRequest, which the manifest does publish.
+    excluded = set(harness_only_tags(app)) | set(command_inputs(app))
     published: list[str] = []
     for record in app.records:
         published.append(f"{record.name}Tag")
@@ -1499,8 +1563,20 @@ def controller_tags(app: decl.Application) -> str:
                                unit_context_members(app)))
     tags.append(_structure_tag(f"FRK_{app.name}_Chart", chart_name(app),
                                chart_members(app)))
+    # §11.2.1, emitted rather than asserted. The mailbox is the write surface;
+    # a request tag the mailbox drives is None, and the stimulus surface is
+    # Read/Write only in a declared test build. What the manifest publishes as a
+    # field stays readable, so the contract a client discovers is still there.
+    published = set(publishable_tags(app))
+    writable = set(externally_writable(app))
     for name in writable_inputs(app):
-        tags.append(scalar_tag(name, "DINT", "Decimal", "0", "Read/Write"))
+        if name in writable:
+            access = "Read/Write"
+        elif name in published:
+            access = "Read Only"
+        else:
+            access = "None"
+        tags.append(scalar_tag(name, "DINT", "Decimal", "0", access))
     for name in evidence_tags(app):
         tags.append(scalar_tag(name, "DINT", "Decimal", "0", "Read Only"))
     for module in app.modules:
@@ -1742,7 +1818,8 @@ def generate(app: decl.Application, source: Path, output: Path) -> dict[str, obj
         "Chains": {c.name: [s.number for s in c.steps] for c in app.chains},
         "DistinctSteps": len(steps),
         "ChartSteps": app.chart_steps,
-        "WritableInputs": list(writable_inputs(app)),
+        "WritableInputs": list(externally_writable(app)),
+        "CommandInputs": list(command_inputs(app)),
         "EvidenceTags": list(evidence_tags(app)),
         "HarnessOnlyTags": list(harness_only_tags(app)),
         "PublishableTags": list(publishable_tags(app)),
@@ -1761,7 +1838,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("output", type=Path)
     args = parser.parse_args(argv)
     try:
-        evidence = generate(fraktal_ab_press_demo.application(), args.source, args.output)
+        evidence = generate(fraktal_ab_press_demo.application(), args.source,
+                            args.output)
     except (OSError, ValueError, AssertionError, decl.DeclarationError) as exc:
         print(f"ERROR [generate] {exc}", file=sys.stderr)
         return 2

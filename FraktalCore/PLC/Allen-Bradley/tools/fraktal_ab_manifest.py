@@ -265,11 +265,18 @@ def content(app: decl.Application) -> dict[str, object]:
         add_fields(ids[module.name], f"{app.name}.{module.name}",
                    gen.module_context_members(), TIER_LIVE)
 
-    # Simulated plant and operator inputs are published as writable fields rather
-    # than as operations: they stand in for signals a real machine would take
-    # from I/O, not for something a client asks the machine to do.
+    # Simulated plant inputs are published as writable fields rather than as
+    # operations: they stand in for signals a real machine would take from I/O,
+    # not for something a client asks the machine to do.
+    #
+    # A tag the mailbox routes into is excluded even when it is declared a
+    # simulated input, because it is no longer externally writable: the jog a
+    # MANUAL_COMMAND drives is reached through the mailbox, which validates and
+    # acknowledges it. Publishing it as writable would advertise a surface the
+    # controller now refuses.
+    commanded = set(gen.command_inputs(app))
     for tag in app.sim_inputs:
-        if tag not in publishable:
+        if tag not in publishable or tag in commanded:
             continue
         fields.append({
             "ModuleId": unit_id, "PathKey": keys.key(tag),

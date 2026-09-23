@@ -1438,6 +1438,28 @@ the bench CA. That is a host decision, not a binding defect, and
 `tool/probe_gateway_tls.dart` distinguishes it from a misconfigured trust store
 by reporting the certificate actually offered.
 
+**The write surface is closed in generation, and its download is gated.** Every
+request tag the mailbox routes into is emitted `None` and is no longer described
+in the manifest — it is the mailbox's output, not public data — and the contract
+structures are `Read Only`, so a CIP client can no longer set `RunRequest`
+directly and skip the validation, refusal and acknowledgement the mailbox
+performs. What remains writable is the simulated plant and the evidence
+apparatus, which is a property of a demonstration application that declares no
+physical I/O rather than of the binding; a real application takes those signals
+from a card and has no such tags. Closing it changed the manifest, so the two
+builds are told apart by reading the controller rather than by trusting a label.
+
+**That build must not be downloaded yet.** Commanding the press exposed a defect
+the open write surface had been hiding: the handler raises the level-sensitive
+request tags it routes into and never lowers them, so a commanded bench was left
+with `AbortRequest` latched and the Unit `Aborted`, while every command reported
+`Accepted`. With the surface closed the mailbox is their only writer and nothing
+could recover it. The defect, the restored bench and what a fix must get right
+are recorded in
+[`AB_MAILBOX_LATCHING_DEFECT_2026-09-22.md`](AllenBradley/Evidence/AB_MAILBOX_LATCHING_DEFECT_2026-09-22.md),
+and the download is gated behind fixing it in
+[`AB_STUDIO_WRITE_SURFACE_HANDOVER_PROMPT.md`](AllenBradley/AB_STUDIO_WRITE_SURFACE_HANDOVER_PROMPT.md).
+
 **The generic HMI itself now commands the press.** With that exception in place,
 the unmodified `OpcUaRepository` issued the six routed kinds over an
 authenticated `wss://` session and received the three refusals with their

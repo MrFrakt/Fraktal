@@ -125,29 +125,82 @@ class AccessTests(unittest.TestCase):
         self.assertEqual(access[mailbox.request_tag_name(APP)], "Read/Write")
         self.assertEqual(access[mailbox.response_tag_name(APP)], "Read Only")
 
-    def test_the_mailbox_does_not_yet_have_the_write_surface_to_itself(self):
-        """AB §11.2.1 is not met yet, and this records by how much.
+    def test_a_command_cannot_be_issued_around_the_mailbox(self):
+        """AB §11.2.1, the half of it that is about commands.
 
-        The rule is mailbox Read/Write, public Read Only, everything else None.
-        The generator still emits the contract structures and the request tags
-        the mailbox routes to as Read/Write, so a CIP client can write
-        `FRK_Press_Unit` or `FRK_Press_RunRequest` directly and never meet the
-        gateway's Core §14 gate. That is a real bypass, it is owed work, and it
-        is asserted here so that closing it breaks this test rather than passing
-        unnoticed - and so that nobody reads the mailbox's arrival as having
-        closed it.
+        This replaces the test that recorded the bypass. Every request tag the
+        mailbox routes into is now `None`, so a CIP client cannot set
+        `FRK_Press_RunRequest` directly and skip the validation, the refusal and
+        the acknowledgement the mailbox performs. The mailbox is the only way to
+        issue a command and therefore the only place one is recorded.
+        """
+        controller = self.root.find("./Controller/Tags")
+        access = {t.get("Name"): t.get("ExternalAccess")
+                  for t in controller.findall("Tag")}
+        self.assertEqual(access[mailbox.request_tag_name(APP)], "Read/Write")
+        for name in gen.command_inputs(APP):
+            self.assertEqual(
+                access[name], "None",
+                f"{name} is routed by the mailbox and must not be writable "
+                f"around it")
+
+    def test_the_simulated_plant_is_the_remaining_writable_surface(self):
+        """The narrowing that is left, asserted rather than described.
+
+        The press demo declares no physical I/O, so the signals a real machine
+        would take from a card are tags, and the evidence harnesses drive the
+        plant through them. That is a property of this demonstration
+        application - a real one has no such tags - and it is pinned here so it
+        cannot quietly grow: anything newly writable has to be added to this
+        list deliberately.
         """
         controller = self.root.find("./Controller/Tags")
         writable = {t.get("Name") for t in controller.findall("Tag")
                     if t.get("ExternalAccess") == "Read/Write"}
-        self.assertIn(mailbox.request_tag_name(APP), writable)
-        routed = {f"FRK_{APP.name}_RunRequest", f"FRK_{APP.name}_AbortRequest",
-                  f"FRK_{APP.name}_ResetRequest", f"FRK_{APP.name}_ModeRequest",
-                  f"FRK_{APP.name}_DecisionAnswer"}
-        self.assertTrue(routed <= writable,
-                        "the routed request tags stopped being writable - if "
-                        "that was deliberate, the bypass is closed and this "
-                        "test should be replaced by the §11.2.1 assertion")
+        expected = set(gen.externally_writable(APP)) | {
+            mailbox.request_tag_name(APP)}
+        self.assertEqual(writable, expected)
+        # ...and none of it is a command (the paired negative).
+        self.assertFalse(writable & set(gen.command_inputs(APP)))
+
+
+class OneShotRequestTests(unittest.TestCase):
+    """The handler drives level-sensitive requests and does not drop them.
+
+    Measured on hardware 2026-09-22: after START, STOP and OPERATOR_RESET the
+    bench was left with RunRequest, AbortRequest, ResetRequest and JogCommand
+    all latched at 1 and the Unit reporting Aborted. The generated logic copies
+    each request into the Unit context every scan and tests it as a level
+    (`IF Ctx.RunRequest <> 0`), but the handler only ever sets it.
+
+    While those tags were externally writable a client could deassert them, and
+    the harness did exactly that. Now that the mailbox is their only writer
+    (AB §11.2.1), nothing can - so a build carrying both changes would leave the
+    press aborted with no way out short of a download.
+
+    This asserts the defect on purpose, so fixing it breaks this test rather
+    than passing unnoticed.
+    """
+
+    def test_the_handler_does_not_yet_deassert_the_one_shot_requests(self):
+        logic = "\n".join(mailbox.handler_logic(APP))
+        for name in ("RunRequest", "AbortRequest", "ResetRequest", "JogCommand"):
+            tag = f"FRK_{APP.name}_{name}"
+            self.assertIn(f"{tag} := 1;", logic,
+                          f"{tag} is the level this command drives")
+            self.assertNotIn(
+                f"{tag} := 0;", logic,
+                f"{tag} is now deasserted somewhere in the handler - the "
+                f"latching defect is fixed, and this test should be replaced "
+                f"by the assertion that every one-shot request drops again")
+
+    def test_the_command_tags_have_no_other_writer(self):
+        """Why the defect matters: the mailbox is now the only way in."""
+        self.assertEqual(
+            set(gen.command_inputs(APP)) & set(gen.externally_writable(APP)),
+            set(),
+            "a command tag is externally writable again, which would let a "
+            "client deassert a latched request and hide this defect")
 
 
 class InitialValueTests(unittest.TestCase):
