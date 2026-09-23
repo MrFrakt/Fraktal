@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import fraktal_ab_access_audit as audit_module
 from fraktal_ab_access_audit import AuditError, audit, controller_tags
 
 
@@ -106,3 +107,65 @@ class AccessAuditTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PlantClassTests(unittest.TestCase):
+    """A simulated sensor is writable, but it is not a command surface.
+
+    Calling the plant a mailbox to make the audit pass would put `AirOk` and
+    `FaultDoor` in a report's mailbox list, and the next reader would take them
+    for ways to command the machine.
+    """
+
+    TAGS = {
+        "FRK_Press_HmiRequest": "Read/Write",
+        "FRK_Press_AirOk": "Read/Write",
+        "FRK_Press_Unit": "Read Only",
+        "FRK_Press_RunRequest": "None",
+    }
+
+    def audit(self, **kwargs):
+        return audit_module.audit(
+            dict(self.TAGS),
+            kwargs.get("mailbox", {"FRK_Press_HmiRequest"}),
+            kwargs.get("public", {"FRK_Press_Unit"}),
+            kwargs.get("plant", {"FRK_Press_AirOk"}),
+        )
+
+    def test_a_declared_plant_input_conforms_when_writable(self):
+        report = self.audit()
+        self.assertTrue(report["Conforms"], report["Findings"])
+
+    def test_the_plant_is_not_counted_as_a_command_surface(self):
+        report = self.audit()
+        self.assertEqual(report["CommandSurface"], ["FRK_Press_HmiRequest"])
+        self.assertIn("FRK_Press_AirOk", report["WriteSurface"])
+
+    def test_the_plant_is_named_in_the_report(self):
+        self.assertEqual(self.audit()["Plant"], ["FRK_Press_AirOk"])
+
+    def test_an_undeclared_writable_tag_still_fails(self):
+        # The whole point: the plant class is a declaration, not an amnesty.
+        report = self.audit(plant=set())
+        self.assertFalse(report["Conforms"])
+        self.assertTrue(any("FRK_Press_AirOk" in f for f in report["Findings"]))
+
+    def test_a_plant_tag_that_is_read_only_fails(self):
+        tags = dict(self.TAGS, FRK_Press_AirOk="Read Only")
+        report = audit_module.audit(tags, {"FRK_Press_HmiRequest"},
+                                    {"FRK_Press_Unit"}, {"FRK_Press_AirOk"})
+        self.assertFalse(report["Conforms"])
+
+    def test_a_tag_declared_plant_and_public_is_rejected(self):
+        report = self.audit(public={"FRK_Press_Unit", "FRK_Press_AirOk"})
+        self.assertFalse(report["Conforms"])
+        self.assertTrue(any("FRK_Press_AirOk" in f for f in report["Findings"]))
+
+    def test_no_plant_declared_behaves_as_before(self):
+        # A real application declares none, and the audit must not require the
+        # argument to exist.
+        report = audit_module.audit(
+            {"FRK_Press_HmiRequest": "Read/Write", "FRK_Press_Unit": "Read Only"},
+            {"FRK_Press_HmiRequest"}, {"FRK_Press_Unit"})
+        self.assertTrue(report["Conforms"], report["Findings"])
+        self.assertEqual(report["Plant"], [])

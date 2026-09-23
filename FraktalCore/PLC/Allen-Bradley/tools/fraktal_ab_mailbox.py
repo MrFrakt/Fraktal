@@ -208,6 +208,31 @@ RESPONSE_MEMBERS: tuple[tuple[str, str, int, str], ...] = (
 )
 
 
+# --- how the Unit samples what the mailbox drives ---------------------------
+#
+# The generated Unit copies each request tag into its context every scan and
+# tests it as a LEVEL. That makes the deassert the mailbox's job, and which
+# tags need one is a property of how the Unit consumes them, not a preference:
+#
+# * a one-shot is acted on and forgotten - `IF Ctx.AbortRequest <> 0 THEN` sets
+#   Aborted once and nothing in the Unit lowers the request, so it must fall
+#   again or the machine can never leave that state;
+# * `RunRequest` is a level in both directions: `IF Ctx.RunRequest = 0 THEN
+#   Ctx.Running := 0`. It stays high for as long as the chain should run, so
+#   STOP lowers it rather than a scan boundary;
+# * `ModeRequest` is a selection compared against `Mode`. Clearing it would
+#   request ordinal 0 - AUTO - on the very next scan.
+
+ONE_SHOT_REQUESTS = ("AbortRequest", "ResetRequest", "JogCommand",
+                     "DecisionAnswer")
+LEVEL_REQUESTS = ("RunRequest", "ModeRequest")
+
+
+def one_shot_requests() -> tuple[str, ...]:
+    """Request tags the handler must lower again on the following scan."""
+    return ONE_SHOT_REQUESTS
+
+
 def is_supported(kind: int) -> bool:
     return kind in SUPPORTED
 
@@ -403,7 +428,12 @@ def _dispatch(app) -> list[str]:
     lines.extend(_accept(app, f"FRK_{n}_RunRequest := 1;"))
 
     lines.append(f"{STOP}: (* STOP *)")
-    lines.extend(_accept(app, f"FRK_{n}_AbortRequest := 1;"))
+    # STOP lowers the run level as well as raising the abort pulse. A STOP that
+    # left RunRequest high would be a contradiction the Unit then has to
+    # resolve every scan: the abort latches Aborted, and the run level tries to
+    # set Running again the moment the abort is cleared.
+    lines.extend(_accept(app, f"FRK_{n}_AbortRequest := 1;",
+                         f"FRK_{n}_RunRequest := 0;"))
 
     lines.append(f"{OPERATOR_RESET}: (* OPERATOR_RESET *)")
     lines.extend(_accept(app, f"FRK_{n}_ResetRequest := 1;"))
@@ -453,6 +483,28 @@ def handler_logic(app) -> tuple[str, ...]:
     """
     n = app.name
     lines = [
+        "(* Lower the one-shot requests raised by an earlier scan.",
+        "",
+        "   This runs unconditionally, before the sequence check, and that is the",
+        "   whole fix for the latch found on the bench on 2026-09-22. The mailbox",
+        "   routine is JSR'd first and the Unit AOI runs later in the SAME scan,",
+        "   so a request raised below has already been sampled by the time this",
+        "   clears it - a one-scan pulse, with no countdown needed.",
+        "",
+        "   The oracle does not need any of this: _M_HandleHmiRequest calls",
+        "   Start() and Stop() directly. This binding maps the same commands onto",
+        "   level-sensitive tags that something else samples, and the mapping",
+        "   inherited the raise without the lower. While those tags were",
+        "   externally writable every client wrote 1 then 0 and supplied the",
+        "   deassert itself; closing AB 11.2.1 made the mailbox their only",
+        "   writer, which is what turned a latent defect into a blocking one. *)",
+    ] + [f"FRK_{n}_{name} := 0;" for name in one_shot_requests()] + [
+        "",
+        "(* ModeRequest and RunRequest are NOT cleared here. ModeRequest is a",
+        "   selection compared against Mode, so zeroing it would command AUTO",
+        "   every scan. RunRequest is a genuine level - the chain stops when it",
+        "   goes low - so STOP lowers it explicitly instead. *)",
+        "",
         "(* Core 3.10/14: consume one committed request exactly once. *)",
         f"IF {_request(app, 'Sequence')} <> FRK_{n}_HmiLastSequence THEN",
         f"FRK_{n}_HmiLastSequence := {_request(app, 'Sequence')};",

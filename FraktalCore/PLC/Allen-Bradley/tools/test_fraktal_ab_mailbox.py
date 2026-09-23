@@ -165,37 +165,95 @@ class AccessTests(unittest.TestCase):
 
 
 class OneShotRequestTests(unittest.TestCase):
-    """The handler drives level-sensitive requests and does not drop them.
+    """Every request the handler raises comes down again.
 
     Measured on hardware 2026-09-22: after START, STOP and OPERATOR_RESET the
     bench was left with RunRequest, AbortRequest, ResetRequest and JogCommand
-    all latched at 1 and the Unit reporting Aborted. The generated logic copies
-    each request into the Unit context every scan and tests it as a level
-    (`IF Ctx.RunRequest <> 0`), but the handler only ever sets it.
+    all latched at 1 and the Unit reporting Aborted. Ten acknowledgements,
+    `Accepted` true on every routed kind, and a machine driven into a latched
+    abort the whole time - which is why this suite asserts the tag levels and
+    not the acks.
 
-    While those tags were externally writable a client could deassert them, and
-    the harness did exactly that. Now that the mailbox is their only writer
-    (AB §11.2.1), nothing can - so a build carrying both changes would leave the
-    press aborted with no way out short of a download.
-
-    This asserts the defect on purpose, so fixing it breaks this test rather
-    than passing unnoticed.
+    The generated Unit copies each request into its context every scan and
+    tests it as a level, so the deassert is the mailbox's job. It was invisible
+    while those tags were externally writable, because every client wrote 1 then
+    0 and supplied the deassert itself.
     """
 
-    def test_the_handler_does_not_yet_deassert_the_one_shot_requests(self):
-        logic = "\n".join(mailbox.handler_logic(APP))
-        for name in ("RunRequest", "AbortRequest", "ResetRequest", "JogCommand"):
-            tag = f"FRK_{APP.name}_{name}"
-            self.assertIn(f"{tag} := 1;", logic,
-                          f"{tag} is the level this command drives")
-            self.assertNotIn(
-                f"{tag} := 0;", logic,
-                f"{tag} is now deasserted somewhere in the handler - the "
-                f"latching defect is fixed, and this test should be replaced "
-                f"by the assertion that every one-shot request drops again")
+    def setUp(self):
+        self.lines = list(mailbox.handler_logic(APP))
+        self.logic = chr(10).join(self.lines)
+
+    def index_of(self, fragment):
+        for i, line in enumerate(self.lines):
+            if fragment in line:
+                return i
+        raise AssertionError(fragment + " is not in the handler")
+
+    def test_every_one_shot_request_is_lowered_again(self):
+        for name in mailbox.one_shot_requests():
+            self.assertIn("FRK_%s_%s := 0;" % (APP.name, name), self.logic, name)
+
+    def test_the_lowering_runs_before_the_sequence_check(self):
+        # It has to happen on EVERY scan, not only on a scan that carries a new
+        # command - otherwise a pulse raised by the last command stays high
+        # until the next one arrives, which is the latch again with extra steps.
+        guard = self.index_of("<> FRK_%s_HmiLastSequence" % APP.name)
+        for name in mailbox.one_shot_requests():
+            self.assertLess(
+                self.index_of("FRK_%s_%s := 0;" % (APP.name, name)), guard, name)
+
+    def test_a_one_shot_is_raised_after_it_is_lowered(self):
+        # Same scan: clear at the top, raise in the dispatch below. The Unit AOI
+        # runs later in that scan, so it sees the raise.
+        for name, kind in (("AbortRequest", "STOP"),
+                           ("ResetRequest", "OPERATOR_RESET"),
+                           ("JogCommand", "MANUAL_COMMAND")):
+            tag = "FRK_%s_%s" % (APP.name, name)
+            self.assertLess(self.index_of(tag + " := 0;"),
+                            self.index_of(tag + " := 1;"), kind)
+
+    def test_the_mode_request_is_never_cleared(self):
+        # ModeRequest is a selection compared against Mode. Clearing it would
+        # request ordinal 0 - AUTO - on the very next scan.
+        self.assertNotIn("FRK_%s_ModeRequest := 0;" % APP.name, self.logic)
+
+    def test_start_raises_the_run_level_and_stop_lowers_it(self):
+        # RunRequest is a level in both directions, so it is not on the one-shot
+        # list; STOP lowers it explicitly instead of a scan boundary doing it.
+        tag = "FRK_%s_RunRequest" % APP.name
+        self.assertIn(tag + " := 1;", self.logic)
+        self.assertIn(tag + " := 0;", self.logic)
+        self.assertNotIn("RunRequest", mailbox.one_shot_requests())
+
+    def test_stop_both_aborts_and_stops_running(self):
+        # A STOP that left the run level high would be a contradiction the Unit
+        # has to resolve every scan.
+        stop = self.index_of("(* STOP *)")
+        window = chr(10).join(self.lines[stop:stop + 6])
+        self.assertIn("FRK_%s_AbortRequest := 1;" % APP.name, window)
+        self.assertIn("FRK_%s_RunRequest := 0;" % APP.name, window)
+
+    def test_the_one_shot_list_covers_every_pulsed_request(self):
+        # A request the dispatch raises but nobody lowers is the original
+        # defect. Anything raised must be either a declared level or a declared
+        # one-shot.
+        prefix = "FRK_%s_" % APP.name
+        raised = set()
+        for line in self.lines:
+            text = line.strip()
+            if not (text.startswith(prefix) and text.endswith(":= 1;")):
+                continue
+            target = text.split(":=")[0].strip()[len(prefix):]
+            # Bare tags only. A dotted name is a structure member - the
+            # response's own Accepted flag - not a request the Unit samples.
+            if "." not in target:
+                raised.add(target)
+        known = set(mailbox.one_shot_requests()) | set(mailbox.LEVEL_REQUESTS)
+        self.assertTrue(raised <= known, raised - known)
 
     def test_the_command_tags_have_no_other_writer(self):
-        """Why the defect matters: the mailbox is now the only way in."""
+        """Why it matters: the mailbox is now the only way in."""
         self.assertEqual(
             set(gen.command_inputs(APP)) & set(gen.externally_writable(APP)),
             set(),

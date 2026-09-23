@@ -1577,8 +1577,15 @@ def controller_tags(app: decl.Application) -> str:
         else:
             access = "None"
         tags.append(scalar_tag(name, "DINT", "Decimal", "0", access))
+    harness = set(harness_only_tags(app))
     for name in evidence_tags(app):
-        tags.append(scalar_tag(name, "DINT", "Decimal", "0", "Read Only"))
+        # A rendition's own scratch is not evidence anyone reads - nothing
+        # outside the generator touches FRK_*_LdAdvanced or FRK_*_LdScratch, and
+        # publishable_tags already keeps them out of the manifest. AB §11.2.1
+        # says everything that is not the mailbox or public data is None, so
+        # they are None rather than quietly readable.
+        access = "None" if name in harness else "Read Only"
+        tags.append(scalar_tag(name, "DINT", "Decimal", "0", access))
     for module in app.modules:
         tags.append(
             f'<Tag Name="FRK_{app.name}_Inst{module.name}" TagType="Base" '
