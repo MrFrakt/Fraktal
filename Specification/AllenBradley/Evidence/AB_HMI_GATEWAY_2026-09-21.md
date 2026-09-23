@@ -192,6 +192,16 @@ Run from this checkout with the gateway venv and Flutter on the path.
   that delta (a `Color.colorSpace` framework addition and an alarm-meta count).
   Recorded honestly rather than worked around; the fix is to run the suite on
   the pinned Flutter.
+  > **Corrected 2026-09-23.** That diagnosis was wrong. The suite was run on the
+  > pinned 3.44.6 and on 3.47.5 (the version this repository's lockfile actually
+  > demands) and both tests fail identically on all three versions. They were
+  > stale assertions — a hand-counted `hasLength(61)` against a catalogue grown
+  > to 77, and an `isNull` colour check that `copyWith` can never satisfy — and
+  > are now fixed; the suite is green at 270. The "CI pin" was also wrong:
+  > 3.44.6 cannot resolve this repository at all. See
+  > [`AB_HMI_TEST_TOOLCHAIN_2026-09-23.md`](AB_HMI_TEST_TOOLCHAIN_2026-09-23.md).
+  > The rest of this record stands as written; the gateway work it describes did
+  > not cause these failures, which it checked directly and got right.
 * **Other repository gates (unchanged by this work):** `check_ab_contracts.py`
   clean; `check_consistency.py --strict` 0 errors, 0 warnings; TwinCAT
   `plc_lint.py --profile modern` 360 files clean; the TwinCAT gate-tool suite 75

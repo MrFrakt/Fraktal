@@ -723,14 +723,29 @@ Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.
 
 **HMI (Flutter):** from `FraktalCore/HMI/` (windows/web platform folders are committed; SDK on this
-machine: `C:\Apps\FlutterSdk\flutter` — `flutter` is on `PATH`, so prefer resolving it there rather
-than hard-coding a path):
+machine: `C:\Apps\FlutterSdk\v3475\flutter` — `flutter` is on `PATH`, so prefer resolving it there
+rather than hard-coding a path):
 ```
 flutter pub get
-flutter analyze                 # clean as of 2026-08-02 (Flutter 3.44.6, the CI pin)
-flutter test                    # 166 passing, 4 intentional live-environment skips
+flutter analyze                 # clean as of 2026-09-23 (Flutter 3.47.5)
+flutter test                    # 270 passing, 6 intentional live-environment skips
 flutter run -d windows|chrome
 ```
+**The pinned version is 3.47.5, and `pub get` will not tell you when you are on the
+wrong one — it silently re-resolves.** `pubspec.lock` pins packages Flutter ships
+*by SDK version* (`vector_math`, `matcher`, `leak_tracker`, `meta`, `test_api`), so an
+older SDK cannot satisfy it and a plain `flutter pub get` quietly **downgrades** those
+five and rewrites the lockfile. Use `flutter pub get --enforce-lockfile`, which fails
+loudly with `Unable to satisfy pubspec.yaml using pubspec.lock` instead. This entry
+previously read "Flutter 3.44.6, the CI pin" and that was wrong: 3.44.6 cannot resolve
+this repository at all, and two suite failures were attributed to a version delta for
+two days because of it — see
+[`AB_HMI_TEST_TOOLCHAIN_2026-09-23.md`](Specification/AllenBradley/Evidence/AB_HMI_TEST_TOOLCHAIN_2026-09-23.md).
+
+`flutter run -d windows` additionally needs Visual Studio's *Desktop development with
+C++* workload. The desktop build uses the native FFI OPC UA adapter, so it reaches a
+TwinCAT target but **not** an Allen-Bradley one — the AB path is the gateway over
+WebSocket, which is the **web** build (`-d chrome`).
 `analysis_options.yaml` is self-contained (no flutter_lints include) per the zero-package policy.
 
 **Gateway + Web HMI deployment:** follow

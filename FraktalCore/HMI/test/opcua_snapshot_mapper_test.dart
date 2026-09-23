@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/data/opcua_snapshot_mapper.dart';
 import 'package:fraktal_hmi/domain/module_node.dart';
 import 'package:fraktal_hmi/domain/types.dart';
+import 'package:fraktal_hmi/localization/reason_catalog.g.dart';
 
 void main() {
   test('discovers a generic Unit and nested CM from Status contract members',
@@ -225,7 +226,13 @@ void main() {
     expect(unit.ringEvents.single.timestampsSynchronized, isTrue);
     final interlockMeta =
         unit.alarmMeta.singleWhere((meta) => meta.reasonCode == 2003);
-    expect(unit.alarmMeta, hasLength(61));
+    // Derived, not counted by hand. The mapper builds this from the §8.9
+    // generated catalogue, so a reason added to
+    // Specification/reason_rationalization.json grows it - and a literal
+    // here goes stale silently. It did: this read 61 while the catalogue
+    // had grown to 77, and the failure was filed against a Flutter
+    // version delta for two days.
+    expect(unit.alarmMeta, hasLength(generatedReasonSymbolByCode.length));
     expect(interlockMeta.shelvable, isTrue);
     expect(interlockMeta.priority, Severity.medium);
     expect(interlockMeta.category, AlarmCategory.process);

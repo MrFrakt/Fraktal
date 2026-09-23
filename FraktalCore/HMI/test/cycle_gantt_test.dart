@@ -92,8 +92,20 @@ void main() {
     // Clamp ran 2.3s against a declared 2.0s: the bar gets the overrun outline,
     // and the number gets the error colour so it is not signalled by the chart
     // alone. Separate ran 1.6s inside its guard and stays default ink.
-    expect(tester.widget<Text>(find.text('2.3s')).style?.color, isNotNull);
-    expect(tester.widget<Text>(find.text('1.6s')).style?.color, isNull);
+    //
+    // Assert the two inks against the theme, not against null. The widget sets
+    // `copyWith(color: overrun ? error : null)`, and copyWith IGNORES a null
+    // argument - so the in-guard label keeps bodyMedium's own onSurface and can
+    // never come back null under Material 3. Testing for null asserted a proxy
+    // that stopped being true when the base style gained a colour, and the
+    // failure was filed against a Flutter version delta rather than read.
+    final ctx = tester.element(find.text('1.6s'));
+    final errorInk = Theme.of(ctx).colorScheme.error;
+    final defaultInk = Theme.of(ctx).textTheme.bodyMedium?.color;
+
+    expect(tester.widget<Text>(find.text('2.3s')).style?.color, errorInk);
+    expect(tester.widget<Text>(find.text('1.6s')).style?.color, defaultInk);
+    expect(tester.widget<Text>(find.text('1.6s')).style?.color, isNot(errorInk));
   });
 
   testWidgets('a profile with no steps renders nothing', (tester) async {
