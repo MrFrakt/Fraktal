@@ -15,6 +15,11 @@ clean compile live:
                 does not run, and the log's own totals still agree with
                 themselves, so the gate passes while testing less.
 
+  readsurface   every node the generic HMI reads is published by the AB
+                projection or declared absent with a reason. The HMI renders a
+                missing node as a default, so a projection can stop publishing
+                something and every screen keeps working, slightly wrong.
+
   parity        a chain carried in more than one language says the same thing
                 in each. Carrying N renditions is duplication §1.1 O9 forbids
                 unless something enforces that they ARE the same chain; a
@@ -439,7 +444,296 @@ def emit_stubs(missing: dict[str, set[str]]) -> str:
     return "\n".join(lines)
 
 
-CHECKS = {"localization": None, "inventory": check_inventory, "parity": check_parity}
+# --------------------------------------------------------------- read surface
+
+HMI_MAPPER = Path("FraktalCore/HMI/lib/data/opcua_snapshot_mapper.dart")
+AB_TOOLS = Path("FraktalCore/PLC/Allen-Bradley/tools")
+
+# Two reasons, not fifty opinions. Anything outside the Phase 4 projection is
+# absent for the same reason, and saying so once keeps this table a statement
+# of fact rather than a place to invent a roadmap.
+_DEFERRED = ("a recorded deferral in FraktalCore/PLC/Allen-Bradley/README.md")
+_NOT_PROJECTED = ("outside the Phase 4 projection, which publishes the "
+                  "manifest, module status and the command mailbox")
+_REASON_ONLY = "the AB diagnostic record is a reason code and nothing else"
+
+# What the AB binding does not publish, one entry per absent CAPABILITY rather
+# than per field. Enumerating the 200-odd suffixes would be a list nobody
+# reads; naming the record is a claim someone can check. An entry matches a
+# read suffix that equals it, or continues with '/' or '['.
+AB_ABSENT = {
+    "Access": _NOT_PROJECTED,
+    "ActiveSteps": _NOT_PROJECTED,
+    "AlarmLog": _NOT_PROJECTED,
+    "AvailableModelCount": _DEFERRED,
+    "AvailableModels": _DEFERRED,
+    "Blocked": _NOT_PROJECTED,
+    "Catalog": _NOT_PROJECTED,
+    "CatalogCount": _NOT_PROJECTED,
+    "ControlPower": _DEFERRED,
+    "CurrentStep/AwaitingLabel": _NOT_PROJECTED,
+    "CurrentStep/Class": _NOT_PROJECTED,
+    "CurrentStep/Conds": _DEFERRED,
+    "CurrentStep/ExpectedTime": _NOT_PROJECTED,
+    "CurrentStep/StepName": ("the manifest carries step names, so the HMI "
+                             "resolves them from it, not from a live tag"),
+    "CurrentStep/TimeClass": _NOT_PROJECTED,
+    "Decision/Options": _NOT_PROJECTED,
+    "Decision/Prompt": _NOT_PROJECTED,
+    "HostEvents": _NOT_PROJECTED,
+    "MachineState": _NOT_PROJECTED,
+    "Model": _DEFERRED,
+    "Nameplate": _NOT_PROJECTED,
+    "Oee": _NOT_PROJECTED,
+    "OeeTrend": _NOT_PROJECTED,
+    "OeeTrendHead": _NOT_PROJECTED,
+    "Part": _DEFERRED,
+    "Profiler": _NOT_PROJECTED,
+    "ReworkCount": "the unit context carries Good and Scrap only",
+    "RunStyle": _NOT_PROJECTED,
+    "RunningPublished": ("the projection derives Status/State from the "
+                         "context's Running rather than republishing it"),
+    "Safety": _DEFERRED,
+    "SequenceAnnotationCount": _NOT_PROJECTED,
+    "SequenceAnnotations": _NOT_PROJECTED,
+    "SequenceStepCount": _NOT_PROJECTED,
+    "SequenceSteps": _NOT_PROJECTED,
+    "SequenceViewEnabled": _NOT_PROJECTED,
+    "SignalTower": "the bench press has no signal tower",
+    "Starved": _NOT_PROJECTED,
+    "StateFlagCount": _NOT_PROJECTED,
+    "StateFlags": _NOT_PROJECTED,
+    "Status/Diagnostic/Description": ("Logix v33 ST cannot assign a string "
+                                      "literal, so the controller answers "
+                                      "with a numeric key"),
+    "Status/Diagnostic/IoAddress": _REASON_ONLY,
+    "Status/Diagnostic/IoTag": _REASON_ONLY,
+    "Status/Diagnostic/Since": _REASON_ONLY,
+    "Status/Diagnostic/TimeSynchronized": _REASON_ONLY,
+    "Status/ControlDomainId": _DEFERRED,
+    "Status/DescriptionKey": ("the manifest carries the display name key, "
+                              "which is what the projection publishes"),
+    "Status/TileEnable": _NOT_PROJECTED,
+    "StopPendingPublished": _NOT_PROJECTED,
+    "SupportedRunStylesPublished": _NOT_PROJECTED,
+    "SystemHealth": _NOT_PROJECTED,
+    "Timing": _NOT_PROJECTED,
+    "Topology": "physical I/O is a recorded deferral; no fieldbus root",
+}
+
+# Published for `opcua_repository.dart`, which writes the request and polls the
+# response. The snapshot mapper never reads it, and that is correct.
+AB_PUBLISHED_FOR_REPOSITORY = ("HmiRequest/", "HmiResponse/")
+
+
+def _mapper_surface(text: str) -> tuple[set[str], set[str], list[str]]:
+    """Every node path `opcua_snapshot_mapper.dart` reads, resolved.
+
+    The mapper names most of what it reads through a prefix variable rebound in
+    each loop, so a position-blind scan attributes every read to the last
+    binding in the file. Resolution here is positional, and anything that does
+    not resolve is RETURNED as unresolved rather than dropped - a reader that
+    quietly reports less than it read is the defect this gate exists to catch,
+    and the reader that found the last one had shipped it twice.
+    """
+    bind_indexed = re.compile(r"final\s+(\w+)\s*=\s*"
+                              r"_(?:indexedPrefix|arrayElement)\("
+                              r"\s*values\s*,\s*'([^']*)'")
+    bind_literal = re.compile(r"final\s+(\w+)\s*=\s*'([^']*)'\s*;")
+    array_read = re.compile(r"_arrayElement\(\s*values\s*,\s*'([^']*)'")
+    direct = re.compile(r"values\[\s*'([^']*)'\s*\]")
+    scan = re.compile(r"\.endsWith\('/([^']*)'\)")
+    alarm_call = re.compile(r"_alarmEvent\(\s*values\s*,\s*(\w+)")
+
+    # `_alarmEvent` reads through a parameter, so its reads belong to whatever
+    # each call site passed. Lift its body out and expand it per call site.
+    alarm_suffixes: list[str] = []
+    body = re.search(r"AlarmEvent\?\s+_alarmEvent\(.*?\n\}", text, re.S)
+    if body:
+        token = "$prefix/"
+        alarm_suffixes = [hit.group(1)[len(token):]
+                          for hit in direct.finditer(body.group(0))
+                          if hit.group(1).startswith(token)]
+
+    events: list[tuple[int, str, str, str]] = []
+    for hit in bind_indexed.finditer(text):
+        events.append((hit.start(), "bind", hit.group(1),
+                       hit.group(2).rstrip("/") + "[*]"))
+    for hit in bind_literal.finditer(text):
+        events.append((hit.start(), "bind", hit.group(1), hit.group(2)))
+    for hit in direct.finditer(text):
+        events.append((hit.start(), "read", "", hit.group(1)))
+    for hit in array_read.finditer(text):
+        events.append((hit.start(), "read", "", hit.group(1) + "[*]"))
+    for hit in scan.finditer(text):
+        events.append((hit.start(), "read", "", "$base/" + hit.group(1)))
+    for hit in alarm_call.finditer(text):
+        for suffix in alarm_suffixes:
+            events.append((hit.start(), "read", "",
+                           "$" + hit.group(1) + "/" + suffix))
+    events.sort(key=lambda event: event[0])
+
+    def resolve(key: str, env: dict[str, str], depth: int = 0) -> str:
+        if depth > 8:
+            return key
+        head = re.match(r"\$(\w+)(.*)$", key)
+        if not head:
+            return key
+        name, rest = head.group(1), head.group(2)
+        if name == "base":
+            return rest.lstrip("/")
+        if name not in env:
+            return key
+        joiner = "" if not rest or rest.startswith("/") else "/"
+        return resolve(env[name].rstrip("/") + joiner + rest, env, depth + 1)
+
+    env: dict[str, str] = {}
+    modules: set[str] = set()
+    topology: set[str] = set()
+    unresolved: list[str] = []
+    for _, kind, name, value in events:
+        if kind == "bind":
+            env[name] = value
+            continue
+        resolved = re.sub(r"\[\$?\w+\]", "[*]", resolve(value, env))
+        if resolved.startswith("$topology/"):
+            topology.add(resolved[len("$topology/"):])
+        elif "$" in resolved:
+            unresolved.append(resolved)
+        elif resolved:
+            modules.add(resolved)
+    return modules, topology, sorted(set(unresolved))
+
+
+def _ab_published() -> set[str]:
+    """Suffixes the AB projection publishes, from the offline projector.
+
+    Built through the projection's own test fixture rather than a second copy
+    of the header/context construction: duplicating that here would make this
+    gate agree with a stale snapshot of the projector instead of with the
+    projector (§1.1 O9).
+
+    Paths are relative to the repository root, like `HMI_L10N`, and NOT to
+    `--root`, which points at the TwinCAT tree. This function raises rather
+    than returning empty on a missing or unimportable fixture: the first cut of
+    this gate swallowed both and reported a clean run while checking nothing,
+    which is the exact failure it was written to catch.
+    """
+    fixture_path = AB_TOOLS / "test_fraktal_ab_projection.py"
+    if not fixture_path.is_file():
+        raise FileNotFoundError(f"{fixture_path} is missing")
+    sys.path.insert(0, str(AB_TOOLS))
+    try:
+        import test_fraktal_ab_projection as fixture
+    finally:
+        sys.path.remove(str(AB_TOOLS))
+    document = fixture.build(mailbox_state={
+        "response": {"AckSequence": 0, "Accepted": 0, "DiagnosticKey": 0},
+        "requestSequence": 0,
+    })
+    values = document["values"]
+    marker = "/Status/Name"
+    bases = sorted({key[: -len(marker)] for key in values
+                    if key.endswith(marker)}, key=len, reverse=True)
+    published: set[str] = set()
+    for key in values:
+        for base in bases:
+            if key.startswith(base + "/"):
+                published.add(re.sub(r"\[\d+\]", "[*]", key[len(base) + 1:]))
+                break
+    return published
+
+
+def _absent_reason(suffix: str) -> str | None:
+    for prefix, reason in AB_ABSENT.items():
+        if suffix == prefix or suffix.startswith(prefix + "/") \
+                or suffix.startswith(prefix + "["):
+            return reason
+    return None
+
+
+def check_read_surface(root: Path) -> list[Finding]:
+    """Every node the HMI reads is published by AB, or declared absent here.
+
+    The HMI is generic: it reads what a conforming station publishes, and a
+    node that is simply missing renders as a default. That is the right runtime
+    behaviour and a terrible development one - a projection can stop publishing
+    something and every screen keeps working, slightly wrong.
+    `SupportedModesPublished` went missing exactly that way, and the symptom
+    was a mode bar offering one mode, three layers from the cause.
+    """
+    findings: list[Finding] = []
+    where = str(HMI_MAPPER)
+    gate = Path(__file__).name
+    if not HMI_MAPPER.is_file():
+        return [Finding("readsurface", "error", where,
+                        "the HMI snapshot mapper is missing - this gate reads "
+                        "it from the repository root, not from --root")]
+    modules, topology, unresolved = _mapper_surface(_read(HMI_MAPPER))
+
+    for key in unresolved:
+        findings.append(Finding(
+            "readsurface", "error", where,
+            f"cannot resolve which node this reads: {key!r}. Teach "
+            "_mapper_surface the binding rather than letting the gate check "
+            "less than the mapper reads"))
+
+    try:
+        published = _ab_published()
+    except Exception as exc:
+        return findings + [Finding(
+            "readsurface", "error", str(AB_TOOLS),
+            f"cannot build the AB projection offline ({type(exc).__name__}: "
+            f"{exc}), so nothing was compared. Fix the import rather than "
+            "letting the gate pass by checking nothing")]
+
+    # The fieldbus topology hangs off its own root, not off a module, so it is
+    # checked as one capability rather than suffix by suffix.
+    if topology and not _absent_reason("Topology"):
+        findings.append(Finding(
+            "readsurface", "error", where,
+            f"the HMI reads {len(topology)} fieldbus topology nodes and the "
+            "AB projection neither publishes a topology root nor declares one "
+            "absent"))
+
+    for suffix in sorted(modules):
+        if suffix in published or _absent_reason(suffix):
+            continue
+        findings.append(Finding(
+            "readsurface", "error", where,
+            f"the HMI reads '<module>/{suffix}' and the AB projection neither "
+            "publishes it nor declares it absent - publish it, or add it to "
+            "AB_ABSENT with the reason"))
+
+    for prefix, reason in sorted(AB_ABSENT.items()):
+        covered = {s for s in modules
+                   if s == prefix or s.startswith(prefix + "/")
+                   or s.startswith(prefix + "[")}
+        if not covered and prefix != "Topology":
+            findings.append(Finding(
+                "readsurface", "error", gate,
+                f"AB_ABSENT declares '{prefix}' absent ({reason}) but the HMI "
+                "no longer reads it - delete the entry"))
+        conflict = sorted(covered & published)
+        if conflict:
+            findings.append(Finding(
+                "readsurface", "error", gate,
+                f"AB_ABSENT declares '{prefix}' absent but the projection "
+                f"publishes {conflict[0]!r} - the reason is stale"))
+
+    for suffix in sorted(published - modules):
+        if suffix.startswith(AB_PUBLISHED_FOR_REPOSITORY):
+            continue
+        findings.append(Finding(
+            "readsurface", "warning", "fraktal_ab_projection.py",
+            f"the AB projection publishes '<module>/{suffix}' and no HMI "
+            "client reads it - either something is meant to and does not, or "
+            "it is surface nobody pays for"))
+    return findings
+
+
+CHECKS = {"localization": None, "inventory": check_inventory,
+          "parity": check_parity, "readsurface": check_read_surface}
 
 
 def build_parser() -> argparse.ArgumentParser:

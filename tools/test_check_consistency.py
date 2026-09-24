@@ -6,14 +6,17 @@ from pathlib import Path
 # ladder readers; importing it first is what puts them on sys.path.
 from tools.check_consistency import (
     Finding,
+    _absent_reason,
     _is_test_source,
     _ld_chain,
+    _mapper_surface,
     _reference_roots,
     _st_chain,
     _st_step_writes,
     check_inventory,
     check_localization,
     check_parity,
+    check_read_surface,
     emit_stubs,
 )
 
@@ -193,6 +196,90 @@ class CommandLineTests(unittest.TestCase):
         with self.assertRaises(SystemExit) as raised:
             cc.main(["check_consistency.py", "bogus"])
         self.assertEqual(raised.exception.code, 2)
+
+
+
+class ReadSurfaceTests(unittest.TestCase):
+    """The mapper's read surface against what the AB projection publishes.
+
+    The gate's first cut resolved the mapper position-blind, so every read
+    through a rebound `prefix` was attributed to the last binding in the file;
+    and it took `--root`, which points at the TwinCAT tree, so it found no
+    mapper and reported a clean run while comparing nothing. Both are pinned
+    here, because both passed review.
+    """
+
+    def test_a_prefix_resolves_to_the_binding_above_it_not_the_last_one(self):
+        source = """
+          final prefix = _indexedPrefix(values, '$base/Catalog', i);
+          final a = _integer(values['$prefix/Label']);
+          final prefix = _indexedPrefix(values, '$base/ModePolicy', i);
+          final b = _integer(values['$prefix/Shield']);
+        """
+        modules, _, unresolved = _mapper_surface(source)
+        self.assertEqual(unresolved, [])
+        self.assertIn("Catalog[*]/Label", modules)
+        self.assertIn("ModePolicy[*]/Shield", modules)
+
+    def test_an_array_element_read_is_part_of_the_surface(self):
+        modules, _, _ = _mapper_surface(
+            "if (_arrayElement(values, '$base/SupportedModesPublished', i))")
+        self.assertIn("SupportedModesPublished[*]", modules)
+
+    def test_a_discovery_scan_is_part_of_the_surface(self):
+        modules, _, _ = _mapper_surface("if (key.endsWith('/Status/Name'))")
+        self.assertIn("Status/Name", modules)
+
+    def test_an_unresolvable_read_is_reported_not_dropped(self):
+        modules, _, unresolved = _mapper_surface(
+            "final x = _integer(values['$mystery/Thing']);")
+        self.assertEqual(modules, set())
+        self.assertEqual(unresolved, ["$mystery/Thing"])
+
+    def test_the_fieldbus_root_is_kept_apart_from_module_suffixes(self):
+        source = """
+          final prefix = _indexedPrefix(values, '$topology/Nodes', i);
+          final n = _string(values['$prefix/Name']);
+        """
+        modules, topology, _ = _mapper_surface(source)
+        self.assertEqual(modules, set())
+        self.assertIn("Nodes[*]/Name", topology)
+
+    def test_an_absent_entry_covers_its_children_and_its_elements(self):
+        self.assertIsNotNone(_absent_reason("Profiler"))
+        self.assertIsNotNone(_absent_reason("Profiler/History[*]/Ms"))
+        self.assertIsNotNone(_absent_reason("Safety/Devices[*]/Name"))
+        self.assertIsNone(_absent_reason("GoodCount"))
+
+    def test_a_dropped_publication_is_caught_by_name(self):
+        import tools.check_consistency as cc
+        published = cc._ab_published()
+        original = cc._ab_published
+        cc._ab_published = lambda: published - {"SupportedModesPublished[*]"}
+        try:
+            findings = cc.check_read_surface(Path("."))
+        finally:
+            cc._ab_published = original
+        self.assertEqual(len(findings), 1)
+        self.assertIn("SupportedModesPublished", findings[0].message)
+
+    def test_an_unbuildable_projection_is_a_finding_not_a_clean_run(self):
+        import tools.check_consistency as cc
+
+        def boom():
+            raise ImportError("no fixture")
+
+        original = cc._ab_published
+        cc._ab_published = boom
+        try:
+            findings = cc.check_read_surface(Path("."))
+        finally:
+            cc._ab_published = original
+        self.assertTrue(findings)
+        self.assertIn("nothing was compared", findings[0].message)
+
+    def test_the_tree_agrees_today(self):
+        self.assertEqual([str(f) for f in check_read_surface(Path("."))], [])
 
 
 class FindingTests(unittest.TestCase):
