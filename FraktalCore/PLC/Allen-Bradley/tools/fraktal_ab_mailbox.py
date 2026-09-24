@@ -555,3 +555,68 @@ def localization_keys() -> tuple[str, ...]:
     extra = {REJECTED_KEY, UNKNOWN_KEY, MODE_NOT_DECLARED_KEY,
              DECISION_RANGE_KEY, TARGET_KEY}
     return tuple(sorted(set(REFUSED.values()) | extra))
+
+
+# --- commanding over CIP -----------------------------------------------------
+#
+# The mailbox tag is Read/Write, so a client with a CIP connection can command
+# the station without a gateway in front of it. The evidence harnesses do
+# exactly that: they are not operators, they are the apparatus, and putting a
+# WebSocket server in the middle of a fixed-vector test would add a moving part
+# the test is not about.
+#
+# The member-to-writes mapping lives here rather than in the gateway because
+# both callers need it and it is a property of the contract, not of a transport.
+
+
+def member_writes(app, member: str, value) -> list[tuple[str, object]]:
+    """The controller writes one mailbox member becomes.
+
+    A string member is written as ``LEN`` plus ``DATA`` rather than through a
+    client's string handling: these are user ``StringFamily`` types, not the
+    built-in ``STRING``. Every kind this binding routes takes no string content,
+    so the usual result is a single length write.
+    """
+    kinds = {name: kind for name, kind, _, _ in REQUEST_MEMBERS}
+    widths = {name: length for name, _, length, _ in REQUEST_MEMBERS}
+    if member not in kinds:
+        raise ValueError(f"{member} is not a declared mailbox member")
+    tag = f"{request_tag_name(app)}.{member}"
+
+    if kinds[member] == STRING_MEMBER:
+        text = "" if value is None else str(value)
+        if len(text) > widths[member]:
+            # Refused, never truncated: a shortened TargetPath would address a
+            # different module.
+            raise ValueError(
+                f"{member} holds {widths[member]} characters, not {len(text)}")
+        writes: list[tuple[str, object]] = [(f"{tag}.LEN", len(text))]
+        if text:
+            writes.append((f"{tag}.DATA", [ord(c) for c in text]))
+        return writes
+    if isinstance(value, bool):
+        return [(tag, 1 if value else 0)]
+    return [(tag, int(value))]
+
+
+def command_writes(app, kind: int, sequence: int, **arguments
+                   ) -> list[tuple[str, object]]:
+    """Every write one command is, in the order it must be issued.
+
+    ``Sequence`` is last because it is the commit marker, and it is last here by
+    construction: ``REQUEST_MEMBERS`` declares it last, and this walks that
+    order rather than restating it. A caller that stops on the first failure
+    therefore never commits a half-written request.
+    """
+    supplied = dict(arguments)
+    supplied["Kind"] = kind
+    supplied["Sequence"] = sequence
+    unknown = set(supplied) - {name for name, _, _, _ in REQUEST_MEMBERS}
+    if unknown:
+        raise ValueError(f"not mailbox members: {sorted(unknown)}")
+
+    writes: list[tuple[str, object]] = []
+    for name, member_kind, _, _ in REQUEST_MEMBERS:
+        default = "" if member_kind == STRING_MEMBER else 0
+        writes.extend(member_writes(app, name, supplied.get(name, default)))
+    return writes

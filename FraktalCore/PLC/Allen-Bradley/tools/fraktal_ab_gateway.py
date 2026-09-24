@@ -142,28 +142,22 @@ class MailboxWriter:
         return mailbox.request_tag_name(self._app) + "." + member
 
     def writes_for(self, tag, vtype, value):
-        """The controller writes that one browse-path write becomes."""
+        """The controller writes that one browse-path write becomes.
+
+        Delegated to the contract module: what a member becomes on the wire is a
+        property of the mailbox contract, not of this transport, and the
+        evidence harnesses command the same mailbox over plain CIP. Two copies
+        of the string LEN/DATA rule would be two places to get it wrong.
+        """
         import fraktal_ab_mailbox as mailbox
 
         member = tag.rsplit(".", 1)[-1]
-        kinds = dict((name, kind)
-                     for name, kind, _, _ in mailbox.REQUEST_MEMBERS)
-        if kinds[member] == mailbox.STRING_MEMBER:
-            text = "" if value is None else str(value)
-            width = dict((name, length)
-                         for name, _, length, _ in mailbox.REQUEST_MEMBERS)[member]
-            if len(text) > width:
-                raise WriteRefused(
-                    "%s holds %d characters, not %d" % (member, width, len(text)))
-            out = [(tag + ".LEN", len(text))]
-            if text:
-                out.append((tag + ".DATA", [ord(c) for c in text]))
-            return out
-        if vtype == "boolean":
-            return [(tag, 1 if value else 0)]
-        # Every scalar member is a DINT: v33 has no UDINT, and a BOOL member in
-        # a public UDT is the unmeasured S12 hole.
-        return [(tag, int(value))]
+        try:
+            return mailbox.member_writes(
+                self._app, member,
+                bool(value) if vtype == "boolean" else value)
+        except ValueError as refusal:
+            raise WriteRefused(str(refusal)) from refusal
 
     def __call__(self, writes, mailbox_path):
         from pylogix import PLC

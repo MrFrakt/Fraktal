@@ -26,6 +26,7 @@ from typing import Any
 
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 import fraktal_ab_generate as gen
+import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 
 
@@ -57,7 +58,10 @@ FAULT = {m.name: f"FRK_{N}_Fault{m.name}" for m in APP.modules}
 HOLD = {m.name: f"FRK_{N}_Hold{m.name}" for m in APP.modules}
 MODULE_CTX = {m.name: gen.ctx_tag_for(APP, m.name) for m in APP.modules}
 
-WRITABLE = tuple(gen.writable_inputs(APP))
+# The plant only. Every command tag is ExternalAccess None on the closed
+# build (AB 11.2.1), so the matrix commands through the mailbox and keeps
+# writing sensors directly - a sensor is not a command.
+WRITABLE = tuple(gen.externally_writable(APP))
 
 UNIT_MEMBERS = tuple(m.name for m in gen.unit_context_members(APP))
 MODULE_MEMBERS = tuple(m.name for m in gen.module_context_members())
@@ -123,6 +127,55 @@ def write(comm: Any, tag: str, value: int) -> bool:
     if tag not in WRITABLE:
         raise AssertionError(f"tag outside the declared write surface: {tag}")
     return _success(comm.Write(tag, value))
+
+
+_SEQUENCE = {"value": 0}
+
+
+def seed_sequence(comm: Any) -> int:
+    """Start above whatever this controller has already seen.
+
+    The mailbox refuses a sequence it has already answered, and a harness that
+    restarted at 1 would have its first command ignored as a replay.
+    """
+    request = read_scalar(comm, f"{mailbox.request_tag_name(APP)}.Sequence") or 0
+    acknowledged = read_scalar(
+        comm, f"{mailbox.response_tag_name(APP)}.AckSequence") or 0
+    _SEQUENCE["value"] = max(request, acknowledged)
+    return _SEQUENCE["value"]
+
+
+def command(comm: Any, kind: int, settle: float = 2.0,
+            **arguments: Any) -> dict[str, Any]:
+    """Issue one mailbox command over CIP and wait for its acknowledgement.
+
+    No gateway: the mailbox tag is Read/Write and this is the apparatus, not an
+    operator. The writes are issued in contract order and abandoned on the first
+    failure, which is before the Sequence commit by construction - so a failed
+    argument can never be committed with the previous request's value.
+
+    It returns what the machine answered, and the caller still has to read the
+    machine. An acknowledgement is not a result: the latching defect of
+    2026-09-22 produced ten clean acks over a press that was latched aborted.
+    """
+    _SEQUENCE["value"] += 1
+    sequence = _SEQUENCE["value"]
+    for tag, payload in mailbox.command_writes(APP, kind, sequence, **arguments):
+        if not _success(comm.Write(tag, payload)):
+            raise AssertionError(
+                f"{tag} failed before the commit; no Sequence was written")
+
+    response = mailbox.response_tag_name(APP)
+    deadline = time.monotonic() + settle
+    while time.monotonic() < deadline:
+        if read_scalar(comm, f"{response}.AckSequence") == sequence:
+            return {
+                "sequence": sequence,
+                "accepted": bool(read_scalar(comm, f"{response}.Accepted")),
+                "diagnosticKey": read_scalar(comm, f"{response}.DiagnosticKey"),
+            }
+        time.sleep(0.02)
+    raise AssertionError(f"no acknowledgement of sequence {sequence}")
 
 
 def await_unit(comm: Any, predicate: Any, settle: float):
@@ -225,15 +278,18 @@ def disarm(comm: Any) -> dict[str, str]:
 
 
 def _idle(comm: Any, settle: float) -> None:
-    """Return the unit to a clean, stopped state between rows."""
-    for tag in (RUN, ABORT, ANSWER, JOG):
-        write(comm, tag, 0)
+    """Return the unit to a clean, stopped state between rows.
+
+    STOP lowers the run level and raises the abort; OPERATOR_RESET clears it
+    again. The harness supplies no deassert for either: the mailbox handler
+    lowers its own one-shots on the following scan, which is the whole point of
+    the 2026-09-22 fix.
+    """
     for name in FAULT:
         write(comm, FAULT[name], 0)
         write(comm, HOLD[name], 0)
-    write(comm, RESET, 1)
-    time.sleep(min(settle, 0.15))
-    write(comm, RESET, 0)
+    command(comm, mailbox.STOP)
+    command(comm, mailbox.OPERATOR_RESET)
 
 
 def run(comm: Any, settle: float) -> dict[str, Any]:
@@ -252,9 +308,9 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     _idle(comm, settle)
 
     # 1 - a full AUTO cycle.
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     base = read_unit(comm)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     observed, elapsed = await_unit(
         comm, lambda o: base is not None and o["CycleCount"] > base["CycleCount"], settle)
     chart = read_chart(comm)
@@ -271,9 +327,9 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 2 - two-hand released mid door close: HELD, LOW, no fault, then self-resume.
     _idle(comm, settle)
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     write(comm, TWO_HAND, 1)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     # Arm the hold during the transfer settle (a declared 200 ms window) rather
     # than during the door close itself, which is four scans wide. Racing a
     # 40 ms window would make this row flaky rather than wrong.
@@ -313,10 +369,10 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 4 - an awaited child's fault is adopted first-out, verbatim, and stops the chain.
     _idle(comm, settle)
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     write(comm, TWO_HAND, 1)
     write(comm, FAULT["PartSlide"], 1)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     faulted, elapsed = await_unit(comm, lambda o: o["Error"] != 0, settle)
     chart_fault, _ = await_chart(
         comm, lambda c: c["StallReason"] == R["DEVICE_FAULT"], settle)
@@ -349,11 +405,10 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 5 - restart by re-issue after clearing the fault.
     write(comm, FAULT["PartSlide"], 0)
-    write(comm, RUN, 0)
-    write(comm, RESET, 1)
+    command(comm, mailbox.STOP)
+    command(comm, mailbox.OPERATOR_RESET)
     time.sleep(min(settle, 0.15))
-    write(comm, RESET, 0)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     restarted, elapsed = await_unit(
         comm, lambda o: o["Error"] == 0 and o["Running"] != 0 and o["Step"] != 150, settle)
     rows.append(row(
@@ -365,9 +420,9 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 6 - the reported-not-adopted child condition, then the decision, answered 'scrap'.
     _idle(comm, settle)
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     write(comm, TWO_HAND, 1)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     await_unit(comm, lambda o: o["Step"] == 170, settle)
     write(comm, FAULT["PressRam"], 1)
     reported, elapsed = await_unit(comm, lambda o: o["Step"] == 210, settle)
@@ -409,11 +464,10 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # 8 - answer 'scrap' (1): the part is dispositioned NOK.
     write(comm, FAULT["PressRam"], 0)
     before_scrap = read_unit(comm)
-    write(comm, ANSWER, 1)
+    command(comm, mailbox.DECISION_ANSWER, IntValue=1)
     scrapped, elapsed = await_unit(
         comm, lambda o: before_scrap is not None and o["ScrapCount"] > before_scrap["ScrapCount"],
         settle)
-    write(comm, ANSWER, 0)
     rows.append(row(
         "decision_answer_scrap",
         "answering scrap dispositions the part NOK and the chain continues",
@@ -425,18 +479,17 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 9 - the other answer (2): return without scrapping.
     _idle(comm, settle)
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     write(comm, TWO_HAND, 1)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     await_unit(comm, lambda o: o["Step"] == 170, settle)
     write(comm, FAULT["PressRam"], 1)
     await_unit(comm, lambda o: o["Step"] == 210, settle)
     write(comm, FAULT["PressRam"], 0)
     before_return = read_unit(comm)
-    write(comm, ANSWER, 2)
+    command(comm, mailbox.DECISION_ANSWER, IntValue=2)
     returned, elapsed = await_unit(
         comm, lambda o: o["Step"] not in (210,) and o["DecisionId"] == 0, settle)
-    write(comm, ANSWER, 0)
     rows.append(row(
         "decision_answer_return",
         "the other answer leaves the scrap count alone and rejoins the chain",
@@ -448,16 +501,15 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 10 - MANUAL jog.
     _idle(comm, settle)
-    write(comm, MODE, MODE_MANUAL)
-    write(comm, RUN, 1)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_MANUAL)
+    command(comm, mailbox.START)
     before_jog = read_module(comm, "PartSlide")
-    write(comm, JOG, 1)
+    command(comm, mailbox.MANUAL_COMMAND)
     slide_jog, elapsed = await_module(
         comm, "PartSlide",
         lambda o: before_jog is not None and o["RunCount"] > before_jog["RunCount"],
         settle)
     jogged = read_unit(comm)
-    write(comm, JOG, 0)
     rows.append(row(
         "manual_jog",
         "MANUAL moves the selected module one command per request",
@@ -471,8 +523,8 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 11 - HOME completes and stops, rather than looping.
     _idle(comm, settle)
-    write(comm, MODE, MODE_HOME)
-    write(comm, RUN, 1)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_HOME)
+    command(comm, mailbox.START)
     homed, elapsed = await_unit(comm, lambda o: o["Complete"] != 0, settle)
     rows.append(row(
         "home_completes_and_stops",
@@ -484,12 +536,12 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 12 - a mode switch mid-cycle stands the chain down.
     _idle(comm, settle)
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     write(comm, TWO_HAND, 1)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     await_unit(comm, lambda o: o["Step"] not in (0,), settle)
     before_switch = read_unit(comm)
-    write(comm, MODE, MODE_MANUAL)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_MANUAL)
     switched, elapsed = await_unit(comm, lambda o: o["Mode"] == MODE_MANUAL, settle)
     rows.append(row(
         "mode_switch_midcycle_stands_the_chain_down",
@@ -503,15 +555,14 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 13 - an aborted AUTO stays aborted.
     _idle(comm, settle)
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     write(comm, TWO_HAND, 1)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     await_unit(comm, lambda o: o["Running"] != 0, settle)
-    write(comm, ABORT, 1)
+    command(comm, mailbox.STOP)
     aborted, elapsed = await_unit(comm, lambda o: o["Aborted"] != 0, settle)
     time.sleep(min(settle, 0.2))
     after_abort = read_unit(comm)
-    write(comm, ABORT, 0)
     rows.append(row(
         "auto_abort_does_not_self_resume",
         "an aborted AUTO stands down and stays down while the request is held",
@@ -522,9 +573,9 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 14 - a blocked condition publishes a named stall reason, not a fault.
     _idle(comm, settle)
-    write(comm, MODE, MODE_AUTO)
+    command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     write(comm, PART_PRESENT, 0)
-    write(comm, RUN, 1)
+    command(comm, mailbox.START)
     await_unit(comm, lambda o: o["Step"] == 100, settle)
     chart_block, elapsed = await_chart(
         comm, lambda c: c["StallReason"] == R["PART_NOT_PRESENT"], settle)
@@ -635,6 +686,10 @@ def main(argv: list[str] | None = None) -> int:
 
         evidence["wrote"] = True
         evidence["write_surface"] = list(WRITABLE)
+        # Seed above what this controller has already acknowledged, before the
+        # first command. Starting from zero would have the mailbox refuse the
+        # first request as a replay of one it answered on an earlier run.
+        evidence["sequenceSeed"] = seed_sequence(comm)
         try:
             evidence["result"] = run(comm, args.settle)
         finally:

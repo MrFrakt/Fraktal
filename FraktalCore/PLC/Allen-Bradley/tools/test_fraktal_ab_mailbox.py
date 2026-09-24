@@ -447,3 +447,82 @@ class ManifestPublicationTests(unittest.TestCase):
         published = set(self.keys.values())
         for portable in mailbox.localization_keys():
             self.assertIn(portable, published, portable)
+
+
+class CommandWriteTests(unittest.TestCase):
+    """What a command becomes on the wire, for any client that speaks CIP.
+
+    The gateway and the evidence harnesses both command the same mailbox, so
+    this mapping is the contract's, not a transport's. Two copies of the string
+    LEN/DATA rule would be two places to get it wrong.
+    """
+
+    def writes(self, kind, **arguments):
+        return mailbox.command_writes(APP, kind, 7, **arguments)
+
+    def test_the_commit_is_always_the_last_write(self):
+        # Not by arranging it here: REQUEST_MEMBERS declares Sequence last and
+        # this walks that order. A caller that stops on the first failure
+        # therefore cannot commit a half-written request.
+        for kind in (mailbox.START, mailbox.STOP, mailbox.SET_MODE):
+            self.assertTrue(self.writes(kind)[-1][0].endswith(".Sequence"), kind)
+
+    def test_every_declared_member_is_written(self):
+        written = {tag.split(".")[1] for tag, _ in self.writes(mailbox.START)}
+        self.assertEqual(written,
+                         {name for name, _, _, _ in mailbox.REQUEST_MEMBERS})
+
+    def test_the_kind_and_arguments_arrive(self):
+        writes = dict(self.writes(mailbox.SET_MODE, IntValue=2))
+        prefix = mailbox.request_tag_name(APP)
+        self.assertEqual(writes[f"{prefix}.Kind"], mailbox.SET_MODE)
+        self.assertEqual(writes[f"{prefix}.IntValue"], 2)
+        self.assertEqual(writes[f"{prefix}.Sequence"], 7)
+
+    def test_an_empty_string_costs_one_length_write(self):
+        writes = self.writes(mailbox.START)
+        target = [t for t, _ in writes if t.endswith("TargetPath.LEN")]
+        self.assertEqual(len(target), 1)
+        self.assertFalse(any(t.endswith("TargetPath.DATA") for t, _ in writes))
+
+    def test_a_string_writes_its_length_then_its_characters(self):
+        writes = dict(self.writes(mailbox.MANUAL_COMMAND, TargetPath="ab"))
+        prefix = mailbox.request_tag_name(APP)
+        self.assertEqual(writes[f"{prefix}.TargetPath.LEN"], 2)
+        self.assertEqual(writes[f"{prefix}.TargetPath.DATA"], [97, 98])
+
+    def test_a_string_too_long_is_refused_not_truncated(self):
+        with self.assertRaises(ValueError):
+            self.writes(mailbox.MANUAL_COMMAND,
+                        TargetPath="x" * (mailbox.TARGET_PATH_LENGTH + 1))
+
+    def test_a_boolean_becomes_zero_or_one(self):
+        prefix = mailbox.request_tag_name(APP)
+        self.assertEqual(
+            dict(self.writes(mailbox.START, BoolValue=True))[f"{prefix}.BoolValue"], 1)
+        self.assertEqual(
+            dict(self.writes(mailbox.START, BoolValue=False))[f"{prefix}.BoolValue"], 0)
+
+    def test_an_undeclared_argument_is_refused(self):
+        # Silently dropping it would send a command missing the thing that made
+        # it meaningful.
+        with self.assertRaises(ValueError):
+            self.writes(mailbox.START, Nonsense=1)
+
+    def test_an_undeclared_member_is_refused(self):
+        with self.assertRaises(ValueError):
+            mailbox.member_writes(APP, "Nonsense", 1)
+
+    def test_the_harness_and_the_gateway_agree(self):
+        """Both callers map a member the same way, because it is one function."""
+        import fraktal_ab_gateway as gw
+
+        writer = gw.MailboxWriter("192.168.100.89", 0, "7036B510", APP)
+        self.assertEqual(
+            writer.writes_for(f"{mailbox.request_tag_name(APP)}.IntValue",
+                              "int32", 5),
+            mailbox.member_writes(APP, "IntValue", 5))
+        self.assertEqual(
+            writer.writes_for(f"{mailbox.request_tag_name(APP)}.User",
+                              "string", "ab"),
+            mailbox.member_writes(APP, "User", "ab"))
