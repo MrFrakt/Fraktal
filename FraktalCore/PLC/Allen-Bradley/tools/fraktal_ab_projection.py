@@ -168,6 +168,10 @@ def unit_status(unit: dict[str, int], chart: dict[str, Any] | None) -> dict[str,
 
 # E_ModeSwitchShield and E_ModeSwitchStyle, from the Core DUTs and pinned by
 # test the way E_Mode is.
+DIR_OUTPUT = 1
+NODE_OFFLINE = 0
+NODE_OPERATIONAL = 4
+NODE_FAULT = 5
 SHIELD_INTERRUPTIBLE = 0
 STYLE_IMMEDIATE = 1
 
@@ -237,10 +241,107 @@ def mailbox_values(rows: dict[str, Any], response: dict[str, int],
     }
 
 
+TOPOLOGY_ROOT_SUFFIX = "Fieldbus"
+
+
+def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
+    """The §10.2 fieldbus view, from the declared channels and two live words.
+
+    Split the way the HMI consumes it. **Identity** - the electrical tag, the
+    description key, the address, the direction - comes from the committed
+    declaration, because that is where it is authored and it needs no
+    controller round trip. **State** - the bit, the fault, the link - comes
+    from the module's own input/output words, because nothing else can know it.
+
+    The declaration cannot lie about state and the controller cannot lie about
+    identity, which is the division that keeps a stale build from publishing a
+    channel the chassis does not have with values that look live.
+
+    ``io_state`` is ``{address: {"input": word, "output": word,
+    "fault": word}}``. None means the words were not read this cycle: the
+    channels still publish their identity, with ``Quality`` FALSE so the HMI
+    renders them unavailable rather than showing a confident zero. That is the
+    same rule OPC UA Bad quality follows in `HMI_CONTRACT.md`.
+    """
+    if not app.io_modules:
+        return {}
+    root = f"{app.name}{TOPOLOGY_ROOT_SUFFIX}/Topology"
+    values: dict[str, Any] = {
+        f"{root}/NodeCount": len(app.io_modules),
+        # The mapping is the declaration's own, and it was validated before
+        # emission, so it is valid by construction here. A controller-side
+        # publisher would have something to say; this one would be inventing
+        # a doubt it cannot have.
+        f"{root}/MappingValid": True,
+        f"{root}/MappingDiagnostic": "",
+    }
+    for index, module in enumerate(app.io_modules, start=1):
+        node = f"{root}/Nodes[{index}]"
+        state = (io_state or {}).get(module.address)
+        live = state is not None
+        # Every channel's fault bit set is what an INHIBITED module reports,
+        # and it is the honest answer for the press today: the module is there
+        # and it is carrying nothing. Distinguish it from a partial fault, so
+        # the HMI can say "offline" rather than "sixteen broken channels".
+        faults = (state or {}).get("fault", 0)
+        mask = (1 << module.data_width) - 1
+        inhibited = live and (faults & mask) == mask
+        if not live:
+            node_state = NODE_OFFLINE
+        elif inhibited:
+            node_state = NODE_OFFLINE
+        elif faults:
+            node_state = NODE_FAULT
+        else:
+            node_state = NODE_OPERATIONAL
+        values.update({
+            f"{node}/Name": module.name,
+            f"{node}/DescriptionKey": module.description_key,
+            f"{node}/TypeId": module.type_id,
+            f"{node}/Address": module.address,
+            f"{node}/State": node_state,
+            f"{node}/LinkOk": node_state == NODE_OPERATIONAL,
+            f"{node}/ParentIdx": 0,
+            f"{node}/ChannelCount": len(module.channels),
+        })
+        for position, channel in enumerate(module.channels, start=1):
+            leaf = f"{node}/Channels[{position}]"
+            outward = channel.direction == DIR_OUTPUT
+            word = (state or {}).get("output" if outward else "input", 0)
+            faulted = bool(faults >> channel.bit & 1) if live else False
+            values.update({
+                # The electrical tag, verbatim. Never localized.
+                f"{leaf}/Name": channel.name,
+                f"{leaf}/DescriptionKey": channel.description_key,
+                f"{leaf}/Address": f"{module.address}:"
+                                   f"{'O' if outward else 'I'}.{channel.bit}",
+                f"{leaf}/Path": f"{module.name}.{channel.name}",
+                f"{leaf}/ModulePath": (f"{app.name}.{channel.module_path}"
+                                       if channel.module_path else ""),
+                f"{leaf}/Dir": channel.direction,
+                f"{leaf}/Kind": channel.kind,
+                f"{leaf}/BoolValue": bool(word >> channel.bit & 1) if live
+                                     else False,
+                f"{leaf}/AnalogValue": 0,
+                f"{leaf}/Unit": channel.unit,
+                f"{leaf}/Quality": live and not faulted,
+                f"{leaf}/FaultActive": faulted,
+                f"{leaf}/Diagnostic": "",
+                # §10.5.1 forcing is a write, and the mailbox is the only
+                # command surface this binding has (AB §11.2.1). Publishing
+                # Forceable TRUE would offer the operator an affordance that
+                # cannot be honoured.
+                f"{leaf}/Forced": False,
+                f"{leaf}/Forceable": False,
+            })
+    return values
+
+
 def project(header: dict[str, Any], rows: dict[str, Any],
             unit: dict[str, int], contexts: dict[str, dict[str, int]],
             chart: dict[str, Any] | None = None,
-            mailbox_state: dict[str, Any] | None = None) -> dict[str, Any]:
+            mailbox_state: dict[str, Any] | None = None,
+            io_state: dict[str, dict[str, int]] | None = None) -> dict[str, Any]:
     """The snapshot document, from a validated manifest and the live contexts."""
     validate(header)
 
@@ -270,6 +371,12 @@ def project(header: dict[str, Any], rows: dict[str, Any],
                     "was not read; refusing to project a module without state")
             for suffix, value in module_status(context).items():
                 values[f"{base}/{suffix}"] = value
+
+    # The fieldbus hangs off its own root, not under a module, exactly as TC3
+    # publishes GVL_<Project>Fieldbus.Topology: a bus node is not a Fraktal
+    # module and giving it a module's browse path would make the HMI treat it
+    # as one.
+    values.update(topology(APP, io_state))
 
     return {
         "schema": SCHEMA,
@@ -331,7 +438,33 @@ def read_document(comm: Any) -> dict[str, Any]:
     if unit is None or any(c is None for c in contexts.values()):
         raise ReadFailed("a live context did not read; refusing to project")
 
-    return project(header, rows, unit, contexts, chart, read_mailbox(comm))
+    return project(header, rows, unit, contexts, chart, read_mailbox(comm),
+                   read_io(comm))
+
+
+def read_io(comm: Any) -> dict[str, dict[str, int]]:
+    """The declared I/O modules' live words. Read-only, and never fatal.
+
+    A module that does not answer is omitted, which publishes its channels with
+    their identity and `Quality` FALSE rather than a confident zero. An I/O
+    read has to be allowed to fail on its own: the fieldbus view is a
+    diagnostic, and refusing the whole station snapshot because one chassis
+    word did not come back would take the operator's process screens away to
+    report a broken sensor list.
+    """
+    state: dict[str, dict[str, int]] = {}
+    for module in APP.io_modules:
+        words: dict[str, int] = {}
+        for key, tag in (("input", module.input_tag),
+                         ("output", module.output_tag),
+                         ("fault", module.fault_tag)):
+            answer = comm.Read(tag)
+            if getattr(answer, "Status", None) != "Success":
+                break
+            words[key] = int(getattr(answer, "Value", 0) or 0) &                 ((1 << module.data_width) - 1)
+        else:
+            state[module.address] = words
+    return state
 
 
 def read_mailbox(comm: Any) -> dict[str, Any]:

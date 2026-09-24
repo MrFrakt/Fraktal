@@ -18,7 +18,9 @@ A projection that renders half a plant is worse than one that renders none.
 """
 
 import unittest
+from dataclasses import replace
 
+import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_manifest as manifest
 import fraktal_ab_projection as projection
@@ -73,6 +75,12 @@ def chart_values(**overrides):
 
 
 def build(**kwargs):
+    known = {"header", "rows", "unit", "contexts", "chart", "mailbox_state",
+             "io_state"}
+    unknown = set(kwargs) - known
+    if unknown:
+        raise TypeError(f"build() got unexpected {sorted(unknown)}; a dropped "
+                        "keyword makes a test assert against a default")
     return projection.project(
         kwargs.pop("header", good_header()),
         kwargs.pop("rows", manifest.content(APP)),
@@ -80,7 +88,149 @@ def build(**kwargs):
         kwargs.pop("contexts", contexts()),
         kwargs.pop("chart", chart_values()),
         kwargs.pop("mailbox_state", None),
+        kwargs.pop("io_state", None),
     )
+
+
+
+class TopologyTests(unittest.TestCase):
+    """The fieldbus view: declared identity, live state, and the seam between.
+
+    The press's channels are transcribed from the TC3 cabinet mapping, so the
+    tests that matter are the ones that would catch a transcription drifting -
+    a tag localized by accident, a bit shared by two channels, control power
+    creeping back in.
+    """
+
+    ROOT = "PressFieldbus/Topology"
+
+    def values(self, **io):
+        return build(io_state={"Local:1": io} if io else None)["values"]
+
+    def test_the_fieldbus_is_not_published_under_a_module(self):
+        # A bus node is not a Fraktal module; giving it a module's browse path
+        # would make the generic HMI treat it as one.
+        for key in build()["values"]:
+            if "/Topology/" in key:
+                self.assertFalse(key.startswith("Press/"), key)
+
+    def test_one_node_carries_every_declared_channel(self):
+        values = self.values(input=0, output=0, fault=0)
+        self.assertEqual(values[f"{self.ROOT}/NodeCount"], 1)
+        self.assertEqual(values[f"{self.ROOT}/Nodes[1]/ChannelCount"], 20)
+        self.assertEqual(values[f"{self.ROOT}/Nodes[1]/Address"], "Local:1")
+
+    def test_the_electrical_tag_is_published_verbatim(self):
+        values = self.values(input=0, output=0, fault=0)
+        names = {values[f"{self.ROOT}/Nodes[1]/Channels[{i}]/Name"]
+                 for i in range(1, 21)}
+        self.assertIn("_101B201A", names)   # door closed
+        self.assertIn("_101K202B", names)   # press upward
+        # Localized text is a separate member; the tag is never it.
+        self.assertEqual(
+            values[f"{self.ROOT}/Nodes[1]/Channels[3]/DescriptionKey"],
+            "project.io.door_closed")
+
+    def test_control_power_is_absent_not_renumbered(self):
+        values = self.values(input=0, output=0, fault=0)
+        names = {values[f"{self.ROOT}/Nodes[1]/Channels[{i}]/Name"]
+                 for i in range(1, 21)}
+        for tag in ("_000K951_A1", "_000K911_A1", "_000K911_Y32"):
+            self.assertNotIn(tag, names)
+        # and the channels that remain keep their TC3 bit positions
+        self.assertEqual(values[f"{self.ROOT}/Nodes[1]/Channels[12]/Address"],
+                         "Local:1:I.14")   # _000K910A, TC3 input channel 15
+
+    def test_a_live_module_publishes_its_bits(self):
+        values = self.values(input=0b101, output=0b10, fault=0)
+        node = f"{self.ROOT}/Nodes[1]"
+        self.assertEqual(values[f"{node}/State"], projection.NODE_OPERATIONAL)
+        self.assertIs(values[f"{node}/LinkOk"], True)
+        self.assertIs(values[f"{node}/Channels[1]/BoolValue"], True)   # in b0
+        self.assertIs(values[f"{node}/Channels[2]/BoolValue"], False)  # in b1
+        self.assertIs(values[f"{node}/Channels[14]/BoolValue"], True)  # out b1
+
+    def test_an_inhibited_module_is_offline_not_sixteen_broken_channels(self):
+        # Every fault bit set is exactly what an inhibited module reports, and
+        # it is the bench's state today.
+        values = self.values(input=0, output=0, fault=0xFFFF)
+        node = f"{self.ROOT}/Nodes[1]"
+        self.assertEqual(values[f"{node}/State"], projection.NODE_OFFLINE)
+        self.assertIs(values[f"{node}/LinkOk"], False)
+        self.assertIs(values[f"{node}/Channels[1]/Quality"], False)
+
+    def test_a_partial_fault_is_a_fault_not_an_offline_module(self):
+        values = self.values(input=0, output=0, fault=0b10)
+        node = f"{self.ROOT}/Nodes[1]"
+        self.assertEqual(values[f"{node}/State"], projection.NODE_FAULT)
+        self.assertIs(values[f"{node}/Channels[2]/FaultActive"], True)
+        self.assertIs(values[f"{node}/Channels[1]/FaultActive"], False)
+
+    def test_unread_words_publish_identity_with_bad_quality(self):
+        # Never a confident zero: the HMI renders Bad quality as unavailable.
+        values = self.values()
+        node = f"{self.ROOT}/Nodes[1]"
+        self.assertEqual(values[f"{node}/Channels[1]/Name"], "_101B301A")
+        self.assertIs(values[f"{node}/Channels[1]/Quality"], False)
+        self.assertEqual(values[f"{node}/State"], projection.NODE_OFFLINE)
+
+    def test_no_channel_offers_forcing(self):
+        # §10.5.1 forcing is a write, and AB §11.2.1 makes the mailbox the only
+        # command surface, so a force affordance could not be honoured.
+        values = self.values(input=0, output=0, fault=0)
+        for i in range(1, 21):
+            self.assertIs(
+                values[f"{self.ROOT}/Nodes[1]/Channels[{i}]/Forceable"], False)
+
+    def test_a_channel_cross_links_to_the_module_that_owns_it(self):
+        values = self.values(input=0, output=0, fault=0)
+        self.assertEqual(
+            values[f"{self.ROOT}/Nodes[1]/Channels[3]/ModulePath"],
+            "Press.Door")
+
+    def test_an_application_without_io_publishes_no_fieldbus_root(self):
+        bare = replace(projection.APP, io_modules=())
+        self.assertEqual(projection.topology(bare, None), {})
+
+
+class IoDeclarationTests(unittest.TestCase):
+    """What the declaration refuses before anything reaches a chassis."""
+
+    def _app(self, *channels):
+        module = decl.IoModule(
+            name="M", type_id="T", address="Local:1",
+            description_key="k", data_width=16, channels=channels)
+        return replace(projection.APP, io_modules=(module,))
+
+    def test_two_channels_cannot_share_a_bit(self):
+        findings = decl.validate(self._app(
+            decl.IoChannel("_A", "k", 3, decl.DIR_INPUT),
+            decl.IoChannel("_B", "k", 3, decl.DIR_INPUT)))
+        self.assertTrue(any("both claim bit 3" in f for f in findings))
+
+    def test_the_same_bit_in_each_direction_is_fine(self):
+        self.assertEqual(decl.validate(self._app(
+            decl.IoChannel("_A", "k", 3, decl.DIR_INPUT),
+            decl.IoChannel("_B", "k", 3, decl.DIR_OUTPUT))), [])
+
+    def test_a_duplicate_electrical_tag_is_refused(self):
+        findings = decl.validate(self._app(
+            decl.IoChannel("_A", "k", 1, decl.DIR_INPUT),
+            decl.IoChannel("_A", "k", 2, decl.DIR_INPUT)))
+        self.assertTrue(any("duplicate electrical tags" in f for f in findings))
+
+    def test_a_bit_outside_the_data_word_is_refused(self):
+        findings = decl.validate(self._app(
+            decl.IoChannel("_A", "k", 16, decl.DIR_INPUT)))
+        self.assertTrue(any("outside" in f for f in findings))
+
+    def test_a_channel_cannot_name_a_module_that_does_not_exist(self):
+        findings = decl.validate(self._app(
+            decl.IoChannel("_A", "k", 1, decl.DIR_INPUT, module_path="Nope")))
+        self.assertTrue(any("not a declared module" in f for f in findings))
+
+    def test_the_shipped_press_declaration_is_valid(self):
+        self.assertEqual(decl.validate(projection.APP), [])
 
 
 class RefusalTests(unittest.TestCase):

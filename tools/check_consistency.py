@@ -518,7 +518,6 @@ AB_ABSENT = {
     "SupportedRunStylesPublished": _NOT_PROJECTED,
     "SystemHealth": _NOT_PROJECTED,
     "Timing": _NOT_PROJECTED,
-    "Topology": "physical I/O is a recorded deferral; no fieldbus root",
 }
 
 # Published for `opcua_repository.dart`, which writes the request and polls the
@@ -554,6 +553,14 @@ def _mapper_surface(text: str) -> tuple[set[str], set[str], list[str]]:
         alarm_suffixes = [hit.group(1)[len(token):]
                           for hit in direct.finditer(body.group(0))
                           if hit.group(1).startswith(token)]
+        # Having expanded those reads at the call sites, blank the body so the
+        # positional scan does not ALSO attribute them to whatever `prefix`
+        # happened to be bound last. `_alarmEvent` is defined near the end of
+        # the file, after the fieldbus loop, so that stray attribution landed
+        # on bus nodes and invented thirteen alarm fields for them. Blanked in
+        # place, so every other offset still means what it meant.
+        text = (text[:body.start()] + " " * (body.end() - body.start())
+                + text[body.end():])
 
     events: list[tuple[int, str, str, str]] = []
     for hit in bind_indexed.finditer(text):
@@ -598,6 +605,11 @@ def _mapper_surface(text: str) -> tuple[set[str], set[str], list[str]]:
         resolved = re.sub(r"\[\$?\w+\]", "[*]", resolve(value, env))
         if resolved.startswith("$topology/"):
             topology.add(resolved[len("$topology/"):])
+        elif resolved.startswith("Topology/"):
+            # The discovery scan `endsWith('/Topology/NodeCount')` looks for
+            # the fieldbus root wherever it hangs, so it belongs to that
+            # surface and not to whatever module base it resolved against.
+            topology.add(resolved[len("Topology/"):])
         elif "$" in resolved:
             unresolved.append(resolved)
         elif resolved:
@@ -605,8 +617,8 @@ def _mapper_surface(text: str) -> tuple[set[str], set[str], list[str]]:
     return modules, topology, sorted(set(unresolved))
 
 
-def _ab_published() -> set[str]:
-    """Suffixes the AB projection publishes, from the offline projector.
+def _ab_projection() -> dict:
+    """One offline projection of the AB station, as a connected client sees it.
 
     Built through the projection's own test fixture rather than a second copy
     of the header/context construction: duplicating that here would make this
@@ -614,10 +626,14 @@ def _ab_published() -> set[str]:
     projector (§1.1 O9).
 
     Paths are relative to the repository root, like `HMI_L10N`, and NOT to
-    `--root`, which points at the TwinCAT tree. This function raises rather
-    than returning empty on a missing or unimportable fixture: the first cut of
-    this gate swallowed both and reported a clean run while checking nothing,
-    which is the exact failure it was written to catch.
+    `--root`, which points at the TwinCAT tree. This raises rather than
+    returning empty on a missing or unimportable fixture: the first cut of this
+    gate swallowed both and reported a clean run while checking nothing, which
+    is the exact failure it was written to catch.
+
+    The live words are supplied because a channel's identity publishes either
+    way but its value does not, and a gate that compared only the unread shape
+    would not notice the value fields going missing.
     """
     fixture_path = AB_TOOLS / "test_fraktal_ab_projection.py"
     if not fixture_path.is_file():
@@ -627,11 +643,18 @@ def _ab_published() -> set[str]:
         import test_fraktal_ab_projection as fixture
     finally:
         sys.path.remove(str(AB_TOOLS))
-    document = fixture.build(mailbox_state={
-        "response": {"AckSequence": 0, "Accepted": 0, "DiagnosticKey": 0},
-        "requestSequence": 0,
-    })
-    values = document["values"]
+    return fixture.build(
+        mailbox_state={
+            "response": {"AckSequence": 0, "Accepted": 0, "DiagnosticKey": 0},
+            "requestSequence": 0,
+        },
+        io_state={"Local:1": {"input": 0, "output": 0, "fault": 0}},
+    )
+
+
+def _ab_published() -> set[str]:
+    """Suffixes the projection publishes under a module, module-relative."""
+    values = _ab_projection()["values"]
     marker = "/Status/Name"
     bases = sorted({key[: -len(marker)] for key in values
                     if key.endswith(marker)}, key=len, reverse=True)
@@ -642,6 +665,19 @@ def _ab_published() -> set[str]:
                 published.add(re.sub(r"\[\d+\]", "[*]", key[len(base) + 1:]))
                 break
     return published
+
+
+def _ab_topology() -> set[str]:
+    """Suffixes the projection publishes under its own fieldbus root.
+
+    The fieldbus hangs off `<app>Fieldbus/Topology`, not off a module, the way
+    TC3 publishes `GVL_<Project>Fieldbus.Topology`, so it cannot be found by
+    stripping module bases the way `_ab_published` does. A bus node is not a
+    Fraktal module and must not be given a module's browse path.
+    """
+    marker = "/Topology/"
+    return {re.sub(r"\[\d+\]", "[*]", key.split(marker, 1)[1])
+            for key in _ab_projection()["values"] if marker in key}
 
 
 def _absent_reason(suffix: str) -> str | None:
@@ -687,14 +723,21 @@ def check_read_surface(root: Path) -> list[Finding]:
             f"{exc}), so nothing was compared. Fix the import rather than "
             "letting the gate pass by checking nothing")]
 
-    # The fieldbus topology hangs off its own root, not off a module, so it is
-    # checked as one capability rather than suffix by suffix.
-    if topology and not _absent_reason("Topology"):
+    # The fieldbus hangs off its own root, so it is compared against its own
+    # published set rather than against the module suffixes.
+    fieldbus = _ab_topology()
+    for suffix in sorted(topology - fieldbus):
+        if _absent_reason("Topology/" + suffix):
+            continue
         findings.append(Finding(
             "readsurface", "error", where,
-            f"the HMI reads {len(topology)} fieldbus topology nodes and the "
-            "AB projection neither publishes a topology root nor declares one "
-            "absent"))
+            f"the HMI reads 'Topology/{suffix}' and the AB projection neither "
+            "publishes it nor declares it absent"))
+    for suffix in sorted(fieldbus - topology):
+        findings.append(Finding(
+            "readsurface", "warning", "fraktal_ab_projection.py",
+            f"the AB projection publishes 'Topology/{suffix}' and the HMI "
+            "never reads it - surface nobody pays for"))
 
     for suffix in sorted(modules):
         if suffix in published or _absent_reason(suffix):
@@ -709,7 +752,7 @@ def check_read_surface(root: Path) -> list[Finding]:
         covered = {s for s in modules
                    if s == prefix or s.startswith(prefix + "/")
                    or s.startswith(prefix + "[")}
-        if not covered and prefix != "Topology":
+        if not covered:
             findings.append(Finding(
                 "readsurface", "error", gate,
                 f"AB_ABSENT declares '{prefix}' absent ({reason}) but the HMI "

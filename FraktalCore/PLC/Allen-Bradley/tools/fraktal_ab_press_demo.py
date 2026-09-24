@@ -6,9 +6,11 @@ the **observable behaviour** of the TwinCAT ``Fraktal_Press_Demo`` - TC3 is the
 behavioural oracle for semantics, never for implementation shape. Core
 obligations are met here by generated composition, not by inheritance.
 
-**No control power, no physical I/O.** The plant is arithmetic on controller
-tags; the embedded I/O module is inhibited and task output updates are disabled.
-Nothing electrical is represented, and no control-power domain exists.
+**No control power, and nothing electrical is driven.** The embedded I/O
+module is inhibited and task output updates are disabled, so the plant is
+arithmetic on controller tags and no output reaches a terminal. The cabinet's
+channels ARE declared, minus the control-power chain, so the fieldbus view
+describes the real press; publishing that description drives nothing.
 
 Deliberately out of scope, and deferred rather than forgotten: recipes and
 changeover, part traceability, release reports, the reusable module library
@@ -80,6 +82,84 @@ def _cylinder(name: str, comment: str) -> decl.Module:
         ),
         speed_per_scan=25,
         timeout_ms=500,
+    )
+
+
+def _press_io() -> decl.IoModule:
+    """The press's physical I/O, transcribed from the TC3 cabinet mapping.
+
+    `Specification/Reports/CX2030_PRESS_IO_MAPPING.md` is the source, and the
+    electrical tags are carried verbatim because that is what lets an alarm
+    cross-link to the fieldbus view (`HMI_CONTRACT.md`).
+
+    **Control power is the one deliberate omission.** TC3 input channel 14
+    (`_000K911_Y32`, IsControlOn) and output channels 10 and 11
+    (`_000K951_A1` SwitchControlOn, `_000K911_A1` EnableControlOn) are the
+    hardwired N54 D2 chain, and §9.8 control power is out of scope for this
+    binding. They are absent, not renumbered.
+
+    Bit positions are the TC3 channel number minus one throughout, including
+    across the gaps, so this table reads directly against that document and a
+    reserved channel stays reserved. The 1769-L24ER-QB1B's embedded module has
+    16 of each, so 12 inputs and 8 outputs fit with room left.
+
+    This declares what the channels ARE. Whether the module is inhibited - it
+    is - is a property of the emitted project, not of this table.
+    """
+    return decl.IoModule(
+        name="Discrete_IO",
+        type_id="Embedded",
+        address="Local:1",
+        description_key="project.io.embedded",
+        data_width=16,
+        channels=(
+            # --- inputs, TC3 channels 1-8, 10-12, 15 ------------------------
+            decl.IoChannel("_101B301A", "project.io.feeder_retracted", 0,
+                           decl.DIR_INPUT, module_path="PartSlide"),
+            decl.IoChannel("_101B301B", "project.io.feeder_extended", 1,
+                           decl.DIR_INPUT, module_path="PartSlide"),
+            decl.IoChannel("_101B201A", "project.io.door_closed", 2,
+                           decl.DIR_INPUT, module_path="Door"),
+            decl.IoChannel("_101B201B", "project.io.door_opened", 3,
+                           decl.DIR_INPUT, module_path="Door"),
+            decl.IoChannel("_101B202A", "project.io.press_down", 4,
+                           decl.DIR_INPUT, module_path="PressRam"),
+            decl.IoChannel("_101B202B", "project.io.press_up", 5,
+                           decl.DIR_INPUT, module_path="PressRam"),
+            decl.IoChannel("_101S101", "project.io.two_hand_right", 6,
+                           decl.DIR_INPUT),
+            decl.IoChannel("_101S102", "project.io.two_hand_left", 7,
+                           decl.DIR_INPUT),
+            # channel 9 is Reserve on the cabinet and stays unmapped
+            decl.IoChannel("_000MB085A_2", "project.io.air_below_low", 9,
+                           decl.DIR_INPUT),
+            decl.IoChannel("_000MB085A_4", "project.io.air_above_working", 10,
+                           decl.DIR_INPUT),
+            decl.IoChannel("_101B601", "project.io.part_present", 11,
+                           decl.DIR_INPUT),
+            # channel 13 Reserve; channel 14 _000K911_Y32 is control power
+            # A mirror for diagnostics only - AB carries no safety function.
+            decl.IoChannel("_000K910A", "project.io.estop_not_pressed", 14,
+                           decl.DIR_INPUT),
+            # --- outputs, TC3 channels 1-8 ----------------------------------
+            decl.IoChannel("_101K301A", "project.io.feeder_backward", 0,
+                           decl.DIR_OUTPUT, module_path="PartSlide"),
+            decl.IoChannel("_101K301B", "project.io.feeder_forward", 1,
+                           decl.DIR_OUTPUT, module_path="PartSlide"),
+            decl.IoChannel("_101K201A", "project.io.close_door", 2,
+                           decl.DIR_OUTPUT, module_path="Door"),
+            decl.IoChannel("_101K201B", "project.io.open_door", 3,
+                           decl.DIR_OUTPUT, module_path="Door"),
+            decl.IoChannel("_101K202A", "project.io.press_downward", 4,
+                           decl.DIR_OUTPUT, module_path="PressRam"),
+            decl.IoChannel("_101K202B", "project.io.press_upward", 5,
+                           decl.DIR_OUTPUT, module_path="PressRam"),
+            decl.IoChannel("_101P101", "project.io.lamp_right", 6,
+                           decl.DIR_OUTPUT),
+            decl.IoChannel("_101P102", "project.io.lamp_left", 7,
+                           decl.DIR_OUTPUT),
+            # channel 9 Reserve; 10 and 11 are the control-power chain
+        ),
     )
 
 
@@ -239,12 +319,13 @@ def application() -> decl.Application:
         task_period_ms=10,
         watchdog_ms=500,
         comment="Fraktal/AB press demo: the first application emitted from the "
-                "runtime base. No control power, no physical I/O.",
+                "runtime base. No control power; I/O declared but inhibited.",
         records=(par_cfg,),
         modules=(press_ram, door, part_slide),
         chains=(manual, auto, home),
         reasons=REASONS,
         sim_inputs=(two_hand, part_present, air_ok, f"FRK_{n}_JogCommand"),
+        io_modules=(_press_io(),),
         chart_steps=32,
     )
 

@@ -210,6 +210,68 @@ class Chain:
 
 # --- the application --------------------------------------------------------
 
+# --- physical I/O -----------------------------------------------------------
+
+# E_ChannelDir / E_ChannelKind / E_NodeState, from the Core DUTs. Pinned by
+# test_fraktal_ab_core_ordinals.py against the TwinCAT sources, like every
+# other ordinal that crosses this boundary.
+DIR_INPUT = 0
+DIR_OUTPUT = 1
+KIND_DIGITAL = 0
+KIND_ANALOG = 1
+NODE_OFFLINE = 0
+NODE_OPERATIONAL = 4
+NODE_FAULT = 5
+
+
+@dataclass(frozen=True)
+class IoChannel:
+    """One physical channel, named by its electrical tag.
+
+    ``name`` **is** the approved electrical tag, verbatim. `HMI_CONTRACT.md`
+    requires it, because that is what lets an alarm cross-link to the fieldbus
+    view; the operator-facing text lives in ``description_key`` and is the only
+    part that may be localized.
+
+    ``bit`` is the position in the owning module's data word, and it is kept
+    equal to the TC3 channel number minus one so this declaration reads
+    directly against `CX2030_PRESS_IO_MAPPING.md`. Channels TC3 leaves
+    unmapped stay unmapped here rather than being closed up.
+    """
+
+    name: str
+    description_key: str
+    bit: int
+    direction: int
+    kind: int = KIND_DIGITAL
+    unit: str = ""
+    module_path: str = ""
+
+
+@dataclass(frozen=True)
+class IoModule:
+    """A physical I/O module in the controller's local chassis."""
+
+    name: str
+    type_id: str
+    address: str
+    description_key: str
+    data_width: int
+    channels: tuple[IoChannel, ...]
+
+    @property
+    def input_tag(self) -> str:
+        return f"{self.address}:I.Data"
+
+    @property
+    def output_tag(self) -> str:
+        return f"{self.address}:O.Data"
+
+    @property
+    def fault_tag(self) -> str:
+        return f"{self.address}:I.Fault"
+
+
 @dataclass(frozen=True)
 class Application:
     """One committed declaration: everything a Logix project is emitted from."""
@@ -229,6 +291,9 @@ class Application:
     # step waits on must name one of these: a condition referencing a tag that
     # does not exist is rejected here rather than discovered in Studio.
     sim_inputs: tuple[str, ...] = ()
+    # Physical I/O, if the application has any. Empty means the plant is
+    # arithmetic on controller tags and no fieldbus root is published.
+    io_modules: tuple[IoModule, ...] = ()
     chart_steps: int = 32
     program_name: str = ""
     routine_name: str = ""
@@ -346,6 +411,57 @@ def _validate_chain(app: Application, chain: Chain) -> list[str]:
     return findings
 
 
+def _validate_io(app: Application) -> list[str]:
+    """Every way an I/O declaration can be wrong before it reaches a chassis.
+
+    An electrical tag is the one identifier that must survive verbatim from the
+    I/O list to the HMI, so a duplicate or an empty one is rejected here. Two
+    channels sharing a bit is the defect this catches that review does not:
+    both read plausibly, and the second silently shadows the first.
+    """
+    findings: list[str] = []
+    module_paths = {m.name for m in app.modules}
+    addresses = [m.address for m in app.io_modules]
+    repeated = {a for a in addresses if addresses.count(a) > 1}
+    if repeated:
+        findings.append(f"duplicate I/O module addresses {sorted(repeated)}")
+
+    tags: list[str] = []
+    for module in app.io_modules:
+        if module.data_width <= 0:
+            findings.append(f"{module.address}: data width must be positive")
+        seen: dict[tuple[int, int], str] = {}
+        for channel in module.channels:
+            tags.append(channel.name)
+            if not channel.name.strip():
+                findings.append(f"{module.address}: a channel has no "
+                                "electrical tag; the tag is the identity")
+            if channel.direction not in (DIR_INPUT, DIR_OUTPUT):
+                findings.append(f"{channel.name}: direction "
+                                f"{channel.direction} is not an E_ChannelDir")
+            if channel.kind not in (KIND_DIGITAL, KIND_ANALOG):
+                findings.append(f"{channel.name}: kind {channel.kind} is not "
+                                "an E_ChannelKind")
+            if not 0 <= channel.bit < module.data_width:
+                findings.append(
+                    f"{channel.name}: bit {channel.bit} is outside "
+                    f"{module.address}'s {module.data_width}-bit data word")
+            slot = (channel.direction, channel.bit)
+            if slot in seen:
+                findings.append(
+                    f"{channel.name} and {seen[slot]} both claim bit "
+                    f"{channel.bit} on {module.address}")
+            seen[slot] = channel.name
+            if channel.module_path and channel.module_path not in module_paths:
+                findings.append(
+                    f"{channel.name}: module_path {channel.module_path!r} is "
+                    "not a declared module")
+    duplicates = {t for t in tags if tags.count(t) > 1}
+    if duplicates:
+        findings.append(f"duplicate electrical tags {sorted(duplicates)}")
+    return findings
+
+
 def validate(app: Application) -> list[str]:
     """Return every reason this declaration must not be emitted. Empty means go."""
     findings: list[str] = []
@@ -361,6 +477,8 @@ def validate(app: Application) -> list[str]:
         findings.append(f"duplicate record names {sorted(duplicates)}")
     for record in app.records:
         findings.extend(_validate_record(record))
+
+    findings.extend(_validate_io(app))
 
     module_names = [m.name for m in app.modules]
     duplicates = {n for n in module_names if module_names.count(n) > 1}
