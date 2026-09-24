@@ -1575,6 +1575,36 @@ The per-use rule still binds: a specific controller write needs current
 authorization and an exact target check, and no mode write may issue until the
 loaded build's `E_Mode` ordinals are confirmed.
 
+**Closed on the controller 2026-09-23.** The mailbox exists, the write surface
+is shut, and both are proved on the bench
+([`AB_WRITE_SURFACE_CLOSED_2026-09-23.md`](AllenBradley/Evidence/AB_WRITE_SURFACE_CLOSED_2026-09-23.md)).
+Every request tag the mailbox routes into is `ExternalAccess="None"`, which
+removes it from the CIP namespace: a client cannot read one, and a write to one
+is refused with `Path segment error`. `FRK_<app>_HmiRequest` is the single
+command surface, and an access audit of the generated project reports
+`Conforms: true` with `CommandSurface` of exactly one tag.
+
+Two rules come out of proving it, and both are normative:
+
+* **A command is proved by the machine state it produced, never by its
+  acknowledgement.** The mailbox's first hardware run returned ten clean
+  acknowledgements over a press that had been driven into a latched abort: the
+  handler raised the request tags it routes and nothing lowered them, which went
+  unnoticed for as long as those tags were externally writable because every
+  client wrote `1` then `0` and supplied the deassert the controller never
+  performed. Closing the surface made the mailbox their only writer and turned a
+  latent defect into a blocking one
+  ([`AB_MAILBOX_LATCHING_DEFECT_2026-09-22.md`](AllenBradley/Evidence/AB_MAILBOX_LATCHING_DEFECT_2026-09-22.md)).
+* **A request the application does not declare is refused by name, never
+  clamped.** `SET_MODE` carrying a valid `E_Mode` ordinal the application has no
+  chain for — `CHANGEOVER` on a press that has none — answers
+  `project.mailbox.refused.mode_not_declared` rather than landing in AUTO.
+
+Once the surface is shut, an evidence harness is a client like any other: the
+fifteen-row press matrix now commands through the mailbox over CIP and seeds its
+sequence from the controller, because a harness that restarts its numbering has
+every run after the first refused as a replay.
+
 **Enabling writes re-arms the full requirement.** Writes are switched on at the
 gateway, not by regenerating or downloading controller code — the generated
 allow-list already gives root mailboxes read/write and everything else read-only
