@@ -1605,6 +1605,29 @@ fifteen-row press matrix now commands through the mailbox over CIP and seeds its
 sequence from the controller, because a harness that restarts its numbering has
 every run after the first refused as a replay.
 
+**Commanded from a browser 2026-09-24.** The generic Web HMI changed the press
+mode from Chrome — `AUTO` to `MANUAL`, with `ModeActivePublished` reading back
+`E_Mode.MANUAL` off the live unit context — over the same gateway, protocol and
+mailbox, with no change to any of them
+([`AB_BROWSER_COMMAND_2026-09-24.md`](AllenBradley/Evidence/AB_BROWSER_COMMAND_2026-09-24.md)).
+
+That run settles where the authenticated principal lives, and it is normative:
+**a browser cannot present the gateway's bearer token, so the §14 principal is
+established at the proxy and the proxy supplies the gateway credential.** The
+WebSocket API offers no way to set an `Authorization` header, and a token field
+in the HMI would put a long-lived gateway credential in every operator's browser
+storage. An authenticated reverse proxy on the HMI's own origin resolves both:
+it authenticates the operator, and presents upstream the credential the browser
+could not send, so the gateway never receives the operator's secret and the
+operator never holds the gateway's. Serving the HMI and the gateway on one
+origin is the whole configuration — a release Web build derives
+`wss://<page-origin>/fraktal` itself.
+
+Whether a browser attaches cached credentials to a **WebSocket** upgrade is
+browser behaviour and shall be proved per browser, not assumed: only Chrome has
+been exercised. A browser that declines needs a cookie or token exchange at the
+proxy instead, which changes the proxy and nothing below it.
+
 **Enabling writes re-arms the full requirement.** Writes are switched on at the
 gateway, not by regenerating or downloading controller code — the generated
 allow-list already gives root mailboxes read/write and everything else read-only

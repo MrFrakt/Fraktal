@@ -553,10 +553,17 @@ demo now publishes a generated **manifest**, so a client discovers the station
 from the controller; it describes the declared graph **once, rendition-agnostic**
 — the ST/SFC/LD selector is a harness input and is excluded from the published
 contract by construction, so never add one to it. Module AOIs are generated
-**per application**; the reusable library is Phase 6, and the gateway adapter and
-generic HMI are unbuilt. R6 passes for the declared
-**read-only** claim only; S15 is narrowed (Studio Verify needs a logged-in
-desktop, download is deliberately not automated); and S5's CI path is the named
+**per application** and the reusable library is Phase 6. The gateway adapter and
+the generic HMI are **built and proved on the bench**: the unmodified HMI renders
+the live press and, as of 2026-09-24, commanded it from a browser (`AUTO` to
+`MANUAL`, confirmed by controller state). Because a browser cannot present the
+gateway's bearer, the Core §14 authenticated principal is established at an
+authenticated reverse proxy on the HMI's own origin, which supplies the gateway
+credential upstream; the packaged installer path for AB is still unexercised.
+R6 passes for the declared **read-only** claim only — writes remain off unless a
+project asks for them and records the answer; S15 is narrowed (Studio Verify
+needs a logged-in desktop, download is deliberately not automated); and S5's CI
+path is the named
 isolated bench with an authorized **manual** deployment step, not zero-touch CI.
 Read
 `FraktalCore/PLC/Allen-Bradley/README.md` and `Specification/Fraktal_AB_Part_III.md`
