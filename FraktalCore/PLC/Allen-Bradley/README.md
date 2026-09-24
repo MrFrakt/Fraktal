@@ -35,9 +35,13 @@ machine it describes.
 
 **This is still not a runtime library.** Module AOIs are generated *per
 application*; the reusable library form is Phase 6. Recipes, changeover, part
-traceability, release reports, the gateway/repository adapter, the generic HMI,
-physical I/O and any control-power domain are all out of scope and recorded as
-deferrals, not omissions.
+traceability, release reports, physical I/O and any control-power domain are all
+out of scope and recorded as deferrals, not omissions.
+
+The gateway/repository adapter and the generic HMI are **no longer among them** -
+both are built and run against the bench, and on 2026-09-24 the unmodified HMI
+commanded the press from a browser (see the gateway section below). What remains
+unexercised there is the packaged installer path and anything past loopback.
 
 The current Phase 0 workstation target is `192.168.100.89`, historically from
 host adapter `192.168.100.99/24`. FactoryTalk Linx 6.50 browsed it through the
