@@ -24,7 +24,12 @@ import fraktal_ab_press_demo as demo
 CORE_DUTS = (Path(__file__).resolve().parents[2]
              / "TwinCAT" / "Framework" / "Fraktal_Core" / "DUTs")
 
-MEMBER = re.compile(r"^\s*([A-Z_][A-Z0-9_]*)\s*:=\s*(-?\d+)\s*,?\s*(?://.*)?$")
+# Members are matched anywhere in the body, not anchored to a line start: some
+# DUTs put the whole enum on one line (`TYPE E_ModeSwitchStyle : (GRACEFUL := 0,
+# IMMEDIATE := 1) DINT;`) and a line-anchored pattern found nothing in those -
+# silently, which is the failure this reader keeps having to be taught not to
+# have.
+MEMBER = re.compile(r"([A-Z_][A-Z0-9_]*)\s*:=\s*(-?\d+)")
 
 
 def core_enum(name):
@@ -39,11 +44,13 @@ def core_enum(name):
     body = source.split(f"TYPE {name} :", 1)[1]
     uncommented = chr(10).join(
         line.split("//", 1)[0] for line in body.split(chr(10)))
-    found = {}
-    for line in uncommented.split(")", 1)[0].split(chr(10)):
-        match = MEMBER.match(line)
-        if match:
-            found[match.group(1)] = int(match.group(2))
+    body_text = uncommented.split(")", 1)[0]
+    found = {name: int(value) for name, value in MEMBER.findall(body_text)}
+    if not found:
+        # Never return an empty catalogue. Every caller reads it as "the Core
+        # says nothing about this", and an unreadable DUT would then agree with
+        # whatever the binding happens to declare.
+        raise AssertionError(f"read no members from {name}.TcDUT")
     return found
 
 
@@ -209,3 +216,114 @@ class ExecStateOrdinalTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModeSwitchOrdinalTests(unittest.TestCase):
+    """The mode-policy enums the HMI resolves a switch against.
+
+    These reached the HMI as absent rather than wrong, which was worse: the
+    mapper skips a ModePolicy index it cannot find, so a press declaring three
+    modes presented as AUTO-only and nothing said so.
+    """
+
+    def setUp(self):
+        import fraktal_ab_projection as projection
+
+        self.projection = projection
+        self.shield = core_enum("E_ModeSwitchShield")
+        self.style = core_enum("E_ModeSwitchStyle")
+
+    def test_the_published_shield_matches_core(self):
+        self.assertEqual(self.projection.SHIELD_INTERRUPTIBLE,
+                         self.shield["INTERRUPTIBLE"])
+
+    def test_the_published_style_matches_core(self):
+        self.assertEqual(self.projection.STYLE_IMMEDIATE,
+                         self.style["IMMEDIATE"])
+
+    def test_the_published_values_describe_the_generated_behaviour(self):
+        # The generated mode change sets Step := 0 and Running := 0 with no
+        # confirmation and no wait for a safe point. Publishing CONFIRM or
+        # GRACEFUL would promise an operator a negotiation that does not exist.
+        self.assertNotEqual(self.projection.SHIELD_INTERRUPTIBLE,
+                            self.shield["CONFIRM"])
+        self.assertNotEqual(self.projection.SHIELD_INTERRUPTIBLE,
+                            self.shield["BLOCKED_WHILE_RUNNING"])
+        self.assertNotEqual(self.projection.STYLE_IMMEDIATE,
+                            self.style["GRACEFUL"])
+
+    def test_every_declared_mode_gets_a_policy(self):
+        app = demo.application()
+        policy = self.projection.mode_policy(app)
+        for chain in app.chains:
+            index = chain.mode_ordinal + 1
+            self.assertIn(f"ModePolicy[{index}]/Shield", policy, chain.name)
+            self.assertIn(f"ModePolicy[{index}]/Style", policy, chain.name)
+
+    def test_no_undeclared_mode_gets_a_policy(self):
+        # The mapper offers exactly what it finds, so publishing a policy for a
+        # mode with no chain would put a dead entry in the operator's mode list.
+        app = demo.application()
+        policy = self.projection.mode_policy(app)
+        declared = {c.mode_ordinal + 1 for c in app.chains}
+        found = {int(k.split("[")[1].split("]")[0]) for k in policy}
+        self.assertEqual(found, declared)
+
+    def test_the_index_is_the_ordinal_plus_one(self):
+        # lib/data/opcua_snapshot_mapper.dart walks UnitMode.values and asks for
+        # ModePolicy[i + 1], so AUTO (0) is index 1.
+        app = demo.application()
+        policy = self.projection.mode_policy(app)
+        auto = next(c for c in app.chains if c.mode_ordinal == core_enum("E_Mode")["AUTO"])
+        self.assertIn(f"ModePolicy[{auto.mode_ordinal + 1}]/Shield", policy)
+
+
+class SupportedModeTests(unittest.TestCase):
+    """The flags the mode bar actually reads.
+
+    `ModePolicy` governs how a switch behaves; `SupportedModesPublished` is what
+    decides whether a mode is offered at all. Publishing only the first left the
+    press presenting as AUTO-only, because the mapper falls back to
+    `[currentMode]` when the supported list is empty - a confident single-mode
+    claim rather than a visible gap.
+    """
+
+    def setUp(self):
+        import fraktal_ab_projection as projection
+
+        self.projection = projection
+        self.app = demo.application()
+        self.values = projection.mode_policy(self.app)
+
+    def test_every_declared_mode_is_published_as_supported(self):
+        for chain in self.app.chains:
+            key = f"SupportedModesPublished[{chain.mode_ordinal + 1}]"
+            self.assertIn(key, self.values, chain.name)
+            self.assertIs(self.values[key], True, chain.name)
+
+    def test_the_flag_is_a_real_boolean(self):
+        # The mapper compares `== true`; a 1 would not match and the mode would
+        # silently not be offered.
+        for key, value in self.values.items():
+            if key.startswith("SupportedModesPublished"):
+                self.assertIsInstance(value, bool, key)
+
+    def test_no_undeclared_mode_is_offered(self):
+        declared = {c.mode_ordinal + 1 for c in self.app.chains}
+        offered = {int(k.split("[")[1].split("]")[0])
+                   for k in self.values if k.startswith("SupportedModesPublished")}
+        self.assertEqual(offered, declared)
+
+    def test_more_than_one_mode_is_offered(self):
+        # The regression in one line: if this is 1, the HMI shows a press with
+        # a single mode and nothing indicates that is wrong.
+        offered = [k for k in self.values if k.startswith("SupportedModesPublished")]
+        self.assertGreater(len(offered), 1)
+        self.assertEqual(len(offered), len(self.app.chains))
+
+    def test_the_policy_and_the_support_flags_cover_the_same_modes(self):
+        support = {int(k.split("[")[1].split("]")[0])
+                   for k in self.values if k.startswith("SupportedModesPublished")}
+        policy = {int(k.split("[")[1].split("]")[0])
+                  for k in self.values if k.startswith("ModePolicy")}
+        self.assertEqual(support, policy)

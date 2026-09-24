@@ -166,6 +166,44 @@ def unit_status(unit: dict[str, int], chart: dict[str, Any] | None) -> dict[str,
     return values
 
 
+# E_ModeSwitchShield and E_ModeSwitchStyle, from the Core DUTs and pinned by
+# test the way E_Mode is.
+SHIELD_INTERRUPTIBLE = 0
+STYLE_IMMEDIATE = 1
+
+
+def mode_policy(app) -> dict[str, Any]:
+    """Which modes this application offers, and how a switch behaves.
+
+    Without this the HMI has no list of selectable modes and shows only the one
+    that happens to be active - which is how a press declaring AUTO, MANUAL and
+    HOME came to present as AUTO-only. The mapper builds its policy map from
+    ``ModePolicy[ordinal + 1]``, skipping any index it cannot find, so an absent
+    policy is indistinguishable from a mode the machine does not have.
+
+    The values describe what the generated controller actually does, not what
+    would be polite. A mode change there stands the chain down unconditionally -
+    `Step := 0`, `Running := 0`, no confirmation and no wait for a safe point -
+    so it is INTERRUPTIBLE and IMMEDIATE. Publishing CONFIRM or GRACEFUL would
+    promise an operator a negotiation the controller will not hold.
+    """
+    values: dict[str, Any] = {}
+    for chain in app.chains:
+        index = chain.mode_ordinal + 1
+        # What the mode bar actually offers. `supportedModes` is built from
+        # these flags, and the mapper falls back to `[currentMode]` when the
+        # list comes out empty - so an unpublished array does not render as "no
+        # modes", it renders as "this machine has exactly one", which is a
+        # confident lie rather than a visible gap. That is what a press
+        # declaring AUTO, MANUAL and HOME looked like before this existed.
+        values[f"SupportedModesPublished[{index}]"] = True
+        # How a switch behaves once offered (Core §3.4.1). Separate concern:
+        # ModePolicy governs leaving a mode, not whether it is listed.
+        values[f"ModePolicy[{index}]/Shield"] = SHIELD_INTERRUPTIBLE
+        values[f"ModePolicy[{index}]/Style"] = STYLE_IMMEDIATE
+    return values
+
+
 def mailbox_values(rows: dict[str, Any], response: dict[str, int],
                    request_sequence: int) -> dict[str, Any]:
     """The command mailbox as the HMI's repository reads it.
@@ -215,6 +253,8 @@ def project(header: dict[str, Any], rows: dict[str, Any],
         values[f"{base}/Status/DisplayNameKey"] = module["displayNameKey"]
         if module["type"] == MODULE_TYPE_UNIT:
             for suffix, value in unit_status(unit, chart).items():
+                values[f"{base}/{suffix}"] = value
+            for suffix, value in mode_policy(APP).items():
                 values[f"{base}/{suffix}"] = value
             if mailbox_state is not None:
                 for suffix, value in mailbox_values(
