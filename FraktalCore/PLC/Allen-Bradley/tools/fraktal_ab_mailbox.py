@@ -112,6 +112,8 @@ SUPPORTED: dict[int, str] = {
     OPERATOR_RESET: "the reset request",
     DECISION_ANSWER: "the operator decision the AUTO chain waits on; IntValue",
     MANUAL_COMMAND: "the declared manual jog; only with an empty TargetPath",
+    FORCE_CHANNEL: "§10.5.1 output forcing; the gateway resolves TargetPath "
+                   "into the packed IntValue, BoolValue applies or clears",
 }
 
 # The command-mailbox handover listed STEP_REQUEST, SET_HOLD_RUN and LAMP_TEST
@@ -147,7 +149,7 @@ REFUSED: dict[int, str] = {
     IMPORT_CONFIG_SET: "project.mailbox.refused.no_config_sets",
     SHELVE_ALARM: "project.mailbox.refused.no_event_core",
     UNSHELVE_ALARM: "project.mailbox.refused.no_event_core",
-    FORCE_CHANNEL: "project.mailbox.refused.no_physical_io",
+    # FORCE_CHANNEL is routed - see force_argument() below.
     MANUAL_HELD: "project.mailbox.refused.no_hold_to_run",
     STEP_REQUEST: "project.mailbox.refused.no_step_control",
     SET_HOLD_RUN: "project.mailbox.refused.no_hold_run_control",
@@ -226,6 +228,124 @@ RESPONSE_MEMBERS: tuple[tuple[str, str, int, str], ...] = (
 ONE_SHOT_REQUESTS = ("AbortRequest", "ResetRequest", "JogCommand",
                      "DecisionAnswer")
 LEVEL_REQUESTS = ("RunRequest", "ModeRequest")
+
+
+# --- FORCE_CHANNEL, and why its argument is packed --------------------------
+#
+# The oracle names the channel with `TargetPath : STRING(255)` and carries the
+# level in `TextValue`, and TC3 resolves both in the PLC. This binding cannot:
+# S12 froze the controller contract as all-DINT precisely because Logix v33 ST
+# will not assign a string literal, and comparing twenty channel names in ST
+# would need a constant tag per name.
+#
+# So the GATEWAY resolves the path, exactly as it already resolves the numeric
+# DiagnosticKey back into text - the same seam, in the other direction. The
+# mailbox still carries `TargetPath` verbatim, so the audit trail names the
+# channel an operator actually clicked; the controller reads the resolved form.
+#
+# The gateway sends the channel's BIT MASK, not its index, and that is a
+# correctness choice rather than a convenience. Logix v33 ST has no shift
+# operator - shifting is a ladder instruction - so a controller handed an index
+# could not turn it into a mask without a lookup table per channel. Handed the
+# mask it needs only AND, OR and NOT, which are settled on this baseline. The
+# rule this follows is the one that governs the whole binding: resolve it where
+# the resolution can be tested, not where it cannot be compiled.
+#
+#     IntValue   = the channel's bit mask, exactly one bit set
+#     BoolValue  = 1 applies the force, 0 clears it (the oracle's meaning)
+#     DurationMs = the level to hold, 0 or 1, and only when applying
+#
+# `DurationMs` carrying a level rather than a duration is a borrowed field, and
+# it is named here rather than left to be discovered. The UDT is the frozen S12
+# contract and has no spare DINT; adding one would be a downloadable change to
+# every deployment for one bit.
+FORCE_LEVEL_MEMBER = "DurationMs"
+
+
+def force_argument(module_index: int, bit: int) -> int:
+    """The bit mask the controller ANDs with, for a resolved force target.
+
+    Only module 0 is addressable today: the press has one chassis module, and a
+    second would need its own mask word rather than more bits in this one. A
+    request naming another module is refused rather than folded onto this one.
+    """
+    if module_index != 0:
+        raise ValueError(f"module index {module_index} is not addressable; "
+                         "a second I/O module needs its own force word")
+    if not 0 <= bit < 32:
+        raise ValueError(f"bit {bit} does not fit a DINT mask")
+    return 1 << bit
+
+
+def force_target(app, channel_path: str) -> tuple[int, int] | None:
+    """Resolve a published channel path to (module index, bit), or None.
+
+    The path is the projection's own ``<module>.<electrical tag>``. Returning
+    None is a refusal, never a guess: a force aimed at a channel this station
+    does not have must not land on whichever one happened to be at that index.
+
+    **Outputs only**, and that is not a policy restatement - it is the bug this
+    would otherwise have. Inputs and outputs are separate words that share bit
+    numbers, so resolving input `_101B301A` at bit 0 yields the same mask as
+    output `_101K301A` at bit 0, and a force aimed at a sensor would have
+    energized a valve.
+    """
+    import fraktal_ab_declaration as decl
+
+    for index, module in enumerate(app.io_modules):
+        for channel in module.channels:
+            if channel_path != f"{module.name}.{channel.name}":
+                continue
+            if channel.direction != decl.DIR_OUTPUT:
+                return None
+            return index, channel.bit
+    return None
+
+
+def resolve_force_batch(app, writes: list) -> list:
+    """Turn a FORCE_CHANNEL batch's string arguments into the DINTs it needs.
+
+    The HMI writes the oracle's shape - the channel's browse path in
+    ``TargetPath`` and 'true'/'false' in ``TextValue`` - and the controller can
+    read neither. This is the one place that translates, on the whole batch, so
+    the resolution sees `Kind` and cannot fire on some other command that
+    happens to carry a path.
+
+    A path that names no declared channel is left alone rather than guessed at:
+    the controller's own mask test then refuses it, which is the right place
+    for the refusal to be visible to the operator.
+
+    Returns the writes unchanged for every other kind. ``Sequence`` stays last
+    because injected writes go before it, never after.
+    """
+    def member(name):
+        for index, (path, _vtype, value) in enumerate(writes):
+            if path.endswith(f"/HmiRequest/{name}"):
+                return index, path, value
+        return None, None, None
+
+    _, _, kind = member("Kind")
+    if kind != FORCE_CHANNEL or not app.io_modules:
+        return writes
+
+    _, path_write, channel_path = member("TargetPath")
+    if path_write is None or not isinstance(channel_path, str):
+        return writes
+    target = force_target(app, channel_path)
+    if target is None:
+        return writes
+    module_index, bit = target
+    _, _, level = member("TextValue")
+
+    root = path_write[: -len("/TargetPath")]
+    resolved = {
+        f"{root}/IntValue": ("int32", force_argument(module_index, bit)),
+        f"{root}/{FORCE_LEVEL_MEMBER}": (
+            "int32", 1 if str(level).lower() == "true" else 0),
+    }
+    out = [w for w in writes if w[0] not in resolved]
+    commit = out.pop()
+    return out + [(p, t, v) for p, (t, v) in resolved.items()] + [commit]
 
 
 def one_shot_requests() -> tuple[str, ...]:
@@ -457,6 +577,42 @@ def _dispatch(app) -> list[str]:
     lines.extend(_refuse(app, TARGET_KEY))
     lines.append("END_IF;")
 
+    if app.io_modules:
+        lines.append(f"{FORCE_CHANNEL}: (* FORCE_CHANNEL *)")
+        # §10.5.1: the controller decides, every time. A client that asked
+        # while forcing was permitted and arrived a scan after it stopped being
+        # permitted must be refused, which is why this is re-tested here and
+        # not inferred from the Forceable the client was shown.
+        lines.append(f"IF FRK_{n}_ForcePermitted = 0 THEN")
+        lines.extend(_refuse(app, FORCE_NOT_PERMITTED_KEY))
+        # Exactly one bit, and one this station actually has. A mask of zero
+        # would silently force nothing; a mask of several would force channels
+        # the operator did not name.
+        lines.append(f"ELSIF ({_request(app, 'IntValue')} AND "
+                     f"FRK_{n}_ForceOutputs) = 0 THEN")
+        lines.extend(_refuse(app, FORCE_TARGET_KEY))
+        lines.append("ELSE")
+        lines.append(f"IF {_request(app, 'BoolValue')} <> 0 THEN")
+        lines.append(f"FRK_{n}_ForceMask := FRK_{n}_ForceMask OR "
+                     f"({_request(app, 'IntValue')} AND FRK_{n}_ForceOutputs);")
+        lines.append(f"IF {_request(app, FORCE_LEVEL_MEMBER)} <> 0 THEN")
+        lines.append(f"FRK_{n}_ForceValue := FRK_{n}_ForceValue OR "
+                     f"({_request(app, 'IntValue')} AND FRK_{n}_ForceOutputs);")
+        lines.append("ELSE")
+        lines.append(f"FRK_{n}_ForceValue := FRK_{n}_ForceValue AND "
+                     f"NOT {_request(app, 'IntValue')};")
+        lines.append("END_IF;")
+        lines.append("ELSE")
+        # Clearing drops the held level with the mask. Leaving the level set
+        # would re-apply the old value the next time this channel is forced.
+        lines.append(f"FRK_{n}_ForceMask := FRK_{n}_ForceMask AND "
+                     f"NOT {_request(app, 'IntValue')};")
+        lines.append(f"FRK_{n}_ForceValue := FRK_{n}_ForceValue AND "
+                     f"NOT {_request(app, 'IntValue')};")
+        lines.append("END_IF;")
+        lines.extend(_accept(app))
+        lines.append("END_IF;")
+
     by_key: dict[str, list[int]] = {}
     for kind, portable in sorted(REFUSED.items()):
         by_key.setdefault(portable, []).append(kind)
@@ -548,12 +704,15 @@ UNKNOWN_KEY = "project.mailbox.refused.unknown_kind"
 MODE_NOT_DECLARED_KEY = "project.mailbox.refused.mode_not_declared"
 DECISION_RANGE_KEY = "project.mailbox.refused.decision_out_of_range"
 TARGET_KEY = "project.mailbox.refused.target_not_addressable"
+FORCE_NOT_PERMITTED_KEY = "project.mailbox.refused.force_not_permitted"
+FORCE_TARGET_KEY = "project.mailbox.refused.force_target_unknown"
 
 
 def localization_keys() -> tuple[str, ...]:
     """Every key the handler can write, sorted so the numbering is stable."""
     extra = {REJECTED_KEY, UNKNOWN_KEY, MODE_NOT_DECLARED_KEY,
-             DECISION_RANGE_KEY, TARGET_KEY}
+             DECISION_RANGE_KEY, TARGET_KEY, FORCE_NOT_PERMITTED_KEY,
+             FORCE_TARGET_KEY}
     return tuple(sorted(set(REFUSED.values()) | extra))
 
 

@@ -254,14 +254,35 @@ class EmittedProjectTests(unittest.TestCase):
             stray = sorted(set(re.findall(r"\bFRK_[A-Za-z0-9_]+", body)))
             self.assertEqual(stray, [], f"{aoi.get('Name')} reaches {stray}")
 
-    def test_no_physical_io_operand_anywhere(self):
-        self.assertEqual(self.evidence["PhysicalIoReferences"], 0)
-        self.assertEqual(re.findall(r"\b(?:Local|Discrete_IO):[IOC]", self.text), [])
+    def test_the_declared_channels_are_the_only_physical_operands(self):
+        # The press declares its cabinet now, so reaching a terminal is
+        # expected - but only the output word, and only from the force logic.
+        # An operand appearing anywhere else would mean the plant arithmetic
+        # had quietly started driving hardware.
+        self.assertEqual(self.evidence["PhysicalIoReferences"], 20)
+        operands = set(re.findall(r"\bLocal:\d+:[IOC][.\w]*", self.text))
+        self.assertEqual(operands, {"Local:1:O.Data"})
 
-    def test_embedded_io_is_inhibited(self):
+    def test_forcing_reaches_only_the_declared_outputs(self):
+        self.assertEqual(self.evidence["ForceableOutputs"], 8)
+
+    def test_an_application_without_declared_io_cannot_reach_a_terminal(self):
+        # The guard the two tests above used to be. It is the declaration that
+        # decides, so this is the form that still protects every other project:
+        # no declared channels, no un-inhibit, no operand, nothing emitted.
+        bare = dataclasses.replace(demo.application(), io_modules=())
+        root, text, evidence = emit(bare)
+        self.assertEqual(evidence["PhysicalIoReferences"], 0)
+        self.assertIs(evidence["EmbeddedIoInhibited"], True)
+        self.assertEqual(re.findall(r"\bLocal:\d+:[IOC]", text), [])
+        modules = {m.get("Name"): m.get("Inhibited")
+                   for m in root.findall(".//Module")}
+        self.assertEqual(modules["Discrete_IO"], "true")
+
+    def test_the_embedded_module_runs_when_channels_are_declared(self):
         modules = {m.get("Name"): m.get("Inhibited")
                    for m in self.root.findall(".//Module")}
-        self.assertEqual(modules["Discrete_IO"], "true")
+        self.assertEqual(modules["Discrete_IO"], "false")
 
     def test_the_chart_carries_the_section_3_13_marks(self):
         chart = [d for d in self.root.findall(".//DataType")

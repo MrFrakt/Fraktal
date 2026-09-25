@@ -665,6 +665,15 @@ class Gateway:
                            params: dict[str, Any]) -> bool:
         self._guard_write(state)
         writes, mailbox, sequence = validate_batch(params)
+        # A force names its channel with a browse path the controller cannot
+        # read. Resolving it here, after validation and before the scope check,
+        # keeps every injected write inside the same mailbox the operator was
+        # already permitted to command.
+        import fraktal_ab_mailbox as mailbox_contract
+        import fraktal_ab_projection as station_projection
+
+        writes = mailbox_contract.resolve_force_batch(
+            station_projection.APP, writes)
         for path, _vtype, _value in writes:
             if not permits_write(path, self._write_roots,
                                  self._allow_all_root_mailboxes):

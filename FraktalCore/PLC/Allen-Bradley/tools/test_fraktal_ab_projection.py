@@ -22,6 +22,7 @@ from dataclasses import replace
 
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
+import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
 import fraktal_ab_projection as projection
 
@@ -241,6 +242,138 @@ class IoDeclarationTests(unittest.TestCase):
 
     def test_the_shipped_press_declaration_is_valid(self):
         self.assertEqual(decl.validate(projection.APP), [])
+
+
+class ForceResolutionTests(unittest.TestCase):
+    """The seam where a browse path becomes a DINT the controller can read.
+
+    The oracle names a channel with a string and TC3 resolves it in the PLC.
+    This binding cannot, so the resolution moved to the gateway - and a
+    resolution that fired on the wrong command, or guessed at an unknown
+    channel, would force a terminal nobody named.
+    """
+
+    ROOT = "Press/HmiRequest/"
+
+    def batch(self, kind, **members):
+        writes = [(self.ROOT + "Kind", "int32", kind)]
+        writes += [(self.ROOT + k, "string" if isinstance(v, str) else "int32", v)
+                   for k, v in members.items()]
+        return writes + [(self.ROOT + "Sequence", "uint32", 7)]
+
+    def resolved(self, writes):
+        out = mailbox.resolve_force_batch(projection.APP, writes)
+        return {p.rsplit("/", 1)[-1]: v for p, _t, v in out}
+
+    def test_a_channel_path_becomes_its_bit_mask(self):
+        # _101K202A is press-downward, TC3 output channel 5, so bit 4.
+        values = self.resolved(self.batch(
+            mailbox.FORCE_CHANNEL, TargetPath="Discrete_IO._101K202A",
+            TextValue="true"))
+        self.assertEqual(values["IntValue"], 1 << 4)
+        self.assertEqual(values[mailbox.FORCE_LEVEL_MEMBER], 1)
+
+    def test_the_level_follows_the_oracle_text_argument(self):
+        values = self.resolved(self.batch(
+            mailbox.FORCE_CHANNEL, TargetPath="Discrete_IO._101K202A",
+            TextValue="false"))
+        self.assertEqual(values[mailbox.FORCE_LEVEL_MEMBER], 0)
+
+    def test_the_commit_marker_stays_last(self):
+        out = mailbox.resolve_force_batch(projection.APP, self.batch(
+            mailbox.FORCE_CHANNEL, TargetPath="Discrete_IO._101K301A",
+            TextValue="true"))
+        self.assertTrue(out[-1][0].endswith("/Sequence"))
+
+    def test_an_unknown_channel_is_left_for_the_controller_to_refuse(self):
+        writes = self.batch(mailbox.FORCE_CHANNEL,
+                            TargetPath="Discrete_IO._not_a_channel",
+                            TextValue="true")
+        self.assertEqual(mailbox.resolve_force_batch(projection.APP, writes),
+                         writes)
+
+    def test_another_command_carrying_a_path_is_untouched(self):
+        # UNSHELVE_ALARM also sends a TargetPath, and IntValue means something
+        # else entirely to DECISION_ANSWER. Resolution must see Kind.
+        writes = self.batch(mailbox.UNSHELVE_ALARM,
+                            TargetPath="Discrete_IO._101K202A")
+        self.assertEqual(mailbox.resolve_force_batch(projection.APP, writes),
+                         writes)
+
+    def test_only_one_bit_is_ever_set(self):
+        for module in projection.APP.io_modules:
+            for channel in module.channels:
+                if channel.direction != decl.DIR_OUTPUT:
+                    continue
+                mask = mailbox.force_argument(0, channel.bit)
+                self.assertEqual(bin(mask).count("1"), 1)
+
+    def test_a_second_io_module_is_refused_rather_than_folded_in(self):
+        with self.assertRaises(ValueError):
+            mailbox.force_argument(1, 0)
+
+    def test_every_declared_channel_resolves_from_its_published_path(self):
+        # The path the gateway resolves is the one the projection publishes;
+        # if those two ever disagree, forcing silently stops working.
+        for module in projection.APP.io_modules:
+            for channel in module.channels:
+                path = f"{module.name}.{channel.name}"
+                resolved = mailbox.force_target(projection.APP, path)
+                if channel.direction == decl.DIR_OUTPUT:
+                    self.assertIsNotNone(resolved, path)
+                else:
+                    self.assertIsNone(resolved, path)
+
+
+class ForcePermissionTests(unittest.TestCase):
+    """§10.5.1: the controller decides, and a force never outlives it."""
+
+    def test_the_mask_carries_exactly_the_declared_output_bits(self):
+        mask = gen.force_output_mask(projection.APP)
+        module = projection.APP.io_modules[0]
+        outputs = [c for c in module.channels
+                   if c.direction == decl.DIR_OUTPUT]
+        self.assertEqual(bin(mask).count("1"), len(outputs))
+        for channel in outputs:
+            self.assertTrue(mask >> channel.bit & 1, channel.name)
+
+    def test_an_input_is_not_forceable_even_sharing_an_output_bit(self):
+        # _101B301A is input bit 0 and _101K301A is output bit 0. Resolving
+        # the input would produce the output's mask and energize a valve from
+        # a request that named a sensor.
+        self.assertIsNone(
+            mailbox.force_target(projection.APP, "Discrete_IO._101B301A"))
+        self.assertIsNotNone(
+            mailbox.force_target(projection.APP, "Discrete_IO._101K301A"))
+
+    def test_the_emitted_logic_withdraws_before_it_applies(self):
+        # Ordering is the guarantee: clearing after applying would leave a
+        # held bit on the terminal for the scan the permission was lost.
+        lines = gen.force_logic(projection.APP)
+        body = "\n".join(lines)
+        withdraw = body.index("ForceMask := 0;")
+        apply_at = body.index(":O.Data :=")
+        self.assertLess(withdraw, apply_at)
+
+    def test_forcing_is_permitted_only_in_idle_manual(self):
+        body = "\n".join(gen.force_logic(projection.APP))
+        self.assertIn("Unit.Mode = 1", body)      # E_Mode.MANUAL
+        self.assertIn("Unit.Running = 0", body)
+        self.assertIn("Unit.Error = 0", body)
+
+    def test_an_application_without_io_emits_no_force_logic(self):
+        bare = replace(projection.APP, io_modules=())
+        self.assertEqual(gen.force_logic(bare), [])
+        self.assertEqual(gen.force_tags(bare), ())
+
+    def test_the_force_words_are_read_only_to_a_client(self):
+        # A writable ForceMask would let a client hold an output without ever
+        # passing the permission test - the bypass §11.2.1 exists to prevent.
+        tags = gen.controller_tags(projection.APP)
+        for name in gen.force_tags(projection.APP):
+            index = tags.index(f'Name="{name}"')
+            self.assertIn('ExternalAccess="Read Only"',
+                          tags[index:index + 240], name)
 
 
 class RefusalTests(unittest.TestCase):

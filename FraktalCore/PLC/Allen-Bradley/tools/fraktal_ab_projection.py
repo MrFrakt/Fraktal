@@ -284,6 +284,12 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
         # and it is carrying nothing. Distinguish it from a partial fault, so
         # the HMI can say "offline" rather than "sixteen broken channels".
         faults = (state or {}).get("fault", 0)
+        # Which outputs the controller is holding, and whether it would accept
+        # a new force at all. Both are read FROM the controller: a gateway that
+        # decided forcing was permitted would be answering a question only the
+        # machine's own state can answer (§10.5.1).
+        forced = (state or {}).get("forced", 0)
+        force_permitted = bool((state or {}).get("forcePermitted", 0))
         mask = (1 << module.data_width) - 1
         inhibited = live and (faults & mask) == mask
         if not live:
@@ -331,12 +337,14 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
                 f"{leaf}/Quality": live and not faulted,
                 f"{leaf}/FaultActive": faulted,
                 f"{leaf}/Diagnostic": "",
-                # §10.5.1 forcing is a write, and the mailbox is the only
-                # command surface this binding has (AB §11.2.1). Publishing
-                # Forceable TRUE would offer the operator an affordance that
-                # cannot be honoured.
-                f"{leaf}/Forced": False,
-                f"{leaf}/Forceable": False,
+                # §10.5.1 forcing, and an OUTPUT only: forcing an input would
+                # be a lie, because the module overwrites it every scan. The
+                # request still travels the mailbox like every other command,
+                # so AB §11.2.1 keeps its single command surface; the
+                # controller applies the force and withdraws it.
+                f"{leaf}/Forced": bool(forced >> channel.bit & 1)
+                                  if outward and live else False,
+                f"{leaf}/Forceable": outward and force_permitted,
             })
     return values
 
@@ -456,9 +464,25 @@ def read_io(comm: Any) -> dict[str, dict[str, int]]:
     word did not come back would take the operator's process screens away to
     report a broken sensor list.
     """
+    import fraktal_ab_generate as gen
+
+    # §10.5.1 state, and it belongs to the controller, not to this reader: the
+    # HMI must be told forcing is available only when the machine says so.
+    # Absent words leave `forcePermitted` 0, so the affordance disappears
+    # rather than appearing on a guess.
+    force: dict[str, int] = {}
+    for tag in gen.force_tags(APP):
+        answer = comm.Read(tag)
+        if getattr(answer, "Status", None) == "Success":
+            force[tag.rsplit("_Force", 1)[-1]] = int(
+                getattr(answer, "Value", 0) or 0)
+
     state: dict[str, dict[str, int]] = {}
     for module in APP.io_modules:
-        words: dict[str, int] = {}
+        words: dict[str, int] = {
+            "forced": force.get("Mask", 0),
+            "forcePermitted": force.get("Permitted", 0),
+        }
         for key, tag in (("input", module.input_tag),
                          ("output", module.output_tag),
                          ("fault", module.fault_tag)):

@@ -487,6 +487,75 @@ def ctx_tag_for(app: decl.Application, module_name: str) -> str:
     return f"FRK_{app.name}_Ctx{module_name}"
 
 
+def force_tags(app: decl.Application) -> tuple[str, ...]:
+    """The §10.5.1 force words, or nothing when the application has no I/O."""
+    if not app.io_modules:
+        return ()
+    stem = f"FRK_{app.name}_Force"
+    return (f"{stem}Mask", f"{stem}Value", f"{stem}Permitted", f"{stem}Outputs")
+
+
+def force_output_mask(app: decl.Application) -> int:
+    """Every output bit this application actually has, as one DINT.
+
+    The handler ANDs a request against this, so a force aimed at a bit the
+    chassis does not carry - or at an input - is refused rather than held on a
+    channel nobody named.
+    """
+    mask = 0
+    for module in app.io_modules:
+        for channel in module.channels:
+            if channel.direction == decl.DIR_OUTPUT:
+                mask |= 1 << channel.bit
+    return mask
+
+
+def force_logic(app: decl.Application) -> list[str]:
+    """Publish whether forcing is permitted, apply the held bits, withdraw.
+
+    §10.5.1's rule is that a force must never outlive the condition that
+    allowed it. The withdrawal is therefore unconditional and runs BEFORE the
+    apply: the moment the permission goes away the words are cleared, so no
+    scan can write a held bit that was granted under a condition that has
+    already passed. TC3 spells the same rule `M_ApplyForces(Enabled :=
+    M_ForcePermitted())`, withdrawing on the falling edge.
+
+    Idle MANUAL is the condition, which is TC3's too. AUTO is excluded because
+    a forced output under a running sequence is a machine fighting itself.
+    """
+    if not app.io_modules:
+        return []
+    n = app.name
+    module = app.io_modules[0]
+    manual = next((c.mode_ordinal for c in app.chains
+                   if c.name == "MANUAL"), None)
+    if manual is None:
+        return []
+    return [
+        "(* Core 10.5.1 output forcing. *)",
+        f"FRK_{n}_ForceOutputs := {force_output_mask(app)};",
+        f"IF (FRK_{n}_Unit.Mode = {manual}) AND (FRK_{n}_Unit.Running = 0) "
+        f"AND (FRK_{n}_Unit.Error = 0) THEN",
+        f"FRK_{n}_ForcePermitted := 1;",
+        "ELSE",
+        f"FRK_{n}_ForcePermitted := 0;",
+        "END_IF;",
+        "",
+        "(* Withdraw first. A force outliving its permission by even one scan",
+        "   is the whole defect this ordering prevents. *)",
+        f"IF FRK_{n}_ForcePermitted = 0 THEN",
+        f"FRK_{n}_ForceMask := 0;",
+        f"FRK_{n}_ForceValue := 0;",
+        "END_IF;",
+        "",
+        "(* The press logic does not drive the cabinet yet, so the computed",
+        "   value of every output is zero and a withdrawn force returns the",
+        "   terminal to zero with it. When the modules are wired this becomes",
+        "   (computed AND NOT Mask) OR (Value AND Mask). *)",
+        f"{module.address}:O.Data := FRK_{n}_ForceValue AND FRK_{n}_ForceMask;",
+    ]
+
+
 def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
                index: int, names: Names | None = None) -> list[str]:
     """Emit one step's body. Every branch marks the chart before it decides."""
@@ -1586,6 +1655,13 @@ def controller_tags(app: decl.Application) -> str:
         # they are None rather than quietly readable.
         access = "None" if name in harness else "Read Only"
         tags.append(scalar_tag(name, "DINT", "Decimal", "0", access))
+    # §10.5.1 output forcing. Read Only to a client: a force is REQUESTED
+    # through the mailbox and applied by the controller, so these are the
+    # answer, never the input. Making ForceMask writable would let a client
+    # hold an output without passing the permission test at all, which is the
+    # write-surface bypass AB §11.2.1 exists to prevent.
+    for name in force_tags(app):
+        tags.append(scalar_tag(name, "DINT", "Decimal", "0", "Read Only"))
     for module in app.modules:
         tags.append(
             f'<Tag Name="FRK_{app.name}_Inst{module.name}" TagType="Base" '
@@ -1647,6 +1723,12 @@ def routine_logic(app: decl.Application) -> tuple[str, ...]:
     dispatch = dispatch_logic(app)
     if dispatch:
         lines += [""] + dispatch
+    # Last, so the outputs written this scan reflect the permission this scan
+    # computed. Running it earlier would apply a force under the previous
+    # scan's verdict.
+    forcing = force_logic(app)
+    if forcing:
+        lines += [""] + forcing
     return tuple(lines)
 
 
@@ -1786,11 +1868,21 @@ def generate(app: decl.Application, source: Path, output: Path) -> dict[str, obj
                 raise ValueError(
                     f"source did not carry exactly one {attribute}")
 
-    text, inhibited = re.subn(
-        r'(<Module Name="Discrete_IO"[^>]*\bInhibited=")false("[^>]*>)',
-        r"\1true\2", text, count=1)
-    if inhibited != 1:
-        raise ValueError("embedded Discrete_IO module was not inhibited exactly once")
+    # The embedded module is inhibited unless the application declares the
+    # channels on it. That inversion is the whole of "no physical I/O" as a
+    # property of the DECLARATION rather than a property of the emitter: an
+    # application with no io_modules still cannot reach a terminal, and one
+    # that declares them is saying so deliberately, in a committed file, under
+    # review. The assertion stays either way, because a substitution that
+    # matched zero times or twice would leave the chassis in whichever state
+    # the source happened to carry.
+    wanted = "false" if app.io_modules else "true"
+    text, changed = re.subn(
+        r'(<Module Name="Discrete_IO"[^>]*\bInhibited=")(?:true|false)("[^>]*>)',
+        rf"\g<1>{wanted}\g<2>", text, count=1)
+    if changed != 1:
+        raise ValueError(
+            "embedded Discrete_IO module inhibit was not set exactly once")
 
     fenced = text
     for allowed in SCOPE_FENCE_ALLOWED:
@@ -1814,9 +1906,10 @@ def generate(app: decl.Application, source: Path, output: Path) -> dict[str, obj
         "TaskName": app.task_name,
         "TaskPeriodMs": app.task_period_ms,
         "WatchdogMs": app.watchdog_ms,
-        "PhysicalIoReferences": 0,
-        "EmbeddedIoInhibited": True,
-        "TaskOutputUpdatesDisabled": True,
+        "PhysicalIoReferences": sum(len(m.channels) for m in app.io_modules),
+        "EmbeddedIoInhibited": not app.io_modules,
+        "TaskOutputUpdatesDisabled": not app.io_modules,
+        "ForceableOutputs": bin(force_output_mask(app)).count("1"),
         "BoolMembersInPublicUdt": 0,
         "ContractRecords": [r.name for r in app.records],
         "ModuleTypes": [module_aoi_name(app, m) for m in app.modules],
