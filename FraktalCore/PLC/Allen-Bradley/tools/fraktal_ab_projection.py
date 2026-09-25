@@ -316,8 +316,12 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
                 f"{leaf}/Address": f"{module.address}:"
                                    f"{'O' if outward else 'I'}.{channel.bit}",
                 f"{leaf}/Path": f"{module.name}.{channel.name}",
+                # A station signal - a lamp, the two-hand buttons, air
+                # pressure - belongs to the root Unit, not to a device module.
+                # Publishing "" instead would cost it its alarm cross-link,
+                # and the HMI resolves a channel's owning root from this path.
                 f"{leaf}/ModulePath": (f"{app.name}.{channel.module_path}"
-                                       if channel.module_path else ""),
+                                       if channel.module_path else app.name),
                 f"{leaf}/Dir": channel.direction,
                 f"{leaf}/Kind": channel.kind,
                 f"{leaf}/BoolValue": bool(word >> channel.bit & 1) if live

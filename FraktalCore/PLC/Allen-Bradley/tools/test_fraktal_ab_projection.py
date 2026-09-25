@@ -188,6 +188,16 @@ class TopologyTests(unittest.TestCase):
             values[f"{self.ROOT}/Nodes[1]/Channels[3]/ModulePath"],
             "Press.Door")
 
+    def test_a_station_signal_cross_links_to_the_root_unit(self):
+        # A lamp belongs to the station, not to a device module. Publishing an
+        # empty owner would cost it its alarm cross-link, and the HMI resolves
+        # a channel's owning root from this same path.
+        values = self.values(input=0, output=0, fault=0)
+        self.assertEqual(
+            values[f"{self.ROOT}/Nodes[1]/Channels[19]/Name"], "_101P101")
+        self.assertEqual(
+            values[f"{self.ROOT}/Nodes[1]/Channels[19]/ModulePath"], "Press")
+
     def test_an_application_without_io_publishes_no_fieldbus_root(self):
         bare = replace(projection.APP, io_modules=())
         self.assertEqual(projection.topology(bare, None), {})
