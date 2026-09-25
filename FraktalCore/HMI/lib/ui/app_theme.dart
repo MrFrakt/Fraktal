@@ -215,6 +215,15 @@ class FraktalThemeSpec {
 ThemeData _applyScale(ThemeData theme, UiMetrics m) {
   final target = Size(m.touchTarget, m.touchTarget);
   final hPad = m.touchTarget * 0.34;
+  // One corner radius for every pressable control, and CAPPED on purpose.
+  // Material 3 shapes buttons, chips and segments with a StadiumBorder, whose
+  // radius is half the height — so a control does not just get bigger on a
+  // larger preset, it gets rounder, until a 76 px button is a lozenge with a
+  // 38 px cap around a single word. Growing the target should change how easy
+  // it is to hit, not what shape it is.
+  final radius = (m.touchTarget * 0.18).clamp(10.0, 16.0);
+  final pressableShape = WidgetStatePropertyAll(
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)));
   // IMPORTANT: scale text by copying the theme's OWN TextStyle, never by building
   // a bare `TextStyle(fontSize: …)`. A bare style carries no colour, so the label
   // falls back to whatever ambient DefaultTextStyle applies — which on a light
@@ -229,6 +238,7 @@ ThemeData _applyScale(ThemeData theme, UiMetrics m) {
         padding: WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: hPad, vertical: 0)),
         iconSize: WidgetStatePropertyAll(m.iconSize),
+        shape: pressableShape,
         textStyle: WidgetStatePropertyAll(
             scaled(theme.textTheme.labelLarge, 14, weight: FontWeight.w500)),
       );
@@ -261,6 +271,10 @@ ThemeData _applyScale(ThemeData theme, UiMetrics m) {
         // grow too, otherwise a larger preset only stretches it vertically.
         minimumSize:
             WidgetStatePropertyAll(Size(m.touchTarget * 1.6, m.touchTarget)),
+        // Same capped radius as every other pressable control: the
+        // Modules/Fieldbus selector is where the stadium default was most
+        // obvious, being the widest and tallest of them.
+        shape: pressableShape,
         // Height comes from visualDensity. SegmentedButton rebuilds each segment
         // through `segmentStyleFor`, which copies a FIXED property list —
         // `minimumSize` is not in it, and the padding is recomputed for any
@@ -404,7 +418,10 @@ Color warningColor(BuildContext ctx) =>
     Theme.of(ctx).brightness == Brightness.dark
         ? const Color(0xFFFFB300) // amber-600: ~10:1 on a dark card
         : const Color(0xFFB26A00); // amber-800
-const Color kWarningFill = Color(0xFFB26A00);
+/// Darker than [warningColor]'s light-theme shade, and it has to be: amber-800
+/// measures 4.24:1 under the white text a filled chip or bar carries, which is
+/// below AA. The glyph shade stays where it is - a dot needs 3:1, not 4.5.
+const Color kWarningFill = Color(0xFFAB6600);
 
 /// Fixed semantic BLUE: info / LOW / DONE. Brightness-adapted for foreground.
 Color infoColor(BuildContext ctx) =>
