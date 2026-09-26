@@ -46,6 +46,11 @@ class ViewSwitch<T> extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        // A Row centres its children, so each half was only as tall as its
+        // own icon and label and the selected fill floated inside the border
+        // instead of reaching it. The fill IS the selection indicator, so it
+        // has to occupy the whole half.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < options.length; i++) ...[
             if (i > 0) VerticalDivider(width: 1, thickness: 1,
@@ -100,8 +105,11 @@ class _Half<T> extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: metrics.touchTarget * 0.32),
+          // The half now fills the switch's height, so its content has to be
+          // centred in it rather than inheriting the top.
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(option.icon, size: metrics.iconSize, color: ink),
               const SizedBox(width: 8),

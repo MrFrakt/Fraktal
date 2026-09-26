@@ -318,18 +318,19 @@ ThemeData _applyScale(ThemeData theme, UiMetrics m) {
       padding: EdgeInsets.symmetric(
           horizontal: 8 * m.textScale, vertical: 6 * m.textScale),
       // A SELECTED chip (FilterChip/ChoiceChip) is filled with
-      // secondaryContainer, an UNselected one sits on the surface. Forcing one
-      // flat colour for both gave 1.8:1 on high-contrast dark — invisible. Resolve
-      // per state so each fill gets its paired `on-` colour.
-      labelStyle: WidgetStateTextStyle.resolveWith((states) {
-        final base =
-            scaled(theme.textTheme.labelLarge, 13) ?? const TextStyle();
-        return base.copyWith(
-          color: states.contains(WidgetState.selected)
-              ? theme.colorScheme.onSecondaryContainer
-              : theme.colorScheme.onSurfaceVariant,
-        );
-      }),
+      // secondaryContainer, an UNselected one sits on the surface, and each
+      // needs its paired `on-` colour.
+      //
+      // The selected half belongs in `secondaryLabelStyle` below, NOT in a
+      // WidgetStateTextStyle here. `ChipThemeData.labelStyle` is a plain
+      // `TextStyle?`, so a WidgetStateTextStyle assigned to it is consumed
+      // unresolved - and an unresolved one reports `color == null`. The chip
+      // then had no ink of its own and fell through to the ambient
+      // DefaultTextStyle, which on a black card is black on black. It read as
+      // correct in review and in a test that resolved the style by hand; only
+      // the painted widget showed nothing at all.
+      labelStyle: (scaled(theme.textTheme.labelLarge, 13) ?? const TextStyle())
+          .copyWith(color: theme.colorScheme.onSurfaceVariant),
       secondaryLabelStyle: scaled(theme.textTheme.labelLarge, 13)
           ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
     ),
