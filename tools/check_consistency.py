@@ -95,6 +95,45 @@ def _is_test_source(path: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _ab_localization_keys() -> set[str]:
+    """Operator-facing keys the Allen-Bradley station publishes.
+
+    `_sources` walks `.Tc*` objects, so it sees the TwinCAT binding and nothing
+    else - which is why this gate reported a clean run while 95 of the AB
+    press's 96 keys resolved to nothing and the HMI rendered
+    `project.module.press` at the operator. The keys come from the declaration
+    rather than a list kept here, so a step renamed on the AB side is caught.
+
+    Two sources, because they reach the HMI by different routes: the manifest
+    the controller publishes, and the fieldbus identity the gateway projects
+    from the declaration without a controller round trip.
+    """
+    tools = AB_TOOLS
+    if not (tools / "fraktal_ab_projection.py").is_file():
+        return set()
+    sys.path.insert(0, str(tools))
+    try:
+        import fraktal_ab_manifest as ab_manifest
+        import fraktal_ab_projection as ab_projection
+    except Exception:
+        return set()
+    finally:
+        sys.path.remove(str(tools))
+
+    app = ab_projection.APP
+    keys: set[str] = set()
+    for rows in ab_manifest.content(app).values():
+        for row in rows:
+            for value in row.values():
+                if isinstance(value, str) and value.startswith("project."):
+                    keys.add(value)
+    for module in app.io_modules:
+        keys.add(module.description_key)
+        for channel in module.channels:
+            keys.add(channel.description_key)
+    return keys
+
+
 def check_localization(root: Path) -> tuple[list[Finding], dict[str, set[str]]]:
     """Every key shipping PLC source emits resolves in a shipped catalogue."""
     findings: list[Finding] = []
@@ -104,6 +143,8 @@ def check_localization(root: Path) -> tuple[list[Finding], dict[str, set[str]]]:
             continue
         for match in KEY_LITERAL.finditer(_read(path)):
             referenced.setdefault(match.group(1), set()).add(path.name)
+    for key in _ab_localization_keys():
+        referenced.setdefault(key, set()).add("fraktal_ab_press_demo.py")
 
     catalogues = sorted(HMI_L10N.glob("*.dart")) if HMI_L10N.is_dir() else []
     if not catalogues:

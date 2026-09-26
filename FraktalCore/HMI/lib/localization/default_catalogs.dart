@@ -1451,6 +1451,150 @@ const standardSpanish = <String, String>{
 };
 
 const projectEnglish = <String, String>{
+  // The Fraktal/AB press demo. Its keys are the generated station's own,
+  // and they differ from the TwinCAT bench above: the AB declaration
+  // names its steps without a `press` prefix.
+  'project.chain.auto': 'Automatic',
+  'project.chain.home': 'Homing',
+  'project.chain.manual': 'Manual',
+
+  // Modules the AB press publishes.
+  'project.module.door': 'Access door',
+  'project.module.partslide': 'Part slide',
+  'project.module.press': 'Pneumatic press',
+  'project.module.pressram': 'Press ram',
+
+  // Cabinet I/O. The electrical TAG is never localized - it is published
+  // verbatim so an alarm cross-links to the fieldbus view; this is the
+  // description beside it.
+  'project.io.air_above_working': 'Air above 4.5 bar',
+  'project.io.air_below_low': 'Air below 0.3 bar',
+  'project.io.close_door': 'Close door',
+  'project.io.door_closed': 'Door closed',
+  'project.io.door_opened': 'Door opened',
+  'project.io.embedded': 'Embedded discrete I/O',
+  'project.io.estop_not_pressed': 'E-stop panel not pressed',
+  'project.io.feeder_backward': 'Feeder backward',
+  'project.io.feeder_extended': 'Feeder extended',
+  'project.io.feeder_forward': 'Feeder forward',
+  'project.io.feeder_retracted': 'Feeder retracted',
+  'project.io.lamp_left': 'Left-hand lamp',
+  'project.io.lamp_right': 'Right-hand lamp',
+  'project.io.open_door': 'Open door',
+  'project.io.part_present': 'Part present',
+  'project.io.press_down': 'Press down',
+  'project.io.press_downward': 'Press downward',
+  'project.io.press_up': 'Press up',
+  'project.io.press_upward': 'Press upward',
+  'project.io.two_hand_left': 'Left two-hand button',
+  'project.io.two_hand_right': 'Right two-hand button',
+
+  // Flow-chart steps (§3.13). Rendered verbatim, so operator sentences.
+  'project.step.autoComplete': 'Count the cycle and start the next',
+  'project.step.autoInitialize': 'Start the automatic cycle',
+  'project.step.awaitTwoHandStart':
+      'Waiting for a part, air pressure and a two-hand start',
+  'project.step.doorClose': 'Close the guard door',
+  'project.step.doorOpen': 'Open the guard door',
+  'project.step.homeComplete': 'Load position established',
+  'project.step.homeDoorOpen': 'Open the guard door',
+  'project.step.homeInitialize': 'Start homing',
+  'project.step.homeRamUp': 'Raise the press ram',
+  'project.step.homeSlideOutside': 'Move the part slide outside',
+  'project.step.manualIdle': 'Waiting for a manual command',
+  'project.step.manualJogExtend': 'Jog the selected module out',
+  'project.step.manualJogRetract': 'Jog the selected module back',
+  'project.step.notReachedConfirm': 'Confirm before the part is scrapped',
+  'project.step.ramDown': 'Press the part',
+  'project.step.ramUp': 'Raise the press ram',
+  'project.step.recordResult': 'Record the applied dwell',
+  'project.step.safeDoorOpen': 'Open the guard door for loading',
+  'project.step.safeRamUp': 'Raise the press ram to the load position',
+  'project.step.safeSlideOutside': 'Move the part slide out for loading',
+  'project.step.scrapPart': 'Scrap the part',
+  'project.step.slideInside': 'Move the part slide inside',
+  'project.step.transferSettle': 'Let the transfer settle',
+
+  // Why the command mailbox refused a request.
+  'project.mailbox.refused.access_not_enforced':
+      'This station does not manage operator accounts',
+  'project.mailbox.refused.decision_out_of_range':
+      'That answer is not one of the offered choices',
+  'project.mailbox.refused.force_not_permitted':
+      'Forcing is only available in Manual with the unit stopped',
+  'project.mailbox.refused.force_target_unknown':
+      'That output channel is not on this station',
+  'project.mailbox.refused.mode_not_declared':
+      'This station has no sequence for that mode',
+  'project.mailbox.refused.no_config_manifest':
+      'This station publishes no configuration',
+  'project.mailbox.refused.no_config_sets':
+      'This station stores no configuration sets',
+  'project.mailbox.refused.no_control_power':
+      'This station has no control-power domain',
+  'project.mailbox.refused.no_event_core':
+      'This station keeps no alarm history',
+  'project.mailbox.refused.no_hold_run_control':
+      'This station has no hold-to-run control for the sequence',
+  'project.mailbox.refused.no_hold_to_run':
+      'This station has no hold-to-run control for manual commands',
+  'project.mailbox.refused.no_oee': 'This station does not accumulate OEE',
+  'project.mailbox.refused.no_recipes':
+      'This station has no recipes or changeover',
+  'project.mailbox.refused.no_release_reports':
+      'This station publishes no release report',
+  'project.mailbox.refused.no_run_style': 'This station has a single run style',
+  'project.mailbox.refused.no_signal_tower': 'This station has no signal tower',
+  'project.mailbox.refused.no_step_control':
+      'This station does not allow stepping the sequence',
+  'project.mailbox.refused.rejected': 'The command was rejected',
+  'project.mailbox.refused.target_not_addressable':
+      'That target cannot be addressed from here',
+  'project.mailbox.refused.unknown_kind': 'Unknown command',
+
+  // First-out reasons: what happened, then what to do about it.
+  'project.reason.abort_request.action':
+      'Reset the station, then start the cycle again',
+  'project.reason.abort_request.consequence':
+      'The cycle was aborted on request',
+  'project.reason.air_not_ready.action':
+      'Restore the air supply above the working pressure',
+  'project.reason.air_not_ready.consequence':
+      'The cycle cannot run without air at working pressure',
+  'project.reason.device_fault.action':
+      'Check the named device, then reset the station',
+  'project.reason.device_fault.consequence':
+      'The device reported a fault and the sequence stopped',
+  'project.reason.held_permissive.action': 'Restore the permissive to continue',
+  'project.reason.held_permissive.consequence':
+      'The step is held and will resume by itself',
+  'project.reason.part_not_present.action': 'Load a part',
+  'project.reason.part_not_present.consequence':
+      'The cycle waits until a part is loaded',
+  'project.reason.slide_fault.action':
+      'Check the part slide, then reset the station',
+  'project.reason.slide_fault.consequence':
+      'The part slide did not reach its position',
+  'project.reason.step_stalled.action': 'Check what the step is waiting for',
+  'project.reason.step_stalled.consequence':
+      'The step has not progressed within its expected time',
+  'project.reason.timeout.action': 'Check the device, then reset the station',
+  'project.reason.timeout.consequence':
+      'The command did not finish in the time allowed',
+  'project.reason.two_hand_released.action': 'Hold both start buttons',
+  'project.reason.two_hand_released.consequence':
+      'Motion is held while the two-hand control is released',
+  'project.reason.wait_condition.action':
+      'Satisfy the condition the step names',
+  'project.reason.wait_condition.consequence':
+      'The step is waiting on a condition',
+  'project.reason.wait_decision.action': 'Answer the prompt',
+  'project.reason.wait_decision.consequence':
+      'The step is waiting for an operator decision',
+  'project.reason.wait_delay.action': 'No action needed',
+  'project.reason.wait_delay.consequence':
+      'The step is waiting for a timed delay',
+
   // Press feature-bench keys. Step names and conditions the §3.13 flow chart and
   // the first-out diagnostic render verbatim, so they are operator sentences.
   'project.step.pressSlideInside': 'Move the part slide inside',

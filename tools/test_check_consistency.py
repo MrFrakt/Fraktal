@@ -6,6 +6,7 @@ from pathlib import Path
 # ladder readers; importing it first is what puts them on sys.path.
 from tools.check_consistency import (
     Finding,
+    _ab_localization_keys,
     _absent_reason,
     _is_test_source,
     _ld_chain,
@@ -197,6 +198,41 @@ class CommandLineTests(unittest.TestCase):
             cc.main(["check_consistency.py", "bogus"])
         self.assertEqual(raised.exception.code, 2)
 
+
+
+
+class AbLocalizationTests(unittest.TestCase):
+    """The AB station's operator text, which this gate used not to see at all.
+
+    `_sources` walks `.Tc*` objects, so the check covered TwinCAT and reported
+    a clean run while 95 of the AB press's 96 keys resolved to nothing - the
+    HMI rendered `project.module.press` at the operator, and the gate said
+    fine.
+    """
+
+    def test_the_declaration_is_the_source_of_the_key_set(self):
+        keys = _ab_localization_keys()
+        self.assertIn('project.module.press', keys)
+        # Fieldbus identity never reaches the manifest - the gateway projects
+        # it - so a gate reading only the manifest would miss every channel.
+        self.assertIn('project.io.door_closed', keys)
+        self.assertTrue(all(k.startswith('project.') for k in keys))
+
+    def test_every_key_the_ab_press_publishes_resolves_today(self):
+        findings, _ = check_localization(PLC_ROOT)
+        unresolved = [f for f in findings if 'fraktal_ab' in f.where]
+        self.assertEqual([str(f) for f in unresolved], [])
+
+    def test_an_unresolved_ab_key_is_reported(self):
+        import tools.check_consistency as cc
+        original = cc._ab_localization_keys
+        cc._ab_localization_keys = lambda: {'project.io.nowhere_at_all'}
+        try:
+            findings, _ = cc.check_localization(PLC_ROOT)
+        finally:
+            cc._ab_localization_keys = original
+        self.assertTrue(
+            any('nowhere_at_all' in f.message for f in findings))
 
 
 class ReadSurfaceTests(unittest.TestCase):
