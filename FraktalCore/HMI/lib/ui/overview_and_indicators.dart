@@ -390,15 +390,23 @@ class StationCard extends StatelessWidget {
             ]),
             const Spacer(),
             Wrap(spacing: 6, runSpacing: 6, children: [
-              // Only when the station HAS a model. A station with no
-              // changeover publishes no `Model/ModelCode`, and an empty chip
-              // is not an empty value - it reads as a control that failed to
-              // load. The AB press is exactly this case.
-              if (r.modelCode.isNotEmpty)
+              // Three cases, and they are genuinely different things to say.
+              //
+              // A station with no changeover at all shows nothing: an empty
+              // chip does not read as "no model", it reads as a control that
+              // failed to load.
+              //
+              // A station that HAS changeover and has not run one yet is not
+              // the same as one that cannot - it is waiting for a decision
+              // the operator has to make, so it says so rather than going
+              // quiet. Hiding it there loses the one fact worth knowing.
+              if (r.modelCode.isNotEmpty || r.availableModels.isNotEmpty)
                 Chip(
                     visualDensity: VisualDensity.compact,
                     avatar: const Icon(Icons.qr_code_2, size: 16),
-                    label: LText(r.modelCode)),
+                    label: r.modelCode.isNotEmpty
+                        ? LText(r.modelCode)
+                        : const LText('std.model.notSelected')),
               Chip(
                   visualDensity: VisualDensity.compact,
                   label: LText(r.modeActive?.name.toUpperCase() ?? '-')),

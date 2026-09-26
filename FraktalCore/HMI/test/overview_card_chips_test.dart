@@ -49,16 +49,40 @@ void main() {
     modeActive: UnitMode.manual,
   );
 
-  testWidgets('a station with no changeover model shows no model chip',
+  testWidgets('a station with NO changeover shows no model chip',
       (tester) async {
     // The reported defect: an icon-only chip with nothing in it, which reads
     // as a control that failed to load rather than as an absent value.
     final chips = await pumpCard(tester, bare);
-    expect(bare.modelCode, isEmpty, reason: 'the case under test');
+    expect(bare.modelCode, isEmpty);
+    expect(bare.availableModels, isEmpty, reason: 'the case under test');
     expect(emptyLabels(chips), isEmpty,
         reason: 'chips rendered with no label');
     expect(chips.any((c) => c.avatar != null), isFalse,
         reason: 'the model chip is the only one with an avatar');
+  });
+
+  testWidgets('a station WITH changeover and no model says so',
+      (tester) async {
+    // Not the same as having no changeover. This station is waiting for a
+    // decision the operator has to make, and going quiet hides the one fact
+    // worth knowing.
+    final chips = await pumpCard(
+        tester,
+        const ModuleNode(
+          path: 'Press',
+          name: 'Press',
+          type: ModuleType.unit,
+          state: ExecState.ready,
+          modeActive: UnitMode.manual,
+          availableModels: ['M-100', 'M-200'],
+        ));
+    expect(emptyLabels(chips), isEmpty);
+    final labels = [
+      for (final c in chips)
+        if (c.label is LText) (c.label as LText).data,
+    ];
+    expect(labels, contains('std.model.notSelected'));
   });
 
   testWidgets('a station WITH a model still shows it', (tester) async {

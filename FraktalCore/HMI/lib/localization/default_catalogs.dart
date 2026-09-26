@@ -17,6 +17,9 @@ const availableLanguages = <String, String>{
 /// Standard-owned defaults. Project/module defaults live in their own catalog
 /// and never overwrite this map.
 const standardEnglish = <String, String>{
+  // §3.8: the station has models but has not committed one. Distinct from
+  // a station with no changeover, which shows no model chip at all.
+  'std.model.notSelected': 'No model selected',
   ...generatedReasonEnglish,
   'std.app.title': 'Fraktal HMI',
   'std.common.cancel': 'Cancel',
@@ -802,6 +805,7 @@ const standardEnglish = <String, String>{
 };
 
 const standardSpanish = <String, String>{
+  'std.model.notSelected': 'Sin modelo seleccionado',
   'std.common.cancel': 'Cancelar',
   'std.common.save': 'Guardar',
   'std.common.apply': 'Aplicar',
