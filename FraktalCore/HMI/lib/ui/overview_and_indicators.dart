@@ -339,18 +339,36 @@ class PlantOverview extends StatelessWidget {
         childAspectRatio: 1.7,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        children: [for (final r in app.forest) _rootCard(context, r)],
+        children: [
+          for (final r in app.forest)
+            StationCard(node: r, onTap: () => app.select(r.path)),
+        ],
       );
     });
   }
 
-  Widget _rootCard(BuildContext context, ModuleNode r) {
+}
+
+/// One root station's summary tile on the plant overview.
+///
+/// Extracted from `PlantOverview` so a card can be driven straight from a
+/// [ModuleNode] in a test. It could not be before, and the consequence was a
+/// chip that rendered empty on any station without a changeover model with
+/// nothing able to catch it: the simulator always sets one.
+class StationCard extends StatelessWidget {
+  final ModuleNode node;
+  final VoidCallback? onTap;
+  const StationCard({super.key, required this.node, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = node;
     final sev = r.effectiveSeverity;
     final tint = sev == null ? null : severityColor(context, sev);
     return Card(
       color: tint?.withValues(alpha: 0.08),
       child: InkWell(
-        onTap: () => app.select(r.path),
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child:
@@ -372,10 +390,15 @@ class PlantOverview extends StatelessWidget {
             ]),
             const Spacer(),
             Wrap(spacing: 6, runSpacing: 6, children: [
-              Chip(
-                  visualDensity: VisualDensity.compact,
-                  avatar: const Icon(Icons.qr_code_2, size: 16),
-                  label: LText(r.modelCode)),
+              // Only when the station HAS a model. A station with no
+              // changeover publishes no `Model/ModelCode`, and an empty chip
+              // is not an empty value - it reads as a control that failed to
+              // load. The AB press is exactly this case.
+              if (r.modelCode.isNotEmpty)
+                Chip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: const Icon(Icons.qr_code_2, size: 16),
+                    label: LText(r.modelCode)),
               Chip(
                   visualDensity: VisualDensity.compact,
                   label: LText(r.modeActive?.name.toUpperCase() ?? '-')),
