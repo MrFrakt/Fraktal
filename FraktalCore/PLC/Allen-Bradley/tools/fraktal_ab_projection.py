@@ -71,8 +71,6 @@ ABSENT: tuple[tuple[str, str], ...] = (
     ("ControlPower/*", "out of scope: no control-power domain"),
     ("Oee/*", "not published by this binding"),
     ("Nameplate/*", "no module in this application declares a nameplate"),
-    ("Model/*", "recipes and changeover are a recorded deferral"),
-    ("AvailableModels", "recipes and changeover are a recorded deferral"),
 )
 
 
@@ -349,6 +347,32 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
     return values
 
 
+def model_status(app, unit: dict[str, int]) -> dict[str, Any]:
+    """Core §3.8 changeover, as the HMI reads it.
+
+    The catalogue of models comes from the declaration and the SELECTION comes
+    from the controller, the same split the fieldbus view uses: the
+    declaration cannot be wrong about which models exist and the controller
+    cannot be wrong about which one is loaded.
+
+    Ordinals are 1-based so 0 can mean "no model committed", which is what a
+    station reads before its first changeover - and it is a real state, not a
+    missing value. It publishes an empty code, and the HMI omits the chip
+    rather than drawing an empty one.
+    """
+    if not app.models:
+        return {}
+    ordinal = unit.get("ModelOrdinal", 0)
+    values: dict[str, Any] = {
+        "AvailableModelCount": len(app.models),
+        "Model/ModelCode": (app.models[ordinal - 1].code
+                            if 1 <= ordinal <= len(app.models) else ""),
+    }
+    for index, model in enumerate(app.models, start=1):
+        values[f"AvailableModels[{index}]/ModelCode"] = model.code
+    return values
+
+
 def project(header: dict[str, Any], rows: dict[str, Any],
             unit: dict[str, int], contexts: dict[str, dict[str, int]],
             chart: dict[str, Any] | None = None,
@@ -368,6 +392,8 @@ def project(header: dict[str, Any], rows: dict[str, Any],
             for suffix, value in unit_status(unit, chart).items():
                 values[f"{base}/{suffix}"] = value
             for suffix, value in mode_policy(APP).items():
+                values[f"{base}/{suffix}"] = value
+            for suffix, value in model_status(APP, unit).items():
                 values[f"{base}/{suffix}"] = value
             if mailbox_state is not None:
                 for suffix, value in mailbox_values(

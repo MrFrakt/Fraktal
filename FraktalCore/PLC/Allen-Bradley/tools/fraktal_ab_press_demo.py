@@ -63,7 +63,21 @@ REASONS = {
 # Mode and ModeRequest value one place out from the contract the HMI resolves
 # against - an operator screen would have rendered MANUAL as AUTO. Ordinals are
 # the contract; see the cross-binding test that reads E_Mode.TcDUT directly.
-MODE_AUTO, MODE_MANUAL, MODE_HOME = 0, 1, 2
+MODE_AUTO, MODE_MANUAL, MODE_HOME, MODE_CHANGEOVER = 0, 1, 2, 3
+
+DECISION_CHANGEOVER_CONFIRM = 2
+
+# Core §3.8 changeover. A model is a named set of ParCfg values, so selecting
+# one changes what the press DOES - the dwell it holds and the settle it waits
+# - rather than relabelling the screen. Ordinals are the transport: the
+# controller carries a DINT and the gateway resolves it to the code, the same
+# seam the diagnostic key and the fieldbus identity already use, which keeps
+# the contract all-DINT on a baseline whose ST cannot assign a string literal.
+MODELS = (
+    ("M-100", "project.model.m100", 300, 200),
+    ("M-200", "project.model.m200", 600, 300),
+    ("M-050", "project.model.m050", 150, 150),
+)
 
 DECISION_PRESS_NOT_REACHED = 1
 
@@ -192,6 +206,10 @@ def application() -> decl.Application:
     two_hand = f"FRK_{n}_TwoHand"
     part_present = f"FRK_{n}_PartPresent"
     air_ok = f"FRK_{n}_AirOk"
+    # Driven by the mailbox, not by the harness - the same kind of input
+    # as JogCommand, and a LEVEL: it is a selection, so clearing it would
+    # deselect the model on the next scan.
+    model_request = f"FRK_{n}_ModelRequest"
 
     # --- AUTO ---------------------------------------------------------------
     # Step numbers mirror the TC3 chain so the two graphs can be compared row by
@@ -311,6 +329,55 @@ def application() -> decl.Application:
         ),
     )
 
+
+    # --- CHANGEOVER ---------------------------------------------------------
+    # The TC3 oracle's shape: validate the selected model, drive the machine to
+    # the load-safe position, ask the operator to confirm tooling, then commit.
+    # The confirmation can send the operator back to the position rather than
+    # forward, which is why 780 jumps to 710 rather than simply repeating.
+    #
+    # §3.8's split is the point. Everything fallible happens before 790: the
+    # mailbox refuses a model this station does not declare, and step 700 will
+    # not advance without one. Step 790 is then a bounded copy of declared
+    # numbers into the record - no validation, no I/O, nothing that can fail
+    # and leave the press configured as neither model.
+    commit_marks = tuple(
+        f"IF Ctx.ModelRequest = {index} THEN "
+        f"Cfg.PressDwellMs := {dwell}; Cfg.TransferSettleMs := {settle}; "
+        f"Ctx.ModelOrdinal := {index}; END_IF"
+        for index, (_code, _key, dwell, settle) in enumerate(MODELS, start=1)
+    )
+    changeover = decl.Chain(
+        name="CHANGEOVER",
+        mode_ordinal=MODE_CHANGEOVER,
+        comment="load a declared model and confirm the tooling that goes with it",
+        steps=(
+            decl.Step(0, "changeoverInitialize", decl.MARK,
+                      marks=("Ctx.Complete := 0",), on_advance=700),
+            decl.Step(700, "changeoverValidateModel", decl.AWAIT,
+                      comment="a model must be selected before anything moves",
+                      conditions=(model_request,),
+                      hold_reason=REASONS["WAIT_CONDITION"], on_advance=710,
+                      time_class="WAIT_OPERATOR"),
+            decl.Step(710, "changeoverRamUp", decl.ISSUE, module="PressRam",
+                      command="RETRACT", on_advance=712),
+            decl.Step(712, "changeoverDoorOpen", decl.ISSUE, module="Door",
+                      command="RETRACT", on_advance=714),
+            decl.Step(714, "changeoverSlideOutside", decl.ISSUE,
+                      module="PartSlide", command="RETRACT", on_advance=780),
+            decl.Step(780, "changeoverConfirm", decl.DECISION,
+                      comment="confirm the tooling and material for this model; "
+                              "answering repeat drives the position again",
+                      decision_id=DECISION_CHANGEOVER_CONFIRM,
+                      on_advance=790, on_jump=710, time_class="WAIT_OPERATOR"),
+            decl.Step(790, "changeoverCommit", decl.MARK,
+                      comment="bounded copy of the declared values; infallible",
+                      marks=commit_marks, on_advance=798),
+            decl.Step(798, "changeoverComplete", decl.COMPLETE,
+                      comment="the press is configured for the selected model"),
+        ),
+    )
+
     return decl.Application(
         name=n,
         controller="1769-L24ER-QB1B",
@@ -322,10 +389,17 @@ def application() -> decl.Application:
                 "runtime base. No control power; I/O declared but inhibited.",
         records=(par_cfg,),
         modules=(press_ram, door, part_slide),
-        chains=(manual, auto, home),
+        chains=(manual, auto, home, changeover),
         reasons=REASONS,
-        sim_inputs=(two_hand, part_present, air_ok, f"FRK_{n}_JogCommand"),
+        sim_inputs=(two_hand, part_present, air_ok, f"FRK_{n}_JogCommand",
+                model_request),
         io_modules=(_press_io(),),
+        models=tuple(
+            decl.Model(code=code, description_key=key,
+                       values={"PressDwellMs": dwell,
+                               "TransferSettleMs": settle})
+            for code, key, dwell, settle in MODELS
+        ),
         chart_steps=32,
     )
 

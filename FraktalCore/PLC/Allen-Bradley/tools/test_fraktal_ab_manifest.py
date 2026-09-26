@@ -289,13 +289,20 @@ class HashTests(unittest.TestCase):
         # It is derived from the content hash, so a later revision can be
         # numerically smaller. A client that caches "the highest revision seen"
         # would silently miss a change; this pins the fact so nobody writes one.
+        #
+        # The search is wide on purpose. This used to try twelve variants and
+        # assert one of them hashed lower, which is a coin flip: the base
+        # revision sits wherever the hash puts it, and when the declaration
+        # grew a changeover it landed at 1.19M in a 16.7M range, so barely 7%
+        # of variants were below it and twelve samples missed. The property is
+        # real; the old sample size made the TEST unreliable, not the claim.
         app = demo.application()
         base = manifest.config_revision(app)
         smaller = [
             manifest.config_revision(
                 dataclasses.replace(app, reasons=dict(app.reasons,
                                                       **{f"EXTRA_{n}": 6200 + n})))
-            for n in range(12)
+            for n in range(500)
         ]
         self.assertTrue(any(value < base for value in smaller),
                         "no smaller revision found; the claim needs rechecking")

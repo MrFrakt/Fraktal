@@ -1451,6 +1451,23 @@ const standardSpanish = <String, String>{
 };
 
 const projectEnglish = <String, String>{
+  // Core §3.8 changeover on the AB press. A model is a set of ParCfg values,
+  // so these name products, not screens.
+  'project.chain.changeover': 'Changeover',
+  'project.model.m100': 'Standard part, 300 ms dwell',
+  'project.model.m200': 'Heavy part, 600 ms dwell',
+  'project.model.m050': 'Light part, 150 ms dwell',
+  'project.mailbox.refused.model_not_declared':
+      'This station has no model with that code',
+  'project.step.changeoverInitialize': 'Start the changeover',
+  'project.step.changeoverValidateModel': 'Waiting for a model to be selected',
+  'project.step.changeoverRamUp': 'Raise the press ram to the load position',
+  'project.step.changeoverDoorOpen': 'Open the guard door for changeover',
+  'project.step.changeoverSlideOutside': 'Move the part slide out of the press',
+  'project.step.changeoverConfirm': 'Confirm the tooling and material',
+  'project.step.changeoverCommit': 'Apply the model settings',
+  'project.step.changeoverComplete': 'The press is set up for this model',
+
   // The Fraktal/AB press demo. Its keys are the generated station's own,
   // and they differ from the TwinCAT bench above: the AB declaration
   // names its steps without a `press` prefix.

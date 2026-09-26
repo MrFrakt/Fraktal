@@ -114,6 +114,8 @@ SUPPORTED: dict[int, str] = {
     MANUAL_COMMAND: "the declared manual jog; only with an empty TargetPath",
     FORCE_CHANNEL: "§10.5.1 output forcing; the gateway resolves TargetPath "
                    "into the packed IntValue, BoolValue applies or clears",
+    SET_MODEL: "§3.8 changeover; the gateway resolves the model code in "
+               "TextValue into the IntValue ordinal the CHANGEOVER chain waits on",
 }
 
 # The command-mailbox handover listed STEP_REQUEST, SET_HOLD_RUN and LAMP_TEST
@@ -130,7 +132,6 @@ REFUSED: dict[int, str] = {
     LOGOUT: "project.mailbox.refused.access_not_enforced",
     SET_ACCESS_LEVEL: "project.mailbox.refused.access_not_enforced",
     SET_SESSION_TIMEOUT: "project.mailbox.refused.access_not_enforced",
-    SET_MODEL: "project.mailbox.refused.no_recipes",
     CONTROL_ON: "project.mailbox.refused.no_control_power",
     CONTROL_OFF: "project.mailbox.refused.no_control_power",
     SET_RUN_STYLE: "project.mailbox.refused.no_run_style",
@@ -346,6 +347,49 @@ def resolve_force_batch(app, writes: list) -> list:
     out = [w for w in writes if w[0] not in resolved]
     commit = out.pop()
     return out + [(p, t, v) for p, (t, v) in resolved.items()] + [commit]
+
+
+def model_ordinal(app, code: str) -> int:
+    """1-based ordinal of a declared model code, or 0 for one this app lacks.
+
+    Zero is a refusal the controller can act on, not a guess: selecting an
+    undeclared model must fail by name rather than land on whichever model
+    happened to be first. Same reasoning as `force_target`.
+    """
+    for index, model in enumerate(app.models, start=1):
+        if model.code == code:
+            return index
+    return 0
+
+
+def resolve_model_batch(app, writes: list) -> list:
+    """Turn a SET_MODEL batch's model code into the ordinal the chain reads."""
+    def member(name):
+        for path, _vtype, value in writes:
+            if path.endswith(f"/HmiRequest/{name}"):
+                return path, value
+        return None, None
+
+    _, kind = member("Kind")
+    if kind != SET_MODEL or not app.models:
+        return writes
+    path, code = member("TextValue")
+    if path is None or not isinstance(code, str):
+        return writes
+    root = path[: -len("/TextValue")]
+    resolved = (f"{root}/IntValue", "int32", model_ordinal(app, code))
+    out = [w for w in writes if w[0] != resolved[0]]
+    commit = out.pop()
+    return out + [resolved, commit]
+
+
+def resolve_batch(app, writes: list) -> list:
+    """Every gateway-side resolution, dispatched on the request kind.
+
+    One entry point so the gateway does not grow a call per command, and so a
+    kind that needs no resolution passes through untouched.
+    """
+    return resolve_model_batch(app, resolve_force_batch(app, writes))
 
 
 def one_shot_requests() -> tuple[str, ...]:
@@ -577,6 +621,19 @@ def _dispatch(app) -> list[str]:
     lines.extend(_refuse(app, TARGET_KEY))
     lines.append("END_IF;")
 
+    if app.models:
+        lines.append(f"{SET_MODEL}: (* SET_MODEL *)")
+        # The fallible half of §3.8's prepare/commit split lives here: a model
+        # this station does not declare is refused by name, before anything
+        # moves. The chain's commit is then a bounded copy that cannot fail.
+        lines.append(f"IF ({_request(app, 'IntValue')} >= 1) AND "
+                     f"({_request(app, 'IntValue')} <= {len(app.models)}) THEN")
+        lines.extend(_accept(
+            app, f"FRK_{n}_ModelRequest := {_request(app, 'IntValue')};"))
+        lines.append("ELSE")
+        lines.extend(_refuse(app, MODEL_NOT_DECLARED_KEY))
+        lines.append("END_IF;")
+
     if app.io_modules:
         lines.append(f"{FORCE_CHANNEL}: (* FORCE_CHANNEL *)")
         # §10.5.1: the controller decides, every time. A client that asked
@@ -706,13 +763,14 @@ DECISION_RANGE_KEY = "project.mailbox.refused.decision_out_of_range"
 TARGET_KEY = "project.mailbox.refused.target_not_addressable"
 FORCE_NOT_PERMITTED_KEY = "project.mailbox.refused.force_not_permitted"
 FORCE_TARGET_KEY = "project.mailbox.refused.force_target_unknown"
+MODEL_NOT_DECLARED_KEY = "project.mailbox.refused.model_not_declared"
 
 
 def localization_keys() -> tuple[str, ...]:
     """Every key the handler can write, sorted so the numbering is stable."""
     extra = {REJECTED_KEY, UNKNOWN_KEY, MODE_NOT_DECLARED_KEY,
              DECISION_RANGE_KEY, TARGET_KEY, FORCE_NOT_PERMITTED_KEY,
-             FORCE_TARGET_KEY}
+             FORCE_TARGET_KEY, MODEL_NOT_DECLARED_KEY}
     return tuple(sorted(set(REFUSED.values()) | extra))
 
 

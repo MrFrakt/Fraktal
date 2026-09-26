@@ -376,6 +376,138 @@ class ForcePermissionTests(unittest.TestCase):
                           tags[index:index + 240], name)
 
 
+class ChangeoverTests(unittest.TestCase):
+    """Core §3.8 changeover: prepare may fail, commit may not.
+
+    The split is the whole design, so the tests are about WHERE a failure can
+    happen. Everything that can reject - is this a model this station has? -
+    happens before the commit; the commit is a bounded copy of declared
+    numbers and has no branch that can leave the press configured as neither
+    model.
+    """
+
+    def setUp(self):
+        self.app = projection.APP
+
+    def test_a_model_changes_what_the_press_does_not_just_its_label(self):
+        # A "changeover" that only renames the screen is not one.
+        dwells = {m.values["PressDwellMs"] for m in self.app.models}
+        self.assertEqual(len(dwells), len(self.app.models))
+
+    def test_the_committed_model_is_published_and_zero_means_none(self):
+        values = build(unit=unit_values(ModelOrdinal=0))["values"]
+        self.assertEqual(values["Press/Model/ModelCode"], "")
+        values = build(unit=unit_values(ModelOrdinal=2))["values"]
+        self.assertEqual(values["Press/Model/ModelCode"],
+                         self.app.models[1].code)
+
+    def test_the_catalogue_comes_from_the_declaration(self):
+        values = build()["values"]
+        self.assertEqual(values["Press/AvailableModelCount"],
+                         len(self.app.models))
+        published = [values[f"Press/AvailableModels[{i}]/ModelCode"]
+                     for i in range(1, len(self.app.models) + 1)]
+        self.assertEqual(published, [m.code for m in self.app.models])
+
+    def test_an_ordinal_the_station_does_not_have_publishes_no_code(self):
+        # Never the nearest model: a wrong code on a changeover screen is how
+        # a press runs one product's dwell against another's tooling.
+        values = build(unit=unit_values(ModelOrdinal=99))["values"]
+        self.assertEqual(values["Press/Model/ModelCode"], "")
+
+    def test_a_model_code_resolves_to_its_ordinal_and_nothing_else_does(self):
+        self.assertEqual(mailbox.model_ordinal(self.app, "M-200"), 2)
+        self.assertEqual(mailbox.model_ordinal(self.app, "M-999"), 0)
+        self.assertEqual(mailbox.model_ordinal(self.app, ""), 0)
+
+    def test_set_model_resolves_the_code_the_hmi_sends(self):
+        # opcua_repository sends the code in TextValue; v33 cannot compare
+        # strings, so the gateway is what turns it into the ordinal.
+        root = "Press/HmiRequest/"
+        batch = [
+            (root + "Kind", "int32", mailbox.SET_MODEL),
+            (root + "TextValue", "string", "M-050"),
+            (root + "Sequence", "uint32", 4),
+        ]
+        out = mailbox.resolve_batch(self.app, batch)
+        values = {p.rsplit("/", 1)[-1]: v for p, _t, v in out}
+        self.assertEqual(values["IntValue"], 3)
+        self.assertTrue(out[-1][0].endswith("/Sequence"))
+
+    def test_an_unknown_code_resolves_to_zero_for_the_controller_to_refuse(self):
+        root = "Press/HmiRequest/"
+        out = mailbox.resolve_batch(self.app, [
+            (root + "Kind", "int32", mailbox.SET_MODEL),
+            (root + "TextValue", "string", "NOPE"),
+            (root + "Sequence", "uint32", 5),
+        ])
+        values = {p.rsplit("/", 1)[-1]: v for p, _t, v in out}
+        self.assertEqual(values["IntValue"], 0)
+
+    def test_set_model_is_routed_not_refused(self):
+        self.assertIn(mailbox.SET_MODEL, mailbox.SUPPORTED)
+        self.assertNotIn(mailbox.SET_MODEL, mailbox.REFUSED)
+
+    def test_the_handler_refuses_an_ordinal_the_station_does_not_declare(self):
+        body = "\n".join(mailbox.handler_logic(self.app))
+        self.assertIn(f"{mailbox.SET_MODEL}: (* SET_MODEL *)", body)
+        self.assertIn(f"<= {len(self.app.models)}", body)
+        self.assertIn("model_not_declared", body)
+
+    def test_the_commit_writes_every_declared_value_and_nothing_else(self):
+        chain = next(c for c in self.app.chains if c.name == "CHANGEOVER")
+        commit = next(s for s in chain.steps if s.name == "changeoverCommit")
+        text = " ".join(commit.marks)
+        for model in self.app.models:
+            for member, value in model.values.items():
+                self.assertIn(f"Cfg.{member} := {value};", text)
+        # and it records WHICH model it committed, or the published code would
+        # keep naming the previous one
+        self.assertIn("Ctx.ModelOrdinal :=", text)
+
+    def test_the_commit_step_has_no_branch(self):
+        # §3.8: the commit is infallible. A MARK step cannot fail or wait; if
+        # this ever became an AWAIT or an ISSUE the guarantee would be gone.
+        chain = next(c for c in self.app.chains if c.name == "CHANGEOVER")
+        commit = next(s for s in chain.steps if s.name == "changeoverCommit")
+        self.assertEqual(commit.action, decl.MARK)
+        self.assertEqual(commit.on_jump, -1)
+
+    def test_the_confirmation_can_send_the_operator_back_to_the_position(self):
+        # The TC3 oracle's shape: answering "repeat" re-drives the guided
+        # position rather than simply asking again.
+        chain = next(c for c in self.app.chains if c.name == "CHANGEOVER")
+        confirm = next(s for s in chain.steps if s.name == "changeoverConfirm")
+        self.assertEqual(confirm.action, decl.DECISION)
+        positions = [s.number for s in chain.steps
+                     if s.name == "changeoverRamUp"]
+        self.assertEqual(confirm.on_jump, positions[0])
+
+    def test_a_model_naming_an_unknown_member_is_refused(self):
+        bad = replace(self.app, models=(
+            decl.Model(code="X", description_key="k",
+                       values={"NotAMember": 1}),))
+        self.assertTrue(
+            any("not a member" in f for f in decl.validate(bad)))
+
+    def test_a_model_may_not_rewrite_the_schema_version(self):
+        bad = replace(self.app, models=(
+            decl.Model(code="X", description_key="k",
+                       values={decl.SCHEMA_VERSION_MEMBER: 2}),))
+        self.assertTrue(
+            any("SchemaVersion" in f for f in decl.validate(bad)))
+
+    def test_a_model_that_changes_nothing_is_refused(self):
+        bad = replace(self.app, models=(
+            decl.Model(code="X", description_key="k", values={}),))
+        self.assertTrue(any("label, not a changeover" in f
+                            for f in decl.validate(bad)))
+
+    def test_an_application_without_models_publishes_no_changeover(self):
+        bare = replace(self.app, models=())
+        self.assertEqual(projection.model_status(bare, {"ModelOrdinal": 0}), {})
+
+
 class RefusalTests(unittest.TestCase):
     """Every way a manifest can be untrustworthy, paired with its refusal."""
 

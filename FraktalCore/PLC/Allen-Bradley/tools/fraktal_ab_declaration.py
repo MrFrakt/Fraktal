@@ -210,6 +210,29 @@ class Chain:
 
 # --- the application --------------------------------------------------------
 
+# --- changeover ---------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Model:
+    """One changeover model: a named set of `ParCfg` values.
+
+    Core §3.8 splits changeover into a FALLIBLE prepare and an INFALLIBLE
+    bounded commit, and that split is why a model is declared as data rather
+    than as logic. Everything that can be rejected - is this a model this
+    station has? - is decided before the commit, so the commit is a bounded
+    copy of known-good numbers into the configuration record and cannot fail
+    halfway and leave the press configured as neither model.
+
+    `values` names `ParCfg` members. A member this application does not
+    declare is rejected here, not discovered when the copy writes nothing.
+    """
+
+    code: str
+    description_key: str
+    values: dict[str, int]
+
+
 # --- physical I/O -----------------------------------------------------------
 
 # E_ChannelDir / E_ChannelKind / E_NodeState, from the Core DUTs. Pinned by
@@ -294,6 +317,9 @@ class Application:
     # Physical I/O, if the application has any. Empty means the plant is
     # arithmetic on controller tags and no fieldbus root is published.
     io_modules: tuple[IoModule, ...] = ()
+    # Changeover models. Empty means the station has one configuration and
+    # publishes no model, which is what SET_MODEL is refused against.
+    models: tuple[Model, ...] = ()
     chart_steps: int = 32
     program_name: str = ""
     routine_name: str = ""
@@ -462,6 +488,53 @@ def _validate_io(app: Application) -> list[str]:
     return findings
 
 
+def _validate_models(app: Application) -> list[str]:
+    """Every way a changeover declaration can be wrong before a commit runs.
+
+    The commit is required to be infallible, so everything that could make it
+    fail is checked here: a model naming a member the record does not have
+    would copy nothing and leave the press silently on the previous model's
+    value.
+    """
+    findings: list[str] = []
+    if not app.models:
+        return findings
+
+    codes = [m.code for m in app.models]
+    repeated = {c for c in codes if codes.count(c) > 1}
+    if repeated:
+        findings.append(f"duplicate model codes {sorted(repeated)}")
+
+    par_cfg = next((r for r in app.records if getattr(r, "par_cfg", False)),
+                   None)
+    if par_cfg is None:
+        findings.append("models are declared but there is no ParCfg record "
+                        "for a changeover to commit into")
+        return findings
+    members = {m.name for m in par_cfg.members}
+
+    for model in app.models:
+        if not model.code.strip():
+            findings.append("a model has no code; the code is its identity")
+        if not model.values:
+            findings.append(f"{model.code}: a model that changes nothing is "
+                            "a label, not a changeover")
+        for name, value in model.values.items():
+            if name == SCHEMA_VERSION_MEMBER:
+                findings.append(
+                    f"{model.code}: a model may not rewrite "
+                    f"{SCHEMA_VERSION_MEMBER}; the contract version is a "
+                    "property of the record, not of the product")
+            elif name not in members:
+                findings.append(
+                    f"{model.code}: {name!r} is not a member of "
+                    f"{par_cfg.name}")
+            if not -2147483648 <= value <= 2147483647:
+                findings.append(f"{model.code}: {name} = {value} is outside "
+                                "a DINT")
+    return findings
+
+
 def validate(app: Application) -> list[str]:
     """Return every reason this declaration must not be emitted. Empty means go."""
     findings: list[str] = []
@@ -479,6 +552,7 @@ def validate(app: Application) -> list[str]:
         findings.extend(_validate_record(record))
 
     findings.extend(_validate_io(app))
+    findings.extend(_validate_models(app))
 
     module_names = [m.name for m in app.modules]
     duplicates = {n for n in module_names if module_names.count(n) > 1}

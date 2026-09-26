@@ -102,6 +102,12 @@ def unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
                     initial=app.task_period_ms),
         decl.scalar("Mode", "active mode ordinal"),
         decl.scalar("ModeRequest", "requested mode ordinal"),
+        # Core §3.8 changeover. The REQUEST is what the operator asked for and
+        # the ORDINAL is what the machine committed to; they differ for the
+        # whole of a changeover, which is the point - a station half way
+        # through one is still running the previous model's numbers.
+        decl.scalar("ModelRequest", "requested model ordinal, 0 = none"),
+        decl.scalar("ModelOrdinal", "committed model ordinal, 0 = none"),
         decl.scalar("ModeSwitches", ""),
         decl.scalar("Step", "active step number"),
         decl.scalar("PrevStep", ""),
@@ -697,7 +703,12 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
 
     elif step.action == decl.MARK:
         for mark in step.marks:
-            lines.append(mark.replace("Ctx.", f"{u}.") + ";")
+            # `Cfg.` as well as `Ctx.`: a changeover commit writes the
+            # configuration record, and that record is named differently
+            # depending on whether the chain is hosted inside the mode-owner
+            # AOI or in a program routine.
+            lines.append(mark.replace("Ctx.", f"{u}.")
+                         .replace("Cfg.", f"{names.cfg}.") + ";")
         lines += adv
 
     elif step.action == decl.COMPLETE:
@@ -1709,6 +1720,8 @@ def routine_logic(app: decl.Application) -> tuple[str, ...]:
         f"FRK_{n}_Unit.ResetRequest := FRK_{n}_ResetRequest;",
         f"FRK_{n}_Unit.ModeRequest := FRK_{n}_ModeRequest;",
         f"FRK_{n}_Unit.DecisionAnswer := FRK_{n}_DecisionAnswer;",
+        *([f"FRK_{n}_Unit.ModelRequest := FRK_{n}_ModelRequest;"]
+          if app.models else []),
         (
             f"{unit_aoi_name(app)}(FRK_{n}_InstUnit,FRK_{n}_Unit,FRK_{n}_Chart,"
             + f"{app.records[0].name}Tag,"

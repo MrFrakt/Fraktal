@@ -413,9 +413,16 @@ class PressDemoShapeTests(unittest.TestCase):
     def setUp(self):
         self.app = demo.application()
 
-    def test_three_modes_manual_auto_home(self):
+    def test_the_declared_modes_are_the_oracle_s(self):
         self.assertEqual({c.name for c in self.app.chains},
-                         {"MANUAL", "AUTO", "HOME"})
+                         {"MANUAL", "AUTO", "HOME", "CHANGEOVER"})
+
+    def test_every_mode_ordinal_is_distinct_and_from_e_mode(self):
+        # The ordinals ARE the contract the HMI resolves against; a duplicate
+        # would publish one mode under another's name.
+        ordinals = [c.mode_ordinal for c in self.app.chains]
+        self.assertEqual(len(set(ordinals)), len(ordinals))
+        self.assertEqual(sorted(ordinals), [0, 1, 2, 3])
 
     def test_the_auto_chain_carries_the_oracle_step_numbers(self):
         auto = next(c for c in self.app.chains if c.name == "AUTO")
