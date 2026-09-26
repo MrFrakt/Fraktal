@@ -11,6 +11,7 @@ import 'module_detail.dart';
 import 'overview_and_indicators.dart';
 import 'tree_menu.dart';
 import 'fieldbus_tree.dart';
+import 'view_switch.dart';
 import 'mode_bar.dart';
 import 'release_panel.dart';
 import 'global_reset_button.dart';
@@ -101,26 +102,19 @@ class Shell extends StatelessWidget {
       actions: [
         ConnectionChip(state: app.link),
         if (wide)
-          // +2 px overall (1 px per side). Applied from OUTSIDE the widget:
-          // SegmentedButton recomputes its own padding for icon segments and
-          // drops `minimumSize` entirely, so neither the theme nor the widget's
-          // own style can widen it — a wrapping pad is what actually holds.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(
+            child: ViewSwitch<bool>(
+              options: const [
+                ViewSwitchOption(
                     value: false,
-                    icon: Icon(Icons.account_tree),
-                    label: LText('Modules')),
-                ButtonSegment(
-                    value: true,
-                    icon: Icon(Icons.lan_outlined),
-                    label: LText('Fieldbus')),
+                    icon: Icons.account_tree,
+                    label: 'Modules'),
+                ViewSwitchOption(
+                    value: true, icon: Icons.lan_outlined, label: 'Fieldbus'),
               ],
-              selected: {app.showFieldbus},
-              onSelectionChanged: (s) => app.setFieldbusView(s.first),
-              showSelectedIcon: false,
+              value: app.showFieldbus,
+              onChanged: app.setFieldbusView,
             ),
           )
         else
