@@ -279,6 +279,31 @@ class EmittedProjectTests(unittest.TestCase):
                    for m in root.findall(".//Module")}
         self.assertEqual(modules["Discrete_IO"], "true")
 
+    def test_the_pending_decision_is_lowered_every_scan(self):
+        """Raised on one path, lowered on none - the mailbox latch again.
+
+        A DECISION step sets DecisionId and nothing cleared it, so the id
+        outlived the step: a chain that had answered and moved on, or been
+        stood down entirely, still published a question. The operator was
+        shown a prompt for a decision that no longer existed, and answering
+        it did nothing.
+
+        The clear has to come BEFORE the dispatch, so that only a step which
+        is active this scan re-raises it.
+        """
+        body = chr(10).join(gen.unit_logic(demo.application()))
+        self.assertIn("Ctx.DecisionId := 0;", body)
+        clear = body.index("Ctx.DecisionId := 0;")
+        dispatch = body.index("IF Ctx.Running <> 0 THEN")
+        self.assertLess(clear, dispatch,
+                        "the clear must precede the chain dispatch")
+
+    def test_a_decision_step_still_raises_its_id(self):
+        # The other half: the per-scan clear must not have disabled the
+        # feature it guards.
+        body = chr(10).join(gen.unit_logic(demo.application()))
+        self.assertIn("Ctx.DecisionId := 2;", body)
+
     def test_the_embedded_module_runs_when_channels_are_declared(self):
         modules = {m.get("Name"): m.get("Inhibited")
                    for m in self.root.findall(".//Module")}

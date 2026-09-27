@@ -799,6 +799,15 @@ def unit_logic(app: decl.Application) -> tuple[str, ...]:
         "Ctx.Running := 0;",
         "END_IF;",
         "",
+        "(* Lower the pending decision before the chain runs, so only a step *)",
+        "(* that is ACTIVE this scan re-raises it. A DECISION step sets      *)",
+        "(* DecisionId and nothing else ever cleared it, so the id outlived  *)",
+        "(* the step - a chain that had answered and moved on, or been stood *)",
+        "(* down entirely, still published a question, and the operator was  *)",
+        "(* shown a prompt for a decision that no longer existed. Same shape *)",
+        "(* as the mailbox latch: raised on one path, lowered on none.       *)",
+        "Ctx.DecisionId := 0;",
+        "",
         "IF Ctx.Running <> 0 THEN",
     ]
     for chain in app.chains:
