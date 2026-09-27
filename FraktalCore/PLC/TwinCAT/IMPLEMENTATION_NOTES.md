@@ -4242,3 +4242,119 @@ therefore **predicted, not observed**, and the before/after the task asked for i
 still owed. `probe_read_tiers.dart` exists so that when the PLC returns, one run
 of `probe_map_cost` reports what the HMI actually polls rather than what an
 unconfigured client would.
+
+## 135. A module says what TYPE it is, not only what it is called (2026-09-27)
+
+`LOCALIZATION_AND_MODULE_CONTENT.md` §7 authors a faceplate against a module
+**type**, and §7.1 says a type is a key in the catalog vocabulary. Nothing
+published answered "what type is this?": `Status.ModuleType` separates a Unit
+from an EM from a CM and stops there, and the press publishes `Door`,
+`PartSlide` and `PressRam` as three instances of one declared cylinder.
+
+The binding already half did it. Every reusable type set a type-scoped display
+key (`std.moduleType.cylinder.name`) while an application module set an
+instance-scoped one (`project.module.clampStation.name`), so the type/instance
+split existed in the key namespace — overloaded onto `DisplayNameKey`, where
+nothing could read it as a type without guessing at the prefix.
+
+**What changed.** `ST_ModuleStatus` gains `TypeKey : STRING(160)` after
+`DescriptionKey`, and `FB_ModuleBase._M_SetPresentation` gains a `TypeKey` input
+assigned beside the two existing ones. No new call path: the key is set through
+the call every concrete type already makes. All eleven call sites carry it in
+the same change, because the pinned 4024 compiler requires every method input
+at every call:
+
+| Call site | `TypeKey` |
+|---|---|
+| `FB_AirPressureMonitorCM` | `std.moduleType.airPressure` |
+| `FB_AxisCM` | `std.moduleType.axis` |
+| `FB_ClampEM` | `std.moduleType.clamp` |
+| `FB_ConfigurableCylinderCM` | `std.moduleType.configurableCylinder` |
+| `FB_CylinderCM` | `std.moduleType.cylinder` |
+| `FB_DigitalInputCM` | `std.moduleType.digitalInput` |
+| `FB_PowerGroupCM` | `std.moduleType.powerGroup` |
+| `FB_SeparatorCM` | `std.moduleType.separator` |
+| `FB_TwoHandStartCM` | `std.moduleType.twoHand` |
+| `FB_ClampStationUnit` | `project.moduleType.clampStation` |
+| `FB_PressDemoUnit` | `project.moduleType.pneumaticPress` |
+
+A type key has no `.name` suffix — that suffix belongs to the display key, and
+§7.1 makes the type key an identifier first and a display key second. The
+namespace follows the display key it sits beside: a type whose name the standard
+owns takes `std.`, one the project owns takes `project.` (§1). `FB_ClampStationUnit`
+lives in `Fraktal_Modules` but has always named itself with a `project.` key, so
+its type key follows that rather than inventing a second ownership rule here.
+
+`FB_DigitalInputCM` is the case the member exists for. Its display name is an
+instance input — the press passes `project.module.partPresentSensor.name` — and
+its type key is a literal, because every digital input is the same type whatever
+it is called. `FB_InputCM_Tests` now asserts both halves of that: the display key
+is the instance's, the type key is the type's. They are assertions added to the
+existing test, not a new `TEST`, so the documented suite/test counts are unchanged.
+
+A module that sets no type key publishes `''`. §7.1 makes the empty case fall back
+to the coarse `ModuleType` scope, so no default is invented and none is derived
+from the FB name: `FB_RobotCM` never called `_M_SetPresentation` and still does not.
+
+**Version.** An additive member on a released type is a MINOR step (Part II §2.2).
+Core moves `0.6.0.0 -> 0.7.0.0`. Modules also moves `0.6.0.0 -> 0.7.0.0`: ten of
+its types changed a call, and a Modules 0.6 compiled against Core 0.6 cannot
+resolve against Core 0.7's `_M_SetPresentation`. `Fraktal_Demo`, `PressTests` and
+`Fraktal_Tests` re-pin both; `Fraktal_Press_Demo` resolves `*`.
+
+The eleven new keys each have an English catalogue entry, and the three types
+that already carried Spanish names (`airPressure`, `separator`, `axis`) have
+Spanish ones, or `check_consistency` would report them unlocalized and the
+operator would read a raw key.
+
+**Deliberately not here.** The Allen-Bradley declaration/manifest/projection and
+the HMI mapper and faceplate resolution are the other halves of the same
+contract and are being done on another host (`TC3_TYPE_KEY_HANDOVER_PROMPT.md`).
+The read-surface gate will refuse an HMI read of `Status/TypeKey` that the AB
+projection does not publish, which is the cross-check that the halves agree.
+`HMI_CONTRACT.md` is not amended yet for the same reason: it is the table the HMI
+*implements*, and today the HMI does not read this member.
+
+**Gates.** `plc_lint` clean in both profiles (360 files); the TwinCAT tool suite
+75 tests OK; `Invoke-TwinCatLibraryInstall.ps1` installed Core 0.7.0.0 then Modules
+0.7.0.0 after a clean `CheckAllObjects`; `Invoke-TwinCatBuild.ps1` passed all five
+solutions, each `Compile complete -- 0 errors, 0 warnings` (the one Error List row,
+on `FraktalTests`, is the benign "Unknown TMC file version" notice of the XAE
+workflow §9.1); `check_consistency --strict` 0/0; its 27 tests OK.
+
+**The Core/Modules gate was blocked by a stack overflow that predates this change;
+it now runs, and is red identically with and without it.** On the local UmRT
+(`192.168.1.6.1.1:851`, `-Interactive`) `Fraktal_Tests` first stopped on
+`0xc00000fd` stack overflow in `PlcTask` moments after Start. The same gate from a
+clean worktree of `46efbc2` against Core/Modules `0.6.0.0` overflowed identically,
+and its download build names the cause:
+
+    C0297: Possible Stack Overflow. Stack Size Usage for '...FB_ConfigSet_Tests.
+    Set_operations_need_a_store_and_the_CONFIG_SET_gate': 332192 of 49152
+
+That method declared a whole `FB_ProbeConfigUnit` as a method local, which lives on
+the task stack - §56's failure mode again. It is now a suite member (`_bare`), set
+up once behind a guard because `Setup` registers a config value and a child and a
+persistent instance must not repeat that every scan. No other POU declares an FB
+by value in a method's stack sections. `CheckAllObjects` does not report C0297 -
+only the download build does - which is how it passed every object-check gate
+since §133 (`e157b0a`, 2026-08-25). The last runtime record was 2026-08-24, so the
+166/39 inventory had never executed.
+
+With the fix: `PRG_TcUnitRunner`, **166 tests / 39 suites, 154 passed, 12 failed**.
+`FB_InputCM_Tests`, including the new `TypeKey` assertions, passes. The same gate
+from `46efbc2` + only the stack fix, against `0.6.0.0`, fails **the same 12 tests**,
+so none is this change. They are all §3.8b/jog work that first ran today:
+`ConfigSetTests` 8 (the first assertion to fail is "a station set saves" -
+`SaveConfigSet` refuses, and the rest of the suite depends on a saved set),
+`ConfigDurabilityTests` 3, `AxisJogTests.A_safety_fault_withdraws_the_permission` 1.
+Each is owed an investigation of its own.
+
+**The press gate ran and is red, identically before and after.** `PressTests` on
+the same runtime: `PRG_PressTestRunner`, 8 tests / 2 suites, **6 passed, 2
+failed** - `Start_release_enforces_operating_air` ("project release component
+exposes the cleared named condition") and `Auto_cycle_returns_to_load_position`
+("AUTO cycle records a good part"). The same gate from a clean worktree of
+`46efbc2` against Core/Modules `0.6.0.0` failed the same two tests with the same
+messages, so neither is this change. The last green press record is 2026-08-02;
+both failures are owed an investigation of their own.

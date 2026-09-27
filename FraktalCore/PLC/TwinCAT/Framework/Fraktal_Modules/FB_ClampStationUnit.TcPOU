@@ -22,7 +22,7 @@ VAR_INPUT
     Recipe : I_RecipeProvider;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[_M_SetName(Name);
-_M_SetPresentation(DisplayNameKey := 'project.module.clampStation.name', DescriptionKey := 'project.module.clampStation.description');
+_M_SetPresentation(DisplayNameKey := 'project.module.clampStation.name', DescriptionKey := 'project.module.clampStation.description', TypeKey := 'project.moduleType.clampStation');
 Setup := Clamp.Setup(Name := CONCAT(Name, '.Clamp'), HalA := HalA, HalB := HalB, Recipe := Recipe);
 IF Setup THEN Setup := _M_Register(Clamp); END_IF]]></ST></Implementation>
     </Method>

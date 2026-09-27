@@ -327,21 +327,29 @@ const standardEnglish = <String, String>{
   'std.module.configurationSection': 'Configuration',
   'std.module.documentationSection': 'Documentation',
   'std.module.historySection': 'History',
+  // LOCALIZATION_AND_MODULE_CONTENT 7.1: a module type key names the TYPE a
+  // faceplate is authored against; the .name key below is the display name.
+  'std.moduleType.clamp': 'Clamp',
   'std.moduleType.clamp.name': 'Clamp',
   'std.moduleType.clamp.description':
       'Coordinates the clamp actuators and verifies clamped/unclamped state.',
+  'std.moduleType.powerGroup': 'Control-power group',
   'std.moduleType.powerGroup.name': 'Control-power group',
   'std.moduleType.powerGroup.description':
       'Controls a functional power group subject to safety and fieldbus permission.',
+  'std.moduleType.cylinder': 'Cylinder',
   'std.moduleType.cylinder.name': 'Cylinder',
   'std.moduleType.cylinder.description':
       'Controls a two-position pneumatic cylinder with position feedback.',
+  'std.moduleType.configurableCylinder': 'Configurable cylinder',
   'std.moduleType.configurableCylinder.name': 'Configurable cylinder',
   'std.moduleType.configurableCylinder.description':
       'Controls a configurable pneumatic cylinder with validated sensor topology.',
+  'std.moduleType.twoHand': 'Two-hand start',
   'std.moduleType.twoHand.name': 'Two-hand start',
   'std.moduleType.twoHand.description':
       'Publishes raw button status and a functional start edge from the certified two-hand-control result.',
+  'std.moduleType.digitalInput': 'Digital input',
   'std.access.none': 'Open',
   'std.access.operator': 'Operator',
   'std.access.technician': 'Technician',
@@ -392,6 +400,7 @@ const standardEnglish = <String, String>{
       'This passive input module has no executable command.',
   'std.error.airPressureSwitchConflict':
       'The low-pressure and operating-pressure switches are active together.',
+  'std.moduleType.airPressure': 'Air pressure monitor',
   'std.moduleType.airPressure.name': 'Air pressure monitor',
   'std.moduleType.airPressure.description':
       'Monitors low and operating pneumatic-pressure switches.',
@@ -764,6 +773,7 @@ const standardEnglish = <String, String>{
       'selecting a changeover model or confirming it is safe to open the '
       'doors. Blocking the panel when it was not necessary teaches operators '
       'to dismiss guidance without reading it.',
+  'std.moduleType.separator': 'Separator',
   'std.moduleType.separator.name': 'Separator',
   'std.moduleType.separator.description': 'Separator/stopper releasing carriers one at a time',
   'std.command.separate': 'Separate',
@@ -774,6 +784,7 @@ const standardEnglish = <String, String>{
   'std.error.separatorCarrierNotArrived': 'Carrier did not arrive after separator',
   'std.error.separatorSonNotCleared': 'Carrier did not clear downstream sensor',
   'std.error.separatorNotOpenedFb': 'Separator did not report open',
+  'std.moduleType.axis': 'Axis',
   'std.moduleType.axis.name': 'Axis',
   'std.moduleType.axis.description': 'Servo axis driven through PLCopen Motion',
   'std.command.home': 'Home',
@@ -1170,6 +1181,7 @@ const standardSpanish = <String, String>{
       'Este módulo de entrada pasiva no tiene comandos ejecutables.',
   'std.error.airPressureSwitchConflict':
       'Los interruptores de presión baja y de operación están activos simultáneamente.',
+  'std.moduleType.airPressure': 'Monitor de presión de aire',
   'std.moduleType.airPressure.name': 'Monitor de presión de aire',
   'std.moduleType.airPressure.description':
       'Supervisa los interruptores de presión neumática baja y de operación.',
@@ -1425,6 +1437,7 @@ const standardSpanish = <String, String>{
       'seleccionar un modelo de cambio o confirmar que es seguro abrir las '
       'puertas. Bloquear el panel sin necesidad enseña a descartar la guía '
       'sin leerla.',
+  'std.moduleType.separator': 'Separador',
   'std.moduleType.separator.name': 'Separador',
   'std.moduleType.separator.description': 'Separador/tope que libera portapiezas de uno en uno',
   'std.command.separate': 'Separar',
@@ -1435,6 +1448,7 @@ const standardSpanish = <String, String>{
   'std.error.separatorCarrierNotArrived': 'El portapiezas no llegó tras el separador',
   'std.error.separatorSonNotCleared': 'El portapiezas no liberó el sensor posterior',
   'std.error.separatorNotOpenedFb': 'El separador no confirmó apertura',
+  'std.moduleType.axis': 'Eje',
   'std.moduleType.axis.name': 'Eje',
   'std.moduleType.axis.description': 'Eje servo accionado mediante PLCopen Motion',
   'std.command.home': 'Referenciar',
@@ -1687,6 +1701,7 @@ const projectEnglish = <String, String>{
   'project.module.ConveyorB.name': 'Conveyor B',
   'project.module.ConveyorB.description':
       'Independent material-transfer conveyor.',
+  'project.moduleType.clampStation': 'Clamp station',
   'project.module.clampStation.name': 'Clamp station',
   'project.module.clampStation.description':
       'Runs the clamp and unclamp sequence for the configured product.',
@@ -1762,6 +1777,7 @@ const projectEnglish = <String, String>{
       'The tool is worn. Replace it now or finish the batch?',
   'project.decision.replaceNow': 'Replace now',
   'project.decision.finishBatch': 'Finish batch',
+  'project.moduleType.pneumaticPress': 'Pneumatic press',
   'project.module.pneumaticPress.name': 'Pneumatic press',
   'project.module.pneumaticPress.description':
       'Pneumatic press with an interlocked access door, part-transfer slide, two-hand start and controlled pneumatic power.',

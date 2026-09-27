@@ -42,6 +42,11 @@ _input();
 AssertTrue(Condition := _input.OutImm.Value, Message := 'HAL value published');
 AssertEquals_STRING(Expected := '_101B601', Actual := _input.OutImm.IoTag,
     Message := 'physical identity is injected, not embedded in the type');
+// §7.1: the display name is the instance's, the type key is the type's.
+AssertEquals_STRING(Expected := 'project.module.partPresentSensor.name',
+    Actual := _input.Status.DisplayNameKey, Message := 'display key is set per instance');
+AssertEquals_STRING(Expected := 'std.moduleType.digitalInput', Actual := _input.Status.TypeKey,
+    Message := 'type key is fixed by the type, whatever the instance is called');
 TEST_FINISHED();]]></ST></Implementation>
     </Method>
     <Method Name="Air_monitor_derives_pressure_and_faults_on_conflict" Id="{5fec7a29-2d4a-4f52-a64a-c33c6eb3b945}">

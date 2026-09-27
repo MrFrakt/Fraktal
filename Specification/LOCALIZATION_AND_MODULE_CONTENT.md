@@ -166,7 +166,9 @@ coarse enum nor the instance name identifies what a faceplate is authored agains
 
 A module therefore publishes a **type key** alongside its display name key: a stable
 identifier in the `project.moduleType.*` namespace, resolved through the catalogs of
-§2 like any other key. Static text belongs to the front end's dictionaries rather than
+§2 like any other key. A type the Fraktal standard library ships takes
+`std.moduleType.<type>` instead, by the same ownership rule as every other key (§1).
+A type key carries no `.name` suffix: that suffix belongs to the display name key. Static text belongs to the front end's dictionaries rather than
 to PLC values (§1), and a type is named the same way — the controller publishes the
 key, the HMI owns the prose, and the type name is translated with everything else.
 

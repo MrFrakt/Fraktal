@@ -460,10 +460,12 @@ METHOD PROTECTED _M_SetPresentation
 VAR_INPUT
     DisplayNameKey : STRING(160);
     DescriptionKey : STRING(160);
+    TypeKey : STRING(160);        // §7.1: the TYPE's key, never an instance variable
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[Status.DisplayNameKey := DisplayNameKey;
-Status.DescriptionKey := DescriptionKey;]]></ST>
+Status.DescriptionKey := DescriptionKey;
+Status.TypeKey := TypeKey;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_FaultN" Id="{13380fe6-9f35-461a-9c7d-07489905385d}">
