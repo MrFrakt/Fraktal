@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
@@ -129,7 +130,7 @@ class _AccessPolicyEditorState extends State<_AccessPolicyEditor> {
               const LText('std.accessPolicy.help'),
               if (open) ...[
                 const SizedBox(height: 12),
-                const Card(
+                const FraktalCard(
                   child: Padding(
                     padding: EdgeInsets.all(12),
                     child: Row(children: [

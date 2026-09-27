@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import 'cycle_profile_view.dart' show timeClassColor, timeClassLabel;
@@ -33,7 +34,7 @@ class _CycleTrendViewState extends State<CycleTrendView> {
     if (h.length < 2) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final selected = _hover != null && _hover! < h.length ? h[_hover!] : null;
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -228,7 +229,7 @@ class CommandTimingView extends StatelessWidget {
     final maxMs = rows
         .map((r) => r.maximum.inMilliseconds)
         .fold<int>(1, (a, b) => a > b ? a : b);
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

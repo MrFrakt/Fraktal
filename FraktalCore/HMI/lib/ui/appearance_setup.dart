@@ -8,9 +8,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 
 import '../localization/localized_text.dart';
 import 'app_theme.dart';
+import 'theme_picker.dart';
 
 class AppearanceSetupResult {
   final int themeIndex;
@@ -59,7 +61,7 @@ class _AppearanceSetupScreenState extends State<AppearanceSetupScreen> {
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
-              child: Card(
+              child: FraktalCard(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
@@ -77,20 +79,12 @@ class _AppearanceSetupScreenState extends State<AppearanceSetupScreen> {
                           textAlign: TextAlign.center),
                       const SizedBox(height: 24),
                       _label(context, 'std.settings.appearance'),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          for (var i = 0; i < kThemes.length; i++)
-                            _ThemeSwatch(
-                              spec: kThemes[i],
-                              selected: i == _themeIndex,
-                              onTap: () {
-                                setState(() => _themeIndex = i);
-                                _preview();
-                              },
-                            ),
-                        ],
+                      ThemePicker(
+                        selectedIndex: _themeIndex,
+                        onChanged: (index) {
+                          setState(() => _themeIndex = index);
+                          _preview();
+                        },
                       ),
                       const SizedBox(height: 24),
                       _label(context, 'std.settings.controlSize'),
@@ -162,52 +156,4 @@ class _AppearanceSetupScreenState extends State<AppearanceSetupScreen> {
                 .titleSmall
                 ?.copyWith(fontWeight: FontWeight.w600)),
       );
-}
-
-class _ThemeSwatch extends StatelessWidget {
-  final FraktalThemeSpec spec;
-  final bool selected;
-  final VoidCallback onTap;
-  const _ThemeSwatch(
-      {required this.spec, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        width: 92,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? scheme.primaryContainer
-              : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: selected ? Border.all(color: scheme.primary, width: 2) : null,
-        ),
-        child: Column(children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: spec.seed,
-              shape: BoxShape.circle,
-              border: spec.highContrast
-                  ? Border.all(color: scheme.onSurface, width: 2)
-                  : null,
-            ),
-            child: spec.trueBlack
-                ? const Icon(Icons.dark_mode, size: 18, color: Colors.white70)
-                : null,
-          ),
-          const SizedBox(height: 6),
-          LText(spec.nameKey,
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.center),
-        ]),
-      ),
-    );
-  }
 }

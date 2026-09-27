@@ -113,8 +113,7 @@ void main() {
     expect(compact.height, greaterThanOrEqualTo(48));
   });
 
-  test('fourteen themes, with the two high-contrast variants last', () {
-    expect(kThemes.length, 14);
+  test('the two high-contrast variants retain their persisted indices', () {
     expect(kThemes[12].highContrast, isTrue);
     expect(kThemes[13].highContrast, isTrue);
     expect(kThemes[12].brightness, Brightness.light);

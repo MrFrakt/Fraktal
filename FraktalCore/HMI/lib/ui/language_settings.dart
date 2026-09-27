@@ -3,6 +3,7 @@ library;
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import '../localization/catalog_csv.dart';
 import '../localization/default_catalogs.dart';
 import '../localization/localization_controller.dart';
@@ -48,7 +49,7 @@ class _FirstLanguageSelectionState extends State<FirstLanguageSelection> {
               padding: const EdgeInsets.all(24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 640),
-                child: Card(
+                child: FraktalCard(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(

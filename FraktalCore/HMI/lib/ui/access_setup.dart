@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
@@ -63,7 +64,7 @@ class _AccessSetupScreenState extends State<AccessSetupScreen> {
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
-              child: Card(
+              child: FraktalCard(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
@@ -84,7 +85,7 @@ class _AccessSetupScreenState extends State<AccessSetupScreen> {
                       // Machine actions first: these are the ones that move
                       // equipment, so they matter most on a shared panel.
                       _group(context, 'std.access.machineActions'),
-                      Card(
+                      FraktalCard(
                         color: Theme.of(context)
                             .colorScheme
                             .surfaceContainerHighest,

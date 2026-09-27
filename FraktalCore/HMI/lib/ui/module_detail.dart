@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
@@ -645,7 +646,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
                 if (forced)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Card(
+                    child: FraktalCard(
                       color: operatorActionContainer(context),
                       child: const Padding(
                         padding: EdgeInsets.all(12),
@@ -923,7 +924,7 @@ class _ModuleOverviewTab extends StatelessWidget {
     // a Card only paints, it does not re-pair the foreground, and without this
     // every glyph inside inherits whatever style encloses the card (app_theme).
     final cardFill = operatorActionContainer(context);
-    return Card(
+    return FraktalCard(
       color: cardFill,
       shape: RoundedRectangleBorder(
           side: const BorderSide(color: kOperatorActionColor),

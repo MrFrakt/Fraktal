@@ -4,6 +4,7 @@ library;
 
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
@@ -19,7 +20,7 @@ class CurrentStepCard extends StatelessWidget {
     if (!step.active) return const SizedBox.shrink();
     final waiting = step.awaitingLabel.isNotEmpty;
     final failing = step.conds.where((c) => !c.ok).toList();
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -92,7 +93,7 @@ class StepParetoView extends StatelessWidget {
     final sorted = [...stats]
       ..sort((a, b) => b.avg.inMilliseconds - a.avg.inMilliseconds);
     final maxMs = sorted.first.max.inMilliseconds.clamp(1, 1 << 30);
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -365,7 +366,7 @@ class StationCard extends StatelessWidget {
     final r = node;
     final sev = r.effectiveSeverity;
     final tint = sev == null ? null : severityColor(context, sev);
-    return Card(
+    return FraktalCard(
       color: tint?.withValues(alpha: 0.08),
       child: InkWell(
         onTap: onTap,

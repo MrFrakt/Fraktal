@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import '../content/module_content_controller.dart';
 import '../data/connection_settings_store.dart';
@@ -663,7 +664,7 @@ class _ConnectionMaterial extends StatelessWidget {
             theme: themeAt(themeIndex, controlScale),
             builder: (context, child) => ControlScaleScope(
               metrics: UiMetrics.of(controlScale),
-              child: child ?? const SizedBox.shrink(),
+              child: FraktalBackdrop(child: child ?? const SizedBox.shrink()),
             ),
             home: child,
           ),
@@ -707,7 +708,7 @@ class _UnitSelectionScreenState extends State<UnitSelectionScreen> {
               padding: const EdgeInsets.all(24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 640),
-                child: Card(
+                child: FraktalCard(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -846,7 +847,7 @@ class _ConnectionWizardState extends State<ConnectionWizard> {
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
-              child: Card(
+              child: FraktalCard(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Form(

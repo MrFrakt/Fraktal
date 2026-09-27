@@ -109,9 +109,35 @@ and is deliberately not run. Enum **ordinals in `lib/domain/types.dart` are the 
 contract** (must match the Core DUTs); `plc_lint` rule E1 checks that parity on every
 commit, and they remain the first thing to verify against a real server.
 
+## Appearance themes
+
+Settings → Appearance and the setup wizard share a material-preview picker.
+The original theme indices are unchanged; additional themes are appended so
+saved panel selections remain stable.
+
+| Collection | Themes | Treatment |
+|------------|--------|-----------|
+| Neon | Neon Cyan, Neon Violet | Luminous edges, restrained glow, dark grids, monospace type |
+| Liquid glass | Pearl Glass, Midnight Glass | Clipped backdrop blur, translucent panels, directional lens rims |
+| Reference 1 | Aether Blueprint | Teal drafting grid, aqua glow, brass outlines |
+| Reference 2 | Vital Protocol | Navy console, mint edges, coral decorative accent |
+| Reference 3 | Copper Patina | Dark patinated green, copper controls and polished edges |
+| Reference 4 | Folded Sand | Warm paper, beveled panels, directional shadows |
+| Reference 5 | Ivory Teal | Ivory raised surfaces, soft paired shadows, teal controls |
+| References 6–7 | Lavender Cloud, Mint Cloud | Pastel soft surfaces; two variants of the repeated dashboard image |
+
+`FraktalSurfaceTheme` is a Flutter `ThemeExtension`; `FraktalCard` and
+`FraktalBackdrop` apply it across setup, standard facets and custom module cards.
+Material retains input, focus, hover, disabled-state and touch-size behavior.
+Glass blur is clipped to each panel, backgrounds are static, and the platform's
+reduced-animation preference substitutes opaque panels without blur. These
+treatments use Flutter SDK primitives and add no package dependencies.
+Add future material tokens in `ui/app_theme.dart`, use `FraktalCard` for panels,
+and extend `test/theme_material_test.dart` plus the contrast gates below.
+
 ## Status colours and contrast
 
-The §8.1 status semantics are fixed across all 14 themes (READY/BUSY/DONE/
+The §8.1 status semantics are fixed across all selectable themes (READY/BUSY/DONE/
 ERROR/ABORTED, HIGH/MEDIUM/LOW) — but the **shade** is not, because the same
 colour is not legible on a light card and a dark one. Each semantic therefore
 has three forms in `ui/app_theme.dart`:

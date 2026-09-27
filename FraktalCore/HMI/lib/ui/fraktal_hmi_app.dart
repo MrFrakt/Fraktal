@@ -6,6 +6,7 @@ import '../state/app_state.dart';
 import '../localization/default_catalogs.dart';
 import '../localization/localized_text.dart';
 import 'app_theme.dart';
+import 'theme_surfaces.dart';
 import 'on_screen_keyboard.dart';
 import 'panel_window_watcher.dart';
 import 'touch_keyboard.dart';
@@ -53,7 +54,9 @@ class FraktalHmiApp extends StatelessWidget {
                 metrics: UiMetrics.of(app.controlScale),
                 child: Column(
                   children: [
-                    Expanded(child: child ?? const SizedBox.shrink()),
+                    Expanded(
+                        child: FraktalBackdrop(
+                            child: child ?? const SizedBox.shrink())),
                     if (app.keyboard.hasField)
                       OnScreenKeyboardPanel(controller: app.keyboard),
                   ],

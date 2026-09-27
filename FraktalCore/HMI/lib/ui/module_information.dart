@@ -2,6 +2,7 @@ library;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import 'package:pdfrx/pdfrx.dart';
 import '../content/module_content_controller.dart';
 import '../domain/module_node.dart';
@@ -29,7 +30,7 @@ class ModuleInformationCard extends StatelessWidget {
     final description = node.descriptionKey.isEmpty
         ? 'std.module.noDescription'
         : node.descriptionKey;
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -72,7 +73,7 @@ class ModuleDocumentsCard extends StatelessWidget {
     }
     final documents = app.content.documentsFor(node.path);
     final canUpload = session.level.index >= AccessLevel.engineer.index;
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

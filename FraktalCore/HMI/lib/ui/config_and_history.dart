@@ -3,6 +3,7 @@ library;
 
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
@@ -25,14 +26,14 @@ class ConfigEditor extends StatelessWidget {
     final canRead = s.permits(GatedAction.dataRead);
     final rootReady = app.rootOf(node.path)?.state == ExecState.ready;
     if (!canRead) {
-      return const Card(
+      return const FraktalCard(
           child: ListTile(
               leading: Icon(Icons.lock_outline),
               title: LText('Configuration hidden (requires DATA_READ)')));
     }
     final par = node.config.where((c) => c.kind == CfgKind.parCfg).toList();
     final sta = node.config.where((c) => c.kind == CfgKind.stationCfg).toList();
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -136,7 +137,7 @@ class _HistoryBrowserState extends State<HistoryBrowser> {
     final events = widget.node.ringEvents
         .where((e) => _show.contains(e.severity))
         .toList();
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -197,7 +198,7 @@ class DecisionPrompt extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = node.decision;
     if (d == null || !d.pending) return const SizedBox.shrink();
-    return Card(
+    return FraktalCard(
       // Operator action, not a fault — blue like the manual panel (app_theme).
       color: operatorActionContainer(context),
       child: Padding(

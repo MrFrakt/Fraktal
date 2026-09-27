@@ -5,6 +5,7 @@ library;
 
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import '../domain/types.dart';
 import 'app_theme.dart';
 
@@ -27,7 +28,7 @@ class SystemHealthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final clockOk = health.time.available && health.time.synchronized;
-    return Card(
+    return FraktalCard(
       color: health.healthy ? null : cs.errorContainer,
       child: onContainer(
         context,
@@ -118,7 +119,7 @@ class SafetyCard extends StatelessWidget {
         safety.bridgeActive ||
         safety.mutingActive;
     final cs = Theme.of(context).colorScheme;
-    return Card(
+    return FraktalCard(
       color: warning ? cs.errorContainer : null,
       child: onContainer(
         context,
@@ -194,7 +195,7 @@ class ControlPowerCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => FraktalCard(
       child: Padding(
           padding: const EdgeInsets.all(12),
           child:
@@ -248,7 +249,7 @@ class LinkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Card(
+    return FraktalCard(
       child: ListTile(
         leading: Icon(link.linked ? Icons.link : Icons.link_off,
             color: link.linked ? okColor(context) : cs.error),
@@ -273,7 +274,7 @@ class PackMLCard extends StatelessWidget {
   const PackMLCard({super.key, required this.state});
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(children: [
@@ -324,7 +325,7 @@ class MotionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final range = (m.targetPosition == 0) ? 1.0 : m.targetPosition;
     final frac = (m.actualPosition / range).clamp(0.0, 1.0);
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -358,7 +359,7 @@ class PartCard extends StatelessWidget {
   const PartCard({super.key, required this.part});
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -436,7 +437,7 @@ class NameplateCard extends StatelessWidget {
       if (plate.swVersion.isNotEmpty) ('Software', plate.swVersion),
       if (plate.orderCode.isNotEmpty) ('Order code', plate.orderCode),
     ];
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -498,7 +499,7 @@ class OeeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

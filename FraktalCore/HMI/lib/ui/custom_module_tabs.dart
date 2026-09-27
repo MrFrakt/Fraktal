@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 
 import '../content/module_content_controller.dart';
 import '../domain/module_node.dart';
@@ -173,7 +174,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
         child: rendered,
       );
     }
-    return Card(
+    return FraktalCard(
       key: ValueKey('edit-control-${control.id}'),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: Theme.of(context).colorScheme.primary),
@@ -293,7 +294,7 @@ class MotionModuleTab extends StatelessWidget {
             icon: Icons.compare_arrows),
       ]),
       const SizedBox(height: 12),
-      Card(
+      FraktalCard(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child:
@@ -344,7 +345,7 @@ class VisionModuleTab extends StatelessWidget {
     }).firstOrNull;
     final colors = Theme.of(context).colorScheme;
     return ListView(padding: const EdgeInsets.all(16), children: [
-      Card(
+      FraktalCard(
         color: !judged
             ? colors.surfaceContainerLow
             : judgeOk
@@ -400,7 +401,7 @@ class VisionModuleTab extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 12),
-      const Card(
+      const FraktalCard(
         child: ListTile(
           leading: Icon(Icons.image_outlined),
           title: LText('std.module.vision.imageUnavailable'),
@@ -458,7 +459,7 @@ class CodeReaderModuleTab extends StatelessWidget {
             icon: Icons.error_outline),
       ]),
       const SizedBox(height: 12),
-      Card(
+      FraktalCard(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child:
@@ -533,7 +534,7 @@ class RfidModuleTab extends StatelessWidget {
       return label.contains('read') || label.contains('scan');
     }).firstOrNull;
     return ListView(padding: const EdgeInsets.all(16), children: [
-      Card(
+      FraktalCard(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child:
@@ -584,7 +585,7 @@ class _TextControl extends StatelessWidget {
   const _TextControl({required this.control});
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => FraktalCard(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child:
@@ -628,7 +629,7 @@ class _IndicatorControl extends StatelessWidget {
     final usable = tag?.usable == true;
     final active = usable && _asBool(tag?.value);
     final colors = Theme.of(context).colorScheme;
-    return Card(
+    return FraktalCard(
       child: ListTile(
         leading: Container(
           width: 18,
@@ -663,7 +664,7 @@ class _UnavailableTagCard extends StatelessWidget {
   const _UnavailableTagCard({required this.control, required this.tag});
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => FraktalCard(
         child: ListTile(
           leading: Icon(
             Icons.warning_amber_rounded,
@@ -695,7 +696,7 @@ class _ChartControl extends StatelessWidget {
       0,
       (maximum, values) => math.max(maximum, values.length),
     );
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -915,7 +916,7 @@ class _TextInputControlState extends State<_TextInputControl> {
         capability != null &&
         capability.hasWriteCapability &&
         (!capability.requiresReady || rootReady);
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(children: [
@@ -1011,7 +1012,7 @@ class _ImageControl extends StatelessWidget {
     } on FormatException {
       bytes = null;
     }
-    return Card(
+    return FraktalCard(
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (bytes == null)
@@ -1049,7 +1050,7 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
         width: 220,
-        child: Card(
+        child: FraktalCard(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child:

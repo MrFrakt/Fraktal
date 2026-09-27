@@ -1,5 +1,5 @@
 /// Fullscreen settings dialog (Core O9: one place for HMI-local configuration).
-/// Consolidates the twelve-theme picker, the active language, the floating-keyboard
+/// Consolidates the theme picker, the active language, the floating-keyboard
 /// toggle, and entries that invoke the existing connection / unit-assignment edit
 /// flows (those stay phase transitions in ConnectionBootstrap — not reimplemented).
 library;
@@ -10,6 +10,7 @@ import '../localization/localized_text.dart';
 import '../state/app_state.dart';
 import '../domain/types.dart';
 import 'app_theme.dart';
+import 'theme_picker.dart';
 import 'access_policy_editor.dart';
 import 'language_settings.dart';
 
@@ -345,82 +346,9 @@ class _ThemeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Opacity(
-      opacity: enabled ? 1.0 : 0.5,
-      child: AbsorbPointer(
-        absorbing: !enabled,
-        child: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (var i = 0; i < kThemes.length; i++)
-              _ThemeSwatch(
-                spec: kThemes[i],
-                selected: i == app.themeIndex,
-                onTap: () => app.setTheme(i),
-                fallback: scheme,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeSwatch extends StatelessWidget {
-  final FraktalThemeSpec spec;
-  final bool selected;
-  final VoidCallback onTap;
-  final ColorScheme fallback;
-  const _ThemeSwatch(
-      {required this.spec,
-      required this.selected,
-      required this.onTap,
-      required this.fallback});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        width: 92,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? fallback.primaryContainer
-              : fallback.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border:
-              selected ? Border.all(color: fallback.primary, width: 2) : null,
-        ),
-        child: Column(children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: spec.seed,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                    color: spec.brightness == Brightness.dark
-                        ? Colors.black54
-                        : Colors.black26,
-                    blurRadius: 3,
-                    offset: const Offset(0, 1)),
-              ],
-            ),
-            child: spec.trueBlack
-                ? const Icon(Icons.dark_mode, size: 18, color: Colors.white70)
-                : null,
-          ),
-          const SizedBox(height: 6),
-          LText(spec.nameKey,
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.center),
-        ]),
-      ),
+    return ThemePicker(
+      selectedIndex: app.themeIndex,
+      onChanged: enabled ? (index) => app.setTheme(index) : null,
     );
   }
 }

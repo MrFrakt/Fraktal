@@ -10,6 +10,7 @@ import 'dart:math' as math;
 
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
 import '../domain/types.dart';
 import 'app_theme.dart';
 
@@ -157,7 +158,7 @@ class _CycleProfileViewState extends State<CycleProfileView> {
     final barH = 18 * scale;
     final axisH = 20 * scale;
 
-    return Card(
+    return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

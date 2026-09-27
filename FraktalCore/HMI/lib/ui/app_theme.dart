@@ -1,15 +1,16 @@
-/// Material 3 theme palette for the HMI. Twelve operator-selectable themes
+/// Material 3 theme palette and surface materials for the HMI.
 /// (HMI_CONTRACT 'Tree & theming'); selection is level-gated in AppState.setTheme.
 ///
 /// **Event/state colours are fixed semantics across ALL themes and never change
 /// with the selected theme** (HMI_CONTRACT, Core §8.1): HIGH=error, MEDIUM=amber,
 /// LOW=info blue; READY=grey, BUSY=green, DONE=blue, ERROR=error, ABORTED=amber.
-/// A theme only sets the chrome (Material seed + brightness). See severityColor /
+/// A theme only sets the chrome (palette, typography and materials). See severityColor /
 /// stateColor below — they intentionally ignore the theme.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'theme_surfaces.dart';
 import '../domain/types.dart';
 
 /// Touch-first scrolling on EVERY platform and in EVERY app surface.
@@ -164,17 +165,47 @@ class FraktalThemeSpec {
   /// and we add explicit outlines so controls stay separable on a washed-out
   /// panel or in direct sunlight.
   final bool highContrast;
+  final FraktalSurfaceTheme? surfaces;
 
   const FraktalThemeSpec(this.nameKey, this.seed, this.brightness,
-      {this.trueBlack = false, this.highContrast = false});
+      {this.trueBlack = false, this.highContrast = false, this.surfaces});
 
   ThemeData toThemeData([ControlScale scale = ControlScale.compact]) {
-    final scheme = ColorScheme.fromSeed(
+    var scheme = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
       contrastLevel: highContrast ? 1.0 : 0.0,
     );
+    final skin = surfaces;
+    if (skin != null) {
+      // Decorative palettes own chrome only. Error roles and every status helper
+      // below retain the standard's red / amber / blue / green vocabulary.
+      final dark = brightness == Brightness.dark;
+      final ink = scheme.onSurface;
+      scheme = scheme.copyWith(
+        primary: dark ? skin.accent : scheme.primary,
+        onPrimary: dark
+            ? _betterOf(Colors.black, Colors.white, skin.accent)
+            : scheme.onPrimary,
+        surface: skin.canvas,
+        surfaceDim: skin.canvas,
+        surfaceBright: skin.panel,
+        surfaceContainerLowest: skin.canvas,
+        surfaceContainerLow: skin.panel,
+        surfaceContainer: Color.lerp(skin.panel, skin.canvas, 0.25),
+        surfaceContainerHigh: Color.lerp(skin.panel, skin.canvas, 0.50),
+        surfaceContainerHighest: Color.lerp(skin.panel, skin.canvas, 0.75),
+        onSurfaceVariant: Color.lerp(ink, skin.panel, 0.22),
+        outline: Color.lerp(ink, skin.panel, 0.40),
+        outlineVariant: Color.lerp(ink, skin.panel, 0.75),
+      );
+    }
     var theme = ThemeData(useMaterial3: true, colorScheme: scheme);
+    if (skin?.luminous ?? false) {
+      theme = theme.copyWith(
+        textTheme: theme.textTheme.apply(fontFamily: 'monospace'),
+      );
+    }
     if (trueBlack) {
       theme = theme.copyWith(
         scaffoldBackgroundColor: Colors.black,
@@ -206,7 +237,8 @@ class FraktalThemeSpec {
         dividerTheme: DividerThemeData(color: theme.colorScheme.outline),
       );
     }
-    return _applyScale(theme, UiMetrics.of(scale));
+    theme = _applyScale(theme, UiMetrics.of(scale));
+    return skin == null ? theme : applySurfaceTheme(theme, skin);
   }
 }
 
@@ -347,7 +379,7 @@ ThemeData _applyScale(ThemeData theme, UiMetrics m) {
   );
 }
 
-/// The fourteen themes (indices are the persisted `themeIndex`). Light variants
+/// Theme indices are the persisted `themeIndex`. Original light variants
 /// first (0..5), then dark (6..11), then the two maximum-contrast variants
 /// (12..13). Light Blue is the default and matches the seed the HMI has always
 /// shipped. **Append only** — the index is persisted, so inserting would silently
@@ -375,6 +407,113 @@ const kThemes = <FraktalThemeSpec>[
   FraktalThemeSpec(
       'std.theme.highContrastDark', Color(0xFF4FC3F7), Brightness.dark,
       trueBlack: true, highContrast: true),
+  // — neon —
+  FraktalThemeSpec('std.theme.neonCyan', Color(0xFF45E5F5), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.neon,
+        canvas: Color(0xFF080F1D),
+        panel: Color(0xFF101D2E),
+        accent: Color(0xFF45E5F5),
+        glint: Color(0xFFAE8EFF),
+        radius: 12,
+      )),
+  FraktalThemeSpec('std.theme.neonViolet', Color(0xFFC4A1FF), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.neon,
+        canvas: Color(0xFF110D20),
+        panel: Color(0xFF1C162F),
+        accent: Color(0xFFC4A1FF),
+        glint: Color(0xFF69E0F0),
+        radius: 12,
+      )),
+  // — liquid glass, light and dark —
+  FraktalThemeSpec('std.theme.glassPearl', Color(0xFF4864AC), Brightness.light,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.glass,
+        canvas: Color(0xFFF1F4FC),
+        panel: Color(0xFFF6F8FE),
+        accent: Color(0xFF8FB8E8),
+        glint: Color(0xFFB4A3DB),
+        radius: 20,
+      )),
+  FraktalThemeSpec(
+      'std.theme.glassMidnight', Color(0xFF9FBFFF), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.glass,
+        canvas: Color(0xFF0B1325),
+        panel: Color(0xFF142138),
+        accent: Color(0xFF9FBFFF),
+        glint: Color(0xFFBDA5ED),
+        radius: 20,
+      )),
+  // — attachment studies, in attachment order —
+  FraktalThemeSpec(
+      'std.theme.aetherBlueprint', Color(0xFF73E4DB), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.blueprint,
+        canvas: Color(0xFF0C2029),
+        panel: Color(0xFF142D36),
+        accent: Color(0xFF73E4DB),
+        glint: Color(0xFFD3BB89),
+        radius: 8,
+      )),
+  FraktalThemeSpec(
+      'std.theme.vitalProtocol', Color(0xFF4ADCCB), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.neon,
+        canvas: Color(0xFF0A1520),
+        panel: Color(0xFF112430),
+        accent: Color(0xFF4ADCCB),
+        glint: Color(0xFFF28C99),
+        radius: 6,
+      )),
+  FraktalThemeSpec('std.theme.copperPatina', Color(0xFFF0B49A), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.copper,
+        canvas: Color(0xFF142421),
+        panel: Color(0xFF1B302C),
+        accent: Color(0xFFF0B49A),
+        glint: Color(0xFFF3B297),
+        radius: 8,
+      )),
+  FraktalThemeSpec('std.theme.foldedSand', Color(0xFF92502C), Brightness.light,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.paper,
+        canvas: Color(0xFFF8F2E8),
+        panel: Color(0xFFFAF5EC),
+        accent: Color(0xFF92502C),
+        glint: Color(0xFFBF8057),
+        radius: 8,
+      )),
+  FraktalThemeSpec('std.theme.ivoryTeal', Color(0xFF006668), Brightness.light,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.soft,
+        canvas: Color(0xFFF6F3E8),
+        panel: Color(0xFFFAF7EC),
+        accent: Color(0xFF006668),
+        glint: Color(0xFFC3AD85),
+        radius: 16,
+      )),
+  FraktalThemeSpec(
+      'std.theme.cloudLavender', Color(0xFF7050B6), Brightness.light,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.soft,
+        canvas: Color(0xFFF6F3FC),
+        panel: Color(0xFFFAF8FF),
+        accent: Color(0xFF7050B6),
+        glint: Color(0xFFA6CFBE),
+        radius: 18,
+      )),
+  // The repeated dashboard reference gets a mint-led companion palette.
+  FraktalThemeSpec('std.theme.cloudMint', Color(0xFF286C60), Brightness.light,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.soft,
+        canvas: Color(0xFFF1F7F3),
+        panel: Color(0xFFF6FCF8),
+        accent: Color(0xFF286C60),
+        glint: Color(0xFFBFA9E4),
+        radius: 18,
+      )),
 ];
 
 /// Localised display keys for the picker (kept for any legacy consumer).
@@ -404,10 +543,9 @@ Color severityColor(BuildContext ctx, Severity k) {
 /// colour too — but as a FOREGROUND (icon, dot, border) on a dark card it
 /// measured ~2:1 and the indicator vanished. Use this for foregrounds; use
 /// [kOkFill] (or the constant) for a fill that carries white text.
-Color okColor(BuildContext ctx) =>
-    Theme.of(ctx).brightness == Brightness.dark
-        ? const Color(0xFF66BB6A) // green-400: ~7:1 on a dark card
-        : const Color(0xFF2E7D32); // green-800: AA on light + with white text
+Color okColor(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
+    ? const Color(0xFF66BB6A) // green-400: ~7:1 on a dark card
+    : const Color(0xFF2E7D32); // green-800: AA on light + with white text
 
 /// A fill in the success hue that keeps white text legible. Always the dark
 /// shade: a light green fill under white text is ~1.7:1.
@@ -425,10 +563,9 @@ Color warningColor(BuildContext ctx) =>
 const Color kWarningFill = Color(0xFFAB6600);
 
 /// Fixed semantic BLUE: info / LOW / DONE. Brightness-adapted for foreground.
-Color infoColor(BuildContext ctx) =>
-    Theme.of(ctx).brightness == Brightness.dark
-        ? const Color(0xFF60A5FA) // blue-400: ~7:1 on a dark card
-        : const Color(0xFF1565C0); // blue-800
+Color infoColor(BuildContext ctx) => Theme.of(ctx).brightness == Brightness.dark
+    ? const Color(0xFF60A5FA) // blue-400: ~7:1 on a dark card
+    : const Color(0xFF1565C0); // blue-800
 const Color kInfoFill = Color(0xFF1565C0);
 
 /// A severity colour safe for BODY TEXT, not just an icon or a dot.
