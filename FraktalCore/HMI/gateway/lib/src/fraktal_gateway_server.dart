@@ -741,6 +741,27 @@ class FraktalGatewayServer {
           value >= 0 &&
           value <= 0xffffffff) {
         final mailbox = path.substring(0, path.length - '/Sequence'.length);
+        // A PLC download re-initialises the mailbox counter, so the
+        // controller returns to 0 while this record still expects the next
+        // number after whatever was last committed. The replay guard then
+        // refuses every command, permanently, and only restarting the
+        // gateway clears it - which is not something an operator knows to do.
+        //
+        // `putIfAbsent` is still right for the race it was written for: a PLC
+        // that has not yet scanned a write keeps publishing the previous
+        // number, and adopting that would walk the record backwards and let a
+        // genuine replay through. So the RESET is detected rather than the
+        // guard weakened. A running PLC cannot reach 0 on its own - the
+        // counter only moves forward, and a wrap arrives at 0 from 0xffffffff
+        // rather than resting there - so a published 0 against a non-zero
+        // record means a new program.
+        final known = _lastCommittedSequenceByMailbox[mailbox];
+        if (value == 0 && known != null && known != 0) {
+          _log('[Fraktal/Gateway] stage=sequence-reseeded '
+              'mailbox=$mailbox expected=$known '
+              'detail=the PLC sequence is 0; treating it as a new program');
+          _lastCommittedSequenceByMailbox.remove(mailbox);
+        }
         _lastCommittedSequenceByMailbox.putIfAbsent(mailbox, () => value);
       }
     }
