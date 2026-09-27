@@ -210,6 +210,26 @@ class Chain:
 
 # --- the application --------------------------------------------------------
 
+@dataclass(frozen=True)
+class Decision:
+    """One operator decision a chain can wait on (Core §6.11).
+
+    The controller publishes only the decision's ID - it cannot hold the
+    prompt text, because v33 ST will not assign a string literal - so the
+    question and its answers are declared here and the gateway resolves them
+    against the live ID. Same seam as the step names and the model codes.
+
+    Answer 1 advances the step and anything else takes its jump, which is the
+    emitted DECISION logic, so the FIRST option is always the one that
+    continues. Declaring them the other way round would put "scrap the part"
+    under the button that means "carry on".
+    """
+
+    identifier: int
+    prompt_key: str
+    option_keys: tuple[str, ...]
+
+
 # --- changeover ---------------------------------------------------------------
 
 
@@ -320,6 +340,8 @@ class Application:
     # Changeover models. Empty means the station has one configuration and
     # publishes no model, which is what SET_MODEL is refused against.
     models: tuple[Model, ...] = ()
+    # The operator decisions this application's chains wait on.
+    decisions: tuple[Decision, ...] = ()
     # The model a freshly downloaded station is configured as. A station is
     # always running SOME set of numbers, so "no model" at boot is a station
     # that cannot tell you which product it is set up for.
@@ -560,6 +582,43 @@ def _validate_models(app: Application) -> list[str]:
     return findings
 
 
+def _validate_decisions(app: Application) -> list[str]:
+    """A chain may not wait on a question nobody can read.
+
+    A DECISION step whose ID is not declared publishes no prompt, and the HMI
+    shows a decision card only when there IS a prompt - so the chain waits
+    forever while the screen shows nothing. That is indistinguishable from a
+    hang, and it is exactly how this one presented on the bench.
+    """
+    findings: list[str] = []
+    declared = {d.identifier for d in app.decisions}
+    identifiers = [d.identifier for d in app.decisions]
+    repeated = {i for i in identifiers if identifiers.count(i) > 1}
+    if repeated:
+        findings.append(f"duplicate decision ids {sorted(repeated)}")
+    for decision in app.decisions:
+        if decision.identifier <= 0:
+            findings.append(f"decision id {decision.identifier} must be "
+                            "positive; 0 means no decision is pending")
+        if not decision.prompt_key.strip():
+            findings.append(f"decision {decision.identifier} has no prompt")
+        if len(decision.option_keys) < 2:
+            findings.append(
+                f"decision {decision.identifier} offers "
+                f"{len(decision.option_keys)} option(s); a question with one "
+                "answer is not a decision")
+    for chain in app.chains:
+        for step in chain.steps:
+            if step.action != DECISION:
+                continue
+            if step.decision_id not in declared:
+                findings.append(
+                    f"{chain.name}.{step.name} waits on decision "
+                    f"{step.decision_id}, which is not declared; the chain "
+                    "would wait on a question the operator cannot see")
+    return findings
+
+
 def validate(app: Application) -> list[str]:
     """Return every reason this declaration must not be emitted. Empty means go."""
     findings: list[str] = []
@@ -578,6 +637,7 @@ def validate(app: Application) -> list[str]:
 
     findings.extend(_validate_io(app))
     findings.extend(_validate_models(app))
+    findings.extend(_validate_decisions(app))
 
     module_names = [m.name for m in app.modules]
     duplicates = {n for n in module_names if module_names.count(n) > 1}

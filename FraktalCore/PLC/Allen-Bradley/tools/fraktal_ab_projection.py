@@ -441,6 +441,27 @@ def access_status(app) -> dict[str, Any]:
     return values
 
 
+def decision_status(app, unit: dict[str, int]) -> dict[str, Any]:
+    """The question the chain is waiting on, if it is waiting on one.
+
+    The HMI shows a decision card only when a PROMPT is present, so a chain
+    parked on a decision with nothing published looks exactly like a chain
+    that stopped. The controller publishes the ID; the text is declared, and
+    resolved here against it.
+    """
+    identifier = unit.get("DecisionId", 0)
+    if not identifier:
+        return {}
+    decision = next((d for d in app.decisions if d.identifier == identifier),
+                    None)
+    if decision is None:
+        return {}
+    values: dict[str, Any] = {"Decision/Prompt": decision.prompt_key}
+    for index, key in enumerate(decision.option_keys, start=1):
+        values[f"Decision/Options[{index}]"] = key
+    return values
+
+
 def project(header: dict[str, Any], rows: dict[str, Any],
             unit: dict[str, int], contexts: dict[str, dict[str, int]],
             chart: dict[str, Any] | None = None,
@@ -466,6 +487,8 @@ def project(header: dict[str, Any], rows: dict[str, Any],
             for suffix, value in step_status(APP, unit).items():
                 values[f"{base}/{suffix}"] = value
             for suffix, value in access_status(APP).items():
+                values[f"{base}/{suffix}"] = value
+            for suffix, value in decision_status(APP, unit).items():
                 values[f"{base}/{suffix}"] = value
             if mailbox_state is not None:
                 for suffix, value in mailbox_values(

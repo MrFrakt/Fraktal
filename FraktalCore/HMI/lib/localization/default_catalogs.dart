@@ -1455,6 +1455,17 @@ const standardSpanish = <String, String>{
 };
 
 const projectEnglish = <String, String>{
+  // Core §6.11 operator decisions on the AB press. The FIRST option is the
+  // one that continues the chain - the emitted logic jumps on anything else.
+  'project.decision.changeoverConfirm':
+      'Is the tooling and material for this model in place?',
+  'project.decision.confirmChangeover': 'Confirmed — finish changeover',
+  'project.decision.repeatPosition': 'Drive the load position again',
+  'project.decision.pressNotReached':
+      'The ram did not reach the pressed position. What should happen to this part?',
+  'project.decision.scrapPart': 'Scrap the part',
+  'project.decision.retryPress': 'Try pressing again',
+
   // Core §3.8 changeover on the AB press. A model is a set of ParCfg values,
   // so these name products, not screens.
   'project.chain.changeover': 'Changeover',

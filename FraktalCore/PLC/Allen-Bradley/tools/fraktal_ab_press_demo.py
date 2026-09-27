@@ -399,6 +399,20 @@ def application() -> decl.Application:
         # declaration is refused rather than booting a station that claims a
         # model it is not configured as.
         default_model="M-100",
+        decisions=(
+            # Option 1 always advances, because the emitted DECISION logic
+            # takes the jump for anything else.
+            decl.Decision(
+                identifier=DECISION_PRESS_NOT_REACHED,
+                prompt_key="project.decision.pressNotReached",
+                option_keys=("project.decision.scrapPart",
+                             "project.decision.retryPress")),
+            decl.Decision(
+                identifier=DECISION_CHANGEOVER_CONFIRM,
+                prompt_key="project.decision.changeoverConfirm",
+                option_keys=("project.decision.confirmChangeover",
+                             "project.decision.repeatPosition")),
+        ),
         models=tuple(
             decl.Model(code=code, description_key=key,
                        values={"PressDwellMs": dwell,

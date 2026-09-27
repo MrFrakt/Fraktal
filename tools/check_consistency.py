@@ -514,8 +514,6 @@ AB_ABSENT = {
     "CurrentStep/Conds": _DEFERRED,
     "CurrentStep/ExpectedTime": _NOT_PROJECTED,
     "CurrentStep/TimeClass": _NOT_PROJECTED,
-    "Decision/Options": _NOT_PROJECTED,
-    "Decision/Prompt": _NOT_PROJECTED,
     "HostEvents": _NOT_PROJECTED,
     "MachineState": _NOT_PROJECTED,
     "Nameplate": _NOT_PROJECTED,
@@ -678,7 +676,18 @@ def _ab_projection() -> dict:
         import test_fraktal_ab_projection as fixture
     finally:
         sys.path.remove(str(AB_TOOLS))
+    # Some surfaces exist only in a particular machine state - a decision
+    # prompt is published while a chain waits on one and not otherwise - so
+    # the snapshot is built in a state that exercises them. A quiescent
+    # station would make every conditional surface look absent, and the gate
+    # would then demand each be declared a deferral it is not.
+    import fraktal_ab_projection as ab_projection
+
+    decisions = ab_projection.APP.decisions
+    unit = fixture.unit_values(
+        DecisionId=decisions[0].identifier if decisions else 0)
     return fixture.build(
+        unit=unit,
         mailbox_state={
             "response": {"AckSequence": 0, "Accepted": 0, "DiagnosticKey": 0},
             "requestSequence": 0,

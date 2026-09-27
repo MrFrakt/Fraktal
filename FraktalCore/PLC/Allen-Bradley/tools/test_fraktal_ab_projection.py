@@ -572,6 +572,37 @@ class ChangeoverTests(unittest.TestCase):
         self.assertEqual(values["Press/Access/CurrentLevel"],
                          projection.ACCESS_OPERATOR)
 
+    def test_a_waiting_decision_publishes_its_question(self):
+        # The HMI shows a decision card only when a prompt is present, so a
+        # chain parked on a decision with nothing published looks exactly
+        # like one that stopped. That is how the changeover presented.
+        values = build(unit=unit_values(Mode=3, Step=780, DecisionId=2))["values"]
+        self.assertEqual(values["Press/Decision/Prompt"],
+                         "project.decision.changeoverConfirm")
+        self.assertEqual(values["Press/Decision/Options[1]"],
+                         "project.decision.confirmChangeover")
+
+    def test_no_decision_publishes_no_prompt(self):
+        values = build(unit=unit_values(DecisionId=0))["values"]
+        self.assertNotIn("Press/Decision/Prompt", values)
+
+    def test_the_first_option_is_the_one_that_continues(self):
+        # The emitted DECISION logic advances on answer 1 and jumps on
+        # anything else, so declaring them the other way round would put
+        # "scrap the part" under the button meaning "carry on".
+        for decision in self.app.decisions:
+            self.assertGreaterEqual(len(decision.option_keys), 2)
+        confirm = next(d for d in self.app.decisions if d.identifier == 2)
+        self.assertEqual(confirm.option_keys[0],
+                         "project.decision.confirmChangeover")
+
+    def test_a_step_waiting_on_an_undeclared_decision_is_refused(self):
+        # A chain that waits on a question nobody can read waits forever.
+        bad = replace(self.app, decisions=())
+        findings = decl.validate(bad)
+        self.assertTrue(any("not declared" in f and "waits on decision" in f
+                            for f in findings), findings)
+
     def test_an_application_without_models_publishes_no_changeover(self):
         bare = replace(self.app, models=())
         self.assertEqual(projection.model_status(bare, {"ModelOrdinal": 0}), {})
