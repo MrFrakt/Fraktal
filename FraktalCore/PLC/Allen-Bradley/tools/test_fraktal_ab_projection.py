@@ -518,9 +518,11 @@ class ChangeoverTests(unittest.TestCase):
         self.assertNotEqual(auto["Press/CurrentStep/StepName"],
                             manual["Press/CurrentStep/StepName"])
 
-    def test_a_step_the_chain_does_not_have_publishes_no_name(self):
+    def test_a_step_the_chain_does_not_have_publishes_an_empty_name(self):
+        # Present and empty, not absent: the key has to exist in every state
+        # or the path set moves. See the path-set invariant below.
         values = build(unit=unit_values(Mode=3, Step=54321))["values"]
-        self.assertNotIn("Press/CurrentStep/StepName", values)
+        self.assertEqual(values["Press/CurrentStep/StepName"], "")
 
     def test_a_fresh_station_publishes_the_model_it_is_configured_as(self):
         # ModelOrdinal starts at the default, so a downloaded station says
@@ -582,9 +584,13 @@ class ChangeoverTests(unittest.TestCase):
         self.assertEqual(values["Press/Decision/Options[1]"],
                          "project.decision.confirmChangeover")
 
-    def test_no_decision_publishes_no_prompt(self):
+    def test_no_decision_publishes_an_empty_prompt(self):
+        # The HMI draws a decision card only when the prompt is non-empty, so
+        # empty is the "nothing pending" signal - and keeping the key present
+        # is what stops the path set moving under a client's targeted reads.
         values = build(unit=unit_values(DecisionId=0))["values"]
-        self.assertNotIn("Press/Decision/Prompt", values)
+        self.assertEqual(values["Press/Decision/Prompt"], "")
+        self.assertEqual(values["Press/Decision/Options[1]"], "")
 
     def test_the_first_option_is_the_one_that_continues(self):
         # The emitted DECISION logic advances on answer 1 and jumps on
@@ -602,6 +608,34 @@ class ChangeoverTests(unittest.TestCase):
         findings = decl.validate(bad)
         self.assertTrue(any("not declared" in f and "waits on decision" in f
                             for f in findings), findings)
+
+    def test_the_published_path_set_does_not_depend_on_machine_state(self):
+        """The invariant a conditional surface breaks.
+
+        The gateway raises its discovery revision whenever the set of
+        published paths changes, and a client's targeted reads are keyed on
+        that revision. So a path that appears only while a decision is
+        pending invalidates every read in flight the moment the decision
+        starts or ends - and the HMI polls HmiResponse/AckSequence that way.
+        A decision ending mid-request made it miss the acknowledgement and
+        report a command that had already succeeded as blocked.
+
+        Values may change freely. The KEYS may not.
+        """
+        states = [
+            unit_values(),
+            unit_values(Mode=3, Step=780, DecisionId=2),
+            unit_values(Mode=0, Step=100, DecisionId=1),
+            unit_values(Mode=1, Step=0, ModelOrdinal=3),
+            unit_values(Mode=2, Step=54321, DecisionId=999),
+            unit_values(Mode=7, Step=0),
+        ]
+        reference = set(build(unit=states[0])["values"])
+        for state in states[1:]:
+            paths = set(build(unit=state)["values"])
+            self.assertEqual(
+                paths, reference,
+                f"path set moved: {sorted(paths ^ reference)}")
 
     def test_an_application_without_models_publishes_no_changeover(self):
         bare = replace(self.app, models=())

@@ -387,13 +387,13 @@ def step_status(app, unit: dict[str, int]) -> dict[str, Any]:
     """
     chain = next((c for c in app.chains if c.mode_ordinal == unit.get("Mode")),
                  None)
-    if chain is None:
-        return {}
-    number = unit.get("Step", 0)
-    step = next((s for s in chain.steps if s.number == number), None)
-    if step is None:
-        return {}
-    return {"CurrentStep/StepName": f"project.step.{step.name}"}
+    step = None
+    if chain is not None:
+        number = unit.get("Step", 0)
+        step = next((s for s in chain.steps if s.number == number), None)
+    # Always published, empty when the step is not one this declaration knows.
+    # See `decision_status` for why a path that comes and goes is not free.
+    return {"CurrentStep/StepName": f"project.step.{step.name}" if step else ""}
 
 
 # lib/domain/types.dart: enum AccessLevel { none, operator, technician,
@@ -449,15 +449,28 @@ def decision_status(app, unit: dict[str, int]) -> dict[str, Any]:
     that stopped. The controller publishes the ID; the text is declared, and
     resolved here against it.
     """
-    identifier = unit.get("DecisionId", 0)
-    if not identifier:
+    if not app.decisions:
         return {}
+    identifier = unit.get("DecisionId", 0)
     decision = next((d for d in app.decisions if d.identifier == identifier),
                     None)
-    if decision is None:
-        return {}
-    values: dict[str, Any] = {"Decision/Prompt": decision.prompt_key}
-    for index, key in enumerate(decision.option_keys, start=1):
+
+    # The SAME KEYS every cycle, empty when nothing is pending. Publishing
+    # them only while a decision is live changes the path set, and the gateway
+    # raises its discovery revision whenever that set changes - which
+    # invalidates every targeted read a client has in flight. The HMI polls
+    # HmiResponse/AckSequence that way, so a decision appearing or ending
+    # mid-request made it miss the acknowledgement and report a command that
+    # had actually succeeded as blocked. A stable surface is not a nicety
+    # here; a conditional one breaks unrelated commands.
+    width = max(len(d.option_keys) for d in app.decisions)
+    values: dict[str, Any] = {
+        "Decision/Prompt": decision.prompt_key if decision else "",
+    }
+    for index in range(1, width + 1):
+        key = ""
+        if decision and index <= len(decision.option_keys):
+            key = decision.option_keys[index - 1]
         values[f"Decision/Options[{index}]"] = key
     return values
 
