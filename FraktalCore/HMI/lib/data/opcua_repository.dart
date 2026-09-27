@@ -758,6 +758,11 @@ class OpcUaRepository implements PlcRepository {
             }
           }
         }
+        // Keep what the PLC SAID, not just whether it agreed. A refusal
+        // carries a reason, and reporting "the transport is unavailable" for a
+        // request the controller answered promptly sends everyone looking at
+        // the network instead of reading the answer.
+        _lastRefusal = accepted ? '' : diagnostic;
         await _write(
             '$request/Kind', OpcUaWriteType.int32, _HmiRequestKind.none.index);
         return accepted;
@@ -767,6 +772,8 @@ class OpcUaRepository implements PlcRepository {
     }
     debugPrint('[Fraktal/Connection] stage=opcua-request-timeout '
         'kind=${kind.name} sequence=$sequence');
+    // No acknowledgement at all: this one really is a transport answer.
+    _lastRefusal = '';
     return false;
   }
 
@@ -940,12 +947,22 @@ class OpcUaRepository implements PlcRepository {
     }
   }
 
+  /// What the controller answered when it refused the last request, or ''
+  /// when it did not answer at all. The two are different facts and the
+  /// operator needs the first one.
+  String _lastRefusal = '';
+
   ReleaseReport _readReleaseReport(String unitPath, bool requestAccepted) {
     final base = _browseBase(unitPath);
     if (base == null || !requestAccepted) {
-      return const ReleaseReport(false, [
-        ReleaseReason('std.release.transportUnavailable', ReleaseKind.other),
-      ]);
+      // A station that answered and refused told us why. Saying "the
+      // transport is unavailable" there is not a vaguer version of the truth,
+      // it is a different and wrong claim - the PLC is reachable and
+      // answering, and the operator is sent to look at the network.
+      final reason = _lastRefusal.isNotEmpty
+          ? _lastRefusal
+          : 'std.release.transportUnavailable';
+      return ReleaseReport(false, [ReleaseReason(reason, ReleaseKind.other)]);
     }
     final response = '$base/HmiResponse/Report';
     final released = _values['$response/Released'] == true;

@@ -77,6 +77,30 @@ void main() {
     );
   });
 
+  test('a refused release query reports the PLC reason, not the transport',
+      () async {
+    // This is what an AB press does: it answers immediately and refuses,
+    // because it publishes no release report. Reporting "the transport is
+    // unavailable" there is a different and wrong claim - it sends whoever
+    // is standing at the machine to look at the network, which is exactly
+    // what happened on the bench.
+    final client = _RefusingReleaseClient();
+    final repository = await OpcUaRepository.connectWithClient(
+      client,
+      refreshInterval: const Duration(days: 1),
+    );
+    addTearDown(repository.dispose);
+
+    final report = await repository.releaseReportStart('PneumaticPress');
+
+    expect(report.released, isFalse);
+    expect(report.reasons, hasLength(1));
+    expect(report.reasons.single.description,
+        'project.mailbox.refused.no_release_reports');
+    expect(report.reasons.single.description,
+        isNot('std.release.transportUnavailable'));
+  });
+
   test('release query maps the complete native OPC UA reason report', () async {
     final client = _ReleaseClient();
     final repository = await OpcUaRepository.connectWithClient(
@@ -537,6 +561,47 @@ class _LoginClient implements OpcUaSessionClient {
   @override
   Future<bool> write(String path, OpcUaWriteType type, Object value) async {
     writes[path] = value;
+    if (path.endsWith('/HmiRequest/Sequence')) {
+      sequence = (value as num).toInt();
+    }
+    return true;
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
+/// A station that ANSWERS and refuses, naming its reason - the Allen-Bradley
+/// press, which publishes no release report and says so.
+class _RefusingReleaseClient implements OpcUaSessionClient {
+  var sequence = 0;
+
+  @override
+  Future<Map<String, Object?>> snapshot() async {
+    const base = 'PLC1/MAIN/PneumaticPress';
+    return {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'nodeCount': 8,
+      'truncated': false,
+      'rootChildren': ['4:PLC1(Object)'],
+      'namespaces': ['http://opcfoundation.org/UA/'],
+      'values': {
+        '$base/Status/Name': 'PneumaticPress',
+        '$base/Status/ModuleType': ModuleType.unit.index,
+        '$base/Status/State': ExecState.ready.index,
+        '$base/ModeActivePublished': UnitMode.auto.index,
+        // Acknowledged promptly, refused with a reason. The transport is
+        // healthy throughout.
+        '$base/HmiResponse/AckSequence': sequence,
+        '$base/HmiResponse/Accepted': false,
+        '$base/HmiResponse/Diagnostic':
+            'project.mailbox.refused.no_release_reports',
+      },
+    };
+  }
+
+  @override
+  Future<bool> write(String path, OpcUaWriteType type, Object value) async {
     if (path.endsWith('/HmiRequest/Sequence')) {
       sequence = (value as num).toInt();
     }
