@@ -1459,10 +1459,7 @@ const projectEnglish = <String, String>{
   // one that continues the chain - the emitted logic jumps on anything else.
   'project.decision.changeoverConfirm':
       'Is the tooling and material for this model in place?',
-  'project.decision.confirmChangeover': 'Confirmed — finish changeover',
   'project.decision.repeatPosition': 'Drive the load position again',
-  'project.decision.pressNotReached':
-      'The ram did not reach the pressed position. What should happen to this part?',
   'project.decision.scrapPart': 'Scrap the part',
   'project.decision.retryPress': 'Try pressing again',
 
