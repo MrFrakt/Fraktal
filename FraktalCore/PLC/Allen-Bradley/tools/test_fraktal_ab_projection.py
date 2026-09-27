@@ -503,6 +503,50 @@ class ChangeoverTests(unittest.TestCase):
         self.assertTrue(any("label, not a changeover" in f
                             for f in decl.validate(bad)))
 
+    def test_the_running_step_is_published_by_name(self):
+        # Without this the operator sees a blank where the guidance goes, and
+        # a chain waiting for a decision looks exactly like one that hung.
+        values = build(unit=unit_values(Mode=3, Step=700))["values"]
+        self.assertEqual(values["Press/CurrentStep/StepName"],
+                         "project.step.changeoverValidateModel")
+
+    def test_the_step_name_follows_the_running_chain_not_just_the_number(self):
+        # Step numbers are per-chain, so resolving without the mode would name
+        # whichever chain happened to declare that number first.
+        auto = build(unit=unit_values(Mode=0, Step=0))["values"]
+        manual = build(unit=unit_values(Mode=1, Step=0))["values"]
+        self.assertNotEqual(auto["Press/CurrentStep/StepName"],
+                            manual["Press/CurrentStep/StepName"])
+
+    def test_a_step_the_chain_does_not_have_publishes_no_name(self):
+        values = build(unit=unit_values(Mode=3, Step=54321))["values"]
+        self.assertNotIn("Press/CurrentStep/StepName", values)
+
+    def test_a_fresh_station_publishes_the_model_it_is_configured_as(self):
+        # ModelOrdinal starts at the default, so a downloaded station says
+        # which product it is set up for instead of reporting none.
+        self.assertEqual(gen.default_model_ordinal(self.app), 1)
+        member = next(m for m in gen.unit_context_members(self.app)
+                      if m.name == "ModelOrdinal")
+        self.assertEqual(member.initial, gen.default_model_ordinal(self.app))
+
+    def test_a_default_model_that_disagrees_with_the_initials_is_refused(self):
+        # The station would boot claiming one model while running another's
+        # numbers, which is worse than claiming nothing.
+        bad = replace(self.app, default_model="M-200")
+        findings = decl.validate(bad)
+        self.assertTrue(any("claiming a model it is not configured as" in f
+                            for f in findings), findings)
+
+    def test_an_undeclared_default_model_is_refused(self):
+        bad = replace(self.app, default_model="M-999")
+        self.assertTrue(any("is not declared" in f for f in decl.validate(bad)))
+
+    def test_models_without_a_default_are_refused(self):
+        bad = replace(self.app, default_model="")
+        self.assertTrue(any("none is the default" in f
+                            for f in decl.validate(bad)))
+
     def test_an_application_without_models_publishes_no_changeover(self):
         bare = replace(self.app, models=())
         self.assertEqual(projection.model_status(bare, {"ModelOrdinal": 0}), {})

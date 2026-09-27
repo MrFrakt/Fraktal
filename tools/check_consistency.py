@@ -514,8 +514,6 @@ AB_ABSENT = {
     "CurrentStep/Class": _NOT_PROJECTED,
     "CurrentStep/Conds": _DEFERRED,
     "CurrentStep/ExpectedTime": _NOT_PROJECTED,
-    "CurrentStep/StepName": ("the manifest carries step names, so the HMI "
-                             "resolves them from it, not from a live tag"),
     "CurrentStep/TimeClass": _NOT_PROJECTED,
     "Decision/Options": _NOT_PROJECTED,
     "Decision/Prompt": _NOT_PROJECTED,

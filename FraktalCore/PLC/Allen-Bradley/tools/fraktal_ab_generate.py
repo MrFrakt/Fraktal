@@ -95,6 +95,19 @@ def module_context_members() -> tuple[decl.Member, ...]:
     )
 
 
+def default_model_ordinal(app: decl.Application) -> int:
+    """1-based ordinal of the declared default model, or 0 when there is none.
+
+    This is the value `ModelOrdinal` starts at, so a freshly downloaded
+    station publishes the model its configuration actually is rather than
+    reporting none until someone runs a changeover it does not need.
+    """
+    for index, model in enumerate(app.models, start=1):
+        if model.code == app.default_model:
+            return index
+    return 0
+
+
 def unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
     return (
         decl.scalar("SchemaVersion", "", initial=SCHEMA_VERSION),
@@ -107,7 +120,8 @@ def unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
         # whole of a changeover, which is the point - a station half way
         # through one is still running the previous model's numbers.
         decl.scalar("ModelRequest", "requested model ordinal, 0 = none"),
-        decl.scalar("ModelOrdinal", "committed model ordinal, 0 = none"),
+        decl.scalar("ModelOrdinal", "committed model ordinal, 0 = none",
+                    initial=default_model_ordinal(app)),
         decl.scalar("ModeSwitches", ""),
         decl.scalar("Step", "active step number"),
         decl.scalar("PrevStep", ""),

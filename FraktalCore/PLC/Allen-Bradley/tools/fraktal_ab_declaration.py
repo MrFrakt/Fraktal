@@ -320,6 +320,10 @@ class Application:
     # Changeover models. Empty means the station has one configuration and
     # publishes no model, which is what SET_MODEL is refused against.
     models: tuple[Model, ...] = ()
+    # The model a freshly downloaded station is configured as. A station is
+    # always running SOME set of numbers, so "no model" at boot is a station
+    # that cannot tell you which product it is set up for.
+    default_model: str = ""
     chart_steps: int = 32
     program_name: str = ""
     routine_name: str = ""
@@ -532,6 +536,27 @@ def _validate_models(app: Application) -> list[str]:
             if not -2147483648 <= value <= 2147483647:
                 findings.append(f"{model.code}: {name} = {value} is outside "
                                 "a DINT")
+
+    if not app.default_model:
+        findings.append("models are declared but none is the default; a "
+                        "station boots running some set of numbers and has to "
+                        "be able to say which model they belong to")
+        return findings
+    default = next((m for m in app.models if m.code == app.default_model), None)
+    if default is None:
+        findings.append(f"default model {app.default_model!r} is not declared")
+        return findings
+    # The initial values ARE the station's configuration until a changeover
+    # runs. If they disagree with the default model, the station boots
+    # publishing one model while running another's numbers - which is worse
+    # than publishing nothing, because it is confidently wrong.
+    initials = {m.name: m.initial for m in par_cfg.members}
+    for name, value in default.values.items():
+        if initials.get(name) != value:
+            findings.append(
+                f"{par_cfg.name}.{name} starts at {initials.get(name)} but the "
+                f"default model {default.code} declares {value}; the station "
+                "would boot claiming a model it is not configured as")
     return findings
 
 

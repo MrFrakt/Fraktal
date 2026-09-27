@@ -373,6 +373,30 @@ def model_status(app, unit: dict[str, int]) -> dict[str, Any]:
     return values
 
 
+def step_status(app, unit: dict[str, int]) -> dict[str, Any]:
+    """What the running chain is doing, by name.
+
+    `Unit.Step` is a number and the HMI shows a sentence, so something has to
+    resolve one to the other. This binding publishes no step table, so the
+    gateway does it from the declaration - the live mode says which chain, the
+    live step number says which step, and the declaration supplies its name.
+
+    Without this the operator sees a blank where the guidance goes. A chain
+    waiting on a decision - "Waiting for a model to be selected" - then looks
+    exactly like a chain that did nothing at all, which is precisely how a
+    changeover appears to hang.
+    """
+    chain = next((c for c in app.chains if c.mode_ordinal == unit.get("Mode")),
+                 None)
+    if chain is None:
+        return {}
+    number = unit.get("Step", 0)
+    step = next((s for s in chain.steps if s.number == number), None)
+    if step is None:
+        return {}
+    return {"CurrentStep/StepName": f"project.step.{step.name}"}
+
+
 def project(header: dict[str, Any], rows: dict[str, Any],
             unit: dict[str, int], contexts: dict[str, dict[str, int]],
             chart: dict[str, Any] | None = None,
@@ -394,6 +418,8 @@ def project(header: dict[str, Any], rows: dict[str, Any],
             for suffix, value in mode_policy(APP).items():
                 values[f"{base}/{suffix}"] = value
             for suffix, value in model_status(APP, unit).items():
+                values[f"{base}/{suffix}"] = value
+            for suffix, value in step_status(APP, unit).items():
                 values[f"{base}/{suffix}"] = value
             if mailbox_state is not None:
                 for suffix, value in mailbox_values(

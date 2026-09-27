@@ -394,6 +394,11 @@ def application() -> decl.Application:
         sim_inputs=(two_hand, part_present, air_ok, f"FRK_{n}_JogCommand",
                 model_request),
         io_modules=(_press_io(),),
+        # The ParCfg initials above are M-100's numbers, and the validator
+        # holds the two together: change one without the other and the
+        # declaration is refused rather than booting a station that claims a
+        # model it is not configured as.
+        default_model="M-100",
         models=tuple(
             decl.Model(code=code, description_key=key,
                        values={"PressDwellMs": dwell,
