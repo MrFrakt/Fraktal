@@ -624,3 +624,43 @@ class MailboxWriterTests(unittest.TestCase):
                   ("Press/HmiRequest/Sequence", "uint32", 9)]
         planned = [self.writer.tag_for(p) for p, _, _ in writes]
         self.assertEqual(planned[-1], "FRK_Press_HmiRequest.Sequence")
+
+
+class SequenceAfterDownloadTests(unittest.TestCase):
+    """The replay guard must not survive the controller it was guarding.
+
+    A download re-applies every tag's initial value, so the mailbox counter
+    returns to zero while the gateway still expects the next number after
+    whatever it last committed. Every write then fails as a replay, the HMI
+    reports it as a transport problem, and nothing short of restarting the
+    gateway clears it. That happened on the bench.
+    """
+
+    def _gateway(self):
+        station, _ = _station()
+        return gw.Gateway(station, write_token="t",
+                          allow_all_root_mailboxes=True)
+
+    def test_a_controller_reset_to_zero_drops_the_stale_expectation(self):
+        g = self._gateway()
+        g.seed_sequences({"values": {"Press/HmiRequest/Sequence": 142}})
+        self.assertEqual(g._mailbox_sequences["Press/HmiRequest"], 142)
+        # the download
+        g.seed_sequences({"values": {"Press/HmiRequest/Sequence": 0}})
+        self.assertEqual(g._mailbox_sequences["Press/HmiRequest"], 0)
+
+    def test_an_unscanned_write_still_does_not_walk_the_record_back(self):
+        # The race the setdefault exists for: the controller has not yet
+        # scanned the write, so it still publishes the previous number. That
+        # must NOT reset anything - only a zero does.
+        g = self._gateway()
+        g.seed_sequences({"values": {"Press/HmiRequest/Sequence": 7}})
+        g._mailbox_sequences["Press/HmiRequest"] = 8
+        g.seed_sequences({"values": {"Press/HmiRequest/Sequence": 7}})
+        self.assertEqual(g._mailbox_sequences["Press/HmiRequest"], 8)
+
+    def test_a_genuine_zero_start_is_not_treated_as_a_reset(self):
+        g = self._gateway()
+        g.seed_sequences({"values": {"Press/HmiRequest/Sequence": 0}})
+        g.seed_sequences({"values": {"Press/HmiRequest/Sequence": 0}})
+        self.assertEqual(g._mailbox_sequences["Press/HmiRequest"], 0)

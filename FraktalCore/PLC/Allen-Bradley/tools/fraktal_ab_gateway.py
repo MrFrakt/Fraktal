@@ -641,12 +641,30 @@ class Gateway:
         ``setdefault``, not assignment: once this gateway has committed a
         sequence its own record is authoritative, and re-reading a controller
         that has not yet scanned the write must not walk it backwards.
+
+        **Except across a download.** A download re-applies every tag's
+        initial value, so the controller's counter returns to zero while this
+        record still expects the next number after whatever was last
+        committed. Every write then fails the replay guard, and the operator
+        sees commands refused with no way to clear it short of restarting the
+        gateway. A live controller cannot reach zero on its own - the counter
+        only ever moves forward, and even a wrap arrives at zero from
+        2**31 - 1 rather than sitting there - so a published zero against a
+        non-zero record means a new program, and the record is dropped.
         """
         for path, value in doc.get("values", {}).items():
-            if (path.endswith("/HmiRequest/Sequence")
+            if not (path.endswith("/HmiRequest/Sequence")
                     and isinstance(value, int) and not isinstance(value, bool)):
-                self._mailbox_sequences.setdefault(
-                    path[: -len("/Sequence")], value)
+                continue
+            mailbox = path[: -len("/Sequence")]
+            known = self._mailbox_sequences.get(mailbox)
+            if value == 0 and known not in (None, 0):
+                log.info("stage=sequence-reseeded mailbox=%s detail=the "
+                         "controller's sequence is 0 and this gateway "
+                         "expected %s; treating it as a new program",
+                         mailbox, known)
+                self._mailbox_sequences.pop(mailbox, None)
+            self._mailbox_sequences.setdefault(mailbox, value)
 
     async def _write(self, state: _ConnState, params: dict[str, Any]) -> bool:
         self._guard_write(state)
