@@ -26,6 +26,10 @@ VAR
     _line    : STRING(480);
     _i       : INT;
     _capabilities : INT;
+    // A whole Unit is far too large for a method local: as one it put ~330 KB on a
+    // 48 KB task stack (C0297) and the suite could never run. It lives here instead.
+    _bare     : FB_ProbeConfigUnit;
+    _bareInit : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[A_saved_set_is_the_manifest_walk_projected();
@@ -324,21 +328,21 @@ TEST_FINISHED();]]></ST>
 // CONFIG_SET, "because replacing a machine's entire parametrization is not the
 // same decision as changing one number". And a root with no store offers the
 // operations not at all rather than failing when somebody finally tries.
-METHOD Set_operations_need_a_store_and_the_CONFIG_SET_gate
-VAR
-    bare : FB_ProbeConfigUnit;
-END_VAR]]></Declaration>
+METHOD Set_operations_need_a_store_and_the_CONFIG_SET_gate]]></Declaration>
       <Implementation>
         <ST><![CDATA[TEST('Set_operations_need_a_store_and_the_CONFIG_SET_gate');
 _M_Arm();
-bare.Setup(Name := 'Test.NoStore');
-bare();
-AssertFalse(Condition := bare.ConfigPersist.StorePresent,
+IF NOT _bareInit THEN
+    _bareInit := TRUE;
+    _bare.Setup(Name := 'Test.NoStore');   // registers once, like any root
+END_IF
+_bare();
+AssertFalse(Condition := _bare.ConfigPersist.StorePresent,
     Message := 'a root with no store says so, rather than pretending');
-AssertFalse(Condition := bare.SaveConfigSet(SetName := 'x',
+AssertFalse(Condition := _bare.SaveConfigSet(SetName := 'x',
     Kind := E_ConfigKind.STATION_CFG),
     Message := 'and refuses to save');
-AssertFalse(Condition := bare.LoadConfigSet(SetName := 'x'),
+AssertFalse(Condition := _bare.LoadConfigSet(SetName := 'x'),
     Message := 'and to load');
 AssertTrue(Condition := _u.ConfigPersist.StorePresent,
     Message := 'a wired root publishes that sets are available');
