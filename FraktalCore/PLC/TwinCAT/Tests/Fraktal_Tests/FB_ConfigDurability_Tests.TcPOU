@@ -30,15 +30,24 @@ VAR
     _taken    : BOOL;
     _released : BOOL;
     _i        : INT;
+    // The window test is the one test here that must span scans (TIME() does not
+    // advance inside one), so the other seven run exactly once: re-run each scan,
+    // their writes would re-arm the very window being measured.
+    _firstPass : BOOL;
+    _winArmed  : BOOL;
+    _winScans  : INT;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[First_boot_initializes_silently();
-A_matching_version_restores_and_reports_nothing();
-An_unrecognized_version_is_reported_once_with_its_owner();
-The_root_annunciates_a_loss_without_blocking_on_its_own();
-Blocking_policy_refuses_start_until_an_engineer_acknowledges();
-An_accepted_write_is_pending_until_the_store_completes();
-A_store_that_refuses_publishes_PersistFailed();
+      <ST><![CDATA[IF NOT _firstPass THEN
+    _firstPass := TRUE;
+    First_boot_initializes_silently();
+    A_matching_version_restores_and_reports_nothing();
+    An_unrecognized_version_is_reported_once_with_its_owner();
+    The_root_annunciates_a_loss_without_blocking_on_its_own();
+    Blocking_policy_refuses_start_until_an_engineer_acknowledges();
+    An_accepted_write_is_pending_until_the_store_completes();
+    A_store_that_refuses_publishes_PersistFailed();
+END_IF
 An_elapsed_window_publishes_PersistFailed();]]></ST>
     </Implementation>
     <Method Name="_M_Arm" Id="{9b0e7412-a6c3-4d58-82f1-4e7305cb96da}">
@@ -64,15 +73,24 @@ _u.Access.Setup(Provider := _users, pAlarmLog := ADR(_u.AlarmLog));]]></ST>
 // and leave the LAST one in the suite's fields.
 METHOD PRIVATE _M_TakeLoss : BOOL
 VAR
-    guard : INT;
+    guard    : INT;
+    path     : STRING(80);
+    expected : UINT;
+    found    : UINT;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_M_TakeLoss := FALSE;
 FOR guard := 1 TO 8 DO
-    IF NOT _u.M_TakeRestoreLoss(Path => _path, Expected => _expected,
-            Found => _found) THEN
+    // Outputs are written whatever the call returns, so binding the suite's
+    // fields directly let the terminating FALSE call blank the loss it had
+    // just taken. Take into locals; keep only a take that succeeded.
+    IF NOT _u.M_TakeRestoreLoss(Path => path, Expected => expected,
+            Found => found) THEN
         RETURN;
     END_IF
+    _path := path;
+    _expected := expected;
+    _found := found;
     _M_TakeLoss := TRUE;
 END_FOR]]></ST>
       </Implementation>
@@ -182,14 +200,18 @@ AssertFalse(Condition := _released,
     Message := 'a station that lost its commissioning does not start pretending it did not');
 AssertFalse(Condition := _u.Start(),
     Message := 'and Start consumes that same report, so the two cannot disagree');
-// An operator below ENGINEER cannot make this go away.
+// An operator below ENGINEER cannot make this go away. A login or logout is a
+// REQUEST that Access.Cyclic applies on the Unit's next call, so each is followed
+// by one - without it the level asserted against was simply the previous one.
 _u.Access.RequestLogout();
+_u();
 AssertFalse(Condition := _u.AcknowledgeConfigRestore(),
     Message := 'acknowledging a lost commissioning is an ENGINEER-level act (3.8b)');
 AssertFalse(Condition := _u.ConfigPersist.RestoreAcknowledged,
     Message := 'a refused acknowledgement changes nothing');
 AssertTrue(Condition := _u.Access.RequestLogin(User := 'eng', Secret := '4242'),
     Message := 'the fixture provides an ENGINEER session');
+_u();
 AssertTrue(Condition := _u.AcknowledgeConfigRestore(),
     Message := 'an ENGINEER may accept the loss');
 _released := _u.ReleaseReportStart(Report := _report);
@@ -269,16 +291,22 @@ METHOD An_elapsed_window_publishes_PersistFailed]]></Declaration>
       <Implementation>
         <ST><![CDATA[TEST('An_elapsed_window_publishes_PersistFailed');
 _M_Arm();
-_persist.M_SetOutcome(Failed := FALSE, Refuse := FALSE);
-_persist.M_SetHold(Hold := TRUE);         // never completes
-_u.SetConfigPersistWindow(WindowMs := 0);
-AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Durability',
-    WriteKey := 'probe.cycleLimit', Revision := 1, TextValue := '45'),
-    Message := 'the write is accepted');
-AssertTrue(Condition := _u.ConfigPersist.Pending, Message := 'and is pending');
-FOR _i := 1 TO 3 DO
-    _u();
-END_FOR
+IF NOT _winArmed THEN
+    _winArmed := TRUE;
+    _persist.M_SetOutcome(Failed := FALSE, Refuse := FALSE);
+    _persist.M_SetHold(Hold := TRUE);     // never completes
+    _u.SetConfigPersistWindow(WindowMs := 0);
+    AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Durability',
+        WriteKey := 'probe.cycleLimit', Revision := 1, TextValue := '45'),
+        Message := 'the write is accepted');
+    AssertTrue(Condition := _u.ConfigPersist.Pending, Message := 'and is pending');
+    RETURN;                               // the window is measured in TIME(), which
+END_IF                                    // does not advance inside one scan
+_u();
+_winScans := _winScans + 1;
+IF NOT _u.ConfigPersist.Failed AND (_winScans < 50) THEN
+    RETURN;                               // bounded: 50 scans, far past a 0 ms window
+END_IF
 AssertTrue(Condition := _u.ConfigPersist.Failed,
     Message := 'a store still working past the DECLARED window has failed the declaration');
 AssertTrue(Condition := _u.ConfigPersist.Pending,

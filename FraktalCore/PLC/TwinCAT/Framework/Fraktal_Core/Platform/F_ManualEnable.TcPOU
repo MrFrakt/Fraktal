@@ -37,21 +37,18 @@ FOR i := 1 TO PL_Fraktal.MAX_SAFETY_DEVICES DO
             AND NOT Safety.Devices[i].SafeStateActive
             AND NOT Safety.Devices[i].FaultActive
             AND Safety.Devices[i].FieldbusHealthy
-            AND (Safety.Devices[i].State = E_SafetyState.READY) THEN
+            AND (Safety.Devices[i].State = E_SafetyState.READY)
+            // A fault anywhere in the facet withdraws the permission even while
+            // this device reads as held: a safety system reporting a fault is
+            // not one to take permission from (O10). It must be tested HERE -
+            // a check after the loop never ran, because a held device RETURNs.
+            AND NOT Safety.FaultActive THEN
             F_ManualEnable.Held       := TRUE;
             F_ManualEnable.DeviceName := Safety.Devices[i].Name;
             RETURN;                   // first permitting device wins and names itself
         END_IF
     END_IF
-END_FOR
-
-// A device-level fault anywhere in the safety facet withdraws the permission
-// even if some other enabling device still reads as held: a safety system
-// reporting a fault is not a safety system to take permission from (O10).
-IF Safety.FaultActive THEN
-    F_ManualEnable.Held       := FALSE;
-    F_ManualEnable.DeviceName := '';
-END_IF]]></ST>
+END_FOR]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

@@ -16,6 +16,10 @@ FUNCTION_BLOCK FB_ConfigSet_Tests EXTENDS TcUnit.FB_TestSuite
 VAR
     _u       : FB_ProbeConfigUnit;
     _init    : BOOL;
+    // PL_Fraktal.MAX_CONFIG_SETS is 4 and the store never evicts a set, so every
+    // DELIBERATELY WRONG import shares the one name 'imported' (each overwrites
+    // the last). Seven distinct names filled the store by the fifth test, and the
+    // later imports were refused as 'full' before reaching the rule they test.
     _store   : FB_LocalConfigStore;
     _json    : FB_ConfigSetJson;
     _pager   : FB_ConfigPager;
@@ -181,7 +185,7 @@ _u.WriteConfig(TargetPath := 'Test.CfgSet', WriteKey := 'probe.cycleLimit',
 // A set whose FIRST record is fine and whose SECOND is out of the declared
 // range - built as text, exactly as a foreign tool or a hand edit would.
 AssertTrue(Condition := _M_Import(Line :=
-    '{"set":"tainted","root":"Test.CfgSet","schema":1,"configRev":1,"kind":1,"model":"","records":2,"created":0,"clock":0}',
+    '{"set":"imported","root":"Test.CfgSet","schema":1,"configRev":1,"kind":1,"model":"","records":2,"created":0,"clock":0}',
     Commit := FALSE), Message := 'the header opens the import');
 AssertTrue(Condition := _M_Import(Line :=
     '{"scope":"Test.CfgSet.Child","key":"probe.retries","rev":1,"kind":1,"type":0,"value":"4"}',
@@ -189,7 +193,7 @@ AssertTrue(Condition := _M_Import(Line :=
 AssertTrue(Condition := _M_Import(Line :=
     '{"scope":"Test.CfgSet","key":"probe.cycleLimit","rev":1,"kind":1,"type":0,"value":"99999"}',
     Commit := TRUE), Message := 'and so is the out-of-range one: the STORE does not validate');
-AssertFalse(Condition := _u.LoadConfigSet(SetName := 'tainted'),
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'imported'),
     Message := 'the LOAD validates, and one bad record refuses the whole set');
 AssertEquals_DINT(Expected := 99, Actual := _u.CycleLimit,
     Message := 'nothing was applied - not even the record that came BEFORE the bad one');
@@ -214,12 +218,12 @@ METHOD A_capability_that_no_longer_exists_is_reported_not_dropped]]></Declaratio
         <ST><![CDATA[TEST('A_capability_that_no_longer_exists_is_reported_not_dropped');
 _M_Arm();
 _M_Import(Line :=
-    '{"set":"fromolder","root":"Test.CfgSet","schema":1,"configRev":1,"kind":1,"model":"","records":1,"created":0,"clock":0}',
+    '{"set":"imported","root":"Test.CfgSet","schema":1,"configRev":1,"kind":1,"model":"","records":1,"created":0,"clock":0}',
     Commit := FALSE);
 _M_Import(Line :=
     '{"scope":"Test.CfgSet","key":"probe.valueThatWasRemoved","rev":1,"kind":1,"type":0,"value":"1"}',
     Commit := TRUE);
-AssertFalse(Condition := _u.LoadConfigSet(SetName := 'fromolder'),
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'imported'),
     Message := 'a record nothing owns any more refuses the load');
 AssertEquals_STRING(Expected := 'probe.valueThatWasRemoved',
     Actual := _u.ConfigPersist.LastRejectKey,
@@ -233,12 +237,12 @@ TEST_FINISHED();]]></ST>
         <ST><![CDATA[TEST('A_set_from_another_root_is_refused');
 _M_Arm();
 _M_Import(Line :=
-    '{"set":"otherstation","root":"SomeOtherPress","schema":1,"configRev":1,"kind":1,"model":"","records":1,"created":0,"clock":0}',
+    '{"set":"imported","root":"SomeOtherPress","schema":1,"configRev":1,"kind":1,"model":"","records":1,"created":0,"clock":0}',
     Commit := FALSE);
 _M_Import(Line :=
     '{"scope":"SomeOtherPress","key":"probe.cycleLimit","rev":1,"kind":1,"type":0,"value":"5"}',
     Commit := TRUE);
-AssertFalse(Condition := _u.LoadConfigSet(SetName := 'otherstation'),
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'imported'),
     Message := 'a set carries the identity of the root that produced it so this can be asked');
 AssertEquals_STRING(Expected := 'SomeOtherPress',
     Actual := _u.ConfigPersist.LastRejectScope,
@@ -311,12 +315,12 @@ METHOD A_model_set_is_not_applied_as_per_field_writes]]></Declaration>
         <ST><![CDATA[TEST('A_model_set_is_not_applied_as_per_field_writes');
 _M_Arm();
 _M_Import(Line :=
-    '{"set":"modelset","root":"Test.CfgSet","schema":1,"configRev":1,"kind":0,"model":"ALU","records":1,"created":0,"clock":0}',
+    '{"set":"imported","root":"Test.CfgSet","schema":1,"configRev":1,"kind":0,"model":"ALU","records":1,"created":0,"clock":0}',
     Commit := FALSE);
 _M_Import(Line :=
     '{"scope":"Test.CfgSet","key":"probe.cycleLimit","rev":1,"kind":0,"type":0,"value":"12"}',
     Commit := TRUE);
-AssertFalse(Condition := _u.LoadConfigSet(SetName := 'modelset'),
+AssertFalse(Condition := _u.LoadConfigSet(SetName := 'imported'),
     Message := 'a model set is not replayed as per-field writes');
 AssertEquals_STRING(Expected := 'ALU', Actual := _u.ConfigPersist.LastRejectScope,
     Message := 'and the refusal names the model it was for');

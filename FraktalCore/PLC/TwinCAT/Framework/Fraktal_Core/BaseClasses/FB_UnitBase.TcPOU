@@ -3729,6 +3729,13 @@ END_IF
 IF AlarmLog.Blocking THEN
     _M_AddReason(Report := Report, Text := 'std.release.manualReset', Reason := E_Reason.NONE, Kind := E_ReleaseKind.ALARM);
 END_IF
+// lost configuration image (§3.8b): the DEPLOYMENT's declared consequence. The
+// policy was stored and published but read nowhere, so a station that declared
+// BLOCK_UNTIL_ACKNOWLEDGED started on defaults anyway. This is where it is read.
+IF ConfigPersist.RestoreLost AND NOT ConfigPersist.RestoreAcknowledged
+AND (ConfigPersist.RestorePolicy = E_ConfigRestorePolicy.BLOCK_UNTIL_ACKNOWLEDGED) THEN
+    _M_AddReason(Report := Report, Text := 'std.release.configRestoreUnacknowledged', Reason := E_Reason.CONFIG_RESTORE_LOST, Kind := E_ReleaseKind.ALARM);
+END_IF
 IF ControlDomain.Present AND NOT ControlDomain.ReadyForStart THEN
     _M_AddReason(Report := Report, Text := 'std.release.controlDomainNotReady', Reason := E_Reason.NONE, Kind := E_ReleaseKind.INTERLOCK);
 END_IF

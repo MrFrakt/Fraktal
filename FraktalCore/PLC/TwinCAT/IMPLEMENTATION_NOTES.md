@@ -4358,3 +4358,75 @@ exposes the cleared named condition") and `Auto_cycle_returns_to_load_position`
 `46efbc2` against Core/Modules `0.6.0.0` failed the same two tests with the same
 messages, so neither is this change. The last green press record is 2026-08-02;
 both failures are owed an investigation of their own.
+
+## 136. What the Core suite found the first time it ran (2026-09-27)
+
+Once the stack overflow was gone (§135) the 166/39 inventory executed for the
+first time, on the local UmRT, and was red: 154/166. The failures clustered in
+§3.8b and the jog permission - the work of 08-24/25 that had only ever been
+object-checked. Read over ADS from the stopped PLC rather than guessed at, they
+were three product defects and four test defects.
+
+### Product defects (Core 0.7.0.0 -> 0.7.0.1, contract-neutral)
+
+**`CONFIG_SET` was refused by construction.** `CONFIG_SET := 11` was appended to
+`E_GatedAction` and `ST_AccessPolicy.Required` widened to `[0..11]`, but both range
+guards in `FB_AccessManager` (`Permits`, `ConfigureRequired`) still capped the gate
+at `POWER_CONTROL`. Every set save, load and import was denied on every station -
+failing closed, so it looked like a permission rather than a bug - and an ADMIN
+could not even configure the level. `FB_UnitBase`'s HMI write path had been moved
+to `CONFIG_SET`; the manager had not. Both guards now name the last member.
+
+**`BLOCK_UNTIL_ACKNOWLEDGED` blocked nothing.** `SetConfigRestorePolicy` stored the
+policy and `ST_ConfigPersistStatus` published it, and nothing read it - although
+`_M_DrainRestoreLoss` says it is "evaluated in ReleaseReportStart", and the
+catalogue ships `std.release.configRestoreUnacknowledged` for exactly that refusal.
+The press bench's `MAIN` declares this policy, so the press started on defaults
+after losing its commissioning. `ReleaseReportStart` now adds that reason (reason
+`CONFIG_RESTORE_LOST`, kind `ALARM`) while a loss is unacknowledged under that
+policy.
+
+**A faulted safety facet still granted jog.** `F_ManualEnable` returned from inside
+the device loop as soon as an enabling device read as held, so the facet-level
+`Safety.FaultActive` check after the loop ran only when nothing was held - never
+in the one case its comment was written for. The fault is now part of the held
+condition itself.
+
+### Test defects
+
+* **`_M_TakeLoss` blanked what it took.** `Path => _path` is written on every call,
+  including the terminating one that returns FALSE, so the helper overwrote the
+  loss it had just captured. It now takes into locals and keeps only a success.
+* **The window test measured time inside one scan.** `TIME()` does not advance
+  within a scan, so three `_u()` calls always saw 0 ms and a 0 ms window never
+  elapsed. The Core is right (the window fails on the next scan); the test now
+  spans scans, bounded at 50. The suite's other seven tests are unguarded and
+  would re-arm the window every scan, so they run exactly once.
+* **A login is a request.** `RequestLogin`/`RequestLogout` queue; `Access.Cyclic`
+  applies them on the Unit's next call. The test acknowledged at the previous
+  level, so its "refused below ENGINEER" assertion passed for the wrong reason and
+  its "ENGINEER may accept" assertion could not pass. Each request is now
+  followed by `_u()`.
+* **Seven set names against four slots.** `MAX_CONFIG_SETS` is 4 and the store
+  never evicts; the four deliberately wrong imports now share the name `imported`.
+
+### Still red, and why it is not fixed here
+
+With the product fixes and the first three test fixes: **160/166**. The login fix
+compiles but has not yet run. Five `ConfigSetTests` still fail, and the cause is
+not in any one test: `FB_LocalConfigStore` keeps its sets in `VAR PERSISTENT`,
+which survives a download, so each run starts with the previous run's sets
+(`tainted`, `fromolder` were still there) and the suite's result depends on run
+history. There is no delete on `I_ConfigStore`, and a test cannot zero an FB that
+carries an interface pointer. Isolating the suite needs an API decision - a
+clear/delete on the store, which an operator also needs the day a station has
+saved four names - and that is not a call to make inside a fix.
+
+`PressTests` stays 6/8 for a different reason: since `fcafae9` (2026-08-12) the
+bench selects `RELEASE_LANGUAGE` and `AUTO_SEQUENCE_LANGUAGE` = LADDER_DIAGRAM,
+after the last green press run (08-02). With LD selected the published ST
+`ReleaseConditions` is never evaluated - its own comment says so - and
+`Start_release_enforces_operating_air` asserts on it, so its "cleared" assertion
+cannot pass. `Auto_cycle_returns_to_load_position` has not been diagnosed; the LD
+chain is the first suspect. Whether the gate tests the selected rendition or the
+gate selects ST is the project's decision.

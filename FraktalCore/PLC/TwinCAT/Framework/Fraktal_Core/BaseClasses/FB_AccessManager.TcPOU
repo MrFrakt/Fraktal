@@ -92,7 +92,8 @@ VAR_INPUT
     Gate : E_GatedAction;
     Level : E_AccessLevel;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[IF (TO_INT(Gate) < 0) OR (TO_INT(Gate) > TO_INT(E_GatedAction.POWER_CONTROL))
+      <Implementation><ST><![CDATA[// Upper bound = the LAST E_GatedAction member; it moves with every appended gate.
+IF (TO_INT(Gate) < 0) OR (TO_INT(Gate) > TO_INT(E_GatedAction.CONFIG_SET))
 OR (TO_INT(Level) < TO_INT(E_AccessLevel.NONE)) OR (TO_INT(Level) > TO_INT(E_AccessLevel.ADMIN)) THEN
     ConfigureRequired := FALSE;
 ELSE
@@ -149,7 +150,9 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[Permits := FALSE;
-IF (TO_INT(Gate) < 0) OR (TO_INT(Gate) > TO_INT(E_GatedAction.POWER_CONTROL)) THEN
+// Upper bound = the LAST E_GatedAction member. It said POWER_CONTROL after
+// CONFIG_SET was appended, so every parameter-set operation was refused.
+IF (TO_INT(Gate) < 0) OR (TO_INT(Gate) > TO_INT(E_GatedAction.CONFIG_SET)) THEN
     RETURN;
 END_IF
 IF (TO_INT(CurrentLevel) < TO_INT(E_AccessLevel.NONE)) OR (TO_INT(CurrentLevel) > TO_INT(E_AccessLevel.ADMIN)) THEN
