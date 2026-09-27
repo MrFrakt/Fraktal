@@ -151,13 +151,38 @@ real station: twenty identical clamps need twenty layouts, and a correction is t
 edits. A layout is therefore authored against a module **type** and instantiated for
 every module of that type, which is the same self-description the generic HMI already
 renders from — a module is found by `Status/ModuleType`, so the type is available
-before any layout is resolved. A path-scoped layout remains available as an
+before any layout is resolved; §7.1 says what a type is. A path-scoped layout remains available as an
 **override** for the one press that genuinely differs, and resolution is
 type-then-override with the override replacing the type layout entirely rather than
 merging into it. Partial merge is excluded deliberately: a half-inherited layout is
 not reviewable, because nothing on screen says which half came from where.
 
-### 7.1 Containers
+### 7.1 What a type is
+
+`Status/ModuleType` distinguishes a Unit from an Equipment Module from a Control
+Module. It does not distinguish a clamp from a door, and the press publishes three
+instances of one declared cylinder under three different display names, so neither the
+coarse enum nor the instance name identifies what a faceplate is authored against.
+
+A module therefore publishes a **type key** alongside its display name key: a stable
+identifier in the `project.moduleType.*` namespace, resolved through the catalogs of
+§2 like any other key. Static text belongs to the front end's dictionaries rather than
+to PLC values (§1), and a type is named the same way — the controller publishes the
+key, the HMI owns the prose, and the type name is translated with everything else.
+
+The type key is **an identifier first and a display key second**. Every instance of a
+type publishes the same key; two types never share one; and renaming it is a breaking
+change that re-scopes every faceplate authored against it, exactly as renaming a type
+would be. A module that publishes no type key falls back to the coarse `ModuleType`
+scope, which is the behaviour before this section existed.
+
+Because the key is a vocabulary entry rather than a controller construct, a faceplate
+authored against `project.moduleType.pneumaticCylinder` applies to every station that
+declares that type — across bindings. A TwinCAT press and an Allen-Bradley press whose
+cylinders declare the same type key share one faceplate, which is the platform-neutral
+claim of the standard applied to presentation rather than only to the data contract.
+
+### 7.2 Containers
 
 A view places controls in a container, and two container kinds exist because the two
 jobs have different geometry.
@@ -182,7 +207,7 @@ Layers are show/hide sets, not stacking — a maintenance overlay, a set of sens
 identifiers — and a layer's visibility may itself be bound, so one condition reveals
 or hides a whole annotation set.
 
-### 7.2 Bound presentation
+### 7.3 Bound presentation
 
 A control property may be bound rather than fixed. A binding names a source — a
 compatible scalar owned by the module, as §6 requires of every binding — and a
@@ -217,7 +242,7 @@ holding several hundred of them degrades the session that renders it, so the bud
 part of the layout and refused at publish rather than discovered on the panel. Charts
 keep the eight-series limit of §6.
 
-### 7.3 Display class
+### 7.4 Display class
 
 Every view declares a class, and the authoring rules tighten with it.
 
@@ -238,7 +263,7 @@ maintenance display standing in as an operating screen is apparent to anyone at 
 panel and auditable afterwards. A class that could be claimed silently would be
 claimed silently.
 
-### 7.4 The station tile
+### 7.5 The station tile
 
 The plant overview is the top of the display hierarchy, and its purpose is comparison
 across stations at a glance. Its tile geometry is therefore **fixed** — identity,
