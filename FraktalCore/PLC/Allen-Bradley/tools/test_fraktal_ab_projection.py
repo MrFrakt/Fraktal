@@ -547,6 +547,31 @@ class ChangeoverTests(unittest.TestCase):
         self.assertTrue(any("none is the default" in f
                             for f in decl.validate(bad)))
 
+    def test_the_station_publishes_a_policy_rather_than_silence(self):
+        # The mapper fails closed on a missing policy, so publishing nothing
+        # hid every operational section - including the prompt a changeover
+        # shows while it waits for a model. A station that enforces no levels
+        # has to SAY so.
+        values = build()["values"]
+        required = [values[f"Press/Access/Policy/Required[{i}]"]
+                    for i in range(1, projection.GATED_ACTION_COUNT + 1)]
+        self.assertEqual(required,
+                         [projection.ACCESS_NONE] * projection.GATED_ACTION_COUNT)
+
+    def test_the_policy_covers_every_gated_action(self):
+        # A short array is the fail-closed case: the mapper refuses any action
+        # whose index it cannot find, so a missing entry silently disables it.
+        values = build()["values"]
+        published = [k for k in values if "Access/Policy/Required[" in k]
+        self.assertEqual(len(published), projection.GATED_ACTION_COUNT)
+
+    def test_the_current_level_is_operator_not_admin(self):
+        # The transport authenticated somebody, which is the ordinary
+        # operating surface. It is not evidence of an engineer.
+        values = build()["values"]
+        self.assertEqual(values["Press/Access/CurrentLevel"],
+                         projection.ACCESS_OPERATOR)
+
     def test_an_application_without_models_publishes_no_changeover(self):
         bare = replace(self.app, models=())
         self.assertEqual(projection.model_status(bare, {"ModelOrdinal": 0}), {})

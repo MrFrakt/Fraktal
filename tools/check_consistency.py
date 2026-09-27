@@ -503,7 +503,6 @@ _REASON_ONLY = "the AB diagnostic record is a reason code and nothing else"
 # reads; naming the record is a claim someone can check. An entry matches a
 # read suffix that equals it, or continues with '/' or '['.
 AB_ABSENT = {
-    "Access": _NOT_PROJECTED,
     "ActiveSteps": _NOT_PROJECTED,
     "AlarmLog": _NOT_PROJECTED,
     "Blocked": _NOT_PROJECTED,

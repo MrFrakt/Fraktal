@@ -67,7 +67,6 @@ ABSENT: tuple[tuple[str, str], ...] = (
      "the control-power domain is a recorded Phase 4 deferral"),
     ("AlarmLog/*", "the event core is owed work, not published"),
     ("HostEvents/*", "the event core is owed work, not published"),
-    ("Access/*", "release and access enforcement are owed work"),
     ("ControlPower/*", "out of scope: no control-power domain"),
     ("Oee/*", "not published by this binding"),
     ("Nameplate/*", "no module in this application declares a nameplate"),
@@ -397,6 +396,51 @@ def step_status(app, unit: dict[str, int]) -> dict[str, Any]:
     return {"CurrentStep/StepName": f"project.step.{step.name}"}
 
 
+# lib/domain/types.dart: enum AccessLevel { none, operator, technician,
+# engineer, admin } and GatedAction's twelve members. Pinned like E_Mode.
+ACCESS_NONE = 0
+ACCESS_OPERATOR = 1
+GATED_ACTION_COUNT = 12
+
+
+def access_status(app) -> dict[str, Any]:
+    """What this station requires of a client, which is nothing.
+
+    This binding enforces no per-user levels in the controller: there is no
+    account store, and LOGIN is refused by name. Authentication happens at the
+    transport - the gateway's Core §14 bearer, and the authenticated proxy in
+    front of it - and the controller's own gates are the mailbox refusals and
+    the §10.5.1 force permission, neither of which is a user level.
+
+    So the policy published here is `none` for every gated action, and that is
+    a STATEMENT OF FACT rather than a permission being granted: this station
+    does not decide anything by operator level. Publishing nothing at all is
+    what it used to do, and it reads very differently - the HMI fails closed on
+    a missing policy, so every operational section stayed hidden and a
+    changeover waiting for input could not display the prompt that says so.
+    An operator could not have got past it either, because the level that
+    would unlock it is one this station has no way to grant.
+
+    `CurrentLevel` is operator, not admin: the transport authenticated
+    somebody, and that is the level the ordinary operating surface needs.
+    Engineering-level affordances stay out of reach of a station that cannot
+    tell one person from another.
+    """
+    values: dict[str, Any] = {
+        "Access/CurrentLevel": ACCESS_OPERATOR,
+        "Access/CurrentUser": "",
+        # No login to fail, and no session to time out: both are false rather
+        # than absent, because the mapper reads a missing flag as a default
+        # and a missing timeout as zero anyway - saying so is honest and
+        # keeps the gate able to check it.
+        "Access/LoginFailed": False,
+        "Access/Policy/SessionTimeout": 0,
+    }
+    for index in range(1, GATED_ACTION_COUNT + 1):
+        values[f"Access/Policy/Required[{index}]"] = ACCESS_NONE
+    return values
+
+
 def project(header: dict[str, Any], rows: dict[str, Any],
             unit: dict[str, int], contexts: dict[str, dict[str, int]],
             chart: dict[str, Any] | None = None,
@@ -420,6 +464,8 @@ def project(header: dict[str, Any], rows: dict[str, Any],
             for suffix, value in model_status(APP, unit).items():
                 values[f"{base}/{suffix}"] = value
             for suffix, value in step_status(APP, unit).items():
+                values[f"{base}/{suffix}"] = value
+            for suffix, value in access_status(APP).items():
                 values[f"{base}/{suffix}"] = value
             if mailbox_state is not None:
                 for suffix, value in mailbox_values(
