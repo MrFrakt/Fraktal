@@ -9,6 +9,10 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../domain/fieldbus.dart';
 
+/// ST_HmiRequest.TextValue is STRING(255): a longer import line would be
+/// truncated and refused, so the client checks first and names the line.
+const int kConfigSetImportLineMax = 255;
+
 abstract class PlcRepository {
   /// The forest (Core 3.1a): one or more root Units, republished on change.
   Stream<List<ModuleNode>> forest();
@@ -85,6 +89,28 @@ abstract class PlcRepository {
   /// §3.8a — write one published ParCfg/StationCfg field. The PLC validates
   /// type/schema and re-checks DATA_WRITE; false means rejected with no partial load.
   Future<bool> writeConfig(String nodePath, CfgField field, String value);
+
+  /// Core §3.8b - parameter sets on a root. Every call is a CONFIG_SET-gated
+  /// PLC request; nothing is cached here. [listConfigSets] returns null when the
+  /// PLC refused or the answer could not be read, never an invented empty list.
+  Future<List<ConfigSetInfo>?> listConfigSets(String rootPath);
+  Future<bool> saveConfigSet(String rootPath, String name, CfgKind kind);
+
+  /// Staged and all-or-nothing on the PLC; a refusal names the offending record
+  /// in [configSetRejection].
+  Future<bool> loadConfigSet(String rootPath, String name);
+  Future<bool> deleteConfigSet(String rootPath, String name);
+
+  /// The set as JSON lines (header first), or null when refused. Each value
+  /// needs its own read level on the PLC (§3.8d(e)); an export is never thinned.
+  Future<String?> exportConfigSet(String rootPath, String name);
+
+  /// Import a document produced by [exportConfigSet]. The PLC mailbox carries at
+  /// most [kConfigSetImportLineMax] characters per line.
+  Future<bool> importConfigSet(String rootPath, String document);
+
+  /// The PLC's reason for the last refused set operation ('scope / key'), or ''.
+  Future<String> configSetRejection(String rootPath);
 
   /// §8.10 — shelve/unshelve an active alarm's ANNUNCIATION (never control).
   /// Identity = sourcePath+description of the active event. ALARM_SHELVE-gated.

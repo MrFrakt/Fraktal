@@ -193,6 +193,27 @@ class ScopedPlcRepository implements PlcRepository {
   Future<bool> writeConfig(String nodePath, CfgField field, String value) =>
       _bool(nodePath, () => source.writeConfig(nodePath, field, value));
   @override
+  Future<List<ConfigSetInfo>?> listConfigSets(String rootPath) =>
+      _allows(rootPath) ? source.listConfigSets(rootPath) : Future.value(null);
+  @override
+  Future<bool> saveConfigSet(String rootPath, String name, CfgKind kind) =>
+      _bool(rootPath, () => source.saveConfigSet(rootPath, name, kind));
+  @override
+  Future<bool> loadConfigSet(String rootPath, String name) =>
+      _bool(rootPath, () => source.loadConfigSet(rootPath, name));
+  @override
+  Future<bool> deleteConfigSet(String rootPath, String name) =>
+      _bool(rootPath, () => source.deleteConfigSet(rootPath, name));
+  @override
+  Future<String?> exportConfigSet(String rootPath, String name) =>
+      _allows(rootPath) ? source.exportConfigSet(rootPath, name) : Future.value(null);
+  @override
+  Future<bool> importConfigSet(String rootPath, String document) =>
+      _bool(rootPath, () => source.importConfigSet(rootPath, document));
+  @override
+  Future<String> configSetRejection(String rootPath) =>
+      _allows(rootPath) ? source.configSetRejection(rootPath) : Future.value('');
+  @override
   Future<bool> shelveAlarm(String unitPath, String sourcePath,
           String description, Duration duration) =>
       !_allows(unitPath) || !_allows(sourcePath)

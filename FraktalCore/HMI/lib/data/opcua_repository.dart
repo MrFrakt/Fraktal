@@ -48,21 +48,15 @@ enum _HmiRequestKind {
   // come off as each control is built.
   // ignore: unused_field
   captureConfig,
-  // ignore: unused_field
   saveConfigSet,
-  // ignore: unused_field
   loadConfigSet,
-  // ignore: unused_field
   listConfigSets,
   // ignore: unused_field
   ackConfigRestore,
-  // ignore: unused_field
   exportConfigSet,
-  // ignore: unused_field
   importConfigSet,
   // ignore: unused_field
   manualHeld,
-  // ignore: unused_field
   deleteConfigSet,
   // ignore: unused_field
   setClassLevel,
@@ -1082,6 +1076,122 @@ class OpcUaRepository implements PlcRepository {
           boolValue: force,
           textValue: boolValue ? 'true' : 'false',
           nameValue: '$analogValue');
+
+  // ---- Core §3.8b parameter sets ----------------------------------------------
+  // Each operation is a CONFIG_SET-gated mailbox request; the answer (the listing,
+  // one export line) is published on the root and target-read right after the
+  // acknowledgement - it is on-demand data, never part of the cyclic snapshot.
+
+  Future<Map<String, Object?>> _readRootLeaves(
+      String rootPath, List<String> leaves) async {
+    final base = _browseBase(rootPath);
+    if (base == null) return const {};
+    final paths = [
+      for (final path in _onDemandByScope[base] ?? const <String>[])
+        if (leaves.any((leaf) => path.startsWith('$base/$leaf'))) path,
+    ];
+    if (paths.isEmpty) return const {};
+    final session = _client;
+    if (session is OpcUaBulkReadClient) {
+      try {
+        return await session.readValues(paths);
+      } on Object {
+        return const {};
+      }
+    }
+    return {for (final path in paths) path: _values[path]};
+  }
+
+  @override
+  Future<List<ConfigSetInfo>?> listConfigSets(String rootPath) async {
+    final base = _browseBase(rootPath);
+    if (base == null) return null;
+    if (!await _request(rootPath, _HmiRequestKind.listConfigSets)) return null;
+    final values = await _readRootLeaves(rootPath, const ['ConfigSet']);
+    final count = _integer(values['$base/ConfigSetCount']);
+    if (count < 0) return null; // the answer was not readable: say so, not "none"
+    final sets = <ConfigSetInfo>[];
+    for (var i = 1; i <= count; i++) {
+      final prefix = _indexedPrefix(values, '$base/ConfigSets', i);
+      if (prefix == null) continue;
+      final created = values['$prefix/CreatedAt'];
+      sets.add(ConfigSetInfo(
+        name: '${values['$prefix/SetName'] ?? ''}',
+        rootIdentity: '${values['$prefix/RootIdentity'] ?? ''}',
+        kind: _enumAt(CfgKind.values, _integer(values['$prefix/Kind']),
+            CfgKind.stationCfg),
+        modelCode: '${values['$prefix/ModelCode'] ?? ''}',
+        recordCount: _integer(values['$prefix/RecordCount']),
+        configRev: _integer(values['$prefix/ConfigRev']),
+        createdAt: created is DateTime ? created.toUtc() : null,
+        timeSynchronized: values['$prefix/TimeSynchronized'] == true,
+      ));
+    }
+    return sets;
+  }
+
+  @override
+  Future<bool> saveConfigSet(String rootPath, String name, CfgKind kind) =>
+      _request(rootPath, _HmiRequestKind.saveConfigSet,
+          textValue: name, intValue: kind.index);
+
+  @override
+  Future<bool> loadConfigSet(String rootPath, String name) =>
+      _request(rootPath, _HmiRequestKind.loadConfigSet, textValue: name);
+
+  @override
+  Future<bool> deleteConfigSet(String rootPath, String name) =>
+      _request(rootPath, _HmiRequestKind.deleteConfigSet, textValue: name);
+
+  @override
+  Future<String?> exportConfigSet(String rootPath, String name) async {
+    final base = _browseBase(rootPath);
+    if (base == null) return null;
+    final lines = <String>[];
+    var total = 0;
+    for (var line = 0; line <= total; line++) {
+      if (!await _request(rootPath, _HmiRequestKind.exportConfigSet,
+          textValue: name, intValue: line)) {
+        return null; // refused - an export is never shipped with a hole
+      }
+      final values = await _readRootLeaves(rootPath, const ['ConfigSetDocument']);
+      final text = '${values['$base/ConfigSetDocument'] ?? ''}';
+      if (text.isEmpty) return null;
+      if (line == 0) total = _integer(values['$base/ConfigSetDocumentLines']);
+      if (total < 0) return null;
+      lines.add(text);
+    }
+    return lines.join('\n');
+  }
+
+  @override
+  Future<bool> importConfigSet(String rootPath, String document) async {
+    final lines = document
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.isEmpty ||
+        lines.any((line) => line.length > kConfigSetImportLineMax)) {
+      return false;
+    }
+    for (var i = 0; i < lines.length; i++) {
+      if (!await _request(rootPath, _HmiRequestKind.importConfigSet,
+          textValue: lines[i], boolValue: i == lines.length - 1)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  Future<String> configSetRejection(String rootPath) async {
+    final base = _browseBase(rootPath);
+    if (base == null) return '';
+    final scope = '${_values['$base/ConfigPersist/LastRejectScope'] ?? ''}';
+    final key = '${_values['$base/ConfigPersist/LastRejectKey'] ?? ''}';
+    return [scope, key].where((part) => part.isNotEmpty).join(' / ');
+  }
 
   String _owningRoot(String path) {
     for (final root in _projection.forest) {

@@ -1055,6 +1055,113 @@ class SimRepository implements PlcRepository {
     return true;
   }
 
+  // Core §3.8b in the simulator: named sets of the station's editable values,
+  // bounded like the PLC's local store (four sets, no eviction). Enough for the
+  // sets dialog to be exercised without a controller; the PLC stays authoritative.
+  final Map<String, (CfgKind, Map<String, String>, DateTime)> _sets = {};
+  String _setRejection = '';
+
+  bool _setsAllowed(String rootPath) =>
+      rootPath == 'StationA' && _accessFor(rootPath).permits(GatedAction.configSet);
+
+  @override
+  Future<List<ConfigSetInfo>?> listConfigSets(String rootPath) async {
+    if (!_setsAllowed(rootPath)) return null;
+    return [
+      for (final entry in _sets.entries)
+        ConfigSetInfo(
+            name: entry.key,
+            rootIdentity: rootPath,
+            kind: entry.value.$1,
+            recordCount: entry.value.$2.length,
+            createdAt: entry.value.$3,
+            timeSynchronized: true),
+    ];
+  }
+
+  @override
+  Future<bool> saveConfigSet(String rootPath, String name, CfgKind kind) async {
+    if (!_setsAllowed(rootPath) || name.trim().isEmpty) return false;
+    final records = {
+      for (final f in _configFields())
+        if (f.kind == kind) f.writeKey: _configValues[f.name] ?? f.value,
+    };
+    if (records.isEmpty) return false; // an empty set is refused, as on the PLC
+    if (!_sets.containsKey(name) && _sets.length >= 4) return false;
+    _sets[name] = (kind, records, DateTime.now().toUtc());
+    _audit('Parameter set saved', '$rootPath.$name');
+    return true;
+  }
+
+  @override
+  Future<bool> loadConfigSet(String rootPath, String name) async {
+    final set = _sets[name];
+    if (!_setsAllowed(rootPath) || set == null) {
+      _setRejection = name;
+      return false;
+    }
+    final byKey = {for (final f in _configFields()) f.writeKey: f};
+    for (final entry in set.$2.entries) {
+      final field = byKey[entry.key];
+      if (field == null || !field.accepts(entry.value)) {
+        _setRejection = '$rootPath / ${entry.key}';
+        return false; // staged: nothing applied
+      }
+    }
+    for (final entry in set.$2.entries) {
+      _configValues[byKey[entry.key]!.name] = entry.value;
+    }
+    _setRejection = '';
+    _audit('Parameter set loaded', '$rootPath.$name');
+    _publish();
+    return true;
+  }
+
+  @override
+  Future<bool> deleteConfigSet(String rootPath, String name) async {
+    if (!_setsAllowed(rootPath)) return false;
+    return _sets.remove(name) != null;
+  }
+
+  @override
+  Future<String?> exportConfigSet(String rootPath, String name) async {
+    final set = _sets[name];
+    if (!_setsAllowed(rootPath) || set == null) return null;
+    return [
+      '{"set":"$name","root":"$rootPath","kind":${set.$1.index},"records":${set.$2.length}}',
+      for (final entry in set.$2.entries)
+        '{"scope":"$rootPath","key":"${entry.key}","value":"${entry.value}"}',
+    ].join('\n');
+  }
+
+  @override
+  Future<bool> importConfigSet(String rootPath, String document) async {
+    if (!_setsAllowed(rootPath)) return false;
+    final lines = document
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return false;
+    final header = RegExp(r'"set":"([^"]*)".*"kind":(\d+)').firstMatch(lines.first);
+    if (header == null) return false;
+    final kind = int.parse(header.group(2)!);
+    if (kind < 0 || kind >= CfgKind.values.length) return false;
+    final records = <String, String>{};
+    for (final line in lines.skip(1)) {
+      final record = RegExp(r'"key":"([^"]*)".*"value":"([^"]*)"').firstMatch(line);
+      if (record == null) return false;
+      records[record.group(1)!] = record.group(2)!;
+    }
+    final name = header.group(1)!;
+    if (!_sets.containsKey(name) && _sets.length >= 4) return false;
+    _sets[name] = (CfgKind.values[kind], records, DateTime.now().toUtc());
+    return true;
+  }
+
+  @override
+  Future<String> configSetRejection(String rootPath) async => _setRejection;
+
   @override
   Future<bool> writeConfig(
       String nodePath, CfgField field, String value) async {

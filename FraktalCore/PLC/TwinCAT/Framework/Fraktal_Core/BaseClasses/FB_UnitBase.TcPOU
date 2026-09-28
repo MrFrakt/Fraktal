@@ -89,21 +89,18 @@ VAR_OUTPUT
     // would otherwise reveal it.
     ConfigPersist : ST_ConfigPersistStatus;
     // §3.8b — the store's set listing, refreshed on a LIST_CONFIG_SETS request.
-    // Off the cyclic tree: it is catalog data a client fetches when a set dialog
-    // opens, not something every scan should carry (§1.1 O4).
-    {attribute 'OPC.UA.DA' := '0'}
+    // Published, and read ON DEMAND: a client target-reads it when a set dialog
+    // opens, never in its cyclic snapshot (§1.1 O4). It was marked DA := '0' until
+    // 2026-09-27, which made the listing and the export lines unreachable over OPC
+    // UA altogether - a client could request them and never read the answer.
     ConfigSets : ARRAY[1..PL_Fraktal.MAX_CONFIG_SETS] OF ST_ConfigSetInfo;
-    {attribute 'OPC.UA.DA' := '0'}
     ConfigSetCount : INT;
     // §3.8b — one line of a set's JSON document, served by EXPORT_CONFIG_SET.
     // Line 0 is the header and 1..RecordCount are the records, so a client pulls
     // a movable document a line at a time without a full buffer in the PLC —
     // the same paging discipline QUERY_CONFIG already uses.
-    {attribute 'OPC.UA.DA' := '0'}
     ConfigSetDocument : STRING(480);
-    {attribute 'OPC.UA.DA' := '0'}
     ConfigSetDocumentLine : INT;
-    {attribute 'OPC.UA.DA' := '0'}
     ConfigSetDocumentLines : INT;
     ModeActivePublished : E_Mode;       // properties are not OPC UA-visible
     RunningPublished : BOOL;

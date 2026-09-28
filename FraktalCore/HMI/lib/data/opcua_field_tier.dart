@@ -70,6 +70,10 @@ class OpcUaFieldTier {
   /// records, command timing, fieldbus page). Checked BEFORE liveContainers so a
   /// ring nested under a live container is still gated.
   static const Set<String> onDemandContainers = {
+    // §3.8b the parameter-set listing and the export document line: answers to
+    // a request the sets dialog makes, target-read right after it.
+    'ConfigSets', 'ConfigSetCount', 'ConfigSetDocument',
+    'ConfigSetDocumentLine', 'ConfigSetDocumentLines',
     'Ring', // AlarmLog/Ring — closed-event history (history browser)
     'History', // Profiler/History + diagnostic history ring (cycle trend)
     'StepStats', // Profiler/StepStats per-step aggregates (step pareto)

@@ -8,6 +8,7 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
 import 'touch_text_field.dart';
+import 'config_sets_dialog.dart';
 import 'app_theme.dart';
 
 /// §3.8a/§3.8d/§3.8e - editable persistent data, grouped by what it is (model,
@@ -43,6 +44,14 @@ class ConfigEditor extends StatelessWidget {
             LText('Configuration',
                 style: Theme.of(context).textTheme.titleMedium),
             const Spacer(),
+            // §3.8b - sets belong to the owning ROOT, whichever module is open.
+            if (app.rootOf(node.path) != null)
+              IconButton(
+                tooltip: context.tr('Parameter sets'),
+                icon: const Icon(Icons.inventory_2_outlined),
+                onPressed: () => showConfigSetsDialog(
+                    context, app, app.rootOf(node.path)!.path),
+              ),
             if (!anyEditable)
               const Chip(
                   avatar: Icon(Icons.lock_outline, size: 16),

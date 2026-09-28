@@ -202,6 +202,28 @@ class SignalTowerFacet {
   });
 }
 
+/// Core §3.8b - the header of one stored parameter set, as the PLC listed it.
+class ConfigSetInfo {
+  final String name;
+  final String rootIdentity; // the root that produced it; a load elsewhere is refused
+  final CfgKind kind;
+  final String modelCode; // model set only
+  final int recordCount;
+  final int configRev;
+  final DateTime? createdAt; // §2.7 clock, UTC
+  final bool timeSynchronized; // FALSE: createdAt is not to be trusted
+  const ConfigSetInfo({
+    required this.name,
+    this.rootIdentity = '',
+    this.kind = CfgKind.stationCfg,
+    this.modelCode = '',
+    this.recordCount = 0,
+    this.configRev = 0,
+    this.createdAt,
+    this.timeSynchronized = false,
+  });
+}
+
 /// §7.7 session snapshot published per root.
 class AccessSession {
   final AccessLevel level;

@@ -4678,3 +4678,37 @@ Runtime (local UmRT): `PRG_TcUnitRunner` **186/186** across 42 suites and
 
 **Not yet.** No HMI renders the current shift or `ShiftHistory`, edits the calendar,
 or groups line data; that is the HMI phase.
+
+## 141. The set listing and export lines were unreachable; the HMI now has a sets dialog (2026-09-27)
+
+`ConfigSets`, `ConfigSetCount`, `ConfigSetDocument`, `ConfigSetDocumentLine` and
+`ConfigSetDocumentLines` were all marked `{attribute 'OPC.UA.DA' := '0'}`, with the
+comment "off the cyclic tree: it is catalog data a client fetches when a set dialog
+opens". But DA := '0' takes a symbol out of the OPC UA address space entirely, so a
+client could send LIST_CONFIG_SETS or EXPORT_CONFIG_SET and never read the answer:
+§3.8b's list and export were unusable over the transport every HMI uses. The
+attribute is removed and the intent kept where it belongs - in the client: the HMI
+classifies all five as `FieldTier.onDemand`, so they are target-read right after the
+acknowledgement and never ride in the cyclic snapshot. Publication only, no logic;
+Core 0.11.0.0 -> **0.12.0.0** because the published contract grew.
+
+The HMI had none of the set operations wired - the request kinds existed only as
+ordinals. `PlcRepository` gains list/save/load/delete/export/import and the PLC's
+last refusal reason (`ConfigPersist.LastRejectScope/Key`); `OpcUaRepository`
+implements them as request-then-targeted-read, `ScopedPlcRepository` root-checks
+them, and `SimRepository` keeps a bounded in-memory store so the dialog works without
+a controller. The dialog (from the configuration editor, for the owning root) saves a
+station, model or line set, loads and deletes with confirmation, exports as copyable
+JSON lines, and imports pasted ones; a refusal shows the record the PLC named.
+
+**A contract limit, recorded rather than changed.** `ST_HmiRequest.TextValue` is
+`STRING(255)`, but an exported line can reach 480 characters, so an import line longer
+than 255 would be truncated and refused (fail-closed, but a long record cannot be
+imported). Widening the request struct changes the mailbox layout the Allen-Bradley
+binding pins byte for byte, so it is a deliberate contract step for later; until then
+the HMI checks every line first and names the one that is too long
+(`kConfigSetImportLineMax`).
+
+Verified: all five solutions `CheckAllObjects` 0/0; flutter analyze clean, 324 tests
+(8 new); check_consistency --strict 0/0. Not yet exercised against a live PLC over
+OPC UA - the local runtime holds the test application.
