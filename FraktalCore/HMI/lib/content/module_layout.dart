@@ -105,40 +105,27 @@ class ModuleStateRule {
   final double constant;
   final ModuleStateToken token;
 
+  /// The state flashes while this rule is the one in force (an e-stop pressed,
+  /// a door forced). Steady when the panel asks for reduced motion.
+  final bool blink;
+
   const ModuleStateRule({
     this.bindingIndex = 0,
     this.compare = ModuleCompare.isTrue,
     this.constant = 0,
     this.token = ModuleStateToken.ok,
+    this.blink = false,
   });
 
-  /// Whether [value] satisfies this rule. A value that is neither a number nor
-  /// a Boolean never matches, so a rule cannot claim a state from text.
-  bool matches(Object? value) {
-    final number = switch (value) {
-      bool b => b ? 1.0 : 0.0,
-      num n => n.toDouble(),
-      String s when s.toLowerCase() == 'true' => 1.0,
-      String s when s.toLowerCase() == 'false' => 0.0,
-      String s => double.tryParse(s),
-      _ => null,
-    };
-    if (number == null) return false;
-    return switch (compare) {
-      ModuleCompare.isTrue => number != 0,
-      ModuleCompare.isFalse => number == 0,
-      ModuleCompare.equals => number == constant,
-      ModuleCompare.notEquals => number != constant,
-      ModuleCompare.above => number > constant,
-      ModuleCompare.below => number < constant,
-    };
-  }
+  /// Whether [value] satisfies this rule. See [moduleCompare].
+  bool matches(Object? value) => moduleCompare(compare, constant, value);
 
   Map<String, Object?> toJson() => {
         'binding': bindingIndex,
         'compare': compare.name,
         'constant': constant,
         'token': token.name,
+        if (blink) 'blink': true,
       };
 
   static ModuleStateRule? fromJson(Object? source, int bindingCount) {
@@ -164,6 +151,72 @@ class ModuleStateRule {
       compare: compare,
       constant: value.isFinite ? value : 0,
       token: token,
+      blink: source['blink'] == true,
+    );
+  }
+}
+
+/// The one comparison every bound presentation property uses (LOCALIZATION
+/// §7.3). A value that is neither a number nor a Boolean never satisfies it,
+/// so nothing can be claimed from text.
+bool moduleCompare(ModuleCompare compare, double constant, Object? value) {
+  final number = switch (value) {
+    bool b => b ? 1.0 : 0.0,
+    num n => n.toDouble(),
+    String s when s.toLowerCase() == 'true' => 1.0,
+    String s when s.toLowerCase() == 'false' => 0.0,
+    String s => double.tryParse(s),
+    _ => null,
+  };
+  if (number == null) return false;
+  return switch (compare) {
+    ModuleCompare.isTrue => number != 0,
+    ModuleCompare.isFalse => number == 0,
+    ModuleCompare.equals => number == constant,
+    ModuleCompare.notEquals => number != constant,
+    ModuleCompare.above => number > constant,
+    ModuleCompare.below => number < constant,
+  };
+}
+
+/// "Show this control only while <tag> compares so" - a bound `visible`
+/// (LOCALIZATION §7.3). Presentation, never enforcement: the PLC re-checks
+/// every request whatever the screen showed. While the tag is unavailable the
+/// control stays SHOWN, so missing data never hides an indicator.
+class ModuleCondition {
+  final String binding;
+  final ModuleCompare compare;
+  final double constant;
+
+  const ModuleCondition({
+    required this.binding,
+    this.compare = ModuleCompare.isTrue,
+    this.constant = 0,
+  });
+
+  bool matches(Object? value) => moduleCompare(compare, constant, value);
+
+  Map<String, Object?> toJson() =>
+      {'binding': binding, 'compare': compare.name, 'constant': constant};
+
+  static ModuleCondition? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final binding = source['binding'];
+    final compare = ModuleCompare.values
+        .where((value) => value.name == source['compare'])
+        .firstOrNull;
+    final constant = source['constant'];
+    if (binding is! String ||
+        binding.trim().isEmpty ||
+        binding.length > 512 ||
+        compare == null) {
+      return null;
+    }
+    final value = constant is num ? constant.toDouble() : 0.0;
+    return ModuleCondition(
+      binding: binding.trim(),
+      compare: compare,
+      constant: value.isFinite ? value : 0,
     );
   }
 }
@@ -440,6 +493,16 @@ class ModuleControlDefinition {
   /// the tab's normal flow.
   final ModulePlacement? placement;
 
+  /// A named show/hide set (LOCALIZATION §7.2): "sensor names", "I/O
+  /// addresses". Empty = always shown. Layers are sets, not stacking; drawing
+  /// order is the control order.
+  final String layer;
+
+  /// Shown only while this holds; null = always.
+  final ModuleCondition? visibleWhen;
+
+  static const maxLayerLength = 40;
+
   const ModuleControlDefinition({
     required this.id,
     required this.kind,
@@ -463,19 +526,28 @@ class ModuleControlDefinition {
     this.minimum = 0,
     this.maximum = 100,
     this.placement,
+    this.layer = '',
+    this.visibleWhen,
   });
 
-  /// The state [values] (this control's linked bindings, in order) put it in:
-  /// the first matching rule, else [defaultToken].
-  ModuleStateToken resolveState(List<Object?> values) {
+  /// The rule in force for [values], or null when the default state applies.
+  ModuleStateRule? ruleFor(List<Object?> values) {
     for (final rule in rules) {
       if (rule.bindingIndex < values.length &&
           rule.matches(values[rule.bindingIndex])) {
-        return rule.token;
+        return rule;
       }
     }
-    return defaultToken;
+    return null;
   }
+
+  /// Every tag read this control makes: its bindings and its visibility.
+  int get boundReads => linkedBindings.length + (visibleWhen == null ? 0 : 1);
+
+  /// The state [values] (this control's linked bindings, in order) put it in:
+  /// the first matching rule, else [defaultToken].
+  ModuleStateToken resolveState(List<Object?> values) =>
+      ruleFor(values)?.token ?? defaultToken;
 
   /// This control moved onto the image, or back into the flow (null).
   ModuleControlDefinition withPlacement(ModulePlacement? next) =>
@@ -502,6 +574,8 @@ class ModuleControlDefinition {
         minimum: minimum,
         maximum: maximum,
         placement: next?.clamped(),
+        layer: layer,
+        visibleWhen: visibleWhen,
       );
 
   /// Version-2 layouts stored one `binding`. New layouts store a list while
@@ -572,6 +646,8 @@ class ModuleControlDefinition {
         minimum: minimum ?? this.minimum,
         maximum: maximum ?? this.maximum,
         placement: placement,
+        layer: layer,
+        visibleWhen: visibleWhen,
       );
 
   Map<String, Object?> toJson() => {
@@ -597,6 +673,8 @@ class ModuleControlDefinition {
         'minimum': minimum,
         'maximum': maximum,
         if (placement != null) 'placement': placement!.toJson(),
+        if (layer.isNotEmpty) 'layer': layer,
+        if (visibleWhen != null) 'visibleWhen': visibleWhen!.toJson(),
       };
 
   static ModuleControlDefinition? fromJson(Object? source) {
@@ -718,6 +796,8 @@ class ModuleControlDefinition {
       minimum: minimum,
       maximum: maximum,
       placement: ModulePlacement.fromJson(source['placement']),
+      layer: field('layer', maxLayerLength).trim(),
+      visibleWhen: ModuleCondition.fromJson(source['visibleWhen']),
     );
   }
 }
@@ -781,8 +861,14 @@ class ModuleTabDefinition {
           : ModuleViewClass.maintenance);
 
   /// The tag reads this view makes each refresh.
-  int get boundReads => controls.fold(
-      0, (sum, control) => sum + control.linkedBindings.length);
+  int get boundReads =>
+      controls.fold(0, (sum, control) => sum + control.boundReads);
+
+  /// The layers this view's controls name, in first-use order.
+  List<String> get layers => [
+        for (final control in controls)
+          if (control.layer.isNotEmpty) control.layer,
+      ].toSet().toList(growable: false);
 
   ModuleTabIcon get effectiveIcon =>
       tabIcon ??

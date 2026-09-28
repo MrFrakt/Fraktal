@@ -10,6 +10,7 @@ import 'package:fraktal_hmi/domain/types.dart';
 import 'package:fraktal_hmi/localization/localization_controller.dart';
 import 'package:fraktal_hmi/localization/localized_text.dart';
 import 'package:fraktal_hmi/state/app_state.dart';
+import 'package:fraktal_hmi/ui/app_theme.dart';
 import 'package:fraktal_hmi/ui/background_canvas.dart';
 import 'package:fraktal_hmi/ui/custom_module_tabs.dart';
 
@@ -145,6 +146,9 @@ void main() {
       bool editing = false,
       void Function(String, ModulePlacement?)? onPlace,
       void Function(ModuleControlKind, ModulePlacement)? onAddAt,
+      void Function(int, int)? onReorder,
+      bool picture = true,
+      bool reduceMotion = false,
     }) async {
       await tester.binding.setSurfaceSize(const Size(1000, 600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -157,6 +161,11 @@ void main() {
       await tester.pumpWidget(LocalizationScope(
         controller: localization,
         child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(disableAnimations: reduceMotion),
+            child: child!,
+          ),
           home: Scaffold(
             body: CustomModuleTabView(
               app: app,
@@ -167,10 +176,13 @@ void main() {
                 title: 'Guards',
                 kind: ModuleTabKind.custom,
                 controls: controls,
-                background: const ModuleTabBackground(imageBase64: _png2x1),
+                background: picture
+                    ? const ModuleTabBackground(imageBase64: _png2x1)
+                    : null,
               ),
               onPlaceControl: onPlace,
               onAddControlAt: onAddAt,
+              onReorderControl: onReorder,
             ),
           ),
         ),
@@ -267,5 +279,133 @@ void main() {
       expect(at!.x + at!.width / 2, closeTo(0.5, 0.01));
       expect(at!.y + at!.height / 2, closeTo(0.5, 0.01));
     });
+    testWidgets('a layer chip hides and shows its whole set', (tester) async {
+      const lamp = ModuleControlDefinition(
+        id: 'lamp',
+        kind: ModuleControlKind.indicator,
+        label: 'Part',
+        bindings: ['OutImm/Part'],
+        layer: 'Sensors',
+        placement: ModulePlacement(x: 0.5, y: 0.5, width: 0.05, height: 0.1),
+      );
+      await mount(tester,
+          values: {'OutImm/Part': true},
+          controls: [_door.withPlacement(_door.placement), lamp]);
+      expect(find.byTooltip('Part: ON'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('layer-Sensors')));
+      await tester.pump();
+      expect(find.byTooltip('Part: ON'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('layer-Sensors')));
+      await tester.pump();
+      expect(find.byTooltip('Part: ON'), findsOneWidget);
+    });
+
+    testWidgets('a bound visible hides - but never on missing data',
+        (tester) async {
+      const guarded = ModuleControlDefinition(
+        id: 'hint',
+        kind: ModuleControlKind.text,
+        label: 'Door open',
+        visibleWhen: ModuleCondition(
+            binding: 'OutImm/DoorClosed', compare: ModuleCompare.isFalse),
+        placement: ModulePlacement(x: 0.1, y: 0.1, width: 0.2, height: 0.1),
+      );
+      await mount(tester,
+          values: {'OutImm/DoorClosed': true}, controls: [guarded]);
+      expect(find.byTooltip('Door open'), findsNothing);
+      await mount(tester,
+          values: {'OutImm/DoorClosed': false}, controls: [guarded]);
+      expect(find.byTooltip('Door open'), findsOneWidget);
+      await mount(tester, values: const {}, controls: [guarded]);
+      expect(find.byTooltip('Door open'), findsOneWidget,
+          reason: 'unavailable data never hides an indicator');
+    });
+
+    testWidgets('a blinking rule flashes, and holds steady on reduced motion',
+        (tester) async {
+      const estop = ModuleControlDefinition(
+        id: 'estop',
+        kind: ModuleControlKind.shape,
+        label: 'E-stop',
+        shape: ModuleShape.circle,
+        bindings: ['OutImm/EStop'],
+        rules: [ModuleStateRule(token: ModuleStateToken.error, blink: true)],
+        defaultToken: ModuleStateToken.ok,
+        placement: ModulePlacement(x: 0.4, y: 0.4, width: 0.1, height: 0.2),
+      );
+      Finder flashing() => find.descendant(
+          of: find.byTooltip('E-stop: Fault'),
+          matching: find.byType(FadeTransition));
+      await mount(tester, values: {'OutImm/EStop': true}, controls: [estop]);
+      expect(flashing(), findsOneWidget);
+      await mount(tester,
+          values: {'OutImm/EStop': true},
+          controls: [estop],
+          reduceMotion: true);
+      expect(flashing(), findsNothing);
+      await mount(tester, values: {'OutImm/EStop': false}, controls: [estop]);
+      expect(
+          find.descendant(
+              of: find.byTooltip('E-stop: OK'),
+              matching: find.byType(FadeTransition)),
+          findsNothing);
+    });
+
+    testWidgets('an operating view draws OK neutral, not green (7.4)',
+        (tester) async {
+      await mount(tester,
+          values: {'OutImm/DoorClosed': true, 'OutImm/DoorFaulted': false},
+          controls: [_door.withPlacement(null)],
+          picture: false);
+      final context = tester.element(find.byType(CustomModuleTabView));
+      final borders = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .map((box) => box.decoration)
+          .whereType<BoxDecoration>()
+          .map((decoration) => decoration.border?.top.color)
+          .toList();
+      expect(borders,
+          contains(stateTokenColor(context, ModuleStateToken.neutral)));
+      expect(borders,
+          isNot(contains(stateTokenColor(context, ModuleStateToken.ok))));
+    });
+
+    testWidgets('front and back restack by control order (7.2 z-order)',
+        (tester) async {
+      (int, int)? moved;
+      const other = ModuleControlDefinition(
+        id: 'other',
+        kind: ModuleControlKind.text,
+        label: 'Other',
+        placement: ModulePlacement(x: 0.6, y: 0.6, width: 0.2, height: 0.1),
+      );
+      await mount(tester,
+          values: {'OutImm/DoorClosed': true, 'OutImm/DoorFaulted': false},
+          controls: [_door, other],
+          editing: true,
+          onReorder: (from, to) => moved = (from, to));
+      await tester.tap(find.byKey(const ValueKey('placed-door1')));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Bring to front'));
+      expect(moved, (0, 1));
+    });
+  });
+
+  test('layer, visible and blink travel in the layout and count as reads', () {
+    const control = ModuleControlDefinition(
+      id: 'c',
+      kind: ModuleControlKind.shape,
+      bindings: ['OutImm/A'],
+      rules: [ModuleStateRule(token: ModuleStateToken.error, blink: true)],
+      layer: 'Sensors',
+      visibleWhen: ModuleCondition(
+          binding: 'OutImm/B', compare: ModuleCompare.above, constant: 3),
+    );
+    final restored = ModuleControlDefinition.fromJson(control.toJson())!;
+    expect(restored.layer, 'Sensors');
+    expect(restored.visibleWhen!.binding, 'OutImm/B');
+    expect(restored.visibleWhen!.matches(4), isTrue);
+    expect(restored.rules.single.blink, isTrue);
+    expect(restored.boundReads, 2, reason: 'the visible binding is a read too');
   });
 }

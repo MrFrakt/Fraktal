@@ -705,6 +705,13 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
   final List<ModuleStateRule> _rules = [];
   final List<TextEditingController> _ruleConstants = [];
 
+  late final TextEditingController _layer;
+
+  /// The bound `visible` (§7.3): at most one tag, a comparison, a constant.
+  List<String> _visibleBinding = [];
+  ModuleCompare _visibleCompare = ModuleCompare.isTrue;
+  late final TextEditingController _visibleConstant;
+
   @override
   void initState() {
     super.initState();
@@ -728,6 +735,12 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
             ? ModuleStateToken.info
             : ModuleStateToken.neutral);
     _minimum = TextEditingController(text: _number(control?.minimum ?? 0));
+    _layer = TextEditingController(text: control?.layer ?? '');
+    final visible = control?.visibleWhen;
+    _visibleBinding = visible == null ? [] : [visible.binding];
+    _visibleCompare = visible?.compare ?? ModuleCompare.isTrue;
+    _visibleConstant =
+        TextEditingController(text: _number(visible?.constant ?? 0));
     _maximum = TextEditingController(text: _number(control?.maximum ?? 100));
     for (final rule in control?.rules ?? const <ModuleStateRule>[]) {
       _rules.add(rule);
@@ -748,6 +761,8 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
       _period,
       _points,
       _minimum,
+      _layer,
+      _visibleConstant,
       _maximum,
       ..._ruleConstants,
     ]) {
@@ -913,6 +928,15 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
               ),
             ),
             IconButton(
+              key: ValueKey('rule-blink-$index'),
+              tooltip: context.tr('std.module.editor.ruleBlink'),
+              isSelected: _rules[index].blink,
+              onPressed: () => setState(() => _rules[index] =
+                  _ruleWith(index, blink: !_rules[index].blink)),
+              icon: const Icon(Icons.flash_off),
+              selectedIcon: const Icon(Icons.flash_on),
+            ),
+            IconButton(
               tooltip: context.tr('std.common.delete'),
               onPressed: () => _removeRule(index),
               icon: const Icon(Icons.remove_circle_outline),
@@ -944,6 +968,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
     int? bindingIndex,
     ModuleCompare? compare,
     ModuleStateToken? token,
+    bool? blink,
   }) {
     final rule = _rules[index];
     return ModuleStateRule(
@@ -951,8 +976,78 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
       compare: compare ?? rule.compare,
       constant: rule.constant,
       token: token ?? rule.token,
+      blink: blink ?? rule.blink,
     );
   }
+
+  /// Layer and the bound `visible`, for every control kind.
+  List<Widget> _presentationEditor(BuildContext context) => [
+        const SizedBox(height: 14),
+        TouchTextFormField(
+          controller: _layer,
+          maxLength: ModuleControlDefinition.maxLayerLength,
+          decoration: InputDecoration(
+            labelText: context.tr('std.module.editor.layer'),
+            helperText: context.tr('std.module.editor.layerHelp'),
+            helperMaxLines: 2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: LText('std.module.editor.visibleWhen',
+              style: Theme.of(context).textTheme.titleSmall),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: LText('std.module.editor.visibleWhenHelp',
+              style: Theme.of(context).textTheme.bodySmall),
+        ),
+        _OpcUaBindingPicker(
+          candidates: _bindingCandidates(widget.node, ModuleControlKind.shape),
+          selected: _visibleBinding,
+          maximum: 1,
+          errorText: null,
+          searchKey: 'opcua-visible-search',
+          onChanged: (bindings) => setState(() => _visibleBinding = bindings),
+        ),
+        if (_visibleBinding.isNotEmpty)
+          Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<ModuleCompare>(
+                initialValue: _visibleCompare,
+                isExpanded: true,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.ruleCompare')),
+                items: [
+                  for (final compare in ModuleCompare.values)
+                    DropdownMenuItem(
+                      value: compare,
+                      child: LText('std.module.compare.${compare.name}'),
+                    ),
+                ],
+                onChanged: (value) => setState(
+                    () => _visibleCompare = value ?? _visibleCompare),
+              ),
+            ),
+            if (_takesConstant(_visibleCompare)) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: TouchTextFormField(
+                  controller: _visibleConstant,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                      labelText: context.tr('std.module.editor.ruleConstant')),
+                  validator: (value) =>
+                      double.tryParse(value?.trim() ?? '') == null
+                          ? context.tr('std.module.editor.required')
+                          : null,
+                ),
+              ),
+            ],
+          ]),
+      ];
 
   Widget _tokenPicker(
     BuildContext context, {
@@ -1108,6 +1203,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                 ],
                 if (ModuleControlDefinition.usesRules(_kind))
                   ..._stateEditor(context),
+                ..._presentationEditor(context),
                 if (_kind == ModuleControlKind.chart) ...[
                   Row(children: [
                     Expanded(
@@ -1329,12 +1425,21 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                 constant:
                     double.tryParse(_ruleConstants[index].text.trim()) ?? 0,
                 token: _rules[index].token,
+                blink: _rules[index].blink,
               ),
         ],
         defaultToken: _defaultToken,
         minimum: double.tryParse(_minimum.text.trim()) ?? 0,
         maximum: double.tryParse(_maximum.text.trim()) ?? 100,
         placement: existing?.placement ?? widget.placement,
+        layer: _layer.text.trim(),
+        visibleWhen: _visibleBinding.isEmpty
+            ? null
+            : ModuleCondition(
+                binding: _visibleBinding.single,
+                compare: _visibleCompare,
+                constant: double.tryParse(_visibleConstant.text.trim()) ?? 0,
+              ),
       ),
     );
   }
@@ -1347,12 +1452,16 @@ class _OpcUaBindingPicker extends StatefulWidget {
   final String? errorText;
   final ValueChanged<List<String>> onChanged;
 
+  /// Distinguishes the search field when a dialog holds two pickers.
+  final String searchKey;
+
   const _OpcUaBindingPicker({
     required this.candidates,
     required this.selected,
     required this.maximum,
     required this.errorText,
     required this.onChanged,
+    this.searchKey = 'opcua-binding-search',
   });
 
   @override
@@ -1430,7 +1539,7 @@ class _OpcUaBindingPickerState extends State<_OpcUaBindingPicker> {
           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
             _searchController = controller;
             return TouchTextField(
-              key: const ValueKey('opcua-binding-search'),
+              key: ValueKey(widget.searchKey),
               controller: controller,
               focusNode: focusNode,
               enabled: !atChartLimit,

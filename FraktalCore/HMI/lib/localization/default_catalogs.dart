@@ -618,6 +618,15 @@ const standardEnglish = <String, String>{
   'std.module.editor.dragOntoImage': 'Drag onto the picture',
   'std.module.editor.removeFromImage': 'Take off the picture',
   'std.module.editor.scopeModule': 'This module',
+  'std.module.editor.bringToFront': 'Bring to front',
+  'std.module.editor.sendToBack': 'Send to back',
+  'std.module.editor.layer': 'Layer',
+  'std.module.editor.layerHelp':
+      'Controls sharing a layer name can be shown or hidden together by the viewer, e.g. "Sensor names". Empty = always shown.',
+  'std.module.editor.visibleWhen': 'Show only while',
+  'std.module.editor.visibleWhenHelp':
+      'Presentation only - the PLC still checks every request. While the tag is unavailable the control stays shown.',
+  'std.module.editor.ruleBlink': 'Flash',
   'std.module.viewClass.operating': 'OPERATING',
   'std.module.viewClass.maintenance': 'MAINTENANCE',
   'std.module.viewClass.engineering': 'ENGINEERING',
@@ -1489,6 +1498,15 @@ const standardSpanish = <String, String>{
   'std.module.editor.dragOntoImage': 'Arrastrar sobre la imagen',
   'std.module.editor.removeFromImage': 'Quitar de la imagen',
   'std.module.editor.scopeModule': 'Este módulo',
+  'std.module.editor.bringToFront': 'Traer al frente',
+  'std.module.editor.sendToBack': 'Enviar al fondo',
+  'std.module.editor.layer': 'Capa',
+  'std.module.editor.layerHelp':
+      'Los controles con el mismo nombre de capa pueden mostrarse u ocultarse juntos, p. ej. "Nombres de sensores". Vacío = siempre visible.',
+  'std.module.editor.visibleWhen': 'Mostrar solo mientras',
+  'std.module.editor.visibleWhenHelp':
+      'Solo presentación: el PLC sigue verificando cada solicitud. Mientras la etiqueta no esté disponible, el control permanece visible.',
+  'std.module.editor.ruleBlink': 'Parpadear',
   'std.module.viewClass.operating': 'OPERACIÓN',
   'std.module.viewClass.maintenance': 'MANTENIMIENTO',
   'std.module.viewClass.engineering': 'INGENIERÍA',

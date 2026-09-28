@@ -102,7 +102,7 @@ Fraktal discovery, and live-state publication instead of waiting indefinitely.
 
 ## Honest status
 Verified against Flutter 3.47.5 (2026-09-28 — the pinned SDK; `pubspec.lock` cannot
-resolve on an older one): `flutter analyze` clean, **373 tests passing** with 6
+resolve on an older one): `flutter analyze` clean, **379 tests passing** with 6
 intentional live-environment skips (`flutter test`),
 and `flutter build web` succeeds. The suite is offline by design — SimRepository and
 fakes, no PLC, no ADS, no network; anything needing hardware lives in `tool/probe_*.dart`

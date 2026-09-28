@@ -97,6 +97,10 @@ class PlacementEditor extends StatefulWidget {
   final ValueChanged<ModuleControlDefinition>? onEdit;
   final ValueChanged<String>? onRemove;
 
+  /// Z-order (LOCALIZATION §7.2): drawing order is control order, so "front"
+  /// moves the control last and "back" first.
+  final void Function(String id, bool front)? onRestack;
+
   const PlacementEditor({
     super.key,
     required this.image,
@@ -106,6 +110,7 @@ class PlacementEditor extends StatefulWidget {
     this.onAddAt,
     this.onEdit,
     this.onRemove,
+    this.onRestack,
   });
 
   @override
@@ -243,7 +248,7 @@ class _PlacementEditorState extends State<PlacementEditor> {
     double within(double value, double extent, double size) =>
         value.clamp(0.0, math.max(0.0, extent - size));
     const toolbarHeight = 40.0;
-    const toolbarWidth = 132.0;
+    const toolbarWidth = 212.0;
     final toolbarTop = rect.top >= toolbarHeight + 4
         ? rect.top - toolbarHeight - 4
         : rect.bottom + 4;
@@ -286,6 +291,18 @@ class _PlacementEditorState extends State<PlacementEditor> {
               visualDensity: VisualDensity.compact,
               onPressed: () => widget.onEdit?.call(control),
               icon: const Icon(Icons.edit_outlined, size: 18),
+            ),
+            IconButton(
+              tooltip: context.tr('std.module.editor.bringToFront'),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => widget.onRestack?.call(control.id, true),
+              icon: const Icon(Icons.flip_to_front, size: 18),
+            ),
+            IconButton(
+              tooltip: context.tr('std.module.editor.sendToBack'),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => widget.onRestack?.call(control.id, false),
+              icon: const Icon(Icons.flip_to_back, size: 18),
             ),
             IconButton(
               tooltip: context.tr('std.module.editor.removeFromImage'),

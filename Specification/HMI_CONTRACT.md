@@ -111,7 +111,17 @@ The Overview and every custom view declare a display class (§7.4) - operating,
 maintenance or engineering - shown as a badge on the view and recorded in the export.
 An operating view is refused a picture at publish; a view stored without a class takes
 maintenance if it carries a picture and operating otherwise. Every view is also
-refused at publish above the standard budget of 200 bound reads (§7.3).
+refused at publish above the standard budget of 200 bound reads (§7.3). On an
+operating view an `ok` state token draws neutral: colour is reserved for the abnormal.
+
+Every control may name a **layer** (§7.2): controls sharing it form a show/hide set the
+viewer toggles with chips (per panel, never while editing). **Z-order** is control
+order; the placement toolbar brings a control to the front or sends it to the back. A
+control may carry a bound **`visible`** - one tag, a comparison and a constant - and
+stays shown while that tag is unavailable, so missing data never hides an indicator; it
+is presentation, never enforcement. A state rule may **blink** while it is the rule in
+force, and holds steady when the platform asks for reduced motion. The `visible` tag
+counts toward the read budget.
 
 An administrator may select a whitelisted portable icon preset for each custom or
 guidance tab. The Overview tab and every custom tab may also carry an embedded

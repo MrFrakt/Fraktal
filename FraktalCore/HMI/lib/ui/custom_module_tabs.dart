@@ -89,6 +89,53 @@ class CustomModuleTabView extends StatefulWidget {
 class _CustomModuleTabViewState extends State<CustomModuleTabView> {
   final Map<String, _ChartSeries> _series = {};
 
+  /// Layers this viewer has hidden. Per panel and per session: a show/hide
+  /// set is a way of looking, not a setting of the machine.
+  final Set<String> _hiddenLayers = {};
+
+  /// Whether [control] is drawn right now. While editing, everything is, so
+  /// nothing can be lost from the editor behind a hidden layer.
+  bool _shown(ModuleControlDefinition control) {
+    if (widget.editing) return true;
+    if (control.layer.isNotEmpty && _hiddenLayers.contains(control.layer)) {
+      return false;
+    }
+    final condition = control.visibleWhen;
+    if (condition == null) return true;
+    final tag = widget.node.tagAt(condition.binding);
+    // Unavailable data never hides an indicator.
+    return tag?.usable != true || condition.matches(tag!.value);
+  }
+
+  List<ModuleControlDefinition> get _controls =>
+      [for (final control in widget.tab.controls) if (_shown(control)) control];
+
+  /// §7.4: on an operating view colour is reserved for the abnormal, so an OK
+  /// state draws neutral there; on maintenance/engineering views it is green.
+  Color _tokenColor(BuildContext context, ModuleStateToken token) =>
+      stateTokenColor(
+        context,
+        token == ModuleStateToken.ok &&
+                widget.tab.viewClass == ModuleViewClass.operating
+            ? ModuleStateToken.neutral
+            : token,
+      );
+
+  Widget? _layerBar(BuildContext context) {
+    final layers = widget.tab.layers;
+    if (widget.editing || layers.isEmpty) return null;
+    return Wrap(spacing: 6, runSpacing: 6, children: [
+      for (final layer in layers)
+        FilterChip(
+          key: ValueKey('layer-$layer'),
+          label: LText(layer),
+          selected: !_hiddenLayers.contains(layer),
+          onSelected: (show) => setState(() =>
+              show ? _hiddenLayers.remove(layer) : _hiddenLayers.add(layer)),
+        ),
+    ]);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -169,6 +216,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
             _editableControl(context, widget.tab.controls[index], index),
       );
     }
+    final layerBar = _layerBar(context);
     return LayoutBuilder(builder: (context, constraints) {
       final available = math.max(0.0, constraints.maxWidth - 32);
       return SingleChildScrollView(
@@ -177,7 +225,8 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
           spacing: 10,
           runSpacing: 10,
           children: [
-            for (final control in widget.tab.controls)
+            if (layerBar != null) SizedBox(width: available, child: layerBar),
+            for (final control in _controls)
               SizedBox(
                 width: _responsiveControlWidth(available, control.width),
                 child: _renderControl(context, control),
@@ -190,14 +239,15 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
 
   Widget _canvasLayout(BuildContext context) {
     final placed = [
-      for (final control in widget.tab.controls)
+      for (final control in _controls)
         if (control.placement != null) control,
     ];
     final flow = [
-      for (final control in widget.tab.controls)
+      for (final control in _controls)
         if (control.placement == null) control,
     ];
-    final canvas = BackgroundCanvas(
+    final layerBar = _layerBar(context);
+    final picture = BackgroundCanvas(
       background: widget.tab.background!,
       overlay: (context, image) => widget.editing
           ? PlacementEditor(
@@ -208,6 +258,14 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
               onAddAt: widget.onAddControlAt,
               onEdit: widget.onEditControl,
               onRemove: widget.onRemoveControl,
+              onRestack: (id, front) {
+                final all = widget.tab.controls;
+                final from = all.indexWhere((control) => control.id == id);
+                final to = front ? all.length - 1 : 0;
+                if (from >= 0 && from != to) {
+                  widget.onReorderControl?.call(from, to);
+                }
+              },
             )
           : Stack(children: [
               for (final control in placed)
@@ -228,6 +286,12 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
                     child: _renderControl(context, control),
                   ),
               ]);
+    final canvas = layerBar == null
+        ? picture
+        : Stack(fit: StackFit.expand, children: [
+            picture,
+            Positioned(left: 8, top: 8, right: 8, child: layerBar),
+          ]);
     if (side == null) return canvas;
     return LayoutBuilder(builder: (context, constraints) {
       if (constraints.maxWidth >= 900) {
@@ -298,7 +362,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
         tags.isNotEmpty && tags.every((tag) => tag?.usable == true);
     final values = [for (final tag in tags) tag?.value];
     final token = usable ? control.resolveState(values) : null;
-    final color = token == null ? null : stateTokenColor(context, token);
+    final color = token == null ? null : _tokenColor(context, token);
     final label = control.label.isEmpty ? control.primaryBinding : control.label;
     final unit = control.unit.isEmpty ? '' : ' ${control.unit}';
     final Widget body = switch (control.kind) {
@@ -336,7 +400,9 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
     final name = context.tr(label);
     return Tooltip(
       message: state.isEmpty ? name : '$name: $state',
-      child: body,
+      child: usable && control.ruleFor(values)?.blink == true
+          ? _Blink(child: body)
+          : body,
     );
   }
 
@@ -451,6 +517,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
       ModuleControlKind.image => _ImageControl(control: control),
       ModuleControlKind.shape || ModuleControlKind.level => _StateCard(
           control: control,
+          tokenColor: _tokenColor,
           tags: [
             for (final binding in control.linkedBindings)
               widget.node.tagAt(binding)
@@ -861,7 +928,9 @@ class _IndicatorControl extends StatelessWidget {
 class _StateCard extends StatelessWidget {
   final ModuleControlDefinition control;
   final List<PublishedTagValue?> tags;
-  const _StateCard({required this.control, required this.tags});
+  final Color Function(BuildContext, ModuleStateToken) tokenColor;
+  const _StateCard(
+      {required this.control, required this.tags, required this.tokenColor});
 
   @override
   Widget build(BuildContext context) {
@@ -873,7 +942,7 @@ class _StateCard extends StatelessWidget {
     }
     final values = [for (final tag in tags) tag!.value];
     final token = control.resolveState(values);
-    final color = stateTokenColor(context, token);
+    final color = tokenColor(context, token);
     final level = control.kind == ModuleControlKind.level;
     return FraktalCard(
       child: ListTile(
@@ -898,6 +967,35 @@ class _StateCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Flashes [child] about once a second - for the one state that must catch
+/// the eye. Steady when the platform asks for reduced motion.
+class _Blink extends StatefulWidget {
+  final Widget child;
+  const _Blink({required this.child});
+
+  @override
+  State<_Blink> createState() => _BlinkState();
+}
+
+class _BlinkState extends State<_Blink> with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 500),
+    lowerBound: 0.25,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => MediaQuery.disableAnimationsOf(context)
+      ? widget.child
+      : FadeTransition(opacity: _pulse, child: widget.child);
 }
 
 /// A coloured outline over a picture: a door, a guard, an e-stop. The fill is
