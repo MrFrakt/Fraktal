@@ -5,7 +5,7 @@
 /// access-gated (7.7) and re-checked in the PLC.
 library;
 
-import 'embedded_image.dart';
+import 'background_canvas.dart';
 
 import 'dart:async';
 
@@ -283,24 +283,26 @@ class _ModuleDetailState extends State<ModuleDetail> {
         ModuleTabKind.codeReader => CodeReaderModuleTab(app: app, node: node),
         ModuleTabKind.rfid => RfidModuleTab(app: app, node: node),
         ModuleTabKind.configuration => _ConfigurationTab(app: app, node: node),
-        ModuleTabKind.custom || ModuleTabKind.guidance => _TabBackground(
-            background: tab.kind.acceptsBackground ? tab.background : null,
-            child: CustomModuleTabView(
-              app: app,
-              node: node,
-              tab: tab,
-              editing: _editing,
-              onEditControl: (control) =>
-                  _editControl(node, tab, control, capabilities),
-              onRemoveControl: (id) =>
-                  _removeControl(node, tab, id, capabilities),
-              onMoveControlUp: (index) =>
-                  _moveControl(node, tab, index, -1, capabilities),
-              onMoveControlDown: (index) =>
-                  _moveControl(node, tab, index, 1, capabilities),
-              onReorderControl: (oldIndex, newIndex) =>
-                  _reorderControl(node, tab, oldIndex, newIndex, capabilities),
-            ),
+        ModuleTabKind.custom || ModuleTabKind.guidance => CustomModuleTabView(
+            app: app,
+            node: node,
+            tab: tab,
+            editing: _editing,
+            onEditControl: (control) =>
+                _editControl(node, tab, control, capabilities),
+            onRemoveControl: (id) =>
+                _removeControl(node, tab, id, capabilities),
+            onMoveControlUp: (index) =>
+                _moveControl(node, tab, index, -1, capabilities),
+            onMoveControlDown: (index) =>
+                _moveControl(node, tab, index, 1, capabilities),
+            onReorderControl: (oldIndex, newIndex) =>
+                _reorderControl(node, tab, oldIndex, newIndex, capabilities),
+            onPlaceControl: (id, placement) =>
+                _placeControl(tab, id, placement),
+            onAddControlAt: (kind, placement) => _addControl(
+                node, tab, capabilities,
+                kind: kind, placement: placement),
           ),
       };
 
@@ -353,12 +355,26 @@ class _ModuleDetailState extends State<ModuleDetail> {
     }
   }
 
+  /// [kind]/[placement]: dropped from the palette onto the tab's picture.
   Future<void> _addControl(ModuleNode node, ModuleTabDefinition tab,
-      ModuleTabCapabilities capabilities) async {
-    final control = await showModuleControlEditor(context, node: node);
+      ModuleTabCapabilities capabilities,
+      {ModuleControlKind? kind, ModulePlacement? placement}) async {
+    final control = await showModuleControlEditor(context,
+        node: node, initialKind: kind, placement: placement);
     if (control != null) {
       _upsertDraftTab(tab.copyWith(controls: [...tab.controls, control]));
     }
+  }
+
+  /// A control dragged or resized on the picture (or taken off it: null).
+  /// One draft step per completed gesture, so undo steps back a whole move.
+  void _placeControl(
+      ModuleTabDefinition tab, String id, ModulePlacement? placement) {
+    final controls = tab.controls.toList();
+    final index = controls.indexWhere((item) => item.id == id);
+    if (index < 0 || controls[index].placement == placement) return;
+    controls[index] = controls[index].withPlacement(placement);
+    _upsertDraftTab(tab.copyWith(controls: controls));
   }
 
   Future<void> _editControl(
@@ -714,64 +730,6 @@ IconData _tabIcon(ModuleTabIcon icon) => switch (icon) {
       ModuleTabIcon.electrical => Icons.electrical_services_outlined,
     };
 
-/// A tab's optional background image, drawn behind [child] (the Overview and
-/// custom tabs: ModuleTabKind.acceptsBackground). Presentation only: the live
-/// controls stay on top.
-class _TabBackground extends StatelessWidget {
-  final ModuleTabBackground? background;
-  final Widget child;
-  const _TabBackground({required this.background, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final configured = background;
-    if (configured == null || configured.imageBase64.isEmpty) return child;
-    // Decoded once and reused across the per-snapshot rebuilds of this view.
-    final image = embeddedImage(configured.imageBase64, maxWidth: 2560);
-    if (image == null) return child;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            configured.marginLeft,
-            configured.marginTop,
-            configured.marginRight,
-            configured.marginBottom,
-          ),
-          child: Image(
-            image: image,
-            fit: _backgroundBoxFit(configured.fit),
-            alignment: _backgroundAlignment(configured.position),
-            gaplessPlayback: true,
-          ),
-        ),
-        child,
-      ],
-    );
-  }
-}
-
-BoxFit _backgroundBoxFit(ModuleBackgroundFit fit) => switch (fit) {
-      ModuleBackgroundFit.contain => BoxFit.contain,
-      ModuleBackgroundFit.cover => BoxFit.cover,
-      ModuleBackgroundFit.fitWidth => BoxFit.fitWidth,
-      ModuleBackgroundFit.fitHeight => BoxFit.fitHeight,
-    };
-
-Alignment _backgroundAlignment(ModuleBackgroundPosition position) =>
-    switch (position) {
-      ModuleBackgroundPosition.topLeft => Alignment.topLeft,
-      ModuleBackgroundPosition.topCenter => Alignment.topCenter,
-      ModuleBackgroundPosition.topRight => Alignment.topRight,
-      ModuleBackgroundPosition.centerLeft => Alignment.centerLeft,
-      ModuleBackgroundPosition.center => Alignment.center,
-      ModuleBackgroundPosition.centerRight => Alignment.centerRight,
-      ModuleBackgroundPosition.bottomLeft => Alignment.bottomLeft,
-      ModuleBackgroundPosition.bottomCenter => Alignment.bottomCenter,
-      ModuleBackgroundPosition.bottomRight => Alignment.bottomRight,
-    };
-
 /// The Configuration tab. The HMI's per-module section policy still decides
 /// who may see it (Configuration defaults to ENGINEER, LOCALIZATION §5); below
 /// that level the tab says what it needs instead of rendering empty.
@@ -953,7 +911,9 @@ class _ModuleOverviewTab extends StatelessWidget {
       if (history && n.isUnit && s.permits(GatedAction.alarmHistory))
         HistoryBrowser(node: n),
     ]);
-    return _TabBackground(background: background, child: content);
+    final configured = background;
+    if (configured == null || configured.imageBase64.isEmpty) return content;
+    return BackgroundCanvas(background: configured, child: content);
   }
 
   Widget _manualPanel(BuildContext context, ModuleNode n) {

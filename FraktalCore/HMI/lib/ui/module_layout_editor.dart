@@ -10,6 +10,7 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import 'app_theme.dart' show stateTokenColor;
 import 'touch_text_field.dart';
 
 Future<ModuleTabDefinition?> showModuleTabEditor(
@@ -25,14 +26,23 @@ Future<ModuleTabDefinition?> showModuleTabEditor(
       ),
     );
 
+/// [initialKind]/[placement]: a new control dropped from the palette onto a
+/// tab's picture - the editor opens on that kind and keeps that position.
 Future<ModuleControlDefinition?> showModuleControlEditor(
   BuildContext context, {
   ModuleControlDefinition? existing,
   required ModuleNode node,
+  ModuleControlKind? initialKind,
+  ModulePlacement? placement,
 }) =>
     showDialog<ModuleControlDefinition>(
       context: context,
-      builder: (_) => _ControlEditorDialog(existing: existing, node: node),
+      builder: (_) => _ControlEditorDialog(
+        existing: existing,
+        node: node,
+        initialKind: initialKind,
+        placement: placement,
+      ),
     );
 
 Future<void> exportHmiCustomization(BuildContext context, AppState app) async {
@@ -626,7 +636,14 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
 class _ControlEditorDialog extends StatefulWidget {
   final ModuleControlDefinition? existing;
   final ModuleNode node;
-  const _ControlEditorDialog({this.existing, required this.node});
+  final ModuleControlKind? initialKind;
+  final ModulePlacement? placement;
+  const _ControlEditorDialog({
+    this.existing,
+    required this.node,
+    this.initialKind,
+    this.placement,
+  });
 
   @override
   State<_ControlEditorDialog> createState() => _ControlEditorDialogState();
@@ -649,12 +666,20 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
   String? _imageError;
   String? _bindingError;
   late List<String> _bindings;
+  late ModuleShape _shape;
+  late ModuleStateToken _defaultToken;
+  late final TextEditingController _minimum;
+  late final TextEditingController _maximum;
+
+  /// One constant field per rule, kept in step with [_rules].
+  final List<ModuleStateRule> _rules = [];
+  final List<TextEditingController> _ruleConstants = [];
 
   @override
   void initState() {
     super.initState();
     final control = widget.existing;
-    _kind = control?.kind ?? ModuleControlKind.text;
+    _kind = control?.kind ?? widget.initialKind ?? ModuleControlKind.text;
     _action = control?.action ?? ModuleActionKind.none;
     _label = TextEditingController(text: control?.label ?? '');
     _text = TextEditingController(text: control?.text ?? '');
@@ -667,7 +692,21 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
     _points = TextEditingController(text: '${control?.historyPoints ?? 120}');
     _imageBase64 = control?.imageBase64 ?? '';
     _imageName = control?.imageName ?? '';
+    _shape = control?.shape ?? ModuleShape.rectangle;
+    _defaultToken = control?.defaultToken ??
+        (_kind == ModuleControlKind.level
+            ? ModuleStateToken.info
+            : ModuleStateToken.neutral);
+    _minimum = TextEditingController(text: _number(control?.minimum ?? 0));
+    _maximum = TextEditingController(text: _number(control?.maximum ?? 100));
+    for (final rule in control?.rules ?? const <ModuleStateRule>[]) {
+      _rules.add(rule);
+      _ruleConstants.add(TextEditingController(text: _number(rule.constant)));
+    }
   }
+
+  static String _number(double value) =>
+      value == value.roundToDouble() ? value.toInt().toString() : '$value';
 
   @override
   void dispose() {
@@ -678,11 +717,237 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
       _actionValue,
       _period,
       _points,
+      _minimum,
+      _maximum,
+      ..._ruleConstants,
     ]) {
       controller.dispose();
     }
     super.dispose();
   }
+
+  void _addRule() => setState(() {
+        _rules.add(const ModuleStateRule());
+        _ruleConstants.add(TextEditingController(text: '0'));
+      });
+
+  void _removeRule(int index) => setState(() {
+        _rules.removeAt(index);
+        _ruleConstants.removeAt(index).dispose();
+      });
+
+  static bool _takesConstant(ModuleCompare compare) =>
+      compare != ModuleCompare.isTrue && compare != ModuleCompare.isFalse;
+
+  /// Shape, range and the state rules of a shape or level control.
+  List<Widget> _stateEditor(BuildContext context) {
+    final bindingLabels = [
+      for (final binding in _bindings) binding.split('/').last,
+    ];
+    return [
+      const SizedBox(height: 10),
+      if (_kind == ModuleControlKind.shape)
+        DropdownButtonFormField<ModuleShape>(
+          initialValue: _shape,
+          decoration: InputDecoration(
+              labelText: context.tr('std.module.editor.shape')),
+          items: [
+            for (final shape in ModuleShape.values)
+              DropdownMenuItem(
+                value: shape,
+                child: LText('std.module.shape.${shape.name}'),
+              ),
+          ],
+          onChanged: (value) => setState(() => _shape = value ?? _shape),
+        ),
+      if (_kind == ModuleControlKind.level)
+        Row(children: [
+          Expanded(
+            child: TouchTextFormField(
+              controller: _minimum,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                  labelText: context.tr('std.module.editor.minimum')),
+              validator: (value) => double.tryParse(value?.trim() ?? '') == null
+                  ? context.tr('std.module.editor.required')
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TouchTextFormField(
+              controller: _maximum,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                  labelText: context.tr('std.module.editor.maximum')),
+              validator: (value) {
+                final maximum = double.tryParse(value?.trim() ?? '');
+                final minimum = double.tryParse(_minimum.text.trim());
+                if (maximum == null) {
+                  return context.tr('std.module.editor.required');
+                }
+                return minimum != null && maximum <= minimum
+                    ? context.tr('std.module.editor.rangeInvalid')
+                    : null;
+              },
+            ),
+          ),
+        ]),
+      const SizedBox(height: 14),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.stateRules',
+            style: Theme.of(context).textTheme.titleSmall),
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.stateRulesHelp',
+            style: Theme.of(context).textTheme.bodySmall),
+      ),
+      for (var index = 0; index < _rules.length; index++)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(children: [
+            Expanded(
+              flex: 3,
+              child: DropdownButtonFormField<int>(
+                // A binding removed after the rule was written: pick again.
+                initialValue: _rules[index].bindingIndex < _bindings.length
+                    ? _rules[index].bindingIndex
+                    : null,
+                isExpanded: true,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.ruleBinding')),
+                items: [
+                  for (var b = 0; b < bindingLabels.length; b++)
+                    DropdownMenuItem(
+                      value: b,
+                      child: Text(bindingLabels[b],
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _rules[index] =
+                    _ruleWith(index, bindingIndex: value)),
+                validator: (value) => value == null
+                    ? context.tr('std.module.editor.required')
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<ModuleCompare>(
+                initialValue: _rules[index].compare,
+                isExpanded: true,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.ruleCompare')),
+                items: [
+                  for (final compare in ModuleCompare.values)
+                    DropdownMenuItem(
+                      value: compare,
+                      child: LText('std.module.compare.${compare.name}'),
+                    ),
+                ],
+                onChanged: (value) => setState(() =>
+                    _rules[index] = _ruleWith(index, compare: value)),
+              ),
+            ),
+            if (_takesConstant(_rules[index].compare)) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: TouchTextFormField(
+                  controller: _ruleConstants[index],
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                      labelText: context.tr('std.module.editor.ruleConstant')),
+                  validator: (value) =>
+                      double.tryParse(value?.trim() ?? '') == null
+                          ? context.tr('std.module.editor.required')
+                          : null,
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: _tokenPicker(
+                context,
+                label: 'std.module.editor.ruleState',
+                value: _rules[index].token,
+                onChanged: (value) => setState(
+                    () => _rules[index] = _ruleWith(index, token: value)),
+              ),
+            ),
+            IconButton(
+              tooltip: context.tr('std.common.delete'),
+              onPressed: () => _removeRule(index),
+              icon: const Icon(Icons.remove_circle_outline),
+            ),
+          ]),
+        ),
+      if (_rules.length < ModuleStateRule.maxRules)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _bindings.isEmpty ? null : _addRule,
+            icon: const Icon(Icons.add),
+            label: const LText('std.module.editor.addRule'),
+          ),
+        ),
+      const SizedBox(height: 6),
+      _tokenPicker(
+        context,
+        label: 'std.module.editor.defaultState',
+        value: _defaultToken,
+        onChanged: (value) =>
+            setState(() => _defaultToken = value ?? _defaultToken),
+      ),
+    ];
+  }
+
+  ModuleStateRule _ruleWith(
+    int index, {
+    int? bindingIndex,
+    ModuleCompare? compare,
+    ModuleStateToken? token,
+  }) {
+    final rule = _rules[index];
+    return ModuleStateRule(
+      bindingIndex: bindingIndex ?? rule.bindingIndex,
+      compare: compare ?? rule.compare,
+      constant: rule.constant,
+      token: token ?? rule.token,
+    );
+  }
+
+  Widget _tokenPicker(
+    BuildContext context, {
+    required String label,
+    required ModuleStateToken value,
+    required ValueChanged<ModuleStateToken?> onChanged,
+  }) =>
+      DropdownButtonFormField<ModuleStateToken>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: context.tr(label)),
+        items: [
+          for (final token in ModuleStateToken.values)
+            DropdownMenuItem(
+              value: token,
+              child: Row(children: [
+                Icon(Icons.circle,
+                    size: 12, color: stateTokenColor(context, token)),
+                const SizedBox(width: 8),
+                Flexible(child: LText('std.module.state.${token.name}')),
+              ]),
+            ),
+        ],
+        onChanged: onChanged,
+      );
 
   bool get _usesBinding => ModuleControlDefinition.usesBindings(_kind);
 
@@ -790,16 +1055,15 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                       _bindingError = null;
                     }),
                   ),
-                  if (_kind == ModuleControlKind.chart)
+                  if (_kind == ModuleControlKind.chart ||
+                      _kind == ModuleControlKind.shape)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: LText(
                           'std.module.editor.multiBindingHelp',
-                          args: {
-                            'maximum': ModuleControlDefinition.maxChartBindings,
-                          },
+                          args: {'maximum': _maximumBindings},
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -812,6 +1076,8 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                         labelText: context.tr('std.module.editor.unit')),
                   ),
                 ],
+                if (ModuleControlDefinition.usesRules(_kind))
+                  ..._stateEditor(context),
                 if (_kind == ModuleControlKind.chart) ...[
                   Row(children: [
                     Expanded(
@@ -1023,6 +1289,22 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
         historyPoints: int.tryParse(_points.text.trim()) ?? 120,
         imageBase64: _imageBase64,
         imageName: _imageName,
+        shape: _shape,
+        rules: [
+          for (var index = 0; index < _rules.length; index++)
+            if (_rules[index].bindingIndex < _bindings.length)
+              ModuleStateRule(
+                bindingIndex: _rules[index].bindingIndex,
+                compare: _rules[index].compare,
+                constant:
+                    double.tryParse(_ruleConstants[index].text.trim()) ?? 0,
+                token: _rules[index].token,
+              ),
+        ],
+        defaultToken: _defaultToken,
+        minimum: double.tryParse(_minimum.text.trim()) ?? 0,
+        maximum: double.tryParse(_maximum.text.trim()) ?? 100,
+        placement: existing?.placement ?? widget.placement,
       ),
     );
   }
@@ -1189,7 +1471,11 @@ Map<String, PublishedTagValue> _bindingCandidates(
       final accepted = switch (kind) {
         ModuleControlKind.value => _isScalarTag(tag),
         ModuleControlKind.indicator => _isBooleanTag(tag),
-        ModuleControlKind.chart => _isNumericTag(tag),
+        ModuleControlKind.chart ||
+        ModuleControlKind.level =>
+          _isNumericTag(tag),
+        // A door reads a Boolean; a mode or state word reads a number.
+        ModuleControlKind.shape => _isBooleanTag(tag) || _isNumericTag(tag),
         _ => false,
       };
       if (accepted) candidates[entry.key] = tag;

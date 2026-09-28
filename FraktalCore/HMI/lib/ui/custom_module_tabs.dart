@@ -3,6 +3,9 @@ library;
 import 'embedded_image.dart';
 import 'dart:math' as math;
 
+import 'background_canvas.dart';
+import 'image_overlay.dart';
+
 import 'package:flutter/material.dart';
 import 'theme_surfaces.dart';
 
@@ -57,6 +60,13 @@ class CustomModuleTabView extends StatefulWidget {
   final ValueChanged<int>? onMoveControlDown;
   final void Function(int oldIndex, int newIndex)? onReorderControl;
 
+  /// A control moved on the tab's picture, or taken off it (null).
+  final void Function(String id, ModulePlacement? placement)? onPlaceControl;
+
+  /// A new control dropped from the palette onto the picture.
+  final void Function(ModuleControlKind kind, ModulePlacement placement)?
+      onAddControlAt;
+
   const CustomModuleTabView({
     super.key,
     required this.app,
@@ -68,6 +78,8 @@ class CustomModuleTabView extends StatefulWidget {
     this.onMoveControlUp,
     this.onMoveControlDown,
     this.onReorderControl,
+    this.onPlaceControl,
+    this.onAddControlAt,
   });
 
   @override
@@ -123,8 +135,19 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
     _series.removeWhere((key, _) => !chartSeriesKeys.contains(key));
   }
 
+  /// A custom tab with a picture is a canvas: placed controls sit on the
+  /// picture, the rest beside it. Never over it - a card floating over the
+  /// machine would hide the very door or sensor it is next to.
+  bool get _hasCanvas {
+    final background = widget.tab.background;
+    return widget.tab.kind.acceptsBackground &&
+        background != null &&
+        background.imageBase64.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_hasCanvas) return _canvasLayout(context);
     if (widget.tab.controls.isEmpty) {
       return Center(
         child: Padding(
@@ -165,8 +188,161 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
     });
   }
 
+  Widget _canvasLayout(BuildContext context) {
+    final placed = [
+      for (final control in widget.tab.controls)
+        if (control.placement != null) control,
+    ];
+    final flow = [
+      for (final control in widget.tab.controls)
+        if (control.placement == null) control,
+    ];
+    final canvas = BackgroundCanvas(
+      background: widget.tab.background!,
+      overlay: (context, image) => widget.editing
+          ? PlacementEditor(
+              image: image,
+              controls: placed,
+              render: (control) => _overlayControl(context, control),
+              onPlace: widget.onPlaceControl,
+              onAddAt: widget.onAddControlAt,
+              onEdit: widget.onEditControl,
+              onRemove: widget.onRemoveControl,
+            )
+          : Stack(children: [
+              for (final control in placed)
+                Positioned.fromRect(
+                  rect: placementRect(control.placement!, image),
+                  child: _overlayControl(context, control),
+                ),
+            ]),
+    );
+    final Widget? side = widget.editing
+        ? _canvasEditPanel(context, flow)
+        : flow.isEmpty
+            ? null
+            : ListView(padding: const EdgeInsets.all(12), children: [
+                for (final control in flow)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _renderControl(context, control),
+                  ),
+              ]);
+    if (side == null) return canvas;
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth >= 900) {
+        return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(child: canvas),
+          SizedBox(width: 320, child: side),
+        ]);
+      }
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(child: canvas),
+        SizedBox(
+          height: math.max(160.0, constraints.maxHeight * 0.38),
+          child: side,
+        ),
+      ]);
+    });
+  }
+
+  Widget _canvasEditPanel(
+      BuildContext context, List<ModuleControlDefinition> flow) {
+    final text = Theme.of(context).textTheme;
+    return ListView(padding: const EdgeInsets.all(12), children: [
+      LText('std.module.editor.paletteTitle', style: text.titleSmall),
+      const SizedBox(height: 4),
+      LText('std.module.editor.paletteHelp', style: text.bodySmall),
+      const SizedBox(height: 10),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final kind in kOverlayPaletteKinds)
+          OverlayDragSource(
+            key: ValueKey('palette-${kind.name}'),
+            data: NewControlDrop(kind),
+            feedback: _paletteChip(kind),
+            child: _paletteChip(kind),
+          ),
+      ]),
+      if (flow.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        LText('std.module.editor.notOnImage', style: text.titleSmall),
+        const SizedBox(height: 8),
+        for (final control in flow)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _editableControl(
+              context,
+              control,
+              widget.tab.controls.indexOf(control),
+              reorderable: false,
+            ),
+          ),
+      ],
+    ]);
+  }
+
+  Widget _paletteChip(ModuleControlKind kind) => Chip(
+        avatar: Icon(_controlIcon(kind), size: 18),
+        label: LText(_controlKindKey(kind)),
+      );
+
+  /// A control drawn on the picture, filling its placed box.
+  Widget _overlayControl(
+      BuildContext context, ModuleControlDefinition control) {
+    final tags = [
+      for (final binding in control.linkedBindings) widget.node.tagAt(binding)
+    ];
+    // Bad/Uncertain data renders unavailable, never as a state: a door drawn
+    // green from a stale value is worse than a door drawn "unknown".
+    final usable =
+        tags.isNotEmpty && tags.every((tag) => tag?.usable == true);
+    final values = [for (final tag in tags) tag?.value];
+    final token = usable ? control.resolveState(values) : null;
+    final color = token == null ? null : stateTokenColor(context, token);
+    final label = control.label.isEmpty ? control.primaryBinding : control.label;
+    final unit = control.unit.isEmpty ? '' : ' ${control.unit}';
+    final Widget body = switch (control.kind) {
+      ModuleControlKind.shape =>
+        _OverlayShape(shape: control.shape, color: color),
+      ModuleControlKind.level => _OverlayLevel(
+          control: control,
+          value: usable ? values.first : null,
+          color: color,
+        ),
+      ModuleControlKind.indicator =>
+        _OverlayLed(on: usable ? _asBool(values.first) : null),
+      ModuleControlKind.value => _OverlayChip(
+          text: usable ? '${_formatValue(values.first)}$unit' : '?',
+          unavailable: !usable,
+        ),
+      ModuleControlKind.text => _OverlayChip(
+          text: context.tr(control.text.isEmpty ? label : control.text),
+          unavailable: false,
+        ),
+      _ => FittedBox(
+          child: SizedBox(width: 280, child: _renderControl(context, control)),
+        ),
+    };
+    final state = switch (control.kind) {
+      ModuleControlKind.text => '',
+      _ when tags.isEmpty => '',
+      _ when !usable => _tagQualityText(
+          tags.firstWhere((tag) => tag?.usable != true, orElse: () => null)),
+      ModuleControlKind.shape ||
+      ModuleControlKind.level =>
+        context.tr(_stateTokenKey(token!)),
+      _ => '${_formatValue(values.first)}$unit',
+    };
+    final name = context.tr(label);
+    return Tooltip(
+      message: state.isEmpty ? name : '$name: $state',
+      child: body,
+    );
+  }
+
   Widget _editableControl(
-      BuildContext context, ModuleControlDefinition control, int index) {
+      BuildContext context, ModuleControlDefinition control, int index,
+      {bool reorderable = true}) {
     final rendered = _renderControl(context, control);
     if (!widget.editing) {
       return Padding(
@@ -183,32 +359,49 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
       child: Column(children: [
         Row(children: [
           const SizedBox(width: 8),
-          ReorderableDragStartListener(
-            index: index,
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Icon(Icons.drag_indicator),
+          if (reorderable)
+            ReorderableDragStartListener(
+              index: index,
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.drag_indicator),
+              ),
+            )
+          else
+            // Beside a picture the handle places the control ON the picture.
+            OverlayDragSource(
+              data: ExistingControlDrop(control),
+              feedback: _paletteChip(control.kind),
+              child: Tooltip(
+                message: context.tr('std.module.editor.dragOntoImage'),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(Icons.open_with),
+                ),
+              ),
             ),
-          ),
           Icon(_controlIcon(control.kind), size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: LText(
                 control.label.isEmpty ? control.kind.name : control.label),
           ),
-          IconButton(
-            tooltip: context.tr('std.common.moveUp'),
-            onPressed:
-                index == 0 ? null : () => widget.onMoveControlUp?.call(index),
-            icon: const Icon(Icons.arrow_upward),
-          ),
-          IconButton(
-            tooltip: context.tr('std.common.moveDown'),
-            onPressed: index == widget.tab.controls.length - 1
-                ? null
-                : () => widget.onMoveControlDown?.call(index),
-            icon: const Icon(Icons.arrow_downward),
-          ),
+          if (reorderable) ...[
+            IconButton(
+              tooltip: context.tr('std.common.moveUp'),
+              onPressed: index == 0
+                  ? null
+                  : () => widget.onMoveControlUp?.call(index),
+              icon: const Icon(Icons.arrow_upward),
+            ),
+            IconButton(
+              tooltip: context.tr('std.common.moveDown'),
+              onPressed: index == widget.tab.controls.length - 1
+                  ? null
+                  : () => widget.onMoveControlDown?.call(index),
+              icon: const Icon(Icons.arrow_downward),
+            ),
+          ],
           IconButton(
             tooltip: context.tr('std.common.edit'),
             onPressed: () => widget.onEditControl?.call(control),
@@ -256,6 +449,13 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
           tag: tag,
         ),
       ModuleControlKind.image => _ImageControl(control: control),
+      ModuleControlKind.shape || ModuleControlKind.level => _StateCard(
+          control: control,
+          tags: [
+            for (final binding in control.linkedBindings)
+              widget.node.tagAt(binding)
+          ],
+        ),
     };
   }
 }
@@ -654,6 +854,274 @@ class _IndicatorControl extends StatelessWidget {
         trailing: usable ? null : const Icon(Icons.warning_amber_rounded),
       ),
     );
+  }
+}
+
+/// A shape or level control away from a picture: its state as a card.
+class _StateCard extends StatelessWidget {
+  final ModuleControlDefinition control;
+  final List<PublishedTagValue?> tags;
+  const _StateCard({required this.control, required this.tags});
+
+  @override
+  Widget build(BuildContext context) {
+    final unusable =
+        tags.where((tag) => tag?.usable != true).toList(growable: false);
+    if (tags.isEmpty || unusable.isNotEmpty) {
+      return _UnavailableTagCard(
+          control: control, tag: unusable.firstOrNull);
+    }
+    final values = [for (final tag in tags) tag!.value];
+    final token = control.resolveState(values);
+    final color = stateTokenColor(context, token);
+    final level = control.kind == ModuleControlKind.level;
+    return FraktalCard(
+      child: ListTile(
+        leading: SizedBox(
+          width: level ? 16 : 28,
+          height: 32,
+          child: level
+              ? _OverlayLevel(
+                  control: control,
+                  value: values.first,
+                  color: color,
+                  showValue: false,
+                )
+              : _OverlayShape(shape: control.shape, color: color),
+        ),
+        title: LText(
+            control.label.isEmpty ? control.primaryBinding : control.label),
+        subtitle: level
+            ? Text('${_formatValue(values.first)}'
+                '${control.unit.isEmpty ? '' : ' ${control.unit}'}')
+            : LText(_stateTokenKey(token)),
+      ),
+    );
+  }
+}
+
+/// A coloured outline over a picture: a door, a guard, an e-stop. The fill is
+/// translucent so the machine stays visible through it, and a state glows.
+class _OverlayShape extends StatelessWidget {
+  final ModuleShape shape;
+
+  /// Null = the data is unavailable.
+  final Color? color;
+  const _OverlayShape({required this.shape, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final tint = color;
+    final box = DecoratedBox(
+      decoration: BoxDecoration(
+        color: tint == null
+            ? colors.surface.withValues(alpha: 0.35)
+            : tint.withValues(alpha: 0.32),
+        shape: shape == ModuleShape.circle ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: shape == ModuleShape.rounded
+            ? BorderRadius.circular(12)
+            : null,
+        border: Border.all(color: tint ?? colors.error, width: 2),
+        boxShadow: tint == null
+            ? null
+            : [
+                BoxShadow(
+                  color: tint.withValues(alpha: 0.55),
+                  blurRadius: 14,
+                  spreadRadius: 1,
+                ),
+              ],
+      ),
+      child: tint == null
+          ? FittedBox(
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(Icons.help_outline, color: colors.error),
+              ),
+            )
+          : const SizedBox.expand(),
+    );
+    if (shape != ModuleShape.circle) return box;
+    return Center(child: AspectRatio(aspectRatio: 1, child: box));
+  }
+}
+
+/// A level bar over a picture - a tank's contents. Vertical when its box is
+/// taller than wide, so the author chooses the orientation by drawing it.
+class _OverlayLevel extends StatelessWidget {
+  final ModuleControlDefinition control;
+  final Object? value;
+
+  /// Null = the data is unavailable.
+  final Color? color;
+  final bool showValue;
+
+  const _OverlayLevel({
+    required this.control,
+    required this.value,
+    required this.color,
+    this.showValue = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final number = switch (value) {
+      num n => n.toDouble(),
+      String s => double.tryParse(s),
+      _ => null,
+    };
+    final span = control.maximum - control.minimum;
+    final fraction = number == null || span <= 0
+        ? 0.0
+        : ((number - control.minimum) / span).clamp(0.0, 1.0);
+    final fill = color ?? colors.outline;
+    return LayoutBuilder(builder: (context, constraints) {
+      final vertical = constraints.maxHeight >= constraints.maxWidth;
+      return Stack(fit: StackFit.expand, children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.surface.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: color == null ? colors.error : colors.outline,
+              width: 1.5,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(3),
+          child: Align(
+            alignment:
+                vertical ? Alignment.bottomCenter : Alignment.centerLeft,
+            child: FractionallySizedBox(
+              heightFactor: vertical ? fraction : 1,
+              widthFactor: vertical ? 1 : fraction,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: LinearGradient(
+                    begin: vertical
+                        ? Alignment.bottomCenter
+                        : Alignment.centerLeft,
+                    end: vertical ? Alignment.topCenter : Alignment.centerRight,
+                    colors: [fill.withValues(alpha: 0.7), fill],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: fill.withValues(alpha: 0.45),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (showValue)
+          Center(
+            child: _OverlayChip(
+              text: number == null
+                  ? '?'
+                  : '${_formatValue(value)}'
+                      '${control.unit.isEmpty ? '' : ' ${control.unit}'}',
+              unavailable: color == null,
+              expand: false,
+            ),
+          ),
+      ]);
+    });
+  }
+}
+
+/// A lamp over a picture - a part-present sensor. Lit it glows; unlit it is
+/// dark; unavailable it is outlined in the error colour.
+class _OverlayLed extends StatelessWidget {
+  final bool? on;
+  const _OverlayLed({required this.on});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final lit = on == true;
+    final base = on == null
+        ? colors.surface
+        : lit
+            ? okColor(context)
+            : colors.outlineVariant;
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // The off-centre highlight is the lamp's reflection.
+            gradient: RadialGradient(
+              center: const Alignment(-0.35, -0.35),
+              colors: [
+                Color.lerp(base, Colors.white, lit ? 0.55 : 0.15)!,
+                base,
+              ],
+            ),
+            border: Border.all(
+              color: on == null ? colors.error : colors.outline,
+              width: 1.5,
+            ),
+            boxShadow: lit
+                ? [
+                    BoxShadow(
+                      color: base.withValues(alpha: 0.75),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A value or caption over a picture, on a translucent plate that keeps it
+/// readable over any image.
+class _OverlayChip extends StatelessWidget {
+  final String text;
+  final bool unavailable;
+  final bool expand;
+
+  const _OverlayChip({
+    required this.text,
+    required this.unavailable,
+    this.expand = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: unavailable ? colors.error : colors.outlineVariant,
+        ),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          maxLines: 1,
+          style: TextStyle(
+            color: unavailable ? colors.error : colors.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+    return expand ? SizedBox.expand(child: Center(child: chip)) : chip;
   }
 }
 
@@ -1180,6 +1648,12 @@ class _TrendPainter extends CustomPainter {
   }
 }
 
+String _controlKindKey(ModuleControlKind kind) =>
+    'std.module.control.${kind.name}';
+
+String _stateTokenKey(ModuleStateToken token) =>
+    'std.module.state.${token.name}';
+
 String _chartSeriesKey(String controlId, String binding) =>
     '$controlId\u0000$binding';
 
@@ -1224,6 +1698,8 @@ IconData _controlIcon(ModuleControlKind kind) => switch (kind) {
       ModuleControlKind.button => Icons.smart_button_outlined,
       ModuleControlKind.textInput => Icons.input,
       ModuleControlKind.image => Icons.image_outlined,
+      ModuleControlKind.shape => Icons.crop_square,
+      ModuleControlKind.level => Icons.battery_5_bar,
     };
 
 Object? _firstValue(ModuleNode node, List<String> paths) {

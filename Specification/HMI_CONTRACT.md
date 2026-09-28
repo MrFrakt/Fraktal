@@ -82,6 +82,22 @@ a wrapping grid. Edit mode supports drag reordering plus keyboard-accessible mov
 actions. Layouts remain flow-based and responsive rather than persisting fragile
 pixel coordinates.
 
+A custom tab with a background image is an overlay container
+(`LOCALIZATION_AND_MODULE_CONTENT.md` §7.2): a control may carry a placement whose
+position and size are fractions of the image's own painted box, computed with the
+same fit/alignment/margin arithmetic that draws the image, so a lamp placed on a
+sensor stays on it on every panel size and fit. Unplaced controls stay in a flow
+list beside the picture, never over it. An ADMIN drags a control from a palette onto
+the picture, drags a placed control to move it and its corner to resize it; each
+completed gesture is one draft step. Two kinds exist for pictures: a state shape
+(rectangle, rounded rectangle, circle) and a level bar (vertical when drawn taller
+than wide, over a declared minimum/maximum). Their colour comes from at most four
+ordered rules - binding, comparison (is TRUE, is FALSE, =, ≠, >, <) against a
+constant, semantic state token - and a default token (§7.3): the first match
+wins, a non-numeric value never matches, and any Bad/Uncertain or missing binding
+renders the control unavailable instead of a state. A stored rule that names a
+binding the control no longer has rejects the control rather than dropping the rule.
+
 An administrator may select a whitelisted portable icon preset for each custom or
 guidance tab. The Overview tab and every custom tab may also carry an embedded
 background image with contain/cover/fit-width/fit-height aspect-ratio presets,

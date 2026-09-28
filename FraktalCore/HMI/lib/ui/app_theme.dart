@@ -11,6 +11,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'theme_surfaces.dart';
+import '../content/module_layout.dart' show ModuleStateToken;
 import '../domain/types.dart';
 
 /// Touch-first scrolling on EVERY platform and in EVERY app surface.
@@ -671,3 +672,16 @@ Color stateColor(BuildContext ctx, ExecState s) {
       return warningColor(ctx);
   }
 }
+
+/// The GLYPH colour (3:1 on the surface) of an authored overlay state. Built on
+/// the same semantic helpers as every status in the HMI, so a door drawn red
+/// on a machine picture is the same red as the alarm that faulted it.
+Color stateTokenColor(BuildContext ctx, ModuleStateToken token) =>
+    switch (token) {
+      ModuleStateToken.ok => okColor(ctx),
+      ModuleStateToken.warning => warningColor(ctx),
+      ModuleStateToken.error => Theme.of(ctx).colorScheme.error,
+      ModuleStateToken.info => infoColor(ctx),
+      ModuleStateToken.neutral => Theme.of(ctx).colorScheme.onSurfaceVariant,
+      ModuleStateToken.off => Theme.of(ctx).colorScheme.outlineVariant,
+    };

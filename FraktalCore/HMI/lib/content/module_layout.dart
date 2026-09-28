@@ -68,6 +68,157 @@ enum ModuleControlKind {
   button,
   textInput,
   image,
+  // Appended (kinds persist by name): overlay-first kinds for a machine
+  // picture - a door or e-stop drawn as a coloured shape, a tank level bar.
+  shape,
+  level,
+}
+
+/// The outline of a [ModuleControlKind.shape].
+enum ModuleShape { rectangle, rounded, circle }
+
+/// The semantic state an overlay control shows. A TOKEN, never a literal
+/// colour: every theme is measured against these (theme_contrast_test), and a
+/// literal would leave that guarantee.
+enum ModuleStateToken { neutral, ok, warning, error, info, off }
+
+/// The bounded comparisons a [ModuleStateRule] may make. Deliberately no
+/// expression language: a surface nobody reviews, at a cost nobody bounds on
+/// a picture holding hundreds of indicators.
+enum ModuleCompare { isTrue, isFalse, equals, notEquals, above, below }
+
+/// One "this binding compares so -> this state" rule. A control checks its
+/// rules in order and takes the first match, else its default state: a door is
+/// `Faulted isTrue -> error`, `Closed isTrue -> ok`, default `warning`.
+class ModuleStateRule {
+  static const maxRules = 4;
+
+  /// Index into the control's linked bindings.
+  final int bindingIndex;
+  final ModuleCompare compare;
+  final double constant;
+  final ModuleStateToken token;
+
+  const ModuleStateRule({
+    this.bindingIndex = 0,
+    this.compare = ModuleCompare.isTrue,
+    this.constant = 0,
+    this.token = ModuleStateToken.ok,
+  });
+
+  /// Whether [value] satisfies this rule. A value that is neither a number nor
+  /// a Boolean never matches, so a rule cannot claim a state from text.
+  bool matches(Object? value) {
+    final number = switch (value) {
+      bool b => b ? 1.0 : 0.0,
+      num n => n.toDouble(),
+      String s when s.toLowerCase() == 'true' => 1.0,
+      String s when s.toLowerCase() == 'false' => 0.0,
+      String s => double.tryParse(s),
+      _ => null,
+    };
+    if (number == null) return false;
+    return switch (compare) {
+      ModuleCompare.isTrue => number != 0,
+      ModuleCompare.isFalse => number == 0,
+      ModuleCompare.equals => number == constant,
+      ModuleCompare.notEquals => number != constant,
+      ModuleCompare.above => number > constant,
+      ModuleCompare.below => number < constant,
+    };
+  }
+
+  Map<String, Object?> toJson() => {
+        'binding': bindingIndex,
+        'compare': compare.name,
+        'constant': constant,
+        'token': token.name,
+      };
+
+  static ModuleStateRule? fromJson(Object? source, int bindingCount) {
+    if (source is! Map) return null;
+    final index = source['binding'];
+    final constant = source['constant'];
+    final compare = ModuleCompare.values
+        .where((value) => value.name == source['compare'])
+        .firstOrNull;
+    final token = ModuleStateToken.values
+        .where((value) => value.name == source['token'])
+        .firstOrNull;
+    if (index is! num ||
+        index < 0 ||
+        index >= bindingCount ||
+        compare == null ||
+        token == null) {
+      return null;
+    }
+    final value = constant is num ? constant.toDouble() : 0.0;
+    return ModuleStateRule(
+      bindingIndex: index.toInt(),
+      compare: compare,
+      constant: value.isFinite ? value : 0,
+      token: token,
+    );
+  }
+}
+
+/// Where a control sits on its tab's background image, as fractions (0..1) of
+/// the image's own PAINTED box - never of the tab. A grid cell stops covering
+/// the sensor it annotates the moment the image letterboxes; a position in the
+/// image's own box does not, whatever the panel size, fit or margins.
+class ModulePlacement {
+  static const minSize = 0.01;
+
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+
+  const ModulePlacement({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  /// The same placement kept inside the image and at least [minSize] big.
+  ModulePlacement clamped() {
+    double unit(double v) => v.isFinite ? v.clamp(0.0, 1.0) : 0.0;
+    final w = unit(width).clamp(minSize, 1.0);
+    final h = unit(height).clamp(minSize, 1.0);
+    return ModulePlacement(
+      x: unit(x).clamp(0.0, 1.0 - w),
+      y: unit(y).clamp(0.0, 1.0 - h),
+      width: w,
+      height: h,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ModulePlacement &&
+      other.x == x &&
+      other.y == y &&
+      other.width == width &&
+      other.height == height;
+
+  @override
+  int get hashCode => Object.hash(x, y, width, height);
+
+  Map<String, Object?> toJson() =>
+      {'x': x, 'y': y, 'width': width, 'height': height};
+
+  static ModulePlacement? fromJson(Object? source) {
+    if (source is! Map) return null;
+    double? read(String name) {
+      final value = source[name];
+      return value is num && value.isFinite ? value.toDouble() : null;
+    }
+
+    final x = read('x'), y = read('y'), w = read('width'), h = read('height');
+    if (x == null || y == null || w == null || h == null) return null;
+    return ModulePlacement(x: x, y: y, width: w, height: h).clamped();
+  }
 }
 
 enum ModuleBackgroundFit { contain, cover, fitWidth, fitHeight }
@@ -227,18 +378,29 @@ class ModuleControlDefinition {
   static const maxImageBytes = 5 * 1024 * 1024;
   static const maxChartBindings = 8;
 
+  /// A shape may read several signals (door closed + door faulted).
+  static const maxShapeBindings = ModuleStateRule.maxRules;
+
   static bool usesBindings(ModuleControlKind kind) => const {
         ModuleControlKind.value,
         ModuleControlKind.indicator,
         ModuleControlKind.chart,
         ModuleControlKind.textInput,
+        ModuleControlKind.shape,
+        ModuleControlKind.level,
       }.contains(kind);
+
+  /// The kinds whose colour comes from [rules] and [defaultToken].
+  static bool usesRules(ModuleControlKind kind) =>
+      kind == ModuleControlKind.shape || kind == ModuleControlKind.level;
 
   static int maximumBindingsFor(ModuleControlKind kind) => switch (kind) {
         ModuleControlKind.chart => maxChartBindings,
+        ModuleControlKind.shape => maxShapeBindings,
         ModuleControlKind.value ||
         ModuleControlKind.indicator ||
-        ModuleControlKind.textInput =>
+        ModuleControlKind.textInput ||
+        ModuleControlKind.level =>
           1,
         _ => 0,
       };
@@ -260,6 +422,17 @@ class ModuleControlDefinition {
   final int historyPoints;
   final String imageBase64;
   final String imageName;
+  final ModuleShape shape;
+  final List<ModuleStateRule> rules;
+  final ModuleStateToken defaultToken;
+
+  /// The range a [ModuleControlKind.level] bar spans.
+  final double minimum;
+  final double maximum;
+
+  /// Set = drawn over the tab's background image at this position; null = in
+  /// the tab's normal flow.
+  final ModulePlacement? placement;
 
   const ModuleControlDefinition({
     required this.id,
@@ -278,7 +451,52 @@ class ModuleControlDefinition {
     this.historyPoints = 120,
     this.imageBase64 = '',
     this.imageName = '',
+    this.shape = ModuleShape.rectangle,
+    this.rules = const [],
+    this.defaultToken = ModuleStateToken.neutral,
+    this.minimum = 0,
+    this.maximum = 100,
+    this.placement,
   });
+
+  /// The state [values] (this control's linked bindings, in order) put it in:
+  /// the first matching rule, else [defaultToken].
+  ModuleStateToken resolveState(List<Object?> values) {
+    for (final rule in rules) {
+      if (rule.bindingIndex < values.length &&
+          rule.matches(values[rule.bindingIndex])) {
+        return rule.token;
+      }
+    }
+    return defaultToken;
+  }
+
+  /// This control moved onto the image, or back into the flow (null).
+  ModuleControlDefinition withPlacement(ModulePlacement? next) =>
+      ModuleControlDefinition(
+        id: id,
+        kind: kind,
+        label: label,
+        text: text,
+        binding: binding,
+        bindings: bindings,
+        unit: unit,
+        action: action,
+        actionValue: actionValue,
+        confirmation: confirmation,
+        width: width,
+        targetPath: targetPath,
+        samplePeriodMs: samplePeriodMs,
+        historyPoints: historyPoints,
+        imageBase64: imageBase64,
+        imageName: imageName,
+        shape: shape,
+        rules: rules,
+        defaultToken: defaultToken,
+        minimum: minimum,
+        maximum: maximum,
+        placement: next?.clamped(),
+      );
 
   /// Version-2 layouts stored one `binding`. New layouts store a list while
   /// retaining the first item in that legacy field for downgrade/import
@@ -315,6 +533,11 @@ class ModuleControlDefinition {
     int? historyPoints,
     String? imageBase64,
     String? imageName,
+    ModuleShape? shape,
+    List<ModuleStateRule>? rules,
+    ModuleStateToken? defaultToken,
+    double? minimum,
+    double? maximum,
   }) =>
       ModuleControlDefinition(
         id: id ?? this.id,
@@ -337,6 +560,12 @@ class ModuleControlDefinition {
             .toInt(),
         imageBase64: imageBase64 ?? this.imageBase64,
         imageName: imageName ?? this.imageName,
+        shape: shape ?? this.shape,
+        rules: rules ?? this.rules,
+        defaultToken: defaultToken ?? this.defaultToken,
+        minimum: minimum ?? this.minimum,
+        maximum: maximum ?? this.maximum,
+        placement: placement,
       );
 
   Map<String, Object?> toJson() => {
@@ -356,6 +585,12 @@ class ModuleControlDefinition {
         'historyPoints': historyPoints,
         'imageBase64': imageBase64,
         'imageName': imageName,
+        'shape': shape.name,
+        'rules': [for (final rule in rules) rule.toJson()],
+        'defaultToken': defaultToken.name,
+        'minimum': minimum,
+        'maximum': maximum,
+        if (placement != null) 'placement': placement!.toJson(),
       };
 
   static ModuleControlDefinition? fromJson(Object? source) {
@@ -413,6 +648,30 @@ class ModuleControlDefinition {
     if (usesBindings(kind) && bindings.isEmpty && legacyBinding.isNotEmpty) {
       bindings.add(legacyBinding);
     }
+    // Rules are all-or-nothing: a layout whose rule points past its bindings
+    // is rejected, never half-applied (a door that silently lost its fault
+    // rule would read green).
+    final rules = <ModuleStateRule>[];
+    final rawRules = source['rules'];
+    if (rawRules is List) {
+      if (rawRules.length > ModuleStateRule.maxRules) return null;
+      for (final item in rawRules) {
+        final rule = ModuleStateRule.fromJson(item, bindings.length);
+        if (rule == null) return null;
+        rules.add(rule);
+      }
+    }
+    double real(String name, double fallback) {
+      final value = source[name];
+      return value is num && value.isFinite ? value.toDouble() : fallback;
+    }
+
+    var minimum = real('minimum', 0);
+    var maximum = real('maximum', 100);
+    if (!(minimum < maximum)) {
+      minimum = 0;
+      maximum = 100;
+    }
 
     return ModuleControlDefinition(
       id: id,
@@ -441,6 +700,18 @@ class ModuleControlDefinition {
           .toInt(),
       imageBase64: image,
       imageName: field('imageName', 255),
+      shape: ModuleShape.values
+              .where((value) => value.name == source['shape'])
+              .firstOrNull ??
+          ModuleShape.rectangle,
+      rules: rules,
+      defaultToken: ModuleStateToken.values
+              .where((value) => value.name == source['defaultToken'])
+              .firstOrNull ??
+          ModuleStateToken.neutral,
+      minimum: minimum,
+      maximum: maximum,
+      placement: ModulePlacement.fromJson(source['placement']),
     );
   }
 }
