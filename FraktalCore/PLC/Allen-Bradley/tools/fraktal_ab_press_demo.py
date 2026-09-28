@@ -96,6 +96,8 @@ def _cylinder(name: str, comment: str) -> decl.Module:
         ),
         speed_per_scan=25,
         timeout_ms=500,
+        # The same key the TwinCAT press cylinders publish.
+        type_key="std.moduleType.cylinder",
     )
 
 
@@ -399,6 +401,8 @@ def application() -> decl.Application:
         # declaration is refused rather than booting a station that claims a
         # model it is not configured as.
         default_model="M-100",
+        # The same key the TwinCAT press Unit publishes.
+        type_key="project.moduleType.pneumaticPress",
         decisions=(
             # Option 1 always advances, because the emitted DECISION logic
             # takes the jump for anything else.

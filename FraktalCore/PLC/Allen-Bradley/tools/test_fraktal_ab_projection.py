@@ -94,6 +94,47 @@ def build(**kwargs):
 
 
 
+class TypeKeyTests(unittest.TestCase):
+    """LOCALIZATION §7.1: one faceplate per type, across bindings.
+
+    The keys are the ones the TwinCAT press publishes for the same types, so a
+    layout authored on either press applies to the other.
+    """
+
+    def published(self):
+        values = build()["values"]
+        return {path.rsplit("/Status/TypeKey", 1)[0]: value
+                for path, value in values.items()
+                if path.endswith("/Status/TypeKey")}
+
+    def test_every_cylinder_publishes_the_tc3_cylinder_key(self):
+        keys = self.published()
+        cylinders = [m.name for m in APP.modules]
+        self.assertTrue(cylinders)
+        for name in cylinders:
+            matches = [k for path, k in keys.items() if path.endswith("/" + name)]
+            self.assertEqual(matches, ["std.moduleType.cylinder"], name)
+
+    def test_the_root_unit_publishes_the_press_key(self):
+        root = [k for path, k in self.published().items() if "/" not in path]
+        self.assertEqual(root, ["project.moduleType.pneumaticPress"])
+
+    def test_a_type_key_is_not_part_of_the_controller_manifest(self):
+        # Presentation vocabulary: changing it must never ask for a download.
+        renamed = replace(APP, type_key="project.moduleType.other", modules=tuple(
+            replace(m, type_key="project.moduleType.other") for m in APP.modules))
+        self.assertEqual(manifest.content_hash(renamed),
+                         manifest.content_hash(APP))
+
+    def test_a_malformed_type_key_is_refused(self):
+        for bad in ("cylinder", "std.moduleType.cylinder.name",
+                    "project.module.PressRam.name", "std.moduleType.a b"):
+            app = replace(APP, modules=(replace(APP.modules[0], type_key=bad),)
+                          + APP.modules[1:])
+            self.assertTrue(
+                any("type key" in f for f in decl.validate(app)), bad)
+
+
 class TopologyTests(unittest.TestCase):
     """The fieldbus view: declared identity, live state, and the seam between.
 

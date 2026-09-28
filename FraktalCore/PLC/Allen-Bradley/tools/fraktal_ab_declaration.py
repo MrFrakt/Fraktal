@@ -137,6 +137,12 @@ class Module:
     position_min: int = 0
     position_max: int = 100
     can_fault: bool = True
+    # LOCALIZATION §7.1: what a faceplate is authored against. Every instance
+    # of a type names the same key, and it is the same key the TwinCAT binding
+    # publishes for that type, which is what lets one faceplate serve both. It
+    # is presentation vocabulary: the gateway projects it from this
+    # declaration, and it is not part of the controller manifest.
+    type_key: str = ""
 
 
 # --- chain steps ------------------------------------------------------------
@@ -342,6 +348,8 @@ class Application:
     models: tuple[Model, ...] = ()
     # The operator decisions this application's chains wait on.
     decisions: tuple[Decision, ...] = ()
+    # The root Unit's type key (LOCALIZATION §7.1); empty = none published.
+    type_key: str = ""
     # The model a freshly downloaded station is configured as. A station is
     # always running SOME set of numbers, so "no model" at boot is a station
     # that cannot tell you which product it is set up for.
@@ -619,6 +627,25 @@ def _validate_decisions(app: Application) -> list[str]:
     return findings
 
 
+TYPE_KEY_PREFIXES = ("std.moduleType.", "project.moduleType.")
+
+
+def _validate_type_keys(app: Application) -> list[str]:
+    """A type key is an identifier in the §7.1 namespace: `std.moduleType.*`
+    for a type the standard library ships, `project.moduleType.*` otherwise,
+    and never the `.name` display suffix."""
+    findings: list[str] = []
+    for owner, key in [(app.name, app.type_key)] + [
+            (m.name, m.type_key) for m in app.modules]:
+        if not key:
+            continue
+        if (not key.startswith(TYPE_KEY_PREFIXES) or key.endswith(".name")
+                or len(key) > 160 or " " in key):
+            findings.append(
+                f"{owner}: type key {key!r} is not a §7.1 type identifier")
+    return findings
+
+
 def validate(app: Application) -> list[str]:
     """Return every reason this declaration must not be emitted. Empty means go."""
     findings: list[str] = []
@@ -638,6 +665,7 @@ def validate(app: Application) -> list[str]:
     findings.extend(_validate_io(app))
     findings.extend(_validate_models(app))
     findings.extend(_validate_decisions(app))
+    findings.extend(_validate_type_keys(app))
 
     module_names = [m.name for m in app.modules]
     duplicates = {n for n in module_names if module_names.count(n) > 1}

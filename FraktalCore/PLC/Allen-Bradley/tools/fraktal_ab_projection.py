@@ -116,6 +116,9 @@ def modules(rows: dict[str, Any]) -> list[dict[str, Any]]:
     """Identity, browse path and module type for every published module."""
     keys = {row["NumericKey"]: row["PortableKey"]
             for row in rows["Localization"]}
+    # §7.1 type keys come from the declaration, the one source the manifest is
+    # also generated from; the controller carries no copy to drift.
+    type_keys = {module.name: module.type_key for module in APP.modules}
     out = []
     for row in rows["Modules"]:
         identity = keys.get(row["CanonicalPathKey"], "")
@@ -128,6 +131,8 @@ def modules(rows: dict[str, Any]) -> list[dict[str, Any]]:
             "type": (MODULE_TYPE_UNIT if row["Tier"] == manifest.TIER_ROOT
                      else MODULE_TYPE_CONTROL),
             "displayNameKey": keys.get(row["LocalNameKey"], ""),
+            "typeKey": (APP.type_key if row["Tier"] == manifest.TIER_ROOT
+                        else type_keys.get(identity.split(".")[-1], "")),
         })
     return out
 
@@ -490,6 +495,8 @@ def project(header: dict[str, Any], rows: dict[str, Any],
         values[f"{base}/Status/Name"] = module["identity"]
         values[f"{base}/Status/ModuleType"] = module["type"]
         values[f"{base}/Status/DisplayNameKey"] = module["displayNameKey"]
+        if module["typeKey"]:
+            values[f"{base}/Status/TypeKey"] = module["typeKey"]
         if module["type"] == MODULE_TYPE_UNIT:
             for suffix, value in unit_status(unit, chart).items():
                 values[f"{base}/{suffix}"] = value

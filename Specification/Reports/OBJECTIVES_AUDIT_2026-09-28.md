@@ -104,7 +104,11 @@ but not run. None of the week's HMI features has run against a live PLC over OPC
    three press cylinders, and a maintenance picture view.
 4. Record each item as passed or failed.
 
-**G3 — AB does not bind the Core 0.8–0.12 clauses (O8).** The unbound clauses are:
+**G3 — AB does not bind the Core 0.8–0.12 clauses (O8).** *Update, same day:* option A
+is done. The AB declaration names type keys, and the gateway projects them; they are
+kept out of the controller manifest, whose hash is unchanged. The press publishes
+the TwinCAT press's keys, so one faceplate serves both. B and C remain. The unbound
+clauses were:
 set delete (§3.8b), data classes (§3.8d), line data (§3.8e), shifts (§8.5.2) and the
 type key (§7.1). All are now recorded as not claimed.
 - *A. Bind the type key first (recommended as the next step).* The AB declaration names
