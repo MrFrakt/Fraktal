@@ -9,6 +9,8 @@
 /// physical keyboard is never obstructed.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart' show ControlScale, UiMetrics;
@@ -85,6 +87,15 @@ class OnScreenKeyboardController extends ChangeNotifier {
     if (_field == null) return;
     _field = null;
     notifyListeners();
+  }
+
+  /// A field that is going away. Drops it only if it is the one being fed, and
+  /// notifies after the current frame: this runs while the element tree is
+  /// being finalized, where a rebuild request is an error.
+  void detach(TextEditingController controller) {
+    if (_field?.controller != controller) return;
+    _field = null;
+    scheduleMicrotask(notifyListeners);
   }
 
   void _replace(String text, TextSelection selection) {

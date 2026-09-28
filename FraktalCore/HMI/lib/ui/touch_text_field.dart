@@ -63,6 +63,7 @@ class _TouchTextFieldState extends State<TouchTextField> {
   TextEditingController get _effective => widget.controller ?? _owned;
   FocusNode? _ownedFocus;
   FocusNode get _focus => widget.focusNode ?? (_ownedFocus ??= FocusNode());
+  OnScreenKeyboardController? _keyboard;
 
   @override
   void initState() {
@@ -72,8 +73,18 @@ class _TouchTextFieldState extends State<TouchTextField> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _keyboard = _keyboardOf(context);
+  }
+
+  @override
   void dispose() {
     _focus.removeListener(_focusChanged);
+    // A field disposed while it has focus never reports losing it (the
+    // listener is gone first), so the keyboard would keep feeding a dead
+    // controller - a dialog closed from its own submit key does exactly that.
+    _keyboard?.detach(_effective);
     _owned.dispose();
     _ownedFocus?.dispose();
     super.dispose();
@@ -172,6 +183,7 @@ class _TouchTextFormFieldState extends State<TouchTextFormField> {
   TextEditingController get _effective => widget.controller ?? _owned;
   FocusNode? _ownedFocus;
   FocusNode get _focus => widget.focusNode ?? (_ownedFocus ??= FocusNode());
+  OnScreenKeyboardController? _keyboard;
 
   @override
   void initState() {
@@ -181,8 +193,18 @@ class _TouchTextFormFieldState extends State<TouchTextFormField> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _keyboard = _keyboardOf(context);
+  }
+
+  @override
   void dispose() {
     _focus.removeListener(_focusChanged);
+    // A field disposed while it has focus never reports losing it (the
+    // listener is gone first), so the keyboard would keep feeding a dead
+    // controller - a dialog closed from its own submit key does exactly that.
+    _keyboard?.detach(_effective);
     _owned.dispose();
     _ownedFocus?.dispose();
     super.dispose();
@@ -229,4 +251,41 @@ class _TouchTextFormFieldState extends State<TouchTextFormField> {
       showCursor: true,
     );
   }
+}
+
+/// A dialog's text controller, owned by the dialog's own widget.
+///
+/// Disposing a controller as soon as `showDialog` returns is a use after
+/// dispose: the route is still running its exit transition, its field is still
+/// mounted, and a field that loses focus on the closing tap rebuilds against
+/// the dead controller. That corrupted the element tree badly enough to freeze
+/// the HMI on Publish. Here the controller lives exactly as long as the field
+/// that uses it; read its text in the button that closes the dialog.
+class WithTextController extends StatefulWidget {
+  final String initialText;
+  final Widget Function(BuildContext context, TextEditingController controller)
+      builder;
+
+  const WithTextController({
+    super.key,
+    this.initialText = '',
+    required this.builder,
+  });
+
+  @override
+  State<WithTextController> createState() => _WithTextControllerState();
+}
+
+class _WithTextControllerState extends State<WithTextController> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialText);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _controller);
 }

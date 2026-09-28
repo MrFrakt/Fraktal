@@ -474,36 +474,36 @@ class _ModuleDetailState extends State<ModuleDetail> {
 
   Future<void> _publishDraft(
       ModuleNode node, ModuleTabCapabilities capabilities) async {
-    final comment = TextEditingController();
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const LText('std.module.editor.publishTitle'),
-            content: TouchTextField(
-              controller: comment,
-              maxLength: 240,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: dialogContext.tr('std.module.editor.changeComment'),
-              ),
+    // Null = cancelled; otherwise the change comment (possibly empty).
+    final changeComment = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => WithTextController(
+        builder: (context, comment) => AlertDialog(
+          title: const LText('std.module.editor.publishTitle'),
+          content: TouchTextField(
+            controller: comment,
+            maxLength: 240,
+            maxLines: 3,
+            decoration: InputDecoration(
+              labelText: dialogContext.tr('std.module.editor.changeComment'),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const LText('std.common.cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const LText('std.module.editor.publish'),
-              ),
-            ],
           ),
-        ) ??
-        false;
-    final changeComment = comment.text;
-    comment.dispose();
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const LText('std.common.cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, comment.text),
+              child: const LText('std.module.editor.publish'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final confirmed = changeComment != null;
     hmiLog('publish ${node.path}: dialog closed, confirmed=$confirmed');
-    if (!confirmed || !mounted || _draftPath != node.path) return;
+    if (changeComment == null || !mounted || _draftPath != node.path) return;
     await app.content.publishTabs(
       node.path,
       _draftTabs,

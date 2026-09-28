@@ -89,6 +89,34 @@ void main() {
     // Windows panel closed on the first key and typed nothing.
   }, variant: TargetPlatformVariant.all());
 
+  testWidgets('a focused field that is disposed detaches from the keyboard',
+      (tester) async {
+    // A dialog closed from its own submit key disposes the field while it
+    // still has focus; it never reports losing focus, so without the detach
+    // the panel kept feeding a disposed controller.
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    final keyboard = await _mount(tester, controller);
+    expect(keyboard.hasField, isTrue);
+
+    await tester.pumpWidget(KeyboardScope(
+        controller: keyboard, child: const SizedBox.shrink()));
+    await tester.pump();
+    expect(keyboard.hasField, isFalse);
+  });
+
+  testWidgets('detaching another field leaves the active one attached',
+      (tester) async {
+    final controller = TextEditingController();
+    final other = TextEditingController();
+    addTearDown(controller.dispose);
+    addTearDown(other.dispose);
+    final keyboard = await _mount(tester, controller);
+    keyboard.detach(other);
+    await tester.pump();
+    expect(keyboard.hasField, isTrue);
+  });
+
   testWidgets('backspace edits at the cursor without dismissing', (tester) async {
     final controller = TextEditingController();
     addTearDown(controller.dispose);

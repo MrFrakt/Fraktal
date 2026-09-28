@@ -12,6 +12,7 @@ import '../data/plc_repository.dart';
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import 'touch_text_field.dart';
 
 Future<void> showConfigSetsDialog(
     BuildContext context, AppState app, String rootPath) {
@@ -135,33 +136,34 @@ class _ConfigSetsDialogState extends State<ConfigSetsDialog> {
   }
 
   Future<void> _import() async {
-    final text = TextEditingController();
     final document = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const LText('Import parameter set'),
-        content: SizedBox(
-          width: 560,
-          child: TextField(
-            controller: text,
-            maxLines: 12,
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              hintText: context.tr('Paste an exported set (JSON lines)'),
+      // The dialog owns its controller: see WithTextController.
+      builder: (context) => WithTextController(
+        builder: (context, text) => AlertDialog(
+          title: const LText('Import parameter set'),
+          content: SizedBox(
+            width: 560,
+            child: TextField(
+              controller: text,
+              maxLines: 12,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: context.tr('Paste an exported set (JSON lines)'),
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const LText('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, text.text),
+                child: const LText('Import')),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const LText('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, text.text),
-              child: const LText('Import')),
-        ],
       ),
     );
-    text.dispose();
     if (document == null || document.trim().isEmpty || !mounted) return;
     final lines = document.split('\n');
     for (var i = 0; i < lines.length; i++) {
