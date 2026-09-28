@@ -148,6 +148,8 @@ VAR
     // §8.5.2 shift accounting
     {attribute 'OPC.UA.DA' := '0'}
     _pLine : POINTER TO FB_LineData;
+    _lineHost : BOOL;                  // §3.8e this root ticks the line it references
+    _lineRevSeen : UDINT;              // §3.8e line revision last reflected in ConfigRev
     _shiftInit : BOOL;
     _shiftSync : BOOL;
     _shiftManualReset : BOOL;
@@ -1741,6 +1743,9 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_AppendConfig := SUPER^.M_AppendConfig(Pager := Pager);
+IF _pLine <> 0 THEN
+    _pLine^.M_AppendLineConfig(Pager := Pager, Scope := Status.Name);   // §3.8e
+END_IF
 Pager.M_AppendNumber(Scope := Status.Name, Item := 'StallTime',
     Number := TIME_TO_DINT(StallTime));
 Pager.M_AppendNumber(Scope := Status.Name, Item := 'AvailableModelCount',
@@ -2230,6 +2235,100 @@ IF SetDataClassLevel THEN
     ConfigRev := ConfigRev + 1;             // every manifest level may have moved
 END_IF]]></ST></Implementation>
     </Method>
+    <Method Name="_M_IsLineKey" Id="{59358b2d-9028-416d-b8b1-1699a6cd425f}">
+      <Declaration><![CDATA[// §3.8e - TRUE when a (Scope, WriteKey) the subtree did not own names a value of
+// the line this Unit references: the line is published under this Unit's own
+// scope, and its keys alone begin 'line.'.
+METHOD PRIVATE _M_IsLineKey : BOOL
+VAR_INPUT
+    Scope    : STRING(255);
+    WriteKey : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_IsLineKey := (_pLine <> 0) AND (Scope = Status.Name)
+    AND (LEFT(WriteKey, 5) = 'line.');]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{09d95f4a-6281-4745-bbd6-78a379c3dcc0}">
+      <Declaration><![CDATA[// §3.8e - the subtree first; a line key it does not own goes to the line.
+METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ApplyConfigWrite := SUPER^.M_ApplyConfigWrite(Scope := Scope,
+    WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
+    RootReady := RootReady);
+IF (NOT M_ApplyConfigWrite) AND _M_IsLineKey(Scope := Scope, WriteKey := WriteKey) THEN
+    M_ApplyConfigWrite := _pLine^.M_ApplyConfigWrite(Scope := _pLine^.Status.Name,
+        WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
+        RootReady := RootReady);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StageConfigWrite" Id="{c033d610-c896-4206-a3ad-81018a4dd465}">
+      <Declaration><![CDATA[// §3.8e - the staging walk is the write walk, line leg included.
+METHOD M_StageConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StageConfigWrite := SUPER^.M_StageConfigWrite(Scope := Scope,
+    WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
+    RootReady := RootReady);
+IF (NOT M_StageConfigWrite) AND _M_IsLineKey(Scope := Scope, WriteKey := WriteKey) THEN
+    M_StageConfigWrite := _pLine^.M_StageConfigWrite(Scope := _pLine^.Status.Name,
+        WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
+        RootReady := RootReady);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ApplyCapture" Id="{e2ff8450-6122-448e-b867-574b3000edfa}">
+      <Declaration><![CDATA[// §3.8e - the capture walk is the write walk, line leg included.
+METHOD M_ApplyCapture : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ApplyCapture := SUPER^.M_ApplyCapture(Scope := Scope, WriteKey := WriteKey,
+    Revision := Revision, RootReady := RootReady);
+IF (NOT M_ApplyCapture) AND _M_IsLineKey(Scope := Scope, WriteKey := WriteKey) THEN
+    M_ApplyCapture := _pLine^.M_ApplyCapture(Scope := _pLine^.Status.Name,
+        WriteKey := WriteKey, Revision := Revision, RootReady := RootReady);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ConfigAccessOf" Id="{b5882f05-b837-4f44-ba08-a65bdacad4e2}">
+      <Declaration><![CDATA[// §3.8e/§3.8d - the access walk is the write walk, line leg included, so a line
+// value is checked against the level the line declared for it.
+METHOD M_ConfigAccessOf : BOOL
+VAR_INPUT
+    Scope    : STRING(255);
+    WriteKey : STRING(160);
+END_VAR
+VAR_IN_OUT
+    Grant : ST_ConfigAccess;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ConfigAccessOf := SUPER^.M_ConfigAccessOf(Scope := Scope, WriteKey := WriteKey,
+    Grant := Grant);
+IF (NOT M_ConfigAccessOf) AND _M_IsLineKey(Scope := Scope, WriteKey := WriteKey) THEN
+    M_ConfigAccessOf := _pLine^.M_ConfigAccessOf(Scope := _pLine^.Status.Name,
+        WriteKey := WriteKey, Grant := Grant);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="SetLine" Id="{b3e3c826-6085-43fe-ab9e-5ee8d63ca7f0}">
       <Declaration><![CDATA[// §3.8e/§8.5.2 - reference the line this root belongs to (owner or mirror, on
 // this controller). A Unit references at most one line; 0 detaches it.
@@ -2239,6 +2338,12 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_pLine := pLine;
+_lineHost := FALSE;
+IF pLine <> 0 THEN
+    // The first root to reference a line hosts it (ticks it, lends its log); a
+    // line is never a child, so nothing else would run it (§3.8e(a)).
+    _lineHost := pLine^.M_BindHost(pHost := THIS, pAlarmLog := ADR(AlarmLog));
+END_IF
 _shiftInit := FALSE;
 CurrentShift := 0;
 SetLine := (pLine <> 0);]]></ST>
@@ -3271,6 +3376,18 @@ END_VAR]]></Declaration>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
 _M_BeginSequenceScan();                               // §6.10 one-scan result reset for every attached chain
 _M_TickChildren();
+IF _pLine <> 0 THEN
+    IF _lineHost THEN
+        _pLine^.Cyclic();                             // §3.8e the hosting root runs the line
+    END_IF
+    // A line value can change without a write through THIS root: a mirror applies
+    // its owner's revision, a second root on the line edits it. Either way this
+    // root's manifest now reads differently, so its revision moves.
+    IF _pLine^.OutImm.Revision <> _lineRevSeen THEN
+        _lineRevSeen := _pLine^.OutImm.Revision;
+        ConfigRev := ConfigRev + 1;
+    END_IF
+END_IF
 _M_OeeUpdate();                                       // §8.5.1 time accounting + sampling
 M_ShiftTick(Now := F_Now(), Synchronized := F_TimeSynchronized());   // §8.5.2
 AlarmLog.Cyclic();                                    // §8.10 shelf auto-expiry

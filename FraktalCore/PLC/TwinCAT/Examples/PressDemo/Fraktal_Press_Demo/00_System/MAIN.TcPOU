@@ -18,6 +18,12 @@ VAR
     // The marker is inherited by PneumaticPress's published child symbols.
     {attribute 'OPC.UA.DA' := '1'}
     PneumaticPress : FB_PressDemoUnit;
+    // §3.8e - the line this press stands on, and the OWNER of its data (the shift
+    // calendar, §8.5.2). A line is no Unit and no module of one: it sits here,
+    // beside the roots, like the control domain, and each root on the line
+    // references it (SetLine) and presents its values as that root's line data.
+    // A second station on this line would host a MIRROR fed through I_LineSource.
+    PressLine : FB_LineData;
     IoCatalog : FB_PressIoCatalog;
     IoDriver : FB_PressIoDriver;
     // Core §7.5.1 — this station's commissioning/engineering gate register.
@@ -115,6 +121,9 @@ IF NOT Init THEN
         SlideHal := SlideHal, TwoHandHal := TwoHandHal, PowerHal := PowerHal,
         PartPresentHal := PartPresentHal, AirPressureHal := AirPressureHal,
         Recipe := RecipeCatalog.Provider);
+    PressLine.Setup(Name := 'PressLine', LineId := 'PRESS-LINE-1',
+        Role := E_LineRole.OWNER, Source := 0, StaleAfterMs := 0);
+    PneumaticPress.SetLine(pLine := ADR(PressLine));
     // §7.5.1 — declare this project's own gates. Passing the CONSTANT as `Active`
     // is the point: an inactive gate registers nothing, so a production build
     // publishes an empty register, annunciates nothing, and exposes no gated

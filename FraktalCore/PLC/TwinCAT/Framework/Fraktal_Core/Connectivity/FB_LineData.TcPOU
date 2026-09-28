@@ -1,10 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_LineData" Id="{2f7f5706-15f1-49e6-abbb-a1813d86c154}" SpecialFunc="None">
-    <Declaration><![CDATA[// Core §3.8e - data shared by every station on a line, held once. A project
-// registers its line values on this module (the ordinary M_RegisterConfig*
-// calls, Kind := LINE_CFG) and registers the module under one root Unit, so line
-// values are edited, audited and access-classed exactly like any other value.
+    <Declaration><![CDATA[// Core §3.8e - data shared by every station on a line, held once. A line is NOT
+// part of the Unit forest: it is no Unit, EM or CM, has no parent, and is never
+// registered as anyone's child. The composition root declares it beside the roots
+// (as it does a control domain, §9.8) and every root on the line references it
+// with SetLine. A project registers its line values here (the ordinary
+// M_RegisterConfig* calls, Kind := LINE_CFG, keys 'line.*'); each referencing
+// root publishes them as its own line data and routes their writes here, so they
+// are edited, audited and access-classed exactly like any other value, through
+// the one mailbox. It extends FB_ModuleBase only because the typed value registry
+// lives there (ModuleType NONE); commands are refused.
 //
 // The OWNER is the only editable copy; every accepted change raises Revision and
 // the whole line is republished as Image. A MIRROR, on another controller or a
@@ -13,7 +19,7 @@
 // client. A mirror that stops updating keeps running on the revision it has and
 // says so (Stale): a shift boundary one revision old is a reporting error, not a
 // hazard, so staleness never blocks production on its own (§3.8e(d)).
-FUNCTION_BLOCK FB_LineData EXTENDS FB_ControlModuleBase
+FUNCTION_BLOCK FB_LineData EXTENDS FB_ModuleBase
 VAR_INPUT
     ParCfg : ST_LineDataParCfg;
     ParCmd : ST_LineDataParCmd;
@@ -40,6 +46,8 @@ VAR
     _syncing       : BOOL;
     _staleEvt      : INT;
     {attribute 'OPC.UA.DA' := '0'}
+    _host          : PVOID;       // the root that ticks this line and lends its alarm log
+    {attribute 'OPC.UA.DA' := '0'}
     _incoming      : ST_LineImage; // mirror staging buffer - an instance member, never a local
 END_VAR]]></Declaration>
     <Implementation>
@@ -47,7 +55,8 @@ END_VAR]]></Declaration>
     </Implementation>
     <Method Name="Setup" Id="{bc4edb1b-a235-4c92-97e7-5672a9050909}">
       <Declaration><![CDATA[// OWNER takes no source. A MIRROR needs one, and StaleAfterMs is the window it
-// declares for staying current (§3.8e(d)).
+// declares for staying current (§3.8e(d)). Name is the line's own identity, never
+// a path under a Unit.
 METHOD Setup : BOOL
 VAR_INPUT
     Name         : STRING(80);
@@ -55,7 +64,6 @@ VAR_INPUT
     Role         : E_LineRole;
     Source       : I_LineSource;
     StaleAfterMs : UDINT;
-    pAlarmLog    : POINTER TO FB_AlarmLog;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_M_SetName(Name);
@@ -71,7 +79,6 @@ END_IF
 _role := Role;
 _source := Source;
 ParCfg.StaleAfterMs := StaleAfterMs;
-_log := pAlarmLog;
 OutImm.LineId := LineId;
 OutImm.Role := Role;
 IF (Role = E_LineRole.OWNER) AND (_revision = 0) THEN
@@ -92,12 +99,12 @@ VAR
     item : STRING(255);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[ok := M_RegisterConfigNumber(Key := 'shift.utcOffsetMin', Item := 'Calendar/UtcOffsetMin',
+        <ST><![CDATA[ok := M_RegisterConfigNumber(Key := 'line.shift.utcOffsetMin', Item := 'Calendar/UtcOffsetMin',
     LabelKey := 'std.config.shiftUtcOffset', Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG,
     Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Calendar.UtcOffsetMin),
     Minimum := -720.0, Maximum := 840.0, RequiresReady := FALSE);
 FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
-    key := CONCAT('shift.', CONCAT(TO_STRING(n), '.startMin'));
+    key := CONCAT('line.shift.', CONCAT(TO_STRING(n), '.startMin'));
     item := CONCAT('Calendar/StartMin[', CONCAT(TO_STRING(n), ']'));
     ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := 'std.config.shiftStart',
         Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
@@ -105,6 +112,40 @@ FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
         RequiresReady := FALSE) AND ok;
 END_FOR
 _M_RegisterCalendar := ok;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_BindHost" Id="{4b7a5160-6d79-4393-bfb7-2b0c62db590d}">
+      <Declaration><![CDATA[// §3.8e(a) - called by FB_UnitBase.SetLine. The FIRST root to reference the line
+// hosts it: it ticks the line once per scan and lends its alarm log for the
+// staleness event. Every later root only references it; the host binding again
+// stays the host. TRUE = you host it.
+METHOD M_BindHost : BOOL
+VAR_INPUT
+    pHost     : PVOID;
+    pAlarmLog : POINTER TO FB_AlarmLog;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_BindHost := FALSE;
+IF (pHost = 0) OR ((_host <> 0) AND (_host <> pHost)) THEN
+    RETURN;
+END_IF
+_host := pHost;
+_log := pAlarmLog;
+M_BindHost := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AppendLineConfig" Id="{401d3a21-e261-480e-b3df-4b4039345e21}">
+      <Declaration><![CDATA[// §3.8e - a referencing root publishes the line's values as ITS line data: under
+// the root's scope, items prefixed 'Line/', keys 'line.*' (M_RegisterConfigWrite
+// holds every line key to that prefix, so they cannot collide with the root's).
+METHOD M_AppendLineConfig : BOOL
+VAR_INPUT
+    Pager : REFERENCE TO FB_ConfigPager;
+    Scope : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_AppendCapabilities(Pager := Pager, Scope := Scope, ItemPrefix := 'Line/');
+M_AppendLineConfig := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_MinuteOfDay" Id="{26653073-56c6-4393-8fe7-5b182fa0887f}">

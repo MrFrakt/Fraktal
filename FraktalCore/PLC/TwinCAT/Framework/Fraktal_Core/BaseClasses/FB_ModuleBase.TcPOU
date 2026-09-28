@@ -790,12 +790,27 @@ FOR i := 1 TO CatalogCount DO
     Pager.M_AppendNumber(Scope := Status.Name, Item := item,
         Number := TO_DINT(Catalog[i].Style));
 END_FOR
-// §3.8b — then everything this module declared editable about itself. The value
-// is read live and the metadata comes from the same record the write will be
-// validated against, so a client can never be shown a capability the PLC would
-// not honour.
-FOR i := 1 TO _nConfigWrite DO
-    Pager.M_AppendCapability(Scope := Status.Name, Item := _configWrite[i].Item,
+// §3.8b — then everything this module declared editable about itself.
+_M_AppendCapabilities(Pager := Pager, Scope := Status.Name, ItemPrefix := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_AppendCapabilities" Id="{ab3c0cf1-9f7b-4c05-8870-8fa349f89e11}">
+      <Declaration><![CDATA[// §3.8b — every value this module declared editable. The value is read live and
+// the metadata comes from the same record the write will be validated against,
+// so a client can never be shown a capability the PLC would not honour. Scope
+// and ItemPrefix exist for the one module published under another's scope: a
+// line, which a root presents as its own line data (§3.8e).
+METHOD PROTECTED _M_AppendCapabilities
+VAR_INPUT
+    Pager      : REFERENCE TO FB_ConfigPager;
+    Scope      : STRING(255);
+    ItemPrefix : STRING(16);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[FOR i := 1 TO _nConfigWrite DO
+    Pager.M_AppendCapability(Scope := Scope,
+        Item := CONCAT(ItemPrefix, _configWrite[i].Item),
         ValueText := _M_ConfigValueText(Idx := i),
         WriteKey := _configWrite[i].Key,
         WriteRevision := _configWrite[i].Revision,
@@ -863,6 +878,12 @@ AND ((MaxLength = 0) OR (MaxLength > 80)) THEN
 END_IF
 IF HasMinimum AND HasMaximum AND (Minimum > Maximum) THEN
     RETURN;                                  // an empty range accepts nothing
+END_IF
+// §3.8e - a line value, and only a line value, is keyed 'line.'. A root publishes
+// the line it references under its OWN scope, so the prefix is what keeps the
+// line's keys and the root's apart; a mismatch in either direction fails closed.
+IF (Kind = E_ConfigKind.LINE_CFG) <> (LEFT(Key, 5) = 'line.') THEN
+    RETURN;
 END_IF
 FOR i := 1 TO _nConfigWrite DO
     IF _configWrite[i].Key = Key THEN

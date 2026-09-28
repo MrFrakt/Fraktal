@@ -585,7 +585,13 @@ one authoritative copy.
 **(a) A line is orthogonal to the Unit forest.** Like the control domain (§9.8), a line is not a
 Unit and has no parent: it is a named arrangement (`LineId`) that zero or more root Units
 reference, on one controller or across several. A root Unit references at most one line. No
-super-root is created to hold it.
+super-root is created to hold it, and the line is never registered as any Unit's child: it is
+declared beside the roots, as a control domain is. Each referencing root **presents** the line's
+values as its own line data — in its §3.10.2 manifest, under its own scope — and routes their writes,
+captures, set records and access checks to the line through its own mailbox, so a line value is
+edited, audited and access-classed like any other without the line entering the module tree. To keep
+the two key spaces apart, a `LINE_CFG` value's `WriteKey` **shall** begin `line.` and no other value's
+may.
 
 **(b) One owner; every other copy is a mirror.** Exactly one controller hosts the line's
 **owner**. Line values are registered as write capabilities (§3.10.2, `ConfigKind := LINE_CFG`)

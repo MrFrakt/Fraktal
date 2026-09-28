@@ -436,6 +436,10 @@ Key bridging and muting are read-only, conspicuous HMI status—never `PermIntlk
 Safety/control-power ownership is an optional **control domain** orthogonal to the Unit forest: a Unit
 references zero or one domain, and one domain may serve several peer root Units. Never invent a
 super-root Unit or duplicate the coordinator per Unit; `Present=FALSE` means no profile Start gate.
+A **line** (§3.8e) is orthogonal in the same way: `FB_LineData` is declared in the composition root
+beside the roots and each root on the line references it with `SetLine` — never register it as a
+child (`_M_Register`) or declare it inside a Unit. The root presents the line's values as its own
+line data and routes their writes; line keys, and only line keys, begin `line.`.
 
 **Language policy (§5.5, §6.2, §6.8):** framework/base types are **ST only**. A multi-step Unit/EM
 sequence is a separate POU that **extends `FB_SequenceBase`**; the shipped reference form is the Core
@@ -733,10 +737,10 @@ For the same GUID-ownership reason, never load `Fraktal_Press_Demo.plcproj` and
 `PressTests.plcproj` in one XAE solution: the press gate links the exact Press
 Unit/sequence/release source files. Use its dedicated isolated test solution,
 or unload/remove the Press application before adding the press tests.
-The current Core is `0.14.0.1` and Modules is `0.7.0.0`; downstream placeholders are pinned accordingly. The latest steps are §3.8d data classes (IMPLEMENTATION_NOTES §138), §3.8e line data (§139) §8.5.2 shifts (§140), the published set listing (§141), set lines imported in pieces (§142), and unit codes plus labelled choices on configuration values (§144). Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
+The current Core is `0.15.0.0` and Modules is `0.7.0.0`; downstream placeholders are pinned accordingly. The latest steps are §3.8d data classes (IMPLEMENTATION_NOTES §138), §3.8e line data (§139) §8.5.2 shifts (§140), the published set listing (§141), set lines imported in pieces (§142), unit codes plus labelled choices on configuration values (§144), and the line taken out of the Unit tree (§145). Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
 If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
-reason to edit each affected POU. Install Core `0.14.0.1`, resolve/build/install Modules `0.7.0.0`,
+reason to edit each affected POU. Install Core `0.15.0.0`, resolve/build/install Modules `0.7.0.0`,
 then reload the application placeholders and rebuild.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.

@@ -17,10 +17,6 @@ VAR_OUTPUT
     PneumaticPower: FB_PowerGroupCM;
     PartPresentSensor : FB_DigitalInputCM;
     AirPressureMonitor : FB_AirPressureMonitorCM;
-    // §3.8e - this press OWNS its line's data (the shift calendar, §8.5.2). A line
-    // is not a Unit: it is registered here only so its values are edited, audited
-    // and access-classed through this root, like any other value.
-    Line          : FB_LineData;
     // Jenny Science XENAX Xvi servo (Annex G, PLCopen Motion). NOT CABINET
     // HARDWARE - read the note on PartFeedAxis before looking for it there.
     PartFeed      : FB_AxisCM;
@@ -698,13 +694,6 @@ Ok := _M_Register(TwoHand) AND Ok;
 Ok := _M_Register(PneumaticPower) AND Ok;
 Ok := _M_Register(PartPresentSensor) AND Ok;
 Ok := _M_Register(AirPressureMonitor) AND Ok;
-// §3.8e - OWNER of line PRESS-LINE-1: the only editable copy, so no source. A
-// second press on this line would host a MIRROR fed through I_LineSource.
-Ok := Line.Setup(Name := CONCAT(Name, '.Line'), LineId := 'PRESS-LINE-1',
-    Role := E_LineRole.OWNER, Source := 0, StaleAfterMs := 0,
-    pAlarmLog := ADR(AlarmLog)) AND Ok;
-Ok := _M_Register(Line) AND Ok;
-Ok := SetLine(pLine := ADR(Line)) AND Ok;       // §8.5.2 shift accounting
 // §3.8a/§3.10.2 - the two deployment values become editable CAPABILITIES. That
 // registration, not publication and not DATA_WRITE, is what makes them writable,
 // and it is also what puts them into a station parameter set: SaveConfigSet walks

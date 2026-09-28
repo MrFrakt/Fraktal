@@ -428,7 +428,7 @@ MEMSET(ADR(first), 0, SIZEOF(first));
 MEMSET(ADR(rest), 0, SIZEOF(rest));
 MEMCPY(ADR(first), ADR(_line), 200);
 IF size > 200 THEN
-    MEMCPY(ADR(rest), ADR(_line) + 200, MIN(size - 200, 255));
+    MEMCPY(ADR(rest), ADR(_line) + 200, TO_UDINT(MIN(size - 200, 255)));
 END_IF
 AssertTrue(Condition := _M_Import(Line := header, Commit := FALSE),
     Message := 'the header opens the import');

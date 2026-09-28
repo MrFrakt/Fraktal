@@ -21,15 +21,15 @@ END_VAR]]></Declaration>
     _u.SetLine(pLine := ADR(_u.Line));
     _bare.Setup(Name := 'Test.NoLine');
     // The calendar is PERSISTENT line data: set it every run.
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.utcOffsetMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
         Revision := 1, TextValue := '0');
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.1.startMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.1.startMin',
         Revision := 1, TextValue := '360');
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.2.startMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.2.startMin',
         Revision := 1, TextValue := '840');
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.3.startMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.3.startMin',
         Revision := 1, TextValue := '1320');
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.4.startMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.4.startMin',
         Revision := 1, TextValue := '-1');
 END_IF
 Current_shift_follows_the_calendar_and_wraps_midnight();
@@ -54,15 +54,15 @@ IF NOT _w1 THEN
         Message := 'which then takes over');
     AssertEquals_INT(Expected := 3, Actual := _u.Line.M_CurrentShift(MinuteOfDay := 1439),
         Message := 'up to midnight');
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.utcOffsetMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
         Revision := 1, TextValue := '120');
     AssertEquals_DINT(Expected := 360, Actual := _u.Line.M_MinuteOfDay(Now := DT#2026-09-27-04:00:00),
         Message := 'the line offset turns the UTC clock into local minutes');
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.utcOffsetMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
         Revision := 1, TextValue := '-60');
     AssertEquals_DINT(Expected := 1380, Actual := _u.Line.M_MinuteOfDay(Now := DT#2026-09-27-00:00:00),
         Message := 'a negative offset wraps back across midnight');
-    _u.WriteConfig(TargetPath := 'Test.Shift.Line', WriteKey := 'shift.utcOffsetMin',
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
         Revision := 1, TextValue := '0');
     _w1 := TRUE;
 END_IF

@@ -4792,3 +4792,36 @@ that was free text chosen at each call site (`'ms'`, `'min'`, `'mm'`). Three cha
 The registration signature change is a compile error for any project still passing a
 string - visible, not silent - hence the minor version. `ST_ConfigEntry` only grows.
 Test: `Units_and_choices_publish_codes_and_labels` (Core/Modules runner: 188 / 42).
+
+## 145. The line leaves the Unit tree (Core 0.15.0.0, 2026-09-28)
+
+§139 made `FB_LineData` a control module registered as a child of one root, to reuse
+the config write path. That contradicted §3.8e(a) three ways: a line is orthogonal to
+the forest (no parent), it is no CM (no HAL, no commands), and with two roots on one
+controller it hung under whichever registered it. The press demo, which copied the
+probe, showed it as `PneumaticPress.Line`.
+
+- **Where it lives.** The composition root declares the line beside the roots (the
+  press: `MAIN.PressLine`), exactly as it declares a control domain. `FB_LineData` now
+  extends `FB_ModuleBase` directly - only because the typed value registry lives there
+  (`ModuleType` NONE, commands refused) - and is never `_M_Register`ed.
+- **How a root reaches it.** `SetLine` is unchanged for a project. `FB_UnitBase`
+  overrides the five `I_ConfigSource` walks (`M_ApplyConfigWrite`, `M_StageConfigWrite`,
+  `M_ApplyCapture`, `M_ConfigAccessOf`, and `M_AppendConfig`): the subtree answers
+  first, and a `line.*` key under the root's own scope that nobody owned goes to the
+  line under the line's name. The manifest publishes the line's values under the
+  root's scope with items prefixed `Line/`, so the HMI shows them in that root's
+  Line data group with no HMI change. The base's capability loop became the protected
+  `_M_AppendCapabilities(Pager, Scope, ItemPrefix)` for this.
+- **Keys.** `M_RegisterConfigWrite` refuses a `LINE_CFG` key that does not begin
+  `line.` and any other kind that does, so the root's keys and its line's cannot
+  collide. The calendar keys became `line.shift.utcOffsetMin` / `line.shift.<n>.startMin`.
+- **Who runs it.** A line is no child, so nothing ticked it. The first root to
+  reference it hosts it (`FB_LineData.M_BindHost`, called by `SetLine`): it runs the
+  line once per scan and lends its alarm log for the staleness event; later roots
+  only reference it. `Setup` therefore lost `pAlarmLog`. Every referencing root bumps
+  its `ConfigRev` when the line's revision moves (a mirror apply, or an edit through a
+  peer root), so its manifest is re-read.
+
+`Setup`'s signature and the calendar keys changed, hence the minor version. Test:
+`A_line_is_no_child_and_its_keys_are_its_own` (Core/Modules runner: 189 / 42).

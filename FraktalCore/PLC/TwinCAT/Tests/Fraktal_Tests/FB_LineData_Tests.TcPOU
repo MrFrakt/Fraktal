@@ -16,7 +16,8 @@ VAR
     _n2, _n4, _n5, _n6 : INT;
     _k : INT;
     _found : STRING(80);
-    _w1, _w2, _w3, _w4, _w5, _w6 : BOOL;
+    _w1, _w2, _w3, _w4, _w5, _w6, _w7 : BOOL;
+    _probe : DINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF NOT _init THEN
@@ -46,7 +47,8 @@ A_mirror_applies_the_owner_revision_whole();
 A_mirror_refuses_a_direct_write();
 A_mirror_that_cannot_apply_a_revision_applies_nothing();
 A_mirror_without_updates_goes_stale_and_recovers();
-The_ADS_source_reads_the_owner_image();]]></ST>
+The_ADS_source_reads_the_owner_image();
+A_line_is_no_child_and_its_keys_are_its_own();]]></ST>
     </Implementation>
     <Method Name="The_owner_revision_rises_with_every_accepted_write" Id="{d032aac7-e0ab-4f32-9afb-d5b236ca39da}">
       <Declaration><![CDATA[METHOD The_owner_revision_rises_with_every_accepted_write]]></Declaration>
@@ -54,7 +56,7 @@ The_ADS_source_reads_the_owner_image();]]></ST>
         <ST><![CDATA[TEST('The_owner_revision_rises_with_every_accepted_write');
 IF NOT _w1 THEN
     _rev := _owner.Line.OutImm.Revision;
-    AssertTrue(Condition := _owner.WriteConfig(TargetPath := 'Test.LineOwner.Line',
+    AssertTrue(Condition := _owner.WriteConfig(TargetPath := 'Test.LineOwner',
         WriteKey := 'line.taktMs', Revision := 1, TextValue := '1200'),
         Message := 'a line value is edited at the owner like any other value');
     _owner();
@@ -89,7 +91,7 @@ IF NOT _w2 THEN
         Message := 'the mirror holds the owner revision');
     AssertEquals_DINT(Expected := _owner.Takt, Actual := _mirror.Takt,
         Message := 'and the owner value, applied through its own typed handler');
-    AssertEquals_STRING(Expected := 'Test.LineOwner.Line', Actual := _mirror.Line.OutImm.Owner,
+    AssertEquals_STRING(Expected := 'Test.LineOwnerLine', Actual := _mirror.Line.OutImm.Owner,
         Message := 'and names the copy it came from');
     _w2 := TRUE;
 END_IF
@@ -102,7 +104,7 @@ TEST_FINISHED();]]></ST>
         <ST><![CDATA[TEST('A_mirror_refuses_a_direct_write');
 IF NOT _w3 THEN
     _takt := _mirror.Takt;
-    AssertFalse(Condition := _mirror.WriteConfig(TargetPath := 'Test.LineMirror.Line',
+    AssertFalse(Condition := _mirror.WriteConfig(TargetPath := 'Test.LineMirror',
         WriteKey := 'line.taktMs', Revision := 1, TextValue := '5'),
         Message := 'two editable copies of one fact are the drift line data removes');
     AssertEquals_DINT(Expected := _takt, Actual := _mirror.Takt, Message := 'nothing changed');
@@ -171,6 +173,32 @@ IF NOT _w6 THEN
     AssertEquals_DINT(Expected := 0, Actual := _adsMirror.Line.OutImm.SourceError,
         Message := 'with no transport error');
     _w6 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_line_is_no_child_and_its_keys_are_its_own" Id="{25d7fce5-1753-453b-945b-f25145a5ba50}">
+      <Declaration><![CDATA[METHOD A_line_is_no_child_and_its_keys_are_its_own]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_line_is_no_child_and_its_keys_are_its_own');
+IF NOT _w7 THEN
+    // §3.8e(a): the line is referenced, never registered, so it has no path under
+    // the root; its values are the root's line data, reached by the root's scope.
+    AssertFalse(Condition := _owner.WriteConfig(TargetPath := 'Test.LineOwner.Line',
+        WriteKey := 'line.taktMs', Revision := 1, TextValue := '1300'),
+        Message := 'a line is not a child of the root that references it');
+    // One key space per kind: a line value is keyed line.*, and nothing else is.
+    AssertFalse(Condition := _owner.Line.M_RegisterConfigNumber(Key := 'taktMs2',
+        Item := 'LineCfg/X', LabelKey := '', Unit := E_EngUnit.NONE,
+        Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(_probe), Minimum := 0.0, Maximum := 1.0, RequiresReady := FALSE),
+        Message := 'a line value without the line. prefix is refused');
+    AssertFalse(Condition := _owner.M_RegisterConfigNumber(Key := 'line.stolen',
+        Item := 'StationCfg/X', LabelKey := '', Unit := E_EngUnit.NONE,
+        Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(_probe), Minimum := 0.0, Maximum := 1.0, RequiresReady := FALSE),
+        Message := 'and a station value may not take a line key');
+    _w7 := TRUE;
 END_IF
 TEST_FINISHED();]]></ST>
       </Implementation>
