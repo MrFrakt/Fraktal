@@ -57,7 +57,10 @@ WORKFLOW_DOC = Path("Specification/Guides/TWINCAT_XAE_WORKFLOW.md")
 CI_WORKFLOW = Path(".github/workflows/ci.yml")
 
 # A localization key literal in IEC source: 'project.step.foo' / 'std.error.bar'.
-KEY_LITERAL = re.compile(r"'((?:project|std)\.[A-Za-z0-9_.]+)'")
+# A literal ending in '.' is a key PREFIX a CONCAT completes at run time (e.g.
+# 'std.config.modePolicy.' + mode ordinal); no key ends in a dot, so it is not
+# one, and the completed keys are catalogued under their full names.
+KEY_LITERAL = re.compile(r"'((?:project|std)\.[A-Za-z0-9_.]*[A-Za-z0-9_])'")
 # A catalogue entry in Dart: 'key': '…' or "key": "…".
 CATALOGUE_ENTRY = re.compile(r"""["']([A-Za-z0-9_.]+)["']\s*:""")
 CDATA = re.compile(r"<!\[CDATA\[(.*?)\]\]>", re.S)

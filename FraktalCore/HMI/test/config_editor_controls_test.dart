@@ -30,7 +30,10 @@ void main() {
     test('the PLC code maps by ordinal; an unknown one shows no unit', () {
       List<CfgField> fields(int code) => configFieldsFromManifest([
             ConfigManifestEntry('Press', 'StationCfg/X', '1',
-                writeKey: 'x', writeRevision: 1, valueType: 0, writable: true,
+                writeKey: 'x',
+                writeRevision: 1,
+                valueType: 0,
+                writable: true,
                 unitCode: code),
           ])['Press']!;
       expect(fields(6).single.unitCode, EngUnit.millimeter);
@@ -72,16 +75,17 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
 
     final flag = find.byKey(const ValueKey('cfg-flag-Require two-hand start'));
-    expect(flag, findsOneWidget, reason: 'a flag is a checkbox, not TRUE/FALSE');
+    expect(flag, findsOneWidget,
+        reason: 'a flag is a checkbox, not TRUE/FALSE');
     expect(tester.widget<Checkbox>(flag).value, isTrue);
     await tester.tap(flag);
     await tester.pump();
     expect(tester.widget<Checkbox>(flag).value, isFalse);
 
-    expect(find.text('Confirm first'), findsOneWidget,
+    expect(find.text('Confirm first – the HMI asks before switching'),
+        findsOneWidget,
         reason: 'the choice shows its translated label, not the ordinal 1');
-    expect(
-        find.byWidgetPredicate((w) => w is DropdownButtonFormField<String>),
+    expect(find.byWidgetPredicate((w) => w is DropdownButtonFormField<String>),
         findsOneWidget);
 
     Text unitOf(String name) =>
@@ -89,8 +93,8 @@ void main() {
     expect(unitOf('Clamp settle time').data, 'ms');
     expect(unitOf('MES port').data, '', reason: 'no unit: no unit text');
     // The unit FOLLOWS the value (English/Spanish reading order).
-    final unitBox = tester.getRect(
-        find.byKey(const ValueKey('cfg-unit-Clamp settle time')));
+    final unitBox = tester
+        .getRect(find.byKey(const ValueKey('cfg-unit-Clamp settle time')));
     final fieldBox = tester.getRect(find
         .ancestor(
             of: find.byKey(const ValueKey('cfg-unit-Clamp settle time')),

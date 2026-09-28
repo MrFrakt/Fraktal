@@ -35,6 +35,13 @@ class LocalizationTests(unittest.TestCase):
         self.assertTrue(_is_test_source(Path("scaffold/FB_TemplateCM.TcPOU")))
         self.assertFalse(_is_test_source(Path("x/FB_PressDemoUnit.TcPOU")))
 
+    def test_a_key_prefix_completed_at_run_time_is_not_a_key(self):
+        import tools.check_consistency as cc
+        # 'std.config.modePolicy.' + ordinal: the literal is a prefix, never a key.
+        found = [m.group(1) for m in cc.KEY_LITERAL.finditer(
+            "LabelKey := CONCAT('std.config.modePolicy.', x); K := 'std.a.b';")]
+        self.assertEqual(found, ['std.a.b'])
+
     def test_findings_are_warnings_so_the_gate_stays_usable(self):
         # The catalogue has a real backlog. A check that turns the gate red on
         # the day it lands teaches everyone to skip the gate.
