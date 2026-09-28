@@ -497,6 +497,8 @@ _DEFERRED = ("a recorded deferral in FraktalCore/PLC/Allen-Bradley/README.md")
 _NOT_PROJECTED = ("outside the Phase 4 projection, which publishes the "
                   "manifest, module status and the command mailbox")
 _REASON_ONLY = "the AB diagnostic record is a reason code and nothing else"
+_LINE_DATA = ("Core §3.8e/§8.5.2 line data and shifts are implemented in the "
+              "TwinCAT binding only; the AB declaration has no line yet")
 
 # What the AB binding does not publish, one entry per absent CAPABILITY rather
 # than per field. Enumerating the 200-odd suffixes would be a list nobody
@@ -519,6 +521,13 @@ AB_ABSENT = {
     "Nameplate": _NOT_PROJECTED,
     "Oee": _NOT_PROJECTED,
     "OeeTrend": _NOT_PROJECTED,
+    # Core §8.5.2 shifts need §3.8e line data, which only the TwinCAT binding
+    # implements so far; the mapper builds the facet only when CurrentShift > 0.
+    "CurrentShift": _LINE_DATA,
+    "ShiftStartedAt": _LINE_DATA,
+    "ShiftHistory": _LINE_DATA,
+    "ShiftHistoryCount": _LINE_DATA,
+    "ShiftHistoryTruncated": _LINE_DATA,
     "OeeTrendHead": _NOT_PROJECTED,
     "Part": _DEFERRED,
     "Profiler": _NOT_PROJECTED,

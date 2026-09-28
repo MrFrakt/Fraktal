@@ -741,6 +741,37 @@ class OpcUaSnapshotMapper {
         );
       }
 
+      // §8.5.2 - only a Unit that references a line publishes shift state.
+      ShiftFacet? shift;
+      final currentShift = _integer(values['$base/CurrentShift']);
+      if (isUnit && currentShift > 0) {
+        final count = _integer(values['$base/ShiftHistoryCount']);
+        final history = <ShiftRecord>[];
+        for (var i = 1; i <= count; i++) {
+          final prefix = _indexedPrefix(values, '$base/ShiftHistory', i,
+              parentPaths: parentPaths);
+          if (prefix == null) continue;
+          history.add(ShiftRecord(
+            shiftIndex: _integer(values['$prefix/ShiftIndex']),
+            startAt: _dateTime(values['$prefix/StartAt']),
+            endAt: _dateTime(values['$prefix/EndAt']),
+            timeSynchronized: _boolean(values['$prefix/TimeSynchronized']),
+            manualReset: _boolean(values['$prefix/ManualReset']),
+            good: _integer(values['$prefix/GoodCount']),
+            nok: _integer(values['$prefix/NokCount']),
+            rework: _integer(values['$prefix/ReworkCount']),
+            oee: _number(values['$prefix/Oee']),
+            oeeValid: _boolean(values['$prefix/OeeValid']),
+          ));
+        }
+        shift = ShiftFacet(
+          currentShift: currentShift,
+          startedAt: _dateTime(values['$base/ShiftStartedAt']),
+          history: history,
+          truncated: _boolean(values['$base/ShiftHistoryTruncated']),
+        );
+      }
+
       SystemHealthFacet? systemHealth;
       if (isUnit && _boolean(values['$base/SystemHealth/Present'])) {
         systemHealth = SystemHealthFacet(
@@ -858,6 +889,7 @@ class OpcUaSnapshotMapper {
         config: configByModulePath[path] ?? const [],
         nameplate: nameplate,
         oee: oee,
+        shift: shift,
         alarmMeta: alarmMeta,
         step: step,
         running: _boolean(values['$base/RunningPublished'],
@@ -1043,6 +1075,10 @@ DateTime? _nonPlaceholderDateTime(Object? value) {
   final parsed = _dateTime(value);
   return parsed == null || parsed.year <= 1970 ? null : parsed;
 }
+
+/// Public form of the transport timestamp normalizer, for the repository's
+/// targeted reads (the §3.8b set listing) that do not go through the mapper.
+DateTime? parsePlcDateTime(Object? value) => _dateTime(value);
 
 /// Normalizes the two deployed transport encodings: OPC UA DateTime is a
 /// 100-ns count from 1601, while ADS exposes TwinCAT DT as Unix seconds.

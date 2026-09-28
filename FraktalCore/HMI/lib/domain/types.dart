@@ -796,6 +796,46 @@ class Nameplate {
 
 /// §8.5.1 OEE snapshot: factors 0..1; an invalid factor is omitted from the
 /// product and rendered as '—', never assumed 100%.
+/// Core §8.5.2 - one closed shift, exactly as its figures stood at the boundary.
+class ShiftRecord {
+  final int shiftIndex; // 1..4; the HMI names it 'Shift n'
+  final DateTime? startAt; // UTC
+  final DateTime? endAt; // UTC
+  final bool timeSynchronized;
+  final bool manualReset; // counts or OEE were reset by hand during it
+  final int good;
+  final int nok;
+  final int rework;
+  final double oee;
+  final bool oeeValid;
+  const ShiftRecord({
+    required this.shiftIndex,
+    this.startAt,
+    this.endAt,
+    this.timeSynchronized = true,
+    this.manualReset = false,
+    this.good = 0,
+    this.nok = 0,
+    this.rework = 0,
+    this.oee = 0,
+    this.oeeValid = false,
+  });
+}
+
+/// Core §8.5.2 - a Unit's shift accounting; absent when it references no line.
+class ShiftFacet {
+  final int currentShift; // 0 = no shift in force (empty calendar)
+  final DateTime? startedAt; // UTC
+  final List<ShiftRecord> history; // newest first
+  final bool truncated;
+  const ShiftFacet({
+    required this.currentShift,
+    this.startedAt,
+    this.history = const [],
+    this.truncated = false,
+  });
+}
+
 class OeeSnapshot {
   final double availability, performance, quality, oee;
   final bool availValid, perfValid, qualValid, oeeValid;

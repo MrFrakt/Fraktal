@@ -802,6 +802,7 @@ class _ModuleOverviewTab extends StatelessWidget {
         ),
       if (diagnostics && n.nameplate != null && !n.nameplate!.isEmpty)
         NameplateCard(plate: n.nameplate!),
+      if (diagnostics && n.shift != null) ShiftCard(shift: n.shift!),
       if (diagnostics && n.oee != null)
         OeeCard(
           oee: n.oee!,

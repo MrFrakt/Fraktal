@@ -58,6 +58,8 @@ class OpcUaFieldTier {
   /// bounded by the heartbeat; the PLC safety authority is unaffected (these are
   /// read-only HMI status facets). Checked BEFORE liveContainers.
   static const Set<String> slowContainers = {
+    // §8.5.2 closed shifts: change a few times a day, at a boundary.
+    'ShiftHistory', 'ShiftHistoryCount', 'ShiftHistoryTruncated',
     'Safety', // §9 safety facet (mirror; ownership stays in the domain)
     'ControlPower', // §9 control-power facet
   };

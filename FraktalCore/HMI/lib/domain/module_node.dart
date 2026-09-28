@@ -132,6 +132,7 @@ class ModuleNode {
       supportedRunStyles; // §3.4.2 which run styles this mode allows
   final Map<UnitMode, ModePolicy> modePolicy; // §3.4.1 per-mode switch policy
   final OeeSnapshot? oee; // §8.5.1 (Units)
+  final ShiftFacet? shift; // §8.5.2 (Units on a line)
   final List<AlarmMeta> alarmMeta; // §8.9 rationalization catalog (Units)
   /// Scalar OPC UA values below this module's canonical browse node, keyed by
   /// relative browse path. Built-in screens keep using the typed contract;
@@ -202,6 +203,7 @@ class ModuleNode {
     this.supportedRunStyles = const [RunStyle.continuous],
     this.modePolicy = const {},
     this.oee,
+    this.shift,
     this.alarmMeta = const [],
     this.publishedValues = const {},
     this.publishedTags = const {},

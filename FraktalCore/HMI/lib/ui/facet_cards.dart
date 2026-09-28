@@ -479,6 +479,111 @@ class NameplateCard extends StatelessWidget {
 /// §8.5.1 OEE facet — A/P/Q + OEE with exception-based colouring (muted at/above
 /// target, colour only below — ISA-101 style) and a sparkline of recent samples.
 /// Invalid factors render as '—', never 100%.
+/// Core §8.5.2 - the shift in force and the shifts already closed, newest first.
+/// Times arrive as UTC and are shown in this HMI's local time; a record taken on
+/// an unsynchronized clock or after a hand reset says so, never silently.
+class ShiftCard extends StatelessWidget {
+  final ShiftFacet shift;
+  const ShiftCard({super.key, required this.shift});
+
+  static String _two(int v) => v.toString().padLeft(2, '0');
+
+  static String _time(DateTime? utc) {
+    if (utc == null) return '--:--';
+    final t = utc.toLocal();
+    return '${_two(t.hour)}:${_two(t.minute)}';
+  }
+
+  static String _day(DateTime? utc) {
+    if (utc == null) return '';
+    final t = utc.toLocal();
+    return '${t.year}-${_two(t.month)}-${_two(t.day)}';
+  }
+
+  String _name(BuildContext context, int index) =>
+      '${context.tr('Shift')} $index';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FraktalCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.schedule_outlined),
+            const SizedBox(width: 8),
+            LText('Shifts', style: theme.textTheme.titleMedium),
+            const Spacer(),
+            Text(
+                '${_name(context, shift.currentShift)} · '
+                '${context.tr('since')} ${_time(shift.startedAt)}',
+                style: theme.textTheme.titleSmall),
+          ]),
+          if (shift.history.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LText('No shift has closed yet.',
+                  style: theme.textTheme.bodySmall),
+            )
+          else ...[
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 32,
+                dataRowMinHeight: 28,
+                dataRowMaxHeight: 32,
+                columns: const [
+                  DataColumn(label: LText('Shift')),
+                  DataColumn(label: LText('From')),
+                  DataColumn(label: LText('To')),
+                  DataColumn(label: LText('Good'), numeric: true),
+                  DataColumn(label: LText('NOK'), numeric: true),
+                  DataColumn(label: LText('Rework'), numeric: true),
+                  DataColumn(label: LText('OEE'), numeric: true),
+                  DataColumn(label: SizedBox.shrink()),
+                ],
+                rows: [
+                  for (final r in shift.history)
+                    DataRow(cells: [
+                      DataCell(Text(_name(context, r.shiftIndex))),
+                      DataCell(Text('${_day(r.startAt)} ${_time(r.startAt)}')),
+                      DataCell(Text(_time(r.endAt))),
+                      DataCell(Text('${r.good}')),
+                      DataCell(Text('${r.nok}')),
+                      DataCell(Text('${r.rework}')),
+                      DataCell(Text(r.oeeValid
+                          ? '${(r.oee * 100).toStringAsFixed(1)}%'
+                          : '—')),
+                      DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (!r.timeSynchronized)
+                          Tooltip(
+                              message: context.tr(
+                                  'Boundary crossed on an unsynchronized clock'),
+                              child: Icon(Icons.history_toggle_off,
+                                  size: 18, color: warningColor(context))),
+                        if (r.manualReset)
+                          Tooltip(
+                              message: context.tr(
+                                  'Counts were reset by hand during this shift'),
+                              child: Icon(Icons.pan_tool_outlined,
+                                  size: 18, color: warningColor(context))),
+                      ])),
+                    ]),
+                ],
+              ),
+            ),
+            if (shift.truncated)
+              LText('Older shifts are no longer held on the controller.',
+                  style: theme.textTheme.bodySmall),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
 class OeeCard extends StatelessWidget {
   final OeeSnapshot oee;
   final VoidCallback onReset; // act-or-explain handled by the caller

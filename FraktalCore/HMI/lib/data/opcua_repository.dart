@@ -1123,7 +1123,7 @@ class OpcUaRepository implements PlcRepository {
         modelCode: '${values['$prefix/ModelCode'] ?? ''}',
         recordCount: _integer(values['$prefix/RecordCount']),
         configRev: _integer(values['$prefix/ConfigRev']),
-        createdAt: created is DateTime ? created.toUtc() : null,
+        createdAt: parsePlcDateTime(created),
         timeSynchronized: values['$prefix/TimeSynchronized'] == true,
       ));
     }
