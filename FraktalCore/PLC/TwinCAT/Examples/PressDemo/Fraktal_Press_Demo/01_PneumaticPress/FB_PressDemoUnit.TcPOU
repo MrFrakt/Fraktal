@@ -20,7 +20,8 @@ VAR_OUTPUT
     // Jenny Science XENAX Xvi servo (Annex G, PLCopen Motion). NOT CABINET
     // HARDWARE - read the note on PartFeedAxis before looking for it there.
     PartFeed      : FB_AxisCM;
-    ReleaseConditions : FB_PressDemoRelease; // project-owned, browseable condition state
+    // Project-owned, browseable condition state of the rendition that RUNS.
+    ReleaseConditions : ST_PressDemoReleaseConditions;
     OutCmd        : ST_PneumaticPressOutCmd;
     OutImm        : ST_PneumaticPressOutImm;
 END_VAR
@@ -81,11 +82,12 @@ VAR
     // §7.2 / O2 — the SAME release engineering in a second language. Only the
     // rendition RELEASE_LANGUAGE selects is set up, evaluated, and allowed to
     // write the directional permits and the release report; the other is inert.
-    // The ST one stays the PUBLISHED one (ReleaseConditions, a VAR_OUTPUT
-    // above): a browseable second copy that nothing evaluates would show the
-    // operator a set of named conditions that is simply not a claim (§3.12).
-    // Selecting LD therefore trades the browseable condition state for the
-    // demonstration — a bench limitation, not a pattern.
+    // Neither rendition is published itself: the selected one fills
+    // ReleaseConditions (a VAR_OUTPUT above) every scan, so the browseable
+    // record is always the one being evaluated. Publishing the ST instance
+    // directly left it frozen at FALSE whenever LD was selected (§3.12).
+    {attribute 'OPC.UA.DA' := '0'}
+    _stReleaseConditions : FB_PressDemoRelease;
     {attribute 'OPC.UA.DA' := '0'}
     _ldReleaseConditions : FB_LD_PressDemoRelease;
 END_VAR
@@ -130,7 +132,7 @@ END_VAR]]></Declaration>
         <ST><![CDATA[IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
     _ldReleaseConditions.M_AppendStart(Report := Report);
 ELSE
-    ReleaseConditions.M_AppendStart(Report := Report);
+    _stReleaseConditions.M_AppendStart(Report := Report);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -148,7 +150,7 @@ END_VAR]]></Declaration>
     _ldReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
         PressRam := PressRam, Door := Door, PartSlide := PartSlide, Report := Report);
 ELSE
-    ReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
+    _stReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
         PressRam := PressRam, Door := Door, PartSlide := PartSlide, Report := Report);
 END_IF]]></ST>
       </Implementation>
@@ -388,10 +390,12 @@ IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
     _ldReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
         TwoHand := TwoHand, PneumaticPower := PneumaticPower,
         AirPressure := AirPressureMonitor);
+    _ldReleaseConditions.M_PublishTo(Conditions := ReleaseConditions);
 ELSE
-    ReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
+    _stReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
         TwoHand := TwoHand, PneumaticPower := PneumaticPower,
         AirPressure := AirPressureMonitor);
+    _stReleaseConditions.M_PublishTo(Conditions := ReleaseConditions);
 END_IF
 
 // S1.1 O1 - the axis ARMS ITSELF on the first scan a real NC axis is behind
@@ -607,7 +611,7 @@ Ok := AirPressureMonitor.Setup(Name := CONCAT(Name, '.AirPressureMonitor'),
 IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
     Ok := _ldReleaseConditions.Setup(UnitPath := Name) AND Ok;
 ELSE
-    Ok := ReleaseConditions.Setup(UnitPath := Name) AND Ok;
+    Ok := _stReleaseConditions.Setup(UnitPath := Name) AND Ok;
 END_IF
 Ok := _homeSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
     PartSlide := PartSlide, OutCmd := OutCmd) AND Ok;

@@ -499,9 +499,14 @@ rung *below* it in the same scan, because the `MOVE` writes `_step` before those
 are evaluated. That is normally harmless — the chain simply advances a scan earlier
 than the ST twin would — but **not when the two rungs command the same child**: §6.1's
 Execute-drop reset needs one scan with `Execute` low, and a Reset coil followed by a Set
-coil in the same scan never gives it one. In the press AUTO chain the abort at `N180`
-and the reopen at `N185` are the only such pair (both drive the door), which is why
-`N185` is placed deliberately **above** `N180` and everything else is in step order.
+coil in the same scan never gives it one. The press AUTO chain has two such pairs,
+and in each the later rung is placed deliberately **above** the earlier one: the
+abort at `N180` and the reopen at `N185` both drive the door, so `N185` sits above
+`N180`; and `N200` extends the ram while `N240`'s load-position sub-chain retracts
+it, so `N240` sits above `N200`. The second pair was missed until 2026-09-27: with
+a zero dwell, `N200`..`N240` ran in one scan, the retract's Set coil landed in the
+same scan as the extend's Reset, the ram kept reporting the extend's `Done`, and
+the cycle finished with the ram still down. Everything else is in step order.
 
 ### Reading and generating an SFC chart
 

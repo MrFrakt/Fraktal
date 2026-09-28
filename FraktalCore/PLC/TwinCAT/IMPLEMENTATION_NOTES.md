@@ -4430,3 +4430,70 @@ after the last green press run (08-02). With LD selected the published ST
 cannot pass. `Auto_cycle_returns_to_load_position` has not been diagnosed; the LD
 chain is the first suspect. Whether the gate tests the selected rendition or the
 gate selects ST is the project's decision.
+
+## 137. A set can be deleted, and the press publishes and runs its Ladder correctly (2026-09-27)
+
+### Parameter sets can be deleted (Core 0.8.0.0)
+
+`I_ConfigStore` had save, read and list and no delete, so a store that had held
+`MAX_CONFIG_SETS` names could only ever overwrite one of them again: a new product's
+recipe could not be kept without destroying an old one under its name. It is also why
+the set suite depended on run history (§136) - the store is `PERSISTENT`, and nothing
+could empty it.
+
+`I_ConfigStore.M_Delete(SetName)` frees the slot; `FB_LocalConfigStore` refuses when
+the name is absent or a save into that slot is open, so a transaction is never pulled
+from under itself. `FB_UnitBase.DeleteConfigSet` is gated exactly like save and load
+(`CONFIG_SET`, a wired store, the root `READY`), marks persistence pending, refreshes
+the published listing, and is audited with the set name. The mailbox gains
+`DELETE_CONFIG_SET := 35`, appended; the HMI transport enum and the AB mailbox carry
+the ordinal in the same change (both are pinned to the DUT), and AB refuses it as it
+refuses every set operation. An interface method is a contract change, so Core takes
+a minor step, 0.7.0.1 -> 0.8.0.0; Modules is unchanged.
+
+`FB_ConfigSet_Tests` now empties the store through that delete before it runs, and
+`A_deleted_set_is_gone_and_frees_its_slot` proves the rest: deleted and unreadable,
+a second delete refused, persistence pending, and every freed slot usable (167 tests).
+
+### The press publishes the release conditions of the rendition that runs
+
+`FB_PressDemoUnit` published `ReleaseConditions : FB_PressDemoRelease` (ST) while
+`RELEASE_LANGUAGE` selected the private LD rendition, so every named condition a
+client browsed sat at its initial FALSE - its own comment called it "a bench
+limitation". The two renditions also declared the same outputs word for word.
+
+That block now lives once, in `FB_PressDemoReleaseState`, which both renditions
+EXTEND (LD operands resolve by name, so no rung changed). Neither instance is
+published; the selected one copies its conditions into `ReleaseConditions :
+ST_PressDemoReleaseConditions` every scan straight after it evaluated. The browse path
+`ReleaseConditions/ModeStartAirPressureOk` is unchanged and now true; the `ModeStart`
+permit record is no longer browsable under it, which nothing read.
+
+### Two defects in the LD AUTO chain the bench runs
+
+`Auto_cycle_returns_to_load_position` had failed since the bench selected LD
+(`fcafae9`, 2026-08-12). The same suite with `AUTO_SEQUENCE_LANGUAGE` temporarily set
+to ST passed 8/8, which located both in `FB_LD_PressDemoAuto`:
+
+* **`N999` counted good parts on the inverted condition.** ST reads
+  `IF NOT _partProcessed THEN M_CountGood()` - with no traceability carrier
+  `M_PartProcessed` returns FALSE and the chain counts directly. The rung enabled
+  `M_CountGood` on `_processed`, so a station without a carrier never counted a good
+  part and its OEE quality stayed at zero. The enable is now `NOT _processed AND NOT
+  _partDispositioned`, the ST condition exactly; the `_processed` contact is negated
+  and a negated `_partDispositioned` contact added, shaped on box 1066 of the same rung.
+* **The ram never returned up.** With a zero dwell `N200`..`N240` ran in one scan, so
+  `N240`'s load-position sub-chain Set the ram's `Execute` in the scan `N200` Reset it.
+  The ram never saw `Execute` low, kept reporting the extend's `Done`, and the
+  sub-chain took that as retracted - the cycle completed with the ram down. This is the
+  rung-order trap the README documents for `N180`/`N185`; the ram pair was missed. The
+  `N240` network now sits above `N200` (moved whole with `split_networks`/`rebuild`,
+  no network contents changed). `FB_PressDemoUnit` still selects LD.
+
+### Runtime
+
+Local UmRT `192.168.1.6.1.1:851`, `-Interactive`, Core 0.8.0.0 / Modules 0.7.0.0:
+`PRG_TcUnitRunner` **167/167** across 39 suites and `PRG_PressTestRunner` **8/8**
+across 2 suites, both validated by `tcunit_to_junit.py`. The first fully green run of
+either gate since 2026-08-24 and 2026-08-02 respectively
+(`Specification/Evidence/2026-09-27_Core_Press_TcUnit.md`).

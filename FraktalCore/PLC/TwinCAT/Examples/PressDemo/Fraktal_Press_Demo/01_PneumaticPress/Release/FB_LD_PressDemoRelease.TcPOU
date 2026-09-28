@@ -16,23 +16,8 @@
 // any other difference, and like it this is not a Fraktal module: it exposes
 // named condition state and fills the Unit's authoritative release reports
 // without adding an OPC UA tree node.
-FUNCTION_BLOCK FB_LD_PressDemoRelease
-VAR_OUTPUT
-    ModeStart : FB_PermIntlk;
-    ModeStartAirPressureOk : BOOL;
-    // Ram-extend permissive, split into individually named conditions. A single
-    // composite permit could only ever report one composite key, so releasing
-    // the two-hand button - the NORMAL way an operator stops a stroke - was
-    // indistinguishable from a guard fault, an air loss or a power loss.
-    RamGuardClosed   : BOOL;
-    RamSlideInside   : BOOL;
-    RamDevicesHealthy: BOOL;
-    RamAirPressureOk : BOOL;
-    RamTwoHandHeld   : BOOL;
-    RamControlPowerOn: BOOL;
-END_VAR
+FUNCTION_BLOCK FB_LD_PressDemoRelease EXTENDS FB_PressDemoReleaseState
 VAR
-    _unitPath : STRING(255);
     _ramExtendOk : BOOL;
     _ramExtendKey : STRING(255);
     // AppendFailed returns the new report count. ST may discard a return value;

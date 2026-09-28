@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_PressDemoReleaseConditions" Id="{953b81bf-3078-4ba9-bb56-646a8ceeb008}">
+    <Declaration><![CDATA[// Core §7.2/§3.12 - the press's named release conditions, as PUBLISHED.
+// Filled every scan from whichever rendition RELEASE_LANGUAGE selects, so a
+// browsing client always reads the conditions that are actually being
+// evaluated. Before this, the ST component was the published one and was
+// never evaluated while LADDER_DIAGRAM was selected: every flag sat at its
+// initial FALSE whatever the machine was doing - state nobody computes,
+// published as if it were a claim.
+TYPE ST_PressDemoReleaseConditions :
+STRUCT
+    ModeStartAirPressureOk : BOOL;
+    RamGuardClosed    : BOOL;
+    RamSlideInside    : BOOL;
+    RamDevicesHealthy : BOOL;
+    RamAirPressureOk  : BOOL;
+    RamTwoHandHeld    : BOOL;
+    RamControlPowerOn : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
