@@ -211,3 +211,60 @@ Closed today without anyone at the machine:
 | G3 C | a decision: make line data + shifts an optional Core profile, or bind them in AB | It changes what a conformance claim covers |
 | G7 | a decision: default new installs to Process Grey | A product choice; stored selections are unaffected either way |
 | G4 rest | nothing; planned work | Bindable icon, rotation and opacity, bound layer visibility, the grid container, and a declared budget below 200 are buildable at any time; they are sequenced after the live pass so they are shaped by it |
+
+## 8. Principles sweep of the libraries and examples (after Core 0.15.0.0)
+
+The line fix (§145) showed the week's audit had checked each clause against its own
+spec text, but had not checked the libraries and examples for violations of the
+model's *standing* principles. This pass did that. Scope: `Fraktal_Core`, `Fraktal_Modules`,
+the press bench, CoreDemo, and the HMI's catalogues. Allen-Bradley is excluded
+because its code is generated from one declaration and is audited through its R/S gates.
+
+Checked and clean:
+- Every module FB body is only `Cyclic();`.
+- Every overridden hook calls `SUPER^` first.
+- No `OutImm` flag is latched as a literal.
+- The raw I/O GVL is read only by the hardware driver.
+- No `OPC.UA.DA := 1` sits on a type definition.
+- No EM holds a Unit.
+- The HMI has no station- or type-specific code.
+- The lint gates (naming, L1 placement, C8 sim hooks, S1 chain exits) are green.
+
+The findings are below, most severe first.
+
+| # | Status | Where | Principle | Finding |
+|---|---|---|---|---|
+| P1 | ✅ closed | `FB_LineData`, press | §3.8e(a), §3.3 | The line was a CM registered under one root. *Closed in `21d3e08`, IMPLEMENTATION_NOTES §145.* Follow-ups: the line's `Revision`/`Stale`/`Owner` are no longer visible anywhere except the stale event; and `FB_LineData` still sets a type key it never publishes. |
+| P2 | 🔴 | `FB_PressDemoUnit.OnCyclic` | §7.2.1 "never code a second execution predicate beside the report", §7.8 act-or-explain | A two-hand pulse calls `Start()` only when `PartPresent AND PressureOk`. Otherwise it silently drops the pulse. So the Start release report is not the whole predicate, and a refused start explains nothing. |
+| P3 | 🔴 | `Fraktal_Modules/FB_ClampStationUnit` | §6.7 (a library shall not make a mode chain final), §6.8, LOCALIZATION §1/§7.1, O9 | A concrete application Unit with its continuous cycle sits in the reusable library. The cycle is a `CASE _step` inside the Unit's `_M_Dispatch` with hand-written `_step :=`, not a chain on `FB_SequenceBase` with `M_Advance`. It publishes `project.*` keys and type key, and copies `Clamp.OutImm` into its own `OutImm`. Used by CoreDemo, `FB_ClampStationUnit_Tests` and Annex H. |
+| P4 | 🟡 | `FB_ClampEM`, `FB_TwoHandStartCM` | LOCALIZATION §1 key ownership | Library types raise project keys (`project.error.clampNotConfirmedAfterSettle`, `project.safety.twoHandControl`). Every consuming project must therefore supply the library's text. |
+| P5 | 🟡 | 7 library module types | LOCALIZATION §7.1, O1 | `FB_AsciiDeviceCM`, `FB_TcpVisionCM`, `FB_TcpCodeReaderCM`, `FB_Iv3VisionCM`, `FB_Matrix220CM`, `FB_RobotCM` and `FB_StaubliVal3Connector` publish no type key. A faceplate therefore cannot be authored once for "every vision camera" or "every robot". |
+| P6 | 🟡 | `FB_PressDemoUnit` `OutImm` | O9 one source; AGENTS "parents append child records, they do not copy the Boolean"; O4 orphan surface | The Unit republishes nine child facts under new names (`PressRetracted`, `DoorOpen`, `DoorClosed`, `SlideInside`, `SlideOutside`, `TwoHandArmed`, `TwoHandActive`, `PartPresent`, `AirPressureOk`). It also carries `ReadyForLoad` (= `Homed`), `ActiveSettleTime` (= `ParCfg`) and `Diagnostic` (= `Status.Diagnostic`, written twice per scan). The only reader of any of them is `MAIN`'s lamp (P7). |
+| P7 | 🟡 | press `MAIN` | §10.2.1 (`MAIN` is a composition root), signal-tower clause "never station-specific IF logic" | `MAIN` computes `LampsOn` from Unit, child and domain state, although Core ships `FB_SignalTower`/`ST_SignalTowerParCfg` for exactly this. |
+| P8 | 🟡 | `FB_PressDemoUnit.OnCyclic` | §7.2.1 lowest owning module; §6.1 `Held`; §6.9(d) | On air-pressure loss while BUSY, the Unit withdraws three children's outputs itself and faults with `PERMISSIVE_NOT_MET`. The condition belongs in the cylinders' interlock records, where a drop while busy rolls up as `INTERLOCK_DROPPED`. It is also a condition the process is expected to restore, so `Held` may be the right reaction. Separately, a `PneumaticPower` error is adopted with `_M_RollupFault()` on a child nobody awaits; §6.9(d) says `M_RaiseFromChild`. |
+| P9 | 🟡 | `FB_PressDemoUnit` hooks | O1 "more than once is the threshold" | The same `_M_ResetModeSequences`/`_M_ClearModeTransitionState`/`_M_WithdrawSequenceOutputs` calls are repeated in six hooks. The base already knows every attached chain, so resetting them on init, command start, mode change, abort and operator reset is framework work. The power-group request edge (`ControlOn/OffRequest` → `PneumaticPower.Execute`) is likewise hand-wired glue for inputs the base itself defines. |
+| P10 | 🟡 | press recipe (added today) | O9 one source | `PrepareRecipe` hard-codes `T#30S`/`T#5S`, and today's PAR_CFG registration repeats them as `30000`/`5000`. Also watch: the active-model write-back to the catalog is project code. A second project with an editable local catalog makes it a framework item (§3.8b intends the provider to read the `I_ConfigStore`). |
+| P11 | 🟡 | HMI `default_catalogs.dart` | LOCALIZATION §1 | Six `project.config.press*` keys (two older, four added today) sit in the **standard** English map instead of the project map, and have no Spanish. |
+| P12 | 🟡 verify | robot connectors | Annex I I.5, O9 | `FB_SimRobotConnector` extends `FB_DeviceConnectorBase`, but `FB_StaubliVal3Connector` extends a CM (`FB_AsciiDeviceCM`). Two bases serve one role, and swapping connectors may change whether a module appears in the tree, which I.5 says it must not. How each is instanced still needs checking. |
+| P13 | 🟢 low | `FB_PressDemoUnit.M_AppendConfig` | O9, O1 | The Unit reads `GVL_PressFieldbus.Topology` directly, although its injected I/O catalog already owns the topology publisher. There are two routes to one datum, and every project with a bus must remember this override. |
+| P14 | 🟢 low | CoreDemo | §4.2 | A flat `MAIN`, with no `00_System`/`0N_<Unit>` folders. |
+
+**Plan, in order:**
+1. **P2** — Move part-present and air-pressure into the press release component as Start entry conditions, in both the ST and LD renditions. The pulse then calls `Start()` unconditionally, and its refusal is reported. PressTests gains one case.
+2. **Quick one-source cleanups**:
+   - **P4, P5, P11** — key and catalogue fixes, no behaviour change.
+   - **P10** — one constant pair.
+   - **P6** — delete the copies; P7 then reads the children.
+3. **P7** — drive the lamp through the signal tower.
+4. **P9** — have the base reset attached chains on its own lifecycle transitions. This is a Core minor version; the press drops five hook bodies.
+5. **P3** — move the clamp-cell Unit into CoreDemo as its application Unit, with a proper chain. Keep a probe Unit in `Tests/` for the library EM tests. Removing a released library type is a Modules major version.
+6. **P12** — check how each connector is instanced, then keep one connector base.
+7. **P13, P14** — when next touched.
+
+**Needs the project owner:**
+
+| Finding | Decision |
+|---|---|
+| P8 | Air loss while running: **HELD** (outputs withdrawn, resumes when pressure returns, no alarm) or **fault** (manual reset)? The standard leans to HELD for a condition the process restores; the press currently faults. |
+| P3 | Remove `FB_ClampStationUnit` from `Fraktal_Modules` (Modules major step, Annex H example updated), or keep it deprecated for one release? |
+| All | Runtime gates after each PLC step, as for G2. |
