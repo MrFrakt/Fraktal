@@ -74,7 +74,14 @@ void main() {
     expect(await repo.login('StationA', 'admin1', '2468'), isTrue);
     await tester.pump(const Duration(seconds: 2));
 
+    // Each kind of data is its own group, and a value sits inside its group.
+    final station = find.byKey(const ValueKey('cfg-group-stationCfg'));
+    expect(station, findsOneWidget, reason: 'station config is its own group');
+    expect(find.text('Station configuration'), findsOneWidget);
+
     final flag = find.byKey(const ValueKey('cfg-flag-Require two-hand start'));
+    expect(find.descendant(of: station, matching: flag), findsOneWidget,
+        reason: 'a station value is drawn inside the station group');
     expect(flag, findsOneWidget,
         reason: 'a flag is a checkbox, not TRUE/FALSE');
     expect(tester.widget<Checkbox>(flag).value, isTrue);

@@ -669,6 +669,15 @@ const standardEnglish = <String, String>{
   'std.enum.modeSwitchShield.1': 'Confirm first – the HMI asks before switching',
   'std.enum.modeSwitchShield.2': 'Blocked while running – press Stop first',
   'std.enum.modeSwitchStyle': 'Mode-switch style',
+  'std.config.group.model': 'Model data',
+  'std.config.group.model.note':
+      'Recipe of the active model - changes with the model (ParCfg)',
+  'std.config.group.station': 'Station configuration',
+  'std.config.group.station.note':
+      'This station, whatever the model - not part of any recipe (StationCfg)',
+  'std.config.group.line': 'Line data',
+  'std.config.group.line.note':
+      'Held once and shared by every station on the line (LineCfg)',
   'std.enum.modeSwitchStyle.0': 'Graceful – finish the cycle, then switch',
   'std.enum.modeSwitchStyle.1': 'Immediate – abort now, then switch',
   'std.config.modePolicy.0.shield': 'AUTO – mode-switch protection',
@@ -1613,6 +1622,15 @@ const standardSpanish = <String, String>{
   'std.enum.modeSwitchShield.1': 'Confirmar primero – la HMI pregunta antes de cambiar',
   'std.enum.modeSwitchShield.2': 'Bloqueado en marcha – pulse Paro primero',
   'std.enum.modeSwitchStyle': 'Estilo del cambio de modo',
+  'std.config.group.model': 'Datos del modelo',
+  'std.config.group.model.note':
+      'Receta del modelo activo - cambia con el modelo (ParCfg)',
+  'std.config.group.station': 'Configuración de la estación',
+  'std.config.group.station.note':
+      'Esta estación, sea cual sea el modelo - no forma parte de ninguna receta (StationCfg)',
+  'std.config.group.line': 'Datos de línea',
+  'std.config.group.line.note':
+      'Se guardan una vez y los comparten todas las estaciones de la línea (LineCfg)',
   'std.enum.modeSwitchStyle.0': 'Ordenado – termina el ciclo y luego cambia',
   'std.enum.modeSwitchStyle.1': 'Inmediato – aborta ahora y luego cambia',
   'std.config.modePolicy.0.shield': 'AUTOMÁTICO – protección del cambio de modo',

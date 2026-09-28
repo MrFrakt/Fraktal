@@ -21,10 +21,14 @@ class ConfigEditor extends StatelessWidget {
   final ModuleNode node;
   const ConfigEditor({super.key, required this.app, required this.node});
 
-  static const _kindTitles = {
-    CfgKind.parCfg: 'Model data (ParCfg) — versioned, per model',
-    CfgKind.stationCfg: 'Station config (StationCfg) — per deployment, not in recipes',
-    CfgKind.lineCfg: 'Line data (LineCfg) — held once, shared by the line',
+  /// One group per kind: its title, what makes it different, and an icon.
+  static const _kindGroups = {
+    CfgKind.parCfg: ('std.config.group.model', 'std.config.group.model.note',
+        Icons.category_outlined),
+    CfgKind.stationCfg: ('std.config.group.station',
+        'std.config.group.station.note', Icons.precision_manufacturing_outlined),
+    CfgKind.lineCfg: ('std.config.group.line', 'std.config.group.line.note',
+        Icons.linear_scale),
   };
 
   @override
@@ -73,9 +77,45 @@ class ConfigEditor extends StatelessWidget {
     for (final f in fields) {
       if (!classes.contains(f.classId)) classes.add(f.classId);
     }
+    final (title, note, icon) = _kindGroups[kind]!;
+    final theme = Theme.of(context);
+    // Model data belongs to ONE model: say which, so an edit is never mistaken
+    // for a change to every recipe.
+    final model = kind == CfgKind.parCfg
+        ? (app.rootOf(node.path)?.modelCode ?? '')
+        : '';
     return [
-      const SizedBox(height: 8),
-      LText(_kindTitles[kind]!, style: Theme.of(context).textTheme.labelMedium),
+      Container(
+        key: ValueKey('cfg-group-${kind.name}'),
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icon, size: 18),
+            const SizedBox(width: 8),
+            LText(title, style: theme.textTheme.titleSmall),
+            if (model.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Chip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(model)),
+            ],
+          ]),
+          LText(note, style: theme.textTheme.bodySmall),
+          const Divider(height: 12),
+          ..._classRows(context, fields, classes, s, rootReady),
+        ]),
+      ),
+    ];
+  }
+
+  List<Widget> _classRows(BuildContext context, List<CfgField> fields,
+      List<String> classes, AccessSession s, bool rootReady) {
+    return [
       for (final classId in classes) ...[
         if (classId.isNotEmpty)
           Padding(
