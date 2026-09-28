@@ -34,7 +34,7 @@ Every type inheriting the base inherits these guarantees; its own suite covers T
 2. **Declare** `E_GateCommand (OPEN/CLOSE)`, `ST_GateHal` (2 outs, 2 sensors), `GateParCfg (MoveTimeout, SchemaVersion)`.
 3. **Write `_M_Dispatch` only** (~15 lines): CASE step → drive output → await sensor → `_M_Complete()` / `_M_Fault(GATE_NOT_OPEN,…)`. Interlocks via `FB_PermIntlk`; lifecycle is inherited.
 4. **Turn the RED suite GREEN**: fill the T2/T3/T5 expected values; run TcUnit against the sim HAL (§2.6) — no rig.
-5. **Wire once** in the parent's `Setup` (§3.11); the tile renders itself (§3.13). *Total: one CASE body + three expected values. Everything else is Fraktal.*
+5. **Wire once** in the parent's `Setup` (§3.11); the tile renders itself (§3.13). In `Setup`, call `_M_SetPresentation` with the type key — `std.moduleType.<type>` for a library type, `project.moduleType.<type>` for an application's own — so one faceplate serves every instance. The first-out is published for you as `Status.Diagnostic`; do not copy it into `OutImm` (lint D2). *Total: one CASE body + three expected values. Everything else is Fraktal.*
 
 ## 4. Deferred by design
 Incremental `[TC3]` tagging of the existing body proceeds opportunistically per the §1.1 convention (all *new* platform text is tagged); a dedicated tagging pass is scheduled with the Part I/II split.

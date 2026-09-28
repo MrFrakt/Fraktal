@@ -55,10 +55,16 @@ Unknown safety authority or ambiguous output polarity shall remain fail-closed.
 
 1. Draw the forest. Each station is one root `FB_Unit`; peer stations remain
    peer roots. An EM never contains a Unit. A shared cage or power arrangement
-   is a control domain associated with multiple roots, not a super-root.
+   is a control domain associated with multiple roots, not a super-root. A
+   **production line** is the same kind of arrangement (Core §3.8e): one
+   `FB_LineData` declared beside the roots and referenced by each root with
+   `SetLine`, never registered as any Unit's child.
 2. Put each hardware-bound leaf in a CM with one semantic HAL channel. Put a
    bounded function assembled from CMs in an EM. Put continuous modes and cycle
-   ownership in a Unit.
+   ownership in a Unit. A networked device's **connector** (robot controller,
+   smart device) is not a CM: it is composed inside the CM that fronts it
+   (§3.15.1), which services it every scan, so exchanging a simulated and a real
+   connector never changes the module tree.
 3. Search `Fraktal_Modules` before creating a type. Prefer configuration or a
    small extension over a project-specific duplicate.
 4. For a new reusable CM, copy `PLC/TwinCAT/scaffold/FB_TemplateCM`, reserve and record
@@ -68,10 +74,26 @@ Unknown safety authority or ambiguous output polarity shall remain fail-closed.
    Adding or reordering fields changes the schema and requires migration or a
    deliberate `RECIPE_INVALID` fault.
 6. Use localization keys for every operator-facing string. Preserve electrical
-   tags, addresses, identifiers, model codes, and browse paths verbatim.
+   tags, addresses, identifiers, model codes, and browse paths verbatim. A
+   reusable library type raises only `std.*` keys and publishes a
+   `std.moduleType.*` type key; project text uses `project.*` keys in the
+   project catalogue, never in the standard one.
+7. Decide what each module **publishes**. A module's diagnostic is
+   `Status.Diagnostic`, published once by the base; never declare or copy it in
+   an `OutImm` (lint rule D2). A Unit's `OutImm` holds only facts the Unit
+   derives from its children (for example "at load position"); a child's own
+   state is read on the child, never copied under a second name.
+8. Classify every stop condition before writing it. A **defect** faults and
+   needs a reset. A condition the operator or the process is **expected to
+   restore** - a released two-hand control, lost supply air - is an interlock or
+   process condition of the device that needs it (`SetAreaSafe`,
+   `SetDirectionalPermits`): the device HOLDS with its outputs withdrawn and
+   resumes by itself, and the Unit reports the hold by name. Never hand-code a
+   Unit-level fault for a condition a child already owns.
 
 **Exit evidence:** reviewed tree, reason-band allocation, explicit HAL boundary,
-recipe schema, command list, and no duplicate lifecycle or station HMI code.
+recipe schema, command list, the defect/restorable classification of every stop
+condition, and no duplicate lifecycle, copied state, or station HMI code.
 
 ## 4. Phase B — application composition and I/O
 
@@ -90,8 +112,37 @@ Recommended application ownership:
 - simulation driver/plant: virtual commissioning only;
 - control-domain coordinator and final output authority: project
   infrastructure, separate from the three module tiers;
-- `MAIN`: setup, root declarations, real/simulation selection, and explicit
-  scan order—not individual channel assignments.
+- `MAIN`: setup, root declarations, the line and control-domain instances,
+  real/simulation selection, and explicit scan order—not individual channel
+  assignments and not application logic. A condition that drives an output,
+  such as a pushbutton lamp, is derived in the owning Unit's `OutImm` and only
+  mapped by the driver.
+
+Organize the application by the **instance tree**: a `00_System` folder (MAIN,
+raw I/O GVLs, driver, domain coordinator, simulation) and one `0N_<Unit>` folder
+per root Unit holding its Unit type, `Sequences`, `Release`, `Recipes` and `Io`.
+Never put a concrete station Unit or its mode chains in a library.
+
+**Mode chains.** Each continuous mode is a separate POU extending
+`FB_SequenceBase`, owned by the application; the Unit's `_M_Dispatch` only runs
+it. The Unit base restarts every attached chain on first scan, mode change and
+abort, so a project writes no reset glue; a chain keeps its own state in
+`OnChainReset`. Whether a fresh Start or an operator reset restarts or resumes a
+chain is the project's policy, taken with one `_M_RestartSequences()` call in
+`OnCommandStart` / `OnOperatorReset`.
+
+**Start.** A Unit's `Start()` consumes its release report and nothing else: add
+every entry condition to the project's release component so a refusal names
+itself. Conditions awaited later in the cycle (a part present, a two-hand press)
+are `M_Await` records in the chain's wait step, which the HMI shows.
+
+**Editable data.** Register every value an operator or engineer may change as a
+typed capability (`M_RegisterConfigNumber/Duration/Flag/Choice`) with its
+`ConfigKind` and an `E_EngUnit`: `STATION_CFG` for this station, `PAR_CFG` for
+the active model's recipe (with the same range constants `PrepareRecipe`
+enforces, written back to the model's record so a changeover keeps the edit),
+and `LINE_CFG` on the line only, with keys beginning `line.`. Give each a
+`project.config.*` label; the HMI groups them as station, model and line data.
 
 Every deployed root declaration shall carry the binding’s explicit publication
 marker. For TwinCAT TMC-Filtered publication:
@@ -122,8 +173,10 @@ Before building, run `powershell -File "FraktalCore/PLC/TwinCAT/Tests/tools/Test
 It rejects definition-level enable markers, misplaced GVL markers, and
 persistent pointer/interface/reference fields without an immediate `DA=0`.
 
-**Exit evidence:** application/library separation, one source for each I/O tag,
-validated topology mapping, explicit root markers, and documented scan order.
+**Exit evidence:** application/library separation, instance-tree folders, one
+source for each I/O tag, validated topology mapping, explicit root markers,
+chains on `FB_SequenceBase`, every Start condition in the release report, every
+editable value registered with kind, unit and label, and documented scan order.
 
 ## 5. Phase C — simulation and automated acceptance
 
@@ -133,7 +186,8 @@ validated topology mapping, explicit root markers, and documented scan order.
    stop, and no-self-resume behavior.
 3. Exercise HOME, AUTO, CHANGEOVER, MANUAL releases, each recipe, every first-out
    timeout, fieldbus loss, control-domain loss, and recovery without automatic
-   restart.
+   restart. Prove each restorable condition HOLDS and resumes, and each defect
+   faults and recovers with ONE operator reset.
 4. Confirm the final output authority withdraws outputs after logic evaluation;
    ordinary application code never grants a certified safe output.
 
@@ -151,7 +205,10 @@ never authorizes target activation or a download.
 1. Pin and record XAE/XAR. A `.plcproj` is added to a TwinCAT XAE solution with
    **PLC → Add Existing Item**; it is not opened as a solution.
 2. Build and install `Fraktal_Core` as a library, then build and install
-   `Fraktal_Modules`. Build the application and both applicable test gates
+   `Fraktal_Modules` (`tools/Invoke-TwinCatLibraryInstall.ps1` does both in order;
+   the current versions are listed in `AGENTS.md` §5). `tools/Invoke-TwinCatBuild.ps1`
+   then compiles both libraries, the Press bench, the CoreDemo example and both
+   test gates, warning-clean. Build the application and both applicable test gates
    afterwards: `Tests/Fraktal_Tests.plcproj` for Core/Modules and
    `Examples/PressDemo/PressTests.plcproj` for the internal Press feature-testing
    bench. This bench is framework integration evidence, not a real project or
@@ -165,9 +222,10 @@ never authorizes target activation or a download.
    Run either test gate only on an isolated test runtime/ADS port with Autostart
    Boot Project disabled; neither is ever the machine boot application. Never
    load `PressTests` beside the deployed Press project because it links the same
-   source objects. Before accepting the result, verify both the runner and count:
-   Core/Modules is `PRG_TcUnitRunner` with 98 tests/30 suites; Press is
-   `PRG_PressTestRunner` with 8 tests/2 suites. A Core identity after attempting
+   source objects. Before accepting the result, verify both the runner and count
+   against the gate table in `TWINCAT_XAE_WORKFLOW.md` §6.3, which
+   `tools/check_consistency.py` keeps equal to the source - never against a
+   number copied elsewhere. A Core identity after attempting
    Press means the wrong solution was downloaded or stale Core boot data restarted
    on the target. Disabling source autostart does not delete previously created
    target boot data.
@@ -329,7 +387,11 @@ namespace/node rights, server restart, and an authorized browse showing
    authenticated administrator may edit it later.
 6. Validate a read and an acknowledged write: inspect live mode, request a
    supported mode, observe `HmiResponse.AckSequence`, `Accepted`, and
-   `Diagnostic`, and confirm `ModeActivePublished` changes.
+   `Diagnostic`, and confirm `ModeActivePublished` changes. Then, logged in at
+   the required level, edit one value in each configuration group the station
+   has (model, station, line): a flag shows as a checkbox, a choice as a
+   translated dropdown, a number with its unit after the field. Confirm the edit
+   survives a model change and a restart.
 7. Test link loss. The operator shell shall disappear immediately, no command
    is queued across reconnect, and connection editing appears only after 30 s.
 
