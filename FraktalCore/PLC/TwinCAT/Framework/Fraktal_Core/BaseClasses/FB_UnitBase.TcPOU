@@ -2701,8 +2701,9 @@ END_IF]]></ST>
 // More = TRUE holds this piece and waits for the next; the first piece without
 // More completes the line, which is then imported exactly like a whole one.
 //
-// Measured before it is joined: a line that would exceed its width is refused
-// and the import aborted - never truncated, the rule M_Record renders by.
+// Joined by FB_ConfigSetJson.M_Join, which measures first: a line that would
+// exceed its width is refused and the import aborted - never truncated. (Not
+// CONCAT/LEN: those stop at 255, which is the very limit being crossed.)
 METHOD ImportConfigSetPiece : BOOL
 VAR_INPUT
     Piece  : STRING(255);
@@ -2718,7 +2719,8 @@ IF NOT _M_SetOpAllowed() THEN
     _importPart := '';
     RETURN;
 END_IF
-IF (TO_INT(LEN(_importPart)) + TO_INT(LEN(Piece))) > (TO_INT(SIZEOF(line)) - 1) THEN
+line := _importPart;
+IF NOT _setJson.M_Join(Tail := Piece, Line := line) THEN
     _importPart := '';
     IF _importOpen THEN
         _configStore.M_SaveAbort();
@@ -2726,7 +2728,6 @@ IF (TO_INT(LEN(_importPart)) + TO_INT(LEN(Piece))) > (TO_INT(SIZEOF(line)) - 1) 
     END_IF
     RETURN;
 END_IF
-line := CONCAT(_importPart, Piece);
 IF More THEN
     _importPart := line;
     ImportConfigSetPiece := TRUE;             // held, not yet imported

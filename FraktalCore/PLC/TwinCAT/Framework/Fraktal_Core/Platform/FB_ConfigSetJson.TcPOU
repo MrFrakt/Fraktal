@@ -22,9 +22,14 @@
 //     unbounded buffer and would fail the whole file on one bad character -
 //     which is the byte image again, in a friendlier syntax.
 //
-//   * A line is emitted or refused, NEVER truncated. Every render measures the
-//     result before building it, so an over-long value produces an empty string
-//     the caller must handle, not a silently shortened value (§5.6).
+//   * A line is emitted or refused, NEVER truncated. A line may be 480
+//     characters wide, but the standard string functions (CONCAT, LEN, FIND,
+//     MID) are specified to 255 and silently cut there, even into a wider
+//     target - measured on the runtime, where a 330-character record rendered
+//     as 255 bytes. So nothing here uses them on a line: _M_Put appends byte by
+//     byte and REFUSES at the width, _M_Length and _M_Find scan to the
+//     terminator, and an over-long line produces an empty string the caller
+//     must handle, not a silently shortened value (§5.6).
 //
 // The projection is pure: no state, no I/O, no allocation. Writing the lines to
 // a file, an ADS client or an MES connector is a deployment adapter's job
@@ -93,6 +98,88 @@ _M_Escape := buf;
 Ok := TRUE;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_M_Length" Id="{79d600f7-4c00-4024-9c92-88b8bc9f26af}">
+      <Declaration><![CDATA[// The length of a zero-terminated line, by scanning - LEN stops seeing a
+// string at 255. Bounded by LINE_MAX, so a missing terminator cannot run away.
+METHOD PRIVATE _M_Length : INT
+VAR_INPUT
+    pText : POINTER TO BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Length := 0;
+IF pText = 0 THEN
+    RETURN;
+END_IF
+WHILE (_M_Length < LINE_MAX) AND (pText[_M_Length] <> 0) DO
+    _M_Length := _M_Length + 1;
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Put" Id="{bddc185f-07bc-4b2b-b9cf-83c75bc02f10}">
+      <Declaration><![CDATA[// Append the zero-terminated text at pText to Line (Used bytes long). FALSE -
+// and Line exactly as it was - when the result would exceed LINE_MAX: the
+// append is measured first, so it is whole or not at all.
+METHOD PRIVATE _M_Put : BOOL
+VAR_INPUT
+    pText : POINTER TO BYTE;
+END_VAR
+VAR_IN_OUT
+    Line : STRING(480);
+    Used : INT;
+END_VAR
+VAR
+    n    : INT;
+    i    : INT;
+    pOut : POINTER TO BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Put := FALSE;
+n := _M_Length(pText := pText);
+IF (Used < 0) OR ((Used + n) > LINE_MAX) THEN
+    RETURN;
+END_IF
+pOut := ADR(Line);
+FOR i := 0 TO n - 1 DO
+    pOut[Used + i] := pText[i];
+END_FOR
+Used := Used + n;
+pOut[Used] := 0;
+_M_Put := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_PutText" Id="{f7ec429a-69cd-441b-a549-67dd38797a12}">
+      <Declaration><![CDATA[// _M_Put for a short literal or number (at most 255 characters).
+METHOD PRIVATE _M_PutText : BOOL
+VAR_INPUT
+    Text : STRING(255);
+END_VAR
+VAR_IN_OUT
+    Line : STRING(480);
+    Used : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_PutText := _M_Put(pText := ADR(Text), Line := Line, Used := Used);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Join" Id="{4a91b178-a752-474f-b132-10ac8d0f637f}">
+      <Declaration><![CDATA[// Append Tail to Line - the one way a set line longer than a request is put
+// back together (IMPORT_CONFIG_SET in pieces). FALSE, with Line untouched, when
+// the join would exceed LINE_MAX: refused, never truncated.
+METHOD M_Join : BOOL
+VAR_INPUT
+    Tail : STRING(255);
+END_VAR
+VAR_IN_OUT
+    Line : STRING(480);
+END_VAR
+VAR
+    used : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[used := _M_Length(pText := ADR(Line));
+M_Join := _M_PutText(Text := Tail, Line := Line, Used := used);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_Record" Id="{e37f0b95-2c48-41ad-b6e0-597c3d81a462}">
       <Declaration><![CDATA[// Render one set record as a JSON object. Empty result = refused (no key, or
 // the escaped line would exceed LINE_MAX); the caller shall treat that as a
@@ -111,6 +198,7 @@ VAR
     keyText   : STRING(480);
     valueText : STRING(480);
     line      : STRING(480);
+    used      : INT;
     ok        : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
@@ -130,26 +218,26 @@ valueText := _M_Escape(Text := Record.ValueText, Ok => ok);
 IF NOT ok THEN
     RETURN;
 END_IF
-// Measured before it is built: CONCAT truncates at the target width, so the
-// only way to guarantee "emitted or refused, never truncated" is to know the
-// length first.
-IF (TO_INT(LEN(scopeText)) + TO_INT(LEN(keyText)) + TO_INT(LEN(valueText)) + 96)
-        > LINE_MAX THEN
-    RETURN;
-END_IF
-line := CONCAT('{"scope":"', scopeText);
-line := CONCAT(line, '","key":"');
-line := CONCAT(line, keyText);
-line := CONCAT(line, '","rev":');
-line := CONCAT(line, UDINT_TO_STRING(Record.Revision));
-line := CONCAT(line, ',"kind":');
-line := CONCAT(line, DINT_TO_STRING(TO_DINT(Record.Kind)));
-line := CONCAT(line, ',"type":');
-line := CONCAT(line, DINT_TO_STRING(TO_DINT(Record.ValueType)));
-line := CONCAT(line, ',"value":"');
-line := CONCAT(line, valueText);
-line := CONCAT(line, '"}');
-M_Record := line;]]></ST>
+// Built byte by byte: every append is whole or refused, so the line is
+// emitted complete or not at all (see the header on CONCAT).
+line := '';
+used := 0;
+ok := _M_PutText(Text := '{"scope":"', Line := line, Used := used)
+    AND_THEN _M_Put(pText := ADR(scopeText), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := '","key":"', Line := line, Used := used)
+    AND_THEN _M_Put(pText := ADR(keyText), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := '","rev":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := UDINT_TO_STRING(Record.Revision), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"kind":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := DINT_TO_STRING(TO_DINT(Record.Kind)), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"type":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := DINT_TO_STRING(TO_DINT(Record.ValueType)), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"value":"', Line := line, Used := used)
+    AND_THEN _M_Put(pText := ADR(valueText), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := '"}', Line := line, Used := used);
+IF ok THEN
+    M_Record := line;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_Header" Id="{5a90c7e2-38b1-4076-9d4f-c1e628037ba5}">
@@ -167,6 +255,7 @@ VAR
     rootText  : STRING(480);
     modelText : STRING(480);
     line      : STRING(480);
+    used      : INT;
     ok        : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
@@ -186,32 +275,35 @@ modelText := _M_Escape(Text := Info.ModelCode, Ok => ok);
 IF NOT ok THEN
     RETURN;
 END_IF
-IF (TO_INT(LEN(nameText)) + TO_INT(LEN(rootText)) + TO_INT(LEN(modelText)) + 150)
-        > LINE_MAX THEN
-    RETURN;
+line := '';
+used := 0;
+ok := _M_PutText(Text := '{"set":"', Line := line, Used := used)
+    AND_THEN _M_Put(pText := ADR(nameText), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := '","root":"', Line := line, Used := used)
+    AND_THEN _M_Put(pText := ADR(rootText), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := '","schema":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := UINT_TO_STRING(Info.SetSchema), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"configRev":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := UDINT_TO_STRING(Info.ConfigRev), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"kind":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := DINT_TO_STRING(TO_DINT(Info.Kind)), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"model":"', Line := line, Used := used)
+    AND_THEN _M_Put(pText := ADR(modelText), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := '","records":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := INT_TO_STRING(Info.RecordCount), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"created":', Line := line, Used := used)
+    AND_THEN _M_PutText(Text := UDINT_TO_STRING(DT_TO_UDINT(Info.CreatedAt)), Line := line, Used := used)
+    AND_THEN _M_PutText(Text := ',"clock":', Line := line, Used := used);
+IF ok THEN
+    IF Info.TimeSynchronized THEN
+        ok := _M_PutText(Text := '1}', Line := line, Used := used);
+    ELSE
+        ok := _M_PutText(Text := '0}', Line := line, Used := used);
+    END_IF
 END_IF
-line := CONCAT('{"set":"', nameText);
-line := CONCAT(line, '","root":"');
-line := CONCAT(line, rootText);
-line := CONCAT(line, '","schema":');
-line := CONCAT(line, UINT_TO_STRING(Info.SetSchema));
-line := CONCAT(line, ',"configRev":');
-line := CONCAT(line, UDINT_TO_STRING(Info.ConfigRev));
-line := CONCAT(line, ',"kind":');
-line := CONCAT(line, DINT_TO_STRING(TO_DINT(Info.Kind)));
-line := CONCAT(line, ',"model":"');
-line := CONCAT(line, modelText);
-line := CONCAT(line, '","records":');
-line := CONCAT(line, INT_TO_STRING(Info.RecordCount));
-line := CONCAT(line, ',"created":');
-line := CONCAT(line, UDINT_TO_STRING(DT_TO_UDINT(Info.CreatedAt)));
-line := CONCAT(line, ',"clock":');
-IF Info.TimeSynchronized THEN
-    line := CONCAT(line, '1}');
-ELSE
-    line := CONCAT(line, '0}');
-END_IF
-M_Header := line;]]></ST>
+IF ok THEN
+    M_Header := line;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Field" Id="{c8206f4b-9e17-45d3-82a6-70b41ed5c396}">
@@ -233,9 +325,12 @@ VAR
     pOut  : POINTER TO BYTE;
     buf   : STRING(255);
     token : STRING(40);
+    pTok  : POINTER TO BYTE;
+    tokLen : INT;
     found : INT;
     i     : INT;
     j     : INT;
+    k     : INT;
     n     : INT;
     ch    : BYTE;
     quoted : BOOL;
@@ -244,14 +339,26 @@ END_VAR]]></Declaration>
         <ST><![CDATA[_M_Field := FALSE;
 Value := '';
 buf := '';
-token := CONCAT('"', CONCAT(Name, '":'));
-found := TO_INT(FIND(Line, token));
-IF found = 0 THEN
+token := CONCAT('"', CONCAT(Name, '":'));   // short: CONCAT is exact here
+pIn := ADR(Line);
+pTok := ADR(token);
+n := _M_Length(pText := pIn);               // FIND/LEN would see only 255 of it
+tokLen := TO_INT(LEN(token));
+found := -1;
+FOR i := 0 TO n - tokLen DO
+    k := 0;
+    WHILE (k < tokLen) AND_THEN (pIn[i + k] = pTok[k]) DO
+        k := k + 1;
+    END_WHILE
+    IF k = tokLen THEN
+        found := i;
+        EXIT;
+    END_IF
+END_FOR
+IF found < 0 THEN
     RETURN;                                // absent: the caller decides if that is fatal
 END_IF
-pIn := ADR(Line);
-n := TO_INT(LEN(Line));
-i := found - 1 + TO_INT(LEN(token));          // 0-based index of the first value byte
+i := found + tokLen;                          // 0-based index of the first value byte
 IF i >= n THEN
     RETURN;
 END_IF

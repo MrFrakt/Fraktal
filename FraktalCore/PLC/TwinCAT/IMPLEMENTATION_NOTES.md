@@ -4736,3 +4736,35 @@ refuses one longer than 480 by name. Test: `A_line_longer_than_a_request_imports
 imports a 330-character record in two pieces, reads its 70-character value and
 140-character key back whole, and proves a join past 480 is refused. Core/Modules
 runner: 187 tests / 42 suites.
+
+## 143. Set lines past 255 characters were exported truncated; the codec no longer uses the standard string functions on a line (2026-09-28)
+
+Found by the first runtime run of §142's test. `FB_ConfigSetJson` built each line with
+`CONCAT` into a `STRING(480)`, measuring first with `LEN` in the belief that "CONCAT
+truncates at the target width". On TwinCAT 3.1.4026.24 it does not: `CONCAT` cuts at
+**255** whatever the target, and `LEN` reports at most **255**. Both are measured, not
+assumed: the test scanned a rendered 330-character record as exactly 255 bytes, and on
+the corrected build `LEN` returned 255 for a 290-character line. `FIND` has the same
+limit, so `_M_Field` could not have found a member placed past character 255 either.
+Every set record whose line exceeded 255 characters had therefore been exported as
+broken JSON since the export was written. That contradicts the codec's own rule,
+"emitted or refused, never truncated", and Part II §3.8. Short records, the only ones
+the earlier tests used, were unaffected, and no compile gate can see a value property.
+
+The codec now owns the long-string mechanics in one place:
+- `_M_Length` scans to the terminator, bounded by `LINE_MAX`.
+- `_M_Put` / `_M_PutText` append byte by byte and refuse a whole append that would
+  exceed `LINE_MAX`, leaving the line as it was.
+- `M_Record` and `M_Header` are built with them.
+- `_M_Field` finds a member by byte scan.
+- `M_Join` is the public append the piece import uses. `ImportConfigSetPiece` calls it
+  instead of `LEN`/`CONCAT`, so Core has exactly one implementation of a line longer
+  than 255.
+
+Standard string functions stay where every operand is provably under 255 characters:
+field values, the member token, and number text.
+
+Evidence: `Specification/Evidence/2026-09-28_Core_Press_TcUnit.md`, with Core/Modules
+187/187 and Press 8/8. Anything else in Core that joins strings which can exceed 255
+characters needs the same treatment. It is owed an audit (a lint rule could flag
+`CONCAT`/`LEN`/`FIND` whose operand is declared wider than `STRING(255)`).

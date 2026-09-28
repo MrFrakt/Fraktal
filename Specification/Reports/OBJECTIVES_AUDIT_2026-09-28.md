@@ -92,7 +92,12 @@ broken for that record.
 - *C. Cap export at 255.* Records that do not fit would be refused at export instead.
   This is fail-closed, but a station's own data could then not leave it. Not recommended.
 
-**G2 — Runtime evidence stops at Core 0.8.0.0 (O10: honest status).** Core 0.9 to 0.11
+**G2 — Runtime evidence stops at Core 0.8.0.0 (O10: honest status).** *Update, same day:*
+step 1 is done. Both gates are green on Core 0.13.0.0 (Core/Modules 187/187, Press 8/8),
+archived in `Evidence/2026-09-28_Core_Press_TcUnit.md`. The run found a real defect:
+set lines longer than 255 characters had been exported truncated, because `CONCAT`
+and `LEN` stop at 255. It is fixed and proven (IMPLEMENTATION_NOTES §143). Steps 2–4,
+the live OPC UA pass, remain. Core 0.9 to 0.11
 passed on the local runtime: 174, 180 and 186 tests of 186, and PressTests 8/8.
 The results are recorded only in commit messages; the raw logs and JUnit were not
 archived under `Specification/Evidence/`. Core 0.12 was compiled (`CheckAllObjects` 0/0)

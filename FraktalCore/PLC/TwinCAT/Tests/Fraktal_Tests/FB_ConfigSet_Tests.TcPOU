@@ -381,6 +381,8 @@ VAR
     first  : STRING(255);
     rest   : STRING(255);
     k      : INT;
+    size   : INT;                          // measured by scanning, not by LEN
+    p      : POINTER TO BYTE;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TEST('A_line_longer_than_a_request_imports_in_pieces');
@@ -404,10 +406,30 @@ FOR k := 1 TO 7 DO
     _record.ValueText := CONCAT(_record.ValueText, '0123456789');
 END_FOR
 _line := _json.M_Record(Record := _record);
-AssertTrue(Condition := LEN(_line) > 255,
-    Message := 'the record renders longer than one request can carry');
-first := LEFT(_line, 200);
-rest := MID(_line, LEN(_line) - 200, 201);
+// The length is measured by scanning to the terminator, independently of LEN:
+// the standard string functions are specified to 255 characters, so neither
+// LEN nor CONCAT may be trusted past it without proof.
+size := 0;
+p := ADR(_line);
+WHILE size < 480 AND p^ <> 0 DO
+    size := size + 1;
+    p := p + 1;
+END_WHILE
+AssertTrue(Condition := size > 255,
+    Message := CONCAT('the record renders past 255 characters; scanned ', INT_TO_STRING(size)));
+// Measured on the runtime (2026-09-28): LEN reported 255 for this 290-character
+// line. That is why the codec scans instead, and why this test does too.
+AssertTrue(Condition := _json.M_ParseRecord(Line := _line, Record := _decoded),
+    Message := 'the long line is whole: it parses back');
+AssertEquals_STRING(Expected := _record.ValueText, Actual := _decoded.ValueText,
+    Message := 'and its value is intact, so rendering did not truncate');
+// Pieces by byte copy, so the test does not depend on LEFT/MID past 255.
+MEMSET(ADR(first), 0, SIZEOF(first));
+MEMSET(ADR(rest), 0, SIZEOF(rest));
+MEMCPY(ADR(first), ADR(_line), 200);
+IF size > 200 THEN
+    MEMCPY(ADR(rest), ADR(_line) + 200, MIN(size - 200, 255));
+END_IF
 AssertTrue(Condition := _M_Import(Line := header, Commit := FALSE),
     Message := 'the header opens the import');
 AssertTrue(Condition := _u.ImportConfigSetPiece(Piece := first, More := TRUE,
