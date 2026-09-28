@@ -4,6 +4,8 @@
 /// (error > warning > info); the source node renders strongest.
 library;
 
+import 'dart:math' as math;
+
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
 import '../domain/module_node.dart';
@@ -18,12 +20,17 @@ class TreeMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final collapsed = app.railCollapsed;
+    // The collapsed rail must hold the toggle at the ACTIVE size preset: a
+    // fixed 64 px rail overflowed the 62/76 px touch targets of the medium
+    // and large presets (the expand button itself). Never narrower than 64.
+    final collapsedWidth =
+        math.max(64.0, ControlScaleScope.of(context).touchTarget + 16);
     return ClipRect(
       child: AnimatedContainer(
         key: const Key('navigation-tree-animated-width'),
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
-        width: collapsed ? 64 : 300,
+        width: collapsed ? collapsedWidth : 300,
         child: LayoutBuilder(
           builder: (context, constraints) {
             // During the width tween the target state changes immediately.
