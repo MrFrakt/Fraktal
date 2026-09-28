@@ -19,6 +19,20 @@ VAR_INPUT
     Pager : REFERENCE TO FB_ConfigPager;
 END_VAR]]></Declaration>
     </Method>
+    <Method Name="M_ConfigAccessOf" Id="{a5761e33-de56-4dc6-a86c-831a8a411150}">
+      <Declaration><![CDATA[// §3.8d - report what the module named by Scope declared about access to one
+// of its registered values. TRUE only from the owner; the root resolves the
+// effective level with its policy before it lets a write, capture or set
+// record reach the value.
+METHOD M_ConfigAccessOf : BOOL
+VAR_INPUT
+    Scope    : STRING(255);
+    WriteKey : STRING(160);
+END_VAR
+VAR_IN_OUT
+    Grant : ST_ConfigAccess;
+END_VAR]]></Declaration>
+    </Method>
     <Method Name="M_ApplyConfigWrite" Id="{0b5f92c7-3a41-4de8-97b2-6c8d05e1743f}">
       <Declaration><![CDATA[// Apply one registered configuration write to the module named by Scope.
 // TRUE only from the module that owns the key and accepted the value; a module

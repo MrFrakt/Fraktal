@@ -76,6 +76,7 @@ EXPORT_CONFIG_SET = 32
 IMPORT_CONFIG_SET = 33
 MANUAL_HELD = 34
 DELETE_CONFIG_SET = 35
+SET_CLASS_LEVEL = 36
 
 # Every ordinal the oracle declares, by name. The pinning test compares this
 # mapping against the DUT itself, so a member added there and not here fails.
@@ -97,7 +98,7 @@ KINDS: dict[str, int] = {
     "ACK_CONFIG_RESTORE": ACK_CONFIG_RESTORE,
     "EXPORT_CONFIG_SET": EXPORT_CONFIG_SET,
     "IMPORT_CONFIG_SET": IMPORT_CONFIG_SET, "MANUAL_HELD": MANUAL_HELD,
-    "DELETE_CONFIG_SET": DELETE_CONFIG_SET,
+    "DELETE_CONFIG_SET": DELETE_CONFIG_SET, "SET_CLASS_LEVEL": SET_CLASS_LEVEL,
 }
 
 # --- what this binding actually routes ---------------------------------------
@@ -134,6 +135,7 @@ REFUSED: dict[int, str] = {
     LOGOUT: "project.mailbox.refused.access_not_enforced",
     SET_ACCESS_LEVEL: "project.mailbox.refused.access_not_enforced",
     SET_SESSION_TIMEOUT: "project.mailbox.refused.access_not_enforced",
+    SET_CLASS_LEVEL: "project.mailbox.refused.access_not_enforced",
     CONTROL_ON: "project.mailbox.refused.no_control_power",
     CONTROL_OFF: "project.mailbox.refused.no_control_power",
     SET_RUN_STYLE: "project.mailbox.refused.no_run_style",

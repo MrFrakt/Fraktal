@@ -377,6 +377,7 @@ const standardEnglish = <String, String>{
       'The requested parameter-set type is not station configuration or model data.',
   'std.error.configSetLineRejected':
       'That line of the parameter-set document could not be read.',
+  'std.audit.dataAccessDenied': 'Configuration access denied.',
   'std.error.configSetDeleteRefused':
       'The parameter set was not deleted: it does not exist, or it is being written.',
   'std.release.configRestoreUnacknowledged':

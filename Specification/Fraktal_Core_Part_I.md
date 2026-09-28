@@ -512,6 +512,115 @@ per device family, or per annex.
 (manual release), §7.7 (`DATA_WRITE`), §8.3 (audit), §8.8 (`RECIPE_INVALID`),
 §14 (untrusted input).*
 
+#### 3.8d Data classes and per-value access
+
+§7.7 gates editable data with two actions for the whole station: `DATA_READ` to see a value
+and `DATA_WRITE` to change one. That is one threshold for everything a station stores, so a
+deployment that wants its commissioning values guarded by an `ENGINEER` cannot also let an
+`OPERATOR` adjust a counter preset or a label without either lowering the guard on everything
+or raising it on the preset. Real stations need both at once.
+
+**(a) Data class — the access axis.** A root Unit **may** declare **data classes**: named,
+project-owned groups of editable values, each with its own required read level and write
+level (`E_AccessLevel`). `ConfigKind` (§3.10.2) remains the *lifecycle* axis — what the value
+is (model data, station data, line data) and which parameter set carries it; the data class
+is the *access* axis — who may see and change it. The two are orthogonal: a "public station
+data" class holds `STATION_CFG` values, travels in station sets exactly like the rest of the
+station data, and differs only in who may edit it.
+
+A class is declared at the root with a stable `ClassId`, a label key and **default** read and
+write levels. Every root carries three built-in classes, one per `ConfigKind`, whose levels
+are the `DATA_READ`/`DATA_WRITE` thresholds of the policy — so a value registered without a
+class behaves exactly as it did before this section existed. Declaring a class is additive;
+the policy keeps the gated actions of §7.7 unchanged.
+
+**(b) Class levels are policy.** A class's read and write levels are held in the root's access
+policy (§7.7(b)) beside the gated-action thresholds — persistent station configuration,
+editable through the same audited, `ACCESS_POLICY`-gated path, and subject to the same
+self-lockout rule. The declared levels are defaults, not constants: a deployment may raise or
+lower a class without a download, as it may any other threshold.
+
+**(c) A value may only raise its class's requirement.** A registered value **may** declare its
+own minimum read and/or write level. The **effective** level of a value is the higher of its
+class's level and its own minimum — never lower. A single value can therefore be made harder
+to change than the class it sits in (a calibration constant inside otherwise-public data), but
+no value can be made *easier* to change than its class says. That is what keeps a class
+auditable: its level is a bound on everything in it, and a reviewer reads one number instead
+of every registration. A value's own minimum is declared at registration and is not editable
+at runtime; it states a property of the value, not a deployment preference.
+
+**(d) The PLC computes and enforces the effective level.** Each manifest entry (§3.10.2)
+publishes its `ClassId` and its **effective** `ReadLevel` and `WriteLevel`, so a generic HMI
+greys and hides editors from data rather than recomputing policy. Enforcement stays in the
+PLC: `WRITE_CONFIG`, a capture (§3.8c) and a collection operation (§3.10.2a) are accepted only
+when the session level meets the value's effective write level, and a refusal names the value
+and the level it required. A value whose effective read level the session does not meet is
+served in the manifest with its metadata and **without its value** (`Readable := FALSE`), so an
+editor can say that something exists and why it is hidden instead of silently omitting it.
+This is presentation control and defense in depth, not confidentiality: where the same data is
+also published in the cyclic namespace, protecting it from another client is the transport's
+job (§7.7(d), §14).
+
+**(e) Sets respect the levels of what they carry.** A parameter set (§3.8b) is not a way around
+a class. **Loading** a set **shall** be refused, before any value changes, when the session
+does not meet the effective write level of every record the set would apply — naming the first
+such record — so `CONFIG_SET` access alone cannot replace values the same user could not edit
+one at a time. **Exporting** a set likewise requires the effective read level of every record
+it would reveal. Saving and deleting reveal nothing outside the PLC and remain governed by
+`CONFIG_SET` alone.
+
+*Cross-references: §3.8a (placement), §3.8b (parameter sets), §3.8c (capture), §3.10.2
+(manifest entry), §3.10.2a (collections), §7.7 (levels, policy, `ACCESS_POLICY`), §8.3 (audit),
+§14 (defense in depth).*
+
+#### 3.8e Line data — one owner, mirrored
+
+Station data describes one station and model data one product. A third kind describes the
+**line** the station belongs to and is shared by every station on it: the shift calendar
+(§8.5.2), a line-wide takt, the line's identity for a host system. Held per station, such data
+drifts the first time one station is edited and its neighbour is not; held nowhere, it is
+re-entered on every HMI. Line data is therefore its own `ConfigKind`, `LINE_CFG`, with exactly
+one authoritative copy.
+
+**(a) A line is orthogonal to the Unit forest.** Like the control domain (§9.8), a line is not a
+Unit and has no parent: it is a named arrangement (`LineId`) that zero or more root Units
+reference, on one controller or across several. A root Unit references at most one line. No
+super-root is created to hold it.
+
+**(b) One owner; every other copy is a mirror.** Exactly one controller hosts the line's
+**owner**. Line values are registered as write capabilities (§3.10.2, `ConfigKind := LINE_CFG`)
+**only** on the owner and are edited only there, under the ordinary `WRITE_CONFIG` path, data
+classes (§3.8d) and audit. Every other controller that references the line hosts a **mirror**:
+a read-only local copy whose manifest entries carry `Writable := FALSE`, and which a client
+cannot change. Two editable copies of one fact are exactly the drift this section exists to
+remove, so there is no multi-master mode.
+
+**(c) Revisioned, whole-revision replication.** The owner increments `LineRevision` on every
+accepted change. A mirror obtains the line's records through one pluggable **`I_LineSource`**
+capability — mirroring the provider pattern of §3.8 and the store of §3.8b — and applies a new
+revision **whole or not at all**, staged and validated like a parameter-set load, so a mirror
+never runs on a half-replicated line. Several root Units on the owner's own controller share
+the owner directly and need no source. The transport behind `I_LineSource` is a binding and
+deployment choice; the source, like a store, is untrusted input (§14).
+
+**(d) A mirror keeps running, and says how current it is.** A mirror persists its last applied
+revision (§3.8b rules apply unchanged), so a controller restarted while the owner is
+unreachable runs on the line data it last had rather than on defaults. It publishes
+`LineRole` (`OWNER`/`MIRROR`), `LineRevision`, the owner's identity, the time of the last
+successful update, and `Stale` once no update has succeeded within the declared window. Stale
+line data is annunciated as a LOW/SYSTEM `AUTO_RESET` event and **never blocks** production on
+its own: a shift boundary computed from a calendar one revision old is a reporting error, not a
+hazard. A deployment for which line data is safety- or quality-relevant declares that through
+its own release conditions (§7.2.1), visibly and per condition.
+
+**(e) Line data is not a set operation on a mirror.** Station and model sets (§3.8b) never
+carry `LINE_CFG` records. A line set may be saved, loaded and deleted **on the owner** only; a
+mirror refuses every line-set operation with a reason naming the owner.
+
+*Cross-references: §3.8a/§3.8b (kinds, persistence, sets), §3.8d (classes), §3.10.2 (manifest),
+§8.5.2 (shifts — the first line data), §9.8 (control domain — the same orthogonal pattern),
+§14 (untrusted sources).*
+
 ### 3.9 Feature selectability
 
 Each module advertises a `Features` flag set — e.g. `RecipeEnabled`, `CalibrationEnabled`, `CaptureEnabled` (§3.8c), `ManualFunctionsEnabled`, plus per-command enables. Disabled features:
@@ -573,8 +682,11 @@ Read publication does not confer write authority. An editable entry appends all 
 following capability data:
 
 - stable `WriteKey` scoped to the owning module and a non-zero `WriteRevision`;
-- `ConfigKind` (`PAR_CFG` or `STATION_CFG`) and `ValueType` (`NUMBER`, `TEXT`,
-  `BOOLEAN`, or `TIME`), with append-only ordinals;
+- `ConfigKind` (`PAR_CFG`, `STATION_CFG`, or `LINE_CFG` — §3.8e) and `ValueType`
+  (`NUMBER`, `TEXT`, `BOOLEAN`, or `TIME`), with append-only ordinals;
+- the value's data class (`ClassId`) and its **effective** `ReadLevel` and `WriteLevel`
+  (§3.8d), computed by the PLC, and `Readable := FALSE` with no value when the session
+  does not meet the read level;
 - `Writable`, optional numeric bounds, optional exact enum domain, engineering unit and
   label key; and
 - whether the owning root must be `READY` for the write.
@@ -586,7 +698,8 @@ not be inferred from `Item` or from transport-level writability. For `WRITE_CONF
 client sends `TargetPath=Scope`, `NameValue=WriteKey`, `IntValue=WriteRevision`, and the
 serialized candidate in `TextValue`, committing `Sequence` last.
 
-The root rechecks `DATA_WRITE` access and subtree ownership, then routes only a registered
+The root rechecks the value's effective write level (§3.8d; `DATA_WRITE` for a value in a
+built-in class) and subtree ownership, then routes only a registered
 key to the owning typed handler. That handler shall recheck revision, value type,
 range/domain, current machine state, and all module-specific invariants before changing
 data. Unknown keys, stale revisions and malformed or out-of-domain values are rejected
@@ -1815,7 +1928,7 @@ Access level is the **who** dimension of release, ANDed with the **machine** dim
 
 **(a) Levels & actions.** Ordinal levels `E_AccessLevel` (`NONE`=0 < `OPERATOR` < `TECHNICIAN` < `ENGINEER` < `ADMIN`) and an enumerated set of **gated actions** `E_GatedAction`: `DATA_READ`, `DATA_WRITE` (ParCfg/StationCfg edits, §3.8a), `MANUAL` (manual movements), `CHANGEOVER` (`SetModel`, §3.1b), `MODE_CHANGE` (§3.4), `START_STOP`, `ALARM_HISTORY` (read, §8.3), `ALARM_RESET` (§8.3(b)), `ACCESS_POLICY` (editing this policy itself), append-only `ALARM_SHELVE` (shelve/unshelve annunciation, §8.10), `POWER_CONTROL` (Control On/Off and power-group requests, §9.8), and `CONFIG_SET` (saving, loading or importing a whole parameter set, §3.8b). Ordinals are transport contract; new actions shall be appended, never inserted.
 
-**(b) Per-station policy, PLC-authoritative and editable.** Each root Unit carries an **access policy** — a required level per gated action — held as persistent **station configuration** (§3.8a: deployment data, editable, never in a recipe). Any threshold set to `NONE` means that action needs no login; a station may therefore be **fully open** (every threshold `NONE`) or locked down per action — the deployment's deliberate choice. **Shipped default is fully open** (`NONE` everywhere): access control is never a silent lock-in (O1/O6), and the §14 commissioning checklist **shall** include provisioning an access provider and reviewing the policy. A generic HMI may edit the root's published policy, but each edit is routed through the root request mailbox and rechecked against `ACCESS_POLICY`; the policy editor is not a second authority. To prevent retained self-lockout, raising the `ACCESS_POLICY` threshold above the active session level **shall be rejected**. Per-function granularity for manual movements: `MANUAL` is the default threshold, and an individual manual function **may** declare its own higher required level in its `OnManRelease` definition (§7.6) — so "jog axis" and "open guard bypass" can differ.
+**(b) Per-station policy, PLC-authoritative and editable.** Each root Unit carries an **access policy** — a required level per gated action — held as persistent **station configuration** (§3.8a: deployment data, editable, never in a recipe). Any threshold set to `NONE` means that action needs no login; a station may therefore be **fully open** (every threshold `NONE`) or locked down per action — the deployment's deliberate choice. **Shipped default is fully open** (`NONE` everywhere): access control is never a silent lock-in (O1/O6), and the §14 commissioning checklist **shall** include provisioning an access provider and reviewing the policy. A generic HMI may edit the root's published policy, but each edit is routed through the root request mailbox and rechecked against `ACCESS_POLICY`; the policy editor is not a second authority. To prevent retained self-lockout, raising the `ACCESS_POLICY` threshold above the active session level **shall be rejected**. The policy also holds the read and write level of every declared **data class** (§3.8d), edited through the same path; the built-in classes use the `DATA_READ`/`DATA_WRITE` thresholds. Per-function granularity for manual movements: `MANUAL` is the default threshold, and an individual manual function **may** declare its own higher required level in its `OnManRelease` definition (§7.6) — so "jog axis" and "open guard bypass" can differ.
 
 **(c) Sessions & enforcement.** A per-root **access manager** holds the active level/user, authenticates through an injected **`I_AccessProvider`** — with a shipped local default (`FB_LocalAccessProvider`, persistent user/PIN table) mirroring §3.8's provider pattern — and auto-logs-out after a configurable idle timeout (`T#0S` = never). Idle time is measured since successful login or the last **accepted authenticated operator mutation**; background reads, manifest fetches, and release-report polling shall not keep an abandoned session alive. Login/logout is **data-driven** (request members in the exposed namespace, §3.10(a′)); the secret member is cleared immediately after each attempt. A transport/mailbox acknowledgement only proves that the attempt was consumed; clients **shall** determine authentication success from the resulting published `CurrentUser`, `CurrentLevel`, and `LoginFailed` state. A failed attempt shall receive explicit localized HMI feedback without revealing whether the user or secret was incorrect. Enforcement is **in the PLC** at every gated entry point (`SetMode`, `SetModel`, `Start`/`Stop`, `OperatorReset`, manual commands, decisions, power control, alarm shelving, force, and ParCfg/StationCfg writes): the HMI greys controls from the published level *and* the PLC re-checks — the client is never trusted (§14 defense in depth). Denied attempts, logins, logouts, and accepted privileged remote mutations **shall** be logged as `MESSAGE` events (§8.3), including the action identity and active user but never a secret. Thresholds are configured on the **root** the HMI addresses; framework-internal calls (the §3.7 cascade, step chains) are trusted — they only execute downstream of an already-authorized entry.
 
@@ -1892,6 +2005,51 @@ OEE is a **derivation from contracts the standard already has** — no new instr
 - **HMI (§3.13).** Units render an OEE facet: the three factors + OEE as percentages with **exception-based colouring** (muted when at/above target, colour only below — ISA-101 style), and a **sparkline** from the sample ring so the operator sees *direction*, not just a snapshot. Invalid factors render as "—", never 100 %.
 
 *Cross-references: §3.8 (ideal cycle per model), §6.1 (`BUSY`), §8.3 (blocking, audit, historian), §8.11 (counters, timing), §7.7 (reset gating), §3.13 (rendering).*
+
+#### 8.5.2 Shifts and per-shift statistics
+
+§8.5.1 says counters and OEE are reset "typically at shift start" by a deployment's scheduler,
+and §8.11.2 that counts reset on a deliberate, logged action. Left there, every deployment
+writes its own scheduler, the reset lands whenever that scheduler happens to run, and the
+figures for the shift that just ended are gone the moment it does. A shift is a fact about the
+line, and closing one is framework work.
+
+**(a) The calendar is line data.** A line (§3.8e) carries a bounded shift calendar of at most
+`MAX_SHIFTS` entries, each an ordinary `LINE_CFG` write capability: whether the shift is used,
+its start as minutes after local midnight, and its display name. A shift runs from its start to
+the start of the next used shift, wrapping at midnight, so a calendar is complete by
+construction and has no gaps to reason about. Every station on the line reads the same
+calendar, from the owner or its mirror; no station holds its own.
+
+**(b) Every root Unit closes its own shift.** At each boundary, evaluated on the synchronized
+clock (§2.7), every root Unit that references the line closes the ending shift as **one
+operation in one scan**: it writes a **shift record** into a bounded ring
+`ShiftHistory[1..MAX_SHIFT_HISTORY]` (newest-first, `Truncated` on overflow) and then resets its
+per-shift accumulators. The record carries the shift's index and name, its start and end
+timestamps with their time-quality flags, `GoodCount`, `NokCount`, `ReworkCount`, the §8.5.1
+run/down/idle times, and the three OEE factors with their validity flags — the figures exactly
+as they stood at the boundary, so nothing between the last read and the reset is lost. The
+closing is audited (§8.3) and offered to `I_EventSink`, so a historian receives every shift
+without polling for it.
+
+**(c) Counters are split, not replaced.** The per-shift counts and OEE accumulators are those
+that §8.5.1 and §8.11.2 already publish; a shift boundary is the deliberate, logged reset those
+sections require, taken on time instead of whenever a scheduler runs. `ResetOee` and a
+changeover reset remain available and behave as before; a manual reset mid-shift is recorded as
+such in the next shift record, so a shift total is never silently partial.
+
+**(d) Clock quality is carried, never hidden.** A boundary crossed while the clock is not
+synchronized still closes the shift — stopping the accounting would lose more than a late
+boundary does — but the record says so (`TimeSynchronized := FALSE`), and the HMI marks it.
+A calendar change takes effect at the next boundary; it never rewrites a closed record.
+
+**(e) HMI (§3.13).** A Unit renders its current shift, the elapsed and remaining time, and the
+`ShiftHistory` ring as a table with the same exception-based colouring as the OEE facet. A
+generic HMI needs no station code: the calendar is edited as line data (§3.8e), and the history
+is a fixed framework type.
+
+*Cross-references: §2.7 (synchronized clock), §3.8e (line data), §8.3 (audit, `I_EventSink`),
+§8.5.1 (OEE), §8.11.2 (counts), §3.13 (rendering).*
 
 ### 8.6 Safety & System alarms
 

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ConfigAccess" Id="{1190986f-4e77-41ca-afda-fad7afa24481}">
+    <Declaration><![CDATA[// Core §3.8d - what a module declared about who may see and change
+// one of its registered values. The ROOT turns this into an effective level
+// with its policy; the module never decides policy, it only states the class
+// and its own raise-only minimums.
+TYPE ST_ConfigAccess :
+STRUCT
+    Kind          : E_ConfigKind;
+    ClassId       : STRING(40);    // '' = the built-in class (DATA_READ/DATA_WRITE)
+    MinReadLevel  : E_AccessLevel; // raise-only: never lowers the class level
+    MinWriteLevel : E_AccessLevel;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

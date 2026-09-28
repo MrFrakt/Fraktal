@@ -809,7 +809,10 @@ FOR i := 1 TO _nConfigWrite DO
         Maximum := _configWrite[i].Maximum,
         Unit := _configWrite[i].Unit,
         LabelKey := _configWrite[i].LabelKey,
-        EnumDomain := _configWrite[i].EnumDomain);
+        EnumDomain := _configWrite[i].EnumDomain,
+        ClassId := _configWrite[i].ClassId,
+        MinReadLevel := _configWrite[i].MinReadLevel,
+        MinWriteLevel := _configWrite[i].MinWriteLevel);
 END_FOR]]></ST></Implementation>
     </Method>
     <Method Name="M_RegisterConfigWrite" Id="{c81f4a26-05d7-4e93-b6a1-3fd208e7c145}">
@@ -970,6 +973,68 @@ ELSE
 END_CASE]]></ST>
         </Implementation>
       </Method>
+<Method Name="M_SetConfigAccess" Id="{4af61727-cb2f-447f-a5db-69b776fdb251}">
+      <Declaration><![CDATA[// §3.8d - put an already-registered value into a data class, and/or raise
+// its own minimum levels. Public on purpose: a module TYPE may call it at Setup,
+// and so may a composition root that wants a library value in one of the
+// PROJECT's classes (a library cannot know a project's classes). The minimums
+// only ever raise the class level - see FB_AccessManager.M_DataLevel.
+METHOD M_SetConfigAccess : BOOL
+VAR_INPUT
+    WriteKey      : STRING(160);
+    ClassId       : STRING(80);
+    MinReadLevel  : E_AccessLevel;
+    MinWriteLevel : E_AccessLevel;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetConfigAccess := FALSE;
+IF (WriteKey = '') OR (LEN(ClassId) > 40)
+OR (TO_DINT(MinReadLevel) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(MinReadLevel) > TO_DINT(E_AccessLevel.ADMIN))
+OR (TO_DINT(MinWriteLevel) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(MinWriteLevel) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = WriteKey THEN
+        _configWrite[i].ClassId := ClassId;
+        _configWrite[i].MinReadLevel := MinReadLevel;
+        _configWrite[i].MinWriteLevel := MinWriteLevel;
+        M_SetConfigAccess := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ConfigAccessOf" Id="{8f82f29d-47d4-42b7-b890-5a29da5f7d55}">
+      <Declaration><![CDATA[// §3.8d I_ConfigSource - this module's own registry only; composites recurse.
+METHOD M_ConfigAccessOf : BOOL
+VAR_INPUT
+    Scope    : STRING(255);
+    WriteKey : STRING(160);
+END_VAR
+VAR_IN_OUT
+    Grant : ST_ConfigAccess;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ConfigAccessOf := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = WriteKey THEN
+        Grant.Kind := _configWrite[i].Kind;
+        Grant.ClassId := _configWrite[i].ClassId;
+        Grant.MinReadLevel := _configWrite[i].MinReadLevel;
+        Grant.MinWriteLevel := _configWrite[i].MinWriteLevel;
+        M_ConfigAccessOf := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
 <Method Name="M_RegisterConfigNumber" Id="{9e0a37b1-4c85-42df-a70e-6b1d5f92c308}">
       <Declaration><![CDATA[// §3.8b — a numeric editable value. Bounds are mandatory here on purpose: an
 // unbounded number is the one a client can set to anything, and "what is the

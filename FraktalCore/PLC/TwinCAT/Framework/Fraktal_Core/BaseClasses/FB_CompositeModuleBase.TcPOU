@@ -211,6 +211,40 @@ FOR i := 1 TO _nChild DO
     END_IF
 END_FOR]]></ST></Implementation>
     </Method>
+        <Method Name="M_ConfigAccessOf" Id="{72033dd4-2b49-43e5-8eae-9aa691669b14}">
+        <Declaration><![CDATA[// §3.8d - the access walk is the write walk: same order, same "first owner
+// answers TRUE" rule, so the level checked is the level of the value written.
+METHOD M_ConfigAccessOf : BOOL
+VAR_INPUT
+    Scope    : STRING(255);
+    WriteKey : STRING(160);
+END_VAR
+VAR_IN_OUT
+    Grant : ST_ConfigAccess;
+END_VAR
+VAR
+    i    : INT;
+    iCfg : I_ConfigSource;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_ConfigAccessOf := SUPER^.M_ConfigAccessOf(Scope := Scope, WriteKey := WriteKey,
+    Grant := Grant);
+IF M_ConfigAccessOf THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nChild DO
+    IF _children[i] <> 0 THEN
+        IF __QUERYINTERFACE(_children[i], iCfg) THEN
+            IF iCfg.M_ConfigAccessOf(Scope := Scope, WriteKey := WriteKey,
+                    Grant := Grant) THEN
+                M_ConfigAccessOf := TRUE;
+                RETURN;
+            END_IF
+        END_IF
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
         <Method Name="M_ApplyCapture" Id="{c0b4cd5b-84d7-416b-bdf4-d6788138d8ab}">
         <Declaration><![CDATA[// §3.8c - the capture walk is the write walk. Same order, same "first owner
 // answers TRUE" rule, so a capture reaches exactly the module a write would.

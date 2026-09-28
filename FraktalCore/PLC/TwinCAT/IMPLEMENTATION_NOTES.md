@@ -4497,3 +4497,65 @@ Local UmRT `192.168.1.6.1.1:851`, `-Interactive`, Core 0.8.0.0 / Modules 0.7.0.0
 across 2 suites, both validated by `tcunit_to_junit.py`. The first fully green run of
 either gate since 2026-08-24 and 2026-08-02 respectively
 (`Specification/Evidence/2026-09-27_Core_Press_TcUnit.md`).
+
+## 138. Data classes and raise-only per-value access (Core §3.8d, 2026-09-27)
+
+§7.7 gated every editable value with one pair of actions, `DATA_READ`/`DATA_WRITE`,
+so a station could not guard its commissioning values at ENGINEER and still let an
+OPERATOR adjust a preset. §3.8d adds an access axis orthogonal to `ConfigKind`: a
+root declares **data classes**, each with its own read and write level, and a value
+may raise - never lower - its class's level. Core 0.8.0.0 -> **0.9.0.0** (a new
+interface method, new manifest fields, a new request kind); Modules is unchanged.
+
+**Where each fact lives.**
+
+* The **module** states what it knows: `M_SetConfigAccess(WriteKey, ClassId,
+  MinReadLevel, MinWriteLevel)` on an already-registered value, stored on the same
+  `ST_ConfigWriteDef` row as everything else about it. Public on purpose: a
+  composition root may put a *library* value into one of the *project's* classes,
+  which a library cannot know.
+* The **root** owns the policy: `M_DeclareDataClass` at Setup and
+  `SetDataClassLevel` (gated `ACCESS_POLICY`, request `SET_CLASS_LEVEL := 36`).
+  Declared levels are defaults - a class already in the table keeps the levels a
+  deployment edited, so declaring on every boot never undoes a policy change.
+* `FB_AccessManager.M_DataLevel` is the **one** place an effective level is computed:
+  the class level (the built-in class `''` uses `DATA_READ`/`DATA_WRITE`), raised by
+  the value's minimum. An undeclared class or a corrupt level fails closed at ADMIN,
+  so a typo in a class id locks a value down instead of opening it.
+
+**The class table is a separate persistent variable, not new members of
+`ST_AccessPolicy`.** The policy is `VAR PERSISTENT`; changing its layout would make
+TwinCAT reinitialize it on the next download, and a locked-down station would come
+back fully open without anyone being told. A new variable starts empty and touches
+nothing that exists.
+
+**Enforcement.** The root resolves the level through a new recursive query,
+`I_ConfigSource.M_ConfigAccessOf` (the same walk and "first owner answers" rule as
+the write), and checks it before `WriteConfig`, `CaptureConfig`, every record of a
+set load (in the staging pass, so nothing moves), and every record line of an export.
+`WriteConfig`'s blanket `DATA_WRITE` check is gone; for a value in the built-in class
+the result is identical. A refusal is audited (`std.audit.dataAccessDenied`).
+
+**Manifest.** `ST_ConfigEntry` gains `ClassId`, the effective `ReadLevel` and
+`WriteLevel`, and `Readable`. The root hands the pager its access manager before a
+QUERY_CONFIG walk (`M_SetAccess`); a capability's levels are computed once, *before*
+its value is placed, so a class readable below `DATA_READ` shows its value and an
+unreadable one is listed without it. QUERY_CONFIG therefore no longer refuses a
+session below `DATA_READ` outright - plain entries are blanked at `DATA_READ`
+instead - because a public class must be visible to exactly the operator it exists
+for. A set save still receives real values: saving reveals nothing outside the PLC.
+
+**Tests.** `FB_DataClass_Tests` (7): built-in class unchanged; a public class open to
+an OPERATOR; a raised minimum refuses the class's own level; an undeclared class is
+ADMIN-only; re-declaring keeps an edited level; the manifest publishes effective
+levels and hides an unreadable value; and a set load needs the write level of every
+record. The last one first asserted that an ENGINEER could load the set - and the
+PLC refused, naming `probe.label`, the fixture value in the undeclared class. The
+rule was right and the expectation wrong; the test now asserts that refusal and an
+ADMIN load.
+
+Runtime (local UmRT): `PRG_TcUnitRunner` **174/174** across 40 suites.
+
+**Specified, not yet implemented.** §3.8e (line data, one owner and mirrors) and
+§8.5.2 (shifts and per-shift statistics) are in Core Part I with this change; no code
+implements them yet.

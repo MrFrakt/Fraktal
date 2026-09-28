@@ -35,6 +35,11 @@ STRUCT
     // 0 = this value offers no capture, which is the default and most values.
     pCapture       : PVOID;
     CaptureStorage : E_ConfigStorage;   // how to READ the source (may differ from Storage)
+    // §3.8d - the access axis. '' + NONE/NONE is the built-in class, which is
+    // exactly the behaviour before data classes existed.
+    ClassId       : STRING(40);
+    MinReadLevel  : E_AccessLevel;
+    MinWriteLevel : E_AccessLevel;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

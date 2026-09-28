@@ -27,6 +27,13 @@ STRUCT
     Unit          : STRING(16);
     LabelKey      : STRING(160);
     EnumDomain    : STRING(255); // pipe-separated exact accepted values
+    // §3.8d - computed by the PLC so a client greys and hides from data, never
+    // from its own copy of the policy. Readable = FALSE serves the entry WITHOUT
+    // its value: the editor can say something exists and why it is hidden.
+    ClassId       : STRING(40);
+    ReadLevel     : E_AccessLevel;
+    WriteLevel    : E_AccessLevel;
+    Readable      : BOOL;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

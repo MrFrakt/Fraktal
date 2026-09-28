@@ -17,7 +17,13 @@ VAR_OUTPUT
     LoginFailed  : BOOL;             // last attempt outcome (HMI feedback)
 END_VAR
 VAR PERSISTENT
-    Policy : ST_AccessPolicy;        // §3.8a station config; edit gated by ACCESS_POLICY
+    Policy : ST_AccessPolicy;
+    // §3.8d - data-class levels. A SEPARATE persistent table on purpose: adding
+    // members to Policy would change its layout, TwinCAT would reinitialize it on
+    // the next download, and a locked-down station would silently come back
+    // fully open. A new variable starts empty and touches nothing that exists.
+    ClassCount : INT;
+    Classes    : ARRAY[1..PL_Fraktal.MAX_DATA_CLASSES] OF ST_DataClassPolicy;        // §3.8a station config; edit gated by ACCESS_POLICY
 END_VAR
 VAR
     {attribute 'OPC.UA.DA' := '0'}
@@ -164,6 +170,151 @@ OR (TO_INT(Policy.Required[TO_INT(Gate)]) > TO_INT(E_AccessLevel.ADMIN)) THEN
 END_IF
 Permits := TO_DINT(CurrentLevel) >= TO_DINT(Policy.Required[TO_INT(Gate)]);]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="M_DataLevel" Id="{1f3c50fd-8132-405e-ba9f-0f47a19196a5}">
+      <Declaration><![CDATA[// §3.8d - the EFFECTIVE level to read or write a value: its class's level,
+// raised (never lowered) by the value's own minimum. '' is the built-in class,
+// whose levels are the DATA_READ/DATA_WRITE thresholds. An undeclared class or
+// a corrupt level fails closed at ADMIN.
+METHOD M_DataLevel : E_AccessLevel
+VAR_INPUT
+    ClassId  : STRING(40);
+    MinLevel : E_AccessLevel;
+    ForWrite : BOOL;
+END_VAR
+VAR
+    i     : INT;
+    n     : INT;
+    level : E_AccessLevel;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[level := E_AccessLevel.ADMIN;
+IF ClassId = '' THEN
+    IF ForWrite THEN
+        level := Policy.Required[TO_INT(E_GatedAction.DATA_WRITE)];
+    ELSE
+        level := Policy.Required[TO_INT(E_GatedAction.DATA_READ)];
+    END_IF
+ELSE
+    n := LIMIT(0, ClassCount, PL_Fraktal.MAX_DATA_CLASSES);
+    FOR i := 1 TO n DO
+        IF Classes[i].ClassId = ClassId THEN
+            IF ForWrite THEN
+                level := Classes[i].WriteLevel;
+            ELSE
+                level := Classes[i].ReadLevel;
+            END_IF
+            EXIT;
+        END_IF
+    END_FOR
+END_IF
+IF (TO_DINT(level) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(level) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+    level := E_AccessLevel.ADMIN;                // corrupt policy fails closed
+END_IF
+IF (TO_DINT(MinLevel) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(MinLevel) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+    level := E_AccessLevel.ADMIN;
+ELSIF TO_DINT(MinLevel) > TO_DINT(level) THEN
+    level := MinLevel;                           // raise-only
+END_IF
+M_DataLevel := level;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_PermitsLevel" Id="{1f043cf1-ea7f-4595-ade3-27391af3f670}">
+      <Declaration><![CDATA[// Pure check of the session against an already-resolved level.
+METHOD M_PermitsLevel : BOOL
+VAR_INPUT
+    Required : E_AccessLevel;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_PermitsLevel := (TO_DINT(Required) >= TO_DINT(E_AccessLevel.NONE))
+    AND (TO_DINT(Required) <= TO_DINT(E_AccessLevel.ADMIN))
+    AND (TO_DINT(CurrentLevel) >= TO_DINT(Required));]]></ST></Implementation>
+    </Method>
+    <Method Name="M_PermitsLevelLogged" Id="{980eb7c1-7ab7-4576-aa28-ff94186436ba}">
+      <Declaration><![CDATA[// Gated-entry form of M_PermitsLevel: a refusal is audited like a refused
+// gated action (§7.7(c)), so a value refused by its class leaves the same trace.
+METHOD M_PermitsLevelLogged : BOOL
+VAR_INPUT
+    Required : E_AccessLevel;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_PermitsLevelLogged := M_PermitsLevel(Required := Required);
+IF NOT M_PermitsLevelLogged THEN
+    _M_Audit(What := 'std.audit.dataAccessDenied', Who := CurrentUser);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_DeclareClass" Id="{9376ef6b-894a-4400-82d0-3fdf01771da9}">
+      <Declaration><![CDATA[// §3.8d - declare a data class, normally at Setup on every boot. The levels
+// are DEFAULTS: a class already in the persistent table keeps the levels a
+// deployment edited, and only its label follows the code. Refused when the
+// table is full, the id is empty, or a level is out of range.
+METHOD M_DeclareClass : BOOL
+VAR_INPUT
+    ClassId    : STRING(80);
+    LabelKey   : STRING(160);
+    ReadLevel  : E_AccessLevel;
+    WriteLevel : E_AccessLevel;
+END_VAR
+VAR
+    i : INT;
+    n : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_DeclareClass := FALSE;
+IF (ClassId = '') OR (LEN(ClassId) > 40)
+OR (TO_DINT(ReadLevel) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(ReadLevel) > TO_DINT(E_AccessLevel.ADMIN))
+OR (TO_DINT(WriteLevel) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(WriteLevel) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+    RETURN;
+END_IF
+n := LIMIT(0, ClassCount, PL_Fraktal.MAX_DATA_CLASSES);
+ClassCount := n;
+FOR i := 1 TO n DO
+    IF Classes[i].ClassId = ClassId THEN
+        Classes[i].LabelKey := LabelKey;          // the persisted levels stand
+        M_DeclareClass := TRUE;
+        RETURN;
+    END_IF
+END_FOR
+IF n >= PL_Fraktal.MAX_DATA_CLASSES THEN
+    RETURN;
+END_IF
+n := n + 1;
+Classes[n].ClassId := ClassId;
+Classes[n].LabelKey := LabelKey;
+Classes[n].ReadLevel := ReadLevel;
+Classes[n].WriteLevel := WriteLevel;
+ClassCount := n;
+M_DeclareClass := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SetClassLevel" Id="{d7f445d3-01dd-4c41-9d06-c5bbdd88886b}">
+      <Declaration><![CDATA[// §3.8d/§7.7(b) - change a declared class's read or write level. The caller
+// (the root) owns the ACCESS_POLICY gate; this validates and stores only.
+METHOD M_SetClassLevel : BOOL
+VAR_INPUT
+    ClassId  : STRING(80);
+    Level    : E_AccessLevel;
+    ForWrite : BOOL;
+END_VAR
+VAR
+    i : INT;
+    n : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetClassLevel := FALSE;
+IF (TO_DINT(Level) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(Level) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+    RETURN;
+END_IF
+n := LIMIT(0, ClassCount, PL_Fraktal.MAX_DATA_CLASSES);
+FOR i := 1 TO n DO
+    IF Classes[i].ClassId = ClassId THEN
+        IF ForWrite THEN
+            Classes[i].WriteLevel := Level;
+        ELSE
+            Classes[i].ReadLevel := Level;
+        END_IF
+        M_SetClassLevel := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
     </Method>
     <Method Name="PermitsLogged" Id="{95aa1389-db64-4f1a-8591-0c8cfda5199a}">
       <Declaration><![CDATA[// gated-entry check: a DENIED attempt is audited as a MESSAGE event (§8.3/§7.7(c))

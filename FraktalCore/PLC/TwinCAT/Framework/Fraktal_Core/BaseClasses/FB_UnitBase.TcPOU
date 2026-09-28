@@ -558,7 +558,8 @@ CASE Kind OF
     E_HmiRequestKind.SET_SESSION_TIMEOUT, E_HmiRequestKind.LAMP_TEST,
     E_HmiRequestKind.CAPTURE_CONFIG, E_HmiRequestKind.SAVE_CONFIG_SET,
     E_HmiRequestKind.LOAD_CONFIG_SET, E_HmiRequestKind.ACK_CONFIG_RESTORE,
-    E_HmiRequestKind.IMPORT_CONFIG_SET, E_HmiRequestKind.DELETE_CONFIG_SET:
+    E_HmiRequestKind.IMPORT_CONFIG_SET, E_HmiRequestKind.DELETE_CONFIG_SET,
+    E_HmiRequestKind.SET_CLASS_LEVEL:
         auditable := TRUE;
 ELSE
     auditable := FALSE;
@@ -732,9 +733,10 @@ CASE HmiRequest.Kind OF
     E_HmiRequestKind.QUERY_CONFIG:
         // §3.10.2 — serve one manifest page: re-walk the deterministic export
         // enumeration, storing only the requested window (no full buffer).
-        IF NOT Access.Permits(Gate := E_GatedAction.DATA_READ) THEN
-            HmiResponse.Diagnostic := 'std.error.accessDenied';
-        ELSIF _configPager.M_Setup(Target := ADR(HmiResponse.ConfigPage),
+        // §3.8d: no blanket DATA_READ refusal any more - a class may be readable
+        // below it. Each entry is served with or without its value by its level.
+        _configPager.M_SetAccess(pAccess := ADR(Access));
+        IF _configPager.M_Setup(Target := ADR(HmiResponse.ConfigPage),
             PageIndex := TO_INT(HmiRequest.IntValue), Revision := ConfigRev) THEN
             M_AppendConfig(Pager := _configPager);
             _configPager.M_Finish();
@@ -804,6 +806,12 @@ CASE HmiRequest.Kind OF
             Commit := HmiRequest.BoolValue);
         IF NOT HmiResponse.Accepted THEN
             HmiResponse.Diagnostic := 'std.error.configSetLineRejected';
+        END_IF
+    E_HmiRequestKind.SET_CLASS_LEVEL:
+        HmiResponse.Accepted := SetDataClassLevel(ClassId := HmiRequest.NameValue,
+            Level := HmiRequest.IntValue, ForWrite := HmiRequest.BoolValue);
+        IF NOT HmiResponse.Accepted THEN
+            HmiResponse.Diagnostic := 'std.error.accessPolicyValueInvalid';
         END_IF
     E_HmiRequestKind.DELETE_CONFIG_SET:
         HmiResponse.Accepted := DeleteConfigSet(SetName := HmiRequest.TextValue);
@@ -1731,7 +1739,9 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         ValueType := E_ConfigValueType.NUMBER, Writable := TRUE,
         RequiresReady := TRUE, HasMinimum := TRUE, HasMaximum := TRUE,
         Minimum := 0.0, Maximum := 2.0, Unit := '', LabelKey := '',
-        EnumDomain := '0|1|2');
+        EnumDomain := '0|1|2',
+        ClassId := '', MinReadLevel := E_AccessLevel.NONE,
+        MinWriteLevel := E_AccessLevel.NONE);
     item := CONCAT('ModePolicy/ModePolicy[', CONCAT(TO_STRING(i), ']/Style'));
     writeKey := CONCAT('unit.modePolicy.', CONCAT(TO_STRING(i), '.style'));
     Pager.M_AppendCapability(Scope := Status.Name, Item := item,
@@ -1740,7 +1750,9 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         ValueType := E_ConfigValueType.NUMBER, Writable := TRUE,
         RequiresReady := TRUE, HasMinimum := TRUE, HasMaximum := TRUE,
         Minimum := 0.0, Maximum := 1.0, Unit := '', LabelKey := '',
-        EnumDomain := '0|1');
+        EnumDomain := '0|1',
+        ClassId := '', MinReadLevel := E_AccessLevel.NONE,
+        MinWriteLevel := E_AccessLevel.NONE);
 END_FOR
 Pager.M_AppendNumber(Scope := Status.Name, Item := 'AlarmLog/MetaCount',
     Number := TO_DINT(PL_ReasonCatalog.COUNT + AlarmLog.MetaCount));
@@ -2122,6 +2134,79 @@ _M_MarkPersistPending();
 ListConfigSets();                          // the published listing follows]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_M_DataLevelOf" Id="{181e4912-d325-4208-982a-bde235412443}">
+      <Declaration><![CDATA[// §3.8d - the effective level to read or write one registered value, from
+// what its owning module declared and this root's policy. The root's own
+// framework keys (unit.modePolicy.*) are in the built-in class. An unknown key
+// resolves to ADMIN: the write path refuses it anyway, and a level check must
+// never be the thing that lets an unknown key through.
+METHOD PRIVATE _M_DataLevelOf : E_AccessLevel
+VAR_INPUT
+    TargetPath : STRING(255);
+    WriteKey   : STRING(160);
+    ForWrite   : BOOL;
+END_VAR
+VAR
+    grant    : ST_ConfigAccess;
+    minLevel : E_AccessLevel;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_DataLevelOf := E_AccessLevel.ADMIN;
+IF (TargetPath = Status.Name) AND (LEFT(WriteKey, 16) = 'unit.modePolicy.') THEN
+    _M_DataLevelOf := Access.M_DataLevel(ClassId := '', MinLevel := E_AccessLevel.NONE,
+        ForWrite := ForWrite);
+    RETURN;
+END_IF
+IF NOT M_ConfigAccessOf(Scope := TargetPath, WriteKey := WriteKey, Grant := grant) THEN
+    RETURN;
+END_IF
+IF ForWrite THEN
+    minLevel := grant.MinWriteLevel;
+ELSE
+    minLevel := grant.MinReadLevel;
+END_IF
+_M_DataLevelOf := Access.M_DataLevel(ClassId := grant.ClassId, MinLevel := minLevel,
+    ForWrite := ForWrite);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_DeclareDataClass" Id="{b9a4a5ae-9fab-42bd-bc82-7e32dffbd2a9}">
+      <Declaration><![CDATA[// §3.8d - declare a project data class on this root, at Setup. The levels are
+// defaults: a class the deployment already edited keeps its persisted levels.
+METHOD M_DeclareDataClass : BOOL
+VAR_INPUT
+    ClassId    : STRING(80);
+    LabelKey   : STRING(160);
+    ReadLevel  : E_AccessLevel;
+    WriteLevel : E_AccessLevel;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_DeclareDataClass := Access.M_DeclareClass(ClassId := ClassId,
+    LabelKey := LabelKey, ReadLevel := ReadLevel, WriteLevel := WriteLevel);]]></ST></Implementation>
+    </Method>
+    <Method Name="SetDataClassLevel" Id="{047e7f36-274a-4350-8ad6-b77d4f72cc43}">
+      <Declaration><![CDATA[// §3.8d/§7.7(b) - edit a class's read or write level. The same gate as
+// every other policy edit (ACCESS_POLICY), audited through the mailbox.
+METHOD SetDataClassLevel : BOOL
+VAR_INPUT
+    ClassId  : STRING(160);
+    Level    : DINT;
+    ForWrite : BOOL;
+END_VAR
+VAR
+    levelReq : E_AccessLevel;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[SetDataClassLevel := FALSE;
+IF NOT Access.PermitsLogged(Gate := E_GatedAction.ACCESS_POLICY) THEN
+    RETURN;
+END_IF
+IF (Level < TO_DINT(E_AccessLevel.NONE)) OR (Level > TO_DINT(E_AccessLevel.ADMIN))
+OR (LEN(ClassId) > 40) THEN
+    RETURN;
+END_IF
+levelReq := Level;                          // range-checked above
+SetDataClassLevel := Access.M_SetClassLevel(ClassId := ClassId,
+    Level := levelReq, ForWrite := ForWrite);
+IF SetDataClassLevel THEN
+    ConfigRev := ConfigRev + 1;             // every manifest level may have moved
+END_IF]]></ST></Implementation>
+    </Method>
     <Method Name="SaveConfigSet" Id="{8a4d1e07-63b9-4c25-90fd-e7285a1cb046}">
       <Declaration><![CDATA[// §3.8b — save the current parametrization as a named set.
 //
@@ -2238,6 +2323,13 @@ FOR i := 1 TO info.RecordCount DO
     IF NOT _configStore.M_ReadRecord(SetName := SetName, Index := i,
             Record := record) THEN
         _M_RejectConfigSet(Scope := '', Key := SetName);
+        RETURN;
+    END_IF
+    // §3.8d(e) - CONFIG_SET alone cannot replace a value this session could
+    // not edit one at a time. Checked in the staging pass, so nothing moved.
+    IF NOT Access.M_PermitsLevelLogged(Required := _M_DataLevelOf(TargetPath := record.Scope,
+            WriteKey := record.WriteKey, ForWrite := TRUE)) THEN
+        _M_RejectConfigSet(Scope := record.Scope, Key := record.WriteKey);
         RETURN;
     END_IF
     IF NOT _M_StageOneRecord(Record := record) THEN
@@ -2393,6 +2485,10 @@ ELSE
     IF NOT _configStore.M_ReadRecord(SetName := SetName, Index := Line,
             Record := record) THEN
         RETURN;
+    END_IF
+    IF NOT Access.M_PermitsLevel(Required := _M_DataLevelOf(TargetPath := record.Scope,
+            WriteKey := record.WriteKey, ForWrite := FALSE)) THEN
+        RETURN;                           // §3.8d(e): the export fails, it is not thinned
     END_IF
     ConfigSetDocument := _setJson.M_Record(Record := record);
 END_IF
@@ -3499,11 +3595,14 @@ VAR_INPUT
     TextValue : STRING(255);
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[WriteConfig := FALSE;
-IF NOT Access.PermitsLogged(Gate := E_GatedAction.DATA_WRITE) THEN
-    RETURN;
-END_IF
 IF (WriteKey = '') OR (Revision <= 0)
 OR NOT _M_OwnsModulePath(Path := TargetPath) THEN
+    RETURN;
+END_IF
+// §3.8d - the VALUE's effective write level (its class, raised by its own
+// minimum); DATA_WRITE for a value in the built-in class, as before.
+IF NOT Access.M_PermitsLevelLogged(Required := _M_DataLevelOf(TargetPath := TargetPath,
+        WriteKey := WriteKey, ForWrite := TRUE)) THEN
     RETURN;
 END_IF
 WriteConfig := _M_WriteBaseConfig(TargetPath := TargetPath, WriteKey := WriteKey,
@@ -3530,11 +3629,12 @@ VAR_INPUT
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[CaptureConfig := FALSE;
-IF NOT Access.PermitsLogged(Gate := E_GatedAction.DATA_WRITE) THEN
-    RETURN;
-END_IF
 IF (WriteKey = '') OR (Revision <= 0)
 OR NOT _M_OwnsModulePath(Path := TargetPath) THEN
+    RETURN;
+END_IF
+IF NOT Access.M_PermitsLevelLogged(Required := _M_DataLevelOf(TargetPath := TargetPath,
+        WriteKey := WriteKey, ForWrite := TRUE)) THEN
     RETURN;
 END_IF
 // Framework-owned keys offer no capture: they are policy, not measurements.

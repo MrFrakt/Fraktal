@@ -29,10 +29,24 @@ VAR
     _setKind   : E_ConfigKind;
     _setCount  : INT;
     _setFailed : BOOL;
+    // §3.8d - the root's access manager, set before a manifest walk. 0 (a pager
+    // nobody configured, such as a test's) publishes every value as readable.
+    {attribute 'OPC.UA.DA' := '0'}
+    _pAccess : POINTER TO FB_AccessManager;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[; // stateless between requests — driven entirely by M_Setup/M_Append/M_Finish]]></ST>
     </Implementation>
+    <Method Name="M_SetAccess" Id="{c9bbe44a-68f0-4229-986f-124009875d23}">
+      <Declaration><![CDATA[// §3.8d - the access manager whose policy and session decide what the next
+// manifest walk may show. Set by the root before each QUERY_CONFIG.
+METHOD M_SetAccess : BOOL
+VAR_INPUT
+    pAccess : POINTER TO FB_AccessManager;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_pAccess := pAccess;
+M_SetAccess := (pAccess <> 0);]]></ST></Implementation>
+    </Method>
     <Method Name="M_Setup" Id="{6a92cd10-84e7-4fb3-a1c9-73805d21be48}">
       <Declaration><![CDATA[// Begin one QUERY_CONFIG walk targeting the published page window.
 METHOD M_Setup : BOOL
@@ -101,6 +115,19 @@ _pTarget^.Entries[TO_INT(slot) + 1].Maximum := 0.0;
 _pTarget^.Entries[TO_INT(slot) + 1].Unit := '';
 _pTarget^.Entries[TO_INT(slot) + 1].LabelKey := '';
 _pTarget^.Entries[TO_INT(slot) + 1].EnumDomain := '';
+_pTarget^.Entries[TO_INT(slot) + 1].ClassId := '';
+_pTarget^.Entries[TO_INT(slot) + 1].ReadLevel := E_AccessLevel.NONE;
+_pTarget^.Entries[TO_INT(slot) + 1].WriteLevel := E_AccessLevel.NONE;
+_pTarget^.Entries[TO_INT(slot) + 1].Readable := TRUE;
+// §3.8d - a plain (non-capability) entry is readable at DATA_READ.
+IF _pAccess <> 0 THEN
+    _pTarget^.Entries[TO_INT(slot) + 1].ReadLevel :=
+        _pAccess^.M_DataLevel(ClassId := '', MinLevel := E_AccessLevel.NONE, ForWrite := FALSE);
+    IF NOT _pAccess^.M_PermitsLevel(Required := _pTarget^.Entries[TO_INT(slot) + 1].ReadLevel) THEN
+        _pTarget^.Entries[TO_INT(slot) + 1].ValueText := '';
+        _pTarget^.Entries[TO_INT(slot) + 1].Readable := FALSE;
+    END_IF
+END_IF
 _storedSlot := TO_INT(slot) + 1;
 _pTarget^.EntryCount := TO_INT(slot) + 1;]]></ST></Implementation>
     </Method>
@@ -125,6 +152,14 @@ VAR_INPUT
     Unit          : STRING(16);
     LabelKey      : STRING(160);
     EnumDomain    : STRING(255);
+    ClassId       : STRING(40);    // §3.8d; '' = built-in class
+    MinReadLevel  : E_AccessLevel;
+    MinWriteLevel : E_AccessLevel;
+END_VAR
+VAR
+    readLevel  : E_AccessLevel;
+    writeLevel : E_AccessLevel;
+    readable   : BOOL;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_AppendCapability := M_Append(Scope := Scope, Item := Item,
     ValueText := ValueText);
@@ -150,7 +185,30 @@ _pTarget^.Entries[_storedSlot].Minimum := Minimum;
 _pTarget^.Entries[_storedSlot].Maximum := Maximum;
 _pTarget^.Entries[_storedSlot].Unit := Unit;
 _pTarget^.Entries[_storedSlot].LabelKey := LabelKey;
-_pTarget^.Entries[_storedSlot].EnumDomain := EnumDomain;]]></ST></Implementation>
+_pTarget^.Entries[_storedSlot].EnumDomain := EnumDomain;
+// §3.8d - effective levels, computed once and before the value is placed, so a
+// class that is readable below DATA_READ shows its value and one that is not
+// never does. The set record above was offered the real value regardless: a
+// save reveals nothing outside the PLC.
+readLevel := MinReadLevel;
+writeLevel := MinWriteLevel;
+readable := TRUE;
+IF _pAccess <> 0 THEN
+    readLevel := _pAccess^.M_DataLevel(ClassId := ClassId, MinLevel := MinReadLevel,
+        ForWrite := FALSE);
+    writeLevel := _pAccess^.M_DataLevel(ClassId := ClassId, MinLevel := MinWriteLevel,
+        ForWrite := TRUE);
+    readable := _pAccess^.M_PermitsLevel(Required := readLevel);
+END_IF
+_pTarget^.Entries[_storedSlot].ClassId := ClassId;
+_pTarget^.Entries[_storedSlot].ReadLevel := readLevel;
+_pTarget^.Entries[_storedSlot].WriteLevel := writeLevel;
+_pTarget^.Entries[_storedSlot].Readable := readable;
+IF readable THEN
+    _pTarget^.Entries[_storedSlot].ValueText := ValueText;
+ELSE
+    _pTarget^.Entries[_storedSlot].ValueText := '';
+END_IF]]></ST></Implementation>
     </Method>
     <Method Name="_M_OfferRecord" Id="{3e91d5a7-06c2-4b48-8f13-72a0c64e5b91}">
       <Declaration><![CDATA[// §3.8b — offer one capability to an open set save. Called from

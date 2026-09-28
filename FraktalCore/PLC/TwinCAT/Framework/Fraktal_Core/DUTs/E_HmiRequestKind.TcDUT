@@ -61,7 +61,10 @@ TYPE E_HmiRequestKind :
     // §3.8b - remove one named set (TextValue = set name). CONFIG_SET, like the
     // other set operations. Without it a store that has held MAX_CONFIG_SETS
     // names could only ever overwrite one of them again.
-    DELETE_CONFIG_SET := 35
+    DELETE_CONFIG_SET := 35,
+    // §3.8d - edit a data class's level. NameValue = ClassId, IntValue =
+    // E_AccessLevel ordinal, BoolValue = TRUE for the write level. ACCESS_POLICY.
+    SET_CLASS_LEVEL := 36
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>
