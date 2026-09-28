@@ -1,8 +1,7 @@
 library;
 
-import 'dart:convert';
+import 'embedded_image.dart';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'theme_surfaces.dart';
@@ -1005,17 +1004,13 @@ class _ImageControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Uint8List? bytes;
-    try {
-      if (control.imageBase64.isNotEmpty)
-        bytes = base64Decode(control.imageBase64);
-    } on FormatException {
-      bytes = null;
-    }
+    // Decoded once per image and reused: this widget rebuilds on every
+    // published snapshot (see embedded_image.dart).
+    final image = embeddedImage(control.imageBase64, maxWidth: 1600);
     return FraktalCard(
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (bytes == null)
+        if (image == null)
           const SizedBox(
             height: 160,
             child: Center(child: Icon(Icons.broken_image_outlined, size: 48)),
@@ -1023,7 +1018,9 @@ class _ImageControl extends StatelessWidget {
         else
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 460),
-            child: Center(child: Image.memory(bytes, fit: BoxFit.contain)),
+            child: Center(
+                child: Image(
+                    image: image, fit: BoxFit.contain, gaplessPlayback: true)),
           ),
         if (control.label.isNotEmpty)
           Padding(

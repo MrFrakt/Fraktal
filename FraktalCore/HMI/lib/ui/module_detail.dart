@@ -5,7 +5,7 @@
 /// access-gated (7.7) and re-checked in the PLC.
 library;
 
-import 'dart:convert';
+import 'embedded_image.dart';
 
 import 'dart:async';
 
@@ -884,8 +884,10 @@ class _ModuleOverviewTab extends StatelessWidget {
     ]);
     final configured = background;
     if (configured == null || configured.imageBase64.isEmpty) return content;
-    try {
-      final bytes = base64Decode(configured.imageBase64);
+    // Decoded once and reused across the per-snapshot rebuilds of this view.
+    final image = embeddedImage(configured.imageBase64, maxWidth: 2560);
+    if (image == null) return content;
+    {
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -896,8 +898,8 @@ class _ModuleOverviewTab extends StatelessWidget {
               configured.marginRight,
               configured.marginBottom,
             ),
-            child: Image.memory(
-              bytes,
+            child: Image(
+              image: image,
               fit: _backgroundBoxFit(configured.fit),
               alignment: _backgroundAlignment(configured.position),
               gaplessPlayback: true,
@@ -906,8 +908,6 @@ class _ModuleOverviewTab extends StatelessWidget {
           content,
         ],
       );
-    } on FormatException {
-      return content;
     }
   }
 
