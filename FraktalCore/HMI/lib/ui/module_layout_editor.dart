@@ -707,10 +707,10 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
 
   late final TextEditingController _layer;
 
-  /// The bound `visible` (§7.3): at most one tag, a comparison, a constant.
-  List<String> _visibleBinding = [];
-  ModuleCompare _visibleCompare = ModuleCompare.isTrue;
-  late final TextEditingController _visibleConstant;
+  /// The bound `visible` and `enabled` (§7.3): one tag, a comparison, a
+  /// constant each.
+  late final _ConditionDraft _visible;
+  late final _ConditionDraft _enabled;
 
   @override
   void initState() {
@@ -736,11 +736,8 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
             : ModuleStateToken.neutral);
     _minimum = TextEditingController(text: _number(control?.minimum ?? 0));
     _layer = TextEditingController(text: control?.layer ?? '');
-    final visible = control?.visibleWhen;
-    _visibleBinding = visible == null ? [] : [visible.binding];
-    _visibleCompare = visible?.compare ?? ModuleCompare.isTrue;
-    _visibleConstant =
-        TextEditingController(text: _number(visible?.constant ?? 0));
+    _visible = _ConditionDraft(control?.visibleWhen);
+    _enabled = _ConditionDraft(control?.enabledWhen);
     _maximum = TextEditingController(text: _number(control?.maximum ?? 100));
     for (final rule in control?.rules ?? const <ModuleStateRule>[]) {
       _rules.add(rule);
@@ -762,7 +759,8 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
       _points,
       _minimum,
       _layer,
-      _visibleConstant,
+      _visible.constant,
+      _enabled.constant,
       _maximum,
       ..._ruleConstants,
     ]) {
@@ -992,30 +990,50 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
             helperMaxLines: 2,
           ),
         ),
+        ..._conditionEditor(context, _visible,
+            title: 'std.module.editor.visibleWhen',
+            help: 'std.module.editor.visibleWhenHelp',
+            searchKey: 'opcua-visible-search'),
+        if (_kind == ModuleControlKind.button ||
+            _kind == ModuleControlKind.textInput)
+          ..._conditionEditor(context, _enabled,
+              title: 'std.module.editor.enabledWhen',
+              help: 'std.module.editor.enabledWhenHelp',
+              searchKey: 'opcua-enabled-search'),
+      ];
+
+  /// One bound condition: a tag, a comparison and (when it takes one) a value.
+  List<Widget> _conditionEditor(
+    BuildContext context,
+    _ConditionDraft draft, {
+    required String title,
+    required String help,
+    required String searchKey,
+  }) =>
+      [
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
-          child: LText('std.module.editor.visibleWhen',
-              style: Theme.of(context).textTheme.titleSmall),
+          child:
+              LText(title, style: Theme.of(context).textTheme.titleSmall),
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: LText('std.module.editor.visibleWhenHelp',
-              style: Theme.of(context).textTheme.bodySmall),
+          child: LText(help, style: Theme.of(context).textTheme.bodySmall),
         ),
         _OpcUaBindingPicker(
           candidates: _bindingCandidates(widget.node, ModuleControlKind.shape),
-          selected: _visibleBinding,
+          selected: draft.binding,
           maximum: 1,
           errorText: null,
-          searchKey: 'opcua-visible-search',
-          onChanged: (bindings) => setState(() => _visibleBinding = bindings),
+          searchKey: searchKey,
+          onChanged: (bindings) => setState(() => draft.binding = bindings),
         ),
-        if (_visibleBinding.isNotEmpty)
+        if (draft.binding.isNotEmpty)
           Row(children: [
             Expanded(
               child: DropdownButtonFormField<ModuleCompare>(
-                initialValue: _visibleCompare,
+                initialValue: draft.compare,
                 isExpanded: true,
                 decoration: InputDecoration(
                     labelText: context.tr('std.module.editor.ruleCompare')),
@@ -1026,15 +1044,15 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                       child: LText('std.module.compare.${compare.name}'),
                     ),
                 ],
-                onChanged: (value) => setState(
-                    () => _visibleCompare = value ?? _visibleCompare),
+                onChanged: (value) =>
+                    setState(() => draft.compare = value ?? draft.compare),
               ),
             ),
-            if (_takesConstant(_visibleCompare)) ...[
+            if (_takesConstant(draft.compare)) ...[
               const SizedBox(width: 8),
               Expanded(
                 child: TouchTextFormField(
-                  controller: _visibleConstant,
+                  controller: draft.constant,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
@@ -1433,16 +1451,35 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
         maximum: double.tryParse(_maximum.text.trim()) ?? 100,
         placement: existing?.placement ?? widget.placement,
         layer: _layer.text.trim(),
-        visibleWhen: _visibleBinding.isEmpty
-            ? null
-            : ModuleCondition(
-                binding: _visibleBinding.single,
-                compare: _visibleCompare,
-                constant: double.tryParse(_visibleConstant.text.trim()) ?? 0,
-              ),
+        visibleWhen: _visible.build(),
+        enabledWhen: _kind == ModuleControlKind.button ||
+                _kind == ModuleControlKind.textInput
+            ? _enabled.build()
+            : null,
       ),
     );
   }
+}
+
+/// The editable form of one [ModuleCondition].
+class _ConditionDraft {
+  List<String> binding;
+  ModuleCompare compare;
+  final TextEditingController constant;
+
+  _ConditionDraft(ModuleCondition? source)
+      : binding = source == null ? [] : [source.binding],
+        compare = source?.compare ?? ModuleCompare.isTrue,
+        constant = TextEditingController(
+            text: _ControlEditorDialogState._number(source?.constant ?? 0));
+
+  ModuleCondition? build() => binding.isEmpty
+      ? null
+      : ModuleCondition(
+          binding: binding.single,
+          compare: compare,
+          constant: double.tryParse(constant.text.trim()) ?? 0,
+        );
 }
 
 class _OpcUaBindingPicker extends StatefulWidget {

@@ -249,6 +249,11 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   name in any combination.
 - IEC standard function names (`SUB`, `ADD`, `DIV`, `LEN`, `SEL`, …) are reserved as
   identifiers — rule **C2** rejects them. A *qualified* enum member is fine.
+- **The standard string functions stop at 255 characters** — `CONCAT` cuts there
+  even into a `STRING(480)`, and `LEN`/`FIND` see no further (measured on
+  3.1.4026.24; it exported broken set lines until IMPLEMENTATION_NOTES §143). Rule
+  **C9** rejects them on any string declared wider; scan and copy bytes instead
+  (`FB_ConfigSetJson._M_Put`/`M_Join` are the reference).
 
 **Command result vs. derived state (§3.12):**
 - Ask what makes the value change. A command produced it and it stays until another
@@ -742,7 +747,7 @@ rather than hard-coding a path):
 ```
 flutter pub get
 flutter analyze                 # clean as of 2026-09-28 (Flutter 3.47.5)
-flutter test                    # 379 passing, 6 intentional live-environment skips
+flutter test                    # 381 passing, 6 intentional live-environment skips
 flutter run -d windows|chrome
 ```
 **The pinned version is 3.47.5, and `pub get` will not tell you when you are on the

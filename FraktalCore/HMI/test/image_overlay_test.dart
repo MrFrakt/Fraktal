@@ -279,6 +279,32 @@ void main() {
       expect(at!.x + at!.width / 2, closeTo(0.5, 0.01));
       expect(at!.y + at!.height / 2, closeTo(0.5, 0.01));
     });
+    testWidgets('a bound enabled disables - and missing data disables too',
+        (tester) async {
+      const stop = ModuleControlDefinition(
+        id: 'stop',
+        kind: ModuleControlKind.button,
+        label: 'Stop',
+        action: ModuleActionKind.unitStop,
+        confirmation: ModuleActionConfirmation.none,
+        enabledWhen: ModuleCondition(binding: 'OutImm/Safe'),
+      );
+      bool enabled() => tester
+              .widget<FilledButton>(find.ancestor(
+                  of: find.text('Stop'), matching: find.byType(FilledButton)))
+              .onPressed !=
+          null;
+      await mount(tester,
+          values: {'OutImm/Safe': true}, controls: [stop], picture: false);
+      expect(enabled(), isTrue);
+      await mount(tester,
+          values: {'OutImm/Safe': false}, controls: [stop], picture: false);
+      expect(enabled(), isFalse);
+      await mount(tester, values: const {}, controls: [stop], picture: false);
+      expect(enabled(), isFalse,
+          reason: 'Bad/Uncertain or missing data never enables an input');
+    });
+
     testWidgets('a layer chip hides and shows its whole set', (tester) async {
       const lamp = ModuleControlDefinition(
         id: 'lamp',
@@ -389,6 +415,20 @@ void main() {
       await tester.tap(find.byTooltip('Bring to front'));
       expect(moved, (0, 1));
     });
+  });
+
+  test('a bound enabled travels in the layout and counts as a read', () {
+    const control = ModuleControlDefinition(
+      id: 'b',
+      kind: ModuleControlKind.button,
+      action: ModuleActionKind.unitStop,
+      enabledWhen: ModuleCondition(
+          binding: 'OutImm/Safe', compare: ModuleCompare.equals, constant: 1),
+    );
+    final restored = ModuleControlDefinition.fromJson(control.toJson())!;
+    expect(restored.enabledWhen!.binding, 'OutImm/Safe');
+    expect(restored.enabledWhen!.matches(1), isTrue);
+    expect(restored.boundReads, 1);
   });
 
   test('layer, visible and blink travel in the layout and count as reads', () {

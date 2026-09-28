@@ -119,9 +119,14 @@ viewer toggles with chips (per panel, never while editing). **Z-order** is contr
 order; the placement toolbar brings a control to the front or sends it to the back. A
 control may carry a bound **`visible`** - one tag, a comparison and a constant - and
 stays shown while that tag is unavailable, so missing data never hides an indicator; it
-is presentation, never enforcement. A state rule may **blink** while it is the rule in
-force, and holds steady when the platform asks for reduced motion. The `visible` tag
-counts toward the read budget.
+is presentation, never enforcement. A button or input may also carry a bound
+**`enabled`** of the same shape; there an unavailable tag *disables*, because
+Bad/Uncertain data never enables an input. A state rule may **blink** while it is the
+rule in force, and holds steady when the platform asks for reduced motion. Every
+condition tag counts toward the read budget. Every state token, `off` included, is
+measured at 3:1 on a card in every theme (`theme_contrast_test.dart`), which is what
+"contrast enforced at publish" (§7.4) reduces to when authored colour can only be a
+token.
 
 An administrator may select a whitelisted portable icon preset for each custom or
 guidance tab. The Overview tab and every custom tab may also carry an embedded

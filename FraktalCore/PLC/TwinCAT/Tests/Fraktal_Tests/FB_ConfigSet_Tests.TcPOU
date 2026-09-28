@@ -456,7 +456,10 @@ TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[// §3.8b: without a delete, a store that has held MAX_CONFIG_SETS names can
 // only ever overwrite one of them again - a new product's recipe could not be
 // kept without destroying an old one under its name.
-METHOD A_deleted_set_is_gone_and_frees_its_slot]]></Declaration>
+METHOD A_deleted_set_is_gone_and_frees_its_slot
+VAR
+    fill : STRING(80);
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TEST('A_deleted_set_is_gone_and_frees_its_slot');
 _M_Arm();
@@ -482,8 +485,8 @@ AssertEquals_INT(Expected := 0, Actual := _store.M_Count(),
     Message := 'every set can be removed');
 // The freed slots are usable: fill the store to capacity under fresh names.
 FOR _i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
-    _line := CONCAT('fill', INT_TO_STRING(_i));
-    AssertTrue(Condition := _u.SaveConfigSet(SetName := _line,
+    fill := CONCAT('fill', INT_TO_STRING(_i));
+    AssertTrue(Condition := _u.SaveConfigSet(SetName := fill,
         Kind := E_ConfigKind.STATION_CFG), Message := 'each freed slot takes a new name');
 END_FOR
 TEST_FINISHED();]]></ST>

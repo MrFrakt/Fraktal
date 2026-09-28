@@ -771,5 +771,7 @@ Color stateTokenColor(BuildContext ctx, ModuleStateToken token) =>
       ModuleStateToken.error => Theme.of(ctx).colorScheme.error,
       ModuleStateToken.info => infoColor(ctx),
       ModuleStateToken.neutral => Theme.of(ctx).colorScheme.onSurfaceVariant,
-      ModuleStateToken.off => Theme.of(ctx).colorScheme.outlineVariant,
+      // Dimmer than neutral, but still a 3:1 glyph: an "off" door must stay
+      // visible as a door.
+      ModuleStateToken.off => Theme.of(ctx).colorScheme.outline,
     };

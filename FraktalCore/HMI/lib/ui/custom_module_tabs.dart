@@ -1354,7 +1354,8 @@ class _ActionControlState extends State<_ActionControl> {
   @override
   Widget build(BuildContext context) {
     final control = widget.control;
-    final available = _catalogAvailable;
+    final available =
+        _catalogAvailable && _enabledByBinding(widget.node, control);
     return Align(
       alignment: Alignment.centerLeft,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1479,6 +1480,7 @@ class _TextInputControlState extends State<_TextInputControl> {
     final rootReady =
         widget.app.rootOf(widget.node.path)?.state == ExecState.ready;
     final available = widget.tag?.usable == true &&
+        _enabledByBinding(widget.node, widget.control) &&
         capability != null &&
         capability.hasWriteCapability &&
         (!capability.requiresReady || rootReady);
@@ -1744,6 +1746,15 @@ class _TrendPainter extends CustomPainter {
     }
     return false;
   }
+}
+
+/// A button's or input's bound `enabled` (LOCALIZATION §7.3). An unavailable
+/// tag disables: Bad/Uncertain data never enables an input.
+bool _enabledByBinding(ModuleNode node, ModuleControlDefinition control) {
+  final condition = control.enabledWhen;
+  if (condition == null) return true;
+  final tag = node.tagAt(condition.binding);
+  return tag?.usable == true && condition.matches(tag!.value);
 }
 
 String _controlKindKey(ModuleControlKind kind) =>

@@ -545,6 +545,38 @@ Reason : DINT; END_STRUCT END_TYPE]]></Declaration></DUT></TcPlcObject>''')
             "", _method("M_Run", body)))
         self.assertIn("S1", self._rules(root))
 
+    def _wide_method(self, name: str, declaration: str, code: str) -> str:
+        return f'''<Method Name="{name}" Id="{{30000000-0000-0000-0000-000000000001}}">
+<Declaration><![CDATA[{declaration}]]></Declaration>
+<Implementation><ST><![CDATA[{code}]]></ST></Implementation></Method>'''
+
+    def test_c9_catches_the_codec_that_truncated_set_lines(self):
+        '''The shape that exported broken JSON (IMPLEMENTATION_NOTES §143):
+        CONCAT into, and LEN over, a STRING(480) line.'''
+        root = self._root()
+        codec = self._write(root, "Framework/Fraktal_Core/FB_Json.TcPOU", _pou(
+            "FB_Json", "FUNCTION_BLOCK FB_Json", "",
+            self._wide_method(
+                "M_Record",
+                "METHOD M_Record : STRING(480)\nVAR\n    line : STRING(480);\n"
+                "    key : STRING(80);\nEND_VAR",
+                "line := CONCAT('{', key);\nM_Record := line;")))
+        self.assertIn("C9", self._file_rules(codec))
+        measure = self._write(root, "Framework/Fraktal_Core/FB_Len.TcPOU", _pou(
+            "FB_Len", "FUNCTION_BLOCK FB_Len\nVAR\n    _part : STRING(480);\nEND_VAR",
+            "IF LEN(_part) > 10 THEN\n    ;\nEND_IF"))
+        self.assertIn("C9", self._file_rules(measure), "a wide member, measured")
+
+    def test_c9_leaves_short_strings_comments_and_literals_alone(self):
+        root = self._root()
+        short = self._write(root, "Framework/Fraktal_Core/FB_Short.TcPOU", _pou(
+            "FB_Short",
+            "FUNCTION_BLOCK FB_Short\nVAR\n    line : STRING(480);\n"
+            "    token : STRING(40);\n    name : STRING(80);\nEND_VAR",
+            "token := CONCAT(name, 'line');  // CONCAT(line) in a comment\n"
+            "Status.Text := CONCAT(Status.line, name);"))
+        self.assertNotIn("C9", self._file_rules(short))
+
     def test_c8_catches_the_sim_hook_that_actually_shipped(self):
         '''Two cylinder CMs carried a SimForceInterlock whose only guard was a
         comment telling a future reader to add one, so a release build shipped a

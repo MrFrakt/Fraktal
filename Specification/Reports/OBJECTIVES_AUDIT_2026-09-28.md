@@ -131,8 +131,9 @@ type key (§7.1). All are now recorded as not claimed.
 
 **G4 — §7.2/§7.3 are only partly built.** *Update, same day:* layers (show/hide chips),
 z-order (front/back), a bound `visible` and blink are now built; what stays open is
-listed below. Built before that: the overlay container, colour-token and fill-level
-bindings, and the budget. Not built:
+listed below, less a bound `enabled` for buttons and inputs (added later the same day).
+Built before that: the overlay container, colour-token and fill-level bindings, and
+the budget. Not built:
 - the grid container with per-breakpoint variants;
 - z-order and named, bindable layers;
 - the other bindable properties (`visible`, `enabled`, blink, icon, rotation, opacity);
@@ -143,8 +144,10 @@ rule model the state shapes already have. The grid container comes last: the flo
 layout plus overlays covers today's screens.
 
 **G5 — The operating-view rules are only partly enforced (§7.4).** *Update, same day:*
-option A is implemented - an `ok` token draws neutral on an operating view; contrast at
-publish remains open. Enforced: no imagery,
+option A is implemented - an `ok` token draws neutral on an operating view. Contrast at
+publish is closed structurally: authored colour can only be a token, and every token
+(`off` now mapped to `outline`) is measured at 3:1 on a card in every theme by the
+contrast suite, so no layout can publish an illegible state. Enforced: no imagery,
 and semantic tokens only (structurally, since the model holds no literal colours).
 Not enforced:
 - "Colour reserved for abnormal conditions." A state shape's OK token draws green in

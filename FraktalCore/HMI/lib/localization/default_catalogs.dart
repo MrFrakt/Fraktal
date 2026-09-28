@@ -627,6 +627,9 @@ const standardEnglish = <String, String>{
   'std.module.editor.visibleWhenHelp':
       'Presentation only - the PLC still checks every request. While the tag is unavailable the control stays shown.',
   'std.module.editor.ruleBlink': 'Flash',
+  'std.module.editor.enabledWhen': 'Enable only while',
+  'std.module.editor.enabledWhenHelp':
+      'Presentation only - the PLC still checks every request. While the tag is unavailable the control is disabled.',
   'std.module.viewClass.operating': 'OPERATING',
   'std.module.viewClass.maintenance': 'MAINTENANCE',
   'std.module.viewClass.engineering': 'ENGINEERING',
@@ -1507,6 +1510,9 @@ const standardSpanish = <String, String>{
   'std.module.editor.visibleWhenHelp':
       'Solo presentación: el PLC sigue verificando cada solicitud. Mientras la etiqueta no esté disponible, el control permanece visible.',
   'std.module.editor.ruleBlink': 'Parpadear',
+  'std.module.editor.enabledWhen': 'Habilitar solo mientras',
+  'std.module.editor.enabledWhenHelp':
+      'Solo presentación: el PLC sigue verificando cada solicitud. Mientras la etiqueta no esté disponible, el control queda deshabilitado.',
   'std.module.viewClass.operating': 'OPERACIÓN',
   'std.module.viewClass.maintenance': 'MANTENIMIENTO',
   'std.module.viewClass.engineering': 'INGENIERÍA',

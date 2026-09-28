@@ -34,6 +34,13 @@ Rules
   C6  `CASE` labels are integral/enum labels, never string literals.
   C8  No SIM-only `Sim*` test hook ships unguarded in a library type. A force
         hook whose only guard is a comment is a bypass in every release build.
+  C9  No standard string function (CONCAT, LEN, FIND, MID, LEFT, RIGHT, INSERT,
+        DELETE, REPLACE) takes, or assigns into, a string declared wider than
+        STRING(255). Measured on 3.1.4026.24: CONCAT cuts at 255 whatever the
+        target and LEN reports at most 255, so a wide line built or measured
+        with them is silently truncated (IMPLEMENTATION_NOTES §143). Resolves
+        names declared in the POU and its methods; `a.b` members are out of
+        reach, which the rule accepts rather than guesses.
   C7  A guard never dereferences or indexes the symbol it is testing against 0
         in the same condition — TwinCAT does not short-circuit AND/OR, so the
         protected operand is evaluated anyway.
@@ -118,6 +125,15 @@ OUTER_IMPL = re.compile(
 METHOD_IMPL = re.compile(r"<Implementation>.*?<!\[CDATA\[(.*?)\]\]>.*?</Implementation>",
                          re.S | re.I)
 CASE_BLOCK = re.compile(r"\bCASE\b.*?\bEND_CASE\b", re.S | re.I)
+WIDE_STRING_DECL = re.compile(
+    r"\b([A-Za-z_]\w*)\s*:\s*STRING\s*\(\s*(\d+)\s*\)", re.I)
+WIDE_RETURN = re.compile(
+    r"\bMETHOD\s+(?:(?:" + FB_QUALIFIER + r")\s+)*([A-Za-z_]\w*)\s*:\s*"
+    r"STRING\s*\(\s*(\d+)\s*\)", re.I)
+STRING_FUNCTION_CALL = re.compile(
+    r"\b(CONCAT|LEN|FIND|MID|LEFT|RIGHT|INSERT|DELETE|REPLACE)\s*\(", re.I)
+ST_STRING_LITERAL = re.compile(r"'(?:\$.|[^'$])*'")
+STANDARD_STRING_MAX = 255
 ENUM_BLOCK = re.compile(
     r"\bTYPE\s+[A-Za-z_]\w*\s*:\s*\((.*?)\)\s*[A-Za-z_]\w*\s*;",
     re.S | re.I)
@@ -369,6 +385,67 @@ def lint_file(path: Path, legacy_4024: bool = False) -> list[Finding]:
                     f"drive the real condition instead, or guard it with "
                     f"{{IF defined (SIM_HOOKS)}} (§5.7)"))
 
+    findings.extend(_wide_string_calls(path, text))
+    return findings
+
+
+def _wide_names(declaration: str) -> set[str]:
+    code = _without_comments(declaration)
+    names = {m.group(1).lower() for m in WIDE_STRING_DECL.finditer(code)
+             if int(m.group(2)) > STANDARD_STRING_MAX}
+    names |= {m.group(1).lower() for m in WIDE_RETURN.finditer(code)
+              if int(m.group(2)) > STANDARD_STRING_MAX}
+    return names
+
+
+def _call_arguments(code: str, open_paren: int) -> str:
+    depth = 0
+    for index in range(open_paren, len(code)):
+        if code[index] == "(":
+            depth += 1
+        elif code[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return code[open_paren + 1:index]
+    return code[open_paren + 1:]
+
+
+def _wide_string_calls(path: Path, text: str) -> list[Finding]:
+    """C9: a standard string function touching a string wider than 255."""
+    findings: list[Finding] = []
+    members = _wide_names(_first_declaration(text))
+    units: list[tuple[str, set[str], str, int]] = []
+    outer = OUTER_IMPL.search(text)
+    if outer:
+        units.append(("body", members, outer.group(1), outer.start(1)))
+    for method in METHOD_BLOCK.finditer(text):
+        block = method.group(2)
+        declaration = re.search(r"<Declaration><!\[CDATA\[(.*?)\]\]>", block, re.S)
+        implementation = METHOD_IMPL.search(block)
+        if not implementation:
+            continue
+        local = _wide_names(declaration.group(1)) if declaration else set()
+        units.append((method.group(1), members | local, implementation.group(1),
+                      method.start(2) + implementation.start(1)))
+    for unit, wide, code, offset in units:
+        if not wide:
+            continue
+        clean = ST_STRING_LITERAL.sub("''", _without_comments(code))
+        for call in STRING_FUNCTION_CALL.finditer(clean):
+            arguments = _call_arguments(clean, call.end() - 1)
+            touched = [name for name in re.findall(r"(?<![.\w])([A-Za-z_]\w*)", arguments)
+                       if name.lower() in wide]
+            statement = clean[:call.start()].rsplit(";", 1)[-1]
+            target = re.search(r"(?<![.\w])([A-Za-z_]\w*)\s*:=\s*$", statement)
+            if target and target.group(1).lower() in wide:
+                touched.append(target.group(1))
+            if touched:
+                findings.append(Finding(
+                    path, _line_of(text, offset), "C9",
+                    f"{unit}: {call.group(1).upper()} on '{touched[0]}', declared "
+                    f"wider than STRING({STANDARD_STRING_MAX}); the standard string "
+                    f"functions truncate there - scan and copy bytes instead "
+                    f"(IMPLEMENTATION_NOTES §143)"))
     return findings
 
 

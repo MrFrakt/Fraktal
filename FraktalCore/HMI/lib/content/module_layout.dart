@@ -501,6 +501,11 @@ class ModuleControlDefinition {
   /// Shown only while this holds; null = always.
   final ModuleCondition? visibleWhen;
 
+  /// A bound `enabled` for a button or input: usable only while this holds.
+  /// Unlike [visibleWhen], an UNAVAILABLE tag disables - Bad/Uncertain data
+  /// never enables an input. Presentation only: the PLC re-checks the request.
+  final ModuleCondition? enabledWhen;
+
   static const maxLayerLength = 40;
 
   const ModuleControlDefinition({
@@ -528,6 +533,7 @@ class ModuleControlDefinition {
     this.placement,
     this.layer = '',
     this.visibleWhen,
+    this.enabledWhen,
   });
 
   /// The rule in force for [values], or null when the default state applies.
@@ -542,7 +548,10 @@ class ModuleControlDefinition {
   }
 
   /// Every tag read this control makes: its bindings and its visibility.
-  int get boundReads => linkedBindings.length + (visibleWhen == null ? 0 : 1);
+  int get boundReads =>
+      linkedBindings.length +
+      (visibleWhen == null ? 0 : 1) +
+      (enabledWhen == null ? 0 : 1);
 
   /// The state [values] (this control's linked bindings, in order) put it in:
   /// the first matching rule, else [defaultToken].
@@ -576,6 +585,7 @@ class ModuleControlDefinition {
         placement: next?.clamped(),
         layer: layer,
         visibleWhen: visibleWhen,
+        enabledWhen: enabledWhen,
       );
 
   /// Version-2 layouts stored one `binding`. New layouts store a list while
@@ -648,6 +658,7 @@ class ModuleControlDefinition {
         placement: placement,
         layer: layer,
         visibleWhen: visibleWhen,
+        enabledWhen: enabledWhen,
       );
 
   Map<String, Object?> toJson() => {
@@ -675,6 +686,7 @@ class ModuleControlDefinition {
         if (placement != null) 'placement': placement!.toJson(),
         if (layer.isNotEmpty) 'layer': layer,
         if (visibleWhen != null) 'visibleWhen': visibleWhen!.toJson(),
+        if (enabledWhen != null) 'enabledWhen': enabledWhen!.toJson(),
       };
 
   static ModuleControlDefinition? fromJson(Object? source) {
@@ -798,6 +810,7 @@ class ModuleControlDefinition {
       placement: ModulePlacement.fromJson(source['placement']),
       layer: field('layer', maxLayerLength).trim(),
       visibleWhen: ModuleCondition.fromJson(source['visibleWhen']),
+      enabledWhen: ModuleCondition.fromJson(source['enabledWhen']),
     );
   }
 }

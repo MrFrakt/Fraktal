@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fraktal_hmi/content/module_layout.dart';
 import 'package:fraktal_hmi/ui/app_theme.dart';
 import 'package:fraktal_hmi/domain/types.dart';
 
@@ -220,6 +221,14 @@ void main() {
           }.entries) {
             expect(_contrast(entry.value, card), greaterThan(3.0),
                 reason: '$label: ${entry.key} is invisible on a card');
+          }
+
+          // LOCALIZATION §7.3/§7.4: authored overlay colour is a TOKEN, so
+          // "contrast enforced at publish" is proved here, once, for every
+          // layout any author can build - `off` included: dim, never invisible.
+          for (final token in ModuleStateToken.values) {
+            expect(_contrast(stateTokenColor(ctx, token), card), greaterThan(3.0),
+                reason: '$label: the $token state is invisible on a card');
           }
 
           for (final sev in Severity.values) {
