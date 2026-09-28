@@ -283,21 +283,24 @@ class _ModuleDetailState extends State<ModuleDetail> {
         ModuleTabKind.codeReader => CodeReaderModuleTab(app: app, node: node),
         ModuleTabKind.rfid => RfidModuleTab(app: app, node: node),
         ModuleTabKind.configuration => _ConfigurationTab(app: app, node: node),
-        ModuleTabKind.custom || ModuleTabKind.guidance => CustomModuleTabView(
-            app: app,
-            node: node,
-            tab: tab,
-            editing: _editing,
-            onEditControl: (control) =>
-                _editControl(node, tab, control, capabilities),
-            onRemoveControl: (id) =>
-                _removeControl(node, tab, id, capabilities),
-            onMoveControlUp: (index) =>
-                _moveControl(node, tab, index, -1, capabilities),
-            onMoveControlDown: (index) =>
-                _moveControl(node, tab, index, 1, capabilities),
-            onReorderControl: (oldIndex, newIndex) =>
-                _reorderControl(node, tab, oldIndex, newIndex, capabilities),
+        ModuleTabKind.custom || ModuleTabKind.guidance => _TabBackground(
+            background: tab.kind.acceptsBackground ? tab.background : null,
+            child: CustomModuleTabView(
+              app: app,
+              node: node,
+              tab: tab,
+              editing: _editing,
+              onEditControl: (control) =>
+                  _editControl(node, tab, control, capabilities),
+              onRemoveControl: (id) =>
+                  _removeControl(node, tab, id, capabilities),
+              onMoveControlUp: (index) =>
+                  _moveControl(node, tab, index, -1, capabilities),
+              onMoveControlDown: (index) =>
+                  _moveControl(node, tab, index, 1, capabilities),
+              onReorderControl: (oldIndex, newIndex) =>
+                  _reorderControl(node, tab, oldIndex, newIndex, capabilities),
+            ),
           ),
       };
 
@@ -711,6 +714,44 @@ IconData _tabIcon(ModuleTabIcon icon) => switch (icon) {
       ModuleTabIcon.electrical => Icons.electrical_services_outlined,
     };
 
+/// A tab's optional background image, drawn behind [child] (the Overview and
+/// custom tabs: ModuleTabKind.acceptsBackground). Presentation only: the live
+/// controls stay on top.
+class _TabBackground extends StatelessWidget {
+  final ModuleTabBackground? background;
+  final Widget child;
+  const _TabBackground({required this.background, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final configured = background;
+    if (configured == null || configured.imageBase64.isEmpty) return child;
+    // Decoded once and reused across the per-snapshot rebuilds of this view.
+    final image = embeddedImage(configured.imageBase64, maxWidth: 2560);
+    if (image == null) return child;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            configured.marginLeft,
+            configured.marginTop,
+            configured.marginRight,
+            configured.marginBottom,
+          ),
+          child: Image(
+            image: image,
+            fit: _backgroundBoxFit(configured.fit),
+            alignment: _backgroundAlignment(configured.position),
+            gaplessPlayback: true,
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
 BoxFit _backgroundBoxFit(ModuleBackgroundFit fit) => switch (fit) {
       ModuleBackgroundFit.contain => BoxFit.contain,
       ModuleBackgroundFit.cover => BoxFit.cover,
@@ -912,33 +953,7 @@ class _ModuleOverviewTab extends StatelessWidget {
       if (history && n.isUnit && s.permits(GatedAction.alarmHistory))
         HistoryBrowser(node: n),
     ]);
-    final configured = background;
-    if (configured == null || configured.imageBase64.isEmpty) return content;
-    // Decoded once and reused across the per-snapshot rebuilds of this view.
-    final image = embeddedImage(configured.imageBase64, maxWidth: 2560);
-    if (image == null) return content;
-    {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              configured.marginLeft,
-              configured.marginTop,
-              configured.marginRight,
-              configured.marginBottom,
-            ),
-            child: Image(
-              image: image,
-              fit: _backgroundBoxFit(configured.fit),
-              alignment: _backgroundAlignment(configured.position),
-              gaplessPlayback: true,
-            ),
-          ),
-          content,
-        ],
-      );
-    }
+    return _TabBackground(background: background, child: content);
   }
 
   Widget _manualPanel(BuildContext context, ModuleNode n) {

@@ -164,6 +164,49 @@ void main() {
         tabs.first.background?.position, ModuleBackgroundPosition.bottomRight);
   });
 
+  test('a custom tab carries a background image like the Overview', () async {
+    expect(
+      [
+        for (final kind in ModuleTabKind.values)
+          if (kind.acceptsBackground) kind,
+      ],
+      [ModuleTabKind.overview, ModuleTabKind.custom],
+    );
+    final store = MemoryContentStore();
+    final localization =
+        LocalizationController(enabledLanguages: {'en'}, activeLanguage: 'en');
+    final first =
+        ModuleContentController(store: store, localization: localization);
+    const capabilities = ModuleTabCapabilities(unit: true);
+    await first.publishTabs(
+      'StationA',
+      [
+        ...first.tabsFor('StationA', capabilities),
+        ModuleTabDefinition(
+          id: 'cell',
+          title: 'Cell',
+          kind: ModuleTabKind.custom,
+          background: ModuleTabBackground(
+            imageBase64: base64Encode(const [4, 5, 6]),
+            imageName: 'cell.png',
+            fit: ModuleBackgroundFit.cover,
+          ),
+        ),
+      ],
+      capabilities,
+      author: 'admin1',
+    );
+
+    final restored =
+        ModuleContentController(store: store, localization: localization);
+    await restored.load();
+    final cell = restored
+        .tabsFor('StationA', capabilities)
+        .firstWhere((tab) => tab.id == 'cell');
+    expect(cell.background?.imageName, 'cell.png');
+    expect(cell.background?.fit, ModuleBackgroundFit.cover);
+  });
+
   test('customization bundle carries localized text and excludes connection',
       () async {
     final sourceCatalog = MemoryCatalogStore();

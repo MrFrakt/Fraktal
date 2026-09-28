@@ -8,6 +8,7 @@
 // build scope, duplicate Navigator GlobalKey) and the app stopped responding
 // before the layout was saved.
 import 'package:flutter/material.dart';
+import 'package:fraktal_hmi/content/module_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/data/sim_repository.dart';
 import 'package:fraktal_hmi/main.dart';
@@ -76,4 +77,43 @@ void main() {
       app.dispose(); // stops the simulator's timer
     });
   }
+
+  testWidgets('a custom tab draws its background image behind its controls',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repo = SimRepository();
+    final app = AppState(repo);
+    await tester.pumpWidget(FraktalHmiApp(app: app));
+    await tester.pump(const Duration(seconds: 2));
+    const capabilities = ModuleTabCapabilities(unit: true);
+    await app.content.publishTabs(
+      'StationA',
+      [
+        ...app.content.tabsFor('StationA', capabilities),
+        const ModuleTabDefinition(
+          id: 'cell',
+          title: 'Cell',
+          kind: ModuleTabKind.custom,
+          background: ModuleTabBackground(imageBase64: _png, imageName: 'c'),
+        ),
+      ],
+      capabilities,
+      author: 'test',
+    );
+    app.select('StationA');
+    await tester.pump(const Duration(seconds: 2));
+    await tester.tap(find.text('Cell'));
+    await _settle(tester);
+
+    expect(find.byType(Image), findsWidgets,
+        reason: 'the custom tab rendered without its background');
+    app.dispose(); // stops the simulator's timer
+  });
 }
+
+// A 1x1 transparent PNG.
+const _png =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';

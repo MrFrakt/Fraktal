@@ -167,6 +167,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
   late AccessLevel _level;
   late ModuleTabKind _kind;
   late ModuleTabIcon _tabIcon;
+
   /// Unit modes a guidance tab may auto-open in. Empty = every mode.
   late Set<int> _triggerModes;
   late GuidanceMode _guidanceMode;
@@ -402,7 +403,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                 LText('std.module.editor.guidanceModeHelp',
                     style: Theme.of(context).textTheme.bodySmall),
               ],
-              if (_kind == ModuleTabKind.overview) ...[
+              if (_kind.acceptsBackground) ...[
                 const SizedBox(height: 16),
                 _backgroundEditor(context),
               ],
@@ -450,8 +451,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
             _kind == ModuleTabKind.custom || _kind == ModuleTabKind.guidance
                 ? _tabIcon
                 : existing?.tabIcon,
-        background: _kind == ModuleTabKind.overview &&
-                _backgroundImageBase64.isNotEmpty
+        background: _kind.acceptsBackground && _backgroundImageBase64.isNotEmpty
             ? ModuleTabBackground(
                 imageBase64: _backgroundImageBase64,
                 imageName: _backgroundImageName,

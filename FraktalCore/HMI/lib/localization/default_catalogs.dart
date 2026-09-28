@@ -666,9 +666,9 @@ const standardEnglish = <String, String>{
   'std.module.editor.imageTooLarge': 'The image exceeds the 5 MB limit.',
   'std.module.editor.imageRequired': 'Choose an image.',
   'std.module.editor.tabIcon': 'Tab icon',
-  'std.module.editor.backgroundImage': 'Overview background image',
+  'std.module.editor.backgroundImage': 'Tab background image',
   'std.module.editor.backgroundHelp':
-      'The image stays behind the live Overview controls and is included in customization export/import.',
+      'The image stays behind the live controls of this tab and is included in customization export/import.',
   'std.module.editor.noBackgroundImage': 'No background image selected',
   'std.module.editor.backgroundImageTooLarge':
       'The background image exceeds the 10 MB limit.',
@@ -1307,9 +1307,9 @@ const standardSpanish = <String, String>{
   'std.module.editor.imageTooLarge': 'La imagen supera el límite de 5 MB.',
   'std.module.editor.imageRequired': 'Seleccione una imagen.',
   'std.module.editor.tabIcon': 'Ícono de pestaña',
-  'std.module.editor.backgroundImage': 'Imagen de fondo del resumen',
+  'std.module.editor.backgroundImage': 'Imagen de fondo de la pestaña',
   'std.module.editor.backgroundHelp':
-      'La imagen permanece detrás de los controles activos del resumen y se incluye al exportar/importar la personalización.',
+      'La imagen permanece detrás de los controles activos de esta pestaña y se incluye al exportar/importar la personalización.',
   'std.module.editor.noBackgroundImage': 'Sin imagen de fondo',
   'std.module.editor.backgroundImageTooLarge':
       'La imagen de fondo supera el límite de 10 MB.',

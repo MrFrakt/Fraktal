@@ -52,7 +52,12 @@ enum ModuleTabKind {
   custom,
   guidance,
   // Appended: kinds persist by name, and new ones go last regardless.
-  configuration,
+  configuration;
+
+  /// The tabs that may carry a background image: the Overview and the tabs an
+  /// administrator authors. The others are fixed views of PLC data. The one
+  /// rule the editor offers and the module view honours.
+  bool get acceptsBackground => this == overview || this == custom;
 }
 
 enum ModuleControlKind {

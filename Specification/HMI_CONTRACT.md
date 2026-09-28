@@ -83,10 +83,11 @@ actions. Layouts remain flow-based and responsive rather than persisting fragile
 pixel coordinates.
 
 An administrator may select a whitelisted portable icon preset for each custom or
-guidance tab. The Overview tab may also carry an embedded background image with
-contain/cover/fit-width/fit-height aspect-ratio presets, nine-point alignment, and
-independent bounded margins. The image remains presentation-only behind the live
-Overview controls; it cannot replace the PLC-owned status contract.
+guidance tab. The Overview tab and every custom tab may also carry an embedded
+background image with contain/cover/fit-width/fit-height aspect-ratio presets,
+nine-point alignment, and independent bounded margins. The image remains
+presentation-only behind the tab's live controls; it cannot replace the PLC-owned
+status contract. The other built-in tabs are fixed views of PLC data and carry none.
 
 Layout editing cannot create an arbitrary write path. Buttons map only to the existing
 manual-command catalog, Unit start/stop/reset, or `DecisionAnswer`; inputs use the
@@ -147,7 +148,7 @@ press-specific HMI page or PLC-authored prose.
 An `ADMIN` can export/import one versioned UTF-8 JSON customization bundle. It includes
 all persistent administrator-owned presentation state: module tabs and controls,
 per-tab and per-section access policy, tab icon choices, guidance triggers, embedded
-control and Overview background images with layout settings, module PDF
+control and tab background images with layout settings, module PDF
 documents/metadata, canonical repository control bindings (including their
 binding-specific transport locator where required), and both standard/project localization
 overrides for every language. Import validates the complete bundle and explicitly
