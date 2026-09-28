@@ -39,6 +39,10 @@ class ModuleDetail extends StatefulWidget {
 
 class _ModuleDetailState extends State<ModuleDetail> {
   bool _editing = false;
+
+  /// Editing the layout every module of this module's TYPE shares, rather
+  /// than this module's own (LOCALIZATION §7.1).
+  bool _typeScope = false;
   String? _draftPath;
   List<ModuleTabDefinition> _draftTabs = const [];
   final List<List<ModuleTabDefinition>> _undoDrafts = [];
@@ -59,7 +63,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
     }
     final allTabs = _editing && _draftPath == node.path
         ? _draftTabs
-        : app.content.tabsFor(node.path, capabilities);
+        : app.content.tabsFor(node.path, capabilities, typeKey: node.typeKey);
     final visibleTabs = allTabs
         .where((tab) => app.session.level.index >= tab.requiredLevel.index)
         .toList(growable: false);
@@ -196,6 +200,36 @@ class _ModuleDetailState extends State<ModuleDetail> {
               const SizedBox(width: 8),
               const LText('std.module.editor.active'),
               const SizedBox(width: 20),
+              if (node.typeKey.isNotEmpty) ...[
+                // What this draft is published to: this module alone, or
+                // every module of its type. Fixed while changes are pending.
+                ChoiceChip(
+                  key: const Key('layout-scope-module'),
+                  label: const LText('std.module.editor.scopeModule'),
+                  selected: !_typeScope,
+                  onSelected: _undoDrafts.isEmpty
+                      ? (_) => _setScope(node, false)
+                      : null,
+                ),
+                const SizedBox(width: 6),
+                ChoiceChip(
+                  key: const Key('layout-scope-type'),
+                  label: LText('std.module.editor.scopeType',
+                      args: {'type': context.tr(node.typeKey)}),
+                  selected: _typeScope,
+                  onSelected: _undoDrafts.isEmpty
+                      ? (_) => _setScope(node, true)
+                      : null,
+                ),
+                if (!_typeScope && app.content.hasLayout(node.path))
+                  IconButton(
+                    key: const Key('layout-use-type'),
+                    tooltip: context.tr('std.module.editor.useTypeLayout'),
+                    onPressed: () => _useTypeLayout(node, capabilities),
+                    icon: const Icon(Icons.layers_clear_outlined),
+                  ),
+                const SizedBox(width: 12),
+              ],
               IconButton(
                 tooltip: context.tr('std.common.undo'),
                 onPressed: _undoDrafts.isEmpty ? null : _undoDraft,
@@ -268,8 +302,10 @@ class _ModuleDetailState extends State<ModuleDetail> {
     ModuleTabCapabilities capabilities,
   ) =>
       switch (tab.kind) {
-        ModuleTabKind.overview =>
-          _ModuleOverviewTab(app: app, background: tab.background),
+        ModuleTabKind.overview => _ViewClassBadge(
+            viewClass: tab.viewClass,
+            child: _ModuleOverviewTab(app: app, background: tab.background),
+          ),
         ModuleTabKind.description => ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -283,7 +319,9 @@ class _ModuleDetailState extends State<ModuleDetail> {
         ModuleTabKind.codeReader => CodeReaderModuleTab(app: app, node: node),
         ModuleTabKind.rfid => RfidModuleTab(app: app, node: node),
         ModuleTabKind.configuration => _ConfigurationTab(app: app, node: node),
-        ModuleTabKind.custom || ModuleTabKind.guidance => CustomModuleTabView(
+        ModuleTabKind.custom || ModuleTabKind.guidance => _ViewClassBadge(
+            viewClass: tab.kind.acceptsBackground ? tab.viewClass : null,
+            child: CustomModuleTabView(
             app: app,
             node: node,
             tab: tab,
@@ -303,6 +341,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
             onAddControlAt: (kind, placement) => _addControl(
                 node, tab, capabilities,
                 kind: kind, placement: placement),
+          ),
           ),
       };
 
@@ -437,8 +476,45 @@ class _ModuleDetailState extends State<ModuleDetail> {
     setState(() {
       _editing = true;
       _draftPath = node.path;
-      _draftTabs =
-          List.unmodifiable(app.content.tabsFor(node.path, capabilities));
+      _draftTabs = List.unmodifiable(_scopeTabs(node, capabilities));
+      _undoDrafts.clear();
+      _redoDrafts.clear();
+    });
+  }
+
+  /// The scope a draft is edited and published in.
+  String _scope(ModuleNode node) => _typeScope && node.typeKey.isNotEmpty
+      ? ModuleContentController.typeScope(node.typeKey)
+      : node.path;
+
+  /// A draft starts from what that scope shows today: the type's layout, or -
+  /// for a module - its own layout, else the type's it would override.
+  List<ModuleTabDefinition> _scopeTabs(
+          ModuleNode node, ModuleTabCapabilities capabilities) =>
+      _typeScope && node.typeKey.isNotEmpty
+          ? app.content.tabsFor(_scope(node), capabilities)
+          : app.content
+              .tabsFor(node.path, capabilities, typeKey: node.typeKey);
+
+  /// Switching scope reloads the draft, so it is only offered while the draft
+  /// has no unpublished change to lose.
+  void _setScope(ModuleNode node, bool typeScope) {
+    if (_typeScope == typeScope || _undoDrafts.isNotEmpty) return;
+    final capabilities = moduleTabCapabilities(node);
+    setState(() {
+      _typeScope = typeScope;
+      _draftTabs = List.unmodifiable(_scopeTabs(node, capabilities));
+      _redoDrafts.clear();
+    });
+  }
+
+  Future<void> _useTypeLayout(
+      ModuleNode node, ModuleTabCapabilities capabilities) async {
+    await app.content.clearLayout(node.path, capabilities,
+        author: app.session.user);
+    if (!mounted) return;
+    setState(() {
+      _draftTabs = List.unmodifiable(_scopeTabs(node, capabilities));
       _undoDrafts.clear();
       _redoDrafts.clear();
     });
@@ -523,13 +599,25 @@ class _ModuleDetailState extends State<ModuleDetail> {
     final confirmed = changeComment != null;
     hmiLog('publish ${node.path}: dialog closed, confirmed=$confirmed');
     if (changeComment == null || !mounted || _draftPath != node.path) return;
-    await app.content.publishTabs(
-      node.path,
-      _draftTabs,
-      capabilities,
-      author: app.session.user,
-      comment: changeComment,
-    );
+    try {
+      await app.content.publishTabs(
+        _scope(node),
+        _draftTabs,
+        capabilities,
+        author: app.session.user,
+        comment: changeComment,
+        typeKey: _typeScope ? '' : node.typeKey,
+      );
+    } on FormatException catch (refused) {
+      // A rule refused at publish (§7.3 budget, §7.4 class): say which, and
+      // keep the draft so the author can fix it.
+      hmiLog('publish ${node.path}: refused: ${refused.message}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.tr(refused.message))));
+      }
+      return;
+    }
     if (!mounted) return;
     hmiTimedSync(
         'publish ${node.path}: leave editing', () => setState(_clearDraft));
@@ -538,7 +626,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
 
   Future<void> _showRevisionHistory(
       ModuleNode node, ModuleTabCapabilities capabilities) async {
-    final revisions = app.content.revisionsFor(node.path);
+    final revisions = app.content.revisionsFor(_scope(node));
     final revisionId = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -578,7 +666,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
     );
     if (revisionId == null || !mounted) return;
     await app.content.restoreRevision(
-      node.path,
+      _scope(node),
       revisionId,
       capabilities,
       author: app.session.user,
@@ -729,6 +817,47 @@ IconData _tabIcon(ModuleTabIcon icon) => switch (icon) {
       ModuleTabIcon.speed => Icons.speed_outlined,
       ModuleTabIcon.electrical => Icons.electrical_services_outlined,
     };
+
+/// A view's display class, shown ON the view (LOCALIZATION §7.4): a
+/// maintenance display standing in as an operating screen is apparent to
+/// anyone at the panel. Null = a fixed view with no authored class.
+class _ViewClassBadge extends StatelessWidget {
+  final ModuleViewClass? viewClass;
+  final Widget child;
+  const _ViewClassBadge({required this.viewClass, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final value = viewClass;
+    if (value == null) return child;
+    final colors = Theme.of(context).colorScheme;
+    return Stack(children: [
+      Positioned.fill(child: child),
+      Positioned(
+        right: 8,
+        bottom: 8,
+        child: IgnorePointer(
+          child: Container(
+            key: ValueKey('view-class-${value.name}'),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: colors.outlineVariant),
+            ),
+            child: LText('std.module.viewClass.${value.name}',
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
+                )),
+          ),
+        ),
+      ),
+    ]);
+  }
+}
 
 /// The Configuration tab. The HMI's per-module section policy still decides
 /// who may see it (Configuration defaults to ENGINEER, LOCALIZATION §5); below

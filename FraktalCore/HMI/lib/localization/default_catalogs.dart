@@ -211,6 +211,15 @@ const standardEnglish = <String, String>{
   'std.theme.cloudMint': 'Mint Cloud',
   'std.theme.coralDusk': 'Coral Dusk',
   'std.theme.midnightConsole': 'Midnight Console',
+  'std.theme.processGrey': 'Process Grey',
+  'std.theme.processGreyDark': 'Process Grey Dark',
+  'std.theme.isa101Badge': 'ISA-101',
+  'std.theme.group.standard': 'Industrial standard',
+  'std.theme.group.standardHelp':
+      'Flat, conventional colours with colour reserved for status. ISA-101 marks the high-performance grey themes.',
+  'std.theme.group.modern': 'Modern',
+  'std.theme.group.modernHelp':
+      'Decorative materials: glow, glass, drafting grid, paper and reflections.',
   // Fullscreen settings dialog (Core O9): theme, language, touch keyboard, station.
   'std.settings.title': 'Settings',
   'std.settings.appearance': 'Appearance',
@@ -608,6 +617,20 @@ const standardEnglish = <String, String>{
   'std.module.editor.notOnImage': 'Not on the picture',
   'std.module.editor.dragOntoImage': 'Drag onto the picture',
   'std.module.editor.removeFromImage': 'Take off the picture',
+  'std.module.editor.scopeModule': 'This module',
+  'std.module.viewClass.operating': 'OPERATING',
+  'std.module.viewClass.maintenance': 'MAINTENANCE',
+  'std.module.viewClass.engineering': 'ENGINEERING',
+  'std.module.editor.viewClass': 'Display class',
+  'std.module.editor.viewClassHelp':
+      'Operating: a primary production display, no pictures. Maintenance: may carry a machine picture with controls placed on it. Engineering: unrestricted.',
+  'std.module.editor.operatingNoImagery':
+      'An operating view carries no picture. Choose Maintenance or Engineering to add one.',
+  'std.module.editor.overBudget':
+      'This view reads more tags than its budget of 200. Remove some bindings, or split it into two views.',
+  'std.module.editor.scopeType': 'Every {type}',
+  'std.module.editor.useTypeLayout':
+      'Drop this module\'s own layout and use its type\'s',
   'std.module.action.none': 'No action',
   'std.module.action.manualCommand': 'PLC manual command',
   'std.module.action.unitStart': 'Start Unit',
@@ -1054,6 +1077,15 @@ const standardSpanish = <String, String>{
   'std.theme.cloudMint': 'Nube menta',
   'std.theme.coralDusk': 'Atardecer coral',
   'std.theme.midnightConsole': 'Consola nocturna',
+  'std.theme.processGrey': 'Gris de proceso',
+  'std.theme.processGreyDark': 'Gris de proceso oscuro',
+  'std.theme.isa101Badge': 'ISA-101',
+  'std.theme.group.standard': 'Estándar industrial',
+  'std.theme.group.standardHelp':
+      'Colores planos y convencionales; el color se reserva para el estado. ISA-101 marca los temas grises de alto rendimiento.',
+  'std.theme.group.modern': 'Modernos',
+  'std.theme.group.modernHelp':
+      'Materiales decorativos: brillo, vidrio, cuadrícula de dibujo, papel y reflejos.',
   'std.settings.title': 'Ajustes',
   'std.settings.appearance': 'Apariencia',
   'std.settings.language': 'Idioma',
@@ -1456,6 +1488,20 @@ const standardSpanish = <String, String>{
   'std.module.editor.notOnImage': 'Fuera de la imagen',
   'std.module.editor.dragOntoImage': 'Arrastrar sobre la imagen',
   'std.module.editor.removeFromImage': 'Quitar de la imagen',
+  'std.module.editor.scopeModule': 'Este módulo',
+  'std.module.viewClass.operating': 'OPERACIÓN',
+  'std.module.viewClass.maintenance': 'MANTENIMIENTO',
+  'std.module.viewClass.engineering': 'INGENIERÍA',
+  'std.module.editor.viewClass': 'Clase de pantalla',
+  'std.module.editor.viewClassHelp':
+      'Operación: pantalla principal de producción, sin imágenes. Mantenimiento: puede llevar una imagen de la máquina con controles sobre ella. Ingeniería: sin restricciones.',
+  'std.module.editor.operatingNoImagery':
+      'Una vista de operación no lleva imagen. Elija Mantenimiento o Ingeniería para agregar una.',
+  'std.module.editor.overBudget':
+      'Esta vista lee más etiquetas que su presupuesto de 200. Quite enlaces o divídala en dos vistas.',
+  'std.module.editor.scopeType': 'Todos: {type}',
+  'std.module.editor.useTypeLayout':
+      'Descartar el diseño propio de este módulo y usar el de su tipo',
   'std.module.action.none': 'Sin acción',
   'std.module.action.manualCommand': 'Comando manual del PLC',
   'std.module.action.unitStart': 'Iniciar Unit',

@@ -235,12 +235,25 @@ class ModuleContentController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The layout scope shared by every module publishing [typeKey]
+  /// (LOCALIZATION §7.1). `:` cannot occur in a module path, so a type scope
+  /// can never collide with one.
+  static String typeScope(String typeKey) => 'type:$typeKey';
+
+  static bool isTypeScope(String scope) => scope.startsWith('type:');
+
+  /// A layout scope: a module path, or a [typeScope]. A module's own layout
+  /// (the override) replaces its type's WHOLE - never merged, because a
+  /// half-inherited layout is not reviewable - and the type's layout replaces
+  /// the defaults. So twenty identical clamps need one layout, not twenty.
   List<ModuleTabDefinition> tabsFor(
-    String modulePath,
-    ModuleTabCapabilities capabilities,
-  ) {
+    String scope,
+    ModuleTabCapabilities capabilities, {
+    String typeKey = '',
+  }) {
     final defaults = ModuleTabDefinition.defaults(capabilities);
-    final configured = _layouts[modulePath];
+    final configured = _layouts[scope] ??
+        (typeKey.isEmpty ? null : _layouts[typeScope(typeKey)]);
     if (configured == null) return List.unmodifiable(defaults);
 
     final byId = {for (final tab in configured) tab.id: tab};
@@ -262,6 +275,25 @@ class ModuleContentController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether [scope] carries a layout of its own (for a module: an override).
+  bool hasLayout(String scope) => _layouts.containsKey(scope);
+
+  /// Drops [scope]'s own layout, so a module falls back to its type's. The
+  /// dropped layout is kept as a revision, so this is as undoable as a publish.
+  Future<void> clearLayout(
+    String scope,
+    ModuleTabCapabilities capabilities, {
+    required String author,
+  }) async {
+    final current = _layouts[scope];
+    if (current == null) return;
+    _recordRevision(scope, current,
+        author: author, comment: 'Before using the type layout');
+    _layouts.remove(scope);
+    await _persist();
+    notifyListeners();
+  }
+
   List<ModuleLayoutRevision> revisionsFor(String modulePath) =>
       List.unmodifiable(_revisions[modulePath] ?? const []);
 
@@ -271,13 +303,16 @@ class ModuleContentController extends ChangeNotifier {
     ModuleTabCapabilities capabilities, {
     required String author,
     String comment = '',
+    String typeKey = '',
   }) async {
     hmiTimedSync('publish $modulePath: validate', () => _validateTabs(tabs));
     hmiTimedSync(
       'publish $modulePath: record revision',
       () => _recordRevision(
         modulePath,
-        tabsFor(modulePath, capabilities),
+        // What the module SHOWED before - its type's layout, when this is the
+        // first override - not the defaults.
+        tabsFor(modulePath, capabilities, typeKey: typeKey),
         author: author,
         comment: comment.trim().isEmpty
             ? 'Before published layout change'
@@ -345,6 +380,16 @@ class ModuleContentController extends ChangeNotifier {
       }
       if (tab.controls.any((control) => !control.bindingsAreValid)) {
         throw const FormatException('Invalid module control bindings');
+      }
+      // §7.4: an operating view is a primary production display; imagery is
+      // refused there, so a picture view has to say it is a maintenance one.
+      if (tab.viewClass == ModuleViewClass.operating &&
+          tab.background != null) {
+        throw const FormatException('std.module.editor.operatingNoImagery');
+      }
+      // §7.3: the read budget is refused at publish.
+      if (tab.boundReads > ModuleTabDefinition.maxBoundReads) {
+        throw const FormatException('std.module.editor.overBudget');
       }
     }
   }
@@ -500,12 +545,15 @@ class ModuleContentController extends ChangeNotifier {
       ...policies.keys,
       ...layouts.keys,
       ...revisions.keys,
-    };
+    }..removeWhere(isTypeScope);
     final reconciliation = _reconcileModulePaths(
       sourcePaths,
       availableModulePaths?.toSet(),
     );
-    String destination(String path) => reconciliation.remapped[path] ?? path;
+    // A type scope names a type, not a place in this forest: never remapped.
+    String destination(String path) => isTypeScope(path)
+        ? path
+        : reconciliation.remapped[path] ?? path;
     final reconciledDocuments = <String, List<ModuleDocument>>{};
     for (final entry in documents.entries) {
       final target = destination(entry.key);

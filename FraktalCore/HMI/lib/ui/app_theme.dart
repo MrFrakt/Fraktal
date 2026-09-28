@@ -168,8 +168,27 @@ class FraktalThemeSpec {
   final bool highContrast;
   final FraktalSurfaceTheme? surfaces;
 
+  /// Follows the high-performance HMI convention (ANSI/ISA-101): a neutral
+  /// grey canvas, desaturated chrome, and colour left to abnormal states. A
+  /// claim, so it is declared, not inferred from a palette.
+  final bool isa101;
+
+  /// A deeper shade of the HIGH/error red, for a canvas too grey for the seed's
+  /// own red to stay AA on a tinted alarm banner. Same semantic, darker shade.
+  final Color? alarmShade;
+
   const FraktalThemeSpec(this.nameKey, this.seed, this.brightness,
-      {this.trueBlack = false, this.highContrast = false, this.surfaces});
+      {this.trueBlack = false,
+      this.highContrast = false,
+      this.surfaces,
+      this.isa101 = false,
+      this.alarmShade});
+
+  /// Standard (orthodox): flat colour, no decorative material - the look
+  /// industrial HMIs conventionally ship. Modern: glow, glass, grid, paper or
+  /// reflection. Derived from the finish, so it cannot disagree with it.
+  bool get standard =>
+      surfaces == null || surfaces!.finish == SurfaceFinish.flat;
 
   ThemeData toThemeData([ControlScale scale = ControlScale.compact]) {
     var scheme = ColorScheme.fromSeed(
@@ -177,6 +196,12 @@ class FraktalThemeSpec {
       brightness: brightness,
       contrastLevel: highContrast ? 1.0 : 0.0,
     );
+    if (alarmShade != null) {
+      scheme = scheme.copyWith(
+        error: alarmShade,
+        onError: _betterOf(Colors.black, Colors.white, alarmShade!),
+      );
+    }
     final skin = surfaces;
     if (skin != null) {
       // Decorative palettes own chrome only. Error roles and every status helper
@@ -538,7 +563,47 @@ const kThemes = <FraktalThemeSpec>[
         glint: Color(0xFF6D8BF7),
         radius: 10,
       )),
+  // High-performance HMI grey (ANSI/ISA-101): neutral canvas, steel accent.
+  // Appended for index stability; the picker lists them first.
+  FraktalThemeSpec('std.theme.processGrey', Color(0xFF3E5F80), Brightness.light,
+      isa101: true,
+      alarmShade: Color(0xFFA51515),
+      surfaces: FraktalSurfaceTheme(
+        // Light enough that the fixed amber/blue status text stays AA on a
+        // tinted banner - the semantics are fixed, so the grey had to move.
+        canvas: Color(0xFFE8EAEC),
+        panel: Color(0xFFF3F4F5),
+        accent: Color(0xFF3E5F80),
+        glint: Color(0xFF9AA2AB),
+        radius: 6,
+      )),
+  FraktalThemeSpec(
+      'std.theme.processGreyDark', Color(0xFF8DAED3), Brightness.dark,
+      isa101: true,
+      surfaces: FraktalSurfaceTheme(
+        canvas: Color(0xFF212427),
+        panel: Color(0xFF2B2F33),
+        accent: Color(0xFF8DAED3),
+        glint: Color(0xFF6B737C),
+        radius: 6,
+      )),
 ];
+
+/// The picker's order: the standard (orthodox) themes first - ISA-101 aligned
+/// ones leading - then the modern ones. Only the ORDER shown; a selection is
+/// still stored as its [kThemes] index, which must never move.
+List<int> get kThemeDisplayOrder {
+  final indices = List<int>.generate(kThemes.length, (i) => i);
+  int rank(int i) => kThemes[i].isa101
+      ? 0
+      : kThemes[i].standard
+          ? 1
+          : 2;
+  return indices..sort((a, b) {
+      final byRank = rank(a).compareTo(rank(b));
+      return byRank != 0 ? byRank : a.compareTo(b);
+    });
+}
 
 /// Localised display keys for the picker (kept for any legacy consumer).
 List<String> get kThemeNames => [for (final t in kThemes) t.nameKey];

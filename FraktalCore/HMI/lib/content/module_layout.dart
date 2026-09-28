@@ -74,6 +74,12 @@ enum ModuleControlKind {
   level,
 }
 
+/// A view's display class (LOCALIZATION §7.4). The authoring rules tighten
+/// with it: an OPERATING view is a primary production display and carries no
+/// imagery; a MAINTENANCE view may carry a picture and the overlay on it
+/// (locating a sensor is a maintenance task); ENGINEERING is unrestricted.
+enum ModuleViewClass { operating, maintenance, engineering }
+
 /// The outline of a [ModuleControlKind.shape].
 enum ModuleShape { rectangle, rounded, circle }
 
@@ -742,6 +748,14 @@ class ModuleTabDefinition {
   final ModuleTabBackground? background;
   final ModuleTabIcon? tabIcon;
 
+  /// The class this view declares; null = never declared (a layout from
+  /// before §7.4), see [viewClass].
+  final ModuleViewClass? declaredClass;
+
+  /// A view's reads are bounded (LOCALIZATION §7.3): every bound tag is a
+  /// read, so the budget is refused at publish, not discovered on the panel.
+  static const maxBoundReads = 200;
+
   const ModuleTabDefinition({
     required this.id,
     required this.title,
@@ -754,7 +768,21 @@ class ModuleTabDefinition {
     this.guidanceMode = GuidanceMode.optional,
     this.background,
     this.tabIcon,
+    this.declaredClass,
   });
+
+  /// The class in force. An undeclared view with a picture is a maintenance
+  /// view and one without is an operating view, so no layout saved before
+  /// §7.4 becomes invalid - and the class is still always visible.
+  ModuleViewClass get viewClass =>
+      declaredClass ??
+      (background == null
+          ? ModuleViewClass.operating
+          : ModuleViewClass.maintenance);
+
+  /// The tag reads this view makes each refresh.
+  int get boundReads => controls.fold(
+      0, (sum, control) => sum + control.linkedBindings.length);
 
   ModuleTabIcon get effectiveIcon =>
       tabIcon ??
@@ -817,6 +845,7 @@ class ModuleTabDefinition {
     GuidanceMode? guidanceMode,
     ModuleTabBackground? background,
     ModuleTabIcon? tabIcon,
+    ModuleViewClass? declaredClass,
   }) =>
       ModuleTabDefinition(
         id: id ?? this.id,
@@ -830,6 +859,7 @@ class ModuleTabDefinition {
         guidanceMode: guidanceMode ?? this.guidanceMode,
         background: background ?? this.background,
         tabIcon: tabIcon ?? this.tabIcon,
+        declaredClass: declaredClass ?? this.declaredClass,
       );
 
   Map<String, Object?> toJson() => {
@@ -844,6 +874,8 @@ class ModuleTabDefinition {
           'guidanceMode': guidanceMode.name,
         if (background != null) 'background': background!.toJson(),
         if (tabIcon != null) 'tabIcon': tabIcon!.name,
+        // Recorded in the export (§7.4): a class claimed silently would be.
+        if (declaredClass != null) 'viewClass': declaredClass!.name,
         'controls': [for (final control in controls) control.toJson()],
       };
 
@@ -915,6 +947,9 @@ class ModuleTabDefinition {
               .firstOrNull ??
           GuidanceMode.optional,
       background: background,
+      declaredClass: ModuleViewClass.values
+          .where((value) => value.name == source['viewClass'])
+          .firstOrNull,
       tabIcon: ModuleTabIcon.values
           .where((value) => value.name == source['tabIcon'])
           .firstOrNull,

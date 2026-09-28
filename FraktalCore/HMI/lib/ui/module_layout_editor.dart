@@ -177,6 +177,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
   late AccessLevel _level;
   late ModuleTabKind _kind;
   late ModuleTabIcon _tabIcon;
+  late ModuleViewClass _viewClass;
 
   /// Unit modes a guidance tab may auto-open in. Empty = every mode.
   late Set<int> _triggerModes;
@@ -213,6 +214,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
     _marginBottom =
         TextEditingController(text: '${background?.marginBottom ?? 0}');
     _level = tab?.requiredLevel ?? AccessLevel.operator;
+    _viewClass = tab?.viewClass ?? ModuleViewClass.operating;
     _kind = tab?.kind ?? ModuleTabKind.custom;
     _tabIcon = tab?.effectiveIcon ?? ModuleTabIcon.widgets;
     _backgroundFit = background?.fit ?? ModuleBackgroundFit.contain;
@@ -415,7 +417,32 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
               ],
               if (_kind.acceptsBackground) ...[
                 const SizedBox(height: 16),
-                _backgroundEditor(context),
+                DropdownButtonFormField<ModuleViewClass>(
+                  key: const Key('tab-view-class'),
+                  initialValue: _viewClass,
+                  decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.viewClass'),
+                    helperText: context.tr('std.module.editor.viewClassHelp'),
+                    helperMaxLines: 3,
+                  ),
+                  items: [
+                    for (final value in ModuleViewClass.values)
+                      DropdownMenuItem(
+                        value: value,
+                        child: LText('std.module.viewClass.${value.name}'),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _viewClass = value ?? _viewClass),
+                ),
+                const SizedBox(height: 16),
+                // §7.4: an operating view carries no imagery, so the picture
+                // is offered only once the view says it is not one.
+                if (_viewClass == ModuleViewClass.operating)
+                  LText('std.module.editor.operatingNoImagery',
+                      style: Theme.of(context).textTheme.bodySmall)
+                else
+                  _backgroundEditor(context),
               ],
             ]),
           ),
@@ -461,7 +488,10 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
             _kind == ModuleTabKind.custom || _kind == ModuleTabKind.guidance
                 ? _tabIcon
                 : existing?.tabIcon,
-        background: _kind.acceptsBackground && _backgroundImageBase64.isNotEmpty
+        declaredClass: _kind.acceptsBackground ? _viewClass : null,
+        background: _kind.acceptsBackground &&
+                _viewClass != ModuleViewClass.operating &&
+                _backgroundImageBase64.isNotEmpty
             ? ModuleTabBackground(
                 imageBase64: _backgroundImageBase64,
                 imageName: _backgroundImageName,

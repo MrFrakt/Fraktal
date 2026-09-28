@@ -1914,8 +1914,11 @@ restart. Safety authority remains independent of every cybersecurity control.
   ([evidence](AllenBradley/Evidence/AB_PHASE4_RUNTIME_BASE_AND_PRESS_DEMO_2026-09-07.md)).
   That is against the bounds those gates record, not around them: R6 passes for
   the declared read-only claim only, S15 is narrowed, and S5's CI path carries
-  an authorized manual deployment step. The reusable module library (Phase 6),
-  the gateway/repository adapter and the generic HMI remain unbuilt.
+  an authorized manual deployment step. The reusable module library (Phase 6)
+  remains unbuilt. The gateway/repository adapter and the generic HMI are built
+  and proved on the bench: the unmodified HMI renders the live press and, as of
+  2026-09-24, commanded it from a browser; the packaged installer path for AB is
+  still unexercised.
 - Where it is weaker than Part II, it says so: tier composition and lifecycle
   ordering are gate-enforced rather than compiler-enforced (AB §3.1, §3.11,
   §3.14), and per-type lifecycle correctness is an argument from generation
@@ -1930,6 +1933,15 @@ restart. Safety authority remains independent of every cybersecurity control.
 - Connectors, motion, optional OPC UA/companion projections, and any controller
   family absent from the tested matrix are not claimed merely because a Core
   interface or manifest capability exists.
+- **Core clauses added after the Phase 4 base are not yet bound**, and a claim
+  of Fraktal Core + Fraktal/AB covers none of them: deleting a parameter set
+  (Core §3.8b; the mailbox refuses the request), data classes and per-value
+  access (§3.8d; the mailbox refuses every access-policy request, so there is no
+  class table), line data (§3.8e), shifts (§8.5.2, which needs §3.8e), and the
+  module type key (LOCALIZATION §7.1; AB modules publish none, so the HMI keeps
+  per-path layouts - the fallback §7.1 defines). The read-surface gate records
+  each as declared-absent with its reason (`tools/check_consistency.py`
+  `AB_ABSENT`), so the HMI never reads what the AB projection does not publish.
 
 The Core model — tiers, contracts, handshake, diagnostics, release, traceability
 — is unchanged. That is the point: if this binding works, O8 is demonstrated

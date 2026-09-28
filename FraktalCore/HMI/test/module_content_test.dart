@@ -207,6 +207,149 @@ void main() {
     expect(cell.background?.fit, ModuleBackgroundFit.cover);
   });
 
+  test('a type layout reaches every instance; an override replaces it whole',
+      () async {
+    ModuleContentController controller() => ModuleContentController(
+          store: MemoryContentStore(),
+          localization: LocalizationController(
+              enabledLanguages: {'en'}, activeLanguage: 'en'),
+        );
+    final content = controller();
+    const caps = ModuleTabCapabilities();
+    const cylinder = 'std.moduleType.cylinder';
+    final typeScope = ModuleContentController.typeScope(cylinder);
+    const faceplate = ModuleTabDefinition(
+        id: 'faceplate', title: 'Faceplate', kind: ModuleTabKind.custom);
+    await content.publishTabs(
+        typeScope, [...content.tabsFor(typeScope, caps), faceplate], caps,
+        author: 'admin1');
+
+    List<String> ids(String path, {String typeKey = cylinder}) => content
+        .tabsFor(path, caps, typeKey: typeKey)
+        .map((tab) => tab.id)
+        .toList();
+    // Twenty identical clamps need one layout: both instances get it.
+    expect(ids('Press.CylA'), contains('faceplate'));
+    expect(ids('Press.CylB'), contains('faceplate'));
+    // A module of another type, or of none, does not.
+    expect(ids('Press.Door', typeKey: 'std.moduleType.door'),
+        isNot(contains('faceplate')));
+    expect(ids('Press.Door', typeKey: ''), isNot(contains('faceplate')));
+
+    // An override replaces the type layout WHOLE - no half-inherited merge.
+    const own = ModuleTabDefinition(
+        id: 'own', title: 'Own', kind: ModuleTabKind.custom);
+    await content.publishTabs(
+        'Press.CylB', [...ModuleTabDefinition.defaults(caps), own], caps,
+        author: 'admin1', typeKey: cylinder);
+    // The history says what the module showed before: its type's layout.
+    expect(content.revisionsFor('Press.CylB').first.tabs.map((t) => t.id),
+        contains('faceplate'));
+    expect(ids('Press.CylB'), contains('own'));
+    expect(ids('Press.CylB'), isNot(contains('faceplate')));
+    expect(ids('Press.CylA'), contains('faceplate'));
+
+    // Dropping the override falls back to the type, and is undoable.
+    await content.clearLayout('Press.CylB', caps, author: 'admin1');
+    expect(content.hasLayout('Press.CylB'), isFalse);
+    expect(ids('Press.CylB'), contains('faceplate'));
+    expect(content.revisionsFor('Press.CylB').first.tabs.map((t) => t.id),
+        contains('own'));
+
+    // A type scope travels in an export and is never remapped as a path.
+    final imported = controller();
+    final report = await imported.importBundle(content.exportBundle(),
+        availableModulePaths: const ['Other.CylX']);
+    expect(report.deferredPaths, isNot(contains(typeScope)));
+    expect(
+        imported
+            .tabsFor('Other.CylX', caps, typeKey: cylinder)
+            .map((tab) => tab.id),
+        contains('faceplate'));
+  });
+
+  test('a view declares its class; operating refuses a picture (§7.4)',
+      () async {
+    final content = ModuleContentController(
+      store: MemoryContentStore(),
+      localization:
+          LocalizationController(enabledLanguages: {'en'}, activeLanguage: 'en'),
+    );
+    const caps = ModuleTabCapabilities();
+    final picture = ModuleTabBackground(imageBase64: base64Encode(const [1]));
+    // Saved before §7.4: derived, so nothing stored becomes invalid.
+    expect(
+        ModuleTabDefinition(
+                id: 'a', title: 'A', kind: ModuleTabKind.custom,
+                background: picture)
+            .viewClass,
+        ModuleViewClass.maintenance);
+    expect(
+        const ModuleTabDefinition(id: 'b', title: 'B', kind: ModuleTabKind.custom)
+            .viewClass,
+        ModuleViewClass.operating);
+
+    final operatingWithPicture = ModuleTabDefinition(
+      id: 'cell',
+      title: 'Cell',
+      kind: ModuleTabKind.custom,
+      background: picture,
+      declaredClass: ModuleViewClass.operating,
+    );
+    await expectLater(
+      content.publishTabs('S',
+          [...content.tabsFor('S', caps), operatingWithPicture], caps,
+          author: 'admin1'),
+      throwsA(isA<FormatException>().having((e) => e.message, 'message',
+          'std.module.editor.operatingNoImagery')),
+    );
+
+    final maintenance =
+        operatingWithPicture.copyWith(declaredClass: ModuleViewClass.maintenance);
+    await content.publishTabs(
+        'S', [...content.tabsFor('S', caps), maintenance], caps,
+        author: 'admin1');
+    final restored = ModuleTabDefinition.fromJson(maintenance.toJson())!;
+    expect(restored.viewClass, ModuleViewClass.maintenance,
+        reason: 'the class is recorded in the export');
+  });
+
+  test('a view over its read budget is refused at publish (§7.3)',
+      () async {
+    final content = ModuleContentController(
+      store: MemoryContentStore(),
+      localization:
+          LocalizationController(enabledLanguages: {'en'}, activeLanguage: 'en'),
+    );
+    const caps = ModuleTabCapabilities();
+    ModuleTabDefinition withReads(int count) => ModuleTabDefinition(
+          id: 'big',
+          title: 'Big',
+          kind: ModuleTabKind.custom,
+          controls: [
+            for (var c = 0; c * 8 < count; c++)
+              ModuleControlDefinition(
+                id: 'chart$c',
+                kind: ModuleControlKind.chart,
+                bindings: [
+                  for (var b = 0; b < 8 && c * 8 + b < count; b++)
+                    'OutImm/Tag${c * 8 + b}',
+                ],
+              ),
+          ],
+        );
+    expect(withReads(200).boundReads, 200);
+    await content.publishTabs('S', [...content.tabsFor('S', caps),
+        withReads(ModuleTabDefinition.maxBoundReads)], caps,
+        author: 'admin1');
+    await expectLater(
+      content.publishTabs('S', [...content.tabsFor('S', caps).where(
+          (tab) => tab.id != 'big'), withReads(201)], caps, author: 'admin1'),
+      throwsA(isA<FormatException>().having(
+          (e) => e.message, 'message', 'std.module.editor.overBudget')),
+    );
+  });
+
   test('customization bundle carries localized text and excludes connection',
       () async {
     final sourceCatalog = MemoryCatalogStore();

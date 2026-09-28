@@ -31,12 +31,31 @@ void main() {
       'std.theme.highContrastLight',
       'std.theme.highContrastDark',
     ]);
-    expect(kThemes.skip(14), hasLength(13));
+    expect(kThemes.skip(14), hasLength(15));
     expect(kThemes.map((theme) => theme.nameKey).toSet(),
         hasLength(kThemes.length));
     for (final spec in kThemes) {
       expect(standardEnglish[spec.nameKey], isNotEmpty);
     }
+  });
+
+  test('the picker shows the standard themes first, ISA-101 leading', () {
+    final order = kThemeDisplayOrder;
+    expect(order.toSet(), hasLength(kThemes.length),
+        reason: 'every theme exactly once');
+    final firstModern = order.indexWhere((i) => !kThemes[i].standard);
+    expect(order.skip(firstModern).every((i) => !kThemes[i].standard), isTrue,
+        reason: 'no standard theme after a modern one');
+    expect(order.take(2).map((i) => kThemes[i].nameKey),
+        ['std.theme.processGrey', 'std.theme.processGreyDark']);
+    expect(kThemes.where((t) => t.isa101).every((t) => t.standard), isTrue);
+    // Grouping is by finish, so a decorated theme can never land in Standard.
+    expect(
+        kThemes
+            .where((t) => t.nameKey == 'std.theme.aetherBlueprint')
+            .single
+            .standard,
+        isFalse);
   });
 
   test('new surfaces preserve contrast and scaled operator targets', () {

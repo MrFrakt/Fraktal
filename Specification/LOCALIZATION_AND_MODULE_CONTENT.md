@@ -202,7 +202,10 @@ of the container; when an image letterboxes inside a container of a different as
 ratio, the cell no longer covers the thing it annotated, and an indicator that has
 silently moved off its sensor is worse than no indicator. Overlay coordinates are
 therefore relative to the image, and the image's intrinsic aspect ratio is part of the
-stored layout.
+stored layout. The image travels embedded in the layout, so its aspect ratio is stored
+with it and is not recorded a second time; positions are fractions of the box the image
+is actually painted in after fit, alignment and margins, including the part a `cover`
+fit crops away.
 
 Controls in either container carry a **z-order** and may belong to a named **layer**.
 Layers are show/hide sets, not stacking — a maintenance overlay, a set of sensor
@@ -242,7 +245,9 @@ built-in content.
 A view declares a **binding budget**. Every bound property is a read, and a display
 holding several hundred of them degrades the session that renders it, so the budget is
 part of the layout and refused at publish rather than discovered on the panel. Charts
-keep the eight-series limit of §6.
+keep the eight-series limit of §6. Until a view declares its own, the **standard
+budget of 200 bound reads per view** applies; a declared budget may lower it, never
+raise it.
 
 ### 7.4 Display class
 
@@ -254,6 +259,12 @@ and the contrast requirement is enforced at publish. A **maintenance** view perm
 overlay container and photographic or rendered imagery: locating a sensor on the real
 machine is a maintenance task, and a render serves it better than a schematic. An
 **engineering** view is unrestricted, for commissioning and diagnosis.
+
+The class is declared by every view an author can put a picture on — the Overview and
+every custom view. The fixed views of PLC data are operating views and declare nothing.
+A view stored before it could declare a class takes **maintenance** if it carries an
+image and **operating** if it does not, so no stored layout becomes invalid and the
+class is still always shown.
 
 The distinction follows the industrial-HMI practice the display hierarchy already
 reflects, where realism on a primary operating display adds visual noise without

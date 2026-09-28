@@ -437,6 +437,33 @@ class _SurfaceEdgePainter extends CustomPainter {
 /// Added after control scaling, so it preserves the operator's target size.
 ThemeData applySurfaceTheme(ThemeData theme, FraktalSurfaceTheme skin) {
   final cs = theme.colorScheme;
+  if (skin.finish == SurfaceFinish.flat) {
+    // A flat palette (the ISA-101 greys): its own canvas and panel colours and
+    // a quiet edge, and none of the glow, sheen or bevel treatment below.
+    return theme.copyWith(
+      extensions: [...theme.extensions.values, skin],
+      scaffoldBackgroundColor: skin.canvas,
+      cardTheme: theme.cardTheme.copyWith(
+        color: skin.panel,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(skin.radius),
+          side: BorderSide(color: cs.outlineVariant),
+        ),
+      ),
+      appBarTheme: theme.appBarTheme.copyWith(
+        backgroundColor: skin.panel,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: Border(bottom: BorderSide(color: cs.outlineVariant)),
+      ),
+      dialogTheme: theme.dialogTheme.copyWith(
+        backgroundColor: skin.panel,
+        surfaceTintColor: Colors.transparent,
+      ),
+    );
+  }
   final dark = theme.brightness == Brightness.dark;
   final bevel = skin.finish == SurfaceFinish.paper;
   final shape = RoundedRectangleBorder(

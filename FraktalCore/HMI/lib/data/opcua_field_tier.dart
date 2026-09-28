@@ -141,6 +141,7 @@ class OpcUaFieldTier {
     'Name',
     'DisplayNameKey',
     'DescriptionKey',
+    'TypeKey',
     'ModuleType',
     'TileEnable',
     'ControlDomainId',

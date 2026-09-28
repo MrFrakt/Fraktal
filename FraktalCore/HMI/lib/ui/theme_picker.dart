@@ -13,18 +13,32 @@ class ThemePicker extends StatelessWidget {
   const ThemePicker({super.key, required this.selectedIndex, this.onChanged});
 
   @override
-  Widget build(BuildContext context) => Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: [
-          for (var i = 0; i < kThemes.length; i++)
-            _ThemePreview(
-              spec: kThemes[i],
-              selected: i == selectedIndex,
-              onTap: onChanged == null ? null : () => onChanged!(i),
-            ),
-        ],
-      );
+  Widget build(BuildContext context) {
+    final order = kThemeDisplayOrder;
+    Widget group(String title, String help, Iterable<int> indices) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LText(title, style: Theme.of(context).textTheme.titleSmall),
+            LText(help, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 8),
+            Wrap(spacing: 10, runSpacing: 10, children: [
+              for (final i in indices)
+                _ThemePreview(
+                  spec: kThemes[i],
+                  selected: i == selectedIndex,
+                  onTap: onChanged == null ? null : () => onChanged!(i),
+                ),
+            ]),
+          ],
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      group('std.theme.group.standard', 'std.theme.group.standardHelp',
+          order.where((i) => kThemes[i].standard)),
+      const SizedBox(height: 16),
+      group('std.theme.group.modern', 'std.theme.group.modernHelp',
+          order.where((i) => !kThemes[i].standard)),
+    ]);
+  }
 }
 
 class _ThemePreview extends StatelessWidget {
@@ -130,6 +144,17 @@ class _ThemePreview extends StatelessWidget {
                             textAlign: TextAlign.center),
                       ),
                     ]),
+                  ),
+                  if (spec.isa101)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: onContainer(
+                        context,
+                        fill,
+                        const LText('std.theme.isa101Badge',
+                            style: TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.w700)),
+                      ),
                   ),
                 ]),
               ),

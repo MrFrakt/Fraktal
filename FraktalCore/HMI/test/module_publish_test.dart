@@ -78,6 +78,45 @@ void main() {
     });
   }
 
+  testWidgets('publishing with "Every <type>" writes the type scope',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repo = SimRepository();
+    final app = AppState(repo);
+    await tester.pumpWidget(FraktalHmiApp(app: app));
+    await tester.pump(const Duration(seconds: 2));
+    expect(await repo.login('StationA', 'admin1', '2468'), isTrue);
+    app.select('StationA.ClampStation.CylA');
+    await tester.pump(const Duration(seconds: 2));
+
+    await tester.tap(find.byTooltip('Edit module tabs'));
+    await _settle(tester);
+    tester
+        .widget<ChoiceChip>(find.byKey(const Key('layout-scope-type')))
+        .onSelected!(true);
+    await _settle(tester, 3);
+    tester
+        .widget<IconButton>(find
+            .ancestor(
+                of: find.byIcon(Icons.publish),
+                matching: find.byType(IconButton))
+            .first)
+        .onPressed!();
+    await _settle(tester, 5);
+    await tester.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.byType(FilledButton)));
+    await _settle(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(app.content.hasLayout('type:std.moduleType.cylinder'), isTrue);
+    expect(app.content.hasLayout('StationA.ClampStation.CylA'), isFalse,
+        reason: 'the type scope was chosen; no per-module override');
+    app.dispose(); // stops the simulator's timer
+  });
+
   testWidgets('a custom tab draws its background image behind its controls',
       (tester) async {
     tester.view.physicalSize = const Size(1400, 900);

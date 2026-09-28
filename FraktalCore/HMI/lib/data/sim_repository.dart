@@ -353,6 +353,7 @@ class SimRepository implements PlcRepository {
         ModuleNode(
           path: 'StationA.ClampStation',
           name: 'ClampStation',
+          typeKey: 'std.moduleType.clamp',
           type: ModuleType.equipmentModule,
           state: _cylBError ? ExecState.error : ExecState.busy,
           faultActive: _cylBError,
@@ -361,6 +362,7 @@ class SimRepository implements PlcRepository {
             const ModuleNode(
                 path: 'StationA.ClampStation.CylA',
                 name: 'CylA',
+                typeKey: 'std.moduleType.cylinder',
                 type: ModuleType.controlModule,
                 state: ExecState.done,
                 commands: [
@@ -369,6 +371,7 @@ class SimRepository implements PlcRepository {
                 ]),
             ModuleNode(
               path: 'StationA.ClampStation.CylB', name: 'CylB',
+              typeKey: 'std.moduleType.cylinder',
               type: ModuleType.controlModule,
               state: _cylBError ? ExecState.error : ExecState.busy,
               faultActive: _cylBError,

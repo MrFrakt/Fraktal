@@ -98,6 +98,21 @@ wins, a non-numeric value never matches, and any Bad/Uncertain or missing bindin
 renders the control unavailable instead of a state. A stored rule that names a
 binding the control no longer has rejects the control rather than dropping the rule.
 
+A layout is authored against a module **type** (`Status/TypeKey`,
+`LOCALIZATION_AND_MODULE_CONTENT.md` §7.1), and a module's own layout is the
+override: the HMI resolves a module's tabs from its path, else its type key, else the
+defaults, and an override replaces the type's layout whole (no partial merge). The
+editor publishes to "this module" or "every module of this type"; dropping an override
+falls back to the type and is recorded as a revision. A type layout is stored under the
+scope `type:<TypeKey>`, travels in the customization profile, and is never remapped as a
+module path on import. A module that publishes no type key keeps per-path layouts.
+
+The Overview and every custom view declare a display class (§7.4) - operating,
+maintenance or engineering - shown as a badge on the view and recorded in the export.
+An operating view is refused a picture at publish; a view stored without a class takes
+maintenance if it carries a picture and operating otherwise. Every view is also
+refused at publish above the standard budget of 200 bound reads (§7.3).
+
 An administrator may select a whitelisted portable icon preset for each custom or
 guidance tab. The Overview tab and every custom tab may also carry an embedded
 background image with contain/cover/fit-width/fit-height aspect-ratio presets,
@@ -261,7 +276,7 @@ The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Node
 When `FaultActive` is true the channel and its diagnostic are highlighted. A module alarm simultaneously shows `ST_Diagnostic.IoTag`/`IoAddress`, so a cylinder timeout can read, for example, “press did not reach DOWN” plus `_101B202A · EL1809 Ch5`; the same exact tag is highlighted in the fieldbus tree. Transport adapters shall copy these fields without normalizing case, stripping the leading mapping marker, translating, or substituting a friendly label.
 
 ## Tree & theming (client behaviour)
-**Tree highlighting (§3.13):** per node, effective severity = max(own active events, children's) with HIGH > MED > LOW; tint every ancestor down to the source, strongest at the source. Derived purely from `Status`/`AlarmLog` — no extra PLC symbols. **Themes:** Material 3, selectable (light/dark/high-contrast); theme *changing* is an HMI-local setting gated by a configurable minimum `Access.CurrentLevel` (default `NONE` = open) — it is client config, not a PLC gated action. **Transports:** every UI platform binds the abstract repository. Fraktal/TC3 native clients may use OPC UA directly and Web uses the repository gateway; Fraktal/AB uses its EtherNet/IP/CIP gateway for native and Web clients. Transport choice changes only the adapter, never the domain or UI contract.
+**Tree highlighting (§3.13):** per node, effective severity = max(own active events, children's) with HIGH > MED > LOW; tint every ancestor down to the source, strongest at the source. Derived purely from `Status`/`AlarmLog` — no extra PLC symbols. **Themes:** Material 3, selectable (light/dark/high-contrast). The picker lists the **industrial standard** themes first - flat colour, colour reserved for status, the ANSI/ISA-101 high-performance greys leading - and the **modern** decorated ones (glow, glass, grid, paper, reflection) after; the grouping is derived from each theme's finish, and a selection is still stored by its unchanging index. Theme *changing* is an HMI-local setting gated by a configurable minimum `Access.CurrentLevel` (default `NONE` = open) — it is client config, not a PLC gated action. **Transports:** every UI platform binds the abstract repository. Fraktal/TC3 native clients may use OPC UA directly and Web uses the repository gateway; Fraktal/AB uses its EtherNet/IP/CIP gateway for native and Web clients. Transport choice changes only the adapter, never the domain or UI contract.
 
 ## Connection bootstrap (fail-closed)
 

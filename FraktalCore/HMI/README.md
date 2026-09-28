@@ -101,8 +101,9 @@ Fraktal discovery, and live-state publication instead of waiting indefinitely.
 - **§7.7 access**: fully-open default; login (`op1/1111`, `tech1/4711`, `eng1/9999`, `admin1/2468`); controls grey below threshold; ADMIN can edit the local Unit assignment; theme changing is level-gated HMI config (`HmiConfig.themeMinLevel`, default open).
 
 ## Honest status
-Verified against Flutter 3.44.6 (2026-08-02 — the version CI pins): `flutter analyze`
-clean, **203 tests passing** with 4 intentional live-environment skips (`flutter test`),
+Verified against Flutter 3.47.5 (2026-09-28 — the pinned SDK; `pubspec.lock` cannot
+resolve on an older one): `flutter analyze` clean, **373 tests passing** with 6
+intentional live-environment skips (`flutter test`),
 and `flutter build web` succeeds. The suite is offline by design — SimRepository and
 fakes, no PLC, no ADS, no network; anything needing hardware lives in `tool/probe_*.dart`
 and is deliberately not run. Enum **ordinals in `lib/domain/types.dart` are the PLC
@@ -127,6 +128,13 @@ saved panel selections remain stable.
 | References 6–7 | Lavender Cloud, Mint Cloud | Pastel soft surfaces; two variants of the repeated dashboard image |
 | Gradient glass study | Coral Dusk | Dark translucent glass over a coral-to-teal wash, lit tab pill |
 | Dark dashboards | Midnight Console | Borderless slate panels, top-edge catch light, vignette, teal accent |
+| ANSI/ISA-101 | Process Grey, Process Grey Dark | Flat neutral grey, desaturated steel accent, colour left to status; a deeper alarm red keeps HIGH text AA on the grey |
+
+The picker shows two groups: **Industrial standard** (every flat theme, the ISA-101
+greys first and badged) and **Modern** (every decorated finish). The group is derived
+from the finish (`FraktalThemeSpec.standard`), so a theme cannot sit in the wrong one,
+and only the display order changes - a selection is still stored by its `kThemes`
+index.
 
 Every decorated finish also paints a **reflection sheen** on its panels (under
 the content, never over text), and the luminous finishes a lit inner line with a

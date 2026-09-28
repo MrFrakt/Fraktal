@@ -529,6 +529,10 @@ AB_ABSENT = {
     # request (access_not_enforced), so it has no class table to publish.
     "Access/ClassCount": _NO_ACCESS_POLICY,
     "Access/Classes": _NO_ACCESS_POLICY,
+    # LOCALIZATION §7.1: the AB declaration names no module types yet, so its
+    # modules publish no type key and the HMI falls back to per-path layouts -
+    # the behaviour §7.1 defines for a module without one.
+    "Status/TypeKey": "the AB declaration names no module types yet",
     "CurrentShift": _LINE_DATA,
     "ShiftStartedAt": _LINE_DATA,
     "ShiftHistory": _LINE_DATA,

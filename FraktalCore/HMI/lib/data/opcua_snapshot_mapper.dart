@@ -849,6 +849,7 @@ class OpcUaSnapshotMapper {
         path: path,
         name: candidate.name,
         displayNameKey: _string(values['$base/Status/DisplayNameKey']),
+        typeKey: _string(values['$base/Status/TypeKey']),
         descriptionKey: _string(values['$base/Status/DescriptionKey']),
         type: candidate.type,
         state: state,

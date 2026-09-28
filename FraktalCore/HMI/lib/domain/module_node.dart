@@ -57,6 +57,11 @@ class ModuleNode {
   final String name;
   final String displayNameKey;
   final String descriptionKey;
+
+  /// `Status/TypeKey` (LOCALIZATION §7.1): what a faceplate is authored
+  /// against. Every instance of a type publishes the same key; empty = the
+  /// module publishes none and falls back to its own path.
+  final String typeKey;
   final ModuleType type;
   final ExecState state;
   final bool faultActive;
@@ -145,6 +150,7 @@ class ModuleNode {
     required this.path,
     required this.name,
     this.displayNameKey = '',
+    this.typeKey = '',
     this.descriptionKey = '',
     required this.type,
     this.state = ExecState.ready,
