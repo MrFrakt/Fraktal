@@ -150,4 +150,54 @@ void main() {
     ]);
     expect(result!.resolveState([true, true]), ModuleStateToken.error);
   });
+
+  // §7.4 keeps pictures off operating views, but the picker must stay visible: a
+  // new tab starts Operating, and hiding the control there read as "background
+  // pictures are gone" to an ADMIN.
+  testWidgets('the picture picker shows on an operating tab and says what saving does',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final localization =
+        LocalizationController(enabledLanguages: {'en'}, activeLanguage: 'en');
+    ModuleTabDefinition? existing;
+    await tester.pumpWidget(LocalizationScope(
+      controller: localization,
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) => Center(
+            child: FilledButton(
+              onPressed: () => showModuleTabEditor(context,
+                  existing: existing, allowGuidance: true),
+              child: const Text('Open editor'),
+            ),
+          ),
+        ),
+      ),
+    ));
+
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+    expect(find.text('OPERATING'), findsOneWidget,
+        reason: 'a new custom tab starts as an operating view');
+    expect(find.text('Choose image'), findsOneWidget,
+        reason: 'the picture can still be chosen from here');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // A stored operating tab that carries a picture says saving would remove it.
+    existing = const ModuleTabDefinition(
+      id: 'custom-1',
+      title: 'Machine',
+      kind: ModuleTabKind.custom,
+      declaredClass: ModuleViewClass.operating,
+      background: ModuleTabBackground(imageBase64: 'AAAA', imageName: 'cell.png'),
+    );
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+    expect(
+        find.text(
+            'Saving as Operating removes the picture: an operating view carries none.'),
+        findsOneWidget);
+  });
 }

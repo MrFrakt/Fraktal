@@ -709,6 +709,10 @@ const standardEnglish = <String, String>{
       'Operating: a primary production display, no pictures. Maintenance: may carry a machine picture with controls placed on it. Engineering: unrestricted.',
   'std.module.editor.operatingNoImagery':
       'An operating view carries no picture. Choose Maintenance or Engineering to add one.',
+  'std.module.editor.classMovedForPicture':
+      'Display class set to Maintenance: an operating view carries no picture.',
+  'std.module.editor.operatingDropsPicture':
+      'Saving as Operating removes the picture: an operating view carries none.',
   'std.module.editor.overBudget':
       'This view reads more tags than its budget of 200. Remove some bindings, or split it into two views.',
   'std.module.editor.scopeType': 'Every {type}',
@@ -1677,6 +1681,10 @@ const standardSpanish = <String, String>{
   'std.module.viewClass.maintenance': 'MANTENIMIENTO',
   'std.module.viewClass.engineering': 'INGENIERÍA',
   'std.module.editor.viewClass': 'Clase de pantalla',
+  'std.module.editor.classMovedForPicture':
+      'Clase de pantalla cambiada a Mantenimiento: una pantalla de operación no lleva imagen.',
+  'std.module.editor.operatingDropsPicture':
+      'Guardar como Operación elimina la imagen: una pantalla de operación no lleva ninguna.',
   'std.module.editor.viewClassHelp':
       'Operación: pantalla principal de producción, sin imágenes. Mantenimiento: puede llevar una imagen de la máquina con controles sobre ella. Ingeniería: sin restricciones.',
   'std.module.editor.operatingNoImagery':

@@ -310,6 +310,9 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
   late ModuleBackgroundFit _backgroundFit;
   late ModuleBackgroundPosition _backgroundPosition;
   String _backgroundImageBase64 = '';
+  // §7.4: set when choosing a picture moved an operating view to maintenance, so
+  // the change of class is said, not silent.
+  bool _classMovedForPicture = false;
   String _backgroundImageName = '';
   String? _backgroundImageError;
 
@@ -542,7 +545,10 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
               ],
               if (_kind.acceptsBackground) ...[
                 const SizedBox(height: 16),
-                DropdownButtonFormField<ModuleViewClass>(
+                // Keyed on the class so a class the picker changed is shown.
+                KeyedSubtree(
+                  key: ValueKey('tab-view-class-${_viewClass.name}'),
+                  child: DropdownButtonFormField<ModuleViewClass>(
                   key: const Key('tab-view-class'),
                   initialValue: _viewClass,
                   decoration: InputDecoration(
@@ -557,17 +563,31 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                         child: LText('std.module.viewClass.${value.name}'),
                       ),
                   ],
-                  onChanged: (value) =>
-                      setState(() => _viewClass = value ?? _viewClass),
+                  onChanged: (value) => setState(() {
+                    _viewClass = value ?? _viewClass;
+                    _classMovedForPicture = false;
+                  }),
                 ),
+                ),
+                // §7.4: an operating view carries no imagery. The picture is
+                // still offered - hiding it read as "pictures are gone" - and
+                // choosing one moves the view to maintenance, visibly.
+                if (_classMovedForPicture)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: LText('std.module.editor.classMovedForPicture',
+                        key: const Key('class-moved-for-picture'),
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                if (_viewClass == ModuleViewClass.operating &&
+                    _backgroundImageBase64.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: LText('std.module.editor.operatingDropsPicture',
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
                 const SizedBox(height: 16),
-                // §7.4: an operating view carries no imagery, so the picture
-                // is offered only once the view says it is not one.
-                if (_viewClass == ModuleViewClass.operating)
-                  LText('std.module.editor.operatingNoImagery',
-                      style: Theme.of(context).textTheme.bodySmall)
-                else
-                  _backgroundEditor(context),
+                _backgroundEditor(context),
               ],
             ]),
           ),
@@ -680,6 +700,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<ModuleBackgroundFit>(
+                      isExpanded: true,        // long labels ellipsize, never overflow
                       initialValue: _backgroundFit,
                       decoration: InputDecoration(
                         labelText:
@@ -700,6 +721,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: DropdownButtonFormField<ModuleBackgroundPosition>(
+                      isExpanded: true,
                       initialValue: _backgroundPosition,
                       decoration: InputDecoration(
                         labelText:
@@ -784,7 +806,17 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
       _backgroundImageBase64 = base64Encode(bytes);
       _backgroundImageName = file!.name;
       _backgroundImageError = null;
+      _movePictureViewOutOfOperating();
     });
+  }
+
+  /// §7.4: a picture makes this a maintenance view unless the author already
+  /// chose one that may carry it.
+  void _movePictureViewOutOfOperating() {
+    if (_viewClass == ModuleViewClass.operating) {
+      _viewClass = ModuleViewClass.maintenance;
+      _classMovedForPicture = true;
+    }
   }
 }
 
