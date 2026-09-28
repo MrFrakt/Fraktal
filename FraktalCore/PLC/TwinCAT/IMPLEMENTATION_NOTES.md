@@ -4559,3 +4559,60 @@ Runtime (local UmRT): `PRG_TcUnitRunner` **174/174** across 40 suites.
 **Specified, not yet implemented.** §3.8e (line data, one owner and mirrors) and
 §8.5.2 (shifts and per-shift statistics) are in Core Part I with this change; no code
 implements them yet.
+
+## 139. Line data: one owner, read-only mirrors (Core §3.8e, 2026-09-27)
+
+Station data describes one station and model data one product; the shift calendar,
+a line takt or the line's host identity describe the LINE and are shared by every
+station on it. Held per station they drift the first time one is edited and its
+neighbour is not. §3.8e gives them their own `ConfigKind` (`LINE_CFG := 2`) and one
+authoritative copy. Core 0.9.0.0 -> **0.10.0.0**.
+
+**`FB_LineData` is an ordinary control module**, registered under one root Unit,
+with the four-structure contract (`OutImm` *is* `ST_LineStatus`; the staleness window
+is `ParCfg.StaleAfterMs`). A project registers its line values on it with the usual
+`M_RegisterConfig*` calls and `Kind := LINE_CFG`, so line values are edited, audited
+and access-classed (§3.8d) exactly like any other value - no second write path.
+
+* **OWNER** - every accepted write raises a persistent `Revision` (never 0 once
+  published) and the whole line is republished as `Image : ST_LineImage` on the scan
+  after, rebuilt only when the revision moved.
+* **MIRROR** - polls an `I_LineSource` every scan. A new revision is applied **whole
+  or not at all**: the image must carry exactly the line values this copy registered,
+  every record is staged through its owning typed handler, and only then are all
+  applied - the §3.8b set-load discipline. A wrong `LineId` (error 1) or a line that
+  is not applicable whole (error 2) applies nothing. Its values are published with
+  `Writable := FALSE` and every client write, capture or staged set record is refused,
+  through one new protected hook, `FB_ModuleBase._M_ConfigReadOnly`, that the base's
+  write, staging and manifest paths consult. `_applied` is deliberately not
+  persistent: every boot re-applies the owner's line once, because the persistent
+  revision says only what was applied, not that the values behind it survived.
+* **Staleness** is published (`Stale`, `LastUpdate` with its clock quality,
+  `SourceError`) and annunciated as a LOW/SYSTEM `AUTO_RESET` event
+  (`std.error.lineDataStale`) that closes itself on recovery. It never blocks
+  production on its own (§3.8e(d)).
+
+**Sources.** `FB_LineLocalSource` reads an owner on the same controller directly.
+`FB_LineAdsSource` reads an owner on another TwinCAT controller by symbol name
+(`ADSRDWRT`, index group `SYM_VALBYNAME`) - one request in flight, no symbol handle,
+so a mirror polling for years never touches the owner's handle pool (the same
+reason Read-TcUnitResults.ps1 reads by name, TWINCAT_XAE_WORKFLOW §9.1). Both controllers must run the same Core:
+the image is read as the bytes of one `ST_LineImage` layout.
+
+`_M_ConfigValueText` moves from PRIVATE to PROTECTED so the line module can render
+its own registry into the image; nothing else changed visibility.
+
+**Tests.** `FB_LineData_Tests` (6), with every unit run every scan at the top of the
+suite so a mirror polls exactly as on a station: the owner's revision rises and the
+line is republished; a mirror applies it whole through its typed handler and names
+its owner; a mirror refuses a direct write; a mirror carrying a value the owner does
+not applies nothing - not even the value both share; a mirror whose source fails goes
+`Stale` and recovers by itself; and a mirror fed by `FB_LineAdsSource` over real ADS
+on this runtime reaches the owner's revision and value (read back from the stopped
+PLC: revision 2, owner `Test.LineOwner.Line`, value 1200, no error).
+
+Runtime (local UmRT): `PRG_TcUnitRunner` **180/180** across 41 suites on the first
+run; `PRG_PressTestRunner` 8/8.
+
+**Not yet.** Nothing on the press is line data yet, and §8.5.2 (the shift calendar
+as the first line data, and per-shift records) is next.

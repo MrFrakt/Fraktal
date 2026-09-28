@@ -779,7 +779,7 @@ CASE HmiRequest.Kind OF
             WriteKey := HmiRequest.NameValue, Revision := HmiRequest.IntValue);
     E_HmiRequestKind.SAVE_CONFIG_SET:
         IF (HmiRequest.IntValue >= 0)
-        AND (HmiRequest.IntValue <= TO_DINT(E_ConfigKind.STATION_CFG)) THEN
+        AND (HmiRequest.IntValue <= TO_DINT(E_ConfigKind.LINE_CFG)) THEN
             configKindReq := HmiRequest.IntValue;
             HmiResponse.Accepted := SaveConfigSet(SetName := HmiRequest.TextValue,
                 Kind := configKindReq);

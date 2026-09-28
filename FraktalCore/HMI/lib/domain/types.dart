@@ -473,7 +473,7 @@ class DecisionRequest {
 }
 
 /// §3.8a — one editable persistent value (ParCfg or StationCfg field).
-enum CfgKind { parCfg, stationCfg }
+enum CfgKind { parCfg, stationCfg, lineCfg }
 
 enum CfgType { number, text, boolean, time }
 

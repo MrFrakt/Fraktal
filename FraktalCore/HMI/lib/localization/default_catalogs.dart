@@ -378,6 +378,12 @@ const standardEnglish = <String, String>{
   'std.error.configSetLineRejected':
       'That line of the parameter-set document could not be read.',
   'std.audit.dataAccessDenied': 'Configuration access denied.',
+  'std.error.lineDataStale':
+      'Line data has not been updated from its owner within the declared window.',
+  'std.moduleType.line': 'Line data',
+  'std.moduleType.line.name': 'Line data',
+  'std.moduleType.line.description':
+      'Values shared by every station on the line, held once by the owner.',
   'std.error.configSetDeleteRefused':
       'The parameter set was not deleted: it does not exist, or it is being written.',
   'std.release.configRestoreUnacknowledged':

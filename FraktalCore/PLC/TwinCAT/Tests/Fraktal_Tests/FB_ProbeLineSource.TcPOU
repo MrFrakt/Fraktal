@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeLineSource" Id="{dc2ca3c6-4eb8-47b0-96c9-67bac286fb7b}" SpecialFunc="None">
+    <Declaration><![CDATA[// §3.8e test source: an owner on this controller, with a failure the test can
+// switch on. A test seam, so it lives here and never in the library (lint C8).
+FUNCTION_BLOCK FB_ProbeLineSource IMPLEMENTS I_LineSource
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _owner : POINTER TO FB_LineData;
+    _fail  : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{8e801e45-5c82-4c19-96d0-0e3bc0006205}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    pOwner : POINTER TO FB_LineData;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_owner := pOwner;
+Setup := (pOwner <> 0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetFail" Id="{a0c9f82f-7b69-4a5d-af86-6a3aa74e4665}">
+      <Declaration><![CDATA[METHOD M_SetFail
+VAR_INPUT
+    Fail : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_fail := Fail;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Poll" Id="{3fb50aee-115b-4781-b14f-6756e2bf1a9e}">
+      <Declaration><![CDATA[METHOD M_Poll : BOOL
+VAR_IN_OUT
+    Image : ST_LineImage;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Poll := FALSE;
+IF _fail OR (_owner = 0) THEN
+    RETURN;
+END_IF
+Image := _owner^.Image;
+M_Poll := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Error" Id="{253e4237-27a7-4f65-a982-95ed05437833}">
+      <Declaration><![CDATA[METHOD M_Error : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Error := SEL(_fail, 0, 99);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

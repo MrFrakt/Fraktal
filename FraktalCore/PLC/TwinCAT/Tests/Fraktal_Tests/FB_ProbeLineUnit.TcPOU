@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeLineUnit" Id="{f40c34c7-f2dd-40e4-b100-eee45debf56a}" SpecialFunc="None">
+    <Declaration><![CDATA[// §3.8e probe root: hosts one FB_LineData and registers the line's values on it,
+// exactly as a project would. ExtraKey registers a second line value the owner
+// does not have, so a mirror built with it cannot apply the owner's line whole.
+FUNCTION_BLOCK FB_ProbeLineUnit EXTENDS FB_UnitBase
+VAR_OUTPUT
+    Line : FB_LineData;
+END_VAR
+VAR_INPUT
+    Takt  : DINT := 1000;
+    Extra : DINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{43c8e036-49de-4ec4-86fc-d110fc7a8e18}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name         : STRING(80);
+    Role         : E_LineRole;
+    Source       : I_LineSource;
+    StaleAfterMs : UDINT;
+    ExtraKey     : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+StallTime := T#0S;
+Setup := Line.Setup(Name := CONCAT(Name, '.Line'), LineId := 'L1', Role := Role,
+    Source := Source, StaleAfterMs := StaleAfterMs, pAlarmLog := ADR(AlarmLog));
+Setup := Line.M_RegisterConfigNumber(Key := 'line.taktMs', Item := 'LineCfg/TaktMs',
+    LabelKey := 'project.test.taktMs', Unit := 'ms', Kind := E_ConfigKind.LINE_CFG,
+    Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Takt), Minimum := 0.0,
+    Maximum := 100000.0, RequiresReady := FALSE) AND Setup;
+IF ExtraKey THEN
+    Setup := Line.M_RegisterConfigNumber(Key := 'line.extra', Item := 'LineCfg/Extra',
+        LabelKey := 'project.test.extra', Unit := '', Kind := E_ConfigKind.LINE_CFG,
+        Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Extra), Minimum := 0.0,
+        Maximum := 10.0, RequiresReady := FALSE) AND Setup;
+END_IF
+IF Setup THEN
+    Setup := _M_Register(Line);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{2af20e47-0699-4ad2-8e4e-9810458338a5}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetStep(StepNo := 100, StepName := 'project.test.stepA', Awaits := 0,
+    AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

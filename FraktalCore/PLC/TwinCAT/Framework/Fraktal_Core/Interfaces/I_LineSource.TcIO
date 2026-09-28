@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_LineSource" Id="{7737bb76-d8e3-4a3f-9299-cb43c60c8c92}">
+    <Declaration><![CDATA[// Core §3.8e(c) - where a mirror gets its owner's line data from. Pluggable
+// like §3.8's recipe provider and §3.8b's store; the transport is a binding and
+// deployment choice, and what it returns is untrusted input (§14).
+INTERFACE I_LineSource]]></Declaration>
+    <Method Name="M_Poll" Id="{099847a0-f55e-448e-a765-4c62a2c41510}">
+      <Declaration><![CDATA[// Call every scan. TRUE on the scan a complete owner image was obtained.
+METHOD M_Poll : BOOL
+VAR_IN_OUT
+    Image : ST_LineImage;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_Error" Id="{c93a877b-bfd1-4459-a789-882544d4c655}">
+      <Declaration><![CDATA[// The last transport error, 0 when the last attempt succeeded.
+METHOD M_Error : DINT]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

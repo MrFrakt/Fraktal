@@ -801,7 +801,7 @@ FOR i := 1 TO _nConfigWrite DO
         WriteRevision := _configWrite[i].Revision,
         ConfigKind := _configWrite[i].Kind,
         ValueType := _configWrite[i].ValueType,
-        Writable := TRUE,
+        Writable := NOT _M_ConfigReadOnly(),
         RequiresReady := _configWrite[i].RequiresReady,
         HasMinimum := _configWrite[i].HasMinimum,
         HasMaximum := _configWrite[i].HasMaximum,
@@ -1035,6 +1035,15 @@ FOR i := 1 TO _nConfigWrite DO
     END_IF
 END_FOR]]></ST></Implementation>
     </Method>
+<Method Name="_M_ConfigReadOnly" Id="{09f932a9-53ed-48f5-b518-802d1cd9e850}">
+  <Declaration><![CDATA[// §3.8e - TRUE while this module's registered values may not be changed by a
+// client: still published, as Writable := FALSE, and refused by the write and
+// staging paths. The base is always writable; a line-data MIRROR is not.
+METHOD PROTECTED _M_ConfigReadOnly : BOOL]]></Declaration>
+  <Implementation>
+    <ST><![CDATA[_M_ConfigReadOnly := FALSE;]]></ST>
+  </Implementation>
+</Method>
 <Method Name="M_RegisterConfigNumber" Id="{9e0a37b1-4c85-42df-a70e-6b1d5f92c308}">
       <Declaration><![CDATA[// §3.8b — a numeric editable value. Bounds are mandatory here on purpose: an
 // unbounded number is the one a client can set to anything, and "what is the
@@ -1119,7 +1128,7 @@ VAR
     i : INT;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_ApplyConfigWrite := FALSE;
-IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+IF (WriteKey = '') OR (Scope <> Status.Name) OR _M_ConfigReadOnly() THEN
     RETURN;
 END_IF
 FOR i := 1 TO _nConfigWrite DO
@@ -1342,7 +1351,7 @@ _M_StoreConfigValue := TRUE;]]></ST></Implementation>
       <Declaration><![CDATA[// §3.10.2 — the current value of a registered entry, in the serialization the
 // client validates and writes back. Read live from the target every walk: a
 // cached copy would let the manifest disagree with the machine.
-METHOD PRIVATE _M_ConfigValueText : STRING(255)
+METHOD PROTECTED _M_ConfigValueText : STRING(255)
 VAR_INPUT
     Idx : INT;
 END_VAR
@@ -1444,7 +1453,7 @@ VAR
     i : INT;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_StageConfigWrite := FALSE;
-IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+IF (WriteKey = '') OR (Scope <> Status.Name) OR _M_ConfigReadOnly() THEN
     RETURN;
 END_IF
 FOR i := 1 TO _nConfigWrite DO

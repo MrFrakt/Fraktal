@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LineLocalSource" Id="{52b6a62c-9344-46f1-9033-18a997ea5d69}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8e - a mirror whose owner is on the SAME controller: reads its Image
+// directly. (Roots that simply reference the owner need no mirror at all.)
+FUNCTION_BLOCK FB_LineLocalSource IMPLEMENTS I_LineSource
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _owner : POINTER TO FB_LineData;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{3a9f39b3-d5da-4743-8ed3-7ca216f59535}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    pOwner : POINTER TO FB_LineData;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_owner := pOwner;
+Setup := (pOwner <> 0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Poll" Id="{5986c307-7d8f-4cdd-af2d-bf11cd287aca}">
+      <Declaration><![CDATA[METHOD M_Poll : BOOL
+VAR_IN_OUT
+    Image : ST_LineImage;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Poll := FALSE;
+IF _owner = 0 THEN
+    RETURN;
+END_IF
+Image := _owner^.Image;
+M_Poll := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Error" Id="{45b7e5e3-a502-461c-aa50-b0761ea7495b}">
+      <Declaration><![CDATA[METHOD M_Error : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Error := SEL(_owner = 0, 0, 1);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
