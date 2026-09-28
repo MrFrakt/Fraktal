@@ -274,6 +274,117 @@ void main() {
     );
   });
 
+  group('embedded images are stored once, not once per revision', () {
+    const capabilities = ModuleTabCapabilities(unit: true);
+    final image = base64Encode(List<int>.generate(4096, (i) => i % 251));
+
+    List<ModuleTabDefinition> withBackground(
+        ModuleContentController controller, AccessLevel level) {
+      return [
+        for (final tab in controller.tabsFor('StationA', capabilities))
+          tab.id == 'overview'
+              ? tab.copyWith(
+                  requiredLevel: level,
+                  background: ModuleTabBackground(
+                      imageBase64: image, imageName: 'cell.png'))
+              : tab,
+      ];
+    }
+
+    test('many publishes of one image write it once and load it shared',
+        () async {
+      final store = MemoryContentStore();
+      final localization = LocalizationController(
+          enabledLanguages: {'en'}, activeLanguage: 'en');
+      final controller =
+          ModuleContentController(store: store, localization: localization);
+      for (final level in [
+        AccessLevel.operator,
+        AccessLevel.technician,
+        AccessLevel.engineer,
+        AccessLevel.operator,
+      ]) {
+        await controller.publishTabs(
+            'StationA', withBackground(controller, level), capabilities,
+            author: 'admin');
+      }
+      final images = store.value['images'] as Map;
+      expect(images, hasLength(1),
+          reason: 'one image, however many revisions carry it');
+      expect(images.values.single, image);
+      expect(jsonEncode(store.value).contains(image), isTrue);
+      expect(
+          jsonEncode(store.value).indexOf(image),
+          jsonEncode(store.value).lastIndexOf(image),
+          reason: 'the base64 text appears exactly once on disk');
+
+      final restored =
+          ModuleContentController(store: store, localization: localization);
+      await restored.load();
+      final current =
+          restored.tabsFor('StationA', capabilities).first.background!;
+      expect(current.imageBase64, image);
+      final withImage = [
+        for (final revision in restored.revisionsFor('StationA'))
+          if (revision.tabs.first.background?.imageBase64.isNotEmpty ?? false)
+            revision.tabs.first.background!.imageBase64,
+      ];
+      expect(withImage, isNotEmpty);
+      for (final copy in withImage) {
+        expect(identical(copy, current.imageBase64), isTrue,
+            reason: 'every reference shares one string instance');
+      }
+    });
+
+    test('a store written before packing still loads, and is packed on save',
+        () async {
+      final localization = LocalizationController(
+          enabledLanguages: {'en'}, activeLanguage: 'en');
+      final writer = ModuleContentController(
+          store: MemoryContentStore(), localization: localization);
+      await writer.setTabs(
+          'StationA', withBackground(writer, AccessLevel.operator));
+      // Rebuild the pre-packing (inline) form from the packed one.
+      final packed = (writer.store as MemoryContentStore).value;
+      final images = packed['images'] as Map;
+      Object? inline(Object? node) => node is Map
+          ? {
+              for (final e in node.entries)
+                if (e.key != 'images')
+                  (e.key == 'imageRef' ? 'imageBase64' : e.key):
+                      e.key == 'imageRef' ? images[e.value] : inline(e.value),
+            }
+          : node is List
+              ? [for (final item in node) inline(item)]
+              : node;
+      final legacy = MemoryContentStore(
+          Map<String, Object?>.from(inline(packed) as Map));
+      expect(legacy.value.containsKey('images'), isFalse);
+
+      final restored =
+          ModuleContentController(store: legacy, localization: localization);
+      await restored.load();
+      expect(restored.tabsFor('StationA', capabilities).first.background
+          ?.imageBase64, image);
+      await restored.setTabs(
+          'StationA', withBackground(restored, AccessLevel.technician));
+      expect((legacy.value['images'] as Map).values.single, image);
+    });
+
+    test('the portable export keeps schema 4 with images inline', () async {
+      final localization = LocalizationController(
+          enabledLanguages: {'en'}, activeLanguage: 'en');
+      final controller = ModuleContentController(
+          store: MemoryContentStore(), localization: localization);
+      await controller.setTabs(
+          'StationA', withBackground(controller, AccessLevel.operator));
+      final bundle = jsonDecode(controller.exportBundle()) as Map;
+      expect(bundle['schemaVersion'], 4);
+      expect(bundle.containsKey('images'), isFalse);
+      expect(controller.exportBundle().contains(image), isTrue);
+    });
+  });
+
   test('published module layouts retain bounded rollback history', () async {
     final store = MemoryContentStore();
     final localization =

@@ -156,7 +156,7 @@ class ModuleContentController extends ChangeNotifier {
   }) : store = store ?? MemoryContentStore();
 
   Future<void> load() async {
-    final data = await store.load();
+    final data = _unpackImages(await store.load());
     _documents.clear();
     _policies.clear();
     _layouts.clear();
@@ -636,7 +636,80 @@ class ModuleContentController extends ChangeNotifier {
         },
       };
 
-  Future<void> _persist() => store.save(_data());
+  Future<void> _persist() => store.save(_packImages(_data()));
+
+  // ---- embedded images: stored once, referenced by id ----------------------
+  //
+  // Every publish records the previous layout as a revision (up to
+  // maxLayoutRevisions), and each revision used to carry its own base64 copy of
+  // every image - so a large image was written again with every publish, and the
+  // whole store is encoded and written on the UI isolate. The STORED form keeps
+  // each distinct image once, in `images`, and layouts and revisions refer to it
+  // by id. The in-memory model is unchanged, and so is the portable export
+  // (schema 4), so other HMIs still import it.
+  static const _imageKey = 'imageBase64';
+  static const _imageRefKey = 'imageRef';
+  static const _imagesKey = 'images';
+
+  static Map<String, Object?> _packImages(Map<String, Object?> data) {
+    final ids = <String, String>{}; // image content -> id; equal images collapse
+    Object? walk(Object? node) {
+      if (node is Map) {
+        final out = <String, Object?>{};
+        for (final entry in node.entries) {
+          final key = '${entry.key}';
+          final value = entry.value;
+          if (key == _imageKey && value is String && value.isNotEmpty) {
+            out[_imageRefKey] =
+                ids.putIfAbsent(value, () => 'img${ids.length + 1}');
+          } else {
+            out[key] = walk(value);
+          }
+        }
+        return out;
+      }
+      if (node is List) return [for (final item in node) walk(item)];
+      return node;
+    }
+
+    final packed = walk(data) as Map<String, Object?>;
+    packed[_imagesKey] = {
+      for (final entry in ids.entries) entry.value: entry.key,
+    };
+    return packed;
+  }
+
+  /// Resolves `imageRef`s back to their image. Every reference to one image gets
+  /// the SAME string instance, so revisions share memory as well as disk, and
+  /// the renderer's identity-keyed decode cache hits across all of them. A store
+  /// written before images were packed has no table and is returned unchanged.
+  static Map<String, Object?> _unpackImages(Map<String, Object?> data) {
+    final images = data[_imagesKey];
+    if (images is! Map) return data;
+    Object? walk(Object? node) {
+      if (node is Map) {
+        final out = <String, Object?>{};
+        for (final entry in node.entries) {
+          final key = '${entry.key}';
+          if (key == _imageRefKey) {
+            final image = images[entry.value];
+            // A missing image degrades to "no image", never to a failed load.
+            out[_imageKey] = image is String ? image : '';
+          } else {
+            out[key] = walk(entry.value);
+          }
+        }
+        return out;
+      }
+      if (node is List) return [for (final item in node) walk(item)];
+      return node;
+    }
+
+    return {
+      for (final entry in data.entries)
+        if (entry.key != _imagesKey) entry.key: walk(entry.value),
+    };
+  }
 
   static AccessLevel _defaultLevel(ModuleSection section) => switch (section) {
         ModuleSection.information => AccessLevel.none,
