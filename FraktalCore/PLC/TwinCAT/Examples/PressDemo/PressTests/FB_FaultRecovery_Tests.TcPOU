@@ -90,6 +90,28 @@ FOR scan := 1 TO 40 DO
 END_FOR
 _M_RunToRamDown := (Press.CurrentStep.StepNo = 200) AND Press.PressRam.Busy;]]></ST></Implementation>
     </Method>
+    <Method Name="_M_RunToDoorClosing" Id="{37c5d191-3238-407d-bc0b-8e73107b9732}">
+      <Declaration><![CDATA[// Drive the fixture to N180 with the door commanded EXTEND and still travelling.
+// N180 AWAITS the door, so a door fault there is adopted by the Unit through the
+// rollup (§8.2) - unlike N200, which owns the ram's failure itself. The door's
+// plant model is deliberately NOT ticked, so its closed feedback never arrives.
+METHOD PROTECTED _M_RunToDoorClosing : BOOL
+VAR
+    scan : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TwoHandHal.LeftPressed := FALSE; TwoHandHal.RightPressed := FALSE;
+TwoHandHal.SafeActive := FALSE;
+Press();                                     // clear any stale start pulse
+TwoHandHal.LeftPressed := TRUE; TwoHandHal.RightPressed := TRUE;
+TwoHandHal.SafeActive := TRUE;               // physical start edge (§3.4.2, non-safety)
+FOR scan := 1 TO 40 DO
+    PressSim(); SlideSim(); Press();
+    IF (Press.CurrentStep.StepNo = 180) AND Press.Door.Busy THEN
+        EXIT;
+    END_IF
+END_FOR
+_M_RunToDoorClosing := (Press.CurrentStep.StepNo = 180) AND Press.Door.Busy;]]></ST></Implementation>
+    </Method>
     <Method Name="_M_ReturnToIdle" Id="{fd9df32c-d62b-4f0a-bb5f-c1da8c5f48d2}">
       <Declaration><![CDATA[// Leave the fixture where every test in this suite expects to find it: AUTO, stopped,
 // no blocking event, ram/door/slide back at the load-safe position, two-hand released.
@@ -100,7 +122,7 @@ END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[TwoHandHal.LeftPressed := FALSE; TwoHandHal.RightPressed := FALSE;
 TwoHandHal.SafeActive := FALSE;
 AirPressureHal.LowPressure := FALSE; AirPressureHal.OperatingPressure := TRUE;
-PowerHal.SafetyPermit := TRUE;
+DoorHal.ExtendedFb := FALSE;                 // undo a contradictory door position
 Press.OperatorReset();
 // HOME is interruptible and uses the normal immediate mode-exit handshake. This
 // deterministically abandons an open AUTO dwell without pretending rapid calls
@@ -235,34 +257,33 @@ TEST_FINISHED();]]></ST></Implementation>
     <Method Name="Latched_fault_recovers_with_one_operator_reset" Id="{7d41c9a6-2e83-4b50-9f16-3c05a8d7e921}">
       <Declaration><![CDATA[// Defect A + C, the actual hard-lock: a genuine fault while the ram is travelling
 // left a state the press could not get out of. ONE reset has to make HOME runnable
-// again. The fault is a refused power enable (safety permit withdrawn while Control
-// On is requested) - a defect, unlike air loss, which the process restores and
-// which therefore holds (Air_loss_mid_stroke_holds_and_resumes).
+// again. The fault is a contradictory door position (both end sensors) while the
+// door closes - a defect, unlike air loss, which the process restores and which
+// therefore holds (Air_loss_mid_stroke_holds_and_resumes).
 METHOD Latched_fault_recovers_with_one_operator_reset]]></Declaration>
       <Implementation><ST><![CDATA[TEST('Latched_fault_recovers_with_one_operator_reset');
-AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
+AssertTrue(Condition := _M_RunToDoorClosing(), Message := 'fixture reaches N180 with the door closing');
 
-// A refused power enable while the ram is travelling: the power group faults, the
-// Unit adopts it with the chain frozen at N200, where it had asserted PressRam.Execute.
-PowerHal.SafetyPermit := FALSE;
-Press.RequestLocalControl(ControlOn := TRUE);
-FOR i := 1 TO 4 DO
-    DoorSim(); SlideSim(); Press();
+// Both door end sensors while it closes: CYL_BOTH_SENSORS. N180 awaits the door, so
+// the Unit adopts it with the chain frozen where it had asserted Door.Execute.
+DoorHal.ExtendedFb := TRUE;
+FOR i := 1 TO 3 DO
+    PressSim(); SlideSim(); Press();
 END_FOR
 
-AssertTrue(Condition := Press.Error, Message := 'a refused power enable during motion is a real fault');
+AssertTrue(Condition := Press.Error, Message := 'a contradictory door position is a real fault');
 AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'and raises a blocking event (§8.3(b))');
 AssertEquals_DINT(Expected := TO_DINT(E_AlarmState.ACTIVE),
     Actual := TO_DINT(Press.AlarmLog.Active[1].State),
     Message := 'the event is ACTIVE — it never reached WAIT_RESET');
 // The two latches that made this unrecoverable:
 AssertTrue(Condition := Press.Execute, Message := 'the run command is still asserted');
-AssertTrue(Condition := Press.PressRam.Execute,
+AssertTrue(Condition := Press.Door.Execute,
     Message := 'and so is the child command the frozen chain issued');
 
-// Restore the permit: the CAUSE is gone, but the latched state is not, and Start stays shut.
-PowerHal.SafetyPermit := TRUE;
-DoorSim(); SlideSim(); Press();
+// Correct the sensor: the CAUSE is gone, but the latched state is not, and Start stays shut.
+DoorHal.ExtendedFb := FALSE;
+PressSim(); SlideSim(); Press();
 Press.ReleaseReportStart(Report := Release);
 AssertFalse(Condition := Release.Released,
     Message := 'a cleared cause does not by itself unlatch the Unit');
@@ -273,17 +294,23 @@ AssertFalse(Condition := Press.AlarmLog.Blocking,
     Message := 'an ACTIVE MANUAL_RESET event closes on a deliberate reset (§8.3(b))');
 AssertEquals_DINT(Expected := TO_DINT(E_AlarmState.CLOSED),
     Actual := TO_DINT(Press.AlarmLog.Active[1].State), Message := 'slot released');
-AssertTrue(Condition := Press.AlarmLog.Ring[Press.AlarmLog.RingHead].Duration >= T#0S,
-    Message := 'the closed event still carries a Duration (§8.3(a))');
+// Guarded: an unguarded Ring[RingHead] with nothing closed reads index 0 and
+// page-faults the runtime, taking every later test down with this one.
+IF Press.AlarmLog.RingHead > 0 THEN
+    AssertTrue(Condition := Press.AlarmLog.Ring[Press.AlarmLog.RingHead].Duration >= T#0S,
+        Message := 'the closed event still carries a Duration (§8.3(a))');
+ELSE
+    AssertTrue(Condition := FALSE, Message := 'the reset closed an event into the ring');
+END_IF
 AssertFalse(Condition := Press.Execute, Message := 'the stale run command is released');
-AssertFalse(Condition := Press.PressRam.Execute, Message := 'the stranded child command is released');
+AssertFalse(Condition := Press.Door.Execute, Message := 'the stranded child command is released');
 
 DoorSim(); SlideSim(); Press();
 DoorSim(); SlideSim(); Press();
 AssertTrue(Condition := Press.State = E_ExecState.READY,
     Message := 'the Unit is READY after the inherited Execute-drop reset (§6.1)');
-AssertTrue(Condition := Press.PressRam.State = E_ExecState.READY,
-    Message := 'and so is the ram, so it can take a fresh command edge');
+AssertTrue(Condition := Press.Door.State = E_ExecState.READY,
+    Message := 'and so is the door, so it can take a fresh command edge');
 
 // Defect C: the recovery sequence is now reachable, under normal access authority.
 AssertTrue(Condition := Press.SetMode(Mode := E_Mode.HOME), Message := 'HOME can be selected');
@@ -303,17 +330,16 @@ TEST_FINISHED();]]></ST></Implementation>
 // that live condition.
 METHOD Reset_never_bypasses_a_live_condition]]></Declaration>
       <Implementation><ST><![CDATA[TEST('Reset_never_bypasses_a_live_condition');
-AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
-PowerHal.SafetyPermit := FALSE;
-Press.RequestLocalControl(ControlOn := TRUE);
-FOR i := 1 TO 4 DO
-    DoorSim(); SlideSim(); Press();
+AssertTrue(Condition := _M_RunToDoorClosing(), Message := 'fixture reaches N180 with the door closing');
+DoorHal.ExtendedFb := TRUE;
+FOR i := 1 TO 3 DO
+    PressSim(); SlideSim(); Press();
 END_FOR
-AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'faulted on the refused power enable');
-PowerHal.SafetyPermit := TRUE;
+AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'faulted on the contradictory door position');
+DoorHal.ExtendedFb := FALSE;
 AirPressureHal.OperatingPressure := FALSE;
 AirPressureHal.LowPressure := TRUE;
-DoorSim(); SlideSim(); Press();
+PressSim(); SlideSim(); Press();
 
 AssertTrue(Condition := Press.OperatorReset(), Message := 'reset is accepted with the cause still live');
 DoorSim(); SlideSim(); Press();
