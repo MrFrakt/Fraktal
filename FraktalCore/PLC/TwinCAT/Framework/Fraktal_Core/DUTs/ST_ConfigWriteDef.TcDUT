@@ -24,10 +24,11 @@ STRUCT
     HasMaximum    : BOOL;
     Minimum       : LREAL;
     Maximum       : LREAL;
-    Unit          : STRING(16);
+    Unit          : E_EngUnit;    // a code; the HMI owns the symbol (std.unit.*)
     LabelKey      : STRING(160);
     MaxLength     : UINT;         // AS_STRING only: the target's declared capacity
     EnumDomain    : STRING(255);  // pipe-separated exact accepted values ('' = none)
+    EnumLabelKey  : STRING(80);   // catalog prefix: value v is labelled '<key>.<v>'
     // §3.8c teach capture. The live source lives on the SAME record as the value
     // it writes, so a capture cannot reach a field that is not independently
     // editable - the back door §3.8c(a) forbids is structurally impossible here

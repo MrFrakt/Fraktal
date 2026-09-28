@@ -673,7 +673,7 @@ Ok := M_RegisterConfigFlag(Key := 'press.requireTwoHandStart',
     RequiresReady := TRUE) AND Ok;
 Ok := M_RegisterConfigNumber(Key := 'press.stallGuardMs',
     Item := 'StationCfg/StallGuardMs',
-    LabelKey := 'project.config.pressStallGuardMs', Unit := 'ms',
+    LabelKey := 'project.config.pressStallGuardMs', Unit := E_EngUnit.MILLISECOND,
     Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_UDINT,
     pTarget := ADR(_station.StallGuardMs), Minimum := 1000.0, Maximum := 600000.0,
     RequiresReady := TRUE) AND Ok;

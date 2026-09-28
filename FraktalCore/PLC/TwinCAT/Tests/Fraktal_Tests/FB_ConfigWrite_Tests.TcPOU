@@ -25,7 +25,8 @@ Stale_revision_is_refused();
 Range_type_and_domain_are_enforced();
 RequiresReady_follows_the_root_state();
 Unknown_key_and_foreign_scope_change_nothing();
-Module_invariant_hook_can_refuse();]]></ST>
+Module_invariant_hook_can_refuse();
+Units_and_choices_publish_codes_and_labels();]]></ST>
     </Implementation>
     <Method Name="_M_Arm" Id="{b17e3f04-5a29-4c86-91d3-0e28fa5b7961}">
       <Declaration><![CDATA[// One-time setup, on the first test to run rather than in a constructor: the
@@ -105,6 +106,41 @@ AssertEquals_REAL(Expected := 5000.0, Actual := TO_REAL(_found.Maximum),
 TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
+    <Method Name="Units_and_choices_publish_codes_and_labels" Id="{614d8101-05ea-4b5c-bde0-dfca6d6a811e}">
+      <Declaration><![CDATA[// Core 0.14: a unit is a CODE the HMI translates (the text is derived from it
+// for older clients), and a choice names the catalog prefix that labels each of
+// its values - so an editor renders a translated dropdown, never a number.
+METHOD Units_and_choices_publish_codes_and_labels]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Units_and_choices_publish_codes_and_labels');
+_M_Arm();
+AssertTrue(Condition := _M_FetchCapability(Key := 'probe.settleTime'),
+    Message := 'the duration is published');
+AssertEquals_DINT(Expected := TO_DINT(E_EngUnit.MILLISECOND),
+    Actual := TO_DINT(_found.UnitCode),
+    Message := 'a duration carries the millisecond CODE');
+AssertEquals_STRING(Expected := 'ms', Actual := _found.Unit,
+    Message := 'and the legacy text is derived from it, not written separately');
+AssertTrue(Condition := _M_FetchCapability(Key := 'probe.retries'),
+    Message := 'the unitless number is published');
+AssertEquals_DINT(Expected := TO_DINT(E_EngUnit.NONE),
+    Actual := TO_DINT(_found.UnitCode), Message := 'NONE = no unit');
+AssertEquals_STRING(Expected := '', Actual := _found.Unit,
+    Message := 'so an HMI shows no unit text');
+AssertTrue(Condition := _M_FetchCapability(Key := 'probe.mode'),
+    Message := 'the choice is published');
+AssertEquals_STRING(Expected := '0|1|2', Actual := _found.EnumDomain,
+    Message := 'with its exact accepted values');
+AssertEquals_STRING(Expected := 'project.test.modeValue', Actual := _found.EnumLabelKey,
+    Message := 'and the catalog prefix that labels each of them');
+AssertFalse(Condition := _dup.M_RegisterConfigChoice(Key := 'probe.empty',
+    Item := 'StationCfg/Empty', LabelKey := '', Kind := E_ConfigKind.STATION_CFG,
+    Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(_dup.Mode), Domain := '',
+    EnumLabelKey := '', RequiresReady := FALSE),
+    Message := 'a choice with no choices is refused, not accepted as anything');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="Duplicate_key_is_refused_and_the_first_stands" Id="{e0f47b28-1c93-4d56-a721-8b350fc9e614}">
       <Declaration><![CDATA[METHOD Duplicate_key_is_refused_and_the_first_stands]]></Declaration>
       <Implementation>
@@ -116,7 +152,7 @@ AssertTrue(Condition := _dup.Setup(Name := 'Test.CfgDup'),
 // which here means the SECOND caller is refused and the first target stays bound
 // — nothing can tell which was meant, so the ambiguity is reported, not resolved.
 _dupOk := _dup.M_RegisterConfigNumber(Key := 'probe.retries',
-    Item := 'StationCfg/Retries2', LabelKey := '', Unit := '',
+    Item := 'StationCfg/Retries2', LabelKey := '', Unit := E_EngUnit.NONE,
     Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_DINT,
     pTarget := ADR(_dup.Retries), Minimum := 0.0, Maximum := 99.0,
     RequiresReady := FALSE);

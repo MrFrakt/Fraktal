@@ -1758,8 +1758,8 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         WriteRevision := 1, ConfigKind := E_ConfigKind.STATION_CFG,
         ValueType := E_ConfigValueType.NUMBER, Writable := TRUE,
         RequiresReady := TRUE, HasMinimum := TRUE, HasMaximum := TRUE,
-        Minimum := 0.0, Maximum := 2.0, Unit := '', LabelKey := '',
-        EnumDomain := '0|1|2',
+        Minimum := 0.0, Maximum := 2.0, Unit := E_EngUnit.NONE, LabelKey := '',
+        EnumDomain := '0|1|2', EnumLabelKey := 'std.enum.modeSwitchShield',
         ClassId := '', MinReadLevel := E_AccessLevel.NONE,
         MinWriteLevel := E_AccessLevel.NONE);
     item := CONCAT('ModePolicy/ModePolicy[', CONCAT(TO_STRING(i), ']/Style'));
@@ -1769,8 +1769,8 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         WriteRevision := 1, ConfigKind := E_ConfigKind.STATION_CFG,
         ValueType := E_ConfigValueType.NUMBER, Writable := TRUE,
         RequiresReady := TRUE, HasMinimum := TRUE, HasMaximum := TRUE,
-        Minimum := 0.0, Maximum := 1.0, Unit := '', LabelKey := '',
-        EnumDomain := '0|1',
+        Minimum := 0.0, Maximum := 1.0, Unit := E_EngUnit.NONE, LabelKey := '',
+        EnumDomain := '0|1', EnumLabelKey := 'std.enum.modeSwitchStyle',
         ClassId := '', MinReadLevel := E_AccessLevel.NONE,
         MinWriteLevel := E_AccessLevel.NONE);
 END_FOR

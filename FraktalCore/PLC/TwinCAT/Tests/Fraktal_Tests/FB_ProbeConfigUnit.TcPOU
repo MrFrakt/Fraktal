@@ -25,7 +25,7 @@ END_VAR]]></Declaration>
 StallTime := T#0S;
 Setup := M_RegisterConfigNumber(Key := 'probe.cycleLimit',
     Item := 'StationCfg/CycleLimit', LabelKey := 'project.test.cycleLimit',
-    Unit := '', Kind := E_ConfigKind.STATION_CFG,
+    Unit := E_EngUnit.NONE, Kind := E_ConfigKind.STATION_CFG,
     Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(CycleLimit),
     Minimum := 1.0, Maximum := 1000.0, RequiresReady := FALSE);
 Setup := Child.Setup(Name := CONCAT(Name, '.Child')) AND Setup;

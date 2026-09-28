@@ -115,6 +115,8 @@ _pTarget^.Entries[TO_INT(slot) + 1].Maximum := 0.0;
 _pTarget^.Entries[TO_INT(slot) + 1].Unit := '';
 _pTarget^.Entries[TO_INT(slot) + 1].LabelKey := '';
 _pTarget^.Entries[TO_INT(slot) + 1].EnumDomain := '';
+_pTarget^.Entries[TO_INT(slot) + 1].UnitCode := E_EngUnit.NONE;
+_pTarget^.Entries[TO_INT(slot) + 1].EnumLabelKey := '';
 _pTarget^.Entries[TO_INT(slot) + 1].ClassId := '';
 _pTarget^.Entries[TO_INT(slot) + 1].ReadLevel := E_AccessLevel.NONE;
 _pTarget^.Entries[TO_INT(slot) + 1].WriteLevel := E_AccessLevel.NONE;
@@ -149,9 +151,10 @@ VAR_INPUT
     HasMaximum    : BOOL;
     Minimum       : LREAL;
     Maximum       : LREAL;
-    Unit          : STRING(16);
+    Unit          : E_EngUnit;
     LabelKey      : STRING(160);
     EnumDomain    : STRING(255);
+    EnumLabelKey  : STRING(80);
     ClassId       : STRING(40);    // §3.8d; '' = built-in class
     MinReadLevel  : E_AccessLevel;
     MinWriteLevel : E_AccessLevel;
@@ -183,9 +186,11 @@ _pTarget^.Entries[_storedSlot].HasMinimum := HasMinimum;
 _pTarget^.Entries[_storedSlot].HasMaximum := HasMaximum;
 _pTarget^.Entries[_storedSlot].Minimum := Minimum;
 _pTarget^.Entries[_storedSlot].Maximum := Maximum;
-_pTarget^.Entries[_storedSlot].Unit := Unit;
+_pTarget^.Entries[_storedSlot].Unit := F_EngUnitSymbol(Unit := Unit);
+_pTarget^.Entries[_storedSlot].UnitCode := Unit;
 _pTarget^.Entries[_storedSlot].LabelKey := LabelKey;
 _pTarget^.Entries[_storedSlot].EnumDomain := EnumDomain;
+_pTarget^.Entries[_storedSlot].EnumLabelKey := EnumLabelKey;
 // §3.8d - effective levels, computed once and before the value is placed, so a
 // class that is readable below DATA_READ shows its value and one that is not
 // never does. The set record above was offered the real value regardless: a

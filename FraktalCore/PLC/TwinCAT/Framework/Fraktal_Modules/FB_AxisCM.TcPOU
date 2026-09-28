@@ -301,7 +301,7 @@ END_IF
 // whichever way it arrives.
 Setup := M_RegisterConfigNumber(Key := 'axis.taughtPosition',
     Item := 'StationCfg/TaughtPosition', LabelKey := 'std.config.axisTaughtPosition',
-    Unit := 'mm', Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    Unit := E_EngUnit.MILLIMETER, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
     pTarget := ADR(_station.TaughtPosition), Minimum := ParCfg.SoftMin, Maximum := ParCfg.SoftMax,
     RequiresReady := FALSE) AND Setup;
 

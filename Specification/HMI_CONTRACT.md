@@ -128,6 +128,15 @@ measured at 3:1 on a card in every theme (`theme_contrast_test.dart`), which is 
 "contrast enforced at publish" (§7.4) reduces to when authored colour can only be a
 token.
 
+**Configuration values are edited in the control their type calls for.** A
+`BOOLEAN` value is a checkbox; a value with an `EnumDomain` is a dropdown whose labels
+come from the catalogs as `<EnumLabelKey>.<value>` (the raw value when the entry names
+no prefix or the catalog has no entry); anything else is a text field. The unit is a
+code, `UnitCode` (`E_EngUnit`, ordinals mirrored by the HMI's `EngUnit` and checked by
+lint E1): the HMI shows its own translated symbol (`std.unit.<name>`) after the value,
+in the reading direction, and shows nothing for `NONE`. A controller that publishes no
+`UnitCode` keeps its legacy `Unit` text, which a current PLC derives from the code.
+
 The **station tile** (§7.5) keeps its fixed geometry - identity, state, the built-in
 chips, the message line - and adds authored slot contents: up to three metrics (value
 controls) and two badges (state shapes), authored per station or per type (`type:<key>`

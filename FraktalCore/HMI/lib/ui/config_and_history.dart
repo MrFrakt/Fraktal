@@ -118,7 +118,6 @@ class ConfigEditor extends StatelessWidget {
         ]),
       );
     }
-    var edited = f.value;
     final levelOk = f.canWriteIn(s);
     final fieldCanWrite = f.hasWriteCapability &&
         levelOk &&
@@ -135,48 +134,166 @@ class ConfigEditor extends StatelessWidget {
     } else {
       helper = null;
     }
+    return _ConfigRow(
+      key: ValueKey('cfg-${f.writeKey.isEmpty ? f.name : f.writeKey}'),
+      app: app,
+      node: node,
+      field: f,
+      label: label,
+      canWrite: fieldCanWrite,
+      helper: helper,
+    );
+  }
+}
+
+/// One editable value, in the control its type calls for: a checkbox for a
+/// flag, a dropdown of translated labels for a choice, a text field otherwise
+/// - never TRUE/FALSE or an ordinal typed by hand. The unit (translated from
+/// the PLC's code) follows the value in a fixed column, empty when the value
+/// has none, so the inputs line up row to row. The row follows the reading
+/// direction, so a right-to-left language mirrors it.
+class _ConfigRow extends StatefulWidget {
+  final AppState app;
+  final ModuleNode node;
+  final CfgField field;
+  final Widget label;
+  final bool canWrite;
+  final String? helper;
+
+  const _ConfigRow({
+    super.key,
+    required this.app,
+    required this.node,
+    required this.field,
+    required this.label,
+    required this.canWrite,
+    required this.helper,
+  });
+
+  @override
+  State<_ConfigRow> createState() => _ConfigRowState();
+}
+
+class _ConfigRowState extends State<_ConfigRow> {
+  late String _edited = widget.field.value;
+
+  @override
+  void didUpdateWidget(covariant _ConfigRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The PLC changed the value (another panel, a set load): show it, unless
+    // the operator is in the middle of changing it here.
+    if (oldWidget.field.value != widget.field.value &&
+        _edited == oldWidget.field.value) {
+      _edited = widget.field.value;
+    }
+  }
+
+  /// `<enumLabelKey>.<value>` from the catalogs; the raw value when the
+  /// field names no prefix or the catalog has no entry for it.
+  String _choiceLabel(BuildContext context, String value) {
+    final prefix = widget.field.enumLabelKey;
+    if (prefix.isEmpty) return value;
+    final key = '$prefix.$value';
+    final label = context.tr(key);
+    return label == key ? value : label;
+  }
+
+  Future<void> _write() async {
+    final f = widget.field;
+    final app = widget.app;
+    final ok = f.accepts(_edited)
+        ? await app.repo.writeConfig(widget.node.path, f, _edited)
+        : false;
+    if (!ok) {
+      final root = app.rootOf(widget.node.path);
+      if (root != null) {
+        await app.showReleaseReportAction(
+            root.path, GatedAction.dataWrite, 'Configuration write blocked');
+      }
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: LText(ok ? '${f.name} saved' : '${f.name} rejected by PLC'),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.field;
+    final unitKey = f.unitKey;
+    final unit = unitKey.isEmpty ? '' : context.tr(unitKey);
+    final decoration = InputDecoration(
+      isDense: true,
+      border: const OutlineInputBorder(),
+      helperText: widget.helper,
+    );
+    final Widget input;
+    if (f.isFlag) {
+      input = InputDecorator(
+        decoration: decoration.copyWith(border: InputBorder.none),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Checkbox(
+            key: ValueKey('cfg-flag-${f.name}'),
+            value: _edited.trim().toUpperCase() == 'TRUE',
+            onChanged: widget.canWrite
+                ? (value) =>
+                    setState(() => _edited = value == true ? 'TRUE' : 'FALSE')
+                : null,
+          ),
+        ),
+      );
+    } else if (f.isChoice) {
+      final current = _edited.trim();
+      input = DropdownButtonFormField<String>(
+        key: ValueKey('cfg-choice-${f.name}:$current'),
+        initialValue: f.enumDomain.contains(current) ? current : null,
+        isExpanded: true,
+        decoration: decoration,
+        items: [
+          for (final value in f.enumDomain)
+            DropdownMenuItem(
+              value: value,
+              child: Text(_choiceLabel(context, value),
+                  overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: widget.canWrite
+            ? (value) => setState(() => _edited = value ?? _edited)
+            : null,
+      );
+    } else {
+      input = TouchTextFormField(
+        initialValue: f.value,
+        enabled: widget.canWrite,
+        decoration: decoration,
+        keyboardType: f.type == CfgType.number || f.type == CfgType.time
+            ? TextInputType.number
+            : TextInputType.text,
+        onChanged: (value) => _edited = value,
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
-        label,
-        Expanded(
-          child: TouchTextFormField(
-            initialValue: f.value,
-            enabled: fieldCanWrite,
-            decoration: InputDecoration(
-              isDense: true,
-              border: const OutlineInputBorder(),
-              suffixText: f.unit.isEmpty ? null : f.unit,
-              helperText: helper,
-            ),
-            keyboardType: f.type == CfgType.number || f.type == CfgType.time
-                ? TextInputType.number
-                : TextInputType.text,
-            onChanged: (value) => edited = value,
+        widget.label,
+        Expanded(child: input),
+        SizedBox(
+          width: 64,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(start: 8),
+            child: Text(unit,
+                key: ValueKey('cfg-unit-${f.name}'),
+                textAlign: TextAlign.start,
+                style: Theme.of(context).textTheme.bodyMedium),
           ),
         ),
-        if (fieldCanWrite)
+        if (widget.canWrite)
           IconButton(
             tooltip: context.tr('Write to PLC (re-checked, 7.7)'),
             icon: const Icon(Icons.save_outlined),
-            onPressed: () async {
-              final ok = f.accepts(edited)
-                  ? await app.repo.writeConfig(node.path, f, edited)
-                  : false;
-              if (!ok) {
-                final root = app.rootOf(node.path);
-                if (root != null) {
-                  await app.showReleaseReportAction(root.path,
-                      GatedAction.dataWrite, 'Configuration write blocked');
-                }
-              }
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: LText(
-                      ok ? '${f.name} saved' : '${f.name} rejected by PLC'),
-                ));
-              }
-            },
+            onPressed: _write,
           ),
       ]),
     );

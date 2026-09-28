@@ -93,14 +93,14 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[ok := M_RegisterConfigNumber(Key := 'shift.utcOffsetMin', Item := 'Calendar/UtcOffsetMin',
-    LabelKey := 'std.config.shiftUtcOffset', Unit := 'min', Kind := E_ConfigKind.LINE_CFG,
+    LabelKey := 'std.config.shiftUtcOffset', Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG,
     Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Calendar.UtcOffsetMin),
     Minimum := -720.0, Maximum := 840.0, RequiresReady := FALSE);
 FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
     key := CONCAT('shift.', CONCAT(TO_STRING(n), '.startMin'));
     item := CONCAT('Calendar/StartMin[', CONCAT(TO_STRING(n), ']'));
     ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := 'std.config.shiftStart',
-        Unit := 'min', Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
         pTarget := ADR(Calendar.StartMin[n]), Minimum := -1.0, Maximum := 1439.0,
         RequiresReady := FALSE) AND ok;
 END_FOR

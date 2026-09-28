@@ -518,6 +518,10 @@ class OpcUaRepository implements PlcRepository {
             unit: '${_values['$prefix/Unit'] ?? ''}',
             labelKey: '${_values['$prefix/LabelKey'] ?? ''}',
             enumDomain: '${_values['$prefix/EnumDomain'] ?? ''}',
+            unitCode: _values.containsKey('$prefix/UnitCode')
+                ? _integer(_values['$prefix/UnitCode'])
+                : null,
+            enumLabelKey: '${_values['$prefix/EnumLabelKey'] ?? ''}',
             // §3.8d. A PLC older than data classes publishes none of these:
             // an ABSENT level must read as unknown (-1), never as NONE, or an
             // old controller would appear to open every value to everyone.

@@ -38,6 +38,8 @@ class ConfigManifestEntry {
   final String unit;
   final String labelKey;
   final String enumDomain;
+  final int? unitCode; // null = the controller publishes no UnitCode
+  final String enumLabelKey;
 
   /// Core §3.8d. -1 = not published (a PLC older than data classes).
   final String classId;
@@ -59,6 +61,8 @@ class ConfigManifestEntry {
       this.unit = '',
       this.labelKey = '',
       this.enumDomain = '',
+      this.unitCode,
+      this.enumLabelKey = '',
       this.classId = '',
       this.readLevel = -1,
       this.writeLevel = -1,
@@ -125,6 +129,13 @@ Map<String, List<CfgField>> configFieldsFromManifest(
       minimum: entry.hasMinimum ? entry.minimum : null,
       maximum: entry.hasMaximum ? entry.maximum : null,
       enumDomain: domain,
+      // An unknown (newer) code shows no unit rather than a wrong one.
+      unitCode: entry.unitCode == null
+          ? null
+          : (entry.unitCode! >= 0 && entry.unitCode! < EngUnit.values.length
+              ? EngUnit.values[entry.unitCode!]
+              : EngUnit.none),
+      enumLabelKey: entry.enumLabelKey,
       classId: entry.classId,
       readLevel: _level(entry.readLevel),
       writeLevel: _level(entry.writeLevel),

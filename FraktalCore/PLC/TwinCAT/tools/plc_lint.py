@@ -167,6 +167,7 @@ ENUM_BINDINGS = {
     "E_ModeSwitchStyle": ("types.dart", "ModeSwitchStyle"),
     "E_ConfigKind": ("types.dart", "CfgKind"),
     "E_ConfigValueType": ("types.dart", "CfgType"),
+    "E_EngUnit": ("types.dart", "EngUnit"),
     "E_SafetyDeviceKind": ("types.dart", "SafetyDeviceKind"),
     "E_SafetyState": ("types.dart", "SafetyState"),
     "E_PowerState": ("types.dart", "PowerState"),

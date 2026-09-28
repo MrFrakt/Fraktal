@@ -4768,3 +4768,27 @@ Evidence: `Specification/Evidence/2026-09-28_Core_Press_TcUnit.md`, with Core/Mo
 187/187 and Press 8/8. Anything else in Core that joins strings which can exceed 255
 characters needs the same treatment. It is owed an audit (a lint rule could flag
 `CONCAT`/`LEN`/`FIND` whose operand is declared wider than `STRING(255)`).
+
+## 144. Units are codes, and a choice names its labels (Core 0.14.0.0, 2026-09-28)
+
+An operator editing the press saw `TRUE`/`FALSE` and bare ordinals to type, and a unit
+that was free text chosen at each call site (`'ms'`, `'min'`, `'mm'`). Three changes:
+
+- **`E_EngUnit`** (append-only, `NONE := 0`, 33 units) replaces the free-text unit on
+  registration. `M_RegisterConfigWrite`/`M_RegisterConfigNumber` take `Unit : E_EngUnit`,
+  so every number declares one (4024: every input at every call); durations are
+  `MILLISECOND`, flags and choices `NONE`. The published `ST_ConfigEntry` gains
+  `UnitCode` and keeps `Unit` as text **derived** from the code by `F_EngUnitSymbol`,
+  so a client that predates the code still shows a unit - one source, one projection.
+  The HMI mirrors the ordinals in `EngUnit` (lint E1) and shows its own translated
+  symbol, `std.unit.<name>`.
+- **`EnumLabelKey`** names the catalog prefix that labels each `EnumDomain` value
+  (`<key>.<value>`). New `M_RegisterConfigChoice` registers a fixed set in one call and
+  refuses an empty domain. The Unit's mode-policy values now carry
+  `std.enum.modeSwitchShield` / `std.enum.modeSwitchStyle`.
+- The HMI edits a `BOOLEAN` as a checkbox and a choice as a translated dropdown; the
+  unit follows the value.
+
+The registration signature change is a compile error for any project still passing a
+string - visible, not silent - hence the minor version. `ST_ConfigEntry` only grows.
+Test: `Units_and_choices_publish_codes_and_labels` (Core/Modules runner: 188 / 42).

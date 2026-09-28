@@ -13,6 +13,7 @@ VAR_INPUT
     Retries    : DINT := 3;
     Enabled    : BOOL := TRUE;
     Label      : STRING(80) := 'default';
+    Mode       : DINT := 1;              // an enumeration stored as its ordinal
     // Test seam for the module-invariant hook: the one candidate this module
     // refuses whatever its type and range say.
     RefuseText : STRING(255);
@@ -35,7 +36,7 @@ Setup := M_RegisterConfigDuration(Key := 'probe.settleTime',
     Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(SettleTime),
     MinimumMs := 0, MaximumMs := 5000, RequiresReady := TRUE);
 Setup := M_RegisterConfigNumber(Key := 'probe.retries',
-    Item := 'StationCfg/Retries', LabelKey := 'project.test.retries', Unit := '',
+    Item := 'StationCfg/Retries', LabelKey := 'project.test.retries', Unit := E_EngUnit.NONE,
     Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_DINT,
     pTarget := ADR(Retries), Minimum := 0.0, Maximum := 10.0,
     RequiresReady := FALSE) AND Setup;
@@ -47,9 +48,13 @@ Setup := M_RegisterConfigWrite(Key := 'probe.label',
     Item := 'StationCfg/Label', Revision := 2, Kind := E_ConfigKind.STATION_CFG,
     ValueType := E_ConfigValueType.TEXT, Storage := E_ConfigStorage.AS_STRING,
     pTarget := ADR(Label), RequiresReady := FALSE, HasMinimum := FALSE,
-    HasMaximum := FALSE, Minimum := 0.0, Maximum := 0.0, Unit := '',
+    HasMaximum := FALSE, Minimum := 0.0, Maximum := 0.0, Unit := E_EngUnit.NONE,
     LabelKey := 'project.test.label', MaxLength := 80,
-    EnumDomain := '') AND Setup;]]></ST>
+    EnumDomain := '', EnumLabelKey := '') AND Setup;
+Setup := M_RegisterConfigChoice(Key := 'probe.mode', Item := 'StationCfg/Mode',
+    LabelKey := 'project.test.mode', Kind := E_ConfigKind.STATION_CFG,
+    Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Mode), Domain := '0|1|2',
+    EnumLabelKey := 'project.test.modeValue', RequiresReady := FALSE) AND Setup;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{c40b7e26-8951-4f3d-a207-6be1d9f45830}">

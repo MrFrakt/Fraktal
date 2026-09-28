@@ -516,6 +516,46 @@ enum CfgKind { parCfg, stationCfg, lineCfg }
 
 enum CfgType { number, text, boolean, time }
 
+/// A configuration value's engineering unit, as the PLC publishes it
+/// (`UnitCode`, E_EngUnit). The ordinals ARE the contract (lint rule E1) -
+/// append only. The HMI owns the symbol: `std.unit.<name>` in the catalogs, so
+/// a unit is translated like any other text. [none] shows no unit at all.
+enum EngUnit {
+  none,
+  millisecond,
+  second,
+  minute,
+  hour,
+  micrometer,
+  millimeter,
+  meter,
+  degree,
+  millimeterPerSecond,
+  meterPerMinute,
+  degreePerSecond,
+  millimeterPerSecondSquared,
+  bar,
+  kilopascal,
+  newton,
+  kilonewton,
+  newtonMeter,
+  gram,
+  kilogram,
+  degreeCelsius,
+  percent,
+  revolutionPerMinute,
+  hertz,
+  volt,
+  ampere,
+  watt,
+  kilowatt,
+  liter,
+  literPerMinute,
+  piece,
+  piecePerMinute,
+  piecePerHour,
+}
+
 class CfgField {
   final String name;
   final String labelKey;
@@ -530,6 +570,14 @@ class CfgField {
   final double? minimum;
   final double? maximum;
   final List<String> enumDomain;
+
+  /// The unit as a code (Core 0.14); null = a controller that publishes only
+  /// the legacy [unit] text, which is then shown as it is.
+  final EngUnit? unitCode;
+
+  /// Catalog prefix labelling each [enumDomain] value: `<key>.<value>`.
+  /// '' = the values are shown as they are.
+  final String enumLabelKey;
 
   /// Core §3.8d - the value's data class ('' = the built-in class of its kind)
   /// and the EFFECTIVE levels the PLC computed for it. Null when the PLC did not
@@ -553,10 +601,26 @@ class CfgField {
       this.minimum,
       this.maximum,
       this.enumDomain = const [],
+      this.unitCode,
+      this.enumLabelKey = '',
       this.classId = '',
       this.readLevel,
       this.writeLevel,
       this.readable = true});
+
+  /// The catalog key of the unit to show, or '' for none: a code the PLC
+  /// published wins; without one (an older controller) the legacy text stands.
+  String get unitKey => switch (unitCode) {
+        null => unit,
+        EngUnit.none => '',
+        final EngUnit code => 'std.unit.${code.name}',
+      };
+
+  /// A true/false value: edited with a checkbox, never typed.
+  bool get isFlag => type == CfgType.boolean;
+
+  /// A fixed set of values (not a flag): edited with a dropdown.
+  bool get isChoice => !isFlag && enumDomain.isNotEmpty;
 
   bool get hasWriteCapability =>
       writable && writeKey.isNotEmpty && writeRevision > 0;

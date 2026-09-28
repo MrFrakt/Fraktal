@@ -34,6 +34,11 @@ STRUCT
     ReadLevel     : E_AccessLevel;
     WriteLevel    : E_AccessLevel;
     Readable      : BOOL;
+    // Appended (Core 0.14): the unit as a CODE the HMI translates, and the
+    // catalog prefix that labels each EnumDomain value ('<key>.<value>'). Unit
+    // above stays, derived from UnitCode, for clients that predate it.
+    UnitCode      : E_EngUnit;
+    EnumLabelKey  : STRING(80);
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

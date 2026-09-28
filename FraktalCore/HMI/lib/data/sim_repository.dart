@@ -39,6 +39,8 @@ class SimRepository implements PlcRepository {
     'MES endpoint IP': '10.20.0.14',
     'MES port': '4840',
     'Clamp settle time': '150',
+    'Require two-hand start': 'TRUE',
+    'Mode-switch protection': '1',
   };
 
   List<CfgField> _configFields() => [
@@ -59,12 +61,32 @@ class SimRepository implements PlcRepository {
         CfgField('Clamp settle time', CfgKind.parCfg, CfgType.time,
             _configValues['Clamp settle time']!,
             unit: 'ms',
+            unitCode: EngUnit.millisecond,
             labelKey: 'project.config.clampSettleTime',
             writeKey: 'sim.recipe.clamp.settleMs',
             writeRevision: 1,
             writable: true,
             minimum: 0,
             maximum: 60000),
+        // A flag and a choice, edited as a checkbox and a translated dropdown -
+        // the shapes Core 0.14 publishes (UnitCode NONE: no unit shown).
+        CfgField('Require two-hand start', CfgKind.stationCfg, CfgType.boolean,
+            _configValues['Require two-hand start']!,
+            labelKey: 'project.config.pressRequireTwoHandStart',
+            writeKey: 'sim.station.requireTwoHandStart',
+            writeRevision: 1,
+            writable: true,
+            enumDomain: const ['TRUE', 'FALSE'],
+            unitCode: EngUnit.none),
+        CfgField('Mode-switch protection', CfgKind.stationCfg, CfgType.number,
+            _configValues['Mode-switch protection']!,
+            labelKey: 'std.enum.modeSwitchShield',
+            writeKey: 'sim.station.modeShield',
+            writeRevision: 1,
+            writable: true,
+            enumDomain: const ['0', '1', '2'],
+            enumLabelKey: 'std.enum.modeSwitchShield',
+            unitCode: EngUnit.none),
       ];
 
   // demo users (FB_LocalAccessProvider analogue)

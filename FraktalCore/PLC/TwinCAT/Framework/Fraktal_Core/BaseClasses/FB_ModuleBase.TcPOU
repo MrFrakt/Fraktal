@@ -810,6 +810,7 @@ FOR i := 1 TO _nConfigWrite DO
         Unit := _configWrite[i].Unit,
         LabelKey := _configWrite[i].LabelKey,
         EnumDomain := _configWrite[i].EnumDomain,
+        EnumLabelKey := _configWrite[i].EnumLabelKey,
         ClassId := _configWrite[i].ClassId,
         MinReadLevel := _configWrite[i].MinReadLevel,
         MinWriteLevel := _configWrite[i].MinWriteLevel);
@@ -838,10 +839,11 @@ VAR_INPUT
     HasMaximum    : BOOL;
     Minimum       : LREAL;
     Maximum       : LREAL;
-    Unit          : STRING(16);
+    Unit          : E_EngUnit;     // NONE = no unit; the HMI shows none
     LabelKey      : STRING(160);
     MaxLength     : UINT;
     EnumDomain    : STRING(255);
+    EnumLabelKey  : STRING(80);    // '' = the values are shown as they are
 END_VAR
 VAR
     i : INT;
@@ -884,6 +886,7 @@ _configWrite[_nConfigWrite].Unit := Unit;
 _configWrite[_nConfigWrite].LabelKey := LabelKey;
 _configWrite[_nConfigWrite].MaxLength := MaxLength;
 _configWrite[_nConfigWrite].EnumDomain := EnumDomain;
+_configWrite[_nConfigWrite].EnumLabelKey := EnumLabelKey;
 M_RegisterConfigWrite := TRUE;]]></ST></Implementation>
     </Method>
           <Method Name="M_RegisterCapture" Id="{a1ff216f-afb4-4582-a46e-a56828775efb}">
@@ -1054,7 +1057,7 @@ VAR_INPUT
     Key           : STRING(160);
     Item          : STRING(255);
     LabelKey      : STRING(160);
-    Unit          : STRING(16);
+    Unit          : E_EngUnit;     // every number declares one; NONE = unitless
     Kind          : E_ConfigKind;
     Storage       : E_ConfigStorage;
     pTarget       : PVOID;
@@ -1066,7 +1069,8 @@ END_VAR]]></Declaration>
     Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.NUMBER,
     Storage := Storage, pTarget := pTarget, RequiresReady := RequiresReady,
     HasMinimum := TRUE, HasMaximum := TRUE, Minimum := Minimum, Maximum := Maximum,
-    Unit := Unit, LabelKey := LabelKey, MaxLength := 0, EnumDomain := '');]]></ST></Implementation>
+    Unit := Unit, LabelKey := LabelKey, MaxLength := 0, EnumDomain := '',
+    EnumLabelKey := '');]]></ST></Implementation>
     </Method>
     <Method Name="M_RegisterConfigDuration" Id="{3b7d5c40-8e19-4a62-95cb-71e0f4a8d236}">
       <Declaration><![CDATA[// §3.8b — an editable TIME, carried and edited as whole milliseconds (the HMI
@@ -1087,7 +1091,8 @@ END_VAR]]></Declaration>
     Storage := E_ConfigStorage.AS_TIME, pTarget := pTarget,
     RequiresReady := RequiresReady, HasMinimum := TRUE, HasMaximum := TRUE,
     Minimum := TO_LREAL(MinimumMs), Maximum := TO_LREAL(MaximumMs),
-    Unit := 'ms', LabelKey := LabelKey, MaxLength := 0, EnumDomain := '');]]></ST></Implementation>
+    Unit := E_EngUnit.MILLISECOND, LabelKey := LabelKey, MaxLength := 0,
+    EnumDomain := '', EnumLabelKey := '');]]></ST></Implementation>
     </Method>
     <Method Name="M_RegisterConfigFlag" Id="{6d24e8f7-1b93-4057-8ca4-2e5906bd7f81}">
       <Declaration><![CDATA[// §3.8b — an editable BOOL. The exact domain is declared so a client renders a
@@ -1106,8 +1111,37 @@ END_VAR]]></Declaration>
     Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.BOOLEAN,
     Storage := E_ConfigStorage.AS_BOOL, pTarget := pTarget,
     RequiresReady := RequiresReady, HasMinimum := FALSE, HasMaximum := FALSE,
-    Minimum := 0.0, Maximum := 0.0, Unit := '', LabelKey := LabelKey,
-    MaxLength := 0, EnumDomain := 'TRUE|FALSE');]]></ST></Implementation>
+    Minimum := 0.0, Maximum := 0.0, Unit := E_EngUnit.NONE, LabelKey := LabelKey,
+    MaxLength := 0, EnumDomain := 'TRUE|FALSE', EnumLabelKey := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigChoice" Id="{fc121f64-0f03-47e5-ae17-2f8b0720faaf}">
+      <Declaration><![CDATA[// §3.8b/§3.10.2 - an editable value that is one of a fixed set, e.g. an
+// enumeration stored as its ordinal. Domain lists the exact accepted values
+// ('0|1|2'); EnumLabelKey is the catalog prefix the HMI labels each one with
+// ('<EnumLabelKey>.<value>'), so a client renders a translated choice and
+// anything outside the domain is refused, never read as a default.
+METHOD M_RegisterConfigChoice : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Kind          : E_ConfigKind;
+    Storage       : E_ConfigStorage;
+    pTarget       : PVOID;
+    Domain        : STRING(255);
+    EnumLabelKey  : STRING(80);
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigChoice := FALSE;
+IF Domain = '' THEN
+    RETURN;                                  // a choice with no choices accepts nothing
+END_IF
+M_RegisterConfigChoice := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.NUMBER,
+    Storage := Storage, pTarget := pTarget, RequiresReady := RequiresReady,
+    HasMinimum := FALSE, HasMaximum := FALSE, Minimum := 0.0, Maximum := 0.0,
+    Unit := E_EngUnit.NONE, LabelKey := LabelKey, MaxLength := 0,
+    EnumDomain := Domain, EnumLabelKey := EnumLabelKey);]]></ST></Implementation>
     </Method>
     <Method Name="M_ApplyConfigWrite" Id="{4a95c7e3-2d68-41bf-9036-b8e1af0524d9}">
       <Declaration><![CDATA[// §3.8b/§3.10.2 I_ConfigSource — apply one registered write to THIS module.

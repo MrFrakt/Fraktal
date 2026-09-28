@@ -30,12 +30,12 @@ StallTime := T#0S;
 Setup := Line.Setup(Name := CONCAT(Name, '.Line'), LineId := 'L1', Role := Role,
     Source := Source, StaleAfterMs := StaleAfterMs, pAlarmLog := ADR(AlarmLog));
 Setup := Line.M_RegisterConfigNumber(Key := 'line.taktMs', Item := 'LineCfg/TaktMs',
-    LabelKey := 'project.test.taktMs', Unit := 'ms', Kind := E_ConfigKind.LINE_CFG,
+    LabelKey := 'project.test.taktMs', Unit := E_EngUnit.MILLISECOND, Kind := E_ConfigKind.LINE_CFG,
     Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Takt), Minimum := 0.0,
     Maximum := 100000.0, RequiresReady := FALSE) AND Setup;
 IF ExtraKey THEN
     Setup := Line.M_RegisterConfigNumber(Key := 'line.extra', Item := 'LineCfg/Extra',
-        LabelKey := 'project.test.extra', Unit := '', Kind := E_ConfigKind.LINE_CFG,
+        LabelKey := 'project.test.extra', Unit := E_EngUnit.NONE, Kind := E_ConfigKind.LINE_CFG,
         Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Extra), Minimum := 0.0,
         Maximum := 10.0, RequiresReady := FALSE) AND Setup;
 END_IF
