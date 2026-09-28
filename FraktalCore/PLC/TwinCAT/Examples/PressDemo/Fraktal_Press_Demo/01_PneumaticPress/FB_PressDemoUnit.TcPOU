@@ -17,6 +17,10 @@ VAR_OUTPUT
     PneumaticPower: FB_PowerGroupCM;
     PartPresentSensor : FB_DigitalInputCM;
     AirPressureMonitor : FB_AirPressureMonitorCM;
+    // §3.8e - this press OWNS its line's data (the shift calendar, §8.5.2). A line
+    // is not a Unit: it is registered here only so its values are edited, audited
+    // and access-classed through this root, like any other value.
+    Line          : FB_LineData;
     // Jenny Science XENAX Xvi servo (Annex G, PLCopen Motion). NOT CABINET
     // HARDWARE - read the note on PartFeedAxis before looking for it there.
     PartFeed      : FB_AxisCM;
@@ -59,6 +63,12 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _ioCatalog : REFERENCE TO FB_PressIoCatalog;
     _parCfgStaged : ST_PneumaticPressParCfg;
+    // §3.8a - the ParCfg last applied (commit or accepted edit); a difference is an
+    // edit of the active model's recipe to take effect and to write back.
+    {attribute 'OPC.UA.DA' := '0'}
+    _parCfgApplied : ST_PneumaticPressParCfg;
+    {attribute 'OPC.UA.DA' := '0'}
+    _catalog : POINTER TO FB_PressRecipeCatalog;
     _recipePrepared : BOOL;
     _startLatched : BOOL;
     _powerRequestPending : BOOL;
@@ -315,6 +325,19 @@ PartSlide.Execute := FALSE;]]></ST>
 _recipePrepared := FALSE;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="SetRecipeCatalog" Id="{f2a89446-a6b3-4311-9808-10559113426c}">
+      <Declaration><![CDATA[// §3.8a - the local catalog the active model's edits are written back to. The
+// catalog calls this from its own Setup; without one an edit still applies but
+// lasts only until the next changeover.
+METHOD SetRecipeCatalog : BOOL
+VAR_INPUT
+    pCatalog : POINTER TO FB_PressRecipeCatalog;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_catalog := pCatalog;
+SetRecipeCatalog := (pCatalog <> 0);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="CommitRecipe" Id="{f0ca16c3-542f-49c8-a671-1b9e899cb831}">
       <Declaration><![CDATA[METHOD CommitRecipe]]></Declaration>
       <Implementation>
@@ -325,6 +348,7 @@ IF _recipePrepared THEN
     // and the WORK-time degradation baseline are per-recipe engineering data.
     Oee.IdealCycleMs := ParCfg.IdealCycleMs;
     Profiler.M_SetBaselineWork(WorkMs := ParCfg.BaselineWorkMs);
+    _parCfgApplied := ParCfg;
 END_IF
 _recipePrepared := FALSE;]]></ST>
       </Implementation>
@@ -384,6 +408,19 @@ _M_ResetModeSequences();]]></ST>
 // on the next step, and the published StallTime can never disagree with the
 // configuration it came from.
 StallTime := UDINT_TO_TIME(_station.StallGuardMs);
+// §3.8a - the ACTIVE model's recipe is editable (PAR_CFG, registered in Setup),
+// and an accepted edit lands in ParCfg. Here it takes effect and lasts: the
+// performance references follow it as they do at a changeover, and it is written
+// back to this model's catalog record, so selecting the model again loads the
+// edited values instead of silently restoring the old ones.
+IF MEMCMP(ADR(ParCfg), ADR(_parCfgApplied), SIZEOF(ParCfg)) <> 0 THEN
+    Oee.IdealCycleMs := ParCfg.IdealCycleMs;
+    Profiler.M_SetBaselineWork(WorkMs := ParCfg.BaselineWorkMs);
+    IF _catalog <> 0 THEN
+        _catalog^.M_Store(ModelCode := Model.ModelCode, Record := ParCfg);
+    END_IF
+    _parCfgApplied := ParCfg;
+END_IF
 // Project release engineering is a separate visible component. It owns the
 // functional collision permits and mode-entry conditions consumed below.
 IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
@@ -661,6 +698,13 @@ Ok := _M_Register(TwoHand) AND Ok;
 Ok := _M_Register(PneumaticPower) AND Ok;
 Ok := _M_Register(PartPresentSensor) AND Ok;
 Ok := _M_Register(AirPressureMonitor) AND Ok;
+// §3.8e - OWNER of line PRESS-LINE-1: the only editable copy, so no source. A
+// second press on this line would host a MIRROR fed through I_LineSource.
+Ok := Line.Setup(Name := CONCAT(Name, '.Line'), LineId := 'PRESS-LINE-1',
+    Role := E_LineRole.OWNER, Source := 0, StaleAfterMs := 0,
+    pAlarmLog := ADR(AlarmLog)) AND Ok;
+Ok := _M_Register(Line) AND Ok;
+Ok := SetLine(pLine := ADR(Line)) AND Ok;       // §8.5.2 shift accounting
 // §3.8a/§3.10.2 - the two deployment values become editable CAPABILITIES. That
 // registration, not publication and not DATA_WRITE, is what makes them writable,
 // and it is also what puts them into a station parameter set: SaveConfigSet walks
@@ -677,6 +721,27 @@ Ok := M_RegisterConfigNumber(Key := 'press.stallGuardMs',
     Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_UDINT,
     pTarget := ADR(_station.StallGuardMs), Minimum := 1000.0, Maximum := 600000.0,
     RequiresReady := TRUE) AND Ok;
+// §3.8a - model data: the ACTIVE model's recipe, PAR_CFG. The ranges are the
+// ones PrepareRecipe enforces on a catalog record, so an edit can never store a
+// recipe a changeover would refuse. OnCyclic applies an edit and writes it back.
+Ok := M_RegisterConfigDuration(Key := 'press.recipe.pressSettle',
+    Item := 'ParCfg/PressSettleTime', LabelKey := 'project.config.pressSettleTime',
+    Kind := E_ConfigKind.PAR_CFG, pTarget := ADR(ParCfg.PressSettleTime),
+    MinimumMs := 0, MaximumMs := 30000, RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigDuration(Key := 'press.recipe.transferSettle',
+    Item := 'ParCfg/TransferSettleTime', LabelKey := 'project.config.transferSettleTime',
+    Kind := E_ConfigKind.PAR_CFG, pTarget := ADR(ParCfg.TransferSettleTime),
+    MinimumMs := 0, MaximumMs := 5000, RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigNumber(Key := 'press.recipe.idealCycleMs',
+    Item := 'ParCfg/IdealCycleMs', LabelKey := 'project.config.idealCycleMs',
+    Unit := E_EngUnit.MILLISECOND, Kind := E_ConfigKind.PAR_CFG,
+    Storage := E_ConfigStorage.AS_UDINT, pTarget := ADR(ParCfg.IdealCycleMs),
+    Minimum := 0.0, Maximum := 600000.0, RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigNumber(Key := 'press.recipe.baselineWorkMs',
+    Item := 'ParCfg/BaselineWorkMs', LabelKey := 'project.config.baselineWorkMs',
+    Unit := E_EngUnit.MILLISECOND, Kind := E_ConfigKind.PAR_CFG,
+    Storage := E_ConfigStorage.AS_UDINT, pTarget := ADR(ParCfg.BaselineWorkMs),
+    Minimum := 0.0, Maximum := 600000.0, RequiresReady := TRUE) AND Ok;
 Setup := Ok AND PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF]]></ST>
       </Implementation>

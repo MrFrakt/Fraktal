@@ -9,13 +9,23 @@ VAR_OUTPUT
     {attribute 'OPC.UA.DA' := '0'}
     Provider : FB_LocalRecipeProvider;
 END_VAR
-VAR
+VAR PERSISTENT
+    // §3.8b - the records are edited through the Unit (the active model's PAR_CFG)
+    // and must outlive a restart, so they are retained and seeded only once.
     _default : ST_PneumaticPressParCfg;
     _aluminum : ST_PneumaticPressParCfg;
     _plastic : ST_PneumaticPressParCfg;
     _steel : ST_PneumaticPressParCfg;
+    _seeded : UINT;               // RECIPE_SEED once the defaults below were written
+END_VAR
+VAR
     _model : ST_ModelId;
     _configured : BOOL;
+END_VAR
+VAR CONSTANT
+    // Bump to re-seed every record with the design values below (a download that
+    // changes them, or a record layout change).
+    RECIPE_SEED : UINT := 1;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[// Static catalog: no cyclic work.]]></ST></Implementation>
     <Method Name="Setup" Id="{f3703336-44cb-4ed4-a15f-6dc17b858973}">
@@ -34,22 +44,26 @@ END_IF
 // §8.11 per-model performance references: IdealCycleMs feeds OEE Performance
 // (§8.5.1); BaselineWorkMs arms the WORK-time degradation watch (§8.11.4(d)).
 // Values = design cycle for this training cell (motions + settle + dwell).
-_default.PressSettleTime := T#500MS;
-_default.TransferSettleTime := T#100MS;
-_default.IdealCycleMs := 6000;
-_default.BaselineWorkMs := 6000;
-_aluminum.PressSettleTime := T#300MS;
-_aluminum.TransferSettleTime := T#80MS;
-_aluminum.IdealCycleMs := 5700;
-_aluminum.BaselineWorkMs := 5700;
-_plastic.PressSettleTime := T#650MS;
-_plastic.TransferSettleTime := T#120MS;
-_plastic.IdealCycleMs := 6200;
-_plastic.BaselineWorkMs := 6200;
-_steel.PressSettleTime := T#1200MS;
-_steel.TransferSettleTime := T#150MS;
-_steel.IdealCycleMs := 6800;
-_steel.BaselineWorkMs := 6800;
+// Seeded once: afterwards the retained records hold what was edited.
+IF _seeded <> RECIPE_SEED THEN
+    _default.PressSettleTime := T#500MS;
+    _default.TransferSettleTime := T#100MS;
+    _default.IdealCycleMs := 6000;
+    _default.BaselineWorkMs := 6000;
+    _aluminum.PressSettleTime := T#300MS;
+    _aluminum.TransferSettleTime := T#80MS;
+    _aluminum.IdealCycleMs := 5700;
+    _aluminum.BaselineWorkMs := 5700;
+    _plastic.PressSettleTime := T#650MS;
+    _plastic.TransferSettleTime := T#120MS;
+    _plastic.IdealCycleMs := 6200;
+    _plastic.BaselineWorkMs := 6200;
+    _steel.PressSettleTime := T#1200MS;
+    _steel.TransferSettleTime := T#150MS;
+    _steel.IdealCycleMs := 6800;
+    _steel.BaselineWorkMs := 6800;
+    _seeded := RECIPE_SEED;
+END_IF
 
 Ok := Provider.Register(ModelCode := '', RecipeKey := 'PneumaticPressUnit',
     pData := ADR(_default), Size := SIZEOF(_default));
@@ -66,9 +80,31 @@ _model.ModelCode := 'PLASTIC';
 Ok := UnitRef.RegisterAvailableModel(Id := _model) AND Ok;
 _model.ModelCode := 'STEEL';
 Ok := UnitRef.RegisterAvailableModel(Id := _model) AND Ok;
+Ok := UnitRef.SetRecipeCatalog(pCatalog := THIS) AND Ok;
 
 _configured := Ok;
 Setup := Ok;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Store" Id="{5f8f75d4-bd85-4c3d-a0f4-7f6f85b97e42}">
+      <Declaration><![CDATA[// §3.8a - write an edited recipe back to the record of its model, so the next
+// changeover to that model loads it. FALSE for a model this catalog does not hold.
+METHOD M_Store : BOOL
+VAR_INPUT
+    ModelCode : STRING(64);
+    Record    : ST_PneumaticPressParCfg;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Store := TRUE;
+IF ModelCode = '' THEN
+    _default := Record;
+ELSIF ModelCode = 'ALUMINUM' THEN
+    _aluminum := Record;
+ELSIF ModelCode = 'PLASTIC' THEN
+    _plastic := Record;
+ELSIF ModelCode = 'STEEL' THEN
+    _steel := Record;
+ELSE
+    M_Store := FALSE;
+END_IF]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

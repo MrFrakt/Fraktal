@@ -546,6 +546,10 @@ const standardEnglish = <String, String>{
   // Press bench §3.8b station configuration (project band, project.* keys).
   'project.config.pressRequireTwoHandStart': 'Require two-hand start',
   'project.config.pressStallGuardMs': 'Step stall guard',
+  'project.config.pressSettleTime': 'Press settle time',
+  'project.config.transferSettleTime': 'Transfer settle time',
+  'project.config.idealCycleMs': 'Ideal cycle time (OEE performance)',
+  'project.config.baselineWorkMs': 'Baseline work time (degradation watch)',
   'std.audit.configSetApplied': 'Parameter set applied.',
   'std.audit.alarmShelved': 'Alarm shelved.',
   'std.audit.alarmUnshelved': 'Alarm unshelved.',
