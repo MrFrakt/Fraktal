@@ -193,6 +193,11 @@ class ScopedPlcRepository implements PlcRepository {
   Future<bool> writeConfig(String nodePath, CfgField field, String value) =>
       _bool(nodePath, () => source.writeConfig(nodePath, field, value));
   @override
+  Future<bool> setClassLevel(String rootPath, String classId, AccessLevel level,
+          {required bool forWrite}) =>
+      _bool(rootPath,
+          () => source.setClassLevel(rootPath, classId, level, forWrite: forWrite));
+  @override
   Future<List<ConfigSetInfo>?> listConfigSets(String rootPath) =>
       _allows(rootPath) ? source.listConfigSets(rootPath) : Future.value(null);
   @override

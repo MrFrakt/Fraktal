@@ -58,7 +58,6 @@ enum _HmiRequestKind {
   // ignore: unused_field
   manualHeld,
   deleteConfigSet,
-  // ignore: unused_field
   setClassLevel,
 }
 
@@ -1076,6 +1075,12 @@ class OpcUaRepository implements PlcRepository {
           boolValue: force,
           textValue: boolValue ? 'true' : 'false',
           nameValue: '$analogValue');
+
+  @override
+  Future<bool> setClassLevel(String rootPath, String classId, AccessLevel level,
+          {required bool forWrite}) =>
+      _request(rootPath, _HmiRequestKind.setClassLevel,
+          nameValue: classId, intValue: level.index, boolValue: forWrite);
 
   // ---- Core §3.8b parameter sets ----------------------------------------------
   // Each operation is a CONFIG_SET-gated mailbox request; the answer (the listing,

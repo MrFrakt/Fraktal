@@ -43,6 +43,11 @@ abstract class PlcRepository {
       String rootPath, GatedAction action, AccessLevel level);
   Future<bool> setSessionTimeout(String rootPath, Duration timeout);
 
+  /// Core §3.8d(b) - change one data class's read or write level. ACCESS_POLICY
+  /// on the PLC, like every other policy edit.
+  Future<bool> setClassLevel(String rootPath, String classId, AccessLevel level,
+      {required bool forWrite});
+
   Future<bool> setMode(String unitPath, UnitMode mode);
   Future<bool> setModel(String rootPath, String modelCode);
   Future<bool> start(String unitPath);

@@ -772,6 +772,27 @@ class OpcUaSnapshotMapper {
         );
       }
 
+      // §3.8d(b) - the data classes this root declared, at their policy levels.
+      // A corrupt level reads as ADMIN: the editor must never show a class as
+      // more open than the PLC holds it.
+      final dataClasses = <DataClassPolicy>[];
+      if (isUnit) {
+        final classCount = _integer(values['$base/Access/ClassCount']);
+        for (var i = 1; i <= classCount; i++) {
+          final prefix = _indexedPrefix(values, '$base/Access/Classes', i,
+              parentPaths: parentPaths);
+          if (prefix == null) continue;
+          dataClasses.add(DataClassPolicy(
+            classId: _string(values['$prefix/ClassId']),
+            labelKey: _string(values['$prefix/LabelKey']),
+            readLevel: _enumAt(AccessLevel.values,
+                _integer(values['$prefix/ReadLevel']), AccessLevel.admin),
+            writeLevel: _enumAt(AccessLevel.values,
+                _integer(values['$prefix/WriteLevel']), AccessLevel.admin),
+          ));
+        }
+      }
+
       SystemHealthFacet? systemHealth;
       if (isUnit && _boolean(values['$base/SystemHealth/Present'])) {
         systemHealth = SystemHealthFacet(
@@ -877,6 +898,7 @@ class OpcUaSnapshotMapper {
                 required: required,
                 sessionTimeout:
                     _duration(values['$base/Access/Policy/SessionTimeout']),
+                classes: dataClasses,
               )
             : null,
         commands: commands,

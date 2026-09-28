@@ -1055,6 +1055,13 @@ class SimRepository implements PlcRepository {
     return true;
   }
 
+  // The simulated stations declare no data class, so there is none to edit;
+  // the PLC answers the same request with a refusal for an unknown class.
+  @override
+  Future<bool> setClassLevel(String rootPath, String classId, AccessLevel level,
+          {required bool forWrite}) async =>
+      false;
+
   // Core §3.8b in the simulator: named sets of the station's editable values,
   // bounded like the PLC's local store (four sets, no eviction). Enough for the
   // sets dialog to be exercised without a controller; the PLC stays authoritative.

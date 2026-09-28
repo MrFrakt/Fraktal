@@ -224,6 +224,21 @@ class ConfigSetInfo {
   });
 }
 
+/// Core §3.8d(b) - one data class as the root's policy holds it. The levels are
+/// the policy's current ones, not the code's declared defaults.
+class DataClassPolicy {
+  final String classId;
+  final String labelKey;
+  final AccessLevel readLevel;
+  final AccessLevel writeLevel;
+  const DataClassPolicy({
+    required this.classId,
+    this.labelKey = '',
+    this.readLevel = AccessLevel.none,
+    this.writeLevel = AccessLevel.none,
+  });
+}
+
 /// §7.7 session snapshot published per root.
 class AccessSession {
   final AccessLevel level;
@@ -231,6 +246,7 @@ class AccessSession {
   final bool loginFailed;
   final List<AccessLevel> required; // index = GatedAction.index (12 entries)
   final Duration sessionTimeout; // zero = no inactivity timeout
+  final List<DataClassPolicy> classes; // §3.8d(b), declared on this root
   const AccessSession({
     this.level = AccessLevel.none,
     this.user = '',
@@ -250,6 +266,7 @@ class AccessSession {
       AccessLevel.none,
     ],
     this.sessionTimeout = Duration.zero,
+    this.classes = const [],
   });
   bool permits(GatedAction a) {
     // Fail closed if a stale transport publishes an older, shorter policy array.

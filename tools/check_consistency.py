@@ -497,6 +497,8 @@ _DEFERRED = ("a recorded deferral in FraktalCore/PLC/Allen-Bradley/README.md")
 _NOT_PROJECTED = ("outside the Phase 4 projection, which publishes the "
                   "manifest, module status and the command mailbox")
 _REASON_ONLY = "the AB diagnostic record is a reason code and nothing else"
+_NO_ACCESS_POLICY = ("the AB binding enforces no §7.7 access policy yet; its "
+                     "mailbox refuses every policy request")
 _LINE_DATA = ("Core §3.8e/§8.5.2 line data and shifts are implemented in the "
               "TwinCAT binding only; the AB declaration has no line yet")
 
@@ -523,6 +525,10 @@ AB_ABSENT = {
     "OeeTrend": _NOT_PROJECTED,
     # Core §8.5.2 shifts need §3.8e line data, which only the TwinCAT binding
     # implements so far; the mapper builds the facet only when CurrentShift > 0.
+    # Core §3.8d data classes: the AB mailbox refuses every access-policy
+    # request (access_not_enforced), so it has no class table to publish.
+    "Access/ClassCount": _NO_ACCESS_POLICY,
+    "Access/Classes": _NO_ACCESS_POLICY,
     "CurrentShift": _LINE_DATA,
     "ShiftStartedAt": _LINE_DATA,
     "ShiftHistory": _LINE_DATA,
