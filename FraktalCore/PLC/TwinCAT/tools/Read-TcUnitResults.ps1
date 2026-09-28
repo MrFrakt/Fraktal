@@ -125,6 +125,17 @@ try {
         Start-Sleep -Milliseconds 250
     }
 
+    # AllTestSuitesFinished rises BEFORE TcUnit has collected its results table,
+    # and the collection spans several PLC cycles - more of them as the inventory
+    # grows. Reading at the edge returned 0/0 (2026-09-27, 186 tests), and because
+    # the gate then stopped the PLC, the collection never finished and every
+    # re-read returned 0/0 too. Wait for the table itself, on the same deadline.
+    while ((Read-SymUint $client "$results.NumberOfTestSuites") -eq 0) {
+        if ([DateTime]::UtcNow -ge $deadline) {
+            throw "TcUnit reported AllTestSuitesFinished but no results within $TimeoutSeconds s"
+        }
+        Start-Sleep -Milliseconds 250
+    }
     $suites     = Read-SymUint  $client "$results.NumberOfTestSuites"
     $cases      = Read-SymUint  $client "$results.NumberOfTestCases"
     $successful = Read-SymUint  $client "$results.NumberOfSuccessfulTestCases"

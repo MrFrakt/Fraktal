@@ -290,7 +290,12 @@ class SynthesisTests(unittest.TestCase):
                    [("Verdict", "E_Verdict", Value("E_Verdict.OK", "E_VERDICT")),
                     ("Reason", "E_Reason", Value("E_Reason.NONE", "E_REASON"))],
                    returns=("M_PartProcessed", "BOOL"), result="_processed"),
-            method("M_CountGood", logic("AND", [tap(), Contact("_processed")])),
+            # ST: IF NOT _partProcessed THEN M_CountGood(), and only when the part was
+            # not already dispositioned NOK. The rung carried the inverse until
+            # 2026-09-27 (IMPLEMENTATION_NOTES §137).
+            method("M_CountGood", logic("AND", [
+                tap(), Contact("_processed", negated=True),
+                Contact("_partDispositioned", negated=True)])),
             Coil("_partDispositioned",
                  logic("AND", [tap(), Contact("_partDispositioned")]), RESET),
             Coil("_partInMachine", tap(), RESET),

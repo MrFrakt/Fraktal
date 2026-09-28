@@ -381,6 +381,9 @@ const standardEnglish = <String, String>{
   'std.error.lineDataStale':
       'Line data has not been updated from its owner within the declared window.',
   'std.moduleType.line': 'Line data',
+  'std.config.shiftUtcOffset': 'Line clock offset from UTC',
+  'std.config.shiftStart': 'Shift start (minutes after midnight, -1 = unused)',
+  'std.audit.shiftClosed': 'Shift closed.',
   'std.moduleType.line.name': 'Line data',
   'std.moduleType.line.description':
       'Values shared by every station on the line, held once by the owner.',

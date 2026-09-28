@@ -183,6 +183,9 @@ RESERVED = {
     "function", "if", "log", "max", "min", "mod", "not", "of", "or", "r",
     "repeat", "return", "s", "st", "step", "struct", "then", "time", "to",
     "true", "type", "until", "var", "while", "xor",
+    # Date/time type keywords and their short forms: a local named `tod` desynced
+    # the parser (FB_LineData, 2026-09-27) into 47 errors, none naming the word.
+    "tod", "time_of_day", "date", "date_and_time",
 }
 
 

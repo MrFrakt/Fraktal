@@ -25,6 +25,7 @@ VAR_OUTPUT
 END_VAR
 VAR PERSISTENT
     _revision : UDINT;            // owner: current; mirror: last applied
+    Calendar  : ST_ShiftCalendar; // §8.5.2 - line data like any other: edited at the owner
 END_VAR
 VAR
     {attribute 'OPC.UA.DA' := '0'}
@@ -77,7 +78,86 @@ IF (Role = E_LineRole.OWNER) AND (_revision = 0) THEN
     _revision := 1;                        // a published line is never at revision 0
 END_IF
 _lastOkMs := TIME_TO_DWORD(TIME());
-Setup := TRUE;]]></ST>
+Setup := _M_RegisterCalendar();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_RegisterCalendar" Id="{92d4d8d1-edfa-49c7-b6f4-0cf9711ec4db}">
+      <Declaration><![CDATA[// §8.5.2(a) - every line carries a shift calendar, registered identically on owner
+// and mirror so a mirror can apply the owner's line whole.
+METHOD PRIVATE _M_RegisterCalendar : BOOL
+VAR
+    n    : INT;
+    ok   : BOOL;
+    key  : STRING(160);
+    item : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ok := M_RegisterConfigNumber(Key := 'shift.utcOffsetMin', Item := 'Calendar/UtcOffsetMin',
+    LabelKey := 'std.config.shiftUtcOffset', Unit := 'min', Kind := E_ConfigKind.LINE_CFG,
+    Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Calendar.UtcOffsetMin),
+    Minimum := -720.0, Maximum := 840.0, RequiresReady := FALSE);
+FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
+    key := CONCAT('shift.', CONCAT(TO_STRING(n), '.startMin'));
+    item := CONCAT('Calendar/StartMin[', CONCAT(TO_STRING(n), ']'));
+    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := 'std.config.shiftStart',
+        Unit := 'min', Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(Calendar.StartMin[n]), Minimum := -1.0, Maximum := 1439.0,
+        RequiresReady := FALSE) AND ok;
+END_FOR
+_M_RegisterCalendar := ok;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_MinuteOfDay" Id="{26653073-56c6-4393-8fe7-5b182fa0887f}">
+      <Declaration><![CDATA[// §8.5.2 - minutes after LOCAL midnight for a UTC timestamp, with the line's offset.
+METHOD M_MinuteOfDay : DINT
+VAR_INPUT
+    Now : DT;
+END_VAR
+VAR
+    secOfDay : DINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[secOfDay := UDINT_TO_DINT(DT_TO_UDINT(Now) MOD 86400) + Calendar.UtcOffsetMin * 60;
+secOfDay := ((secOfDay MOD 86400) + 86400) MOD 86400;   // normalize a negative offset
+M_MinuteOfDay := secOfDay / 60;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CurrentShift" Id="{83d209b5-e158-4396-ada6-e9996e5e7896}">
+      <Declaration><![CDATA[// §8.5.2(a) - the used shift in force at a local minute: the latest start at or
+// before it, and before the day's first start the day's LAST shift (a night shift
+// wraps midnight). 0 when no shift is used. Complete by construction: no gaps.
+METHOD M_CurrentShift : INT
+VAR_INPUT
+    MinuteOfDay : DINT;
+END_VAR
+VAR
+    n           : INT;
+    best        : INT;
+    bestStart   : DINT;
+    latest      : INT;
+    latestStart : DINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[best := 0;
+bestStart := -1;
+latest := 0;
+latestStart := -1;
+FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
+    IF (Calendar.StartMin[n] >= 0) AND (Calendar.StartMin[n] <= 1439) THEN
+        IF (Calendar.StartMin[n] <= MinuteOfDay) AND (Calendar.StartMin[n] > bestStart) THEN
+            best := n;
+            bestStart := Calendar.StartMin[n];
+        END_IF
+        IF Calendar.StartMin[n] > latestStart THEN
+            latest := n;
+            latestStart := Calendar.StartMin[n];
+        END_IF
+    END_IF
+END_FOR
+IF best = 0 THEN
+    best := latest;
+END_IF
+M_CurrentShift := best;]]></ST>
       </Implementation>
     </Method>
     <Method Name="OnCyclic" Id="{3f9ea1d4-b648-4a70-af34-f92c35c671c5}">

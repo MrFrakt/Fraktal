@@ -14,6 +14,8 @@ VAR
     _takt : DINT;
     _staleSeen : BOOL;
     _n2, _n4, _n5, _n6 : INT;
+    _k : INT;
+    _found : STRING(80);
     _w1, _w2, _w3, _w4, _w5, _w6 : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
@@ -60,7 +62,14 @@ IF NOT _w1 THEN
         Message := 'the accepted write raised the line revision');
     AssertEquals_UDINT(Expected := _rev + 1, Actual := _owner.Line.Image.Revision,
         Message := 'and the whole line was republished at it');
-    AssertEquals_STRING(Expected := '1200', Actual := _owner.Line.Image.Records[1].ValueText,
+    // Found by key: the line also carries its shift calendar (§8.5.2), registered first.
+    _found := '';
+    FOR _k := 1 TO _owner.Line.Image.Count DO
+        IF _owner.Line.Image.Records[_k].WriteKey = 'line.taktMs' THEN
+            _found := _owner.Line.Image.Records[_k].ValueText;
+        END_IF
+    END_FOR
+    AssertEquals_STRING(Expected := '1200', Actual := _found,
         Message := 'carrying the new value');
     _w1 := TRUE;
 END_IF

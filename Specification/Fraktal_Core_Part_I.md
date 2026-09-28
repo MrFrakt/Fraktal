@@ -2015,8 +2015,10 @@ figures for the shift that just ended are gone the moment it does. A shift is a 
 line, and closing one is framework work.
 
 **(a) The calendar is line data.** A line (§3.8e) carries a bounded shift calendar of at most
-`MAX_SHIFTS` entries, each an ordinary `LINE_CFG` write capability: whether the shift is used,
-its start as minutes after local midnight, and its display name. A shift runs from its start to
+`MAX_SHIFTS` entries, each an ordinary `LINE_CFG` write capability: its start as minutes after
+local midnight, or `-1` when the shift is not used, plus one offset from UTC for the whole
+line (the synchronized clock of §2.7 is UTC; daylight saving is set, never guessed). A shift
+is named by its index, which the front end localizes. A shift runs from its start to
 the start of the next used shift, wrapping at midnight, so a calendar is complete by
 construction and has no gaps to reason about. Every station on the line reads the same
 calendar, from the owner or its mirror; no station holds its own.

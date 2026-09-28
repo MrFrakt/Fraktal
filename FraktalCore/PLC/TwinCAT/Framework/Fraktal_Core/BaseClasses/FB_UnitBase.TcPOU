@@ -71,6 +71,12 @@ VAR_OUTPUT
     ModePolicy  : ARRAY[0..PL_Fraktal.MODE_COUNT-1] OF ST_ModePolicy;    // §3.4.1 per-mode switch policy (station cfg; manifest-served)
     RunStyle    : E_RunStyle;          // §3.4.2 active run style (HMI-selectable; CONTINUOUS default)
     Oee         : ST_Oee;              // §8.5.1 accumulators + snapshot (published)
+    // §8.5.2 - shifts, when a line is referenced (SetLine). 0 = no shift accounting.
+    CurrentShift          : INT;
+    ShiftStartedAt        : DT;
+    ShiftHistory          : ARRAY[1..PL_Fraktal.MAX_SHIFT_HISTORY] OF ST_ShiftRecord; // newest first
+    ShiftHistoryCount     : INT;
+    ShiftHistoryTruncated : BOOL;
     OeeTrend    : ARRAY[1..PL_Fraktal.MAX_OEE_SAMPLES] OF ST_OeeSample; // §8.5.1 ring
     OeeTrendHead: INT;                 // newest sample index (0 = none yet)
     HmiResponse : ST_HmiResponse;
@@ -142,6 +148,12 @@ VAR
     _errClr   : R_TRIG;                // §6.9 the ERROR state ended
     _oeeLast  : TIME;                  // §8.5.1 last accumulation stamp
     _oeeSampMs: UDINT;                 // ms since last trend sample
+    // §8.5.2 shift accounting
+    {attribute 'OPC.UA.DA' := '0'}
+    _pLine : POINTER TO FB_LineData;
+    _shiftInit : BOOL;
+    _shiftSync : BOOL;
+    _shiftManualReset : BOOL;
     _hmiLastSequence : UDINT;
     {attribute 'OPC.UA.DA' := '0'}
     _configPager : FB_ConfigPager;     // §3.10.2 QUERY_CONFIG window writer
@@ -2207,6 +2219,118 @@ IF SetDataClassLevel THEN
     ConfigRev := ConfigRev + 1;             // every manifest level may have moved
 END_IF]]></ST></Implementation>
     </Method>
+    <Method Name="SetLine" Id="{b3e3c826-6085-43fe-ab9e-5ee8d63ca7f0}">
+      <Declaration><![CDATA[// §3.8e/§8.5.2 - reference the line this root belongs to (owner or mirror, on
+// this controller). A Unit references at most one line; 0 detaches it.
+METHOD SetLine : BOOL
+VAR_INPUT
+    pLine : POINTER TO FB_LineData;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_pLine := pLine;
+_shiftInit := FALSE;
+CurrentShift := 0;
+SetLine := (pLine <> 0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ShiftTick" Id="{4606cb81-948b-4fb3-a998-828e0341cdfd}">
+      <Declaration><![CDATA[// §8.5.2(b) - evaluate the shift in force and close the one that just ended. Called
+// every scan by the base with the synchronized clock; public so the SAME code can
+// be driven across a boundary by a test instead of waiting for one. TRUE on the
+// call that closed a shift.
+METHOD M_ShiftTick : BOOL
+VAR_INPUT
+    Now          : DT;
+    Synchronized : BOOL;
+END_VAR
+VAR
+    idx : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ShiftTick := FALSE;
+IF _pLine = 0 THEN
+    CurrentShift := 0;
+    RETURN;
+END_IF
+idx := _pLine^.M_CurrentShift(MinuteOfDay := _pLine^.M_MinuteOfDay(Now := Now));
+IF NOT _shiftInit THEN
+    _shiftInit := TRUE;
+    CurrentShift := idx;
+    ShiftStartedAt := Now;
+    _shiftSync := Synchronized;
+    _shiftManualReset := FALSE;
+    RETURN;
+END_IF
+IF idx = CurrentShift THEN
+    RETURN;
+END_IF
+IF CurrentShift > 0 THEN
+    _M_CloseShift(Now := Now, Synchronized := Synchronized);
+    M_ShiftTick := TRUE;
+END_IF
+CurrentShift := idx;
+ShiftStartedAt := Now;
+_shiftSync := Synchronized;
+_shiftManualReset := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_CloseShift" Id="{3589014a-a797-47c8-9c22-164193338f8a}">
+      <Declaration><![CDATA[// §8.5.2(b) - one operation in one scan: record the ending shift as its figures stood,
+// then reset the per-shift counts and OEE accumulators (the trend ring is kept). A
+// boundary on an unsynchronized clock still closes - stopping the accounting would
+// lose more than a late boundary does - and the record says so.
+METHOD PRIVATE _M_CloseShift
+VAR_INPUT
+    Now          : DT;
+    Synchronized : BOOL;
+END_VAR
+VAR
+    i         : INT;
+    auditSlot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := PL_Fraktal.MAX_SHIFT_HISTORY TO 2 BY -1 DO
+    ShiftHistory[i] := ShiftHistory[i - 1];
+END_FOR
+IF ShiftHistoryCount >= PL_Fraktal.MAX_SHIFT_HISTORY THEN
+    ShiftHistoryTruncated := TRUE;
+ELSE
+    ShiftHistoryCount := ShiftHistoryCount + 1;
+END_IF
+ShiftHistory[1].ShiftIndex := CurrentShift;
+ShiftHistory[1].StartAt := ShiftStartedAt;
+ShiftHistory[1].EndAt := Now;
+ShiftHistory[1].TimeSynchronized := _shiftSync AND Synchronized;
+ShiftHistory[1].ManualReset := _shiftManualReset;
+ShiftHistory[1].GoodCount := GoodCount;
+ShiftHistory[1].NokCount := NokCount;
+ShiftHistory[1].ReworkCount := ReworkCount;
+ShiftHistory[1].RunMs := Oee.RunMs;
+ShiftHistory[1].DownMs := Oee.DownMs;
+ShiftHistory[1].IdleMs := Oee.IdleMs;
+ShiftHistory[1].Availability := Oee.Availability;
+ShiftHistory[1].AvailValid := Oee.AvailValid;
+ShiftHistory[1].Performance := Oee.Performance;
+ShiftHistory[1].PerfValid := Oee.PerfValid;
+ShiftHistory[1].Quality := Oee.Quality;
+ShiftHistory[1].QualValid := Oee.QualValid;
+ShiftHistory[1].Oee := Oee.Oee;
+ShiftHistory[1].OeeValid := Oee.OeeValid;
+GoodCount := 0;
+NokCount := 0;
+ReworkCount := 0;
+Oee.RunMs := 0;
+Oee.DownMs := 0;
+Oee.IdleMs := 0;
+_M_OeeCompute();
+auditSlot := AlarmLog.Raise(Reason := E_Reason.NONE, Text := 'std.audit.shiftClosed',
+    Source := _name, Severity := E_Severity.LOW, Category := E_Category.SYSTEM,
+    ResetClass := E_ResetClass.AUTO_RESET);
+IF auditSlot > 0 THEN
+    AlarmLog.Gone(Slot := auditSlot);    // come+gone: into the ring and the event sink
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="SaveConfigSet" Id="{8a4d1e07-63b9-4c25-90fd-e7285a1cb046}">
       <Declaration><![CDATA[// §3.8b — save the current parametrization as a named set.
 //
@@ -3095,6 +3219,7 @@ END_VAR]]></Declaration>
 _M_BeginSequenceScan();                               // §6.10 one-scan result reset for every attached chain
 _M_TickChildren();
 _M_OeeUpdate();                                       // §8.5.1 time accounting + sampling
+M_ShiftTick(Now := F_Now(), Synchronized := F_TimeSynchronized());   // §8.5.2
 AlarmLog.Cyclic();                                    // §8.10 shelf auto-expiry
 _M_EngineeringCyclic();                               // §7.5.2 standing gate annunciation
 _healthPublisher.Cyclic(Input := _healthInput, ParCfg := _healthParCfg,
@@ -3896,6 +4021,7 @@ END_FOR
 OeeTrendHead := 0;
 _oeeSampMs := 0;
 _M_OeeCompute();
+_shiftManualReset := TRUE;                  // §8.5.2(c): the shift record will say so
 auditSlot := AlarmLog.Raise(Reason := E_Reason.NONE,
     Text := 'std.audit.oeeReset', Source := _name,
     Severity := E_Severity.LOW, Category := E_Category.SYSTEM, ResetClass := E_ResetClass.AUTO_RESET);

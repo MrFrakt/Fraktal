@@ -4616,3 +4616,65 @@ run; `PRG_PressTestRunner` 8/8.
 
 **Not yet.** Nothing on the press is line data yet, and §8.5.2 (the shift calendar
 as the first line data, and per-shift records) is next.
+
+## 140. Shifts close themselves, on time, into a bounded history (Core §8.5.2, 2026-09-27)
+
+§8.5.1 said counters and OEE reset "typically at shift start" from a deployment's
+scheduler, so every deployment wrote one, the reset landed whenever it ran, and the
+figures of the shift that just ended were gone the moment it did. Core 0.10.0.0 ->
+**0.11.0.0**.
+
+**The calendar is line data** (§3.8e): `FB_LineData.Calendar : ST_ShiftCalendar`,
+registered identically on owner and mirror, so it is edited once and mirrored whole.
+It is deliberately five values - one start per shift (`-1` = unused, `MAX_SHIFTS` = 4)
+and one UTC offset - because a module registers at most `MAX_CONFIG_WRITES` (12)
+values and a calendar with used-flags and editable names would have taken 13, leaving
+the project nothing. A shift is named by its index, which the front end localizes, so
+no operator text lives in PLC values (LOCALIZATION §1). §8.5.2(a) now says exactly
+this. The synchronized clock (`F_Now`) is **UTC**, so the calendar carries the line's
+offset; daylight saving is set, never guessed.
+
+`M_CurrentShift(MinuteOfDay)` is the latest used start at or before the minute, and
+before the day's first start the day's last shift - a night shift wraps midnight, and
+the calendar has no gaps by construction. `M_MinuteOfDay(Now)` applies the offset,
+normalized for a negative one.
+
+**Every root that references a line closes its own shift.** `SetLine(pLine)` attaches
+it; `FB_UnitBase.OnCyclic` calls `M_ShiftTick(F_Now(), F_TimeSynchronized())` every
+scan beside the OEE accounting. On a boundary `_M_CloseShift` records the ending shift
+into `ShiftHistory[1..MAX_SHIFT_HISTORY]` (newest first, `Truncated` on overflow) with
+its counts, OEE buckets and factors exactly as they stood, then resets the per-shift
+counts and OEE accumulators (the trend ring is kept) - one operation in one scan -
+and audits it come+gone, so an `I_EventSink` receives every shift. A boundary on an
+unsynchronized clock still closes and the record says so; a `ResetOee` mid-shift marks
+that shift's record `ManualReset`. `M_ShiftTick` is public so a test drives the SAME
+code across a boundary with a synthetic time instead of waiting for one; a Unit with
+no line does no shift accounting at all.
+
+**Two tool defects found on the way.**
+
+* `plc_lint`'s reserved-word list lacked the date/time keywords. A local named `tod`
+  (`TIME_OF_DAY`'s short form) desynced the parser into 47 errors, none naming the
+  word. `tod`, `time_of_day`, `date`, `date_and_time` are now reserved in the lint.
+* `test_ld_rung_gen` regenerates press AUTO `N999` from a declaration and compares it
+  node for node with the file; the declaration still carried the inverted
+  `M_CountGood` enable fixed in §137, so two tool tests had failed since that commit
+  (the hook runs them only when a tool changes). The declaration now matches the
+  corrected rung - and reproduces the hand-grafted node flag for flag.
+* The TcUnit result harvest raced TcUnit itself: `AllTestSuitesFinished` rises before
+  the results table is collected, collection spans several cycles, and the gate then
+  stopped the PLC - so with 186 tests the harvest read 0/0 and so did every re-read.
+  `Read-TcUnitResults.ps1` (which the gate calls) now waits for the table on the same
+  deadline. This run's results were recovered by letting the stopped test application
+  run 15 s more before reading; the application was not re-downloaded.
+
+**Tests.** `FB_Shift_Tests` (6): the calendar and its midnight wrap and offsets; a
+boundary closes the shift with its figures and restarts the counts; an unsynchronized
+boundary is recorded as such; a manual reset marks one shift only; the history is
+bounded and newest first; no line, no accounting.
+
+Runtime (local UmRT): `PRG_TcUnitRunner` **186/186** across 42 suites and
+`PRG_PressTestRunner` 8/8, both validated by `tcunit_to_junit.py`.
+
+**Not yet.** No HMI renders the current shift or `ShiftHistory`, edits the calendar,
+or groups line data; that is the HMI phase.
