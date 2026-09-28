@@ -22,6 +22,7 @@ ModuleTabCapabilities moduleTabCapabilities(ModuleNode node) {
   bool hasKey(String suffix) => keys.any((key) => key.endsWith(suffix));
   return ModuleTabCapabilities(
     unit: node.isUnit,
+    configuration: node.config.isNotEmpty,
     // The PLC owns this one: SequenceViewEnabled is published per module,
     // so a type too simple to draw suppresses its own tab (§3.13).
     // Keyed on the COUNT, not the rows: the rows are an on-demand subtree read

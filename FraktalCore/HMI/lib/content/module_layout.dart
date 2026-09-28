@@ -51,6 +51,8 @@ enum ModuleTabKind {
   rfid,
   custom,
   guidance,
+  // Appended: kinds persist by name, and new ones go last regardless.
+  configuration,
 }
 
 enum ModuleControlKind {
@@ -126,6 +128,9 @@ class ModuleTabCapabilities {
   final bool codeReader;
   final bool rfid;
 
+  /// The module publishes editable configuration (Core §3.10.2 capabilities).
+  final bool configuration;
+
   const ModuleTabCapabilities({
     this.unit = false,
     this.sequence = false,
@@ -133,6 +138,7 @@ class ModuleTabCapabilities {
     this.vision = false,
     this.codeReader = false,
     this.rfid = false,
+    this.configuration = false,
   });
 }
 
@@ -486,6 +492,7 @@ class ModuleTabDefinition {
         ModuleTabKind.rfid => ModuleTabIcon.contactless,
         ModuleTabKind.custom => ModuleTabIcon.widgets,
         ModuleTabKind.guidance => ModuleTabIcon.guidance,
+        ModuleTabKind.configuration => ModuleTabIcon.tune,
       };
 
   bool get builtIn => const {
@@ -496,6 +503,7 @@ class ModuleTabDefinition {
         'code-reader',
         'rfid',
         'operator-guidance',
+        'configuration',
       }.contains(id);
 
   /// Whether this guidance tab should auto-open for the given live step.
@@ -650,6 +658,14 @@ class ModuleTabDefinition {
         title: 'std.module.tab.description',
         kind: ModuleTabKind.description,
       ),
+      // Its own tab rather than a card under Overview: configuration is
+      // edited deliberately, not scrolled past. Only for a module that has any.
+      if (capabilities.configuration)
+        const ModuleTabDefinition(
+          id: 'configuration',
+          title: 'std.module.tab.configuration',
+          kind: ModuleTabKind.configuration,
+        ),
       if (capabilities.sequence)
         const ModuleTabDefinition(
           id: 'sequence',

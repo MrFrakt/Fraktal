@@ -78,6 +78,21 @@ void main() {
     expect(controller.documentsFor('StationA'), isEmpty);
   });
 
+  test('configuration is its own built-in tab, only for a module that has any',
+      () {
+    final tabs = ModuleTabDefinition.defaults(
+        const ModuleTabCapabilities(unit: true, configuration: true));
+    expect(tabs.map((tab) => tab.id).take(3),
+        ['overview', 'description', 'configuration']);
+    final config = tabs.firstWhere((tab) => tab.id == 'configuration');
+    expect(config.kind, ModuleTabKind.configuration);
+    expect(config.builtIn, isTrue, reason: 'a built-in tab cannot be deleted');
+    expect(
+        ModuleTabDefinition.defaults(const ModuleTabCapabilities(unit: true))
+            .any((tab) => tab.kind == ModuleTabKind.configuration),
+        isFalse);
+  });
+
   test('module tabs include capability defaults and persist admin layout',
       () async {
     final store = MemoryContentStore();

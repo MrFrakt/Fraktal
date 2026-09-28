@@ -276,12 +276,12 @@ class _ModuleDetailState extends State<ModuleDetail> {
               ModuleDocumentsCard(app: app, node: node),
             ],
           ),
-        ModuleTabKind.sequence =>
-          SequenceModuleTab(app: app, node: node),
+        ModuleTabKind.sequence => SequenceModuleTab(app: app, node: node),
         ModuleTabKind.motion => MotionModuleTab(node: node),
         ModuleTabKind.vision => VisionModuleTab(app: app, node: node),
         ModuleTabKind.codeReader => CodeReaderModuleTab(app: app, node: node),
         ModuleTabKind.rfid => RfidModuleTab(app: app, node: node),
+        ModuleTabKind.configuration => _ConfigurationTab(app: app, node: node),
         ModuleTabKind.custom || ModuleTabKind.guidance => CustomModuleTabView(
             app: app,
             node: node,
@@ -726,6 +726,34 @@ Alignment _backgroundAlignment(ModuleBackgroundPosition position) =>
       ModuleBackgroundPosition.bottomRight => Alignment.bottomRight,
     };
 
+/// The Configuration tab. The HMI's per-module section policy still decides
+/// who may see it (Configuration defaults to ENGINEER, LOCALIZATION §5); below
+/// that level the tab says what it needs instead of rendering empty.
+class _ConfigurationTab extends StatelessWidget {
+  final AppState app;
+  final ModuleNode node;
+  const _ConfigurationTab({required this.app, required this.node});
+
+  @override
+  Widget build(BuildContext context) {
+    final level = app.session.level;
+    final permitted =
+        app.content.permits(node.path, ModuleSection.configuration, level);
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      if (permitted)
+        ConfigEditor(app: app, node: node)
+      else
+        FraktalCard(
+          child: ListTile(
+            leading: const Icon(Icons.lock_outline),
+            title: Text('${context.tr('Requires')} '
+                '${context.tr('std.access.${app.content.requiredLevel(node.path, ModuleSection.configuration).name}')}'),
+          ),
+        ),
+    ]);
+  }
+}
+
 class _ModuleOverviewTab extends StatelessWidget {
   final AppState app;
   final ModuleTabBackground? background;
@@ -740,8 +768,6 @@ class _ModuleOverviewTab extends StatelessWidget {
         app.content.permits(n.path, ModuleSection.operations, s.level);
     final diagnostics =
         app.content.permits(n.path, ModuleSection.diagnostics, s.level);
-    final configuration =
-        app.content.permits(n.path, ModuleSection.configuration, s.level);
     final history = app.content.permits(n.path, ModuleSection.history, s.level);
     final content = ListView(padding: const EdgeInsets.all(16), children: [
       if (diagnostics && n.message.isNotEmpty)
@@ -871,7 +897,6 @@ class _ModuleOverviewTab extends StatelessWidget {
             CommandTimingView(
                 moduleName: child.name, rows: child.commandTimings),
       ],
-      if (configuration) ConfigEditor(app: app, node: n),
       if (diagnostics) const SizedBox(height: 8),
       if (diagnostics)
         LText('Active events', style: Theme.of(context).textTheme.titleMedium),
@@ -934,48 +959,50 @@ class _ModuleOverviewTab extends StatelessWidget {
         context,
         cardFill,
         Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.pan_tool_outlined, color: kOperatorActionColor),
-            const SizedBox(width: 8),
-            LText('Manual commands',
-                style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
-            // Each chip paints its own fill inside the tinted card, so each
-            // pairs its own foreground rather than inheriting the card's.
-            if (!inManual)
-              _pairedChip(context, null, 'Unit not in MANUAL')
-            else if (!canManual)
-              _pairedChip(context, Icons.lock_outline, 'MANUAL access'),
+          padding: const EdgeInsets.all(12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.pan_tool_outlined, color: kOperatorActionColor),
+              const SizedBox(width: 8),
+              LText('Manual commands',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const Spacer(),
+              // Each chip paints its own fill inside the tinted card, so each
+              // pairs its own foreground rather than inheriting the card's.
+              if (!inManual)
+                _pairedChip(context, null, 'Unit not in MANUAL')
+              else if (!canManual)
+                _pairedChip(context, Icons.lock_outline, 'MANUAL access'),
+            ]),
+            const SizedBox(height: 4),
+            LText(
+                'Routed through the module — interlocks still apply (§7.6.1).',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final c in n.commands)
+                // §7.6.1a - a HELD command is hold-to-run, not a click: the control
+                // refreshes the request while it is down and releases it on lift,
+                // cancel, dispose - anything that ends the asking stops the motion.
+                if (c.style == CommandStyle.held)
+                  _HeldManualButton(app: app, node: n.path, command: c)
+                else
+                  FilledButton.tonal(
+                    style: enabled
+                        ? FilledButton.styleFrom(
+                            backgroundColor: kOperatorActionColor,
+                            foregroundColor: Colors.white)
+                        : null,
+                    // §7.6.0: a blocked manual button reveals WHY instead of being inert
+                    onPressed: enabled
+                        ? () => _manual(context, n, c)
+                        : () => app.showReleaseReportManual(
+                            app.rootOf(n.path)?.path ?? '', n.path, c.value),
+                    child: LText(c.label),
+                  ),
+            ]),
           ]),
-          const SizedBox(height: 4),
-          LText('Routed through the module — interlocks still apply (§7.6.1).',
-              style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final c in n.commands)
-              // §7.6.1a - a HELD command is hold-to-run, not a click: the control
-              // refreshes the request while it is down and releases it on lift,
-              // cancel, dispose - anything that ends the asking stops the motion.
-              if (c.style == CommandStyle.held)
-                _HeldManualButton(app: app, node: n.path, command: c)
-              else
-                FilledButton.tonal(
-                  style: enabled
-                      ? FilledButton.styleFrom(
-                          backgroundColor: kOperatorActionColor,
-                          foregroundColor: Colors.white)
-                      : null,
-                  // §7.6.0: a blocked manual button reveals WHY instead of being inert
-                  onPressed: enabled
-                      ? () => _manual(context, n, c)
-                      : () => app.showReleaseReportManual(
-                          app.rootOf(n.path)?.path ?? '', n.path, c.value),
-                  child: LText(c.label),
-                ),
-          ]),
-        ]),
         ),
       ),
     );
@@ -1179,7 +1206,9 @@ Widget _stateFlags(BuildContext context, List<StateFlag> flags) {
             // showing a confident "off" would be a claim nobody is making.
             f.stale
                 ? Icons.help_outline
-                : (f.value ? Icons.check_circle_outline : Icons.circle_outlined),
+                : (f.value
+                    ? Icons.check_circle_outline
+                    : Icons.circle_outlined),
             size: 18,
             color: f.stale
                 ? scheme.onSurfaceVariant
@@ -1317,16 +1346,15 @@ class _HeldManualButtonState extends State<_HeldManualButton> {
       onPointerCancel: (_) => _stop(),
       child: FilledButton.tonal(
         style: FilledButton.styleFrom(
-          backgroundColor:
-              _down ? kOperatorActionColor : null,
+          backgroundColor: _down ? kOperatorActionColor : null,
           foregroundColor: _down ? Colors.white : null,
         ),
         onPressed: () {
           // Keyboard/assistive-tech activation has no "hold" semantics. For a
           // hold-to-run control, a click must NOT latch motion it cannot later
           // release through the same gesture - so it explains instead.
-          widget.app.showReleaseReportManual(_root, widget.node,
-              widget.command.value);
+          widget.app.showReleaseReportManual(
+              _root, widget.node, widget.command.value);
         },
         child: LText(widget.command.label),
       ),
