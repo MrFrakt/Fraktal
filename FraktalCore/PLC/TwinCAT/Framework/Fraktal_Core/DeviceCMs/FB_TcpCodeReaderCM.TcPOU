@@ -79,8 +79,7 @@ Port := ParCfg.Port;
 Terminator := ParCfg.Terminator;
 RespTimeout := ParCfg.RespTimeout;
 OutImm.LinkState := LinkState;
-OutImm.LastResponse := LastResponse;
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
+OutImm.LastResponse := LastResponse;]]></ST></Implementation>
     </Method>
     <Method Name="_M_OnResponse" Id="{d056d2a4-372d-461e-bca1-c988638cac87}">
       <Declaration><![CDATA[// generic read parse: NoReadText or the decoded symbol; optional match verify.
@@ -101,11 +100,6 @@ ELSE
 END_IF
 _done := TRUE;]]></ST>
       </Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{3bcc626a-69d1-4efd-9b58-8e2d055bd98a}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation><ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

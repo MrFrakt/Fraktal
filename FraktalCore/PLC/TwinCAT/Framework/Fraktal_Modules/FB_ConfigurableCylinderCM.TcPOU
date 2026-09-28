@@ -177,7 +177,6 @@ ELSIF OutImm.AtHome THEN OutImm.Position := E_CylinderPosition.HOME;
 ELSIF OutImm.AtWork THEN OutImm.Position := E_CylinderPosition.WORK;
 ELSIF (ParCfg.HomeSensorCount > 0) OR (ParCfg.WorkSensorCount > 0) THEN OutImm.Position := E_CylinderPosition.MID;
 END_IF
-OutImm.Diagnostic := Status.Diagnostic;
 
 // both-positions-active plausibility while idle
 IF (_exec = E_ExecState.READY) AND OutImm.AtHome AND OutImm.AtWork THEN
@@ -318,10 +317,5 @@ END_VAR]]></Declaration>
         </Implementation>
       </Get>
     </Property>
-    <Method Name="_M_PublishStatus" Id="{84fb4c12-3755-42a1-8592-089482f37f93}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation><ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
-    </Method>
   </POU>
 </TcPlcObject>

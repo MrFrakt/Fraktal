@@ -577,6 +577,28 @@ Reason : DINT; END_STRUCT END_TYPE]]></Declaration></DUT></TcPlcObject>''')
             "Status.Text := CONCAT(Status.line, name);"))
         self.assertNotIn("C9", self._file_rules(short))
 
+    def test_d2_rejects_a_second_published_diagnostic(self):
+        '''The copy every module type used to write (audit P15).'''
+        root = self._root()
+        copy = self._write(root, "Framework/Fraktal_Modules/FB_Copy.TcPOU", _pou(
+            "FB_Copy", "FUNCTION_BLOCK FB_Copy",
+            "OutImm.Diagnostic := Status.Diagnostic;"))
+        self.assertIn("D2", self._file_rules(copy))
+        member = self._write(root, "Framework/Fraktal_Modules/ST_CopyOutImm.TcDUT",
+            '<?xml version="1.0" encoding="utf-8"?>\n<TcPlcObject><DUT Name="ST_CopyOutImm" '
+            'Id="{40000000-0000-0000-0000-000000000001}"><Declaration><![CDATA['
+            'TYPE ST_CopyOutImm :\nSTRUCT\n    Ready : BOOL;\n    Diagnostic : ST_Diagnostic;\n'
+            'END_STRUCT\nEND_TYPE]]></Declaration></DUT></TcPlcObject>')
+        self.assertIn("D2", self._file_rules(member))
+
+    def test_d2_leaves_status_and_domain_diagnostics_alone(self):
+        root = self._root()
+        fine = self._write(root, "Framework/Fraktal_Modules/FB_Fine.TcPOU", _pou(
+            "FB_Fine", "FUNCTION_BLOCK FB_Fine",
+            "Status.Diagnostic := d;\nOutImm.Status.Diagnostic := Status.Diagnostic;"
+            "  // OutImm.Diagnostic := x in a comment"))
+        self.assertNotIn("D2", self._file_rules(fine))
+
     def test_c8_catches_the_sim_hook_that_actually_shipped(self):
         '''Two cylinder CMs carried a SimForceInterlock whose only guard was a
         comment telling a future reader to add one, so a release build shipped a

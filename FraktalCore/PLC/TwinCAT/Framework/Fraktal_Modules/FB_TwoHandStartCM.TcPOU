@@ -60,7 +60,6 @@ ELSE
     _safeRise(CLK := FALSE);
 END_IF
 OutImm.Armed := _armed;
-OutImm.Diagnostic := Status.Diagnostic;
 Safety.Present := TRUE;
 Safety.AllSafe := OutImm.FieldbusHealthy;
 Safety.DemandActive := OutImm.LeftPressed OR OutImm.RightPressed;
@@ -78,11 +77,6 @@ Safety.Devices[1].Description := 'std.safety.twoHandControl';]]></ST></Implement
     <Method Name="_M_Dispatch" Id="{a4a57d61-cc20-4816-af9d-afbbcb21759a}">
       <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
       <Implementation><ST><![CDATA[_M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.twoHandHasNoCommand');]]></ST></Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{b8f27c16-e1de-48ba-800b-755e22469593}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation><ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

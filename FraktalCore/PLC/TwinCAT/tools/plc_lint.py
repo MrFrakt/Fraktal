@@ -27,6 +27,10 @@ Rules
   C4  Unique GUIDs within a file (a duplicated Id silently shadows an object).
   D1  Shipping concrete modules declare the four physical contract members;
         every `ST_*ParCfg` record starts with `SchemaVersion : UINT`.
+  D2  A module's diagnostic is published once, as `Status.Diagnostic` (Core
+        §6.9(a)): no `ST_*OutImm` declares a `Diagnostic` member and no code
+        writes `OutImm.Diagnostic`. A copy streams the same fact twice and is
+        glue every type must remember (§1.1 O1/O4/O9).
   E1  PLC enum ordinals/names match the generic HMI Dart transport enums.
   H1  Concrete module bodies contain only inherited `Cyclic();`; lifecycle-hook
         overrides call `SUPER^` first (except staged `OnModeExit`).
@@ -387,6 +391,28 @@ def lint_file(path: Path, legacy_4024: bool = False) -> list[Finding]:
                     f"{{IF defined (SIM_HOOKS)}} (§5.7)"))
 
     findings.extend(_wide_string_calls(path, text))
+    findings.extend(_outimm_diagnostic(path, text))
+    return findings
+
+
+def _outimm_diagnostic(path: Path, text: str) -> list[Finding]:
+    """D2: the module diagnostic lives in Status only."""
+    findings: list[Finding] = []
+    if path.suffix == ".TcDUT" and re.search(r"<DUT Name=\"ST_\w*OutImm\"", text):
+        member = re.search(r"^\s*Diagnostic\s*:\s*ST_Diagnostic\b", _without_comments(text), re.M)
+        if member:
+            findings.append(Finding(
+                path, _line_of(text, text.find("Diagnostic", member.start())), "D2",
+                "an OutImm declares a Diagnostic member; the module diagnostic is "
+                "Status.Diagnostic, published once by the base (Core §6.9(a))"))
+    elif path.suffix == ".TcPOU":
+        code = _without_comments(text)
+        write = re.search(r"(?<![.\w])OutImm\.Diagnostic\s*:=", code)
+        if write:
+            findings.append(Finding(
+                path, _line_of(text, text.find("OutImm.Diagnostic")), "D2",
+                "OutImm.Diagnostic is written; read Status.Diagnostic instead - "
+                "the base publishes it once (Core §6.9(a))"))
     return findings
 
 

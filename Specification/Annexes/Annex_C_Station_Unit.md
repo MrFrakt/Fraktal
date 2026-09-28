@@ -147,7 +147,7 @@ IF _exec = E_ExecState.BUSY THEN
     _M_StallWalk();         // §6.9
 END_IF
 
-ErrorID := TO_DWORD(OutImm.Diagnostic.ReasonCode);
+ErrorID := TO_DWORD(Status.Diagnostic.ReasonCode);
 ```
 
 The AUTO mode sequence is a continuous step chain — it loops until Stop (§6.2). Each step commands a child through the **same PLCopen handshake** used everywhere (Annexes A/B), advances on `Done`, and adopts a child `Error` via rollup:
@@ -273,7 +273,7 @@ VAR_INPUT n : INT; label : STRING(60); ok : BOOL; END_VAR
 ```iecst
 METHOD PRIVATE _M_AdoptChild
 VAR_INPUT child : I_Module; END_VAR
-    OutImm.Diagnostic := child.GetFaultSummary();   // child reason + child SourcePath
+    Status.Diagnostic := child.GetFaultSummary();   // child reason + child SourcePath
     _M_HoldAll();                                   // stop the other children safely
     _exec := E_ExecState.ERROR;
 ```
@@ -290,10 +290,10 @@ VAR  diag : ST_Diagnostic;  i : INT; END_VAR
         IF (_awaiting <> 0) AND _awaiting.FaultActive THEN
             diag := _awaiting.GetFaultSummary();                       // walk into the child
             OutImm.StallReason := CONCAT4(OutImm.StallReason, ' → ', diag.SourcePath, CONCAT(': ', diag.Description));
-            OutImm.Diagnostic  := diag;                                // adopt the child's first-out
+            Status.Diagnostic  := diag;                                // adopt the child's first-out
         ELSE
-            OutImm.Diagnostic.ReasonCode  := E_Reason.STEP_STALLED;
-            OutImm.Diagnostic.SourcePath  := _name;
+            Status.Diagnostic.ReasonCode  := E_Reason.STEP_STALLED;
+            Status.Diagnostic.SourcePath  := _name;
             FOR i := 1 TO 4 DO             // §6.9(b): name the first FALSE registered condition
                 IF _curStep.Conds[i].Label <> '' AND NOT _curStep.Conds[i].Ok THEN
                     OutImm.StallReason := CONCAT3(OutImm.StallReason,
@@ -301,7 +301,7 @@ VAR  diag : ST_Diagnostic;  i : INT; END_VAR
                     EXIT;
                 END_IF
             END_FOR
-            OutImm.Diagnostic.Description := OutImm.StallReason;
+            Status.Diagnostic.Description := OutImm.StallReason;
         END_IF
     END_IF
 ```

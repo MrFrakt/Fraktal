@@ -291,5 +291,5 @@ The owner decided P8 (**hold**) and P3 (**remove the Unit entirely**).
 
 | # | Finding | Needs |
 |---|---|---|
-| P15 | Every library module publishes `OutImm.Diagnostic := Status.Diagnostic` (23 types). The same diagnostic therefore streams twice per module in the HMI's live tier (O4, O9). Core §6.9 names `OutImm.Diagnostic`, and §3.10 publishes `Status`. | A Core decision: which of the two is *the* published diagnostic. The other then becomes a derived read in the HMI, or is dropped at a major version. |
+| P15 | ✅ **Closed:** `Status.Diagnostic` is the one published diagnostic (O9 one source, O1 no per-type copy, O4 half the live reads, O2/O8 the structure every binding already reads). Removed from 13 `OutImm` structs and 13 types; Core §6.1/§6.9 and Annexes A/B/C/H updated; lint rule D2 enforces it (IMPLEMENTATION_NOTES §148, Core 0.18.0.0 / Modules 0.10.0.0). | — |
 | — | The runtime TcUnit gates (Core/Modules 189 / 42, PressTests 9 / 2) cover everything above but have not run. They need the owner at XAE. | The owner |

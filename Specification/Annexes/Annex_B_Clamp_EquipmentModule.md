@@ -64,7 +64,7 @@ VAR_INPUT Name : STRING(80); HalRef : REFERENCE TO ST_CylinderHal; Recipe : I_Re
     // recipe wiring as Annex A …
 ```
 
-Behaviour (body as Annex A): `EXTEND` drives `ExtendOut`, waits `ExtendedFb` within `ParCfg.MoveTimeout` → `_M_Complete()`, else `_M_FaultStopped(Code := PL_ModuleReasons.CYL_NOT_EXTENDED, Text := 'std.error.cylinderNotExtended')`; `RETRACT` is the mirror. `OutImm.Diagnostic.SourcePath` is the cylinder's own browse path (e.g. `ClampStation.CylA`).
+Behaviour (body as Annex A): `EXTEND` drives `ExtendOut`, waits `ExtendedFb` within `ParCfg.MoveTimeout` → `_M_Complete()`, else `_M_FaultStopped(Code := PL_ModuleReasons.CYL_NOT_EXTENDED, Text := 'std.error.cylinderNotExtended')`; `RETRACT` is the mirror. `Status.Diagnostic.SourcePath` is the cylinder's own browse path (e.g. `ClampStation.CylA`).
 
 ---
 
@@ -130,7 +130,6 @@ VAR_INPUT Name : STRING(80); HalA, HalB : REFERENCE TO ST_CylinderHal; Recipe : 
 METHOD PROTECTED OnCyclic
 OnCyclic := SUPER^.OnCyclic();
 _M_TickChildren();                       // children stay live, so their status is always current
-OutImm.Diagnostic := Status.Diagnostic;
 ```
 
 
@@ -200,7 +199,7 @@ ClampStation step 20  ──awaits──▶  CylB.Done
 CylB  ──Error──▶  ReasonCode = CYL_NOT_EXTENDED, SourcePath = "ClampStation.CylB"
 ```
 
-The EM's `OutImm.Diagnostic` becomes exactly `{ CYL_NOT_EXTENDED, "ClampStation.CylB", "Cylinder did not reach extended" }`, the Unit's stall walk (§6.9) reads it through the EM's `GetFaultSummary`, and the operator sees **"ClampStation.CylB: cylinder did not reach extended"** — a precise, device-naming root cause produced with no hand-coded conditions at the EM or Unit level, just the standard rollup.
+The EM's `Status.Diagnostic` becomes exactly `{ CYL_NOT_EXTENDED, "ClampStation.CylB", "Cylinder did not reach extended" }`, the Unit's stall walk (§6.9) reads it through the EM's `GetFaultSummary`, and the operator sees **"ClampStation.CylB: cylinder did not reach extended"** — a precise, device-naming root cause produced with no hand-coded conditions at the EM or Unit level, just the standard rollup.
 
 ---
 
@@ -227,7 +226,7 @@ IF ClampStation.Done THEN
     ClampStation.Execute := FALSE;     // Done advances the chain (§6.5)
 END_IF
 IF ClampStation.Error THEN
-    // divert; reason already rolled up in ClampStation.ErrorID / .OutImm.Diagnostic
+    // divert; reason already rolled up in ClampStation.ErrorID / .Status.Diagnostic
 END_IF
 ```
 

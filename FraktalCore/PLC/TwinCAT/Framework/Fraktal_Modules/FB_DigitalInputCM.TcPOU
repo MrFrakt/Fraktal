@@ -48,18 +48,12 @@ ELSE
     OutImm.Value := FALSE;
     OutImm.Quality := FALSE;
 END_IF
-OutImm.IoTag := _identity.Tag;
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
+OutImm.IoTag := _identity.Tag;]]></ST></Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{e15aca44-e2b0-4382-a45f-cbbefbe8d5a2}">
       <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
       <Implementation><ST><![CDATA[_M_Fault(E_Reason.UNSUPPORTED_COMMAND,
     'std.error.passiveInputHasNoCommand');]]></ST></Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{ec384437-4c0b-4098-b960-6f8ef7a4915b}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation><ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

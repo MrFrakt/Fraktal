@@ -75,11 +75,11 @@ TEST('Extend_faults_first_out_when_feedback_withheld');
         AssertTrue(Condition := _cm.Error, Message := 'Error expected after MoveTimeout');
         AssertEquals_DINT(
             Expected := E_Reason.CYL_NOT_EXTENDED,
-            Actual   := _cm.OutImm.Diagnostic.ReasonCode,
+            Actual   := _cm.Status.Diagnostic.ReasonCode,
             Message  := 'first-out reason must be CYL_NOT_EXTENDED');
         AssertEquals_STRING(
             Expected := 'Test.Cyl',
-            Actual   := _cm.OutImm.Diagnostic.SourcePath,
+            Actual   := _cm.Status.Diagnostic.SourcePath,
             Message  := 'reason must name the source path');
         _t(IN := FALSE);  TEST_FINISHED();
     END_IF
@@ -99,7 +99,7 @@ TEST('Extend_blocked_when_permissive_dropped');
     AssertEquals_BOOL(Expected := FALSE, Actual := _hal.ExtendOut,
                       Message := 'output must not energize while interlocked');
     AssertEquals_DINT(Expected := E_Reason.INTERLOCK_DROPPED,
-                      Actual := _cm.OutImm.Diagnostic.ReasonCode,
+                      Actual := _cm.Status.Diagnostic.ReasonCode,
                       Message := 'interlock reason expected');
     TEST_FINISHED();
 ```
@@ -125,10 +125,10 @@ TEST('Clamp_rolls_up_CylB_first_out');
     IF _t.Q THEN
         AssertTrue(Condition := _em.Error, Message := 'EM should fault');
         AssertEquals_DINT(Expected := E_Reason.CYL_NOT_EXTENDED,
-                          Actual := _em.OutImm.Diagnostic.ReasonCode,
+                          Actual := _em.Status.Diagnostic.ReasonCode,
                           Message := 'EM adopts child first-out');
         AssertEquals_STRING(Expected := 'ClampStation.CylB',
-                          Actual := _em.OutImm.Diagnostic.SourcePath,
+                          Actual := _em.Status.Diagnostic.SourcePath,
                           Message := 'rollup must name CylB');
         _t(IN := FALSE);  TEST_FINISHED();
     END_IF

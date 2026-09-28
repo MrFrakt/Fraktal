@@ -336,7 +336,7 @@ Station ▸ Infeed ▸ Separator1
 
 When a `SEPARATE` stalls — say a carrier never clears `SAt` — the Detail view
 shows *"Separator1: Carrier did not clear separator"* directly from
-`OutImm.Diagnostic`, and on timeout the same text becomes the `Error` with
+`Status.Diagnostic`, and on timeout the same text becomes the `Error` with
 `ErrorID = 10002`. That is the §6.9 walk landing on the operator's screen with no
 per-step diagnostic code.
 

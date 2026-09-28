@@ -4892,3 +4892,28 @@ while linked; and nothing serviced it except a caller remembering to (§3.15.3).
 
 The connector tests now run across scans, because `Linked` comes up only after the first
 answered heartbeat. The suite count is unchanged.
+
+## 148. One published diagnostic per module (Core 0.18.0.0, Modules 0.10.0.0, 2026-09-28)
+
+Audit P15. Every library module published its first-out twice: the base's
+`Status.Diagnostic`, and a copy in its own `OutImm.Diagnostic`, written by hand in each
+type's cyclic hook and usually in a `_M_PublishStatus` override that existed for nothing
+else. The HMI streamed both in its live tier. Core §6.1/§6.9 named the `OutImm` one, but
+nothing read it: the HMI binds `Status.Diagnostic` (HMI_CONTRACT), the Allen-Bradley
+projection publishes only `Status/Diagnostic`, and the stall walk uses `GetFaultSummary`.
+
+**`Status.Diagnostic` is the one**, on the objectives:
+- **O9, one source.** The base computes it once. The `OutImm` field could only ever be a copy.
+- **O1.** A copy every type must remember to write is the per-type glue O1 forbids. Making
+  `OutImm` authoritative instead would have put that duty on every type.
+- **O4.** Each module's diagnostic streamed twice in the HMI's live tier.
+- **O2/O8.** `Status` is the structure every module has on every binding, which is why
+  the generic HMI and the AB projection already read it and nothing else.
+
+`OutImm` keeps only the type's derived facts (§3.12). The `Diagnostic` member left 13
+`ST_*OutImm` structs (two Core, ten Modules, the press), the copies left 13 types, and 11
+`_M_PublishStatus` overrides went with them. The domain status records
+(`ST_ControlPowerStatus`, `ST_PowerGroupStatus`) keep theirs: they are not module
+`OutImm`s, and the HMI's control-power card reads them. Core §6.1/§6.9 and Annexes A, B,
+C and H now name `Status.Diagnostic`. The new lint rule **D2** rejects a `Diagnostic`
+member in an `OutImm` and any write to `OutImm.Diagnostic`.

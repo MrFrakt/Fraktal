@@ -102,18 +102,12 @@ ELSE
     OutImm.PressureOk := FALSE;
 END_IF
 OutImm.LowSensorTag := _lowIdentity.Tag;
-OutImm.OperatingSensorTag := _operatingIdentity.Tag;
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
+OutImm.OperatingSensorTag := _operatingIdentity.Tag;]]></ST></Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{c1ed801c-d79c-4e7d-be30-b7129ae3fb84}">
       <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
       <Implementation><ST><![CDATA[_M_Fault(E_Reason.UNSUPPORTED_COMMAND,
     'std.error.passiveInputHasNoCommand');]]></ST></Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{fc69255d-7bf9-4132-964d-3ecb5983d52f}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation><ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

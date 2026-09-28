@@ -57,8 +57,7 @@ END_IF
 OutImm.ExtendedSensorTag := _extendedSensorTag;
 OutImm.RetractedSensorTag := _retractedSensorTag;
 OutImm.ExtendOutputTag := _extendOutputTag;
-OutImm.RetractOutputTag := _retractOutputTag;
-OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+OutImm.RetractOutputTag := _retractOutputTag;]]></ST>
       </Implementation>
     </Method>
     <Method Name="ConfigureIoIdentity" Id="{da966427-aa84-430d-aaaf-6b2d28cf8331}">
@@ -372,11 +371,6 @@ IF NOT permitted AND (Report.Count < PL_Fraktal.MAX_RELEASE_REASONS) THEN
     Report.Reasons[Report.Count].Bypassable := FALSE;
 END_IF
 AppendDirectionalRelease := Report.Count;]]></ST></Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{014aa002-cf47-48a0-96b5-ed59efddfa57}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation><ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

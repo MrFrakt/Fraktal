@@ -27,8 +27,7 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
-_M_TickChildren();                       // children stay live (Annex B §B.3)
-OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+_M_TickChildren();                       // children stay live (Annex B §B.3)]]></ST>
       </Implementation>
     </Method>
     <Method Name="PrepareRecipe" Id="{b4844a4b-c4f2-4b09-b72d-51418c93c60a}">
@@ -163,11 +162,6 @@ ELSE
     _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');
 END_CASE]]></ST>
       </Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{04c61bbc-5009-427c-b5e2-ff210893db72}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation><ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

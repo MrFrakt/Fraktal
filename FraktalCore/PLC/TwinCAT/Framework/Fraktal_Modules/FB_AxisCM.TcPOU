@@ -93,8 +93,7 @@ END_IF
 _M_JogCyclic();
 OutImm.TaughtPosition := _station.TaughtPosition;
 OutImm.Homed := _homed;
-OutCmd.Homed := _homed;
-OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+OutCmd.Homed := _homed;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_ApplyConditions" Id="{7c42158c-5f9f-4b6d-9d24-a2ceb651080e}">
@@ -416,13 +415,6 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[WithdrawOutputs();
 _M_FaultN(Code := Code, Text := Text);]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{e9a88f13-6d14-431a-a265-e23cd64cdaeb}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{fd1c6a2e-126f-4404-a707-69fd01270561}">

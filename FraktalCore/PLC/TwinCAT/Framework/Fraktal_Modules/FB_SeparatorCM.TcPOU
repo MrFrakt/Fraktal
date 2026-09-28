@@ -57,8 +57,7 @@ IF __ISVALIDREF(_hal) THEN              // defensive (S5.6) [TC3]
     OutImm.OpenedFb     := _hal.OpenedFb;
     OutImm.ValveOpen    := _hal.ValveOpen;
     OutCmd.SeparatorOpen := _hal.ValveOpen;
-END_IF
-OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_ApplyConditions" Id="{4ad83617-1b28-47c3-bbdb-0ab8ed8780ce}">
@@ -188,13 +187,6 @@ _recipePrepared := FALSE;]]></ST>
       <Declaration><![CDATA[METHOD AbortRecipe]]></Declaration>
       <Implementation>
         <ST><![CDATA[_recipePrepared := FALSE;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_M_PublishStatus" Id="{90616d00-44cf-49ba-b498-280a98da32e9}">
-      <Declaration><![CDATA[METHOD PROTECTED _M_PublishStatus]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[SUPER^._M_PublishStatus();
-OutImm.Diagnostic := Status.Diagnostic;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{e8fe0d9d-b5ad-428d-9791-600654748b0f}">
