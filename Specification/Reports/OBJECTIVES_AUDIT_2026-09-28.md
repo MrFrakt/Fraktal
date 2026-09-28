@@ -76,6 +76,8 @@ Status: ✅ met · 🟡 gap or unverified claim · 🔴 contradicted.
 ## 5. Open gaps — plans and options
 
 **G1 — An exported parameter-set line can exceed what import accepts (O5, O10).**
+*Update, same day:* option B is implemented in Core 0.13.0.0 (IMPLEMENTATION_NOTES §142).
+It is compiled; the runtime run is part of G2.
 `ConfigSetDocument` renders lines of up to 480 characters, but `ST_HmiRequest.TextValue`
 is `STRING(255)`. An export that holds a long record therefore cannot come back through
 the HMI. The HMI refuses it by name and does not truncate it, but the round trip is

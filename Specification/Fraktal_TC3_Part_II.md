@@ -225,7 +225,14 @@ parser in the PLC would reintroduce both. A line is emitted or refused, never
 truncated. `EXPORT_CONFIG_SET` serves one line per mailbox request and
 `IMPORT_CONFIG_SET` takes one back into the store — import writes to the store,
 never to the machine, so bringing a document in and applying it stay two
-decisions and the applying one is still staged.
+decisions and the applying one is still staged. A line may hold 480 characters but
+a request's `TextValue` carries 255, so a longer line travels in **pieces**:
+`IntValue = 1` holds a piece, and the next import request without it completes the
+line, which is then imported exactly like a whole one. The join is measured before
+it is made and refused past the line width (never truncated), and any other request
+in between discards a held piece. The step is additive: the mailbox layout is
+unchanged, and a root older than it refuses a piece as an unreadable line, so it
+fails closed.
 
 ### TC3 §3.10 OPC UA exposure mechanics
 *Binds Core §3.10(a) and Core §11.1.* Publication begins at every deployed root Unit **instance**, making the intended forest explicit and independently auditable when TF6100 imports a TMC in **Filtered** mode. Reusable FB type definitions do not carry `OPC.UA.DA := 1`:

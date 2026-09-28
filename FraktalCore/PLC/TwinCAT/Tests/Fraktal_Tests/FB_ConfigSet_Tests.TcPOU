@@ -46,7 +46,8 @@ A_record_round_trips_through_its_json_line();
 A_malformed_json_line_is_refused_whole();
 A_model_set_is_not_applied_as_per_field_writes();
 Set_operations_need_a_store_and_the_CONFIG_SET_gate();
-A_deleted_set_is_gone_and_frees_its_slot();]]></ST>
+A_deleted_set_is_gone_and_frees_its_slot();
+A_line_longer_than_a_request_imports_in_pieces();]]></ST>
     </Implementation>
     <Method Name="_M_Arm" Id="{3e70b195-6c48-4a02-91df-7b5e0248ca36}">
       <Declaration><![CDATA[// One-time wiring. Nothing here is persistence-specific: a store is injected
@@ -367,6 +368,65 @@ AssertTrue(Condition := _u.Access.RequestLogout(),
 AssertTrue(Condition := _u.SaveConfigSet(SetName := 'open',
     Kind := E_ConfigKind.STATION_CFG),
     Message := 'so an open station saves without a login - access control is never a silent lock-in');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_line_longer_than_a_request_imports_in_pieces" Id="{3b9e6c1a-52d4-4f0e-9a7b-c8e21f5d40a6}">
+      <Declaration><![CDATA[// §3.8b round trip. An exported line may hold 480 characters but a request
+// carries 255, so a long record arrives in pieces (IMPORT_CONFIG_SET with
+// IntValue = 1). Without the join, a station's own export could not come back.
+METHOD A_line_longer_than_a_request_imports_in_pieces
+VAR
+    header : STRING(480);
+    first  : STRING(255);
+    rest   : STRING(255);
+    k      : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_line_longer_than_a_request_imports_in_pieces');
+_M_Arm();
+// The previous test leaves the store full: free a slot, then reuse fill2's
+// header so the import overwrites a set this suite owns.
+_u.DeleteConfigSet(SetName := 'fill1');
+_u.ExportConfigSetLine(SetName := 'fill2', Line := 0);
+header := _u.ConfigSetDocument;
+AssertTrue(Condition := header <> '', Message := 'a header to import under');
+_record.Scope := 'Test.CfgSet.Child.Long';
+_record.WriteKey := '';
+FOR k := 1 TO 14 DO
+    _record.WriteKey := CONCAT(_record.WriteKey, 'probe.long');
+END_FOR
+_record.Revision := 1;
+_record.Kind := E_ConfigKind.STATION_CFG;
+_record.ValueType := E_ConfigValueType.TEXT;
+_record.ValueText := '';
+FOR k := 1 TO 7 DO
+    _record.ValueText := CONCAT(_record.ValueText, '0123456789');
+END_FOR
+_line := _json.M_Record(Record := _record);
+AssertTrue(Condition := LEN(_line) > 255,
+    Message := 'the record renders longer than one request can carry');
+first := LEFT(_line, 200);
+rest := MID(_line, LEN(_line) - 200, 201);
+AssertTrue(Condition := _M_Import(Line := header, Commit := FALSE),
+    Message := 'the header opens the import');
+AssertTrue(Condition := _u.ImportConfigSetPiece(Piece := first, More := TRUE,
+    Commit := FALSE), Message := 'the first piece is held');
+AssertTrue(Condition := _u.ImportConfigSetPiece(Piece := rest, More := FALSE,
+    Commit := TRUE), Message := 'the last piece completes the line, which imports and commits');
+AssertTrue(Condition := _store.M_ReadRecord(SetName := 'fill2', Index := 1,
+    Record := _decoded), Message := 'the joined record is in the store');
+AssertEquals_STRING(Expected := _record.ValueText, Actual := _decoded.ValueText,
+    Message := 'and its value arrived whole, not truncated at 255');
+AssertEquals_STRING(Expected := _record.WriteKey, Actual := _decoded.WriteKey,
+    Message := 'as did its 140-character key');
+// Refused, never truncated: pieces that would exceed the line width.
+AssertTrue(Condition := _u.ImportConfigSetPiece(Piece := first, More := TRUE,
+    Commit := FALSE), Message := 'a piece is held');
+AssertTrue(Condition := _u.ImportConfigSetPiece(Piece := first, More := TRUE,
+    Commit := FALSE), Message := 'and a second (400 characters so far)');
+AssertFalse(Condition := _u.ImportConfigSetPiece(Piece := first, More := FALSE,
+    Commit := FALSE), Message := 'a join past 480 characters is refused');
 TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -50,7 +50,10 @@ TYPE E_HmiRequestKind :
     // §3.8b — move a set as TEXT. Export serves one JSON line per request
     // (IntValue = line; 0 = header), import takes one back (TextValue = the line,
     // BoolValue = this is the last one). Paged for the same reason QUERY_CONFIG
-    // is: no full set document ever has to exist in PLC memory.
+    // is: no full set document ever has to exist in PLC memory. A line longer
+    // than TextValue travels in pieces: IntValue = 1 holds a piece, the next
+    // request without it completes the line (additive; an older root refuses a
+    // piece as an unreadable line, so it fails closed).
     EXPORT_CONFIG_SET := 32,
     IMPORT_CONFIG_SET := 33,
     // §7.6.1a hold-to-run. TargetPath = module, IntValue = command value,

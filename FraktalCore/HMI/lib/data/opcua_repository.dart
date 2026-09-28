@@ -1181,9 +1181,15 @@ class OpcUaRepository implements PlcRepository {
       return false;
     }
     for (var i = 0; i < lines.length; i++) {
-      if (!await _request(rootPath, _HmiRequestKind.importConfigSet,
-          textValue: lines[i], boolValue: i == lines.length - 1)) {
-        return false;
+      final pieces = configSetLinePieces(lines[i]);
+      for (var p = 0; p < pieces.length; p++) {
+        final last = p == pieces.length - 1;
+        if (!await _request(rootPath, _HmiRequestKind.importConfigSet,
+            textValue: pieces[p],
+            intValue: last ? 0 : 1,
+            boolValue: last && i == lines.length - 1)) {
+          return false;
+        }
       }
     }
     return true;

@@ -4712,3 +4712,27 @@ the HMI checks every line first and names the one that is too long
 Verified: all five solutions `CheckAllObjects` 0/0; flutter analyze clean, 324 tests
 (8 new); check_consistency --strict 0/0. Not yet exercised against a live PLC over
 OPC UA - the local runtime holds the test application.
+
+## 142. A set line longer than one request comes back in pieces (Core 0.13.0.0, 2026-09-28)
+
+§141 recorded a contract limit rather than changing it: `ST_HmiRequest.TextValue`
+is `STRING(255)` but an exported set line can reach 480 characters, so a station's
+own export could not always be imported again (objectives audit 2026-09-28, G1).
+
+Widening `TextValue` would have changed the mailbox layout the Allen-Bradley binding
+pins byte for byte, and capping export at 255 would have trapped a station's own data
+inside it. The step taken is additive: `IMPORT_CONFIG_SET` with `IntValue = 1` holds
+a piece (`_importPart`, `STRING(480)`, off the OPC UA tree), and the next import
+request without that flag completes the line through the new public
+`ImportConfigSetPiece`, which hands the joined line to `ImportConfigSetLine` unchanged.
+The join is measured before it is made against the line's own declared width
+(`SIZEOF`), so it is refused and the import aborted rather than truncated; any other
+request kind in between discards a held piece. A root older than 0.13 reads a piece
+as a whole line, fails to parse it and refuses it - fail-closed. AB refuses
+`IMPORT_CONFIG_SET` altogether, so it is unaffected.
+
+The HMI splits a line longer than 255 characters (`configSetLinePieces`) and still
+refuses one longer than 480 by name. Test: `A_line_longer_than_a_request_imports_in_pieces`
+imports a 330-character record in two pieces, reads its 70-character value and
+140-character key back whole, and proves a join past 480 is refused. Core/Modules
+runner: 187 tests / 42 suites.

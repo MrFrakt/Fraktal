@@ -9,9 +9,27 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../domain/fieldbus.dart';
 
-/// ST_HmiRequest.TextValue is STRING(255): a longer import line would be
-/// truncated and refused, so the client checks first and names the line.
-const int kConfigSetImportLineMax = 255;
+/// ST_HmiRequest.TextValue is STRING(255): what one request can carry.
+const int kConfigSetRequestTextMax = 255;
+
+/// The widest set line the PLC renders and accepts (its STRING(480) document
+/// line). A longer line is refused by name before anything is sent.
+const int kConfigSetImportLineMax = 480;
+
+/// [line] as the pieces an import sends (§3.8b): at most
+/// [kConfigSetRequestTextMax] characters each. Every piece but the last is
+/// sent with IntValue = 1 ("more follows"), and the PLC joins them - so a line
+/// the PLC exported can always come back, although a request carries 255.
+List<String> configSetLinePieces(String line) => [
+      for (var start = 0;
+          start < line.length || start == 0;
+          start += kConfigSetRequestTextMax)
+        line.substring(
+            start,
+            start + kConfigSetRequestTextMax < line.length
+                ? start + kConfigSetRequestTextMax
+                : line.length),
+    ];
 
 abstract class PlcRepository {
   /// The forest (Core 3.1a): one or more root Units, republished on change.
@@ -110,8 +128,9 @@ abstract class PlcRepository {
   /// needs its own read level on the PLC (§3.8d(e)); an export is never thinned.
   Future<String?> exportConfigSet(String rootPath, String name);
 
-  /// Import a document produced by [exportConfigSet]. The PLC mailbox carries at
-  /// most [kConfigSetImportLineMax] characters per line.
+  /// Import a document produced by [exportConfigSet]. A line may hold up to
+  /// [kConfigSetImportLineMax] characters; longer than one request, it travels
+  /// in pieces ([configSetLinePieces]).
   Future<bool> importConfigSet(String rootPath, String document);
 
   /// The PLC's reason for the last refused set operation ('scope / key'), or ''.

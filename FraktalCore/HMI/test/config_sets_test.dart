@@ -59,8 +59,16 @@ void main() {
       expect(await repo.configSetRejection('StationA'), contains('missing'));
     });
 
-    test('the mailbox line limit is the request field size', () {
-      expect(kConfigSetImportLineMax, 255);
+    test('a line longer than one request travels in pieces', () {
+      expect(kConfigSetRequestTextMax, 255, reason: 'ST_HmiRequest.TextValue');
+      expect(kConfigSetImportLineMax, 480, reason: 'the PLC document line');
+      final line = List.filled(400, 'x').join();
+      final pieces = configSetLinePieces(line);
+      expect(pieces.map((p) => p.length), [255, 145]);
+      expect(pieces.join(), line, reason: 'joined, the pieces are the line');
+      expect(configSetLinePieces('{"a":1}'), ['{"a":1}']);
+      expect(configSetLinePieces(List.filled(510, 'y').join()).map((p) => p.length),
+          [255, 255]);
     });
   });
 

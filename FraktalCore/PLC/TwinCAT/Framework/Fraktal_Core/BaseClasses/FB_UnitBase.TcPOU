@@ -174,6 +174,11 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _setJson : FB_ConfigSetJson;       // §3.8b text projection (export/import)
     _importOpen : BOOL;                // an IMPORT_CONFIG_SET save is in progress
+    // §3.8b - a set line arriving in pieces (IMPORT_CONFIG_SET, IntValue = 1).
+    // A request carries 255 characters and a line may hold 480, so the HMI
+    // splits it; the pieces are joined here, and nowhere else.
+    {attribute 'OPC.UA.DA' := '0'}
+    _importPart : STRING(480);
     // §7.6.1a hold-to-run. The request is LATCHED and re-asserted every scan,
     // because a mailbox delivers one request per sequence and the axis expects
     // to be asked every scan it should keep moving. The latch is what makes
@@ -651,6 +656,12 @@ HmiResponse.Accepted := FALSE;
 HmiResponse.Diagnostic := '';
 HmiResponse.Report.Count := 0;
 HmiResponse.Report.Released := FALSE;
+// A held line piece belongs to the very next import request. Anything else in
+// between means the line was abandoned, so it is dropped rather than glued to
+// whatever arrives later.
+IF HmiRequest.Kind <> E_HmiRequestKind.IMPORT_CONFIG_SET THEN
+    _importPart := '';
+END_IF
 
 CASE HmiRequest.Kind OF
     E_HmiRequestKind.LOGIN:
@@ -811,8 +822,8 @@ CASE HmiRequest.Kind OF
         HmiResponse.Accepted := ExportConfigSetLine(SetName := HmiRequest.TextValue,
             Line := TO_INT(HmiRequest.IntValue));
     E_HmiRequestKind.IMPORT_CONFIG_SET:
-        HmiResponse.Accepted := ImportConfigSetLine(Line := HmiRequest.TextValue,
-            Commit := HmiRequest.BoolValue);
+        HmiResponse.Accepted := ImportConfigSetPiece(Piece := HmiRequest.TextValue,
+            More := HmiRequest.IntValue = 1, Commit := HmiRequest.BoolValue);
         IF NOT HmiResponse.Accepted THEN
             HmiResponse.Diagnostic := 'std.error.configSetLineRejected';
         END_IF
@@ -2682,6 +2693,47 @@ IF Commit THEN
         _M_MarkPersistPending();
     END_IF
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ImportConfigSetPiece" Id="{fe4a451b-e9cc-440c-9ade-c56031168c94}">
+      <Declaration><![CDATA[// §3.8b - take part of a set line. A request carries at most 255 characters
+// and an exported line may hold 480, so a longer line arrives as pieces:
+// More = TRUE holds this piece and waits for the next; the first piece without
+// More completes the line, which is then imported exactly like a whole one.
+//
+// Measured before it is joined: a line that would exceed its width is refused
+// and the import aborted - never truncated, the rule M_Record renders by.
+METHOD ImportConfigSetPiece : BOOL
+VAR_INPUT
+    Piece  : STRING(255);
+    More   : BOOL;
+    Commit : BOOL;
+END_VAR
+VAR
+    line : STRING(480);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ImportConfigSetPiece := FALSE;
+IF NOT _M_SetOpAllowed() THEN
+    _importPart := '';
+    RETURN;
+END_IF
+IF (TO_INT(LEN(_importPart)) + TO_INT(LEN(Piece))) > (TO_INT(SIZEOF(line)) - 1) THEN
+    _importPart := '';
+    IF _importOpen THEN
+        _configStore.M_SaveAbort();
+        _importOpen := FALSE;
+    END_IF
+    RETURN;
+END_IF
+line := CONCAT(_importPart, Piece);
+IF More THEN
+    _importPart := line;
+    ImportConfigSetPiece := TRUE;             // held, not yet imported
+    RETURN;
+END_IF
+_importPart := '';
+ImportConfigSetPiece := ImportConfigSetLine(Line := line, Commit := Commit);]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_SequenceAskDecision" Id="{099b4f9d-bc09-44d1-a376-b2e504dbb242}">
