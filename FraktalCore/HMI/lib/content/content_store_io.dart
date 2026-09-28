@@ -2,6 +2,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import '../diagnostics/hmi_log.dart';
 import 'content_store_base.dart';
 
 ContentStore createContentStore() => _FileContentStore();
@@ -51,7 +52,9 @@ class _FileContentStore implements ContentStore {
     await _file.parent.create(recursive: true);
     final temp = File(
         '${_file.path}.${pid}.${DateTime.now().microsecondsSinceEpoch}.tmp');
-    await temp.writeAsString(jsonEncode(value), flush: true);
+    final text = hmiTimedSync('content: encode', () => jsonEncode(value));
+    await hmiTimed('content: write ${text.length ~/ 1024} KiB',
+        () => temp.writeAsString(text, flush: true));
     var movedPrimary = false;
     try {
       if (await _file.exists()) {

@@ -26,6 +26,7 @@ import 'module_information.dart';
 import 'custom_module_tabs.dart';
 import 'sequence_module_tab.dart';
 import 'touch_text_field.dart';
+import '../diagnostics/hmi_log.dart';
 import 'module_layout_editor.dart';
 
 class ModuleDetail extends StatefulWidget {
@@ -501,6 +502,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
         false;
     final changeComment = comment.text;
     comment.dispose();
+    hmiLog('publish ${node.path}: dialog closed, confirmed=$confirmed');
     if (!confirmed || !mounted || _draftPath != node.path) return;
     await app.content.publishTabs(
       node.path,
@@ -509,7 +511,10 @@ class _ModuleDetailState extends State<ModuleDetail> {
       author: app.session.user,
       comment: changeComment,
     );
-    if (mounted) setState(_clearDraft);
+    if (!mounted) return;
+    hmiTimedSync(
+        'publish ${node.path}: leave editing', () => setState(_clearDraft));
+    hmiLogNextFrame('publish ${node.path}');
   }
 
   Future<void> _showRevisionHistory(

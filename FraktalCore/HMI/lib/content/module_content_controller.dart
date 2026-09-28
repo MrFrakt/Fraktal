@@ -2,6 +2,7 @@ library;
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../diagnostics/hmi_log.dart';
 import '../domain/types.dart';
 import '../localization/localization_controller.dart';
 import 'content_store.dart';
@@ -271,18 +272,21 @@ class ModuleContentController extends ChangeNotifier {
     required String author,
     String comment = '',
   }) async {
-    _validateTabs(tabs);
-    _recordRevision(
-      modulePath,
-      tabsFor(modulePath, capabilities),
-      author: author,
-      comment: comment.trim().isEmpty
-          ? 'Before published layout change'
-          : 'Before: ${comment.trim()}',
+    hmiTimedSync('publish $modulePath: validate', () => _validateTabs(tabs));
+    hmiTimedSync(
+      'publish $modulePath: record revision',
+      () => _recordRevision(
+        modulePath,
+        tabsFor(modulePath, capabilities),
+        author: author,
+        comment: comment.trim().isEmpty
+            ? 'Before published layout change'
+            : 'Before: ${comment.trim()}',
+      ),
     );
     _layouts[modulePath] = List.unmodifiable(tabs);
-    await _persist();
-    notifyListeners();
+    await hmiTimed('publish $modulePath: persist', _persist);
+    hmiTimedSync('publish $modulePath: notify listeners', notifyListeners);
   }
 
   Future<void> restoreRevision(
@@ -636,7 +640,8 @@ class ModuleContentController extends ChangeNotifier {
         },
       };
 
-  Future<void> _persist() => store.save(_packImages(_data()));
+  Future<void> _persist() =>
+      store.save(hmiTimedSync('content: pack', () => _packImages(_data())));
 
   // ---- embedded images: stored once, referenced by id ----------------------
   //
@@ -652,7 +657,8 @@ class ModuleContentController extends ChangeNotifier {
   static const _imagesKey = 'images';
 
   static Map<String, Object?> _packImages(Map<String, Object?> data) {
-    final ids = <String, String>{}; // image content -> id; equal images collapse
+    final ids =
+        <String, String>{}; // image content -> id; equal images collapse
     Object? walk(Object? node) {
       if (node is Map) {
         final out = <String, Object?>{};

@@ -15,6 +15,8 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 
+import '../diagnostics/hmi_log.dart';
+
 // Keyed by the IDENTITY of the base64 string: a published layout keeps the same
 // string instance across rebuilds, so a lookup never hashes or compares
 // megabytes of text. A layout reloaded from storage is a new instance and is
@@ -36,6 +38,8 @@ ImageProvider? embeddedImage(String base64, {required int maxWidth}) {
     return hit;
   }
   ImageProvider? provider;
+  hmiLog('image: new decode of ${base64.length ~/ 1024} KiB base64 '
+      'at max ${maxWidth}px');
   try {
     provider = ResizeImage(
       MemoryImage(base64Decode(base64)),
