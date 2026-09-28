@@ -515,6 +515,29 @@ const kThemes = <FraktalThemeSpec>[
         glint: Color(0xFFBFA9E4),
         radius: 18,
       )),
+  // Dark glass over a coral-to-teal sunset wash (the gradient tile study).
+  FraktalThemeSpec('std.theme.coralDusk', Color(0xFFF4A391), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.glass,
+        canvas: Color(0xFF14282A),
+        panel: Color(0xFF1E3234),
+        accent: Color(0xFFF4A391),
+        glint: Color(0xFF6FD3C7),
+        // Deep enough that text set straight on the page still reads (AA).
+        wash: Color(0xFF5E3531),
+        radius: 14,
+      )),
+  // The dark operations dashboards: slate panels, teal accent, no outlines.
+  FraktalThemeSpec(
+      'std.theme.midnightConsole', Color(0xFF3CCBDA), Brightness.dark,
+      surfaces: FraktalSurfaceTheme(
+        finish: SurfaceFinish.console,
+        canvas: Color(0xFF121925),
+        panel: Color(0xFF1C2433),
+        accent: Color(0xFF3CCBDA),
+        glint: Color(0xFF6D8BF7),
+        radius: 10,
+      )),
 ];
 
 /// Localised display keys for the picker (kept for any legacy consumer).

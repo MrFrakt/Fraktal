@@ -6,7 +6,18 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-enum SurfaceFinish { flat, neon, glass, blueprint, copper, paper, soft }
+/// `console`: the dark operations dashboard - borderless slate panels on a deep
+/// canvas, depth from shadow and a top-edge reflection rather than outlines.
+enum SurfaceFinish {
+  flat,
+  neon,
+  glass,
+  blueprint,
+  copper,
+  paper,
+  soft,
+  console
+}
 
 @immutable
 class FraktalSurfaceTheme extends ThemeExtension<FraktalSurfaceTheme> {
@@ -17,6 +28,10 @@ class FraktalSurfaceTheme extends ThemeExtension<FraktalSurfaceTheme> {
   final Color glint;
   final double radius;
 
+  /// A strong colour the backdrop sweeps in from the top-left (a sunset wash
+  /// behind glass panels). Null keeps the quiet tinted canvas.
+  final Color? wash;
+
   const FraktalSurfaceTheme({
     this.finish = SurfaceFinish.flat,
     required this.canvas,
@@ -24,18 +39,32 @@ class FraktalSurfaceTheme extends ThemeExtension<FraktalSurfaceTheme> {
     required this.accent,
     required this.glint,
     this.radius = 14,
+    this.wash,
   });
+
+  /// How strong the card's reflection sheen is. Painted UNDER the content, so
+  /// it never lowers the contrast of the text it sits behind.
+  double get sheen => switch (finish) {
+        SurfaceFinish.glass => 0.10,
+        SurfaceFinish.console => 0.045,
+        SurfaceFinish.neon || SurfaceFinish.blueprint => 0.05,
+        SurfaceFinish.copper => 0.06,
+        SurfaceFinish.soft => 0.55,
+        SurfaceFinish.paper || SurfaceFinish.flat => 0,
+      };
 
   bool get luminous =>
       finish == SurfaceFinish.neon || finish == SurfaceFinish.blueprint;
   bool get sculpted =>
       finish == SurfaceFinish.soft || finish == SurfaceFinish.paper;
 
-  List<Color> get backdropColors => [
-        Color.lerp(canvas, glint, 0.055)!,
-        canvas,
-        Color.lerp(canvas, accent, 0.04)!,
-      ];
+  List<Color> get backdropColors => wash == null
+      ? [
+          Color.lerp(canvas, glint, 0.055)!,
+          canvas,
+          Color.lerp(canvas, accent, 0.04)!,
+        ]
+      : [wash!, Color.lerp(wash, canvas, 0.55)!, canvas];
 
   static FraktalSurfaceTheme? of(BuildContext context) =>
       Theme.of(context).extension<FraktalSurfaceTheme>();
@@ -48,6 +77,7 @@ class FraktalSurfaceTheme extends ThemeExtension<FraktalSurfaceTheme> {
     Color? accent,
     Color? glint,
     double? radius,
+    Color? wash,
   }) =>
       FraktalSurfaceTheme(
         finish: finish ?? this.finish,
@@ -56,6 +86,7 @@ class FraktalSurfaceTheme extends ThemeExtension<FraktalSurfaceTheme> {
         accent: accent ?? this.accent,
         glint: glint ?? this.glint,
         radius: radius ?? this.radius,
+        wash: wash ?? this.wash,
       );
 
   @override
@@ -68,6 +99,7 @@ class FraktalSurfaceTheme extends ThemeExtension<FraktalSurfaceTheme> {
       accent: Color.lerp(accent, other.accent, t)!,
       glint: Color.lerp(glint, other.glint, t)!,
       radius: ui.lerpDouble(radius, other.radius, t)!,
+      wash: Color.lerp(wash, other.wash, t),
     );
   }
 }
@@ -114,37 +146,75 @@ class _BackdropPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
     if (skin.finish == SurfaceFinish.blueprint ||
         skin.finish == SurfaceFinish.neon) {
-      final paint = Paint()
-        ..color = skin.accent.withValues(alpha: 0.045)
-        ..strokeWidth = 0.7;
-      const pitch = 32.0;
-      for (var x = 0.0; x < size.width; x += pitch) {
-        canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+      // Drafting paper: a faint minor grid under a major one (blueprint only).
+      if (skin.finish == SurfaceFinish.blueprint) {
+        _grid(canvas, size, 8, skin.accent.withValues(alpha: 0.022), 0.5);
       }
-      for (var y = 0.0; y < size.height; y += pitch) {
-        canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-      }
+      _grid(canvas, size, 32, skin.accent.withValues(alpha: 0.05), 0.7);
     }
-    if (skin.finish == SurfaceFinish.glass) {
-      // Soft overlapping lenses give the local card blur something to refract.
-      for (final (center, color) in [
-        (Offset(size.width * 0.15, size.height * 0.2), skin.accent),
-        (Offset(size.width * 0.85, size.height * 0.7), skin.glint),
-      ]) {
-        final radius = size.shortestSide * 0.65;
-        canvas.drawCircle(
-          center,
-          radius,
-          Paint()
-            ..shader = RadialGradient(colors: [
-              color.withValues(alpha: 0.07),
-              color.withValues(alpha: 0),
-            ]).createShader(Rect.fromCircle(center: center, radius: radius)),
-        );
-      }
+    switch (skin.finish) {
+      case SurfaceFinish.glass:
+        // Soft overlapping lenses give the local card blur something to
+        // refract - the translucency only reads when something is behind it.
+        _lens(canvas, size, const Offset(0.15, 0.2), skin.accent, 0.12, 0.65);
+        _lens(canvas, size, const Offset(0.85, 0.7), skin.glint, 0.12, 0.65);
+        _lens(canvas, size, const Offset(0.55, 0.05), skin.glint, 0.07, 0.4);
+      case SurfaceFinish.soft:
+        _lens(canvas, size, const Offset(0.1, 0.1), skin.accent, 0.05, 0.55);
+        _lens(canvas, size, const Offset(0.9, 0.85), skin.glint, 0.07, 0.55);
+      case SurfaceFinish.console:
+        _lens(canvas, size, const Offset(0.5, -0.1), skin.accent, 0.06, 0.8);
+      default:
+        break;
     }
+    if (skin.luminous || skin.finish == SurfaceFinish.console) {
+      // Vignette: the eye settles on the middle of the panel, not its corners.
+      canvas.drawRect(
+        bounds,
+        Paint()
+          ..shader = RadialGradient(
+            radius: 0.95,
+            colors: [
+              skin.canvas.withValues(alpha: 0),
+              Color.lerp(skin.canvas, const Color(0xFF000000), 0.45)!
+                  .withValues(alpha: 0.55),
+            ],
+            stops: const [0.55, 1],
+          ).createShader(bounds),
+      );
+    }
+  }
+
+  static void _grid(
+      Canvas canvas, Size size, double pitch, Color color, double width) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = width;
+    for (var x = 0.0; x < size.width; x += pitch) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y < size.height; y += pitch) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  /// A soft coloured light at [at] (fractions of the backdrop).
+  static void _lens(Canvas canvas, Size size, Offset at, Color color,
+      double alpha, double reach) {
+    final center = Offset(size.width * at.dx, size.height * at.dy);
+    final radius = size.shortestSide * reach;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..shader = RadialGradient(colors: [
+          color.withValues(alpha: alpha),
+          color.withValues(alpha: 0),
+        ]).createShader(Rect.fromCircle(center: center, radius: radius)),
+    );
   }
 
   @override
@@ -186,13 +256,19 @@ class FraktalCard extends Card {
     final fill =
         color == null ? skin.panel : Color.alphaBlend(color!, skin.panel);
     final shadows = <BoxShadow>[
-      if (skin.luminous)
+      if (skin.luminous) ...[
+        // A tight halo and a wide bloom: the edge reads as lit, not outlined.
         BoxShadow(
-          color: skin.accent.withValues(alpha: 0.13),
-          blurRadius: 14,
-          spreadRadius: -3,
-        )
-      else ...[
+          color: skin.accent.withValues(alpha: 0.26),
+          blurRadius: 12,
+          spreadRadius: -2,
+        ),
+        BoxShadow(
+          color: skin.accent.withValues(alpha: 0.10),
+          blurRadius: 36,
+          spreadRadius: 2,
+        ),
+      ] else ...[
         BoxShadow(
           color: (dark ? Colors.black : const Color(0xFF716653))
               .withValues(alpha: skin.sculpted ? 0.22 : 0.14),
@@ -215,22 +291,27 @@ class FraktalCard extends Card {
           end: Alignment.bottomRight,
           colors: [
             Color.lerp(fill, Colors.white, glass ? 0.035 : 0.012)!
-                .withValues(alpha: glass && !reduceEffects ? 0.78 : 1),
-            fill.withValues(alpha: glass && !reduceEffects ? 0.90 : 1),
+                .withValues(alpha: glass && !reduceEffects ? 0.72 : 1),
+            fill.withValues(alpha: glass && !reduceEffects ? 0.86 : 1),
           ],
         ),
       ),
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        color: Colors.transparent,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        shape: outline,
-        borderOnForeground: borderOnForeground,
-        clipBehavior: clipBehavior ?? Clip.antiAlias,
-        semanticContainer: semanticContainer,
-        child: child,
+      // The reflection is painted between the fill and the content, never
+      // over the text.
+      child: CustomPaint(
+        painter: skin.sheen > 0 ? _SheenPainter(skin, outline) : null,
+        child: Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: Colors.transparent,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shape: outline,
+          borderOnForeground: borderOnForeground,
+          clipBehavior: clipBehavior ?? Clip.antiAlias,
+          semanticContainer: semanticContainer,
+          child: child,
+        ),
       ),
     );
     if (glass && !reduceEffects) {
@@ -257,6 +338,37 @@ class FraktalCard extends Card {
   }
 }
 
+/// A panel's reflection: light falling on its upper part, fading out before the
+/// middle, like a lacquered or glass surface under ceiling light.
+class _SheenPainter extends CustomPainter {
+  final FraktalSurfaceTheme skin;
+  final ShapeBorder shape;
+  const _SheenPainter(this.skin, this.shape);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawPath(
+      shape.getOuterPath(rect),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withValues(alpha: skin.sheen),
+            Colors.white.withValues(alpha: skin.sheen * 0.25),
+            Colors.white.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.22, 0.5],
+        ).createShader(rect),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SheenPainter oldDelegate) =>
+      skin != oldDelegate.skin || shape != oldDelegate.shape;
+}
+
 /// Directional edge light supplies the lens rim / folded edge without putting
 /// a translucent overlay over text or changing the widget's hit-test shape.
 class _SurfaceEdgePainter extends CustomPainter {
@@ -269,6 +381,33 @@ class _SurfaceEdgePainter extends CustomPainter {
     final glass = skin.finish == SurfaceFinish.glass;
     final paper = skin.finish == SurfaceFinish.paper;
     final copper = skin.finish == SurfaceFinish.copper;
+    if (skin.luminous) {
+      // The lit tube: a crisp accent line just inside the border.
+      canvas.drawPath(
+        shape.getOuterPath((Offset.zero & size).deflate(2.5)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = skin.accent.withValues(alpha: 0.28),
+      );
+      return;
+    }
+    if (skin.finish == SurfaceFinish.console) {
+      // Top-edge catch light: the only edge a console panel shows.
+      final rect = Offset.zero & size;
+      canvas.drawLine(
+        Offset(skin.radius, 0.75),
+        Offset(size.width - skin.radius, 0.75),
+        Paint()
+          ..strokeWidth = 1.5
+          ..shader = LinearGradient(colors: [
+            Colors.white.withValues(alpha: 0),
+            Colors.white.withValues(alpha: 0.16),
+            Colors.white.withValues(alpha: 0),
+          ]).createShader(rect),
+      );
+      return;
+    }
     if (!glass && !paper && !copper) return;
     final rect = (Offset.zero & size).deflate(paper ? 2 : 1);
     canvas.drawPath(
@@ -309,10 +448,33 @@ ThemeData applySurfaceTheme(ThemeData theme, FraktalSurfaceTheme skin) {
               ? skin.accent.withValues(alpha: 0.65)
               : skin.finish == SurfaceFinish.copper
                   ? skin.glint.withValues(alpha: 0.6)
-                  : dark
-                      ? Colors.white24
-                      : Colors.white70,
+                  : skin.finish == SurfaceFinish.console
+                      ? Colors.transparent
+                      : dark
+                          ? Colors.white24
+                          : Colors.white70,
     ),
+  );
+  // The selected tab is a lit pill on the luminous, glass and console
+  // finishes; the others keep Material's underline.
+  final pillTabs = skin.luminous ||
+      skin.finish == SurfaceFinish.glass ||
+      skin.finish == SurfaceFinish.console;
+  final tabPill = ShapeDecoration(
+    color: cs.primary.withValues(alpha: 0.14),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: BorderSide(color: cs.primary.withValues(alpha: 0.75)),
+    ),
+    shadows: skin.luminous
+        ? [
+            BoxShadow(
+              color: skin.accent.withValues(alpha: 0.35),
+              blurRadius: 10,
+              spreadRadius: -1,
+            ),
+          ]
+        : null,
   );
   ButtonStyle decorate(ButtonStyle? base, {bool raised = false}) =>
       (base ?? const ButtonStyle()).copyWith(
@@ -321,12 +483,12 @@ ThemeData applySurfaceTheme(ThemeData theme, FraktalSurfaceTheme skin) {
                 states.contains(WidgetState.disabled) ||
                         states.contains(WidgetState.pressed)
                     ? 0.0
-                    : skin.sculpted
+                    : skin.sculpted || skin.luminous
                         ? 4.0
                         : 2.0)
             : null,
         shadowColor: WidgetStatePropertyAll(skin.luminous
-            ? skin.accent.withValues(alpha: 0.5)
+            ? skin.accent.withValues(alpha: 0.7)
             : Colors.black26),
         backgroundBuilder: (context, states, child) {
           if (states.contains(WidgetState.disabled))
@@ -400,5 +562,12 @@ ThemeData applySurfaceTheme(ThemeData theme, FraktalSurfaceTheme skin) {
       shape: shape,
     ),
     dividerTheme: theme.dividerTheme.copyWith(color: cs.outlineVariant),
+    tabBarTheme: pillTabs
+        ? theme.tabBarTheme.copyWith(
+            indicator: tabPill,
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
+          )
+        : theme.tabBarTheme,
   );
 }

@@ -31,7 +31,7 @@ void main() {
       'std.theme.highContrastLight',
       'std.theme.highContrastDark',
     ]);
-    expect(kThemes.skip(14), hasLength(11));
+    expect(kThemes.skip(14), hasLength(13));
     expect(kThemes.map((theme) => theme.nameKey).toSet(),
         hasLength(kThemes.length));
     for (final spec in kThemes) {
@@ -48,14 +48,17 @@ void main() {
         final target = theme.filledButtonTheme.style!.minimumSize!.resolve({})!;
         expect(target.height,
             greaterThanOrEqualTo(UiMetrics.of(scale).touchTarget));
-        // Both the brightest end of the panel sheen and the actual page
-        // gradient must carry text. Glass opacity is composited over each end.
+        // Both the brightest end of the panel and the actual page gradient
+        // (including a sunset wash) must carry text. As painted: the glass
+        // fill composited over each end, then the reflection over the fill.
         for (final background in skin.backdropColors) {
-          final sheen = Color.lerp(skin.panel, Colors.white,
+          final top = Color.lerp(skin.panel, Colors.white,
               skin.finish == SurfaceFinish.glass ? 0.035 : 0.012)!;
-          final fill = skin.finish == SurfaceFinish.glass
-              ? Color.alphaBlend(sheen.withValues(alpha: 0.78), background)
-              : sheen;
+          final glazed = skin.finish == SurfaceFinish.glass
+              ? Color.alphaBlend(top.withValues(alpha: 0.72), background)
+              : top;
+          final fill = Color.alphaBlend(
+              Colors.white.withValues(alpha: skin.sheen), glazed);
           for (final ink in [cs.onSurface, cs.onSurfaceVariant]) {
             expect(contrast(ink, background), greaterThan(4.5),
                 reason: '${spec.nameKey}: page text');
@@ -117,7 +120,7 @@ void main() {
           ),
         );
     await tester.pumpWidget(host(enabled: true));
-    final last = find.byKey(const ValueKey('theme-std.theme.cloudMint'));
+    final last = find.byKey(ValueKey('theme-${kThemes.last.nameKey}'));
     await tester.ensureVisible(last);
     await tester.tap(last);
     expect(chosen, kThemes.length - 1);

@@ -292,4 +292,25 @@ void main() {
       });
     }
   });
+
+  test('a selected tab stays readable on its lit pill', () {
+    // The luminous/glass/console finishes draw the selected tab as a tinted
+    // pill; its label must read against the pill as painted, over both the
+    // panel and the canvas a tab bar can sit on.
+    var measured = 0;
+    for (var i = 0; i < kThemes.length; i++) {
+      final theme = themeAt(i);
+      final indicator = theme.tabBarTheme.indicator;
+      if (indicator is! ShapeDecoration) continue;
+      measured++;
+      final cs = theme.colorScheme;
+      final label = theme.tabBarTheme.labelColor ?? cs.primary;
+      for (final ground in [cs.surface, theme.cardTheme.color ?? cs.surface]) {
+        final pill = _over(indicator.color!, ground);
+        expect(_contrast(label, pill), greaterThan(4.5),
+            reason: '${kThemes[i].nameKey}: selected tab label on its pill');
+      }
+    }
+    expect(measured, greaterThanOrEqualTo(8), reason: 'no pill themes found');
+  });
 }

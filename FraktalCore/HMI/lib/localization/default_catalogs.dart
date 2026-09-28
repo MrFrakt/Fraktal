@@ -209,6 +209,8 @@ const standardEnglish = <String, String>{
   'std.theme.ivoryTeal': 'Ivory Teal',
   'std.theme.cloudLavender': 'Lavender Cloud',
   'std.theme.cloudMint': 'Mint Cloud',
+  'std.theme.coralDusk': 'Coral Dusk',
+  'std.theme.midnightConsole': 'Midnight Console',
   // Fullscreen settings dialog (Core O9): theme, language, touch keyboard, station.
   'std.settings.title': 'Settings',
   'std.settings.appearance': 'Appearance',
@@ -1050,6 +1052,8 @@ const standardSpanish = <String, String>{
   'std.theme.ivoryTeal': 'Marfil y turquesa',
   'std.theme.cloudLavender': 'Nube lavanda',
   'std.theme.cloudMint': 'Nube menta',
+  'std.theme.coralDusk': 'Atardecer coral',
+  'std.theme.midnightConsole': 'Consola nocturna',
   'std.settings.title': 'Ajustes',
   'std.settings.appearance': 'Apariencia',
   'std.settings.language': 'Idioma',

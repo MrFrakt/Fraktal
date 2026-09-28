@@ -125,6 +125,16 @@ saved panel selections remain stable.
 | Reference 4 | Folded Sand | Warm paper, beveled panels, directional shadows |
 | Reference 5 | Ivory Teal | Ivory raised surfaces, soft paired shadows, teal controls |
 | References 6–7 | Lavender Cloud, Mint Cloud | Pastel soft surfaces; two variants of the repeated dashboard image |
+| Gradient glass study | Coral Dusk | Dark translucent glass over a coral-to-teal wash, lit tab pill |
+| Dark dashboards | Midnight Console | Borderless slate panels, top-edge catch light, vignette, teal accent |
+
+Every decorated finish also paints a **reflection sheen** on its panels (under
+the content, never over text), and the luminous finishes a lit inner line with a
+halo-and-bloom glow; the blueprint backdrop is a two-weight drafting grid, and
+luminous/console backdrops carry a vignette. The selected tab is a lit pill on
+the luminous, glass and console finishes. `test/theme_material_test.dart`
+measures panel text against the panel as painted (glass over the backdrop, then
+the sheen) and `test/theme_contrast_test.dart` the selected tab on its pill.
 
 `FraktalSurfaceTheme` is a Flutter `ThemeExtension`; `FraktalCard` and
 `FraktalBackdrop` apply it across setup, standard facets and custom module cards.
