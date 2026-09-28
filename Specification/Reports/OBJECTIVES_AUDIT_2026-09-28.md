@@ -189,3 +189,25 @@ practice would default a new panel to Process Grey.
   `Status/TypeKey` entry.
 - No PLC source changed in this pass, so neither the TwinCAT build nor the runtime gate
   applies to it.
+
+## 7. Status at the end of 2026-09-28, and what needs the project owner
+
+Closed today without anyone at the machine:
+- **G1**: Core 0.13, set lines in pieces.
+- **G2 step 1**: both runtime gates green on 0.13 and archived. It also found and fixed
+  the 255-character truncation (IMPLEMENTATION_NOTES §143), and lint rule C9 now guards
+  against it.
+- **G3 A**: AB type keys.
+- **G4 in part**: layers, z-order, bound `visible` and `enabled`, blink.
+- **G5**: neutral OK on operating views; token contrast proved in every theme.
+- **G6**: station tile slots.
+
+**Still open, and why:**
+
+| Gap | Needs | Why it cannot be done unattended |
+|---|---|---|
+| G2 steps 2–4 | the owner at XAE, then at the HMI | Downloading the press demo replaces the test application on the runtime, XAE asks for confirmation, and the acceptance pass is judged at the screen |
+| G3 B | a decision: read-only or write-enabled AB | Enabling writes arms Core §14 in full (AGENTS.md §3a); the answer must be recorded, never assumed |
+| G3 C | a decision: make line data + shifts an optional Core profile, or bind them in AB | It changes what a conformance claim covers |
+| G7 | a decision: default new installs to Process Grey | A product choice; stored selections are unaffected either way |
+| G4 rest | nothing; planned work | Bindable icon, rotation and opacity, bound layer visibility, the grid container, and a declared budget below 200 are buildable at any time; they are sequenced after the live pass so they are shaped by it |
