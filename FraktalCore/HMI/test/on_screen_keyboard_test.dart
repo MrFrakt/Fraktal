@@ -83,7 +83,11 @@ void main() {
     await tester.tap(find.text('w').first); // shift auto-releases after one
     await tester.pumpAndSettle();
     expect(controller.text, 'Qw', reason: 'the second key press was lost');
-  });
+    // Every platform: on Windows/Linux/macOS a pointer-down OUTSIDE a text
+    // field unfocuses it (EditableText's tap-outside default), and the default
+    // Android test platform never exercised that - so this passed while the
+    // Windows panel closed on the first key and typed nothing.
+  }, variant: TargetPlatformVariant.all());
 
   testWidgets('backspace edits at the cursor without dismissing', (tester) async {
     final controller = TextEditingController();

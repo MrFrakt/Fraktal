@@ -24,21 +24,28 @@ class OnScreenKeyboardPanel extends StatelessWidget {
       // which is exactly how a key press produced no character and dismissed
       // the keyboard.
       canRequestFocus: false,
-      child: SizedBox(
-        height: controller.reservedHeight,
-        width: double.infinity,
-        child: SafeArea(
-          top: false,
-          child: Material(
-            elevation: 12,
-            color: ElevationOverlay.applySurfaceTint(
-              Theme.of(context).colorScheme.surface,
-              Theme.of(context).colorScheme.primary,
-              12,
+      // And the panel is part of the field's tap region. On Windows/Linux/macOS
+      // EditableText unfocuses its field on ANY pointer-down outside that
+      // region - the pointer-down on a key detached the field and removed this
+      // panel before the tap completed, so the first key closed the keyboard
+      // and typed nothing. canRequestFocus alone never covered that path.
+      child: TextFieldTapRegion(
+        child: SizedBox(
+          height: controller.reservedHeight,
+          width: double.infinity,
+          child: SafeArea(
+            top: false,
+            child: Material(
+              elevation: 12,
+              color: ElevationOverlay.applySurfaceTint(
+                Theme.of(context).colorScheme.surface,
+                Theme.of(context).colorScheme.primary,
+                12,
+              ),
+              child: keyboardTypeIsNumeric(controller.activeType)
+                  ? _NumericPad(controller: controller)
+                  : _AlphaPad(controller: controller),
             ),
-            child: keyboardTypeIsNumeric(controller.activeType)
-                ? _NumericPad(controller: controller)
-                : _AlphaPad(controller: controller),
           ),
         ),
       ),
