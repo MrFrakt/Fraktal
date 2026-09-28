@@ -518,9 +518,10 @@ class OpcUaRepository implements PlcRepository {
             unit: '${_values['$prefix/Unit'] ?? ''}',
             labelKey: '${_values['$prefix/LabelKey'] ?? ''}',
             enumDomain: '${_values['$prefix/EnumDomain'] ?? ''}',
-            unitCode: _values.containsKey('$prefix/UnitCode')
-                ? _integer(_values['$prefix/UnitCode'])
-                : null,
+            // Absent OR unread (an older PLC has no such member): legacy text.
+            unitCode: _values['$prefix/UnitCode'] == null
+                ? null
+                : _integer(_values['$prefix/UnitCode']),
             enumLabelKey: '${_values['$prefix/EnumLabelKey'] ?? ''}',
             // §3.8d. A PLC older than data classes publishes none of these:
             // an ABSENT level must read as unknown (-1), never as NONE, or an
@@ -948,16 +949,30 @@ class OpcUaRepository implements PlcRepository {
           '$page/PageIndex',
           '$page/PageCount',
           '$page/EntryCount',
-          for (var i = 1; i <= kManifestPageEntries; i++) ...[
-            '$page/Entries/Entries[$i]/Scope',
-            '$page/Entries/Entries[$i]/Item',
-            '$page/Entries/Entries[$i]/ValueText',
-          ],
+          // EVERY field of every entry, read together with the page: the
+          // manifest walk parses a page right after requesting it, and a field
+          // left to the cyclic snapshot still holds an EARLIER page there - so
+          // entries took the previous page's WriteKey/LabelKey, collapsed onto
+          // each other, and most parameters vanished (seen with Core 0.14,
+          // whose larger entries made the snapshot lag the walk further).
+          for (var i = 1; i <= kManifestPageEntries; i++)
+            for (final leaf in _kConfigEntryLeaves)
+              '$page/Entries/Entries[$i]/$leaf',
         ];
       default:
         return const [];
     }
   }
+
+  /// The members of `ST_ConfigEntry` the manifest walk parses - the one list
+  /// both the page read and the parse rely on. A leaf a PLC does not publish
+  /// (an older Core) simply reads as absent.
+  static const List<String> _kConfigEntryLeaves = [
+    'Scope', 'Item', 'ValueText', 'WriteKey', 'WriteRevision', 'ConfigKind',
+    'ValueType', 'Writable', 'RequiresReady', 'HasMinimum', 'HasMaximum',
+    'Minimum', 'Maximum', 'Unit', 'LabelKey', 'EnumDomain', 'UnitCode',
+    'EnumLabelKey', 'ClassId', 'ReadLevel', 'WriteLevel', 'Readable',
+  ];
 
   /// What the controller answered when it refused the last request, or ''
   /// when it did not answer at all. The two are different facts and the
