@@ -342,15 +342,17 @@ _recipePrepared := FALSE;]]></ST>
     </Method>
     <Method Name="M_AppendConfig" Id="{6d1b3a97-2e50-48cf-b1a4-95c07de8f312}">
       <Declaration><![CDATA[// §3.10.2 — base walk (Unit facets + all child modules), then the project-owned
-// fieldbus topology identity: static members of GVL_PressFieldbus.Topology are
-// OPC.UA.DA=0 and reach the HMI only through this manifest.
+// fieldbus topology identity, from the I/O catalog that owns it (SetIoCatalog):
+// its static members are OPC.UA.DA=0 and reach the HMI only through this manifest.
 METHOD M_AppendConfig : BOOL
 VAR_INPUT
     Pager : REFERENCE TO FB_ConfigPager;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[M_AppendConfig := SUPER^.M_AppendConfig(Pager := Pager);
-F_AppendTopologyConfig(Topology := GVL_PressFieldbus.Topology, Pager := Pager);]]></ST>
+IF __ISVALIDREF(_ioCatalog) THEN
+    _ioCatalog.M_AppendTopologyConfig(Pager := Pager);
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="OnAbort" Id="{946299b7-20f3-4f8e-8bce-a4a3c6398824}">

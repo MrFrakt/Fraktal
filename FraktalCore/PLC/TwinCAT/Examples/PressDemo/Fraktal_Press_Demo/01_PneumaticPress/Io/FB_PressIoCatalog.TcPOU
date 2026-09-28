@@ -175,6 +175,17 @@ Ok := _M_DefinePoint(NodeIndex := 4, ChannelIndex := 10, Tag := '_000K911_A1',
 Ok := _M_DeclareForceable(Engineering := Engineering) AND Ok;
 Setup := _publisher.M_Validate() AND Ok;]]></ST></Implementation>
     </Method>
+    <Method Name="M_AppendTopologyConfig" Id="{ca985c46-3c53-4bd7-b5ad-eb71bbe962c5}">
+      <Declaration><![CDATA[// §3.10.2 - the static fieldbus identity this catalog owns (it set the publisher
+// up on it), appended to the owning root's manifest. The Unit reaches the
+// topology through the catalog it was given, never through the global itself.
+METHOD M_AppendTopologyConfig : BOOL
+VAR_INPUT
+    Pager : REFERENCE TO FB_ConfigPager;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[F_AppendTopologyConfig(Topology := GVL_PressFieldbus.Topology, Pager := Pager);
+M_AppendTopologyConfig := TRUE;]]></ST></Implementation>
+    </Method>
     <Method Name="_M_DeclareForceable" Id="{3f1f3064-f2c4-4ca4-8d86-3420f780ebe8}">
       <Declaration><![CDATA[// Core §10.5.1 rule 1 — mark the outputs this station allows to be forced from
 // the HMI, and ONLY while the §7.5 OUTPUT_FORCING build gate is active.

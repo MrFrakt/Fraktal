@@ -67,8 +67,6 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_M_SetName(Name);
-_M_SetPresentation(DisplayNameKey := 'std.moduleType.line.name',
-    DescriptionKey := 'std.moduleType.line.description', TypeKey := 'std.moduleType.line');
 Setup := FALSE;
 IF (LineId = '') OR ((Role <> E_LineRole.OWNER) AND (Role <> E_LineRole.MIRROR)) THEN
     RETURN;
@@ -97,6 +95,7 @@ VAR
     ok   : BOOL;
     key  : STRING(160);
     item : STRING(255);
+    label : STRING(160);
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[ok := M_RegisterConfigNumber(Key := 'line.shift.utcOffsetMin', Item := 'Calendar/UtcOffsetMin',
@@ -106,7 +105,9 @@ END_VAR]]></Declaration>
 FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
     key := CONCAT('line.shift.', CONCAT(TO_STRING(n), '.startMin'));
     item := CONCAT('Calendar/StartMin[', CONCAT(TO_STRING(n), ']'));
-    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := 'std.config.shiftStart',
+    // One label per shift: the four sit together in a root's line data group.
+    label := CONCAT('std.config.shift.', CONCAT(TO_STRING(n), '.start'));
+    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := label,
         Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
         pTarget := ADR(Calendar.StartMin[n]), Minimum := -1.0, Maximum := 1439.0,
         RequiresReady := FALSE) AND ok;

@@ -391,13 +391,12 @@ const standardEnglish = <String, String>{
   'std.audit.dataAccessDenied': 'Configuration access denied.',
   'std.error.lineDataStale':
       'Line data has not been updated from its owner within the declared window.',
-  'std.moduleType.line': 'Line data',
   'std.config.shiftUtcOffset': 'Line clock offset from UTC',
-  'std.config.shiftStart': 'Shift start (minutes after midnight, -1 = unused)',
+  'std.config.shift.1.start': 'Shift 1 start (minutes after midnight, -1 = unused)',
+  'std.config.shift.2.start': 'Shift 2 start (minutes after midnight, -1 = unused)',
+  'std.config.shift.3.start': 'Shift 3 start (minutes after midnight, -1 = unused)',
+  'std.config.shift.4.start': 'Shift 4 start (minutes after midnight, -1 = unused)',
   'std.audit.shiftClosed': 'Shift closed.',
-  'std.moduleType.line.name': 'Line data',
-  'std.moduleType.line.description':
-      'Values shared by every station on the line, held once by the owner.',
   'std.error.configSetDeleteRefused':
       'The parameter set was not deleted: it does not exist, or it is being written.',
   'std.release.configRestoreUnacknowledged':
@@ -965,6 +964,7 @@ const standardEnglish = <String, String>{
   'std.command.robotMoveFromArea': 'Move from current area',
   'std.command.robotSetTool': 'Select tool',
   'std.command.robotSetFrame': 'Select frame',
+  'std.command.robotReconnect': 'Reconnect',
   'std.error.unsupportedAxisCommand': 'Unsupported axis command',
   'std.error.axisNotBound': 'Axis reference not bound',
   'std.error.axisDriveFault': 'Drive reported a fault',
@@ -1629,6 +1629,11 @@ const standardSpanish = <String, String>{
   'std.enum.modeSwitchShield.1': 'Confirmar primero – la HMI pregunta antes de cambiar',
   'std.enum.modeSwitchShield.2': 'Bloqueado en marcha – pulse Paro primero',
   'std.enum.modeSwitchStyle': 'Estilo del cambio de modo',
+  'std.config.shiftUtcOffset': 'Desfase del reloj de línea respecto a UTC',
+  'std.config.shift.1.start': 'Inicio del turno 1 (minutos tras medianoche, -1 = sin uso)',
+  'std.config.shift.2.start': 'Inicio del turno 2 (minutos tras medianoche, -1 = sin uso)',
+  'std.config.shift.3.start': 'Inicio del turno 3 (minutos tras medianoche, -1 = sin uso)',
+  'std.config.shift.4.start': 'Inicio del turno 4 (minutos tras medianoche, -1 = sin uso)',
   'std.error.clampNotConfirmedAfterSettle':
       'La sujeción no se confirmó tras el tiempo de asentamiento.',
   'std.safety.twoHandControl':
@@ -1786,6 +1791,7 @@ const standardSpanish = <String, String>{
   'std.command.robotMoveFromArea': 'Mover desde el área actual',
   'std.command.robotSetTool': 'Seleccionar herramienta',
   'std.command.robotSetFrame': 'Seleccionar marco',
+  'std.command.robotReconnect': 'Reconectar',
   'std.error.unsupportedAxisCommand': 'Comando de eje no admitido',
   'std.error.axisNotBound': 'Referencia de eje no vinculada',
   'std.error.axisDriveFault': 'El variador notificó un fallo',

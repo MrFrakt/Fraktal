@@ -4862,3 +4862,33 @@ audit had not looked for. What changed, by finding:
   under new names plus `ReadyForLoad` and `ActiveSettleTime`; the pushbutton-lamp condition
   is derived in the Unit (`TwoHandStartReady`) and `MAIN` only maps it.
 - **P10** - one pair of `RECIPE_MAX_*` constants for the changeover check and the edit range.
+
+## 147. The robot connector is a connector (Core 0.17.0.0, Modules 0.9.0.0, 2026-09-28)
+
+Finding P12 of the principles sweep. `FB_StaubliVal3Connector` extended `FB_AsciiDeviceCM`,
+a Control Module, while `FB_SimRobotConnector` extended `FB_DeviceConnectorBase`. So:
+two bases for one role; swapping connectors changed the module tree, which Annex I I.5
+says it must not; the Staubli type had no heartbeat or LinkTimeout (`Linked` meant
+"socket open"), contrary to §3.15.2; its `LinkReason` always reported "link down", even
+while linked; and nothing serviced it except a caller remembering to (§3.15.3).
+
+- **`FB_AsciiLink` (Core, new).** Terminator framing, the one-outstanding-request rule, the
+  receive bound and the response timeout, written once. Each tick returns an
+  `E_AsciiLinkEvent`; it owns no open policy and raises nothing. `FB_AsciiDeviceCM` now
+  composes it and keeps only its faults and bounded reconnect, with the same codes and
+  behaviour as before.
+- **`FB_StaubliVal3Connector` on `FB_DeviceConnectorBase`.** Session, heartbeat, loss after
+  `LinkTimeout` and bounded reconnect with no self-resume are inherited. The heartbeat IS
+  the status poll: STA every `ParCfg.StatusPeriod`, and any well-formed reply proves the
+  controller alive, so a command in flight does not starve it. A command that times out
+  or is refused lands in `LastResult`, which the robot CM already adopts verbatim.
+  `Setup(Name, Chan, DevHost, DevPort)` became `SetupLink` (the base owns `Setup(Name)`).
+  Its own command/output structs (`ST_StaubliConnOutCmd/OutImm/ParCmd`) are gone; what an
+  operator needs is published by the robot CM.
+- **`FB_RobotCM` services its connector every scan (§3.15.3),** and the reconnect service
+  action of §3.15.4 is its command `RECONNECT` (appended to `E_RobotCommand`, with
+  `ParCmd.AcknowledgeController`). It stays BUSY until the link is back and resumes
+  nothing.
+
+The connector tests now run across scans, because `Linked` comes up only after the first
+answered heartbeat. The suite count is unchanged.

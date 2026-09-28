@@ -14,10 +14,13 @@
 // matters; this one is what makes O6 - commissioning before hardware - true for
 // a robot cell, and what S5.7 tests run against.
 //
-// Everything transport-shaped is INHERITED, not restated: FB_AsciiDeviceCM owns
-// channel open/reconnect with bounded backoff, terminator framing, the
-// one-outstanding-request rule, response timeout -> 10402, and link publication
-// for the Annex D facet. This type adds only the robot protocol (S1.1 O9).
+// A CONNECTOR, like FB_SimRobotConnector (Core §3.15.1): it is serviced by the
+// robot CM it is composed in (§3.15.3), so swapping the two changes a declaration
+// and not the module tree (I.5). Everything connector-shaped is INHERITED from
+// FB_DeviceConnectorBase - session, heartbeat, loss confirmation after
+// LinkTimeout, bounded reconnect with no self-resume (§3.15.2) - and the ASCII
+// framing and one-outstanding-request rule are FB_AsciiLink's, shared with the
+// device CMs (§1.1 O9). This type adds only the robot protocol.
 //
 // PROTOCOL (ASCII, one line per message, terminator from ParCfg):
 //   request   <CMD>[,<arg>]...
@@ -28,19 +31,21 @@
 // standard permits - a bounded offset correction for a runtime-located target
 // (I.8a) - is not implemented here yet and is not smuggled in.
 //
-// STATUS is polled, not pushed: while idle the connector issues STA on
-// ParCfg.StatusPeriod, so Busy/Referenced/ActualMode/CurrentArea/ProtectiveStop/
-// Resumable/pose stay current without the robot needing to originate traffic.
-FUNCTION_BLOCK FB_StaubliVal3Connector EXTENDS FB_AsciiDeviceCM IMPLEMENTS I_RobotConnector
+// STATUS IS THE HEARTBEAT: every ParCfg.StatusPeriod the connector issues STA, so
+// MotionBusy/Referenced/ActualMode/CurrentArea/ProtectiveStop/Resumable/pose stay
+// current without the robot originating traffic, and a controller that stops
+// answering is declared lost after LinkTimeout rather than trusted forever.
+FUNCTION_BLOCK FB_StaubliVal3Connector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector
 VAR_INPUT
     ParCfg : ST_StaubliConnParCfg;
-    ParCmd : ST_StaubliConnParCmd;
 END_VAR
 VAR_OUTPUT
-    OutCmd : ST_StaubliConnOutCmd;
-    OutImm : ST_StaubliConnOutImm;
+    LinkState    : E_ByteChannelState;   // the transport, for diagnosis
+    LastResponse : STRING(255);          // the controller's last reply, verbatim
 END_VAR
 VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _link        : FB_AsciiLink;
     _busy        : BOOL;
     _referenced  : BOOL;
     _mode        : E_RobotOpMode;
@@ -51,16 +56,16 @@ VAR
     _pose        : ST_RobotPose;
     _ctrlMsg     : ST_Diagnostic;
     _lastResult  : ST_Diagnostic;
-    _tPoll       : TON;
-    _statusPend  : BOOL;   // the outstanding request is a status poll, not a command
-    _lastSeen    : DT;     // stamped on every healthy reply (Annex D heartbeat facet)
+    _statusPend  : BOOL;   // the outstanding request is the heartbeat's STA
+    _hbReply     : BOOL;   // a well-formed reply arrived since the heartbeat asked
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
     </Implementation>
-      <Method Name="Setup" Id="{c6f5de91-c6a9-4cc1-9bf9-e1a86e3db4d8}">
-        <Declaration><![CDATA[// Wire identity and transport. Called once from the owning CM (S3.11).
-METHOD Setup : BOOL
+      <Method Name="SetupLink" Id="{c6f5de91-c6a9-4cc1-9bf9-e1a86e3db4d8}">
+        <Declaration><![CDATA[// Wire identity and transport. Called once from the composition root (S3.11);
+// the robot CM then services the connector every scan (§3.15.3).
+METHOD SetupLink : BOOL
 VAR_INPUT
     Name    : STRING(80);
     Chan    : I_ByteChannel;
@@ -68,57 +73,116 @@ VAR_INPUT
     DevPort : UINT;
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[_M_SetName(Name);
+          <ST><![CDATA[SetupLink := FALSE;
+Setup(Name := Name);
+IF (Chan = 0) OR (DevHost = '') THEN
+    _lastResult.ReasonCode  := PL_TcpDevReasons.DEV_CFG_INVALID;
+    _lastResult.Description := 'std.error.deviceConnectionNotConfigured';
+    _lastResult.SourcePath  := Name;
+    RETURN;
+END_IF
 ParCfg.Host := DevHost;
 ParCfg.Port := DevPort;
-Setup := SetupDevice(Chan := Chan, DevHost := DevHost, DevPort := DevPort);]]></ST>
+SetupLink := _link.M_Bind(Chan := Chan);]]></ST>
         </Implementation>
       </Method>
-      <Method Name="OnCyclic" Id="{baed0918-2248-4ecf-a74e-e80249f9963d}">
-        <Declaration><![CDATA[// Mirror configuration into the inherited transport fields, let the base run the
-// channel and framing, then poll status while idle.
-METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Method Name="Cyclic" Id="{baed0918-2248-4ecf-a74e-e80249f9963d}">
+        <Declaration><![CDATA[// Run the link and parse what it delivered, then let the base run the session,
+// the heartbeat and the bounded reconnect exactly as for any connector.
+METHOD Cyclic : BOOL
+VAR
+    evt : E_AsciiLinkEvent;
+END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
-
-Host        := ParCfg.Host;
-Port        := ParCfg.Port;
-Terminator  := ParCfg.Terminator;
-RespTimeout := ParCfg.RespTimeout;
-
-// Idle status poll. Only when nothing is outstanding, so the base's
-// one-outstanding-request rule is never violated by our own housekeeping.
-_tPoll(IN := NOT _pending AND (LinkState = E_ByteChannelState.OPEN), PT := ParCfg.StatusPeriod);
-IF _tPoll.Q THEN
-    _tPoll(IN := FALSE);
-    IF SendRequest(Text := 'STA') THEN
-        _statusPend := TRUE;
-    END_IF
+          <ST><![CDATA[_link.Terminator := ParCfg.Terminator;
+_link.RespTimeout := ParCfg.RespTimeout;
+HbPeriod := ParCfg.StatusPeriod;
+evt := _link.M_Tick();
+LinkState := _link.State;
+CASE evt OF
+    E_AsciiLinkEvent.NONE:
+        ;
+    E_AsciiLinkEvent.RESPONSE:
+        LastResponse := _link.LastResponse;
+        _M_OnResponse(Response := _link.Response);
+    E_AsciiLinkEvent.TIMEOUT:
+        IF _statusPend THEN
+            // An unanswered heartbeat is not a fault by itself: it stays PENDING,
+            // and the base declares the link lost only after LinkTimeout (§3.15.2).
+            _statusPend := FALSE;
+        ELSE
+            // A command the controller never acknowledged: its own first-out, which
+            // the robot CM adopts verbatim (§8.2).
+            _lastResult.ReasonCode  := PL_TcpDevReasons.DEV_RESP_TIMEOUT;
+            _lastResult.Description := 'std.error.deviceResponseTimeout';
+            _lastResult.SourcePath  := Name;
+            _busy := FALSE;
+        END_IF
+    E_AsciiLinkEvent.OVERFLOW:
+        _M_Lost(Reason := E_Reason.DEVICE_PROTOCOL_ERROR, Text := 'std.error.deviceResponseOverflow');
+    E_AsciiLinkEvent.CHANNEL_FAULT:
+        _M_Lost(Reason := E_Reason.LINK_TIMEOUT, Text := 'std.error.transportChannelFault');
+ELSE
+    _M_Lost(Reason := E_Reason.DEVICE_PROTOCOL_ERROR, Text := 'std.error.byteChannelStateInvalid');
+END_CASE
+// The peer closed the socket: the session is gone now, not after a timeout.
+IF _sessionUp AND (LinkState = E_ByteChannelState.CLOSED) THEN
+    _M_Lost(Reason := E_Reason.LINK_TIMEOUT, Text := 'std.error.robotLinkDown');
 END_IF
-
+Cyclic := SUPER^.Cyclic();
 // A lost link invalidates every cached fact. Publishing a stale pose or a stale
 // "not in protective stop" while disconnected would be worse than publishing
 // nothing, because both read as positive statements about a robot we cannot see.
-IF LinkState <> E_ByteChannelState.OPEN THEN
+IF NOT Linked THEN
     _busy       := FALSE;
     _referenced := FALSE;
     _mode       := E_RobotOpMode.UNKNOWN;
     _area       := 0;
     _resumable  := FALSE;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Open" Id="{4a7c2e91-5b3d-4f08-8e6a-1d9c3b7f2e45}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_Open : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_statusPend := FALSE;
+_hbReply := FALSE;
+_M_Open := _link.M_Open(Host := ParCfg.Host, Port := ParCfg.Port);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Close" Id="{b92d5f14-7e6a-4c38-a1f9-6e0c8d2b4a73}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_Close : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_link.M_Close();
+_statusPend := FALSE;
+_busy := FALSE;
+_M_Close := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_HbStart" Id="{e1f68b3c-2a95-4d7e-9c04-7b5a3e8d1f26}">
+        <Declaration><![CDATA[// The heartbeat IS the status poll. With a command reply still outstanding the
+// slot is taken, so that reply is awaited instead: any well-formed reply proves the
+// controller alive, and the one-outstanding-request rule is never broken by
+// housekeeping.
+METHOD PROTECTED _M_HbStart : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_hbReply := FALSE;
+IF _link.Pending THEN
+    _M_HbStart := TRUE;
+    RETURN;
 END_IF
-
-OutImm.LinkState      := LinkState;
-OutImm.Linked         := Linked;
-OutImm.MotionBusy     := _busy;
-OutImm.Referenced     := _referenced;
-OutImm.ActualMode     := _mode;
-OutImm.RequestedMode  := _reqMode;
-OutImm.CurrentArea    := _area;
-OutImm.ProtectiveStop := _protStop;
-OutImm.Resumable      := _resumable;
-OutImm.ActualPosition := _pose;
-OutImm.LastResponse   := LastResponse;
-OutImm.Diagnostic     := Status.Diagnostic;]]></ST>
+_M_HbStart := _link.M_Send(Text := 'STA');
+_statusPend := _M_HbStart;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_HbPoll" Id="{5c3a9e27-8d14-4b6f-a2e1-0f7d6c9b3a58}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_HbPoll : E_HbResult]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF _hbReply THEN
+    _M_HbPoll := E_HbResult.OK;
+ELSE
+    _M_HbPoll := E_HbResult.PENDING;   // silence is judged by LinkTimeout in the base
+END_IF]]></ST>
         </Implementation>
       </Method>
       <Method Name="_M_OnResponse" Id="{eb7e03b9-de4a-4d32-a586-eb95e27bab48}">
@@ -133,22 +197,21 @@ VAR
     _stat : STRING(16);
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[// Any well-formed reply is evidence the controller is alive (Annex D S3.15.2).
-_lastSeen := F_Now();
+          <ST><![CDATA[// Any well-formed reply is evidence the controller is alive (§3.15.2).
+_hbReply := TRUE;
 
 _cmd  := _M_Field(Response, 1);
 _stat := _M_Field(Response, 2);
 
 IF _stat = 'ERR' THEN
     // The controller refused or faulted. Carry ITS message verbatim rather than a
-    // paraphrase - a service technician needs the robot's own text (S8.2).
+    // paraphrase - a service technician needs the robot's own text (S8.2). The
+    // robot CM adopts it from LastResult as its first-out.
     _ctrlMsg := _M_MakeCtrlDiag(Code := _M_Field(Response, 3),
                                 Text := _M_Field(Response, 4));
     _lastResult := _ctrlMsg;
     _busy := FALSE;
     _statusPend := FALSE;
-    _M_FaultN(Code := PL_ModuleReasons.ROBOT_CONTROLLER_FAULT,
-              Text := 'std.error.robotControllerFault');
     RETURN;
 END_IF
 
@@ -188,13 +251,13 @@ IF NOT Linked THEN
     _lastResult := _M_MakeLinkDiag();
     RETURN;
 END_IF
-IF _pending THEN
-    // One outstanding request is the base's rule; refusing here keeps the caller
+IF _link.Pending THEN
+    // One outstanding request is the link's rule; refusing here keeps the caller
     // honest instead of silently dropping the command.
     _lastResult := _M_MakeLinkDiag();
     RETURN;
 END_IF
-IF NOT SendRequest(Text := Text) THEN
+IF NOT _link.M_Send(Text := Text) THEN
     _lastResult := _M_MakeLinkDiag();
     RETURN;
 END_IF
@@ -276,50 +339,6 @@ METHOD PRIVATE _M_MakeLinkDiag : ST_Diagnostic]]></Declaration>
           <ST><![CDATA[_M_MakeLinkDiag.ReasonCode  := E_Reason.LINK_TIMEOUT;
 _M_MakeLinkDiag.Description := 'std.error.robotLinkDown';
 _M_MakeLinkDiag.SourcePath  := Name;]]></ST>
-        </Implementation>
-      </Method>
-      <Method Name="Connect" Id="{572c645d-0cb9-46e8-880d-143f68653217}">
-        <Declaration><![CDATA[// Annex D. The base already opens and re-opens with bounded backoff; this is the
-// EXPLICIT operator reconnect of I.15, not a second state machine competing with it.
-METHOD Connect : BOOL]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[IF _chan = 0 THEN
-    Connect := FALSE;
-    RETURN;
-END_IF
-Connect := _chan.Open(Host := ParCfg.Host, Port := ParCfg.Port);]]></ST>
-        </Implementation>
-      </Method>
-      <Method Name="Disconnect" Id="{7ad2728c-e961-48c8-8a46-e0d0f39e65ed}">
-        <Declaration><![CDATA[// Annex D. Drops the session; the base's backoff governs any re-open.
-METHOD Disconnect : BOOL]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[IF _chan = 0 THEN
-    Disconnect := FALSE;
-    RETURN;
-END_IF
-Disconnect := _chan.Close();]]></ST>
-        </Implementation>
-      </Method>
-      <Method Name="_M_Dispatch" Id="{18c21a15-b4f3-46dd-8592-0ff76a4bcf73}">
-        <Declaration><![CDATA[// The connector's OWN command surface is the service action of Annex I I.15 -
-// reconnect the link. Robot MOTION is never commanded through this handshake; the
-// robot CM calls I_RobotConnector methods directly, which is why this dispatch is
-// so small.
-METHOD PROTECTED _M_Dispatch]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[IF NOT Linked THEN
-    Connect();
-    RETURN;                      // stay BUSY until the transport actually comes up
-END_IF
-IF ParCmd.AcknowledgeController THEN
-    // Clearing the robot's own fault is part of a deliberate reconnect, never
-    // automatic: a controller fault must not evaporate because a link blipped.
-    _M_Request('RST');
-END_IF
-OutCmd.Reconnected    := TRUE;
-OutCmd.ControllerCode := _ctrlMsg.Description;
-_M_Complete();]]></ST>
         </Implementation>
       </Method>
       <Method Name="PowerOn" Id="{bbd99df2-eba9-4dfc-88ab-75ad65d57d61}">
@@ -416,20 +435,6 @@ _reqMode := Mode;
 RequestMode := _M_Request(CONCAT('MOD,', _s));]]></ST>
         </Implementation>
       </Method>
-      <Method Name="SetSpeedScale" Id="{98f50278-213d-414d-8f96-c6d33430fcd0}">
-        <Declaration><![CDATA[METHOD SetSpeedScale : BOOL
-VAR_INPUT
-    Percent : REAL;
-END_VAR]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[IF (Percent < 0.0) OR (Percent > 100.0) THEN
-    SetSpeedScale := FALSE;
-    RETURN;
-END_IF
-OutImm.SpeedScale := Percent;
-SetSpeedScale := _M_Request(CONCAT('SPD,', REAL_TO_STRING(Percent)));]]></ST>
-        </Implementation>
-      </Method>
       <Method Name="SetTool" Id="{129e2a2e-a7c1-4ec4-8af9-f4bd07dfc4a6}">
         <Declaration><![CDATA[METHOD SetTool : BOOL
 VAR_INPUT
@@ -505,6 +510,19 @@ VAR_INPUT
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[MoveFromArea := _M_Request(CONCAT('ARE,', DWORD_TO_STRING(ToPosId)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetSpeedScale" Id="{98f50278-213d-414d-8f96-c6d33430fcd0}">
+        <Declaration><![CDATA[METHOD SetSpeedScale : BOOL
+VAR_INPUT
+    Percent : REAL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Percent < 0.0) OR (Percent > 100.0) THEN
+    SetSpeedScale := FALSE;
+    RETURN;
+END_IF
+SetSpeedScale := _M_Request(CONCAT('SPD,', REAL_TO_STRING(Percent)));]]></ST>
         </Implementation>
       </Method>
       <Property Name="MotionBusy" Id="{f0956d54-6d38-48f0-9562-e484f5918809}">
@@ -596,37 +614,6 @@ END_VAR]]></Declaration>
 END_VAR]]></Declaration>
           <Implementation>
             <ST><![CDATA[LastResult := _lastResult;]]></ST>
-          </Implementation>
-        </Get>
-      </Property>
-      <Property Name="Linked" Id="{8c096d5e-d9b2-45f3-9f2a-0cd9d746388d}">
-        <Declaration><![CDATA[// Annex D link facet: session up AND transport healthy.
-PROPERTY Linked : BOOL]]></Declaration>
-        <Get Name="Get" Id="{a44b5ef4-f0ed-4e61-ac0d-cc25a0502599}">
-          <Declaration><![CDATA[VAR
-END_VAR]]></Declaration>
-          <Implementation>
-            <ST><![CDATA[Linked := (LinkState = E_ByteChannelState.OPEN);]]></ST>
-          </Implementation>
-        </Get>
-      </Property>
-      <Property Name="LastSeen" Id="{84055663-b4da-4b8e-a3a6-0afa9e223c28}">
-        <Declaration><![CDATA[PROPERTY LastSeen : DT]]></Declaration>
-        <Get Name="Get" Id="{bf1a1fcb-9e13-437d-beed-7d5ba543b6f3}">
-          <Declaration><![CDATA[VAR
-END_VAR]]></Declaration>
-          <Implementation>
-            <ST><![CDATA[LastSeen := _lastSeen;]]></ST>
-          </Implementation>
-        </Get>
-      </Property>
-      <Property Name="LinkReason" Id="{bff882ef-5fdb-46b6-bf41-904a39b9b0ce}">
-        <Declaration><![CDATA[PROPERTY LinkReason : ST_Diagnostic]]></Declaration>
-        <Get Name="Get" Id="{541dd47f-5974-43ce-868a-a0d3be19f1dd}">
-          <Declaration><![CDATA[VAR
-END_VAR]]></Declaration>
-          <Implementation>
-            <ST><![CDATA[LinkReason := _M_MakeLinkDiag();]]></ST>
           </Implementation>
         </Get>
       </Property>

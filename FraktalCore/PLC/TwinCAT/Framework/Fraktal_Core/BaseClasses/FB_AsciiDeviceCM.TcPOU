@@ -4,8 +4,9 @@
     <Declaration><![CDATA[// Core §3.15.1a — CM base for ASCII request/response devices over I_ByteChannel
 // (vision sensors, code readers, gauges). One-outstanding-request state machine:
 // SendRequest -> await terminated response -> _M_OnResponse hook; silence -> fault
-// 10402. Written ONCE against the neutral seam: porting = swap the channel (O4/O8).
-// Reconnect: bounded retry via the channel; link state published for Annex D facet.
+// 10402. The framing and request rules are FB_AsciiLink's, shared with connectors
+// (§1.1 O9); this CM adds what a CM owns: its faults and its bounded reconnect.
+// Written ONCE against the neutral seam: porting = swap the channel (O4/O8).
 FUNCTION_BLOCK ABSTRACT FB_AsciiDeviceCM EXTENDS FB_ControlModuleBase
 VAR
     Host        : STRING(80);          // §3.8 config (per deployment)
@@ -17,13 +18,10 @@ VAR
 END_VAR
 VAR
     {attribute 'OPC.UA.DA' := '0'}
-    _chan     : I_ByteChannel;
-    _rx       : STRING(255);
-    _pending  : BOOL;                  // one outstanding request
-    _tResp    : TON;
-    _tRetry   : TON;
-    _retryMs  : TIME := T#500MS;       // bounded backoff (doubles to 10s)
-    _openTried : BOOL;                 // backoff spaces RE-tries; the first Open is immediate
+    _link      : FB_AsciiLink;
+    _tRetry    : TON;
+    _retryMs   : TIME := T#500MS;       // bounded backoff (doubles to 10s)
+    _openTried : BOOL;                  // backoff spaces RE-tries; the first Open is immediate
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[;  // driven via Cyclic (base) -> OnCyclic below]]></ST>
@@ -42,7 +40,7 @@ END_VAR]]></Declaration>
     SetupDevice := FALSE;
     RETURN;
 END_IF
-_chan := Chan;
+_link.M_Bind(Chan := Chan);
 Host := DevHost;
 Port := DevPort;
 SetupDevice := TRUE;]]></ST>
@@ -52,67 +50,49 @@ SetupDevice := TRUE;]]></ST>
       <Declaration><![CDATA[// channel management + RX framing. Profiles override _M_OnResponse, not this.
 METHOD PROTECTED OnCyclic : DINT
 VAR
-    pos : INT;
-    resp : STRING(255);
+    evt : E_AsciiLinkEvent;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
-IF _chan = 0 THEN
-    RETURN;
-END_IF
-_chan.Tick();
-LinkState := _chan.State();
-CASE LinkState OF
-    E_ByteChannelState.CLOSED:
-        IF NOT _openTried THEN
-            _openTried := TRUE;                    // first sight of CLOSED: connect NOW
-            _chan.Open(Host := Host, Port := Port);
-            LinkState := _chan.State();            // a synchronous transport is OPEN this scan
-        ELSE
-            _tRetry(IN := TRUE, PT := _retryMs);   // failed before: bounded backoff (§3.15.2 spirit)
-            IF _tRetry.Q THEN
-                _tRetry(IN := FALSE);
-                _chan.Open(Host := Host, Port := Port);
-                LinkState := _chan.State();
-                IF _retryMs < T#10S THEN
-                    _retryMs := _retryMs * 2;
-                END_IF
+_link.Terminator := Terminator;
+_link.RespTimeout := RespTimeout;
+evt := _link.M_Tick();
+LinkState := _link.State;
+IF LinkState = E_ByteChannelState.CLOSED THEN
+    IF NOT _openTried THEN
+        _openTried := TRUE;                        // first sight of CLOSED: connect NOW
+        _link.M_Open(Host := Host, Port := Port);
+        LinkState := _link.State;                  // a synchronous transport is OPEN this scan
+    ELSE
+        _tRetry(IN := TRUE, PT := _retryMs);       // failed before: bounded backoff (§3.15.2 spirit)
+        IF _tRetry.Q THEN
+            _tRetry(IN := FALSE);
+            _link.M_Open(Host := Host, Port := Port);
+            LinkState := _link.State;
+            IF _retryMs < T#10S THEN
+                _retryMs := _retryMs * 2;
             END_IF
         END_IF
-    E_ByteChannelState.OPEN:
-        _openTried := FALSE;
-        _retryMs := T#500MS;
-        _chan.Poll(Buffer := _rx);
-        pos := FIND(_rx, Terminator);
-        IF pos > 0 THEN
-            resp := LEFT(_rx, pos - 1);
-            _rx := DELETE(_rx, pos + LEN(Terminator) - 1, 1);
-            _pending := FALSE;
-            _tResp(IN := FALSE);
-            LastResponse := resp;
-            _M_OnResponse(Response := resp);
-        ELSIF LEN(_rx) >= 250 THEN
-            _rx := '';
-            _M_FaultN(PL_TcpDevReasons.DEV_RX_OVERFLOW, 'std.error.deviceResponseOverflow');
-        END_IF
-    E_ByteChannelState.FAULT:
-        IF _pending THEN
-            _pending := FALSE;
-            _tResp(IN := FALSE);
-        END_IF
+    END_IF
+ELSIF LinkState = E_ByteChannelState.OPEN THEN
+    _openTried := FALSE;
+    _retryMs := T#500MS;
+END_IF
+CASE evt OF
+    E_AsciiLinkEvent.NONE:
+        ;
+    E_AsciiLinkEvent.RESPONSE:
+        LastResponse := _link.LastResponse;
+        _M_OnResponse(Response := _link.Response);
+    E_AsciiLinkEvent.OVERFLOW:
+        _M_FaultN(PL_TcpDevReasons.DEV_RX_OVERFLOW, 'std.error.deviceResponseOverflow');
+    E_AsciiLinkEvent.CHANNEL_FAULT:
         _M_FaultN(PL_TcpDevReasons.DEV_CHANNEL_FAULT, 'std.error.transportChannelFault');
-        _chan.Close();
+    E_AsciiLinkEvent.TIMEOUT:
+        _M_FaultN(PL_TcpDevReasons.DEV_RESP_TIMEOUT, 'std.error.deviceResponseTimeout');
 ELSE
     _M_FaultN(PL_TcpDevReasons.DEV_CHANNEL_FAULT, 'std.error.byteChannelStateInvalid');
-    _chan.Close();
-END_CASE
-// response timeout watch
-_tResp(IN := _pending, PT := RespTimeout);
-IF _tResp.Q THEN
-    _pending := FALSE;
-    _tResp(IN := FALSE);
-    _M_FaultN(PL_TcpDevReasons.DEV_RESP_TIMEOUT, 'std.error.deviceResponseTimeout');
-END_IF]]></ST>
+END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="SendRequest" Id="{762283fc-05d7-4631-9d26-11346d11feba}">
@@ -122,28 +102,14 @@ VAR_INPUT
     Text : STRING(250);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// live channel state: the cached LinkState is one scan old and would reject a
-// request issued in the same scan the transport opened.
-// Null test is its own statement: IEC 61131-3 does not mandate short-circuit
-// evaluation and TwinCAT's compile option for it is off by default, so folding
-// this into `_chan = 0 OR (_chan.State() <> ...)` still calls State() on a null
-// interface and faults the runtime. OnCyclic already guards this way.
-IF _chan = 0 THEN
+        <ST><![CDATA[IF NOT _link.M_IsOpen() THEN
     _M_FaultN(PL_TcpDevReasons.DEV_NOT_CONNECTED, 'std.error.deviceNotConnected');
     SendRequest := FALSE;
     RETURN;
 END_IF
-IF _chan.State() <> E_ByteChannelState.OPEN THEN
-    _M_FaultN(PL_TcpDevReasons.DEV_NOT_CONNECTED, 'std.error.deviceNotConnected');
-    SendRequest := FALSE;
-    RETURN;
-END_IF
-IF _pending THEN
-    SendRequest := FALSE;              // one-outstanding-request contract
-    RETURN;
-END_IF
-_pending := _chan.Send(Text := CONCAT(Text, Terminator));
-SendRequest := _pending;]]></ST>
+// A pending request is the one-outstanding contract, not a fault: refused quietly.
+_link.Terminator := Terminator;
+SendRequest := _link.M_Send(Text := Text);]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_OnResponse" Id="{458bd92a-0a1d-42f4-9a5c-8b7706bcaf76}">

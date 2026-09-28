@@ -268,3 +268,28 @@ The findings are below, most severe first.
 | P8 | Air loss while running: **HELD** (outputs withdrawn, resumes when pressure returns, no alarm) or **fault** (manual reset)? The standard leans to HELD for a condition the process restores; the press currently faults. |
 | P3 | Remove `FB_ClampStationUnit` from `Fraktal_Modules` (Modules major step, Annex H example updated), or keep it deprecated for one release? |
 | All | Runtime gates after each PLC step, as for G2. |
+
+### 8.1 Status after closing (same day)
+
+The owner decided P8 (**hold**) and P3 (**remove the Unit entirely**).
+
+| # | Status | How it was closed |
+|---|---|---|
+| P1 | ✅ | `21d3e08`. Follow-ups: `FB_LineData` no longer carries a module presentation it never published. The four shift starts now have their own labels (English and Spanish). The line's `Revision`/`Stale`/`Owner` are deliberately **not** republished on the root, because nothing reads them (O4); staleness reaches the operator as its LOW event. |
+| P2 | ✅ | `9b6a09a`. `Start()` is asked unconditionally, and only the two-hand latch is qualified. |
+| P3 | ✅ | `9b6a09a`. The Unit and its structs left `Fraktal_Modules` (0.8.0.0). CoreDemo owns `FB_ClampCellUnit` with a proper chain. The Unit-tier rows moved to `FB_UnitTier_Tests`. |
+| P4, P5, P11 | ✅ | `9b6a09a`. Library types raise `std.*` keys only. The vision, code-reader and robot types publish type keys. Press text moved to the project catalogue. |
+| P6, P7 | ✅ | `9b6a09a`. The press `OutImm` holds only derived facts, and the pushbutton lamp is `TwoHandStartReady`, which `MAIN` only maps. |
+| P8 | ✅ | `9b6a09a`. Air is each cylinder's own condition, so air loss holds and resumes. A new PressTests case proves it (9 tests / 2 suites). |
+| P9 | ✅ | `9b6a09a`, Core 0.16.0.0. The base restarts attached chains on first scan, mode change and abort. Restart-vs-resume stays project policy. |
+| P10 | ✅ | `9b6a09a`. One `RECIPE_MAX_*` pair. |
+| P12 | ✅ | Core 0.17.0.0 / Modules 0.9.0.0 (IMPLEMENTATION_NOTES §147). The Stäubli connector now sits on the connector base, and the ASCII framing is shared through `FB_AsciiLink`. The robot CM services its connector and offers `RECONNECT`. Two latent defects went with it: no heartbeat or `LinkTimeout`, and a `LinkReason` that always said "link down". |
+| P13 | ✅ | The press reaches the topology through the I/O catalogue that owns it. |
+| P14 | ✅ | `9b6a09a`. CoreDemo has `00_System`/`01_ClampCell` folders **and an XAE solution**: until now no gate compiled it at all. |
+
+**Found while closing, and still open:**
+
+| # | Finding | Needs |
+|---|---|---|
+| P15 | Every library module publishes `OutImm.Diagnostic := Status.Diagnostic` (23 types). The same diagnostic therefore streams twice per module in the HMI's live tier (O4, O9). Core §6.9 names `OutImm.Diagnostic`, and §3.10 publishes `Status`. | A Core decision: which of the two is *the* published diagnostic. The other then becomes a derived read in the HMI, or is dropped at a major version. |
+| — | The runtime TcUnit gates (Core/Modules 189 / 42, PressTests 9 / 2) cover everything above but have not run. They need the owner at XAE. | The owner |
