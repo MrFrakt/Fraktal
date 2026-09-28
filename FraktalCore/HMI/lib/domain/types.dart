@@ -491,6 +491,19 @@ class CfgField {
   final double? minimum;
   final double? maximum;
   final List<String> enumDomain;
+
+  /// Core §3.8d - the value's data class ('' = the built-in class of its kind)
+  /// and the EFFECTIVE levels the PLC computed for it. Null when the PLC did not
+  /// publish them (a controller older than §3.8d): the editor then falls back to
+  /// the station-wide DATA_READ/DATA_WRITE gates, exactly as before.
+  final String classId;
+  final AccessLevel? readLevel;
+  final AccessLevel? writeLevel;
+
+  /// FALSE = the PLC served this value WITHOUT its value because the session
+  /// does not meet its read level. The field is still listed so the editor can
+  /// say something exists and why it is hidden.
+  final bool readable;
   const CfgField(this.name, this.kind, this.type, this.value,
       {this.unit = '',
       this.labelKey = '',
@@ -500,10 +513,24 @@ class CfgField {
       this.requiresReady = false,
       this.minimum,
       this.maximum,
-      this.enumDomain = const []});
+      this.enumDomain = const [],
+      this.classId = '',
+      this.readLevel,
+      this.writeLevel,
+      this.readable = true});
 
   bool get hasWriteCapability =>
       writable && writeKey.isNotEmpty && writeRevision > 0;
+
+  /// Presentation only: the PLC re-checks every write against the same level.
+  bool canReadIn(AccessSession session) => readable &&
+      (readLevel == null
+          ? session.permits(GatedAction.dataRead)
+          : session.level.index >= readLevel!.index);
+
+  bool canWriteIn(AccessSession session) => writeLevel == null
+      ? session.permits(GatedAction.dataWrite)
+      : session.level.index >= writeLevel!.index;
 
   /// Client-side feedback only; the owning PLC handler repeats every check.
   bool accepts(String candidate) {

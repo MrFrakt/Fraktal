@@ -62,7 +62,9 @@ enum _HmiRequestKind {
   importConfigSet,
   // ignore: unused_field
   manualHeld,
+  // ignore: unused_field
   deleteConfigSet,
+  // ignore: unused_field
   setClassLevel,
 }
 
@@ -523,6 +525,17 @@ class OpcUaRepository implements PlcRepository {
             unit: '${_values['$prefix/Unit'] ?? ''}',
             labelKey: '${_values['$prefix/LabelKey'] ?? ''}',
             enumDomain: '${_values['$prefix/EnumDomain'] ?? ''}',
+            // §3.8d. A PLC older than data classes publishes none of these:
+            // an ABSENT level must read as unknown (-1), never as NONE, or an
+            // old controller would appear to open every value to everyone.
+            classId: '${_values['$prefix/ClassId'] ?? ''}',
+            readLevel: _values.containsKey('$prefix/ReadLevel')
+                ? _integer(_values['$prefix/ReadLevel'])
+                : -1,
+            writeLevel: _values.containsKey('$prefix/WriteLevel')
+                ? _integer(_values['$prefix/WriteLevel'])
+                : -1,
+            readable: _values['$prefix/Readable'] != false,
           ));
         }
         page++;

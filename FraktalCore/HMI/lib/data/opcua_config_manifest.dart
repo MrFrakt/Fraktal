@@ -39,6 +39,12 @@ class ConfigManifestEntry {
   final String labelKey;
   final String enumDomain;
 
+  /// Core §3.8d. -1 = not published (a PLC older than data classes).
+  final String classId;
+  final int readLevel;
+  final int writeLevel;
+  final bool readable;
+
   const ConfigManifestEntry(this.scope, this.item, this.valueText,
       {this.writeKey = '',
       this.writeRevision = 0,
@@ -52,19 +58,32 @@ class ConfigManifestEntry {
       this.maximum = 0,
       this.unit = '',
       this.labelKey = '',
-      this.enumDomain = ''});
+      this.enumDomain = '',
+      this.classId = '',
+      this.readLevel = -1,
+      this.writeLevel = -1,
+      this.readable = true});
 }
 
-/// Builds the editable surface exclusively from explicit PLC capabilities.
+AccessLevel? _level(int ordinal) =>
+    ordinal >= 0 && ordinal < AccessLevel.values.length
+        ? AccessLevel.values[ordinal]
+        : null;
+
+/// Builds the configuration surface exclusively from explicit PLC capabilities.
 /// Missing/invalid metadata and duplicate `(Scope, WriteKey)` registrations are
 /// omitted, so older servers and conflicting owners fail closed.
+///
+/// A capability published READ-ONLY (a §3.8e line-data mirror) is kept, not
+/// dropped: its value is real and the operator should see it. So is one served
+/// without its value (§3.8d: the session does not meet its read level) - the
+/// editor lists it as hidden rather than pretending it does not exist.
 Map<String, List<CfgField>> configFieldsFromManifest(
     Iterable<ConfigManifestEntry> entries) {
   final fields = <String, Map<String, CfgField>>{};
   final conflicted = <String>{};
   for (final entry in entries) {
-    if (!entry.writable ||
-        entry.scope.isEmpty ||
+    if (entry.scope.isEmpty ||
         entry.item.isEmpty ||
         entry.writeKey.isEmpty ||
         entry.writeRevision <= 0 ||
@@ -96,18 +115,24 @@ Map<String, List<CfgField>> configFieldsFromManifest(
       entry.item,
       CfgKind.values[entry.configKind],
       CfgType.values[entry.valueType],
-      entry.valueText,
+      entry.readable ? entry.valueText : '',
       unit: entry.unit,
       labelKey: entry.labelKey,
       writeKey: entry.writeKey,
       writeRevision: entry.writeRevision,
-      writable: true,
+      writable: entry.writable,
       requiresReady: entry.requiresReady,
       minimum: entry.hasMinimum ? entry.minimum : null,
       maximum: entry.hasMaximum ? entry.maximum : null,
       enumDomain: domain,
+      classId: entry.classId,
+      readLevel: _level(entry.readLevel),
+      writeLevel: _level(entry.writeLevel),
+      readable: entry.readable,
     );
-    if (field.accepts(entry.valueText)) owner[entry.writeKey] = field;
+    if (!entry.readable || field.accepts(entry.valueText)) {
+      owner[entry.writeKey] = field;
+    }
   }
   return {
     for (final entry in fields.entries)

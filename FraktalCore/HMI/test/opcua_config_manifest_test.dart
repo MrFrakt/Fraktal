@@ -154,6 +154,100 @@ void main() {
 
     expect(fields, isEmpty);
   });
+
+  group('§3.8d data classes and per-value levels', () {
+    const operatorSession = AccessSession(level: AccessLevel.operator);
+    const engineerSession = AccessSession(level: AccessLevel.engineer);
+
+    test('the published class and effective levels decide, not DATA_WRITE', () {
+      final fields = configFieldsFromManifest(const [
+        ConfigManifestEntry('Press', 'StationCfg/Preset', '5',
+            writeKey: 'press.preset',
+            writeRevision: 1,
+            configKind: 1,
+            valueType: 0,
+            writable: true,
+            classId: 'public',
+            readLevel: 0,
+            writeLevel: 1),
+        ConfigManifestEntry('Press', 'StationCfg/Calibration', '1.5',
+            writeKey: 'press.calibration',
+            writeRevision: 1,
+            configKind: 1,
+            valueType: 0,
+            writable: true,
+            classId: 'public',
+            readLevel: 0,
+            writeLevel: 3),
+      ]);
+      final preset =
+          fields['Press']!.firstWhere((f) => f.writeKey == 'press.preset');
+      final calibration =
+          fields['Press']!.firstWhere((f) => f.writeKey == 'press.calibration');
+      expect(preset.classId, 'public');
+      // The station-wide DATA_WRITE gate of this session is irrelevant here.
+      expect(preset.canWriteIn(operatorSession), isTrue);
+      expect(calibration.canWriteIn(operatorSession), isFalse,
+          reason: 'a raised value refuses its class level');
+      expect(calibration.canWriteIn(engineerSession), isTrue);
+    });
+
+    test('an older PLC without levels falls back to the gates', () {
+      final field = configFieldsFromManifest(const [
+        ConfigManifestEntry('Press', 'StationCfg/Port', '4840',
+            writeKey: 'station.port',
+            writeRevision: 1,
+            configKind: 1,
+            valueType: 0,
+            writable: true),
+      ])['Press']!.single;
+      expect(field.writeLevel, isNull,
+          reason: 'absent must be unknown, never NONE');
+      const locked = AccessSession(
+          level: AccessLevel.operator,
+          required: [
+            AccessLevel.none, AccessLevel.engineer, AccessLevel.none,
+            AccessLevel.none, AccessLevel.none, AccessLevel.none,
+            AccessLevel.none, AccessLevel.none, AccessLevel.none,
+            AccessLevel.none, AccessLevel.none, AccessLevel.none,
+          ]);
+      expect(field.canWriteIn(locked), isFalse);
+    });
+
+    test('an unreadable value is listed without its value', () {
+      final field = configFieldsFromManifest(const [
+        ConfigManifestEntry('Press', 'StationCfg/Secret', '',
+            writeKey: 'press.secret',
+            writeRevision: 1,
+            configKind: 1,
+            valueType: 0,
+            writable: true,
+            readLevel: 4,
+            writeLevel: 4,
+            readable: false),
+      ])['Press']!.single;
+      expect(field.readable, isFalse);
+      expect(field.value, isEmpty);
+      expect(field.canReadIn(engineerSession), isFalse);
+    });
+
+    test('a mirrored line value is kept, read-only', () {
+      final field = configFieldsFromManifest(const [
+        ConfigManifestEntry('Press.Line', 'Calendar/StartMin[1]', '360',
+            writeKey: 'shift.1.startMin',
+            writeRevision: 1,
+            configKind: 2,
+            valueType: 0,
+            writable: false,
+            readLevel: 0,
+            writeLevel: 3),
+      ])['Press.Line']!.single;
+      expect(field.kind, CfgKind.lineCfg);
+      expect(field.value, '360');
+      expect(field.hasWriteCapability, isFalse);
+    });
+  });
+
   group('§3.13 flow-chart rows arrive as NUMBERS, not strings', () {
     // Regression: the whole sequence flow chart rendered "N0" on every row with
     // an empty drill-down. The static half of each row is served through the
