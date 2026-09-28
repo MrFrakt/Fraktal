@@ -161,8 +161,10 @@ Not enforced:
 
 A deliberately green "all clear" would then need a maintenance or engineering view.
 
-**G6 — §7.5 station tile.** The tile's geometry is fixed, but its slot contents are not
-type-authored yet. This is planned after G4, because it reuses the same binding and
+**G6 — §7.5 station tile.** *Update, same day: closed.* Slot contents are type-authored:
+three metric and two badge slots in fixed columns, OK neutral, authored per station or
+per type, exported with the profile.
+The tile's geometry is fixed, but its slot contents were not type-authored. This is planned after G4, because it reuses the same binding and
 token vocabulary.
 
 **G7 — Default theme.** The shipped default is still Light Blue (index 0). ISA-101

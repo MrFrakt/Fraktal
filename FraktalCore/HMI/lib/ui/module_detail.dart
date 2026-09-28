@@ -252,6 +252,14 @@ class _ModuleDetailState extends State<ModuleDetail> {
                 onPressed: () => _editTab(node, selectedTab, capabilities),
                 icon: const Icon(Icons.tab_outlined),
               ),
+              // §7.5: only a root Unit has a station tile on the overview.
+              if (app.rootOf(node.path)?.path == node.path)
+                IconButton(
+                  key: const Key('station-tile-edit'),
+                  tooltip: context.tr('std.module.editor.stationTile'),
+                  onPressed: () => _editStationTile(node),
+                  icon: const Icon(Icons.dashboard_customize_outlined),
+                ),
               if (!selectedTab.builtIn)
                 IconButton(
                   tooltip: context.tr('std.module.editor.deleteTab'),
@@ -506,6 +514,29 @@ class _ModuleDetailState extends State<ModuleDetail> {
       _draftTabs = List.unmodifiable(_scopeTabs(node, capabilities));
       _redoDrafts.clear();
     });
+  }
+
+  /// Publishes a station tile to the edit scope - this station, or every
+  /// station of its type. Published directly: a tile is not part of the tab
+  /// draft, and its slots are validated like any control.
+  Future<void> _editStationTile(ModuleNode node) async {
+    final scope = _scope(node);
+    final profile = await showStationTileEditor(
+      context,
+      node: node,
+      existing: _typeScope
+          ? app.content.tileFor(scope)
+          : app.content.tileFor(node.path, typeKey: node.typeKey),
+    );
+    if (profile == null || !mounted) return;
+    try {
+      await app.content.publishTile(scope, profile);
+    } on FormatException catch (refused) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.tr(refused.message))));
+      }
+    }
   }
 
   Future<void> _useTypeLayout(

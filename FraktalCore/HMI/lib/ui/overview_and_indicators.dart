@@ -10,6 +10,8 @@ import '../domain/types.dart';
 import '../state/app_state.dart';
 import 'app_theme.dart';
 import 'cycle_profile_view.dart';
+import 'custom_module_tabs.dart' show formatControlValue;
+import '../content/module_layout.dart';
 
 /// §6.5/§6.9 — what the Unit is doing right now, and what it waits for.
 class CurrentStepCard extends StatelessWidget {
@@ -342,12 +344,88 @@ class PlantOverview extends StatelessWidget {
         crossAxisSpacing: 12,
         children: [
           for (final r in app.forest)
-            StationCard(node: r, onTap: () => app.select(r.path)),
+            StationCard(
+              node: r,
+              tile: app.content.tileFor(r.path, typeKey: r.typeKey),
+              onTap: () => app.select(r.path),
+            ),
         ],
       );
     });
   }
 
+}
+
+/// A tile's authored slots in FIXED columns (LOCALIZATION §7.5): metric N is
+/// always in column N, on every station, so twelve tiles read as one table.
+/// A tile is an operating view, so an OK badge draws neutral - colour on the
+/// overview means something is abnormal.
+class _TileSlots extends StatelessWidget {
+  final ModuleNode node;
+  final ModuleTileProfile tile;
+  const _TileSlots({required this.node, required this.tile});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (tile.metrics.isNotEmpty)
+        Row(children: [
+          for (var i = 0; i < ModuleTileProfile.maxMetrics; i++)
+            Expanded(
+              child: i < tile.metrics.length
+                  ? _metric(context, tile.metrics[i], text, colors)
+                  : const SizedBox.shrink(),
+            ),
+        ]),
+      if (tile.badges.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        Wrap(spacing: 10, children: [
+          for (final badge in tile.badges) _badge(context, badge, text),
+        ]),
+      ],
+    ]);
+  }
+
+  Widget _metric(BuildContext context, ModuleControlDefinition slot,
+      TextTheme text, ColorScheme colors) {
+    final tag = node.tagAt(slot.primaryBinding);
+    final usable = tag?.usable == true;
+    final unit = slot.unit.isEmpty ? '' : ' ${slot.unit}';
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      LText(slot.label.isEmpty ? slot.primaryBinding : slot.label,
+          maxLines: 1, overflow: TextOverflow.ellipsis, style: text.labelSmall),
+      Text(
+        usable ? '${formatControlValue(tag!.value)}$unit' : '—',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.titleMedium?.copyWith(
+            color: usable ? colors.onSurface : colors.error),
+      ),
+    ]);
+  }
+
+  Widget _badge(
+      BuildContext context, ModuleControlDefinition slot, TextTheme text) {
+    final tags = [for (final b in slot.linkedBindings) node.tagAt(b)];
+    final usable = tags.isNotEmpty && tags.every((tag) => tag?.usable == true);
+    final token = usable
+        ? slot.resolveState([for (final tag in tags) tag!.value])
+        : null;
+    final color = token == null
+        ? Theme.of(context).colorScheme.error
+        : stateTokenColor(
+            context,
+            token == ModuleStateToken.ok ? ModuleStateToken.neutral : token);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(token == null ? Icons.help_outline : Icons.circle,
+          size: 12, color: color),
+      const SizedBox(width: 4),
+      LText(slot.label.isEmpty ? slot.primaryBinding : slot.label,
+          style: text.labelMedium),
+    ]);
+  }
 }
 
 /// One root station's summary tile on the plant overview.
@@ -359,7 +437,10 @@ class PlantOverview extends StatelessWidget {
 class StationCard extends StatelessWidget {
   final ModuleNode node;
   final VoidCallback? onTap;
-  const StationCard({super.key, required this.node, this.onTap});
+
+  /// The authored slot contents (LOCALIZATION §7.5); null = built-in tile.
+  final ModuleTileProfile? tile;
+  const StationCard({super.key, required this.node, this.onTap, this.tile});
 
   @override
   Widget build(BuildContext context) {
@@ -419,6 +500,10 @@ class StationCard extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     label: LText('NOK ${r.nokCount}')),
             ]),
+            if (tile != null && !tile!.isEmpty) ...[
+              const SizedBox(height: 8),
+              _TileSlots(node: r, tile: tile!),
+            ],
             const SizedBox(height: 6),
             if (sev != null)
               LText(r.message,

@@ -74,6 +74,63 @@ enum ModuleControlKind {
   level,
 }
 
+/// A station tile's authored slots (LOCALIZATION §7.5). The tile's GEOMETRY is
+/// fixed - identity, state, the built-in chips, then these slots in fixed
+/// columns - because tiles that differ in layout cannot be scanned as a set;
+/// only what each slot shows is authored, with the same bindings and tokens as
+/// any view. Metrics are value controls, badges are state shapes.
+class ModuleTileProfile {
+  static const maxMetrics = 3;
+  static const maxBadges = 2;
+
+  final List<ModuleControlDefinition> metrics;
+  final List<ModuleControlDefinition> badges;
+
+  const ModuleTileProfile({this.metrics = const [], this.badges = const []});
+
+  bool get isEmpty => metrics.isEmpty && badges.isEmpty;
+
+  bool get isValid =>
+      metrics.length <= maxMetrics &&
+      badges.length <= maxBadges &&
+      metrics.every((slot) =>
+          slot.kind == ModuleControlKind.value && slot.bindingsAreValid) &&
+      badges.every((slot) =>
+          slot.kind == ModuleControlKind.shape && slot.bindingsAreValid);
+
+  /// The reads one tile makes; the overview renders every station at once.
+  int get boundReads => [...metrics, ...badges]
+      .fold(0, (sum, slot) => sum + slot.boundReads);
+
+  Map<String, Object?> toJson() => {
+        'metrics': [for (final slot in metrics) slot.toJson()],
+        'badges': [for (final slot in badges) slot.toJson()],
+      };
+
+  /// Null when anything in it is not a valid slot: a tile is refused whole,
+  /// never shown with a slot silently missing.
+  static ModuleTileProfile? fromJson(Object? source) {
+    if (source is! Map) return null;
+    List<ModuleControlDefinition>? slots(Object? raw) {
+      if (raw == null) return const [];
+      if (raw is! List) return null;
+      final out = <ModuleControlDefinition>[];
+      for (final item in raw) {
+        final slot = ModuleControlDefinition.fromJson(item);
+        if (slot == null) return null;
+        out.add(slot);
+      }
+      return out;
+    }
+
+    final metrics = slots(source['metrics']);
+    final badges = slots(source['badges']);
+    if (metrics == null || badges == null) return null;
+    final profile = ModuleTileProfile(metrics: metrics, badges: badges);
+    return profile.isValid ? profile : null;
+  }
+}
+
 /// A view's display class (LOCALIZATION §7.4). The authoring rules tighten
 /// with it: an OPERATING view is a primary production display and carries no
 /// imagery; a MAINTENANCE view may carry a picture and the overlay on it

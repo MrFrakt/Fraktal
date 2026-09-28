@@ -45,6 +45,131 @@ Future<ModuleControlDefinition?> showModuleControlEditor(
       ),
     );
 
+/// Edits a station tile's slot contents (LOCALIZATION §7.5): up to
+/// [ModuleTileProfile.maxMetrics] metrics and [ModuleTileProfile.maxBadges]
+/// badges, each an ordinary value control or state shape. The geometry is not
+/// editable - that is the point of the tile.
+Future<ModuleTileProfile?> showStationTileEditor(
+  BuildContext context, {
+  required ModuleNode node,
+  ModuleTileProfile? existing,
+}) =>
+    showDialog<ModuleTileProfile>(
+      context: context,
+      builder: (_) => _StationTileDialog(node: node, existing: existing),
+    );
+
+class _StationTileDialog extends StatefulWidget {
+  final ModuleNode node;
+  final ModuleTileProfile? existing;
+  const _StationTileDialog({required this.node, this.existing});
+
+  @override
+  State<_StationTileDialog> createState() => _StationTileDialogState();
+}
+
+class _StationTileDialogState extends State<_StationTileDialog> {
+  late final List<ModuleControlDefinition> _metrics =
+      (widget.existing?.metrics ?? const []).toList();
+  late final List<ModuleControlDefinition> _badges =
+      (widget.existing?.badges ?? const []).toList();
+
+  Future<void> _edit(List<ModuleControlDefinition> slots, ModuleControlKind kind,
+      [int? index]) async {
+    final control = await showModuleControlEditor(
+      context,
+      node: widget.node,
+      existing: index == null ? null : slots[index],
+      initialKind: kind,
+    );
+    // A slot holds exactly its kind; anything else is not a slot.
+    if (control == null || control.kind != kind || !mounted) return;
+    setState(() {
+      if (index == null) {
+        slots.add(control);
+      } else {
+        slots[index] = control;
+      }
+    });
+  }
+
+  List<Widget> _section(String title, List<ModuleControlDefinition> slots,
+          ModuleControlKind kind, int maximum) =>
+      [
+        const SizedBox(height: 8),
+        LText(title, style: Theme.of(context).textTheme.titleSmall),
+        for (var i = 0; i < slots.length; i++)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Text('${i + 1}'),
+            title: LText(slots[i].label.isEmpty
+                ? slots[i].primaryBinding
+                : slots[i].label),
+            subtitle: Text(slots[i].primaryBinding),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: context.tr('std.common.edit'),
+                onPressed: () => _edit(slots, kind, i),
+                icon: const Icon(Icons.edit_outlined),
+              ),
+              IconButton(
+                tooltip: context.tr('std.common.delete'),
+                onPressed: () => setState(() => slots.removeAt(i)),
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ]),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: ValueKey('tile-add-${kind.name}'),
+            onPressed: slots.length < maximum ? () => _edit(slots, kind) : null,
+            icon: const Icon(Icons.add),
+            label: const LText('std.module.editor.tileAddSlot'),
+          ),
+        ),
+      ];
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const LText('std.module.editor.stationTile'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LText('std.module.editor.stationTileHelp',
+                    style: Theme.of(context).textTheme.bodySmall),
+                ..._section('std.module.editor.tileMetrics', _metrics,
+                    ModuleControlKind.value, ModuleTileProfile.maxMetrics),
+                ..._section('std.module.editor.tileBadges', _badges,
+                    ModuleControlKind.shape, ModuleTileProfile.maxBadges),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const LText('std.common.cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              ModuleTileProfile(
+                metrics: List.unmodifiable(_metrics),
+                badges: List.unmodifiable(_badges),
+              ),
+            ),
+            child: const LText('std.common.save'),
+          ),
+        ],
+      );
+}
+
 Future<void> exportHmiCustomization(BuildContext context, AppState app) async {
   await FilePicker.saveFile(
     dialogTitle: context.tr('std.module.editor.exportTitle'),

@@ -1828,6 +1828,9 @@ bool _asBool(Object? value) => switch (value) {
 
 int _asInt(Object? value) => value is num ? value.toInt() : 0;
 
+/// How a bound value is shown anywhere a control shows one (tabs, tiles).
+String formatControlValue(Object? value) => _formatValue(value);
+
 String _formatValue(Object? value) => switch (value) {
       null => '—',
       double number => _formatNumber(number),

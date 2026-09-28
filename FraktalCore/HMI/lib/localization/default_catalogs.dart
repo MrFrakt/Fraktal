@@ -628,6 +628,14 @@ const standardEnglish = <String, String>{
       'Presentation only - the PLC still checks every request. While the tag is unavailable the control stays shown.',
   'std.module.editor.ruleBlink': 'Flash',
   'std.module.editor.enabledWhen': 'Enable only while',
+  'std.module.editor.stationTile': 'Station tile',
+  'std.module.editor.stationTileHelp':
+      'What this station\'s overview tile shows. The tile\'s layout is fixed so every station reads the same; each metric keeps its column on every tile.',
+  'std.module.editor.tileMetrics': 'Metrics',
+  'std.module.editor.tileBadges': 'Badges',
+  'std.module.editor.tileAddSlot': 'Add',
+  'std.module.editor.tileInvalid':
+      'A tile holds at most 3 metrics (values) and 2 badges (state shapes).',
   'std.module.editor.enabledWhenHelp':
       'Presentation only - the PLC still checks every request. While the tag is unavailable the control is disabled.',
   'std.module.viewClass.operating': 'OPERATING',
@@ -1511,6 +1519,14 @@ const standardSpanish = <String, String>{
       'Solo presentación: el PLC sigue verificando cada solicitud. Mientras la etiqueta no esté disponible, el control permanece visible.',
   'std.module.editor.ruleBlink': 'Parpadear',
   'std.module.editor.enabledWhen': 'Habilitar solo mientras',
+  'std.module.editor.stationTile': 'Mosaico de estación',
+  'std.module.editor.stationTileHelp':
+      'Lo que muestra el mosaico de esta estación en la vista general. Su disposición es fija para que todas las estaciones se lean igual; cada métrica conserva su columna en todos los mosaicos.',
+  'std.module.editor.tileMetrics': 'Métricas',
+  'std.module.editor.tileBadges': 'Indicadores',
+  'std.module.editor.tileAddSlot': 'Agregar',
+  'std.module.editor.tileInvalid':
+      'Un mosaico admite como máximo 3 métricas (valores) y 2 indicadores (formas de estado).',
   'std.module.editor.enabledWhenHelp':
       'Solo presentación: el PLC sigue verificando cada solicitud. Mientras la etiqueta no esté disponible, el control queda deshabilitado.',
   'std.module.viewClass.operating': 'OPERACIÓN',

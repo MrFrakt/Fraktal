@@ -128,6 +128,15 @@ measured at 3:1 on a card in every theme (`theme_contrast_test.dart`), which is 
 "contrast enforced at publish" (§7.4) reduces to when authored colour can only be a
 token.
 
+The **station tile** (§7.5) keeps its fixed geometry - identity, state, the built-in
+chips, the message line - and adds authored slot contents: up to three metrics (value
+controls) and two badges (state shapes), authored per station or per type (`type:<key>`
+scope) from a root Unit's edit bar and published directly, outside the tab draft.
+Metric *N* always occupies column *N*, an unavailable metric shows a dash in its column,
+and a badge's OK state draws neutral because the tile is an operating view by
+definition. A profile is refused whole if any slot is invalid, travels in the
+customization profile as `tiles`, and an older bundle without it imports unchanged.
+
 An administrator may select a whitelisted portable icon preset for each custom or
 guidance tab. The Overview tab and every custom tab may also carry an embedded
 background image with contain/cover/fit-width/fit-height aspect-ratio presets,

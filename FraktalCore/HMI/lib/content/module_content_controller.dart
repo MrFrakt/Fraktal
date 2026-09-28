@@ -149,6 +149,9 @@ class ModuleContentController extends ChangeNotifier {
   final Map<String, List<ModuleDocument>> _documents = {};
   final Map<String, Map<ModuleSection, AccessLevel>> _policies = {};
   final Map<String, List<ModuleTabDefinition>> _layouts = {};
+
+  /// Station tile profiles by scope (a root Unit path or a type scope).
+  final Map<String, ModuleTileProfile> _tiles = {};
   final Map<String, List<ModuleLayoutRevision>> _revisions = {};
 
   ModuleContentController({
@@ -162,6 +165,16 @@ class ModuleContentController extends ChangeNotifier {
     _policies.clear();
     _layouts.clear();
     _revisions.clear();
+    _tiles.clear();
+    final tiles = data['tiles'];
+    if (tiles is Map) {
+      for (final entry in tiles.entries) {
+        final profile = ModuleTileProfile.fromJson(entry.value);
+        if (entry.key is String && profile != null && !profile.isEmpty) {
+          _tiles[entry.key as String] = profile;
+        }
+      }
+    }
     final docs = data['documents'];
     if (docs is List) {
       for (final source in docs) {
@@ -271,6 +284,26 @@ class ModuleContentController extends ChangeNotifier {
       String modulePath, List<ModuleTabDefinition> tabs) async {
     _validateTabs(tabs);
     _layouts[modulePath] = List.unmodifiable(tabs);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// A station's tile profile: its own, else its type's (§7.5 slot contents
+  /// are type-authored), else none - the built-in tile.
+  ModuleTileProfile? tileFor(String rootPath, {String typeKey = ''}) =>
+      _tiles[rootPath] ??
+      (typeKey.isEmpty ? null : _tiles[typeScope(typeKey)]);
+
+  /// Publishes [profile] for [scope]; an empty one removes it.
+  Future<void> publishTile(String scope, ModuleTileProfile profile) async {
+    if (!profile.isValid) {
+      throw const FormatException('std.module.editor.tileInvalid');
+    }
+    if (profile.isEmpty) {
+      _tiles.remove(scope);
+    } else {
+      _tiles[scope] = profile;
+    }
     await _persist();
     notifyListeners();
   }
@@ -520,6 +553,22 @@ class ModuleContentController extends ChangeNotifier {
       }
     }
 
+    // Optional: a bundle from before §7.5 tiles simply has none.
+    final tiles = <String, ModuleTileProfile>{};
+    final rawTiles = decoded['tiles'];
+    if (rawTiles != null && rawTiles is! Map) {
+      throw const FormatException('Invalid HMI station tiles');
+    }
+    if (rawTiles is Map) {
+      for (final entry in rawTiles.entries) {
+        final profile = ModuleTileProfile.fromJson(entry.value);
+        if (entry.key is! String || profile == null) {
+          throw const FormatException('Invalid HMI station tile');
+        }
+        tiles[entry.key as String] = profile;
+      }
+    }
+
     final rawRevisions = decoded['layoutRevisions'];
     if (schema.toInt() >= 4 && rawRevisions is! Map) {
       throw const FormatException('Invalid HMI module layout revisions');
@@ -545,6 +594,7 @@ class ModuleContentController extends ChangeNotifier {
       ...policies.keys,
       ...layouts.keys,
       ...revisions.keys,
+      ...tiles.keys,
     }..removeWhere(isTypeScope);
     final reconciliation = _reconcileModulePaths(
       sourcePaths,
@@ -588,6 +638,9 @@ class ModuleContentController extends ChangeNotifier {
     }
     for (final entry in reconciledPolicies.entries) {
       _policies.putIfAbsent(entry.key, () => {}).addAll(entry.value);
+    }
+    for (final entry in tiles.entries) {
+      _tiles[destination(entry.key)] = entry.value;
     }
     for (final entry in reconciledLayouts.entries) {
       final existing = _layouts[entry.key] ?? const <ModuleTabDefinition>[];
@@ -679,6 +732,9 @@ class ModuleContentController extends ChangeNotifier {
         'layouts': {
           for (final module in _layouts.entries)
             module.key: [for (final tab in module.value) tab.toJson()],
+        },
+        'tiles': {
+          for (final entry in _tiles.entries) entry.key: entry.value.toJson(),
         },
         'layoutRevisions': {
           for (final module in _revisions.entries)
