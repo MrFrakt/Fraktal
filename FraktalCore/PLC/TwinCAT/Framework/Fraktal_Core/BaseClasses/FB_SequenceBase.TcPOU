@@ -620,6 +620,18 @@ _parLegs := 0;
 _parDone := 0;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_Restart" Id="{79b49099-977a-4b6b-a0e0-49fea2634ec6}">
+      <Declaration><![CDATA[// §6.8 I_Sequence - start over at N000 with the chain's own state cleared. The
+// owning Unit calls this for every attached chain on first scan, mode change and
+// both abort paths, and a project calls it (through _M_RestartSequences) where
+// its own restart-or-resume policy says so. A chain puts the state it owns in
+// OnChainReset and writes no reset method of its own (§1.1 O1).
+METHOD M_Restart]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ResetBase(FirstStep := 0);
+OnChainReset();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_ResumeAfterError" Id="{60fcb1e5-ca9a-42a5-8f04-39fe8ddf26c0}">
       <Declaration><![CDATA[// §6.9 — the owning Unit left ERROR. The chain's _step was never touched, so it
 // resumes exactly where it stopped; re-arming the step-scoped latches here is

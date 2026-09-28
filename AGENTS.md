@@ -151,6 +151,12 @@ relaxing a release gate; a reset clears the **latch**, never the **condition** (
   `FraktalCore/PLC/TwinCAT/README.md` § "Writing a Ladder sequence rung by rung".
 - Never add a per-scan `_retVal` clear: `FB_UnitBase._M_BeginSequenceScan` does it
   for every attached chain before `_M_Dispatch` (§1.1 O1).
+- Never write a chain reset method or call one from lifecycle hooks: the Unit base
+  restarts every attached chain (`M_Restart`) on first scan, mode change and both
+  abort paths. A chain puts the state it owns in `OnChainReset`. Whether a fresh
+  Start or an operator reset RESTARTS or RESUMES is project policy (§6.9(d)): a
+  project that restarts calls `_M_RestartSequences()` from `OnCommandStart` /
+  `OnOperatorReset`, one line each.
 - The `FB_SFC_` prefix in the press demo is **not a convention** — it only lets two
   renditions of one chain coexist. Name a real chain `FB_<Thing><Mode>`.
 - **Never hand-write an SFC/LD body — generate it, then read the graph back.**
@@ -737,10 +743,10 @@ For the same GUID-ownership reason, never load `Fraktal_Press_Demo.plcproj` and
 `PressTests.plcproj` in one XAE solution: the press gate links the exact Press
 Unit/sequence/release source files. Use its dedicated isolated test solution,
 or unload/remove the Press application before adding the press tests.
-The current Core is `0.15.0.0` and Modules is `0.7.0.0`; downstream placeholders are pinned accordingly. The latest steps are §3.8d data classes (IMPLEMENTATION_NOTES §138), §3.8e line data (§139) §8.5.2 shifts (§140), the published set listing (§141), set lines imported in pieces (§142), unit codes plus labelled choices on configuration values (§144), and the line taken out of the Unit tree (§145). Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
+The current Core is `0.16.0.0` and Modules is `0.8.0.0`; downstream placeholders are pinned accordingly. The latest steps are §3.8d data classes (IMPLEMENTATION_NOTES §138), §3.8e line data (§139) §8.5.2 shifts (§140), the published set listing (§141), set lines imported in pieces (§142), unit codes plus labelled choices on configuration values (§144), the line taken out of the Unit tree (§145), and the principles sweep: chains restarted by the base, air loss held, the library clamp-cell Unit removed (§146). Core's minor-version steps include the append-only decision/configuration capability contract and the generated rationalization/host-event contract, while TwinCAT's fourth revision component is reserved for contract-neutral rebuilds (Part II §2.2) — `0.4.0.1` and `0.4.0.2` are two: the §3.13 chart's manifest revision fix (§125) and its value-TYPE fix (§128), neither a contract change. They also include the deployed-root-only TF6100 publication change, so regenerate TMC files. Core and Modules must be rebuilt and reinstalled before any application resolves.
 If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
-reason to edit each affected POU. Install Core `0.15.0.0`, resolve/build/install Modules `0.7.0.0`,
+reason to edit each affected POU. Install Core `0.16.0.0`, resolve/build/install Modules `0.8.0.0`,
 then reload the application placeholders and rebuild.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.

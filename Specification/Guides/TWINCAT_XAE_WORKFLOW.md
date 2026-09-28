@@ -395,7 +395,7 @@ baseline:
 | Gate | Required runner in the log | Archived result |
 |---|---|---:|
 | Core/Modules | `PRG_TcUnitRunner` | 84 tests / 26 suites / 0 failed |
-| Internal Press integration | `PRG_PressTestRunner` | 8 tests / 2 suites / 0 failed |
+| Internal Press integration | `PRG_PressTestRunner` | 9 tests / 2 suites / 0 failed |
 
 These numbers describe that source snapshot; an intentional test inventory
 change must update the expected CI counts and evidence together. A first attempt
@@ -413,7 +413,7 @@ Expect these counts for the next run:
 | Gate | Required runner in the log | Expected from current source |
 |---|---|---:|
 | Core/Modules | `PRG_TcUnitRunner` | 189 tests / 42 suites / 0 failed |
-| Internal Press integration | `PRG_PressTestRunner` | 8 tests / 2 suites / 0 failed |
+| Internal Press integration | `PRG_PressTestRunner` | 9 tests / 2 suites / 0 failed |
 
 Derive them from source rather than trusting this table — the suite count is the
 `VAR` block of the runner POU, and the test count is the `TEST('…')` calls in the

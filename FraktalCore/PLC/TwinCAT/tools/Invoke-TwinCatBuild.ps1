@@ -10,6 +10,8 @@ param(
         # rename in Core surfaces here first; it was outside the gate only because
         # the autostart assertion above used to reject it.
         'FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressDemo.slnx',
+        # The two-root core demo, which no gate compiled until it had a solution.
+        'FraktalCore\PLC\TwinCAT\Examples\CoreDemo\CoreDemo.slnx',
         'FraktalCore\PLC\TwinCAT\Tests\FraktalTests.slnx',
         'FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressTests.slnx'
     ),

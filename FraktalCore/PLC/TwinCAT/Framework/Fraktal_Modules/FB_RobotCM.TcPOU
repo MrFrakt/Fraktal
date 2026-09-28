@@ -56,6 +56,7 @@ VAR_INPUT
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[_M_SetName(Name);
+_M_SetPresentation(DisplayNameKey := 'std.moduleType.robot.name', DescriptionKey := 'std.moduleType.robot.description', TypeKey := 'std.moduleType.robot');
 IF Robot = 0 THEN
     _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.robotLinkDown');
     Setup := FALSE;

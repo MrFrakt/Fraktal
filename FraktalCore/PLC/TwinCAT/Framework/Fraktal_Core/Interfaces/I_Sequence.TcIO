@@ -10,6 +10,12 @@ INTERFACE I_Sequence]]></Declaration>
       <Declaration><![CDATA[// §6.10 one-scan reset of the shared transition result.
 METHOD M_BeginScan]]></Declaration>
     </Method>
+    <Method Name="M_Restart" Id="{5bd37650-9880-431b-8924-0bc4c239bc03}">
+      <Declaration><![CDATA[// §6.8 the chain starts over at its first step, application state included
+// (OnChainReset). Driven by the owning Unit at the transitions after which a
+// chain can never resume: first scan, mode change, abort.
+METHOD M_Restart]]></Declaration>
+    </Method>
     <Method Name="M_ResumeAfterError" Id="{9ff9ee65-66b8-466e-a166-e187947b0083}">
       <Declaration><![CDATA[// §6.9 the owning Unit left ERROR: re-arm the step that raised it so the
 // chain re-evaluates the command state instead of resuming mid-handshake.

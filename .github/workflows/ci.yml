@@ -220,7 +220,7 @@ jobs:
       - name: Validate summaries and emit JUnit
         run: |
           python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\core-modules.log artifacts\tcunit\core-modules.xml --gate-name CoreModules --expected-tests 189 --expected-suites 42 --expected-runner PRG_TcUnitRunner
-          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\press.log artifacts\tcunit\press.xml --gate-name Press --expected-tests 8 --expected-suites 2 --expected-runner PRG_PressTestRunner
+          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\press.log artifacts\tcunit\press.xml --gate-name Press --expected-tests 9 --expected-suites 2 --expected-runner PRG_PressTestRunner
       - name: Archive TcUnit logs and JUnit
         if: always()
         uses: actions/upload-artifact@v4

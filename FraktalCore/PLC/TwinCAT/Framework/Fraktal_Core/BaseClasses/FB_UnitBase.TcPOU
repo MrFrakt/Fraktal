@@ -3006,6 +3006,44 @@ FOR i := 1 TO _sequenceCount DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_M_RestartSequences" Id="{a7179c76-6bab-4060-a5d3-1d37fa9ff028}">
+      <Declaration><![CDATA[// §6.8 - restart every attached chain. The base calls it where a chain can never
+// resume (first scan, mode change, abort, abort in error). Whether a fresh run
+// command or an operator reset RESTARTS the chain or lets it resume where an
+// error stopped it is the project's policy (§6.9(d)), so a project that wants a
+// restart there calls this one line from OnCommandStart / OnOperatorReset.
+METHOD PROTECTED _M_RestartSequences
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO _sequenceCount DO
+    IF _sequences[i] <> 0 THEN
+        _sequences[i].M_Restart();
+    END_IF
+END_FOR
+// A decision belongs to the chain step that asked it; a restarted chain asks again.
+Decision.Prompt := '';
+DecisionAnswer := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbort" Id="{045fbfe7-105f-49b4-bf25-f60661612052}">
+      <Declaration><![CDATA[// §3.14 - an aborted mode chain is abandoned, never resumed: restart every
+// attached chain so the next command starts at N000 (§6.8).
+METHOD PROTECTED OnAbort : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnAbort := SUPER^.OnAbort();
+_M_RestartSequences();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbortInError" Id="{f7465218-0d83-46fd-a26a-73b938ae69a7}">
+      <Declaration><![CDATA[// §3.14 - error-state abort abandons the chain the same way (§6.8).
+METHOD PROTECTED OnAbortInError : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnAbortInError := SUPER^.OnAbortInError();
+_M_RestartSequences();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_SequenceWarn" Id="{75ce463f-f749-4a05-8c5e-fea3607d380d}">
       <Declaration><![CDATA[// §6.9(e) — a step said something worth recording that is not a failure.
 // Deliberately does NOT touch _exec: no fault is adopted, _M_Dispatch keeps
@@ -3605,6 +3643,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnInit := SUPER^.OnInit();
+_M_RestartSequences();         // §6.8 every attached chain starts at N000
 SequenceViewEnabled := TRUE;   // §3.13 a Unit has a chain worth drawing;
                                // a concrete Unit may vary this per mode
 Access.Setup(Provider := 0, pAlarmLog := ADR(AlarmLog)); // preserves an injected provider
@@ -3653,6 +3692,8 @@ END_VAR]]></Declaration>
 // §3.13 — the chart belongs to the mode that is running. A project writes nothing
 // for this: it lands in the base hook every override calls SUPER^ on first (§3.14.2).
 _M_ResetSequenceRows();
+// §6.8 — and so do the chains: a new mode starts every chain at N000.
+_M_RestartSequences();
 OnModeChanged := 0;]]></ST>
       </Implementation>
     </Method>

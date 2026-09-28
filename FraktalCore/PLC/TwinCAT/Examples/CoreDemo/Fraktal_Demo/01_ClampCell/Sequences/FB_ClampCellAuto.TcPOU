@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ClampCellAuto" Id="{6d0a8e24-f15b-4c37-8e92-4b3f7a1c5d09}" SpecialFunc="None">
+    <Declaration><![CDATA[// §6.8 AUTO chain of the clamp cell: clamp, unclamp, loop. Each command step names
+// the clamp in Awaits, so a stall or a child fault is explained by the base walk
+// (§6.9) - the chain writes no diagnostic of its own.
+FUNCTION_BLOCK FB_ClampCellAuto EXTENDS FB_SequenceBase
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _clamp : REFERENCE TO FB_ClampEM;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{f2b76c38-94a1-4e5d-a0c7-3d8e1b6f2a94}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Host : I_SequenceHost;
+END_VAR
+VAR_IN_OUT
+    Clamp : FB_ClampEM;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_clamp REF= Clamp;
+Setup := M_Attach(Host := Host) AND __ISVALIDREF(_clamp);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Run" Id="{0e4c9b57-6a2d-4f18-b3e6-8c1f5d7a2b30}">
+      <Declaration><![CDATA[METHOD M_Run]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE _step OF
+    0:
+        M_Step(StepNo := 0, StepName := 'project.step.clampCellStart',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
+        _retVal := E_StepResult.ADVANCE;
+        M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    100:
+        M_Step(StepNo := 100, StepName := 'project.step.clampCellClamp',
+            Awaits := _clamp, AwaitingLabel := 'Clamp.CLAMP', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
+        IF M_TryIssue(Steppable := TRUE) THEN
+            _clamp.Abort := FALSE; _clamp.Command := E_ClampCommand.CLAMP; _clamp.Execute := TRUE;
+        END_IF
+        IF _clamp.Done THEN
+            _clamp.Execute := FALSE;
+            _retVal := E_StepResult.ADVANCE;
+        END_IF
+        M_Advance(OnAdvance := 200, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    200:
+        M_Step(StepNo := 200, StepName := 'project.step.clampCellUnclamp',
+            Awaits := _clamp, AwaitingLabel := 'Clamp.UNCLAMP', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
+        IF M_TryIssue(Steppable := TRUE) THEN
+            _clamp.Abort := FALSE; _clamp.Command := E_ClampCommand.UNCLAMP; _clamp.Execute := TRUE;
+        END_IF
+        IF _clamp.Done THEN
+            _clamp.Execute := FALSE;
+            _retVal := E_StepResult.ADVANCE;
+        END_IF
+        M_Advance(OnAdvance := 999, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+    999:  // cycle complete (§8.11.1 finish marker); loop unless a stop is pending
+        M_Step(StepNo := 999, StepName := 'project.step.clampCellComplete',
+            Awaits := 0, AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S, Branch := 0);
+        IF M_EndOfCycle() THEN
+            _retVal := E_StepResult.ADVANCE;
+        END_IF
+        M_Advance(OnAdvance := 100, OnJump1 := -1, OnJump2 := -1, OnJump3 := -1);
+ELSE
+    M_Fault(Reason := E_Reason.STEP_STALLED, DescriptionKey := 'std.error.undefinedStep');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

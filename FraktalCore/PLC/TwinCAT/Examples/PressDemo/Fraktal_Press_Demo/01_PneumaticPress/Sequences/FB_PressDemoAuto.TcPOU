@@ -49,12 +49,12 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="M_Reset" Id="{27be7602-c702-dcca-822f-fb9fc2c74003}">
-      <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
+    <Method Name="OnChainReset" Id="{27be7602-c702-dcca-822f-fb9fc2c74003}">
+      <Declaration><![CDATA[// §6.8 - the chain's own state on a restart (the base resets the flow state).
+METHOD PROTECTED OnChainReset]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_ResetBase(0);
-// A chart reset abandons whatever the cycle was holding: the part record is
-// closed by N215/N999, never by a reset, so both trackers start clean.
+        <ST><![CDATA[// A chart restart abandons whatever the cycle was holding: the part record is
+// closed by N215/N999, never by a restart, so both trackers start clean.
 _partDispositioned := FALSE;
 _partInMachine := FALSE;]]></ST>
       </Implementation>
@@ -324,10 +324,6 @@ Setup := M_Attach(Host := Host) AND __ISVALIDREF(_pressRam) AND __ISVALIDREF(_do
       </Implementation>
     </Method>
     <LineIds Name="FB_PressDemoAuto">
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_PressDemoAuto.M_Reset">
-      <LineId Id="3" Count="3" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_PressDemoAuto.M_Run">

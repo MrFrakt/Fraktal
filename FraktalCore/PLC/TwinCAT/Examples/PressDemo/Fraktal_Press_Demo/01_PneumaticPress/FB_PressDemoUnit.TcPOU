@@ -108,6 +108,12 @@ VAR CONSTANT
     // is added, and the old image is rejected and annunciated instead of read by
     // field position.
     PRESS_STATIONCFG_SCHEMA : UINT := 1;
+    // §3.8 - the longest settle times a recipe may hold. ONE source for the check
+    // a changeover applies (PrepareRecipe) and the range an edit is offered
+    // (the PAR_CFG registration), so an edit can never store what a changeover
+    // would refuse.
+    RECIPE_MAX_PRESS_SETTLE_MS    : UDINT := 30000;
+    RECIPE_MAX_TRANSFER_SETTLE_MS : UDINT := 5000;
     // Which rendition of the AUTO chain runs. VAR CONSTANT on purpose, like the
     // §6.0 commissioning gates in MAIN: switching language is a source edit plus a
     // download, never an online write. The compiler folds the unselected branches.
@@ -162,14 +168,13 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_ClearModeTransitionState" Id="{f103e8ba-b0dd-4270-929c-47b3482c2e72}">
-      <Declaration><![CDATA[// Clear state that must not survive init, mode entry, or either abort path.
-// OnCommandStart deliberately does not call this: a physical start pulse may have
-// been latched one scan before the inherited Execute edge is consumed.
+      <Declaration><![CDATA[// Clear state that must not survive init, mode entry, or either abort path. The
+// base already restarts the chains and clears their decision (§6.8); this is the
+// Unit's OWN state. OnCommandStart deliberately does not call this: a physical
+// start pulse may have been latched one scan before the Execute edge is consumed.
 METHOD PROTECTED _M_ClearModeTransitionState]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Decision.Prompt := '';
-DecisionAnswer := 0;
-_startLatched := FALSE;]]></ST>
+        <ST><![CDATA[_startLatched := FALSE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{cc2817fc-d9b1-4ed1-bbfd-50983067ea35}">
@@ -195,20 +200,6 @@ END_CASE]]></ST>
       <Implementation>
         <ST><![CDATA[SUPER^._M_PublishStatus();
 OutImm.Diagnostic := Status.Diagnostic;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_M_ResetModeSequences" Id="{8efbdb11-9d7a-451c-b659-dc3c9334eca7}">
-      <Declaration><![CDATA[// Reset application-owned chain plumbing at lifecycle transitions. The chains'
-// N000/N999 steps remain the only owners of process initialization/completion.
-METHOD PROTECTED _M_ResetModeSequences]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_homeSequence.M_Reset();
-_changeoverSequence.M_Reset();
-// Reset all three unconditionally: an unattached chain's M_Reset is harmless, and
-// this way the reset cannot go stale if AUTO_SEQUENCE_LANGUAGE changes.
-_autoSequence.M_Reset();
-_sfcAutoSequence.M_Reset();
-_ldAutoSequence.M_Reset();]]></ST>
       </Implementation>
     </Method>
     <Method Name="SetIoCatalog" Id="{b9a7dfe7-c1ec-40c6-a281-799efbec5326}">
@@ -368,7 +359,6 @@ F_AppendTopologyConfig(Topology := GVL_PressFieldbus.Topology, Pager := Pager);]
         <ST><![CDATA[OnAbort := SUPER^.OnAbort();
 _M_PartAborted();                    // §3.16.3: the part leaves without a valid result
 _M_WithdrawSequenceOutputs();
-_M_ResetModeSequences();
 _M_ClearModeTransitionState();
 _powerTargetOn := FALSE;
 _powerRequestPending := TRUE;]]></ST>
@@ -380,23 +370,27 @@ METHOD PROTECTED OnAbortInError : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnAbortInError := SUPER^.OnAbortInError();
 _M_WithdrawSequenceOutputs();
-_M_ResetModeSequences();
 _M_ClearModeTransitionState();
 _powerTargetOn := FALSE;
 _powerRequestPending := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="OnCommandStart" Id="{e5e79728-ee71-460d-95c2-7d77c9c488b4}">
-      <Declaration><![CDATA[// Every accepted Unit Start gets a fresh mode chain, including a repeated
-// HOME/CHANGEOVER run that does not pass through another mode change.
+      <Declaration><![CDATA[// The press's restart policy (§6.9(d)): every accepted Start gets a fresh mode
+// chain, including a repeated HOME/CHANGEOVER run that does not pass through
+// another mode change. Resuming where an error stopped is the other legitimate
+// choice; this station does not make it.
 METHOD PROTECTED OnCommandStart : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCommandStart := SUPER^.OnCommandStart();
-_M_ResetModeSequences();]]></ST>
+_M_RestartSequences();]]></ST>
       </Implementation>
     </Method>
     <Method Name="OnCyclic" Id="{f9b92ad7-f0eb-4fb6-b68a-ce349991589d}">
-      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT
+VAR
+    started : BOOL;
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
 // §3.8b/§3.12 — the step guard is DERIVED from the station value every scan, not
@@ -417,6 +411,16 @@ IF MEMCMP(ADR(ParCfg), ADR(_parCfgApplied), SIZEOF(ParCfg)) <> 0 THEN
     END_IF
     _parCfgApplied := ParCfg;
 END_IF
+// §7.2.1/§6.1 - a cylinder cannot move without air, so air is each cylinder's own
+// process condition. Lost mid-stroke, the cylinder HOLDS - outputs off, resumes by
+// itself when pressure returns - and the Unit rolls the hold up by name. Nothing
+// to reset: the process restores this condition, it is not a defect.
+PressRam.SetAreaSafe(Ok := AirPressureMonitor.OutImm.PressureOk,
+    DescriptionKey := 'project.interlock.pressRequiresAirPressure');
+Door.SetAreaSafe(Ok := AirPressureMonitor.OutImm.PressureOk,
+    DescriptionKey := 'project.interlock.pressRequiresAirPressure');
+PartSlide.SetAreaSafe(Ok := AirPressureMonitor.OutImm.PressureOk,
+    DescriptionKey := 'project.interlock.pressRequiresAirPressure');
 // Project release engineering is a separate visible component. It owns the
 // functional collision permits and mode-entry conditions consumed below.
 IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
@@ -481,38 +485,29 @@ AND (PneumaticPower.State = E_ExecState.READY) THEN
     _powerRequestPending := FALSE;
 END_IF
 
-// A physical two-hand edge may start AUTO from READY, or release an already
-// running Unit's wait step. It never bypasses domain readiness or access policy.
-IF TwoHand.OutImm.StartPulse
-AND PartPresentSensor.OutImm.Value AND PartPresentSensor.OutImm.Quality
-AND AirPressureMonitor.OutImm.PressureOk THEN
-    IF (State = E_ExecState.BUSY) AND (ModeActive = E_Mode.AUTO) THEN
-        _startLatched := TRUE;
-    ELSIF (ModeActive = E_Mode.AUTO) AND Start() THEN
-        _startLatched := TRUE;
+// A physical two-hand edge starts AUTO from READY, or releases a running Unit's
+// two-hand wait. Start() is asked unconditionally: its release report is the whole
+// start predicate and names whatever refuses it (§7.2.1, §7.8). What IS qualified
+// is the start LATCH: a press counts only when the part and the air that the N100
+// wait also names are already there, so a press made before the part was loaded
+// can never start the stroke when the part arrives. N100 shows what it waits for.
+IF TwoHand.OutImm.StartPulse THEN
+    IF ModeActive = E_Mode.AUTO THEN
+        IF State = E_ExecState.BUSY THEN
+            started := TRUE;
+        ELSE
+            started := Start();
+        END_IF
+        _startLatched := started
+            AND PartPresentSensor.OutImm.Value AND PartPresentSensor.OutImm.Quality
+            AND AirPressureMonitor.OutImm.PressureOk;
+    ELSE
+        _startLatched := FALSE;
     END_IF
-ELSIF TwoHand.OutImm.StartPulse THEN
-    _startLatched := FALSE;
 END_IF
 IF PneumaticPower.Error AND (State = E_ExecState.BUSY) THEN
     _M_RollupFault();
 END_IF
-IF (State = E_ExecState.BUSY)
-AND NOT AirPressureMonitor.OutImm.PressureOk THEN
-    PressRam.WithdrawOutputs();
-    Door.WithdrawOutputs();
-    PartSlide.WithdrawOutputs();
-    _M_Fault(E_Reason.PERMISSIVE_NOT_MET, 'project.error.pressAirPressureLost');
-END_IF
-OutImm.PressRetracted := PressRam.OutImm.Retracted;
-OutImm.DoorOpen := Door.OutImm.Retracted;
-OutImm.DoorClosed := Door.OutImm.Extended;
-OutImm.SlideInside := PartSlide.OutImm.Extended;
-OutImm.SlideOutside := PartSlide.OutImm.Retracted;
-OutImm.TwoHandArmed := TwoHand.OutImm.Armed;
-OutImm.TwoHandActive := TwoHand.OutImm.SafeActive;
-OutImm.PartPresent := PartPresentSensor.OutImm.Value AND PartPresentSensor.OutImm.Quality;
-OutImm.AirPressureOk := AirPressureMonitor.OutImm.PressureOk;
 // §3.12 — ONE derivation, published under the name the operator knows and read
 // by everything that needs the fact (§1.1 O9: derived, never duplicated). It is a
 // state, not a command result: it stops being true the moment a cylinder leaves
@@ -523,9 +518,12 @@ OutImm.Homed := _M_State(Idx := 1, Key := 'project.state.pressAtLoadPosition',
     Ok := Door.OutImm.Retracted AND NOT Door.OutImm.Extended
       AND PartSlide.OutImm.Retracted AND NOT PartSlide.OutImm.Extended
       AND PressRam.OutImm.Retracted AND NOT PressRam.OutImm.Extended);
-OutImm.ReadyForLoad := OutImm.Homed;   // same fact; the load gate's name for it
-OutImm.ActiveSettleTime := ParCfg.PressSettleTime;
-OutImm.Diagnostic := Status.Diagnostic;]]></ST>
+// The pushbutton lamps' condition, derived here - where the facts live - so the
+// composition root only maps it to the output (§10.2.1).
+OutImm.TwoHandStartReady := _M_State(Idx := 2, Key := 'project.state.pressTwoHandStartReady',
+    Ok := TwoHand.OutImm.Armed AND ControlDomain.ReadyForStart
+      AND PartPresentSensor.OutImm.Value AND PartPresentSensor.OutImm.Quality
+      AND AirPressureMonitor.OutImm.PressureOk);]]></ST>
       </Implementation>
     </Method>
     <Method Name="OnInit" Id="{0246d731-6bad-4eaa-b1dc-60466cc43590}">
@@ -533,7 +531,6 @@ OutImm.Diagnostic := Status.Diagnostic;]]></ST>
 METHOD PROTECTED OnInit : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnInit := SUPER^.OnInit();
-_M_ResetModeSequences();
 _M_ClearModeTransitionState();]]></ST>
       </Implementation>
     </Method>
@@ -547,7 +544,6 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnModeChanged := SUPER^.OnModeChanged(
     NewMode := NewMode, OldMode := OldMode);
-_M_ResetModeSequences();
 _M_ClearModeTransitionState();]]></ST>
       </Implementation>
     </Method>
@@ -565,7 +561,7 @@ METHOD PROTECTED OnOperatorReset : DINT]]></Declaration>
       <Implementation>
         <ST><![CDATA[OnOperatorReset := SUPER^.OnOperatorReset();
 _M_WithdrawSequenceOutputs();
-_M_ResetModeSequences();
+_M_RestartSequences();                // this station restarts after a reset (§6.9(d))
 _M_ClearModeTransitionState();]]></ST>
       </Implementation>
     </Method>
@@ -579,7 +575,8 @@ END_VAR]]></Declaration>
     _parCfgStaged := ParCfg;
     _recipePrepared := TRUE;
 ELSIF _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := 'PneumaticPressUnit', pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
-    IF (_parCfgStaged.PressSettleTime > T#30S) OR (_parCfgStaged.TransferSettleTime > T#5S) THEN
+    IF (TIME_TO_UDINT(_parCfgStaged.PressSettleTime) > RECIPE_MAX_PRESS_SETTLE_MS)
+    OR (TIME_TO_UDINT(_parCfgStaged.TransferSettleTime) > RECIPE_MAX_TRANSFER_SETTLE_MS) THEN
         _M_Fault(E_Reason.RECIPE_INVALID, 'project.error.pressRecipeInvalid');
         _recipePrepared := FALSE;
         PrepareRecipe := FALSE;
@@ -711,16 +708,16 @@ Ok := M_RegisterConfigNumber(Key := 'press.stallGuardMs',
     pTarget := ADR(_station.StallGuardMs), Minimum := 1000.0, Maximum := 600000.0,
     RequiresReady := TRUE) AND Ok;
 // §3.8a - model data: the ACTIVE model's recipe, PAR_CFG. The ranges are the
-// ones PrepareRecipe enforces on a catalog record, so an edit can never store a
-// recipe a changeover would refuse. OnCyclic applies an edit and writes it back.
+// RECIPE_MAX_* constants PrepareRecipe also enforces. OnCyclic applies an edit
+// and writes it back.
 Ok := M_RegisterConfigDuration(Key := 'press.recipe.pressSettle',
     Item := 'ParCfg/PressSettleTime', LabelKey := 'project.config.pressSettleTime',
     Kind := E_ConfigKind.PAR_CFG, pTarget := ADR(ParCfg.PressSettleTime),
-    MinimumMs := 0, MaximumMs := 30000, RequiresReady := TRUE) AND Ok;
+    MinimumMs := 0, MaximumMs := RECIPE_MAX_PRESS_SETTLE_MS, RequiresReady := TRUE) AND Ok;
 Ok := M_RegisterConfigDuration(Key := 'press.recipe.transferSettle',
     Item := 'ParCfg/TransferSettleTime', LabelKey := 'project.config.transferSettleTime',
     Kind := E_ConfigKind.PAR_CFG, pTarget := ADR(ParCfg.TransferSettleTime),
-    MinimumMs := 0, MaximumMs := 5000, RequiresReady := TRUE) AND Ok;
+    MinimumMs := 0, MaximumMs := RECIPE_MAX_TRANSFER_SETTLE_MS, RequiresReady := TRUE) AND Ok;
 Ok := M_RegisterConfigNumber(Key := 'press.recipe.idealCycleMs',
     Item := 'ParCfg/IdealCycleMs', LabelKey := 'project.config.idealCycleMs',
     Unit := E_EngUnit.MILLISECOND, Kind := E_ConfigKind.PAR_CFG,
@@ -828,10 +825,6 @@ _partFeedConfigured := TRUE;]]></ST>
     </LineIds>
     <LineIds Name="FB_PressDemoUnit._M_PublishStatus">
       <LineId Id="3" Count="0" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_PressDemoUnit._M_ResetModeSequences">
-      <LineId Id="3" Count="5" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_PressDemoUnit._M_SequenceAuto">

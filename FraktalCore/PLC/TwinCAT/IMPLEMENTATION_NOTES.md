@@ -4825,3 +4825,40 @@ probe, showed it as `PneumaticPress.Line`.
 
 `Setup`'s signature and the calendar keys changed, hence the minor version. Test:
 `A_line_is_no_child_and_its_keys_are_its_own` (Core/Modules runner: 189 / 42).
+
+## 146. The principles sweep (Core 0.16.0.0, Modules 0.8.0.0, 2026-09-28)
+
+The sweep recorded in `OBJECTIVES_AUDIT_2026-09-28.md` §8 found violations the per-clause
+audit had not looked for. What changed, by finding:
+
+- **P2 - one start predicate.** The press called `Start()` only when a part and air were
+  present, so the release report was not the whole predicate and a refused two-hand press
+  explained nothing. `Start()` is now asked unconditionally and its report names a
+  refusal. What stays qualified is the start LATCH: a press counts only when the part and
+  air the N100 wait also names are there, so a press made before loading cannot start the
+  stroke when the part arrives.
+- **P8 - air loss holds.** Air is restored by the process, not repaired. It is now each
+  cylinder's own process condition (`SetAreaSafe`, the slot meant for it), so a cylinder
+  that loses air mid-stroke HOLDS and resumes, and the Unit rolls the hold up by name. The
+  Unit's hand-coded fault is gone. The recovery tests use a genuine defect instead (a
+  power enable refused with the safety permit withdrawn); `Air_loss_mid_stroke_holds_and_resumes`
+  is new (PressTests 9 / 2).
+- **P9 - the base restarts chains.** `I_Sequence.M_Restart` (flow state + the chain's own
+  `OnChainReset`) is driven by `FB_UnitBase` on first scan, mode change, abort and abort
+  in error, which also clears a pending decision. Restart-vs-resume after a Start or a
+  reset stays project policy (§6.9(d)), taken with `_M_RestartSequences()`. The press lost
+  `_M_ResetModeSequences` and its chains' `M_Reset` methods (state moved to `OnChainReset`).
+  Adding an interface method is the minor step.
+- **P3/P14 - no application Unit in the library.** `FB_ClampStationUnit` and its four
+  structs left `Fraktal_Modules` (0.8.0.0). CoreDemo now owns `FB_ClampCellUnit` with the
+  chain `FB_ClampCellAuto`, in `00_System` / `01_ClampCell` folders, and has an XAE
+  solution, so the build gate compiles it for the first time. The Unit-tier rows move to
+  `FB_UnitTier_Tests` on the test probe `FB_ProbeClampRoot`.
+- **P4/P5/P11 - key ownership.** Library types raise `std.*` keys only; vision cameras,
+  code readers and robots publish type keys (`std.moduleType.visionCamera|codeReader|robot`,
+  vendor profiles inheriting their category's); the press's `project.config.*` text moved
+  from the standard catalogue to the project one, with Spanish.
+- **P6/P7 - no copies, no logic in MAIN.** The press `OutImm` lost nine child facts copied
+  under new names plus `ReadyForLoad` and `ActiveSettleTime`; the pushbutton-lamp condition
+  is derived in the Unit (`TwoHandStartReady`) and `MAIN` only maps it.
+- **P10** - one pair of `RECIPE_MAX_*` constants for the changeover check and the edit range.

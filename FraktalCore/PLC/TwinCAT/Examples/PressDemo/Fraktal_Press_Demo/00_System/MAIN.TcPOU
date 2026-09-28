@@ -328,9 +328,7 @@ IF USE_SIMULATION THEN
     IoDriver.M_ClearOutputs();
     SimulationDriver.M_RefreshPlant();
 ELSE
-    LampsOn := PneumaticPress.TwoHand.OutImm.Armed
-        AND ControlDomain.Status.ReadyForStart
-        AND PneumaticPress.OutImm.PartPresent AND PneumaticPress.OutImm.AirPressureOk;
+    LampsOn := PneumaticPress.OutImm.TwoHandStartReady;
     IoDriver.M_WriteOutputs(PressHal := PressHal, DoorHal := DoorHal,
         SlideHal := SlideHal, PowerHal := PowerHal, LampsOn := LampsOn,
         ControlCircuitMappingConfirmed := CONTROL_CIRCUIT_MAPPING_CONFIRMED,

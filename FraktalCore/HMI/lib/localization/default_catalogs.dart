@@ -483,6 +483,11 @@ const standardEnglish = <String, String>{
   'std.error.undefinedStep': 'The module entered an undefined sequence step.',
   'std.error.powerEnableWithheld':
       'Safety permission or fieldbus health withheld control power.',
+  // Raised by the reusable module library, so owned by the standard (LOCALIZATION §1).
+  'std.error.clampNotConfirmedAfterSettle':
+      'Clamp was not confirmed after the settling time.',
+  'std.safety.twoHandControl':
+      'Certified two-hand-control evaluation and button status.',
   'std.error.unsupportedPowerCommand': 'Unsupported control-power command.',
   'std.error.powerOnFeedbackTimeout': 'Control-power ON feedback timed out.',
   'std.error.powerOffFeedbackTimeout': 'Control-power OFF feedback timed out.',
@@ -543,13 +548,6 @@ const standardEnglish = <String, String>{
   'std.config.axisJogRequiresEnable': 'Jog requires an enabling device',
   'std.engineering.jogEnableDeviceNotRequired':
       'Manual motion without a safety-rated enabling device.',
-  // Press bench §3.8b station configuration (project band, project.* keys).
-  'project.config.pressRequireTwoHandStart': 'Require two-hand start',
-  'project.config.pressStallGuardMs': 'Step stall guard',
-  'project.config.pressSettleTime': 'Press settle time',
-  'project.config.transferSettleTime': 'Transfer settle time',
-  'project.config.idealCycleMs': 'Ideal cycle time (OEE performance)',
-  'project.config.baselineWorkMs': 'Baseline work time (degradation watch)',
   'std.audit.configSetApplied': 'Parameter set applied.',
   'std.audit.alarmShelved': 'Alarm shelved.',
   'std.audit.alarmUnshelved': 'Alarm unshelved.',
@@ -947,6 +945,15 @@ const standardEnglish = <String, String>{
   'std.moduleType.axis': 'Axis',
   'std.moduleType.axis.name': 'Axis',
   'std.moduleType.axis.description': 'Servo axis driven through PLCopen Motion',
+  'std.moduleType.visionCamera': 'Vision camera',
+  'std.moduleType.visionCamera.name': 'Vision camera',
+  'std.moduleType.visionCamera.description': 'Vision sensor triggered over a line protocol',
+  'std.moduleType.codeReader': 'Code reader',
+  'std.moduleType.codeReader.name': 'Code reader',
+  'std.moduleType.codeReader.description': 'Barcode/DataMatrix reader triggered over a line protocol',
+  'std.moduleType.robot': 'Robot',
+  'std.moduleType.robot.name': 'Robot',
+  'std.moduleType.robot.description': 'Robot commanded by position identifiers through its connector',
   'std.command.home': 'Home',
   'std.command.moveTo': 'Move to',
   'std.config.axisTaughtPosition': 'Taught position',
@@ -1622,6 +1629,10 @@ const standardSpanish = <String, String>{
   'std.enum.modeSwitchShield.1': 'Confirmar primero – la HMI pregunta antes de cambiar',
   'std.enum.modeSwitchShield.2': 'Bloqueado en marcha – pulse Paro primero',
   'std.enum.modeSwitchStyle': 'Estilo del cambio de modo',
+  'std.error.clampNotConfirmedAfterSettle':
+      'La sujeción no se confirmó tras el tiempo de asentamiento.',
+  'std.safety.twoHandControl':
+      'Evaluación certificada del mando a dos manos y estado de los pulsadores.',
   'std.config.group.model': 'Datos del modelo',
   'std.config.group.model.note':
       'Receta del modelo activo - cambia con el modelo (ParCfg)',
@@ -1755,6 +1766,15 @@ const standardSpanish = <String, String>{
   'std.moduleType.axis': 'Eje',
   'std.moduleType.axis.name': 'Eje',
   'std.moduleType.axis.description': 'Eje servo accionado mediante PLCopen Motion',
+  'std.moduleType.visionCamera': 'Cámara de visión',
+  'std.moduleType.visionCamera.name': 'Cámara de visión',
+  'std.moduleType.visionCamera.description': 'Sensor de visión disparado mediante un protocolo de líneas',
+  'std.moduleType.codeReader': 'Lector de códigos',
+  'std.moduleType.codeReader.name': 'Lector de códigos',
+  'std.moduleType.codeReader.description': 'Lector de códigos de barras/DataMatrix disparado mediante un protocolo de líneas',
+  'std.moduleType.robot': 'Robot',
+  'std.moduleType.robot.name': 'Robot',
+  'std.moduleType.robot.description': 'Robot mandado por identificadores de posición a través de su conector',
   'std.command.home': 'Referenciar',
   'std.command.moveTo': 'Mover a',
   'std.config.axisTaughtPosition': 'Posición enseñada',
@@ -1995,6 +2015,14 @@ const projectEnglish = <String, String>{
       'MANUAL mode runs no sequence on this station; command the devices individually.',
   'project.state.atHome': 'At home position',
   'project.state.pressAtLoadPosition': 'At load position',
+  'project.state.pressTwoHandStartReady': 'Ready for a two-hand start',
+  // Press bench §3.8a/§3.8b configuration: station and model data.
+  'project.config.pressRequireTwoHandStart': 'Require two-hand start',
+  'project.config.pressStallGuardMs': 'Step stall guard',
+  'project.config.pressSettleTime': 'Press settle time',
+  'project.config.transferSettleTime': 'Transfer settle time',
+  'project.config.idealCycleMs': 'Ideal cycle time (OEE performance)',
+  'project.config.baselineWorkMs': 'Baseline work time (degradation watch)',
   'project.io.el6001Status': 'RS232 terminal status word',
   'project.io.el6001Ctrl': 'RS232 terminal control word',
   'project.io.el6001DataIn': 'RS232 terminal receive byte',
@@ -2005,10 +2033,13 @@ const projectEnglish = <String, String>{
   'project.module.ConveyorB.name': 'Conveyor B',
   'project.module.ConveyorB.description':
       'Independent material-transfer conveyor.',
-  'project.moduleType.clampStation': 'Clamp station',
-  'project.module.clampStation.name': 'Clamp station',
-  'project.module.clampStation.description':
-      'Runs the clamp and unclamp sequence for the configured product.',
+  // Core demo (Examples/CoreDemo): two peer clamp-cell roots.
+  'project.moduleType.clampCell': 'Clamp cell',
+  'project.module.clampCell.name': 'Clamp cell',
+  'project.module.clampCell.description':
+      'Runs the clamp and unclamp cycle for the configured product.',
+  'project.error.clampCellModeHasNoSequence':
+      'Only AUTO runs a sequence on this cell; command the clamp individually in MANUAL.',
   'project.reason.cylinderTimeout':
       'Cylinder did not reach the commanded position.',
   'project.reason.airPressureLow':
@@ -2024,12 +2055,10 @@ const projectEnglish = <String, String>{
   'project.command.toHome': 'To Home',
   'project.command.toWork': 'To Work',
   'project.step.transport': 'Transport',
-  'project.step.commandClamp': 'Command clamp',
-  'project.step.awaitClamp': 'Wait for clamp',
-  'project.step.commandUnclamp': 'Command unclamp',
-  'project.step.awaitUnclamp': 'Wait for unclamp',
-  'project.error.clampNotConfirmedAfterSettle':
-      'Clamp was not confirmed after the settling time.',
+  'project.step.clampCellStart': 'Start the cycle',
+  'project.step.clampCellClamp': 'Clamp the part',
+  'project.step.clampCellUnclamp': 'Unclamp the part',
+  'project.step.clampCellComplete': 'Cycle complete',
   'project.safety.doorNorth': 'North access guard closed and locked.',
   'project.safety.lightCurtain': 'Infeed light curtain clear.',
   'project.safety.safeValve': 'Safe pneumatic supply available.',
@@ -2134,8 +2163,6 @@ const projectEnglish = <String, String>{
       'The selected press mode has no automatic sequence.',
   'project.error.twoHandReleasedDuringPress':
       'The evaluated two-hand signal was released during the press dwell.',
-  'project.error.pressAirPressureLost':
-      'Compressed-air pressure was lost during the press cycle.',
   'project.error.pressDownSensorTimeout':
       'Press ram did not reach DOWN sensor _101B202A (EL1809 channel 5).',
   'project.error.pressUpSensorTimeout':
@@ -2216,6 +2243,16 @@ const projectEnglish = <String, String>{
 /// Shipped project translation for the demo. Imported project CSV values still
 /// take precedence, so integrators can change terminology without PLC edits.
 const projectSpanish = <String, String>{
+  'project.moduleType.clampCell': 'Celda de sujeción',
+  'project.module.clampCell.name': 'Celda de sujeción',
+  'project.module.clampCell.description':
+      'Ejecuta el ciclo de sujeción y liberación para el producto configurado.',
+  'project.error.clampCellModeHasNoSequence':
+      'Solo AUTOMÁTICO ejecuta una secuencia en esta celda; accione la sujeción individualmente en MANUAL.',
+  'project.step.clampCellStart': 'Iniciar el ciclo',
+  'project.step.clampCellClamp': 'Sujetar la pieza',
+  'project.step.clampCellUnclamp': 'Liberar la pieza',
+  'project.step.clampCellComplete': 'Ciclo completo',
   'project.step.pressSlideInside': 'Mover el deslizador de pieza al interior',
   'project.step.pressSlideOutsideAfterAbort':
       'Devolver el deslizador al exterior tras la cancelación',
@@ -2245,6 +2282,13 @@ const projectSpanish = <String, String>{
       'El modo MANUAL no ejecuta secuencia en esta estación; accione los dispositivos individualmente.',
   'project.state.atHome': 'En posición de reposo',
   'project.state.pressAtLoadPosition': 'En posición de carga',
+  'project.state.pressTwoHandStartReady': 'Listo para arranque a dos manos',
+  'project.config.pressRequireTwoHandStart': 'Exigir arranque a dos manos',
+  'project.config.pressStallGuardMs': 'Vigilancia de paso detenido',
+  'project.config.pressSettleTime': 'Tiempo de asentamiento de la prensa',
+  'project.config.transferSettleTime': 'Tiempo de asentamiento de la transferencia',
+  'project.config.idealCycleMs': 'Tiempo de ciclo ideal (rendimiento OEE)',
+  'project.config.baselineWorkMs': 'Tiempo de trabajo de referencia (vigilancia de degradación)',
   'project.io.el6001Status': 'Palabra de estado del terminal RS232',
   'project.io.el6001Ctrl': 'Palabra de control del terminal RS232',
   'project.io.el6001DataIn': 'Byte de recepción del terminal RS232',

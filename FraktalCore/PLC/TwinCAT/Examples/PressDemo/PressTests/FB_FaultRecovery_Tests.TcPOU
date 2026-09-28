@@ -69,6 +69,7 @@ END_VAR]]></Declaration>
 END_IF
 Two_hand_release_mid_stroke_holds_the_ram();
 Two_hand_release_in_the_dwell_holds_and_restores();
+Air_loss_mid_stroke_holds_and_resumes();
 Latched_fault_recovers_with_one_operator_reset();
 Reset_never_bypasses_a_live_condition();]]></ST></Implementation>
     <Method Name="_M_RunToRamDown" Id="{69d94b0e-ff42-4cba-99a7-8907c39c4eba}">
@@ -99,6 +100,7 @@ END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[TwoHandHal.LeftPressed := FALSE; TwoHandHal.RightPressed := FALSE;
 TwoHandHal.SafeActive := FALSE;
 AirPressureHal.LowPressure := FALSE; AirPressureHal.OperatingPressure := TRUE;
+PowerHal.SafetyPermit := TRUE;
 Press.OperatorReset();
 // HOME is interruptible and uses the normal immediate mode-exit handshake. This
 // deterministically abandons an open AUTO dwell without pretending rapid calls
@@ -199,22 +201,56 @@ AssertTrue(Condition := PressHal.ExtendOut,
 _M_ReturnToIdle();
 TEST_FINISHED();]]></ST></Implementation>
     </Method>
+    <Method Name="Air_loss_mid_stroke_holds_and_resumes" Id="{84164853-be81-4bdb-881e-f52c580a1036}">
+      <Declaration><![CDATA[// Air is restored by the process, not repaired, so losing it mid-stroke is HELD
+// (§6.1): the ram's own process condition withdraws its valve, the Unit reports the
+// hold by name, nothing is latched, and the stroke resumes when pressure returns.
+METHOD Air_loss_mid_stroke_holds_and_resumes]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Air_loss_mid_stroke_holds_and_resumes');
+AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
+AssertTrue(Condition := PressHal.ExtendOut, Message := 'ram is driving down');
+AirPressureHal.OperatingPressure := FALSE;
+AirPressureHal.LowPressure := TRUE;
+FOR i := 1 TO 3 DO
+    DoorSim(); SlideSim(); Press();
+END_FOR
+AssertFalse(Condition := PressHal.ExtendOut, Message := 'the ram valve is withdrawn');
+AssertTrue(Condition := Press.PressRam.Held, Message := 'the ram is HELD, not faulted');
+AssertFalse(Condition := Press.Error, Message := 'the Unit does not fault');
+AssertFalse(Condition := Press.AlarmLog.Blocking, Message := 'and nothing needs a reset');
+AssertTrue(Condition := Press.Held, Message := 'the Unit reports the hold');
+AssertEquals_STRING(Expected := 'project.interlock.pressRequiresAirPressure',
+    Actual := Press.Status.Diagnostic.Description,
+    Message := 'by the missing condition, not a composite key (§6.9)');
+AirPressureHal.OperatingPressure := TRUE;
+AirPressureHal.LowPressure := FALSE;
+FOR i := 1 TO 3 DO
+    DoorSim(); SlideSim(); Press();
+END_FOR
+AssertTrue(Condition := PressHal.ExtendOut, Message := 'pressure back: the stroke resumes by itself');
+AssertFalse(Condition := Press.PressRam.Held, Message := 'and the hold has cleared');
+_M_ReturnToIdle();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
     <Method Name="Latched_fault_recovers_with_one_operator_reset" Id="{7d41c9a6-2e83-4b50-9f16-3c05a8d7e921}">
-      <Declaration><![CDATA[// Defect A + C, the actual hard-lock. Air loss mid-stroke is a genuine process fault
-// (not an operator action), so it still faults — and that is exactly the state the
-// press could not get out of. ONE reset has to make HOME runnable again.
+      <Declaration><![CDATA[// Defect A + C, the actual hard-lock: a genuine fault while the ram is travelling
+// left a state the press could not get out of. ONE reset has to make HOME runnable
+// again. The fault is a refused power enable (safety permit withdrawn while Control
+// On is requested) - a defect, unlike air loss, which the process restores and
+// which therefore holds (Air_loss_mid_stroke_holds_and_resumes).
 METHOD Latched_fault_recovers_with_one_operator_reset]]></Declaration>
       <Implementation><ST><![CDATA[TEST('Latched_fault_recovers_with_one_operator_reset');
 AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
 
-// Lose operating air while the ram is travelling: the Unit faults with the chain
-// frozen at N200, which is where it had asserted PressRam.Execute.
-AirPressureHal.OperatingPressure := FALSE;
-AirPressureHal.LowPressure := TRUE;
-DoorSim(); SlideSim(); Press();
-DoorSim(); SlideSim(); Press();
+// A refused power enable while the ram is travelling: the power group faults, the
+// Unit adopts it with the chain frozen at N200, where it had asserted PressRam.Execute.
+PowerHal.SafetyPermit := FALSE;
+Press.RequestLocalControl(ControlOn := TRUE);
+FOR i := 1 TO 4 DO
+    DoorSim(); SlideSim(); Press();
+END_FOR
 
-AssertTrue(Condition := Press.Error, Message := 'air loss during motion is a real fault');
+AssertTrue(Condition := Press.Error, Message := 'a refused power enable during motion is a real fault');
 AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'and raises a blocking event (§8.3(b))');
 AssertEquals_DINT(Expected := TO_DINT(E_AlarmState.ACTIVE),
     Actual := TO_DINT(Press.AlarmLog.Active[1].State),
@@ -224,9 +260,8 @@ AssertTrue(Condition := Press.Execute, Message := 'the run command is still asse
 AssertTrue(Condition := Press.PressRam.Execute,
     Message := 'and so is the child command the frozen chain issued');
 
-// Restore air: the CAUSE is gone, but the latched state is not, and Start stays shut.
-AirPressureHal.OperatingPressure := TRUE;
-AirPressureHal.LowPressure := FALSE;
+// Restore the permit: the CAUSE is gone, but the latched state is not, and Start stays shut.
+PowerHal.SafetyPermit := TRUE;
 DoorSim(); SlideSim(); Press();
 Press.ReleaseReportStart(Report := Release);
 AssertFalse(Condition := Release.Released,
@@ -262,17 +297,23 @@ _M_ReturnToIdle();
 TEST_FINISHED();]]></ST></Implementation>
     </Method>
     <Method Name="Reset_never_bypasses_a_live_condition" Id="{4a1e7b02-9d35-4c68-b7a1-0f28e6c35d17}">
-      <Declaration><![CDATA[// The reset closes a latched event even while its cause is unsatisfied, which is only
-// safe because it clears the LATCH and never the condition. Proof: reset with the air
-// still missing, then watch the release report keep Start shut on that live condition.
+      <Declaration><![CDATA[// The reset closes a latched event even while a start condition is unsatisfied, which
+// is only safe because it clears the LATCH and never the condition. Proof: fault the
+// Unit, take the air away, reset, then watch the release report keep Start shut on
+// that live condition.
 METHOD Reset_never_bypasses_a_live_condition]]></Declaration>
       <Implementation><ST><![CDATA[TEST('Reset_never_bypasses_a_live_condition');
 AssertTrue(Condition := _M_RunToRamDown(), Message := 'fixture reaches N200');
+PowerHal.SafetyPermit := FALSE;
+Press.RequestLocalControl(ControlOn := TRUE);
+FOR i := 1 TO 4 DO
+    DoorSim(); SlideSim(); Press();
+END_FOR
+AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'faulted on the refused power enable');
+PowerHal.SafetyPermit := TRUE;
 AirPressureHal.OperatingPressure := FALSE;
 AirPressureHal.LowPressure := TRUE;
 DoorSim(); SlideSim(); Press();
-DoorSim(); SlideSim(); Press();
-AssertTrue(Condition := Press.AlarmLog.Blocking, Message := 'faulted with air missing');
 
 AssertTrue(Condition := Press.OperatorReset(), Message := 'reset is accepted with the cause still live');
 DoorSim(); SlideSim(); Press();
