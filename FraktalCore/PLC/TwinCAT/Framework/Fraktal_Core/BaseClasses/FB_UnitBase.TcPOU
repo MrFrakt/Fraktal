@@ -558,7 +558,7 @@ CASE Kind OF
     E_HmiRequestKind.SET_SESSION_TIMEOUT, E_HmiRequestKind.LAMP_TEST,
     E_HmiRequestKind.CAPTURE_CONFIG, E_HmiRequestKind.SAVE_CONFIG_SET,
     E_HmiRequestKind.LOAD_CONFIG_SET, E_HmiRequestKind.ACK_CONFIG_RESTORE,
-    E_HmiRequestKind.IMPORT_CONFIG_SET:
+    E_HmiRequestKind.IMPORT_CONFIG_SET, E_HmiRequestKind.DELETE_CONFIG_SET:
         auditable := TRUE;
 ELSE
     auditable := FALSE;
@@ -573,7 +573,8 @@ textValue := CONCAT(textValue, Access.CurrentUser);
 // §3.8b — a set operation is audited WITH the set name and record count: "the
 // operator loaded a set" is not an audit record anyone can act on later.
 IF (Kind = E_HmiRequestKind.SAVE_CONFIG_SET)
-OR (Kind = E_HmiRequestKind.LOAD_CONFIG_SET) THEN
+OR (Kind = E_HmiRequestKind.LOAD_CONFIG_SET)
+OR (Kind = E_HmiRequestKind.DELETE_CONFIG_SET) THEN
     textValue := CONCAT(textValue, ' set=');
     textValue := CONCAT(textValue, ConfigPersist.LastSetName);
     textValue := CONCAT(textValue, ' records=');
@@ -803,6 +804,11 @@ CASE HmiRequest.Kind OF
             Commit := HmiRequest.BoolValue);
         IF NOT HmiResponse.Accepted THEN
             HmiResponse.Diagnostic := 'std.error.configSetLineRejected';
+        END_IF
+    E_HmiRequestKind.DELETE_CONFIG_SET:
+        HmiResponse.Accepted := DeleteConfigSet(SetName := HmiRequest.TextValue);
+        IF NOT HmiResponse.Accepted THEN
+            HmiResponse.Diagnostic := 'std.error.configSetDeleteRefused';
         END_IF
     E_HmiRequestKind.NONE:
         HmiResponse.Diagnostic := 'std.error.emptyHmiRequest';
@@ -2089,6 +2095,31 @@ IF _exec <> E_ExecState.READY THEN
     RETURN;
 END_IF
 _M_SetOpAllowed := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DeleteConfigSet" Id="{e533f05f-2594-42e8-8c99-81d549fc4090}">
+      <Declaration><![CDATA[// §3.8b - remove a named set. Gated exactly like save and load (CONFIG_SET, a
+// wired store, the root READY) because removing somebody's commissioned set is
+// the same order of decision as replacing it, and audited with the set name.
+// A store that has held MAX_CONFIG_SETS names needs this to hold a new one.
+METHOD DeleteConfigSet : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[DeleteConfigSet := FALSE;
+ConfigPersist.LastSetName := SetName;
+ConfigPersist.LastSetRecords := 0;
+IF NOT _M_SetOpAllowed() THEN
+    RETURN;
+END_IF
+IF NOT _configStore.M_Delete(SetName := SetName) THEN
+    RETURN;
+END_IF
+DeleteConfigSet := TRUE;
+// The store's retained memory changed; not durable until written out.
+_M_MarkPersistPending();
+ListConfigSets();                          // the published listing follows]]></ST>
       </Implementation>
     </Method>
     <Method Name="SaveConfigSet" Id="{8a4d1e07-63b9-4c25-90fd-e7285a1cb046}">

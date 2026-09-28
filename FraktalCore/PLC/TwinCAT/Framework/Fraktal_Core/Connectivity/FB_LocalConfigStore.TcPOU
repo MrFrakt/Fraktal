@@ -269,6 +269,33 @@ FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_Delete" Id="{d579fce7-813f-4f22-a5b6-09c43e0b8fa7}">
+      <Declaration><![CDATA[// Free the slot. Clearing Used is the single assignment that makes the set
+// unreachable, as setting it is what publishes one in M_SaveCommit; the
+// records behind it are left to be overwritten by the next save into the slot.
+METHOD M_Delete : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Init();
+M_Delete := FALSE;
+slot := _M_Find(SetName := SetName);
+IF slot = 0 THEN
+    RETURN;
+END_IF
+IF slot = _saveSlot THEN
+    RETURN;                               // a save into this slot is open
+END_IF
+_info[slot].Used := FALSE;
+_info[slot].SetName := '';
+_info[slot].RecordCount := 0;
+M_Delete := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_InfoAt" Id="{45f8d3b6-c197-4e02-83ad-6b70e15c928f}">
       <Declaration><![CDATA[// Index runs over the OCCUPIED sets in slot order, so a client enumerating
 // 1..M_Count sees every set exactly once and no empty slots.

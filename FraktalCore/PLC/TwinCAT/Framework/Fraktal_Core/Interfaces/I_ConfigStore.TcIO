@@ -24,6 +24,14 @@ INTERFACE I_ConfigStore]]></Declaration>
       <Declaration><![CDATA[// How many named sets this store holds, so a client can enumerate them.
 METHOD M_Count : INT]]></Declaration>
     </Method>
+    <Method Name="M_Delete" Id="{b6493579-24c1-47b0-9aa0-9f9b2ab226be}">
+      <Declaration><![CDATA[// Remove one named set. FALSE = no set of that name, or a save is open on it
+// (a transaction is never pulled from under itself); nothing changed.
+METHOD M_Delete : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR]]></Declaration>
+    </Method>
     <Method Name="M_InfoAt" Id="{a3e5be72-2ece-42e8-949f-2f6032cec7fc}">
       <Declaration><![CDATA[// Header of the Index-th stored set, 1..M_Count, for a bounded listing.
 METHOD M_InfoAt : BOOL

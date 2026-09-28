@@ -62,6 +62,7 @@ enum _HmiRequestKind {
   importConfigSet,
   // ignore: unused_field
   manualHeld,
+  deleteConfigSet,
 }
 
 /// Direct native OPC UA repository for Dart-native Flutter platforms. The

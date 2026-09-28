@@ -75,6 +75,7 @@ ACK_CONFIG_RESTORE = 31
 EXPORT_CONFIG_SET = 32
 IMPORT_CONFIG_SET = 33
 MANUAL_HELD = 34
+DELETE_CONFIG_SET = 35
 
 # Every ordinal the oracle declares, by name. The pinning test compares this
 # mapping against the DUT itself, so a member added there and not here fails.
@@ -96,6 +97,7 @@ KINDS: dict[str, int] = {
     "ACK_CONFIG_RESTORE": ACK_CONFIG_RESTORE,
     "EXPORT_CONFIG_SET": EXPORT_CONFIG_SET,
     "IMPORT_CONFIG_SET": IMPORT_CONFIG_SET, "MANUAL_HELD": MANUAL_HELD,
+    "DELETE_CONFIG_SET": DELETE_CONFIG_SET,
 }
 
 # --- what this binding actually routes ---------------------------------------
@@ -148,6 +150,7 @@ REFUSED: dict[int, str] = {
     ACK_CONFIG_RESTORE: "project.mailbox.refused.no_config_sets",
     EXPORT_CONFIG_SET: "project.mailbox.refused.no_config_sets",
     IMPORT_CONFIG_SET: "project.mailbox.refused.no_config_sets",
+    DELETE_CONFIG_SET: "project.mailbox.refused.no_config_sets",
     SHELVE_ALARM: "project.mailbox.refused.no_event_core",
     UNSHELVE_ALARM: "project.mailbox.refused.no_event_core",
     # FORCE_CHANNEL is routed - see force_argument() below.

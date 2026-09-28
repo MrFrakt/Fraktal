@@ -45,7 +45,8 @@ A_set_from_another_root_is_refused();
 A_record_round_trips_through_its_json_line();
 A_malformed_json_line_is_refused_whole();
 A_model_set_is_not_applied_as_per_field_writes();
-Set_operations_need_a_store_and_the_CONFIG_SET_gate();]]></ST>
+Set_operations_need_a_store_and_the_CONFIG_SET_gate();
+A_deleted_set_is_gone_and_frees_its_slot();]]></ST>
     </Implementation>
     <Method Name="_M_Arm" Id="{3e70b195-6c48-4a02-91df-7b5e0248ca36}">
       <Declaration><![CDATA[// One-time wiring. Nothing here is persistence-specific: a store is injected
@@ -59,7 +60,15 @@ END_IF
 _init := TRUE;
 _u.Setup(Name := 'Test.CfgSet');
 _u();
-_u.SetConfigStore(Store := _store);]]></ST>
+_u.SetConfigStore(Store := _store);
+// The store is PERSISTENT, so it still holds whatever the previous run saved:
+// start every run from an empty store, through the same delete a station has.
+FOR _i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF NOT _store.M_InfoAt(Index := 1, Info := _info) THEN
+        EXIT;
+    END_IF
+    _u.DeleteConfigSet(SetName := _info.SetName);
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_CountStationCapabilities" Id="{a4d18e37-052b-49c6-83f0-e14d76b9528c}">
@@ -358,6 +367,43 @@ AssertTrue(Condition := _u.Access.RequestLogout(),
 AssertTrue(Condition := _u.SaveConfigSet(SetName := 'open',
     Kind := E_ConfigKind.STATION_CFG),
     Message := 'so an open station saves without a login - access control is never a silent lock-in');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_deleted_set_is_gone_and_frees_its_slot" Id="{81b679ba-66b4-4a60-b83f-1b136fd60b11}">
+      <Declaration><![CDATA[// §3.8b: without a delete, a store that has held MAX_CONFIG_SETS names can
+// only ever overwrite one of them again - a new product's recipe could not be
+// kept without destroying an old one under its name.
+METHOD A_deleted_set_is_gone_and_frees_its_slot]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_deleted_set_is_gone_and_frees_its_slot');
+_M_Arm();
+// The earlier tests leave the store full, so start from empty: this test is
+// about what delete does, not about which sets happened to be there.
+FOR _i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF NOT _store.M_InfoAt(Index := 1, Info := _info) THEN
+        EXIT;
+    END_IF
+    _u.DeleteConfigSet(SetName := _info.SetName);
+END_FOR
+AssertTrue(Condition := _u.SaveConfigSet(SetName := 'scratch',
+    Kind := E_ConfigKind.STATION_CFG), Message := 'a set to delete is saved');
+AssertTrue(Condition := _u.DeleteConfigSet(SetName := 'scratch'),
+    Message := 'an existing set is deleted');
+AssertFalse(Condition := _store.M_ReadInfo(SetName := 'scratch', Info := _info),
+    Message := 'and is no longer readable');
+AssertFalse(Condition := _u.DeleteConfigSet(SetName := 'scratch'),
+    Message := 'deleting what is not there is refused, not silently accepted');
+AssertTrue(Condition := _u.ConfigPersist.Pending,
+    Message := 'a delete changes retained memory, so it is not durable until written out');
+AssertEquals_INT(Expected := 0, Actual := _store.M_Count(),
+    Message := 'every set can be removed');
+// The freed slots are usable: fill the store to capacity under fresh names.
+FOR _i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    _line := CONCAT('fill', INT_TO_STRING(_i));
+    AssertTrue(Condition := _u.SaveConfigSet(SetName := _line,
+        Kind := E_ConfigKind.STATION_CFG), Message := 'each freed slot takes a new name');
+END_FOR
 TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
