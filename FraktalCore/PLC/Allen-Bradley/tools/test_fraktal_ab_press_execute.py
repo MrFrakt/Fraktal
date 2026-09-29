@@ -179,5 +179,49 @@ class SequenceSeeding(unittest.TestCase):
         self.assertLess(seeds[0], walks[0])
 
 
+class ParityWriteSurface(unittest.TestCase):
+    """Every direct write in the walk targets a tag the harness may write.
+
+    This is the bug that bit twice in one sitting: RunRequest/ModeRequest/
+    ResetRequest were converted to mailbox commands, AbortRequest was missed,
+    and it surfaced only after two of the three walks had already run against
+    the controller. px.write's guard catches it - at the point of the write,
+    minutes in. Static is cheaper, and the module constants make it possible.
+    """
+
+    def test_no_direct_write_targets_a_command_tag(self):
+        source = pathlib.Path(parity.__file__).read_text(encoding="utf-8")
+        writes = [
+            node for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "write"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "px"
+        ]
+        self.assertTrue(writes)
+        for call in writes:
+            target = call.args[1]
+            # px.FAULT[name] and friends are subscripts of a declared mapping;
+            # resolve the mapping, not the key.
+            if isinstance(target, ast.Subscript):
+                target = target.value
+            names = []
+            if isinstance(target, ast.Attribute) and target.attr:
+                names = [target.attr]
+            elif isinstance(target, ast.Name):
+                names = [target.id]
+            self.assertTrue(names, f"unrecognised write target at line {call.lineno}")
+            resolved = getattr(px, names[0], getattr(parity, names[0], None))
+            self.assertIsNotNone(
+                resolved, f"{names[0]} at line {call.lineno} is not a known tag")
+            tags = (list(resolved.values()) if isinstance(resolved, dict)
+                    else [resolved])
+            for tag in tags:
+                self.assertIn(
+                    tag, px.WRITABLE,
+                    f"line {call.lineno} writes {tag}, outside the write surface")
+
+
 if __name__ == "__main__":
     unittest.main()

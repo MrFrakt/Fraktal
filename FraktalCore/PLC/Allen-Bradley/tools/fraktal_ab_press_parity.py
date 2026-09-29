@@ -231,12 +231,22 @@ def walk_abort(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     reset_chart(comm, settle)
     px.command(comm, mailbox.START, settle=ack(settle))
     px.await_unit(comm, lambda u: u["Step"] == AFTER_PARK, settle)
-    px.write(comm, px.ABORT, 1)
+    # STOP is the abort path here: one accepted command raises AbortRequest and
+    # lowers RunRequest together, deliberately, so a latched Aborted is never
+    # fighting a run level that is still trying to set Running. The mailbox
+    # lowers its own one-shot, so the raise/lower pair written by hand here is
+    # gone with it - and so is the separate stop that used to follow.
+    #
+    # What that costs, stated rather than hidden: the hand-written form held
+    # AbortRequest up while RunRequest stayed high, which tested the latch under
+    # pressure. That shape is not reachable through the permitted surface. The
+    # no-self-resume property is still tested, by stoodDown below: after the
+    # abort and a settle with no further input, Running is 0 and the chain sits
+    # on its init step.
+    px.command(comm, mailbox.STOP, settle=ack(settle))
     aborted, elapsed = px.await_unit(comm, lambda u: u["Aborted"] != 0, settle)
     time.sleep(min(settle, 0.25))
     after = px.read_unit(comm)
-    px.write(comm, px.ABORT, 0)
-    px.command(comm, mailbox.STOP, settle=ack(settle))
     return {
         "rendition": rendition,
         "elapsed_ms": round(elapsed, 3),
