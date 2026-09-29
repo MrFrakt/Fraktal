@@ -1,10 +1,16 @@
 # Fraktal/AB — Core 0.21 parity audit
 
-**Result:** the offline audit is complete and **three items conflict with the
-read-only claim recorded on 2026-09-28**. They are not gaps to close; they are
-capabilities already built, downloaded and exercised on the bench on 2026-09-27,
-the day before the claim was recorded. Closing them means removing working
-features, so this record stops at the classification and asks.
+**Result:** **Fraktal/AB is level with Core 0.21 for the read-only claim, and no
+gap was found.** Every item is bound or recorded as not claimed with its reason.
+
+Three items first appeared to conflict with the read-only claim recorded on
+2026-09-28 — `SET_MODEL`, `FORCE_CHANNEL` and a published `Access/*` policy,
+all built and exercised on the bench on 2026-09-27, the day before. They were
+not gaps: "the mailbox refuses" and "the binding is read-only" were two claims
+being read as one. The owner resolved it the same day — read-only is a property
+of the **deployment**, not of the mailbox — and the binding was proved read-only
+on the bench under that definition, with both write paths refused before the
+controller was addressed. Nothing was removed and nothing was downloaded.
 
 **Date:** 2026-09-29
 
@@ -84,16 +90,68 @@ defensible and it is how the binding behaves today — but it is not what
 "the mailbox refuses both" says, and the difference decides whether the access
 policy stays.
 
-**Nothing has been changed pending the answer.** No declaration edit, no
-regeneration, no download, no gateway reconfiguration.
+**Answered the same day: the third reading.** Read-only is a property of the
+deployment, not of the mailbox. The controller routes eight kinds and refuses
+every other by name, permanently and for a recorded reason; a read-only
+deployment reaches none of the eight because the gateway carries no write root
+and refuses before the controller is addressed. Both halves were true and were
+being read as one claim, which is what made `SET_MODEL` and `FORCE_CHANNEL`
+look like violations of a claim they never touched. Recorded in Part III
+§11.2.1, the AB README status line, and the audit's decision table (`2f21b9e`).
 
-## 4. What was not attempted, and why
+No declaration edit, regeneration or download followed, and none was needed:
+the loaded build already matches the declaration.
+
+## 4. Read-only bench pass
+
+The gateway was restarted **with no write root** and the station read through
+the same proxy and Web HMI path an operator uses.
+
+| | |
+|---|---|
+| Published nodes | 387 |
+| Module tree | `Press`, `Press/Door`, `Press/PartSlide`, `Press/PressRam` |
+| Type keys | `project.moduleType.pneumaticPress`, `std.moduleType.cylinder` |
+| Models | 3 — `M-100`, `M-200`, `M-050` |
+| Fieldbus | 20 channels on one node |
+
+Both write paths were exercised and both were refused **before the controller
+was addressed**:
+
+```
+writeBatch  ok=False  read-only Allen-Bradley gateway (AB §11.2.1):
+                      no write root is configured; operator commands are
+                      refused before the controller sees them
+write       ok=False  (same refusal)
+```
+
+That is the claim demonstrated rather than asserted: the routes exist on the
+controller and are unreachable from this deployment.
+
+**The type keys carry a second result.** All three cylinders publish
+`std.moduleType.cylinder` — the key the TwinCAT cylinders publish for the same
+type. A faceplate authored against it therefore serves both bindings, which is
+LOCALIZATION §7.1's cross-binding claim demonstrated on hardware rather than
+argued from the schema.
+
+**Two of the prompt's task-4 expectations are stale** for the same reason §1
+records: it expects "no model picker" and no configuration cards. There are
+three models, so a model picker is correct and expected. Configuration cards
+remain absent — `WRITE_CONFIG`/`QUERY_CONFIG` are refused and no config
+manifest exists.
+
+## 5. What was not attempted, and why
 
 * **The bench parity pass (§146).** `fraktal_ab_press_parity.py` drives the
   press through its modes. Running it before §3 is answered risks proving parity
   for a declaration that is about to lose two of its commands.
-* **Tasks 2, 4, 5 of the prompt.** Closing gaps, the bench HMI pass and the
-  Part III claim-table update all depend on which claim is being recorded.
+* **The visual half of the bench pass.** Empty tabs hidden outside edit mode, a
+  type-scoped faceplate rendering on the cylinders, and a custom tab with a grid
+  need eyes on the panel. The data they render is proved above; that they render
+  it is not.
 * **No download was needed or requested.** The regenerated build would be
   byte-identical to the loaded one: the declaration hash and the controller's
   `ContentHash` are both `122F979D6C141EC8`.
+* **No gap was closed, because none was found.** Every Core 0.21 item is bound
+  or recorded as not claimed with its reason. The three conflicts were a
+  wording collision, resolved in the wording.
