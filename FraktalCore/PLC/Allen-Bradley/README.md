@@ -9,7 +9,11 @@ PASS, so production AB runtime and module-library implementation is authorized
 to begin - against the bounds those gates record, not around them. **R6 passes
 for the declared read-only claim only**: CIP Security, Security Level 2 and
 write-enabled operation are explicitly not claimed, and enabling writes reopens
-Core 14 in full. **S15 is narrowed**: Studio Verify is automated but needs a
+Core 14 in full. Read-only is a property of the **deployment** and not of the
+mailbox (2026-09-29): the controller routes eight request kinds and refuses
+every other by name, and a read-only deployment reaches none of them because
+the gateway carries no write root. Do not read "read-only" as "the controller
+accepts nothing" - Part III §11.2.1 states the boundary. **S15 is narrowed**: Studio Verify is automated but needs a
 logged-in desktop, and download is deliberately not automated. **S5's CI path**
 is the named isolated bench with the download as an authorized manual step, not
 zero-touch CI.

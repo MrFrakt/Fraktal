@@ -1547,6 +1547,31 @@ operator command is refused at the gateway before the controller sees it, and
 the deployment states the restriction. On a strictly segregated line this is a
 proportionate posture, because no write surface is exposed to authenticate.
 
+**Read-only is a property of the deployment, not of the mailbox** (decision of
+2026-09-29). The controller-side mailbox routes eight request kinds — `SET_MODE`,
+`START`, `STOP`, `OPERATOR_RESET`, `DECISION_ANSWER`, `MANUAL_COMMAND`,
+`SET_MODEL` and `FORCE_CHANNEL` — and refuses every other kind by name with a
+reason. A read-only deployment cannot reach any of them: the gateway carries no
+write root and refuses the request before the controller is addressed, so the
+routes exist and are unreachable. The distinction matters because both halves
+are claims about different things, and collapsing them makes one of them false:
+the binding is not "read-only because the controller accepts nothing", it is
+read-only because the deployed transport commands nothing.
+
+What the controller refuses it refuses permanently, for a recorded reason, and
+that is a property of the binding: the config manifest, configuration sets,
+access enforcement, the event core, OEE, release reports, line data and the
+signal tower. What the deployment refuses it refuses by configuration, and
+enabling writes is a gateway change needing no download — which is precisely
+why §11.2.1 asks the read-only question per project and records the answer
+rather than inferring it from the controller.
+
+The station's published `Access/*` policy is read in the same light. It states
+that this controller enforces **no** per-user level — `none` for every gated
+action — which is a statement of fact about the binding, not a permission the
+deployment grants. Authentication lives at the transport: the gateway's Core §14
+bearer and the authenticated proxy in front of it.
+
 **This gateway now exists and has been proved read-only against the bench
 controller.** [`tools/fraktal_ab_gateway.py`](../FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_gateway.py)
 serves the projection over the HMI's `fraktal.opcua.gateway.v1` protocol and,
