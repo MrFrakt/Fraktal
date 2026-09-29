@@ -13,7 +13,11 @@ Core 14 in full. Read-only is a property of the **deployment** and not of the
 mailbox (2026-09-29): the controller routes eight request kinds and refuses
 every other by name, and a read-only deployment reaches none of them because
 the gateway carries no write root. Do not read "read-only" as "the controller
-accepts nothing" - Part III §11.2.1 states the boundary. **S15 is narrowed**: Studio Verify is automated but needs a
+accepts nothing" - Part III §11.2.1 states the boundary. The binding is level
+with **Core 0.21.0.0** for that claim (2026-09-29), and the §146 principles
+parity ran on the bench and passed 17 of 17 across ST, SFC and LD; §7.6 release
+reports are the one principle not claimed, because AB implements none and the
+mailbox refuses `RELEASE_START` by name. **S15 is narrowed**: Studio Verify is automated but needs a
 logged-in desktop, and download is deliberately not automated. **S5's CI path**
 is the named isolated bench with the download as an authorized manual step, not
 zero-touch CI.

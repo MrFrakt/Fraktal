@@ -1966,9 +1966,30 @@ restart. Safety authority remains independent of every cybersecurity control.
   loaded build already matching the declaration at `122F979D6C141EC8`. The
   read-only claim itself was proved on the bench under the definition of
   §11.2.1: both `write` and `writeBatch` refused before the controller was
-  addressed. Still owed from that audit: the §146 principles parity, which
-  drives the press and awaits authorization, and the visual half of the HMI
-  pass.
+  addressed.
+- **The §146 principles parity ran on the bench the same day and passed, 17 of
+  17** ([`Evidence/AB_PARITY_146_2026-09-29.md`](AllenBradley/Evidence/AB_PARITY_146_2026-09-29.md)).
+  P8 and P9 are demonstrated on hardware in all three renditions — a two-hand
+  release HELD at LOW with no fault and resumed on its own, an abort stood the
+  chain down to the init step in about 3 ms, and SFC and LD matched ST on step
+  trace, visited set, held behaviour and stand-down. P6 and P4/P11 are bound by
+  declaration. **P2 is not claimed:** AB implements no §7.6 release report and
+  the mailbox refuses `RELEASE_START` by name, so its Start gate is the minimal
+  error/abort guard rather than a second predicate beside a report that does not
+  exist. Still owed: the visual half of the HMI pass, which needs eyes on the
+  panel.
+- **The declaration has since moved ahead of the loaded build**, and the bullet
+  above saying they matched describes the audit, not the state now. Closing a
+  write-surface bypass found while preparing the parity run took the
+  declaration to `5BEB5FFDF33D77E2` / `6024031` while the controller still
+  carries `122F979D6C141EC8` / `1191831`. The change is **access only** —
+  generated logic, UDTs and AOI definitions are byte-identical, and what moves
+  is one tag's `ExternalAccess` plus the published field list — which is why
+  the parity result above transfers to the regenerated build. Two consequences
+  hold until a download: a freshly started gateway fails closed on the hash
+  mismatch, and the bypass closed in the repository is **still open on the
+  controller**
+  ([`Evidence/AB_PARITY_HARNESS_AND_MODELREQUEST_2026-09-29.md`](AllenBradley/Evidence/AB_PARITY_HARNESS_AND_MODELREQUEST_2026-09-29.md)).
 - **Core clauses added after the Phase 4 base are not claimed**, each for a
   recorded reason (decision of 2026-09-28):
   - deleting a parameter set (Core §3.8b) and data classes with per-value access
