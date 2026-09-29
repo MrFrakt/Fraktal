@@ -187,32 +187,32 @@ IF NOT Init THEN
     IF NOT JOG_ENABLE_DEVICE_REQUIRED THEN
         PneumaticPress.PartFeed.SetJogRequiresEnable(Required := FALSE);
     END_IF
-    // §7.7/§14: provider secrets are retained deployment configuration, never
-    // source literals. Provision them before raising any policy threshold.
-    IF GVL_PressCommissioning.OperatorPin <> '' THEN
-        AccessUsers.Register(User := 'operator', Pin := GVL_PressCommissioning.OperatorPin,
-            Level := E_AccessLevel.OPERATOR);
-    ELSE
-        ;
-    END_IF
-    IF GVL_PressCommissioning.TechnicianPin <> '' THEN
-        AccessUsers.Register(User := 'tech', Pin := GVL_PressCommissioning.TechnicianPin,
-            Level := E_AccessLevel.TECHNICIAN);
-    ELSE
-        ;
-    END_IF
-    IF GVL_PressCommissioning.AdminPin <> '' THEN
-        AccessUsers.Register(User := 'admin', Pin := GVL_PressCommissioning.AdminPin,
-            Level := E_AccessLevel.ADMIN);
-    ELSE
-        ;
-    END_IF
     PneumaticPress.Access.Setup(Provider := AccessUsers, pAlarmLog := ADR(PneumaticPress.AlarmLog));
     HealthConfig.MaxTaskCycleUs := 5000;
     HealthConfig.MaxTaskJitterUs := 2000;
     HealthConfig.RequireFieldbus := TRUE;
     HealthConfig.RequireDcSync := FALSE;
     HealthConfig.RequireTimeSync := TRUE;
+END_IF
+
+// §7.7/§14: a PIN is deployment configuration, never a source literal. Write one
+// into GVL_PressCommissioning (XAE watch window) and it is registered as a salted
+// hash in this scan and wiped: no PIN is retained as text, and the persistent user
+// table keeps the user across restarts. Provision users before raising a threshold.
+IF GVL_PressCommissioning.OperatorPin <> '' THEN
+    AccessUsers.Register(User := 'operator', Pin := GVL_PressCommissioning.OperatorPin,
+        Level := E_AccessLevel.OPERATOR);
+    GVL_PressCommissioning.OperatorPin := '';
+END_IF
+IF GVL_PressCommissioning.TechnicianPin <> '' THEN
+    AccessUsers.Register(User := 'tech', Pin := GVL_PressCommissioning.TechnicianPin,
+        Level := E_AccessLevel.TECHNICIAN);
+    GVL_PressCommissioning.TechnicianPin := '';
+END_IF
+IF GVL_PressCommissioning.AdminPin <> '' THEN
+    AccessUsers.Register(User := 'admin', Pin := GVL_PressCommissioning.AdminPin,
+        Level := E_AccessLevel.ADMIN);
+    GVL_PressCommissioning.AdminPin := '';
 END_IF
 
 // Ordinary simulated local station buttons. The worksheet does not list real

@@ -12,7 +12,8 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Default_policy_is_fully_open();
 Threshold_denies_then_login_permits_then_logout_denies();
-Policy_rejects_invalid_ordinals_and_timeout();]]></ST>
+Policy_rejects_invalid_ordinals_and_timeout();
+Re_registering_replaces_the_PIN();]]></ST>
     </Implementation>
     <Method Name="Default_policy_is_fully_open" Id="{1c4a183c-7370-44bd-8a31-5b4260b328aa}">
       <Declaration><![CDATA[METHOD Default_policy_is_fully_open]]></Declaration>
@@ -94,6 +95,36 @@ AssertEquals_DINT(Expected := 900000,
     Message := 'accepted timeout stored in policy');
 _u.Access.ConfigureSessionTimeout(TimeoutMs := 0);
 TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Re_registering_replaces_the_PIN" Id="{17c6fa1d-6080-41ad-96be-bf1b4a4ceece}">
+      <Declaration><![CDATA[// §14 - the table holds only a salted hash, so the PIN is checked by hashing the
+// attempt: the new PIN is accepted, the old one and the hash's own inputs are not.
+METHOD Re_registering_replaces_the_PIN
+VAR
+    p : FB_LocalAccessProvider;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Re_registering_replaces_the_PIN');
+AssertTrue(Condition := p.Register(User := 'op', Pin := '1111', Level := E_AccessLevel.OPERATOR),
+    Message := 'registered');
+AssertTrue(Condition := p.Register(User := 'eng', Pin := '1111', Level := E_AccessLevel.ENGINEER),
+    Message := 'a second user may share the PIN (own salt)');
+AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR),
+    Actual := TO_DINT(p.Authenticate(User := 'op', Secret := '1111')), Message := 'op accepted');
+AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.ENGINEER),
+    Actual := TO_DINT(p.Authenticate(User := 'eng', Secret := '1111')), Message := 'eng accepted');
+AssertTrue(Condition := p.Register(User := 'op', Pin := '2222', Level := E_AccessLevel.OPERATOR),
+    Message := 're-registered');
+AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+    Actual := TO_DINT(p.Authenticate(User := 'op', Secret := '1111')), Message := 'old PIN refused');
+AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR),
+    Actual := TO_DINT(p.Authenticate(User := 'op', Secret := '2222')), Message := 'new PIN accepted');
+AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+    Actual := TO_DINT(p.Authenticate(User := 'nobody', Secret := '2222')), Message := 'unknown user refused');
+AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+    Actual := TO_DINT(p.Authenticate(User := 'op', Secret := '')), Message := 'empty secret refused');
+TEST_FINISHED();]]></ST>
+      </Implementation>
     </Method>
   </POU>
 </TcPlcObject>

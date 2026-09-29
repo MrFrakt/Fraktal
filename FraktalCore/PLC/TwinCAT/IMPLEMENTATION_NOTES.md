@@ -4957,3 +4957,36 @@ the same thing would have had to repeat (§1.1 O1).
 `FB_ModelData_Tests` (4 tests) proves another model is served and edited in its own
 record, an active edit reaches its record, an unknown model is refused, and station values
 do not follow the model. Core/Modules: 193 tests / 43 suites.
+
+## 150. Local PINs are kept only as salted hashes (Core 0.20.0.0, 2026-09-28)
+
+A read-only ADS probe listed `FB_LocalAccessProvider._users` with every PIN in plain
+text, and the press kept the same PINs as retained text in `GVL_PressCommissioning`
+for the provider to re-register each boot. Core §7.7(c) already cleared the login
+secret after each attempt; the table itself undid that.
+
+- **The PIN is not stored.** `ST_UserRecord.Pin` became `Salt` (16 bytes, drawn per
+  registration from the clock, a sequence and the user name) and `PinHash` (SHA-256 of
+  salt and PIN, then `PIN_HASH_ROUNDS` = 256 rounds of SHA-256 of the previous digest
+  and the salt; about a millisecond per login). The comparison ORs every byte
+  difference, and an unknown user costs the same hash, so timing does not separate a
+  wrong name from a wrong PIN.
+- **The table is hidden.** `{attribute 'hide'}` takes `_users`/`_n` out of the ADS
+  symbol table, and `OPC.UA.DA := '0'` out of OPC UA. For a four-digit PIN this is the
+  control that matters: any hash of a four-digit PIN falls to an offline search. The
+  hash is what keeps a memory dump, a backup or the persistent-data file from handing
+  out the PINs as text.
+- **`F_Sha256` is plain ST** (FIPS 180-4), so it needs no crypto library and behaves the
+  same on 4024 and 4026. `FB_Sha256_Tests` checks it against the three FIPS example
+  vectors (empty, one block, a two-block padding).
+- **Migration is automatic.** The record layout changed, so TwinCAT reinitializes the
+  persistent table on the next download; the PINs it held are gone with it. Users
+  are registered again from the deployment's source.
+- **The press consumes a commissioning PIN.** `MAIN` registers a PIN from
+  `GVL_PressCommissioning` in the scan it is written and clears it, every scan rather
+  than only in `Init`. A PIN is no longer retained as text, the persistent table keeps
+  the user across restarts, and the `MAIN.Init := FALSE` step is gone.
+
+`FB_Access_Tests` gains `Re_registering_replaces_the_PIN` (two users sharing a PIN,
+old PIN refused after re-registration, unknown user and empty secret refused).
+Core/Modules: 197 tests / 44 suites.

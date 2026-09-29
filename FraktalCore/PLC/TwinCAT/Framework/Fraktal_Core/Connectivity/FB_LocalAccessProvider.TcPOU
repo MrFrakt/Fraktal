@@ -1,12 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_LocalAccessProvider" Id="{e6013f23-fcc9-42e1-ae2f-9c0279742929}" SpecialFunc="None">
-    <Declaration><![CDATA[// Core §7.7(c) — DEFAULT local provider: persistent user/PIN table. Remote/central
+    <Declaration><![CDATA[// Core §7.7(c) — DEFAULT local provider: persistent user table. Remote/central
 // auth (server, LDAP via gateway) substitutes behind I_AccessProvider later.
+//
+// §14 - a PIN is never stored: each user keeps a random-per-registration salt and
+// an iterated SHA-256 of salt and PIN, and the table is hidden from the ADS symbol
+// table and OPC UA. Hiding is the control that matters for a short PIN - four
+// digits fall to an offline search whatever the hash - so the hash's job is that a
+// dump, backup or boot-data file does not hand the PINs out as text.
 FUNCTION_BLOCK FB_LocalAccessProvider IMPLEMENTS I_AccessProvider
 VAR PERSISTENT
+    {attribute 'hide'}
+    {attribute 'OPC.UA.DA' := '0'}
     _users : ARRAY[1..PL_Fraktal.MAX_USERS] OF ST_UserRecord;
+    {attribute 'hide'}
+    {attribute 'OPC.UA.DA' := '0'}
     _n     : INT;
+END_VAR
+VAR
+    {attribute 'hide'}
+    _saltSeq : UDINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// no cyclic body]]></ST>
@@ -19,21 +33,40 @@ VAR_INPUT
 END_VAR
 VAR
     i : INT;
+    hit : INT;
+    noSalt : ARRAY[0..15] OF BYTE;
+    candidate : ARRAY[0..31] OF BYTE;
+    diff : BYTE;
+    k : INT;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[Authenticate := E_AccessLevel.NONE;
+hit := 0;
 FOR i := 1 TO _n DO
-    IF (_users[i].User = User) AND (_users[i].Pin = Secret) THEN
-        Authenticate := _users[i].Level;
-        RETURN;
+    IF _users[i].User = User THEN
+        hit := i;
     END_IF
-END_FOR]]></ST>
+END_FOR
+IF hit = 0 THEN
+    // An unknown user costs the same hash, so timing does not tell names apart.
+    _M_Hash(Salt := noSalt, Pin := Secret, Digest := candidate);
+    RETURN;
+END_IF
+_M_Hash(Salt := _users[hit].Salt, Pin := Secret, Digest := candidate);
+diff := 0;
+FOR k := 0 TO 31 DO
+    diff := diff OR (candidate[k] XOR _users[hit].PinHash[k]);
+END_FOR
+IF diff = 0 THEN
+    Authenticate := _users[hit].Level;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="Register" Id="{b51dad4c-34da-44b6-88a9-19f5db17f6af}">
       <Declaration><![CDATA[// commissioning-time user entry (itself an ACCESS_POLICY-gated edit via the HMI).
-// Idempotent by User: re-registering updates PIN/level (the table is PERSISTENT,
+// Idempotent by User: re-registering replaces PIN/level (the table is PERSISTENT,
 // so a composition root may register its defaults every boot without duplicates).
+// Every registration draws a new salt.
 METHOD Register : BOOL
 VAR_INPUT
     User : STRING(32);
@@ -42,25 +75,80 @@ VAR_INPUT
 END_VAR
 VAR
     i : INT;
+    slot : INT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR i := 1 TO _n DO
+        <ST><![CDATA[Register := FALSE;
+slot := 0;
+FOR i := 1 TO _n DO
     IF _users[i].User = User THEN
-        _users[i].Pin   := Pin;
-        _users[i].Level := Level;
-        Register := TRUE;
-        RETURN;
+        slot := i;
     END_IF
 END_FOR
-IF _n >= PL_Fraktal.MAX_USERS THEN
-    Register := FALSE;
-    RETURN;
+IF slot = 0 THEN
+    IF _n >= PL_Fraktal.MAX_USERS THEN
+        RETURN;
+    END_IF
+    _n := _n + 1;
+    slot := _n;
+    _users[slot].User := User;
 END_IF
-_n := _n + 1;
-_users[_n].User  := User;
-_users[_n].Pin   := Pin;
-_users[_n].Level := Level;
+_M_NewSalt(User := User, Salt := _users[slot].Salt);
+_M_Hash(Salt := _users[slot].Salt, Pin := Pin, Digest := _users[slot].PinHash);
+_users[slot].Level := Level;
 Register := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_NewSalt" Id="{65b645b2-8cba-4248-bca6-674b4abcbb5c}">
+      <Declaration><![CDATA[// A salt unique to this registration: the clock, a sequence and the user name,
+// hashed. It need not be secret, only never repeated.
+METHOD PRIVATE _M_NewSalt
+VAR_INPUT
+    User : STRING(32);
+END_VAR
+VAR_IN_OUT
+    Salt : ARRAY[0..15] OF BYTE;
+END_VAR
+VAR
+    seed : ARRAY[0..47] OF BYTE;
+    now : ULINT;
+    digest : ARRAY[0..31] OF BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[now := Tc2_Utilities.F_GetSystemTime();
+_saltSeq := _saltSeq + 1;
+MEMCPY(destAddr := ADR(seed), srcAddr := ADR(now), n := SIZEOF(now));
+MEMCPY(destAddr := ADR(seed) + 8, srcAddr := ADR(_saltSeq), n := SIZEOF(_saltSeq));
+MEMCPY(destAddr := ADR(seed) + 12, srcAddr := ADR(User), n := INT_TO_UDINT(LEN(User)));
+F_Sha256(pData := ADR(seed), Size := 12 + INT_TO_UDINT(LEN(User)), Digest := digest);
+MEMCPY(destAddr := ADR(Salt), srcAddr := ADR(digest), n := 16);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Hash" Id="{13c6c702-e31c-46d2-b3fe-0bca13912bed}">
+      <Declaration><![CDATA[// SHA-256(Salt || Pin), then PL_Fraktal.PIN_HASH_ROUNDS more rounds of
+// SHA-256(previous || Salt).
+METHOD PRIVATE _M_Hash
+VAR_INPUT
+    Pin : STRING(32);
+END_VAR
+VAR_IN_OUT
+    Salt   : ARRAY[0..15] OF BYTE;
+    Digest : ARRAY[0..31] OF BYTE;
+END_VAR
+VAR
+    buf : ARRAY[0..47] OF BYTE;
+    round : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[MEMCPY(destAddr := ADR(buf), srcAddr := ADR(Salt), n := 16);
+MEMCPY(destAddr := ADR(buf) + 16, srcAddr := ADR(Pin), n := INT_TO_UDINT(LEN(Pin)));
+F_Sha256(pData := ADR(buf), Size := 16 + INT_TO_UDINT(LEN(Pin)), Digest := Digest);
+FOR round := 1 TO PL_Fraktal.PIN_HASH_ROUNDS DO
+    MEMCPY(destAddr := ADR(buf), srcAddr := ADR(Digest), n := 32);
+    MEMCPY(destAddr := ADR(buf) + 32, srcAddr := ADR(Salt), n := 16);
+    F_Sha256(pData := ADR(buf), Size := 48, Digest := Digest);
+END_FOR
+MEMSET(destAddr := ADR(buf), fillByte := 0, n := SIZEOF(buf));]]></ST>
       </Implementation>
     </Method>
   </POU>

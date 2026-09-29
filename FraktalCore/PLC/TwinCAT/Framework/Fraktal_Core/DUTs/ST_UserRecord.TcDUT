@@ -5,9 +5,12 @@
 // auth substitutes via I_AccessProvider without touching module code)
 TYPE ST_UserRecord :
 STRUCT
-    User  : STRING(32);
-    Pin   : STRING(32);
-    Level : E_AccessLevel;
+    User    : STRING(32);
+    // §14 - the PIN itself is never stored: a salt drawn at registration and the
+    // iterated SHA-256 of salt and PIN (FB_LocalAccessProvider._M_Hash).
+    Salt    : ARRAY[0..15] OF BYTE;
+    PinHash : ARRAY[0..31] OF BYTE;
+    Level   : E_AccessLevel;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

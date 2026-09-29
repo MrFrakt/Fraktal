@@ -412,7 +412,7 @@ Expect these counts for the next run:
 
 | Gate | Required runner in the log | Expected from current source |
 |---|---|---:|
-| Core/Modules | `PRG_TcUnitRunner` | 193 tests / 43 suites / 0 failed |
+| Core/Modules | `PRG_TcUnitRunner` | 197 tests / 44 suites / 0 failed |
 | Internal Press integration | `PRG_PressTestRunner` | 9 tests / 2 suites / 0 failed |
 
 Derive them from source rather than trusting this table — the suite count is the

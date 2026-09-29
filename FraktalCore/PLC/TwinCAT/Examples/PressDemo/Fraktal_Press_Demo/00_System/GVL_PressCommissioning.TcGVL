@@ -3,8 +3,10 @@
   <GVL Name="GVL_PressCommissioning" Id="{5742817d-5fd2-437e-a68e-6e93b660de64}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 // Deployment-owned access-provider bootstrap. Secrets deliberately have no
-// source default and are excluded from OPC UA; provision the retained values in
-// the target's controlled commissioning workflow before locking the PLC policy.
+// source default and are excluded from OPC UA. Write a PIN here in the target's
+// controlled commissioning workflow: MAIN registers it as a salted hash in the same
+// scan and clears it, so no PIN is retained as text (§14). Provision users before
+// locking the PLC policy.
 VAR_GLOBAL PERSISTENT
     {attribute 'OPC.UA.DA' := '0'}
     OperatorPin   : STRING(32);
