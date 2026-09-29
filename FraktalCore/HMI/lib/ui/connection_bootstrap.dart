@@ -187,7 +187,7 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
           alarmResetMinLevel: AccessLevel
               .values[(candidate.alarmResetMinLevelIndex).clamp(0, 4)],
         ),
-        initialThemeIndex: _settings?.themeIndex ?? 0,
+        initialThemeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
         initialFloatingKeyboard: _settings?.floatingKeyboard ?? true,
         initialControlScale: ControlScale
             .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
@@ -519,14 +519,14 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
   Widget build(BuildContext context) => switch (_phase) {
         _BootstrapPhase.loading => _ConnectionMaterial(
             localization: widget.localization,
-            themeIndex: _settings?.themeIndex ?? 0,
+            themeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: ControlScale
                 .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: const ConnectionBlockingScreen(loadingSettings: true),
           ),
         _BootstrapPhase.languageSelection => _ConnectionMaterial(
             localization: widget.localization,
-            themeIndex: _settings?.themeIndex ?? 0,
+            themeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: ControlScale
                 .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: FirstLanguageSelection(
@@ -542,12 +542,12 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
         _BootstrapPhase.appearanceSetup => _ConnectionMaterial(
             localization: widget.localization,
             // Live preview: render in whatever is currently selected.
-            themeIndex: _previewTheme ?? _settings?.themeIndex ?? 0,
+            themeIndex: _previewTheme ?? _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: _previewScale ??
                 ControlScale
                     .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: AppearanceSetupScreen(
-              initialThemeIndex: _settings?.themeIndex ?? 0,
+              initialThemeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
               initialControlScale: ControlScale
                   .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
               onPreview: _previewAppearance,
@@ -556,7 +556,7 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
           ),
         _BootstrapPhase.accessSetup => _ConnectionMaterial(
             localization: widget.localization,
-            themeIndex: _settings?.themeIndex ?? 0,
+            themeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: ControlScale
                 .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: AccessSetupScreen(
@@ -575,7 +575,7 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
           ),
         _BootstrapPhase.wizard => _ConnectionMaterial(
             localization: widget.localization,
-            themeIndex: _settings?.themeIndex ?? 0,
+            themeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: ControlScale
                 .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: ConnectionWizard(
@@ -585,7 +585,7 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
           ),
         _BootstrapPhase.connecting => _ConnectionMaterial(
             localization: widget.localization,
-            themeIndex: _settings?.themeIndex ?? 0,
+            themeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: ControlScale
                 .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: ConnectionBlockingScreen(
@@ -598,7 +598,7 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
           ),
         _BootstrapPhase.unitSelection => _ConnectionMaterial(
             localization: widget.localization,
-            themeIndex: _settings?.themeIndex ?? 0,
+            themeIndex: _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: ControlScale
                 .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],
             child: UnitSelectionScreen(

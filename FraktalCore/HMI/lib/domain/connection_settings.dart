@@ -52,6 +52,12 @@ String gatewayEndpointForWebBase(Uri base) {
   ).toString();
 }
 
+/// The theme a NEW installation starts with: Process Grey (index 27 in
+/// `kThemes`), after ISA-101 - a grey panel keeps colour for abnormal states. A
+/// stored selection is never changed, and a settings file older than the UI
+/// preferences (no `themeIndex`) keeps the Light Blue (0) it has always shown.
+const int kDefaultThemeIndex = 27;
+
 class ConnectionSettings {
   final ConnectionTransport transport;
   final String endpoint;
@@ -99,7 +105,7 @@ class ConnectionSettings {
     this.enabledLanguageCodes = const [],
     this.activeLanguageCode = 'en',
     this.languageSelectionComplete = false,
-    this.themeIndex = 0,
+    this.themeIndex = kDefaultThemeIndex,
     this.floatingKeyboard = true,
     this.controlScaleIndex = 0,
     this.themeMinLevelIndex = 0, // AccessLevel.none — appearance is open

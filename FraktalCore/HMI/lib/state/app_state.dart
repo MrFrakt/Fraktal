@@ -8,6 +8,7 @@ import '../data/panel_platform.dart';
 import '../data/plc_repository.dart';
 import '../domain/module_node.dart';
 import '../domain/fieldbus.dart';
+import '../domain/connection_settings.dart' show kDefaultThemeIndex;
 import '../domain/types.dart';
 import '../localization/reason_catalog.g.dart';
 import '../content/module_content_controller.dart';
@@ -108,7 +109,7 @@ class AppState extends ChangeNotifier {
     HmiConfig config = const HmiConfig(),
     LocalizationController? localization,
     ModuleContentController? content,
-    int initialThemeIndex = 0,
+    int initialThemeIndex = kDefaultThemeIndex,
     bool initialFloatingKeyboard = true,
     ControlScale initialControlScale = ControlScale.compact,
     VoidCallback? onUiPrefsChanged,
@@ -198,7 +199,7 @@ class AppState extends ChangeNotifier {
   String? scopedRoot; // null = show whole forest; else single-root scope (3.1a)
   final Set<String> expanded = {};
   bool railCollapsed = false;
-  int themeIndex; // index into kThemes (app_theme.dart); 0 = Light Blue
+  int themeIndex; // index into kThemes (app_theme.dart); see kDefaultThemeIndex
 
   ModuleNode? get selected {
     for (final r in visibleRoots) {

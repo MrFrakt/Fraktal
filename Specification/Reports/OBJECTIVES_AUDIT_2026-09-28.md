@@ -292,4 +292,24 @@ The owner decided P8 (**hold**) and P3 (**remove the Unit entirely**).
 | # | Finding | Needs |
 |---|---|---|
 | P15 | ✅ **Closed:** `Status.Diagnostic` is the one published diagnostic (O9 one source, O1 no per-type copy, O4 half the live reads, O2/O8 the structure every binding already reads). Removed from 13 `OutImm` structs and 13 types; Core §6.1/§6.9 and Annexes A/B/C/H updated; lint rule D2 enforces it (IMPLEMENTATION_NOTES §148, Core 0.18.0.0 / Modules 0.10.0.0). | — |
-| — | The runtime TcUnit gates (Core/Modules 189 / 42, PressTests 9 / 2) cover everything above but have not run. They need the owner at XAE. | The owner |
+| — | ✅ **Ran:** both runtime gates green on Core 0.18.0.0 (189/42, 9/2; `Evidence/2026-09-28b_Core018_Press_TcUnit.md`) and again on 0.19.0.0 (193/43, 9/2; `Evidence/2026-09-28c_Core019_Press_TcUnit.md`). | — |
+| P10 watch | ✅ **Closed:** the active-model write-back left the press. The root saves model data through the provider's `I_RecipeStore`, for every model, not only the running one (IMPLEMENTATION_NOTES §149, Core 0.19.0.0). | — |
+
+## 9. The owner's decisions, and their closing (2026-09-28, evening)
+
+The owner decided every open decision in one pass. All four follow the recommendation.
+
+| Item | Decision | How it was closed |
+|---|---|---|
+| **PIN storage** (§14; found by a read-only ADS probe) | Hash and hide | `b0e2be4`, Core 0.20.0.0, IMPLEMENTATION_NOTES §150. A PIN is kept only as a salted, iterated SHA-256 (`F_Sha256`, plain ST, checked against the FIPS vectors). The table is hidden from ADS symbols and OPC UA. The press hashes a commissioning PIN in the scan it is written and clears it. Core §7.7(c) now forbids a provider from retaining a secret it can read back. |
+| **G3 B** (§3.8d, §3.8b delete on AB) | AB stays **read-only** | AB Part III records both as belonging to the write-enabled profile (§11.2.1). They are not claimed and the mailbox refuses both. They are bound only if a project enables writes and records that answer. |
+| **G3 C** (§3.8e, §8.5.2) | An optional Core profile | Core §1.5 defines the **Line** profile, claimed per binding like Robot; §3.8e and §8.5.2 are marked with it. A binding without it publishes no partial line data, and a client reads absence as "no line". AB does not claim it. |
+| **G7** (default theme) | Process Grey for new installations | `kDefaultThemeIndex` (27). A stored selection is never changed, and a settings file older than the UI preferences keeps Light Blue. A test pins the index to the Process Grey entry. |
+
+**Still open:**
+
+| Gap | Needs |
+|---|---|
+| Runtime gates on Core 0.20.0.0 (Core/Modules 197/44, Press 9/2) | The owner at XAE |
+| G2 steps 2–4: the live OPC UA acceptance pass | The owner at the HMI, after downloading the press |
+| G4 rest: bindable icon, rotation and opacity, bound layer visibility, the grid container, a declared per-view budget below 200 | Nothing; buildable now |

@@ -75,6 +75,14 @@ This standard is grounded in publicly available standards, not a proprietary lin
 - **Module-type versioning.** Released types follow semantic versioning: **major** = any change to the contract surface (commands, handshake members, `ParCfg` schema, reason codes, `SourcePath` semantics — anything a consumer or a stored recipe can observe); **minor** = additive members/commands with defaults preserving old behaviour; **patch** = internal fixes with no observable change. A major bump **shall** ship the §3.8 recipe migration for its `SchemaVersion` step, and consumers pin versions per §2.2/§5.4 — so "reusable library" is a compatibility promise, not a hope.
 - **Binding-qualified projections.** Core behavior-profile conformance is transport-independent. A claim for a transport or companion-model projection (for example `Fraktal/TC3 + PackML/OPC UA`) is additionally qualified by the selected binding and may be made only when that binding maps and verifies the projection. Absence of an optional projection does not invalidate base Fraktal Core conformance.
 
+- **Optional Line profile.** Line data (§3.8e) and shifts (§8.5.2) form the **Line**
+  behaviour profile, claimed per binding like Robot (§10.6): `Fraktal Core + Fraktal/TC3 +
+  Line`. They describe a line of stations sharing one owner, which a single-station cell
+  does not have, so base Fraktal Core conformance does not require them. A binding that
+  claims the profile binds both clauses whole; one that does not claim it **shall not**
+  publish partial line data or shift statistics, and clients **shall** treat their absence
+  as "no line" rather than as a fault.
+
 ### 1.6 Definitions & abbreviations
 
 | Term | Meaning |
@@ -593,6 +601,8 @@ it would reveal. Saving and deleting reveal nothing outside the PLC and remain g
 §14 (defense in depth).*
 
 #### 3.8e Line data — one owner, mirrored
+
+*Optional behaviour profile **Line** (§1.5): §3.8e and §8.5.2 together.*
 
 Station data describes one station and model data one product. A third kind describes the
 **line** the station belongs to and is shared by every station on it: the shift calendar
@@ -2032,6 +2042,8 @@ OEE is a **derivation from contracts the standard already has** — no new instr
 *Cross-references: §3.8 (ideal cycle per model), §6.1 (`BUSY`), §8.3 (blocking, audit, historian), §8.11 (counters, timing), §7.7 (reset gating), §3.13 (rendering).*
 
 #### 8.5.2 Shifts and per-shift statistics
+
+*Part of the optional **Line** profile (§1.5, §3.8e).*
 
 §8.5.1 says counters and OEE are reset "typically at shift start" by a deployment's scheduler,
 and §8.11.2 that counts reset on a deliberate, logged action. Left there, every deployment

@@ -8,6 +8,7 @@ import 'package:fraktal_hmi/domain/connection_settings.dart';
 import 'package:fraktal_hmi/domain/types.dart';
 import 'package:fraktal_hmi/state/app_state.dart';
 import 'package:fraktal_hmi/data/sim_repository.dart';
+import 'package:fraktal_hmi/ui/app_theme.dart' show kThemes;
 
 void main() {
   test('appearance and access choices round-trip through settings', () {
@@ -114,6 +115,18 @@ void main() {
     );
     addTearDown(app.dispose);
     expect(app.setTheme(3), isFalse, reason: 'below the configured level');
-    expect(app.themeIndex, 0, reason: 'and nothing changed');
+    expect(app.themeIndex, kDefaultThemeIndex, reason: 'and nothing changed');
+  });
+
+  test('a new installation starts on Process Grey; old settings keep theirs', () {
+    expect(kThemes[kDefaultThemeIndex].nameKey, 'std.theme.processGrey');
+    expect(const ConnectionSettings().themeIndex, kDefaultThemeIndex);
+    final v1 = ConnectionSettings.fromJson(<String, Object?>{
+      'schemaVersion': 1,
+      'transport': ConnectionTransport.values.first.name,
+      'endpoint': 'opc.tcp://127.0.0.1:4840',
+      'everConnected': true,
+    });
+    expect(v1!.themeIndex, 0, reason: 'an existing install keeps Light Blue');
   });
 }

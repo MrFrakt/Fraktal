@@ -407,8 +407,9 @@ ThemeData _applyScale(ThemeData theme, UiMetrics m) {
 
 /// Theme indices are the persisted `themeIndex`. Original light variants
 /// first (0..5), then dark (6..11), then the two maximum-contrast variants
-/// (12..13). Light Blue is the default and matches the seed the HMI has always
-/// shipped. **Append only** — the index is persisted, so inserting would silently
+/// (12..13), then later families. A new installation starts on Process Grey
+/// (`kDefaultThemeIndex`); index 0, Light Blue, is what older settings keep.
+/// **Append only** — the index is persisted, so inserting would silently
 /// change every stored selection.
 const kThemes = <FraktalThemeSpec>[
   // — light —

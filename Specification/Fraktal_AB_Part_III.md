@@ -1933,12 +1933,18 @@ restart. Safety authority remains independent of every cybersecurity control.
 - Connectors, motion, optional OPC UA/companion projections, and any controller
   family absent from the tested matrix are not claimed merely because a Core
   interface or manifest capability exists.
-- **Core clauses added after the Phase 4 base are not yet bound**, and a claim
-  of Fraktal Core + Fraktal/AB covers none of them: deleting a parameter set
-  (Core §3.8b; the mailbox refuses the request), data classes and per-value
-  access (§3.8d; the mailbox refuses every access-policy request, so there is no
-  class table), line data (§3.8e), and shifts (§8.5.2, which needs §3.8e). The
-  read-surface gate records
+- **Core clauses added after the Phase 4 base are not claimed**, each for a
+  recorded reason (decision of 2026-09-28):
+  - deleting a parameter set (Core §3.8b) and data classes with per-value access
+    (§3.8d) change or gate persistent data, so they belong to the **write-enabled**
+    profile (§11.2.1). The binding stays **read-only**: the mailbox refuses both
+    requests and there is no class table. They are bound if and when a project
+    enables writes and records that answer;
+  - line data (§3.8e) and shifts (§8.5.2) form Core's optional **Line** profile
+    (Core §1.5), which Fraktal/AB does not claim. A claim is therefore
+    `Fraktal Core + Fraktal/AB`, never `+ Line`.
+
+  The read-surface gate records
   each as declared-absent with its reason (`tools/check_consistency.py`
   `AB_ABSENT`), so the HMI never reads what the AB projection does not publish.
 - The **module type key** (LOCALIZATION §7.1) *is* bound: the declaration names
