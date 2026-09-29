@@ -591,6 +591,11 @@ class CfgField {
   /// does not meet its read level. The field is still listed so the editor can
   /// say something exists and why it is hidden.
   final bool readable;
+
+  /// Core §3.8a - the value lives in the root's model record, so it can be read
+  /// and edited for any model the root offers, not only the running one. FALSE
+  /// for a controller older than Core 0.19 (the active model only).
+  final bool modelScoped;
   const CfgField(this.name, this.kind, this.type, this.value,
       {this.unit = '',
       this.labelKey = '',
@@ -606,7 +611,8 @@ class CfgField {
       this.classId = '',
       this.readLevel,
       this.writeLevel,
-      this.readable = true});
+      this.readable = true,
+      this.modelScoped = false});
 
   /// The catalog key of the unit to show, or '' for none: a code the PLC
   /// published wins; without one (an older controller) the legacy text stands.

@@ -10,8 +10,9 @@ VAR_OUTPUT
     Provider : FB_LocalRecipeProvider;
 END_VAR
 VAR PERSISTENT
-    // §3.8b - the records are edited through the Unit (the active model's PAR_CFG)
-    // and must outlive a restart, so they are retained and seeded only once.
+    // §3.8b - the records are edited through the Unit's model data (any model;
+    // the provider's Save writes here) and must outlive a restart, so they are
+    // retained and seeded only once.
     _default : ST_PneumaticPressParCfg;
     _aluminum : ST_PneumaticPressParCfg;
     _plastic : ST_PneumaticPressParCfg;
@@ -80,31 +81,9 @@ _model.ModelCode := 'PLASTIC';
 Ok := UnitRef.RegisterAvailableModel(Id := _model) AND Ok;
 _model.ModelCode := 'STEEL';
 Ok := UnitRef.RegisterAvailableModel(Id := _model) AND Ok;
-Ok := UnitRef.SetRecipeCatalog(pCatalog := THIS) AND Ok;
 
 _configured := Ok;
 Setup := Ok;]]></ST></Implementation>
-    </Method>
-    <Method Name="M_Store" Id="{5f8f75d4-bd85-4c3d-a0f4-7f6f85b97e42}">
-      <Declaration><![CDATA[// §3.8a - write an edited recipe back to the record of its model, so the next
-// changeover to that model loads it. FALSE for a model this catalog does not hold.
-METHOD M_Store : BOOL
-VAR_INPUT
-    ModelCode : STRING(64);
-    Record    : ST_PneumaticPressParCfg;
-END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[M_Store := TRUE;
-IF ModelCode = '' THEN
-    _default := Record;
-ELSIF ModelCode = 'ALUMINUM' THEN
-    _aluminum := Record;
-ELSIF ModelCode = 'PLASTIC' THEN
-    _plastic := Record;
-ELSIF ModelCode = 'STEEL' THEN
-    _steel := Record;
-ELSE
-    M_Store := FALSE;
-END_IF]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

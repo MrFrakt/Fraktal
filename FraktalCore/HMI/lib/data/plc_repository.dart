@@ -111,7 +111,18 @@ abstract class PlcRepository {
 
   /// §3.8a — write one published ParCfg/StationCfg field. The PLC validates
   /// type/schema and re-checks DATA_WRITE; false means rejected with no partial load.
-  Future<bool> writeConfig(String nodePath, CfgField field, String value);
+  ///
+  /// [modelIndex] names the model a model-data value ([CfgField.modelScoped])
+  /// is written for: 0 = the running model, n = the root's n-th
+  /// `availableModels` entry. It is sent only for a model-scoped field - a
+  /// controller that publishes none would write the running model instead.
+  Future<bool> writeConfig(String nodePath, CfgField field, String value,
+      {int modelIndex = 0});
+
+  /// §3.8a — the root's model-data values as stored for model [modelIndex]
+  /// (0 = the running model, n = the n-th `availableModels` entry), read from
+  /// that model's record without a changeover. Null = refused or unreadable.
+  Future<List<CfgField>?> queryModelConfig(String rootPath, int modelIndex);
 
   /// Core §3.8b - parameter sets on a root. Every call is a CONFIG_SET-gated
   /// PLC request; nothing is cached here. [listConfigSets] returns null when the

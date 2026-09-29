@@ -148,6 +148,14 @@ VAR
     // §8.5.2 shift accounting
     {attribute 'OPC.UA.DA' := '0'}
     _pLine : POINTER TO FB_LineData;
+    // §3.8a - model data: the provider and key of this root's own recipe record,
+    // and the buffer a model-scoped request loads another model's record into.
+    {attribute 'OPC.UA.DA' := '0'}
+    _modelProvider : I_RecipeProvider;
+    _modelKey : STRING(80);
+    _viewModelCode : STRING(64);
+    {attribute 'OPC.UA.DA' := '0'}
+    _modelBuf : ARRAY[1..PL_Fraktal.MAX_MODEL_DATA_BYTES] OF BYTE;
     _lineHost : BOOL;                  // §3.8e this root ticks the line it references
     _lineRevSeen : UDINT;              // §3.8e line revision last reflected in ConfigRev
     _shiftInit : BOOL;
@@ -728,9 +736,11 @@ CASE HmiRequest.Kind OF
     E_HmiRequestKind.RESET_OEE:
         HmiResponse.Accepted := ResetOee();
     E_HmiRequestKind.WRITE_CONFIG:
-        HmiResponse.Accepted := WriteConfig(TargetPath := HmiRequest.TargetPath,
-            WriteKey := HmiRequest.NameValue, Revision := HmiRequest.IntValue,
-            TextValue := HmiRequest.TextValue);
+        // §3.8a - DurationMs names the model a model-data write is for
+        // (0 = the active model, n = AvailableModels[n]); other values ignore it.
+        HmiResponse.Accepted := WriteModelConfig(ModelIndex := HmiRequest.DurationMs,
+            TargetPath := HmiRequest.TargetPath, WriteKey := HmiRequest.NameValue,
+            Revision := HmiRequest.IntValue, TextValue := HmiRequest.TextValue);
     E_HmiRequestKind.SHELVE_ALARM:
         alarmSlot := AlarmLog.FindActiveSlot(SourcePath := HmiRequest.TargetPath,
             Description := HmiRequest.TextValue);
@@ -758,13 +768,16 @@ CASE HmiRequest.Kind OF
         // §3.8d: no blanket DATA_READ refusal any more - a class may be readable
         // below it. Each entry is served with or without its value by its level.
         _configPager.M_SetAccess(pAccess := ADR(Access));
-        IF _configPager.M_Setup(Target := ADR(HmiResponse.ConfigPage),
+        // §3.8a - DurationMs names the model whose model-data values to serve.
+        IF NOT _configPager.M_Setup(Target := ADR(HmiResponse.ConfigPage),
             PageIndex := TO_INT(HmiRequest.IntValue), Revision := ConfigRev) THEN
-            M_AppendConfig(Pager := _configPager);
+            HmiResponse.Diagnostic := 'std.error.hmiRequestRejected';
+        ELSIF M_AppendModelConfig(Pager := _configPager,
+                ModelIndex := HmiRequest.DurationMs) THEN
             _configPager.M_Finish();
             HmiResponse.Accepted := TRUE;
         ELSE
-            HmiResponse.Diagnostic := 'std.error.hmiRequestRejected';
+            HmiResponse.Diagnostic := 'std.error.modelNotAvailable';
         END_IF
     E_HmiRequestKind.SET_ACCESS_LEVEL:
         policyValueValid := TRUE;
@@ -1242,7 +1255,8 @@ END_VAR]]></Declaration>
 // cannot see from where it sits, so the root answers it on the way down.
 _M_RouteConfigWrite := M_ApplyConfigWrite(Scope := TargetPath,
     WriteKey := WriteKey, Revision := Revision, TextValue := TextValue,
-    RootReady := (_exec = E_ExecState.READY));]]></ST>
+    // Another model's record is not what the machine is running on.
+    RootReady := (_exec = E_ExecState.READY) OR (_pModelView <> 0));]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_WriteBaseConfig" Id="{c30f39b4-eae4-421d-a415-c6dc3b402679}">
@@ -1768,7 +1782,7 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         Minimum := 0.0, Maximum := 2.0, Unit := E_EngUnit.NONE, LabelKey := labelKey,
         EnumDomain := '0|1|2', EnumLabelKey := 'std.enum.modeSwitchShield',
         ClassId := '', MinReadLevel := E_AccessLevel.NONE,
-        MinWriteLevel := E_AccessLevel.NONE);
+        MinWriteLevel := E_AccessLevel.NONE, ModelScoped := FALSE);
     item := CONCAT('ModePolicy/ModePolicy[', CONCAT(TO_STRING(i), ']/Style'));
     writeKey := CONCAT('unit.modePolicy.', CONCAT(TO_STRING(i), '.style'));
     labelKey := CONCAT('std.config.modePolicy.', CONCAT(TO_STRING(i), '.style'));
@@ -1780,7 +1794,7 @@ FOR i := 0 TO PL_Fraktal.MODE_COUNT - 1 DO
         Minimum := 0.0, Maximum := 1.0, Unit := E_EngUnit.NONE, LabelKey := labelKey,
         EnumDomain := '0|1', EnumLabelKey := 'std.enum.modeSwitchStyle',
         ClassId := '', MinReadLevel := E_AccessLevel.NONE,
-        MinWriteLevel := E_AccessLevel.NONE);
+        MinWriteLevel := E_AccessLevel.NONE, ModelScoped := FALSE);
 END_FOR
 Pager.M_AppendNumber(Scope := Status.Name, Item := 'AlarmLog/MetaCount',
     Number := TO_DINT(PL_ReasonCatalog.COUNT + AlarmLog.MetaCount));
@@ -2326,6 +2340,129 @@ END_VAR]]></Declaration>
 IF (NOT M_ConfigAccessOf) AND _M_IsLineKey(Scope := Scope, WriteKey := WriteKey) THEN
     M_ConfigAccessOf := _pLine^.M_ConfigAccessOf(Scope := _pLine^.Status.Name,
         WriteKey := WriteKey, Grant := Grant);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RegisterModelData" Id="{9e19e4d6-5131-4b98-84c6-f84c0e107ced}">
+      <Declaration><![CDATA[// Core §3.8a - declare this root's own recipe record (its ParCfg) and the
+// provider it is loaded from. The PAR_CFG values registered inside it become
+// editable for EVERY model the root offers (AvailableModels), not only the
+// active one, and an edit is written back to the provider's record so a
+// changeover keeps it - when the provider is also an I_RecipeStore.
+METHOD M_RegisterModelData : BOOL
+VAR_INPUT
+    pData     : PVOID;
+    Size      : UDINT;
+    RecipeKey : STRING(80);
+    Provider  : I_RecipeProvider;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RegisterModelData := FALSE;
+IF (pData = 0) OR (Size = 0) OR (Size > PL_Fraktal.MAX_MODEL_DATA_BYTES)
+OR (RecipeKey = '') OR (Provider = 0) THEN
+    RETURN;
+END_IF
+_modelProvider := Provider;
+_modelKey := RecipeKey;
+M_RegisterModelData := _M_SetModelRegion(pRegion := pData, Size := Size);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_OpenModelView" Id="{93ccf92c-d752-48c8-af0b-7941488b3430}">
+      <Declaration><![CDATA[// Serve model-scoped values of AvailableModels[Index] for this one request. 0,
+// or the active model's index, is the live record and opens nothing. The record
+// is loaded over a copy of the live one, so the provider's SchemaVersion check
+// compares like with like. FALSE = no such model, or its record did not load.
+METHOD PRIVATE _M_OpenModelView : BOOL
+VAR_INPUT
+    Index : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_OpenModelView := FALSE;
+_pModelView := 0;
+_viewModelCode := '';
+IF Index = 0 THEN
+    _M_OpenModelView := TRUE;
+    RETURN;
+END_IF
+IF (_modelProvider = 0) OR (_pModelRegion = 0)
+OR (Index > TO_UDINT(AvailableModelCount)) THEN
+    RETURN;
+END_IF
+IF AvailableModels[Index].ModelCode = Model.ModelCode THEN
+    _M_OpenModelView := TRUE;              // the active model: its record is live
+    RETURN;
+END_IF
+MEMCPY(destAddr := ADR(_modelBuf), srcAddr := _pModelRegion, n := _modelRegionSize);
+IF NOT _modelProvider.Load(ModelCode := AvailableModels[Index].ModelCode,
+        RecipeKey := _modelKey, pParCfg := ADR(_modelBuf), Size := _modelRegionSize) THEN
+    RETURN;
+END_IF
+_viewModelCode := AvailableModels[Index].ModelCode;
+_pModelView := ADR(_modelBuf);
+_M_OpenModelView := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WriteModelConfig" Id="{2a0d9e3e-ba70-4e09-955f-cec98e39642e}">
+      <Declaration><![CDATA[// §3.8a - WriteConfig for the model AvailableModels[ModelIndex] (0 = the active
+// model). A model-data value is stored in that model's record and saved back to
+// the provider; any other value is written as WriteConfig writes it.
+METHOD WriteModelConfig : BOOL
+VAR_INPUT
+    ModelIndex : UDINT;
+    TargetPath : STRING(255);
+    WriteKey   : STRING(160);
+    Revision   : DINT;
+    TextValue  : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[WriteModelConfig := FALSE;
+IF NOT _M_OpenModelView(Index := ModelIndex) THEN
+    RETURN;
+END_IF
+WriteModelConfig := WriteConfig(TargetPath := TargetPath, WriteKey := WriteKey,
+    Revision := Revision, TextValue := TextValue);
+_pModelView := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AppendModelConfig" Id="{0e6d90bf-ad76-4384-ab12-1767af3d1a4f}">
+      <Declaration><![CDATA[// §3.8a - the manifest walk (M_AppendConfig) with the model-data values of
+// AvailableModels[ModelIndex] (0 = the active model). FALSE = no such model.
+METHOD M_AppendModelConfig : BOOL
+VAR_INPUT
+    Pager      : REFERENCE TO FB_ConfigPager;
+    ModelIndex : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_AppendModelConfig := FALSE;
+IF NOT _M_OpenModelView(Index := ModelIndex) THEN
+    RETURN;
+END_IF
+M_AppendConfig(Pager := Pager);
+_pModelView := 0;
+M_AppendModelConfig := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SaveModelData" Id="{614f64a8-a7bb-415b-89b6-cd5638516728}">
+      <Declaration><![CDATA[// Write the record a model-scoped value was just stored into back to the
+// provider: the viewed model's buffer, or the live record for the active model.
+METHOD PRIVATE _M_SaveModelData : BOOL
+VAR
+    store : I_RecipeStore;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SaveModelData := FALSE;
+IF _modelProvider = 0 THEN
+    RETURN;
+END_IF
+IF NOT __QUERYINTERFACE(_modelProvider, store) THEN
+    RETURN;
+END_IF
+IF _pModelView <> 0 THEN
+    _M_SaveModelData := store.Save(ModelCode := _viewModelCode, RecipeKey := _modelKey,
+        pData := _pModelView, Size := _modelRegionSize);
+ELSE
+    _M_SaveModelData := store.Save(ModelCode := Model.ModelCode, RecipeKey := _modelKey,
+        pData := _pModelRegion, Size := _modelRegionSize);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -3946,6 +4083,14 @@ WriteConfig := _M_WriteBaseConfig(TargetPath := TargetPath, WriteKey := WriteKey
 IF NOT WriteConfig THEN
     WriteConfig := _M_RouteConfigWrite(TargetPath := TargetPath,
         WriteKey := WriteKey, Revision := TO_UDINT(Revision), TextValue := TextValue);
+END_IF
+// §3.8a - a model-data value lives in a recipe record too. Another model's edit
+// exists ONLY in that record, so failing to save it fails the write; the active
+// model's edit is already live, and saving it keeps it across a changeover.
+IF WriteConfig AND (TargetPath = Status.Name) AND _M_ModelScopedKey(WriteKey := WriteKey) THEN
+    IF NOT _M_SaveModelData() AND (_pModelView <> 0) THEN
+        WriteConfig := FALSE;
+    END_IF
 END_IF
 IF WriteConfig THEN
     ConfigRev := ConfigRev + 1;

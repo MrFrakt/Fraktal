@@ -345,6 +345,25 @@ unbounded provider may leave the catalog empty; in that case the HMI may accept 
 if the PLC/provider validates it transactionally. The catalog is selection metadata—not a duplicate
 recipe store—and the active `ParCfg` remains the authoritative resolved recipe.
 
+**Every offered model is editable.** A root's own model data **may** be read and edited
+for any model its catalog lists, without a changeover. The root registers the record it
+resolves at changeover as its **model region** (address, size, `RecipeKey`, provider);
+every `PAR_CFG` capability stored inside that region is published with
+`ModelScoped = TRUE`. A configuration query or write then names a model by catalog index
+(0 = the active model, n = `AvailableModels[n]`): for another model the root loads that
+model's record into a staging buffer through the ordinary `Load`, serves or edits the
+value there, and writes the record back through the provider's optional
+**`I_RecipeStore.Save(ModelCode, RecipeKey, data, size)`** — the exact existing record,
+same size, same `SchemaVersion`, or refused. The active `ParCfg` is never touched by
+another model's edit, and `RequiresReady` does not apply to a record that is not
+running. An edit of the active model is also saved back to its record, so a changeover
+away and back keeps it. A provider without `I_RecipeStore` (an external or read-only
+source) leaves every model but the active one read-only and active edits unsaved, as
+before. A child module's `ParCfg` follows the active model only. An unknown index is
+refused with `std.error.modelNotAvailable`; a client **shall** send an index only with a
+value marked `ModelScoped`, because a controller that marks none reads every request as
+the active model.
+
 **Atomic changeover.** `SetModel` first calls `PrepareRecipe(Model)` recursively. Validation, migration, provider I/O, and every fallible operation occur only in this phase. Any rejection calls `AbortRecipe()` and leaves every active `ParCfg` and the root identity unchanged. After every participant accepts, `CommitRecipe()` is an infallible, bounded in-memory publication at the scan boundary; it performs no validation or I/O. The root publishes the new `ModelId` only after commit. Station configuration is outside this transaction.
 
 #### 3.8b Persistence lifecycle and parameter sets

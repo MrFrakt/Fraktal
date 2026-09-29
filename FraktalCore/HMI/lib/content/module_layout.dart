@@ -97,11 +97,29 @@ enum ModuleCardKind {
   history,
   description,
   documents,
-  configuration,
+  // §3.8a/§3.8e - one card per kind of persistent data: they differ in who
+  // owns them and what they follow (the model, the station, the line).
+  modelData,
+  stationData,
+  lineData,
   operatorGuidance;
 
   /// Cards that have a tab of their own: on the Overview they start hidden.
-  static const ownTab = {description, documents, configuration};
+  static const ownTab = {
+    description,
+    documents,
+    modelData,
+    stationData,
+    lineData,
+  };
+
+  /// The kind of persistent data a configuration card edits, or null.
+  CfgKind? get configKind => switch (this) {
+        modelData => CfgKind.parCfg,
+        stationData => CfgKind.stationCfg,
+        lineData => CfgKind.lineCfg,
+        _ => null,
+      };
 
   /// The cards a tab of [kind] shows until an administrator arranges it.
   /// The Overview shows every card; the others their own subject.
@@ -123,7 +141,7 @@ enum ModuleCardKind {
           ],
         ModuleTabKind.events => const [activeEvents, history],
         ModuleTabKind.description => const [description, documents],
-        ModuleTabKind.configuration => const [configuration],
+        ModuleTabKind.configuration => const [modelData, stationData, lineData],
         _ => const [],
       };
 }
@@ -152,6 +170,34 @@ class ModuleCardPlacement {
           'requiredLevel': requiredLevel.name,
       };
 
+  /// Names a stored layout may use that this build replaced: one
+  /// 'configuration' card held model, station and line data together.
+  static const _replaced = {
+    'configuration': [
+      ModuleCardKind.modelData,
+      ModuleCardKind.stationData,
+      ModuleCardKind.lineData,
+    ],
+  };
+
+  /// [fromJson], expanding a replaced card into its successors in place (same
+  /// visibility and level), so an arranged tab keeps its arrangement.
+  static List<ModuleCardPlacement> allFromJson(Object? source) {
+    if (source is Map) {
+      final successors = _replaced[source['kind']];
+      if (successors != null) {
+        return [
+          for (final kind in successors)
+            ModuleCardPlacement(kind,
+                hidden: source['hidden'] == true,
+                requiredLevel: _level(source['requiredLevel'])),
+        ];
+      }
+    }
+    final card = fromJson(source);
+    return card == null ? const [] : [card];
+  }
+
   static ModuleCardPlacement? fromJson(Object? source) {
     if (source is! Map) return null;
     final kind = ModuleCardKind.values
@@ -160,11 +206,12 @@ class ModuleCardPlacement {
     if (kind == null) return null;
     return ModuleCardPlacement(kind,
         hidden: source['hidden'] == true,
-        requiredLevel: AccessLevel.values
-                .where((value) => value.name == source['requiredLevel'])
-                .firstOrNull ??
-            AccessLevel.none);
+        requiredLevel: _level(source['requiredLevel']));
   }
+
+  static AccessLevel _level(Object? name) =>
+      AccessLevel.values.where((value) => value.name == name).firstOrNull ??
+      AccessLevel.none;
 }
 
 enum ModuleControlKind {
@@ -1246,10 +1293,11 @@ class ModuleTabDefinition {
     if (rawCards is List) {
       if (rawCards.length > maxCards) return null;
       for (final item in rawCards) {
-        final card = ModuleCardPlacement.fromJson(item);
         // A card kind this build does not know is skipped, never fatal: a
         // profile from a newer HMI still loads.
-        if (card != null && !cards.any((c) => c.kind == card.kind)) cards.add(card);
+        for (final card in ModuleCardPlacement.allFromJson(item)) {
+          if (!cards.any((c) => c.kind == card.kind)) cards.add(card);
+        }
       }
     }
     final rawColumns = source['columns'];

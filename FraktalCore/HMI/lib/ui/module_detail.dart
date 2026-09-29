@@ -1089,13 +1089,16 @@ class _ModuleCardsTab extends StatelessWidget {
         ModuleCardKind.history => ModuleSection.history,
         ModuleCardKind.description => ModuleSection.information,
         ModuleCardKind.documents => ModuleSection.documentation,
-        ModuleCardKind.configuration => ModuleSection.configuration,
+        ModuleCardKind.modelData ||
+        ModuleCardKind.stationData ||
+        ModuleCardKind.lineData =>
+          ModuleSection.configuration,
         _ => ModuleSection.diagnostics,
       };
 
   bool _sectionPermits(ModuleCardKind kind) =>
       // Configuration explains its own lock rather than vanishing (§7.8).
-      kind == ModuleCardKind.configuration ||
+      kind.configKind != null ||
       app.content.permits(node.path, _section(kind), app.session.level);
 
   /// One card's content, or null when this module has nothing for it.
@@ -1291,16 +1294,22 @@ class _ModuleCardsTab extends StatelessWidget {
         return ModuleInformationCard(app: app, node: n);
       case ModuleCardKind.documents:
         return ModuleDocumentsCard(app: app, node: n);
-      case ModuleCardKind.configuration:
-        if (n.config.isEmpty) return null;
+      case ModuleCardKind.modelData:
+      case ModuleCardKind.stationData:
+      case ModuleCardKind.lineData:
+        final cfgKind = kind.configKind!;
+        if (!ConfigEditor.shows(n, cfgKind)) return null;
         if (app.content.permits(n.path, ModuleSection.configuration, s.level)) {
-          return ConfigEditor(app: app, node: n);
+          return ConfigEditor(app: app, node: n, kind: cfgKind);
         }
+        final (title, _, icon) = ConfigEditor.kindGroups[cfgKind]!;
         return FraktalCard(
           child: ListTile(
-            leading: const Icon(Icons.lock_outline),
-            title: Text('${context.tr('Requires')} '
+            leading: Icon(icon),
+            title: LText(title),
+            subtitle: Text('${context.tr('Requires')} '
                 '${context.tr('std.access.${app.content.requiredLevel(n.path, ModuleSection.configuration).name}')}'),
+            trailing: const Icon(Icons.lock_outline),
           ),
         );
       case ModuleCardKind.operatorGuidance:

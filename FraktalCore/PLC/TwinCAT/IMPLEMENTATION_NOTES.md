@@ -4917,3 +4917,43 @@ projection publishes only `Status/Diagnostic`, and the stall walk uses `GetFault
 `OutImm`s, and the HMI's control-power card reads them. Core §6.1/§6.9 and Annexes A, B,
 C and H now name `Status.Diagnostic`. The new lint rule **D2** rejects a `Diagnostic`
 member in an `OutImm` and any write to `OutImm.Diagnostic`.
+
+## 149. Model data is editable for every model (Core 0.19.0.0, 2026-09-28)
+
+The HMI could edit model data only for the running model: the manifest walked live
+`ParCfg`, and a value of model B existed only in B's recipe record. The press also kept
+its own copy of the recipe-store write-back in the project (`SetRecipeCatalog`, an
+`M_Store` on the catalog and a `MEMCMP` block in `OnCyclic`), which every station wanting
+the same thing would have had to repeat (§1.1 O1).
+
+- **The mailbox is unchanged.** The model travels in `HmiRequest.DurationMs`, which
+  QUERY_CONFIG and WRITE_CONFIG did not use (0 = active, n = `AvailableModels[n]`).
+  `ST_HmiRequest` keeps its byte layout, which the Allen-Bradley binding pins; AB ignores
+  the field and serves the active model, and publishes no `ModelScoped`, so the HMI never
+  sends it an index.
+- **The redirection is generic, the buffer is the root's.** `FB_ModuleBase` knows a
+  *model region* (`_M_SetModelRegion`) and, while a view is open, resolves each capability
+  target through `_M_Target`: a target inside the region is moved to the same offset in
+  the view. `_M_StoreConfigValue` and `_M_ConfigValueText` go through it, so every value
+  type works unchanged. `FB_UnitBase` owns the one staging buffer
+  (`MAX_MODEL_DATA_BYTES`, 1024), opens a view with `_M_OpenModelView` (the live region is
+  copied first, then `Load` fills it), and saves back with `_M_SaveModelData`.
+- **Saving is an optional provider capability, `I_RecipeStore.Save`.** It writes only an
+  existing (model, key) record of the same size whose first UINT (`SchemaVersion`) matches
+  — never creates, resizes or migrates. `FB_LocalRecipeProvider` implements it. The root
+  finds it with `__QUERYINTERFACE`, which needs the source interface to extend
+  `__System.IQueryInterface`, so `I_RecipeProvider` now does (as `I_Module` does); an
+  implementer needs nothing more.
+- **Only the root's own record is model-scoped.** `ST_ConfigEntry.ModelScoped` (appended)
+  is set for a `PAR_CFG` capability whose target lies in the region. A child's `ParCfg` is
+  resolved by the same changeover but not staged here: the buffer would have to hold every
+  child's record at once.
+- **READY does not gate another model.** `_M_RouteConfigWrite` treats an open view as
+  ready: nothing that record holds is running.
+- **The press glue is gone.** `M_RegisterModelData(ADR(ParCfg), SIZEOF(ParCfg),
+  PRESS_RECIPE_KEY, Recipe)` in `Setup` replaces it; `OnCyclic` keeps only the OEE ideal
+  cycle update.
+
+`FB_ModelData_Tests` (4 tests) proves another model is served and edited in its own
+record, an active edit reaches its record, an unknown model is refused, and station values
+do not follow the model. Core/Modules: 193 tests / 43 suites.

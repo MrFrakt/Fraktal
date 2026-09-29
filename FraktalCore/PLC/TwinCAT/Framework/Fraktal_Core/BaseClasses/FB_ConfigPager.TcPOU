@@ -121,6 +121,7 @@ _pTarget^.Entries[TO_INT(slot) + 1].ClassId := '';
 _pTarget^.Entries[TO_INT(slot) + 1].ReadLevel := E_AccessLevel.NONE;
 _pTarget^.Entries[TO_INT(slot) + 1].WriteLevel := E_AccessLevel.NONE;
 _pTarget^.Entries[TO_INT(slot) + 1].Readable := TRUE;
+_pTarget^.Entries[TO_INT(slot) + 1].ModelScoped := FALSE;
 // §3.8d - a plain (non-capability) entry is readable at DATA_READ.
 IF _pAccess <> 0 THEN
     _pTarget^.Entries[TO_INT(slot) + 1].ReadLevel :=
@@ -158,6 +159,7 @@ VAR_INPUT
     ClassId       : STRING(40);    // §3.8d; '' = built-in class
     MinReadLevel  : E_AccessLevel;
     MinWriteLevel : E_AccessLevel;
+    ModelScoped   : BOOL;          // Core 0.19 - follows the model a request names
 END_VAR
 VAR
     readLevel  : E_AccessLevel;
@@ -191,6 +193,7 @@ _pTarget^.Entries[_storedSlot].UnitCode := Unit;
 _pTarget^.Entries[_storedSlot].LabelKey := LabelKey;
 _pTarget^.Entries[_storedSlot].EnumDomain := EnumDomain;
 _pTarget^.Entries[_storedSlot].EnumLabelKey := EnumLabelKey;
+_pTarget^.Entries[_storedSlot].ModelScoped := ModelScoped;
 // §3.8d - effective levels, computed once and before the value is placed, so a
 // class that is readable below DATA_READ shows its value and one that is not
 // never does. The set record above was offered the real value regardless: a

@@ -77,6 +77,13 @@ VAR
     _configWrite  : ARRAY[1..PL_Fraktal.MAX_CONFIG_WRITES] OF ST_ConfigWriteDef;
     {attribute 'OPC.UA.DA' := '0'}
     _nConfigWrite : INT;
+    // §3.8a - this module's own recipe record, and the record a request is
+    // viewing instead of it (0 = the live one). See _M_SetModelRegion.
+    {attribute 'OPC.UA.DA' := '0'}
+    _pModelRegion : PVOID;
+    _modelRegionSize : UDINT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _pModelView : PVOID;
     // §3.8b — one restore-loss slot. ONE, not a list: a module with two retained
     // structures that both lost their schema lost them for the same reason (its
     // own layout changed), and one annunciation naming the module is exactly
@@ -828,7 +835,65 @@ END_VAR]]></Declaration>
         EnumLabelKey := _configWrite[i].EnumLabelKey,
         ClassId := _configWrite[i].ClassId,
         MinReadLevel := _configWrite[i].MinReadLevel,
-        MinWriteLevel := _configWrite[i].MinWriteLevel);
+        MinWriteLevel := _configWrite[i].MinWriteLevel,
+        ModelScoped := (_configWrite[i].Kind = E_ConfigKind.PAR_CFG)
+            AND _M_InModelRegion(p := _configWrite[i].pTarget));
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_SetModelRegion" Id="{677ce096-00e3-46a6-bc0e-1e36487af461}">
+      <Declaration><![CDATA[// Core §3.8a - declare this module's own recipe record (its ParCfg). PAR_CFG values
+// registered inside it are MODEL-SCOPED: a root can serve them for any model it
+// offers, by pointing the region at that model's record for one request.
+METHOD PROTECTED _M_SetModelRegion : BOOL
+VAR_INPUT
+    pRegion : PVOID;
+    Size    : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_pModelRegion := pRegion;
+_modelRegionSize := Size;
+_pModelView := 0;
+_M_SetModelRegion := (pRegion <> 0) AND (Size > 0);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_InModelRegion" Id="{996129e5-072b-444a-8fe2-a4e175040326}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_InModelRegion : BOOL
+VAR_INPUT
+    p : PVOID;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InModelRegion := FALSE;
+IF (_pModelRegion = 0) OR (p = 0) THEN
+    RETURN;
+END_IF
+_M_InModelRegion := (p >= _pModelRegion) AND (p < _pModelRegion + _modelRegionSize);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Target" Id="{2524b62d-311c-491a-bec6-bf3d09f9354e}">
+      <Declaration><![CDATA[// Where value Idx lives for THIS request: its registered target, or - while a
+// model view is open - the same offset in the viewed model's record.
+METHOD PRIVATE _M_Target : PVOID
+VAR_INPUT
+    Idx : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Target := _configWrite[Idx].pTarget;
+IF (_pModelView <> 0) AND (_configWrite[Idx].Kind = E_ConfigKind.PAR_CFG)
+AND _M_InModelRegion(p := _configWrite[Idx].pTarget) THEN
+    _M_Target := _pModelView + (_configWrite[Idx].pTarget - _pModelRegion);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ModelScopedKey" Id="{134e3902-dc11-4e6a-a1d4-bee7caed2682}">
+      <Declaration><![CDATA[// TRUE when WriteKey names one of this module's model-scoped values.
+METHOD PROTECTED _M_ModelScopedKey : BOOL
+VAR_INPUT
+    WriteKey : STRING(160);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ModelScopedKey := FALSE;
+FOR i := 1 TO _nConfigWrite DO
+    IF _configWrite[i].Key = WriteKey THEN
+        _M_ModelScopedKey := (_configWrite[i].Kind = E_ConfigKind.PAR_CFG)
+            AND _M_InModelRegion(p := _configWrite[i].pTarget);
+        RETURN;
+    END_IF
 END_FOR]]></ST></Implementation>
     </Method>
     <Method Name="M_RegisterConfigWrite" Id="{c81f4a26-05d7-4e93-b6a1-3fd208e7c145}">
@@ -1296,7 +1361,7 @@ IF _configWrite[Idx].EnumDomain <> '' THEN
     END_IF
 END_IF
 IF _configWrite[Idx].Storage = E_ConfigStorage.AS_BOOL THEN
-    pB := _configWrite[Idx].pTarget;
+    pB := _M_Target(Idx := Idx);
     IF (TextValue = 'TRUE') OR (TextValue = 'true') OR (TextValue = 'True')
     OR (TextValue = '1') THEN
         IF Commit THEN
@@ -1318,7 +1383,7 @@ IF _configWrite[Idx].Storage = E_ConfigStorage.AS_STRING THEN
         RETURN;                              // would truncate: reject, never trim
     END_IF
     IF Commit THEN
-        pS := _configWrite[Idx].pTarget;
+        pS := _M_Target(Idx := Idx);
         pS^ := TextValue;
     END_IF
     _M_StoreConfigValue := TRUE;
@@ -1347,7 +1412,7 @@ CASE _configWrite[Idx].Storage OF
             RETURN;
         END_IF
         IF Commit THEN
-            pI := _configWrite[Idx].pTarget;
+            pI := _M_Target(Idx := Idx);
             pI^ := LREAL_TO_INT(num);
         END_IF
     E_ConfigStorage.AS_DINT:
@@ -1358,7 +1423,7 @@ CASE _configWrite[Idx].Storage OF
             RETURN;
         END_IF
         IF Commit THEN
-            pD := _configWrite[Idx].pTarget;
+            pD := _M_Target(Idx := Idx);
             pD^ := LREAL_TO_DINT(num);
         END_IF
     E_ConfigStorage.AS_UDINT:
@@ -1369,7 +1434,7 @@ CASE _configWrite[Idx].Storage OF
             RETURN;
         END_IF
         IF Commit THEN
-            pU := _configWrite[Idx].pTarget;
+            pU := _M_Target(Idx := Idx);
             pU^ := LREAL_TO_UDINT(num);
         END_IF
     E_ConfigStorage.AS_REAL:
@@ -1377,12 +1442,12 @@ CASE _configWrite[Idx].Storage OF
             RETURN;
         END_IF
         IF Commit THEN
-            pR := _configWrite[Idx].pTarget;
+            pR := _M_Target(Idx := Idx);
             pR^ := LREAL_TO_REAL(num);
         END_IF
     E_ConfigStorage.AS_LREAL:
         IF Commit THEN
-            pL := _configWrite[Idx].pTarget;
+            pL := _M_Target(Idx := Idx);
             pL^ := num;
         END_IF
     E_ConfigStorage.AS_TIME:
@@ -1394,7 +1459,7 @@ CASE _configWrite[Idx].Storage OF
             RETURN;
         END_IF
         IF Commit THEN
-            pT := _configWrite[Idx].pTarget;
+            pT := _M_Target(Idx := Idx);
             pT^ := UDINT_TO_TIME(LREAL_TO_UDINT(num));
         END_IF
 ELSE
@@ -1426,32 +1491,32 @@ IF (Idx < 1) OR (Idx > _nConfigWrite) OR (_configWrite[Idx].pTarget = 0) THEN
 END_IF
 CASE _configWrite[Idx].Storage OF
     E_ConfigStorage.AS_BOOL:
-        pB := _configWrite[Idx].pTarget;
+        pB := _M_Target(Idx := Idx);
         IF pB^ THEN
             _M_ConfigValueText := 'TRUE';
         ELSE
             _M_ConfigValueText := 'FALSE';
         END_IF
     E_ConfigStorage.AS_INT:
-        pI := _configWrite[Idx].pTarget;
+        pI := _M_Target(Idx := Idx);
         _M_ConfigValueText := TO_STRING(pI^);
     E_ConfigStorage.AS_DINT:
-        pD := _configWrite[Idx].pTarget;
+        pD := _M_Target(Idx := Idx);
         _M_ConfigValueText := TO_STRING(pD^);
     E_ConfigStorage.AS_UDINT:
-        pU := _configWrite[Idx].pTarget;
+        pU := _M_Target(Idx := Idx);
         _M_ConfigValueText := TO_STRING(pU^);
     E_ConfigStorage.AS_REAL:
-        pR := _configWrite[Idx].pTarget;
+        pR := _M_Target(Idx := Idx);
         _M_ConfigValueText := TO_STRING(pR^);
     E_ConfigStorage.AS_LREAL:
-        pL := _configWrite[Idx].pTarget;
+        pL := _M_Target(Idx := Idx);
         _M_ConfigValueText := TO_STRING(pL^);
     E_ConfigStorage.AS_TIME:
-        pT := _configWrite[Idx].pTarget;
+        pT := _M_Target(Idx := Idx);
         _M_ConfigValueText := TO_STRING(TIME_TO_UDINT(pT^));
     E_ConfigStorage.AS_STRING:
-        pS := _configWrite[Idx].pTarget;
+        pS := _M_Target(Idx := Idx);
         _M_ConfigValueText := pS^;
 END_CASE]]></ST></Implementation>
     </Method>

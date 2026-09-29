@@ -190,8 +190,15 @@ class ScopedPlcRepository implements PlcRepository {
   Future<bool> resetOee(String unitPath) =>
       _bool(unitPath, () => source.resetOee(unitPath));
   @override
-  Future<bool> writeConfig(String nodePath, CfgField field, String value) =>
-      _bool(nodePath, () => source.writeConfig(nodePath, field, value));
+  Future<bool> writeConfig(String nodePath, CfgField field, String value,
+          {int modelIndex = 0}) =>
+      _bool(nodePath,
+          () => source.writeConfig(nodePath, field, value, modelIndex: modelIndex));
+  @override
+  Future<List<CfgField>?> queryModelConfig(String rootPath, int modelIndex) =>
+      _allows(rootPath)
+          ? source.queryModelConfig(rootPath, modelIndex)
+          : Future.value(null);
   @override
   Future<bool> setClassLevel(String rootPath, String classId, AccessLevel level,
           {required bool forWrite}) =>

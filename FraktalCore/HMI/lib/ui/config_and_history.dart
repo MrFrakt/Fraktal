@@ -11,18 +11,28 @@ import 'touch_text_field.dart';
 import 'config_sets_dialog.dart';
 import 'app_theme.dart';
 
-/// §3.8a/§3.8d/§3.8e - editable persistent data, grouped by what it is (model,
-/// station, line) and within that by data class. Every value carries the levels
-/// the PLC computed for it, so one class can be open to an OPERATOR while the
-/// rest stays at ENGINEER; a value the session may not read is listed without
-/// its value. Presentation only: the PLC re-checks every write (§7.7).
-class ConfigEditor extends StatelessWidget {
+/// §3.8a/§3.8d/§3.8e - one card per kind of editable persistent data (model,
+/// station, line), grouped within it by data class. Every value carries the
+/// levels the PLC computed for it, so one class can be open to an OPERATOR
+/// while the rest stays at ENGINEER; a value the session may not read is listed
+/// without its value. Presentation only: the PLC re-checks every write (§7.7).
+///
+/// The model card of a root offers every model the root lists, not only the
+/// running one: another model's values are read from and written to that
+/// model's own record, and the running recipe is never touched by them.
+class ConfigEditor extends StatefulWidget {
   final AppState app;
   final ModuleNode node;
-  const ConfigEditor({super.key, required this.app, required this.node});
+  final CfgKind kind;
+  const ConfigEditor(
+      {super.key, required this.app, required this.node, required this.kind});
 
-  /// One group per kind: its title, what makes it different, and an icon.
-  static const _kindGroups = {
+  /// Whether [node] publishes any value of [kind] - a card with none is not shown.
+  static bool shows(ModuleNode node, CfgKind kind) =>
+      node.config.any((f) => f.kind == kind);
+
+  /// Title, what makes the kind different, and an icon.
+  static const kindGroups = {
     CfgKind.parCfg: ('std.config.group.model', 'std.config.group.model.note',
         Icons.category_outlined),
     CfgKind.stationCfg: ('std.config.group.station',
@@ -32,85 +42,174 @@ class ConfigEditor extends StatelessWidget {
   };
 
   @override
+  State<ConfigEditor> createState() => _ConfigEditorState();
+}
+
+class _ConfigEditorState extends State<ConfigEditor> {
+  /// The model whose record is shown: 0 = the running model, n = the root's
+  /// n-th `availableModels` entry (the index the PLC resolves, Core §3.8a).
+  int _model = 0;
+
+  /// That model's values, as the PLC served them; null while none is loaded.
+  List<CfgField>? _modelFields;
+  bool _loading = false;
+  bool _refused = false;
+
+  ModuleNode get _node => widget.node;
+
+  /// Other models are offered for the root's OWN model data only: a child
+  /// module's model data follows the running model (Core §3.8a), and a
+  /// controller that marks nothing model-scoped serves the running model alone.
+  bool get _offersModels =>
+      widget.kind == CfgKind.parCfg &&
+      widget.app.rootOf(_node.path)?.path == _node.path &&
+      _node.availableModels.isNotEmpty &&
+      _node.config.any((f) => f.modelScoped);
+
+  @override
+  void didUpdateWidget(covariant ConfigEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_model != 0 &&
+        (oldWidget.node.path != _node.path ||
+            _model > _node.availableModels.length)) {
+      _select(0);
+    }
+  }
+
+  Future<void> _select(int model) async {
+    setState(() {
+      _model = model;
+      _modelFields = null;
+      _refused = false;
+      _loading = model != 0;
+    });
+    if (model == 0) return;
+    final fields = await widget.app.repo.queryModelConfig(_node.path, model);
+    if (!mounted || _model != model) return;
+    setState(() {
+      _loading = false;
+      _modelFields = fields;
+      _refused = fields == null;
+    });
+  }
+
+  /// The values the card shows: the live ones, or the chosen model's record.
+  List<CfgField> get _fields => _model == 0
+      ? _node.config.where((f) => f.kind == widget.kind).toList()
+      : (_modelFields ?? const []);
+
+  @override
   Widget build(BuildContext context) {
-    if (node.config.isEmpty) return const SizedBox.shrink();
+    final app = widget.app;
     final s = app.session;
-    final rootReady = app.rootOf(node.path)?.state == ExecState.ready;
-    final anyEditable = node.config
+    final root = app.rootOf(_node.path);
+    // Another model's record is not the running recipe: READY does not apply.
+    final rootReady = _model != 0 || root?.state == ExecState.ready;
+    final fields = _fields;
+    final anyEditable = fields
         .any((f) => f.hasWriteCapability && f.canReadIn(s) && f.canWriteIn(s));
+    final classes = <String>[];
+    for (final f in fields) {
+      if (!classes.contains(f.classId)) classes.add(f.classId);
+    }
+    final (title, note, icon) = ConfigEditor.kindGroups[widget.kind]!;
+    final theme = Theme.of(context);
     return FraktalCard(
+      key: ValueKey('cfg-card-${widget.kind.name}'),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(Icons.tune),
+            Icon(icon),
             const SizedBox(width: 8),
-            LText('Configuration',
-                style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
+            Expanded(
+              child: LText(title,
+                  style: theme.textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis),
+            ),
             // §3.8b - sets belong to the owning ROOT, whichever module is open.
-            if (app.rootOf(node.path) != null)
+            if (root != null)
               IconButton(
                 tooltip: context.tr('Parameter sets'),
                 icon: const Icon(Icons.inventory_2_outlined),
-                onPressed: () => showConfigSetsDialog(
-                    context, app, app.rootOf(node.path)!.path),
+                onPressed: () => showConfigSetsDialog(context, app, root.path),
               ),
             if (!anyEditable)
               const Chip(
                   avatar: Icon(Icons.lock_outline, size: 16),
                   label: LText('read-only')),
           ]),
-          for (final kind in CfgKind.values)
-            ..._kindSection(context, kind, s, rootReady),
+          LText(note, style: theme.textTheme.bodySmall),
+          if (widget.kind == CfgKind.parCfg) _modelLine(context, root),
+          const Divider(height: 16),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_refused)
+            ListTile(
+              leading: const Icon(Icons.block),
+              title: const LText('std.error.modelNotAvailable'),
+              trailing: IconButton(
+                tooltip: context.tr('std.config.model.reload'),
+                icon: const Icon(Icons.refresh),
+                onPressed: () => _select(_model),
+              ),
+            )
+          else
+            ..._classRows(context, fields, classes, s, rootReady),
         ]),
       ),
     );
   }
 
-  List<Widget> _kindSection(
-      BuildContext context, CfgKind kind, AccessSession s, bool rootReady) {
-    final fields = node.config.where((f) => f.kind == kind).toList();
-    if (fields.isEmpty) return const [];
-    // Classes in first-seen order, so the PLC's walk order is kept within each.
-    final classes = <String>[];
-    for (final f in fields) {
-      if (!classes.contains(f.classId)) classes.add(f.classId);
+  /// Which model's record the card holds. Model data belongs to ONE model:
+  /// saying which keeps an edit from being mistaken for a change to every
+  /// recipe, and naming the running one keeps it from being mistaken for
+  /// another's.
+  Widget _modelLine(BuildContext context, ModuleNode? root) {
+    final running = root?.modelCode ?? '';
+    if (!_offersModels) {
+      return running.isEmpty
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Chip(
+                  visualDensity: VisualDensity.compact, label: Text(running)),
+            );
     }
-    final (title, note, icon) = _kindGroups[kind]!;
-    final theme = Theme.of(context);
-    // Model data belongs to ONE model: say which, so an edit is never mistaken
-    // for a change to every recipe.
-    final model = kind == CfgKind.parCfg
-        ? (app.rootOf(node.path)?.modelCode ?? '')
-        : '';
-    return [
-      Container(
-        key: ValueKey('cfg-group-${kind.name}'),
-        margin: const EdgeInsets.only(top: 12),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 8),
-            LText(title, style: theme.textTheme.titleSmall),
-            if (model.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Chip(
-                  visualDensity: VisualDensity.compact,
-                  label: Text(model)),
+    final runningTag = context.tr('std.config.model.running');
+    final models = _node.availableModels;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(children: [
+        LText('std.config.model.shown',
+            style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(width: 8),
+        Flexible(
+          child: DropdownButton<int>(
+            key: const ValueKey('cfg-model-select'),
+            value: _model,
+            isExpanded: true,
+            items: [
+              DropdownMenuItem(
+                  value: 0,
+                  child: Text(running.isEmpty
+                      ? runningTag
+                      : '$running ($runningTag)')),
+              for (var i = 0; i < models.length; i++)
+                // The running model is already entry 0: one record, one row.
+                if (models[i] != running)
+                  DropdownMenuItem(value: i + 1, child: Text(models[i])),
             ],
-          ]),
-          LText(note, style: theme.textTheme.bodySmall),
-          const Divider(height: 12),
-          ..._classRows(context, fields, classes, s, rootReady),
-        ]),
-      ),
-    ];
+            onChanged: (value) {
+              if (value != null && value != _model) _select(value);
+            },
+          ),
+        ),
+      ]),
+    );
   }
 
   List<Widget> _classRows(BuildContext context, List<CfgField> fields,
@@ -175,13 +274,19 @@ class ConfigEditor extends StatelessWidget {
       helper = null;
     }
     return _ConfigRow(
-      key: ValueKey('cfg-${f.writeKey.isEmpty ? f.name : f.writeKey}'),
-      app: app,
-      node: node,
+      // Keyed by model too: another model's value is another field, so its
+      // input starts from that model's value, not the one shown before.
+      key: ValueKey('cfg-$_model-${f.writeKey.isEmpty ? f.name : f.writeKey}'),
+      app: widget.app,
+      node: _node,
       field: f,
       label: label,
       canWrite: fieldCanWrite,
       helper: helper,
+      modelIndex: _model,
+      // A model that is not running is not in the live tree: read its record
+      // back so the card shows what the PLC stored.
+      onWritten: _model == 0 ? null : () => _select(_model),
     );
   }
 }
@@ -200,6 +305,12 @@ class _ConfigRow extends StatefulWidget {
   final bool canWrite;
   final String? helper;
 
+  /// The model the value belongs to (0 = the running one) - see [ConfigEditor].
+  final int modelIndex;
+
+  /// Called after the PLC accepted a write.
+  final VoidCallback? onWritten;
+
   const _ConfigRow({
     super.key,
     required this.app,
@@ -208,6 +319,8 @@ class _ConfigRow extends StatefulWidget {
     required this.label,
     required this.canWrite,
     required this.helper,
+    this.modelIndex = 0,
+    this.onWritten,
   });
 
   @override
@@ -242,8 +355,10 @@ class _ConfigRowState extends State<_ConfigRow> {
     final f = widget.field;
     final app = widget.app;
     final ok = f.accepts(_edited)
-        ? await app.repo.writeConfig(widget.node.path, f, _edited)
+        ? await app.repo.writeConfig(widget.node.path, f, _edited,
+            modelIndex: widget.modelIndex)
         : false;
+    if (ok) widget.onWritten?.call();
     if (!ok) {
       final root = app.rootOf(widget.node.path);
       if (root != null) {

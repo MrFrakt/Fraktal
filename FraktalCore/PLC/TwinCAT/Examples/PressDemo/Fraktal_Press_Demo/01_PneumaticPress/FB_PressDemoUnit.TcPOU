@@ -63,8 +63,6 @@ VAR
     // edit of the active model's recipe to take effect and to write back.
     {attribute 'OPC.UA.DA' := '0'}
     _parCfgApplied : ST_PneumaticPressParCfg;
-    {attribute 'OPC.UA.DA' := '0'}
-    _catalog : POINTER TO FB_PressRecipeCatalog;
     _recipePrepared : BOOL;
     _startLatched : BOOL;
     _powerRequestPending : BOOL;
@@ -114,6 +112,9 @@ VAR CONSTANT
     // would refuse.
     RECIPE_MAX_PRESS_SETTLE_MS    : UDINT := 30000;
     RECIPE_MAX_TRANSFER_SETTLE_MS : UDINT := 5000;
+    // The provider key of this Unit's recipe record: loaded at a changeover and
+    // edited per model through the same key (§3.8a).
+    PRESS_RECIPE_KEY : STRING(80) := 'PneumaticPressUnit';
     // Which rendition of the AUTO chain runs. VAR CONSTANT on purpose, like the
     // §6.0 commissioning gates in MAIN: switching language is a source edit plus a
     // download, never an online write. The compiler folds the unselected branches.
@@ -305,19 +306,6 @@ PartSlide.Execute := FALSE;]]></ST>
 _recipePrepared := FALSE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="SetRecipeCatalog" Id="{f2a89446-a6b3-4311-9808-10559113426c}">
-      <Declaration><![CDATA[// §3.8a - the local catalog the active model's edits are written back to. The
-// catalog calls this from its own Setup; without one an edit still applies but
-// lasts only until the next changeover.
-METHOD SetRecipeCatalog : BOOL
-VAR_INPUT
-    pCatalog : POINTER TO FB_PressRecipeCatalog;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_catalog := pCatalog;
-SetRecipeCatalog := (pCatalog <> 0);]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="CommitRecipe" Id="{f0ca16c3-542f-49c8-a671-1b9e899cb831}">
       <Declaration><![CDATA[METHOD CommitRecipe]]></Declaration>
       <Implementation>
@@ -393,17 +381,12 @@ END_VAR]]></Declaration>
 // on the next step, and the published StallTime can never disagree with the
 // configuration it came from.
 StallTime := UDINT_TO_TIME(_station.StallGuardMs);
-// §3.8a - the ACTIVE model's recipe is editable (PAR_CFG, registered in Setup),
-// and an accepted edit lands in ParCfg. Here it takes effect and lasts: the
-// performance references follow it as they do at a changeover, and it is written
-// back to this model's catalog record, so selecting the model again loads the
-// edited values instead of silently restoring the old ones.
+// §3.8a - an accepted edit of the ACTIVE model's recipe lands in ParCfg (the base
+// has already saved it to the model's record). The performance references follow
+// it, as they do at a changeover.
 IF MEMCMP(ADR(ParCfg), ADR(_parCfgApplied), SIZEOF(ParCfg)) <> 0 THEN
     Oee.IdealCycleMs := ParCfg.IdealCycleMs;
     Profiler.M_SetBaselineWork(WorkMs := ParCfg.BaselineWorkMs);
-    IF _catalog <> 0 THEN
-        _catalog^.M_Store(ModelCode := Model.ModelCode, Record := ParCfg);
-    END_IF
     _parCfgApplied := ParCfg;
 END_IF
 // §7.2.1/§6.1 - a cylinder cannot move without air, so air is each cylinder's own
@@ -569,7 +552,7 @@ END_VAR]]></Declaration>
         <ST><![CDATA[IF _recipe = 0 THEN
     _parCfgStaged := ParCfg;
     _recipePrepared := TRUE;
-ELSIF _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := 'PneumaticPressUnit', pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
+ELSIF _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := PRESS_RECIPE_KEY, pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
     IF (TIME_TO_UDINT(_parCfgStaged.PressSettleTime) > RECIPE_MAX_PRESS_SETTLE_MS)
     OR (TIME_TO_UDINT(_parCfgStaged.TransferSettleTime) > RECIPE_MAX_TRANSFER_SETTLE_MS) THEN
         _M_Fault(E_Reason.RECIPE_INVALID, 'project.error.pressRecipeInvalid');
@@ -702,9 +685,14 @@ Ok := M_RegisterConfigNumber(Key := 'press.stallGuardMs',
     Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_UDINT,
     pTarget := ADR(_station.StallGuardMs), Minimum := 1000.0, Maximum := 600000.0,
     RequiresReady := TRUE) AND Ok;
-// §3.8a - model data: the ACTIVE model's recipe, PAR_CFG. The ranges are the
-// RECIPE_MAX_* constants PrepareRecipe also enforces. OnCyclic applies an edit
-// and writes it back.
+// §3.8a - model data, PAR_CFG, over this Unit's recipe record. Registering the
+// record makes these values editable for EVERY model in the catalog, and the base
+// writes each edit back to that model's record. The ranges are the RECIPE_MAX_*
+// constants PrepareRecipe also enforces.
+IF Recipe <> 0 THEN
+    Ok := M_RegisterModelData(pData := ADR(ParCfg), Size := SIZEOF(ParCfg),
+        RecipeKey := PRESS_RECIPE_KEY, Provider := Recipe) AND Ok;
+END_IF
 Ok := M_RegisterConfigDuration(Key := 'press.recipe.pressSettle',
     Item := 'ParCfg/PressSettleTime', LabelKey := 'project.config.pressSettleTime',
     Kind := E_ConfigKind.PAR_CFG, pTarget := ADR(ParCfg.PressSettleTime),

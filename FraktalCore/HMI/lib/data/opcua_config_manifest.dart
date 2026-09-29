@@ -47,6 +47,9 @@ class ConfigManifestEntry {
   final int writeLevel;
   final bool readable;
 
+  /// Core §3.8a - stored in the root's model record (Core 0.19+).
+  final bool modelScoped;
+
   const ConfigManifestEntry(this.scope, this.item, this.valueText,
       {this.writeKey = '',
       this.writeRevision = 0,
@@ -66,7 +69,8 @@ class ConfigManifestEntry {
       this.classId = '',
       this.readLevel = -1,
       this.writeLevel = -1,
-      this.readable = true});
+      this.readable = true,
+      this.modelScoped = false});
 }
 
 AccessLevel? _level(int ordinal) =>
@@ -140,6 +144,7 @@ Map<String, List<CfgField>> configFieldsFromManifest(
       readLevel: _level(entry.readLevel),
       writeLevel: _level(entry.writeLevel),
       readable: entry.readable,
+      modelScoped: entry.modelScoped,
     );
     if (!entry.readable || field.accepts(entry.valueText)) {
       owner[entry.writeKey] = field;

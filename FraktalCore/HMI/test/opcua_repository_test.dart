@@ -161,6 +161,14 @@ void main() {
         'unit.modePolicy.0.shield');
     expect(client.writes['PLC1/MAIN/PneumaticPress/HmiRequest/IntValue'], 1);
     expect(client.writes['PLC1/MAIN/PneumaticPress/HmiRequest/TextValue'], '2');
+    // §3.8a - a model index travels only with a model-scoped value: sent for
+    // station data, a PLC would take it for "that model" or, older, ignore it.
+    expect(field.modelScoped, isFalse);
+    expect(
+        await repository.writeConfig('PneumaticPress', field, '2',
+            modelIndex: 2),
+        isTrue);
+    expect(client.writes['PLC1/MAIN/PneumaticPress/HmiRequest/DurationMs'], 0);
 
     // A ConfigRev change (config write / changeover / PLC restart) refetches.
     client.bumpRevision('.v2');

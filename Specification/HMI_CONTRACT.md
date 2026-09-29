@@ -195,6 +195,15 @@ The repository re-resolves the current capability immediately before sending
 feedback only; the PLC repeats them and remains authoritative. A stale revision or
 reconnect never falls back to a browse write and is never queued for replay.
 
+A value published with `ModelScoped = TRUE` (Core §3.8a, Core 0.19+) belongs to the root's
+model record. The model-data card offers every `AvailableModels` entry beside the running
+one: `QUERY_CONFIG` and `WRITE_CONFIG` carry the chosen model in `DurationMs`
+(0 = running, n = `AvailableModels[n]`), and the card reads the record back after each
+accepted write because another model's values are not in the live tree. `DurationMs` is
+0 for every other value. Model data, station configuration and line data are separate
+cards (`modelData`, `stationData`, `lineData`); a stored layout naming the former single
+`configuration` card expands to the three in place.
+
 ### Parameter sets (Core §3.8b)
 
 Set operations are separate from field edits in both directions. The HMI offers

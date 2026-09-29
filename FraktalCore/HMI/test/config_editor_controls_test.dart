@@ -41,8 +41,8 @@ void main() {
     });
   });
 
-  testWidgets('flag is a checkbox, choice a translated dropdown, unit beside',
-      (tester) async {
+  /// StationA's configuration cards, one per kind it publishes.
+  Future<(SimRepository, AppState)> pumpCards(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1200, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -64,7 +64,11 @@ void main() {
               return node == null
                   ? const SizedBox()
                   : SingleChildScrollView(
-                      child: ConfigEditor(app: app, node: node));
+                      child: Column(children: [
+                      for (final kind in CfgKind.values)
+                        if (ConfigEditor.shows(node, kind))
+                          ConfigEditor(app: app, node: node, kind: kind),
+                    ]));
             },
           ),
         ),
@@ -73,10 +77,19 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(await repo.login('StationA', 'admin1', '2468'), isTrue);
     await tester.pump(const Duration(seconds: 2));
+    return (repo, app);
+  }
 
-    // Each kind of data is its own group, and a value sits inside its group.
-    final station = find.byKey(const ValueKey('cfg-group-stationCfg'));
-    expect(station, findsOneWidget, reason: 'station config is its own group');
+  testWidgets('flag is a checkbox, choice a translated dropdown, unit beside',
+      (tester) async {
+    final (_, app) = await pumpCards(tester);
+
+    // Each kind of data is its own card, and a value sits inside its card.
+    final station = find.byKey(const ValueKey('cfg-card-stationCfg'));
+    expect(station, findsOneWidget, reason: 'station config is its own card');
+    expect(find.byKey(const ValueKey('cfg-card-parCfg')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cfg-card-lineCfg')), findsNothing,
+        reason: 'a kind the module does not publish has no card');
     expect(find.text('Station configuration'), findsOneWidget);
 
     final flag = find.byKey(const ValueKey('cfg-flag-Require two-hand start'));
@@ -110,5 +123,40 @@ void main() {
     expect(unitBox.left, greaterThan(fieldBox.left + fieldBox.width / 2),
         reason: 'the unit sits to the right of the value field');
     app.dispose(); // stops the simulator's timer
+  });
+
+  testWidgets('another model is shown and edited in its own record',
+      (tester) async {
+    final (repo, app) = await pumpCards(tester);
+    TextFormField settle() => tester.widget<TextFormField>(find.descendant(
+        of: find.byKey(const ValueKey('cfg-card-parCfg')),
+        matching: find.byType(TextFormField)));
+
+    expect(settle().initialValue, '150', reason: 'the running model first');
+    await tester.tap(find.byKey(const ValueKey('cfg-model-select')));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('A300').last);
+    await tester.pump(const Duration(seconds: 1));
+    expect(settle().initialValue, '220', reason: "A300's own value");
+
+    await tester.enterText(
+        find.descendant(
+            of: find.byKey(const ValueKey('cfg-card-parCfg')),
+            matching: find.byType(TextFormField)),
+        '260');
+    await tester.tap(find.descendant(
+        of: find.byKey(const ValueKey('cfg-card-parCfg')),
+        matching: find.byIcon(Icons.save_outlined)));
+    await tester.pump(const Duration(seconds: 1));
+    final a300 = await repo.queryModelConfig('StationA', 3);
+    expect(a300!.single.value, '260', reason: 'written to A300');
+    final running = app.forest
+        .firstWhere((root) => root.path == 'StationA')
+        .config
+        .firstWhere((f) => f.kind == CfgKind.parCfg);
+    expect(running.value, '150', reason: 'the running recipe is untouched');
+    expect(await repo.queryModelConfig('StationA', 9), isNull,
+        reason: 'a model the root does not offer is refused');
+    app.dispose();
   });
 }

@@ -82,6 +82,32 @@ void main() {
       expect(restored.background, isNull);
       expect(restored.viewClass, ModuleViewClass.operating);
     });
+
+    test('a stored configuration card becomes the three data cards in place',
+        () {
+      final restored = ModuleTabDefinition.fromJson({
+        'id': 'overview',
+        'title': 'o',
+        'kind': 'overview',
+        'requiredLevel': 'none',
+        'cards': [
+          {'kind': 'oee'},
+          {'kind': 'configuration', 'hidden': true, 'requiredLevel': 'engineer'},
+          {'kind': 'counters'},
+        ],
+      })!;
+      expect(restored.cards.map((card) => card.kind), [
+        ModuleCardKind.oee,
+        ModuleCardKind.modelData,
+        ModuleCardKind.stationData,
+        ModuleCardKind.lineData,
+        ModuleCardKind.counters,
+      ]);
+      final data = restored.cards.where((card) => card.kind.configKind != null);
+      expect(data.every((card) => card.hidden), isTrue);
+      expect(data.every((card) => card.requiredLevel == AccessLevel.engineer),
+          isTrue);
+    });
   });
 
   group('tab order', () {
@@ -188,7 +214,7 @@ void main() {
         tester.getTopLeft(find.byWidget(element.widget)).dx.round(),
     };
     expect(lefts, hasLength(2), reason: 'two columns on the Overview');
-    expect(find.byKey(const ValueKey('module-card-configuration')), findsNothing,
+    expect(find.byKey(const ValueKey('module-card-modelData')), findsNothing,
         reason: 'configuration has its own tab and starts hidden here');
     app.dispose();
   });

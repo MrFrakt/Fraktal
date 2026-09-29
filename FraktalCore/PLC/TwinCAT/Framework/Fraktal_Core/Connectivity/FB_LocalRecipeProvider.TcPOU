@@ -5,7 +5,7 @@
 // first UINT of every ParCfg/record (§3.8): stored first-UINT must equal the
 // target's initialized first-UINT, else Load = FALSE and the caller faults
 // RECIPE_INVALID. Never a partial apply. Types stage through PrepareRecipe.
-FUNCTION_BLOCK FB_LocalRecipeProvider IMPLEMENTS I_RecipeProvider
+FUNCTION_BLOCK FB_LocalRecipeProvider IMPLEMENTS I_RecipeProvider, I_RecipeStore
 VAR
     _n    : INT;
     _models : ARRAY[1..PL_Fraktal.MAX_RECIPES] OF STRING(80);
@@ -61,6 +61,45 @@ IF puT^ <> puS^ THEN
 END_IF
 MEMCPY(destAddr := pParCfg, srcAddr := _ptr[hit], n := Size);
 Load := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Save" Id="{94fd026d-2726-4a9c-be43-91276ef36e97}">
+      <Declaration><![CDATA[// I_RecipeStore - write an edited record back into the registered storage of
+// exactly (ModelCode, RecipeKey). The fallback record is never edited in a
+// specific model's name, and a size or SchemaVersion mismatch changes nothing.
+METHOD Save : BOOL
+VAR_INPUT
+    ModelCode : STRING;
+    RecipeKey : STRING;
+    pData     : PVOID;
+    Size      : UDINT;
+END_VAR
+VAR
+    i, hit : INT;
+    puT, puS : POINTER TO UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Save := FALSE;
+hit := 0;
+FOR i := 1 TO _n DO
+    IF (_keys[i] = RecipeKey) AND (_models[i] = ModelCode) THEN
+        hit := i;
+        EXIT;
+    END_IF
+END_FOR
+IF (hit = 0) OR (pData = 0) THEN
+    RETURN;
+END_IF
+IF _size[hit] <> Size THEN
+    RETURN;
+END_IF
+puT := _ptr[hit];
+puS := pData;
+IF puT^ <> puS^ THEN
+    RETURN;                                       // SchemaVersion differs: nothing written
+END_IF
+MEMCPY(destAddr := _ptr[hit], srcAddr := pData, n := Size);
+Save := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="Register" Id="{df7be18b-5d33-4de5-8a36-02fc90bfd518}">

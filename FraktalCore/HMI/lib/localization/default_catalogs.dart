@@ -482,6 +482,8 @@ const standardEnglish = <String, String>{
   'std.error.undefinedStep': 'The module entered an undefined sequence step.',
   'std.error.powerEnableWithheld':
       'Safety permission or fieldbus health withheld control power.',
+  'std.error.modelNotAvailable':
+      'That model is not in the station catalog, or its recipe could not be loaded.',
   // Raised by the reusable module library, so owned by the standard (LOCALIZATION §1).
   'std.error.clampNotConfirmedAfterSettle':
       'Clamp was not confirmed after the settling time.',
@@ -668,7 +670,10 @@ const standardEnglish = <String, String>{
   'std.enum.modeSwitchStyle': 'Mode-switch style',
   'std.config.group.model': 'Model data',
   'std.config.group.model.note':
-      'Recipe of the active model - changes with the model (ParCfg)',
+      'The recipe of one model - the running one unless you pick another (ParCfg)',
+  'std.config.model.shown': 'Model',
+  'std.config.model.running': 'running',
+  'std.config.model.reload': 'Read again',
   'std.config.group.station': 'Station configuration',
   'std.config.group.station.note':
       'This station, whatever the model - not part of any recipe (StationCfg)',
@@ -730,7 +735,9 @@ const standardEnglish = <String, String>{
   'std.module.card.history': 'Event history',
   'std.module.card.description': 'Description',
   'std.module.card.documents': 'Documents',
-  'std.module.card.configuration': 'Configuration',
+  'std.module.card.modelData': 'Model data',
+  'std.module.card.stationData': 'Station configuration',
+  'std.module.card.lineData': 'Line data',
   'std.module.card.operatorGuidance': 'Operator guidance',
   'std.module.editor.setDefaultTab': 'Make this the default tab (shown first)',
   'std.module.editor.clearDefaultTab': 'Stop being the default tab',
@@ -1680,11 +1687,16 @@ const standardSpanish = <String, String>{
   'std.config.shift.4.start': 'Inicio del turno 4 (minutos tras medianoche, -1 = sin uso)',
   'std.error.clampNotConfirmedAfterSettle':
       'La sujeción no se confirmó tras el tiempo de asentamiento.',
+  'std.error.modelNotAvailable':
+      'Ese modelo no está en el catálogo de esta estación, o su receta no se pudo cargar.',
   'std.safety.twoHandControl':
       'Evaluación certificada del mando a dos manos y estado de los pulsadores.',
   'std.config.group.model': 'Datos del modelo',
   'std.config.group.model.note':
-      'Receta del modelo activo - cambia con el modelo (ParCfg)',
+      'La receta de un modelo - el que está en marcha, salvo que elija otro (ParCfg)',
+  'std.config.model.shown': 'Modelo',
+  'std.config.model.running': 'en marcha',
+  'std.config.model.reload': 'Leer de nuevo',
   'std.config.group.station': 'Configuración de la estación',
   'std.config.group.station.note':
       'Esta estación, sea cual sea el modelo - no forma parte de ninguna receta (StationCfg)',
@@ -1746,7 +1758,9 @@ const standardSpanish = <String, String>{
   'std.module.card.history': 'Historial de eventos',
   'std.module.card.description': 'Descripción',
   'std.module.card.documents': 'Documentos',
-  'std.module.card.configuration': 'Configuración',
+  'std.module.card.modelData': 'Datos del modelo',
+  'std.module.card.stationData': 'Configuración de la estación',
+  'std.module.card.lineData': 'Datos de línea',
   'std.module.card.operatorGuidance': 'Guía del operador',
   'std.module.editor.setDefaultTab': 'Hacer esta la pestaña predeterminada (se muestra primero)',
   'std.module.editor.clearDefaultTab': 'Dejar de ser la pestaña predeterminada',

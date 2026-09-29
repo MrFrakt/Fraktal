@@ -38,12 +38,30 @@ class SimRepository implements PlcRepository {
   final Map<String, String> _configValues = {
     'MES endpoint IP': '10.20.0.14',
     'MES port': '4840',
-    'Clamp settle time': '150',
     'Require two-hand start': 'TRUE',
     'Mode-switch protection': '1',
   };
 
-  List<CfgField> _configFields() => [
+  // §3.8a - StationA's model data, one record per model (the recipe provider
+  // analogue): the live value is the running model's record, and any model's
+  // record can be read and edited without a changeover.
+  static const _stationAModels = ['A100', 'A200', 'A300'];
+  final Map<String, String> _settleByModel = {
+    'A100': '150',
+    'A200': '180',
+    'A300': '220',
+  };
+
+  String _settle(String model) => _settleByModel.putIfAbsent(model, () => '150');
+
+  /// The StationA model a request names: 0 = the running one.
+  String? _modelAt(int index) => index == 0
+      ? _modelA
+      : (index > 0 && index <= _stationAModels.length
+          ? _stationAModels[index - 1]
+          : null);
+
+  List<CfgField> _configFields({String? model}) => [
         CfgField('MES endpoint IP', CfgKind.stationCfg, CfgType.text,
             _configValues['MES endpoint IP']!,
             labelKey: 'project.config.mesEndpointIp',
@@ -59,7 +77,8 @@ class SimRepository implements PlcRepository {
             minimum: 1,
             maximum: 65535),
         CfgField('Clamp settle time', CfgKind.parCfg, CfgType.time,
-            _configValues['Clamp settle time']!,
+            _settle(model ?? _modelA),
+            modelScoped: true,
             unit: 'ms',
             unitCode: EngUnit.millisecond,
             labelKey: 'project.config.clampSettleTime',
@@ -184,7 +203,7 @@ class SimRepository implements PlcRepository {
               ? 'project.status.awaitingReset'
               : 'project.status.clampStep'),
       modelCode: _modelA,
-      availableModels: const ['A100', 'A200', 'A300'],
+      availableModels: _stationAModels,
       modeActive: _modeA,
       goodCount: _goodA, nokCount: _nokA, blocking: _blockingA,
       activeEvents: stationAEvents, ringEvents: List.of(_ringA.reversed),
@@ -1195,8 +1214,22 @@ class SimRepository implements PlcRepository {
   Future<String> configSetRejection(String rootPath) async => _setRejection;
 
   @override
-  Future<bool> writeConfig(
-      String nodePath, CfgField field, String value) async {
+  Future<List<CfgField>?> queryModelConfig(
+      String rootPath, int modelIndex) async {
+    final model = rootPath == 'StationA' ? _modelAt(modelIndex) : null;
+    if (model == null ||
+        !_accessFor(rootPath).permits(GatedAction.dataRead)) {
+      return null;
+    }
+    return [
+      for (final field in _configFields(model: model))
+        if (field.modelScoped) field,
+    ];
+  }
+
+  @override
+  Future<bool> writeConfig(String nodePath, CfgField field, String value,
+      {int modelIndex = 0}) async {
     if (!_accessFor(nodePath).permits(GatedAction.dataWrite)) {
       _audit('Config write DENIED', '$nodePath.${field.name}');
       return false;
@@ -1218,7 +1251,16 @@ class SimRepository implements PlcRepository {
       _audit('Config write REJECTED', '$nodePath.${field.name}');
       return false;
     }
-    _configValues[capability.name] = trimmed;
+    if (capability.modelScoped) {
+      final model = _modelAt(modelIndex);
+      if (model == null) {
+        _audit('Config write REJECTED', '$nodePath.${field.name}');
+        return false;
+      }
+      _settleByModel[model] = trimmed;
+    } else {
+      _configValues[capability.name] = trimmed;
+    }
     _audit('Config write', '$nodePath.${capability.name}');
     _publish();
     return true;

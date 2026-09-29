@@ -497,45 +497,7 @@ class OpcUaRepository implements PlcRepository {
           return; // signature not stored -> retried after the backoff
         }
         pageCount = _integer(_values['$pageBase/PageCount']);
-        final entryCount = _integer(_values['$pageBase/EntryCount']);
-        for (var i = 1; i <= entryCount; i++) {
-          final prefix = _indexedPrefix(_values, '$pageBase/Entries', i);
-          if (prefix == null) continue;
-          entries.add(ConfigManifestEntry(
-            '${_values['$prefix/Scope'] ?? ''}',
-            '${_values['$prefix/Item'] ?? ''}',
-            '${_values['$prefix/ValueText'] ?? ''}',
-            writeKey: '${_values['$prefix/WriteKey'] ?? ''}',
-            writeRevision: _integer(_values['$prefix/WriteRevision']),
-            configKind: _integer(_values['$prefix/ConfigKind']),
-            valueType: _integer(_values['$prefix/ValueType']),
-            writable: _values['$prefix/Writable'] == true,
-            requiresReady: _values['$prefix/RequiresReady'] == true,
-            hasMinimum: _values['$prefix/HasMinimum'] == true,
-            hasMaximum: _values['$prefix/HasMaximum'] == true,
-            minimum: _real(_values['$prefix/Minimum']),
-            maximum: _real(_values['$prefix/Maximum']),
-            unit: '${_values['$prefix/Unit'] ?? ''}',
-            labelKey: '${_values['$prefix/LabelKey'] ?? ''}',
-            enumDomain: '${_values['$prefix/EnumDomain'] ?? ''}',
-            // Absent OR unread (an older PLC has no such member): legacy text.
-            unitCode: _values['$prefix/UnitCode'] == null
-                ? null
-                : _integer(_values['$prefix/UnitCode']),
-            enumLabelKey: '${_values['$prefix/EnumLabelKey'] ?? ''}',
-            // §3.8d. A PLC older than data classes publishes none of these:
-            // an ABSENT level must read as unknown (-1), never as NONE, or an
-            // old controller would appear to open every value to everyone.
-            classId: '${_values['$prefix/ClassId'] ?? ''}',
-            readLevel: _values.containsKey('$prefix/ReadLevel')
-                ? _integer(_values['$prefix/ReadLevel'])
-                : -1,
-            writeLevel: _values.containsKey('$prefix/WriteLevel')
-                ? _integer(_values['$prefix/WriteLevel'])
-                : -1,
-            readable: _values['$prefix/Readable'] != false,
-          ));
-        }
+        entries.addAll(_readConfigPage(pageBase));
         page++;
       }
     }
@@ -549,6 +511,80 @@ class OpcUaRepository implements PlcRepository {
       _manifestRetryAfter = DateTime.now().add(const Duration(seconds: 5));
       return;
     }
+    await _applyConfigManifest(entries, revSignature);
+  }
+
+  @override
+  Future<List<CfgField>?> queryModelConfig(
+      String rootPath, int modelIndex) async {
+    final base = _browseBase(rootPath);
+    if (base == null || modelIndex < 0) return null;
+    final pageBase = '$base/HmiResponse/ConfigPage';
+    final entries = <ConfigManifestEntry>[];
+    var page = 0;
+    var pageCount = 1;
+    while (page < pageCount) {
+      final accepted = await _request(rootPath, _HmiRequestKind.queryConfig,
+          intValue: page,
+          durationMs: modelIndex,
+          ackTimeout: const Duration(seconds: 10));
+      if (!accepted) return null;
+      pageCount = _integer(_values['$pageBase/PageCount']);
+      entries.addAll(_readConfigPage(pageBase)
+          .where((entry) => entry.scope == rootPath && entry.modelScoped));
+      page++;
+    }
+    return configFieldsFromManifest(entries)[rootPath] ?? const [];
+  }
+
+  /// The entries of the configuration page the last queryConfig answered.
+  List<ConfigManifestEntry> _readConfigPage(String pageBase) {
+    final entries = <ConfigManifestEntry>[];
+    final entryCount = _integer(_values['$pageBase/EntryCount']);
+    for (var i = 1; i <= entryCount; i++) {
+      final prefix = _indexedPrefix(_values, '$pageBase/Entries', i);
+      if (prefix == null) continue;
+      entries.add(ConfigManifestEntry(
+        '${_values['$prefix/Scope'] ?? ''}',
+        '${_values['$prefix/Item'] ?? ''}',
+        '${_values['$prefix/ValueText'] ?? ''}',
+        writeKey: '${_values['$prefix/WriteKey'] ?? ''}',
+        writeRevision: _integer(_values['$prefix/WriteRevision']),
+        configKind: _integer(_values['$prefix/ConfigKind']),
+        valueType: _integer(_values['$prefix/ValueType']),
+        writable: _values['$prefix/Writable'] == true,
+        requiresReady: _values['$prefix/RequiresReady'] == true,
+        hasMinimum: _values['$prefix/HasMinimum'] == true,
+        hasMaximum: _values['$prefix/HasMaximum'] == true,
+        minimum: _real(_values['$prefix/Minimum']),
+        maximum: _real(_values['$prefix/Maximum']),
+        unit: '${_values['$prefix/Unit'] ?? ''}',
+        labelKey: '${_values['$prefix/LabelKey'] ?? ''}',
+        enumDomain: '${_values['$prefix/EnumDomain'] ?? ''}',
+        // Absent OR unread (an older PLC has no such member): legacy text.
+        unitCode: _values['$prefix/UnitCode'] == null
+            ? null
+            : _integer(_values['$prefix/UnitCode']),
+        enumLabelKey: '${_values['$prefix/EnumLabelKey'] ?? ''}',
+        // §3.8d. A PLC older than data classes publishes none of these:
+        // an ABSENT level must read as unknown (-1), never as NONE, or an
+        // old controller would appear to open every value to everyone.
+        classId: '${_values['$prefix/ClassId'] ?? ''}',
+        readLevel: _values.containsKey('$prefix/ReadLevel')
+            ? _integer(_values['$prefix/ReadLevel'])
+            : -1,
+        writeLevel: _values.containsKey('$prefix/WriteLevel')
+            ? _integer(_values['$prefix/WriteLevel'])
+            : -1,
+        readable: _values['$prefix/Readable'] != false,
+        modelScoped: _values['$prefix/ModelScoped'] == true,
+      ));
+    }
+    return entries;
+  }
+
+  Future<void> _applyConfigManifest(
+      List<ConfigManifestEntry> entries, String revSignature) async {
     // Derive the topology base from the DISCOVERED path set, not from _values:
     // the topology's live members (NodeCount, node State/LinkOk) are on-demand
     // and therefore excluded from _values, so scanning _values would miss it and
@@ -972,6 +1008,7 @@ class OpcUaRepository implements PlcRepository {
     'ValueType', 'Writable', 'RequiresReady', 'HasMinimum', 'HasMaximum',
     'Minimum', 'Maximum', 'Unit', 'LabelKey', 'EnumDomain', 'UnitCode',
     'EnumLabelKey', 'ClassId', 'ReadLevel', 'WriteLevel', 'Readable',
+    'ModelScoped',
   ];
 
   /// What the controller answered when it refused the last request, or ''
@@ -1018,8 +1055,8 @@ class OpcUaRepository implements PlcRepository {
       _request(unitPath, _HmiRequestKind.resetOee);
 
   @override
-  Future<bool> writeConfig(
-      String nodePath, CfgField field, String value) async {
+  Future<bool> writeConfig(String nodePath, CfgField field, String value,
+      {int modelIndex = 0}) async {
     final capability = _configCapability(nodePath, field.writeKey);
     if (capability == null ||
         capability.writeRevision != field.writeRevision ||
@@ -1027,15 +1064,19 @@ class OpcUaRepository implements PlcRepository {
         !capability.accepts(value)) {
       return false;
     }
+    // Another model's record is not the running recipe: READY does not apply
+    // to it (the PLC decides the same way).
+    final model = capability.modelScoped ? modelIndex : 0;
     final root = _findModule(_owningRoot(nodePath));
-    if (capability.requiresReady && root?.state != ExecState.ready)
+    if (capability.requiresReady && model == 0 && root?.state != ExecState.ready)
       return false;
     final ok = await _request(
         _owningRoot(nodePath), _HmiRequestKind.writeConfig,
         targetPath: nodePath,
         intValue: capability.writeRevision,
         nameValue: capability.writeKey,
-        textValue: value.trim());
+        textValue: value.trim(),
+        durationMs: model);
     // A config write changes a slow-tier leaf; refresh it now instead of waiting
     // for the heartbeat so the operator sees the new value promptly.
     if (ok) {
