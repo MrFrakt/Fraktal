@@ -41,6 +41,11 @@
 - Libraries are referenced as versioned TwinCAT library references with their dependencies; local or relative library references are not permitted (Core §5.4). The framework library ships as a versioned TwinCAT library; projects consume a pinned release, never a copy.
 - **Reference implementation:** repository `fraktal-core` — `PLC/TwinCAT/Framework/Fraktal_Core` (framework library), `PLC/TwinCAT/Framework/Fraktal_Modules` (reusable module library), `PLC/TwinCAT/Examples/CoreDemo/Fraktal_Demo` (executable root-Unit forest), `PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo` (internal feature-testing bench, not a real project), `PLC/TwinCAT/Tests` (aggregate Core + Modules TcUnit gate) and `PLC/TwinCAT/Examples/PressDemo/PressTests` (the bench's integration gate) — both test applications are excluded from deployed runtimes, and `PLC/TwinCAT/scaffold`.
 - TwinCAT library metadata uses four components (`major.minor.patch.revision`, e.g. `0.1.0.0`). Fraktal compatibility follows the first three semantic-version components; `revision` identifies a binding rebuild that does not change the observable contract.
+- **Which component to step (soft rules, pre-1.0).** Pick the lowest that is true; when in doubt, the higher.
+  - `minor` — a consumer must act: a public type or member removed or renamed, a persistent or published layout changed (retained data reinitializes, a browse leaf moves), a mailbox, reason-code or manifest meaning changed.
+  - `patch` — backward compatible but observable: a type, method or appended member added; a behaviour fix a client can see.
+  - `revision` — nothing observable: an internal refactor, a comment, a rebuild.
+  - Test-only and HMI-only changes step no library. Core and Modules are numbered independently, and a consumer re-pins only the library that stepped.
 - The reproducible XAE build order, full-build/object-check distinction, local
   library save/install procedure, isolated-runtime interaction, and retained
   evidence are defined in `TWINCAT_XAE_WORKFLOW.md`. A `CheckAllObjects()` result

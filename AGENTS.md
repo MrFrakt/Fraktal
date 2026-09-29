@@ -750,6 +750,10 @@ If every Modules-owned type is reported
 unknown in an application, stop: this is an unresolved/stale `Fraktal_Modules` reference, not a
 reason to edit each affected POU. Install Core `0.21.0.0`, resolve/build/install Modules `0.10.0.0`,
 then reload the application placeholders and rebuild.
+Library version steps follow the soft rules in Part II §2.2: `minor` when a consumer must
+act (removed/renamed member, changed persistent or published layout or meaning), `patch`
+for an additive or backward-compatible observable change, `revision` for nothing
+observable. Not every Core change is a minor step.
 Build warning-clean (§2). The source is a **draft not
 yet compiled against a pinned TwinCAT** — see "watch items" below.
 
