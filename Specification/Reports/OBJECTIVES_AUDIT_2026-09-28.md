@@ -310,6 +310,6 @@ The owner decided every open decision in one pass. All four follow the recommend
 
 | Gap | Needs |
 |---|---|
-| Runtime gates on Core 0.20.0.0 (Core/Modules 197/44, Press 9/2) | The owner at XAE |
+| ~~Runtime gates on Core 0.20.0.0~~ | ✅ **Ran:** Core/Modules 197/44 and Press 9/2, first attempt (`Evidence/2026-09-28d_Core020_Press_TcUnit.md`). |
 | G2 steps 2–4: the live OPC UA acceptance pass | The owner at the HMI, after downloading the press |
 | ~~G4 rest~~ | ✅ **Closed.** The bound icon, rotation and opacity, bound layer visibility and the declared per-view budget are built; the tab dialog also stopped dropping a tab's default flag and card arrangement on save. The grid container followed: column/row cells as fractions of the tab, variants per control-scale preset, and in-place editing (HMI_CONTRACT, 412 tests). |
