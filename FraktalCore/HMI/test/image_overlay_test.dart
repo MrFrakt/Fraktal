@@ -149,6 +149,7 @@ void main() {
       void Function(int, int)? onReorder,
       bool picture = true,
       bool reduceMotion = false,
+      Map<String, ModuleCondition> layerConditions = const {},
     }) async {
       await tester.binding.setSurfaceSize(const Size(1000, 600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -179,6 +180,7 @@ void main() {
                 background: picture
                     ? const ModuleTabBackground(imageBase64: _png2x1)
                     : null,
+                layerConditions: layerConditions,
               ),
               onPlaceControl: onPlace,
               onAddControlAt: onAddAt,
@@ -326,6 +328,89 @@ void main() {
       expect(find.byTooltip('Part: ON'), findsOneWidget);
     });
 
+    testWidgets('a bound layer follows its tag - never hidden on missing data',
+        (tester) async {
+      const lamp = ModuleControlDefinition(
+        id: 'lamp',
+        kind: ModuleControlKind.indicator,
+        label: 'Part',
+        bindings: ['OutImm/Part'],
+        layer: 'Sensors',
+        placement: ModulePlacement(x: 0.5, y: 0.5, width: 0.05, height: 0.1),
+      );
+      const shown = {'Sensors': ModuleCondition(binding: 'OutImm/Service')};
+      await mount(tester,
+          values: {'OutImm/Part': true, 'OutImm/Service': false},
+          controls: [lamp],
+          layerConditions: shown);
+      expect(find.byTooltip('Part: ON'), findsNothing);
+      await mount(tester,
+          values: {'OutImm/Part': true, 'OutImm/Service': true},
+          controls: [lamp],
+          layerConditions: shown);
+      expect(find.byTooltip('Part: ON'), findsOneWidget);
+      await mount(tester,
+          values: {'OutImm/Part': true},
+          controls: [lamp],
+          layerConditions: shown);
+      expect(find.byTooltip('Part: ON'), findsOneWidget,
+          reason: 'unavailable data never hides a layer');
+    });
+
+    testWidgets('a state shows its icon, turns with its value, and dims',
+        (tester) async {
+      const valve = ModuleControlDefinition(
+        id: 'valve',
+        kind: ModuleControlKind.shape,
+        label: 'Valve',
+        bindings: ['OutImm/Locked'],
+        rules: [
+          ModuleStateRule(token: ModuleStateToken.warning, glyph: ModuleGlyph.lock),
+        ],
+        defaultToken: ModuleStateToken.ok,
+        defaultGlyph: ModuleGlyph.check,
+        rotation: ModuleRotation(binding: 'OutImm/Opening', maxDegrees: 90),
+        dimmedWhen: ModuleCondition(binding: 'OutImm/OutOfService'),
+        placement: ModulePlacement(x: 0.4, y: 0.4, width: 0.1, height: 0.2),
+      );
+      await mount(tester, values: {
+        'OutImm/Locked': true,
+        'OutImm/Opening': 50,
+        'OutImm/OutOfService': false,
+      }, controls: [
+        valve
+      ]);
+      expect(find.byKey(const ValueKey('glyph-lock')), findsOneWidget);
+      final turned = tester.widget<Transform>(find
+          .ancestor(
+              of: find.byKey(const ValueKey('glyph-lock')),
+              matching: find.byType(Transform))
+          .first);
+      // 50 of 0..100 -> 45 degrees: the rotation matrix's cos term.
+      expect(turned.transform.entry(0, 0), closeTo(0.7071, 1e-3));
+      expect(
+          find.ancestor(
+              of: find.byKey(const ValueKey('glyph-lock')),
+              matching: find.byType(Opacity)),
+          findsNothing);
+      await mount(tester, values: {
+        'OutImm/Locked': false,
+        'OutImm/Opening': 50,
+        'OutImm/OutOfService': true,
+      }, controls: [
+        valve
+      ]);
+      expect(find.byKey(const ValueKey('glyph-check')), findsOneWidget,
+          reason: 'the default state has its own icon');
+      expect(
+          tester
+              .widget<Opacity>(find.ancestor(
+                  of: find.byKey(const ValueKey('glyph-check')),
+                  matching: find.byType(Opacity)))
+              .opacity,
+          ModuleControlDefinition.dimmedOpacity);
+    });
+
     testWidgets('a bound visible hides - but never on missing data',
         (tester) async {
       const guarded = ModuleControlDefinition(
@@ -447,5 +532,60 @@ void main() {
     expect(restored.visibleWhen!.matches(4), isTrue);
     expect(restored.rules.single.blink, isTrue);
     expect(restored.boundReads, 2, reason: 'the visible binding is a read too');
+  });
+
+  test('a rotation maps its range onto the angles, clamped at both ends', () {
+    const rotation = ModuleRotation(
+        binding: 'OutImm/A', minimum: 0, maximum: 100, minDegrees: 0, maxDegrees: 90);
+    expect(rotation.degreesFor(50), 45);
+    expect(rotation.degreesFor(-10), 0);
+    expect(rotation.degreesFor(250), 90);
+    expect(rotation.degreesFor('text'), 0, reason: 'text never turns a shape');
+    expect(
+        ModuleRotation.fromJson(
+            {...rotation.toJson(), 'minimum': 100, 'maximum': 0}),
+        isNull,
+        reason: 'an empty range is refused, not divided by');
+  });
+
+  test('icon, rotation and dimming travel in the layout and count as reads', () {
+    const control = ModuleControlDefinition(
+      id: 'c',
+      kind: ModuleControlKind.shape,
+      bindings: ['OutImm/A'],
+      rules: [ModuleStateRule(token: ModuleStateToken.error, glyph: ModuleGlyph.stop)],
+      defaultGlyph: ModuleGlyph.play,
+      rotation: ModuleRotation(binding: 'OutImm/B', maxDegrees: 180),
+      dimmedWhen: ModuleCondition(binding: 'OutImm/C'),
+    );
+    final restored = ModuleControlDefinition.fromJson(control.toJson())!;
+    expect(restored.rules.single.glyph, ModuleGlyph.stop);
+    expect(restored.defaultGlyph, ModuleGlyph.play);
+    expect(restored.rotation!.maxDegrees, 180);
+    expect(restored.dimmedWhen!.binding, 'OutImm/C');
+    expect(restored.glyphFor([true]), ModuleGlyph.stop);
+    expect(restored.glyphFor([false]), ModuleGlyph.play);
+    expect(restored.boundReads, 3);
+  });
+
+  test('a view declares its layers and budget; a budget only lowers', () {
+    const tab = ModuleTabDefinition(
+      id: 't',
+      title: 'T',
+      kind: ModuleTabKind.custom,
+      controls: [
+        ModuleControlDefinition(
+            id: 'c', kind: ModuleControlKind.value, bindings: ['OutImm/A'], layer: 'L'),
+      ],
+      layerConditions: {'L': ModuleCondition(binding: 'OutImm/Show')},
+      readBudget: 40,
+    );
+    final restored = ModuleTabDefinition.fromJson(tab.toJson())!;
+    expect(restored.layerConditions['L']!.binding, 'OutImm/Show');
+    expect(restored.effectiveReadBudget, 40);
+    expect(restored.boundReads, 2, reason: 'a layer condition is a read');
+    final raised = ModuleTabDefinition.fromJson({...tab.toJson(), 'readBudget': 500})!;
+    expect(raised.effectiveReadBudget, ModuleTabDefinition.maxBoundReads,
+        reason: 'a declaration never raises the standard');
   });
 }

@@ -100,12 +100,35 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
     if (control.layer.isNotEmpty && _hiddenLayers.contains(control.layer)) {
       return false;
     }
+    // A bound layer (§7.2): the whole set follows one tag. Unavailable data
+    // never hides it.
+    final layerCondition = widget.tab.layerConditions[control.layer];
+    if (layerCondition != null) {
+      final tag = widget.node.tagAt(layerCondition.binding);
+      if (tag?.usable == true && !layerCondition.matches(tag!.value)) {
+        return false;
+      }
+    }
     final condition = control.visibleWhen;
     if (condition == null) return true;
     final tag = widget.node.tagAt(condition.binding);
     // Unavailable data never hides an indicator.
     return tag?.usable != true || condition.matches(tag!.value);
   }
+
+  /// Whether [control]'s bound opacity dims it now. Unavailable data never
+  /// dims: a faded indicator reads as "not relevant", which unknown is not.
+  bool _dimmed(ModuleControlDefinition control) {
+    final condition = control.dimmedWhen;
+    if (widget.editing || condition == null) return false;
+    final tag = widget.node.tagAt(condition.binding);
+    return tag?.usable == true && condition.matches(tag!.value);
+  }
+
+  Widget _withOpacity(ModuleControlDefinition control, Widget child) =>
+      _dimmed(control)
+          ? Opacity(opacity: ModuleControlDefinition.dimmedOpacity, child: child)
+          : child;
 
   List<ModuleControlDefinition> get _controls =>
       [for (final control in widget.tab.controls) if (_shown(control)) control];
@@ -366,8 +389,11 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
     final label = control.label.isEmpty ? control.primaryBinding : control.label;
     final unit = control.unit.isEmpty ? '' : ' ${control.unit}';
     final Widget body = switch (control.kind) {
-      ModuleControlKind.shape =>
-        _OverlayShape(shape: control.shape, color: color),
+      ModuleControlKind.shape => _OverlayShape(
+          shape: control.shape,
+          color: color,
+          glyph: usable ? control.glyphFor(values) : ModuleGlyph.none,
+        ),
       ModuleControlKind.level => _OverlayLevel(
           control: control,
           value: usable ? values.first : null,
@@ -398,12 +424,30 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
       _ => '${_formatValue(values.first)}$unit',
     };
     final name = context.tr(label);
+    final rotation = control.rotation;
+    final Widget turned = rotation == null
+        ? body
+        : Transform.rotate(
+            angle: rotation.degreesFor(_usableValue(rotation.binding)) *
+                math.pi /
+                180,
+            child: body,
+          );
     return Tooltip(
       message: state.isEmpty ? name : '$name: $state',
-      child: usable && control.ruleFor(values)?.blink == true
-          ? _Blink(child: body)
-          : body,
+      child: _withOpacity(
+        control,
+        usable && control.ruleFor(values)?.blink == true
+            ? _Blink(child: turned)
+            : turned,
+      ),
     );
+  }
+
+  /// [binding]'s value, or null while it is unavailable.
+  Object? _usableValue(String binding) {
+    final tag = widget.node.tagAt(binding);
+    return tag?.usable == true ? tag!.value : null;
   }
 
   Widget _editableControl(
@@ -413,7 +457,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
     if (!widget.editing) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: rendered,
+        child: _withOpacity(control, rendered),
       );
     }
     return FraktalCard(
@@ -956,7 +1000,11 @@ class _StateCard extends StatelessWidget {
                   color: color,
                   showValue: false,
                 )
-              : _OverlayShape(shape: control.shape, color: color),
+              : _OverlayShape(
+                  shape: control.shape,
+                  color: color,
+                  glyph: control.glyphFor(values),
+                ),
         ),
         title: LText(
             control.label.isEmpty ? control.primaryBinding : control.label),
@@ -1005,7 +1053,11 @@ class _OverlayShape extends StatelessWidget {
 
   /// Null = the data is unavailable.
   final Color? color;
-  const _OverlayShape({required this.shape, required this.color});
+
+  /// The bound icon of the state in force, drawn in the state's colour.
+  final ModuleGlyph glyph;
+  const _OverlayShape(
+      {required this.shape, required this.color, this.glyph = ModuleGlyph.none});
 
   @override
   Widget build(BuildContext context) {
@@ -1038,7 +1090,15 @@ class _OverlayShape extends StatelessWidget {
                 child: Icon(Icons.help_outline, color: colors.error),
               ),
             )
-          : const SizedBox.expand(),
+          : (moduleGlyphIcon(glyph) == null
+              ? const SizedBox.expand()
+              : FittedBox(
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(moduleGlyphIcon(glyph),
+                        key: ValueKey('glyph-${glyph.name}'), color: tint),
+                  ),
+                )),
     );
     if (shape != ModuleShape.circle) return box;
     return Center(child: AspectRatio(aspectRatio: 1, child: box));
@@ -1932,3 +1992,23 @@ Future<bool> _performAction(BuildContext context, AppState app, ModuleNode node,
   }
   return accepted;
 }
+
+/// The icon of a [ModuleGlyph]; null for [ModuleGlyph.none].
+IconData? moduleGlyphIcon(ModuleGlyph glyph) => switch (glyph) {
+      ModuleGlyph.none => null,
+      ModuleGlyph.check => Icons.check,
+      ModuleGlyph.close => Icons.close,
+      ModuleGlyph.warning => Icons.warning_amber,
+      ModuleGlyph.info => Icons.info_outline,
+      ModuleGlyph.lock => Icons.lock_outline,
+      ModuleGlyph.lockOpen => Icons.lock_open,
+      ModuleGlyph.arrowUp => Icons.arrow_upward,
+      ModuleGlyph.arrowDown => Icons.arrow_downward,
+      ModuleGlyph.arrowLeft => Icons.arrow_back,
+      ModuleGlyph.arrowRight => Icons.arrow_forward,
+      ModuleGlyph.play => Icons.play_arrow,
+      ModuleGlyph.pause => Icons.pause,
+      ModuleGlyph.stop => Icons.stop,
+      ModuleGlyph.block => Icons.block,
+      ModuleGlyph.power => Icons.power_settings_new,
+    };

@@ -411,6 +411,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
     final tab = await showModuleTabEditor(
       context,
       allowGuidance: node.isUnit,
+      node: node,
     );
     if (tab != null) {
       _upsertDraftTab(tab);
@@ -423,6 +424,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
       context,
       existing: existing,
       allowGuidance: node.isUnit,
+      node: node,
     );
     if (tab != null) {
       _upsertDraftTab(tab);

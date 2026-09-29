@@ -125,7 +125,8 @@ Every custom view declares a display class (§7.4) - operating, maintenance or
 engineering - shown as a badge on the view and recorded in the export.
 An operating view is refused a picture at publish; a view stored without a class takes
 maintenance if it carries a picture and operating otherwise. Every view is also
-refused at publish above the standard budget of 200 bound reads (§7.3). On an
+refused at publish above its read budget (§7.3): the standard 200 bound reads, or a lower
+`readBudget` the view declares (a declaration above 200 reads as the standard). On an
 operating view an `ok` state token draws neutral: colour is reserved for the abnormal.
 
 Every control may name a **layer** (§7.2): controls sharing it form a show/hide set the
@@ -136,8 +137,16 @@ stays shown while that tag is unavailable, so missing data never hides an indica
 is presentation, never enforcement. A button or input may also carry a bound
 **`enabled`** of the same shape; there an unavailable tag *disables*, because
 Bad/Uncertain data never enables an input. A state rule may **blink** while it is the
-rule in force, and holds steady when the platform asks for reduced motion. Every
-condition tag counts toward the read budget. Every state token, `off` included, is
+rule in force, and holds steady when the platform asks for reduced motion. A state rule,
+and the default state, may name an **icon** from the bounded `ModuleGlyph` set, drawn in
+the state's token colour. A shape may carry a bound **rotation**: one numeric tag whose
+range maps linearly onto two angles within ±360°, clamped at both ends, upright while
+the tag is unavailable. Any control may carry a bound **opacity** (`dimmedWhen`, the
+`visible` shape) and draws at 35 % while it holds; unavailable data never dims. A view
+may bind a **layer's** visibility (`layerConditions`, one condition per layer name): the
+whole set is shown only while it holds, never hidden on unavailable data, and the
+viewer's chip still applies on top. Every condition, rotation and layer tag counts
+toward the read budget. Every state token, `off` included, is
 measured at 3:1 on a card in every theme (`theme_contrast_test.dart`), which is what
 "contrast enforced at publish" (§7.4) reduces to when authored colour can only be a
 token.

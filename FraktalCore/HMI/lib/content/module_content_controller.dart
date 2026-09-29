@@ -440,7 +440,7 @@ class ModuleContentController extends ChangeNotifier {
         throw const FormatException('std.module.editor.operatingNoImagery');
       }
       // §7.3: the read budget is refused at publish.
-      if (tab.boundReads > ModuleTabDefinition.maxBoundReads) {
+      if (tab.boundReads > tab.effectiveReadBudget) {
         throw const FormatException('std.module.editor.overBudget');
       }
     }

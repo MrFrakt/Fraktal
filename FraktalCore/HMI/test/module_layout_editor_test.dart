@@ -200,4 +200,49 @@ void main() {
             'Saving as Operating removes the picture: an operating view carries none.'),
         findsOneWidget);
   });
+
+  testWidgets('editing a tab keeps its default flag, layers and budget',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final localization =
+        LocalizationController(enabledLanguages: {'en'}, activeLanguage: 'en');
+    const existing = ModuleTabDefinition(
+      id: 'custom-1',
+      title: 'Machine',
+      kind: ModuleTabKind.custom,
+      isDefault: true,
+      readBudget: 40,
+      layerConditions: {'L': ModuleCondition(binding: 'OutImm/Show')},
+      controls: [
+        ModuleControlDefinition(
+            id: 'c', kind: ModuleControlKind.text, label: 'x', layer: 'L'),
+      ],
+    );
+    ModuleTabDefinition? saved;
+    await tester.pumpWidget(LocalizationScope(
+      controller: localization,
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) => Center(
+            child: FilledButton(
+              onPressed: () async => saved = await showModuleTabEditor(context,
+                  existing: existing, allowGuidance: true),
+              child: const Text('Open editor'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save'));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(saved!.isDefault, isTrue,
+        reason: 'the default tab stays the default after an edit');
+    expect(saved!.readBudget, 40);
+    expect(saved!.layerConditions['L']!.binding, 'OutImm/Show',
+        reason: 'without a module to pick tags from, the conditions are kept');
+  });
 }

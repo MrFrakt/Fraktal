@@ -11,18 +11,23 @@ import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
 import 'app_theme.dart' show stateTokenColor;
+import 'custom_module_tabs.dart' show moduleGlyphIcon;
 import 'touch_text_field.dart';
 
+/// [node] supplies the tags a layer condition may read; without it the view's
+/// layers keep the conditions they have.
 Future<ModuleTabDefinition?> showModuleTabEditor(
   BuildContext context, {
   ModuleTabDefinition? existing,
   required bool allowGuidance,
+  ModuleNode? node,
 }) =>
     showDialog<ModuleTabDefinition>(
       context: context,
       builder: (_) => _TabEditorDialog(
         existing: existing,
         allowGuidance: allowGuidance,
+        node: node,
       ),
     );
 
@@ -284,7 +289,9 @@ Iterable<String> _modulePaths(AppState app) sync* {
 class _TabEditorDialog extends StatefulWidget {
   final ModuleTabDefinition? existing;
   final bool allowGuidance;
-  const _TabEditorDialog({this.existing, required this.allowGuidance});
+  final ModuleNode? node;
+  const _TabEditorDialog(
+      {this.existing, required this.allowGuidance, this.node});
 
   @override
   State<_TabEditorDialog> createState() => _TabEditorDialogState();
@@ -316,10 +323,21 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
   String _backgroundImageName = '';
   String? _backgroundImageError;
 
+  /// §7.3 declared read budget; blank = the standard.
+  late final TextEditingController _budget;
+
+  /// §7.2 bound layer visibility, one draft per layer the view names.
+  final Map<String, _ConditionDraft> _layerConditions = {};
+
   @override
   void initState() {
     super.initState();
     final tab = widget.existing;
+    _budget = TextEditingController(
+        text: tab == null || tab.readBudget == 0 ? '' : '${tab.readBudget}');
+    for (final layer in tab?.layers ?? const <String>[]) {
+      _layerConditions[layer] = _ConditionDraft(tab!.layerConditions[layer]);
+    }
     _title = TextEditingController(text: tab?.title ?? '');
     _stepNo = TextEditingController(
         text: tab == null || tab.triggerStepNo == 0
@@ -354,6 +372,10 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
 
   @override
   void dispose() {
+    _budget.dispose();
+    for (final draft in _layerConditions.values) {
+      draft.constant.dispose();
+    }
     _title.dispose();
     _stepNo.dispose();
     _stepName.dispose();
@@ -589,6 +611,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                 const SizedBox(height: 16),
                 _backgroundEditor(context),
               ],
+              if (_kind.acceptsBackground) ..._presentationBudget(context),
             ]),
           ),
         ),
@@ -604,6 +627,51 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
         ),
       ],
     );
+  }
+
+  /// The view's read budget and its bound layers (§7.2/§7.3).
+  List<Widget> _presentationBudget(BuildContext context) {
+    final existing = widget.existing;
+    final node = widget.node;
+    return [
+      const SizedBox(height: 16),
+      TouchTextFormField(
+        key: const ValueKey('tab-read-budget'),
+        controller: _budget,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: context.tr('std.module.editor.readBudget'),
+          helperText: '${context.tr('std.module.editor.readBudgetHelp')} '
+              '(${existing?.boundReads ?? 0} / '
+              '${ModuleTabDefinition.maxBoundReads})',
+          helperMaxLines: 3,
+        ),
+        validator: (value) {
+          final text = value?.trim() ?? '';
+          if (text.isEmpty) return null;
+          final budget = int.tryParse(text);
+          return budget == null ||
+                  budget < 1 ||
+                  budget > ModuleTabDefinition.maxBoundReads
+              ? context.tr('std.module.editor.readBudgetInvalid')
+              : null;
+        },
+      ),
+      if (node != null && _layerConditions.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        LText('std.module.editor.layerConditions',
+            style: Theme.of(context).textTheme.titleSmall),
+        LText('std.module.editor.layerConditionsHelp',
+            style: Theme.of(context).textTheme.bodySmall),
+        for (final entry in _layerConditions.entries) ...[
+          const SizedBox(height: 8),
+          Text(entry.key, style: Theme.of(context).textTheme.labelLarge),
+          ..._conditionFields(context, node, entry.value,
+              searchKey: 'opcua-layer-${entry.key}',
+              onChanged: () => setState(() {})),
+        ],
+      ],
+    ];
   }
 
   void _save() {
@@ -648,6 +716,18 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                 marginBottom: double.tryParse(_marginBottom.text.trim()) ?? 0,
               )
             : null,
+        // Card-tab arrangement is edited elsewhere; this dialog keeps it.
+        cards: existing?.cards ?? const [],
+        columns: existing?.columns ?? 0,
+        isDefault: existing?.isDefault ?? false,
+        layerConditions: widget.node == null
+            ? existing?.layerConditions ?? const {}
+            : {
+                for (final entry in _layerConditions.entries)
+                  if (entry.value.build() != null)
+                    entry.key: entry.value.build()!,
+              },
+        readBudget: int.tryParse(_budget.text.trim()) ?? 0,
       ),
     );
   }
@@ -869,6 +949,17 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
   late final _ConditionDraft _visible;
   late final _ConditionDraft _enabled;
 
+  /// Bound opacity (§7.3): dimmed while this holds.
+  late final _ConditionDraft _dimmed;
+  late ModuleGlyph _defaultGlyph;
+
+  /// Bound rotation (§7.3): a tag and its range-to-angle map.
+  List<String> _rotationBinding = [];
+  late final TextEditingController _rotationMin;
+  late final TextEditingController _rotationMax;
+  late final TextEditingController _rotationFrom;
+  late final TextEditingController _rotationTo;
+
   @override
   void initState() {
     super.initState();
@@ -895,6 +986,16 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
     _layer = TextEditingController(text: control?.layer ?? '');
     _visible = _ConditionDraft(control?.visibleWhen);
     _enabled = _ConditionDraft(control?.enabledWhen);
+    _dimmed = _ConditionDraft(control?.dimmedWhen);
+    _defaultGlyph = control?.defaultGlyph ?? ModuleGlyph.none;
+    final rotation = control?.rotation;
+    _rotationBinding = rotation == null ? [] : [rotation.binding];
+    _rotationMin = TextEditingController(text: _number(rotation?.minimum ?? 0));
+    _rotationMax =
+        TextEditingController(text: _number(rotation?.maximum ?? 100));
+    _rotationFrom =
+        TextEditingController(text: _number(rotation?.minDegrees ?? 0));
+    _rotationTo = TextEditingController(text: _number(rotation?.maxDegrees ?? 90));
     _maximum = TextEditingController(text: _number(control?.maximum ?? 100));
     for (final rule in control?.rules ?? const <ModuleStateRule>[]) {
       _rules.add(rule);
@@ -918,6 +1019,11 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
       _layer,
       _visible.constant,
       _enabled.constant,
+      _dimmed.constant,
+      _rotationMin,
+      _rotationMax,
+      _rotationFrom,
+      _rotationTo,
       _maximum,
       ..._ruleConstants,
     ]) {
@@ -1082,6 +1188,14 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                     () => _rules[index] = _ruleWith(index, token: value)),
               ),
             ),
+            if (_kind == ModuleControlKind.shape)
+              _glyphPicker(
+                context,
+                key: ValueKey('rule-glyph-$index'),
+                value: _rules[index].glyph,
+                onChanged: (value) => setState(
+                    () => _rules[index] = _ruleWith(index, glyph: value)),
+              ),
             IconButton(
               key: ValueKey('rule-blink-$index'),
               tooltip: context.tr('std.module.editor.ruleBlink'),
@@ -1115,8 +1229,132 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
         onChanged: (value) =>
             setState(() => _defaultToken = value ?? _defaultToken),
       ),
+      if (_kind == ModuleControlKind.shape) ...[
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(
+            child: LText('std.module.editor.defaultGlyph',
+                style: Theme.of(context).textTheme.bodyMedium),
+          ),
+          _glyphPicker(
+            context,
+            key: const ValueKey('default-glyph'),
+            value: _defaultGlyph,
+            onChanged: (value) => setState(() => _defaultGlyph = value),
+          ),
+        ]),
+        ..._rotationEditor(context),
+      ],
     ];
   }
+
+  /// A compact picker over the bounded icon set.
+  Widget _glyphPicker(
+    BuildContext context, {
+    required Key key,
+    required ModuleGlyph value,
+    required ValueChanged<ModuleGlyph> onChanged,
+  }) =>
+      PopupMenuButton<ModuleGlyph>(
+        key: key,
+        tooltip: context.tr('std.module.editor.glyph'),
+        initialValue: value,
+        onSelected: onChanged,
+        itemBuilder: (context) => [
+          for (final glyph in ModuleGlyph.values)
+            PopupMenuItem(
+              value: glyph,
+              child: Row(children: [
+                Icon(moduleGlyphIcon(glyph) ?? Icons.do_not_disturb_alt,
+                    size: 20),
+                const SizedBox(width: 8),
+                LText('std.module.glyph.${glyph.name}'),
+              ]),
+            ),
+        ],
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(moduleGlyphIcon(value) ?? Icons.do_not_disturb_alt),
+        ),
+      );
+
+  /// A shape's bound rotation: a tag, the range it spans, and the angles.
+  List<Widget> _rotationEditor(BuildContext context) {
+    String? number(String? value) =>
+        double.tryParse(value?.trim() ?? '') == null
+            ? context.tr('std.module.editor.required')
+            : null;
+    Widget field(TextEditingController controller, String label,
+            {String? Function(String?)? validator}) =>
+        Expanded(
+          child: TouchTextFormField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(
+                decimal: true, signed: true),
+            decoration: InputDecoration(labelText: context.tr(label)),
+            validator: validator ?? number,
+          ),
+        );
+    return [
+      const SizedBox(height: 14),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.rotation',
+            style: Theme.of(context).textTheme.titleSmall),
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.rotationHelp',
+            style: Theme.of(context).textTheme.bodySmall),
+      ),
+      _OpcUaBindingPicker(
+        candidates: _bindingCandidates(widget.node, ModuleControlKind.level),
+        selected: _rotationBinding,
+        maximum: 1,
+        errorText: null,
+        searchKey: 'opcua-rotation-search',
+        onChanged: (bindings) => setState(() => _rotationBinding = bindings),
+      ),
+      if (_rotationBinding.isNotEmpty) ...[
+        Row(children: [
+          field(_rotationMin, 'std.module.editor.minimum'),
+          const SizedBox(width: 8),
+          field(_rotationMax, 'std.module.editor.maximum', validator: (value) {
+            final maximum = double.tryParse(value?.trim() ?? '');
+            final minimum = double.tryParse(_rotationMin.text.trim());
+            if (maximum == null) return context.tr('std.module.editor.required');
+            return minimum != null && maximum <= minimum
+                ? context.tr('std.module.editor.rangeInvalid')
+                : null;
+          }),
+        ]),
+        Row(children: [
+          field(_rotationFrom, 'std.module.editor.rotationFrom',
+              validator: _degrees),
+          const SizedBox(width: 8),
+          field(_rotationTo, 'std.module.editor.rotationTo',
+              validator: _degrees),
+        ]),
+      ],
+    ];
+  }
+
+  String? _degrees(String? value) {
+    final degrees = double.tryParse(value?.trim() ?? '');
+    return degrees == null || degrees.abs() > 360
+        ? context.tr('std.module.editor.degreesInvalid')
+        : null;
+  }
+
+  ModuleRotation? _buildRotation() => _rotationBinding.isEmpty
+      ? null
+      : ModuleRotation(
+          binding: _rotationBinding.single,
+          minimum: double.tryParse(_rotationMin.text.trim()) ?? 0,
+          maximum: double.tryParse(_rotationMax.text.trim()) ?? 100,
+          minDegrees: double.tryParse(_rotationFrom.text.trim()) ?? 0,
+          maxDegrees: double.tryParse(_rotationTo.text.trim()) ?? 90,
+        );
 
   ModuleStateRule _ruleWith(
     int index, {
@@ -1124,6 +1362,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
     ModuleCompare? compare,
     ModuleStateToken? token,
     bool? blink,
+    ModuleGlyph? glyph,
   }) {
     final rule = _rules[index];
     return ModuleStateRule(
@@ -1132,6 +1371,7 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
       constant: rule.constant,
       token: token ?? rule.token,
       blink: blink ?? rule.blink,
+      glyph: glyph ?? rule.glyph,
     );
   }
 
@@ -1157,6 +1397,10 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
               title: 'std.module.editor.enabledWhen',
               help: 'std.module.editor.enabledWhenHelp',
               searchKey: 'opcua-enabled-search'),
+        ..._conditionEditor(context, _dimmed,
+            title: 'std.module.editor.dimmedWhen',
+            help: 'std.module.editor.dimmedWhenHelp',
+            searchKey: 'opcua-dimmed-search'),
       ];
 
   /// One bound condition: a tag, a comparison and (when it takes one) a value.
@@ -1178,50 +1422,8 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
           alignment: Alignment.centerLeft,
           child: LText(help, style: Theme.of(context).textTheme.bodySmall),
         ),
-        _OpcUaBindingPicker(
-          candidates: _bindingCandidates(widget.node, ModuleControlKind.shape),
-          selected: draft.binding,
-          maximum: 1,
-          errorText: null,
-          searchKey: searchKey,
-          onChanged: (bindings) => setState(() => draft.binding = bindings),
-        ),
-        if (draft.binding.isNotEmpty)
-          Row(children: [
-            Expanded(
-              child: DropdownButtonFormField<ModuleCompare>(
-                initialValue: draft.compare,
-                isExpanded: true,
-                decoration: InputDecoration(
-                    labelText: context.tr('std.module.editor.ruleCompare')),
-                items: [
-                  for (final compare in ModuleCompare.values)
-                    DropdownMenuItem(
-                      value: compare,
-                      child: LText('std.module.compare.${compare.name}'),
-                    ),
-                ],
-                onChanged: (value) =>
-                    setState(() => draft.compare = value ?? draft.compare),
-              ),
-            ),
-            if (_takesConstant(draft.compare)) ...[
-              const SizedBox(width: 8),
-              Expanded(
-                child: TouchTextFormField(
-                  controller: draft.constant,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                      labelText: context.tr('std.module.editor.ruleConstant')),
-                  validator: (value) =>
-                      double.tryParse(value?.trim() ?? '') == null
-                          ? context.tr('std.module.editor.required')
-                          : null,
-                ),
-              ),
-            ],
-          ]),
+        ..._conditionFields(context, widget.node, draft,
+            searchKey: searchKey, onChanged: () => setState(() {})),
       ];
 
   Widget _tokenPicker(
@@ -1601,6 +1803,9 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                     double.tryParse(_ruleConstants[index].text.trim()) ?? 0,
                 token: _rules[index].token,
                 blink: _rules[index].blink,
+                glyph: _kind == ModuleControlKind.shape
+                    ? _rules[index].glyph
+                    : ModuleGlyph.none,
               ),
         ],
         defaultToken: _defaultToken,
@@ -1613,10 +1818,75 @@ class _ControlEditorDialogState extends State<_ControlEditorDialog> {
                 _kind == ModuleControlKind.textInput
             ? _enabled.build()
             : null,
+        dimmedWhen: _dimmed.build(),
+        defaultGlyph:
+            _kind == ModuleControlKind.shape ? _defaultGlyph : ModuleGlyph.none,
+        rotation: _kind == ModuleControlKind.shape ? _buildRotation() : null,
       ),
     );
   }
 }
+
+/// The fields of one bound condition (LOCALIZATION §7.3): a tag of [node], a
+/// comparison and, when it takes one, a constant. [onChanged] rebuilds the owner.
+List<Widget> _conditionFields(
+  BuildContext context,
+  ModuleNode node,
+  _ConditionDraft draft, {
+  required String searchKey,
+  required VoidCallback onChanged,
+}) =>
+    [
+        _OpcUaBindingPicker(
+          candidates: _bindingCandidates(node, ModuleControlKind.shape),
+          selected: draft.binding,
+          maximum: 1,
+          errorText: null,
+          searchKey: searchKey,
+          onChanged: (bindings) {
+            draft.binding = bindings;
+            onChanged();
+          },
+        ),
+        if (draft.binding.isNotEmpty)
+          Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<ModuleCompare>(
+                initialValue: draft.compare,
+                isExpanded: true,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.ruleCompare')),
+                items: [
+                  for (final compare in ModuleCompare.values)
+                    DropdownMenuItem(
+                      value: compare,
+                      child: LText('std.module.compare.${compare.name}'),
+                    ),
+                ],
+                onChanged: (value) {
+                  draft.compare = value ?? draft.compare;
+                  onChanged();
+                },
+              ),
+            ),
+            if (_ControlEditorDialogState._takesConstant(draft.compare)) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: TouchTextFormField(
+                  controller: draft.constant,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                      labelText: context.tr('std.module.editor.ruleConstant')),
+                  validator: (value) =>
+                      double.tryParse(value?.trim() ?? '') == null
+                          ? context.tr('std.module.editor.required')
+                          : null,
+                ),
+              ),
+            ],
+          ]),
+    ];
 
 /// The editable form of one [ModuleCondition].
 class _ConditionDraft {

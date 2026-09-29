@@ -304,6 +304,101 @@ enum ModuleStateToken { neutral, ok, warning, error, info, off }
 /// a picture holding hundreds of indicators.
 enum ModuleCompare { isTrue, isFalse, equals, notEquals, above, below }
 
+/// The bounded icon set a state may show (LOCALIZATION §7.3 bound icon). A set,
+/// not a free icon name: every entry is drawn in the state's token colour, so an
+/// icon stays inside the same contrast measurement as the rest of the view.
+/// Persisted by name - append only.
+enum ModuleGlyph {
+  none,
+  check,
+  close,
+  warning,
+  info,
+  lock,
+  lockOpen,
+  arrowUp,
+  arrowDown,
+  arrowLeft,
+  arrowRight,
+  play,
+  pause,
+  stop,
+  block,
+  power,
+}
+
+/// A bound rotation (LOCALIZATION §7.3): one numeric tag mapped linearly from
+/// [minimum]..[maximum] onto [minDegrees]..[maxDegrees], clamped at both ends -
+/// a range transform, not an expression. A value outside the range draws at the
+/// nearer end, and unavailable data draws at [minDegrees].
+class ModuleRotation {
+  final String binding;
+  final double minimum;
+  final double maximum;
+  final double minDegrees;
+  final double maxDegrees;
+
+  const ModuleRotation({
+    required this.binding,
+    this.minimum = 0,
+    this.maximum = 100,
+    this.minDegrees = 0,
+    this.maxDegrees = 90,
+  });
+
+  /// The angle for [value], in degrees.
+  double degreesFor(Object? value) {
+    final number = switch (value) {
+      num n => n.toDouble(),
+      bool b => b ? 1.0 : 0.0,
+      String s => double.tryParse(s),
+      _ => null,
+    };
+    if (number == null || !number.isFinite) return minDegrees;
+    final t = ((number - minimum) / (maximum - minimum)).clamp(0.0, 1.0);
+    return minDegrees + (maxDegrees - minDegrees) * t;
+  }
+
+  Map<String, Object?> toJson() => {
+        'binding': binding,
+        'minimum': minimum,
+        'maximum': maximum,
+        'minDegrees': minDegrees,
+        'maxDegrees': maxDegrees,
+      };
+
+  static ModuleRotation? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final binding = source['binding'];
+    double? read(String name) {
+      final value = source[name];
+      return value is num && value.isFinite ? value.toDouble() : null;
+    }
+
+    final minimum = read('minimum'), maximum = read('maximum');
+    final from = read('minDegrees'), to = read('maxDegrees');
+    if (binding is! String ||
+        binding.trim().isEmpty ||
+        binding.length > 512 ||
+        minimum == null ||
+        maximum == null ||
+        from == null ||
+        to == null ||
+        !(minimum < maximum) ||
+        from.abs() > 360 ||
+        to.abs() > 360) {
+      return null;
+    }
+    return ModuleRotation(
+      binding: binding.trim(),
+      minimum: minimum,
+      maximum: maximum,
+      minDegrees: from,
+      maxDegrees: to,
+    );
+  }
+}
+
 /// One "this binding compares so -> this state" rule. A control checks its
 /// rules in order and takes the first match, else its default state: a door is
 /// `Faulted isTrue -> error`, `Closed isTrue -> ok`, default `warning`.
@@ -320,12 +415,16 @@ class ModuleStateRule {
   /// a door forced). Steady when the panel asks for reduced motion.
   final bool blink;
 
+  /// The icon drawn while this rule is in force; [ModuleGlyph.none] = none.
+  final ModuleGlyph glyph;
+
   const ModuleStateRule({
     this.bindingIndex = 0,
     this.compare = ModuleCompare.isTrue,
     this.constant = 0,
     this.token = ModuleStateToken.ok,
     this.blink = false,
+    this.glyph = ModuleGlyph.none,
   });
 
   /// Whether [value] satisfies this rule. See [moduleCompare].
@@ -337,6 +436,7 @@ class ModuleStateRule {
         'constant': constant,
         'token': token.name,
         if (blink) 'blink': true,
+        if (glyph != ModuleGlyph.none) 'glyph': glyph.name,
       };
 
   static ModuleStateRule? fromJson(Object? source, int bindingCount) {
@@ -363,6 +463,10 @@ class ModuleStateRule {
       constant: value.isFinite ? value : 0,
       token: token,
       blink: source['blink'] == true,
+      glyph: ModuleGlyph.values
+              .where((value) => value.name == source['glyph'])
+              .firstOrNull ??
+          ModuleGlyph.none,
     );
   }
 }
@@ -719,7 +823,20 @@ class ModuleControlDefinition {
   /// never enables an input. Presentation only: the PLC re-checks the request.
   final ModuleCondition? enabledWhen;
 
+  /// The icon of the default state (no rule in force). See [glyphFor].
+  final ModuleGlyph defaultGlyph;
+
+  /// A bound rotation of a shape (a valve, a flap); null = upright.
+  final ModuleRotation? rotation;
+
+  /// A bound opacity: while this holds the control draws dimmed (a station
+  /// out of service, a disabled lane). Unavailable data never dims.
+  final ModuleCondition? dimmedWhen;
+
   static const maxLayerLength = 40;
+
+  /// The opacity of a dimmed control: faded, still legible.
+  static const dimmedOpacity = 0.35;
 
   const ModuleControlDefinition({
     required this.id,
@@ -747,7 +864,15 @@ class ModuleControlDefinition {
     this.layer = '',
     this.visibleWhen,
     this.enabledWhen,
+    this.defaultGlyph = ModuleGlyph.none,
+    this.rotation,
+    this.dimmedWhen,
   });
+
+  /// The icon [values] put this control in: the first matching rule's, else
+  /// [defaultGlyph].
+  ModuleGlyph glyphFor(List<Object?> values) =>
+      ruleFor(values)?.glyph ?? defaultGlyph;
 
   /// The rule in force for [values], or null when the default state applies.
   ModuleStateRule? ruleFor(List<Object?> values) {
@@ -764,7 +889,9 @@ class ModuleControlDefinition {
   int get boundReads =>
       linkedBindings.length +
       (visibleWhen == null ? 0 : 1) +
-      (enabledWhen == null ? 0 : 1);
+      (enabledWhen == null ? 0 : 1) +
+      (rotation == null ? 0 : 1) +
+      (dimmedWhen == null ? 0 : 1);
 
   /// The state [values] (this control's linked bindings, in order) put it in:
   /// the first matching rule, else [defaultToken].
@@ -799,6 +926,9 @@ class ModuleControlDefinition {
         layer: layer,
         visibleWhen: visibleWhen,
         enabledWhen: enabledWhen,
+        defaultGlyph: defaultGlyph,
+        rotation: rotation,
+        dimmedWhen: dimmedWhen,
       );
 
   /// Version-2 layouts stored one `binding`. New layouts store a list while
@@ -872,6 +1002,9 @@ class ModuleControlDefinition {
         layer: layer,
         visibleWhen: visibleWhen,
         enabledWhen: enabledWhen,
+        defaultGlyph: defaultGlyph,
+        rotation: rotation,
+        dimmedWhen: dimmedWhen,
       );
 
   Map<String, Object?> toJson() => {
@@ -900,6 +1033,9 @@ class ModuleControlDefinition {
         if (layer.isNotEmpty) 'layer': layer,
         if (visibleWhen != null) 'visibleWhen': visibleWhen!.toJson(),
         if (enabledWhen != null) 'enabledWhen': enabledWhen!.toJson(),
+        if (defaultGlyph != ModuleGlyph.none) 'defaultGlyph': defaultGlyph.name,
+        if (rotation != null) 'rotation': rotation!.toJson(),
+        if (dimmedWhen != null) 'dimmedWhen': dimmedWhen!.toJson(),
       };
 
   static ModuleControlDefinition? fromJson(Object? source) {
@@ -1024,6 +1160,12 @@ class ModuleControlDefinition {
       layer: field('layer', maxLayerLength).trim(),
       visibleWhen: ModuleCondition.fromJson(source['visibleWhen']),
       enabledWhen: ModuleCondition.fromJson(source['enabledWhen']),
+      defaultGlyph: ModuleGlyph.values
+              .where((value) => value.name == source['defaultGlyph'])
+              .firstOrNull ??
+          ModuleGlyph.none,
+      rotation: ModuleRotation.fromJson(source['rotation']),
+      dimmedWhen: ModuleCondition.fromJson(source['dimmedWhen']),
     );
   }
 }
@@ -1068,12 +1210,27 @@ class ModuleTabDefinition {
   /// The tab a module opens on. It is shown first, and stays first.
   final bool isDefault;
 
+  /// Bound layer visibility (LOCALIZATION §7.2): a layer named here is shown
+  /// only while its condition holds, so one tag reveals or hides a whole
+  /// annotation set. Unavailable data never hides a layer. A viewer's own
+  /// show/hide chip still applies on top.
+  final Map<String, ModuleCondition> layerConditions;
+
+  /// The view's declared read budget (LOCALIZATION §7.3); 0 = the standard
+  /// [maxBoundReads]. A declaration may lower the standard, never raise it.
+  final int readBudget;
+
   static const maxColumns = 4;
   static const maxCards = 48;
+  static const maxLayerConditions = 16;
 
   /// A view's reads are bounded (LOCALIZATION §7.3): every bound tag is a
   /// read, so the budget is refused at publish, not discovered on the panel.
   static const maxBoundReads = 200;
+
+  /// The budget in force: the declared one, else the standard.
+  int get effectiveReadBudget =>
+      readBudget > 0 && readBudget < maxBoundReads ? readBudget : maxBoundReads;
 
   const ModuleTabDefinition({
     required this.id,
@@ -1091,6 +1248,8 @@ class ModuleTabDefinition {
     this.cards = const [],
     this.columns = 0,
     this.isDefault = false,
+    this.layerConditions = const {},
+    this.readBudget = 0,
   });
 
   /// The cards in force: the arranged ones, else the kind's defaults. The
@@ -1121,7 +1280,8 @@ class ModuleTabDefinition {
 
   /// The tag reads this view makes each refresh.
   int get boundReads =>
-      controls.fold(0, (sum, control) => sum + control.boundReads);
+      controls.fold(0, (sum, control) => sum + control.boundReads) +
+      layerConditions.length;
 
   /// The layers this view's controls name, in first-use order.
   List<String> get layers => [
@@ -1200,6 +1360,8 @@ class ModuleTabDefinition {
     List<ModuleCardPlacement>? cards,
     int? columns,
     bool? isDefault,
+    Map<String, ModuleCondition>? layerConditions,
+    int? readBudget,
   }) =>
       ModuleTabDefinition(
         id: id ?? this.id,
@@ -1217,6 +1379,8 @@ class ModuleTabDefinition {
         cards: cards ?? this.cards,
         columns: columns ?? this.columns,
         isDefault: isDefault ?? this.isDefault,
+        layerConditions: layerConditions ?? this.layerConditions,
+        readBudget: readBudget ?? this.readBudget,
       );
 
   Map<String, Object?> toJson() => {
@@ -1236,6 +1400,12 @@ class ModuleTabDefinition {
         if (cards.isNotEmpty) 'cards': [for (final card in cards) card.toJson()],
         if (columns > 0) 'columns': columns,
         if (isDefault) 'isDefault': true,
+        if (layerConditions.isNotEmpty)
+          'layerConditions': {
+            for (final entry in layerConditions.entries)
+              entry.key: entry.value.toJson(),
+          },
+        if (readBudget > 0) 'readBudget': readBudget,
         'controls': [for (final control in controls) control.toJson()],
       };
 
@@ -1301,6 +1471,22 @@ class ModuleTabDefinition {
       }
     }
     final rawColumns = source['columns'];
+    final layerConditions = <String, ModuleCondition>{};
+    final rawLayers = source['layerConditions'];
+    if (rawLayers is Map) {
+      for (final entry in rawLayers.entries) {
+        final name = entry.key;
+        final condition = ModuleCondition.fromJson(entry.value);
+        if (name is String &&
+            name.trim().isNotEmpty &&
+            name.length <= ModuleControlDefinition.maxLayerLength &&
+            condition != null &&
+            layerConditions.length < maxLayerConditions) {
+          layerConditions[name.trim()] = condition;
+        }
+      }
+    }
+    final rawBudget = source['readBudget'];
     return ModuleTabDefinition(
       id: id,
       title: title,
@@ -1332,6 +1518,11 @@ class ModuleTabDefinition {
           ? rawColumns.toInt().clamp(0, maxColumns).toInt()
           : 0,
       isDefault: source['isDefault'] == true,
+      layerConditions: layerConditions,
+      // A declared budget may lower the standard, never raise it.
+      readBudget: rawBudget is num
+          ? rawBudget.toInt().clamp(0, maxBoundReads).toInt()
+          : 0,
       tabIcon: ModuleTabIcon.values
           .where((value) => value.name == source['tabIcon'])
           .firstOrNull,

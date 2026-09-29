@@ -360,6 +360,14 @@ void main() {
       throwsA(isA<FormatException>().having(
           (e) => e.message, 'message', 'std.module.editor.overBudget')),
     );
+    // A declared budget lowers the standard, and publish holds the view to it.
+    await expectLater(
+      content.publishTabs('S', [...content.tabsFor('S', caps).where(
+          (tab) => tab.id != 'big'), withReads(20).copyWith(readBudget: 10)],
+          caps, author: 'admin1'),
+      throwsA(isA<FormatException>().having(
+          (e) => e.message, 'message', 'std.module.editor.overBudget')),
+    );
   });
 
   test('customization bundle carries localized text and excludes connection',
