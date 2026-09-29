@@ -42,7 +42,10 @@ show takes no place, and a column is dropped when a card would be narrower than 
 be read. The Overview carries every card, two columns by default,
 with the description, documents and configuration cards present but hidden; every other
 card tab carries its own cards in one column. The tab strip is omitted when only one tab
-is visible.
+is visible. A tab with nothing to show this session - a card tab none of whose cards is
+shown (hidden, above the session's level, or without data on this module), or a custom
+view with neither controls nor a picture - is left out of the strip; in edit mode every
+tab is shown, so an empty one can still be arranged.
 
 In edit mode an authenticated `ADMIN` arranges each card tab - adds or removes cards,
 drags them into order, hides or shows each, sets the minimum `AccessLevel` to see each

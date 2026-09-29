@@ -74,11 +74,14 @@ void main() {
     final app = AppState(SimRepository());
     await tester.pumpWidget(FraktalHmiApp(app: app));
     await tester.pump(const Duration(seconds: 2));
-    app.select('StationA.Separator1');
+    // A Unit: several tabs with something to show (a tab with nothing to show
+    // is left out of the bar, so a module needs two to have a TabBarView).
+    app.select('StationA');
     await tester.pump();
 
     final before = tester.widget<TabBarView>(find.byType(TabBarView));
-    await tester.tap(find.text('Description'));
+    await tester.tap(find.descendant(
+        of: find.byType(TabBar), matching: find.text('Configuration')));
     await tester.pump();
     final afterStart = tester.widget<TabBarView>(find.byType(TabBarView));
     expect(identical(before, afterStart), isTrue);
@@ -87,11 +90,11 @@ void main() {
     );
     expect(controller.animationDuration, Duration.zero);
     // Atomic: the animation already stands on the selected tab, wherever the
-    // Description tab sits in the row.
+    // Configuration tab sits in the row.
     expect(controller.index, greaterThan(0));
     expect(controller.animation!.value, controller.index.toDouble());
     await tester.pump();
-    expect(find.text('Information'), findsOneWidget);
+    expect(find.text('Station configuration'), findsWidgets);
     expect(tester.takeException(), isNull);
     app.dispose();
   });

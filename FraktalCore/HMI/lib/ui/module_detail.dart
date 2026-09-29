@@ -54,6 +54,24 @@ class _ModuleDetailState extends State<ModuleDetail> {
 
   AppState get app => widget.app;
 
+  /// A tab with nothing to show this session: a card tab none of whose cards
+  /// is shown (hidden, above the session's level, or with no data here), or a
+  /// custom view with neither controls nor a picture. It is left out of the
+  /// tab bar - an empty
+  /// tab is a click that shows nothing - and comes back in edit mode, where
+  /// an ADMIN arranges it.
+  bool _isEmptyTab(BuildContext context, ModuleNode node, ModuleTabDefinition tab) {
+    if (tab.kind.hostsCards) {
+      return _ModuleCardsTab(
+              app: app, node: node, tab: tab, guidanceTab: _guidanceTab)
+          .shownCards(context)
+          .isEmpty;
+    }
+    return tab.kind == ModuleTabKind.custom &&
+        tab.controls.isEmpty &&
+        tab.background == null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final node = app.selected;
@@ -66,11 +84,12 @@ class _ModuleDetailState extends State<ModuleDetail> {
     final allTabs = _editing && _draftPath == node.path
         ? _draftTabs
         : app.content.tabsFor(node.path, capabilities, typeKey: node.typeKey);
-    final visibleTabs = allTabs
-        .where((tab) => app.session.level.index >= tab.requiredLevel.index)
-        .toList(growable: false);
     _guidanceTab =
         allTabs.where((tab) => tab.kind == ModuleTabKind.guidance).firstOrNull;
+    final visibleTabs = allTabs
+        .where((tab) => app.session.level.index >= tab.requiredLevel.index)
+        .where((tab) => _editing || !_isEmptyTab(context, node, tab))
+        .toList(growable: false);
     _scheduleGuidance(node, visibleTabs);
 
     if (visibleTabs.isEmpty) {
@@ -1036,30 +1055,36 @@ class _ModuleCardsTab extends StatelessWidget {
 
   static const _gap = 12.0;
 
+  /// The cards an operator sees on this tab now: arranged, not hidden, within
+  /// the session's level, and with something to show for this module.
+  List<Widget> shownCards(BuildContext context) {
+    final s = app.session;
+    return [
+      for (final placement in tab.effectiveCards)
+        if (!placement.hidden &&
+            _sectionPermits(placement.kind) &&
+            s.level.index >= placement.requiredLevel.index)
+          if (_card(context, node, placement.kind) case final card?)
+            KeyedSubtree(
+                key: ValueKey('module-card-${placement.kind.name}'),
+                child: card),
+    ];
+  }
+
   /// Narrower than this and a column is dropped: a card needs room to read.
   static const _minCardWidth = 320.0;
 
   @override
   Widget build(BuildContext context) {
     final n = node;
-    final s = app.session;
     final placements = tab.effectiveCards;
-    final items = <Widget>[];
-    for (final placement in placements) {
-      final permitted = _sectionPermits(placement.kind) &&
-          s.level.index >= placement.requiredLevel.index;
-      if (!editing) {
-        if (placement.hidden || !permitted) continue;
-        final card = _card(context, n, placement.kind);
-        if (card != null) {
-          items.add(KeyedSubtree(
-              key: ValueKey('module-card-${placement.kind.name}'), child: card));
-        }
-      } else {
-        items.add(_editableCard(context, n, placement, placements));
-      }
-    }
-    if (editing) items.add(_endDropTarget(context, placements));
+    final items = editing
+        ? <Widget>[
+            for (final placement in placements)
+              _editableCard(context, n, placement, placements),
+            _endDropTarget(context, placements),
+          ]
+        : shownCards(context);
     if (items.isEmpty) {
       return const Center(child: LText('std.module.cards.none'));
     }

@@ -218,4 +218,35 @@ void main() {
         reason: 'configuration has its own tab and starts hidden here');
     app.dispose();
   });
+
+  testWidgets('a tab with nothing to show is hidden, and back in edit mode',
+      (tester) async {
+    tester.view.physicalSize = const Size(1800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repo = SimRepository();
+    final app = AppState(repo);
+    await tester.pumpWidget(FraktalHmiApp(app: app));
+    await tester.pump(const Duration(seconds: 2));
+    expect(await repo.login('StationA', 'admin1', '2468'), isTrue);
+    app.select('StationA.Separator1');
+    await tester.pump(const Duration(seconds: 1));
+
+    List<String> tabs() => [
+          for (final text in tester.widgetList<Text>(find.descendant(
+              of: find.byType(TabBar), matching: find.byType(Text))))
+            text.data ?? '',
+        ];
+    final shown = tabs();
+    expect(shown, isNot(contains('Hardware')),
+        reason: 'a separator publishes no hardware facet: nothing to show');
+    await tester.tap(find.byKey(const Key('module-layout-edit-toggle')));
+    await tester.pump(const Duration(milliseconds: 500));
+    final editing = tabs();
+    expect(editing, contains('Hardware'),
+        reason: 'an ADMIN arranging tabs sees the empty ones too');
+    expect(shown.every(editing.contains), isTrue);
+    app.dispose();
+  });
 }
