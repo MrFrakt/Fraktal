@@ -2427,6 +2427,8 @@ _pModelView := 0;]]></ST>
     <Method Name="M_AppendModelConfig" Id="{0e6d90bf-ad76-4384-ab12-1767af3d1a4f}">
       <Declaration><![CDATA[// §3.8a - the manifest walk (M_AppendConfig) with the model-data values of
 // AvailableModels[ModelIndex] (0 = the active model). FALSE = no such model.
+// For another model the walk yields that model's data only: the rest of the
+// manifest is the running station's and is served by index 0.
 METHOD M_AppendModelConfig : BOOL
 VAR_INPUT
     Pager      : REFERENCE TO FB_ConfigPager;
@@ -2437,7 +2439,9 @@ END_VAR]]></Declaration>
 IF NOT _M_OpenModelView(Index := ModelIndex) THEN
     RETURN;
 END_IF
+Pager.M_SetModelOnly(Enabled := ModelIndex > 0);
 M_AppendConfig(Pager := Pager);
+Pager.M_SetModelOnly(Enabled := FALSE);
 _pModelView := 0;
 M_AppendModelConfig := TRUE;]]></ST>
       </Implementation>

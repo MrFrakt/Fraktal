@@ -33,6 +33,9 @@ VAR
     // nobody configured, such as a test's) publishes every value as readable.
     {attribute 'OPC.UA.DA' := '0'}
     _pAccess : POINTER TO FB_AccessManager;
+    // §3.8a - another model's page: only model-scoped capabilities are counted
+    // and stored. Reset by every M_Setup.
+    _modelOnly : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[; // stateless between requests — driven entirely by M_Setup/M_Append/M_Finish]]></ST>
@@ -59,6 +62,7 @@ END_VAR]]></Declaration>
 _pTarget := 0;
 _storedSlot := 0;
 _setStore := 0;                 // a manifest walk never writes set records
+_modelOnly := FALSE;
 IF Target = 0 THEN
     RETURN;
 END_IF
@@ -83,12 +87,27 @@ VAR_INPUT
     Scope     : STRING(255);
     Item      : STRING(255);
     ValueText : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Append := TRUE;
+_storedSlot := 0;
+// Another model's page holds its model data only; a plain entry is none.
+IF _modelOnly THEN
+    RETURN;
+END_IF
+_M_Window(Scope := Scope, Item := Item, ValueText := ValueText);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Window" Id="{658f0208-44a3-42a1-8b16-2a4ae7e884c0}">
+      <Declaration><![CDATA[// Count one entry of the walk and store it when it falls in the page window.
+METHOD PRIVATE _M_Window
+VAR_INPUT
+    Scope     : STRING(255);
+    Item      : STRING(255);
+    ValueText : STRING(255);
 END_VAR
 VAR
     slot : DINT;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[M_Append := TRUE;
-_storedSlot := 0;
+      <Implementation><ST><![CDATA[_storedSlot := 0;
 IF _pTarget = 0 THEN
     RETURN;
 END_IF
@@ -166,8 +185,17 @@ VAR
     writeLevel : E_AccessLevel;
     readable   : BOOL;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[M_AppendCapability := M_Append(Scope := Scope, Item := Item,
-    ValueText := ValueText);
+      <Implementation><ST><![CDATA[M_AppendCapability := TRUE;
+_storedSlot := 0;
+IF _modelOnly THEN
+    IF NOT ModelScoped THEN
+        RETURN;
+    END_IF
+    _M_Window(Scope := Scope, Item := Item, ValueText := ValueText);
+ELSE
+    M_AppendCapability := M_Append(Scope := Scope, Item := Item,
+        ValueText := ValueText);
+END_IF
 // §3.8b — offered to an open set save BEFORE the page-window test, because a
 // set has no window: it takes every record the walk produces, whichever page
 // the same walk would have put it on.
@@ -346,6 +374,17 @@ END_VAR]]></Declaration>
 IF (_pTarget <> 0) AND (_storedSlot > 0) THEN
     _pTarget^.Entries[_storedSlot].ValueType := E_ConfigValueType.NUMBER;
 END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SetModelOnly" Id="{50d0003a-2c3d-41a7-a85f-846428eac2d6}">
+      <Declaration><![CDATA[// §3.8a - the rest of this walk serves another model's record: only
+// capabilities marked ModelScoped are counted and stored, so the answer is that
+// model's data - a page or two - not the whole station manifest.
+METHOD M_SetModelOnly : BOOL
+VAR_INPUT
+    Enabled : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_modelOnly := Enabled;
+M_SetModelOnly := TRUE;]]></ST></Implementation>
     </Method>
     <Method Name="M_Finish" Id="{92cf5e48-71b3-4da6-a5f2-3e08b19dc271}">
       <Declaration><![CDATA[// Close the walk: publish the total page count for the HMI's fetch loop.

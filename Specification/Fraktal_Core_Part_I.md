@@ -370,7 +370,9 @@ source) leaves every model but the active one read-only and active edits unsaved
 before. A child module's `ParCfg` follows the active model only. An unknown index is
 refused with `std.error.modelNotAvailable`; a client **shall** send an index only with a
 value marked `ModelScoped`, because a controller that marks none reads every request as
-the active model.
+the active model. A query for any index but 0 answers with that model's model-scoped
+values only: the rest of the manifest belongs to the running station and is served by
+index 0, and a client reading one model's recipe shall not have to walk it.
 
 **Atomic changeover.** `SetModel` first calls `PrepareRecipe(Model)` recursively. Validation, migration, provider I/O, and every fallible operation occur only in this phase. Any rejection calls `AbortRecipe()` and leaves every active `ParCfg` and the root identity unchanged. After every participant accepts, `CommitRecipe()` is an infallible, bounded in-memory publication at the scan boundary; it performs no validation or I/O. The root publishes the new `ModelId` only after commit. Station configuration is outside this transaction.
 

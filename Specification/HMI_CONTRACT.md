@@ -219,8 +219,9 @@ A value published with `ModelScoped = TRUE` (Core §3.8a, Core 0.19+) belongs to
 model record. The model-data card offers every `AvailableModels` entry beside the running
 one: `QUERY_CONFIG` and `WRITE_CONFIG` carry the chosen model in `DurationMs`
 (0 = running, n = `AvailableModels[n]`), and the card reads the record back after each
-accepted write because another model's values are not in the live tree. `DurationMs` is
-0 for every other value. Model data, station configuration and line data are separate
+accepted write because another model's values are not in the live tree. A query for
+another model answers with its model-scoped values only - normally one page - never the
+station manifest. `DurationMs` is 0 for every other value. Model data, station configuration and line data are separate
 cards (`modelData`, `stationData`, `lineData`); a stored layout naming the former single
 `configuration` card expands to the three in place.
 

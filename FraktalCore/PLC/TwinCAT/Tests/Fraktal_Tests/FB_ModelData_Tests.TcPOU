@@ -21,7 +21,7 @@ END_VAR]]></Declaration>
       <ST><![CDATA[Another_model_is_served_and_edited_in_its_own_record();
 An_edit_of_the_active_model_is_saved_to_its_record();
 An_unknown_model_is_refused();
-Station_values_do_not_follow_the_model();]]></ST>
+Another_model_page_holds_only_its_model_data();]]></ST>
     </Implementation>
     <Method Name="_M_Arm" Id="{7c2e9f41-3a56-4b08-9d1e-6f4a2c8b0e73}">
       <Declaration><![CDATA[METHOD PRIVATE _M_Arm]]></Declaration>
@@ -132,18 +132,24 @@ END_IF
 TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="Station_values_do_not_follow_the_model" Id="{9d4c1a7e-3f58-4b26-8e0b-5a2f9d6c1e37}">
-      <Declaration><![CDATA[METHOD Station_values_do_not_follow_the_model]]></Declaration>
+    <Method Name="Another_model_page_holds_only_its_model_data" Id="{9d4c1a7e-3f58-4b26-8e0b-5a2f9d6c1e37}">
+      <Declaration><![CDATA[// One page, not the whole station manifest: an HMI reading another model
+// must not walk every module's capabilities to find four values.
+METHOD Another_model_page_holds_only_its_model_data]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TEST('Station_values_do_not_follow_the_model');
+        <ST><![CDATA[TEST('Another_model_page_holds_only_its_model_data');
 _M_Arm();
 IF NOT _w4 THEN
-    AssertTrue(Condition := _M_Find(ModelIndex := 2, WriteKey := 'probe.limit'),
-        Message := 'the station value is served with model B$'s page');
+    AssertFalse(Condition := _M_Find(ModelIndex := 2, WriteKey := 'probe.limit'),
+        Message := 'station data is not part of another model$'s page');
+    AssertEquals_INT(Expected := 1, Actual := _page.EntryCount,
+        Message := 'the page holds the model data and nothing else');
+    AssertEquals_INT(Expected := 1, Actual := _page.PageCount,
+        Message := 'so it is one page');
+    AssertTrue(Condition := _M_Find(ModelIndex := 0, WriteKey := 'probe.limit'),
+        Message := 'the running model$'s page is still the whole manifest');
     AssertFalse(Condition := _entry.ModelScoped,
-        Message := 'but it is station data, not model data');
-    AssertEquals_STRING(Expected := '5', Actual := _entry.ValueText,
-        Message := 'and shows the one station value');
+        Message := 'where station data is marked as not model-scoped');
     _w4 := TRUE;
 END_IF
 TEST_FINISHED();]]></ST>

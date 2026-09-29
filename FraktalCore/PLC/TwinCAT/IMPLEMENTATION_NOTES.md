@@ -4990,3 +4990,25 @@ secret after each attempt; the table itself undid that.
 `FB_Access_Tests` gains `Re_registering_replaces_the_PIN` (two users sharing a PIN,
 old PIN refused after re-registration, unknown user and empty secret refused).
 Core/Modules: 197 tests / 44 suites.
+
+## 151. Another model's data is served as one page (Core 0.21.0.0, 2026-09-28)
+
+Found on the live press: choosing another model in the HMI's model card took 50+
+mailbox round trips. §149 served another model through the ordinary manifest walk with
+the model's record swapped in, so the answer was the whole station manifest - every
+module's capabilities, the command catalogues, the fieldbus topology, the §3.13 step
+definitions - paged 16 entries at a time, from which the HMI kept four values.
+
+- **`FB_ConfigPager.M_SetModelOnly`.** While it is on, the walk counts and stores only
+  capabilities marked `ModelScoped`; a plain entry, and a capability that is not model
+  data, is skipped before it is counted. The page count therefore follows what is kept,
+  and the answer is one page for a record of up to 16 values. `M_Setup` resets it, so a
+  walk cannot inherit it from an earlier request.
+- **`M_AppendModelConfig` turns it on for any index but 0.** Index 0 is the running
+  model, and its answer is the whole manifest as before: nothing else uses the index.
+- `M_Append` became a filter over the private `_M_Window`, which is the old body; a
+  capability that passes the filter goes straight to the window.
+
+`FB_ModelData_Tests.Station_values_do_not_follow_the_model` became
+`Another_model_page_holds_only_its_model_data`: model B's page holds one entry on one page,
+and the running model's page still carries the station value. Counts unchanged.
