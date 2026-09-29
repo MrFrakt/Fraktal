@@ -86,7 +86,10 @@ void main() {
       tester.element(find.byType(TabBar)),
     );
     expect(controller.animationDuration, Duration.zero);
-    expect(controller.animation!.value, 1);
+    // Atomic: the animation already stands on the selected tab, wherever the
+    // Description tab sits in the row.
+    expect(controller.index, greaterThan(0));
+    expect(controller.animation!.value, controller.index.toDouble());
     await tester.pump();
     expect(find.text('Information'), findsOneWidget);
     expect(tester.takeException(), isNull);

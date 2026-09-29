@@ -41,9 +41,11 @@ class _CycleTrendViewState extends State<CycleTrendView> {
           Row(children: [
             const Icon(Icons.stacked_bar_chart),
             const SizedBox(width: 8),
-            LText('Cycle-time trend (${h.length} cycles)',
-                style: theme.textTheme.titleMedium),
-            const Spacer(),
+            Expanded(
+              child: LText('Cycle-time trend (${h.length} cycles)',
+                  style: theme.textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis),
+            ),
             if (widget.minCycleTime > Duration.zero)
               LText('best ${_s(widget.minCycleTime)}',
                   style: theme.textTheme.labelMedium),

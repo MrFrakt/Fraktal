@@ -360,12 +360,16 @@ class _HistoryBrowserState extends State<HistoryBrowser> {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
+          Wrap(
+              spacing: 4,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
             const Icon(Icons.history),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             LText('Event history',
                 style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
+            const SizedBox(width: 8),
             for (final k in Severity.values)
               Padding(
                 padding: const EdgeInsets.only(left: 4),

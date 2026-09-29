@@ -52,12 +52,119 @@ enum ModuleTabKind {
   custom,
   guidance,
   // Appended: kinds persist by name, and new ones go last regardless.
-  configuration;
+  configuration,
+  hardware,
+  statistics,
+  events;
 
-  /// The tabs that may carry a background image: the Overview and the tabs an
-  /// administrator authors. The others are fixed views of PLC data. The one
-  /// rule the editor offers and the module view honours.
-  bool get acceptsBackground => this == overview || this == custom;
+  /// The one tab kind that may carry a background picture: a tab an
+  /// administrator authors, with controls placed on the picture. The Overview
+  /// and every other tab are card views.
+  bool get acceptsBackground => this == custom;
+
+  /// Tabs whose body is a flow of cards (the built-in data views) rather than
+  /// authored controls or a dedicated device view.
+  bool get hostsCards => const {
+        overview,
+        description,
+        configuration,
+        hardware,
+        statistics,
+        events,
+      }.contains(this);
+}
+
+/// One card a card tab can show. Persisted by name; new kinds go last.
+enum ModuleCardKind {
+  diagnostic,       // the live first-out line, its I/O tag and clock quality
+  decision,         // §6.11 operator decision prompt
+  currentStep,
+  link,
+  packML,
+  motion,
+  part,
+  safety,
+  systemHealth,
+  controlPower,
+  nameplate,
+  shift,
+  oee,
+  manualCommands,
+  unitControls,     // reset banner, mode/model chips, state flags, Start/Stop
+  counters,         // good / NOK / rework / cycle time
+  cycleAnalysis,    // cycle trend, Gantt, step Pareto, command timing
+  activeEvents,
+  history,
+  description,
+  documents,
+  configuration,
+  operatorGuidance;
+
+  /// Cards that have a tab of their own: on the Overview they start hidden.
+  static const ownTab = {description, documents, configuration};
+
+  /// The cards a tab of [kind] shows until an administrator arranges it.
+  /// The Overview shows every card; the others their own subject.
+  static List<ModuleCardKind> defaultsFor(ModuleTabKind kind) => switch (kind) {
+        ModuleTabKind.overview => values,
+        ModuleTabKind.hardware => const [
+            link,
+            safety,
+            systemHealth,
+            controlPower,
+            motion,
+            nameplate,
+          ],
+        ModuleTabKind.statistics => const [
+            counters,
+            oee,
+            shift,
+            cycleAnalysis,
+          ],
+        ModuleTabKind.events => const [activeEvents, history],
+        ModuleTabKind.description => const [description, documents],
+        ModuleTabKind.configuration => const [configuration],
+        _ => const [],
+      };
+}
+
+/// A card's place on a card tab: which card, whether it is shown, and the
+/// access level needed to see it (on top of the module's section policy).
+class ModuleCardPlacement {
+  final ModuleCardKind kind;
+  final bool hidden;
+  final AccessLevel requiredLevel;
+  const ModuleCardPlacement(
+    this.kind, {
+    this.hidden = false,
+    this.requiredLevel = AccessLevel.none,
+  });
+
+  ModuleCardPlacement copyWith({bool? hidden, AccessLevel? requiredLevel}) =>
+      ModuleCardPlacement(kind,
+          hidden: hidden ?? this.hidden,
+          requiredLevel: requiredLevel ?? this.requiredLevel);
+
+  Map<String, Object?> toJson() => {
+        'kind': kind.name,
+        if (hidden) 'hidden': true,
+        if (requiredLevel != AccessLevel.none)
+          'requiredLevel': requiredLevel.name,
+      };
+
+  static ModuleCardPlacement? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final kind = ModuleCardKind.values
+        .where((value) => value.name == source['kind'])
+        .firstOrNull;
+    if (kind == null) return null;
+    return ModuleCardPlacement(kind,
+        hidden: source['hidden'] == true,
+        requiredLevel: AccessLevel.values
+                .where((value) => value.name == source['requiredLevel'])
+                .firstOrNull ??
+            AccessLevel.none);
+  }
 }
 
 enum ModuleControlKind {
@@ -373,6 +480,8 @@ enum ModuleTabIcon {
   settings,
   speed,
   electrical,
+  // Appended (persisted by name).
+  events,
 }
 
 /// Custom buttons deliberately map only to the existing PLC-owned write
@@ -902,6 +1011,19 @@ class ModuleTabDefinition {
   /// before §7.4), see [viewClass].
   final ModuleViewClass? declaredClass;
 
+  /// A card tab's cards, in order. Empty = the kind's defaults
+  /// ([ModuleCardKind.defaultsFor]), so an unarranged tab needs no storage.
+  final List<ModuleCardPlacement> cards;
+
+  /// A card tab's column count; 0 = the kind's default (Overview 2, others 1).
+  final int columns;
+
+  /// The tab a module opens on. It is shown first, and stays first.
+  final bool isDefault;
+
+  static const maxColumns = 4;
+  static const maxCards = 48;
+
   /// A view's reads are bounded (LOCALIZATION §7.3): every bound tag is a
   /// read, so the budget is refused at publish, not discovered on the panel.
   static const maxBoundReads = 200;
@@ -919,7 +1041,27 @@ class ModuleTabDefinition {
     this.background,
     this.tabIcon,
     this.declaredClass,
+    this.cards = const [],
+    this.columns = 0,
+    this.isDefault = false,
   });
+
+  /// The cards in force: the arranged ones, else the kind's defaults. The
+  /// Overview carries every card, but the ones with a tab of their own
+  /// (description, documents, configuration) start hidden there.
+  List<ModuleCardPlacement> get effectiveCards => cards.isNotEmpty
+      ? cards
+      : [
+          for (final card in ModuleCardKind.defaultsFor(kind))
+            ModuleCardPlacement(card,
+                hidden: kind == ModuleTabKind.overview &&
+                    ModuleCardKind.ownTab.contains(card)),
+        ];
+
+  /// The columns in force.
+  int get effectiveColumns => columns > 0
+      ? columns.clamp(1, maxColumns).toInt()
+      : (kind == ModuleTabKind.overview ? 2 : 1);
 
   /// The class in force. An undeclared view with a picture is a maintenance
   /// view and one without is an operating view, so no layout saved before
@@ -953,6 +1095,9 @@ class ModuleTabDefinition {
         ModuleTabKind.custom => ModuleTabIcon.widgets,
         ModuleTabKind.guidance => ModuleTabIcon.guidance,
         ModuleTabKind.configuration => ModuleTabIcon.tune,
+        ModuleTabKind.hardware => ModuleTabIcon.electrical,
+        ModuleTabKind.statistics => ModuleTabIcon.chart,
+        ModuleTabKind.events => ModuleTabIcon.events,
       };
 
   bool get builtIn => const {
@@ -964,6 +1109,9 @@ class ModuleTabDefinition {
         'rfid',
         'operator-guidance',
         'configuration',
+        'hardware',
+        'statistics',
+        'events',
       }.contains(id);
 
   /// Whether this guidance tab should auto-open for the given live step.
@@ -1002,6 +1150,9 @@ class ModuleTabDefinition {
     ModuleTabBackground? background,
     ModuleTabIcon? tabIcon,
     ModuleViewClass? declaredClass,
+    List<ModuleCardPlacement>? cards,
+    int? columns,
+    bool? isDefault,
   }) =>
       ModuleTabDefinition(
         id: id ?? this.id,
@@ -1016,6 +1167,9 @@ class ModuleTabDefinition {
         background: background ?? this.background,
         tabIcon: tabIcon ?? this.tabIcon,
         declaredClass: declaredClass ?? this.declaredClass,
+        cards: cards ?? this.cards,
+        columns: columns ?? this.columns,
+        isDefault: isDefault ?? this.isDefault,
       );
 
   Map<String, Object?> toJson() => {
@@ -1032,6 +1186,9 @@ class ModuleTabDefinition {
         if (tabIcon != null) 'tabIcon': tabIcon!.name,
         // Recorded in the export (§7.4): a class claimed silently would be.
         if (declaredClass != null) 'viewClass': declaredClass!.name,
+        if (cards.isNotEmpty) 'cards': [for (final card in cards) card.toJson()],
+        if (columns > 0) 'columns': columns,
+        if (isDefault) 'isDefault': true,
         'controls': [for (final control in controls) control.toJson()],
       };
 
@@ -1084,6 +1241,18 @@ class ModuleTabDefinition {
     final rawBackground = source['background'];
     final background = ModuleTabBackground.fromJson(rawBackground);
     if (rawBackground != null && background == null) return null;
+    final cards = <ModuleCardPlacement>[];
+    final rawCards = source['cards'];
+    if (rawCards is List) {
+      if (rawCards.length > maxCards) return null;
+      for (final item in rawCards) {
+        final card = ModuleCardPlacement.fromJson(item);
+        // A card kind this build does not know is skipped, never fatal: a
+        // profile from a newer HMI still loads.
+        if (card != null && !cards.any((c) => c.kind == card.kind)) cards.add(card);
+      }
+    }
+    final rawColumns = source['columns'];
     return ModuleTabDefinition(
       id: id,
       title: title,
@@ -1102,10 +1271,19 @@ class ModuleTabDefinition {
               .where((value) => value.name == source['guidanceMode'])
               .firstOrNull ??
           GuidanceMode.optional,
-      background: background,
-      declaredClass: ModuleViewClass.values
-          .where((value) => value.name == source['viewClass'])
-          .firstOrNull,
+      // Only an authored tab carries a picture: one stored on the Overview
+      // before pictures left it is dropped, not failed on.
+      background: kind.acceptsBackground ? background : null,
+      declaredClass: kind.acceptsBackground
+          ? ModuleViewClass.values
+              .where((value) => value.name == source['viewClass'])
+              .firstOrNull
+          : null,
+      cards: kind.hostsCards ? cards : const [],
+      columns: kind.hostsCards && rawColumns is num
+          ? rawColumns.toInt().clamp(0, maxColumns).toInt()
+          : 0,
+      isDefault: source['isDefault'] == true,
       tabIcon: ModuleTabIcon.values
           .where((value) => value.name == source['tabIcon'])
           .firstOrNull,
@@ -1119,6 +1297,22 @@ class ModuleTabDefinition {
         id: 'overview',
         title: 'std.module.tab.overview',
         kind: ModuleTabKind.overview,
+      ),
+      const ModuleTabDefinition(
+        id: 'hardware',
+        title: 'std.module.tab.hardware',
+        kind: ModuleTabKind.hardware,
+      ),
+      if (capabilities.unit)
+        const ModuleTabDefinition(
+          id: 'statistics',
+          title: 'std.module.tab.statistics',
+          kind: ModuleTabKind.statistics,
+        ),
+      const ModuleTabDefinition(
+        id: 'events',
+        title: 'std.module.tab.events',
+        kind: ModuleTabKind.events,
       ),
       const ModuleTabDefinition(
         id: 'description',

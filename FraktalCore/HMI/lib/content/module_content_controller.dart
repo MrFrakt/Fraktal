@@ -267,17 +267,28 @@ class ModuleContentController extends ChangeNotifier {
     final defaults = ModuleTabDefinition.defaults(capabilities);
     final configured = _layouts[scope] ??
         (typeKey.isEmpty ? null : _layouts[typeScope(typeKey)]);
-    if (configured == null) return List.unmodifiable(defaults);
+    if (configured == null) return List.unmodifiable(defaultFirst(defaults));
 
-    final byId = {for (final tab in configured) tab.id: tab};
+    // The stored order is the administrator's (tabs are dragged into it); a
+    // built-in tab the layout predates is appended rather than dropped. Stored
+    // specialized/custom tabs are kept even if the current snapshot is
+    // temporarily missing that capability: their access policy and content
+    // must not disappear during a device reconnect.
+    final stored = {for (final tab in configured) tab.id};
     final merged = <ModuleTabDefinition>[
-      for (final tab in defaults) byId.remove(tab.id) ?? tab,
-      // Keep imported specialized/custom tabs even if the current snapshot is
-      // temporarily missing that capability. Their access policy and content
-      // must not disappear during a device reconnect.
-      ...byId.values,
+      ...configured,
+      for (final tab in defaults)
+        if (!stored.contains(tab.id)) tab,
     ];
-    return List.unmodifiable(merged);
+    return List.unmodifiable(defaultFirst(merged));
+  }
+
+  /// The default tab leads, whatever order the rest are in; without one the
+  /// order is kept as it is.
+  static List<ModuleTabDefinition> defaultFirst(List<ModuleTabDefinition> tabs) {
+    final index = tabs.indexWhere((tab) => tab.isDefault);
+    if (index <= 0) return tabs;
+    return [tabs[index], ...tabs.take(index), ...tabs.skip(index + 1)];
   }
 
   Future<void> setTabs(
@@ -407,7 +418,15 @@ class ModuleContentController extends ChangeNotifier {
       throw const FormatException('Invalid module tab count');
     }
     final ids = <String>{};
+    if (tabs.where((tab) => tab.isDefault).length > 1) {
+      throw const FormatException('std.module.editor.oneDefaultTab');
+    }
     for (final tab in tabs) {
+      if (tab.columns < 0 ||
+          tab.columns > ModuleTabDefinition.maxColumns ||
+          tab.cards.length > ModuleTabDefinition.maxCards) {
+        throw const FormatException('Invalid module card layout');
+      }
       if (!ids.add(tab.id) || tab.controls.length > 64) {
         throw const FormatException('Invalid or duplicate module tab');
       }

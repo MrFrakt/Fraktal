@@ -637,7 +637,7 @@ authorization is historical and shall not be inferred.
   That derivation is also why a multi-PLC host gives every gateway instance a
   whole origin of its own (§5) rather than a path prefix.
 - Connection ownership precedes the operator shell: `ConnectionBootstrap` opens the wizard until an endpoint has reached `LIVE`, removes the interactive HMI immediately on `STALE`/`DOWN`, and exposes connection editing only after 30 s without `LIVE`. Never bypass this gate or queue writes across reconnect.
-- Module details are tabbed and data-driven. Overview/Description are standard; typed category data may add Motion/Vision/Code Reader/RFID tabs. ADMIN-authored custom/guidance controls select compatible current-module scalar tags through autocomplete and use only the existing PLC-validated repository actions—never add arbitrary OPC UA writes or station screens. Scalar/LED/input controls bind one tag; charts bind at most eight numeric tags. Custom tab icons and an optional fitted/aligned/margined Overview or custom-tab background are portable presentation data. Guidance is triggered by `CurrentStep` but never advances a PLC step by dismissal. The portable customization bundle includes layouts, bindings, access policy, images/PDFs, and localization overrides; it deliberately excludes connection settings and session/credentials. Import remaps only deterministic module-path changes and preserves ambiguous paths as deferred content—never discard profiles merely because the live project structure changed (`HMI_CONTRACT.md`, `LOCALIZATION_AND_MODULE_CONTENT.md`).
+- Module details are tabbed and data-driven. The built-in card tabs (Overview, Hardware, Statistics, Events, Description, Configuration) are flows of cards whose order, visibility, per-card level and column count an ADMIN arranges, and any tab may be the default (shown first); typed category data may add Motion/Vision/Code Reader/RFID tabs. ADMIN-authored custom/guidance controls select compatible current-module scalar tags through autocomplete and use only the existing PLC-validated repository actions—never add arbitrary OPC UA writes or station screens. Scalar/LED/input controls bind one tag; charts bind at most eight numeric tags. Custom tab icons and an optional fitted/aligned/margined custom-tab background are portable presentation data; card tabs carry no picture. Guidance is triggered by `CurrentStep` but never advances a PLC step by dismissal. The portable customization bundle includes layouts, bindings, access policy, images/PDFs, and localization overrides; it deliberately excludes connection settings and session/credentials. Import remaps only deterministic module-path changes and preserves ambiguous paths as deferred content—never discard profiles merely because the live project structure changed (`HMI_CONTRACT.md`, `LOCALIZATION_AND_MODULE_CONTENT.md`).
 - **A status colour is chosen for the surface it lands on, in every selectable theme.**
   The §8.1 semantics are fixed (READY/BUSY/DONE/ERROR/ABORTED, HIGH/MEDIUM/LOW)
   but the SHADE is not: a single constant tuned for a light card measured ~2:1 as
@@ -759,7 +759,7 @@ rather than hard-coding a path):
 ```
 flutter pub get
 flutter analyze                 # clean as of 2026-09-28 (Flutter 3.47.5)
-flutter test                    # 389 passing, 6 intentional live-environment skips
+flutter test                    # 397 passing, 6 intentional live-environment skips
 flutter run -d windows|chrome
 ```
 **The pinned version is 3.47.5, and `pub get` will not tell you when you are on the

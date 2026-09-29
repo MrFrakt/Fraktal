@@ -82,8 +82,14 @@ void main() {
       () {
     final tabs = ModuleTabDefinition.defaults(
         const ModuleTabCapabilities(unit: true, configuration: true));
-    expect(tabs.map((tab) => tab.id).take(3),
-        ['overview', 'description', 'configuration']);
+    expect(tabs.map((tab) => tab.id).take(6), [
+      'overview',
+      'hardware',
+      'statistics',
+      'events',
+      'description',
+      'configuration',
+    ]);
     final config = tabs.firstWhere((tab) => tab.id == 'configuration');
     expect(config.kind, ModuleTabKind.configuration);
     expect(config.builtIn, isTrue, reason: 'a built-in tab cannot be deleted');
@@ -104,7 +110,15 @@ void main() {
 
     expect(
       first.tabsFor('StationA', capabilities).map((tab) => tab.id),
-      ['overview', 'description', 'motion', 'operator-guidance'],
+      [
+        'overview',
+        'hardware',
+        'statistics',
+        'events',
+        'description',
+        'motion',
+        'operator-guidance',
+      ],
     );
     const custom = ModuleTabDefinition(
       id: 'quality',
@@ -158,19 +172,17 @@ void main() {
       'OutImm/TargetTemperature',
     ]);
     expect(tabs.last.effectiveIcon, ModuleTabIcon.chart);
-    expect(tabs.first.background?.imageName, 'module-3d.png');
-    expect(tabs.first.background?.fit, ModuleBackgroundFit.fitWidth);
-    expect(
-        tabs.first.background?.position, ModuleBackgroundPosition.bottomRight);
+    // The Overview is a card view: a picture stored on it is dropped on load.
+    expect(tabs.first.background, isNull);
   });
 
-  test('a custom tab carries a background image like the Overview', () async {
+  test('only a custom tab carries a background image', () async {
     expect(
       [
         for (final kind in ModuleTabKind.values)
           if (kind.acceptsBackground) kind,
       ],
-      [ModuleTabKind.overview, ModuleTabKind.custom],
+      [ModuleTabKind.custom],
     );
     final store = MemoryContentStore();
     final localization =
@@ -481,14 +493,18 @@ void main() {
 
     List<ModuleTabDefinition> withBackground(
         ModuleContentController controller, AccessLevel level) {
+      // The picture rides on an authored tab: only those carry one.
       return [
         for (final tab in controller.tabsFor('StationA', capabilities))
-          tab.id == 'overview'
-              ? tab.copyWith(
-                  requiredLevel: level,
-                  background: ModuleTabBackground(
-                      imageBase64: image, imageName: 'cell.png'))
-              : tab,
+          if (tab.id != 'cell') tab,
+        ModuleTabDefinition(
+          id: 'cell',
+          title: 'Cell',
+          kind: ModuleTabKind.custom,
+          requiredLevel: level,
+          background:
+              ModuleTabBackground(imageBase64: image, imageName: 'cell.png'),
+        ),
       ];
     }
 
@@ -522,13 +538,16 @@ void main() {
       final restored =
           ModuleContentController(store: store, localization: localization);
       await restored.load();
-      final current =
-          restored.tabsFor('StationA', capabilities).first.background!;
+      final current = restored
+          .tabsFor('StationA', capabilities)
+          .firstWhere((tab) => tab.id == 'cell')
+          .background!;
       expect(current.imageBase64, image);
       final withImage = [
         for (final revision in restored.revisionsFor('StationA'))
-          if (revision.tabs.first.background?.imageBase64.isNotEmpty ?? false)
-            revision.tabs.first.background!.imageBase64,
+          for (final tab in revision.tabs)
+            if (tab.background?.imageBase64.isNotEmpty ?? false)
+              tab.background!.imageBase64,
       ];
       expect(withImage, isNotEmpty);
       for (final copy in withImage) {
@@ -565,8 +584,13 @@ void main() {
       final restored =
           ModuleContentController(store: legacy, localization: localization);
       await restored.load();
-      expect(restored.tabsFor('StationA', capabilities).first.background
-          ?.imageBase64, image);
+      expect(
+          restored
+              .tabsFor('StationA', capabilities)
+              .firstWhere((tab) => tab.id == 'cell')
+              .background
+              ?.imageBase64,
+          image);
       await restored.setTabs(
           'StationA', withBackground(restored, AccessLevel.technician));
       expect((legacy.value['images'] as Map).values.single, image);

@@ -31,13 +31,25 @@ repository hierarchy from stable module/parent IDs (§4.8).
 
 ## Tabbed module detail and administrator customization
 
-Every module detail starts with **Overview** and **Description** tabs. Overview owns
-the live operational, diagnostic, configuration, and history facets; Description owns
-the localized module information and uploaded documents. The tab strip is omitted when
-only one tab is visible. Each tab has an HMI-local minimum `AccessLevel`; only an
-authenticated `ADMIN` may change that threshold, title, order, trigger, or content.
-Like section policy, tab visibility is defense in depth rather than transport
-read authorization.
+Every module detail offers the built-in **card tabs**: **Overview**, **Hardware**
+(safety, system health, control power, device link, motion, nameplate), **Statistics**
+(counters, OEE, shift, cycle analysis; Units only), **Events** (active events, event
+history), **Description** (module information, documents) and, for a module with
+editable values, **Configuration**. A card tab is a flow of cards: the cards fill the
+tab's columns left to right and wrap, and a column is dropped when a card would be
+narrower than it can be read. The Overview carries every card, two columns by default,
+with the description, documents and configuration cards present but hidden; every other
+card tab carries its own cards in one column. The tab strip is omitted when only one tab
+is visible.
+
+In edit mode an authenticated `ADMIN` arranges each card tab - adds or removes cards,
+drags them into order, hides or shows each, sets the minimum `AccessLevel` to see each
+(on top of the module's section policy) and sets the column count - and drags the tabs
+themselves into order. Any tab, a custom one included, may be made the **default tab**:
+the module opens on it, and it stays first. Each tab has an HMI-local minimum
+`AccessLevel`; only an `ADMIN` may change that threshold, title, order, trigger, or
+content. Like section policy, tab and card visibility is defense in depth rather than
+transport read authorization.
 
 Typed/category capabilities add reusable detail tabs without station screens:
 
@@ -107,8 +119,8 @@ falls back to the type and is recorded as a revision. A type layout is stored un
 scope `type:<TypeKey>`, travels in the customization profile, and is never remapped as a
 module path on import. A module that publishes no type key keeps per-path layouts.
 
-The Overview and every custom view declare a display class (§7.4) - operating,
-maintenance or engineering - shown as a badge on the view and recorded in the export.
+Every custom view declares a display class (§7.4) - operating, maintenance or
+engineering - shown as a badge on the view and recorded in the export.
 An operating view is refused a picture at publish; a view stored without a class takes
 maintenance if it carries a picture and operating otherwise. Every view is also
 refused at publish above the standard budget of 200 bound reads (§7.3). On an
@@ -147,11 +159,11 @@ definition. A profile is refused whole if any slot is invalid, travels in the
 customization profile as `tiles`, and an older bundle without it imports unchanged.
 
 An administrator may select a whitelisted portable icon preset for each custom or
-guidance tab. The Overview tab and every custom tab may also carry an embedded
-background image with contain/cover/fit-width/fit-height aspect-ratio presets,
-nine-point alignment, and independent bounded margins. The image remains
-presentation-only behind the tab's live controls; it cannot replace the PLC-owned
-status contract. The other built-in tabs are fixed views of PLC data and carry none.
+guidance tab. A custom tab may also carry an embedded background image with
+contain/cover/fit-width/fit-height aspect-ratio presets, nine-point alignment, and
+independent bounded margins. The image remains presentation-only behind the tab's live
+controls; it cannot replace the PLC-owned status contract. The card tabs, the Overview
+included, carry none: a picture stored on one by an older HMI is dropped on load.
 
 Layout editing cannot create an arbitrary write path. Buttons map only to the existing
 manual-command catalog, Unit start/stop/reset, or `DecisionAnswer`; inputs use the

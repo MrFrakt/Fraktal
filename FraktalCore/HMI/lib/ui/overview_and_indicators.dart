@@ -64,8 +64,10 @@ class CurrentStepCard extends StatelessWidget {
                 Icon(Icons.pending_outlined,
                     size: 16, color: Theme.of(context).colorScheme.tertiary),
                 const SizedBox(width: 6),
-                LText('std.step.awaitingCondition',
-                    args: {'condition': context.tr(c.label)}),
+                Expanded(
+                  child: LText('std.step.awaitingCondition',
+                      args: {'condition': context.tr(c.label)}),
+                ),
               ]),
             ),
           if (step.expected > Duration.zero)
@@ -102,8 +104,11 @@ class StepParetoView extends StatelessWidget {
           Row(children: [
             const Icon(Icons.bar_chart),
             const SizedBox(width: 8),
-            LText('Step Pareto (Avg, Max marker)',
-                style: Theme.of(context).textTheme.titleMedium),
+            Expanded(
+              child: LText('Step Pareto (Avg, Max marker)',
+                  style: Theme.of(context).textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis),
+            ),
           ]),
           const SizedBox(height: 8),
           for (final s in sorted) _bar(context, s, maxMs),

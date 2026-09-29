@@ -1925,4 +1925,5 @@ IconData _tabIconData(ModuleTabIcon icon) => switch (icon) {
       ModuleTabIcon.settings => Icons.settings_outlined,
       ModuleTabIcon.speed => Icons.speed_outlined,
       ModuleTabIcon.electrical => Icons.electrical_services_outlined,
+      ModuleTabIcon.events => Icons.notifications_outlined,
     };

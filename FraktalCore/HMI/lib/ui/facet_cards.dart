@@ -37,15 +37,16 @@ class SystemHealthCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
+            Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
               const Icon(Icons.monitor_heart_outlined),
-              const SizedBox(width: 8),
               LText('System health',
                   style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
               Chip(label: LText(health.healthy ? 'HEALTHY' : 'ATTENTION')),
               if (tower != null) ...[
-                const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: tower!.testActive
                       ? null
@@ -200,17 +201,18 @@ class ControlPowerCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
+            Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
               const Icon(Icons.power_settings_new),
-              const SizedBox(width: 8),
               LText('Control power',
                   style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
               FilledButton.tonal(
                   onPressed:
                       !power.controlOn ? () => _request(onControlOn) : null,
                   child: const LText('Control On')),
-              const SizedBox(width: 8),
               OutlinedButton(
                   onPressed:
                       power.controlOn ? () => _request(onControlOff) : null,
