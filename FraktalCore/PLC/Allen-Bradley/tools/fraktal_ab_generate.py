@@ -1531,7 +1531,13 @@ def command_inputs(app: decl.Application) -> tuple[str, ...]:
         f"FRK_{app.name}_ModeRequest",
         f"FRK_{app.name}_DecisionAnswer",
         f"FRK_{app.name}_JogCommand",
-    )
+        # ModelRequest is SET_MODEL's output, not the plant's. It is declared a
+        # sim input so the CHANGEOVER wait can name it as a condition, and that
+        # alone would have left it in the stimulus surface - externally
+        # writable, so a CIP client could select a model ordinal directly and
+        # skip the range check the mailbox applies. Naming it here is what
+        # makes it None.
+    ) + ((f"FRK_{app.name}_ModelRequest",) if app.models else ())
 
 
 def stimulus_inputs(app: decl.Application) -> tuple[str, ...]:
