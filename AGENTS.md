@@ -759,7 +759,7 @@ rather than hard-coding a path):
 ```
 flutter pub get
 flutter analyze                 # clean as of 2026-09-28 (Flutter 3.47.5)
-flutter test                    # 397 passing, 6 intentional live-environment skips
+flutter test                    # 398 passing, 6 intentional live-environment skips
 flutter run -d windows|chrome
 ```
 **The pinned version is 3.47.5, and `pub get` will not tell you when you are on the

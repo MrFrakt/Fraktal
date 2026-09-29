@@ -11,6 +11,7 @@ import 'package:fraktal_hmi/domain/types.dart';
 import 'package:fraktal_hmi/localization/localization_controller.dart';
 import 'package:fraktal_hmi/main.dart';
 import 'package:fraktal_hmi/state/app_state.dart';
+import 'package:fraktal_hmi/ui/flow_columns.dart';
 
 void main() {
   group('card tab model', () {
@@ -131,6 +132,36 @@ void main() {
         throwsFormatException,
       );
     });
+  });
+
+  testWidgets('a flow, not a grid: each card goes to the shortest column',
+      (tester) async {
+    Widget box(String key, double height) =>
+        SizedBox(key: Key(key), height: height);
+    await tester.pumpWidget(Directionality(
+      textDirection: TextDirection.ltr,
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: 412,
+          child: FlowColumns(columns: 2, gap: 12, children: [
+            box('a', 100),
+            box('b', 300),
+            box('c', 50),
+            box('empty', 0),
+            box('d', 50),
+          ]),
+        ),
+      ),
+    ));
+    Offset at(String key) => tester.getTopLeft(find.byKey(Key(key)));
+    expect(at('a'), Offset.zero);
+    expect(at('b'), const Offset(212, 0));
+    expect(at('c'), const Offset(0, 112),
+        reason: 'under the short card, not below the tall one');
+    expect(at('d'), const Offset(0, 174),
+        reason: 'an empty card takes no place and no gap');
+    expect(tester.getSize(find.byType(FlowColumns)).height, 300);
   });
 
   testWidgets('the Overview flows its cards across two columns',

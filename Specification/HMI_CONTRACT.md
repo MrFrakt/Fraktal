@@ -35,9 +35,11 @@ Every module detail offers the built-in **card tabs**: **Overview**, **Hardware*
 (safety, system health, control power, device link, motion, nameplate), **Statistics**
 (counters, OEE, shift, cycle analysis; Units only), **Events** (active events, event
 history), **Description** (module information, documents) and, for a module with
-editable values, **Configuration**. A card tab is a flow of cards: the cards fill the
-tab's columns left to right and wrap, and a column is dropped when a card would be
-narrower than it can be read. The Overview carries every card, two columns by default,
+editable values, **Configuration**. A card tab is a flow of cards, not a grid: each card
+goes into the currently shortest column (ties go left), so the columns stack
+independently and a tall card leaves no row-high gap beside it; a card with nothing to
+show takes no place, and a column is dropped when a card would be narrower than it can
+be read. The Overview carries every card, two columns by default,
 with the description, documents and configuration cards present but hidden; every other
 card tab carries its own cards in one column. The tab strip is omitted when only one tab
 is visible.

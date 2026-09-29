@@ -19,6 +19,7 @@ import 'cycle_profile_view.dart';
 import 'cycle_trend_view.dart';
 import 'config_and_history.dart';
 import 'facet_cards.dart';
+import 'flow_columns.dart';
 import 'overview_and_indicators.dart';
 import 'module_information.dart';
 import 'custom_module_tabs.dart';
@@ -1066,16 +1067,11 @@ class _ModuleCardsTab extends StatelessWidget {
           (available - _gap * (columns - 1)) / columns < _minCardWidth) {
         columns--;
       }
-      final width = (available - _gap * (columns - 1)) / columns;
+      // A flow, not a grid: each card goes to the shortest column, so a tall
+      // card leaves no row-high gap beside it.
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Wrap(
-          spacing: _gap,
-          runSpacing: _gap,
-          children: [
-            for (final item in items) SizedBox(width: width, child: item),
-          ],
-        ),
+        child: FlowColumns(columns: columns, gap: _gap, children: items),
       );
     });
   }
@@ -1135,7 +1131,11 @@ class _ModuleCardsTab extends StatelessWidget {
           ),
         );
       case ModuleCardKind.decision:
-        return DecisionPrompt(app: app, node: n);
+        // Only while a decision is pending: an empty prompt is no card.
+        final decision = n.decision;
+        return decision == null || !decision.pending
+            ? null
+            : DecisionPrompt(app: app, node: n);
       case ModuleCardKind.currentStep:
         return n.step == null ? null : CurrentStepCard(step: n.step!);
       case ModuleCardKind.link:
