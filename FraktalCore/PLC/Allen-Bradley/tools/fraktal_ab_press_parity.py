@@ -40,6 +40,7 @@ from typing import Any
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
+import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 import fraktal_ab_press_execute as px
 
@@ -65,16 +66,32 @@ PARK_STEP = LOOP_TARGET
 AFTER_PARK = next((s.on_advance for s in AUTO.steps if s.number == PARK_STEP), None)
 
 
+# px.command's `settle` is the acknowledgement DEADLINE, not a linger: the loop
+# returns on the first matching AckSequence, so this costs one round trip and
+# only bounds how long a lost command is allowed to look like a slow one. A
+# zero window can never observe an ack and fails every command by construction.
+ACK_WINDOW = 1.0
+
+
+def ack(settle: float) -> float:
+    return min(settle, ACK_WINDOW)
+
+
 def select(comm: Any, rendition: str) -> bool:
     return px.write(comm, RENDITION, gen.rendition_ordinal(rendition))
 
 
 def reset_chart(comm: Any, settle: float) -> None:
-    """Zero the marks so each rendition's cycle is counted from the same start."""
-    px.write(comm, px.RUN, 0)
-    px.write(comm, px.RESET, 1)
-    time.sleep(min(settle, 0.2))
-    px.write(comm, px.RESET, 0)
+    """Zero the marks so each rendition's cycle is counted from the same start.
+
+    Through the mailbox, not by writing the request tags. Those became
+    ExternalAccess None when AB 11.2.1 was closed on 2026-09-23, so the direct
+    writes this used to make are refused by px.write's own guard - the guard
+    working, not a fault. The mailbox lowers a one-shot itself, so the
+    raise/lower pair written by hand here is gone with it.
+    """
+    px.command(comm, mailbox.STOP, settle=ack(settle))
+    px.command(comm, mailbox.OPERATOR_RESET, settle=ack(settle))
 
 
 def entry_vector(chart: dict[str, Any]) -> dict[int, int]:
@@ -102,7 +119,7 @@ def sampled_trace(comm: Any, settle: float, until: Any) -> list[int]:
 
 def walk_one_cycle(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     """Run exactly one AUTO cycle in one rendition and return its trace."""
-    px.write(comm, px.MODE, px.MODE_AUTO)
+    px.command(comm, mailbox.SET_MODE, settle=ack(settle), IntValue=px.MODE_AUTO)
     px.write(comm, px.PART_PRESENT, 1)
     px.write(comm, px.AIR_OK, 1)
     px.write(comm, px.TWO_HAND, 1)
@@ -115,8 +132,12 @@ def walk_one_cycle(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     # The marks are cumulative and nothing clears them, so a rendition's trace
     # is the delta over its own window.
     chart_before = px.read_chart(comm)
+    px.command(comm, mailbox.START, settle=ack(settle))
+    # t0 is the acknowledgement, not the request. The ack is the scan the
+    # controller accepted START in, so it is a sharper zero than "the write has
+    # left the PC" - which left one un-measured CIP round trip inside every
+    # measured cycle.
     started = time.monotonic()
-    px.write(comm, px.RUN, 1)
     # Withdraw the start condition as soon as the chain has left the start step,
     # not after the cycle finishes. Withdrawing late is a race: if the write
     # lands after the loop has already re-armed the step, the chain runs a whole
@@ -145,7 +166,7 @@ def walk_one_cycle(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
         comm, lambda u: u["Step"] == PARK_STEP, settle)
     time.sleep(min(settle, 0.2))
     resting = px.read_unit(comm)
-    px.write(comm, px.RUN, 0)
+    px.command(comm, mailbox.STOP, settle=ack(settle))
     px.write(comm, px.PART_PRESENT, 1)
 
     chart = px.read_chart(comm)
@@ -172,11 +193,11 @@ def walk_one_cycle(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
 def walk_held(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     """Exercise the held condition at the door-close step in one rendition."""
     held_step = next(s for s in AUTO.steps if s.action == decl.HELD_AWAIT)
-    px.write(comm, px.MODE, px.MODE_AUTO)
+    px.command(comm, mailbox.SET_MODE, settle=ack(settle), IntValue=px.MODE_AUTO)
     px.write(comm, px.TWO_HAND, 1)
     select(comm, rendition)
     reset_chart(comm, settle)
-    px.write(comm, px.RUN, 1)
+    px.command(comm, mailbox.START, settle=ack(settle))
     # Arm during the declared settle rather than racing the four-scan close.
     px.await_unit(comm, lambda u: u["Step"] == 170, settle)
     px.write(comm, px.TWO_HAND, 0)
@@ -186,7 +207,7 @@ def walk_held(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     px.write(comm, px.TWO_HAND, 1)
     resumed, _ = px.await_unit(
         comm, lambda u: u["Held"] == 0 and u["Step"] != held_step.number, settle)
-    px.write(comm, px.RUN, 0)
+    px.command(comm, mailbox.STOP, settle=ack(settle))
     return {
         "rendition": rendition,
         "elapsed_ms": round(elapsed, 3),
@@ -203,19 +224,19 @@ def walk_held(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
 
 def walk_abort(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     """Abort a running cycle in one rendition and require it to stay down."""
-    px.write(comm, px.MODE, px.MODE_AUTO)
+    px.command(comm, mailbox.SET_MODE, settle=ack(settle), IntValue=px.MODE_AUTO)
     px.write(comm, px.PART_PRESENT, 1)
     px.write(comm, px.TWO_HAND, 1)
     select(comm, rendition)
     reset_chart(comm, settle)
-    px.write(comm, px.RUN, 1)
+    px.command(comm, mailbox.START, settle=ack(settle))
     px.await_unit(comm, lambda u: u["Step"] == AFTER_PARK, settle)
     px.write(comm, px.ABORT, 1)
     aborted, elapsed = px.await_unit(comm, lambda u: u["Aborted"] != 0, settle)
     time.sleep(min(settle, 0.25))
     after = px.read_unit(comm)
     px.write(comm, px.ABORT, 0)
-    px.write(comm, px.RUN, 0)
+    px.command(comm, mailbox.STOP, settle=ack(settle))
     return {
         "rendition": rendition,
         "elapsed_ms": round(elapsed, 3),
@@ -384,6 +405,11 @@ def main(argv: list[str] | None = None) -> int:
 
         evidence["wrote"] = True
         evidence["write_surface"] = list(px.WRITABLE)
+        # Start above whatever this controller has already answered. The
+        # handler dispatches on Sequence CHANGING, not on it increasing, so a
+        # harness restarting at 1 is ignored - silently, with no ack - for
+        # exactly as long as it takes to walk past the retained value.
+        evidence["sequence_seed"] = px.seed_sequence(comm)
         try:
             evidence["result"] = run(comm, args.settle)
         finally:
