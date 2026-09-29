@@ -129,6 +129,17 @@ refused at publish above its read budget (§7.3): the standard 200 bound reads, 
 `readBudget` the view declares (a declaration above 200 reads as the standard). On an
 operating view an `ok` state token draws neutral: colour is reserved for the abnormal.
 
+A custom view without a picture may use a **grid container** (§7.2) instead of the flow:
+`grid.base` is a column and row count (at most 12 × 24) and the cell of each control it
+places, by control id — a column/row origin and span, drawn as that fraction of the tab.
+`grid.variants` may re-place the same controls for a control-scale preset (`compact`,
+`medium`, `large`); a scale with no variant shows the base, scaled rather than
+reflowed. A control with no cell in the grid in force is listed beneath it. A cell outside
+its grid, or for a control the view does not hold, is dropped on load rather than drawn
+somewhere nobody placed it; resizing a grid takes off the cells that no longer fit; a view
+with a picture places on the picture and keeps no grid. A placed control is drawn at its
+cell's width and scaled down, never clipped mid-row, when the cell is shorter.
+
 Every control may name a **layer** (§7.2): controls sharing it form a show/hide set the
 viewer toggles with chips (per panel, never while editing). **Z-order** is control
 order; the placement toolbar brings a control to the front or sends it to the back. A

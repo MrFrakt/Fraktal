@@ -706,6 +706,27 @@ const standardEnglish = <String, String>{
       'A tile holds at most 3 metrics (values) and 2 badges (state shapes).',
   'std.module.editor.enabledWhenHelp':
       'Presentation only - the PLC still checks every request. While the tag is unavailable the control is disabled.',
+  'std.module.grid.useGrid': 'Grid layout',
+  'std.module.grid.useGridHelp':
+      'Place controls in a fixed grid of columns and rows instead of the flow. Cells are fractions of the tab, so the grid scales with the panel.',
+  'std.module.grid.pictureWins':
+      'This view has a picture: its controls are placed on the picture, so a grid is not kept.',
+  'std.module.grid.base': 'Base',
+  'std.module.grid.columns': 'Columns',
+  'std.module.grid.rows': 'Rows',
+  'std.module.grid.addVariant': 'Create a variant from the base',
+  'std.module.grid.removeVariant': 'Remove this variant',
+  'std.module.grid.noVariant':
+      'No variant for this control size: the base grid is shown, scaled.',
+  'std.module.grid.unplaced': 'Not in the grid',
+  'std.module.grid.place': 'Place',
+  'std.module.grid.takeOff': 'Take off the grid',
+  'std.module.grid.cell': 'Grid cell',
+  'std.module.grid.column': 'Column',
+  'std.module.grid.row': 'Row',
+  'std.module.grid.columnSpan': 'Columns wide',
+  'std.module.grid.rowSpan': 'Rows high',
+  'std.module.grid.cellInvalid': 'The cell must lie inside the grid.',
   'std.module.editor.dimmedWhen': 'Dimmed while',
   'std.module.editor.dimmedWhenHelp':
       'The control is drawn faded while this holds. While the tag is unavailable it is drawn normally.',
@@ -1763,6 +1784,27 @@ const standardSpanish = <String, String>{
       'Un mosaico admite como máximo 3 métricas (valores) y 2 indicadores (formas de estado).',
   'std.module.editor.enabledWhenHelp':
       'Solo presentación: el PLC sigue verificando cada solicitud. Mientras la etiqueta no esté disponible, el control queda deshabilitado.',
+  'std.module.grid.useGrid': 'Diseño en cuadrícula',
+  'std.module.grid.useGridHelp':
+      'Coloca los controles en una cuadrícula fija de columnas y filas en lugar del flujo. Las celdas son fracciones de la pestaña, así que la cuadrícula se escala con el panel.',
+  'std.module.grid.pictureWins':
+      'Esta vista tiene una imagen: sus controles se colocan sobre la imagen, así que no se conserva una cuadrícula.',
+  'std.module.grid.base': 'Base',
+  'std.module.grid.columns': 'Columnas',
+  'std.module.grid.rows': 'Filas',
+  'std.module.grid.addVariant': 'Crear una variante a partir de la base',
+  'std.module.grid.removeVariant': 'Eliminar esta variante',
+  'std.module.grid.noVariant':
+      'No hay variante para este tamaño de control: se muestra la cuadrícula base, escalada.',
+  'std.module.grid.unplaced': 'Fuera de la cuadrícula',
+  'std.module.grid.place': 'Colocar',
+  'std.module.grid.takeOff': 'Quitar de la cuadrícula',
+  'std.module.grid.cell': 'Celda de la cuadrícula',
+  'std.module.grid.column': 'Columna',
+  'std.module.grid.row': 'Fila',
+  'std.module.grid.columnSpan': 'Columnas de ancho',
+  'std.module.grid.rowSpan': 'Filas de alto',
+  'std.module.grid.cellInvalid': 'La celda debe quedar dentro de la cuadrícula.',
   'std.module.editor.dimmedWhen': 'Atenuado mientras',
   'std.module.editor.dimmedWhenHelp':
       'El control se dibuja atenuado mientras se cumpla. Mientras la etiqueta no esté disponible se dibuja normal.',

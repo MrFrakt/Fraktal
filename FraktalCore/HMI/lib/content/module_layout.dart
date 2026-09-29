@@ -595,6 +595,221 @@ class ModulePlacement {
   }
 }
 
+/// A control's cell in a grid container (LOCALIZATION §7.2): a column/row
+/// origin and a column/row span, in the grid's own units. Where that lands on
+/// screen is a fraction of the container, never a pixel.
+class ModuleGridCell {
+  final int column;
+  final int row;
+  final int columnSpan;
+  final int rowSpan;
+
+  const ModuleGridCell({
+    required this.column,
+    required this.row,
+    this.columnSpan = 1,
+    this.rowSpan = 1,
+  });
+
+  /// Whether this cell lies wholly inside a [columns] x [rows] grid.
+  bool fits(int columns, int rows) =>
+      column >= 0 &&
+      row >= 0 &&
+      columnSpan >= 1 &&
+      rowSpan >= 1 &&
+      column + columnSpan <= columns &&
+      row + rowSpan <= rows;
+
+  /// The cell as fractions (0..1) of its container.
+  ({double x, double y, double width, double height}) fractionIn(
+          int columns, int rows) =>
+      (
+        x: column / columns,
+        y: row / rows,
+        width: columnSpan / columns,
+        height: rowSpan / rows,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is ModuleGridCell &&
+      other.column == column &&
+      other.row == row &&
+      other.columnSpan == columnSpan &&
+      other.rowSpan == rowSpan;
+
+  @override
+  int get hashCode => Object.hash(column, row, columnSpan, rowSpan);
+
+  Map<String, Object?> toJson() => {
+        'column': column,
+        'row': row,
+        'columnSpan': columnSpan,
+        'rowSpan': rowSpan,
+      };
+
+  static ModuleGridCell? fromJson(Object? source) {
+    if (source is! Map) return null;
+    int? read(String name) {
+      final value = source[name];
+      return value is num ? value.toInt() : null;
+    }
+
+    final column = read('column'), row = read('row');
+    if (column == null || row == null) return null;
+    return ModuleGridCell(
+      column: column,
+      row: row,
+      columnSpan: read('columnSpan') ?? 1,
+      rowSpan: read('rowSpan') ?? 1,
+    );
+  }
+}
+
+/// One grid: a column and row count and the cell of each control it places,
+/// by control id. A control it does not place is listed beneath the grid.
+class ModuleGridLayout {
+  static const maxColumns = 12;
+  static const maxRows = 24;
+
+  final int columns;
+  final int rows;
+  final Map<String, ModuleGridCell> cells;
+
+  const ModuleGridLayout({
+    this.columns = 4,
+    this.rows = 4,
+    this.cells = const {},
+  });
+
+  ModuleGridLayout copyWith({
+    int? columns,
+    int? rows,
+    Map<String, ModuleGridCell>? cells,
+  }) {
+    final c = (columns ?? this.columns).clamp(1, maxColumns).toInt();
+    final r = (rows ?? this.rows).clamp(1, maxRows).toInt();
+    // A resize never leaves a cell outside the grid: it is taken off instead.
+    return ModuleGridLayout(
+      columns: c,
+      rows: r,
+      cells: {
+        for (final entry in (cells ?? this.cells).entries)
+          if (entry.value.fits(c, r)) entry.key: entry.value,
+      },
+    );
+  }
+
+  /// This grid with [id] placed at [cell], or taken off (null).
+  ModuleGridLayout place(String id, ModuleGridCell? cell) => copyWith(cells: {
+        for (final entry in cells.entries)
+          if (entry.key != id) entry.key: entry.value,
+        if (cell != null && cell.fits(columns, rows)) id: cell,
+      });
+
+  Map<String, Object?> toJson() => {
+        'columns': columns,
+        'rows': rows,
+        'cells': {
+          for (final entry in cells.entries) entry.key: entry.value.toJson(),
+        },
+      };
+
+  static ModuleGridLayout? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final columns = source['columns'], rows = source['rows'];
+    if (columns is! num ||
+        rows is! num ||
+        columns < 1 ||
+        columns > maxColumns ||
+        rows < 1 ||
+        rows > maxRows) {
+      return null;
+    }
+    final c = columns.toInt(), r = rows.toInt();
+    final cells = <String, ModuleGridCell>{};
+    final rawCells = source['cells'];
+    if (rawCells is Map) {
+      for (final entry in rawCells.entries) {
+        final cell = ModuleGridCell.fromJson(entry.value);
+        // A cell outside the grid is dropped - its control is listed beneath,
+        // never drawn somewhere nobody placed it.
+        if (entry.key is String && cell != null && cell.fits(c, r)) {
+          cells[entry.key as String] = cell;
+        }
+      }
+    }
+    return ModuleGridLayout(columns: c, rows: r, cells: cells);
+  }
+}
+
+/// A grid container (LOCALIZATION §7.2): a base grid and optional variants keyed
+/// to the operator control-scale presets. A scale with no variant uses the base,
+/// scaled rather than reflowed - geometry is fractions of the container.
+class ModuleGrid {
+  /// The control-scale presets a variant may be keyed to (`ControlScale`).
+  static const scales = ['compact', 'medium', 'large'];
+
+  final ModuleGridLayout base;
+  final Map<String, ModuleGridLayout> variants;
+
+  const ModuleGrid({
+    this.base = const ModuleGridLayout(),
+    this.variants = const {},
+  });
+
+  /// The grid in force at control scale [scale].
+  ModuleGridLayout layoutFor(String scale) => variants[scale] ?? base;
+
+  /// This grid with [layout] as the base ([scale] null) or a scale's variant.
+  ModuleGrid withLayout(String? scale, ModuleGridLayout layout) => scale == null
+      ? ModuleGrid(base: layout, variants: variants)
+      : ModuleGrid(base: base, variants: {...variants, scale: layout});
+
+  /// This grid without [scale]'s variant.
+  ModuleGrid withoutVariant(String scale) => ModuleGrid(base: base, variants: {
+        for (final entry in variants.entries)
+          if (entry.key != scale) entry.key: entry.value,
+      });
+
+  /// This grid without any cell for a control not in [ids].
+  ModuleGrid keepOnly(Set<String> ids) {
+    ModuleGridLayout prune(ModuleGridLayout layout) => layout.copyWith(cells: {
+          for (final entry in layout.cells.entries)
+            if (ids.contains(entry.key)) entry.key: entry.value,
+        });
+    return ModuleGrid(base: prune(base), variants: {
+      for (final entry in variants.entries) entry.key: prune(entry.value),
+    });
+  }
+
+  Map<String, Object?> toJson() => {
+        'base': base.toJson(),
+        if (variants.isNotEmpty)
+          'variants': {
+            for (final entry in variants.entries)
+              entry.key: entry.value.toJson(),
+          },
+      };
+
+  static ModuleGrid? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final base = ModuleGridLayout.fromJson(source['base']);
+    if (base == null) return null;
+    final variants = <String, ModuleGridLayout>{};
+    final rawVariants = source['variants'];
+    if (rawVariants is Map) {
+      for (final entry in rawVariants.entries) {
+        final layout = ModuleGridLayout.fromJson(entry.value);
+        if (scales.contains(entry.key) && layout != null) {
+          variants[entry.key as String] = layout;
+        }
+      }
+    }
+    return ModuleGrid(base: base, variants: variants);
+  }
+}
+
 enum ModuleBackgroundFit { contain, cover, fitWidth, fitHeight }
 
 enum ModuleBackgroundPosition {
@@ -1220,6 +1435,10 @@ class ModuleTabDefinition {
   /// [maxBoundReads]. A declaration may lower the standard, never raise it.
   final int readBudget;
 
+  /// A grid container (LOCALIZATION §7.2); null = the flow. A view with a
+  /// picture places controls on the picture instead, so it carries no grid.
+  final ModuleGrid? grid;
+
   static const maxColumns = 4;
   static const maxCards = 48;
   static const maxLayerConditions = 16;
@@ -1250,6 +1469,7 @@ class ModuleTabDefinition {
     this.isDefault = false,
     this.layerConditions = const {},
     this.readBudget = 0,
+    this.grid,
   });
 
   /// The cards in force: the arranged ones, else the kind's defaults. The
@@ -1362,6 +1582,7 @@ class ModuleTabDefinition {
     bool? isDefault,
     Map<String, ModuleCondition>? layerConditions,
     int? readBudget,
+    ModuleGrid? grid,
   }) =>
       ModuleTabDefinition(
         id: id ?? this.id,
@@ -1381,6 +1602,29 @@ class ModuleTabDefinition {
         isDefault: isDefault ?? this.isDefault,
         layerConditions: layerConditions ?? this.layerConditions,
         readBudget: readBudget ?? this.readBudget,
+        grid: grid ?? this.grid,
+      );
+
+  /// This view with [next] as its grid, or back on the flow (null).
+  ModuleTabDefinition withGrid(ModuleGrid? next) => ModuleTabDefinition(
+        id: id,
+        title: title,
+        kind: kind,
+        requiredLevel: requiredLevel,
+        controls: controls,
+        triggerStepNo: triggerStepNo,
+        triggerStepName: triggerStepName,
+        triggerModes: triggerModes,
+        guidanceMode: guidanceMode,
+        background: background,
+        tabIcon: tabIcon,
+        declaredClass: declaredClass,
+        cards: cards,
+        columns: columns,
+        isDefault: isDefault,
+        layerConditions: layerConditions,
+        readBudget: readBudget,
+        grid: next,
       );
 
   Map<String, Object?> toJson() => {
@@ -1406,6 +1650,7 @@ class ModuleTabDefinition {
               entry.key: entry.value.toJson(),
           },
         if (readBudget > 0) 'readBudget': readBudget,
+        if (grid != null) 'grid': grid!.toJson(),
         'controls': [for (final control in controls) control.toJson()],
       };
 
@@ -1487,6 +1732,8 @@ class ModuleTabDefinition {
       }
     }
     final rawBudget = source['readBudget'];
+    final grid = ModuleGrid.fromJson(source['grid'])
+        ?.keepOnly({for (final control in controls) control.id});
     return ModuleTabDefinition(
       id: id,
       title: title,
@@ -1523,6 +1770,8 @@ class ModuleTabDefinition {
       readBudget: rawBudget is num
           ? rawBudget.toInt().clamp(0, maxBoundReads).toInt()
           : 0,
+      // A picture view places on its picture: a grid is kept only without one.
+      grid: kind.acceptsBackground && background == null ? grid : null,
       tabIcon: ModuleTabIcon.values
           .where((value) => value.name == source['tabIcon'])
           .firstOrNull,

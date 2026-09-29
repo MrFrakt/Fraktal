@@ -150,6 +150,8 @@ void main() {
       bool picture = true,
       bool reduceMotion = false,
       Map<String, ModuleCondition> layerConditions = const {},
+      ModuleGrid? grid,
+      void Function(ModuleGrid)? onGrid,
     }) async {
       await tester.binding.setSurfaceSize(const Size(1000, 600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -181,10 +183,12 @@ void main() {
                     ? const ModuleTabBackground(imageBase64: _png2x1)
                     : null,
                 layerConditions: layerConditions,
+                grid: grid,
               ),
               onPlaceControl: onPlace,
               onAddControlAt: onAddAt,
               onReorderControl: onReorder,
+              onGridChanged: onGrid,
             ),
           ),
         ),
@@ -411,6 +415,75 @@ void main() {
           ModuleControlDefinition.dimmedOpacity);
     });
 
+    testWidgets('a grid places controls by fraction; a scale variant reflows',
+        (tester) async {
+      const a = ModuleControlDefinition(
+          id: 'a', kind: ModuleControlKind.text, label: 'Alpha');
+      const b = ModuleControlDefinition(
+          id: 'b', kind: ModuleControlKind.text, label: 'Beta');
+      const c = ModuleControlDefinition(
+          id: 'c', kind: ModuleControlKind.text, label: 'Gamma');
+      const grid = ModuleGrid(
+        base: ModuleGridLayout(columns: 4, rows: 2, cells: {
+          'a': ModuleGridCell(column: 0, row: 0),
+          'b': ModuleGridCell(column: 2, row: 1, columnSpan: 2),
+        }),
+        variants: {
+          'large': ModuleGridLayout(columns: 1, rows: 2, cells: {
+            'a': ModuleGridCell(column: 0, row: 0),
+            'b': ModuleGridCell(column: 0, row: 1),
+          }),
+        },
+      );
+      app.controlScale = ControlScale.medium;
+      await mount(tester,
+          values: const {}, controls: [a, b, c], picture: false, grid: grid);
+      final ra = tester.getRect(find.byKey(const ValueKey('grid-cell-a')));
+      final rb = tester.getRect(find.byKey(const ValueKey('grid-cell-b')));
+      expect(rb.width, closeTo(ra.width * 2, 0.5), reason: 'spans two columns');
+      expect(rb.left - ra.left, closeTo(ra.width * 2, 0.5),
+          reason: 'column 2 of 4 starts half way across');
+      expect(rb.top, greaterThan(ra.top), reason: 'row 1 is below row 0');
+      expect(find.byKey(const ValueKey('grid-cell-c')), findsNothing);
+      expect(find.text('Gamma'), findsOneWidget,
+          reason: 'a control without a cell is listed beneath the grid');
+
+      app.controlScale = ControlScale.large;
+      await mount(tester,
+          values: const {}, controls: [a, b, c], picture: false, grid: grid);
+      final la = tester.getRect(find.byKey(const ValueKey('grid-cell-a')));
+      final lb = tester.getRect(find.byKey(const ValueKey('grid-cell-b')));
+      expect(lb.left, closeTo(la.left, 0.5),
+          reason: 'the large-scale variant stacks them in one column');
+      app.controlScale = ControlScale.medium;
+    });
+
+    testWidgets('editing a grid cell reports the new grid', (tester) async {
+      const a = ModuleControlDefinition(
+          id: 'a', kind: ModuleControlKind.text, label: 'Alpha');
+      ModuleGrid? changed;
+      await mount(tester,
+          values: const {},
+          controls: [a],
+          picture: false,
+          editing: true,
+          grid: const ModuleGrid(
+              base: ModuleGridLayout(columns: 4, rows: 2)),
+          onGrid: (grid) => changed = grid);
+      await tester.tap(find.byKey(const ValueKey('grid-unplaced-a')));
+      await tester.tap(find.text('Place'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('grid-cell-std.module.grid.column')), '3');
+      await tester.enterText(
+          find.byKey(const ValueKey('grid-cell-std.module.grid.columnSpan')),
+          '2');
+      await tester.tap(find.byKey(const ValueKey('grid-cell-save')));
+      await tester.pumpAndSettle();
+      expect(changed!.base.cells['a'],
+          const ModuleGridCell(column: 2, row: 0, columnSpan: 2));
+    });
+
     testWidgets('a bound visible hides - but never on missing data',
         (tester) async {
       const guarded = ModuleControlDefinition(
@@ -587,5 +660,74 @@ void main() {
     final raised = ModuleTabDefinition.fromJson({...tab.toJson(), 'readBudget': 500})!;
     expect(raised.effectiveReadBudget, ModuleTabDefinition.maxBoundReads,
         reason: 'a declaration never raises the standard');
+  });
+
+  group('grid container', () {
+    test('cells are fractions of the grid, and must lie inside it', () {
+      const cell = ModuleGridCell(column: 1, row: 2, columnSpan: 2, rowSpan: 1);
+      final f = cell.fractionIn(4, 4);
+      expect((f.x, f.y, f.width, f.height), (0.25, 0.5, 0.5, 0.25));
+      expect(cell.fits(4, 4), isTrue);
+      expect(cell.fits(2, 4), isFalse);
+    });
+
+    test('shrinking a grid takes off the cells that no longer fit', () {
+      const layout = ModuleGridLayout(columns: 4, rows: 4, cells: {
+        'in': ModuleGridCell(column: 0, row: 0),
+        'out': ModuleGridCell(column: 3, row: 0),
+      });
+      final smaller = layout.copyWith(columns: 2);
+      expect(smaller.cells.keys, ['in']);
+    });
+
+    test('a grid travels in the layout; bad cells and scales are dropped', () {
+      const tab = ModuleTabDefinition(
+        id: 't',
+        title: 'T',
+        kind: ModuleTabKind.custom,
+        controls: [
+          ModuleControlDefinition(id: 'a', kind: ModuleControlKind.text),
+        ],
+        grid: ModuleGrid(
+          base: ModuleGridLayout(columns: 3, rows: 2, cells: {
+            'a': ModuleGridCell(column: 1, row: 1),
+          }),
+          variants: {'compact': ModuleGridLayout(columns: 1, rows: 3)},
+        ),
+      );
+      final json = tab.toJson();
+      final restored = ModuleTabDefinition.fromJson(json)!;
+      expect(restored.grid!.base.cells['a'], const ModuleGridCell(column: 1, row: 1));
+      expect(restored.grid!.layoutFor('compact').columns, 1);
+      expect(restored.grid!.layoutFor('large').columns, 3,
+          reason: 'a scale without a variant uses the base');
+
+      final grid = (json['grid'] as Map).cast<String, Object?>();
+      final base = (grid['base'] as Map).cast<String, Object?>();
+      final tampered = ModuleTabDefinition.fromJson({
+        ...json,
+        'grid': {
+          'base': {
+            ...base,
+            'cells': {
+              'a': {'column': 5, 'row': 0},
+              'ghost': {'column': 0, 'row': 0},
+            },
+          },
+          'variants': {'huge': base},
+        },
+      })!;
+      expect(tampered.grid!.base.cells, isEmpty,
+          reason: 'a cell outside the grid, or for no control, is dropped');
+      expect(tampered.grid!.variants, isEmpty,
+          reason: 'variants key only to the control-scale presets');
+
+      final pictured = ModuleTabDefinition.fromJson({
+        ...json,
+        'background': const ModuleTabBackground(imageBase64: _png2x1).toJson(),
+        'viewClass': 'maintenance',
+      })!;
+      expect(pictured.grid, isNull, reason: 'a picture view places on its picture');
+    });
   });
 }

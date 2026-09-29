@@ -402,6 +402,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
             onAddControlAt: (kind, placement) => _addControl(
                 node, tab, capabilities,
                 kind: kind, placement: placement),
+            onGridChanged: (grid) => _upsertDraftTab(tab.withGrid(grid)),
           ),
           ),
       };
@@ -499,10 +500,10 @@ class _ModuleDetailState extends State<ModuleDetail> {
 
   Future<void> _removeControl(ModuleNode node, ModuleTabDefinition tab,
       String id, ModuleTabCapabilities capabilities) async {
-    _upsertDraftTab(
-      tab.copyWith(
-          controls: tab.controls.where((item) => item.id != id).toList()),
-    );
+    final controls = tab.controls.where((item) => item.id != id).toList();
+    // Its grid cells go with it, in every variant.
+    _upsertDraftTab(tab.copyWith(controls: controls).withGrid(
+        tab.grid?.keepOnly({for (final control in controls) control.id})));
   }
 
   Future<void> _moveControl(ModuleNode node, ModuleTabDefinition tab, int from,

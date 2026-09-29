@@ -329,12 +329,16 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
   /// §7.2 bound layer visibility, one draft per layer the view names.
   final Map<String, _ConditionDraft> _layerConditions = {};
 
+  /// §7.2 grid container instead of the flow (only without a picture).
+  bool _useGrid = false;
+
   @override
   void initState() {
     super.initState();
     final tab = widget.existing;
     _budget = TextEditingController(
         text: tab == null || tab.readBudget == 0 ? '' : '${tab.readBudget}');
+    _useGrid = tab?.grid != null;
     for (final layer in tab?.layers ?? const <String>[]) {
       _layerConditions[layer] = _ConditionDraft(tab!.layerConditions[layer]);
     }
@@ -609,6 +613,17 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                         style: Theme.of(context).textTheme.bodySmall),
                   ),
                 const SizedBox(height: 16),
+                SwitchListTile(
+                  key: const ValueKey('tab-use-grid'),
+                  contentPadding: EdgeInsets.zero,
+                  value: _useGrid,
+                  title: const LText('std.module.grid.useGrid'),
+                  subtitle: LText(_backgroundImageBase64.isEmpty
+                      ? 'std.module.grid.useGridHelp'
+                      : 'std.module.grid.pictureWins'),
+                  onChanged: (value) => setState(() => _useGrid = value),
+                ),
+                const SizedBox(height: 16),
                 _backgroundEditor(context),
               ],
               if (_kind.acceptsBackground) ..._presentationBudget(context),
@@ -728,6 +743,13 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                     entry.key: entry.value.build()!,
               },
         readBudget: int.tryParse(_budget.text.trim()) ?? 0,
+        // A picture view places on its picture; a grid needs a view without one.
+        grid: _kind.acceptsBackground &&
+                _useGrid &&
+                !(_viewClass != ModuleViewClass.operating &&
+                    _backgroundImageBase64.isNotEmpty)
+            ? existing?.grid ?? const ModuleGrid()
+            : null,
       ),
     );
   }

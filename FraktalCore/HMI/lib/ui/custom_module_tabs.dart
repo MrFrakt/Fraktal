@@ -67,6 +67,10 @@ class CustomModuleTabView extends StatefulWidget {
   final void Function(ModuleControlKind kind, ModulePlacement placement)?
       onAddControlAt;
 
+  /// The view's grid container changed while editing (a cell, a size, a
+  /// variant).
+  final ValueChanged<ModuleGrid>? onGridChanged;
+
   const CustomModuleTabView({
     super.key,
     required this.app,
@@ -80,6 +84,7 @@ class CustomModuleTabView extends StatefulWidget {
     this.onReorderControl,
     this.onPlaceControl,
     this.onAddControlAt,
+    this.onGridChanged,
   });
 
   @override
@@ -127,11 +132,14 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
 
   Widget _withOpacity(ModuleControlDefinition control, Widget child) =>
       _dimmed(control)
-          ? Opacity(opacity: ModuleControlDefinition.dimmedOpacity, child: child)
+          ? Opacity(
+              opacity: ModuleControlDefinition.dimmedOpacity, child: child)
           : child;
 
-  List<ModuleControlDefinition> get _controls =>
-      [for (final control in widget.tab.controls) if (_shown(control)) control];
+  List<ModuleControlDefinition> get _controls => [
+        for (final control in widget.tab.controls)
+          if (_shown(control)) control
+      ];
 
   /// §7.4: on an operating view colour is reserved for the abnormal, so an OK
   /// state draws neutral there; on maintenance/engineering views it is green.
@@ -215,9 +223,14 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
         background.imageBase64.isNotEmpty;
   }
 
+  /// While editing a grid: the variant being edited (null = the base).
+  String? _gridScale;
+
   @override
   Widget build(BuildContext context) {
     if (_hasCanvas) return _canvasLayout(context);
+    final grid = widget.tab.grid;
+    if (grid != null) return _gridLayout(context, grid);
     if (widget.tab.controls.isEmpty) {
       return Center(
         child: Padding(
@@ -258,6 +271,268 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
         ),
       );
     });
+  }
+
+  /// A grid container (LOCALIZATION §7.2). Every cell is a fraction of the
+  /// tab, so a layout without a variant for this panel's control scale is the
+  /// base grid scaled, not reflowed. Controls without a cell list beneath it.
+  Widget _gridLayout(BuildContext context, ModuleGrid grid) {
+    final editing = widget.editing;
+    final ModuleGridLayout? layout = editing
+        ? (_gridScale == null ? grid.base : grid.variants[_gridScale])
+        : grid.layoutFor(widget.app.controlScale.name);
+    final shown = editing ? widget.tab.controls : _controls;
+    final placed = [
+      for (final control in shown)
+        if (layout?.cells[control.id] != null) control,
+    ];
+    final unplaced = [
+      for (final control in shown)
+        if (layout?.cells[control.id] == null) control,
+    ];
+    final layerBar = _layerBar(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (layerBar != null)
+        Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0), child: layerBar),
+      if (editing) _gridBar(context, grid, layout),
+      Expanded(
+        child: layout == null
+            ? const Center(child: LText('std.module.grid.noVariant'))
+            : Padding(
+                padding: const EdgeInsets.all(12),
+                child: LayoutBuilder(builder: (context, box) {
+                  final w = box.maxWidth, h = box.maxHeight;
+                  return Stack(children: [
+                    if (editing) _gridLines(context, layout, w, h),
+                    for (final control in placed)
+                      Builder(builder: (context) {
+                        final f = layout.cells[control.id]!
+                            .fractionIn(layout.columns, layout.rows);
+                        return Positioned(
+                          key: ValueKey('grid-cell-${control.id}'),
+                          left: f.x * w,
+                          top: f.y * h,
+                          width: f.width * w,
+                          height: f.height * h,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: editing
+                                ? _gridEditTile(context, grid, layout, control)
+                                : _gridControl(
+                                    context, control, f.width * w - 8),
+                          ),
+                        );
+                      }),
+                  ]);
+                }),
+              ),
+      ),
+      if (unplaced.isNotEmpty && layout != null)
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 220),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            children: [
+              if (editing)
+                LText('std.module.grid.unplaced',
+                    style: Theme.of(context).textTheme.titleSmall),
+              for (final control in unplaced)
+                editing
+                    ? ListTile(
+                        key: ValueKey('grid-unplaced-${control.id}'),
+                        dense: true,
+                        leading: Icon(_controlIcon(control.kind)),
+                        title: LText(control.label.isEmpty
+                            ? control.kind.name
+                            : control.label),
+                        trailing: TextButton.icon(
+                          onPressed: () =>
+                              _editCell(context, grid, layout, control),
+                          icon: const Icon(Icons.grid_on),
+                          label: const LText('std.module.grid.place'),
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _withOpacity(
+                            control, _renderControl(context, control)),
+                      ),
+            ],
+          ),
+        ),
+    ]);
+  }
+
+  /// A placed control, drawn at its cell's width and scaled down - never
+  /// reflowed - when the cell is shorter than the control.
+  Widget _gridControl(BuildContext context, ModuleControlDefinition control,
+          double width) =>
+      ClipRect(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: math.max(1.0, width),
+            child: _withOpacity(control, _renderControl(context, control)),
+          ),
+        ),
+      );
+
+  Widget _gridLines(
+      BuildContext context, ModuleGridLayout layout, double w, double h) {
+    final line = Theme.of(context).colorScheme.outlineVariant;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: _GridPainter(layout.columns, layout.rows, line),
+        ),
+      ),
+    );
+  }
+
+  Widget _gridEditTile(BuildContext context, ModuleGrid grid,
+      ModuleGridLayout layout, ModuleControlDefinition control) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.primaryContainer.withValues(alpha: 0.6),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: colors.primary),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: InkWell(
+        onTap: () => _editCell(context, grid, layout, control),
+        // A dense grid has short cells: the tile shrinks, it never overflows.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.topLeft,
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(_controlIcon(control.kind),
+                      size: 18, color: colors.onPrimaryContainer),
+                  const SizedBox(width: 6),
+                  LText(
+                    control.label.isEmpty ? control.kind.name : control.label,
+                    style: TextStyle(color: colors.onPrimaryContainer),
+                  ),
+                ]),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                    tooltip: context.tr('std.common.edit'),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => widget.onEditControl?.call(control),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                  ),
+                  IconButton(
+                    key: ValueKey('grid-remove-${control.id}'),
+                    tooltip: context.tr('std.module.grid.takeOff'),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => widget.onGridChanged?.call(grid.withLayout(
+                        _gridScale, layout.place(control.id, null))),
+                    icon: const Icon(Icons.grid_off, size: 18),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The variant being edited, its size, and creating or removing it.
+  Widget _gridBar(
+      BuildContext context, ModuleGrid grid, ModuleGridLayout? layout) {
+    void change(ModuleGridLayout next) =>
+        widget.onGridChanged?.call(grid.withLayout(_gridScale, next));
+    Widget stepper(String label, int value, int max, ValueChanged<int> set) =>
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          LText(label),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: value > 1 ? () => set(value - 1) : null,
+            icon: const Icon(Icons.remove),
+          ),
+          Text('$value'),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: value < max ? () => set(value + 1) : null,
+            icon: const Icon(Icons.add),
+          ),
+        ]);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SegmentedButton<String>(
+            key: const ValueKey('grid-variant'),
+            showSelectedIcon: false,
+            segments: [
+              const ButtonSegment(
+                  value: '', label: LText('std.module.grid.base')),
+              for (final scale in ModuleGrid.scales)
+                ButtonSegment(
+                  value: scale,
+                  label: LText(
+                      'std.settings.size${scale[0].toUpperCase()}${scale.substring(1)}'),
+                  icon: grid.variants.containsKey(scale)
+                      ? const Icon(Icons.check, size: 16)
+                      : null,
+                ),
+            ],
+            selected: {_gridScale ?? ''},
+            onSelectionChanged: (value) => setState(
+                () => _gridScale = value.first.isEmpty ? null : value.first),
+          ),
+          if (layout != null) ...[
+            stepper(
+                'std.module.grid.columns',
+                layout.columns,
+                ModuleGridLayout.maxColumns,
+                (value) => change(layout.copyWith(columns: value))),
+            stepper(
+                'std.module.grid.rows',
+                layout.rows,
+                ModuleGridLayout.maxRows,
+                (value) => change(layout.copyWith(rows: value))),
+          ],
+          if (_gridScale != null && layout == null)
+            FilledButton.tonalIcon(
+              key: const ValueKey('grid-add-variant'),
+              onPressed: () => widget.onGridChanged
+                  ?.call(grid.withLayout(_gridScale, grid.base)),
+              icon: const Icon(Icons.add),
+              label: const LText('std.module.grid.addVariant'),
+            ),
+          if (_gridScale != null && layout != null)
+            TextButton.icon(
+              onPressed: () =>
+                  widget.onGridChanged?.call(grid.withoutVariant(_gridScale!)),
+              icon: const Icon(Icons.delete_outline),
+              label: const LText('std.module.grid.removeVariant'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editCell(BuildContext context, ModuleGrid grid,
+      ModuleGridLayout layout, ModuleControlDefinition control) async {
+    final cell = await showGridCellEditor(context,
+        layout: layout, existing: layout.cells[control.id]);
+    if (cell != null) {
+      widget.onGridChanged
+          ?.call(grid.withLayout(_gridScale, layout.place(control.id, cell)));
+    }
   }
 
   Widget _canvasLayout(BuildContext context) {
@@ -381,12 +656,12 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
     ];
     // Bad/Uncertain data renders unavailable, never as a state: a door drawn
     // green from a stale value is worse than a door drawn "unknown".
-    final usable =
-        tags.isNotEmpty && tags.every((tag) => tag?.usable == true);
+    final usable = tags.isNotEmpty && tags.every((tag) => tag?.usable == true);
     final values = [for (final tag in tags) tag?.value];
     final token = usable ? control.resolveState(values) : null;
     final color = token == null ? null : _tokenColor(context, token);
-    final label = control.label.isEmpty ? control.primaryBinding : control.label;
+    final label =
+        control.label.isEmpty ? control.primaryBinding : control.label;
     final unit = control.unit.isEmpty ? '' : ' ${control.unit}';
     final Widget body = switch (control.kind) {
       ModuleControlKind.shape => _OverlayShape(
@@ -499,9 +774,8 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
           if (reorderable) ...[
             IconButton(
               tooltip: context.tr('std.common.moveUp'),
-              onPressed: index == 0
-                  ? null
-                  : () => widget.onMoveControlUp?.call(index),
+              onPressed:
+                  index == 0 ? null : () => widget.onMoveControlUp?.call(index),
               icon: const Icon(Icons.arrow_upward),
             ),
             IconButton(
@@ -981,8 +1255,7 @@ class _StateCard extends StatelessWidget {
     final unusable =
         tags.where((tag) => tag?.usable != true).toList(growable: false);
     if (tags.isEmpty || unusable.isNotEmpty) {
-      return _UnavailableTagCard(
-          control: control, tag: unusable.firstOrNull);
+      return _UnavailableTagCard(control: control, tag: unusable.firstOrNull);
     }
     final values = [for (final tag in tags) tag!.value];
     final token = control.resolveState(values);
@@ -1057,7 +1330,9 @@ class _OverlayShape extends StatelessWidget {
   /// The bound icon of the state in force, drawn in the state's colour.
   final ModuleGlyph glyph;
   const _OverlayShape(
-      {required this.shape, required this.color, this.glyph = ModuleGlyph.none});
+      {required this.shape,
+      required this.color,
+      this.glyph = ModuleGlyph.none});
 
   @override
   Widget build(BuildContext context) {
@@ -1068,10 +1343,10 @@ class _OverlayShape extends StatelessWidget {
         color: tint == null
             ? colors.surface.withValues(alpha: 0.35)
             : tint.withValues(alpha: 0.32),
-        shape: shape == ModuleShape.circle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: shape == ModuleShape.rounded
-            ? BorderRadius.circular(12)
-            : null,
+        shape:
+            shape == ModuleShape.circle ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius:
+            shape == ModuleShape.rounded ? BorderRadius.circular(12) : null,
         border: Border.all(color: tint ?? colors.error, width: 2),
         boxShadow: tint == null
             ? null
@@ -1151,8 +1426,7 @@ class _OverlayLevel extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(3),
           child: Align(
-            alignment:
-                vertical ? Alignment.bottomCenter : Alignment.centerLeft,
+            alignment: vertical ? Alignment.bottomCenter : Alignment.centerLeft,
             child: FractionallySizedBox(
               heightFactor: vertical ? fraction : 1,
               widthFactor: vertical ? 1 : fraction,
@@ -2012,3 +2286,144 @@ IconData? moduleGlyphIcon(ModuleGlyph glyph) => switch (glyph) {
       ModuleGlyph.block => Icons.block,
       ModuleGlyph.power => Icons.power_settings_new,
     };
+
+/// The editing grid: one line per column and row boundary.
+class _GridPainter extends CustomPainter {
+  final int columns;
+  final int rows;
+  final Color color;
+  const _GridPainter(this.columns, this.rows, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+    for (var c = 0; c <= columns; c++) {
+      final x = size.width * c / columns;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var r = 0; r <= rows; r++) {
+      final y = size.height * r / rows;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) =>
+      old.columns != columns || old.rows != rows || old.color != color;
+}
+
+/// Asks for a control's cell in [layout]: column, row and spans, counted from
+/// 1 as a person reads them. Null = cancelled.
+Future<ModuleGridCell?> showGridCellEditor(
+  BuildContext context, {
+  required ModuleGridLayout layout,
+  ModuleGridCell? existing,
+}) =>
+    showDialog<ModuleGridCell>(
+      context: context,
+      builder: (_) => _GridCellDialog(layout: layout, existing: existing),
+    );
+
+class _GridCellDialog extends StatefulWidget {
+  final ModuleGridLayout layout;
+  final ModuleGridCell? existing;
+  const _GridCellDialog({required this.layout, this.existing});
+
+  @override
+  State<_GridCellDialog> createState() => _GridCellDialogState();
+}
+
+class _GridCellDialogState extends State<_GridCellDialog> {
+  final _form = GlobalKey<FormState>();
+  late final _column =
+      TextEditingController(text: '${(widget.existing?.column ?? 0) + 1}');
+  late final _row =
+      TextEditingController(text: '${(widget.existing?.row ?? 0) + 1}');
+  late final _columnSpan =
+      TextEditingController(text: '${widget.existing?.columnSpan ?? 1}');
+  late final _rowSpan =
+      TextEditingController(text: '${widget.existing?.rowSpan ?? 1}');
+
+  @override
+  void dispose() {
+    for (final controller in [_column, _row, _columnSpan, _rowSpan]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  ModuleGridCell? _read() {
+    final c = int.tryParse(_column.text.trim());
+    final r = int.tryParse(_row.text.trim());
+    final cs = int.tryParse(_columnSpan.text.trim());
+    final rs = int.tryParse(_rowSpan.text.trim());
+    if (c == null || r == null || cs == null || rs == null) return null;
+    final cell =
+        ModuleGridCell(column: c - 1, row: r - 1, columnSpan: cs, rowSpan: rs);
+    return cell.fits(widget.layout.columns, widget.layout.rows) ? cell : null;
+  }
+
+  Widget _field(TextEditingController controller, String label) => Expanded(
+        child: TouchTextFormField(
+          key: ValueKey('grid-cell-$label'),
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: context.tr(label)),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const LText('std.module.grid.cell'),
+        content: Form(
+          key: _form,
+          child: SizedBox(
+            width: 380,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('${widget.layout.columns} x ${widget.layout.rows}',
+                  style: Theme.of(context).textTheme.bodySmall),
+              Row(children: [
+                _field(_column, 'std.module.grid.column'),
+                const SizedBox(width: 8),
+                _field(_row, 'std.module.grid.row'),
+              ]),
+              Row(children: [
+                _field(_columnSpan, 'std.module.grid.columnSpan'),
+                const SizedBox(width: 8),
+                _field(_rowSpan, 'std.module.grid.rowSpan'),
+              ]),
+              FormField<void>(
+                validator: (_) => _read() == null
+                    ? context.tr('std.module.grid.cellInvalid')
+                    : null,
+                builder: (state) => state.hasError
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(state.errorText!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error)),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ]),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const LText('std.common.cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey('grid-cell-save'),
+            onPressed: () {
+              if (_form.currentState?.validate() ?? false) {
+                Navigator.pop(context, _read());
+              }
+            },
+            child: const LText('std.common.save'),
+          ),
+        ],
+      );
+}
