@@ -1958,6 +1958,17 @@ restart. Safety authority remains independent of every cybersecurity control.
 - Connectors, motion, optional OPC UA/companion projections, and any controller
   family absent from the tested matrix are not claimed merely because a Core
   interface or manifest capability exists.
+- **The binding is level with Fraktal Core 0.21.0.0 for the read-only claim**
+  (audited 2026-09-29,
+  [`Evidence/AB_CORE021_PARITY_2026-09-29.md`](AllenBradley/Evidence/AB_CORE021_PARITY_2026-09-29.md)).
+  Every clause added between Core 0.14 and 0.21 is bound or recorded below as
+  not claimed with its reason; no gap was found and nothing was downloaded, the
+  loaded build already matching the declaration at `122F979D6C141EC8`. The
+  read-only claim itself was proved on the bench under the definition of
+  §11.2.1: both `write` and `writeBatch` refused before the controller was
+  addressed. Still owed from that audit: the §146 principles parity, which
+  drives the press and awaits authorization, and the visual half of the HMI
+  pass.
 - **Core clauses added after the Phase 4 base are not claimed**, each for a
   recorded reason (decision of 2026-09-28):
   - deleting a parameter set (Core §3.8b) and data classes with per-value access
