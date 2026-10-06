@@ -1,0 +1,79 @@
+#!/bin/sh
+# Fraktal pre-commit gate — the CHEAP half of AGENTS.md "machine-checkable gates".
+#
+# Scope, deliberately narrow: this runs only the gates that finish in seconds and
+# need nothing but Python. It does NOT run the TwinCAT object check, the library
+# install, or TcUnit — those need XAE and minutes, and a hook that takes minutes
+# gets disabled within a week. CI and the documented sequence remain the
+# authority; this only catches the classes of mistake that are embarrassing to
+# push and trivial to prevent.
+#
+# Known approximation: the gates read the WORKING TREE, not the staged index. If
+# you stage a subset of your changes the result describes the tree, not the
+# commit. That is worth knowing and not worth fixing here — the tree is what you
+# are about to build, and CI checks the merge result.
+#
+# Escape hatch: `git commit --no-verify`. It exists for genuine emergencies. If
+# you find yourself using it routinely, the gate is wrong — fix the gate.
+
+set -e
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if ! command -v python >/dev/null 2>&1; then
+    echo "pre-commit: python not found on PATH; cannot run the Fraktal gates." >&2
+    echo "            Fix the environment, or use --no-verify if you truly must." >&2
+    exit 1
+fi
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+fail=0
+
+# --- always: agreement BETWEEN artifacts (0.3s) ---------------------------
+# Cheap, and it guards the drift that keeps recurring: TcUnit counts promised by
+# a guide or pinned in ci.yml versus what the runner actually instantiates, and
+# localization keys referenced by ST but absent from a shipped catalogue.
+if ! python tools/check_consistency.py; then
+    fail=1
+fi
+
+# --- PLC objects staged: naming, contract and lifecycle rules (~6s) -------
+if echo "$staged" | grep -qE '\.(TcPOU|TcDUT|TcGVL|TcIO)$|FraktalCore/PLC/TwinCAT/tools/plc_lint\.py'; then
+    for profile in modern 4024; do
+        if ! python FraktalCore/PLC/TwinCAT/tools/plc_lint.py --profile "$profile"; then
+            fail=1
+        fi
+    done
+fi
+
+# --- gate tooling itself staged: its own suites must still pass -----------
+if echo "$staged" | grep -qE '^tools/|FraktalCore/PLC/TwinCAT/tools/'; then
+    if ! python -m unittest discover -s FraktalCore/PLC/TwinCAT/tools \
+                                     -t FraktalCore/PLC/TwinCAT/tools -q; then
+        fail=1
+    fi
+    if ! python -m unittest tools.test_check_consistency -q; then
+        fail=1
+    fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+    cat >&2 <<'EOF'
+
+pre-commit: a Fraktal gate failed — the commit was NOT created.
+
+These are the cheap gates only. If you changed PLC source, the sequence that
+actually proves it is in AGENTS.md "machine-checkable gates":
+
+    plc_lint (both profiles)  ->  Invoke-TwinCatLibraryInstall.ps1 (if a library
+    changed)  ->  Invoke-TwinCatBuild.ps1  ->  check_consistency
+
+Compile before you claim: never ship ST behind "build not run".
+EOF
+    exit 1
+fi
+
+exit 0

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_PneumaticPressOutImm" Id="{02cd7ca6-7424-4134-8fc5-953c505956ce}">
+    <Declaration><![CDATA[TYPE ST_PneumaticPressOutImm :
+STRUCT
+    // Only facts the Unit DERIVES. A child's own state is read on the child
+    // (PressRam.OutImm.Retracted, ...), never copied here under a second name (O9).
+    //
+    // §3.12 derived state: TRUE while the machine IS at its reference position.
+    // As a latched command result it went on claiming "homed" after an operator
+    // jogged an axis off home in MANUAL, because no sequence ran to clear it.
+    Homed           : BOOL;
+    // TRUE while a two-hand press would start a cycle: buttons armed, the control
+    // domain ready, a part loaded and air present. Drives the pushbutton lamps.
+    TwoHandStartReady : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

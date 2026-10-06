@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LineAdsSource" Id="{4241b0c6-52f5-4215-a44d-18e367303926}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8e - a mirror whose owner is on ANOTHER TwinCAT controller: reads the
+// owner's published Image by symbol name over ADS (SYM_VALBYNAME, which takes no
+// symbol handle, so a mirror polling for years never exhausts the owner's pool).
+// Both controllers must run the same Core, because the image is read as bytes of
+// one ST_LineImage layout; a mismatch is refused by size, never reinterpreted.
+FUNCTION_BLOCK FB_LineAdsSource IMPLEMENTS I_LineSource
+VAR
+    _netId   : T_AmsNetId;
+    _port    : T_AmsPort;
+    _symbol  : STRING(255);
+    _read    : ADSRDWRT;
+    _started : BOOL;
+    _error   : DINT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _buffer  : ST_LineImage;
+END_VAR
+VAR CONSTANT
+    ADSIGRP_SYM_VALBYNAME : UDINT := 16#F004;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{94bd9d54-8cc8-4c3d-8419-b6ba4f7bf505}">
+      <Declaration><![CDATA[// NetId '' is the local controller. Symbol is the owner's Image, fully qualified.
+METHOD Setup : BOOL
+VAR_INPUT
+    NetId  : STRING(23);
+    Port   : UINT;
+    Symbol : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_netId := NetId;
+_port := Port;
+_symbol := Symbol;
+_started := FALSE;
+_error := 0;
+Setup := (Symbol <> '') AND (Port > 0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Poll" Id="{3f901a2b-a750-40bb-b20a-339b79760372}">
+      <Declaration><![CDATA[// One request in flight at a time; TRUE on the scan it completes cleanly.
+METHOD M_Poll : BOOL
+VAR_IN_OUT
+    Image : ST_LineImage;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Poll := FALSE;
+IF NOT _started THEN
+    _read(WRTRD := FALSE);
+    _read(NETID := _netId, PORT := _port, IDXGRP := ADSIGRP_SYM_VALBYNAME, IDXOFFS := 0,
+        WRITELEN := INT_TO_UDINT(LEN(_symbol)) + 1, READLEN := SIZEOF(_buffer),
+        SRCADDR := ADR(_symbol), DESTADDR := ADR(_buffer), WRTRD := TRUE, TMOUT := T#1S);
+    _started := TRUE;
+    RETURN;
+END_IF
+_read(WRTRD := TRUE);
+IF _read.BUSY THEN
+    RETURN;
+END_IF
+_started := FALSE;
+_read(WRTRD := FALSE);
+IF _read.ERR THEN
+    _error := UDINT_TO_DINT(_read.ERRID);
+    RETURN;
+END_IF
+_error := 0;
+Image := _buffer;
+M_Poll := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Error" Id="{c89b277d-d5e9-40e3-9e2c-678d973ebf01}">
+      <Declaration><![CDATA[METHOD M_Error : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Error := _error;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_LineImage" Id="{aac97ffa-4a44-499c-8ff4-0a2afc30f4d7}">
+    <Declaration><![CDATA[// Core §3.8e - the owner's published line data, whole. A mirror reads this one
+// structure and applies it all or not at all; nothing is ever read field by field.
+TYPE ST_LineImage :
+STRUCT
+    LineId   : STRING(40);
+    Owner    : STRING(80);   // owner module's canonical identity
+    Revision : UDINT;        // rises on every accepted change at the owner
+    Count    : INT;
+    Records  : ARRAY[1..PL_Fraktal.MAX_LINE_RECORDS] OF ST_LineRecord;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

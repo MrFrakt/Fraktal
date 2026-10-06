@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_ConfigStore" Id="{8c5a207e-14d3-4b96-a7f0-2e91d6c4b385}">
+    <Declaration><![CDATA[// Core §3.8b — the medium behind an I_ConfigStore implementation, published so
+// an operator can see WHERE this station's parameter sets actually live before
+// trusting that a save survived. The store moves records and nothing else: it
+// does not validate, does not know what a value means, and is never an
+// authorization authority (§5.6, §14).
+// Ordinals are an append-only PLC/HMI transport contract.
+{attribute 'qualified_only'}
+TYPE E_ConfigStore :
+(
+    LOCAL_RETAIN := 0,   // in-PLC retentive memory (FB_LocalConfigStore, the shipped default)
+    FILE_JSON    := 1,   // controller/host file system, serialized set document
+    FILE_XML     := 2,
+    EXTERNAL     := 3    // database, asset system or MES behind a §3.15 connector
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

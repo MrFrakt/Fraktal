@@ -1,0 +1,314 @@
+{
+  "schema": "fraktal.ab.hmi.filter-recovery-evidence",
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-05T14:13:36.864742+00:00",
+  "trigger": "Owner observes brief Connecting to PLC frames and return to main/overview while using time-type and event filters; previous between-frame navigation fix is insufficient.",
+  "diagnosis": {
+    "path": "The 2000 ms sample Good deadline still withdraws data. When its connection screen is painted, the interactive shell/detail remounts; widget-owned TabController/filter selections were lost although AppState retained the module path.",
+    "rendering": "Chrome CPU profile and long-task observation identify rendering load. Chip drawer-width animation repeatedly relayouts chart content; repaint regression first observes 12 paints versus 2 at the selection change.",
+    "limit": "Headless Chrome rendering load and CPU throttling reproduce this path; this is not access to the owner Chrome profile or a universal latency claim. Baseline uses schema-3 settings with default light/compact presentation; final uses schema-4 dark-blue/large. Counts are not a controlled theme/preset performance benchmark."
+  },
+  "behavior": {
+    "presentation": "AppState retains tab ID and per-module/per-tab time-class and severity selections across a full detail remount. Removed modules discard local presentation state.",
+    "notRetained": [
+      "PLC ModuleNode samples",
+      "session permissions",
+      "commands",
+      "usable expired chart data"
+    ],
+    "rendering": "Filter chips apply selection geometry without drawer animation; preset controls and cards isolate repainting.",
+    "settings": "Schema 4 reads and validates the earlier schema-3 language fields so completed language commissioning survives a settings round trip.",
+    "qualityAndExpiryLimitsChanged": false,
+    "connectionGateChanged": false,
+    "gatewayChanged": false,
+    "plcSourceOrMemoryChanged": false
+  },
+  "baseline": {
+    "resetsObserved": 10,
+    "artifact": {
+      "path": "C:\\work\\press75_filters_browser_baseline_08.json",
+      "sha256": "78405A18E2F7BB6DA125BB7D32978B9CE92872B9E00576FCDE8D649BED28FE55"
+    },
+    "failedPaintRegression": {
+      "path": "C:\\work\\press75_filter_render_regression_01.log",
+      "sha256": "5C4EA20986D0D65D693932109A89C29C5E09810D2F3BC3BF2E7D306B8D29E768"
+    },
+    "intermediateRenderingOnly": "Boundary/drawer changes alone do not preserve a remounted detail; rendering-only stress still gates and returns to Overview.",
+    "intermediateArtifact": {
+      "path": "C:\\work\\press75_filters_browser_stress_10.json",
+      "sha256": "9CE0C316B471590622E777C3FFE08F6E498E3B56035ECB5A105D5AE44D8D3870"
+    },
+    "initialRegressionFixtureFailure": {
+      "path": "C:\\work\\press75_filter_restore_focus_02.log",
+      "sha256": "78EA8814BFB22C677E92224FB66485CA777629C8BA866B9FBDA3292BCE356004"
+    },
+    "fixtureCorrection": "History requires permission; the fake navigation-root fixture uses admin. No live PLC policy/account changes."
+  },
+  "productionBrowser": {
+    "browser": "Chrome/154.0.8037.95",
+    "endpoint": "https://press.localhost/",
+    "websocket": "wss://press.localhost/fraktal",
+    "setup": "Isolated owned headless profile; TLS validated; HTTP authentication challenges scoped to press.localhost; renderer CDN failures in this QA browser fulfilled from the matching bundled CanvasKit assets. No globally applied authentication header in accepted runs.",
+    "cpuThrottlingFactor": 2,
+    "filterAttempts": 200,
+    "executedFilterActions": 199,
+    "attemptsSkippedWhileGated": 1,
+    "fullSamples": 106,
+    "routeResetsAfterRequestedTab": 0,
+    "observedRecovery": "A painted gap during Statistics returns to Statistics, rather than Overview. Genuine expiry may still show Connecting under load.",
+    "allowedMailboxQueryKind": 23,
+    "operatorMutationsForwarded": 0,
+    "mutationGuardBlockedAttempts": 0,
+    "artifact": {
+      "path": "C:\\work\\press75_filters_browser_stress_11.json",
+      "sha256": "12143392D3C11E5F2EC11156E60C0454E4987FE277933465F96F6CAD5131041B"
+    },
+    "forcedGap": {
+      "outboundSnapshotDelayMs": 2500,
+      "purpose": "QA browser delays a snapshot request only; no source ages/quality rewritten and no machine mutation.",
+      "results": [
+        {
+          "tab": "Statistics",
+          "before": [
+            {
+              "key": "Cycle-time trend (26 cycles)|Wait operator",
+              "checked": "false"
+            },
+            {
+              "key": "Cycle-time trend (26 cycles)|Work",
+              "checked": "false"
+            },
+            {
+              "key": "Original cycle start: 0.0s|Wait operator",
+              "checked": "true"
+            },
+            {
+              "key": "Original cycle start: 0.0s|Work",
+              "checked": "false"
+            },
+            {
+              "key": "Step Pareto (Avg, Max marker)|Wait operator",
+              "checked": "true"
+            },
+            {
+              "key": "Step Pareto (Avg, Max marker)|Work",
+              "checked": "false"
+            }
+          ],
+          "after": [
+            {
+              "key": "Cycle-time trend (26 cycles)|Wait operator",
+              "checked": "false"
+            },
+            {
+              "key": "Cycle-time trend (26 cycles)|Work",
+              "checked": "false"
+            },
+            {
+              "key": "Original cycle start: 0.0s|Wait operator",
+              "checked": "true"
+            },
+            {
+              "key": "Original cycle start: 0.0s|Work",
+              "checked": "false"
+            },
+            {
+              "key": "Step Pareto (Avg, Max marker)|Wait operator",
+              "checked": "true"
+            },
+            {
+              "key": "Step Pareto (Avg, Max marker)|Work",
+              "checked": "false"
+            }
+          ],
+          "selectedAfter": "Statistics",
+          "choicesPreserved": true,
+          "tabPreserved": true
+        },
+        {
+          "tab": "Events",
+          "before": [
+            {
+              "key": "Event history|high",
+              "checked": "true"
+            },
+            {
+              "key": "Event history|low",
+              "checked": "true"
+            },
+            {
+              "key": "Event history|medium",
+              "checked": "false"
+            }
+          ],
+          "after": [
+            {
+              "key": "Event history|high",
+              "checked": "true"
+            },
+            {
+              "key": "Event history|low",
+              "checked": "true"
+            },
+            {
+              "key": "Event history|medium",
+              "checked": "false"
+            }
+          ],
+          "selectedAfter": "Events",
+          "choicesPreserved": true,
+          "tabPreserved": true
+        }
+      ],
+      "passed": true,
+      "artifact": {
+        "path": "C:\\work\\press75_filters_browser_recovery_12.json",
+        "sha256": "D493859F68AA96AEEC2453D2F78DB5FBAE01EFCCB7A32BBF15947A11D81EBD3B"
+      }
+    },
+    "ownedBrowserClosed": true,
+    "userGatewayLeftRunning": true,
+    "ownerBrowserConfirmation": "Pending optional hard-refresh/filter check; no answer received at recording."
+  },
+  "gates": {
+    "focused": {
+      "passed": 22,
+      "failed": 0,
+      "path": "C:\\work\\press75_filter_restore_focus_03.log",
+      "sha256": "2DC6E15AEDD94127C9DB3F4423E47B76012F819DBEE1A18E3E9FAC5DC5578379"
+    },
+    "fullHmi": {
+      "passed": 527,
+      "skipped": 7,
+      "failed": 0,
+      "path": "C:\\work\\press75_filter_restore_full_01.log",
+      "sha256": "EF4EA663F5C426BC8C3E3D46484DF5F2AB823F808EED246A6BABA553E70A64EE"
+    },
+    "analyzer": {
+      "clean": true,
+      "path": "C:\\work\\press75_filter_restore_analyze_02.log",
+      "sha256": "ED5425B8662C0E87E7235C16196FD5488BCD7496689DC3DA3C8ECD40B62D8519"
+    },
+    "webRelease": {
+      "passed": true,
+      "wasmRuntimeClaim": false,
+      "path": "C:\\work\\press75_filter_restore_build_01.log",
+      "sha256": "94C4A2AFADEF32A42C7FA11B108D0969DC1F952438CA6F2A97EB5D9BC46BF3D1"
+    },
+    "consistency": {
+      "errors": 0,
+      "warnings": 0,
+      "path": "C:\\work\\press75_filter_restore_consistency_01.log",
+      "sha256": "FA550B3B6901D31814398D110D5EB693FCFF1E0AB5E77B161640F0BD8C78B960"
+    },
+    "consistencyTests": {
+      "passed": 33,
+      "path": "C:\\work\\press75_filter_restore_consistency_tests_01.log",
+      "sha256": "611BBD13FD166E45277A6959844B021C50BEA6CF725FD02E461724F3826C5386"
+    }
+  },
+  "source": [
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\domain\\connection_settings.dart",
+      "sha256": "C4BA39034CE003CE31686F94D5E53175B2959A238FAA346A3D16E38F940DD13F"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\state\\app_state.dart",
+      "sha256": "4DDC0E41F5FBEB9C27477AC7004675D3073251970183725EFC93311ABD5E735C"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\state\\module_view_state.dart",
+      "sha256": "7129E1781F3F86FF6C59E268615104932E2EFA561CF4184A7D04175EA0C507A7"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\app_theme.dart",
+      "sha256": "5E152A7BC062890C850D0E3026C5783EE20F1C8954A48DA3041E12494A82CB13"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\config_and_history.dart",
+      "sha256": "4584F753F5FF3277AA1632DA428477FF947F3C89DFD094C0BB63096E8FDA3621"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\cycle_profile_view.dart",
+      "sha256": "52B2C4626F2F1EF0CB94B89D3E2B509C8A1C2870BC40CFF419729BD0D7F63192"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\cycle_trend_view.dart",
+      "sha256": "55CACBD7D6F13549E4F62C1D38B2C72E227ABD4BA60E06E9BA1A803239254556"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\module_detail.dart",
+      "sha256": "EC350166E237369916652767B1D0DDE18234A89BE9A5B3FBC2003F3AA5FE1CF1"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\overview_and_indicators.dart",
+      "sha256": "88C40E049722F5EBD95CBA29F199BC167061F6DEBBE36B8E561617DC390F7DC2"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\theme_surfaces.dart",
+      "sha256": "744655F714D24A97B67D21C635E2B4AA97B010112D0FEAE5FACC4374160AF042"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\timing_chart_filters.dart",
+      "sha256": "40D3BC61A4B89AE5149D62983F1021523012741F4AC81C123B58216E964921AD"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\test\\connection_bootstrap_test.dart",
+      "sha256": "0846F5D8A95459E2419A1E55810CC9AE6A7D70C10DD2311CD74C50340F181EEB"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\test\\connection_settings_test.dart",
+      "sha256": "39E372C2E4B20BD03ADEAA8A83D75960A9907BCFDAA96C014879463C62A3B66D"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\test\\timing_chart_filters_test.dart",
+      "sha256": "ABE38F89C523FD8A162F629AB4DA95A2AA7A63896C258C5F7D7BE79DF04BAB68"
+    }
+  ],
+  "deployment": {
+    "schema": "fraktal.hmi.filter-recovery-deployment",
+    "schemaVersion": 1,
+    "root": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\build\\web",
+    "backup": "C:\\work\\press75_filter_restore_web_backup_01",
+    "oldMainSha256": "B070E552E0C1BAA4C713ACF269736167AFC9A09167375B442C8B7DA2DF50A897",
+    "newMainSha256": "3200C6269BCB593F45E9A9DD38CA15CA06546C5BA34094B66574AD71E87D0EEA",
+    "httpsAddress": "127.0.0.1:443",
+    "tlsHostValidated": "press.localhost",
+    "httpsChecks": [
+      {
+        "asset": "main.dart.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "3200C6269BCB593F45E9A9DD38CA15CA06546C5BA34094B66574AD71E87D0EEA"
+      },
+      {
+        "asset": "flutter_bootstrap.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "D360B821FA8B2A5F64E7FC2052DC317FC8F71755106BA093F2B7CDD16AD12986"
+      },
+      {
+        "asset": "index.html",
+        "status": 200,
+        "identical": true,
+        "sha256": "66F2DC70A372CBC4B8B68781673BFE1EA86B0A8E63F55C6519259709F7F1D035"
+      }
+    ],
+    "gatewayRestarted": false,
+    "controllerWrites": false,
+    "passed": true
+  },
+  "unchangedLoadedBaseline": {
+    "name": "press75",
+    "serial": "7036B510",
+    "address": "192.168.100.89",
+    "model": "1769-L24ER-QB1B",
+    "firmware": "33.014",
+    "l5xSha256": "82AB065C32BCD112D49DD00839B8047C1B5E957A5356FB9D61EF3C1C2F3172A5",
+    "manifestContentHash": "94E302F650BA1DB5",
+    "manifestRevision": 9757442,
+    "ownerMeasuredDataLogicBytes": 758568,
+    "capacityBytes": 786432
+  },
+  "supersedesScope": "AB_PRESS75_HMI_FILTER_NAVIGATION_2026-10-05 covers between-frame recovery; this adds painted connection gates. Prior immutable records remain untouched."
+}

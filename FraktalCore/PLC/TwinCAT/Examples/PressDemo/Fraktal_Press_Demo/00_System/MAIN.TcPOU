@@ -1,0 +1,349 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <POU Name="MAIN" Id="{55a765e4-afc1-4fdb-91af-a60d34c2c143}" SpecialFunc="None">
+    <Declaration><![CDATA[// Virtual-commissioning application for one pneumatic press Unit.
+// IMPORTANT: the Safe* values below simulate TwinSAFE outputs only. A deployed
+// machine maps certified E-stop/two-hand/guard/safe-valve results from TwinSAFE.
+PROGRAM MAIN
+VAR
+    RecipeCatalog : FB_PressRecipeCatalog;
+    // §3.8b - this station's parameter-set store. LOCAL_RETAIN is the shipped
+    // default: named sets of (Scope, WriteKey) records in the controller's own
+    // retentive memory, so the press persists and restores its parametrization
+    // with no file system, no network and no further configuration.
+    ConfigStore : FB_LocalConfigStore;
+    PartCarrier : FB_LocalPartCarrier;    // §3.16.2 BY_POSITION identity + local result ring
+    AccessUsers : FB_LocalAccessProvider; // §7.7 commissioning user/PIN table
+    // TF6100 TMC-Filtered publication starts at the deployed root instance.
+    // The marker is inherited by PneumaticPress's published child symbols.
+    {attribute 'OPC.UA.DA' := '1'}
+    PneumaticPress : FB_PressDemoUnit;
+    // §3.8e - the line this press stands on, and the OWNER of its data (the shift
+    // calendar, §8.5.2). A line is no Unit and no module of one: it sits here,
+    // beside the roots, like the control domain, and each root on the line
+    // references it (SetLine) and presents its values as that root's line data.
+    // A second station on this line would host a MIRROR fed through I_LineSource.
+    PressLine : FB_LineDataV3;
+    IoCatalog : FB_PressIoCatalog;
+    IoDriver : FB_PressIoDriver;
+    // Core §7.5.1 — this station's commissioning/engineering gate register.
+    // Every gate below is a VAR CONSTANT of this program, so the register is
+    // decided at build time and cannot be edited on a running machine. While it
+    // holds anything, every root Unit carries the standing §7.5.2 annunciation.
+    EngineeringMode : FB_EngineeringMode;
+    ControlDomain : FB_PressControlDomain;
+    OutputAuthority : FB_PressOutputAuthority;
+    SimulationDriver : FB_PressSimulationDriver;
+    PressHal, DoorHal, SlideHal : ST_CylinderHal;
+    TwoHandHal : ST_TwoHandHal;
+    PowerHal : ST_PowerGroupHal;
+    PartPresentHal : ST_DigitalInputHal;
+    AirPressureHal : ST_AirPressureHal;
+    HealthProbe : FB_TcSystemHealthProbe;
+    HealthConfig : ST_SystemHealthParCfg;
+    HealthCpuLoadPct : LREAL;
+    HealthMemoryAvailableMb : UDINT;
+    HealthTimeSource : STRING(32);
+    InitialModel : ST_ModelId;
+    Plate : ST_Nameplate;
+    Init : BOOL;
+    // Read-only MIRRORS of the commissioning gates (see the VAR CONSTANT block).
+    // They exist only so the gate state stays visible over ADS/OPC UA: the
+    // compiler inlines constants, which may publish no symbol at all, and losing
+    // that visibility would remove the fastest way to diagnose "no output moves".
+    // They are reassigned from the constants every cycle and nothing reads them,
+    // so writing one online is inert - the constant remains the only authority.
+    UseSimulation : BOOL;
+    ControlCircuitMappingConfirmed : BOOL;
+    // §10.5.1 demand gate, written by the HMI while its fieldbus page is open.
+    // FALSE parks the EtherCAT master scan (no ADS traffic for a view nobody is
+    // watching); the last read states are held, never falsified.
+    FieldbusViewActive : BOOL;
+
+    // Simulation controls. E-stop is normally closed: TRUE = healthy circuit.
+    SimEStopNc : BOOL := TRUE;
+    SimControlOnButton : BOOL;
+    SimControlOffButton : BOOL;
+    SimLeftButton : BOOL;
+    SimRightButton : BOOL;
+    SimSafetyValveOk : BOOL := TRUE;
+    SimFieldbusHealthy : BOOL := TRUE;
+    SimPartPresent : BOOL := TRUE;
+    SimAirPressureOk : BOOL := TRUE;
+    SafeEStopOk : BOOL;
+    SafeGuardClosed : BOOL;
+    SafeTwoHandActive : BOOL;
+    SafePneumaticPermit : BOOL;
+    SafetyFieldbusHealthy : BOOL;
+    StandardIoHealthy : BOOL;
+    RawEStopHealthy : BOOL;
+    LampsOn : BOOL;
+    ControlOnEdge : R_TRIG;
+    ControlOffEdge : R_TRIG;
+    ControlOnAdopted : R_TRIG;   // rising edge of the relay chain's feedback
+END_VAR
+VAR CONSTANT
+    // COMMISSIONING GATES - deliberately CONSTANT so they cannot be flipped
+    // online. Defeating a gate must be a source change plus a download: a
+    // reviewable, auditable act, not a live write from an HMI or ADS client.
+    //
+    // TRUE makes MAIN call M_ClearOutputs() every cycle, so no physical output
+    // is ever energized while the simulation driver animates the plant.
+    USE_SIMULATION : BOOL := FALSE;
+    // FALSE makes M_WriteOutputs force _000K951_A1 and _000K911_A1 FALSE every
+    // cycle. Control On then cannot energize, the hardwired N54 D2 relay chain
+    // never closes, and NOTHING moves - even though the cylinder coils are
+    // written unconditionally. Set TRUE only after verifying the K951/K911
+    // electrical semantics on the cabinet; per N54 D2 SwitchControlOn and
+    // EnableControlOn are distinct signals.
+    CONTROL_CIRCUIT_MAPPING_CONFIRMED : BOOL := TRUE;
+    // §G.4a - does THIS bench have a safety-rated enabling device for manual
+    // motion? It does not: the Xvi is an 80 N magnetic linear motor standing on
+    // the desk, outside the press. Declaring that here makes the axis's
+    // StationCfg say the same thing, and the §7.5 gate below makes the machine
+    // announce the departure for as long as it is true. A real cell with a
+    // person inside it sets this TRUE and the §G.4a rule applies unchanged.
+    JOG_ENABLE_DEVICE_REQUIRED : BOOL := FALSE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Mirror the compile-time gates so they remain observable (see declaration).
+UseSimulation := USE_SIMULATION;
+ControlCircuitMappingConfirmed := CONTROL_CIRCUIT_MAPPING_CONFIRMED;
+
+IF NOT Init THEN
+    Init := TRUE;
+    // Initial mechanically safe/load position: ram up, door open, slide outside.
+    PressHal.RetractedFb := TRUE;
+    DoorHal.RetractedFb := TRUE;
+    SlideHal.RetractedFb := TRUE;
+    RecipeCatalog.Setup(UnitRef := PneumaticPress);
+    PneumaticPress.Setup(Name := 'PneumaticPress', PressHal := PressHal, DoorHal := DoorHal,
+        SlideHal := SlideHal, TwoHandHal := TwoHandHal, PowerHal := PowerHal,
+        PartPresentHal := PartPresentHal, AirPressureHal := AirPressureHal,
+        Recipe := RecipeCatalog.Provider);
+    PressLine.Setup(Name := 'PressLine', LineId := 'PRESS-LINE-1',
+        Role := E_LineRole.OWNER, Source := 0, StaleAfterMs := 0);
+    PneumaticPress.SetLine(pLine := ADR(PressLine));
+    // §7.5.1 — declare this project's own gates. Passing the CONSTANT as `Active`
+    // is the point: an inactive gate registers nothing, so a production build
+    // publishes an empty register, annunciates nothing, and exposes no gated
+    // surface at all. Passing a runtime variable here would defeat §7.5.1.
+    EngineeringMode.M_Declare(Name := 'USE_SIMULATION',
+        DescriptionKey := 'std.engineering.simulation', Active := USE_SIMULATION);
+    EngineeringMode.M_Declare(Name := 'CONTROL_CIRCUIT_UNCONFIRMED',
+        DescriptionKey := 'std.engineering.controlCircuitUnconfirmed',
+        Active := NOT CONTROL_CIRCUIT_MAPPING_CONFIRMED);
+    EngineeringMode.M_Declare(Name := 'JOG_ENABLE_DEVICE_NOT_REQUIRED',
+        DescriptionKey := 'std.engineering.jogEnableDeviceNotRequired',
+        Active := NOT JOG_ENABLE_DEVICE_REQUIRED);
+    // Wiring the register also declares the framework's own OUTPUT_FORCING gate
+    // from PL_FraktalEngineering, so forcing can never be armed without being
+    // annunciated. It must precede IoCatalog.Setup, which reads ForcingActive to
+    // decide whether any channel is published as Forceable at all.
+    PneumaticPress.SetEngineeringMode(Mode := EngineeringMode);
+    IoDriver.Setup(UnitRef := PneumaticPress);
+    IoCatalog.Setup(UnitRef := PneumaticPress, Engineering := EngineeringMode);
+    // §10.5.1 — the catalog owns the approved channel join, so it is what
+    // resolves a force request; the Unit only routes an already-authorized one.
+    PneumaticPress.SetIoCatalog(Catalog := IoCatalog);
+    ControlDomain.Setup(UnitRef := PneumaticPress);
+    SimulationDriver.Setup(PressHal := PressHal, DoorHal := DoorHal, SlideHal := SlideHal);
+    InitialModel.ModelCode := 'ALUMINUM';
+    PneumaticPress.SetModel(Id := InitialModel);
+    Plate.ProductUri := 'urn:fraktal:demo:pneumatic-press:2026-0001';
+    Plate.ManufacturerName := 'Fraktal Example Project';
+    Plate.ProductDesignation := 'Pneumatic Press Training Cell';
+    Plate.SerialNumber := 'PRESS-DEMO-2026-0001';
+    Plate.YearOfConstruction := '2026';
+    Plate.SoftwareVersion := 'Fraktal Press Demo 0.1';
+    PneumaticPress.SetNameplate(Plate := Plate);
+    // §8.9 standard reason metadata is generated and manifest-served by the Unit.
+    // §3.16 traceability: station-local BY_POSITION serials; RFID/host substitutes later
+    PartCarrier.Setup(UidPrefix := 'PRESS-2026-');
+    PneumaticPress.SetPartCarrier(Carrier := PartCarrier);
+    // §3.8b — the parameter-set store, beside the recipe provider and the access
+    // provider it mirrors. Composition-root wiring, one line, no per-value glue:
+    // every capability any module in this tree registered is already in the set.
+    PneumaticPress.SetConfigStore(Store := ConfigStore);
+    // §3.8b — this press declares the STRICT restore policy. Its station data
+    // today is the two-hand requirement and the step stall guard, and the
+    // two-hand requirement is the reason: losing it would mean a machine that
+    // presents itself as commissioned while no longer waiting for the start
+    // control this cell's risk assessment requires. DEFAULTS_AND_ANNUNCIATE is
+    // the shipped default and is right for a station whose lost values are
+    // conveniences; this one's are not.
+    //
+    // The PartFeed axis's taught position is NOT in this set. FB_AxisCM
+    // registers it (Annex G §G.4b), but PartFeed is neither bound by
+    // ConfigurePartFeedAxis nor registered as a child of this Unit while no NC
+    // axis exists in the System Manager — so it is outside the walk, and a
+    // station set taken here does not contain it. It joins the set the day the
+    // axis is linked, with no change to this line.
+    PneumaticPress.SetConfigRestorePolicy(
+        Policy := E_ConfigRestorePolicy.BLOCK_UNTIL_ACKNOWLEDGED);
+    // §G.4a - the axis's own retained StationCfg is the authority; this states
+    // the bench's fact into it. Stamps the schema version too, so the value
+    // survives the axis's later Setup/restore rather than being defaulted over.
+    IF NOT JOG_ENABLE_DEVICE_REQUIRED THEN
+        PneumaticPress.PartFeed.SetJogRequiresEnable(Required := FALSE);
+    END_IF
+    PneumaticPress.Access.Setup(Provider := AccessUsers, pAlarmLog := ADR(PneumaticPress.AlarmLog));
+    HealthConfig.MaxTaskCycleUs := 5000;
+    HealthConfig.MaxTaskJitterUs := 2000;
+    HealthConfig.RequireFieldbus := TRUE;
+    HealthConfig.RequireDcSync := FALSE;
+    HealthConfig.RequireTimeSync := TRUE;
+END_IF
+
+// §7.7/§14: a PIN is deployment configuration, never a source literal. Write one
+// into GVL_PressCommissioning (XAE watch window) and it is registered as a salted
+// hash in this scan and wiped: no PIN is retained as text, and the persistent user
+// table keeps the user across restarts. Provision users before raising a threshold.
+IF GVL_PressCommissioning.OperatorPin <> '' THEN
+    AccessUsers.Register(User := 'operator', Pin := GVL_PressCommissioning.OperatorPin,
+        Level := E_AccessLevel.OPERATOR);
+    GVL_PressCommissioning.OperatorPin := '';
+END_IF
+IF GVL_PressCommissioning.TechnicianPin <> '' THEN
+    AccessUsers.Register(User := 'tech', Pin := GVL_PressCommissioning.TechnicianPin,
+        Level := E_AccessLevel.TECHNICIAN);
+    GVL_PressCommissioning.TechnicianPin := '';
+END_IF
+IF GVL_PressCommissioning.AdminPin <> '' THEN
+    AccessUsers.Register(User := 'admin', Pin := GVL_PressCommissioning.AdminPin,
+        Level := E_AccessLevel.ADMIN);
+    GVL_PressCommissioning.AdminPin := '';
+END_IF
+
+// Ordinary simulated local station buttons. The worksheet does not list real
+// Control On/Off input buttons; physical operation therefore uses HMI requests
+// until those devices are identified. Control Off wins simultaneous edges.
+// Source the Control On/Off edges from the REAL buttons on a live machine, and
+// from the simulated ones only under USE_SIMULATION. Previously both edges were
+// ANDed with USE_SIMULATION, so on hardware neither could ever fire and the
+// machine had no headless Control On path at all.
+IF USE_SIMULATION THEN
+    ControlOnEdge(CLK := SimControlOnButton);
+    ControlOffEdge(CLK := SimControlOffButton);
+ELSE
+    ControlOnEdge(CLK := IoDriver.ControlOnButton);
+    ControlOffEdge(CLK := IoDriver.ControlOffButton);
+END_IF
+IF ControlOffEdge.Q THEN
+    PneumaticPress.RequestLocalControl(ControlOn := FALSE);
+ELSIF ControlOnEdge.Q THEN
+    PneumaticPress.RequestLocalControl(ControlOn := TRUE);
+END_IF
+// Adopt the relay chain's established state: it is the authority. Without this
+// the PLC can sit with no power request while K911_Y32 shows control is already
+// ON (observed on the press), leaving PLC and hardware permanently out of step.
+// One-shot: re-issuing POWER_ON every scan would re-fault the power group on
+// any momentary permit dip and spam the event log. Latch on the feedback's
+// rising edge only, and re-arm the latch when control drops away.
+ControlOnAdopted(CLK := PowerHal.PowerFeedback);
+IF NOT USE_SIMULATION AND ControlOnAdopted.Q AND NOT ControlOffEdge.Q THEN
+    PneumaticPress.RequestLocalControl(ControlOn := TRUE);
+END_IF
+
+IF USE_SIMULATION THEN
+    SimulationDriver.M_ReadInputs(DoorHal := DoorHal, TwoHandHal := TwoHandHal,
+        PowerHal := PowerHal, PartPresentHal := PartPresentHal,
+        AirPressureHal := AirPressureHal, RawEStopHealthy := RawEStopHealthy,
+        SafeEStopOk := SafeEStopOk, SafeGuardClosed := SafeGuardClosed,
+        SafeTwoHandActive := SafeTwoHandActive,
+        SafePneumaticPermit := SafePneumaticPermit,
+        SafetyFieldbusHealthy := SafetyFieldbusHealthy,
+        StandardIoHealthy := StandardIoHealthy, SimEStopNc := SimEStopNc,
+        SimLeftButton := SimLeftButton, SimRightButton := SimRightButton,
+        SimSafetyValveOk := SimSafetyValveOk,
+        SimFieldbusHealthy := SimFieldbusHealthy,
+        SimPartPresent := SimPartPresent, SimAirPressureOk := SimAirPressureOk,
+        PowerRequested := PowerHal.EnableRequestOut);
+ELSE
+    // The project Hardware Driver is the only raw process-image consumer.
+    IoDriver.M_ReadInputs(PressHal := PressHal, DoorHal := DoorHal,
+        SlideHal := SlideHal, TwoHandHal := TwoHandHal, PowerHal := PowerHal,
+        PartPresentHal := PartPresentHal, AirPressureHal := AirPressureHal,
+        RawEStopHealthy := RawEStopHealthy, SafeEStopOk := SafeEStopOk,
+        SafeGuardClosed := SafeGuardClosed, SafeTwoHandActive := SafeTwoHandActive,
+        SafePneumaticPermit := SafePneumaticPermit,
+        SafetyFieldbusHealthy := SafetyFieldbusHealthy,
+        StandardIoHealthy := StandardIoHealthy);
+END_IF
+TwoHandHal.SafeActive := SafeTwoHandActive;
+TwoHandHal.FieldbusHealthy := SafetyFieldbusHealthy;
+PowerHal.SafetyPermit := SafePneumaticPermit;
+PowerHal.FieldbusHealthy := StandardIoHealthy;
+
+ControlDomain.M_Update(SafeEStopOk := SafeEStopOk,
+    SafeGuardClosed := SafeGuardClosed, SafeTwoHandActive := SafeTwoHandActive,
+    SafePneumaticPermit := SafePneumaticPermit,
+    SafetyFieldbusHealthy := SafetyFieldbusHealthy,
+    StandardIoHealthy := StandardIoHealthy, RawEStopHealthy := RawEStopHealthy,
+    PowerFeedback := PowerHal.PowerFeedback,
+    PowerRequested := PowerHal.EnableRequestOut,
+    TwoHandFieldbusHealthy := TwoHandHal.FieldbusHealthy);
+PneumaticPress.ControlDomain := ControlDomain.Status;
+
+// §2.7/§8.12 framework acceptance fixture. Simulation supplies explicit healthy
+// synthetic controller/time probes; a real target stays conspicuously
+// unavailable until its platform metrics and documented sync source are wired.
+IF USE_SIMULATION THEN
+    HealthCpuLoadPct := 25.0;
+    HealthMemoryAvailableMb := UDINT#1024;
+    HealthTimeSource := 'SIMULATED';
+ELSE
+    HealthCpuLoadPct := 0.0;
+    HealthMemoryAvailableMb := UDINT#0;
+    HealthTimeSource := 'UNCONFIGURED';
+END_IF
+HealthProbe.Cyclic(ExpectedCycleUs := 1000, ExternalTaskOverrun := FALSE,
+    ControllerAvailable := USE_SIMULATION,
+    CpuLoadPct := HealthCpuLoadPct,
+    MemoryAvailableMb := HealthMemoryAvailableMb,
+    IpcAvailable := FALSE, IpcTemperatureC := 0.0,
+    FanHealthy := TRUE, StorageHealthPct := 100.0,
+    FieldbusAvailable := TRUE, FieldbusMasterHealthy := StandardIoHealthy,
+    LostFrameCount := 0, SlaveErrorCount := 0,
+    DcAvailable := USE_SIMULATION, DcSynchronized := USE_SIMULATION,
+    TimeAvailable := USE_SIMULATION, TimeSynchronized := USE_SIMULATION,
+    TimeSource := HealthTimeSource,
+    TimeOffsetUs := 0, LastSyncAt := F_Now());
+IF HealthProbe.Health.TaskAvailable THEN
+    PneumaticPress.SetSystemHealth(Input := HealthProbe.Health, ParCfg := HealthConfig);
+ELSE
+    ; // first monotonic sample has no prior scan from which to derive a period
+END_IF
+
+// First execute ordinary control, then apply a standard-PLC withdrawal layer.
+// This is defense in depth only: the real safety system owns pneumatic removal.
+PneumaticPress();
+OutputAuthority.M_Apply(PressHal := PressHal, DoorHal := DoorHal,
+    SlideHal := SlideHal, PowerFeedback := PowerHal.PowerFeedback,
+    SafePneumaticPermit := SafePneumaticPermit,
+    StandardIoHealthy := StandardIoHealthy,
+    HazardousRamPermit := SafeGuardClosed AND SafeTwoHandActive);
+IF USE_SIMULATION THEN
+    // Never leave physical outputs energized while virtual commissioning.
+    IoDriver.M_ClearOutputs();
+    SimulationDriver.M_RefreshPlant();
+ELSE
+    LampsOn := PneumaticPress.OutImm.TwoHandStartReady;
+    IoDriver.M_WriteOutputs(PressHal := PressHal, DoorHal := DoorHal,
+        SlideHal := SlideHal, PowerHal := PowerHal, LampsOn := LampsOn,
+        ControlCircuitMappingConfirmed := CONTROL_CIRCUIT_MAPPING_CONFIRMED,
+        ForcePermitted := PneumaticPress.M_ForcePermitted());
+END_IF
+// Node state comes from the real EtherCAT master. §10.5.1 is a diagnostic
+// surface, so the master is scanned only while a client is watching the bus
+// view: the HMI sets FieldbusViewActive when its fieldbus page is open (the same
+// on-demand gating the read tiers already apply to the topology data itself).
+IoDriver.M_RefreshFieldbus(BusViewActive := FieldbusViewActive);
+]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="3" Count="129" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

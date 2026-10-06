@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Engineering_Tests" Id="{7d1f4a3e-92c6-4b18-8d54-1c0b6f2a9e31}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §7.5 under test: the gate register is write-once and build-driven, the
+// standing §7.5.2 annunciation is LOW/SYSTEM/AUTO_RESET, no operator action
+// closes it, and §10.5.1 forcing is refused unless the register arms it.
+//
+// The assertions about OUTPUT_FORCING are written against
+// PL_FraktalEngineering.OUTPUT_FORCING rather than against TRUE or FALSE, so the
+// suite is green in BOTH images and proves the two are actually coupled - a test
+// hard-coded to the production value would pass while the commissioning build
+// silently armed nothing.
+FUNCTION_BLOCK FB_Engineering_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _mode : FB_EngineeringMode;
+    _overflow : FB_EngineeringMode;
+    _u : FB_ProbeUnit;
+    _gateMode : FB_EngineeringMode;
+    _i : INT;
+    _slot : INT;
+    _second : INT;
+    _w1, _w2, _w3, _w4 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Inactive_gate_is_not_registered_and_declaring_is_idempotent();
+Register_overflow_is_reported_not_silent();
+Forcing_is_armed_only_by_the_build_constant();
+Active_gate_annunciates_low_system_and_no_reset_closes_it();]]></ST>
+    </Implementation>
+    <Method Name="Inactive_gate_is_not_registered_and_declaring_is_idempotent" Id="{2a5c8f10-4d73-46be-9c2a-0e8b1d5f7c46}">
+      <Declaration><![CDATA[METHOD Inactive_gate_is_not_registered_and_declaring_is_idempotent]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Inactive_gate_is_not_registered_and_declaring_is_idempotent');
+IF NOT _w1 THEN
+    // §7.5.1: an inactive gate registers NOTHING - that is what makes a
+    // production station's register empty and its gated surfaces invisible
+    // rather than merely disabled.
+    AssertEquals_INT(Expected := 0,
+        Actual := _mode.M_Declare(Name := 'USE_SIMULATION',
+            DescriptionKey := 'std.engineering.simulation', Active := FALSE),
+        Message := 'an inactive gate is not registered');
+    AssertEquals_INT(Expected := 0, Actual := _mode.Count,
+        Message := 'so the register stays empty');
+    _slot := _mode.M_Declare(Name := 'USE_SIMULATION',
+        DescriptionKey := 'std.engineering.simulation', Active := TRUE);
+    AssertTrue(Condition := _slot > 0, Message := 'an active gate is registered');
+    AssertEquals_STRING(Expected := 'std.engineering.simulation',
+        Actual := _mode.Gates[_slot].DescriptionKey,
+        Message := 'with the key the standing annunciation will carry');
+    // Re-declaring keeps the slot: two callers naming one departure must not
+    // produce two standing annunciations for it.
+    _second := _mode.M_Declare(Name := 'USE_SIMULATION',
+        DescriptionKey := 'std.engineering.simulation', Active := TRUE);
+    AssertEquals_INT(Expected := _slot, Actual := _second,
+        Message := 'declaring the same gate again keeps its slot');
+    AssertEquals_INT(Expected := 1, Actual := _mode.Count,
+        Message := 'and does not grow the register');
+    AssertFalse(Condition := _mode.Truncated, Message := 'nothing was dropped');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Register_overflow_is_reported_not_silent" Id="{6b0e2d94-31a7-4c85-b6f1-8a4e93c07d52}">
+      <Declaration><![CDATA[METHOD Register_overflow_is_reported_not_silent
+VAR
+    gateName : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Register_overflow_is_reported_not_silent');
+IF NOT _w2 THEN
+    FOR _i := 1 TO PL_Fraktal.MAX_ENGINEERING_GATES + 1 DO
+        gateName := CONCAT('GATE_', INT_TO_STRING(_i));
+        _overflow.M_Declare(Name := gateName,
+            DescriptionKey := 'std.engineering.simulation', Active := TRUE);
+    END_FOR
+    AssertEquals_INT(Expected := PL_Fraktal.MAX_ENGINEERING_GATES,
+        Actual := _overflow.Count, Message := 'the table is bounded (O10)');
+    // A gate that overflowed the table would otherwise be a departure nobody is
+    // told about - the exact failure §7.5.2 exists to prevent (§5.6).
+    AssertTrue(Condition := _overflow.Truncated,
+        Message := 'and says so instead of dropping a gate silently');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Forcing_is_armed_only_by_the_build_constant" Id="{c47a8e63-5f92-4a01-b83d-72e6d1948b5a}">
+      <Declaration><![CDATA[METHOD Forcing_is_armed_only_by_the_build_constant]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Forcing_is_armed_only_by_the_build_constant');
+IF NOT _w3 THEN
+    // Before anything wires the register, forcing is refused: an unwired Unit is
+    // a production Unit (§10.5.1 rule 1, fail closed).
+    AssertFalse(Condition := _u.M_ForcePermitted(),
+        Message := 'no register wired, so no forcing');
+    AssertFalse(Condition := _u.ForceChannel(ChannelPath := 'Test.IO.X',
+        Force := TRUE, BoolText := 'true', AnalogText := '0'),
+        Message := 'and the request is refused before any resolver runs');
+    _u.SetEngineeringMode(Mode := _gateMode);
+    AssertTrue(Condition := (_gateMode.ForcingActive = PL_FraktalEngineering.OUTPUT_FORCING),
+        Message := 'wiring the register arms forcing iff the build constant says so');
+    AssertTrue(Condition := ((_gateMode.Count > 0) = PL_FraktalEngineering.OUTPUT_FORCING),
+        Message := 'and an armed force surface always brings its gate with it');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Active_gate_annunciates_low_system_and_no_reset_closes_it" Id="{9e3b5d17-8c40-4f26-a951-3b7d0c62e849}">
+      <Declaration><![CDATA[METHOD Active_gate_annunciates_low_system_and_no_reset_closes_it]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Active_gate_annunciates_low_system_and_no_reset_closes_it');
+IF NOT _w4 THEN
+    AssertTrue(Condition := _u.Setup(Name := 'Test.GateUnit'), Message := 'unit sets up');
+    _u.SetEngineeringMode(Mode := _gateMode);
+    _gateMode.M_Declare(Name := 'USE_SIMULATION',
+        DescriptionKey := 'std.engineering.simulation', Active := TRUE);
+    _u();
+    _slot := _u.AlarmLog.FindActiveSlot(SourcePath := 'Test.GateUnit',
+        Description := 'std.engineering.simulation');
+    AssertTrue(Condition := _slot > 0, Message := 'the gate is annunciated');
+    AssertEquals_DINT(Expected := TO_DINT(E_Severity.LOW),
+        Actual := TO_DINT(_u.AlarmLog.Active[_slot].Severity),
+        Message := 'at the LOWEST priority (§8.1)');
+    AssertEquals_DINT(Expected := TO_DINT(E_Category.SYSTEM),
+        Actual := TO_DINT(_u.AlarmLog.Active[_slot].Category),
+        Message := 'in the SYSTEM class: this is about the build, not the process');
+    AssertEquals_DINT(Expected := TO_DINT(E_ResetClass.AUTO_RESET),
+        Actual := TO_DINT(_u.AlarmLog.Active[_slot].ResetClass),
+        Message := 'AUTO_RESET, so it never blocks the commissioning it serves');
+    AssertFalse(Condition := _u.AlarmLog.Blocking,
+        Message := 'and Start stays available');
+    // The whole point: no operator action closes this. OperatorReset reaches
+    // only MANUAL_RESET events, and the rationalization record is not shelvable.
+    _u.AlarmLog.OperatorReset();
+    _u();
+    AssertTrue(Condition := _u.AlarmLog.FindActiveSlot(SourcePath := 'Test.GateUnit',
+        Description := 'std.engineering.simulation') > 0,
+        Message := 'an operator reset does not clear it');
+    AssertFalse(Condition := _u.AlarmLog.Shelve(Slot := _slot, DurationS := 60),
+        Message := 'and shelving cannot silence it either');
+    // It is raised ONCE per gate, however long the station runs.
+    _u();
+    _u();
+    AssertEquals_INT(Expected := _gateMode.Count, Actual := _u.AlarmLog.NActive,
+        Message := 'one standing event per REGISTERED gate, not one per scan');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

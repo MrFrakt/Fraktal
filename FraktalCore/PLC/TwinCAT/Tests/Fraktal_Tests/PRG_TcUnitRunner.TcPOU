@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="PRG_TcUnitRunner" Id="{86af2602-fbcc-443b-aee7-03f4e3f99992}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §5.7 / TC3 §5.7 — one open-ended gate: every suite joins unchanged (§6.8, H.6)
+// Press-example suites (FB_PressDemoUnit_Tests, FB_FaultRecovery_Tests) run
+// from Examples/PressDemo/PressTests.plcproj - see that manifest for why.
+PROGRAM PRG_TcUnitRunner
+VAR
+    BaseTests      : FB_Base_Tests;
+    PermTests      : FB_PermIntlk_Tests;
+    PowerGroupTests: FB_PowerGroupCM_Tests;
+    TwoHandTests   : FB_TwoHandStartCM_Tests;
+    TimingTests    : FB_Timing_Tests;
+    UnitTests      : FB_Unit_Tests;
+    ConnectorTests : FB_Connector_Tests;
+    CylinderTests  : FB_CylinderCM_Tests;
+    DecisionTests  : FB_Decision_Tests;
+    ConfigurableCylinderTests : FB_ConfigurableCylinderCM_Tests;
+    ClampTests     : FB_ClampEM_Tests;
+    UnitTierTests : FB_UnitTier_Tests;
+    HmiTests       : FB_Hmi_Tests;
+    HostEventTests : FB_HostEvent_Tests;
+    IoTopologyTests: FB_IoTopologyPublisher_Tests;
+    InputModuleTests: FB_InputCM_Tests;
+    AccessTests    : FB_Access_Tests;
+    AlarmLogTests  : FB_AlarmLog_Tests;
+    ManualCmdTests : FB_ManualCmd_Tests;
+    MultiRootTests : FB_MultiRoot_Tests;
+    OeeTests       : FB_Oee_Tests;
+    ReleaseTests   : FB_Release_Tests;
+    ShelveTests    : FB_Shelve_Tests;
+    TcpDeviceTests : FB_TcpDev_Tests;
+    PartTraceTests : FB_PartTrace_Tests;
+    SystemInfrastructureTests : FB_SystemInfrastructure_Tests;
+    SequenceRaiseTests : FB_SequenceRaise_Tests;
+    SequenceParTests : FB_SequencePar_Tests;
+    StateFlagTests : FB_StateFlag_Tests;
+    AxisTests : FB_Axis_Tests;
+    RobotPlannerTests : FB_RobotPlanner_Tests;
+    RobotConnectorTests : FB_RobotConnector_Tests;
+    RobotCmTests : FB_RobotCM_Tests;
+    AxisJogTests : FB_AxisJog_Tests;
+    SeparatorTests : FB_Separator_Tests;
+    EngineeringTests : FB_Engineering_Tests;
+    ConfigWriteTests : FB_ConfigWrite_Tests;
+    ConfigDurabilityTests : FB_ConfigDurability_Tests;
+    ConfigSetTests : FB_ConfigSet_Tests;
+    DataClassTests : FB_DataClass_Tests;
+    ModelDataTests : FB_ModelData_Tests;
+    Sha256Tests : FB_Sha256_Tests;
+    LineTests : FB_LineData_Tests;
+    ShiftTests : FB_Shift_Tests;
+    HandoverTests : FB_Handover_Tests;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[TcUnit.RUN();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

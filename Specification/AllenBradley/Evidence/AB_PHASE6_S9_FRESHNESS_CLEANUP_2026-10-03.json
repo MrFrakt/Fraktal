@@ -1,0 +1,83 @@
+{
+  "schema": "fraktal.ab.phase6.s9-freshness-cleanup-evidence",
+  "schemaVersion": 1,
+  "date": "2026-10-03",
+  "priorRecord": "AB_PHASE6_S9_FRESHNESS_2026-10-03.json",
+  "priorRecordSha256": "D73AEFAA3B4F6E02CAA7B383B568E61E7A6F94C13608D1C538F2E6A506A41D87",
+  "sourceFiles": {
+    "FraktalCore/HMI/lib/data/opcua_repository.dart": "38F7FE29EFC02847102614C43DB263502375B3188D7114ACB18D71FB84764E8D",
+    "FraktalCore/HMI/test/opcua_freshness_test.dart": "3C5F2F2BFB6B840338089B3AAAA32DB3D0D97236A5AAE18CB7943B9CA2201CAE"
+  },
+  "change": "Failed initial connection now uses the same repository resource cleanup as disposal, cancelling expiry/poll timers and closing transport/streams.",
+  "checks": {
+    "sharedContractTests": 71,
+    "hmiTests": 459,
+    "expectedHmiSkips": 7,
+    "analyzerClean": true,
+    "releaseWebBuilt": true
+  },
+  "unchanged": "All AB/gateway/PLC source, ReadBudget, artifact hashes and read-only native measurements in the prior record remain unchanged.",
+  "controllerWrites": false,
+  "gatewayRestarted": false,
+  "fullWriteEnabledClaim": false,
+  "finalDeployment": {
+    "schema": "fraktal.ab.s9-freshness-deployment",
+    "schemaVersion": 1,
+    "root": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\build\\web",
+    "backup": "C:\\work\\press68_freshness_web_backup_02",
+    "oldMainSha256": "A00D83AC9AC7369E449A1B01CF250C22859919AC8473396AC3914C15527FC1A6",
+    "newMainSha256": "54C6C3060000A4BD94A4C4B43F36C2873A7F0DDD289FE061CE1C20713D9154EB",
+    "httpsAddress": "127.0.0.1:443",
+    "tlsHostValidated": "press.localhost",
+    "httpsChecks": [
+      {
+        "asset": "main.dart.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "54C6C3060000A4BD94A4C4B43F36C2873A7F0DDD289FE061CE1C20713D9154EB"
+      },
+      {
+        "asset": "flutter_bootstrap.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "111229DB8B512526965B86D294AB4227383693FC8B5C85009767D387FBEC518A"
+      },
+      {
+        "asset": "index.html",
+        "status": 200,
+        "identical": true,
+        "sha256": "66F2DC70A372CBC4B8B68781673BFE1EA86B0A8E63F55C6519259709F7F1D035"
+      }
+    ],
+    "gatewayRestarted": false,
+    "controllerWrites": false,
+    "passed": true
+  },
+  "failedContractAttempt": {
+    "path": "C:\\work\\press68_freshness_contract_02.log",
+    "sha256": "D299133596DE5E03DB29CCB4F7F33BF2341A4500B4AC3199848D4CEA083782B2",
+    "passed": 70,
+    "failed": 1,
+    "failure": "Recovery assertion checked after a fixed 70 ms sleep before a new LIVE emission under concurrent build load.",
+    "correction": "Wait for the actual LIVE stream event with a two-second bound. Expiry limits and all failure assertions are unchanged."
+  },
+  "logs": {
+    "press68_freshness_contract_03.log": {
+      "path": "C:\\work\\press68_freshness_contract_03.log",
+      "sha256": "492BDC8113902852FC10FFA4672E711D558C012211A4DBA39F3D5A838E737C9A"
+    },
+    "press68_freshness_hmi_03.log": {
+      "path": "C:\\work\\press68_freshness_hmi_03.log",
+      "sha256": "612A501DBDAC978089FDAA332BA96D5C90C89E7960DB46286DC7A5C1811E8C63"
+    },
+    "press68_freshness_analyze_03.log": {
+      "path": "C:\\work\\press68_freshness_analyze_03.log",
+      "sha256": "AA6DA020DC620E01D13B6CAC42E5EBAC06FAD9AEE2CE917086544EA1AAB9A1C7"
+    },
+    "press68_freshness_web-final_01.log": {
+      "path": "C:\\work\\press68_freshness_web-final_01.log",
+      "sha256": "F067A52267F3FB8F4A666926BB258CF1BAFBC21527890DBA705906351AACA6A0"
+    }
+  },
+  "remaining": "Owner restart of the existing gateway and Chrome hard refresh, then read-only verification of the live envelope. No new download."
+}

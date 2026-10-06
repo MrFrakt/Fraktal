@@ -1,0 +1,339 @@
+/// Vertical mode-control bar (right side): mode selector (current-mode icon on top),
+/// play/stop (run mode / graceful stop) at the bottom, and an optional step-by-step
+/// toggle. Reflects §3.4.1 switch policy (prompts / blocks) and §3.4.2 run styles.
+/// MANUAL shows no play/stop/step (no automatic sequence).
+library;
+
+import '../localization/localized_text.dart';
+import 'package:flutter/material.dart';
+import '../domain/module_node.dart';
+import '../domain/types.dart';
+import '../state/app_state.dart';
+import 'app_theme.dart';
+
+IconData modeIcon(UnitMode m) => switch (m) {
+      UnitMode.auto => Icons.autorenew,
+      UnitMode.manual => Icons.pan_tool_outlined,
+      UnitMode.home => Icons.home_outlined,
+      UnitMode.changeover => Icons.swap_horiz,
+      UnitMode.calibration => Icons.straighten,
+      UnitMode.capability => Icons.query_stats,
+      UnitMode.adjustment => Icons.tune,
+    };
+
+class ModeBar extends StatelessWidget {
+  final AppState app;
+  const ModeBar({super.key, required this.app});
+
+  ModuleNode? get _unit {
+    final sel = app.selected;
+    if (sel == null) return null;
+    return sel.isUnit ? sel : app.rootOf(sel.path); // control the owning Unit
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final u = _unit;
+    if (u == null)
+      return SizedBox(width: ControlScaleScope.of(context).railWidth);
+    final cs = Theme.of(context).colorScheme;
+    final s = app.session;
+    final canMode = s.permits(GatedAction.modeChange);
+    final isManual = u.modeActive == UnitMode.manual;
+    final m = ControlScaleScope.of(context);
+    return Container(
+      width: m.railWidth,
+      color: cs.surfaceContainerLow,
+      child: Column(children: [
+        const SizedBox(height: 8),
+        // ---- mode selector: current mode icon on top ----
+        _modeSelector(context, u, canMode),
+        const Divider(),
+        const Spacer(),
+        // ---- run controls (not in MANUAL: no sequence) ----
+        if (!isManual) ...[
+          _stepToggle(context, u, canMode),
+          const SizedBox(height: 8),
+          if (u.runStyle == RunStyle.holdToRun)
+            _holdToRun(context, u, s)
+          else if (u.runStyle == RunStyle.singleStep)
+            _stepButton(context, u, s),
+          const SizedBox(height: 8),
+          _playStop(context, u, s),
+        ],
+        const SizedBox(height: 12),
+      ]),
+    );
+  }
+
+  Widget _modeSelector(BuildContext context, ModuleNode u, bool canMode) {
+    final mm = ControlScaleScope.of(context);
+    final child = Column(children: [
+      Container(
+        width: mm.touchTarget,
+        height: mm.touchTarget,
+        decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12)),
+        // The tile is filled with primaryContainer, so its glyph must use the
+        // paired onPrimaryContainer — inheriting onSurface is the pairing that
+        // collapses on the high-contrast themes.
+        child: Icon(modeIcon(u.modeActive ?? UnitMode.auto),
+            size: mm.iconSize * 1.3,
+            color: Theme.of(context).colorScheme.onPrimaryContainer),
+      ),
+      // A BARE TextStyle carries no colour, so the mode name fell back to the
+      // ambient DefaultTextStyle. Copy the theme's own style instead — the same
+      // rule _applyScale documents for every scaled label.
+      LText((u.modeActive ?? UnitMode.auto).name.toUpperCase(),
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(fontSize: 10, color: Theme.of(context).colorScheme.onSurface)),
+      if (canMode) const Icon(Icons.arrow_drop_down, size: 18),
+    ]);
+    if (!canMode) {
+      return Tooltip(
+        message: context.tr('Mode change blocked — tap to see why'),
+        child: InkWell(
+          onTap: () => app.showReleaseReportAction(
+              u.path, GatedAction.modeChange, 'Mode change blocked'),
+          child: child,
+        ),
+      );
+    }
+    return PopupMenuButton<UnitMode>(
+      tooltip: context.tr('Select mode'),
+      itemBuilder: (_) => [
+        for (final m in u.supportedModes)
+          PopupMenuItem(
+              value: m,
+              child: Row(children: [
+                Icon(modeIcon(m), size: 18),
+                const SizedBox(width: 8),
+                LText(m.name.toUpperCase())
+              ])),
+      ],
+      onSelected: (m) => _requestMode(context, u, m),
+      child: child,
+    );
+  }
+
+  Future<void> _requestMode(
+      BuildContext context, ModuleNode u, UnitMode m) async {
+    if (m == u.modeActive) return;
+    final policy =
+        u.modePolicy[u.modeActive]; // policy of the mode being LEFT (§3.4.1)
+    // BLOCKED_WHILE_RUNNING: refuse while a sequence runs
+    if (u.running && policy?.shield == ModeSwitchShield.blockedWhileRunning) {
+      await app.showReleaseReportAction(
+          u.path, GatedAction.modeChange, 'Mode change blocked');
+      return;
+    }
+    // CONFIRM: prompt while running
+    if (u.running && policy?.shield == ModeSwitchShield.confirm) {
+      final graceful = policy?.style == ModeSwitchStyle.graceful;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const LText('Change mode?'),
+          content: LText(graceful
+              ? 'A sequence is running. It will finish the current cycle, then switch to ${m.name.toUpperCase()}.'
+              : 'A sequence is running. It will be interrupted immediately, then switch to ${m.name.toUpperCase()}.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const LText('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child:
+                    LText(graceful ? 'Finish & switch' : 'Interrupt & switch')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+    final done = await app.repo.setMode(u.path, m);
+    if (!done && context.mounted) {
+      await app.showReleaseReportAction(
+          u.path, GatedAction.modeChange, 'Mode change blocked');
+    }
+  }
+
+  Widget _stepToggle(BuildContext context, ModuleNode u, bool canMode) {
+    final supported = u.supportedRunStyles.length > 1; // more than CONTINUOUS
+    if (!supported) return const SizedBox.shrink();
+    final on = u.runStyle != RunStyle.continuous;
+    return IconButton(
+      tooltip: context.tr(
+          on ? 'Step mode ON — tap to run continuous' : 'Enable step-by-step'),
+      isSelected: on,
+      icon: Icon(on ? Icons.skip_next : Icons.skip_next_outlined),
+      onPressed: () async {
+        if (!canMode) {
+          await app.showReleaseReportAction(
+              u.path, GatedAction.modeChange, 'Run-style change blocked');
+          return;
+        }
+        // cycle CONTINUOUS -> SINGLE_STEP -> HOLD_TO_RUN (if supported) -> CONTINUOUS
+        final order = [
+          RunStyle.continuous,
+          ...u.supportedRunStyles.where((r) => r != RunStyle.continuous)
+        ];
+        final next = order[(order.indexOf(u.runStyle) + 1) % order.length];
+        final accepted = await app.repo.setRunStyle(u.path, next);
+        if (!accepted) {
+          await app.showReleaseReportAction(
+              u.path, GatedAction.modeChange, 'Run-style change blocked');
+        }
+      },
+    );
+  }
+
+  Widget _stepButton(BuildContext context, ModuleNode u, AccessSession s) {
+    final mm = ControlScaleScope.of(context);
+    return FilledButton.tonal(
+      onPressed: s.permits(GatedAction.startStop)
+          ? () => app.repo.stepRequest(u.path)
+          : () => app.showReleaseReportAction(
+              u.path, GatedAction.startStop, 'Step blocked'),
+      style: FilledButton.styleFrom(
+          minimumSize: Size(mm.touchTarget, mm.touchTarget * 0.84),
+          padding: EdgeInsets.zero),
+      child: const Icon(Icons.redo),
+    );
+  }
+
+  Widget _holdToRun(BuildContext context, ModuleNode u, AccessSession s) {
+    // NON-SAFETY convenience (§3.4.2): advances only while pressed.
+    final mm = ControlScaleScope.of(context);
+    return GestureDetector(
+      onTapDown: (_) {
+        if (s.permits(GatedAction.startStop)) {
+          app.repo.setHoldRun(u.path, true);
+        } else {
+          app.showReleaseReportAction(
+              u.path, GatedAction.startStop, 'Hold-to-run blocked');
+        }
+      },
+      onTapUp: (_) => app.repo.setHoldRun(u.path, false),
+      onTapCancel: () => app.repo.setHoldRun(u.path, false),
+      child: Tooltip(
+        message: context.tr('Hold to run (non-safety)'),
+        child: Container(
+          width: mm.touchTarget,
+          height: mm.touchTarget,
+          decoration: BoxDecoration(
+              // Operator action, not a fault — blue (app_theme).
+              color: operatorActionContainer(context),
+              borderRadius: BorderRadius.circular(24)),
+          child: const Icon(Icons.touch_app, color: kOperatorActionColor),
+        ),
+      ),
+    );
+  }
+
+  Widget _playStop(BuildContext context, ModuleNode u, AccessSession s) {
+    final mm = ControlScaleScope.of(context);
+    final running = u.running || u.stopPending;
+    final enabled = s.permits(GatedAction.startStop) && !(u.blocking);
+    // §7.8: a blocked Start stays pressable and reveals WHY (never silently no-ops)
+    final startBlocked = !running && !enabled;
+    void onPress() async {
+      if (u.stopPending) return;
+      if (running) {
+        final ok = await app.repo.stop(u.path);
+        if (!ok) {
+          await app.showReleaseReportAction(
+              u.path, GatedAction.startStop, 'Stop blocked');
+        }
+        return;
+      }
+      if (!enabled) {
+        app.showReleaseReportStart(u.path);
+        return;
+      }
+      final ok = await app.repo.start(u.path);
+      if (!ok)
+        app.showReleaseReportStart(
+            u.path); // released check failed at the PLC too
+    }
+
+    final button = Tooltip(
+      message: context.tr(u.stopPending
+          ? 'Stopping — finishing sequence'
+          : (running
+              ? 'Stop (finish sequence safely)'
+              : (startBlocked ? 'Not released — tap to see why' : 'Run mode'))),
+      child: IconButton.filled(
+        iconSize: mm.primaryIconSize,
+        // §7.8: stay pressable unless mid-stop — onPress decides act vs. explain
+        onPressed: u.stopPending ? null : onPress,
+        icon: Icon(running ? Icons.stop : Icons.play_arrow),
+        style: () {
+          // The fill is a fixed status colour, so the glyph must be paired with
+          // THAT fill — not assumed white. `colorScheme.error` is a light salmon
+          // on every dark theme, where a white stop glyph measured 1.70:1 (1.14:1
+          // on high-contrast dark): the machine's Stop button, all but invisible.
+          // The green/amber fills stay dark shades precisely so a light glyph
+          // reads on them; foregroundOn confirms rather than assumes that.
+          final fill = running
+              ? Theme.of(context).colorScheme.error
+              : (startBlocked ? kWarningFill : kOkFill);
+          return IconButton.styleFrom(
+            backgroundColor: fill,
+            foregroundColor: foregroundOn(context, fill),
+          );
+        }(),
+      ),
+    );
+    return _Blink(active: u.stopPending, child: button);
+  }
+}
+
+/// Blinks its child's opacity while [active] — used for the stop button during a
+/// pending graceful stop (§3.4 StopPending).
+class _Blink extends StatefulWidget {
+  final bool active;
+  final Widget child;
+  const _Blink({required this.active, required this.child});
+  @override
+  State<_Blink> createState() => _BlinkState();
+}
+
+class _BlinkState extends State<_Blink> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 550));
+  @override
+  void didUpdateWidget(covariant _Blink old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.active && !_c.isAnimating) _c.repeat(reverse: true);
+    if (!widget.active && _c.isAnimating) {
+      _c.stop();
+      _c.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) return widget.child;
+    return FadeTransition(
+        opacity: Tween(begin: 1.0, end: 0.25).animate(_c), child: widget.child);
+  }
+}

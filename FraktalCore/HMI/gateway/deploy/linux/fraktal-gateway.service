@@ -1,0 +1,29 @@
+[Unit]
+Description=Fraktal OPC UA WebSocket Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fraktal-gateway
+Group=fraktal-gateway
+WorkingDirectory=/opt/fraktal-gateway
+EnvironmentFile=-/etc/fraktal/fraktal-gateway.env
+ExecStart=/opt/fraktal-gateway/fraktal_gateway --plc-endpoint opc.tcp://127.0.0.1:4840 --port 8080 --web-root /opt/fraktal-gateway/web --security-profile production --application-uri ${FRAKTAL_GATEWAY_APPLICATION_URI} --client-certificate ${FRAKTAL_GATEWAY_CLIENT_CERTIFICATE} --client-private-key ${FRAKTAL_GATEWAY_CLIENT_PRIVATE_KEY} --trust-list ${FRAKTAL_GATEWAY_TRUST_LIST}
+Restart=on-failure
+RestartSec=2
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

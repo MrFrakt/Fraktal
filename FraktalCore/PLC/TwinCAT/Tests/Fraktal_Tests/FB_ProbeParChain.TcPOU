@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeParChain" Id="{6b947a2e-d91c-4de0-a3c3-a3cde2eee5c7}" SpecialFunc="None">
+    <Declaration><![CDATA[// §6.12 — the ST form of a parallel divergence: ONE fork step that runs each leg
+// and joins on all of them. Two work positions running simultaneously and
+// independently is exactly this shape, and it needs no chart.
+FUNCTION_BLOCK FB_ProbeParChain EXTENDS FB_SequenceBase
+VAR
+    LegA : FB_ProbeLeg;
+    LegB : FB_ProbeLeg;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{731d7605-9c2f-4069-a3d2-48f33f916a9e}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Host : I_SequenceHost;
+END_VAR
+VAR_IN_OUT
+    ChildA : FB_ProbeCM;
+    ChildB : FB_ProbeCM;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Setup := M_Attach(Host := Host)
+    AND LegA.Setup(Host := Host, Child := ChildA)
+    AND LegB.Setup(Host := Host, Child := ChildB);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Reset" Id="{487935aa-af1b-4a7c-ba0a-24de7ae3e0fd}">
+      <Declaration><![CDATA[METHOD M_Reset]]></Declaration>
+      <Implementation><ST><![CDATA[M_ResetBase(FirstStep := 0);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Run" Id="{d490ca26-4f5a-43a1-a9d0-30ef46d4442f}">
+      <Declaration><![CDATA[METHOD M_Run]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE _step OF
+    0:  // the fork. One M_RunPar per leg, one M_ParJoin: the leg list is the calls
+        // themselves, so there is nothing to register and nothing to keep in step
+        // when a leg is added or removed (§1.1 O1).
+        M_Step(StepNo := 500, StepName := 'project.test.forkBothPositions', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        M_RunPar(Chain := LegA, BaseStepNo := 600, Branch := 1);
+        M_RunPar(Chain := LegB, BaseStepNo := 700, Branch := 2);
+        _retVal := M_ParJoin();
+        M_Advance(OnAdvance := 999);
+    999:
+        M_Step(StepNo := 999, StepName := 'project.test.parallelComplete', Awaits := 0,
+            AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);
+        Done := TRUE;
+        M_Complete();
+ELSE
+    M_Fault(Reason := E_Reason.STEP_STALLED, DescriptionKey := 'std.error.undefinedStep');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TestIssues" Id="{4820b2a6-c495-42a8-aceb-81e27d3f063f}">
+      <Declaration><![CDATA[// test seam: how many times each leg issued its own command
+METHOD M_TestIssues : UDINT
+VAR_INPUT
+    Leg : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Leg = 1 THEN
+    M_TestIssues := LegA.Issues;
+ELSE
+    M_TestIssues := LegB.Issues;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

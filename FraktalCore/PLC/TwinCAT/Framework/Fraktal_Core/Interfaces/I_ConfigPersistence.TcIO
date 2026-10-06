@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_ConfigPersistence" Id="{a08e7d24-6f91-4b53-92c6-13d0584ea7b9}">
+    <Declaration><![CDATA[// Core §3.8b — durability of an ACCEPTED write, which is a different question
+// from where a parameter SET is stored (I_ConfigStore) and therefore a
+// different seam.
+//
+// §3.8b: "An accepted configuration write shall reach non-volatile storage
+// without further operator action, within a declared bounded window." On this
+// binding the retentive image is written by the runtime, not by the PLC program,
+// so making a value durable is an explicit act with a latency and a failure
+// mode - and pretending otherwise is precisely the hope the clause replaces
+// with a stated property. FB_UnitBase drives an implementation of this every
+// scan and publishes the outcome as PersistPending / PersistFailed.
+//
+// The shipped default (FB_PersistentDataWriter, LOCAL_RETAIN) needs no wiring:
+// a conforming station persists its parametrization with no file system, no
+// network and no configuration.
+INTERFACE I_ConfigPersistence]]></Declaration>
+    <Method Name="M_Cyclic" Id="{f479452b-7906-4df9-aaa3-564bb1774b60}">
+      <Declaration><![CDATA[// Drive the implementation; called every scan by the owning root. TRUE while a
+// durability operation is still in progress, so the root can hold PersistPending
+// exactly as long as the value really is not yet safe.
+METHOD M_Cyclic : BOOL]]></Declaration>
+    </Method>
+    <Method Name="M_Failed" Id="{07fbe9da-c7ec-4e70-833b-a412d1256c0c}">
+      <Declaration><![CDATA[// TRUE when the last completed operation did not make the data durable. Latched
+// by the implementation until the next successful one: a failure that clears
+// itself before anybody looks is not an answer to "is my configuration safe?".
+METHOD M_Failed : BOOL]]></Declaration>
+    </Method>
+    <Method Name="M_Request" Id="{64cc6808-67d8-4ce9-a34d-baca9f0a0bd1}">
+      <Declaration><![CDATA[// Ask for every write accepted so far to become durable. Returns FALSE if the
+// request could not even be started, which is a failure the root publishes
+// rather than a silent no-op. Safe to call while one is already in progress.
+METHOD M_Request : BOOL]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ShiftSchedule" Id="{f4fb8884-5019-4cdd-a88b-4c77da3ab2bb}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ShiftSchedule]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="M_Validate" Id="{af73c1f1-6a43-4c01-8679-28027b07ff2a}">
+      <Declaration><![CDATA[// Half-open weekly intervals, including Sunday-to-Monday wrap.
+METHOD M_Validate : BOOL
+VAR_IN_OUT
+    Calendar : ST_ShiftCalendarV3;
+END_VAR
+VAR
+    i, j, dayI, dayJ, delta : INT;
+    startI, endI, startJ, endJ : DINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Validate := FALSE;
+IF (Calendar.SchemaVersion <> 3) OR (Calendar.UtcOffsetMin < -840)
+OR (Calendar.UtcOffsetMin > 840) THEN RETURN; END_IF
+FOR i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    IF (Calendar.Rows[i].StartMin < -1) OR (Calendar.Rows[i].StartMin > 1439)
+    OR (Calendar.Rows[i].DurationMin < 1) OR (Calendar.Rows[i].DurationMin > 1440)
+    OR (Calendar.Rows[i].ActiveDays < 0) OR (Calendar.Rows[i].ActiveDays > 127)
+    OR (Calendar.Rows[i].ProductionTarget < 0) THEN RETURN; END_IF
+END_FOR
+FOR i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    IF Calendar.Rows[i].StartMin >= 0 THEN
+        FOR dayI := 0 TO 6 DO
+            IF (TO_DWORD(Calendar.Rows[i].ActiveDays) AND SHL(DWORD#1, dayI)) <> 0 THEN
+                startI := dayI * 1440 + Calendar.Rows[i].StartMin;
+                endI := startI + Calendar.Rows[i].DurationMin;
+                FOR j := i TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+                    IF Calendar.Rows[j].StartMin >= 0 THEN
+                        FOR dayJ := 0 TO 6 DO
+                            IF ((j <> i) OR (dayJ <> dayI))
+                            AND ((TO_DWORD(Calendar.Rows[j].ActiveDays) AND SHL(DWORD#1, dayJ)) <> 0) THEN
+                                FOR delta := -1 TO 1 DO
+                                    startJ := dayJ * 1440 + Calendar.Rows[j].StartMin + delta * 10080;
+                                    endJ := startJ + Calendar.Rows[j].DurationMin;
+                                    IF (startI < endJ) AND (startJ < endI) THEN RETURN; END_IF
+                                END_FOR
+                            END_IF
+                        END_FOR
+                    END_IF
+                END_FOR
+            END_IF
+        END_FOR
+    END_IF
+END_FOR
+M_Validate := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Interval" Id="{23d885fd-847b-40e4-bfb1-2ce54144a55c}">
+      <Declaration><![CDATA[// Called at interval entry/boundary, not on every production scan.
+METHOD M_Interval : BOOL
+VAR_INPUT
+    Now : DT;
+END_VAR
+VAR_IN_OUT
+    Calendar : ST_ShiftCalendarV3;
+END_VAR
+VAR_OUTPUT
+    ShiftIndex : INT;
+    StartAt : DT;
+    EndAt : DT; // zero means no finite next boundary
+    Target : UDINT;
+END_VAR
+VAR
+    nowSec, localSec, weekStart, startSec, endSec, nextSec : LINT;
+    dayNo : LINT;
+    i, day, week : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Interval := TRUE;
+ShiftIndex := 0; StartAt := Now; EndAt := DT#1970-01-01-00:00:00; Target := 0;
+nowSec := TO_LINT(DT_TO_UDINT(Now));
+localSec := nowSec + Calendar.UtcOffsetMin * LINT#60;
+dayNo := localSec / 86400;
+IF localSec < 0 THEN dayNo := (localSec - 86399) / 86400; END_IF
+weekStart := (dayNo - ((dayNo + 3 + 7) MOD 7)) * 86400;
+nextSec := LINT#4294967296;
+FOR i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    IF (Calendar.Rows[i].StartMin >= 0) AND (Calendar.Rows[i].ActiveDays > 0) THEN
+        FOR day := 0 TO 6 DO
+            IF (TO_DWORD(Calendar.Rows[i].ActiveDays) AND SHL(DWORD#1, day)) <> 0 THEN
+                FOR week := -1 TO 1 DO
+                    startSec := weekStart + week * LINT#604800 + day * LINT#86400
+                        + Calendar.Rows[i].StartMin * LINT#60 - Calendar.UtcOffsetMin * LINT#60;
+                    endSec := startSec + Calendar.Rows[i].DurationMin * LINT#60;
+                    IF (startSec <= nowSec) AND (nowSec < endSec) THEN
+                        ShiftIndex := i;
+                        IF startSec >= 0 THEN StartAt := UDINT_TO_DT(TO_UDINT(startSec)); END_IF
+                        IF endSec <= 4294967295 THEN EndAt := UDINT_TO_DT(TO_UDINT(endSec)); END_IF
+                        Target := TO_UDINT(Calendar.Rows[i].ProductionTarget);
+                    END_IF
+                    IF (startSec > nowSec) AND (startSec < nextSec) THEN nextSec := startSec; END_IF
+                END_FOR
+            END_IF
+        END_FOR
+    END_IF
+END_FOR
+IF (ShiftIndex = 0) AND (nextSec <= 4294967295) THEN EndAt := UDINT_TO_DT(TO_UDINT(nextSec)); END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_MigrateV1" Id="{c898aba3-b9c3-4c84-b8b1-038f21aa74c5}">
+      <Declaration><![CDATA[METHOD M_MigrateV1 : BOOL
+VAR_IN_OUT
+    Source : ST_ShiftCalendar;
+    Target : ST_ShiftCalendarV3;
+END_VAR
+VAR
+    i, j : INT;
+    duration, distance : DINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_MigrateV1 := FALSE;
+Target.SchemaVersion := 3;
+Target.UtcOffsetMin := Source.UtcOffsetMin;
+FOR i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    Target.Rows[i].StartMin := -1;
+    Target.Rows[i].DurationMin := 1440;
+    Target.Rows[i].ActiveDays := 0;
+    Target.Rows[i].ProductionTarget := 0;
+END_FOR
+FOR i := 1 TO PL_Fraktal.MAX_SHIFTS DO
+    IF (Source.StartMin[i] < -1) OR (Source.StartMin[i] > 1439) THEN RETURN; END_IF
+    IF Source.StartMin[i] >= 0 THEN
+        duration := 1440;
+        FOR j := 1 TO PL_Fraktal.MAX_SHIFTS DO
+            IF (j <> i) AND (Source.StartMin[j] >= 0) THEN
+                distance := (Source.StartMin[j] - Source.StartMin[i] + 1440) MOD 1440;
+                IF distance = 0 THEN RETURN; END_IF
+                IF distance < duration THEN duration := distance; END_IF
+            END_IF
+        END_FOR
+        Target.Rows[i].StartMin := Source.StartMin[i];
+        Target.Rows[i].DurationMin := duration;
+        Target.Rows[i].ActiveDays := 127;
+    END_IF
+END_FOR
+M_MigrateV1 := M_Validate(Calendar := Target);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_MigrateV2" Id="{626cdf0c-c24d-482e-a285-60792c6ba77f}">
+      <Declaration><![CDATA[METHOD M_MigrateV2 : BOOL
+VAR_IN_OUT
+    Source : ST_ShiftCalendarV2;
+    Target : ST_ShiftCalendarV3;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_MigrateV2 := FALSE;
+IF Source.SchemaVersion <> 2 THEN RETURN; END_IF
+Target.SchemaVersion := 3;
+Target.UtcOffsetMin := Source.UtcOffsetMin;
+FOR i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    Target.Rows[i].StartMin := -1;
+    Target.Rows[i].DurationMin := 1440;
+    Target.Rows[i].ActiveDays := 0;
+    Target.Rows[i].ProductionTarget := 0;
+END_FOR
+FOR i := 1 TO PL_Fraktal.MAX_SHIFTS DO
+    Target.Rows[i].StartMin := Source.Rows[i].StartMin;
+    Target.Rows[i].DurationMin := Source.Rows[i].DurationMin;
+    Target.Rows[i].ActiveDays := Source.Rows[i].ActiveDays;
+END_FOR
+M_MigrateV2 := M_Validate(Calendar := Target);]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

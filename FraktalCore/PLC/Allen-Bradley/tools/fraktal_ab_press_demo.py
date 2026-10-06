@@ -1,0 +1,710 @@
+#!/usr/bin/env python3
+"""The press demo declaration: the first application emitted from the runtime base.
+
+This is the committed source of truth for the Fraktal/AB press demo. It mirrors
+the **observable behaviour** of the TwinCAT ``Fraktal_Press_Demo`` - TC3 is the
+behavioural oracle for semantics, never for implementation shape. Core
+obligations are met here by generated composition, not by inheritance.
+
+**No control power, and nothing electrical is driven.** The embedded I/O
+module is inhibited and task output updates are disabled, so the plant is
+arithmetic on controller tags and no output reaches a terminal. The cabinet's
+channels ARE declared, minus the control-power chain, so the fieldbus view
+describes the real press; publishing that description drives nothing.
+
+Deliberately out of scope, and deferred rather than forgotten: recipes and
+changeover, part traceability, release reports, the reusable module library
+(module AOIs are generated per-application here; the library form is Phase 6),
+the gateway/repository adapter, the generic HMI, physical I/O.
+
+Where AB diverges mechanically from TC3 the divergence is named in the evidence
+record's step-graph table rather than absorbed silently. Two that used to:
+
+* **N180 door close** is TC3's since press39. A two-hand release during the
+  close is the operator abandoning it: a LOW §6.9(e) warning, the door reopens
+  (N185), the part slides out (N190) and the chain returns to the two-hand
+  wait with the start latch dropped. The S16 mission held the close instead;
+  the press still shows a hold, because air lost under a moving cylinder holds
+  it, which is TC3's own rule.
+* **N220 dwell** is TC3's, not a divergence: releasing the two-hand pauses the
+  dwell on a named condition, with no fault and no hold, and pressing again
+  finishes the time that remained. AB's cylinder simulates position, not a
+  valve, so TC3's withdraw and restore of the ram's force has nothing to act
+  on here; the pause is the part this binding can show.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import dataclasses
+
+import fraktal_ab_declaration as decl
+import fraktal_ab_access as access
+import fraktal_ab_library as library
+import fraktal_ab_reasons as reasons
+import fraktal_ab_line as line
+
+
+# --- named reasons ----------------------------------------------------------
+# Fixture-scoped numbers, deliberately NOT E_Reason entries: a disposable
+# application must not add members to a Core enumeration.
+#
+# The first three are the CYLINDER's, and are taken from the library type rather
+# than written here a second time: the type raises them, so the type declares
+# them, and this station registers what its types raise. Written out below,
+# they would be two free copies of one fact - the drift O9 exists to prevent.
+#
+# Core §8.8: a registered reason keeps its registered code, and the press's own
+# live in TC3's press band, 12000-12999 (PL_PressReasons) - so the two-hand
+# release is 12001 on both bindings. The WAIT_* codes are this generator's
+# stall reasons for a delay, a condition and a decision; they have no TC3
+# counterpart, and they are the press's to register.
+REASONS = {
+    **reasons.PARAMETER_SETS,
+    **library.CYLINDER.reasons,  # INTERLOCK_DROPPED, CYL_NOT_EXTENDED/_RETRACTED, CYL_CFG_INVALID
+    **library.DIGITAL_INPUT.reasons,  # UNSUPPORTED_COMMAND
+    **library.AIR_PRESSURE.reasons,   # AIR_SWITCH_CONFLICT
+    "STEP_STALLED": reasons.CORE["STEP_STALLED"],   # a step the graph does not declare
+    "PERMISSIVE_NOT_MET": reasons.CORE["PERMISSIVE_NOT_MET"],  # a START condition (§7.8)
+    "CYCLE_TIME_DEGRADED": reasons.CORE["CYCLE_TIME_DEGRADED"],  # §8.11.4(d)
+    # §8.12's System-band events, TC3's codes
+    **{name: reasons.CORE[name] for name in (
+        "TASK_OVERRUN", "TASK_JITTER_HIGH", "FIELDBUS_MASTER_FAULT", "DC_SYNC_LOST",
+        "TIME_SYNC_LOST", "CONTROLLER_METRICS_UNAVAILABLE")},
+    "TWO_HAND_RELEASED": 12001,  # N180's warning, TC3 PRESS_TWO_HAND_RELEASED
+    "WAIT_DELAY": 12010,
+    "WAIT_CONDITION": 12011,
+    "WAIT_DECISION": 12012,
+    "PART_NOT_PRESENT": 12020,   # the N100 wait
+}
+
+# Core E_Mode, and not a local choice: AUTO := 0, MANUAL := 1, HOME := 2. These
+# were declared MANUAL=0, AUTO=1 until 2026-09-08, which put every published
+# Mode and ModeRequest value one place out from the contract the HMI resolves
+# against - an operator screen would have rendered MANUAL as AUTO. Ordinals are
+# the contract; see the cross-binding test that reads E_Mode.TcDUT directly.
+MODE_AUTO, MODE_MANUAL, MODE_HOME, MODE_CHANGEOVER = 0, 1, 2, 3
+
+DECISION_CHANGEOVER_CONFIRM = 2
+
+# Core §3.8 changeover. A model is a named set of ParCfg values, so selecting
+# one changes what the press DOES - the dwell it holds and the settle it waits
+# - rather than relabelling the screen. Ordinals are the transport: the
+# controller carries a DINT and the gateway resolves it to the code, the same
+# seam the diagnostic key and the fieldbus identity already use, which keeps
+# the contract all-DINT on a baseline whose ST cannot assign a string literal.
+#
+# The last number is the model's ideal cycle (Core §8.5.1, TC3's per-model
+# IdealCycleMs): the fastest this model can cycle, motions plus settle plus
+# dwell. The bench measured 966-979 ms for M-100 on 2026-10-01, so 950 is
+# its design reference and the others move with their dwell and settle. An
+# ideal above the real cycle would cap Performance at 100 % - the flattering
+# number O7 forbids.
+#
+# The ideal also arms the WORK-time degradation watch (Core §8.11.4(d)), as
+# TC3's press seeds BaselineWorkMs with the same design cycle per model.
+MODELS = (
+    ("M-100", "project.model.m100", 300, 200, 950),
+    ("M-200", "project.model.m200", 600, 300, 1350),
+    ("M-050", "project.model.m050", 150, 150, 750),
+)
+
+DECISION_PRESS_NOT_REACHED = 1
+
+# Plant geometry. Retracted is 0, extended is 100, 25 units per scan, so a full
+# stroke is four scans at the declared task period. The library cylinder's end
+# sensors read at the same two ends.
+RETRACTED, EXTENDED = library.CYLINDER_RETRACTED, library.CYLINDER_EXTENDED
+
+
+def _cylinder(name: str, comment: str) -> decl.Module:
+    return decl.Module(
+        name=name,
+        comment=comment,
+        # TC3's E_CylinderCommand ordinals and catalogue order: EXTEND 1,
+        # RETRACT 2. AB had them swapped, which nothing caught while no
+        # client ever sent one; a manual command carries the number.
+        commands=(
+            decl.Command("EXTEND", 1, EXTENDED, "to the extended end"),
+            decl.Command("RETRACT", 2, RETRACTED, "to the retracted end"),
+        ),
+        speed_per_scan=25,
+        timeout_ms=500,
+        # The same key the TwinCAT press cylinders publish.
+        type_key="std.moduleType.cylinder",
+    )
+
+
+def _press_io() -> decl.IoModule:
+    """The press's physical I/O, transcribed from the TC3 cabinet mapping.
+
+    `Specification/Reports/CX2030_PRESS_IO_MAPPING.md` is the source, and the
+    electrical tags are carried verbatim because that is what lets an alarm
+    cross-link to the fieldbus view (`HMI_CONTRACT.md`).
+
+    **Control power is the one deliberate omission.** TC3 input channel 14
+    (`_000K911_Y32`, IsControlOn) and output channels 10 and 11
+    (`_000K951_A1` SwitchControlOn, `_000K911_A1` EnableControlOn) are the
+    hardwired N54 D2 chain, and §9.8 control power is out of scope for this
+    binding. They are absent, not renumbered.
+
+    Bit positions are the TC3 channel number minus one throughout, including
+    across the gaps, so this table reads directly against that document and a
+    reserved channel stays reserved. The 1769-L24ER-QB1B's embedded module has
+    16 of each, so 12 inputs and 8 outputs fit with room left.
+
+    This declares what the channels ARE. Whether the module is inhibited - it
+    is - is a property of the emitted project, not of this table.
+    """
+    return decl.IoModule(
+        name="Discrete_IO",
+        type_id="Embedded",
+        address="Local:1",
+        description_key="project.io.embedded",
+        data_width=16,
+        channels=(
+            # --- inputs, TC3 channels 1-8, 10-12, 15 ------------------------
+            # The feeder retracts when the slide is INSIDE, the slide's logical
+            # extended end (CX2030_PRESS_IO_MAPPING, TC3 FB_PressIoCatalog).
+            decl.IoChannel("_101B301A", "project.io.feeder_retracted", 0,
+                           decl.DIR_INPUT, module_path="PartSlide", role="extendedFb"),
+            decl.IoChannel("_101B301B", "project.io.feeder_extended", 1,
+                           decl.DIR_INPUT, module_path="PartSlide", role="retractedFb"),
+            decl.IoChannel("_101B201A", "project.io.door_closed", 2,
+                           decl.DIR_INPUT, module_path="Door", role="extendedFb"),
+            decl.IoChannel("_101B201B", "project.io.door_opened", 3,
+                           decl.DIR_INPUT, module_path="Door", role="retractedFb"),
+            decl.IoChannel("_101B202A", "project.io.press_down", 4,
+                           decl.DIR_INPUT, module_path="PressRam", role="extendedFb"),
+            decl.IoChannel("_101B202B", "project.io.press_up", 5,
+                           decl.DIR_INPUT, module_path="PressRam", role="retractedFb"),
+            decl.IoChannel("_101S101", "project.io.two_hand_right", 6,
+                           decl.DIR_INPUT, module_path="TwoHand", role="right"),
+            decl.IoChannel("_101S102", "project.io.two_hand_left", 7,
+                           decl.DIR_INPUT, module_path="TwoHand", role="left"),
+            # channel 9 is Reserve on the cabinet and stays unmapped
+            decl.IoChannel("_000MB085A_2", "project.io.air_below_low", 9,
+                           decl.DIR_INPUT, module_path="AirPressureMonitor", role="low"),
+            decl.IoChannel("_000MB085A_4", "project.io.air_above_working", 10,
+                           decl.DIR_INPUT, module_path="AirPressureMonitor", role="operating"),
+            decl.IoChannel("_101B601", "project.io.part_present", 11,
+                           decl.DIR_INPUT, module_path="PartPresentSensor", role="input"),
+            # channel 13 Reserve; channel 14 _000K911_Y32 is control power
+            # A mirror for diagnostics only - AB carries no safety function.
+            decl.IoChannel("_000K910A", "project.io.estop_not_pressed", 14,
+                           decl.DIR_INPUT),
+            # --- outputs, TC3 channels 1-8 ----------------------------------
+            decl.IoChannel("_101K301A", "project.io.feeder_backward", 0,
+                           decl.DIR_OUTPUT, module_path="PartSlide"),
+            decl.IoChannel("_101K301B", "project.io.feeder_forward", 1,
+                           decl.DIR_OUTPUT, module_path="PartSlide"),
+            decl.IoChannel("_101K201A", "project.io.close_door", 2,
+                           decl.DIR_OUTPUT, module_path="Door"),
+            decl.IoChannel("_101K201B", "project.io.open_door", 3,
+                           decl.DIR_OUTPUT, module_path="Door"),
+            decl.IoChannel("_101K202A", "project.io.press_downward", 4,
+                           decl.DIR_OUTPUT, module_path="PressRam"),
+            decl.IoChannel("_101K202B", "project.io.press_upward", 5,
+                           decl.DIR_OUTPUT, module_path="PressRam"),
+            decl.IoChannel("_101P101", "project.io.lamp_right", 6,
+                           decl.DIR_OUTPUT),
+            decl.IoChannel("_101P102", "project.io.lamp_left", 7,
+                           decl.DIR_OUTPUT),
+            # channel 9 Reserve; 10 and 11 are the control-power chain
+        ),
+    )
+
+
+def application() -> decl.Application:
+    """The committed declaration. Everything the project contains comes from here."""
+
+    par_cfg = decl.Record(
+        name="FRK_T_PressParCfg",
+        comment="Core §3.8 configuration record for the press demo",
+        par_cfg=True,
+        # 2: RequireTwoHandStart left for the StationCfg, where TC3 keeps it -
+        # it is the cell's policy, not a model's (Core §3.8: a member is a
+        # schema change, and so is its removal). 3: IdealCycleMs joined it.
+        # 4: BaselineWorkMs.
+        schema_version=4,
+        members=(
+            # Core §3.8: a ParCfg-shaped record leads with SchemaVersion so a
+            # reader knows which contract it is holding before it reads it.
+            decl.scalar(decl.SCHEMA_VERSION_MEMBER, "which ParCfg contract this is",
+                        initial=4),
+            decl.editable(
+                decl.duration_ms("TransferSettleMs",
+                                 "settle after the slide moves in", initial=200),
+                "press.transferSettleMs", "project.config.transferSettleMs",
+                minimum=0, maximum=5000),
+            decl.editable(
+                decl.duration_ms("PressDwellMs",
+                                 "how long the ram holds pressure", initial=300),
+                "press.dwellMs", "project.config.pressDwellMs",
+                minimum=50, maximum=10000),
+            decl.scalar("GoodPartTarget", "parts to make before stopping", initial=0),
+            # TC3's press.recipe.idealCycleMs and .baselineWorkMs: OEE
+            # Performance's reference and the degradation watch's, per model.
+            decl.ideal_cycle_ms(950, "press.recipe.idealCycleMs"),
+            decl.capture(decl.baseline_work_ms(950, "press.recipe.baselineWorkMs"),
+                         "Profiler.LastWork"),
+        ),
+    )
+
+    # Core §3.8a — DEPLOYMENT data, which is a different thing from the recipe
+    # above. These are values somebody measured on THIS cabinet during
+    # commissioning: they do not change when the model changes, and losing them
+    # means the press is no longer the press that was commissioned.
+    #
+    # SchemaVersion starts at ZERO, which is §3.8a's "never written" and, on
+    # Logix, also what a download leaves behind. A fresh controller therefore
+    # installs these declared defaults silently; a controller holding a real
+    # image with an unrecognized version says so instead of quietly running on
+    # defaults while presenting itself as commissioned.
+    station_cfg = decl.Record(
+        name="FRK_T_PressStationCfg",
+        comment="Core §3.8a deployment record for the press demo",
+        station_cfg=True,
+        # 2: AirConflictTimeMs joined the layout (Core §3.8: a member is a
+        # schema change). 3: RequireTwoHandStart, from the ParCfg.
+        schema_version=3,
+        members=(
+            decl.scalar(decl.SCHEMA_VERSION_MEMBER,
+                        "0 = never written (Core §3.8a)", initial=0),
+            decl.config_access(decl.editable(
+                decl.scalar("StationNumber",
+                            "where this press sits in the line", initial=1),
+                "station.number", "project.config.stationNumber",
+                minimum=1, maximum=99), "public"),
+            decl.editable(
+                decl.duration_ms(
+                    "RamExtendLimitMs",
+                    "measured full-stroke time plus margin, this cabinet",
+                    initial=2000),
+                "station.ramExtendLimitMs", "project.config.ramExtendLimitMs",
+                minimum=200, maximum=30000),
+            decl.config_access(decl.editable(
+                decl.scalar(
+                    "AirPressureMinKpa",
+                    "the commissioned low-air threshold for this cabinet",
+                    initial=450),
+                "station.airPressureMinKpa", "project.config.airPressureMinKpa",
+                minimum=100, maximum=1000), "commissioning", min_write_level=3),
+            # TC3's airPressure.conflictTime: the air monitor's own station
+            # value, under the type's write and label keys.
+            decl.editable(
+                decl.duration_ms(
+                    "AirConflictTimeMs",
+                    "how long both pressure switches may read on before it is a fault",
+                    initial=500),
+                "airPressure.conflictTime", "std.config.airPressure.conflictTime",
+                minimum=0, maximum=10000),
+            # TC3's press.requireTwoHandStart: whether this cell's risk
+            # assessment requires the two-hand to start and to keep the
+            # press moving (N100, N180, N220). Deployment data, under TC3's
+            # write and label keys. Lost, it comes back TRUE - a lost policy
+            # never returns as the permissive one.
+            decl.editable(
+                decl.boolean("RequireTwoHandStart",
+                             "the two-hand starts and holds the press", initial=1),
+                "press.requireTwoHandStart", "project.config.pressRequireTwoHandStart",
+                minimum=0, maximum=1),
+        ),
+    )
+
+    # TC3: "a cylinder cannot move without air, so air is each cylinder's own
+    # process condition" - lost mid-stroke it HOLDS and resumes by itself.
+    air_is_there = decl.ModuleState("AirPressureMonitor", ("OutImm_PressureOk",))
+    air_key = "project.interlock.pressRequiresAirPressure"
+
+    # TC3's FB_PressDemoRelease.M_Evaluate: the functional collision
+    # interlocks, by direction. Certified safety remains authoritative for
+    # hazardous motion; these stop the press damaging itself, in AUTO and in
+    # MANUAL alike.
+    def settled(module, end, other):
+        """At one end, not the other, not moving and not faulted."""
+        return decl.ModuleState(module, (end,), zero=(other, "Busy", "Error"))
+
+    slide_inside = settled("PartSlide", "OutImm_Extended", "OutImm_Retracted")
+    door_open = settled("Door", "OutImm_Retracted", "OutImm_Extended")
+    door_permits = (
+        ("EXTEND", (decl.Permit((slide_inside,),
+                                "project.interlock.doorCloseRequiresSlideInside"),)),
+    )
+    slide_permits = (
+        ("EXTEND", (decl.Permit((door_open,),
+                                "project.interlock.slideMoveRequiresDoorOpen"),)),
+        ("RETRACT", (decl.Permit((door_open,),
+                                 "project.interlock.slideOutsideRequiresDoorOpen"),)),
+    )
+    # The ram, in TC3's first-out order. TC3's first condition is the
+    # pneumatic power group, which this bench does not have (6.2: excluded).
+    ram_permits = (
+        ("EXTEND", (
+            decl.Permit((air_is_there,), air_key),
+            decl.Permit((decl.ModuleState("Door", ("OutImm_Extended",),
+                                          zero=("OutImm_Retracted",)),),
+                        "project.interlock.pressRequiresGuardClosed"),
+            decl.Permit((decl.ModuleState("PartSlide", ("OutImm_Extended",),
+                                          zero=("OutImm_Retracted",)),),
+                        "project.interlock.pressRequiresSlideInside"),
+            decl.Permit((decl.ModuleState("Door", (), zero=("Error",)),
+                         decl.ModuleState("PartSlide", (), zero=("Error",))),
+                        "project.interlock.pressRequiresHealthyGuardSlide"),
+            decl.Permit((decl.ModuleState("TwoHand", ("OutImm_SafeActive",)),),
+                        "project.interlock.pressRequiresTwoHandHeld"),
+        )),
+    )
+    press_ram = dataclasses.replace(
+        _cylinder("PressRam", "the press ram; EXTEND presses, RETRACT is up"),
+        area_safe=air_is_there, area_safe_key=air_key, permits=ram_permits)
+    door = dataclasses.replace(
+        _cylinder("Door", "the guard door; EXTEND closes, RETRACT opens"),
+        area_safe=air_is_there, area_safe_key=air_key, permits=door_permits)
+    part_slide = dataclasses.replace(
+        _cylinder("PartSlide", "the part transfer slide"),
+        area_safe=air_is_there, area_safe_key=air_key, permits=slide_permits)
+
+    n = "Press"
+    two_hand = f"FRK_{n}_TwoHand"
+    part_present = f"FRK_{n}_PartPresent"
+    air_ok = f"FRK_{n}_AirOk"
+    # Driven by the mailbox, not by the harness - the same kind of input
+    # as the mode request, and a LEVEL: it is a selection, so clearing it would
+    # deselect the model on the next scan.
+    model_request = f"FRK_{n}_ModelRequest"
+
+    # TC3's press has this sensor as a module (FB_DigitalInputCM); the chain
+    # waits on its Value AND Quality, not on a bare tag. In simulation its
+    # source is the part-present stimulus the harness drives.
+    part_present_sensor = decl.Module(
+        name="PartPresentSensor",
+        comment="a part is at the loading position",
+        commands=(),
+        type_key=library.DIGITAL_INPUT.type_key,
+        input=part_present,
+    )
+    part_there = decl.ModuleState("PartPresentSensor", ("OutImm_Value", "OutImm_Quality"))
+    # TC3's press AirPressureMonitor (FB_AirPressureMonitorCM). The simulated
+    # "air OK" stimulus is both switches; ConflictTime is station data.
+    air_pressure_monitor = decl.Module(
+        name="AirPressureMonitor",
+        comment="the pneumatic supply's two pressure switches",
+        commands=(),
+        type_key=library.AIR_PRESSURE.type_key,
+        input=air_ok,
+        config=(("Par_ConflictTimeMs", "FRK_T_PressStationCfg", "AirConflictTimeMs"),),
+    )
+    air_there = decl.ModuleState("AirPressureMonitor", ("OutImm_PressureOk",))
+    # TC3's press TwoHand (FB_TwoHandStartCM). In simulation both buttons and
+    # the certified result follow the two-hand stimulus together.
+    two_hand_control = decl.Module(
+        name="TwoHand",
+        comment="the two-hand start",
+        commands=(),
+        type_key=library.TWO_HAND.type_key,
+        input=two_hand,
+    )
+    # TC3's `SafeActive OR NOT RequireTwoHandStart`: the buttons held, where
+    # the cell's policy asks for them. N180 and N220 both wait on it.
+    two_hand_held = decl.RequiredBy(decl.ModuleState("TwoHand", ("OutImm_SafeActive",)),
+                                    "RequireTwoHandStart")
+
+    # --- AUTO ---------------------------------------------------------------
+    # Step numbers mirror the TC3 chain so the two graphs can be compared row by
+    # row. The load-position composite is inlined as 240/242/244 because Logix
+    # has no sub-chain call in this shape; that is a mechanical divergence, not a
+    # behavioural one, and it is recorded as such.
+    auto = decl.Chain(
+        name="AUTO",
+        mode_ordinal=MODE_AUTO,
+        loops=True,
+        # The AUTO graph is declared once and rendered in all three languages,
+        # the way the TwinCAT press carries its own. MANUAL and HOME stay
+        # single-rendition ST, also as the TwinCAT press keeps them.
+        renditions=(decl.ST, decl.SFC, decl.LD),
+        comment="the continuous production cycle",
+        steps=(
+            decl.Step(0, "autoInitialize", decl.MARK,
+                      comment="clear the cycle marker and start",
+                      marks=("Ctx.Complete := 0",), on_advance=100),
+            decl.Step(100, "awaitTwoHandStart", decl.AWAIT,
+                      comment="part present, air ready, and a fresh two-hand start",
+                      # TC3's N100: part, air, and the latched two-hand
+                      # start - not the buttons held, which is a level.
+                      conditions=(part_there, air_there,
+                                  decl.RequiredBy(decl.UnitState(("StartLatched",)),
+                                                  "RequireTwoHandStart")),
+                      # TC3's AUTO N100 labels, so both bindings say the same
+                      condition_labels=("project.condition.partPresent",
+                                        "project.condition.airPressureOk",
+                                        "project.condition.twoHandStart"),
+                      hold_reason=REASONS["PART_NOT_PRESENT"], on_advance=110,
+                      time_class="WAIT_OPERATOR"),
+            decl.Step(110, "ramUp", decl.ISSUE, comment="clear the press",
+                      module="PressRam", command="RETRACT", on_advance=130),
+            decl.Step(130, "doorOpen", decl.ISSUE, comment="open the guard",
+                      module="Door", command="RETRACT", on_advance=150),
+            decl.Step(150, "slideInside", decl.ADOPT,
+                      comment="transfer the part in; an awaited child whose "
+                              "first-out the unit adopts verbatim",
+                      module="PartSlide", command="EXTEND", on_advance=170),
+            decl.Step(170, "transferSettle", decl.DELAY,
+                      comment="let the transfer settle",
+                      duration_member="TransferSettleMs", on_advance=180),
+            decl.Step(180, "doorClose", decl.GUARDED,
+                      comment="close the guard while the two-hand is held; "
+                              "releasing it abandons the close",
+                      module="Door", command="EXTEND",
+                      # TC3's N180: the certified two-hand result, where the
+                      # cell requires it. Released, the close is abandoned
+                      # with a LOW warning and the part goes back out.
+                      conditions=(two_hand_held,),
+                      condition_labels=("project.condition.twoHandHeldDuringDoorClose",),
+                      report_reason=REASONS["TWO_HAND_RELEASED"],
+                      on_advance=200, on_jump=185),
+            decl.Step(185, "doorReopen", decl.ISSUE,
+                      comment="released during closing: take the door back up",
+                      module="Door", command="RETRACT", on_advance=190),
+            decl.Step(190, "slideOutsideAfterAbort", decl.ISSUE,
+                      comment="slide the part back out, then wait for a fresh "
+                              "two-hand start",
+                      module="PartSlide", command="RETRACT",
+                      # TC3 drops the start latch here, so the cycle cannot
+                      # resume without a fresh press.
+                      marks=("Ctx.StartLatched := 0",), on_advance=100),
+            decl.Step(200, "ramDown", decl.REPORT,
+                      comment="press; a ram failure is reported, NOT adopted, "
+                              "because the confirmation below is the handling",
+                      module="PressRam", command="EXTEND",
+                      report_reason=REASONS["CYL_NOT_EXTENDED"],
+                      on_advance=220, on_jump=210),
+            decl.Step(210, "notReachedConfirm", decl.DECISION,
+                      comment="the operator confirms before the part is scrapped; "
+                              "a scrap is deliberate, so there is no timeout",
+                      decision_id=DECISION_PRESS_NOT_REACHED,
+                      on_advance=215, on_jump=240, time_class="WAIT_OPERATOR"),
+            decl.Step(215, "scrapPart", decl.MARK, comment="disposition NOK",
+                      marks=("Ctx.ScrapCount := Ctx.ScrapCount + 1",),
+                      on_advance=240),
+            decl.Step(220, "pressDwell", decl.DELAY,
+                      comment="hold pressure while the two-hand is held; "
+                              "releasing it pauses the dwell, not the cycle",
+                      duration_member="PressDwellMs",
+                      # TC3's N220: a named wait, not a hold and not a fault.
+                      # The dwell counts only while it holds, so a part is
+                      # never credited with dwell it spent unpressed.
+                      conditions=(two_hand_held,),
+                      condition_labels=("project.condition.twoHandHeldDuringPress",),
+                      on_advance=230),
+            decl.Step(230, "recordResult", decl.MARK,
+                      comment="record the applied dwell",
+                      marks=(), on_advance=240),
+            decl.Step(240, "safeRamUp", decl.ISSUE,
+                      comment="load-safe position, part 1 of 3",
+                      module="PressRam", command="RETRACT", on_advance=242),
+            decl.Step(242, "safeDoorOpen", decl.ISSUE,
+                      comment="load-safe position, part 2 of 3",
+                      module="Door", command="RETRACT", on_advance=244),
+            decl.Step(244, "safeSlideOutside", decl.ISSUE,
+                      comment="load-safe position, part 3 of 3",
+                      module="PartSlide", command="RETRACT", on_advance=999),
+            decl.Step(999, "autoComplete", decl.MARK,
+                      comment="count the cycle and loop",
+                      # TC3 drops the start latch at cycle end: the next
+                      # cycle needs a fresh two-hand start.
+                      marks=("Ctx.CycleCount := Ctx.CycleCount + 1",
+                             "Ctx.GoodCount := Ctx.GoodCount + 1",
+                             "Ctx.StartLatched := 0"),
+                      on_advance=100),
+        ),
+    )
+
+    # --- HOME ---------------------------------------------------------------
+    home = decl.Chain(
+        name="HOME",
+        mode_ordinal=MODE_HOME,
+        comment="establish the load-safe position and stop",
+        steps=(
+            decl.Step(0, "homeInitialize", decl.MARK, marks=("Ctx.Complete := 0",),
+                      on_advance=900),
+            decl.Step(900, "homeRamUp", decl.ISSUE, module="PressRam",
+                      command="RETRACT", on_advance=902),
+            decl.Step(902, "homeDoorOpen", decl.ISSUE, module="Door",
+                      command="RETRACT", on_advance=904),
+            decl.Step(904, "homeSlideOutside", decl.ISSUE, module="PartSlide",
+                      command="RETRACT", on_advance=998),
+            decl.Step(998, "homeComplete", decl.COMPLETE,
+                      comment="the load-safe position is established"),
+        ),
+    )
+
+    # --- MANUAL -------------------------------------------------------------
+    # TC3's MANUAL has no sequence: each module takes the operator's commands
+    # from its own catalogue, through its own interlocks (manual_mode below).
+    # The jog chain that stood in for that moved one slide out and back on an
+    # unaddressed request, and is gone with its JogCommand.
+
+    # --- CHANGEOVER ---------------------------------------------------------
+    # The TC3 oracle's shape: validate the selected model, drive the machine to
+    # the load-safe position, ask the operator to confirm tooling, then commit.
+    # The confirmation can send the operator back to the position rather than
+    # forward, which is why 780 jumps to 710 rather than simply repeating.
+    #
+    # §3.8's split is the point. Everything fallible happens before 790: the
+    # mailbox refuses a model this station does not declare, and step 700 will
+    # not advance without one. Step 790 is then a bounded copy of declared
+    # numbers into the record - no validation, no I/O, nothing that can fail
+    # and leave the press configured as neither model.
+    # One mark, not one per model. The numbers used to be literals here, which
+    # meant a model's values were only changeable by editing this file and
+    # downloading. They now live in FRK_Press_ModelCfg, one element per model,
+    # so an operator can commission them - and the commit becomes "copy the
+    # model the operator chose" rather than "paste the numbers we shipped".
+    #
+    # The copy itself is in the routine, not here: this runs inside the Unit
+    # AOI and an AOI cannot reach a controller-scope array. The chain raises
+    # CommitModel; the routine performs the bounded copy in the same scan.
+    commit_marks = (
+        "IF Ctx.ModelRequest >= 1 THEN "
+        "Ctx.CommitModel := Ctx.ModelRequest; "
+        "Ctx.ModelOrdinal := Ctx.ModelRequest; END_IF",
+    )
+    changeover = decl.Chain(
+        name="CHANGEOVER",
+        mode_ordinal=MODE_CHANGEOVER,
+        comment="load a declared model and confirm the tooling that goes with it",
+        steps=(
+            decl.Step(0, "changeoverInitialize", decl.MARK,
+                      marks=("Ctx.Complete := 0",), on_advance=700),
+            decl.Step(700, "changeoverValidateModel", decl.AWAIT,
+                      comment="a model must be selected before anything moves",
+                      conditions=(model_request,),
+                      condition_labels=("project.condition.pressModelSelected",),
+                      hold_reason=REASONS["WAIT_CONDITION"], on_advance=710,
+                      time_class="WAIT_OPERATOR"),
+            decl.Step(710, "changeoverRamUp", decl.ISSUE, module="PressRam",
+                      command="RETRACT", on_advance=712),
+            decl.Step(712, "changeoverDoorOpen", decl.ISSUE, module="Door",
+                      command="RETRACT", on_advance=714),
+            decl.Step(714, "changeoverSlideOutside", decl.ISSUE,
+                      module="PartSlide", command="RETRACT", on_advance=780),
+            decl.Step(780, "changeoverConfirm", decl.DECISION,
+                      comment="confirm the tooling and material for this model; "
+                              "answering repeat drives the position again",
+                      decision_id=DECISION_CHANGEOVER_CONFIRM,
+                      on_advance=790, on_jump=710, time_class="WAIT_OPERATOR"),
+            decl.Step(790, "changeoverCommit", decl.MARK,
+                      comment="bounded copy of the declared values; infallible",
+                      marks=commit_marks, on_advance=798),
+            decl.Step(798, "changeoverComplete", decl.COMPLETE,
+                      comment="the press is configured for the selected model"),
+        ),
+    )
+
+    press_line = line.Line('PRESS-LINE-1', 'AB-PRESS-BENCH')
+    return decl.Application(
+        name=n,
+        controller="1769-L24ER-QB1B",
+        major_revision=33,
+        task_name="FRK_PressTask",
+        task_period_ms=10,
+        watchdog_ms=500,
+        comment="Fraktal/AB press demo: the first application emitted from the "
+                "runtime base. No control power; I/O declared but inhibited.",
+        records=(par_cfg, station_cfg, line.record(press_line)),
+        line=press_line,
+        modules=(press_ram, door, part_slide, part_present_sensor, two_hand_control,
+                 air_pressure_monitor),
+        start_control=decl.StartControl(
+            pulse=decl.ModuleState("TwoHand", ("OutImm_StartPulse",)),
+            mode=MODE_AUTO,
+            requires=(part_there, air_there)),
+        chains=(auto, home, changeover),
+        # TC3's MANUAL: no sequence; modules take manual commands directly.
+        manual_mode=MODE_MANUAL,
+        # TC3's FB_PressDemoRelease.ModeStart: a START needs air, reported as
+        # PERMISSIVE_NOT_MET under the same text the start step's wait uses.
+        # TC3's press: every motion boundary is paced, so SINGLE_STEP and
+        # HOLD_TO_RUN are offered beside CONTINUOUS (NON-SAFETY pacing).
+        run_styles=decl.RUN_STYLES,
+        ideal_cycle_member="IdealCycleMs",
+        baseline_work_member="BaselineWorkMs",
+        # Core §8.12, TC3's HealthConfig set by its MAIN, for this controller:
+        # a cycle over twice the 10 ms period is an overrun, and jitter over
+        # 2 ms - ten times the 198 us S3 measured at worst - is high. TC3
+        # requires its EtherCAT and its time sync; this bench has local I/O,
+        # not a fieldbus, and runs without PTP by design (S1, S9, S3), so a
+        # requirement it could never meet would be a standing false alarm.
+        system_health=decl.SystemHealth.for_task(10),
+        # Measured press68 read cost; independent expiry also covers a stalled RPC.
+        read_budget=decl.ReadBudget(500, 250, 2000, 3000, 1000, 2000, 3000, connection_bytes=4000),
+        config_sets=True,
+        data_classes=(decl.DataClass("public", "project.dataClass.public"),
+                      decl.DataClass("commissioning", "project.dataClass.commissioning")),
+        # Internal bench accounts: only salted hashes; fixture PINs are local.
+        access_users=(
+            access.User('phase6_op', 1, '1be6f2743a028261f7066e76abd1290c', '8fb749ad6c9180f2d49a9b4280fdf3ebfbde09c744a339896d9cf83710436937'),
+            access.User('phase6_tech', 2, '823f920c62dc67cd8b5b97bae01eb170', 'fb56ff7f36b05439de6ae57cb8d09cd786ba13ab182fa18f22665b843b3bc2c9'),
+            access.User('phase6_admin', 4, '75dbe23faef48d04c45f283b18bf9ffb', '0ba36b915e8f201af3090995049fa0f1e01fc3eb0e97de0a2ff9d3584ae066cd'),
+        ),
+        # TC3's FB_PressDemoUnit, under its keys and in its order (Core §3.12).
+        # TC3's TwoHandStartReady also needs ControlDomain.ReadyForStart; this
+        # bench has no control-power domain, and TC3 treats an absent one as
+        # no start gate, so the term is not there to be met.
+        state_flags=(
+            decl.StateFlag("project.state.pressAtLoadPosition", tuple(
+                decl.ModuleState(name, ("OutImm_Retracted",), zero=("OutImm_Extended",))
+                for name in ("Door", "PartSlide", "PressRam"))),
+            decl.StateFlag("project.state.pressTwoHandStartReady", (
+                decl.ModuleState("TwoHand", ("OutImm_Armed",)),
+                decl.ModuleState("PartPresentSensor", ("OutImm_Value", "OutImm_Quality")),
+                decl.ModuleState("AirPressureMonitor", ("OutImm_PressureOk",)))),
+        ),
+        start_permits=(decl.Permit(
+            (decl.ModuleState("AirPressureMonitor", ("OutImm_PressureOk",)),),
+            "project.condition.airPressureOk", modes=(MODE_AUTO, MODE_HOME)),),
+        reasons=REASONS,
+        sim_inputs=(two_hand, part_present, air_ok,
+                model_request),
+        io_modules=(_press_io(),),
+        # The ParCfg initials above are M-100's numbers, and the validator
+        # holds the two together: change one without the other and the
+        # declaration is refused rather than booting a station that claims a
+        # model it is not configured as.
+        default_model="M-100",
+    model_capacity=8,
+        # The same key the TwinCAT press Unit publishes.
+        type_key="project.moduleType.pneumaticPress",
+        decisions=(
+            # Option 1 always advances, because the emitted DECISION logic
+            # takes the jump for anything else.
+            decl.Decision(
+                identifier=DECISION_PRESS_NOT_REACHED,
+                prompt_key="project.decision.pressNotReached",
+                option_keys=("project.decision.scrapPart",
+                             "project.decision.retryPress")),
+            decl.Decision(
+                identifier=DECISION_CHANGEOVER_CONFIRM,
+                prompt_key="project.decision.changeoverConfirm",
+                option_keys=("project.decision.confirmChangeover",
+                             "project.decision.repeatPosition")),
+        ),
+        models=tuple(
+            decl.Model(code=code, description_key=key,
+                       values={"PressDwellMs": dwell,
+                               "TransferSettleMs": settle,
+                               "IdealCycleMs": ideal,
+                               "BaselineWorkMs": ideal})
+            for code, key, dwell, settle, ideal in MODELS
+        ),
+        chart_steps=32,
+    )
+
+
+def generate(source: Path, output: Path) -> dict[str, object]:
+    """The gate-leg entry point: same shape as every other fixture generator."""
+    import fraktal_ab_generate
+
+    return fraktal_ab_generate.generate(application(), source, output)

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_TcSystemHealthProbe" Id="{345ba223-e9e5-4ad3-a079-ed19f1515224}" SpecialFunc="None">
+    <Declaration><![CDATA[// TC3 §2.3/§2.7/§8.12 adapter. Task timing is measured here from TwinCAT's
+// monotonic clock; target/platform diagnostic sources inject the remaining data.
+FUNCTION_BLOCK FB_TcSystemHealthProbe
+VAR_OUTPUT
+    Health : ST_SystemHealthInput;
+END_VAR
+VAR
+    _last : TIME;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Cyclic" Id="{0f06f042-fb73-40b5-913f-84b6372142dc}">
+      <Declaration><![CDATA[METHOD Cyclic : BOOL
+VAR_INPUT
+    ExpectedCycleUs       : UDINT;
+    ExternalTaskOverrun   : BOOL;
+    ControllerAvailable   : BOOL;
+    CpuLoadPct            : LREAL;
+    MemoryAvailableMb     : UDINT;
+    IpcAvailable          : BOOL;
+    IpcTemperatureC       : LREAL;
+    FanHealthy            : BOOL;
+    StorageHealthPct      : LREAL;
+    FieldbusAvailable     : BOOL;
+    FieldbusMasterHealthy : BOOL;
+    LostFrameCount        : UDINT;
+    SlaveErrorCount       : UDINT;
+    DcAvailable           : BOOL;
+    DcSynchronized        : BOOL;
+    TimeAvailable         : BOOL;
+    TimeSynchronized      : BOOL;
+    TimeSource            : STRING(32);
+    TimeOffsetUs          : DINT;
+    LastSyncAt            : DT;
+END_VAR
+VAR
+    currentTime, delta : TIME;
+    actualUs : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[currentTime := TIME();
+IF _last = T#0S THEN
+    Health.TaskAvailable := FALSE;
+    Health.TaskCycleUs := 0;
+    Health.TaskJitterUs := 0;
+ELSE
+    delta := currentTime - _last;
+    actualUs := TIME_TO_UDINT(delta) * 1000;
+    Health.TaskAvailable := TRUE;
+    Health.TaskCycleUs := actualUs;
+    IF actualUs >= ExpectedCycleUs THEN
+        Health.TaskJitterUs := actualUs - ExpectedCycleUs;
+    ELSE
+        Health.TaskJitterUs := ExpectedCycleUs - actualUs;
+    END_IF
+END_IF
+_last := currentTime;
+Health.TaskOverrun := ExternalTaskOverrun;
+Health.ControllerAvailable := ControllerAvailable;
+Health.CpuLoadPct := CpuLoadPct;
+Health.MemoryAvailableMb := MemoryAvailableMb;
+Health.IpcAvailable := IpcAvailable;
+Health.IpcTemperatureC := IpcTemperatureC;
+Health.FanHealthy := FanHealthy;
+Health.StorageHealthPct := StorageHealthPct;
+Health.FieldbusAvailable := FieldbusAvailable;
+Health.FieldbusMasterHealthy := FieldbusMasterHealthy;
+Health.LostFrameCount := LostFrameCount;
+Health.SlaveErrorCount := SlaveErrorCount;
+Health.DcAvailable := DcAvailable;
+Health.DcSynchronized := DcSynchronized;
+Health.TimeQuality.Available := TimeAvailable;
+Health.TimeQuality.Synchronized := TimeAvailable AND TimeSynchronized;
+Health.TimeQuality.Source := TimeSource;
+Health.TimeQuality.OffsetUs := TimeOffsetUs;
+Health.TimeQuality.LastSyncAt := LastSyncAt;
+Health.TimeQuality.ObservedAt := F_Now();
+GVL_FraktalTime.Current := Health.TimeQuality;
+Cyclic := TRUE;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

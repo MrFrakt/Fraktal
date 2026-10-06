@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_AsciiLinkEvent" Id="{7b3e1c94-5a2d-4f86-9e0b-c14d8a2f6e37}">
+    <Declaration><![CDATA[// Core §3.15.1a - what one FB_AsciiLink tick produced. The link reports; its owner
+// (a device CM, or a connector) decides what each event means for it.
+{attribute 'qualified_only'}
+TYPE E_AsciiLinkEvent :
+(
+    NONE          := 0,
+    RESPONSE      := 1,   // one terminated response is in Response
+    TIMEOUT       := 2,   // the outstanding request got no response in RespTimeout
+    OVERFLOW      := 3,   // no terminator within the receive bound: buffer dropped
+    CHANNEL_FAULT := 4,   // the transport reported FAULT; the channel was closed
+    INVALID_STATE := 5    // the transport reported a state outside the contract
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

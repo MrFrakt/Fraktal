@@ -1,0 +1,708 @@
+{
+  "schema": "fraktal.ab.phase6.s9-freshness-evidence",
+  "schemaVersion": 1,
+  "date": "2026-10-03",
+  "sourceBaseCommit": "c3757b1071e7f92c52df16f6cc56cbf909442d17",
+  "sourceFiles": {
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_declaration.py": "77EF913C19BEFF9953FA8E8FD373A59B352D9CDF7D1C80C06947C67FB211F7AC",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_gateway.py": "00BD1EB82E74A0E89E874FFCB37FED97980483B0404ED12ED4BF1730A94F6972",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_press_demo.py": "AE4AFDD4F3DF6DC7171D88F9DD78C4ACB1FB61F1FDBD76B82E500C6649FFF6B8",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_projection.py": "C99D37D9FBD73E39D56E3040063352E8670E75658C7890DBE3B7F70A413833F3",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_station_template.py": "99C3F2B6F9906C4691329B7A896872DFB577A3150F5F738635910EBB8439FB44",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s9_contract.py": "B44721315BB630A2A839E27FAA879E053245433776885E00234DDF64070ACAFB",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s9_read_execute.py": "91BDA4B40932406C98C4989B962AFE94D606BF40EDB1FAB1FBF1730842D84DB5",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_freshness.py": "810261A2B133706CF78A7F06719C9E63E2895B9843CD9D539765F7B52155CBEC",
+    "FraktalCore/HMI/lib/data/opcua_freshness.dart": "E89571E0E6E795904A87DEB38E133222D86955499DC0B1B94562DF77DE35536D",
+    "FraktalCore/HMI/lib/data/opcua_repository.dart": "BB255155F289A0B8AD1AA47C3CD2AD1440B33BA140E618A880BE4BB12F940C59",
+    "FraktalCore/HMI/test/opcua_freshness_test.dart": "6EC7FA7D4378BBCA3D64C930E2E3D54A1A02084C3C6172D28C9883460ED16BD9",
+    "FraktalCore/HMI/test/opcua_repository_test.dart": "83DEBC7351B2041653F9AC268C053DB324E96C7B30E26A1A50CC663C5171A6F5",
+    "FraktalCore/HMI/test/repository_contract_test.dart": "42E71627C6B51E36906726DFCD5F8947189C3C64D284071416D7AA2169F41A72"
+  },
+  "target": {
+    "address": "192.168.100.89",
+    "expectedSerial": "7036B510",
+    "identity": {
+      "product_name": "1769-L24ER-QB1B/A LOGIX5324ER",
+      "revision": "33.14",
+      "serial_number": "7036B510"
+    }
+  },
+  "controllerWrites": false,
+  "gatewayRestarted": false,
+  "fullWriteEnabledClaim": false,
+  "nativeMailboxEvidence": "AB_PHASE6_S9_NATIVE_MAILBOX_2026-10-03.md",
+  "budget": {
+    "pollPeriodMs": 500,
+    "cacheMs": 250,
+    "fastGoodMs": 2000,
+    "fastExpiryMs": 3000,
+    "slowPeriodMs": 1000,
+    "slowGoodMs": 2000,
+    "slowExpiryMs": 3000,
+    "readConnectionBytes": 4000,
+    "cacheClock": "monotonic",
+    "acquisitionAgeStartsBeforeIo": true,
+    "partialAckRenewsFullHealth": false
+  },
+  "readOnlyHardwareCost": {
+    "schema": "fraktal.ab.s9-read-cost",
+    "schemaVersion": 1,
+    "wrote": false,
+    "writeEnabledClaim": false,
+    "expectedContentHash": "7A9B9A8B59EEFD16",
+    "discoveryRevision": 1,
+    "paths": 3835,
+    "rows": [
+      {
+        "case": "cold",
+        "elapsedMs": 465.979,
+        "nativeReadCalls": 46,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-preflight",
+        "elapsedMs": 16.936,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-ack",
+        "elapsedMs": 17.395,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-preflight",
+        "elapsedMs": 15.105,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-ack",
+        "elapsedMs": 15.584,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-preflight",
+        "elapsedMs": 16.584,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-ack",
+        "elapsedMs": 17.282,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-preflight",
+        "elapsedMs": 16.162,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-ack",
+        "elapsedMs": 16.321,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-preflight",
+        "elapsedMs": 15.489,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "mailbox-ack",
+        "elapsedMs": 15.946,
+        "nativeReadCalls": 4,
+        "healthy": true
+      },
+      {
+        "case": "steady",
+        "elapsedMs": 199.521,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "steady",
+        "elapsedMs": 194.198,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "steady",
+        "elapsedMs": 197.12,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "steady",
+        "elapsedMs": 198.041,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "steady",
+        "elapsedMs": 198.296,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "profiler-excluded",
+        "elapsedMs": 194.674,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-excluded",
+        "elapsedMs": 186.688,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-excluded",
+        "elapsedMs": 192.593,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-excluded",
+        "elapsedMs": 205.902,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-excluded",
+        "elapsedMs": 206.381,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-targeted",
+        "elapsedMs": 221.907,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "profiler-slow",
+        "elapsedMs": 214.125,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-slow",
+        "elapsedMs": 210.063,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-slow",
+        "elapsedMs": 215.635,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-slow",
+        "elapsedMs": 196.784,
+        "nativeReadCalls": 36,
+        "healthy": true
+      },
+      {
+        "case": "profiler-slow",
+        "elapsedMs": 195.526,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "six-viewer-burst",
+        "elapsedMs": 224.933,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "six-viewer-burst",
+        "elapsedMs": 224.017,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "six-viewer-burst",
+        "elapsedMs": 222.046,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "six-viewer-burst",
+        "elapsedMs": 220.256,
+        "nativeReadCalls": 37,
+        "healthy": true
+      },
+      {
+        "case": "six-viewer-burst",
+        "elapsedMs": 219.2,
+        "nativeReadCalls": 37,
+        "healthy": true
+      }
+    ],
+    "budget": {
+      "schemaVersion": 1,
+      "pollPeriodMs": 500,
+      "fastGoodMs": 2000,
+      "fastExpiryMs": 3000,
+      "slowPeriodMs": 1000,
+      "slowGoodMs": 2000,
+      "slowExpiryMs": 3000
+    },
+    "budgetFitsMeasuredCost": true,
+    "summary": {
+      "cold": {
+        "medianMs": 465.979,
+        "maximumMs": 465.979,
+        "nativeReadCalls": [
+          46
+        ]
+      },
+      "mailbox-preflight": {
+        "medianMs": 16.162,
+        "maximumMs": 16.936,
+        "nativeReadCalls": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "mailbox-ack": {
+        "medianMs": 16.321,
+        "maximumMs": 17.395,
+        "nativeReadCalls": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "steady": {
+        "medianMs": 198.041,
+        "maximumMs": 199.521,
+        "nativeReadCalls": [
+          37,
+          37,
+          37,
+          37,
+          37
+        ]
+      },
+      "profiler-excluded": {
+        "medianMs": 194.674,
+        "maximumMs": 206.381,
+        "nativeReadCalls": [
+          36,
+          36,
+          36,
+          36,
+          36
+        ]
+      },
+      "profiler-targeted": {
+        "medianMs": 221.907,
+        "maximumMs": 221.907,
+        "nativeReadCalls": [
+          37
+        ]
+      },
+      "profiler-slow": {
+        "medianMs": 210.063,
+        "maximumMs": 215.635,
+        "nativeReadCalls": [
+          36,
+          36,
+          36,
+          36,
+          37
+        ]
+      },
+      "six-viewer-burst": {
+        "medianMs": 222.046,
+        "maximumMs": 224.933,
+        "nativeReadCalls": [
+          37,
+          37,
+          37,
+          37,
+          37
+        ]
+      }
+    },
+    "passed": true,
+    "target": "192.168.100.89",
+    "serial": "7036B510",
+    "connectionBytes": 4000
+  },
+  "readOnlyHealth": {
+    "application": "Press",
+    "expected_serial": "7036B510",
+    "identity": {
+      "product_name": "1769-L24ER-QB1B/A LOGIX5324ER",
+      "revision": "33.14",
+      "serial_number": "7036B510"
+    },
+    "passed": true,
+    "result": {
+      "failed": 0,
+      "first": {
+        "IntervalUs": 10005,
+        "JitterUs": 5,
+        "MajorFaultBits": 0,
+        "MaxIntervalUs": 10175,
+        "MaxJitterUs": 175,
+        "MinIntervalUs": 9832,
+        "MinorFaultBits": 0,
+        "NowMinuteUs": 8051949,
+        "PrevMinuteUs": 8051949,
+        "Samples": 1443235,
+        "SchemaVersion": 1,
+        "TaskLastScanUs": 691,
+        "TaskMaxScanUs": 7754,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "WinMaxIntervalUs": 10154,
+        "WinMaxJitterUs": 157,
+        "WinMinIntervalUs": 9843,
+        "WinScans": 34
+      },
+      "last": {
+        "IntervalUs": 9985,
+        "JitterUs": 15,
+        "MajorFaultBits": 0,
+        "MaxIntervalUs": 10175,
+        "MaxJitterUs": 182,
+        "MinIntervalUs": 9818,
+        "MinorFaultBits": 0,
+        "NowMinuteUs": 12931933,
+        "PrevMinuteUs": 12931933,
+        "Samples": 1443723,
+        "SchemaVersion": 1,
+        "TaskLastScanUs": 837,
+        "TaskMaxScanUs": 7754,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "WinMaxIntervalUs": 10032,
+        "WinMaxJitterUs": 35,
+        "WinMinIntervalUs": 9965,
+        "WinScans": 22
+      },
+      "passed": true,
+      "rows": [
+        {
+          "expectation": "the probe answers and counts one sample per scan: about 100 a second",
+          "observed": {
+            "reads": 48,
+            "scans": 488,
+            "scansPerSecond": 100.0,
+            "seconds": 4.879
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "the_probe_runs_every_scan"
+        },
+        {
+          "expectation": "GSV TASK LastScanTime is the routine's execution in us: above zero and inside the period; MaxScanTime is at least every last scan seen",
+          "observed": {
+            "lastScanUs": {
+              "max": 837,
+              "median": 681.0,
+              "min": 655
+            },
+            "maxScanUs": 7754,
+            "periodUs": 10000
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "task_execution_time"
+        },
+        {
+          "expectation": "the real period between scans, from the wall clock, published per 1 s window: the shortest and longest period bracket the declared one",
+          "observed": {
+            "periodUs": 10000,
+            "windows": [
+              [
+                10157,
+                9825,
+                175
+              ],
+              [
+                10163,
+                9828,
+                172
+              ],
+              [
+                10171,
+                9812,
+                188
+              ],
+              [
+                10175,
+                9818,
+                182
+              ],
+              [
+                10175,
+                9832,
+                175
+              ],
+              [
+                10181,
+                9821,
+                181
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "task_period_and_jitter"
+        },
+        {
+          "expectation": "GSV TASK OverlapCount: no overrun while sampled",
+          "observed": {
+            "overlapCount": [
+              0
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "no_task_overruns"
+        },
+        {
+          "expectation": "GSV TimeSynchronize IsSynchronized and PTPEnable answer, steadily; this bench runs without PTP (S1, S9), so both are expected 0",
+          "observed": {
+            "isSynchronizedPtpEnable": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "time_quality"
+        },
+        {
+          "expectation": "GSV FaultLog: no major fault on a running controller; the minor bits are recorded",
+          "observed": {
+            "majorMinor": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "controller_fault_bits"
+        }
+      ],
+      "successful": 6,
+      "tests": 6
+    },
+    "schema": "fraktal.ab.s3-health-and-timing",
+    "schema_version": 1,
+    "serial_matches": true,
+    "target": "192.168.100.89",
+    "wrote": false
+  },
+  "reproducibility": {
+    "passed": true,
+    "addedControllerBytes": 0,
+    "rows": [
+      {
+        "application": "press",
+        "identical": true,
+        "sha256": "E2C20374F8FC7364672E425EBC3E55CC5F6D9F81ED4894BB32366E737BA586F7"
+      },
+      {
+        "application": "template",
+        "identical": true,
+        "sha256": "95BAE8768BB240E625D54BA5D31706FD733E012B098D1CC728BAA1F48C2C43E2"
+      }
+    ]
+  },
+  "deployment": {
+    "schema": "fraktal.ab.s9-freshness-deployment",
+    "schemaVersion": 1,
+    "root": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\build\\web",
+    "backup": "C:\\work\\press68_freshness_web_backup_01",
+    "oldMainSha256": "707FFF4E0732C352E0830D93A09C6F9D6712B12857103ACFD3AE383C212686D4",
+    "newMainSha256": "A00D83AC9AC7369E449A1B01CF250C22859919AC8473396AC3914C15527FC1A6",
+    "firstVerificationFailure": "Windows OS resolver does not resolve press.localhost; deployment completed before verification failed",
+    "httpsAddress": "127.0.0.1:443",
+    "tlsHostValidated": "press.localhost",
+    "httpsChecks": [
+      {
+        "asset": "main.dart.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "A00D83AC9AC7369E449A1B01CF250C22859919AC8473396AC3914C15527FC1A6"
+      },
+      {
+        "asset": "flutter_bootstrap.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "47E681C4E2440FEF3CA6A65E2749F3D44FF474D1AA08E41DA7C7B7641D72A2C7"
+      },
+      {
+        "asset": "index.html",
+        "status": 200,
+        "identical": true,
+        "sha256": "66F2DC70A372CBC4B8B68781673BFE1EA86B0A8E63F55C6519259709F7F1D035"
+      }
+    ],
+    "gatewayRestarted": false,
+    "controllerWrites": false,
+    "passed": true
+  },
+  "mutants": {
+    "passed": true,
+    "rows": [
+      {
+        "mutation": "health ignores age",
+        "killed": true,
+        "tests": 11,
+        "failures": 7,
+        "errors": 0
+      },
+      {
+        "mutation": "late completion renews sample",
+        "killed": true,
+        "tests": 11,
+        "failures": 2,
+        "errors": 0
+      },
+      {
+        "mutation": "cache retains expired payload",
+        "killed": true,
+        "tests": 11,
+        "failures": 3,
+        "errors": 0
+      },
+      {
+        "mutation": "delivery ignores expiry",
+        "killed": true,
+        "tests": 11,
+        "failures": 1,
+        "errors": 0
+      },
+      {
+        "mutation": "fixed slow heartbeat ignores deployment",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0
+      }
+    ]
+  },
+  "initialMutationHarnessResult": {
+    "passed": true,
+    "rows": [
+      {
+        "mutation": "health ignores age",
+        "killed": true,
+        "tests": 11,
+        "failures": 7,
+        "errors": 0
+      },
+      {
+        "mutation": "late completion renews sample",
+        "killed": true,
+        "tests": 11,
+        "failures": 2,
+        "errors": 0
+      },
+      {
+        "mutation": "cache retains expired payload",
+        "killed": true,
+        "tests": 11,
+        "failures": 3,
+        "errors": 0
+      },
+      {
+        "mutation": "delivery ignores expiry",
+        "killed": true,
+        "tests": 11,
+        "failures": 1,
+        "errors": 1
+      },
+      {
+        "mutation": "fixed slow heartbeat ignores deployment",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0
+      }
+    ]
+  },
+  "mutationHarnessCorrection": "The isolated mutant module initially defined another WriteRefused class; the second run shares the production exception class and records five kills with zero harness errors.",
+  "checks": {
+    "abTests": 1535,
+    "abSeconds": 220.649,
+    "focusedTests": 104,
+    "sharedContractTests": 70,
+    "hmiTests": 458,
+    "hmiExpectedSkips": 7,
+    "rootTests": 33,
+    "analyzerClean": true,
+    "releaseWebBuilt": true
+  },
+  "logs": {
+    "press68_freshness_focus_02.log": {
+      "path": "C:\\work\\press68_freshness_focus_02.log",
+      "sha256": "727ED1FBD89A34C11458509A01D3845D819F1CB29AC9291230C8FF8A93F79966"
+    },
+    "press68_freshness_ab_02.log": {
+      "path": "C:\\work\\press68_freshness_ab_02.log",
+      "sha256": "5D5EEAC42AC0FE69A02FEA24BA986CF636AABBA18F6B65822BAC37B7F206C70D"
+    },
+    "press68_freshness_contract_01.log": {
+      "path": "C:\\work\\press68_freshness_contract_01.log",
+      "sha256": "B575D45D7591B1028CEF83D8BC1E11D915E559D68D49EA37A791EA28D03EBE63"
+    },
+    "press68_freshness_hmi_01.log": {
+      "path": "C:\\work\\press68_freshness_hmi_01.log",
+      "sha256": "DA03B84C428135E26A8858F028FF580756AABFA7811C0C245DFBC23DEED8755D"
+    },
+    "press68_freshness_analyze_02.log": {
+      "path": "C:\\work\\press68_freshness_analyze_02.log",
+      "sha256": "21D355B7638178D8DB48C19A6418BF107DBD4E5107407A969FE6942B737ACC97"
+    },
+    "press68_freshness_web_01.log": {
+      "path": "C:\\work\\press68_freshness_web_01.log",
+      "sha256": "BAE60B72F170EE4FDAF5D8A6068D72EE41B8E8F8298361B8A7641E320380B462"
+    },
+    "press68_freshness_root_01.log": {
+      "path": "C:\\work\\press68_freshness_root_01.log",
+      "sha256": "0D95A88F896A710C22C35488D9B94F2B1E5EE954864D81BD65329379EBFD7B26"
+    },
+    "press68_freshness_root-tests_01.log": {
+      "path": "C:\\work\\press68_freshness_root-tests_01.log",
+      "sha256": "3BF56EAC12F821B83CF5C860B3E8A8FD869CC2AF63DF8E9943141A98A0E8EBDB"
+    }
+  },
+  "helpers": {
+    "press68_freshness_validate.py": "80BCE29F970A3F17F2C17D8673260791BEA4BA20D39DCD2DBB02E27103948CE3",
+    "press68_freshness_mutations.py": "FCDF04C4BBE4BE5C32A2AC776D949B10B1B3595129ABAB039BFF9607AF9028CF",
+    "press68_freshness_repro.py": "487E8986936E771E1BD5FE5A148EAFD64DCC207F382CA55FF5AF6F421B5ADB2C",
+    "press68_freshness_deploy.py": "240347008301872BCAC618B2A41481BF2E22ECA7F39B2E34A5A92FE6171ABFD1",
+    "press68_freshness_verify_web.py": "863E30FBFE14201335B959E9D8AAB9B3B55EC5514FB83900EA481B14EDAFF071"
+  },
+  "remaining": [
+    "Owner restart of the existing write-enabled gateway and Chrome hard refresh.",
+    "Read-only verification of the live freshness envelope after activation.",
+    "Physical retention remains separate debt; historical S1 time probe and TC3 native segmented transport are not newly exercised."
+  ]
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_TimeSynchronized" Id="{e3d213ce-3d17-457a-9d41-f429026717b5}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §2.7 — quality bit stored with every generated wall-clock record.
+FUNCTION F_TimeSynchronized : BOOL]]></Declaration>
+    <Implementation><ST><![CDATA[F_TimeSynchronized := GVL_FraktalTime.Current.Available
+    AND GVL_FraktalTime.Current.Synchronized;]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

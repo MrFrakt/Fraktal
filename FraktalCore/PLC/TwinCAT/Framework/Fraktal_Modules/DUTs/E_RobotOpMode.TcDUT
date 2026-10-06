@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_RobotOpMode" Id="{93951cbd-97a6-4b79-aef1-fa928d478002}">
+    <Declaration><![CDATA[// Annex I I.4a(a) - the robot CONTROLLER's operating mode, which bounds what
+// motion is physically allowed. The PLC REQUESTS a mode and publishes separately
+// what the controller REPORTS it actually is: a request that was not granted must
+// stay visibly ungranted, never overwritten by optimism. UNKNOWN = 0 so an
+// uninitialised value is never mistaken for a permissive mode.
+{attribute 'qualified_only'}
+TYPE E_RobotOpMode :
+(
+    UNKNOWN        := 0,
+    AUTO_REMOTE    := 1,
+    MANUAL_REDUCED := 2,
+    MANUAL_HIGH    := 3
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

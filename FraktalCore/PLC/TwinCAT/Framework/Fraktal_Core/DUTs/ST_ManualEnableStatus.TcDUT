@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ManualEnableStatus" Id="{591a6dd8-929d-4af1-af13-2326814b4b01}">
+    <Declaration><![CDATA[// Core §9 — "is a safety-rated enabling device permitting manual motion right
+// now?", derived from the §9 device rows and never authored.
+//
+// This is STATUS, not authority. §9 is read-only to the application and the PLC
+// never infers "safe" from it: the safety system decides whether guards may be
+// open, enforces the reduced speed, and mutes the interlock. What this record
+// says is only what the certified system has already published about its
+// enabling device — so that a release (§7.6) can be written against a fact with
+// a provenance, instead of against a boolean a station assembled from standard
+// I/O.
+//
+// A three-position enabling device reads as permitting ONLY in its middle
+// position. Released and panic-squeezed are both non-permitting, which is the
+// entire reason the device has three positions rather than two.
+TYPE ST_ManualEnableStatus :
+STRUCT
+    Present    : BOOL;          // at least one enabling device is mirrored here
+    Held       : BOOL;          // one is permitting NOW - safety-evaluated, standard PLC cannot set
+    DeviceName : STRING(80);    // which one, so a release report can name it (§7.6.0)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

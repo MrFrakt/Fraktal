@@ -1,0 +1,38 @@
+[Unit]
+# One gateway process serves one PLC. This templated unit runs one instance per
+# controller: `systemctl enable --now fraktal-gateway@line2` reads
+# /etc/fraktal/instances/line2.env, which supplies that PLC's endpoint, its own
+# loopback port, and its own published origin. Copy
+# fraktal-gateway-instance.env.example to create each one.
+#
+# The non-templated fraktal-gateway.service remains the single-PLC form; do not
+# enable both for the same PLC, and never give two instances one port.
+Description=Fraktal OPC UA WebSocket Gateway (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fraktal-gateway
+Group=fraktal-gateway
+WorkingDirectory=/opt/fraktal-gateway
+EnvironmentFile=-/etc/fraktal/fraktal-gateway.env
+EnvironmentFile=/etc/fraktal/instances/%i.env
+ExecStart=/opt/fraktal-gateway/fraktal_gateway --instance-name %i --plc-endpoint ${FRAKTAL_PLC_ENDPOINT} --port ${FRAKTAL_GATEWAY_PORT} --web-root /opt/fraktal-gateway/web --security-profile production --application-uri ${FRAKTAL_GATEWAY_APPLICATION_URI} --client-certificate ${FRAKTAL_GATEWAY_CLIENT_CERTIFICATE} --client-private-key ${FRAKTAL_GATEWAY_CLIENT_PRIVATE_KEY} --trust-list ${FRAKTAL_GATEWAY_TRUST_LIST}
+Restart=on-failure
+RestartSec=2
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

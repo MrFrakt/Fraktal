@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AsciiLink" Id="{2d9f6b18-c4e3-4a70-8b52-6e1a9d3f0c84}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.15.1a - ASCII request/response over I_ByteChannel, written ONCE: terminator
+// framing, the one-outstanding-request rule, the receive bound and the response
+// timeout. It owns no open policy and raises nothing: each tick returns an event,
+// and its owner decides what that means - FB_AsciiDeviceCM faults and reconnects
+// on its own backoff; a connector on FB_DeviceConnectorBase leaves session,
+// heartbeat and reconnect to that base (§3.15.2). One framing, two owners (§1.1 O9).
+FUNCTION_BLOCK FB_AsciiLink
+VAR_INPUT
+    Terminator  : STRING(2) := '$R';   // CR default; a device profile may override
+    RespTimeout : TIME := T#2S;
+END_VAR
+VAR_OUTPUT
+    State        : E_ByteChannelState; // last observed transport state
+    Pending      : BOOL;               // one request outstanding
+    Response     : STRING(255);        // the response of the last RESPONSE event
+    LastResponse : STRING(255);        // kept until the next response (diagnosis)
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _chan  : I_ByteChannel;
+    _rx    : STRING(255);
+    _tResp : TON;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;  // driven through M_Tick by its owner]]></ST>
+    </Implementation>
+    <Method Name="M_Bind" Id="{8e4a0c27-1f95-4d63-b8e2-3c7d5a9f1b40}">
+      <Declaration><![CDATA[METHOD M_Bind : BOOL
+VAR_INPUT
+    Chan : I_ByteChannel;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_chan := Chan;
+M_Bind := (Chan <> 0);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Open" Id="{c1f73b95-6a28-4d0e-9e41-7b8d2c5a0f63}">
+      <Declaration><![CDATA[// TRUE when the transport accepted the open (OPENING, or OPEN at once on a
+// synchronous transport). Whether it then comes up is observed over scans.
+METHOD M_Open : BOOL
+VAR_INPUT
+    Host : STRING(80);
+    Port : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Open := FALSE;
+IF _chan = 0 THEN
+    RETURN;
+END_IF
+_chan.Open(Host := Host, Port := Port);
+State := _chan.State();
+M_Open := (State = E_ByteChannelState.OPEN) OR (State = E_ByteChannelState.OPENING);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Close" Id="{5b08e2d6-93c1-4f7a-a6e5-0d4c8b2f7e19}">
+      <Declaration><![CDATA[METHOD M_Close : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Close := FALSE;
+Pending := FALSE;
+_tResp(IN := FALSE);
+_rx := '';
+IF _chan = 0 THEN
+    RETURN;
+END_IF
+M_Close := _chan.Close();
+State := _chan.State();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_IsOpen" Id="{3c8e5f21-7a94-4d0b-b6c3-9e2f1a4d8b57}">
+      <Declaration><![CDATA[// LIVE transport state (the published State is one scan old).
+METHOD M_IsOpen : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_IsOpen := FALSE;
+IF _chan = 0 THEN
+    RETURN;
+END_IF
+M_IsOpen := (_chan.State() = E_ByteChannelState.OPEN);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Send" Id="{f6d29a41-0b7c-4e58-93a2-8c1e4d7b5a06}">
+      <Declaration><![CDATA[// Issue one request (terminator appended). FALSE when there is no channel, it is
+// not OPEN, or a request is already outstanding - refused, never queued.
+METHOD M_Send : BOOL
+VAR_INPUT
+    Text : STRING(250);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Send := FALSE;
+// The null test is its own statement: TwinCAT does not short-circuit by default,
+// so folding it into the next condition would still call State() on a null
+// interface and fault the runtime.
+IF _chan = 0 THEN
+    RETURN;
+END_IF
+// LIVE state: the cached State is one scan old and would reject a request issued
+// in the same scan the transport opened.
+IF _chan.State() <> E_ByteChannelState.OPEN THEN
+    RETURN;
+END_IF
+IF Pending THEN
+    RETURN;
+END_IF
+Pending := _chan.Send(Text := CONCAT(Text, Terminator));
+M_Send := Pending;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Tick" Id="{0a7c5e93-d1b2-4f46-8e3a-6b9d1f4c2e75}">
+      <Declaration><![CDATA[// Run the transport one scan: drain, frame one response, watch the timeout.
+METHOD M_Tick : E_AsciiLinkEvent
+VAR
+    pos : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Tick := E_AsciiLinkEvent.NONE;
+IF _chan = 0 THEN
+    RETURN;
+END_IF
+_chan.Tick();
+State := _chan.State();
+CASE State OF
+    E_ByteChannelState.CLOSED, E_ByteChannelState.OPENING:
+        ;                                       // the owner decides when to open
+    E_ByteChannelState.OPEN:
+        _chan.Poll(Buffer := _rx);
+        pos := FIND(_rx, Terminator);
+        IF pos > 0 THEN
+            Response := LEFT(_rx, pos - 1);
+            _rx := DELETE(_rx, pos + LEN(Terminator) - 1, 1);
+            Pending := FALSE;
+            _tResp(IN := FALSE);
+            LastResponse := Response;
+            M_Tick := E_AsciiLinkEvent.RESPONSE;
+            RETURN;
+        ELSIF LEN(_rx) >= 250 THEN
+            _rx := '';
+            M_Tick := E_AsciiLinkEvent.OVERFLOW;
+            RETURN;                             // first-out; the timeout still runs next scan
+        END_IF
+    E_ByteChannelState.FAULT:
+        Pending := FALSE;
+        _tResp(IN := FALSE);
+        _chan.Close();
+        M_Tick := E_AsciiLinkEvent.CHANNEL_FAULT;
+        RETURN;
+ELSE
+    _chan.Close();
+    M_Tick := E_AsciiLinkEvent.INVALID_STATE;
+    RETURN;
+END_CASE
+_tResp(IN := Pending, PT := RespTimeout);
+IF _tResp.Q THEN
+    Pending := FALSE;
+    _tResp(IN := FALSE);
+    M_Tick := E_AsciiLinkEvent.TIMEOUT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

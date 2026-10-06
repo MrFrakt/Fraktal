@@ -1,0 +1,1051 @@
+/// PLC contract enums — ordinals MUST match the Fraktal Core DUTs exactly
+/// (E_ExecState, E_ModuleType, E_Severity, E_AccessLevel, E_GatedAction,
+/// E_ResetClass, E_AlarmState, E_Mode). The transport carries the DINT value;
+/// these `index` positions are the contract (Core 3.10(a'), 8.8).
+library;
+
+enum ExecState { ready, busy, done, error, aborted }
+
+enum ModuleType { none, unit, equipmentModule, controlModule }
+
+enum Severity { low, medium, high } // E_Severity: LOW=0 MED=1 HIGH=2
+
+enum AlarmCategory { process, safety, system } // E_Category: PROCESS=0...
+
+enum ResetClass { autoReset, manualReset }
+
+enum AlarmState { closed, active, waitReset }
+
+/// Core §11.6.1 fixed host-event ordinals (E_HostEventKind).
+enum HostEventKind {
+  none,
+  partReceived,
+  processingStarted,
+  processed,
+  processingAborted,
+  changeoverStarted,
+  changeoverDone,
+  toolChanged,
+  materialChanged,
+  modeChanged,
+  nok,
+}
+
+enum AccessLevel { none, operator, technician, engineer, admin }
+
+enum GatedAction {
+  dataRead,
+  dataWrite,
+  manual,
+  changeover,
+  modeChange,
+  startStop,
+  alarmHistory,
+  alarmReset,
+  accessPolicy,
+  alarmShelve, // §8.10 (ordinal 9, mirrors E_GatedAction.ALARM_SHELVE)
+  powerControl, // §9.8 Control On/Off (append-only ordinal 10)
+  configSet, // §3.8b parameter-set save/load (append-only ordinal 11)
+}
+
+enum UnitMode {
+  auto,
+  manual,
+  home,
+  changeover,
+  calibration,
+  capability,
+  adjustment
+}
+
+/// One §8.3 alarm/event (subset the HMI renders).
+class AlarmEvent {
+  final Severity severity;
+  final String description;
+  final String sourcePath;
+  final ResetClass resetClass;
+  final AlarmState state;
+  final DateTime comeAt;
+  final DateTime? goneAt;
+  final Duration? duration; // filled on close
+  final int
+      reasonCode; // §8.8 (0 = none) — joins the §8.9 rationalization record
+  final bool shelved; // §8.10 annunciation suppressed (control unaffected)
+  final String ioTag; // untranslated schematic/electrical tag, when applicable
+  final String ioAddress; // terminal/channel locator
+  final bool comeTimeSynchronized;
+  final bool goneTimeSynchronized;
+  final bool resetTimeSynchronized;
+  final bool shelfTimeSynchronized;
+  const AlarmEvent({
+    required this.severity,
+    required this.description,
+    required this.sourcePath,
+    required this.resetClass,
+    required this.state,
+    required this.comeAt,
+    this.goneAt,
+    this.duration,
+    this.reasonCode = 0,
+    this.shelved = false,
+    this.ioTag = '',
+    this.ioAddress = '',
+    this.comeTimeSynchronized = true,
+    this.goneTimeSynchronized = true,
+    this.resetTimeSynchronized = true,
+    this.shelfTimeSynchronized = true,
+  });
+
+  bool get timestampsSynchronized =>
+      comeTimeSynchronized &&
+      (goneAt == null || goneTimeSynchronized) &&
+      (!shelved || shelfTimeSynchronized) &&
+      !(state == AlarmState.closed &&
+          resetClass == ResetClass.manualReset &&
+          !resetTimeSynchronized);
+}
+
+/// Core §11.6.2 transport-neutral L3/MES event record.
+class HostEvent {
+  final int sequence;
+  final HostEventKind kind;
+  final String stationPath;
+  final String partUid;
+  final String subject;
+  final String value;
+  final DateTime? stamp;
+  final bool timeSynchronized;
+  final Verdict verdict;
+  final int reasonCode;
+
+  const HostEvent({
+    required this.sequence,
+    required this.kind,
+    required this.stationPath,
+    this.partUid = '',
+    this.subject = '',
+    this.value = '',
+    this.stamp,
+    this.timeSynchronized = false,
+    this.verdict = Verdict.none,
+    this.reasonCode = 0,
+  });
+}
+
+/// Core §2.7/§8.12 — PLC-authoritative wall-clock and controller health.
+class TimeQualityFacet {
+  final bool available;
+  final bool synchronized;
+  final String source;
+  final int offsetUs;
+  const TimeQualityFacet({
+    this.available = false,
+    this.synchronized = false,
+    this.source = '',
+    this.offsetUs = 0,
+  });
+}
+
+class SystemHealthFacet {
+  final bool healthy;
+  final bool taskAvailable;
+  final int taskCycleUs;
+  final int taskJitterUs;
+  final bool taskOverrun;
+  final bool controllerAvailable;
+  final double cpuLoadPct;
+  final int memoryAvailableMb;
+  final bool ipcAvailable;
+  final double ipcTemperatureC;
+  final bool fanHealthy;
+  final double storageHealthPct;
+  final bool fieldbusAvailable;
+  final bool fieldbusMasterHealthy;
+  final int lostFrameCount;
+  final int slaveErrorCount;
+  final bool dcAvailable;
+  final bool dcSynchronized;
+  final TimeQualityFacet time;
+  const SystemHealthFacet({
+    this.healthy = false,
+    this.taskAvailable = false,
+    this.taskCycleUs = 0,
+    this.taskJitterUs = 0,
+    this.taskOverrun = false,
+    this.controllerAvailable = false,
+    this.cpuLoadPct = 0,
+    this.memoryAvailableMb = 0,
+    this.ipcAvailable = false,
+    this.ipcTemperatureC = 0,
+    this.fanHealthy = false,
+    this.storageHealthPct = 0,
+    this.fieldbusAvailable = false,
+    this.fieldbusMasterHealthy = false,
+    this.lostFrameCount = 0,
+    this.slaveErrorCount = 0,
+    this.dcAvailable = false,
+    this.dcSynchronized = false,
+    this.time = const TimeQualityFacet(),
+  });
+}
+
+class SignalTowerFacet {
+  final bool red, amber, green, blue, white, horn, testActive;
+  const SignalTowerFacet({
+    this.red = false,
+    this.amber = false,
+    this.green = false,
+    this.blue = false,
+    this.white = false,
+    this.horn = false,
+    this.testActive = false,
+  });
+}
+
+/// Core §3.8b - the header of one stored parameter set, as the PLC listed it.
+class ConfigSetInfo {
+  final String name;
+  final String rootIdentity; // the root that produced it; a load elsewhere is refused
+  final CfgKind kind;
+  final String modelCode; // model set only
+  final int recordCount;
+  final int configRev;
+  final DateTime? createdAt; // §2.7 clock, UTC
+  final bool timeSynchronized; // FALSE: createdAt is not to be trusted
+  const ConfigSetInfo({
+    required this.name,
+    this.rootIdentity = '',
+    this.kind = CfgKind.stationCfg,
+    this.modelCode = '',
+    this.recordCount = 0,
+    this.configRev = 0,
+    this.createdAt,
+    this.timeSynchronized = false,
+  });
+}
+
+/// Core §3.8d(b) - one data class as the root's policy holds it. The levels are
+/// the policy's current ones, not the code's declared defaults.
+class DataClassPolicy {
+  final String classId;
+  final String labelKey;
+  final AccessLevel readLevel;
+  final AccessLevel writeLevel;
+  const DataClassPolicy({
+    required this.classId,
+    this.labelKey = '',
+    this.readLevel = AccessLevel.none,
+    this.writeLevel = AccessLevel.none,
+  });
+}
+
+/// §7.7 session snapshot published per root.
+class AccessSession {
+  final AccessLevel level;
+  final String user;
+  final bool loginFailed;
+  final List<AccessLevel> required; // index = GatedAction.index (12 entries)
+  final Duration sessionTimeout; // zero = no inactivity timeout
+  final List<DataClassPolicy> classes; // §3.8d(b), declared on this root
+  const AccessSession({
+    this.level = AccessLevel.none,
+    this.user = '',
+    this.loginFailed = false,
+    this.required = const [
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+      AccessLevel.none,
+    ],
+    this.sessionTimeout = Duration.zero,
+    this.classes = const [],
+  });
+  bool permits(GatedAction a) {
+    // Fail closed if a stale transport publishes an older, shorter policy array.
+    if (a.index >= required.length) return false;
+    return level.index >= required[a.index].index;
+  }
+}
+
+// ── Optional typed facets a module MAY publish (annex-specific data over the
+//    same §3.10 self-description). The generic detail view renders whichever are
+//    present — a station adds no HMI code. ────────────────────────────────────
+
+/// Annex D — external device link supervision (I_DeviceConnector).
+class LinkFacet {
+  final bool linked;
+  final DateTime? lastSeen;
+  final String linkReason; // first-out when not linked
+  const LinkFacet({this.linked = true, this.lastSeen, this.linkReason = ''});
+}
+
+enum SafetyDeviceKind {
+  none,
+  estop,
+  guardDoor,
+  lightCurtain,
+  safetyScanner,
+  safetyMat,
+  enableSwitch,
+  safetyValve,
+  safeDrive,
+  safetySensor,
+  other,
+  twoHandControl
+}
+
+enum SafetyState { unavailable, safeState, ready, demand, resetRequired, fault }
+
+class SafetyDeviceStatus {
+  final String name, description;
+  final SafetyDeviceKind kind;
+  final SafetyState state;
+  final bool ready, demandActive, safeStateActive, resetRequired, faultActive;
+  final bool mutingActive, bridgeActive, fieldbusHealthy;
+  final int affectedPowerMask;
+  const SafetyDeviceStatus(
+      {required this.name,
+      this.description = '',
+      this.kind = SafetyDeviceKind.other,
+      this.state = SafetyState.unavailable,
+      this.ready = false,
+      this.demandActive = false,
+      this.safeStateActive = true,
+      this.resetRequired = false,
+      this.faultActive = false,
+      this.mutingActive = false,
+      this.bridgeActive = false,
+      this.fieldbusHealthy = true,
+      this.affectedPowerMask = 0});
+}
+
+class SafetyFacet {
+  final bool allSafe, demandActive, resetRequired, faultActive;
+  final bool mutingActive, bridgeActive, stopRequested;
+  final List<SafetyDeviceStatus> devices;
+  const SafetyFacet(
+      {this.allSafe = true,
+      this.demandActive = false,
+      this.resetRequired = false,
+      this.faultActive = false,
+      this.mutingActive = false,
+      this.bridgeActive = false,
+      this.stopRequested = false,
+      this.devices = const []});
+}
+
+enum PowerState { off, energizing, on, deenergizing, tripped, fault }
+
+enum PowerGroupKind {
+  control,
+  valveZone,
+  driveGroup,
+  heater,
+  processEnergy,
+  auxiliary
+}
+
+enum FieldbusLossReaction { alarmOnly, stopUnit, powerGroupOff, controlOff }
+
+class PowerGroupStatus {
+  final String name, diagnostic;
+  final PowerGroupKind kind;
+  final PowerState state;
+  final bool requiredForControl, requestedOn, powerOn, safetyPermit;
+  final bool fieldbusHealthy, rearmRequired;
+  final FieldbusLossReaction fieldbusLossReaction;
+  const PowerGroupStatus(
+      {required this.name,
+      this.diagnostic = '',
+      this.kind = PowerGroupKind.control,
+      this.state = PowerState.off,
+      this.requiredForControl = true,
+      this.requestedOn = false,
+      this.powerOn = false,
+      this.safetyPermit = false,
+      this.fieldbusHealthy = true,
+      this.rearmRequired = false,
+      this.fieldbusLossReaction = FieldbusLossReaction.controlOff});
+}
+
+class ControlPowerFacet {
+  final bool requestedOn, controlOn, transitioning, rearmRequired;
+  final String diagnostic;
+  final List<PowerGroupStatus> groups;
+  const ControlPowerFacet(
+      {this.requestedOn = false,
+      this.controlOn = false,
+      this.transitioning = false,
+      this.rearmRequired = false,
+      this.diagnostic = '',
+      this.groups = const []});
+}
+
+/// Annex E — one measured value with limits (ST_MeasRecord).
+class MeasRecord {
+  final String name;
+  final double value, min, max, target;
+  final String unit;
+  final bool inTol;
+  const MeasRecord(this.name, this.value, this.min, this.max, this.target,
+      this.unit, this.inTol);
+}
+
+enum Verdict { none, ok, nok, rework }
+
+/// Annex E — part context/result (ST_PartContext + ST_PartResult).
+class PartFacet {
+  final String uid;
+  final bool present;
+  final Verdict verdict;
+  final String reason; // first NOK reason (§8.8 vocabulary)
+  final List<MeasRecord> records;
+  const PartFacet(
+      {this.uid = '',
+      this.present = false,
+      this.verdict = Verdict.none,
+      this.reason = '',
+      this.records = const []});
+}
+
+/// Annex F — PackML state (ISA-TR88.00.02 / OPC 30050).
+enum PackMLState {
+  idle,
+  starting,
+  execute,
+  completing,
+  complete,
+  held,
+  holding,
+  suspended,
+  aborted,
+  stopped,
+  resetting
+}
+
+/// Annex G/I — motion/axis published status (PLCopen Motion / robot).
+class MotionFacet {
+  final double actualPosition, actualVelocity, targetPosition;
+  final String unit;
+  final bool moving, homed;
+  const MotionFacet(
+      {this.actualPosition = 0,
+      this.actualVelocity = 0,
+      this.targetPosition = 0,
+      this.unit = 'mm',
+      this.moving = false,
+      this.homed = true});
+}
+
+/// §8.11.4 — one step of the cycle profile (Gantt row) with time class.
+enum TimeClass {
+  work,
+  waitUpstream,
+  waitDownstream,
+  waitOperator,
+  waitExternal
+}
+
+class StepTiming {
+  final int stepNo;
+  final String stepName;
+  final TimeClass timeClass;
+  final Duration duration;
+  final Duration expected; // §8.11.4(c) declared guard (zero = none declared)
+  const StepTiming(this.stepNo, this.stepName, this.timeClass, this.duration,
+      [this.expected = Duration.zero]);
+}
+
+class CycleProfile {
+  final int cycleNo;
+  final Duration total, workTime, waitTime;
+  final List<StepTiming> steps;
+  const CycleProfile(
+      {this.cycleNo = 0,
+      this.total = Duration.zero,
+      this.workTime = Duration.zero,
+      this.waitTime = Duration.zero,
+      this.steps = const []});
+}
+
+/// §8.11.4 one completed cycle's totals (Profiler.History ring) — the trend
+/// source that explains WHY cycle time moved: work vs each wait class.
+class CycleSummary {
+  final int cycleNo;
+  final Duration total, workTime, waitTime;
+  final List<Duration> byClass; // indexed by TimeClass.index (5 entries)
+  const CycleSummary(
+      {this.cycleNo = 0,
+      this.total = Duration.zero,
+      this.workTime = Duration.zero,
+      this.waitTime = Duration.zero,
+      this.byClass = const []});
+}
+
+/// §8.11.4(a) one command-timing aggregate (module Timing.Rows[]) — the
+/// drill-through from a slow step to the module command that consumed the time.
+class CommandTiming {
+  final int id;
+  final String label;
+  final int count;
+  final Duration last, minimum, maximum, avg;
+  const CommandTiming(this.id, this.label, this.count, this.last, this.minimum,
+      this.maximum, this.avg);
+}
+
+/// §6.11 — operator decision request (ST_DecisionRequest).
+class DecisionRequest {
+  final String prompt;
+  final List<String> options;
+  final int defaultOption;
+  const DecisionRequest(
+      {this.prompt = '', this.options = const [], this.defaultOption = 0});
+  bool get pending => prompt.isNotEmpty;
+}
+
+/// §3.8a — one editable persistent value (ParCfg or StationCfg field).
+enum CfgKind { parCfg, stationCfg, lineCfg }
+
+/// §3.8b — what the station does about a configuration image it could not
+/// restore. Ordinals are the PLC transport contract (`E_ConfigRestorePolicy`),
+/// append only.
+enum ConfigRestorePolicy { defaultsAndAnnunciate, blockUntilAcknowledged }
+
+/// §3.8b — the medium behind the set store, published so an operator can see
+/// WHERE sets actually live before trusting that a save survived. Ordinals are
+/// the PLC transport contract (`E_ConfigStore`), append only.
+enum ConfigStoreKind { localRetain, fileJson, fileXml, external }
+
+/// §3.8b — the root's published answer to "is my configuration actually safe?".
+///
+/// Transport acknowledgement and `Accepted` mean a value is LIVE; they say
+/// nothing about whether it is DURABLE. A station that cannot persist will
+/// silently revert at its next restart, and the contract requires that to be
+/// visible BEFORE the restart rather than discovered after it — so this is
+/// displayed, never assumed (`HMI_CONTRACT` §3.8b).
+class ConfigPersistStatus {
+  /// An accepted write has not yet reached non-volatile storage.
+  final bool pending;
+
+  /// The store rejected the write, or the declared window elapsed.
+  final bool failed;
+
+  /// The declared bounded window a write has to become durable.
+  final Duration window;
+
+  /// When the oldest still-pending write was accepted (§2.7 clock, UTC).
+  final DateTime? pendingSince;
+
+  /// A set store is wired, so save/load/list are offered at all.
+  final bool storePresent;
+  final ConfigStoreKind storeKind;
+
+  /// A retained image was rejected somewhere in this root's subtree.
+  final bool restoreLost;
+
+  /// An ENGINEER-level operator has accepted the loss. Until then the
+  /// annunciation stands, whatever the policy.
+  final bool restoreAcknowledged;
+
+  /// Canonical path of the last module that reported a lost image.
+  final String lostPath;
+  final ConfigRestorePolicy restorePolicy;
+
+  const ConfigPersistStatus({
+    this.pending = false,
+    this.failed = false,
+    this.window = Duration.zero,
+    this.pendingSince,
+    this.storePresent = false,
+    this.storeKind = ConfigStoreKind.localRetain,
+    this.restoreLost = false,
+    this.restoreAcknowledged = false,
+    this.lostPath = '',
+    this.restorePolicy = ConfigRestorePolicy.defaultsAndAnnunciate,
+  });
+
+  /// Whether anything about durability needs saying to the operator. A pending
+  /// write is normal and transient, so it is NOT included: only a write that
+  /// missed its window, and a loss nobody has accepted yet.
+  bool get needsAttention => failed || (restoreLost && !restoreAcknowledged);
+
+  /// The loss blocks Start until it is acknowledged (§3.8b policy 1). The PLC
+  /// enforces this; the HMI says so, and never infers a release from it.
+  bool get blocksStart =>
+      restoreLost &&
+      !restoreAcknowledged &&
+      restorePolicy == ConfigRestorePolicy.blockUntilAcknowledged;
+}
+
+enum CfgType { number, text, boolean, time }
+
+/// A configuration value's engineering unit, as the PLC publishes it
+/// (`UnitCode`, E_EngUnit). The ordinals ARE the contract (lint rule E1) -
+/// append only. The HMI owns the symbol: `std.unit.<name>` in the catalogs, so
+/// a unit is translated like any other text. [none] shows no unit at all.
+enum EngUnit {
+  none,
+  millisecond,
+  second,
+  minute,
+  hour,
+  micrometer,
+  millimeter,
+  meter,
+  degree,
+  millimeterPerSecond,
+  meterPerMinute,
+  degreePerSecond,
+  millimeterPerSecondSquared,
+  bar,
+  kilopascal,
+  newton,
+  kilonewton,
+  newtonMeter,
+  gram,
+  kilogram,
+  degreeCelsius,
+  percent,
+  revolutionPerMinute,
+  hertz,
+  volt,
+  ampere,
+  watt,
+  kilowatt,
+  liter,
+  literPerMinute,
+  piece,
+  piecePerMinute,
+  piecePerHour,
+}
+
+class CfgField {
+  /// Portable weekly calendar V2, Monday bit 0 through Sunday bit 6.
+  bool get isWeekdayMask => kind == CfgKind.lineCfg &&
+      RegExp(r'^line\.shift\.[1-9][0-9]*\.activeDays$').hasMatch(writeKey);
+  final String name;
+  final String labelKey;
+  final CfgKind kind;
+  final CfgType type;
+  final String value;
+  final String unit;
+  final String writeKey;
+  final int writeRevision;
+  final bool writable;
+  final bool requiresReady;
+  final double? minimum;
+  final double? maximum;
+  final List<String> enumDomain;
+
+  /// The unit as a code (Core 0.14); null = a controller that publishes only
+  /// the legacy [unit] text, which is then shown as it is.
+  final EngUnit? unitCode;
+
+  /// Catalog prefix labelling each [enumDomain] value: `<key>.<value>`.
+  /// '' = the values are shown as they are.
+  final String enumLabelKey;
+
+  /// Core §3.8d - the value's data class ('' = the built-in class of its kind)
+  /// and the EFFECTIVE levels the PLC computed for it. Null when the PLC did not
+  /// publish them (a controller older than §3.8d): the editor then falls back to
+  /// the station-wide DATA_READ/DATA_WRITE gates, exactly as before.
+  final String classId;
+  final AccessLevel? readLevel;
+  final AccessLevel? writeLevel;
+
+  /// FALSE = the PLC served this value WITHOUT its value because the session
+  /// does not meet its read level. The field is still listed so the editor can
+  /// say something exists and why it is hidden.
+  final bool readable;
+
+  /// Core §3.8a - the value lives in the root's model record, so it can be read
+  /// and edited for any model the root offers, not only the running one. FALSE
+  /// for a controller older than Core 0.19 (the active model only).
+  final bool modelScoped;
+  const CfgField(this.name, this.kind, this.type, this.value,
+      {this.unit = '',
+      this.labelKey = '',
+      this.writeKey = '',
+      this.writeRevision = 0,
+      this.writable = false,
+      this.requiresReady = false,
+      this.minimum,
+      this.maximum,
+      this.enumDomain = const [],
+      this.unitCode,
+      this.enumLabelKey = '',
+      this.classId = '',
+      this.readLevel,
+      this.writeLevel,
+      this.readable = true,
+      this.modelScoped = false});
+
+  /// The catalog key of the unit to show, or '' for none: a code the PLC
+  /// published wins; without one (an older controller) the legacy text stands.
+  String get unitKey => switch (unitCode) {
+        null => unit,
+        EngUnit.none => '',
+        final EngUnit code => 'std.unit.${code.name}',
+      };
+
+  /// A true/false value: edited with a checkbox, never typed.
+  bool get isFlag => type == CfgType.boolean;
+
+  /// A fixed set of values (not a flag): edited with a dropdown.
+  bool get isChoice => !isFlag && enumDomain.isNotEmpty;
+
+  bool get hasWriteCapability =>
+      writable && writeKey.isNotEmpty && writeRevision > 0;
+
+  /// Presentation only: the PLC re-checks every write against the same level.
+  bool canReadIn(AccessSession session) => readable &&
+      (readLevel == null
+          ? session.permits(GatedAction.dataRead)
+          : session.level.index >= readLevel!.index);
+
+  bool canWriteIn(AccessSession session) => writeLevel == null
+      ? session.permits(GatedAction.dataWrite)
+      : session.level.index >= writeLevel!.index;
+
+  /// Client-side feedback only; the owning PLC handler repeats every check.
+  bool accepts(String candidate) {
+    final text = candidate.trim();
+    if (enumDomain.isNotEmpty && !enumDomain.contains(text)) return false;
+    switch (type) {
+      case CfgType.text:
+        return true;
+      case CfgType.boolean:
+        return text.toLowerCase() == 'true' || text.toLowerCase() == 'false';
+      case CfgType.number:
+      case CfgType.time:
+        final parsed = double.tryParse(text);
+        if (parsed == null || !parsed.isFinite) return false;
+        if (minimum != null && parsed < minimum!) return false;
+        if (maximum != null && parsed > maximum!) return false;
+        return true;
+    }
+  }
+}
+
+// ── Current step (§6.5/§6.9) and per-step aggregates (§8.11.4 Pareto) ──────────
+
+class CondInfo {
+  final String label;
+  final bool ok;
+  const CondInfo(this.label, this.ok);
+}
+
+/// One row of the §3.13 sequence flow chart, discovered by the PLC from its own
+/// `_M_SetStep` calls. [awaitsPath] is the module the step commands — empty when
+/// the step commands nothing, or when it deliberately dropped its await to own
+/// that child's failure, so an empty path means "not click-through", never
+/// "unknown".
+class SequenceStep {
+  final int stepNo;
+
+  /// §6.12 — which concurrent leg this step belongs to. 0 is the chain's main
+  /// line, which is every step of a chain that has no parallel branch.
+  final int branch;
+  final String stepName;
+  final String awaitingLabel;
+  final String awaitsPath;
+  final TimeClass timeClass;
+  final Duration expected;
+  final bool visited;
+  final Duration lastDuration;
+
+  /// §6.12 per-row liveness. A parallel step makes several rows live at once, so
+  /// the chart can no longer derive "active" from the Unit's single CurrentStep.
+  final bool active;
+  final Duration elapsed;
+  final bool timedOut;
+
+  /// §6.9 — this step raised an error. [errorSourcePath] is the module that
+  /// actually failed, which is how a step that owns its child's failure stays
+  /// click-through even though it declared no [awaitsPath].
+  final bool errorActive;
+  final String errorSourcePath;
+
+  /// §6.9(e) — a non-blocking message this step raised. It did NOT stop the
+  /// chain, so it is history: the last pass warned. Never rendered as a fault.
+  final bool warningActive;
+  final String warningKey;
+  final String warningSourcePath;
+  const SequenceStep({
+    this.stepNo = 0,
+    this.branch = 0,
+    this.stepName = '',
+    this.awaitingLabel = '',
+    this.awaitsPath = '',
+    this.timeClass = TimeClass.work,
+    this.expected = Duration.zero,
+    this.visited = false,
+    this.lastDuration = Duration.zero,
+    this.active = false,
+    this.elapsed = Duration.zero,
+    this.timedOut = false,
+    this.errorActive = false,
+    this.errorSourcePath = '',
+    this.warningActive = false,
+    this.warningKey = '',
+    this.warningSourcePath = '',
+  });
+
+  /// Where tapping this row navigates, or '' when it opens the step detail
+  /// instead. Most specific first: a raised error, then a reported one, then the
+  /// module the step declared. The operator wants what actually went wrong, not
+  /// what the step nominally commands.
+  String get linkPath {
+    if (errorSourcePath.isNotEmpty) return errorSourcePath;
+    if (warningSourcePath.isNotEmpty) return warningSourcePath;
+    return awaitsPath;
+  }
+
+  /// A step is click-through only when the PLC declared a target directly —
+  /// through Awaits, or through the link carried by a raised error.
+  bool get drillsDown => linkPath.isNotEmpty;
+}
+
+/// §3.12 — one published derived state flag: a fact the module recomputes every
+/// scan from what is actually true underneath, as opposed to `OutCmd`, which is
+/// what a command produced and stays latched until the next one.
+class StateFlag {
+  final String key;
+  final bool value;
+
+  /// When [value] last changed — not when it was last written. "Door closed for
+  /// 4 s" is the question operators actually ask.
+  final DateTime? since;
+
+  /// The PLC stopped publishing this flag, so its value is no longer a claim and
+  /// the PLC has already forced it false. Render it as unknown, not as false.
+  final bool stale;
+
+  const StateFlag({
+    this.key = '',
+    this.value = false,
+    this.since,
+    this.stale = false,
+  });
+}
+
+class StepInfo {
+  final int stepNo;
+  final String stepName;
+  final String awaitingLabel; // '' if not awaiting a module
+  final TimeClass timeClass;
+  final Duration expected;
+  final List<CondInfo> conds; // named plain-condition waits (§6.9b)
+  final bool starved, blocked;
+  final bool steppable; // §3.4.2 per-step stop-point flag (default true)
+  const StepInfo({
+    this.stepNo = 0,
+    this.stepName = '',
+    this.awaitingLabel = '',
+    this.timeClass = TimeClass.work,
+    this.expected = Duration.zero,
+    this.conds = const [],
+    this.starved = false,
+    this.blocked = false,
+    this.steppable = true,
+  });
+  bool get active => stepNo != 0;
+}
+
+/// §8.11.3 — standardized machine state for OEE. Ordinals are the PLC
+/// E_MachineState transport contract (append-only).
+enum MachineState {
+  producing,
+  idle,
+  blocked,
+  starved,
+  down,
+  changeover,
+  stopped,
+}
+
+/// §8.11.4 Profiler.StepStats[] — per-StepNo aggregate for the Pareto.
+class StepStat {
+  final int stepNo;
+  final String label;
+  final TimeClass timeClass;
+  final Duration avg, max;
+  const StepStat(this.stepNo, this.label, this.timeClass, this.avg, this.max);
+}
+
+/// Connection state to the PLC transport (HMI must always show liveness).
+enum LinkState { connecting, live, stale, down }
+
+/// §7.6.1 — one entry in a module's published manual-command catalog.
+/// §7.6.1 how a manual command is driven.
+enum CommandStyle { oneShot, held }
+
+class CommandInfo {
+  final int value;
+  final String label;
+
+  /// §7.6.1a - held commands are hold-to-run: the client re-asserts the request
+  /// while the operator keeps the control down, and the PLC stops the motion
+  /// when the asking stops. Defaults to oneShot, which is what every command
+  /// was before the field existed, so a PLC that predates it reads correctly.
+  final CommandStyle style;
+  const CommandInfo(this.value, this.label, {this.style = CommandStyle.oneShot});
+}
+
+/// §3.4.2 run style (HMI-selectable per mode).
+enum RunStyle { continuous, singleStep, holdToRun }
+
+/// §3.4.1 mode-switch shield/style (per-mode policy the HMI reads to decide prompts).
+enum ModeSwitchShield { interruptible, confirm, blockedWhileRunning }
+
+enum ModeSwitchStyle { graceful, immediate }
+
+class ModePolicy {
+  final ModeSwitchShield shield;
+  final ModeSwitchStyle style;
+  const ModePolicy(this.shield, this.style);
+}
+
+/// §7.8 release report — the full 'why is this blocked?' rollup
+/// (one reason a gated action is currently withheld; rollup, not first-out).
+enum ReleaseKind { mode, access, alarm, interlock, other }
+
+class ReleaseReason {
+  final String description;
+  final ReleaseKind kind;
+  final bool bypassable;
+  final int reasonCode;
+  final String sourcePath;
+  const ReleaseReason(this.description, this.kind,
+      {this.bypassable = false, this.reasonCode = 0, this.sourcePath = ''});
+}
+
+class ReleaseReport {
+  final bool released;
+  final List<ReleaseReason> reasons;
+  const ReleaseReport(this.released, this.reasons);
+  static const empty = ReleaseReport(true, []);
+}
+
+/// §3.10.1 digital nameplate — asset identity (IDTA 02006-aligned). Read-only.
+class Nameplate {
+  final String productUri, manufacturer, designation, serial, year;
+  final String hwVersion, fwVersion, swVersion, orderCode, docUrl;
+  const Nameplate({
+    this.productUri = '',
+    this.manufacturer = '',
+    this.designation = '',
+    this.serial = '',
+    this.year = '',
+    this.hwVersion = '',
+    this.fwVersion = '',
+    this.swVersion = '',
+    this.orderCode = '',
+    this.docUrl = '',
+  });
+  bool get isEmpty =>
+      manufacturer.isEmpty && serial.isEmpty && designation.isEmpty;
+}
+
+/// §8.5.1 OEE snapshot: factors 0..1; an invalid factor is omitted from the
+/// product and rendered as '—', never assumed 100%.
+/// Core §8.5.2 - one closed shift, exactly as its figures stood at the boundary.
+class ShiftRecord {
+  final int shiftIndex; // 0 = unscheduled, otherwise a declared calendar row
+  final int? productionTarget; // null = unsupported, 0 = unconfigured
+  final DateTime? startAt; // UTC
+  final DateTime? endAt; // UTC
+  final bool timeSynchronized;
+  final bool manualReset; // counts or OEE were reset by hand during it
+  final int good;
+  final int nok;
+  final int rework;
+  final double oee;
+  final bool oeeValid;
+  final double availability, performance, quality;
+  final bool availValid, perfValid, qualValid;
+  final Duration runTime, downTime, idleTime;
+  const ShiftRecord({
+    required this.shiftIndex,
+    this.productionTarget,
+    this.startAt,
+    this.endAt,
+    this.timeSynchronized = true,
+    this.manualReset = false,
+    this.good = 0,
+    this.nok = 0,
+    this.rework = 0,
+    this.oee = 0,
+    this.oeeValid = false,
+    this.availability = 0,
+    this.performance = 0,
+    this.quality = 0,
+    this.availValid = false,
+    this.perfValid = false,
+    this.qualValid = false,
+    this.runTime = Duration.zero,
+    this.downTime = Duration.zero,
+    this.idleTime = Duration.zero,
+  });
+}
+
+/// Core §8.5.2 - a Unit's shift accounting; absent when it references no line.
+class ShiftFacet {
+  final int currentShift; // 0 = unscheduled (gap or empty calendar)
+  final int? productionTarget; // target latched by the PLC for this interval
+  final DateTime? startedAt; // UTC
+  final DateTime? endsAt;
+  final bool timeSynchronized;
+  final bool calendarPending;
+  final List<ShiftRecord> history; // newest first
+  final bool truncated;
+  const ShiftFacet({
+    required this.currentShift,
+    this.productionTarget,
+    this.startedAt,
+    this.endsAt,
+    this.timeSynchronized = true,
+    this.calendarPending = false,
+    this.history = const [],
+    this.truncated = false,
+  });
+}
+
+class OeeSnapshot {
+  final double availability, performance, quality, oee;
+  final bool availValid, perfValid, qualValid, oeeValid;
+  final List<double> trend; // recent OEE samples, oldest..newest (sparkline)
+  const OeeSnapshot({
+    this.availability = 0,
+    this.performance = 0,
+    this.quality = 0,
+    this.oee = 0,
+    this.availValid = false,
+    this.perfValid = false,
+    this.qualValid = false,
+    this.oeeValid = false,
+    this.trend = const [],
+  });
+}
+
+/// §8.9 rationalization record: what to DO about a reason, and shelvability.
+class AlarmMeta {
+  final int reasonCode;
+  final String operatorAction;
+  final String consequence;
+  final Severity priority;
+  final AlarmCategory category;
+  final bool shelvable;
+  const AlarmMeta(this.reasonCode, this.operatorAction, this.consequence,
+      {this.priority = Severity.low,
+      this.category = AlarmCategory.process,
+      this.shelvable = false});
+}

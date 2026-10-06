@@ -1,0 +1,326 @@
+{
+  "schema": "fraktal.ab.phase6.gateway-activation.v1",
+  "localDate": "2026-10-04",
+  "timezone": "America/Bogota",
+  "baseCommit": "0286dae3396f17680f593f66ccab918238d9c432",
+  "controller": {
+    "host": "192.168.100.89",
+    "expectedSerial": "7036B510",
+    "identityEnforcement": "Existing running gateway native-reader serial guard; no new target or writer started."
+  },
+  "status": {
+    "abD6LiveReadback": "passed",
+    "abConcurrentHandlerActivation": "passed",
+    "parameterSetsChromeAcceptance": "pending-owner-result",
+    "tc3D6": "prior-offline-evidence-only"
+  },
+  "authorization": {
+    "ownerStatement": "done, whats next",
+    "scope": "Owner gateway-restart confirmation; agent read-only verification only."
+  },
+  "gatewayProcesses": {
+    "artifact": {
+      "path": "C:\\work\\press68_activation_processes_01.json",
+      "sha256": "2b26b855c411f4cd967c11f51bfd052d5e8170ad434d4535f65a69045691078a"
+    },
+    "observation": {
+      "observedAtUtc": "2026-10-04T15:34:16.8959723Z",
+      "listener": [
+        {
+          "LocalAddress": "127.0.0.1",
+          "LocalPort": 8099,
+          "OwningProcess": 16300
+        }
+      ],
+      "processes": [
+        {
+          "Id": 16300,
+          "StartTimeUtc": "2026-10-04T15:22:11.4834897Z"
+        },
+        {
+          "Id": 17588,
+          "StartTimeUtc": "2026-10-04T15:22:11.4757234Z"
+        }
+      ]
+    }
+  },
+  "readOnlyConcurrency": {
+    "description": "Send snapshot and an unsupported inert method on one WebSocket, three times; preserve response IDs/order/timing only.",
+    "before": {
+      "artifact": {
+        "path": "C:\\work\\press68_config_runtime_probe_01.json",
+        "sha256": "ec346a5cce312f1d734889fa78eef7f4968f42730f16e5531fc883d59c5c8bcc",
+        "fileWrittenAtUtc": "2026-10-04T06:30:44.184403+00:00"
+      },
+      "observation": {
+        "schema": "fraktal.ab.phase6.runtime-concurrency-probe",
+        "controllerWrites": false,
+        "gatewayRestarted": false,
+        "samples": [
+          {
+            "snapshotId": 1,
+            "unsupportedReadOnlyId": 2,
+            "replies": [
+              {
+                "id": 1,
+                "elapsedMs": 204.09,
+                "error": null
+              },
+              {
+                "id": 2,
+                "elapsedMs": 204.5,
+                "error": "Unsupported gateway method."
+              }
+            ]
+          },
+          {
+            "snapshotId": 3,
+            "unsupportedReadOnlyId": 4,
+            "replies": [
+              {
+                "id": 3,
+                "elapsedMs": 207.13,
+                "error": null
+              },
+              {
+                "id": 4,
+                "elapsedMs": 207.59,
+                "error": "Unsupported gateway method."
+              }
+            ]
+          },
+          {
+            "snapshotId": 5,
+            "unsupportedReadOnlyId": 6,
+            "replies": [
+              {
+                "id": 5,
+                "elapsedMs": 203.62,
+                "error": null
+              },
+              {
+                "id": 6,
+                "elapsedMs": 204.13,
+                "error": "Unsupported gateway method."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "after": {
+      "artifact": {
+        "path": "C:\\work\\press68_config_runtime_probe_02.json",
+        "sha256": "2188bce30272aa8a1a4af2421ef94319a0a5072709ba218567f0dddb87670890",
+        "fileWrittenAtUtc": "2026-10-04T15:27:43.874869+00:00"
+      },
+      "observation": {
+        "schema": "fraktal.ab.phase6.runtime-concurrency-probe",
+        "controllerWrites": false,
+        "gatewayRestarted": false,
+        "samples": [
+          {
+            "snapshotId": 1,
+            "unsupportedReadOnlyId": 2,
+            "replies": [
+              {
+                "id": 2,
+                "elapsedMs": 1.02,
+                "error": "Unsupported gateway method."
+              },
+              {
+                "id": 1,
+                "elapsedMs": 211.0,
+                "error": null
+              }
+            ]
+          },
+          {
+            "snapshotId": 3,
+            "unsupportedReadOnlyId": 4,
+            "replies": [
+              {
+                "id": 4,
+                "elapsedMs": 1.46,
+                "error": "Unsupported gateway method."
+              },
+              {
+                "id": 3,
+                "elapsedMs": 210.73,
+                "error": null
+              }
+            ]
+          },
+          {
+            "snapshotId": 5,
+            "unsupportedReadOnlyId": 6,
+            "replies": [
+              {
+                "id": 6,
+                "elapsedMs": 1.95,
+                "error": "Unsupported gateway method."
+              },
+              {
+                "id": 5,
+                "elapsedMs": 208.77,
+                "error": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "probeSource": {
+      "path": "C:\\work\\press68_config_runtime_probe_02.py",
+      "sha256": "c121094762c5f79000693d378283ef8f4488cb800bc25e446eac3f2a94a79c9e"
+    },
+    "scopeLimit": "Verifies running dispatch concurrency, not a live LIST_CONFIG_SETS transaction or browser dialog."
+  },
+  "healthReadback": {
+    "artifact": {
+      "path": "C:\\work\\press68_config_activation_health_01.json",
+      "sha256": "7b233811cb934bcfecf02612f31e3b390ed4bface81be65939dbf86f34704a40",
+      "fileWrittenAtUtc": "2026-10-04T15:27:43.917122+00:00"
+    },
+    "observation": [
+      {
+        "route": "healthz",
+        "statusCode": 200,
+        "health": {
+          "protocol": "fraktal.opcua.gateway.v1",
+          "status": "ready",
+          "plcReady": true,
+          "writeAccess": {
+            "enabled": true,
+            "roots": [
+              "Press"
+            ],
+            "allRootMailboxes": false
+          },
+          "lastControllerRead": "2026-10-04T15:27:43.858263+00:00"
+        }
+      },
+      {
+        "route": "livez",
+        "statusCode": 200,
+        "health": {
+          "protocol": "fraktal.opcua.gateway.v1",
+          "status": "live",
+          "plcReady": true,
+          "writeAccess": {
+            "enabled": true,
+            "roots": [
+              "Press"
+            ],
+            "allRootMailboxes": false
+          },
+          "lastControllerRead": "2026-10-04T15:27:43.858263+00:00"
+        }
+      },
+      {
+        "route": "readyz",
+        "statusCode": 200,
+        "health": {
+          "protocol": "fraktal.opcua.gateway.v1",
+          "status": "ready",
+          "plcReady": true,
+          "writeAccess": {
+            "enabled": true,
+            "roots": [
+              "Press"
+            ],
+            "allRootMailboxes": false
+          },
+          "lastControllerRead": "2026-10-04T15:27:43.858263+00:00"
+        }
+      }
+    ],
+    "completeNativeReadAtUtc": "2026-10-04T15:27:43.858263+00:00"
+  },
+  "sources": [
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\fraktal_ab_gateway.py",
+      "sha256": "797daafa85c5e9f1e58ec3f010c4291e1762e3e10cf57a3e9cc2e6ede81b4b5d"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\test_fraktal_ab_gateway_concurrency.py",
+      "sha256": "2e5827aaf719ba2961fd07c7d6c83238363273565175bd65a38b1965b98eacfb"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\config_sets_dialog.dart",
+      "sha256": "b330d05607ab22a6dc2df1499ceb95c7eb3ffedaa60174e3b6aa5ed36f93bb1d"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\data\\opcua_repository.dart",
+      "sha256": "7913289c87536356133229bfdccbbc91d738691830ebb7e1e221782b5408b109"
+    }
+  ],
+  "checks": [
+    {
+      "check": "ab",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_activation_ab_01.log",
+        "sha256": "e2cd0d49e20914af816fd78731a71dfc98007b6725da35d4a85a78f8e46b3d60"
+      },
+      "tests": 1541
+    },
+    {
+      "check": "root",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_activation_root_01.log",
+        "sha256": "0d95a88f896a710c22c35488d9b94f2b1e5ee954864d81bd65329379ebfd7b26"
+      },
+      "tests": null
+    },
+    {
+      "check": "root-tests",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_activation_root-tests_01.log",
+        "sha256": "c8d2051e1b9ad0361b94c8e16a73130b8795be12b22f5f1462467316fa98e74e"
+      },
+      "tests": 33
+    },
+    {
+      "check": "gateway-concurrency",
+      "exitCode": 0,
+      "tests": 4,
+      "log": {
+        "path": "C:\\work\\press68_config_activation_focused_02.log",
+        "sha256": "8844efec885d42835b7d66a4bae68f3ebd59d949f67cc9f34c72566994b69c43"
+      }
+    }
+  ],
+  "validationRunner": {
+    "path": "C:\\work\\press68_activation_validate.py",
+    "sha256": "3f53561d6a057c181b89778d244dbf4dead57f295b7eeea31c7deabcbe6a47eb"
+  },
+  "plcImage": {
+    "path": "C:\\work\\press68.L5X",
+    "sha256": "e2c20374f8fc7364672e425ebc3e55cc5f6d9f81ed4894bb32366e737ba586f7"
+  },
+  "plcMemoryGrowthBytes": 0,
+  "operations": {
+    "agentGatewayRestart": false,
+    "controllerWrites": false,
+    "download": false,
+    "powerCycle": false,
+    "clockWrite": false,
+    "webRebuildOrDeployment": false,
+    "nativeRegression": false
+  },
+  "priorEvidence": [
+    "AB_PHASE6_D6_HEALTH_WRITE_ACCESS_2026-10-03.md",
+    "AB_PHASE6_CONFIGURATION_REGRESSIONS_2026-10-04.md",
+    "AB_PHASE6_HMI_INTERACTIVE_SCALE_2026-10-04.md"
+  ],
+  "remaining": [
+    "Parameter sets Chrome acceptance",
+    "Configuration/set physical retention",
+    "Other account retention",
+    "Historical S1 clock probe",
+    "TC3 native segmented-transport live leg"
+  ]
+}

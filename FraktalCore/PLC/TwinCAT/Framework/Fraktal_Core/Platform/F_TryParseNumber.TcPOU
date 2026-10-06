@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_TryParseNumber" Id="{2f6b0c94-71ad-4e58-b3d2-8c04a51e7f39}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b/§5.6 — parse a client-supplied decimal number, rejecting anything
+// that is not one. The plain conversion cannot be used on its own: STRING_TO_LREAL
+// answers 0 for '', 'abc' and '12kg' alike, so a configuration handler built on it
+// accepts garbage as a valid zero and writes it. Every character is therefore
+// checked before the conversion runs, and the caller learns whether the text WAS a
+// number separately from what the number is.
+FUNCTION F_TryParseNumber : BOOL
+VAR_INPUT
+    Text : STRING(255);
+END_VAR
+VAR_OUTPUT
+    Value : LREAL;
+END_VAR
+VAR
+    i      : INT;
+    n      : INT;
+    c      : BYTE;
+    digits : INT;
+    dots   : INT;
+    pc     : POINTER TO BYTE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_TryParseNumber := FALSE;
+Value := 0.0;
+n := TO_INT(LEN(Text));
+// 40 characters is far more than any finite decimal this contract carries, and
+// bounds the scan (§5.6).
+IF (n <= 0) OR (n > 40) THEN
+    RETURN;
+END_IF
+pc := ADR(Text);
+digits := 0;
+dots := 0;
+FOR i := 0 TO n - 1 DO
+    c := pc[i];
+    IF (c >= 48) AND (c <= 57) THEN         // '0'..'9'
+        digits := digits + 1;
+    ELSIF c = 46 THEN                       // '.'
+        dots := dots + 1;
+        IF dots > 1 THEN
+            RETURN;
+        END_IF
+    ELSIF ((c = 43) OR (c = 45)) AND (i = 0) THEN
+        ;                                   // leading '+'/'-' only
+    ELSE
+        RETURN;                             // whitespace included: no silent trim
+    END_IF
+END_FOR
+IF digits = 0 THEN
+    RETURN;                                 // '-', '.', '+.' are not numbers
+END_IF
+Value := STRING_TO_LREAL(Text);
+F_TryParseNumber := TRUE;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

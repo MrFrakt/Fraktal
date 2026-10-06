@@ -1,0 +1,578 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RobotCM_Tests" Id="{2c15ac6b-269e-479d-b99f-213276ccca4e}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex I I.14 - the robot CM proven against the SIMULATED connector (I.5c).
+// No arm, no emulator, no socket: FB_SimRobotConnector honours the handshake and
+// injects the I.2 reasons on demand, which is the only way to prove refusals that
+// would otherwise require deliberately breaking a cell.
+//
+// What is under test here is the CM's own contract - the S5.6 validation ladder,
+// the S6.1 HELD translation, and the S8.2 rule that a connector's reason is
+// ADOPTED rather than re-classified. The connector's wire behaviour is proven
+// separately in FB_RobotConnector_Tests.
+//
+// Every test is a small scan-stepped sequencer: the sim's motion and the base's
+// heartbeat are both TON-driven, so a loop of Cyclic() calls inside one scan
+// advances no time at all. That mistake cost this suite two red tests once
+// already; it is not repeated here.
+FUNCTION_BLOCK FB_RobotCM_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _cmA : FB_RobotCM;  _rbA : FB_SimRobotConnector;  _sA : INT;  _nA : INT;
+    _cmB : FB_RobotCM;  _rbB : FB_SimRobotConnector;  _sB : INT;  _nB : INT;
+    _cmC : FB_RobotCM;  _rbC : FB_SimRobotConnector;  _sC : INT;  _nC : INT;
+    _cmD : FB_RobotCM;  _rbD : FB_SimRobotConnector;  _sD : INT;  _nD : INT;
+    _cmE : FB_RobotCM;  _rbE : FB_SimRobotConnector;  _sE : INT;  _nE : INT;
+    _cmF : FB_RobotCM;  _rbF : FB_SimRobotConnector;  _sF : INT;  _nF : INT;
+    _cmG : FB_RobotCM;  _rbG : FB_SimRobotConnector;  _sG : INT;  _nG : INT;
+    _cmH : FB_RobotCM;  _rbH : FB_SimRobotConnector;  _sH : INT;  _nH : INT;
+    _diag : ST_Diagnostic;   // C0185: cannot access .member on a property result
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Command_on_a_down_link_faults_with_the_link_reason();
+Motion_before_homing_is_refused();
+Home_is_exempt_from_the_reference_check();
+Speed_scale_outside_its_band_is_refused_before_motion();
+Mode_that_does_not_permit_motion_is_refused();
+Lost_permissive_holds_on_path_rather_than_faulting();
+Completion_publishes_the_reached_position();
+Protective_stop_aborts_with_its_own_reason();]]></ST>
+    </Implementation>
+      <Method Name="Command_on_a_down_link_faults_with_the_link_reason" Id="{744a01e7-6ead-4f66-b518-a75649c37cc2}">
+        <Declaration><![CDATA[METHOD PRIVATE Command_on_a_down_link_faults_with_the_link_reason]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Command_on_a_down_link_faults_with_the_link_reason');
+// Deliberately never Connect()ed: the connector stays down. A command must FAULT
+// with the link reason rather than wait - a sequence blocked on a robot that
+// never heard the command is the failure this rule exists to prevent (Annex D).
+CASE _sA OF
+    0:
+        _cmA.Setup(Name := 'Test.RobotA', Robot := _rbA);
+        _cmA.ParCfg.SpeedScaleMin := 1.0;
+        _cmA.ParCfg.SpeedScaleMax := 100.0;
+        _cmA.ParCmd.SpeedScale    := 50.0;
+        _cmA.ParCmd.TargetId      := 5;
+        _cmA.Command              := E_RobotCommand.MOVE_TO;
+        _sA := 1;
+    1:
+        _cmA.Execute := TRUE;
+        _cmA();
+        _sA := 2;
+    2:
+        _cmA();
+        IF _cmA.Error THEN
+            _diag := _cmA.Status.Diagnostic;
+            AssertEquals_DINT(Expected := E_Reason.LINK_TIMEOUT, Actual := _diag.ReasonCode,
+                Message := 'a command on a down link faults with the link reason');
+            AssertFalse(Condition := _cmA.Busy,
+                Message := 'and does not sit BUSY waiting for a robot that never heard it');
+            TEST_FINISHED();
+        ELSE
+            _nA := _nA + 1;
+IF _nA > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'a command on a down link never faulted');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Motion_before_homing_is_refused" Id="{88ad230c-71d9-4fc5-9a74-b5c0ebadd9ee}">
+        <Declaration><![CDATA[METHOD PRIVATE Motion_before_homing_is_refused]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Motion_before_homing_is_refused');
+// The heartbeat is TON-driven, so the link comes up over scans, not at once.
+_rbB.Connect();
+_rbB.Cyclic();
+
+CASE _sB OF
+    0:
+        _cmB.Setup(Name := 'Test.RobotB', Robot := _rbB);
+        _cmB.ParCfg.SpeedScaleMin := 1.0;
+        _cmB.ParCfg.SpeedScaleMax := 100.0;
+        _cmB.ParCfg.MoveTimeout   := T#2S;
+        _cmB.ParCfg.HomeTimeout   := T#2S;
+        _cmB.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE] := 100.0;
+        _cmB.ParCmd.SpeedScale    := 50.0;
+        _cmB.ParCmd.TargetId      := 5;
+        _cmB();
+        IF _rbB.Linked THEN
+            _rbB.PowerOn();          // powered but NEVER homed
+            _sB := 1;
+        END_IF
+        _nB := _nB + 1;
+IF _nB > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+    TEST_FINISHED();
+END_IF
+    1:
+        _cmB.Command := E_RobotCommand.MOVE_TO;
+        _cmB.Execute := TRUE;
+        _cmB();
+        _sB := 2;
+    2:
+        _cmB();
+        IF _cmB.Error THEN
+            // The specific cause, not the first check that happened to fail: an
+            // unreferenced robot needs homing, and the operator is told exactly that.
+            _diag := _cmB.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_NOT_REFERENCED,
+                Actual := _diag.ReasonCode,
+                Message := 'motion before homing is refused as unreferenced');
+            AssertFalse(Condition := _rbB.MotionBusy,
+                Message := 'and nothing was sent - the refusal is BEFORE motion (S5.6)');
+            TEST_FINISHED();
+        ELSE
+            _nB := _nB + 1;
+IF _nB > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'motion before homing was not refused');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Home_is_exempt_from_the_reference_check" Id="{098d521e-46f3-4d90-a565-cb421ba6ee0e}">
+        <Declaration><![CDATA[METHOD PRIVATE Home_is_exempt_from_the_reference_check]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Home_is_exempt_from_the_reference_check');
+// The heartbeat is TON-driven, so the link comes up over scans, not at once.
+_rbC.Connect();
+_rbC.Cyclic();
+
+// The ladder that refuses motion before homing must NOT refuse homing itself:
+// homing is what ESTABLISHES the reference, so gating it on one would leave the
+// robot permanently unhomeable - a deadlock the validation exists to prevent,
+// not to create. This is the test that would have caught it.
+CASE _sC OF
+    0:
+        _cmC.Setup(Name := 'Test.RobotC', Robot := _rbC);
+        _cmC.ParCfg.SpeedScaleMin := 1.0;
+        _cmC.ParCfg.SpeedScaleMax := 100.0;
+        _cmC.ParCfg.MoveTimeout   := T#2S;
+        _cmC.ParCfg.HomeTimeout   := T#2S;
+        _cmC.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE] := 100.0;
+        _cmC.ParCmd.SpeedScale    := 50.0;
+        _cmC();
+        IF _rbC.Linked THEN
+            _rbC.PowerOn();
+            AssertFalse(Condition := _rbC.Referenced,
+                Message := 'precondition: the robot starts unreferenced');
+            _sC := 1;
+        END_IF
+        _nC := _nC + 1;
+IF _nC > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+    TEST_FINISHED();
+END_IF
+    1:
+        _cmC.Command := E_RobotCommand.HOME;
+        _cmC.Execute := TRUE;
+        _cmC();
+        _sC := 2;
+    2:
+        _cmC();
+        IF _cmC.Done THEN
+            AssertTrue(Condition := _rbC.Referenced,
+                Message := 'homing completes and establishes the reference');
+            TEST_FINISHED();
+        ELSIF _cmC.Error THEN
+            _diag := _cmC.Status.Diagnostic;
+            AssertEquals_DINT(Expected := 0, Actual := _diag.ReasonCode,
+                Message := 'HOME must not be refused for being unreferenced');
+            TEST_FINISHED();
+        ELSE
+            _nC := _nC + 1;
+IF _nC > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'HOME neither completed nor faulted');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Speed_scale_outside_its_band_is_refused_before_motion" Id="{392183a6-b629-4318-a324-fa96f5ce255f}">
+        <Declaration><![CDATA[METHOD PRIVATE Speed_scale_outside_its_band_is_refused_before_motion]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Speed_scale_outside_its_band_is_refused_before_motion');
+// The heartbeat is TON-driven, so the link comes up over scans, not at once.
+_rbD.Connect();
+_rbD.Cyclic();
+
+CASE _sD OF
+    0:
+        _cmD.Setup(Name := 'Test.RobotD', Robot := _rbD);
+        _cmD.ParCfg.SpeedScaleMin := 10.0;
+        _cmD.ParCfg.SpeedScaleMax := 80.0;
+        _cmD.ParCfg.MoveTimeout   := T#2S;
+        _cmD.ParCfg.HomeTimeout   := T#2S;
+        _cmD.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE] := 100.0;
+        _cmD.ParCmd.SpeedScale    := 95.0;    // outside the configured band
+        _cmD.ParCmd.TargetId      := 3;
+        _cmD();
+        IF _rbD.Linked THEN
+            _rbD.PowerOn();
+            _rbD.Home();
+            _sD := 1;
+        END_IF
+        _nD := _nD + 1;
+IF _nD > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+    TEST_FINISHED();
+END_IF
+    1:
+        _cmD();
+        IF _rbD.Referenced THEN
+            _sD := 2;
+        END_IF
+        _nD := _nD + 1;
+IF _nD > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+    TEST_FINISHED();
+END_IF
+    2:
+        _cmD.Command := E_RobotCommand.MOVE_TO;
+        _cmD.Execute := TRUE;
+        _cmD();
+        _sD := 3;
+    3:
+        _cmD();
+        IF _cmD.Error THEN
+            // A malformed parameter is wrong regardless of mode or reference, so it
+            // is checked FIRST and reported as itself.
+            _diag := _cmD.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_PARAM_OOR,
+                Actual := _diag.ReasonCode,
+                Message := 'a speed scale outside the band is refused as out of range');
+            AssertFalse(Condition := _rbD.MotionBusy,
+                Message := 'and the robot never started moving');
+            TEST_FINISHED();
+        ELSE
+            _nD := _nD + 1;
+IF _nD > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'an out-of-band speed scale was not refused');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Mode_that_does_not_permit_motion_is_refused" Id="{fa30a01f-0310-4ce1-ab1f-bb709b4bc252}">
+        <Declaration><![CDATA[METHOD PRIVATE Mode_that_does_not_permit_motion_is_refused]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Mode_that_does_not_permit_motion_is_refused');
+// The heartbeat is TON-driven, so the link comes up over scans, not at once.
+_rbE.Connect();
+_rbE.Cyclic();
+
+CASE _sE OF
+    0:
+        _cmE.Setup(Name := 'Test.RobotE', Robot := _rbE);
+        _cmE.ParCfg.SpeedScaleMin := 1.0;
+        _cmE.ParCfg.SpeedScaleMax := 100.0;
+        _cmE.ParCfg.MoveTimeout   := T#2S;
+        _cmE.ParCfg.HomeTimeout   := T#2S;
+        _cmE.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE]    := 100.0;
+        _cmE.ParCfg.SpeedCeiling[E_RobotOpMode.MANUAL_REDUCED] := 25.0;
+        _cmE.ParCmd.SpeedScale    := 50.0;
+        _cmE.ParCmd.TargetId      := 3;
+        _cmE();
+        IF _rbE.Linked THEN
+            _rbE.PowerOn();
+            _rbE.Home();
+            _sE := 1;
+        END_IF
+        _nE := _nE + 1;
+IF _nE > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+    TEST_FINISHED();
+END_IF
+    1:
+        _cmE();
+        IF _rbE.Referenced THEN
+            // The controller is put in a manual mode. Automatic motion commanded
+            // from the PLC must not run in it, whatever the PLC would like.
+            _rbE.RequestMode(Mode := E_RobotOpMode.MANUAL_REDUCED);
+            _sE := 2;
+        END_IF
+        _nE := _nE + 1;
+IF _nE > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+    TEST_FINISHED();
+END_IF
+    2:
+        _cmE.Command := E_RobotCommand.MOVE_TO;
+        _cmE.Execute := TRUE;
+        _cmE();
+        _sE := 3;
+    3:
+        _cmE();
+        IF _cmE.Error THEN
+            _diag := _cmE.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED,
+                Actual := _diag.ReasonCode,
+                Message := 'the controllers REPORTED mode bounds what may run');
+            AssertFalse(Condition := _rbE.MotionBusy,
+                Message := 'and nothing was sent to the robot');
+            TEST_FINISHED();
+        ELSE
+            _nE := _nE + 1;
+IF _nE > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'a non-permitting mode did not refuse the move');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Lost_permissive_holds_on_path_rather_than_faulting" Id="{c3955779-a1b8-49ef-8737-dd983ceedd17}">
+        <Declaration><![CDATA[METHOD PRIVATE Lost_permissive_holds_on_path_rather_than_faulting]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Lost_permissive_holds_on_path_rather_than_faulting');
+// The heartbeat is TON-driven, so the link comes up over scans, not at once.
+_rbF.Connect();
+_rbF.Cyclic();
+
+// S6.1, I.4b: losing a declared condition mid-move is EXPECTED - an operator
+// releasing an enable is the designed way to stop a robot. It must HOLD, not
+// fault: a fault would demand an acknowledgement for a normal act, and the
+// alarm record would fill with events that were never faults.
+CASE _sF OF
+    0:
+        _cmF.Setup(Name := 'Test.RobotF', Robot := _rbF);
+        _cmF.DeclareCondition(Index := 1, DescriptionKey := 'std.interlock.areaSafe',
+            Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
+        _cmF.SetCondition(Index := 1, Ok := TRUE);
+        _cmF.ParCfg.SpeedScaleMin := 1.0;
+        _cmF.ParCfg.SpeedScaleMax := 100.0;
+        _cmF.ParCfg.MoveTimeout   := T#5S;
+        _cmF.ParCfg.HomeTimeout   := T#5S;
+        _cmF.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE] := 100.0;
+        _cmF.ParCmd.SpeedScale    := 50.0;
+        _cmF.ParCmd.TargetId      := 4;
+        _rbF.MoveTime := T#2S;                // long enough to interrupt mid-move
+        _cmF();
+        IF _rbF.Linked THEN
+            _rbF.PowerOn();
+            _rbF.Home();
+            _sF := 1;
+        END_IF
+        _nF := _nF + 1;
+IF _nF > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+    TEST_FINISHED();
+END_IF
+    1:
+        _cmF.SetCondition(Index := 1, Ok := TRUE);
+        _cmF();
+        IF _rbF.Referenced THEN
+            _sF := 2;
+        END_IF
+        _nF := _nF + 1;
+IF _nF > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+    TEST_FINISHED();
+END_IF
+    2:
+        _cmF.SetCondition(Index := 1, Ok := TRUE);
+        _cmF.Command := E_RobotCommand.MOVE_TO;
+        _cmF.Execute := TRUE;
+        _cmF();
+        _sF := 3;
+    3:
+        _cmF.SetCondition(Index := 1, Ok := TRUE);
+        _cmF();
+        IF _rbF.MotionBusy THEN
+            _sF := 4;                          // the arm is genuinely on its way
+        END_IF
+        _nF := _nF + 1;
+IF _nF > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the move never started');
+    TEST_FINISHED();
+END_IF
+    4:
+        _cmF.SetCondition(Index := 1, Ok := FALSE);   // the permissive drops
+        _cmF();
+        IF _cmF.Held THEN
+            AssertFalse(Condition := _cmF.Error,
+                Message := 'a lost permissive HOLDS - it is not a fault (S6.1)');
+            AssertTrue(Condition := _cmF.Busy,
+                Message := 'and the command is still BUSY, not terminated');
+            _sF := 5;
+        ELSE
+            _nF := _nF + 1;
+IF _nF > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the lost permissive did not raise HELD');
+    TEST_FINISHED();
+END_IF
+        END_IF
+    5:
+        // Level-based: the hold clears by itself the scan the condition returns,
+        // with no per-type "clear the hold" code to forget.
+        _cmF.SetCondition(Index := 1, Ok := TRUE);
+        _cmF();
+        IF NOT _cmF.Held THEN
+            AssertFalse(Condition := _cmF.Error,
+                Message := 'the restored permissive resumes rather than faulting');
+            TEST_FINISHED();
+        ELSE
+            _nF := _nF + 1;
+IF _nF > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the hold never cleared after the condition returned');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Completion_publishes_the_reached_position" Id="{cf5db934-0470-4196-b185-9c00f695e095}">
+        <Declaration><![CDATA[METHOD PRIVATE Completion_publishes_the_reached_position]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Completion_publishes_the_reached_position');
+// The heartbeat is TON-driven, so the link comes up over scans, not at once.
+_rbG.Connect();
+_rbG.Cyclic();
+
+CASE _sG OF
+    0:
+        _cmG.Setup(Name := 'Test.RobotG', Robot := _rbG);
+        _cmG.ParCfg.SpeedScaleMin := 1.0;
+        _cmG.ParCfg.SpeedScaleMax := 100.0;
+        _cmG.ParCfg.MoveTimeout   := T#5S;
+        _cmG.ParCfg.HomeTimeout   := T#5S;
+        _cmG.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE] := 100.0;
+        _cmG.ParCmd.SpeedScale    := 50.0;
+        _cmG.ParCmd.TargetId      := 7;
+        _cmG();
+        IF _rbG.Linked THEN
+            _rbG.PowerOn();
+            _rbG.Home();
+            _sG := 1;
+        END_IF
+        _nG := _nG + 1;
+IF _nG > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+    TEST_FINISHED();
+END_IF
+    1:
+        _cmG();
+        IF _rbG.Referenced THEN
+            _sG := 2;
+        END_IF
+        _nG := _nG + 1;
+IF _nG > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+    TEST_FINISHED();
+END_IF
+    2:
+        _cmG.Command := E_RobotCommand.MOVE_TO;
+        _cmG.Execute := TRUE;
+        _cmG();
+        _sG := 3;
+    3:
+        _cmG();
+        IF _cmG.Done THEN
+            // OutCmd is what the COMMAND produced and stays latched until the next
+            // one - distinct from OutImm, which is recomputed every scan (S3.12).
+            AssertEquals_DWORD(Expected := 7, Actual := _cmG.OutCmd.ReachedId,
+                Message := 'completion publishes the position actually reached');
+            AssertTrue(Condition := _cmG.OutImm.Linked,
+                Message := 'and the live facts mirror the connector');
+            AssertFalse(Condition := _cmG.OutImm.MotionBusy,
+                Message := 'with motion finished');
+            TEST_FINISHED();
+        ELSIF _cmG.Error THEN
+            _diag := _cmG.Status.Diagnostic;
+            AssertEquals_DINT(Expected := 0, Actual := _diag.ReasonCode,
+                Message := 'the move should have completed, not faulted');
+            TEST_FINISHED();
+        ELSE
+            _nG := _nG + 1;
+IF _nG > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the move neither completed nor faulted');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Protective_stop_aborts_with_its_own_reason" Id="{384fd5d9-95a8-42df-8d0f-2f3295ffacd8}">
+        <Declaration><![CDATA[METHOD PRIVATE Protective_stop_aborts_with_its_own_reason]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Protective_stop_aborts_with_its_own_reason');
+// The heartbeat is TON-driven, so the link comes up over scans, not at once.
+_rbH.Connect();
+_rbH.Cyclic();
+
+// I.4a(c): the robot's crash device is NOT a S9 safety function, and must never
+// be recorded as one. A process event filed as a safety event corrupts exactly
+// the record a safety review reads.
+CASE _sH OF
+    0:
+        _cmH.Setup(Name := 'Test.RobotH', Robot := _rbH);
+        _cmH.ParCfg.SpeedScaleMin := 1.0;
+        _cmH.ParCfg.SpeedScaleMax := 100.0;
+        _cmH.ParCfg.MoveTimeout   := T#5S;
+        _cmH.ParCfg.HomeTimeout   := T#5S;
+        _cmH.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE] := 100.0;
+        _cmH.ParCmd.SpeedScale    := 50.0;
+        _cmH.ParCmd.TargetId      := 6;
+        _rbH.MoveTime := T#2S;
+        _cmH();
+        IF _rbH.Linked THEN
+            _rbH.PowerOn();
+            _rbH.Home();
+            _sH := 1;
+        END_IF
+        _nH := _nH + 1;
+IF _nH > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+    TEST_FINISHED();
+END_IF
+    1:
+        _cmH();
+        IF _rbH.Referenced THEN
+            _sH := 2;
+        END_IF
+        _nH := _nH + 1;
+IF _nH > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+    TEST_FINISHED();
+END_IF
+    2:
+        _cmH.Command := E_RobotCommand.MOVE_TO;
+        _cmH.Execute := TRUE;
+        _cmH();
+        _sH := 3;
+    3:
+        _cmH();
+        IF _rbH.MotionBusy THEN
+            _rbH.Inject := E_RobotSimFault.PROTECTIVE_STOP;   // the crash device trips
+            _sH := 4;
+        END_IF
+        _nH := _nH + 1;
+IF _nH > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the move never started');
+    TEST_FINISHED();
+END_IF
+    4:
+        _cmH();
+        IF _cmH.Error THEN
+            _diag := _cmH.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_PROTECTIVE_STOP,
+                Actual := _diag.ReasonCode,
+                Message := 'a protective stop faults with its OWN reason, not a safety one');
+            AssertTrue(Condition := _cmH.OutImm.ProtectiveStop,
+                Message := 'and the condition is published while it stands');
+            TEST_FINISHED();
+        ELSE
+            _nH := _nH + 1;
+IF _nH > 2000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the protective stop did not fault the command');
+    TEST_FINISHED();
+END_IF
+        END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+  </POU>
+</TcPlcObject>

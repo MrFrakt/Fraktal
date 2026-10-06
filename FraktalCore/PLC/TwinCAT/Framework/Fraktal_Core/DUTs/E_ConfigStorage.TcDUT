@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_ConfigStorage" Id="{5a7c1e08-3d94-4bb6-9f21-c0e5a7d13b46}">
+    <Declaration><![CDATA[// Core §3.8b — the PLC type actually behind a registered editable value.
+// E_ConfigValueType says how the HMI renders and validates a value; this says
+// how the framework parses and stores it. They are different questions: a
+// settle time and a cycle count both publish as a number, and writing one into
+// the other's storage would be a silent corruption rather than a rejection.
+// Local to the binding (never transported), so this enum may be reordered.
+{attribute 'qualified_only'}
+TYPE E_ConfigStorage :
+(
+    NONE      := 0,   // unregistered — fails closed
+    AS_BOOL   := 1,
+    AS_INT    := 2,
+    AS_DINT   := 3,
+    AS_UDINT  := 4,
+    AS_REAL   := 5,
+    AS_LREAL  := 6,
+    AS_TIME   := 7,   // serialized as whole milliseconds, per the HMI number contract
+    AS_STRING := 8    // STRING(80)
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

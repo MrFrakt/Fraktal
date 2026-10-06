@@ -1,0 +1,6694 @@
+{
+  "clientDate": "2026-10-04 America/Bogota",
+  "timestampUtc": "2026-10-05T02:56:56.968229+00:00",
+  "authorization": "owner confirms press75 successful full download and Run; invoked Phase6 fixed verification workflow; HMI tabs closed",
+  "target": {
+    "ip": "192.168.100.89",
+    "serial": "7036B510",
+    "family": "1769-L24ER-QB1B",
+    "firmware": "33.014"
+  },
+  "artifact": {
+    "file": "C:/work/press75.L5X",
+    "sha256": "82AB065C32BCD112D49DD00839B8047C1B5E957A5356FB9D61EF3C1C2F3172A5",
+    "generatorCommit": "1528eab",
+    "contentHash": "94E302F650BA1DB5",
+    "manifestBytes": 65552,
+    "revision": 9757442
+  },
+  "fitRecord": "AB_LINE_V2_PRESS75_NATIVE_FIT_2026-10-04.json",
+  "native": {
+    "passed": true,
+    "selectedSuiteCount": 11,
+    "selectedRows": 159,
+    "suites": {
+      "shelving": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_retry_02_shelving.json",
+        "seconds": 31.236,
+        "tests": 15,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 131,
+          "writes": 131,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 966,
+          "TaskMaxScanUs": 8101,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "DF03788870A1558027B7136876882950842CC36283C5F4BE3CDD43B1FB29F1CE",
+        "rows": [
+          {
+            "elapsed_ms": 0,
+            "expectation": "published source Profiler.LastWork, capturable and enabled",
+            "observed": {
+              "canCapture": true,
+              "enabled": true,
+              "source": "Profiler.LastWork"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_is_registered_beside_its_editable_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the fixture must not interrupt production",
+            "observed": {
+              "error": 0,
+              "running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "fixture_starts_stopped"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "V2 active/ring with the registry-shelvable standing metrics event",
+            "observed": {
+              "activeSchema": 2,
+              "ringSchema": 2,
+              "shelves": 0,
+              "standing": true
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "shelving_contract_present"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "known owner or anonymous session, no login pending; open bench policy",
+            "observed": {
+              "knownSession": true,
+              "level": 4,
+              "loginBusy": 0,
+              "required": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "timeout": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "shelving_session_can_be_restored"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "shelf changes published annunciation only",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 192
+              },
+              "blocking": 0,
+              "publishedShelved": true,
+              "shelved": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "shelf_changes_published_annunciation_only"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "native spoofed admin refused 20",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 194
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "native_spoofed_admin_refused_20"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "native spoofed admin refused 21",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 195
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "native_spoofed_admin_refused_21"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "manual unshelve restores annunciation",
+            "observed": {
+              "accepted": true,
+              "diagnosticKey": 0,
+              "sequence": 197
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "manual_unshelve_restores_annunciation"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "foreign identity refused without shelf",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 615,
+              "sequence": 198
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "foreign_identity_refused_without_shelf"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "wrong description refused without shelf",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 615,
+              "sequence": 199
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "wrong_description_refused_without_shelf"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "zero duration refused without shelf",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 608,
+              "sequence": 200
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "zero_duration_refused_without_shelf"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "above cap request is accepted as bounded shelf",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 201
+              },
+              "shelved": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "above_cap_request_is_accepted_as_bounded_shelf"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "shelf auto expires after logout and logs",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 203
+              },
+              "expirySlots": [
+                59
+              ],
+              "seconds": 3.172
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "shelf_auto_expires_after_logout_and_logs"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "unshelvable defect still blocks start and report",
+            "observed": {
+              "reason": 10101,
+              "shelf": {
+                "accepted": false,
+                "diagnosticKey": 608,
+                "sequence": 215
+              },
+              "start": {
+                "accepted": false,
+                "diagnosticKey": 641,
+                "sequence": 216
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "unshelvable_defect_still_blocks_start_and_report"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "lifecycle events are controller history",
+            "observed": {
+              "shelves": 5,
+              "unshelves": 4
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "lifecycle_events_are_controller_history"
+          }
+        ]
+      },
+      "data": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_retry_02_data.json",
+        "seconds": 59.446,
+        "tests": 18,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 232,
+          "writes": 232,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 817,
+          "TaskMaxScanUs": 8101,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "3D78E8EB2EA3EBDCF196F11353AA9AAFCE4E8ABF4DE6351ACF6DE8F7E2538182",
+        "rows": [
+          {
+            "elapsed_ms": 0,
+            "expectation": "published source Profiler.LastWork, capturable and enabled",
+            "observed": {
+              "canCapture": true,
+              "enabled": true,
+              "source": "Profiler.LastWork"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_is_registered_beside_its_editable_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the fixture must not interrupt production",
+            "observed": {
+              "error": 0,
+              "running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "fixture_starts_stopped"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "two declared classes; the calibration has immutable ENGINEER write minimum",
+            "observed": {
+              "calibrationClass": "commissioning",
+              "classes": {
+                "commissioning": {
+                  "read": 0,
+                  "write": 0
+                },
+                "public": {
+                  "read": 0,
+                  "write": 0
+                }
+              },
+              "writeLevel": 3
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "data_class_contract_present"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "fresh download starts with no authenticated session",
+            "observed": {
+              "level": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "data_fixture_starts_anonymous"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "operator sees public value and hidden builtin metadata",
+            "observed": {
+              "builtin": {
+                "ReadLevel": 3,
+                "Readable": false,
+                "ValueText": "",
+                "WriteKey": "station.ramExtendLimitMs"
+              },
+              "public": {
+                "ClassId": "public",
+                "ReadLevel": 0,
+                "Readable": true,
+                "ValueText": "1",
+                "WriteLevel": 1
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "operator_sees_public_value_and_hidden_builtin_metadata"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "operator public write changes actual value",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 251
+              },
+              "value": 2
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "operator_public_write_changes_actual_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "claimed admin cannot bypass builtin write level",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 252
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "claimed_admin_cannot_bypass_builtin_write_level"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "capture checks effective value write level",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 253
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_checks_effective_value_write_level"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "operator cannot lower class policy",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 254
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "operator_cannot_lower_class_policy"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "minimum engineer level refuses technician",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 256
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "minimum_engineer_level_refuses_technician"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "lower class level cannot lower value minimum",
+            "observed": {
+              "effective": 3
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "lower_class_level_cannot_lower_value_minimum"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "admin can write guarded value",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 259
+              },
+              "value": 401
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "admin_can_write_guarded_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "save uses config set gate without read write gate",
+            "observed": {
+              "accepted": true,
+              "diagnosticKey": 0,
+              "sequence": 262
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "save_uses_config_set_gate_without_read_write_gate"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "set load refuses before any value changes",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 627,
+                "sequence": 265
+              },
+              "rejectKey": "station.airPressureMinKpa"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "set_load_refuses_before_any_value_changes"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "export refuses before revealing even header",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 627,
+                "sequence": 266
+              },
+              "document": "",
+              "rejectKey": "station.ramExtendLimitMs"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "export_refuses_before_revealing_even_header"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "admin load applies saved value",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 268
+              },
+              "value": 2
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "admin_load_applies_saved_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "admin export returns document",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 269
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "admin_export_returns_document"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "data denial audit names value level and actual actor",
+            "observed": {
+              "description": "std.audit.dataAccessDenied: phase6_tech [kind=19, gate=1] [value=station.airPressureMinKpa, required=3]",
+              "sequence": 256,
+              "slot": 34
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "data_denial_audit_names_value_level_and_actual_actor"
+          }
+        ]
+      },
+      "access": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_retry_02_access.json",
+        "seconds": 51.737,
+        "tests": 16,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 134,
+          "writes": 134,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 785,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "64C6ED11D6ABF6CD9527665E5DBA2DD4AD84E9FAED5556AECC712EAB6A5DD3BA",
+        "rows": [
+          {
+            "elapsed_ms": 0,
+            "expectation": "published source Profiler.LastWork, capturable and enabled",
+            "observed": {
+              "canCapture": true,
+              "enabled": true,
+              "source": "Profiler.LastWork"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_is_registered_beside_its_editable_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the fixture must not interrupt production",
+            "observed": {
+              "error": 0,
+              "running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "fixture_starts_stopped"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "read-only V3 session, twelve gates, anonymous open default",
+            "observed": {
+              "currentLevel": 0,
+              "loginTimeoutMs": 35700,
+              "required": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "schema": 3,
+              "sessionTimeout": 0,
+              "userLength": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "controller_access_contract_present"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "ACK alone is insufficient; published user, level and result agree",
+            "observed": {
+              "consumed": true,
+              "level": 4,
+              "loginFailed": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "admin_pin_authenticates_on_controller"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "generic failure preserves prior authenticated user",
+            "observed": {
+              "consumed": true,
+              "level": 4,
+              "loginFailed": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "wrong_pin_consumed_without_replacing_session"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "LOGOUT withdraws the user and level with no pending login",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 304
+              },
+              "level": 0,
+              "loginBusy": 0,
+              "userLength": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "logout_clears_controller_session"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "a second salted registration gives OPERATOR, not ADMIN",
+            "observed": {
+              "consumed": true,
+              "level": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "operator_has_its_declared_level"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the PLC refuses below the value write level; the plant value stays unchanged",
+            "observed": {
+              "after": 1,
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 627,
+                "sequence": 306
+              },
+              "before": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "native_mailbox_cannot_spoof_admin"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "OPERATOR cannot save through CONFIG_SET=ADMIN",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 307
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "set_mutation_rechecks_controller_level"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "ACCESS_POLICY=ADMIN is rechecked by the PLC",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 308
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "operator_cannot_lower_locked_policy"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the third salted registration gives TECHNICIAN",
+            "observed": {
+              "consumed": true,
+              "level": 2
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "technician_has_its_declared_level"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "DATA_WRITE=TECHNICIAN admits the correct account",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 311
+              },
+              "value": 2
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "accepted_authenticated_write_changes_plant"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the session survives past its original login deadline",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 315
+              },
+              "level": 4
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "accepted_action_rearms_idle_timeout"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "idle timeout clears level and user",
+            "observed": {
+              "level": 0,
+              "userLength": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "background_queries_do_not_keep_session_alive"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "a claimed user cannot revive expired privilege",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 627,
+              "sequence": 319
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "expired_session_cannot_edit_policy"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "bounded MESSAGE trace records native denial without PINs",
+            "observed": {
+              "count": 64,
+              "description": "std.audit.dataAccessDenied: phase6_op [kind=19, gate=1] [value=station.number, required=2]",
+              "sequence": 306,
+              "slot": 5
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "controller_audit_contains_denied_actor_and_action"
+          }
+        ]
+      },
+      "capture": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_retry_02_capture.json",
+        "seconds": 9.632,
+        "tests": 10,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 101,
+          "writes": 101,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 802,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "7896C7C5BE86C42A6FF8941B4F776CCC8066BC6155B11D7D7034881C808E99D0",
+        "rows": [
+          {
+            "elapsed_ms": 0,
+            "expectation": "published source Profiler.LastWork, capturable and enabled",
+            "observed": {
+              "canCapture": true,
+              "enabled": true,
+              "source": "Profiler.LastWork"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_is_registered_beside_its_editable_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the fixture must not interrupt production",
+            "observed": {
+              "error": 0,
+              "running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "fixture_starts_stopped"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "no bearer and no write root: QUERY_CONFIG reaches the page and is acknowledged",
+            "observed": {
+              "response": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 347
+              },
+              "transport": {
+                "id": 1,
+                "ok": true,
+                "result": true
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "read_only_viewer_queries_configuration"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "START refused before any controller write; mailbox sequence unchanged",
+            "observed": {
+              "sequence": 347,
+              "transport": {
+                "error": "read-only Allen-Bradley gateway (AB \u00a711.2.1): no write root is configured; operator commands are refused before the controller sees them",
+                "id": 2,
+                "ok": false
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "read_only_viewer_cannot_start"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "last completed cycle WORK, not client candidate 999999, is stored and audited",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 361
+              },
+              "audit": {
+                "Kind": 27,
+                "Revision": 9757442,
+                "Sequence": 361,
+                "SourceKey": 153,
+                "Value": 970
+              },
+              "cycle": true,
+              "stored": 970,
+              "work": 970
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_stores_the_published_machine_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "refused by name; configuration and accepted-write audit unchanged",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 590,
+              "sequence": 362
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "stale_capture_revision"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "refused by name; configuration and accepted-write audit unchanged",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 585,
+              "sequence": 363
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "unregistered_capture"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "refused by name; configuration and accepted-write audit unchanged",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 587,
+              "sequence": 364
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "foreign_capture_scope"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "AUTO is not a capture setup mode",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 584,
+              "sequence": 366
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_requires_setup"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "without air capture is refused",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 644,
+              "sequence": 368
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_respects_the_release_permissive"
+          }
+        ]
+      },
+      "parity": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_retry_02_parity.json",
+        "seconds": 28.859,
+        "tests": 25,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 235,
+          "writes": 235,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 815,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "CF445447291BD5BEAFFBDEB889DFDCED717F2D3F64EB7B8B130213BD4C530863",
+        "rows": [
+          {
+            "elapsed_ms": 972.985,
+            "expectation": "the ST rendition completes one AUTO cycle cleanly",
+            "observed": {
+              "commands": {
+                "Door": {
+                  "done": 3,
+                  "run": 3
+                },
+                "PartSlide": {
+                  "done": 2,
+                  "run": 2
+                },
+                "PressRam": {
+                  "done": 3,
+                  "run": 3
+                }
+              },
+              "cycleCompleted": true,
+              "declaredCommands": {
+                "Door": 3,
+                "PartSlide": 2,
+                "PressRam": 3
+              },
+              "elapsed_ms": 972.985,
+              "entryCounts": {
+                "0": 1,
+                "100": 2,
+                "110": 1,
+                "130": 1,
+                "150": 1,
+                "170": 1,
+                "180": 1,
+                "185": 0,
+                "190": 0,
+                "200": 1,
+                "210": 0,
+                "215": 0,
+                "220": 1,
+                "230": 1,
+                "240": 1,
+                "242": 1,
+                "244": 1,
+                "999": 1
+              },
+              "error": 0,
+              "orderFail": 0,
+              "parkedAsExpected": true,
+              "parkedAt": 100,
+              "rendition": "ST",
+              "sampledTrace": [
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999,
+                100
+              ],
+              "stepsEntered": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "cycle_completes_st"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the ST rendition runs and completes every command its entered steps declare, module by module - the plant moves",
+            "observed": {
+              "declared": {
+                "Door": 3,
+                "PartSlide": 2,
+                "PressRam": 3
+              },
+              "observed": {
+                "Door": {
+                  "done": 3,
+                  "run": 3
+                },
+                "PartSlide": {
+                  "done": 2,
+                  "run": 2
+                },
+                "PressRam": {
+                  "done": 3,
+                  "run": 3
+                }
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "commands_complete_st"
+          },
+          {
+            "elapsed_ms": 972.775,
+            "expectation": "the SFC rendition completes one AUTO cycle cleanly",
+            "observed": {
+              "commands": {
+                "Door": {
+                  "done": 3,
+                  "run": 3
+                },
+                "PartSlide": {
+                  "done": 2,
+                  "run": 2
+                },
+                "PressRam": {
+                  "done": 3,
+                  "run": 3
+                }
+              },
+              "cycleCompleted": true,
+              "declaredCommands": {
+                "Door": 3,
+                "PartSlide": 2,
+                "PressRam": 3
+              },
+              "elapsed_ms": 972.775,
+              "entryCounts": {
+                "0": 1,
+                "100": 2,
+                "110": 1,
+                "130": 1,
+                "150": 1,
+                "170": 1,
+                "180": 1,
+                "185": 0,
+                "190": 0,
+                "200": 1,
+                "210": 0,
+                "215": 0,
+                "220": 1,
+                "230": 1,
+                "240": 1,
+                "242": 1,
+                "244": 1,
+                "999": 1
+              },
+              "error": 0,
+              "orderFail": 0,
+              "parkedAsExpected": true,
+              "parkedAt": 100,
+              "rendition": "SFC",
+              "sampledTrace": [
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ],
+              "stepsEntered": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "cycle_completes_sfc"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the SFC rendition runs and completes every command its entered steps declare, module by module - the plant moves",
+            "observed": {
+              "declared": {
+                "Door": 3,
+                "PartSlide": 2,
+                "PressRam": 3
+              },
+              "observed": {
+                "Door": {
+                  "done": 3,
+                  "run": 3
+                },
+                "PartSlide": {
+                  "done": 2,
+                  "run": 2
+                },
+                "PressRam": {
+                  "done": 3,
+                  "run": 3
+                }
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "commands_complete_sfc"
+          },
+          {
+            "elapsed_ms": 968.754,
+            "expectation": "the LD rendition completes one AUTO cycle cleanly",
+            "observed": {
+              "commands": {
+                "Door": {
+                  "done": 3,
+                  "run": 3
+                },
+                "PartSlide": {
+                  "done": 2,
+                  "run": 2
+                },
+                "PressRam": {
+                  "done": 3,
+                  "run": 3
+                }
+              },
+              "cycleCompleted": true,
+              "declaredCommands": {
+                "Door": 3,
+                "PartSlide": 2,
+                "PressRam": 3
+              },
+              "elapsed_ms": 968.754,
+              "entryCounts": {
+                "0": 1,
+                "100": 2,
+                "110": 1,
+                "130": 1,
+                "150": 1,
+                "170": 1,
+                "180": 1,
+                "185": 0,
+                "190": 0,
+                "200": 1,
+                "210": 0,
+                "215": 0,
+                "220": 1,
+                "230": 1,
+                "240": 1,
+                "242": 1,
+                "244": 1,
+                "999": 1
+              },
+              "error": 0,
+              "orderFail": 0,
+              "parkedAsExpected": true,
+              "parkedAt": 100,
+              "rendition": "LD",
+              "sampledTrace": [
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999,
+                100
+              ],
+              "stepsEntered": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "cycle_completes_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the LD rendition runs and completes every command its entered steps declare, module by module - the plant moves",
+            "observed": {
+              "declared": {
+                "Door": 3,
+                "PartSlide": 2,
+                "PressRam": 3
+              },
+              "observed": {
+                "Door": {
+                  "done": 3,
+                  "run": 3
+                },
+                "PartSlide": {
+                  "done": 2,
+                  "run": 2
+                },
+                "PressRam": {
+                  "done": 3,
+                  "run": 3
+                }
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "commands_complete_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "SFC walks the same steps the same number of times as ST, over one cycle",
+            "observed": {
+              "differences": {},
+              "observed": {
+                "0": 1,
+                "100": 2,
+                "110": 1,
+                "130": 1,
+                "150": 1,
+                "170": 1,
+                "180": 1,
+                "185": 0,
+                "190": 0,
+                "200": 1,
+                "210": 0,
+                "215": 0,
+                "220": 1,
+                "230": 1,
+                "240": 1,
+                "242": 1,
+                "244": 1,
+                "999": 1
+              },
+              "reference": {
+                "0": 1,
+                "100": 2,
+                "110": 1,
+                "130": 1,
+                "150": 1,
+                "170": 1,
+                "180": 1,
+                "185": 0,
+                "190": 0,
+                "200": 1,
+                "210": 0,
+                "215": 0,
+                "220": 1,
+                "230": 1,
+                "240": 1,
+                "242": 1,
+                "244": 1,
+                "999": 1
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "trace_matches_st_sfc"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "SFC entered exactly the steps ST entered",
+            "observed": {
+              "observed": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ],
+              "reference": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "step_set_matches_st_sfc"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "LD walks the same steps the same number of times as ST, over one cycle",
+            "observed": {
+              "differences": {},
+              "observed": {
+                "0": 1,
+                "100": 2,
+                "110": 1,
+                "130": 1,
+                "150": 1,
+                "170": 1,
+                "180": 1,
+                "185": 0,
+                "190": 0,
+                "200": 1,
+                "210": 0,
+                "215": 0,
+                "220": 1,
+                "230": 1,
+                "240": 1,
+                "242": 1,
+                "244": 1,
+                "999": 1
+              },
+              "reference": {
+                "0": 1,
+                "100": 2,
+                "110": 1,
+                "130": 1,
+                "150": 1,
+                "170": 1,
+                "180": 1,
+                "185": 0,
+                "190": 0,
+                "200": 1,
+                "210": 0,
+                "215": 0,
+                "220": 1,
+                "230": 1,
+                "240": 1,
+                "242": 1,
+                "244": 1,
+                "999": 1
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "trace_matches_st_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "LD entered exactly the steps ST entered",
+            "observed": {
+              "observed": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ],
+              "reference": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "step_set_matches_st_ld"
+          },
+          {
+            "elapsed_ms": 248.289,
+            "expectation": "ST: a two-hand release at the door close is one LOW warning and no fault; the door reopens, the part slides out, and the chain waits at the start with the latch dropped",
+            "observed": {
+              "elapsed_ms": 248.289,
+              "entered": {
+                "180": 1,
+                "185": 1,
+                "190": 1,
+                "200": 0
+              },
+              "error": 0,
+              "rendition": "ST",
+              "reportedReason": 12001,
+              "reportedSource": 0,
+              "reports": 1,
+              "restingAt": 100,
+              "rowWarning": 12001,
+              "startLatched": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "release_abandons_the_close_st"
+          },
+          {
+            "elapsed_ms": 253.613,
+            "expectation": "SFC: a two-hand release at the door close is one LOW warning and no fault; the door reopens, the part slides out, and the chain waits at the start with the latch dropped",
+            "observed": {
+              "elapsed_ms": 253.613,
+              "entered": {
+                "180": 1,
+                "185": 1,
+                "190": 1,
+                "200": 0
+              },
+              "error": 0,
+              "rendition": "SFC",
+              "reportedReason": 12001,
+              "reportedSource": 0,
+              "reports": 1,
+              "restingAt": 100,
+              "rowWarning": 12001,
+              "startLatched": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "release_abandons_the_close_sfc"
+          },
+          {
+            "elapsed_ms": 255.968,
+            "expectation": "LD: a two-hand release at the door close is one LOW warning and no fault; the door reopens, the part slides out, and the chain waits at the start with the latch dropped",
+            "observed": {
+              "elapsed_ms": 255.968,
+              "entered": {
+                "180": 1,
+                "185": 1,
+                "190": 1,
+                "200": 0
+              },
+              "error": 0,
+              "rendition": "LD",
+              "reportedReason": 12001,
+              "reportedSource": 0,
+              "reports": 1,
+              "restingAt": 100,
+              "rowWarning": 12001,
+              "startLatched": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "release_abandons_the_close_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "SFC abandons the close exactly as ST does",
+            "observed": {
+              "observed": {
+                "elapsed_ms": 253.613,
+                "entered": {
+                  "180": 1,
+                  "185": 1,
+                  "190": 1,
+                  "200": 0
+                },
+                "error": 0,
+                "rendition": "SFC",
+                "reportedReason": 12001,
+                "reportedSource": 0,
+                "reports": 1,
+                "restingAt": 100,
+                "rowWarning": 12001,
+                "startLatched": 0
+              },
+              "reference": {
+                "elapsed_ms": 248.289,
+                "entered": {
+                  "180": 1,
+                  "185": 1,
+                  "190": 1,
+                  "200": 0
+                },
+                "error": 0,
+                "rendition": "ST",
+                "reportedReason": 12001,
+                "reportedSource": 0,
+                "reports": 1,
+                "restingAt": 100,
+                "rowWarning": 12001,
+                "startLatched": 0
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "abandon_matches_st_sfc"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "LD abandons the close exactly as ST does",
+            "observed": {
+              "observed": {
+                "elapsed_ms": 255.968,
+                "entered": {
+                  "180": 1,
+                  "185": 1,
+                  "190": 1,
+                  "200": 0
+                },
+                "error": 0,
+                "rendition": "LD",
+                "reportedReason": 12001,
+                "reportedSource": 0,
+                "reports": 1,
+                "restingAt": 100,
+                "rowWarning": 12001,
+                "startLatched": 0
+              },
+              "reference": {
+                "elapsed_ms": 248.289,
+                "entered": {
+                  "180": 1,
+                  "185": 1,
+                  "190": 1,
+                  "200": 0
+                },
+                "error": 0,
+                "rendition": "ST",
+                "reportedReason": 12001,
+                "reportedSource": 0,
+                "reports": 1,
+                "restingAt": 100,
+                "rowWarning": 12001,
+                "startLatched": 0
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "abandon_matches_st_ld"
+          },
+          {
+            "elapsed_ms": 8.496,
+            "expectation": "ST: releasing the two-hand in the dwell pauses it on its named condition, with no fault; past the dwell's expected time it is reported stalled, and pressing again finishes only the time that remained",
+            "observed": {
+              "condOk": 0,
+              "diagWhilePaused": 2005,
+              "dwellMs": 300,
+              "elapsed_ms": 8.496,
+              "errorWhilePaused": 0,
+              "paused": true,
+              "pausedAtMs": 70,
+              "pausedStep": 220,
+              "rendition": "ST",
+              "resumedTo": 230,
+              "servedMs": 300,
+              "servedTheDwell": true,
+              "stallReason": 12011,
+              "stepMs": 1890,
+              "stillAtMs": 70,
+              "timedOutWhilePaused": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "dwell_pauses_st"
+          },
+          {
+            "elapsed_ms": 22.055,
+            "expectation": "SFC: releasing the two-hand in the dwell pauses it on its named condition, with no fault; past the dwell's expected time it is reported stalled, and pressing again finishes only the time that remained",
+            "observed": {
+              "condOk": 0,
+              "diagWhilePaused": 2005,
+              "dwellMs": 300,
+              "elapsed_ms": 22.055,
+              "errorWhilePaused": 0,
+              "paused": true,
+              "pausedAtMs": 60,
+              "pausedStep": 220,
+              "rendition": "SFC",
+              "resumedTo": 230,
+              "servedMs": 300,
+              "servedTheDwell": true,
+              "stallReason": 12011,
+              "stepMs": 1880,
+              "stillAtMs": 60,
+              "timedOutWhilePaused": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "dwell_pauses_sfc"
+          },
+          {
+            "elapsed_ms": 8.6,
+            "expectation": "LD: releasing the two-hand in the dwell pauses it on its named condition, with no fault; past the dwell's expected time it is reported stalled, and pressing again finishes only the time that remained",
+            "observed": {
+              "condOk": 0,
+              "diagWhilePaused": 2005,
+              "dwellMs": 300,
+              "elapsed_ms": 8.6,
+              "errorWhilePaused": 0,
+              "paused": true,
+              "pausedAtMs": 60,
+              "pausedStep": 220,
+              "rendition": "LD",
+              "resumedTo": 230,
+              "servedMs": 300,
+              "servedTheDwell": true,
+              "stallReason": 12011,
+              "stepMs": 1890,
+              "stillAtMs": 60,
+              "timedOutWhilePaused": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "dwell_pauses_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "SFC pauses the dwell on the same condition and serves the same dwell as ST",
+            "observed": {
+              "observed": {
+                "condOk": 0,
+                "diagWhilePaused": 2005,
+                "dwellMs": 300,
+                "elapsed_ms": 22.055,
+                "errorWhilePaused": 0,
+                "paused": true,
+                "pausedAtMs": 60,
+                "pausedStep": 220,
+                "rendition": "SFC",
+                "resumedTo": 230,
+                "servedMs": 300,
+                "servedTheDwell": true,
+                "stallReason": 12011,
+                "stepMs": 1880,
+                "stillAtMs": 60,
+                "timedOutWhilePaused": 1
+              },
+              "reference": {
+                "condOk": 0,
+                "diagWhilePaused": 2005,
+                "dwellMs": 300,
+                "elapsed_ms": 8.496,
+                "errorWhilePaused": 0,
+                "paused": true,
+                "pausedAtMs": 70,
+                "pausedStep": 220,
+                "rendition": "ST",
+                "resumedTo": 230,
+                "servedMs": 300,
+                "servedTheDwell": true,
+                "stallReason": 12011,
+                "stepMs": 1890,
+                "stillAtMs": 70,
+                "timedOutWhilePaused": 1
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "dwell_matches_st_sfc"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "LD pauses the dwell on the same condition and serves the same dwell as ST",
+            "observed": {
+              "observed": {
+                "condOk": 0,
+                "diagWhilePaused": 2005,
+                "dwellMs": 300,
+                "elapsed_ms": 8.6,
+                "errorWhilePaused": 0,
+                "paused": true,
+                "pausedAtMs": 60,
+                "pausedStep": 220,
+                "rendition": "LD",
+                "resumedTo": 230,
+                "servedMs": 300,
+                "servedTheDwell": true,
+                "stallReason": 12011,
+                "stepMs": 1890,
+                "stillAtMs": 60,
+                "timedOutWhilePaused": 1
+              },
+              "reference": {
+                "condOk": 0,
+                "diagWhilePaused": 2005,
+                "dwellMs": 300,
+                "elapsed_ms": 8.496,
+                "errorWhilePaused": 0,
+                "paused": true,
+                "pausedAtMs": 70,
+                "pausedStep": 220,
+                "rendition": "ST",
+                "resumedTo": 230,
+                "servedMs": 300,
+                "servedTheDwell": true,
+                "stallReason": 12011,
+                "stepMs": 1890,
+                "stillAtMs": 70,
+                "timedOutWhilePaused": 1
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "dwell_matches_st_ld"
+          },
+          {
+            "elapsed_ms": 2.849,
+            "expectation": "ST: an aborted cycle stands down to the init step and does not resume by itself",
+            "observed": {
+              "aborted": 1,
+              "elapsed_ms": 2.849,
+              "errorAfter": 0,
+              "rendition": "ST",
+              "runningAfter": 0,
+              "stepAfter": 0,
+              "stoodDown": true
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "abort_stands_the_chain_down_st"
+          },
+          {
+            "elapsed_ms": 2.832,
+            "expectation": "SFC: an aborted cycle stands down to the init step and does not resume by itself",
+            "observed": {
+              "aborted": 1,
+              "elapsed_ms": 2.832,
+              "errorAfter": 0,
+              "rendition": "SFC",
+              "runningAfter": 0,
+              "stepAfter": 0,
+              "stoodDown": true
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "abort_stands_the_chain_down_sfc"
+          },
+          {
+            "elapsed_ms": 3.103,
+            "expectation": "LD: an aborted cycle stands down to the init step and does not resume by itself",
+            "observed": {
+              "aborted": 1,
+              "elapsed_ms": 3.103,
+              "errorAfter": 0,
+              "rendition": "LD",
+              "runningAfter": 0,
+              "stepAfter": 0,
+              "stoodDown": true
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "abort_stands_the_chain_down_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "SFC stands down exactly as ST does",
+            "observed": {
+              "observed": {
+                "aborted": 1,
+                "elapsed_ms": 2.832,
+                "errorAfter": 0,
+                "rendition": "SFC",
+                "runningAfter": 0,
+                "stepAfter": 0,
+                "stoodDown": true
+              },
+              "reference": {
+                "aborted": 1,
+                "elapsed_ms": 2.849,
+                "errorAfter": 0,
+                "rendition": "ST",
+                "runningAfter": 0,
+                "stepAfter": 0,
+                "stoodDown": true
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "abort_matches_st_sfc"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "LD stands down exactly as ST does",
+            "observed": {
+              "observed": {
+                "aborted": 1,
+                "elapsed_ms": 3.103,
+                "errorAfter": 0,
+                "rendition": "LD",
+                "runningAfter": 0,
+                "stepAfter": 0,
+                "stoodDown": true
+              },
+              "reference": {
+                "aborted": 1,
+                "elapsed_ms": 2.849,
+                "errorAfter": 0,
+                "rendition": "ST",
+                "runningAfter": 0,
+                "stepAfter": 0,
+                "stoodDown": true
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "abort_matches_st_ld"
+          }
+        ]
+      },
+      "phase1": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_retry_02_phase1.json",
+        "seconds": 13.748,
+        "tests": 7,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 111,
+          "writes": 111,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 781,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "3EC9A948E205524BD1E89E561A82AF97FEBC6C37E5612BA698493C561E809FFB",
+        "rows": [
+          {
+            "elapsed_ms": 8.453,
+            "expectation": "waiting at N100 with part absent, air ok, two-hand released: the step records [0, 1, 0] and the client reads TC3's three labels with them",
+            "observed": {
+              "activeStep": 100,
+              "condOk": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "published": [
+                [
+                  "project.condition.partPresent",
+                  false
+                ],
+                [
+                  "project.condition.airPressureOk",
+                  true
+                ],
+                [
+                  "project.condition.twoHandStart",
+                  false
+                ],
+                [
+                  "",
+                  false
+                ]
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "conditions_at_n100"
+          },
+          {
+            "elapsed_ms": 8.872,
+            "expectation": "a part arriving turns record 1 on; two-hand still released holds N100",
+            "observed": {
+              "condOk": [
+                1,
+                1,
+                0
+              ],
+              "step": 100
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_condition_follows_its_input"
+          },
+          {
+            "elapsed_ms": 588.617,
+            "expectation": "the slide sticks and times out extending: one MANUAL_RESET alarm sourced to the slide, dated today, blocking; the Unit's diagnostic is TC3's CYL_NOT_EXTENDED and names the slide's extended sensor",
+            "observed": {
+              "blocking": 1,
+              "event": {
+                "ComeDate": 20261005,
+                "ComeScan": 182296,
+                "ComeTime": 23919196,
+                "DurationMs": 0,
+                "GoneDate": 0,
+                "GoneTime": 0,
+                "IoRoles": 2,
+                "ReasonCode": 10101,
+                "ResetClass": 1,
+                "Severity": 1,
+                "Shelved": 0,
+                "SourceModuleId": 4,
+                "State": 1
+              },
+              "published": {
+                "AlarmLog/Blocking": true,
+                "Status/Diagnostic/Description": "std.reason.10101",
+                "Status/Diagnostic/IoTag": "_101B301A",
+                "Status/Diagnostic/ReasonCode": 10101
+              },
+              "publishedEvent": {
+                "ComeAt": "2026-10-05T02:39:19.196Z",
+                "Description": "std.reason.10101",
+                "IoTag": "_101B301A",
+                "ReasonCode": 10101,
+                "ResetClass": 1,
+                "SourcePath": "Press.PartSlide"
+              },
+              "sinceMinusHostSeconds": -9.438,
+              "slot": 0,
+              "unit": {
+                "DiagIoRoles": 2,
+                "DiagReason": 10101,
+                "Error": 1,
+                "ErrorID": 10101,
+                "ErrorSource": 3
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "adopted_fault_raises_a_blocking_manual_alarm"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "\u00a78.3(b): START is refused, and its release report (TC3's) lists the unreset alarm beside the Unit's own fault; the refusal names the first",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 641,
+                "sequence": 449
+              },
+              "expected": [
+                642,
+                2
+              ],
+              "report": [
+                [
+                  641,
+                  0
+                ],
+                [
+                  642,
+                  2
+                ]
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "start_refused_while_an_alarm_waits"
+          },
+          {
+            "elapsed_ms": 3.608,
+            "expectation": "one operator reset: the event is closed into the ring with its gone time, nothing blocks, the Unit has no diagnostic - and, as TC3's OperatorReset releases its run command, the press is not running",
+            "observed": {
+              "blocking": 0,
+              "diagReason": 0,
+              "entry": {
+                "ComeDate": 20261005,
+                "ComeScan": 182296,
+                "ComeTime": 23919196,
+                "DurationMs": 1250,
+                "GoneDate": 20261005,
+                "GoneTime": 23920448,
+                "IoRoles": 2,
+                "ReasonCode": 10101,
+                "ResetClass": 1,
+                "Severity": 1,
+                "Shelved": 0,
+                "SourceModuleId": 4,
+                "State": 0
+              },
+              "ringHead": 21,
+              "running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "reset_closes_it_into_the_ring"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the same START is accepted once nothing blocks",
+            "observed": {
+              "accepted": true,
+              "diagnosticKey": 0,
+              "sequence": 451
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "start_accepted_after_the_reset"
+          },
+          {
+            "elapsed_ms": 719.408,
+            "expectation": "the ram failing at N200 is reported, not adopted: one closed AUTO_RESET ring entry sourced to the ram, nothing blocks, and the Unit's own diagnostic stays clear while the operator decides",
+            "observed": {
+              "blocking": 0,
+              "entry": {
+                "ComeDate": 20261005,
+                "ComeScan": 182704,
+                "ComeTime": 23923276,
+                "DurationMs": 0,
+                "GoneDate": 20261005,
+                "GoneTime": 23923276,
+                "IoRoles": 2,
+                "ReasonCode": 10101,
+                "ResetClass": 0,
+                "Severity": 1,
+                "Shelved": 0,
+                "SourceModuleId": 2,
+                "State": 0
+              },
+              "publishedEntry": {
+                "ReasonCode": 10101,
+                "ResetClass": 0,
+                "SourcePath": "Press.PressRam"
+              },
+              "publishedReason": 0,
+              "reported": 1,
+              "unit": {
+                "DiagReason": 0,
+                "Error": 0,
+                "ReportedReason": 10101,
+                "ReportedSource": 1,
+                "Step": 210
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "report_is_an_occurrence"
+          }
+        ]
+      },
+      "phase2": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_retry_02_phase2.json",
+        "seconds": 13.902,
+        "tests": 6,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 86,
+          "writes": 86,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 862,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "8C324A67CAF8DEB96B5541491F4CF7193736182BC0B18CA986E4BCD5C4A09F9E",
+        "rows": [
+          {
+            "elapsed_ms": 2690.59,
+            "expectation": "a fresh AUTO session's rows are the clean path's steps, in the order they were first entered, on the controller and as published",
+            "observed": {
+              "controller": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ],
+              "expected": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ],
+              "published": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ],
+              "rowCount": 14
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "rows_in_first_entry_order"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the settle row records at least its declared delay; parked at N100 the cursor points at N100's row",
+            "observed": {
+              "cursor": 2,
+              "declaredSettleMs": 200,
+              "n100Row": 2,
+              "running": 1,
+              "settleLastDuration": 200
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_row_keeps_its_duration_and_the_cursor_its_step"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "within one mode session a re-run keeps its rows",
+            "observed": {
+              "after": 14,
+              "before": 14,
+              "rows": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_second_cycle_adds_no_rows"
+          },
+          {
+            "elapsed_ms": 8.78,
+            "expectation": "MANUAL starts a new session: no rows, the epoch moved, nothing published",
+            "observed": {
+              "epochAfter": 14,
+              "epochBefore": 13,
+              "published": 0,
+              "rowCount": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_mode_change_starts_a_new_chart"
+          },
+          {
+            "elapsed_ms": 725.11,
+            "expectation": "the ram failing at N200 marks N200's row as a warning, with a note naming the reason and the ram; no row is an error",
+            "observed": {
+              "annotations": 1,
+              "errorRows": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+              ],
+              "note": {
+                "IsError": false,
+                "Key": "std.reason.10101",
+                "RowIdx": 8,
+                "SourcePath": "Press.PressRam"
+              },
+              "row200": 8,
+              "warnReason": 10101,
+              "warnSource": 1,
+              "warningActive": true
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_report_marks_its_row"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "re-entering N200 without a fault clears its mark and its note",
+            "observed": {
+              "annotations": 0,
+              "warnReason": 0,
+              "warningActive": false
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_next_visit_starts_clean"
+          }
+        ]
+      },
+      "phase3": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_remaining_01_phase3.json",
+        "seconds": 56.299,
+        "tests": 8,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 167,
+          "writes": 167,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 783,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "95542D1EEA71CFE103E6988E64947BE80EBCA404061F3F3DA4E47E8542B974A5",
+        "rows": [
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's FB_DigitalInputCM on the controller: Value follows the part stimulus both ways at good Quality, published as a digital input",
+            "observed": {
+              "published": {
+                "DisplayNameKey": "project.module.partpresentsensor",
+                "FaultActive": false,
+                "State": 0,
+                "TypeKey": "std.moduleType.digitalInput"
+              },
+              "sensor": {
+                "part=0": {
+                  "Error": 0,
+                  "OutImm_Quality": 1,
+                  "OutImm_Value": 0
+                },
+                "part=1": {
+                  "Error": 0,
+                  "OutImm_Quality": 1,
+                  "OutImm_Value": 1
+                }
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_part_present_sensor_follows_its_source"
+          },
+          {
+            "elapsed_ms": 585.701,
+            "expectation": "held still by the fault injection, the slide times out extending: TC3's CYL_NOT_EXTENDED on the Unit, the slide and the alarm, naming _101B301A, after the declared 500 ms and not before",
+            "observed": {
+              "elapsedMs": 586,
+              "event": {
+                "Description": "std.reason.10101",
+                "IoTag": "_101B301A",
+                "ReasonCode": 10101,
+                "SourcePath": "Press.PartSlide"
+              },
+              "slidePosition": 0,
+              "unit": {
+                "DiagIoRoles": 2,
+                "DiagReason": 10101,
+                "Error": 1,
+                "ErrorID": 10101,
+                "ErrorSource": 3
+              },
+              "unitDiagnostic": {
+                "Description": "std.reason.10101",
+                "IoAddress": "Local:1:I.0",
+                "IoTag": "_101B301A",
+                "ReasonCode": 10101,
+                "Since": "2026-10-05T02:42:32.516Z"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_stuck_slide_times_out_and_names_its_sensor"
+          },
+          {
+            "elapsed_ms": 47.127,
+            "expectation": "the ram held at N110: the Unit's own diagnostic is the ram's INTERLOCK_DROPPED (TC3 _M_RollupHold), no error, not timed out",
+            "observed": {
+              "timedOut": false,
+              "unit": {
+                "DiagReason": 2003,
+                "Error": 0,
+                "StallMs": 0,
+                "Step": 110,
+                "StepTimedOut": 0
+              },
+              "unitDiagnostic": {
+                "Description": "std.reason.2003",
+                "IoAddress": "",
+                "IoTag": "",
+                "ReasonCode": 2003,
+                "Since": "2026-10-05T02:42:34.936Z"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_held_child_rolls_up_into_the_unit"
+          },
+          {
+            "elapsed_ms": 176.857,
+            "expectation": "TC3's SetAreaSafe: the door holds on INTERLOCK_DROPPED when air goes, does not time out or fault while held, the press reports it, and the stroke completes when air returns",
+            "observed": {
+              "held": {
+                "door": {
+                  "Error": 0,
+                  "OutImm_Held": 1,
+                  "OutImm_Pos": 0,
+                  "OutImm_Reason": 2003
+                },
+                "monitor": {
+                  "OutImm_LowPressure": 1,
+                  "OutImm_OperatingPressure": 0,
+                  "OutImm_PressureOk": 0
+                },
+                "unit": {
+                  "DiagReason": 2003,
+                  "Error": 0,
+                  "Step": 180,
+                  "StepTimedOut": 0
+                }
+              },
+              "resumedTo": 200
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "air_lost_mid_stroke_holds_and_resumes"
+          },
+          {
+            "elapsed_ms": 7.941,
+            "expectation": "TC3's N220: released part-way through the dwell, the dwell stands still on its named condition with no fault; past its expected time it is reported stalled; pressed again, the part is pressed for the declared dwell in total, not the dwell plus the pause",
+            "observed": {
+              "dwellMs": 300,
+              "pausedAtMs": 70,
+              "publishedCondition": {
+                "Label": "project.condition.twoHandHeldDuringPress",
+                "Ok": false
+              },
+              "resumedTo": 230,
+              "servedMs": 300,
+              "stillAtMs": 70,
+              "unit": {
+                "DiagReason": 2005,
+                "Error": 0,
+                "Step": 220
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_release_mid_dwell_finishes_only_what_remained"
+          },
+          {
+            "elapsed_ms": 30204.094,
+            "expectation": "N100 waiting for a part: not timed out while it merely waits, then at StallTime timed out, with the Unit saying STEP_STALLED, LOW, no error",
+            "observed": {
+              "secondsToStall": 30.2,
+              "timedOut": true,
+              "timedOutEarly": false,
+              "unit": {
+                "DiagReason": 2005,
+                "Error": 0,
+                "StallMs": 30000,
+                "Step": 100,
+                "StepTimedOut": 1
+              },
+              "unitDiagnostic": {
+                "Description": "std.reason.2005",
+                "IoAddress": "",
+                "IoTag": "",
+                "ReasonCode": 2005,
+                "Since": "2026-10-05T02:43:15.346Z"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_step_that_waits_past_stall_time_is_stalled"
+          },
+          {
+            "elapsed_ms": 500.0,
+            "expectation": "TC3's start latch: the part arriving after the two-hand press does not start the stroke - N100 still waits, nothing latched",
+            "observed": {
+              "Running": 1,
+              "StartLatched": 0,
+              "Step": 100
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_press_before_the_part_never_starts_the_stroke"
+          },
+          {
+            "elapsed_ms": 12.348,
+            "expectation": "a fresh press with the part there: the step moves, the stall and its diagnostic clear",
+            "observed": {
+              "DiagReason": 0,
+              "Step": 110,
+              "StepTimedOut": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_stall_clears_when_the_step_moves"
+          }
+        ]
+      },
+      "phase4": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_remaining_01_phase4.json",
+        "seconds": 28.509,
+        "tests": 12,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 181,
+          "writes": 181,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 815,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "68B5422EDE047338A499753AD3A30DFB540107ABA96F2D3BF5CC84834E2837DF",
+        "rows": [
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "START in MANUAL is refused by TC3's reason, manualHasNoAutoSequence, and nothing runs",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 620,
+                "sequence": 572
+              },
+              "running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "start_has_nothing_to_run_in_manual"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's catalogue on every cylinder: EXTEND 1 and RETRACT 2, with std.command labels; a sensor publishes none",
+            "observed": {
+              "cylinders": {
+                "Door": [
+                  [
+                    1,
+                    "std.command.extend"
+                  ],
+                  [
+                    2,
+                    "std.command.retract"
+                  ]
+                ],
+                "PartSlide": [
+                  [
+                    1,
+                    "std.command.extend"
+                  ],
+                  [
+                    2,
+                    "std.command.retract"
+                  ]
+                ],
+                "PressRam": [
+                  [
+                    1,
+                    "std.command.extend"
+                  ],
+                  [
+                    2,
+                    "std.command.retract"
+                  ]
+                ]
+              },
+              "sensorCount": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "each_cylinder_publishes_its_catalogue"
+          },
+          {
+            "elapsed_ms": 2.863,
+            "expectation": "a manual close with the slide outside is accepted and HELD on INTERLOCK_DROPPED, named doorCloseRequiresSlideInside, without moving and without timing out",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 573
+              },
+              "door": {
+                "Busy": 1,
+                "Error": 0,
+                "OutImm_Held": 1,
+                "OutImm_Pos": 0,
+                "Permit": 0
+              },
+              "held": {
+                "Description": "project.interlock.doorCloseRequiresSlideInside",
+                "ReasonCode": 2003
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_door_does_not_close_over_a_slide_outside"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "a second command to the held door is refused as busy; OPERATOR_RESET drops the held command rather than resuming it",
+            "observed": {
+              "busy": {
+                "accepted": false,
+                "diagnosticKey": 598,
+                "sequence": 574
+              },
+              "door": {
+                "Busy": 0,
+                "Execute": 0,
+                "ManualCmd": 0,
+                "OutImm_Pos": 0
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_held_command_is_released_by_a_reset"
+          },
+          {
+            "elapsed_ms": 2.821,
+            "expectation": "with the door closed (by a manual command, over the slide inside) the slide's way out is HELD, named slideOutsideRequiresDoorOpen; opening the door lets it finish without a fault",
+            "observed": {
+              "doorClosed": 100,
+              "held": {
+                "Description": "project.interlock.slideOutsideRequiresDoorOpen",
+                "ReasonCode": 2003
+              },
+              "resumed": {
+                "Error": 0,
+                "ManualCmd": 0,
+                "OutImm_Pos": 0
+              },
+              "slideHeld": 1
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_slide_waits_for_the_door_and_resumes_by_itself"
+          },
+          {
+            "elapsed_ms": 2.888,
+            "expectation": "with the guard open the ram's press is HELD on pressRequiresGuardClosed; air lost as well, it names air - TC3's first-out order",
+            "observed": {
+              "airLost": {
+                "Description": "project.interlock.pressRequiresAirPressure",
+                "ReasonCode": 2003
+              },
+              "guardOpen": {
+                "Description": "project.interlock.pressRequiresGuardClosed",
+                "ReasonCode": 2003
+              },
+              "ramPos": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_ram_names_its_first_missing_condition"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "a module that takes no commands, a command outside the catalogue, and any manual command outside MANUAL are each refused with its reason",
+            "observed": {
+              "auto": {
+                "accepted": false,
+                "diagnosticKey": 621,
+                "sequence": 585
+              },
+              "sensor": {
+                "accepted": false,
+                "diagnosticKey": 610,
+                "sequence": 582
+              },
+              "unknown": {
+                "accepted": false,
+                "diagnosticKey": 586,
+                "sequence": 583
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "manual_commands_are_refused_by_name"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's Start consumes its release report: without air START is refused naming airPressureOk (PERMISSIVE_NOT_MET, the Unit's, an interlock) and answers with that report; with air back the report is released and START is taken",
+            "observed": {
+              "clear": [
+                true,
+                []
+              ],
+              "query": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 591
+              },
+              "refused": {
+                "accepted": false,
+                "diagnosticKey": 644,
+                "sequence": 590
+              },
+              "report": [
+                [
+                  "project.condition.airPressureOk",
+                  2002,
+                  "Press",
+                  3
+                ]
+              ],
+              "started": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 592
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_refused_start_explains_itself"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "MANUAL, aborted and without air: all missing reasons in order, including only entry conditions declared for MANUAL",
+            "observed": [
+              [
+                "std.release.manualHasNoAutoSequence",
+                0,
+                "Press",
+                0
+              ],
+              [
+                "std.release.unitNotReady",
+                0,
+                "Press",
+                0
+              ]
+            ],
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_start_report_lists_every_reason"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the air Start reason follows the declared modes; cylinder pressure permits remain",
+            "observed": {
+              "0": [
+                [
+                  "project.condition.airPressureOk",
+                  2002,
+                  "Press",
+                  3
+                ]
+              ],
+              "1": [
+                [
+                  "std.release.manualHasNoAutoSequence",
+                  0,
+                  "Press",
+                  0
+                ]
+              ],
+              "2": [
+                [
+                  "project.condition.airPressureOk",
+                  2002,
+                  "Press",
+                  3
+                ]
+              ],
+              "3": []
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "air_start_entry_is_scoped_by_mode"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the door's close, asked about with the slide outside, is explained by doorCloseRequiresSlideInside (INTERLOCK_DROPPED, owned by Press.Door); its opening is released",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 614
+              },
+              "close": [
+                [
+                  "project.interlock.doorCloseRequiresSlideInside",
+                  2003,
+                  "Press.Door",
+                  3
+                ]
+              ],
+              "open": [
+                true,
+                []
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_manual_query_names_the_blocked_direction"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's ReleaseReportAction for ALARM_RESET with no blocking alarm: noBlockingAlarm",
+            "observed": [
+              [
+                "std.release.noBlockingAlarm",
+                0,
+                "Press",
+                4
+              ]
+            ],
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_reset_with_nothing_to_reset_says_so"
+          }
+        ]
+      },
+      "phase5": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_remaining_01_phase5.json",
+        "seconds": 174.271,
+        "tests": 25,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 1055,
+          "writes": 1055,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 820,
+          "TaskMaxScanUs": 8111,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "F70D3BC89EB815576320BA640F870726110395C7B2D8EE618A468A75CC868CF6",
+        "rows": [
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's SupportedRunStylesPublished: all three offered, CONTINUOUS running",
+            "observed": {
+              "offered": [
+                true,
+                true,
+                true
+              ],
+              "runStyle": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_unit_publishes_its_run_styles"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "a style outside E_RunStyle: std.error.unsupportedRunStyleRequest, the style kept; a Step while stopped and a hold outside HOLD_TO_RUN refused by name; a release always taken",
+            "observed": {
+              "holdInSingleStep": {
+                "accepted": false,
+                "diagnosticKey": 595,
+                "sequence": 626
+              },
+              "outside": {
+                "accepted": false,
+                "diagnosticKey": 619,
+                "sequence": 623
+              },
+              "release": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 627
+              },
+              "runStyle": 1,
+              "stepWhileStopped": {
+                "accepted": false,
+                "diagnosticKey": 609,
+                "sequence": 625
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "outside_its_style_each_request_is_refused_by_name"
+          },
+          {
+            "elapsed_ms": 5399.668,
+            "expectation": "ST: nothing before the first Step, then exactly one command per Step - 8 for the cycle - and the cycle closes",
+            "observed": {
+              "cycleClosed": true,
+              "elapsed_ms": 5399.668,
+              "opened": {
+                "pastStart": true,
+                "start": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 643
+                },
+                "style": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 642
+                }
+              },
+              "parkedAt": 100,
+              "perRequest": [
+                0,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "refusals": [],
+              "rendition": "ST"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "single_step_issues_one_command_per_request_st"
+          },
+          {
+            "elapsed_ms": 5510.532,
+            "expectation": "SFC: nothing before the first Step, then exactly one command per Step - 8 for the cycle - and the cycle closes",
+            "observed": {
+              "cycleClosed": true,
+              "elapsed_ms": 5510.532,
+              "opened": {
+                "pastStart": true,
+                "start": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 668
+                },
+                "style": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 667
+                }
+              },
+              "parkedAt": 100,
+              "perRequest": [
+                0,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "refusals": [],
+              "rendition": "SFC"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "single_step_issues_one_command_per_request_sfc"
+          },
+          {
+            "elapsed_ms": 5323.979,
+            "expectation": "LD: nothing before the first Step, then exactly one command per Step - 8 for the cycle - and the cycle closes",
+            "observed": {
+              "cycleClosed": true,
+              "elapsed_ms": 5323.979,
+              "opened": {
+                "pastStart": true,
+                "start": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 693
+                },
+                "style": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 692
+                }
+              },
+              "parkedAt": 100,
+              "perRequest": [
+                0,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "refusals": [],
+              "rendition": "LD"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "single_step_issues_one_command_per_request_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "ST: nothing unheld; released during the slide's motion the slide arrives and the door close waits un-issued; held again the cycle completes with its 8 commands",
+            "observed": {
+              "answers": {
+                "again": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 721
+                },
+                "hold": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 719
+                },
+                "release": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 720
+                }
+              },
+              "cycleClosed": true,
+              "issuedBeforeRelease": 3,
+              "issuedInCycle": 8,
+              "issuedUnheld": 0,
+              "motionAtRelease": {
+                "Busy": 1,
+                "OutImm_Held": 1
+              },
+              "opened": {
+                "pastStart": true,
+                "start": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 718
+                },
+                "style": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 717
+                }
+              },
+              "parkedAt": 100,
+              "reachedDoorClose": true,
+              "releasedAt": {
+                "HoldRun": 0,
+                "Issued": 0,
+                "Step": 180
+              },
+              "rendition": "ST",
+              "slideArrived": 1,
+              "unheld": {
+                "Issued": 0,
+                "Step": 110
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "hold_to_run_issues_only_while_held_st"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "SFC: nothing unheld; released during the slide's motion the slide arrives and the door close waits un-issued; held again the cycle completes with its 8 commands",
+            "observed": {
+              "answers": {
+                "again": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 742
+                },
+                "hold": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 740
+                },
+                "release": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 741
+                }
+              },
+              "cycleClosed": true,
+              "issuedBeforeRelease": 3,
+              "issuedInCycle": 8,
+              "issuedUnheld": 0,
+              "motionAtRelease": {
+                "Busy": 1,
+                "OutImm_Held": 1
+              },
+              "opened": {
+                "pastStart": true,
+                "start": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 739
+                },
+                "style": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 738
+                }
+              },
+              "parkedAt": 100,
+              "reachedDoorClose": true,
+              "releasedAt": {
+                "HoldRun": 0,
+                "Issued": 0,
+                "Step": 180
+              },
+              "rendition": "SFC",
+              "slideArrived": 1,
+              "unheld": {
+                "Issued": 0,
+                "Step": 110
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "hold_to_run_issues_only_while_held_sfc"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "LD: nothing unheld; released during the slide's motion the slide arrives and the door close waits un-issued; held again the cycle completes with its 8 commands",
+            "observed": {
+              "answers": {
+                "again": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 763
+                },
+                "hold": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 761
+                },
+                "release": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 762
+                }
+              },
+              "cycleClosed": true,
+              "issuedBeforeRelease": 3,
+              "issuedInCycle": 8,
+              "issuedUnheld": 0,
+              "motionAtRelease": {
+                "Busy": 1,
+                "OutImm_Held": 1
+              },
+              "opened": {
+                "pastStart": true,
+                "start": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 760
+                },
+                "style": {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 759
+                }
+              },
+              "parkedAt": 100,
+              "reachedDoorClose": true,
+              "releasedAt": {
+                "HoldRun": 0,
+                "Issued": 0,
+                "Step": 180
+              },
+              "rendition": "LD",
+              "slideArrived": 1,
+              "unheld": {
+                "Issued": 0,
+                "Step": 110
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "hold_to_run_issues_only_while_held_ld"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "held, then stopped: HoldRun is 0, and the next START in HOLD_TO_RUN issues nothing until held again",
+            "observed": {
+              "afterStop": 0,
+              "held": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 782
+              },
+              "holding": 1,
+              "issuedAfterRestart": 0,
+              "restarted": {
+                "Issued": 0,
+                "Running": 1,
+                "Step": 110
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_stop_ends_the_hold"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "RESET_OEE is accepted: run and down zero, the ring empty, the epoch moved, and nothing valid yet (no run, no parts since)",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 808
+              },
+              "card": {
+                "Oee/AvailValid": false,
+                "Oee/DownMs": 0,
+                "Oee/OeeValid": false,
+                "Oee/PerfValid": false,
+                "Oee/QualValid": false,
+                "Oee/RunMs": 0,
+                "OeeTrendHead": 0
+              },
+              "epoch": [
+                1,
+                2
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "reset_oee_clears_the_accounting"
+          },
+          {
+            "elapsed_ms": 1610.213,
+            "expectation": "one cycle and a wait at the start step: RunMs within 250 ms of the wall time from START acknowledgement to STOP acknowledgement, no down time, A and Q 1.0, and P = ideal x parts / run",
+            "observed": {
+              "card": {
+                "Oee/Availability": 1.0,
+                "Oee/DownMs": 0,
+                "Oee/Oee": 0.5428571428571428,
+                "Oee/PerfValid": true,
+                "Oee/Performance": 0.5428571428571428,
+                "Oee/Quality": 1.0,
+                "Oee/RunMs": 1750
+              },
+              "parts": 1,
+              "wallMs": 1610.2
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "run_time_is_the_time_the_press_runs"
+          },
+          {
+            "elapsed_ms": 1030.011,
+            "expectation": "the slide sticks: DownMs matches the measured native sample interval within 250 ms; run and idle do not grow; A = run / (run + down)",
+            "observed": {
+              "availability": 0.7119113573407202,
+              "faulted": 1,
+              "grew": {
+                "Oee/DownMs": 1030,
+                "Oee/IdleMs": 0,
+                "Oee/RunMs": 0
+              },
+              "sampleIntervalMs": [
+                1012.191,
+                1047.831
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "down_time_is_the_time_it_is_faulted"
+          },
+          {
+            "elapsed_ms": 60004.93,
+            "expectation": "the first sample lands 60 s after the reset (within a second), in the current epoch, holding the part made since and the model's ideal cycle, and the card shows it",
+            "observed": {
+              "afterS": 60.005,
+              "head": 1,
+              "oee": 0.2219626168224299,
+              "slot": {
+                "DownMs": 710,
+                "DownS": 1,
+                "Epoch": 2,
+                "Good": 1,
+                "IdealMs": 950,
+                "Nok": 0,
+                "RunMs": 570,
+                "RunS": 2
+              },
+              "valid": true
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_sample_a_minute_after_the_reset"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "RESET_OEE again: the ring is empty and its sample no longer valid; GoodCount is untouched, since counts reset only on their own logged action (Core \u00a78.11.2)",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 823
+              },
+              "good": [
+                22,
+                22
+              ],
+              "head": 0,
+              "valid": false
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_reset_retires_the_trend_and_keeps_the_counts"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's classification, read where the HMI reads it: IDLE, CHANGEOVER selected, PRODUCING while running, STOPPED after STOP, IDLE after the reset, DOWN while faulted, IDLE once recovered",
+            "observed": [
+              [
+                "stopped and reset",
+                "IDLE"
+              ],
+              [
+                "CHANGEOVER selected",
+                "CHANGEOVER"
+              ],
+              [
+                "AUTO running",
+                "PRODUCING"
+              ],
+              [
+                "after STOP",
+                "STOPPED"
+              ],
+              [
+                "after the reset",
+                "IDLE"
+              ],
+              [
+                "the slide stuck",
+                "DOWN"
+              ],
+              [
+                "recovered",
+                "IDLE"
+              ]
+            ],
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "machine_state_follows_the_unit"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "ReworkCount is published from the Unit's own counter; the press declares no rework verdict, so both read 0",
+            "observed": {
+              "controller": 0,
+              "published": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "rework_count_is_the_controllers"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "one cycle after a START, read where the HMI reads it: the init step, the operator's start and the happy path in order; the total is its steps and the trend's; the two delays expected their recipe values and took one scan more; N100 is the only wait; N110 counted once more",
+            "observed": {
+              "cycleNo": [
+                23,
+                24
+              ],
+              "delays": {
+                "170": {
+                  "Duration": 210,
+                  "Expected": 200,
+                  "StepName": "project.step.transferSettle",
+                  "StepNo": 170,
+                  "TimeClass": 0
+                },
+                "220": {
+                  "Duration": 310,
+                  "Expected": 300,
+                  "StepName": "project.step.pressDwell",
+                  "StepNo": 220,
+                  "TimeClass": 0
+                }
+              },
+              "n110": [
+                44,
+                45
+              ],
+              "numbers": [
+                0,
+                100,
+                110,
+                130,
+                150,
+                170,
+                180,
+                200,
+                220,
+                230,
+                240,
+                242,
+                244,
+                999
+              ],
+              "split": [
+                970,
+                0,
+                0,
+                120,
+                0
+              ],
+              "total": 1090,
+              "trend": {
+                "CycleNo": 24,
+                "Total": 1090,
+                "WaitTime": 120,
+                "WorkTime": 970
+              },
+              "wait": 120,
+              "work": 970
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_cycle_is_profiled_step_by_step"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "STOP inside a cycle: the last cycle, its time and the trend are as they were (TC3's CycleAbandon), and the cycle is closed, not left open",
+            "observed": {
+              "CycleOpen": [
+                0,
+                0
+              ],
+              "HistoryHead": [
+                24,
+                24
+              ],
+              "LastCycleNo": [
+                24,
+                24
+              ],
+              "LastCycleTime": [
+                1090,
+                1090
+              ],
+              "Open": [
+                0,
+                0
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_cycle_stopped_part_way_is_not_published"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "manual commands in MANUAL: the slide's extend and retract each counted once at 40 ms (four 25-unit scans), and the door sent open while open counted once at one scan - the command TC3 never times; the slide's row published as the HMI reads it",
+            "observed": {
+              "answers": [
+                {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 886
+                },
+                {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 887
+                },
+                {
+                  "accepted": true,
+                  "diagnosticKey": 0,
+                  "sequence": 888
+                }
+              ],
+              "published": {
+                "Avg": 124,
+                "Count": 48,
+                "Id": 1,
+                "Label": "std.command.extend",
+                "Last": 40,
+                "Maximum": 500,
+                "Minimum": 10
+              },
+              "seen": {
+                "doorRetractAlreadyOpen": [
+                  1,
+                  10
+                ],
+                "slideExtend": [
+                  1,
+                  40
+                ],
+                "slideRetract": [
+                  1,
+                  40
+                ]
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "every_command_is_timed"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the running model's baseline written to 300 ms: the first cycle's ~970 ms of WORK passes 360 and raises ONE CYCLE_TIME_DEGRADED (2007) occurrence, LOW, AUTO_RESET, from the Unit; the second, still degraded, raises none; the baseline is written back",
+            "observed": {
+              "count": [
+                3,
+                4,
+                4
+              ],
+              "entry": {
+                "ReasonCode": 2007,
+                "ResetClass": 0,
+                "Severity": 0,
+                "SourceModuleId": 1
+              },
+              "first": true,
+              "original": 950,
+              "published": {
+                "ReasonCode": 2007,
+                "SourcePath": "Press"
+              },
+              "restore": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 908
+              },
+              "restored": 950,
+              "ringHead": [
+                45,
+                46
+              ],
+              "second": true,
+              "work": 970,
+              "write": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 892
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "a_degraded_cycle_is_one_maintenance_event"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's pressAtLoadPosition: true at home, false the moment the slide goes in under a MANUAL command - no sequence runs to clear it - and true again when it comes out, each change stamped later than the last",
+            "observed": [
+              [
+                "home",
+                {
+                  "Key": "project.state.pressAtLoadPosition",
+                  "Since": "2026-10-05T02:46:23.926Z",
+                  "Stale": false,
+                  "Value": true
+                }
+              ],
+              [
+                "slide in",
+                {
+                  "Key": "project.state.pressAtLoadPosition",
+                  "Since": "2026-10-05T02:46:29.586Z",
+                  "Stale": false,
+                  "Value": false
+                }
+              ],
+              [
+                "slide out",
+                {
+                  "Key": "project.state.pressAtLoadPosition",
+                  "Since": "2026-10-05T02:46:30.686Z",
+                  "Stale": false,
+                  "Value": true
+                }
+              ]
+            ],
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "at_load_position_follows_the_cylinders"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's pressTwoHandStartReady: armed, air and a part make it true; the part withdrawn makes it false at once, and back makes it true",
+            "observed": {
+              "key": "project.state.pressTwoHandStartReady",
+              "readiness": [
+                [
+                  1,
+                  true
+                ],
+                [
+                  0,
+                  false
+                ],
+                [
+                  1,
+                  true
+                ]
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "two_hand_ready_follows_its_conditions"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "TC3's SystemHealth over S3's subset: evaluated, the task measured near its 10 ms period with low jitter; CPU and memory unavailable, so not healthy; no fieldbus or distributed clock; the clock available and unsynchronized",
+            "observed": {
+              "ControllerAvailable": false,
+              "CpuLoadPct": 0.0,
+              "DcAvailable": false,
+              "DcSynchronized": false,
+              "FanHealthy": false,
+              "FieldbusAvailable": false,
+              "FieldbusMasterHealthy": false,
+              "Healthy": false,
+              "IpcAvailable": false,
+              "IpcTemperatureC": 0.0,
+              "LostFrameCount": 0,
+              "MemoryAvailableMb": 0,
+              "Present": true,
+              "SlaveErrorCount": 0,
+              "StorageHealthPct": 0.0,
+              "TaskAvailable": true,
+              "TaskCycleUs": 10003,
+              "TaskJitterUs": 3,
+              "TaskOverrun": false,
+              "TimeQuality/Available": true,
+              "TimeQuality/OffsetUs": 0,
+              "TimeQuality/Source": "",
+              "TimeQuality/Synchronized": false
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "system_health_is_published"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "CONTROLLER_METRICS_UNAVAILABLE (21) is open once - LOW, AUTO_RESET, from the Unit - and nothing blocks a start; no overrun or jitter event is open",
+            "observed": {
+              "blocking": 0,
+              "held": [
+                {
+                  "ReasonCode": 21,
+                  "ResetClass": 0,
+                  "Severity": 0,
+                  "SourceModuleId": 1
+                }
+              ]
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "unreadable_metrics_are_one_standing_event"
+          },
+          {
+            "elapsed_ms": 0.0,
+            "expectation": "the harness leaves the press as it found it: CONTINUOUS, stopped",
+            "observed": {
+              "RunStyle": 0,
+              "Running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "the_press_is_left_continuous"
+          }
+        ]
+      },
+      "sets": {
+        "exitCode": 0,
+        "passed": true,
+        "file": "C:\\work\\press75_hw_sets_retry_01_sets.json",
+        "seconds": 116.319,
+        "tests": 17,
+        "error": null,
+        "guard": {
+          "expectedSerial": "7036B510",
+          "target": "192.168.100.89",
+          "checks": 1307,
+          "writes": 1307,
+          "blocked": 0
+        },
+        "health": {
+          "TaskLastScanUs": 791,
+          "TaskMaxScanUs": 8384,
+          "TaskOverlapCount": 0,
+          "MajorFaultBits": 0,
+          "MinorFaultBits": 0
+        },
+        "sha256": "0BD6042D9768BE8FC3884DF2A18F6D9BF32F253D0B1D87ECF253805FE3CF6D6A",
+        "rows": [
+          {
+            "elapsed_ms": 0,
+            "expectation": "published source Profiler.LastWork, capturable and enabled",
+            "observed": {
+              "canCapture": true,
+              "enabled": true,
+              "source": "Profiler.LastWork"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "capture_is_registered_beside_its_editable_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the fixture must not interrupt production",
+            "observed": {
+              "error": 0,
+              "running": 0
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "fixture_starts_stopped"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "V2 bounded transaction and restore status read coherently",
+            "observed": {
+              "auditCapacity": 16,
+              "restoreLost": 0,
+              "schema": 2
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "set_controller_contract_is_present"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "controller snapshot is portable and the host file survives reopen",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 951
+              },
+              "header": {
+                "clock": 0,
+                "configRev": 9757442,
+                "created": 1791168507,
+                "kind": 1,
+                "model": "",
+                "records": 5,
+                "root": "Press",
+                "schema": 1,
+                "set": "phase6-station"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "save_export_and_reopen_station_set"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "one named set with the controller record count",
+            "observed": {
+              "count": 1,
+              "name": "phase6-station"
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "list_uses_the_generic_hmi_contract"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "the altered station value returns to the saved value",
+            "observed": {
+              "after": {
+                "airPressure.conflictTime": 500,
+                "press.requireTwoHandStart": 1,
+                "station.airPressureMinKpa": 400,
+                "station.number": 1,
+                "station.ramExtendLimitMs": 2000
+              },
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 960
+              },
+              "changed": 99
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "load_restores_the_values_not_just_the_ack"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "import cannot apply equipment values",
+            "observed": {
+              "accepted": true,
+              "diagnosticKey": 0,
+              "sequence": 966
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "import_only_stores_the_document"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "load applies the complete imported record set",
+            "observed": {
+              "answer": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 967
+              },
+              "values": {
+                "airPressure.conflictTime": 500,
+                "press.requireTwoHandStart": 1,
+                "station.airPressureMinKpa": 400,
+                "station.number": 99,
+                "station.ramExtendLimitMs": 2000
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "imported_station_set_loads_atomically"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "no value changes; the rejection names the offending identity",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 618,
+                "sequence": 974
+              },
+              "rejection": {
+                "Key": "phase6.unknown",
+                "Scope": "Press"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "load_refuses_unknown_key"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "no value changes; the rejection names the offending identity",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 618,
+                "sequence": 981
+              },
+              "rejection": {
+                "Key": "press.requireTwoHandStart",
+                "Scope": "Press"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "load_refuses_invalid_last_value"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "no value changes; the rejection names the offending identity",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 618,
+                "sequence": 988
+              },
+              "rejection": {
+                "Key": "press.requireTwoHandStart",
+                "Scope": "Press"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "load_refuses_stale_revision"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "no value changes; the rejection names the offending identity",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 618,
+                "sequence": 995
+              },
+              "rejection": {
+                "Key": "",
+                "Scope": "Other"
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "load_refuses_foreign_root"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "model save/export works; load awaits recipe-store integration",
+            "observed": {
+              "header": {
+                "clock": 0,
+                "configRev": 9757442,
+                "created": 1791168585,
+                "kind": 0,
+                "model": "M-100",
+                "records": 4,
+                "root": "Press",
+                "schema": 1,
+                "set": "phase6-model"
+              },
+              "load": {
+                "accepted": false,
+                "diagnosticKey": 591,
+                "sequence": 1002
+              },
+              "save": {
+                "accepted": true,
+                "diagnosticKey": 0,
+                "sequence": 996
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "model_load_refuses_as_tc3_does"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "a continuously held AUTO run refuses the set",
+            "observed": {
+              "answer": {
+                "accepted": false,
+                "diagnosticKey": 618,
+                "sequence": 1005
+              },
+              "running": {
+                "AbortRequest": 0,
+                "Aborted": 0,
+                "CommitModel": 0,
+                "Complete": 0,
+                "CycleCount": 26,
+                "DecisionAnswer": 0,
+                "DecisionCount": 2,
+                "DecisionId": 0,
+                "DiagIoRoles": 0,
+                "DiagReason": 0,
+                "DiagSinceDate": 20261005,
+                "DiagSinceTime": 24604607,
+                "DiagStamped": 0,
+                "Error": 0,
+                "ErrorID": 0,
+                "ErrorSource": 0,
+                "GoodCount": 26,
+                "HoldRun": 0,
+                "Issued": 1,
+                "Mode": 0,
+                "ModeRequest": 0,
+                "ModeSwitches": 63,
+                "ModelOrdinal": 1,
+                "ModelRequest": 0,
+                "OrderFail": 0,
+                "Par_TaskPeriodMs": 10,
+                "PrevStep": 100,
+                "ReportedCount": 15,
+                "ReportedReason": 2042,
+                "ReportedSource": 0,
+                "ResetRequest": 0,
+                "ReworkCount": 0,
+                "RunRequest": 1,
+                "RunStyle": 0,
+                "Running": 1,
+                "SchemaVersion": 1,
+                "ScrapCount": 2,
+                "StallMs": 30,
+                "StallStep": 100,
+                "StallTimeMs": 30000,
+                "StartLatched": 0,
+                "Step": 100,
+                "StepExpectedMs": 0,
+                "StepPending": 0,
+                "StepPermit": 1,
+                "StepScan": 246130,
+                "StepTimedOut": 0
+              }
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "load_checks_root_ready_on_controller"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "no authenticated actor: no controller commit",
+            "observed": {
+              "refused": true,
+              "sequence": 1008
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "sets_retain_the_gateway_write_gate"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "no restore loss: acknowledgement refuses by TC3 key",
+            "observed": {
+              "accepted": false,
+              "diagnosticKey": 617,
+              "sequence": 1009
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "restore_ack_requires_a_reported_loss"
+          },
+          {
+            "elapsed_ms": 0,
+            "expectation": "three names remain after deleting one",
+            "observed": {
+              "count": 3
+            },
+            "passed": true,
+            "suite": "fraktal.ab.press-demo",
+            "test": "delete_releases_the_bounded_slot"
+          }
+        ]
+      }
+    },
+    "selection": "latest successful result for each suite across three guarded runs; this is not one uninterrupted all-suite pass",
+    "enclosingRuns": [
+      {
+        "file": "C:\\work\\press75_hw_retry_02_results.json",
+        "sha256": "441372C2615828F335DCD87D3A654B17028B655ECE1322A7362DBAD7A2A5D271",
+        "passed": false,
+        "restored": true,
+        "ownerSessionRestored": {
+          "passed": true,
+          "level": 4,
+          "loginTimings": [
+            {
+              "sequence": 523,
+              "level": 4,
+              "consumedMs": 815.223,
+              "resultMs": 863.61,
+              "authenticated": true,
+              "loginFailed": false
+            }
+          ]
+        }
+      },
+      {
+        "file": "C:\\work\\press75_hw_remaining_01_results.json",
+        "sha256": "EA3E10323C9942F0D1A57A917020A6878F77632EBBB51D0D95DC1F2E8DA82ACB",
+        "passed": false,
+        "restored": true,
+        "ownerSessionRestored": {
+          "passed": true,
+          "level": 4,
+          "loginTimings": [
+            {
+              "sequence": 944,
+              "level": 4,
+              "consumedMs": 809.623,
+              "resultMs": 857.858,
+              "authenticated": true,
+              "loginFailed": false
+            }
+          ]
+        }
+      },
+      {
+        "file": "C:\\work\\press75_hw_sets_retry_01_results.json",
+        "sha256": "F3F47489613C4919037E7FD3809D936F7293272957C1BC93108DE69491CA54F2",
+        "passed": true,
+        "restored": true,
+        "ownerSessionRestored": {
+          "passed": true,
+          "level": 4,
+          "loginTimings": [
+            {
+              "sequence": 1034,
+              "level": 4,
+              "consumedMs": 773.791,
+              "resultMs": 862.455,
+              "authenticated": true,
+              "loginFailed": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "line": {
+    "file": "C:\\work\\press75_line_native_03.json",
+    "sha256": "A10CB27C51D31F2107A46F7A58CB5B803F7F0A72F540251C1E9F96F18CB742AE",
+    "fixture": "C:\\work\\press75_line_run_03.py",
+    "fixtureSha256": "0E6DEC89926A8827FC9460D0E118F3629221C80A079F8651D54E2CE35CBC86F9",
+    "authorization": "owner confirms press75 completed download and Run; invoked Phase6 verification workflow; HMI tabs closed",
+    "serial": "7036B510",
+    "rows": [
+      {
+        "test": "saved_line_set_covers_all_13_values",
+        "observed": {
+          "answer": {
+            "sequence": 1096,
+            "accepted": true,
+            "diagnosticKey": 0
+          },
+          "header": {
+            "set": "line-saved",
+            "root": "Press",
+            "schema": 1,
+            "configRev": 9757442,
+            "kind": 2,
+            "model": "",
+            "records": 13,
+            "created": 1791168832,
+            "clock": 0
+          }
+        },
+        "passed": true
+      },
+      {
+        "test": "current_line_export_matches_saved_without_new_slot",
+        "observed": {
+          "header": {
+            "set": "line-current",
+            "root": "Press",
+            "schema": 1,
+            "configRev": 9757442,
+            "kind": 2,
+            "model": "",
+            "records": 13,
+            "created": 1791168858,
+            "clock": 0
+          },
+          "files": 2
+        },
+        "passed": true
+      },
+      {
+        "test": "line_document_import_roundtrip",
+        "observed": {
+          "sequence": 1125,
+          "accepted": true,
+          "diagnosticKey": 0
+        },
+        "passed": true
+      },
+      {
+        "test": "native_minimum_refuses_spoofed_admin_level_1",
+        "observed": {
+          "sequence": 1127,
+          "accepted": false,
+          "diagnosticKey": 627
+        },
+        "passed": true
+      },
+      {
+        "test": "whole_line_set_refused_level_1",
+        "observed": {
+          "sequence": 1128,
+          "accepted": false,
+          "diagnosticKey": 627
+        },
+        "passed": true
+      },
+      {
+        "test": "native_minimum_refuses_spoofed_admin_level_2",
+        "observed": {
+          "sequence": 1130,
+          "accepted": false,
+          "diagnosticKey": 627
+        },
+        "passed": true
+      },
+      {
+        "test": "whole_line_set_refused_level_2",
+        "observed": {
+          "sequence": 1131,
+          "accepted": false,
+          "diagnosticKey": 627
+        },
+        "passed": true
+      },
+      {
+        "test": "whole_weekend_overlap_refuses_atomically",
+        "observed": {
+          "sequence": 1133,
+          "accepted": false,
+          "diagnosticKey": 622
+        },
+        "passed": true
+      },
+      {
+        "test": "partial_line_set_refuses_atomically",
+        "observed": {
+          "sequence": 1134,
+          "accepted": false,
+          "diagnosticKey": 622
+        },
+        "passed": true
+      },
+      {
+        "test": "native_bounds_line.shift.utcOffsetMin",
+        "observed": {
+          "sequence": 1135,
+          "accepted": false,
+          "diagnosticKey": 588
+        },
+        "passed": true
+      },
+      {
+        "test": "native_bounds_line.shift.1.startMin",
+        "observed": {
+          "sequence": 1136,
+          "accepted": false,
+          "diagnosticKey": 588
+        },
+        "passed": true
+      },
+      {
+        "test": "native_bounds_line.shift.1.durationMin",
+        "observed": {
+          "sequence": 1137,
+          "accepted": false,
+          "diagnosticKey": 588
+        },
+        "passed": true
+      },
+      {
+        "test": "native_bounds_line.shift.1.activeDays",
+        "observed": {
+          "sequence": 1138,
+          "accepted": false,
+          "diagnosticKey": 588
+        },
+        "passed": true
+      },
+      {
+        "test": "twelve_hour_weekend_set_activates_with_finite_boundary",
+        "observed": {
+          "calendar": {
+            "SchemaVersion": 2,
+            "UtcOffsetMin": -840,
+            "StartMin1": 57,
+            "DurationMin1": 720,
+            "ActiveDays1": 96,
+            "StartMin2": -1,
+            "DurationMin2": 480,
+            "ActiveDays2": 0,
+            "StartMin3": -1,
+            "DurationMin3": 480,
+            "ActiveDays3": 0,
+            "StartMin4": -1,
+            "DurationMin4": 480,
+            "ActiveDays4": 0
+          },
+          "shift": {
+            "SchemaVersion": 2,
+            "Initialized": 1,
+            "Current": 1,
+            "StartedMinute": 29852815,
+            "StartedMs": 1150,
+            "EndsMinute": 29852817,
+            "TimeSynchronized": 0,
+            "ManualReset": 0,
+            "Count": 1,
+            "Truncated": 0,
+            "ClosedSequence": 1,
+            "AppliedRevision": 2,
+            "HistoryIndex": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryStartMinute": [
+              29852768,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryStartMs": [
+              56253,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryEndMinute": [
+              29852815,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryEndMs": [
+              1150,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryTimeSynchronized": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryManualReset": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryGood": [
+              26,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryNok": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRework": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryOeeGood": [
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryOeeNok": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRunS": [
+              9,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRunMs": [
+              460,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryDownS": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryDownMs": [
+              600,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdleS": [
+              538,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdleMs": [
+              650,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdealMs": [
+              950,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "state": {
+            "SchemaVersion": 1,
+            "Revision": 2,
+            "UpdatedDate": 20261005,
+            "UpdatedClock": 25501135,
+            "LineIdKey": 625,
+            "OwnerIdKey": 626
+          },
+          "clock": "2026-10-05T02:54:58+00:00"
+        },
+        "passed": true
+      },
+      {
+        "test": "single_edit_checks_whole_calendar_overlap",
+        "observed": {
+          "sequence": 1143,
+          "accepted": false,
+          "diagnosticKey": 622
+        },
+        "passed": true
+      },
+      {
+        "test": "restored_calendar_waits_for_current_boundary",
+        "observed": {
+          "shift": {
+            "SchemaVersion": 2,
+            "Initialized": 1,
+            "Current": 1,
+            "StartedMinute": 29852815,
+            "StartedMs": 1150,
+            "EndsMinute": 29852817,
+            "TimeSynchronized": 0,
+            "ManualReset": 0,
+            "Count": 1,
+            "Truncated": 0,
+            "ClosedSequence": 1,
+            "AppliedRevision": 2,
+            "HistoryIndex": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryStartMinute": [
+              29852768,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryStartMs": [
+              56253,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryEndMinute": [
+              29852815,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryEndMs": [
+              1150,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryTimeSynchronized": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryManualReset": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryGood": [
+              26,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryNok": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRework": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryOeeGood": [
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryOeeNok": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRunS": [
+              9,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRunMs": [
+              460,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryDownS": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryDownMs": [
+              600,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdleS": [
+              538,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdleMs": [
+              650,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdealMs": [
+              950,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "state": {
+            "SchemaVersion": 1,
+            "Revision": 5,
+            "UpdatedDate": 20261005,
+            "UpdatedClock": 25505595,
+            "LineIdKey": 625,
+            "OwnerIdKey": 626
+          }
+        },
+        "passed": true
+      },
+      {
+        "test": "natural_boundary_closes_history_before_restoring_unscheduled",
+        "observed": {
+          "shift": {
+            "SchemaVersion": 2,
+            "Initialized": 1,
+            "Current": 0,
+            "StartedMinute": 29852817,
+            "StartedMs": 5,
+            "EndsMinute": 0,
+            "TimeSynchronized": 0,
+            "ManualReset": 0,
+            "Count": 2,
+            "Truncated": 0,
+            "ClosedSequence": 2,
+            "AppliedRevision": 5,
+            "HistoryIndex": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryStartMinute": [
+              29852815,
+              29852768,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryStartMs": [
+              1150,
+              56253,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryEndMinute": [
+              29852817,
+              29852815,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryEndMs": [
+              5,
+              1150,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryTimeSynchronized": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryManualReset": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryGood": [
+              0,
+              26,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryNok": [
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRework": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryOeeGood": [
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryOeeNok": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRunS": [
+              0,
+              9,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryRunMs": [
+              0,
+              460,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryDownS": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryDownMs": [
+              0,
+              600,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdleS": [
+              118,
+              538,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdleMs": [
+              860,
+              650,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "HistoryIdealMs": [
+              950,
+              950,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "state": {
+            "SchemaVersion": 1,
+            "Revision": 5,
+            "UpdatedDate": 20261005,
+            "UpdatedClock": 25505595,
+            "LineIdKey": 625,
+            "OwnerIdKey": 626
+          }
+        },
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "restored": true,
+    "guard": {
+      "checks": 807,
+      "writes": 807,
+      "blocked": 0
+    },
+    "original": {
+      "calendar": {
+        "SchemaVersion": 2,
+        "UtcOffsetMin": 0,
+        "StartMin1": -1,
+        "DurationMin1": 480,
+        "ActiveDays1": 0,
+        "StartMin2": -1,
+        "DurationMin2": 480,
+        "ActiveDays2": 0,
+        "StartMin3": -1,
+        "DurationMin3": 480,
+        "ActiveDays3": 0,
+        "StartMin4": -1,
+        "DurationMin4": 480,
+        "ActiveDays4": 0
+      },
+      "shift": {
+        "SchemaVersion": 2,
+        "Initialized": 1,
+        "Current": 0,
+        "StartedMinute": 29852768,
+        "StartedMs": 56253,
+        "EndsMinute": 0,
+        "TimeSynchronized": 0,
+        "ManualReset": 1,
+        "Count": 0,
+        "Truncated": 0,
+        "ClosedSequence": 0,
+        "AppliedRevision": 1,
+        "HistoryIndex": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMinute": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMinute": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryTimeSynchronized": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryManualReset": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryGood": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryNok": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRework": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeGood": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeNok": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunS": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownS": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleS": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdealMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "state": {
+        "SchemaVersion": 1,
+        "Revision": 1,
+        "UpdatedDate": 0,
+        "UpdatedClock": 0,
+        "LineIdKey": 625,
+        "OwnerIdKey": 626
+      },
+      "unit": {
+        "SchemaVersion": 1,
+        "Par_TaskPeriodMs": 10,
+        "Mode": 0,
+        "ModeRequest": 0,
+        "ModelRequest": 0,
+        "CommitModel": 0,
+        "ModelOrdinal": 1,
+        "ModeSwitches": 63,
+        "Step": 0,
+        "PrevStep": -1,
+        "Running": 0,
+        "Complete": 0,
+        "Aborted": 0,
+        "Error": 0,
+        "ErrorID": 0,
+        "ErrorSource": 0,
+        "ReportedReason": 2042,
+        "ReportedCount": 21,
+        "ReportedSource": 0,
+        "DecisionId": 0,
+        "DecisionAnswer": 0,
+        "DecisionCount": 2,
+        "CycleCount": 26,
+        "GoodCount": 26,
+        "ScrapCount": 2,
+        "ReworkCount": 0,
+        "OrderFail": 0,
+        "StepScan": 246130,
+        "RunRequest": 0,
+        "AbortRequest": 0,
+        "ResetRequest": 0,
+        "DiagReason": 0,
+        "StallTimeMs": 30000,
+        "StepExpectedMs": 0,
+        "StallMs": 0,
+        "StallStep": 0,
+        "StepTimedOut": 0,
+        "DiagIoRoles": 0,
+        "DiagStamped": 0,
+        "DiagSinceDate": 20261005,
+        "DiagSinceTime": 24604607,
+        "RunStyle": 0,
+        "StepPending": 0,
+        "HoldRun": 0,
+        "StepPermit": 1,
+        "Issued": 1,
+        "StartLatched": 0
+      },
+      "access": {
+        "CurrentLevel": 4,
+        "LoginBusy": 0,
+        "LoginFailed": 0,
+        "SessionTimeout": 0,
+        "Required": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "clockSource": {
+      "source": "fresh controller current-export header",
+      "created": 1791168898,
+      "clock": 0,
+      "clockWrites": 0
+    },
+    "active": {
+      "calendar": {
+        "SchemaVersion": 2,
+        "UtcOffsetMin": -840,
+        "StartMin1": 57,
+        "DurationMin1": 720,
+        "ActiveDays1": 96,
+        "StartMin2": -1,
+        "DurationMin2": 480,
+        "ActiveDays2": 0,
+        "StartMin3": -1,
+        "DurationMin3": 480,
+        "ActiveDays3": 0,
+        "StartMin4": -1,
+        "DurationMin4": 480,
+        "ActiveDays4": 0
+      },
+      "shift": {
+        "SchemaVersion": 2,
+        "Initialized": 1,
+        "Current": 1,
+        "StartedMinute": 29852815,
+        "StartedMs": 1150,
+        "EndsMinute": 29852817,
+        "TimeSynchronized": 0,
+        "ManualReset": 0,
+        "Count": 1,
+        "Truncated": 0,
+        "ClosedSequence": 1,
+        "AppliedRevision": 2,
+        "HistoryIndex": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMinute": [
+          29852768,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMs": [
+          56253,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMinute": [
+          29852815,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMs": [
+          1150,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryTimeSynchronized": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryManualReset": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryGood": [
+          26,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryNok": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRework": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeGood": [
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeNok": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunS": [
+          9,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunMs": [
+          460,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownS": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownMs": [
+          600,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleS": [
+          538,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleMs": [
+          650,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdealMs": [
+          950,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "state": {
+        "SchemaVersion": 1,
+        "Revision": 2,
+        "UpdatedDate": 20261005,
+        "UpdatedClock": 25501135,
+        "LineIdKey": 625,
+        "OwnerIdKey": 626
+      },
+      "clock": "2026-10-05T02:54:58+00:00"
+    },
+    "cleanup": {
+      "session": true,
+      "calendar": true,
+      "applied": true
+    },
+    "final": {
+      "calendar": {
+        "SchemaVersion": 2,
+        "UtcOffsetMin": 0,
+        "StartMin1": -1,
+        "DurationMin1": 480,
+        "ActiveDays1": 0,
+        "StartMin2": -1,
+        "DurationMin2": 480,
+        "ActiveDays2": 0,
+        "StartMin3": -1,
+        "DurationMin3": 480,
+        "ActiveDays3": 0,
+        "StartMin4": -1,
+        "DurationMin4": 480,
+        "ActiveDays4": 0
+      },
+      "shift": {
+        "SchemaVersion": 2,
+        "Initialized": 1,
+        "Current": 0,
+        "StartedMinute": 29852817,
+        "StartedMs": 5,
+        "EndsMinute": 0,
+        "TimeSynchronized": 0,
+        "ManualReset": 0,
+        "Count": 2,
+        "Truncated": 0,
+        "ClosedSequence": 2,
+        "AppliedRevision": 5,
+        "HistoryIndex": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMinute": [
+          29852815,
+          29852768,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMs": [
+          1150,
+          56253,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMinute": [
+          29852817,
+          29852815,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMs": [
+          5,
+          1150,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryTimeSynchronized": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryManualReset": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryGood": [
+          0,
+          26,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryNok": [
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRework": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeGood": [
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeNok": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunS": [
+          0,
+          9,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunMs": [
+          0,
+          460,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownS": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownMs": [
+          0,
+          600,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleS": [
+          118,
+          538,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleMs": [
+          860,
+          650,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdealMs": [
+          950,
+          950,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "state": {
+        "SchemaVersion": 1,
+        "Revision": 5,
+        "UpdatedDate": 20261005,
+        "UpdatedClock": 25505595,
+        "LineIdKey": 625,
+        "OwnerIdKey": 626
+      },
+      "unit": {
+        "SchemaVersion": 1,
+        "Par_TaskPeriodMs": 10,
+        "Mode": 0,
+        "ModeRequest": 0,
+        "ModelRequest": 0,
+        "CommitModel": 0,
+        "ModelOrdinal": 1,
+        "ModeSwitches": 63,
+        "Step": 0,
+        "PrevStep": -1,
+        "Running": 0,
+        "Complete": 0,
+        "Aborted": 0,
+        "Error": 0,
+        "ErrorID": 0,
+        "ErrorSource": 0,
+        "ReportedReason": 2043,
+        "ReportedCount": 27,
+        "ReportedSource": 0,
+        "DecisionId": 0,
+        "DecisionAnswer": 0,
+        "DecisionCount": 2,
+        "CycleCount": 26,
+        "GoodCount": 0,
+        "ScrapCount": 0,
+        "ReworkCount": 0,
+        "OrderFail": 0,
+        "StepScan": 246130,
+        "RunRequest": 0,
+        "AbortRequest": 0,
+        "ResetRequest": 0,
+        "DiagReason": 0,
+        "StallTimeMs": 30000,
+        "StepExpectedMs": 0,
+        "StallMs": 0,
+        "StallStep": 0,
+        "StepTimedOut": 0,
+        "DiagIoRoles": 0,
+        "DiagStamped": 0,
+        "DiagSinceDate": 20261005,
+        "DiagSinceTime": 24604607,
+        "RunStyle": 0,
+        "StepPending": 0,
+        "HoldRun": 0,
+        "StepPermit": 1,
+        "Issued": 1,
+        "StartLatched": 0
+      },
+      "health": {
+        "SchemaVersion": 1,
+        "Samples": 288604,
+        "PrevMinuteUs": 2275895,
+        "NowMinuteUs": 2275895,
+        "IntervalUs": 9998,
+        "JitterUs": 2,
+        "WinScans": 3,
+        "WinMaxIntervalUs": 10004,
+        "WinMinIntervalUs": 9997,
+        "WinMaxJitterUs": 4,
+        "MaxIntervalUs": 16965,
+        "MinIntervalUs": 5465,
+        "MaxJitterUs": 6965,
+        "TaskLastScanUs": 814,
+        "TaskMaxScanUs": 8384,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "MinorFaultBits": 0,
+        "MajorFaultBits": 0
+      }
+    },
+    "loginTimings": [
+      {
+        "sequence": 1126,
+        "level": 1,
+        "consumedMs": 668.945,
+        "resultMs": 764.231,
+        "authenticated": true,
+        "loginFailed": false
+      },
+      {
+        "sequence": 1129,
+        "level": 2,
+        "consumedMs": 1102.882,
+        "resultMs": 1199.498,
+        "authenticated": true,
+        "loginFailed": false
+      },
+      {
+        "sequence": 1132,
+        "level": 4,
+        "consumedMs": 1138.014,
+        "resultMs": 1230.373,
+        "authenticated": true,
+        "loginFailed": false
+      },
+      {
+        "sequence": 1145,
+        "level": 4,
+        "consumedMs": 1123.245,
+        "resultMs": 1215.319,
+        "authenticated": true,
+        "loginFailed": false
+      }
+    ]
+  },
+  "finalRead": {
+    "file": "C:\\work\\press75_native_read_final_01.json",
+    "sha256": "7B067D56FC865EF26A918971465AFC499DB84A5559CD8EDC75C7FCBD2C2180FA",
+    "timestampUtc": "2026-10-05T02:56:56.968229+00:00",
+    "serial": "7036B510",
+    "controllerWrites": 0,
+    "manifest": {
+      "read": true,
+      "header": {
+        "Magic": 1179795787,
+        "SchemaMajor": 4,
+        "SchemaMinor": 0,
+        "CoreVersion": 1,
+        "BindingVersion": 2,
+        "FrameworkVersion": 1,
+        "ConfigRevision": 9757442,
+        "Valid": 1,
+        "Truncated": 0,
+        "KeyLength": 56,
+        "ContentHash": "94E302F650BA1DB5",
+        "ControllerIdentity": "1769-L24ER-QB1B/A 33.014",
+        "RootsCount": 1,
+        "RootsCapacity": 2,
+        "ModulesCount": 7,
+        "ModulesCapacity": 8,
+        "NameplatesCount": 0,
+        "NameplatesCapacity": 8,
+        "FieldsCount": 616,
+        "FieldsCapacity": 624,
+        "OperationsCount": 6,
+        "OperationsCapacity": 8,
+        "LocalizationCount": 652,
+        "LocalizationCapacity": 664,
+        "RationalizationCount": 23,
+        "RationalizationCapacity": 24,
+        "OptionalProfilesCount": 1,
+        "OptionalProfilesCapacity": 2,
+        "WriteCapabilitiesCount": 22,
+        "WriteCapabilitiesCapacity": 24
+      },
+      "coherent": true,
+      "requests": 11,
+      "bytesRead": 65552,
+      "timingMs": {
+        "header": 32.5,
+        "tables": 115.309,
+        "recheck": 2.795,
+        "total": 150.604
+      },
+      "tableReads": {
+        "Roots": {
+          "tag": "FRK_Press_MfRoots",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 6.536,
+          "bytes": 40
+        },
+        "Modules": {
+          "tag": "FRK_Press_MfModules",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 5.36,
+          "bytes": 320
+        },
+        "Nameplates": {
+          "tag": "FRK_Press_MfNameplates",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 5.68,
+          "bytes": 288
+        },
+        "Fields": {
+          "tag": "FRK_Press_MfFields",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 26.278,
+          "bytes": 19968
+        },
+        "Operations": {
+          "tag": "FRK_Press_MfOperations",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 5.687,
+          "bytes": 256
+        },
+        "Localization": {
+          "tag": "FRK_Press_MfLocalization",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 45.341,
+          "bytes": 42496
+        },
+        "Rationalization": {
+          "tag": "FRK_Press_MfRationalization",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 5.853,
+          "bytes": 576
+        },
+        "OptionalProfiles": {
+          "tag": "FRK_Press_MfOptionalProfiles",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 5.65,
+          "bytes": 32
+        },
+        "WriteCapabilities": {
+          "tag": "FRK_Press_MfWriteCapabilities",
+          "path": "whole-tag",
+          "requests": 1,
+          "ms": 6.79,
+          "bytes": 1344
+        }
+      },
+      "comparison": {
+        "tables": {
+          "Roots": {
+            "declaredRows": 1,
+            "publishedCount": 1,
+            "rowsRead": 2,
+            "rowsMatch": true,
+            "publishedCapacity": 2
+          },
+          "Modules": {
+            "declaredRows": 7,
+            "publishedCount": 7,
+            "rowsRead": 8,
+            "rowsMatch": true,
+            "publishedCapacity": 8
+          },
+          "Nameplates": {
+            "declaredRows": 0,
+            "publishedCount": 0,
+            "rowsRead": 8,
+            "rowsMatch": true,
+            "publishedCapacity": 8
+          },
+          "Fields": {
+            "declaredRows": 616,
+            "publishedCount": 616,
+            "rowsRead": 624,
+            "rowsMatch": true,
+            "publishedCapacity": 624
+          },
+          "Operations": {
+            "declaredRows": 6,
+            "publishedCount": 6,
+            "rowsRead": 8,
+            "rowsMatch": true,
+            "publishedCapacity": 8
+          },
+          "Localization": {
+            "declaredRows": 652,
+            "publishedCount": 652,
+            "rowsRead": 664,
+            "rowsMatch": true,
+            "publishedCapacity": 664
+          },
+          "Rationalization": {
+            "declaredRows": 23,
+            "publishedCount": 23,
+            "rowsRead": 24,
+            "rowsMatch": true,
+            "publishedCapacity": 24
+          },
+          "OptionalProfiles": {
+            "declaredRows": 1,
+            "publishedCount": 1,
+            "rowsRead": 2,
+            "rowsMatch": true,
+            "publishedCapacity": 2
+          },
+          "WriteCapabilities": {
+            "declaredRows": 22,
+            "publishedCount": 22,
+            "rowsRead": 24,
+            "rowsMatch": true,
+            "publishedCapacity": 24
+          }
+        },
+        "findings": [],
+        "equal": true
+      },
+      "passed": true
+    },
+    "fingerprint": {
+      "passed": true,
+      "checks": {
+        "unit_schema": true,
+        "cfg_schema": true,
+        "task_period": true,
+        "scan_running": true
+      },
+      "readings": {
+        "FRK_Press_ScanCount": 289129,
+        "FRK_Press_TaskPeriodMs": 10,
+        "FRK_Press_OrderFail": 0,
+        "Unit.SchemaVersion": 1,
+        "Unit.Par_TaskPeriodMs": 10,
+        "Cfg.SchemaVersion": 4
+      }
+    },
+    "commissionedConfigurationPreserved": true,
+    "modelCodes": [
+      "M-100",
+      "M-200",
+      "M-050",
+      "M-101"
+    ],
+    "unit": {
+      "Running": 0,
+      "Error": 0,
+      "Mode": 0,
+      "ModelOrdinal": 1
+    },
+    "scanCount": {
+      "first": 289141,
+      "last": 289166,
+      "advancing": true
+    },
+    "line": {
+      "configuration": {
+        "SchemaVersion": 2,
+        "UtcOffsetMin": 0,
+        "StartMin1": -1,
+        "DurationMin1": 480,
+        "ActiveDays1": 0,
+        "StartMin2": -1,
+        "DurationMin2": 480,
+        "ActiveDays2": 0,
+        "StartMin3": -1,
+        "DurationMin3": 480,
+        "ActiveDays3": 0,
+        "StartMin4": -1,
+        "DurationMin4": 480,
+        "ActiveDays4": 0
+      },
+      "state": {
+        "SchemaVersion": 1,
+        "Revision": 5,
+        "UpdatedDate": 20261005,
+        "UpdatedClock": 25505595,
+        "LineIdKey": 625,
+        "OwnerIdKey": 626
+      },
+      "shift": {
+        "SchemaVersion": 2,
+        "Initialized": 1,
+        "Current": 0,
+        "StartedMinute": 29852817,
+        "StartedMs": 5,
+        "EndsMinute": 0,
+        "TimeSynchronized": 0,
+        "ManualReset": 0,
+        "Count": 2,
+        "Truncated": 0,
+        "ClosedSequence": 2,
+        "AppliedRevision": 5,
+        "HistoryIndex": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMinute": [
+          29852815,
+          29852768,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryStartMs": [
+          1150,
+          56253,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMinute": [
+          29852817,
+          29852815,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryEndMs": [
+          5,
+          1150,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryTimeSynchronized": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryManualReset": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryGood": [
+          0,
+          26,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryNok": [
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRework": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeGood": [
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryOeeNok": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunS": [
+          0,
+          9,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryRunMs": [
+          0,
+          460,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownS": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryDownMs": [
+          0,
+          600,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleS": [
+          118,
+          538,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdleMs": [
+          860,
+          650,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HistoryIdealMs": [
+          950,
+          950,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "access": {
+      "CurrentLevel": 4,
+      "LoginBusy": 0,
+      "LoginFailed": 0
+    },
+    "s3": {
+      "tests": 6,
+      "successful": 6,
+      "failed": 0,
+      "passed": true,
+      "rows": [
+        {
+          "test": "the_probe_runs_every_scan",
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "expectation": "the probe answers and counts one sample per scan: about 100 a second",
+          "passed": true,
+          "observed": {
+            "reads": 49,
+            "seconds": 4.992,
+            "scans": 500,
+            "scansPerSecond": 100.2
+          }
+        },
+        {
+          "test": "task_execution_time",
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "expectation": "GSV TASK LastScanTime is the routine's execution in us: above zero and inside the period; MaxScanTime is at least every last scan seen",
+          "passed": true,
+          "observed": {
+            "lastScanUs": {
+              "min": 737,
+              "median": 759,
+              "max": 927
+            },
+            "maxScanUs": 8384,
+            "periodUs": 10000
+          }
+        },
+        {
+          "test": "task_period_and_jitter",
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "expectation": "the real period between scans, from the wall clock, published per 1 s window: the shortest and longest period bracket the declared one",
+          "passed": true,
+          "observed": {
+            "windows": [
+              [
+                10144,
+                9854,
+                146
+              ],
+              [
+                10150,
+                9843,
+                157
+              ],
+              [
+                10169,
+                9830,
+                170
+              ],
+              [
+                10187,
+                9821,
+                187
+              ],
+              [
+                10193,
+                9821,
+                193
+              ],
+              [
+                10194,
+                9804,
+                196
+              ]
+            ],
+            "periodUs": 10000
+          }
+        },
+        {
+          "test": "no_task_overruns",
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "expectation": "GSV TASK OverlapCount: no overrun while sampled",
+          "passed": true,
+          "observed": {
+            "overlapCount": [
+              0
+            ]
+          }
+        },
+        {
+          "test": "time_quality",
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "expectation": "GSV TimeSynchronize IsSynchronized and PTPEnable answer, steadily; this bench runs without PTP (S1, S9), so both are expected 0",
+          "passed": true,
+          "observed": {
+            "isSynchronizedPtpEnable": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        },
+        {
+          "test": "controller_fault_bits",
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "expectation": "GSV FaultLog: no major fault on a running controller; the minor bits are recorded",
+          "passed": true,
+          "observed": {
+            "majorMinor": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        }
+      ],
+      "first": {
+        "SchemaVersion": 1,
+        "Samples": 289168,
+        "PrevMinuteUs": 7915898,
+        "NowMinuteUs": 7915898,
+        "IntervalUs": 10010,
+        "JitterUs": 10,
+        "WinScans": 67,
+        "WinMaxIntervalUs": 10194,
+        "WinMinIntervalUs": 9804,
+        "WinMaxJitterUs": 196,
+        "MaxIntervalUs": 10169,
+        "MinIntervalUs": 9830,
+        "MaxJitterUs": 170,
+        "TaskLastScanUs": 810,
+        "TaskMaxScanUs": 8384,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "MinorFaultBits": 0,
+        "MajorFaultBits": 0
+      },
+      "last": {
+        "SchemaVersion": 1,
+        "Samples": 289668,
+        "PrevMinuteUs": 12915878,
+        "NowMinuteUs": 12915878,
+        "IntervalUs": 9974,
+        "JitterUs": 26,
+        "WinScans": 67,
+        "WinMaxIntervalUs": 10231,
+        "WinMinIntervalUs": 9746,
+        "WinMaxJitterUs": 254,
+        "MaxIntervalUs": 10193,
+        "MinIntervalUs": 9821,
+        "MaxJitterUs": 193,
+        "TaskLastScanUs": 783,
+        "TaskMaxScanUs": 8384,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "MinorFaultBits": 0,
+        "MajorFaultBits": 0
+      }
+    },
+    "gateway": {
+      "healthz": {
+        "httpCode": 200,
+        "body": {
+          "protocol": "fraktal.opcua.gateway.v1",
+          "status": "ready",
+          "plcReady": true,
+          "writeAccess": {
+            "enabled": true,
+            "roots": [
+              "Press"
+            ],
+            "allRootMailboxes": false
+          },
+          "lastControllerRead": "2026-10-05T02:57:03.332492+00:00"
+        }
+      },
+      "livez": {
+        "httpCode": 200,
+        "body": {
+          "protocol": "fraktal.opcua.gateway.v1",
+          "status": "live",
+          "plcReady": true,
+          "writeAccess": {
+            "enabled": true,
+            "roots": [
+              "Press"
+            ],
+            "allRootMailboxes": false
+          },
+          "lastControllerRead": "2026-10-05T02:57:03.332492+00:00"
+        }
+      },
+      "readyz": {
+        "httpCode": 200,
+        "body": {
+          "protocol": "fraktal.opcua.gateway.v1",
+          "status": "ready",
+          "plcReady": true,
+          "writeAccess": {
+            "enabled": true,
+            "roots": [
+              "Press"
+            ],
+            "allRootMailboxes": false
+          },
+          "lastControllerRead": "2026-10-05T02:57:03.332492+00:00"
+        }
+      }
+    },
+    "artifactSha256": "82AB065C32BCD112D49DD00839B8047C1B5E957A5356FB9D61EF3C1C2F3172A5"
+  },
+  "offline": {
+    "gate": {
+      "command": "python -B -m unittest discover -s . -p test_*.py",
+      "exitCode": 0,
+      "log": "C:\\work\\press75_harness_final_gate_01.log",
+      "passed": true
+    },
+    "gateSha256": "E19BD4DFC3A78E7EEE79EE744BE5272958B2530DB310FE6298809E3511AA36C9",
+    "logSha256": "89E8039AC7BBA7528A8C8B804A7D1FB72345B62E843A9AA51D6A34EC32187789",
+    "tests": 1607,
+    "focusedTests": 21,
+    "mutants": {
+      "rows": [
+        {
+          "module": "fraktal_ab_press_execute",
+          "test": "test_commands_follow_an_intervening_gateway_commit",
+          "failures": 1,
+          "errors": 0
+        },
+        {
+          "module": "fraktal_ab_press_execute",
+          "test": "test_an_outstanding_command_is_not_overwritten",
+          "failures": 1,
+          "errors": 0
+        },
+        {
+          "module": "fraktal_ab_press_execute",
+          "test": "test_a_cursor_change_during_staging_never_commits",
+          "failures": 1,
+          "errors": 0
+        },
+        {
+          "module": "fraktal_ab_phase3_execute",
+          "test": "test_setup_and_snapshot_time_are_not_subtracted_from_the_stall",
+          "failures": 1,
+          "errors": 0
+        },
+        {
+          "module": "fraktal_ab_phase6_sets_execute",
+          "test": "test_only_the_declared_version_is_accepted_with_or_without_line",
+          "failures": 2,
+          "errors": 0
+        }
+      ],
+      "passed": true
+    },
+    "mutantsSha256": "B2E8B107DBCFC907329744DD524826F4C391BBF493AAF8E38F9A8B26F99C34F6",
+    "rootTests": 33,
+    "consistencyErrors": 0,
+    "consistencyWarnings": 0
+  },
+  "harnessSources": {
+    "fraktal_ab_press_execute.py": "F3D7CE3CD61B3318BBF3A7C6AF3AB66009FC04C71A5CA19845A27139A5DC01B2",
+    "test_fraktal_ab_press_execute.py": "271AD50A178E732F8E2CCE9017AE7E365576238D2AB732BC131BB1B3559480D4",
+    "fraktal_ab_phase3_execute.py": "3D530313C7DCA9D0186897746DC3E9C5229886A4F25F3DEED38E4223942436A3",
+    "test_fraktal_ab_phase3_execute.py": "C2A5A902D94E3F2CC100260B7454970D81F68566C8383EBB3C5CFDAAB043E639",
+    "fraktal_ab_phase6_sets_execute.py": "CD9D185FB4DF0C71A561C818ABF5F25F2ACF547D1DFBD40633D97DC0DAC018B3",
+    "test_fraktal_ab_phase6_sets_execute.py": "E50F3047FD764A4D5866E95CA7A1D1AB0DD6A01FB8FEF107280CB759DE183CC9"
+  },
+  "preservedFailedRuns": [
+    {
+      "file": "C:\\work\\press75_hw_results.json",
+      "sha256": "EF0E1E5B9A225DC5B95B147A7A33F90D3BDE827E482BEEE18C1280505086A3F8",
+      "passed": false,
+      "restored": true,
+      "error": "fixture failed: shelving",
+      "failedSuites": {
+        "shelving": {
+          "exitCode": 1,
+          "passed": false,
+          "file": "C:\\work\\press75_hw_shelving.json",
+          "seconds": 67.942,
+          "tests": 15,
+          "error": null,
+          "guard": {
+            "expectedSerial": "7036B510",
+            "target": "192.168.100.89",
+            "checks": 131,
+            "writes": 131,
+            "blocked": 0
+          },
+          "health": {
+            "TaskLastScanUs": 800,
+            "TaskMaxScanUs": 7865,
+            "TaskOverlapCount": 0,
+            "MajorFaultBits": 0,
+            "MinorFaultBits": 0
+          }
+        }
+      }
+    },
+    {
+      "file": "C:\\work\\press75_hw_retry_01_results.json",
+      "sha256": "D6F55DDF4ED3D61E4ECDEBF662A3A5A2B2C59EAD900ECE2780125AB9386124C3",
+      "passed": false,
+      "restored": true,
+      "error": "",
+      "failedSuites": {}
+    },
+    {
+      "file": "C:\\work\\press75_hw_retry_02_results.json",
+      "sha256": "441372C2615828F335DCD87D3A654B17028B655ECE1322A7362DBAD7A2A5D271",
+      "passed": false,
+      "restored": true,
+      "error": "fixture failed: phase3",
+      "failedSuites": {
+        "phase3": {
+          "exitCode": 1,
+          "passed": false,
+          "file": "C:\\work\\press75_hw_retry_02_phase3.json",
+          "seconds": 55.946,
+          "tests": 8,
+          "error": null,
+          "guard": {
+            "expectedSerial": "7036B510",
+            "target": "192.168.100.89",
+            "checks": 167,
+            "writes": 167,
+            "blocked": 0
+          },
+          "health": {
+            "TaskLastScanUs": 817,
+            "TaskMaxScanUs": 8111,
+            "TaskOverlapCount": 0,
+            "MajorFaultBits": 0,
+            "MinorFaultBits": 0
+          }
+        }
+      }
+    },
+    {
+      "file": "C:\\work\\press75_hw_remaining_01_results.json",
+      "sha256": "EA3E10323C9942F0D1A57A917020A6878F77632EBBB51D0D95DC1F2E8DA82ACB",
+      "passed": false,
+      "restored": true,
+      "error": "fixture failed: sets",
+      "failedSuites": {
+        "sets": {
+          "exitCode": 1,
+          "passed": false,
+          "file": "C:\\work\\press75_hw_remaining_01_sets.json",
+          "seconds": 1.668,
+          "tests": 3,
+          "error": null,
+          "guard": {
+            "expectedSerial": "7036B510",
+            "target": "192.168.100.89",
+            "checks": 0,
+            "writes": 0,
+            "blocked": 0
+          },
+          "health": {
+            "TaskLastScanUs": 804,
+            "TaskMaxScanUs": 8159,
+            "TaskOverlapCount": 0,
+            "MajorFaultBits": 0,
+            "MinorFaultBits": 0
+          }
+        }
+      }
+    },
+    {
+      "file": "C:\\work\\press75_line_native_01.json",
+      "sha256": "1FC0106C3F495CF99FB8345E1435A7DB880572BC58385E29BD017552B635203E",
+      "passed": false,
+      "restored": true,
+      "error": "('setup/restore refused', 38, {'sequence': 1050, 'accepted': False, 'diagnosticKey': 618})",
+      "failedSuites": {}
+    },
+    {
+      "file": "C:\\work\\press75_line_native_02.json",
+      "sha256": "0039670A9953E294DC8F179C32BFD29D0AF36F0559C52650985D07F5099253DE",
+      "passed": false,
+      "restored": true,
+      "error": "unsupported operand type(s) for //: 'NoneType' and 'int'",
+      "failedSuites": {}
+    }
+  ],
+  "staleCommitGuard": {
+    "file": "C:/work/press75_hw_retry_01_shelving_guard.json",
+    "sha256": "2DECD624D2581F52A28E464F786EBB9F4683C8959F5E4D425BD65369F910722B",
+    "expectedSerial": "7036B510",
+    "target": "192.168.100.89",
+    "checks": 100,
+    "writes": 98,
+    "blocked": 2
+  },
+  "limits": [
+    "initial sequence-109 login trace cause remains unproved; isolated retry independently exposed stale harness counter",
+    "no new model created; four catalog entries and recipe banks restored",
+    "Line history gains two actual closures; profile snapshots counters before its defined reset, never rewrites history for cleanup",
+    "one weekend-only twelve-hour shift and natural end verified, not an accelerated all-week or eight-row overflow hardware matrix",
+    "time remains unsynchronized; no clock, firmware, network, keyswitch, physical power-cycle, download or write-gateway restart by agent",
+    "Chrome Line controls, physical Line retention, mirror/shared-root transport and remaining port stages are not accepted by this record"
+  ]
+}

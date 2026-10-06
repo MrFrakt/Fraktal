@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_SignalTower" Id="{3d47236a-7d2a-4866-8e7d-97cc5a90faad}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §8.13 — single state/alarm/operator-action mapping plus bounded lamp test.
+// Outputs are semantics only; the project Hardware Driver owns electrical I/O.
+FUNCTION_BLOCK FB_SignalTower
+VAR_OUTPUT
+    Status : ST_SignalTowerOut;
+END_VAR
+VAR
+    _testEdge : R_TRIG;
+    _testTimer : TON;
+    _testActive : BOOL;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Cyclic" Id="{2beef175-802d-41fd-814f-a2548ad57c46}">
+      <Declaration><![CDATA[METHOD Cyclic : BOOL
+VAR_INPUT
+    MachineState          : E_MachineState;
+    AlarmActive           : BOOL;
+    HighestSeverity       : E_Severity;
+    OperatorActionRequired: BOOL;
+    LampTestRequest       : BOOL;
+    ParCfg                : ST_SignalTowerParCfg;
+END_VAR
+VAR
+    duration : TIME;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[duration := ParCfg.LampTestDuration;
+IF (ParCfg.SchemaVersion <> 1) OR (duration <= T#0S) THEN
+    duration := T#3S;
+ELSIF duration > T#30S THEN
+    duration := T#30S;
+ELSE
+    ;
+END_IF
+_testEdge(CLK := LampTestRequest);
+IF _testEdge.Q THEN
+    _testActive := TRUE;
+    _testTimer(IN := FALSE);
+END_IF
+_testTimer(IN := _testActive, PT := duration);
+IF _testTimer.Q THEN
+    _testActive := FALSE;
+    _testTimer(IN := FALSE);
+END_IF
+
+Status.Red := FALSE;
+Status.Amber := FALSE;
+Status.Green := FALSE;
+Status.Blue := FALSE;
+Status.White := FALSE;
+Status.Horn := FALSE;
+Status.TestActive := _testActive;
+IF _testActive THEN
+    Status.Red := TRUE;
+    Status.Amber := TRUE;
+    Status.Green := TRUE;
+    Status.Blue := TRUE;
+    Status.White := TRUE;
+    Status.Horn := TRUE;
+ELSE
+    CASE MachineState OF
+        E_MachineState.DOWN:
+            Status.Red := TRUE;
+        E_MachineState.BLOCKED, E_MachineState.STARVED, E_MachineState.CHANGEOVER:
+            Status.Amber := TRUE;
+        E_MachineState.PRODUCING:
+            Status.Green := TRUE;
+        E_MachineState.IDLE, E_MachineState.STOPPED:
+            ;
+        ELSE
+            Status.Red := TRUE; // unknown state fails conspicuously
+    END_CASE
+    IF AlarmActive THEN
+        CASE HighestSeverity OF
+            E_Severity.HIGH:
+                Status.Red := TRUE;
+                Status.Green := FALSE;
+                IF ParCfg.HornOnHigh THEN Status.Horn := TRUE; ELSE ; END_IF
+            E_Severity.MED, E_Severity.LOW:
+                IF NOT Status.Red THEN Status.Amber := TRUE; ELSE ; END_IF
+            ELSE
+                Status.Red := TRUE;
+                Status.Green := FALSE;
+        END_CASE
+    ELSE
+        ;
+    END_IF
+    IF OperatorActionRequired THEN
+        IF ParCfg.OperatorUsesWhite THEN Status.White := TRUE; ELSE Status.Blue := TRUE; END_IF
+    ELSE
+        ;
+    END_IF
+END_IF
+Cyclic := TRUE;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

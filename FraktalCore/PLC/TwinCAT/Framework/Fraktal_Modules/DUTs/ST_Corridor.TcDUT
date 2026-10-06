@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_Corridor" Id="{94056a78-e382-467d-a349-cf4e80e36f8c}">
+    <Declaration><![CDATA[// Annex I I.10.2 - how a nest is entered from, or left toward, one serving
+// help. Steps are stored nest-ward -> help-ward: a DEPART corridor emits them
+// in that order, an APPROACH corridor emits them reversed and then the nest.
+// StepCount = 0 with ListId <> 0 names a taught list instead, for geometry a
+// few axis offsets cannot express.
+TYPE ST_Corridor :
+STRUCT
+    Steps     : ARRAY[1..PL_RobotPlanner.MAX_APPROACH_STEPS] OF ST_ApproachStep;
+    StepCount : INT;
+    ListId    : DWORD;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

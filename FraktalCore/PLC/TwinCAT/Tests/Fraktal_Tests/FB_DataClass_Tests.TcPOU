@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_DataClass_Tests" Id="{64091635-3f2d-403c-bf51-d4ac97e8baa5}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8d under test: data classes and raise-only per-value access.
+// Every test body is guarded: TcUnit calls finished tests every scan, and these
+// write to one shared probe.
+FUNCTION_BLOCK FB_DataClass_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u     : FB_ProbeConfigUnit;
+    _users : FB_LocalAccessProvider;
+    _store : FB_LocalConfigStore;
+    _pager : FB_ConfigPager;
+    _page  : ST_ConfigPage;
+    _entry : ST_ConfigEntry;
+    _info  : ST_ConfigSetInfo;
+    _init  : BOOL;
+    _i     : INT;
+    _w1, _w2, _w3, _w4, _w5, _w6, _w7 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Builtin_class_uses_DATA_WRITE();
+A_public_class_lets_an_operator_edit_its_values();
+A_value_can_only_raise_its_class();
+An_undeclared_class_fails_closed();
+Declaring_a_class_again_keeps_an_edited_level();
+The_manifest_publishes_effective_levels();
+A_set_load_needs_the_write_level_of_every_record();]]></ST>
+    </Implementation>
+    <Method Name="_M_Arm" Id="{6c67d88d-f0e1-4930-a867-995c33903bcf}">
+      <Declaration><![CDATA[// One-time wiring through the surface a composition root uses.
+METHOD PRIVATE _M_Arm]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _init THEN
+    RETURN;
+END_IF
+_init := TRUE;
+_u.Setup(Name := 'Test.Class');
+_u();
+_users.Register(User := 'op', Pin := '1111', Level := E_AccessLevel.OPERATOR);
+_users.Register(User := 'eng', Pin := '4242', Level := E_AccessLevel.ENGINEER);
+_users.Register(User := 'adm', Pin := '9999', Level := E_AccessLevel.ADMIN);
+_u.Access.Setup(Provider := _users, pAlarmLog := ADR(_u.AlarmLog));
+_u.Access.ConfigureRequired(Gate := E_GatedAction.DATA_WRITE, Level := E_AccessLevel.ENGINEER);
+_u.Access.ConfigureRequired(Gate := E_GatedAction.DATA_READ, Level := E_AccessLevel.NONE);
+_u.M_DeclareDataClass(ClassId := 'public', LabelKey := 'project.dataClass.public',
+    ReadLevel := E_AccessLevel.NONE, WriteLevel := E_AccessLevel.OPERATOR);
+// The class table is PERSISTENT: undo whatever a previous, interrupted run edited.
+_u.Access.M_SetClassLevel(ClassId := 'public', Level := E_AccessLevel.OPERATOR, ForWrite := TRUE);
+_u.Access.M_SetClassLevel(ClassId := 'public', Level := E_AccessLevel.NONE, ForWrite := FALSE);
+_u.Child.M_SetConfigAccess(WriteKey := 'probe.retries', ClassId := 'public',
+    MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.NONE);
+_u.Child.M_SetConfigAccess(WriteKey := 'probe.enabled', ClassId := 'public',
+    MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.ENGINEER);
+_u.Child.M_SetConfigAccess(WriteKey := 'probe.label', ClassId := 'ghost',
+    MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.NONE);
+_u.SetConfigStore(Store := _store);
+FOR _i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF NOT _store.M_InfoAt(Index := 1, Info := _info) THEN
+        EXIT;
+    END_IF
+    _u.DeleteConfigSet(SetName := _info.SetName);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Login" Id="{b66e6593-a400-4072-ab92-113996b61daf}">
+      <Declaration><![CDATA[// A login is a REQUEST that Access.Cyclic applies on the Unit's next call.
+METHOD PRIVATE _M_Login
+VAR_INPUT
+    User : STRING(32);
+    Pin  : STRING(32);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_u.Access.RequestLogin(User := User, Secret := Pin);
+_u();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Logout" Id="{649cd0cd-ef79-4cdc-9f8e-4f8a8fb857be}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Logout]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_u.Access.RequestLogout();
+_u();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_FindEntry" Id="{9c9bd309-fdea-4333-b6f0-6f1cba4b1185}">
+      <Declaration><![CDATA[// Walk the manifest exactly as QUERY_CONFIG does, with the root's access context,
+// and leave the entry for WriteKey in _entry.
+METHOD PRIVATE _M_FindEntry : BOOL
+VAR_INPUT
+    WriteKey : STRING(160);
+END_VAR
+VAR
+    page  : INT;
+    i     : INT;
+    pages : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_FindEntry := FALSE;
+pages := 1;
+_pager.M_SetAccess(pAccess := ADR(_u.Access));
+FOR page := 0 TO 63 DO
+    IF page >= pages THEN
+        RETURN;
+    END_IF
+    _pager.M_Setup(Target := ADR(_page), PageIndex := page, Revision := 1);
+    _u.M_AppendConfig(Pager := _pager);
+    _pager.M_Finish();
+    pages := _page.PageCount;
+    FOR i := 1 TO _page.EntryCount DO
+        IF _page.Entries[i].WriteKey = WriteKey THEN
+            _entry := _page.Entries[i];
+            _M_FindEntry := TRUE;
+            RETURN;
+        END_IF
+    END_FOR
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Builtin_class_uses_DATA_WRITE" Id="{0cd2d550-a274-4c58-9996-908a3f7d2e34}">
+      <Declaration><![CDATA[// §3.8d(a): a value registered without a class behaves exactly as before.
+METHOD Builtin_class_uses_DATA_WRITE]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Builtin_class_uses_DATA_WRITE');
+_M_Arm();
+IF NOT _w1 THEN
+    _M_Login(User := 'op', Pin := '1111');
+    AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.Class.Child',
+        WriteKey := 'probe.settleTime', Revision := 1, TextValue := '100'),
+        Message := 'an OPERATOR cannot write a built-in value while DATA_WRITE is ENGINEER');
+    _M_Login(User := 'eng', Pin := '4242');
+    AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Class.Child',
+        WriteKey := 'probe.settleTime', Revision := 1, TextValue := '100'),
+        Message := 'an ENGINEER can');
+    _M_Logout();
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_public_class_lets_an_operator_edit_its_values" Id="{efb55c31-4638-4fae-bfae-6dd9bffa36de}">
+      <Declaration><![CDATA[// §3.8d(a): the whole point - one class open to an OPERATOR while the rest of
+// the station data stays at ENGINEER.
+METHOD A_public_class_lets_an_operator_edit_its_values]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_public_class_lets_an_operator_edit_its_values');
+_M_Arm();
+IF NOT _w2 THEN
+    _M_Login(User := 'op', Pin := '1111');
+    AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Class.Child',
+        WriteKey := 'probe.retries', Revision := 1, TextValue := '5'),
+        Message := 'a value in the public class is writable at OPERATOR');
+    AssertEquals_DINT(Expected := 5, Actual := _u.Child.Retries,
+        Message := 'and the value really changed');
+    _M_Logout();
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_value_can_only_raise_its_class" Id="{9083dc62-dd0b-4666-94ba-43350ffc1f1f}">
+      <Declaration><![CDATA[// §3.8d(c): a value's own minimum raises its class's level, never lowers it.
+METHOD A_value_can_only_raise_its_class]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_value_can_only_raise_its_class');
+_M_Arm();
+IF NOT _w3 THEN
+    _M_Login(User := 'op', Pin := '1111');
+    AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.Class.Child',
+        WriteKey := 'probe.enabled', Revision := 1, TextValue := 'FALSE'),
+        Message := 'a public-class value with its own ENGINEER minimum refuses an OPERATOR');
+    _M_Login(User := 'eng', Pin := '4242');
+    AssertTrue(Condition := _u.WriteConfig(TargetPath := 'Test.Class.Child',
+        WriteKey := 'probe.enabled', Revision := 1, TextValue := 'FALSE'),
+        Message := 'and accepts an ENGINEER');
+    AssertTrue(Condition := _u.Child.M_SetConfigAccess(WriteKey := 'probe.enabled',
+        ClassId := 'public', MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.NONE),
+        Message := 'the minimum can be taken away again by the code that set it');
+    AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR),
+        Actual := TO_DINT(_u.Access.M_DataLevel(ClassId := 'public', MinLevel := E_AccessLevel.NONE,
+            ForWrite := TRUE)),
+        Message := 'a minimum of NONE leaves the class level, it does not lower it');
+    _u.Child.M_SetConfigAccess(WriteKey := 'probe.enabled', ClassId := 'public',
+        MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.ENGINEER);
+    _M_Logout();
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="An_undeclared_class_fails_closed" Id="{54de0509-4f4f-4fd4-ac70-fd2394980b36}">
+      <Declaration><![CDATA[// §3.8d: a value placed in a class the root never declared is ADMIN-only, so a
+// typo in a class id locks a value down instead of opening it.
+METHOD An_undeclared_class_fails_closed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('An_undeclared_class_fails_closed');
+_M_Arm();
+IF NOT _w4 THEN
+    _M_Login(User := 'eng', Pin := '4242');
+    AssertFalse(Condition := _u.WriteConfig(TargetPath := 'Test.Class.Child',
+        WriteKey := 'probe.label', Revision := 2, TextValue := 'x'),
+        Message := 'an undeclared class refuses even an ENGINEER');
+    AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.ADMIN),
+        Actual := TO_DINT(_u.Access.M_DataLevel(ClassId := 'ghost', MinLevel := E_AccessLevel.NONE,
+            ForWrite := TRUE)),
+        Message := 'because it resolves to ADMIN');
+    _M_Logout();
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Declaring_a_class_again_keeps_an_edited_level" Id="{547435eb-8f6f-4636-b8e3-7e88608dc254}">
+      <Declaration><![CDATA[// §3.8d(b): declared levels are defaults. A class is declared on every boot, and a
+// level the deployment edited must survive that.
+METHOD Declaring_a_class_again_keeps_an_edited_level]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Declaring_a_class_again_keeps_an_edited_level');
+_M_Arm();
+IF NOT _w5 THEN
+    AssertTrue(Condition := _u.SetDataClassLevel(ClassId := 'public',
+        Level := TO_DINT(E_AccessLevel.TECHNICIAN), ForWrite := TRUE),
+        Message := 'the policy path edits a class level');
+    AssertTrue(Condition := _u.M_DeclareDataClass(ClassId := 'public',
+        LabelKey := 'project.dataClass.public', ReadLevel := E_AccessLevel.NONE,
+        WriteLevel := E_AccessLevel.OPERATOR), Message := 'the class is declared again, as at boot');
+    AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.TECHNICIAN),
+        Actual := TO_DINT(_u.Access.M_DataLevel(ClassId := 'public', MinLevel := E_AccessLevel.NONE,
+            ForWrite := TRUE)),
+        Message := 'and the edited level stands; the declaration was only a default');
+    AssertFalse(Condition := _u.SetDataClassLevel(ClassId := 'public', Level := 9, ForWrite := TRUE),
+        Message := 'an out-of-range level is refused');
+    _u.SetDataClassLevel(ClassId := 'public', Level := TO_DINT(E_AccessLevel.OPERATOR), ForWrite := TRUE);
+    _w5 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="The_manifest_publishes_effective_levels" Id="{35b7f163-b3a6-49eb-a99b-f177f2eb69cf}">
+      <Declaration><![CDATA[// §3.8d(d): the PLC computes the effective levels, so a client greys from data;
+// and an unreadable value is served WITHOUT its value, never silently dropped.
+METHOD The_manifest_publishes_effective_levels]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('The_manifest_publishes_effective_levels');
+_M_Arm();
+IF NOT _w6 THEN
+    _M_Logout();
+    AssertTrue(Condition := _M_FindEntry(WriteKey := 'probe.retries'),
+        Message := 'the public value is in the manifest');
+    AssertEquals_STRING(Expected := 'public', Actual := _entry.ClassId, Message := 'with its class');
+    AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR), Actual := TO_DINT(_entry.WriteLevel),
+        Message := 'and its effective write level');
+    AssertTrue(Condition := _M_FindEntry(WriteKey := 'probe.enabled'),
+        Message := 'the raised value is in the manifest');
+    AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.ENGINEER), Actual := TO_DINT(_entry.WriteLevel),
+        Message := 'at the RAISED level, not the class level');
+    AssertTrue(Condition := _M_FindEntry(WriteKey := 'probe.label'),
+        Message := 'the undeclared-class value is still listed');
+    AssertFalse(Condition := _entry.Readable, Message := 'as unreadable');
+    AssertEquals_STRING(Expected := '', Actual := _entry.ValueText,
+        Message := 'and without its value');
+    _w6 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_set_load_needs_the_write_level_of_every_record" Id="{47a3ac32-81e1-42d0-a8d5-70db22a878d0}">
+      <Declaration><![CDATA[// §3.8d(e): CONFIG_SET alone cannot replace a value the same user could not edit
+// one at a time - otherwise a set is a way around every class.
+METHOD A_set_load_needs_the_write_level_of_every_record]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_set_load_needs_the_write_level_of_every_record');
+_M_Arm();
+IF NOT _w7 THEN
+    _M_Login(User := 'eng', Pin := '4242');
+    AssertTrue(Condition := _u.SaveConfigSet(SetName := 'classed',
+        Kind := E_ConfigKind.STATION_CFG), Message := 'an ENGINEER saves a station set');
+    _M_Login(User := 'op', Pin := '1111');
+    AssertFalse(Condition := _u.LoadConfigSet(SetName := 'classed'),
+        Message := 'an OPERATOR may not load it: it carries ENGINEER-level values');
+    AssertTrue(Condition := _u.ConfigPersist.LastRejectKey <> '',
+        Message := 'and the refusal names the record that needed more');
+    // The set also carries probe.label, whose class was never declared and so is
+    // ADMIN-only: an ENGINEER is refused too, and the refusal names that record.
+    _M_Login(User := 'eng', Pin := '4242');
+    AssertFalse(Condition := _u.LoadConfigSet(SetName := 'classed'),
+        Message := 'an ENGINEER may not load a set carrying an ADMIN-only value');
+    AssertEquals_STRING(Expected := 'probe.label', Actual := _u.ConfigPersist.LastRejectKey,
+        Message := 'and the refusal names exactly that value');
+    _M_Login(User := 'adm', Pin := '9999');
+    AssertTrue(Condition := _u.LoadConfigSet(SetName := 'classed'),
+        Message := 'a session that could edit every value one at a time may load the set');
+    _M_Logout();
+    _w7 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

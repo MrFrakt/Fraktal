@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4024.75">
+	<Project ProjectGUID="{47847F5D-A7A9-2EE6-9663-E5F33C64F76C}" ShowHideConfigurations="#x6">
+		<System>
+			<Settings MaxCpus="64" NonWinCpus="63"/>
+			<Licenses>
+				<Target>
+					<ManualSelect>{BDCC0070-42D5-49AE-ABF1-1D4434813D60}</ManualSelect>
+				</Target>
+			</Licenses>
+			<Tasks>
+				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
+					<Name>PlcTask</Name>
+				</Task>
+			</Tasks>
+		</System>
+		<Plc>
+			<Project GUID="{E44647C8-D00F-4060-B6E0-4533AD6C2F44}" Name="Fraktal_Core" PrjFilePath="Fraktal_Core\Fraktal_Core.plcproj" TmcFilePath="Fraktal_Core\Fraktal_Core.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Fraktal_Core\Fraktal_Core.tmc" TmcHash="{DFA249EB-8148-1614-76B1-C2E97A864FB0}">
+					<Name>Fraktal_Core Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>1</Id>
+							<Name>Default</Name>
+						</Context>
+					</Contexts>
+				</Instance>
+			</Project>
+			<Project GUID="{E445472D-B1E1-45EB-AC0F-FF9A3CCC3364}" Name="Fraktal_Modules" PrjFilePath="Fraktal_Modules\Fraktal_Modules.plcproj" TmcFilePath="Fraktal_Modules\Fraktal_Modules.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="Fraktal_Modules\Fraktal_Modules.tmc" TmcHash="{551F1EF3-0CD0-ECC1-4CA9-A1BB2441E026}">
+					<Name>Fraktal_Modules Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>1</Id>
+							<Name>Default</Name>
+						</Context>
+					</Contexts>
+				</Instance>
+			</Project>
+		</Plc>
+	</Project>
+</TcSmProject>

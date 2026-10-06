@@ -1,0 +1,110 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="PL_Fraktal" Id="{f799b7c8-d019-4817-b1c7-7035795ae805}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Fraktal Core — framework constants (Core §7.2, §3.2, §6.5, §3.16, §6.11)
+VAR_GLOBAL CONSTANT
+    MAX_PERMINTLK_COND   : INT := 16;   // Core §7.2 (default 16)
+    MAX_EM_CHILDREN      : INT := 16;
+    MAX_SEQUENCES        : INT := 16;
+    // Core §3.13 — rows in a published sequence flow chart. 32 covered the demo but
+    // not a real machine: a station chain of a hundred-odd steps is ordinary, and the
+    // overflow is SILENT (the row is dropped, the chart just stops growing).
+    //
+    // The cost is per Unit and it is nearly all strings: one row is ~1.16 kB, of which
+    // 98% is the five localization-key and path fields. 128 rows is ~145 kB of PLC
+    // memory per Unit and 2176 OPC UA nodes, which is why SequenceSteps is an
+    // ON-DEMAND subtree on the HMI side (read while the Sequence tab is open, never in
+    // the cyclic snapshot) - see Specification/HMI_CONTRACT.md. Raising this further
+    // costs linearly in both; shortening the string fields is the lever if it matters.
+    MAX_SEQUENCE_STEPS   : INT := 128;
+    // Core §6.9 — errors/messages attached to flow-chart rows at once. Sparse by
+    // nature (one error; a message per step visit until that step runs again), so
+    // this is far below MAX_SEQUENCE_STEPS on purpose. If it fills, the row keeps
+    // its mark and loses only the text (§5.6 degrade, never mislead).
+    MAX_SEQUENCE_ANNOTATIONS : INT := 16;   // Core §6.8 — chains attached to one Unit (incl. sub-chains)   // Core §3.2 / §8.2
+    MAX_STEP_CONDS       : INT := 8;    // Core §6.9(b) condition records per step
+    // Core §3.12 — derived state flags a module may publish. Statically sized
+    // per module like every other Fraktal table (§1.1 O10).
+    MAX_STATE_FLAGS      : INT := 12;
+    MAX_GENEALOGY        : INT := 8;    // Core §3.16.1
+    MAX_RESULTS          : INT := 32;   // Core §3.16.1
+    MAX_OPTIONS          : INT := 6;    // Core §6.11
+    MAX_CMD_STATS        : INT := 8;    // Core §8.11.4(a) — distinct command ids per module
+    MAX_PROFILE_STEPS    : INT := 32;   // Core §8.11.4(b) — steps per cycle profile
+    MAX_RECIPES          : INT := 16;   // Core §3.8 — records per FB_LocalRecipeProvider
+    MAX_MODEL_DATA_BYTES : UDINT := 1024; // Core §3.8a — a Unit's own recipe record, edited per model
+    MAX_MODEL_FIELDS     : INT := 8;    // Core §3.8a — client-defined named model fields
+    MAX_ALARM_ACTIVE     : INT := 16;   // Core §8.3 — concurrently open events per Unit
+    MAX_ALARM_RING       : INT := 64;   // Core §8.3 — closed-event history ring per Unit
+    MAX_HOST_EVENTS      : INT := 32;   // Core §11.6 — per-Unit north-bound event ring
+    MAX_USERS            : INT := 16;   // Core §7.7 — FB_LocalAccessProvider user table
+    PIN_HASH_ROUNDS      : UINT := 256; // §14 — extra SHA-256 rounds per stored PIN (one login ~1 ms)
+    MAX_POS_SENSORS      : INT := 2;    // redundant sensors per cylinder position (duplex; raise for 2oo3)
+    MAX_NODE_CHANNELS    : INT := 16;   // Core §10.5.1 — I/O channels per fieldbus node
+    MAX_BUS_NODES        : INT := 64;   // Core §10.5.1 — nodes in the flat topology table
+    // Core §7.5.1 — commissioning/engineering gates one station may declare.
+    // Small on purpose: a station carrying more than a handful of deliberate
+    // departures from its production configuration has a process problem, not a
+    // table-size problem. Overflow sets FB_EngineeringMode.Truncated (§5.6).
+    MAX_ENGINEERING_GATES : INT := 8;
+    MAX_CMD_CATALOG      : INT := 12;   // Core §7.6.1 — manual commands a module may publish
+    MODE_COUNT           : INT := 7;    // Core §3.4 — E_Mode entries (AUTO..ADJUSTMENT), for policy array
+    MAX_RELEASE_REASONS  : INT := 24;   // Core §7.8 — entries in a release report
+    MAX_OEE_SAMPLES      : INT := 60;      // Core §8.5.1 — trend ring length
+    MAX_CYCLE_HISTORY    : INT := 60;      // Core §8.11.4 — per-cycle summary ring (trend charts)
+    OEE_SAMPLE_MS        : UDINT := 60000; // Core §8.5.1 — sample period (1 min)
+    MAX_ALARM_META       : INT := 32;      // Core §8.9 — rationalization records per log
+    MAX_SHELF_S          : UDINT := 28800; // Core §8.10 — shelf cap (8h)
+    MAX_DIAG_RING        : INT := 16;   // Core §6.9(a) — Unit diagnostic history depth
+    MAX_CONFIG_PAGE      : INT := 16;   // Core §3.10.2 — config-manifest entries per mailbox page
+    MAX_CONFIG_WRITES    : INT := 12;   // Core §3.8b — editable values one module may register
+    // Core §3.8b — named parameter sets held by FB_LocalConfigStore, and records
+    // per set. Both cost PERSISTENT memory directly: one record is ~340 B, so the
+    // shipped 4 × 32 reserves roughly 44 kB of the controller's persistent budget.
+    // A deployment needing more sizes the PLC persistent area to match, or wires a
+    // FILE_JSON/EXTERNAL store instead — the framework never grows this at run time.
+    MAX_CONFIG_SETS      : INT := 4;
+    MAX_DATA_CLASSES     : INT := 8;
+    MAX_LINE_RECORDS     : INT := 32;
+    MAX_WEEKLY_SHIFTS    : INT := 5; // additive V3 capacity; daily layout stays four
+    MAX_SHIFTS           : INT := 4;   // §8.5.2 shifts in a line's calendar
+    MAX_SHIFT_HISTORY    : INT := 8;   // §8.5.2 closed shifts a Unit keeps  // §3.8e values one line carries   // §3.8d project-declared data classes per root
+    MAX_SET_RECORDS      : INT := 32;
+    // Core §3.8b — the DECLARED bounded window an accepted configuration write has
+    // to reach non-volatile storage. Publishing the number is the point: "durability
+    // is a stated property, not a hope", and a station whose store cannot meet it
+    // says so through PersistFailed instead of reverting silently at the next start.
+    CONFIG_PERSIST_WINDOW_MS : UDINT := 5000;
+    // Core §7.6.1a — how long a latched hold-to-run request survives without a
+    // refresh from the client. Long enough to ride out transport jitter, short
+    // enough that a closed HMI or a dead link lets go rather than leaving the
+    // machine moving. The module's own JogTimeout is the second, shorter net.
+    MANUAL_HELD_REFRESH_MS : DWORD := 750;
+    // Core §3.13/§3.10.2 — how long the flow chart must stop growing before the
+    // manifest revision is raised for it.
+    //
+    // §3.13 rows are discovered by VISIT, one at a time, while the manifest is
+    // invalidated ALL AT ONCE. A per-row bump therefore asked a client to
+    // refetch the entire manifest once per row: entering AUTO on the press
+    // discovers 15 rows where HOME discovers 2, which is why HOME->AUTO stalled
+    // and HOME->HOME did not.
+    //
+    // Waiting for the burst to settle is strictly better than bumping per row,
+    // on BOTH counts: far fewer refetches, and the client fetches AFTER the
+    // chart stops growing rather than during it - which is the very failure the
+    // per-row bump was written to avoid ("a chart that grows after the HMI's
+    // fetch would render every new row with StepNo 0 and no text").
+    CHART_REV_SETTLE_MS : DWORD := 1000;
+    MAX_SAFETY_DEVICES   : INT := 16;   // Core §9 — published safety aliases per module/zone
+    MAX_POWER_GROUPS     : INT := 8;    // Core §9 — independently controlled energy groups
+    MAX_CONTROL_DOMAIN_UNITS : INT := 16; // Core §9.8 — root Units sharing one arrangement
+    // Core §6.12 — concurrent legs one chain may run at once. It bounds the
+    // per-leg transition results AND every per-leg step-scoped latch, so it is a
+    // real memory cost per chain, not a loop limit (§1.1 O10: statically sized,
+    // no run-time allocation). Legs are numbered 1..n; 0 is the main line and is
+    // always available on top of these.
+    MAX_PARALLEL_BRANCHES : INT := 9;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

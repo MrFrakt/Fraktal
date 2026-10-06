@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_EngineeringGate" Id="{dd92feac-6e1a-4a13-9b89-472774f96010}">
+    <Declaration><![CDATA[// Core §7.5.1 — one ACTIVE commissioning/engineering gate in the station register.
+// There is deliberately no `Active` member: a gate is a build constant (§7.5.1),
+// so an inactive gate is not registered at all. A production station therefore
+// publishes an EMPTY register, and the surfaces its gates control are invisible
+// rather than merely disabled (§3.9).
+TYPE ST_EngineeringGate :
+STRUCT
+    Name           : STRING(80);    // stable gate identity, e.g. 'OUTPUT_FORCING'
+    DescriptionKey : STRING(160);   // localization key for the §7.5.2 annunciation
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

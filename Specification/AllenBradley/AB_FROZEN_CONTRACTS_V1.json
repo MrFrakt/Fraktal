@@ -1,0 +1,246 @@
+{
+  "schema": "fraktal.ab.frozen-contracts",
+  "schemaVersion": 1,
+  "note": "Machine-readable freeze of the AB R3 logical contracts. Fraktal_AB_Part_III.md remains the normative prose; this file is the single artifact a generator, a gateway and a gate all read so the same field list is never transcribed twice. tools/check_ab_contracts.py enforces that the two agree.",
+  "baseline": {
+    "controller": "1769-L24ER-QB1B",
+    "firmware": "33.014",
+    "studio": "Logix Designer v33",
+    "typeMapEvidence": "AB_S12_TYPE_MAP_EVIDENCE.md"
+  },
+  "logicalTypes": {
+    "bool": {"logix": "BOOL", "available": true},
+    "int8": {"logix": "SINT", "available": true},
+    "int16": {"logix": "INT", "available": true},
+    "int32": {"logix": "DINT", "available": true},
+    "int64": {
+      "logix": "LINT",
+      "available": true,
+      "arithmetic": false,
+      "note": "Declares, carries in a UDT and round-trips over CIP, but no arithmetic form compiles on this target. Accumulation belongs in the gateway."
+    },
+    "float32": {"logix": "REAL", "available": true},
+    "float64": {
+      "logix": "LREAL",
+      "available": false,
+      "note": "Studio rejects the declaration for this controller type. A Core value needing 64-bit float states its REAL precision loss in the contract or the controller leaves the baseline; narrowing it silently is forbidden."
+    },
+    "bitstring32": {"logix": "DINT", "available": true, "note": "masked; there is no distinct bit-string type"},
+    "duration_ms": {
+      "logix": "DINT",
+      "available": true,
+      "rangeChecked": true,
+      "note": "There is no native TIME or TIME32 on this target - the project will not import - so duration is integer milliseconds with a controller-side range check."
+    },
+    "string": {"logix": "STRING or a StringFamily type sized to the declared maximum", "available": true},
+    "enum": {"logix": "DINT constant in FRK_K", "available": true},
+    "timestamp": {"logix": "DINT pair", "available": true, "unresolved": "representation is not frozen; see openHoles"},
+    "composite": {"logix": "generated UDT", "available": true},
+    "declared": {"logix": "operation-declared, see the manifest row", "available": true}
+  },
+  "encodingRules": [
+    "UDT member layout and array stride shall be derived from a measured stride for the target, never from member widths alone. On the pinned baseline a flat BOOL/SINT/INT/DINT/LINT/REAL type occupied 24 bytes with a 24-byte stride, four of them trailing padding forced by the LINT's 8-byte alignment.",
+    "NaN shall be detected by bit pattern or range, never by a self-comparison: the pattern transports faithfully over CIP but Logix ST evaluates NaN <> NaN as false.",
+    "Integer overflow wraps two's-complement with ReportMinorOverflow false, so range checking is the generator's responsibility.",
+    "Arrays are zero-based; a lower bound other than zero does not exist on this target.",
+    "STRING.LEN counts bytes. The UTF-8 policy above ASCII is not frozen; see openHoles."
+  ],
+  "capacities": [
+    {"symbol": "FRK_MAX_ROOTS", "owner": "S7", "resolved": true, "value": 4, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {"symbol": "FRK_MAX_MODULES", "owner": "S7", "resolved": true, "value": 128, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {"symbol": "FRK_MAX_FIELDS", "owner": "S7", "resolved": true, "value": 512, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {"symbol": "FRK_MAX_OPERATIONS", "owner": "S7", "resolved": true, "value": 128, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {"symbol": "FRK_MAX_LOCALIZATION_KEYS", "owner": "S7", "resolved": true, "value": 256, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {"symbol": "FRK_MAX_REASONS", "owner": "S7", "resolved": true, "value": 128, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {"symbol": "FRK_MAX_OPTIONAL_PROFILES", "owner": "S7", "resolved": true, "value": 8, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {"symbol": "FRK_MAX_HOSTEVENT_RECORDS", "owner": "S7", "resolved": true, "value": 64, "evidence": "AB_S7_MANIFEST_EVIDENCE.md"},
+    {
+      "symbol": "FRK_MAX_MAILBOX_ARGUMENTS",
+      "owner": "S9",
+      "resolved": false,
+      "derivationRule": "Derived, not chosen: the whole request payload shall fit one unfragmented connected write at S1's conservative 500-byte connection size, so that no controller scan can fall between payload fragments. An operation needing more carries an operation ID plus a bounded argument set; large payloads are a staged configuration write, never a command."
+    }
+  ],
+  "capacityNote": "Every S7 value was measured at exactly that capacity, not extrapolated: the fixture materialised these table sizes and the whole manifest was read from the controller. Raising one is a cost-curve calculation against AB_S7_MANIFEST_EVIDENCE.md, not a new spike - but the set shall be reviewed against a real station's module and field census before Phase 3, because FRK_MAX_FIELDS in particular is the first symbol a large station would exhaust.",
+  "openHoles": [
+    {"item": "UTF-8 policy above ASCII", "owner": "S12", "note": "STRING.LEN was proved to count bytes, but only ASCII was written."},
+    {"item": "timestamp and synchronization-quality representation as a generated member", "owner": "S12"},
+    {"item": "coherence-token behaviour, freshness thresholds, poll budgets, quality/timestamp mapping", "owner": "S9"},
+    {"item": "manifest table splitting and CIP fragmentation", "owner": "S7"},
+    {"item": "GSV-sourced health and timing fields", "owner": "S3"},
+    {
+      "item": "commit-marker atomicity under a fragmented, batched or reordered transport write",
+      "owner": "S9",
+      "appliesTo": ["Fraktal/AB", "Fraktal/TC3"],
+      "note": "Both bindings assume every argument is visible to the scan before the commit marker is. AB removes fragmentation by bounding the payload to one connected write; TC3 has no equivalent bound. Untested in either. Test segmented writes, out-of-order argument commits, and a scan interleaved between argument and sequence writes before any writable deployment. The fallback - two-slot or seqlock - would apply to both bindings. Recorded in AB §7.7 and TC3 §3.10."
+    }
+  ],
+  "contracts": {
+    "registry": {
+      "version": 1,
+      "partIIIMarker": "Logical registry schema, version 1",
+      "header": [
+        {"name": "SchemaMajor", "type": "int32"},
+        {"name": "SchemaMinor", "type": "int32"},
+        {"name": "ConfigRevision", "type": "int32"},
+        {"name": "Count", "type": "int32"},
+        {"name": "Capacity", "type": "int32"},
+        {"name": "Valid", "type": "bool"}
+      ],
+      "rowGroups": {
+        "identity": [
+          {"name": "RegistryIndex", "type": "int32"},
+          {"name": "ModuleId", "type": "int32"},
+          {"name": "RootId", "type": "int32"},
+          {"name": "ParentModuleId", "type": "int32"},
+          {"name": "Tier", "type": "enum"},
+          {"name": "TypeId", "type": "int32"},
+          {"name": "Capabilities", "type": "bitstring32"},
+          {"name": "Valid", "type": "bool"}
+        ],
+        "execution": [
+          {"name": "ExecState", "type": "enum"},
+          {"name": "Busy", "type": "bool"},
+          {"name": "Done", "type": "bool"},
+          {"name": "Error", "type": "bool"},
+          {"name": "Aborted", "type": "bool"},
+          {"name": "Held", "type": "bool"},
+          {"name": "ErrorId", "type": "int32"}
+        ],
+        "firstOut": [
+          {"name": "ReasonCode", "type": "int32"},
+          {"name": "ModuleId", "type": "int32"},
+          {"name": "Since", "type": "timestamp"},
+          {"name": "TimeSynchronized", "type": "bool"}
+        ],
+        "coherence": [
+          {"name": "DataRevision", "type": "int32"}
+        ]
+      },
+      "capacity": "FRK_MAX_MODULES"
+    },
+    "manifest": {
+      "version": 1,
+      "partIIIMarker": "manifest logical schema version 1",
+      "header": [
+        {"name": "Magic", "type": "int32"},
+        {"name": "SchemaMajor", "type": "int32"},
+        {"name": "SchemaMinor", "type": "int32"},
+        {"name": "CoreVersion", "type": "int32"},
+        {"name": "BindingVersion", "type": "int32"},
+        {"name": "FrameworkVersion", "type": "int32"},
+        {"name": "ConfigRevision", "type": "int32"},
+        {"name": "ContentHash", "type": "string"},
+        {"name": "ControllerIdentity", "type": "string"},
+        {"name": "Valid", "type": "bool"},
+        {"name": "Truncated", "type": "bool"}
+      ],
+      "tables": [
+        {"table": "Roots", "capacity": "FRK_MAX_ROOTS"},
+        {"table": "Modules", "capacity": "FRK_MAX_MODULES"},
+        {"table": "Nameplates", "capacity": "FRK_MAX_MODULES"},
+        {"table": "Fields", "capacity": "FRK_MAX_FIELDS"},
+        {"table": "Operations", "capacity": "FRK_MAX_OPERATIONS"},
+        {"table": "Localization", "capacity": "FRK_MAX_LOCALIZATION_KEYS"},
+        {"table": "Rationalization", "capacity": "FRK_MAX_REASONS"},
+        {"table": "OptionalProfiles", "capacity": "FRK_MAX_OPTIONAL_PROFILES"}
+      ]
+    },
+    "valueEnvelope": {
+      "version": 1,
+      "partIIIMarker": "logical value envelope, version 1",
+      "fields": [
+        {"name": "PathId", "type": "int32"},
+        {"name": "LogicalType", "type": "enum"},
+        {"name": "Value", "type": "declared", "optional": true},
+        {"name": "Quality", "type": "enum"},
+        {"name": "QualityReason", "type": "int32"},
+        {"name": "SourceTimestamp", "type": "timestamp", "optional": true},
+        {"name": "SourceTimeSynchronized", "type": "bool"},
+        {"name": "ServerTimestamp", "type": "timestamp"},
+        {"name": "DataRevision", "type": "int32"}
+      ],
+      "qualityValues": ["GOOD", "UNCERTAIN", "BAD"]
+    },
+    "mailbox": {
+      "version": 1,
+      "partIIIMarker": "mailbox logical schema version 1",
+      "request": [
+        {"name": "SchemaVersion", "type": "int32"},
+        {"name": "CommitSeq", "type": "int32"},
+        {"name": "OperationId", "type": "int32"},
+        {"name": "RootId", "type": "int32"},
+        {"name": "TargetModuleId", "type": "int32"},
+        {"name": "ArgumentSchema", "type": "declared"},
+        {"name": "Arguments", "type": "declared"},
+        {"name": "Secret", "type": "string", "optional": true}
+      ],
+      "response": [
+        {"name": "SchemaVersion", "type": "int32"},
+        {"name": "AckSeq", "type": "int32"},
+        {"name": "Accepted", "type": "bool"},
+        {"name": "ReasonCode", "type": "int32"},
+        {"name": "DescriptionKey", "type": "int32"},
+        {"name": "ResultingState", "type": "declared"},
+        {"name": "ReleaseReport", "type": "declared", "optional": true},
+        {"name": "PlcTimestamp", "type": "timestamp"},
+        {"name": "TimeSynchronized", "type": "bool"},
+        {"name": "ConfigRevision", "type": "int32"}
+      ],
+      "commitRule": "CommitSeq is nonzero, monotonic, and physically written last; it is the only commit marker. Transport write success is never command acceptance. This is the same commit-marker design TC3 uses, where the client writes all request arguments first and the Sequence last, so a defect here is a defect in both bindings.",
+      "writeEnablement": "The initial claim is read-only. Writes are switched on at the gateway by configuring a write root, which requires no controller download because the generated allow-list already gives root mailboxes read/write. Enabling a write root makes the transport command-capable and arms Core §14 in full: authenticated principals, least-privilege roles, and no anonymous write. A new project shall be asked explicitly which it is.",
+      "capacity": "FRK_MAX_MAILBOX_ARGUMENTS"
+    },
+    "repositoryNegotiation": {
+      "version": 1,
+      "partIIIMarker": "Repository negotiation schema, version 1",
+      "messages": {
+        "ClientHello": [
+          {"name": "Protocol", "type": "string", "constant": "fraktal.repository"},
+          {"name": "Major", "type": "int32"},
+          {"name": "MinMinor", "type": "int32"},
+          {"name": "MaxMinor", "type": "int32"},
+          {"name": "ClientInstanceId", "type": "string"}
+        ],
+        "ServerHello": [
+          {"name": "Major", "type": "int32"},
+          {"name": "Minor", "type": "int32"},
+          {"name": "ServerInstanceId", "type": "string"},
+          {"name": "ConnectionRevision", "type": "int32"},
+          {"name": "DiscoveryRevision", "type": "int32"}
+        ],
+        "Incompatible": [
+          {"name": "ReasonCode", "type": "int32"}
+        ]
+      },
+      "orderRule": "No snapshot, discovery row, targeted read, subscription request, mutation or acknowledgement is accepted before ServerHello. Every later frame carries the selected version and ConnectionRevision."
+    },
+    "hostEvents": {
+      "version": 1,
+      "partIIIMarker": "HostEvents logical schema, version 1",
+      "ringMetadata": [
+        {"name": "SchemaVersion", "type": "int32"},
+        {"name": "Head", "type": "int32"},
+        {"name": "Count", "type": "int32"},
+        {"name": "Capacity", "type": "int32"},
+        {"name": "Wrapped", "type": "bool"},
+        {"name": "NewestSequence", "type": "int32"},
+        {"name": "DataRevision", "type": "int32"}
+      ],
+      "record": [
+        {"name": "Sequence", "type": "int32"},
+        {"name": "Kind", "type": "enum"},
+        {"name": "StationPath", "type": "string"},
+        {"name": "PartUid", "type": "string"},
+        {"name": "Subject", "type": "string"},
+        {"name": "Value", "type": "declared"},
+        {"name": "Stamp", "type": "timestamp"},
+        {"name": "TimeSynchronized", "type": "bool"},
+        {"name": "Verdict", "type": "enum"},
+        {"name": "ReasonCode", "type": "int32"}
+      ],
+      "capacity": "FRK_MAX_HOSTEVENT_RECORDS",
+      "readOnly": true
+    }
+  }
+}

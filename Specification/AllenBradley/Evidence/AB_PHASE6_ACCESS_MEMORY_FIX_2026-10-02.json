@@ -1,0 +1,962 @@
+{
+  "schema": "fraktal.ab.phase6-access-memory-fix",
+  "schema_version": 1,
+  "date_local": "2026-10-02",
+  "timezone": "America/Bogota",
+  "source_parent_commit": "a90c6ccbb5045d45a0f67870afbfffd323013a95",
+  "owner_result": {
+    "artifact": "press57.L5X",
+    "error": "Out of memory in the controller.",
+    "errors": 1,
+    "warnings": 0
+  },
+  "controller_writes": false,
+  "controller_download": false,
+  "gateway_started": false,
+  "target": {
+    "address": "192.168.100.89",
+    "expected_serial": "7036B510",
+    "controller": "1769-L24ER-QB1B/A",
+    "firmware": "33.014"
+  },
+  "stage": "offline; owner Studio v33 memory-fit Verify/download and guarded hardware verification pending",
+  "artifacts": [
+    {
+      "Schema": "fraktal.ab.generated-application",
+      "SchemaVersion": 1,
+      "Application": "Press",
+      "Source": "C:\\work\\seed_v33.L5X",
+      "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+      "Output": "C:\\work\\press58.L5X",
+      "OutputSha256": "8BCFC3BE9C56544BCAD1AF5BDC6D41CD5824CEE6BDCCE07FDEFB80DDE3B7C4F4",
+      "Controller": "1769-L24ER-QB1B",
+      "MajorRevision": 33,
+      "TaskName": "FRK_PressTask",
+      "TaskPeriodMs": 10,
+      "WatchdogMs": 500,
+      "PhysicalIoReferences": 20,
+      "EmbeddedIoInhibited": false,
+      "TaskOutputUpdatesDisabled": false,
+      "ForceableOutputs": 8,
+      "BoolMembersInPublicUdt": 0,
+      "ContractRecords": [
+        "FRK_T_PressParCfg",
+        "FRK_T_PressStationCfg"
+      ],
+      "ModuleTypes": [
+        "FRK_M_Cylinder",
+        "FRK_M_DigitalInput",
+        "FRK_M_TwoHand",
+        "FRK_M_AirPressure"
+      ],
+      "ModeOwner": "FRK_U_Press",
+      "AoiDefinitions": 7,
+      "Chains": {
+        "AUTO": [
+          0,
+          100,
+          110,
+          130,
+          150,
+          170,
+          180,
+          185,
+          190,
+          200,
+          210,
+          215,
+          220,
+          230,
+          240,
+          242,
+          244,
+          999
+        ],
+        "HOME": [
+          0,
+          900,
+          902,
+          904,
+          998
+        ],
+        "CHANGEOVER": [
+          0,
+          700,
+          710,
+          712,
+          714,
+          780,
+          790,
+          798
+        ]
+      },
+      "DistinctSteps": 29,
+      "ChartSteps": 32,
+      "WritableInputs": [
+        "FRK_Press_FaultPressRam",
+        "FRK_Press_HoldPressRam",
+        "FRK_Press_FaultDoor",
+        "FRK_Press_HoldDoor",
+        "FRK_Press_FaultPartSlide",
+        "FRK_Press_HoldPartSlide",
+        "FRK_Press_TwoHand",
+        "FRK_Press_PartPresent",
+        "FRK_Press_AirOk",
+        "FRK_Press_RenditionSelect"
+      ],
+      "CommandInputs": [
+        "FRK_Press_RunRequest",
+        "FRK_Press_AbortRequest",
+        "FRK_Press_ResetRequest",
+        "FRK_Press_ModeRequest",
+        "FRK_Press_DecisionAnswer",
+        "FRK_Press_ModelRequest"
+      ],
+      "EvidenceTags": [
+        "FRK_Press_ScanCount",
+        "FRK_Press_OrderFail",
+        "FRK_Press_TaskPeriodMs",
+        "FRK_Press_LdAdvanced",
+        "FRK_Press_LdScratch"
+      ],
+      "HarnessOnlyTags": [
+        "FRK_Press_RenditionSelect",
+        "FRK_Press_LdAdvanced",
+        "FRK_Press_LdScratch"
+      ],
+      "PublishableTags": [
+        "FRK_T_PressParCfgTag",
+        "FRK_T_PressStationCfgTag",
+        "FRK_Press_CtxPressRam",
+        "FRK_Press_CtxDoor",
+        "FRK_Press_CtxPartSlide",
+        "FRK_Press_CtxPartPresentSensor",
+        "FRK_Press_CtxTwoHand",
+        "FRK_Press_CtxAirPressureMonitor",
+        "FRK_Press_Unit",
+        "FRK_Press_Chart",
+        "FRK_Press_ConfigPersist",
+        "FRK_Press_ModelCfg",
+        "FRK_Press_AlarmActive",
+        "FRK_Press_AlarmRing",
+        "FRK_Press_Oee",
+        "FRK_Press_Profiler",
+        "FRK_Press_AccessState",
+        "FRK_Press_AccessAudit",
+        "FRK_Press_ConfigAudit",
+        "FRK_Press_ConfigSetState",
+        "FRK_Press_StateFlags",
+        "FRK_Press_HealthProbe",
+        "FRK_Press_HealthCfg",
+        "FRK_Press_SystemHealth",
+        "FRK_Press_FaultPressRam",
+        "FRK_Press_HoldPressRam",
+        "FRK_Press_FaultDoor",
+        "FRK_Press_HoldDoor",
+        "FRK_Press_FaultPartSlide",
+        "FRK_Press_HoldPartSlide",
+        "FRK_Press_TwoHand",
+        "FRK_Press_PartPresent",
+        "FRK_Press_AirOk",
+        "FRK_Press_ScanCount",
+        "FRK_Press_OrderFail",
+        "FRK_Press_TaskPeriodMs"
+      ],
+      "Manifest": {
+        "Schema": "fraktal.ab.manifest",
+        "SchemaMajor": 3,
+        "SchemaMinor": 0,
+        "ConfigRevision": 14221649,
+        "ContentHash": "D90151DAB7A1FC1B",
+        "KeyLength": 56,
+        "Tables": {
+          "Roots": {
+            "rows": 1,
+            "capacity": 4
+          },
+          "Modules": {
+            "rows": 7,
+            "capacity": 16
+          },
+          "Nameplates": {
+            "rows": 0,
+            "capacity": 16
+          },
+          "Fields": {
+            "rows": 544,
+            "capacity": 768
+          },
+          "Operations": {
+            "rows": 6,
+            "capacity": 32
+          },
+          "Localization": {
+            "rows": 541,
+            "capacity": 768
+          },
+          "Rationalization": {
+            "rows": 23,
+            "capacity": 32
+          },
+          "OptionalProfiles": {
+            "rows": 0,
+            "capacity": 8
+          },
+          "WriteCapabilities": {
+            "rows": 9,
+            "capacity": 64
+          }
+        },
+        "Truncated": false,
+        "EstimatedBytes": 79992
+      },
+      "Programs": 1,
+      "Routines": 1,
+      "Tasks": 1,
+      "Reproduces": true,
+      "StorageBefore": {
+        "declared_access_bytes": 18616,
+        "access_tag_bytes": {
+          "FRK_Press_AccessState": 200,
+          "FRK_Press_AccessAudit": 9740,
+          "FRK_Press_AccessUsers": 5252,
+          "FRK_Press_AccessWork": 996,
+          "FRK_Press_AccessLoginRequest": 2428
+        },
+        "st_routines": {
+          "FRK_PressMain": {
+            "lines": 1135,
+            "statements": 950,
+            "characters": 70645,
+            "btdt_calls": 0
+          },
+          "FRK_PressHmiMailbox": {
+            "lines": 1594,
+            "statements": 1295,
+            "characters": 94495,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSt": {
+            "lines": 667,
+            "statements": 527,
+            "characters": 27443,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSfcRun": {
+            "lines": 10,
+            "statements": 3,
+            "characters": 546,
+            "btdt_calls": 0
+          },
+          "FRK_Press_AccessSha256": {
+            "lines": 724,
+            "statements": 724,
+            "characters": 38926,
+            "btdt_calls": 54
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "StorageAfter": {
+        "declared_access_bytes": 8504,
+        "access_tag_bytes": {
+          "FRK_Press_AccessState": 200,
+          "FRK_Press_AccessAudit": 3596,
+          "FRK_Press_AccessUsers": 988,
+          "FRK_Press_AccessWork": 1036,
+          "FRK_Press_AccessLoginRequest": 2428,
+          "FRK_Press_AccessRoundConstants": 256
+        },
+        "st_routines": {
+          "FRK_PressMain": {
+            "lines": 1135,
+            "statements": 950,
+            "characters": 70645,
+            "btdt_calls": 0
+          },
+          "FRK_PressHmiMailbox": {
+            "lines": 1426,
+            "statements": 1143,
+            "characters": 80610,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSt": {
+            "lines": 667,
+            "statements": 527,
+            "characters": 27443,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSfcRun": {
+            "lines": 10,
+            "statements": 3,
+            "characters": 546,
+            "btdt_calls": 0
+          },
+          "FRK_Press_AccessSha256": {
+            "lines": 209,
+            "statements": 209,
+            "characters": 15105,
+            "btdt_calls": 1
+          },
+          "FRK_Press_AccessRotate32": {
+            "lines": 13,
+            "statements": 12,
+            "characters": 552,
+            "btdt_calls": 2
+          },
+          "FRK_Press_AccessRecordAudit": {
+            "lines": 46,
+            "statements": 42,
+            "characters": 3360,
+            "btdt_calls": 0
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "DeclaredAccessBytesSaved": 10112
+    },
+    {
+      "Schema": "fraktal.ab.generated-application",
+      "SchemaVersion": 1,
+      "Application": "Cell",
+      "Source": "C:\\work\\seed_v33.L5X",
+      "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+      "Output": "C:\\work\\phase6_access_memory_template.L5X",
+      "OutputSha256": "E224D2E3C159D0BBEDF26D76957CFBCA2C5B07EA17C71A28E6A44DC0A8E561FD",
+      "Controller": "1769-L24ER-QB1B",
+      "MajorRevision": 33,
+      "TaskName": "FRK_CellTask",
+      "TaskPeriodMs": 10,
+      "WatchdogMs": 500,
+      "PhysicalIoReferences": 0,
+      "EmbeddedIoInhibited": true,
+      "TaskOutputUpdatesDisabled": true,
+      "ForceableOutputs": 0,
+      "BoolMembersInPublicUdt": 0,
+      "ContractRecords": [
+        "FRK_T_CellParCfg",
+        "FRK_T_CellStationCfg"
+      ],
+      "ModuleTypes": [
+        "FRK_M_Cylinder",
+        "FRK_M_DigitalInput"
+      ],
+      "ModeOwner": "FRK_U_Cell",
+      "AoiDefinitions": 3,
+      "Chains": {
+        "AUTO": [
+          0,
+          100,
+          110,
+          120,
+          130,
+          999
+        ],
+        "HOME": [
+          0,
+          900,
+          998
+        ]
+      },
+      "DistinctSteps": 8,
+      "ChartSteps": 32,
+      "WritableInputs": [
+        "FRK_Cell_FaultClamp",
+        "FRK_Cell_HoldClamp",
+        "FRK_Cell_PartPresent"
+      ],
+      "CommandInputs": [
+        "FRK_Cell_RunRequest",
+        "FRK_Cell_AbortRequest",
+        "FRK_Cell_ResetRequest",
+        "FRK_Cell_ModeRequest",
+        "FRK_Cell_DecisionAnswer",
+        "FRK_Cell_ModelRequest"
+      ],
+      "EvidenceTags": [
+        "FRK_Cell_ScanCount",
+        "FRK_Cell_OrderFail",
+        "FRK_Cell_TaskPeriodMs"
+      ],
+      "HarnessOnlyTags": [],
+      "PublishableTags": [
+        "FRK_T_CellParCfgTag",
+        "FRK_T_CellStationCfgTag",
+        "FRK_Cell_CtxClamp",
+        "FRK_Cell_CtxPartSensor",
+        "FRK_Cell_Unit",
+        "FRK_Cell_Chart",
+        "FRK_Cell_ConfigPersist",
+        "FRK_Cell_ModelCfg",
+        "FRK_Cell_AlarmActive",
+        "FRK_Cell_AlarmRing",
+        "FRK_Cell_Oee",
+        "FRK_Cell_Profiler",
+        "FRK_Cell_AccessState",
+        "FRK_Cell_AccessAudit",
+        "FRK_Cell_ConfigAudit",
+        "FRK_Cell_ConfigSetState",
+        "FRK_Cell_StateFlags",
+        "FRK_Cell_HealthProbe",
+        "FRK_Cell_HealthCfg",
+        "FRK_Cell_SystemHealth",
+        "FRK_Cell_FaultClamp",
+        "FRK_Cell_HoldClamp",
+        "FRK_Cell_PartPresent",
+        "FRK_Cell_ScanCount",
+        "FRK_Cell_OrderFail",
+        "FRK_Cell_TaskPeriodMs"
+      ],
+      "Manifest": {
+        "Schema": "fraktal.ab.manifest",
+        "SchemaMajor": 3,
+        "SchemaMinor": 0,
+        "ConfigRevision": 5908997,
+        "ContentHash": "5A2A0526DC0FAA84",
+        "KeyLength": 56,
+        "Tables": {
+          "Roots": {
+            "rows": 1,
+            "capacity": 4
+          },
+          "Modules": {
+            "rows": 3,
+            "capacity": 16
+          },
+          "Nameplates": {
+            "rows": 0,
+            "capacity": 16
+          },
+          "Fields": {
+            "rows": 358,
+            "capacity": 768
+          },
+          "Operations": {
+            "rows": 4,
+            "capacity": 32
+          },
+          "Localization": {
+            "rows": 452,
+            "capacity": 768
+          },
+          "Rationalization": {
+            "rows": 19,
+            "capacity": 32
+          },
+          "OptionalProfiles": {
+            "rows": 0,
+            "capacity": 8
+          },
+          "WriteCapabilities": {
+            "rows": 4,
+            "capacity": 64
+          }
+        },
+        "Truncated": false,
+        "EstimatedBytes": 79992
+      },
+      "Programs": 1,
+      "Routines": 1,
+      "Tasks": 1,
+      "Reproduces": true,
+      "StorageBefore": {
+        "declared_access_bytes": 18616,
+        "access_tag_bytes": {
+          "FRK_Cell_AccessState": 200,
+          "FRK_Cell_AccessAudit": 9740,
+          "FRK_Cell_AccessUsers": 5252,
+          "FRK_Cell_AccessWork": 996,
+          "FRK_Cell_AccessLoginRequest": 2428
+        },
+        "st_routines": {
+          "FRK_CellMain": {
+            "lines": 935,
+            "statements": 779,
+            "characters": 56713,
+            "btdt_calls": 0
+          },
+          "FRK_CellHmiMailbox": {
+            "lines": 1215,
+            "statements": 1001,
+            "characters": 69509,
+            "btdt_calls": 0
+          },
+          "FRK_Cell_AccessSha256": {
+            "lines": 724,
+            "statements": 724,
+            "characters": 37792,
+            "btdt_calls": 54
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "StorageAfter": {
+        "declared_access_bytes": 7848,
+        "access_tag_bytes": {
+          "FRK_Cell_AccessState": 200,
+          "FRK_Cell_AccessAudit": 3596,
+          "FRK_Cell_AccessUsers": 332,
+          "FRK_Cell_AccessWork": 1036,
+          "FRK_Cell_AccessLoginRequest": 2428,
+          "FRK_Cell_AccessRoundConstants": 256
+        },
+        "st_routines": {
+          "FRK_CellMain": {
+            "lines": 935,
+            "statements": 779,
+            "characters": 56713,
+            "btdt_calls": 0
+          },
+          "FRK_CellHmiMailbox": {
+            "lines": 1047,
+            "statements": 849,
+            "characters": 56029,
+            "btdt_calls": 0
+          },
+          "FRK_Cell_AccessSha256": {
+            "lines": 209,
+            "statements": 209,
+            "characters": 14668,
+            "btdt_calls": 1
+          },
+          "FRK_Cell_AccessRotate32": {
+            "lines": 13,
+            "statements": 12,
+            "characters": 535,
+            "btdt_calls": 2
+          },
+          "FRK_Cell_AccessRecordAudit": {
+            "lines": 46,
+            "statements": 42,
+            "characters": 3263,
+            "btdt_calls": 0
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "DeclaredAccessBytesSaved": 10768
+    }
+  ],
+  "artifact_checks": {
+    "schema": "fraktal.ab.phase6-access-memory-artifact-checks",
+    "artifacts": [
+      {
+        "application": "Press",
+        "final_source_reproduces": true,
+        "modules_unchanged": true,
+        "tasks_unchanged": true,
+        "all_aois_unchanged": true,
+        "changed_routines": [
+          "FRK_PressHmiMailbox",
+          "FRK_Press_AccessSha256"
+        ],
+        "added_routines": [
+          "FRK_Press_AccessRecordAudit",
+          "FRK_Press_AccessRotate32"
+        ],
+        "private_access_storage_excluded": true,
+        "public_access_read_only": true,
+        "packed_audit_schema": 2,
+        "audit_slots": 64,
+        "audit_actor_bytes": 32,
+        "access_udts_dint_only": true
+      },
+      {
+        "application": "Cell",
+        "final_source_reproduces": true,
+        "modules_unchanged": true,
+        "tasks_unchanged": true,
+        "all_aois_unchanged": true,
+        "changed_routines": [
+          "FRK_CellHmiMailbox",
+          "FRK_Cell_AccessSha256"
+        ],
+        "added_routines": [
+          "FRK_Cell_AccessRecordAudit",
+          "FRK_Cell_AccessRotate32"
+        ],
+        "private_access_storage_excluded": true,
+        "public_access_read_only": true,
+        "packed_audit_schema": 2,
+        "audit_slots": 64,
+        "audit_actor_bytes": 32,
+        "access_udts_dint_only": true
+      }
+    ],
+    "fixture_pins_absent_from_generated_files_and_python_sources": true,
+    "controller_writes": false,
+    "studio_memory_fit": "pending owner Verify; SDK refused No valid license"
+  },
+  "offline_gates": {
+    "ab_tests": 1404,
+    "consistency_tests": 33,
+    "errors": 0,
+    "warnings": 0,
+    "runs": [
+      {
+        "gate": "press58_ab",
+        "code": 0,
+        "tail": "cute-fixture is required\n.....................................................................................................................................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: unrecognized arguments: --tag Arbitrary\n...usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: --settle must be greater than zero and at most five seconds\n......................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: unrecognized arguments: --tag Arbitrary\n................................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: --settle must be greater than zero and at most five seconds\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: the following arguments are required: --expect-serial\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\n.....................................................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: unrecognized arguments: --tag Arbitrary\n........................................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--attempts ATTEMPTS]\n                              [--sweep SWEEP] [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\nusage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--attempts ATTEMPTS]\n                              [--sweep SWEEP] [--execute-fixture]\n                              target\npython.exe -m unittest: error: every sweep period must be between 1 and 1000\n.............stage=write-refused detail=serial 00000123 is not 7036B510\n..................................................................................................................................................................\n----------------------------------------------------------------------\nRan 1404 tests in 148.457s\n\nOK\n"
+      },
+      {
+        "gate": "press58_consistency",
+        "code": 0,
+        "tail": "\ncheck_consistency: 0 error(s), 0 warning(s) across inventory, localization, parity, readsurface\n"
+      },
+      {
+        "gate": "press58_root",
+        "code": 0,
+        "tail": "......usage: python.exe -m unittest [-h] [--root ROOT] [--strict] [--emit] [--quiet]\n                              [{inventory,localization,parity,readsurface} ...]\npython.exe -m unittest: error: argument checks: invalid choice: 'bogus' (choose from inventory, localization, parity, readsurface)\n...........................\n----------------------------------------------------------------------\nRan 33 tests in 2.737s\n\nOK\n"
+      }
+    ]
+  },
+  "mutations": {
+    "schema": "fraktal.ab.phase6-access-memory-mutations",
+    "baseline": {
+      "tests": 23,
+      "expected": 23,
+      "failures": 0,
+      "errors": 0,
+      "passed": true
+    },
+    "mutants": [
+      {
+        "mutation": "pin-rounds",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "sha-constant",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "sha-rotate",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "pin-not-wiped",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "compare-bypassed",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "provider-validity-shared",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "login-request-not-sampled",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "logout-not-cancelled",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "busy-login-replaces-attempt",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "login-rewrites-ack",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "gate-bypassed",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "self-lockout",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "timeout-no-bound",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "pure-query-rearms",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "accepted-mutation-not-rearmed",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "restore-ack-not-engineer",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "held-withdrawal-denied",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-actor-spoof",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-wrong-severity",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "session-survives-run-entry",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "gateway-grants-role",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "fixture-gate-restoration-skipped",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "fixture-native-serial-bypassed",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "unused-user-reserve",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "last-user-skipped",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "corrupt-count-beyond-allocation",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-high-byte-position",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-byte-high-bit-lost",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-old-schema-decoded",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "digest-byte-order",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "rotate-second-half-skipped",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "constants-externally-writable",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "boolean-literal-regression",
+        "killed": true,
+        "tests": 1,
+        "expected": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      }
+    ],
+    "killed": 33,
+    "total": 33,
+    "passed": true,
+    "source_files_modified": false
+  },
+  "sdk_probe": {
+    "file": "C:/work/press58.L5X",
+    "exit_code": 1,
+    "operation": "OpenLogixProjectAsync",
+    "error": "OperationFailedException: No valid license. C:/work/press58.L5X"
+  },
+  "source_sha256": {
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_access.py": "6E8EE0E367B7B18F1A1D49B3F33240F2EA44D5D622978B23E9ABAAC41E2FBBEF",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py": "043925D7D940537B2B30A339C5C620790A1C88BB551C5DDBC64CB08104302D45",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_access.py": "239CC521EE74A9C833D890C94A5932C8D47FF74EA775C3C50586C7C2D4F899B9",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_platform_limits.py": "F2BE768B2437F86C5C6310DD620EABCABEC98465731147EF72FCB2CFC4EFCE2B"
+  },
+  "retained_limits": {
+    "registration_ceiling": 16,
+    "actor_bytes": 32,
+    "audit_slots": 64,
+    "hash_rounds_after_initial": 256,
+    "sha_blocks_per_scan": 1,
+    "policy_gates": 12,
+    "session_schema": 1,
+    "audit_schema": 2,
+    "manifest_capacity_fields": 768,
+    "manifest_capacity_localization": 768,
+    "manifest_budget_bytes": 102400
+  },
+  "memory_fit": "not measured; declared-storage and ST counts do not establish compiled fit",
+  "posture": "v33 legacy zone-and-conduit; bench write-enabled by explicit 2026-09-29 decision; S9 owed",
+  "write_surface_change": "none beyond item 3 login/logout and access-policy commands",
+  "pending": [
+    "owner Studio v33 Verify and actual controller memory fit",
+    "owner download and gateway restart",
+    "guarded hardware access and regression fixtures",
+    "hash task cost, overlap and faults",
+    "physical retention matrix",
+    "S9 write-enabled contract suite"
+  ]
+}

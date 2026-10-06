@@ -1,0 +1,385 @@
+{
+  "controller": {
+    "product": "1769-L24ER-QB1B/A",
+    "revision": "33.14",
+    "serial": "7036B510"
+  },
+  "date": "2026-10-01",
+  "gateway_healthz": {
+    "plcReady": true,
+    "status": "ready"
+  },
+  "import": "accepted by Studio 5000 v33: every GSV attribute in the probe exists on this controller",
+  "loaded_build": {
+    "config_revision": 2369965,
+    "content_hash": "2429AD8014904A38",
+    "file": "press51.L5X",
+    "manifest_bytes": 51064
+  },
+  "manifest_read": {
+    "bytesRead": 51064,
+    "coherent": true,
+    "passed": true,
+    "serial": "7036B510",
+    "timingMs": {
+      "header": 38.382,
+      "recheck": 2.731,
+      "tables": 101.872,
+      "total": 142.984
+    }
+  },
+  "regression": {
+    "parity_146": 25,
+    "phase1": 7,
+    "phase2": 6,
+    "phase3": 8,
+    "phase4": 11,
+    "phase5": 23
+  },
+  "repository_revision": "d26a323",
+  "s3_after_full_load": {
+    "application": "Press",
+    "expected_serial": "7036B510",
+    "identity": {
+      "product_name": "1769-L24ER-QB1B/A LOGIX5324ER",
+      "revision": "33.14",
+      "serial_number": "7036B510"
+    },
+    "passed": true,
+    "result": {
+      "failed": 0,
+      "first": {
+        "IntervalUs": 10016,
+        "JitterUs": 16,
+        "MajorFaultBits": 0,
+        "MaxIntervalUs": 10235,
+        "MaxJitterUs": 235,
+        "MinIntervalUs": 9776,
+        "MinorFaultBits": 0,
+        "NowMinuteUs": 54825521,
+        "PrevMinuteUs": 54825521,
+        "Samples": 29056,
+        "SchemaVersion": 1,
+        "TaskLastScanUs": 606,
+        "TaskMaxScanUs": 1190,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "WinMaxIntervalUs": 10229,
+        "WinMaxJitterUs": 229,
+        "WinMinIntervalUs": 9772,
+        "WinScans": 55
+      },
+      "last": {
+        "IntervalUs": 10015,
+        "JitterUs": 15,
+        "MajorFaultBits": 0,
+        "MaxIntervalUs": 10190,
+        "MaxJitterUs": 190,
+        "MinIntervalUs": 9814,
+        "MinorFaultBits": 0,
+        "NowMinuteUs": 57735510,
+        "PrevMinuteUs": 57735510,
+        "Samples": 29347,
+        "SchemaVersion": 1,
+        "TaskLastScanUs": 566,
+        "TaskMaxScanUs": 1190,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "WinMaxIntervalUs": 10186,
+        "WinMaxJitterUs": 186,
+        "WinMinIntervalUs": 9826,
+        "WinScans": 46
+      },
+      "passed": true,
+      "rows": [
+        {
+          "expectation": "the probe answers and counts one sample per scan: about 100 a second",
+          "observed": {
+            "reads": 29,
+            "scans": 291,
+            "scansPerSecond": 99.9,
+            "seconds": 2.914
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "the_probe_runs_every_scan"
+        },
+        {
+          "expectation": "GSV TASK LastScanTime is the routine's execution in us: above zero and inside the period; MaxScanTime is at least every last scan seen",
+          "observed": {
+            "lastScanUs": {
+              "max": 755,
+              "median": 599,
+              "min": 556
+            },
+            "maxScanUs": 1190,
+            "periodUs": 10000
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "task_execution_time"
+        },
+        {
+          "expectation": "the real period between scans, from the wall clock, published per 1 s window: the shortest and longest period bracket the declared one",
+          "observed": {
+            "periodUs": 10000,
+            "windows": [
+              [
+                10149,
+                9850,
+                150
+              ],
+              [
+                10190,
+                9814,
+                190
+              ],
+              [
+                10229,
+                9772,
+                229
+              ],
+              [
+                10235,
+                9776,
+                235
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "task_period_and_jitter"
+        },
+        {
+          "expectation": "GSV TASK OverlapCount: no overrun while sampled",
+          "observed": {
+            "overlapCount": [
+              0
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "no_task_overruns"
+        },
+        {
+          "expectation": "GSV TimeSynchronize IsSynchronized and PTPEnable answer, steadily; this bench runs without PTP (S1, S9), so both are expected 0",
+          "observed": {
+            "isSynchronizedPtpEnable": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "time_quality"
+        },
+        {
+          "expectation": "GSV FaultLog: no major fault on a running controller; the minor bits are recorded",
+          "observed": {
+            "majorMinor": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "controller_fault_bits"
+        }
+      ],
+      "successful": 6,
+      "tests": 6
+    },
+    "schema": "fraktal.ab.s3-health-and-timing",
+    "schema_version": 1,
+    "serial_matches": true,
+    "target": "192.168.100.89",
+    "wrote": false
+  },
+  "s3_idle": {
+    "application": "Press",
+    "expected_serial": "7036B510",
+    "identity": {
+      "product_name": "1769-L24ER-QB1B/A LOGIX5324ER",
+      "revision": "33.14",
+      "serial_number": "7036B510"
+    },
+    "passed": true,
+    "result": {
+      "failed": 0,
+      "first": {
+        "IntervalUs": 10017,
+        "JitterUs": 17,
+        "MajorFaultBits": 0,
+        "MaxIntervalUs": 10170,
+        "MaxJitterUs": 170,
+        "MinIntervalUs": 9830,
+        "MinorFaultBits": 0,
+        "NowMinuteUs": 24625648,
+        "PrevMinuteUs": 24625648,
+        "Samples": 8036,
+        "SchemaVersion": 1,
+        "TaskLastScanUs": 583,
+        "TaskMaxScanUs": 1021,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "WinMaxIntervalUs": 10111,
+        "WinMaxJitterUs": 111,
+        "WinMinIntervalUs": 9889,
+        "WinScans": 35
+      },
+      "last": {
+        "IntervalUs": 10151,
+        "JitterUs": 151,
+        "MajorFaultBits": 0,
+        "MaxIntervalUs": 10154,
+        "MaxJitterUs": 159,
+        "MinIntervalUs": 9841,
+        "MinorFaultBits": 0,
+        "NowMinuteUs": 30565779,
+        "PrevMinuteUs": 30565779,
+        "Samples": 8630,
+        "SchemaVersion": 1,
+        "TaskLastScanUs": 585,
+        "TaskMaxScanUs": 1021,
+        "TaskOverlapCount": 0,
+        "TimeIsSynchronized": 0,
+        "TimePtpEnable": 0,
+        "WinMaxIntervalUs": 10182,
+        "WinMaxJitterUs": 182,
+        "WinMinIntervalUs": 9828,
+        "WinScans": 29
+      },
+      "passed": true,
+      "rows": [
+        {
+          "expectation": "the probe answers and counts one sample per scan: about 100 a second",
+          "observed": {
+            "reads": 58,
+            "scans": 594,
+            "scansPerSecond": 100.0,
+            "seconds": 5.941
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "the_probe_runs_every_scan"
+        },
+        {
+          "expectation": "GSV TASK LastScanTime is the routine's execution in us: above zero and inside the period; MaxScanTime is at least every last scan seen",
+          "observed": {
+            "lastScanUs": {
+              "max": 882,
+              "median": 583.5,
+              "min": 545
+            },
+            "maxScanUs": 1021,
+            "periodUs": 10000
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "task_execution_time"
+        },
+        {
+          "expectation": "the real period between scans, from the wall clock, published per 1 s window: the shortest and longest period bracket the declared one",
+          "observed": {
+            "periodUs": 10000,
+            "windows": [
+              [
+                10154,
+                9841,
+                159
+              ],
+              [
+                10170,
+                9830,
+                170
+              ],
+              [
+                10171,
+                9846,
+                171
+              ],
+              [
+                10174,
+                9836,
+                174
+              ],
+              [
+                10180,
+                9813,
+                187
+              ],
+              [
+                10185,
+                9830,
+                185
+              ],
+              [
+                10198,
+                9805,
+                198
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "task_period_and_jitter"
+        },
+        {
+          "expectation": "GSV TASK OverlapCount: no overrun while sampled",
+          "observed": {
+            "overlapCount": [
+              0
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "no_task_overruns"
+        },
+        {
+          "expectation": "GSV TimeSynchronize IsSynchronized and PTPEnable answer, steadily; this bench runs without PTP (S1, S9), so both are expected 0",
+          "observed": {
+            "isSynchronizedPtpEnable": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "time_quality"
+        },
+        {
+          "expectation": "GSV FaultLog: no major fault on a running controller; the minor bits are recorded",
+          "observed": {
+            "majorMinor": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          "passed": true,
+          "suite": "fraktal.ab.s3-health-and-timing",
+          "test": "controller_fault_bits"
+        }
+      ],
+      "successful": 6,
+      "tests": 6
+    },
+    "schema": "fraktal.ab.s3-health-and-timing",
+    "schema_version": 1,
+    "serial_matches": true,
+    "target": "192.168.100.89",
+    "wrote": false
+  },
+  "schema": "fraktal.ab.s3-health-and-timing-record",
+  "schema_version": 1
+}

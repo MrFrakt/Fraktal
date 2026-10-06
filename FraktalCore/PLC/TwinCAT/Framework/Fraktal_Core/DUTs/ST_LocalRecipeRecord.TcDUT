@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_LocalRecipeRecord" Id="{82ff5859-0b77-4c1c-8283-9abf78f69397}">
+    <Declaration><![CDATA[// Provider-owned, pointer-free retained recipe storage. Data begins with its own schema.
+TYPE ST_LocalRecipeRecord :
+STRUCT
+    SchemaVersion : UINT := 1;
+    ModelCode : STRING(64);
+    RecipeKey : STRING(80);
+    DataSize : UDINT;
+    Data : ARRAY[1..PL_Fraktal.MAX_MODEL_DATA_BYTES] OF BYTE;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

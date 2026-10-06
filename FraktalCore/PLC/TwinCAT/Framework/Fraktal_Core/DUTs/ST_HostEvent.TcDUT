@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_HostEvent" Id="{fcbf95a9-b15d-432e-ab7c-67ed6e2d9469}">
+    <Declaration><![CDATA[// Core §11.6.2 — transport-neutral fixed host-event record. Optional strings are
+// empty when not applicable; Sequence gives a north-bound adapter stable ordering.
+TYPE ST_HostEvent :
+STRUCT
+    Sequence         : UDINT;
+    Kind             : E_HostEventKind;
+    StationPath      : STRING(255);
+    PartUid          : STRING(64);
+    Subject          : STRING(80);   // tool/resource/material identifier
+    Value            : STRING(80);   // new mode/model/tool/material value
+    Stamp            : DT;
+    TimeSynchronized : BOOL;
+    Verdict          : E_Verdict;
+    ReasonCode       : E_Reason;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

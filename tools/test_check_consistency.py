@@ -1,0 +1,412 @@
+import unittest
+from pathlib import Path
+
+# check_consistency stays at the repository root (it spans PLC, HMI and
+# Specification) but reaches into the TwinCAT binding's own tools for the
+# ladder readers; importing it first is what puts them on sys.path.
+from tools.check_consistency import (
+    Finding,
+    _ab_localization_keys,
+    _absent_reason,
+    _is_test_source,
+    _ld_chain,
+    _mapper_surface,
+    _reference_roots,
+    _st_chain,
+    _st_step_writes,
+    check_inventory,
+    check_localization,
+    check_parity,
+    check_read_surface,
+    emit_stubs,
+)
+
+PLC_ROOT = Path("FraktalCore/PLC/TwinCAT")
+
+
+class LocalizationTests(unittest.TestCase):
+    """A key with no catalogue entry renders on the HMI as the raw key."""
+
+    def test_shipping_code_is_measured_and_test_fixtures_are_not(self):
+        # The distinction is the whole point: a probe FB may use a throwaway
+        # key, but anything an operator can reach may not.
+        self.assertTrue(_is_test_source(Path("x/FB_Unit_Tests.TcPOU")))
+        self.assertTrue(_is_test_source(Path("x/FB_ProbeCM.TcPOU")))
+        self.assertTrue(_is_test_source(Path("scaffold/FB_TemplateCM.TcPOU")))
+        self.assertFalse(_is_test_source(Path("x/FB_PressDemoUnit.TcPOU")))
+
+    def test_a_key_prefix_completed_at_run_time_is_not_a_key(self):
+        import tools.check_consistency as cc
+        # 'std.config.modePolicy.' + ordinal: the literal is a prefix, never a key.
+        found = [m.group(1) for m in cc.KEY_LITERAL.finditer(
+            "LabelKey := CONCAT('std.config.modePolicy.', x); K := 'std.a.b';")]
+        self.assertEqual(found, ['std.a.b'])
+
+    def test_findings_are_warnings_so_the_gate_stays_usable(self):
+        # The catalogue has a real backlog. A check that turns the gate red on
+        # the day it lands teaches everyone to skip the gate.
+        findings, _ = check_localization(PLC_ROOT)
+        self.assertTrue(all(f.severity == "warning" for f in findings),
+                        "localization findings must not fail the run yet")
+
+    def test_emit_produces_pasteable_dart_for_every_missing_key(self):
+        _, missing = check_localization(PLC_ROOT)
+        stubs = emit_stubs(missing)
+        for key in missing:
+            self.assertIn(f"'{key}': 'TODO',", stubs)
+        self.assertIn("Replace every TODO", stubs)
+
+
+class InventoryTests(unittest.TestCase):
+    """A suite that no runner instantiates does not run, and says nothing."""
+
+    def test_the_shipped_inventory_is_consistent(self):
+        # This is the check that would have caught 84/26 drifting from 94/29
+        # while two of the three new suites did not even compile.
+        errors = [f for f in check_inventory(PLC_ROOT) if f.severity == "error"]
+        self.assertEqual(errors, [], "\n".join(str(f) for f in errors))
+
+    def test_an_unregistered_suite_is_an_error(self):
+        # Guard the guard: if the rule silently stopped firing it would look
+        # exactly like a clean repository.
+        from tools import check_consistency
+        original = check_consistency._sources
+        fake = Path("FB_Orphan_Tests.TcPOU")
+        try:
+            check_consistency._sources = lambda root: [fake]
+            check_consistency._read = lambda path: (
+                "EXTENDS TcUnit.FB_TestSuite\nTEST('a');\nTEST('b');")
+            findings = check_inventory(PLC_ROOT)
+        finally:
+            check_consistency._sources = original
+            check_consistency._read = lambda path: path.read_text(
+                encoding="utf-8-sig", errors="replace")
+        self.assertTrue(any("no TcUnit runner" in f.message for f in findings))
+
+
+class ParityTests(unittest.TestCase):
+    """A chain carried in two languages is the same chain in both."""
+
+    def test_the_shipped_renditions_agree(self):
+        errors = [f for f in check_parity(PLC_ROOT) if f.severity == "error"]
+        self.assertEqual(errors, [], "\n".join(str(f) for f in errors))
+
+    def test_st_chain_reads_labels_and_advance_targets(self):
+        source = """CASE _step OF
+    0:
+        M_Advance(OnAdvance := 100);
+    100:
+        M_Advance(OnAdvance := 200, OnJump1 := 185);
+ELSE
+"""
+        self.assertEqual(_st_chain(source), {0: {100}, 100: {200, 185}})
+
+    def test_parity_compares_the_real_ladder_against_its_real_twin(self):
+        # Not a fixture: the point of the check is that it reads the artifacts.
+        ladder = (PLC_ROOT / "Examples/PressDemo/Fraktal_Press_Demo/01_PneumaticPress"
+                  / "Sequences/FB_LD_PressDemoAuto.TcPOU")
+        twin = ladder.with_name("FB_PressDemoAuto.TcPOU")
+        self.assertTrue(ladder.is_file() and twin.is_file())
+        import xml.etree.ElementTree as ET
+
+        from ld_rung_gen import split_networks
+        st = _st_chain(twin.read_text(encoding="utf-8-sig"))
+        ld = _ld_chain(ladder.read_text(encoding="utf-8-sig"), split_networks, ET)
+        self.assertEqual(sorted(st), sorted(ld))
+        self.assertEqual(len(ld), 16)
+        # A rung whose gate was `EQ(215, 0)` would simply be absent here - that
+        # is exactly how two dead rungs passed every other gate.
+        self.assertIn(215, ld)
+
+
+class StepEffectTests(unittest.TestCase):
+    """Same steps and same transitions is not yet the same chain.
+
+    `FB_LD_PressDemoAuto` step 190 agreed on both and still dropped
+    `_startLatched := FALSE`, which looped the machine after a two-hand abort.
+    """
+
+    def test_only_state_that_escapes_the_chain_is_compared(self):
+        declaration = """FUNCTION_BLOCK FB_X EXTENDS FB_SequenceBase
+VAR
+    _scratch, _partProcessed : BOOL;
+    _door : REFERENCE TO FB_CylinderCM;
+    _startLatched : REFERENCE TO BOOL;
+END_VAR]]"""
+        self.assertEqual(_reference_roots(declaration),
+                         {"_door", "_startLatched"})
+
+    def test_step_writes_ignore_named_arguments_and_locals(self):
+        source = """CASE _step OF
+    190:
+        M_Step(StepNo := 190, Awaits := _partSlide, Branch := 0);
+        _scratch := M_TryIssue(Steppable := TRUE);
+        IF _partSlide.Done THEN
+            _door.Execute := FALSE;
+            _startLatched := FALSE;
+        END_IF
+ELSE
+"""
+        roots = {"_door", "_startLatched", "_partSlide"}
+        # `StepNo :=` and `Steppable :=` bind parameters; `_scratch` is a local.
+        self.assertEqual(_st_step_writes(source, roots),
+                         {190: {"_door.Execute", "_startLatched"}})
+
+    def test_the_dropped_effect_that_shipped_is_now_an_error(self):
+        # Rebuild the exact regression: the ladder rung for step 190 without its
+        # `_startLatched` reset coil, against the real ST twin.
+        import xml.etree.ElementTree as ET
+
+        from tools.check_consistency import _ld_step_writes
+        from ld_dump import _value
+        from ld_rung_gen import split_networks
+
+        ladder = (PLC_ROOT / "Examples/PressDemo/Fraktal_Press_Demo/01_PneumaticPress"
+                  / "Sequences/FB_LD_PressDemoAuto.TcPOU")
+        text = ladder.read_text(encoding="utf-8-sig")
+        per_step, continuous = _ld_step_writes(text, split_networks, ET, _value)
+        self.assertIn("_startLatched", per_step[190],
+                      "the shipped rung must carry the abort's start-latch reset")
+        # A plain coil drives its symbol every scan, so the ST twin's explicit
+        # clears in other steps have no ladder counterpart to find and must not
+        # be reported. `_outCmd` is written by exactly such a coil.
+        self.assertIn("_outCmd", continuous)
+
+
+class CommandLineTests(unittest.TestCase):
+    '''The invocation CI uses, which no test covered.
+
+    `checks` is a nargs="*" positional. Give argparse a `choices=` alongside
+    that and Python <= 3.12 validates the empty DEFAULT against choices, so the
+    documented no-argument form ("run everything") dies with
+    `invalid choice: '[]'` and exit 2 - a broken CLI, not a failing gate.
+    Python 3.13 stopped doing it, so on a newer interpreter the bug is
+    invisible. It survived because every caller either named all three checks
+    explicitly or ran a new enough Python; the first hosted job to run the bare
+    form found it immediately.
+
+    These call the parser in-process rather than shelling out, so they assert
+    the behaviour on whatever interpreter is running the suite.
+    '''
+
+    def _parse(self, argv):
+        import tools.check_consistency as cc
+        return cc.build_parser().parse_args(argv)
+
+    def test_no_arguments_selects_every_check(self):
+        self.assertEqual(self._parse([]).checks, [])
+
+    def test_named_checks_are_kept(self):
+        self.assertEqual(self._parse(["parity"]).checks, ["parity"])
+
+    def test_an_unknown_check_is_still_rejected(self):
+        import tools.check_consistency as cc
+        with self.assertRaises(SystemExit) as raised:
+            cc.main(["check_consistency.py", "bogus"])
+        self.assertEqual(raised.exception.code, 2)
+
+
+
+
+class AbLocalizationTests(unittest.TestCase):
+    """The AB station's operator text, which this gate used not to see at all.
+
+    `_sources` walks `.Tc*` objects, so the check covered TwinCAT and reported
+    a clean run while 95 of the AB press's 96 keys resolved to nothing - the
+    HMI rendered `project.module.press` at the operator, and the gate said
+    fine.
+    """
+
+    def test_the_declaration_is_the_source_of_the_key_set(self):
+        keys = _ab_localization_keys()
+        self.assertIn('project.module.press', keys)
+        # Fieldbus identity never reaches the manifest - the gateway projects
+        # it - so a gate reading only the manifest would miss every channel.
+        self.assertIn('project.io.door_closed', keys)
+        # A registered reason (Core §8.8) carries TC3's std.reason keys.
+        self.assertIn('std.reason.10101.action', keys)
+        self.assertTrue(all(k.startswith(('project.', 'std.')) for k in keys))
+
+    def test_every_key_the_ab_press_publishes_resolves_today(self):
+        findings, _ = check_localization(PLC_ROOT)
+        unresolved = [f for f in findings if 'fraktal_ab' in f.where]
+        self.assertEqual([str(f) for f in unresolved], [])
+
+    def test_an_unresolved_ab_key_is_reported(self):
+        import tools.check_consistency as cc
+        original = cc._ab_localization_keys
+        cc._ab_localization_keys = lambda: {'project.io.nowhere_at_all'}
+        try:
+            findings, _ = cc.check_localization(PLC_ROOT)
+        finally:
+            cc._ab_localization_keys = original
+        self.assertTrue(
+            any('nowhere_at_all' in f.message for f in findings))
+
+    def test_keys_published_outside_the_manifest_rows_are_collected(self):
+        """The type, model, flag and decision keys reach the HMI from the
+        declaration; the press resolved them only because TC3 had catalogued
+        them, so a new station shipped them raw with the gate green."""
+        keys = _ab_localization_keys()
+        for key in ('project.moduleType.pneumaticPress', 'std.moduleType.cylinder',
+                    'project.model.m100', 'project.state.pressAtLoadPosition',
+                    'project.decision.pressNotReached', 'project.decision.scrapPart'):
+            self.assertIn(key, keys)
+
+
+class AbStationSelectionTests(unittest.TestCase):
+    """FRAKTAL_AB_DECLARATION selects whose KEYS are checked - a new station's,
+    before it ships - and never the binding's read surface."""
+
+    TEMPLATE = 'fraktal_ab_station_template'
+
+    def test_the_selected_station_is_the_key_source(self):
+        import os
+        from unittest import mock
+
+        import tools.check_consistency as cc
+        with mock.patch.dict(os.environ, {'FRAKTAL_AB_DECLARATION': self.TEMPLATE}):
+            keys = cc._ab_localization_keys()
+            source = cc._ab_station_source()
+        self.assertEqual(source, f'{self.TEMPLATE}.py')
+        self.assertIn('project.module.cell', keys)
+        self.assertNotIn('project.module.press', keys)
+        for key in ('project.moduleType.cell', 'project.model.cellC1',
+                    'project.state.cellAtLoadPosition'):
+            self.assertIn(key, keys)
+
+    def test_the_read_surface_stays_on_the_reference_station(self):
+        """In a fresh interpreter, because the projection binds its station at
+        import: in this one it may already be the press, proving nothing."""
+        import os
+        import subprocess
+        import sys
+
+        env = dict(os.environ, FRAKTAL_AB_DECLARATION=self.TEMPLATE)
+        done = subprocess.run(
+            [sys.executable, '-B', '-c',
+             "import tools.check_consistency as cc;"
+             "print(sorted(k for k in cc._ab_projection()['values']"
+             " if k.endswith('/Status/Name'))[0])"],
+            env=env, capture_output=True, text=True, timeout=300)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.strip(), 'Press/AirPressureMonitor/Status/Name')
+
+
+class ReadSurfaceTests(unittest.TestCase):
+    """The mapper's read surface against what the AB projection publishes.
+
+    The gate's first cut resolved the mapper position-blind, so every read
+    through a rebound `prefix` was attributed to the last binding in the file;
+    and it took `--root`, which points at the TwinCAT tree, so it found no
+    mapper and reported a clean run while comparing nothing. Both are pinned
+    here, because both passed review.
+    """
+
+    def test_a_prefix_resolves_to_the_binding_above_it_not_the_last_one(self):
+        source = """
+          final prefix = _indexedPrefix(values, '$base/Catalog', i);
+          final a = _integer(values['$prefix/Label']);
+          final prefix = _indexedPrefix(values, '$base/ModePolicy', i);
+          final b = _integer(values['$prefix/Shield']);
+        """
+        modules, _, unresolved = _mapper_surface(source)
+        self.assertEqual(unresolved, [])
+        self.assertIn("Catalog[*]/Label", modules)
+        self.assertIn("ModePolicy[*]/Shield", modules)
+
+    def test_an_array_element_read_is_part_of_the_surface(self):
+        modules, _, _ = _mapper_surface(
+            "if (_arrayElement(values, '$base/SupportedModesPublished', i))")
+        self.assertIn("SupportedModesPublished[*]", modules)
+
+    def test_a_discovery_scan_is_part_of_the_surface(self):
+        modules, _, _ = _mapper_surface("if (key.endsWith('/Status/Name'))")
+        self.assertIn("Status/Name", modules)
+
+    def test_an_unresolvable_read_is_reported_not_dropped(self):
+        modules, _, unresolved = _mapper_surface(
+            "final x = _integer(values['$mystery/Thing']);")
+        self.assertEqual(modules, set())
+        self.assertEqual(unresolved, ["$mystery/Thing"])
+
+    def test_the_fieldbus_root_is_kept_apart_from_module_suffixes(self):
+        source = """
+          final prefix = _indexedPrefix(values, '$topology/Nodes', i);
+          final n = _string(values['$prefix/Name']);
+        """
+        modules, topology, _ = _mapper_surface(source)
+        self.assertEqual(modules, set())
+        self.assertIn("Nodes[*]/Name", topology)
+
+    def test_an_absent_entry_covers_its_children_and_its_elements(self):
+        self.assertIsNotNone(_absent_reason("Nameplate"))
+        self.assertIsNotNone(_absent_reason("Nameplate/Manufacturer"))
+        self.assertIsNotNone(_absent_reason("Safety/Devices[*]/Name"))
+        self.assertIsNone(_absent_reason("GoodCount"))
+
+    def test_a_dropped_publication_is_caught_by_name(self):
+        import tools.check_consistency as cc
+        published = cc._ab_published()
+        original = cc._ab_published
+        cc._ab_published = lambda: published - {"SupportedModesPublished[*]"}
+        try:
+            findings = cc.check_read_surface(Path("."))
+        finally:
+            cc._ab_published = original
+        self.assertEqual(len(findings), 1)
+        self.assertIn("SupportedModesPublished", findings[0].message)
+
+    def test_background_login_flag_is_consumed_by_repository(self):
+        import tools.check_consistency as cc
+        published = cc._ab_published()
+        original = cc._ab_published
+        cc._ab_published = lambda: published - {"Access/LoginBusy"}
+        try:
+            findings = cc.check_read_surface(Path("."))
+        finally:
+            cc._ab_published = original
+        self.assertEqual(len(findings), 1)
+        self.assertIn("Access/LoginBusy", findings[0].message)
+
+    def test_a_host_publication_the_projection_dropped_is_stale(self):
+        """AB_PUBLISHED_FOR_HOSTS excuses an unread path only while it is
+        published; dropped, the excuse is reported, not kept."""
+        import tools.check_consistency as cc
+        published = cc._ab_published()
+        original = cc._ab_published
+        cc._ab_published = lambda: published - {"Oee/IdleMs"}
+        try:
+            findings = cc.check_read_surface(Path("."))
+        finally:
+            cc._ab_published = original
+        self.assertEqual(len(findings), 1)
+        self.assertIn("AB_PUBLISHED_FOR_HOSTS declares 'Oee/IdleMs'", findings[0].message)
+
+    def test_an_unbuildable_projection_is_a_finding_not_a_clean_run(self):
+        import tools.check_consistency as cc
+
+        def boom():
+            raise ImportError("no fixture")
+
+        original = cc._ab_published
+        cc._ab_published = boom
+        try:
+            findings = cc.check_read_surface(Path("."))
+        finally:
+            cc._ab_published = original
+        self.assertTrue(findings)
+        self.assertIn("nothing was compared", findings[0].message)
+
+    def test_the_tree_agrees_today(self):
+        self.assertEqual([str(f) for f in check_read_surface(Path("."))], [])
+
+
+class FindingTests(unittest.TestCase):
+    def test_severity_is_visible_at_a_glance(self):
+        self.assertTrue(str(Finding("x", "error", "f", "m")).startswith("ERROR"))
+        self.assertTrue(str(Finding("x", "warning", "f", "m")).startswith("warn"))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,757 @@
+/// Optional facet cards — each renders only when the module publishes that facet
+/// (Core 3.10 self-description). Covers the data-bearing annexes:
+///   D link supervision · E traceability/verdict · F PackML · G/I motion.
+library;
+
+import '../localization/localized_text.dart';
+import 'package:flutter/material.dart';
+import 'theme_surfaces.dart';
+import '../domain/types.dart';
+import 'app_theme.dart';
+
+class SystemHealthCard extends StatelessWidget {
+  final SystemHealthFacet health;
+  final SignalTowerFacet? tower;
+  final bool canLampTest;
+  final Future<bool> Function() onLampTest;
+  final VoidCallback onExplain;
+  const SystemHealthCard({
+    super.key,
+    required this.health,
+    this.tower,
+    required this.canLampTest,
+    required this.onLampTest,
+    required this.onExplain,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final clockOk = health.time.available && health.time.synchronized;
+    return FraktalCard(
+      color: health.healthy ? null : cs.errorContainer,
+      child: onContainer(
+        context,
+        health.healthy ? cs.surface : cs.errorContainer,
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Wrap(
+              spacing: kInlineItemGap,
+              runSpacing: kInlineItemGap,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+              const Icon(Icons.monitor_heart_outlined),
+              LText('System health',
+                  style: Theme.of(context).textTheme.titleMedium),
+              Chip(label: LText(health.healthy ? 'HEALTHY' : 'ATTENTION')),
+              if (tower != null) ...[
+                OutlinedButton.icon(
+                  onPressed: tower!.testActive
+                      ? null
+                      : () async {
+                          if (!canLampTest || !await onLampTest()) onExplain();
+                        },
+                  icon: const Icon(Icons.lightbulb_outline, size: 18),
+                  label: LText(tower!.testActive ? 'TESTING' : 'Lamp test'),
+                ),
+              ],
+            ]),
+            const SizedBox(height: kInlineItemGap),
+            Wrap(
+              spacing: kInlineItemGap,
+              runSpacing: kInlineItemGap,
+              children: [
+              Chip(
+                  avatar: Icon(
+                      clockOk ? Icons.schedule : Icons.schedule_outlined,
+                      size: 18),
+                  label: LText(clockOk
+                      ? '${health.time.source} ${health.time.offsetUs} µs'
+                      : 'TIME UNSYNCHRONIZED')),
+              Chip(label: LText('Task ${health.taskCycleUs} µs')),
+              Chip(label: LText('Jitter ${health.taskJitterUs} µs')),
+              if (health.controllerAvailable)
+                Chip(
+                    label:
+                        LText('CPU ${health.cpuLoadPct.toStringAsFixed(1)}%')),
+              if (health.controllerAvailable)
+                Chip(label: LText('Memory ${health.memoryAvailableMb} MB')),
+            ]),
+            if (tower != null) ...[
+              const SizedBox(height: kInlineItemGap),
+              Row(children: [
+                const LText('Signal tower'),
+                const SizedBox(width: kInlineItemGap),
+                _lamp(Colors.red, tower!.red),
+                _lamp(Colors.amber, tower!.amber),
+                _lamp(Colors.green, tower!.green),
+                _lamp(Colors.blue, tower!.blue),
+                _lamp(Colors.white, tower!.white),
+                if (tower!.horn) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.volume_up, size: 18),
+                ],
+              ]),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _lamp(Color color, bool active) => Container(
+        width: 18,
+        height: 18,
+        margin: const EdgeInsets.only(right: kInlineItemGap),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: active ? color : color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.7)),
+        ),
+      );
+}
+
+class SafetyCard extends StatelessWidget {
+  final SafetyFacet safety;
+  const SafetyCard({super.key, required this.safety});
+  @override
+  Widget build(BuildContext context) {
+    final warning = safety.demandActive ||
+        safety.resetRequired ||
+        safety.faultActive ||
+        safety.bridgeActive ||
+        safety.mutingActive;
+    final cs = Theme.of(context).colorScheme;
+    return FraktalCard(
+      color: warning ? cs.errorContainer : null,
+      child: onContainer(
+        context,
+        warning ? cs.errorContainer : cs.surface,
+        Padding(
+            padding: const EdgeInsets.all(12),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.health_and_safety_outlined),
+                const SizedBox(width: kInlineItemGap),
+                LText('Safety', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                Chip(label: LText(safety.allSafe ? 'READY' : 'SAFE STATE'))
+              ]),
+              if (safety.bridgeActive)
+                const ListTile(
+                    dense: true,
+                    leading: Icon(Icons.key),
+                    title: LText('KEY BRIDGE ACTIVE')),
+              if (safety.mutingActive)
+                const ListTile(
+                    dense: true,
+                    leading: Icon(Icons.visibility_off_outlined),
+                    title: LText('MUTING ACTIVE')),
+              if (safety.resetRequired)
+                const ListTile(
+                    dense: true,
+                    leading: Icon(Icons.restart_alt),
+                    title: LText('Physical safety reset required')),
+              for (final d in safety.devices)
+                ListTile(
+                    dense: true,
+                    leading: Icon(
+                        d.ready
+                            ? Icons.check_circle_outline
+                            : Icons.gpp_bad_outlined,
+                        color: d.ready ? okColor(context) : cs.error),
+                    title: LText(d.name),
+                    subtitle: LText(
+                        '${d.kind.name} · ${d.state.name}${d.description.isEmpty ? '' : '\n${context.tr(d.description)}'}'),
+                    trailing: d.affectedPowerMask == 0
+                        ? null
+                        : LText(
+                            'Zones 0x${d.affectedPowerMask.toRadixString(16)}')),
+            ])),
+      ),
+    );
+  }
+}
+
+class ControlPowerCard extends StatelessWidget {
+  final ControlPowerFacet power;
+  final String domainId;
+  final String domainName;
+  final List<String> memberUnits;
+  final bool canControl;
+  final Future<bool> Function() onControlOn, onControlOff;
+  final VoidCallback onExplain;
+  const ControlPowerCard(
+      {super.key,
+      required this.power,
+      this.domainId = '',
+      this.domainName = '',
+      this.memberUnits = const [],
+      required this.canControl,
+      required this.onControlOn,
+      required this.onControlOff,
+      required this.onExplain});
+
+  Future<void> _request(Future<bool> Function() action) async {
+    if (!canControl || !await action()) onExplain();
+  }
+
+  @override
+  Widget build(BuildContext context) => FraktalCard(
+      child: Padding(
+          padding: const EdgeInsets.all(12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Wrap(
+              spacing: kInlineItemGap,
+              runSpacing: kInlineItemGap,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+              const Icon(Icons.power_settings_new),
+              LText('Control power',
+                  style: Theme.of(context).textTheme.titleMedium),
+              FilledButton.tonal(
+                  onPressed:
+                      !power.controlOn ? () => _request(onControlOn) : null,
+                  child: const LText('Control On')),
+              OutlinedButton(
+                  onPressed:
+                      power.controlOn ? () => _request(onControlOff) : null,
+                  child: const LText('Control Off'))
+            ]),
+            if (domainId.isNotEmpty)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.fence_outlined),
+                title: LText(domainName.isEmpty ? domainId : domainName),
+                subtitle: LText(
+                    'Shared control domain $domainId · affects ${memberUnits.isEmpty ? 'this Unit' : memberUnits.join(', ')}'),
+              ),
+            if (power.rearmRequired)
+              const ListTile(
+                  dense: true,
+                  leading: Icon(Icons.warning_amber),
+                  title: LText('Deliberate rearm required')),
+            for (final g in power.groups)
+              ListTile(
+                  dense: true,
+                  leading: Icon(g.powerOn ? Icons.bolt : Icons.power_off),
+                  title: LText(g.name),
+                  subtitle: LText(
+                      '${g.kind.name} · ${g.state.name} · safety ${g.safetyPermit ? 'permitted' : 'withheld'} · bus ${g.fieldbusHealthy ? 'healthy' : 'fault'}'),
+                  trailing: g.rearmRequired
+                      ? const Chip(label: LText('REARM'))
+                      : null),
+          ])));
+}
+
+/// Annex D — external device link status.
+class LinkCard extends StatelessWidget {
+  final LinkFacet link;
+  const LinkCard({super.key, required this.link});
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return FraktalCard(
+      child: ListTile(
+        leading: Icon(link.linked ? Icons.link : Icons.link_off,
+            color: link.linked ? okColor(context) : cs.error),
+        title: LText(link.linked ? 'Device linked' : 'Link lost'),
+        subtitle: LText(link.linked
+            ? 'Last seen ${_ago(link.lastSeen)}'
+            : (link.linkReason.isEmpty ? 'No heartbeat' : link.linkReason)),
+      ),
+    );
+  }
+
+  String _ago(DateTime? t) {
+    if (t == null) return '—';
+    final s = DateTime.now().difference(t).inSeconds;
+    return s <= 1 ? 'just now' : '${s}s ago';
+  }
+}
+
+/// Annex F — PackML state chip row (ISA-TR88.00.02).
+class PackMLCard extends StatelessWidget {
+  final PackMLState state;
+  const PackMLCard({super.key, required this.state});
+  @override
+  Widget build(BuildContext context) {
+    return FraktalCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          const Icon(Icons.account_tree_outlined),
+          const SizedBox(width: kInlineItemGap),
+          LText('PackML', style: Theme.of(context).textTheme.titleSmall),
+          const Spacer(),
+          // A custom chip fill needs its own label colour: the themed label is
+          // resolved for the DEFAULT surfaces, and these fixed pastels left
+          // white-on-pastel at 1.3:1 on the high-contrast dark theme.
+          Builder(builder: (context) {
+            final fill = _bg(context);
+            return Chip(
+              label: LText(state.name.toUpperCase()),
+              backgroundColor: fill,
+              labelStyle: fill == null
+                  ? null
+                  : TextStyle(color: foregroundOn(context, fill)),
+            );
+          }),
+        ]),
+      ),
+    );
+  }
+
+  Color? _bg(BuildContext ctx) {
+    switch (state) {
+      case PackMLState.execute:
+        return const Color(0xFFC8E6C9);
+      case PackMLState.held:
+      case PackMLState.holding:
+      case PackMLState.suspended:
+        return const Color(0xFFFFE0B2);
+      case PackMLState.aborted:
+      case PackMLState.stopped:
+        return Theme.of(ctx).colorScheme.errorContainer;
+      default:
+        return null;
+    }
+  }
+}
+
+/// Annex G / I — axis / robot published motion.
+class MotionCard extends StatelessWidget {
+  final MotionFacet m;
+  const MotionCard({super.key, required this.m});
+  @override
+  Widget build(BuildContext context) {
+    final range = (m.targetPosition == 0) ? 1.0 : m.targetPosition;
+    final frac = (m.actualPosition / range).clamp(0.0, 1.0);
+    return FraktalCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(m.moving
+                ? Icons.play_circle_outline
+                : Icons.pause_circle_outline),
+            const SizedBox(width: kInlineItemGap),
+            LText('Motion', style: Theme.of(context).textTheme.titleSmall),
+            const Spacer(),
+            if (m.homed)
+              const Chip(label: LText('HOMED'))
+            else
+              const Chip(label: LText('NOT HOMED')),
+          ]),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(value: frac),
+          const SizedBox(height: 6),
+          LText('Actual ${m.actualPosition.toStringAsFixed(2)} ${m.unit}  ·  '
+              'Target ${m.targetPosition.toStringAsFixed(2)} ${m.unit}  ·  '
+              'v ${m.actualVelocity.toStringAsFixed(1)} ${m.unit}/s'),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Annex E — part context, verdict, and measured records with limits.
+class PartCard extends StatelessWidget {
+  final PartFacet part;
+  const PartCard({super.key, required this.part});
+  @override
+  Widget build(BuildContext context) {
+    return FraktalCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.inventory_2_outlined),
+            const SizedBox(width: kInlineItemGap),
+            LText('Part ${part.uid.isEmpty ? '(none)' : part.uid}',
+                style: Theme.of(context).textTheme.titleSmall),
+            const Spacer(),
+            _verdictChip(context, part.verdict),
+          ]),
+          if (part.verdict == Verdict.nok && part.reason.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: LText(part.reason,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ),
+          const SizedBox(height: 6),
+          for (final r in part.records) _measRow(context, r),
+        ]),
+      ),
+    );
+  }
+
+  Widget _verdictChip(BuildContext ctx, Verdict v) {
+    final (label, color) = switch (v) {
+      Verdict.ok => ('OK', okColor(ctx)),
+      Verdict.nok => ('NOK', Theme.of(ctx).colorScheme.error),
+      Verdict.rework => ('REWORK', warningColor(ctx)),
+      Verdict.none => ('—', Theme.of(ctx).colorScheme.onSurfaceVariant),
+    };
+    // The fill is a 15% tint, so it reads as the page surface: keep the themed
+    // label colour (which pairs with that surface) and let the border carry the
+    // status hue. Forcing the status colour here would be low-contrast on both.
+    return Chip(
+        label: LText(label),
+        backgroundColor: color.withValues(alpha: 0.15),
+        labelStyle: TextStyle(color: Theme.of(ctx).colorScheme.onSurface),
+        side: BorderSide(color: color));
+  }
+
+  Widget _measRow(BuildContext ctx, MeasRecord r) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(children: [
+        SizedBox(
+            width: 120, child: LText(r.name, overflow: TextOverflow.ellipsis)),
+        Expanded(
+          child: LText('${r.value.toStringAsFixed(2)} ${r.unit}  '
+              '(${r.min.toStringAsFixed(1)}–${r.max.toStringAsFixed(1)})'),
+        ),
+        Icon(r.inTol ? Icons.check_circle_outline : Icons.error_outline,
+            size: 18,
+            color: r.inTol
+                ? okColor(ctx)
+                : Theme.of(ctx).colorScheme.error),
+      ]),
+    );
+  }
+}
+
+/// §3.10.1 digital nameplate facet — asset identity, versions, documentation link.
+class NameplateCard extends StatelessWidget {
+  final Nameplate plate;
+  const NameplateCard({super.key, required this.plate});
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(String, String)>[
+      if (plate.manufacturer.isNotEmpty) ('Manufacturer', plate.manufacturer),
+      if (plate.designation.isNotEmpty) ('Product', plate.designation),
+      if (plate.serial.isNotEmpty) ('Serial', plate.serial),
+      if (plate.year.isNotEmpty) ('Year', plate.year),
+      if (plate.hwVersion.isNotEmpty) ('Hardware', plate.hwVersion),
+      if (plate.fwVersion.isNotEmpty) ('Firmware', plate.fwVersion),
+      if (plate.swVersion.isNotEmpty) ('Software', plate.swVersion),
+      if (plate.orderCode.isNotEmpty) ('Order code', plate.orderCode),
+    ];
+    return FraktalCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.badge_outlined),
+            const SizedBox(width: kInlineItemGap),
+            LText('Nameplate', style: Theme.of(context).textTheme.titleMedium),
+            const Spacer(),
+            if (plate.docUrl.isNotEmpty)
+              Tooltip(
+                message: plate.docUrl,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.menu_book_outlined, size: 18),
+                  label: const LText('Docs'),
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: LText('Documentation: ${plate.docUrl}'))),
+                ),
+              ),
+          ]),
+          const SizedBox(height: 4),
+          for (final (k, v) in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(children: [
+                SizedBox(
+                    width: 110,
+                    child:
+                        LText(k, style: Theme.of(context).textTheme.bodySmall)),
+                Expanded(child: LText(v)),
+              ]),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// §8.5.1 OEE facet — A/P/Q + OEE with exception-based colouring (muted at/above
+/// target, colour only below — ISA-101 style) and a sparkline of recent samples.
+/// Invalid factors render as '—', never 100%.
+/// Core §8.5.2 - the shift in force and the shifts already closed, newest first.
+/// Times arrive as UTC and are shown in this HMI's local time; a record taken on
+/// an unsynchronized clock or after a hand reset says so, never silently.
+class ShiftCard extends StatelessWidget {
+  final ShiftFacet shift;
+  final int goodCount;
+  const ShiftCard({super.key, required this.shift, this.goodCount = 0});
+
+  static String _two(int v) => v.toString().padLeft(2, '0');
+
+  static String _time(DateTime? utc) {
+    if (utc == null) return '--:--';
+    final t = utc.toLocal();
+    return '${_two(t.hour)}:${_two(t.minute)}';
+  }
+
+  static String _day(DateTime? utc) {
+    if (utc == null) return '';
+    final t = utc.toLocal();
+    return '${t.year}-${_two(t.month)}-${_two(t.day)}';
+  }
+
+  String _name(BuildContext context, int index) => index == 0
+      ? context.tr('std.shift.unscheduled')
+      : '${context.tr('Shift')} $index';
+
+  String _factor(double value, bool valid) =>
+      valid ? '${(value * 100).toStringAsFixed(1)}%' : '—';
+
+  String _seconds(Duration value) =>
+      '${(value.inMilliseconds / 1000).toStringAsFixed(1)} s';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final target = shift.productionTarget ?? 0;
+    final hasTargets = shift.history.any((r) => r.productionTarget != null);
+    return FraktalCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.schedule_outlined),
+            const SizedBox(width: kInlineItemGap),
+            LText('Shifts', style: theme.textTheme.titleMedium),
+            const Spacer(),
+            Text(
+                '${_name(context, shift.currentShift)} · '
+                '${context.tr('since')} ${_time(shift.startedAt)}',
+                style: theme.textTheme.titleSmall),
+          ]),
+          if (shift.endsAt != null)
+            LText('std.shift.endsAt', args: {'time': _time(shift.endsAt)}),
+          if (shift.timeSynchronized &&
+              shift.startedAt != null &&
+              shift.endsAt != null)
+            LText('std.shift.elapsedRemaining', args: {
+              'elapsed': DateTime.now()
+                  .toUtc()
+                  .difference(shift.startedAt!)
+                  .inMinutes
+                  .clamp(0, 2147483647),
+              'remaining': shift.endsAt!
+                  .difference(DateTime.now().toUtc())
+                  .inMinutes
+                  .clamp(0, 2147483647),
+            }),
+          if (shift.calendarPending) const LText('std.shift.calendarPending'),
+          if (target > 0) ...[
+            const SizedBox(height: kInlineItemGap),
+            LText('std.shift.productionProgress', args: {
+              'good': goodCount,
+              'target': target,
+              'percent': (goodCount * 100 / target).toStringAsFixed(1),
+            }),
+            LinearProgressIndicator(
+                value: (goodCount / target).clamp(0.0, 1.0)),
+          ] else if (shift.productionTarget != null && shift.currentShift > 0)
+            const LText('std.shift.targetUnset'),
+          if (!shift.timeSynchronized) const LText('std.shift.clockQuality'),
+          if (shift.history.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LText('No shift has closed yet.',
+                  style: theme.textTheme.bodySmall),
+            )
+          else ...[
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 32,
+                dataRowMinHeight: 28,
+                dataRowMaxHeight: 32,
+                columns: [
+                  const DataColumn(label: LText('Shift')),
+                  if (hasTargets)
+                    const DataColumn(
+                        label: LText('std.shift.productionTarget'),
+                        numeric: true),
+                  if (hasTargets)
+                    const DataColumn(
+                        label: LText('std.shift.targetAchievement'),
+                        numeric: true),
+                  const DataColumn(label: LText('From')),
+                  const DataColumn(label: LText('To')),
+                  const DataColumn(label: LText('Good'), numeric: true),
+                  const DataColumn(label: LText('NOK'), numeric: true),
+                  const DataColumn(label: LText('Rework'), numeric: true),
+                  const DataColumn(label: LText('Availability'), numeric: true),
+                  const DataColumn(label: LText('Performance'), numeric: true),
+                  const DataColumn(label: LText('Quality'), numeric: true),
+                  const DataColumn(label: LText('OEE'), numeric: true),
+                  const DataColumn(label: LText('std.shift.runTime'), numeric: true),
+                  const DataColumn(label: LText('std.shift.downTime'), numeric: true),
+                  const DataColumn(label: LText('std.shift.idleTime'), numeric: true),
+                  const DataColumn(label: SizedBox.shrink()),
+                ],
+                rows: [
+                  for (final r in shift.history)
+                    DataRow(cells: [
+                      DataCell(Text(_name(context, r.shiftIndex))),
+                      if (hasTargets)
+                        DataCell(Text((r.productionTarget ?? 0) > 0
+                            ? '${r.productionTarget}'
+                            : '—')),
+                      if (hasTargets)
+                        DataCell(Text((r.productionTarget ?? 0) > 0
+                            ? '${(r.good * 100 / r.productionTarget!).toStringAsFixed(1)}%'
+                            : '—')),
+                      DataCell(Text('${_day(r.startAt)} ${_time(r.startAt)}')),
+                      DataCell(Text('${_day(r.endAt)} ${_time(r.endAt)}')),
+                      DataCell(Text('${r.good}')),
+                      DataCell(Text('${r.nok}')),
+                      DataCell(Text('${r.rework}')),
+                      DataCell(Text(_factor(r.availability, r.availValid))),
+                      DataCell(Text(_factor(r.performance, r.perfValid))),
+                      DataCell(Text(_factor(r.quality, r.qualValid))),
+                      DataCell(Text(_factor(r.oee, r.oeeValid))),
+                      DataCell(Text(_seconds(r.runTime))),
+                      DataCell(Text(_seconds(r.downTime))),
+                      DataCell(Text(_seconds(r.idleTime))),
+                      DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (!r.timeSynchronized)
+                          Tooltip(
+                              message: context.tr(
+                                  'Boundary crossed on an unsynchronized clock'),
+                              child: Icon(Icons.history_toggle_off,
+                                  size: 18, color: warningColor(context))),
+                        if (r.manualReset)
+                          Tooltip(
+                              message: context.tr(
+                                  'Counts were reset by hand during this shift'),
+                              child: Icon(Icons.pan_tool_outlined,
+                                  size: 18, color: warningColor(context))),
+                      ])),
+                    ]),
+                ],
+              ),
+            ),
+            if (shift.truncated)
+              LText('Older shifts are no longer held on the controller.',
+                  style: theme.textTheme.bodySmall),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+class OeeCard extends StatelessWidget {
+  final OeeSnapshot oee;
+  final VoidCallback onReset; // act-or-explain handled by the caller
+  const OeeCard({super.key, required this.oee, required this.onReset});
+
+  static const _target = 0.85;
+
+  Color _tone(BuildContext ctx, double v, bool valid) {
+    if (!valid) return Theme.of(ctx).colorScheme.outline;
+    if (v >= _target)
+      return Theme.of(ctx).colorScheme.onSurfaceVariant; // muted = good
+    if (v >= 0.6) return warningColor(ctx);
+    return Theme.of(ctx).colorScheme.error;
+  }
+
+  String _pct(double v, bool valid) =>
+      valid ? '${(v * 100).toStringAsFixed(1)}%' : '—';
+
+  @override
+  Widget build(BuildContext context) {
+    return FraktalCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.speed_outlined),
+            const SizedBox(width: kInlineItemGap),
+            LText('OEE', style: Theme.of(context).textTheme.titleMedium),
+            const Spacer(),
+            LText(_pct(oee.oee, oee.oeeValid),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: _tone(context, oee.oee, oee.oeeValid),
+                    fontWeight: FontWeight.w700)),
+            IconButton(
+                tooltip: context.tr('Reset OEE (shift start, logged)'),
+                icon: const Icon(Icons.restart_alt, size: 20),
+                onPressed: onReset),
+          ]),
+          Row(children: [
+            _factor(context, 'Availability', oee.availability, oee.availValid),
+            _factor(context, 'Performance', oee.performance, oee.perfValid),
+            _factor(context, 'Quality', oee.quality, oee.qualValid),
+          ]),
+          if (oee.trend.length >= 2) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+                height: 36,
+                width: double.infinity,
+                child: CustomPaint(
+                    painter: _Sparkline(
+                        oee.trend, Theme.of(context).colorScheme.primary))),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Widget _factor(BuildContext context, String label, double v, bool valid) {
+    return Expanded(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        LText(label, style: Theme.of(context).textTheme.bodySmall),
+        LText(_pct(v, valid),
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: _tone(context, v, valid))),
+        LinearProgressIndicator(
+            value: valid ? v : 0,
+            minHeight: 4,
+            color: _tone(context, v, valid)),
+      ]),
+    );
+  }
+}
+
+class _Sparkline extends CustomPainter {
+  final List<double> data;
+  final Color color;
+  _Sparkline(this.data, this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = 1.6
+      ..style = PaintingStyle.stroke;
+    final path = Path();
+    for (var i = 0; i < data.length; i++) {
+      final x = i / (data.length - 1) * size.width;
+      final y = size.height - (data[i].clamp(0.0, 1.0)) * size.height;
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(path, p);
+  }
+
+  @override
+  bool shouldRepaint(covariant _Sparkline old) =>
+      old.data != data || old.color != color;
+}

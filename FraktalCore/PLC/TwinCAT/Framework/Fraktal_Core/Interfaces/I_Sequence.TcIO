@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_Sequence" Id="{25ed7d0d-4569-4485-bec3-b05140229588}">
+    <Declaration><![CDATA[// Core §6.8 — the sliver of a step chain its OWNER needs.
+// A chain receives the host bridge at Setup (I_SequenceHost); this is the
+// reverse direction, so FB_UnitBase can drive scan-scoped housekeeping for
+// every attached chain without the project wiring a single call.
+INTERFACE I_Sequence]]></Declaration>
+    <Method Name="M_BeginScan" Id="{caf3b0b3-9983-49f9-8954-0826909d05e6}">
+      <Declaration><![CDATA[// §6.10 one-scan reset of the shared transition result.
+METHOD M_BeginScan]]></Declaration>
+    </Method>
+    <Method Name="M_Restart" Id="{5bd37650-9880-431b-8924-0bc4c239bc03}">
+      <Declaration><![CDATA[// §6.8 the chain starts over at its first step, application state included
+// (OnChainReset). Driven by the owning Unit at the transitions after which a
+// chain can never resume: first scan, mode change, abort.
+METHOD M_Restart]]></Declaration>
+    </Method>
+    <Method Name="M_ResumeAfterError" Id="{9ff9ee65-66b8-466e-a166-e187947b0083}">
+      <Declaration><![CDATA[// §6.9 the owning Unit left ERROR: re-arm the step that raised it so the
+// chain re-evaluates the command state instead of resuming mid-handshake.
+METHOD M_ResumeAfterError]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

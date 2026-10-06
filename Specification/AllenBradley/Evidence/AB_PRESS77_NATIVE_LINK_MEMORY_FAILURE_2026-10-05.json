@@ -1,0 +1,69 @@
+{
+  "schema": "fraktal.ab.native-link-memory-failure",
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-05T15:45:41.123272+00:00",
+  "status": "NATIVE_COMPILE_REACHED_LINK_FAILED_OUT_OF_MEMORY",
+  "build": 77,
+  "expectedArtifact": {
+    "path": "C:/work/press77.L5X",
+    "sha256": "069C81EB94B2BDF5801BDE071CE0A48DC39F04A40CAA7657ED459957247C8A6B",
+    "binding": "Owner follow-up to press77; estimate matches all 33 routine names. Original download was read before its attachment expired. Logs contain no SHA."
+  },
+  "transcripts": {
+    "DOWNLOAD_EXCERPT.txt": {
+      "file": "AB_PRESS77_NATIVE_LINK_MEMORY_FAILURE_2026-10-05_DOWNLOAD_EXCERPT.txt",
+      "sha256": "D1435C0A313AAF38854F72D3C1876C60B40CCCC79446D3B12F528ADDE9806E76",
+      "complete": false,
+      "provenance": "Exact final excerpt from the initial tool read; older attachment expired"
+    },
+    "ESTIMATE.txt": {
+      "file": "AB_PRESS77_NATIVE_LINK_MEMORY_FAILURE_2026-10-05_ESTIMATE.txt",
+      "sha256": "D12D39B0871EA4216E69479CBE29999BC8B2E2CDB9C55DE64CF126C981E32380",
+      "complete": true,
+      "provenance": "Original attachment bytes"
+    }
+  },
+  "native": {
+    "programRoutines": 33,
+    "aoiLogicRoutines": 5,
+    "allRoutineCompilationReached": true,
+    "finalLinkFailure": "Out of memory in the controller.",
+    "downloadErrors": 1,
+    "downloadWarnings": 0,
+    "completedDownload": false,
+    "estimateComplete": true
+  },
+  "capacity": {
+    "source": "Owner Studio offline Capacity Estimate screenshot",
+    "controller": "1769-L24ER-QB1B",
+    "dataLogic": {
+      "totalBytes": 786432,
+      "availableBytes": 0,
+      "usedBytes": 799860,
+      "maxUsedBytes": 799860,
+      "largestBlockFreeBytes": -13428,
+      "exceedsTotalByBytes": 13428
+    },
+    "io": {
+      "totalBytes": 1048576,
+      "availableBytes": 1045936,
+      "usedBytes": 2640,
+      "maxUsedBytes": 2640,
+      "largestBlockFreeBytes": 1045312
+    }
+  },
+  "acceptedMemoryBaseline": {
+    "build": 75,
+    "measurement": "Owner online Capacity",
+    "usedBytes": 758568,
+    "totalBytes": 786432,
+    "availableBytes": 27864,
+    "comparisonLimit": "Offline estimate and online used are different measurement bases."
+  },
+  "implications": [
+    "Native source cleanup compiles at this scope; controller fit fails and is not accepted.",
+    "Spare I/O memory does not resolve data/logic exhaustion.",
+    "Source formatting, ST comments, routine metadata and calls cannot be treated as free.",
+    "Require exact-artifact offline Estimate plus completed linking/download for the correction."
+  ]
+}

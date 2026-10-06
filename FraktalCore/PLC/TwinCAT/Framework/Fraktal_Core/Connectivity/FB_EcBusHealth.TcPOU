@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_EcBusHealth" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810abc}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §10.5.1 infrastructure service: read the REAL, live state of every
+// EtherCAT slave directly from the fieldbus master (Tc2_EtherCAT) and publish it
+// per node, so the HMI fieldbus tree mirrors XAE — independent of any Control-On
+// or safety verdict. Auto-detects from hardware: the project supplies only the
+// master AmsNetId ('' = local CPU) and how its topology node indices line up
+// with the master's slave ordering (one offset), not per-node wiring.
+//
+// This is not a module tier and owns no process image. It calls
+// FB_IoTopologyPublisher.M_SetNodeState for each mapped node.
+FUNCTION_BLOCK FB_EcBusHealth
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _pub : POINTER TO FB_IoTopologyPublisher;
+    _netId : T_AmsNetId;          // EtherCAT MASTER device AmsNetId (see Setup)
+    _firstSlaveNode : INT;        // topology node index of master slave #1
+    _slaveCount : INT;            // how many slaves the master is asked about
+    _masterNode : INT;            // topology node index of the master itself (0 = none)
+    _attached : BOOL;
+
+    // §10.5.1 — which topology node each MASTER SLAVE INDEX belongs to.
+    // _slaveNode[i] = topology node of the master's slave i (0 = unmapped).
+    //
+    // The master enumerates only devices with an EtherCAT slave controller on
+    // the process-data ring. A bus coupler (EK1200) and a passive end cap
+    // (EL9011) are in the project tree and in the catalog, but the master never
+    // lists them -- so "catalog position" and "master slave index" are NOT the
+    // same sequence. Assuming they were shifted every state by one: the press
+    // bench published the EL1809's state onto the coupler, the EL2809's onto the
+    // EL1809, the EL6001's onto the EL2809, and left the real EL6001 and the end
+    // cap reading OFFLINE while all three cards were in OP. A wrong state on the
+    // right node is worse than no state: it is a plausible lie.
+    //
+    // Setup's FirstSlaveNode/SlaveCount form still works and fills this map
+    // consecutively -- correct whenever every catalogued node really is a slave.
+    _slaveNode : ARRAY[1..PL_Fraktal.MAX_BUS_NODES] OF INT;
+    // Topology nodes that are catalogued but are NOT on the master's slave list
+    // (couplers, end caps). Their state is inferred, never invented: they carry
+    // the bus and are reachable exactly when the slaves behind them answer.
+    _passiveNode : ARRAY[1..PL_Fraktal.MAX_BUS_NODES] OF INT;
+    _passiveCount : INT;
+
+    // Auto-detection of the EtherCAT master's AmsNetId (no project wiring): the
+    // master's NetId is the local AMS NetId with the last two bytes replaced by
+    // 2.1 (Beckhoff convention -- a PC 'a.b.c.d.1.1' has its EtherCAT master at
+    // 'a.b.c.d.2.1'; the InfoSys FB_EcGetAllSlaveStates example uses exactly this
+    // pairing). Overridable via Setup for non-standard configurations.
+    {attribute 'OPC.UA.DA' := '0'}
+    _fbLocalNetId : Tc2_Utilities.FB_GetLocalAmsNetId;
+    _autoDetect : BOOL;           // TRUE = derive the master NetId at runtime
+    {attribute 'OPC.UA.DA' := '0'}
+    _netIdArr : T_AmsNetIdArr;    // scratch for the derived master NetId
+
+    {attribute 'OPC.UA.DA' := '0'}
+    _fbStates : Tc2_EtherCAT.FB_EcGetAllSlaveStates;
+    // Bounded state buffer, one ST_EcSlaveState (deviceState + linkState) per
+    // slave. Beckhoff declares pStateBuf as ARRAY[0..EC_MAX_SLAVES], so this
+    // buffer is ZERO-BASED: slave i (1..n, master scan order) is _stateBuf[i-1].
+    {attribute 'OPC.UA.DA' := '0'}
+    _stateBuf : ARRAY[0..PL_Fraktal.MAX_BUS_NODES] OF Tc2_EtherCAT.ST_EcSlaveState;
+    _step : INT;
+    _tPoll : TON;
+    // Demand gating (§10.5.1 diagnostic surface): only scan while a consumer
+    // asks. _firstScanDone lets one scan run after Setup so M_BusOk() — which
+    // feeds control logic, not a view — is never based on unread hardware.
+    _scanRequested : BOOL;
+    _firstScanDone : BOOL;
+END_VAR
+VAR_OUTPUT
+    // Diagnostics so a fieldbus read failure is visible instead of silently
+    // showing every node as faulted. Published for the HMI/engineer.
+    ReadOk : BOOL;                // last slave-state read succeeded
+    LastErrorId : UDINT;          // ADS error of the last failed read (0 = none)
+    SlavesReported : UINT;        // slaves the master reports (nSlaves output)
+    NetIdMissing : BOOL;          // TRUE = InfoData.AmsNetId not linked (all zero)
+    MasterNetId : T_AmsNetId;     // the resolved master NetId actually being used
+    // TRUE = the master reports a different slave count than the project
+    // topology declares (missing/extra hardware, or a config not activated).
+    // §10.5.1: an unmatched mapping is a commissioning error, never guessed.
+    CountMismatch : BOOL;
+
+    // ---- Raw read-back diagnostics (commissioning aid) --------------------
+    // The decoded E_NodeState alone cannot distinguish "the master said INIT"
+    // from "we indexed or decoded it wrong". These publish the EXACT bytes the
+    // master returned plus how each was interpreted, so a disagreement with XAE
+    // is attributable to hardware, indexing, or decode without attaching a
+    // debugger. Deliberately PUBLISHED (no 'OPC.UA.DA' := '0'): the point is
+    // that an engineer can read them remotely over ADS/OPC UA.
+    // Read them as: slot k holds slave k (master scan order), which this
+    // library maps to topology node DiagNodeIndex[k].
+    DiagRawDeviceState : ARRAY[1..8] OF BYTE;   // deviceState byte, as received
+    DiagRawLinkState : ARRAY[1..8] OF BYTE;     // linkState byte, as received
+    DiagDecodedState : ARRAY[1..8] OF INT;      // E_NodeState after decoding
+    DiagNodeIndex : ARRAY[1..8] OF INT;         // topology node each slave maps to
+    DiagBufferBytes : UDINT;                    // cbBufLen passed to the FB
+    DiagEntrySize : UDINT;                      // SIZEOF(ST_EcSlaveState)
+    DiagScanCount : UDINT;                      // completed reads (proves polling)
+    DiagScanRequested : BOOL;                   // the §10.5.1 demand-gate state
+    DiagFirstScanDone : BOOL;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Setup" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a01}">
+      <Declaration><![CDATA[// Bind the publisher and describe how topology nodes map to master slaves.
+// MasterNetIdArr = OPTIONAL override for the EtherCAT master's AmsNetId. Pass all
+//   zeros (the normal case, e.g. an unassigned T_AmsNetIdArr) to AUTO-DETECT it at
+//   runtime: the library reads the local AMS NetId and applies the Beckhoff master
+//   convention (last two bytes -> 2.1), so no project wiring, no XAE checkbox and
+//   no hand-typed address are needed. Supply a value only for a non-standard
+//   configuration (e.g. a remote master, or several masters on one PC), typically
+//   by linking that master's InfoData.AmsNetId.
+// FirstSlaveNode = topology index of the first EtherCAT slave (the coupler);
+// SlaveCount = number of consecutive topology nodes that are real slaves, in
+// master scan order; MasterNodeIndex = topology index of the EtherCAT master
+// itself, or 0 if not represented.
+METHOD Setup : BOOL
+VAR_INPUT
+    Publisher : REFERENCE TO FB_IoTopologyPublisher;
+    MasterNetIdArr : T_AmsNetIdArr;
+    FirstSlaveNode : INT;
+    SlaveCount : INT;
+    MasterNodeIndex : INT;
+END_VAR
+VAR
+    i : INT;
+    anyNonZero : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// All-zero (or omitted) = auto-detect; any explicit value is used verbatim.
+anyNonZero := FALSE;
+FOR i := 0 TO 5 DO
+    IF MasterNetIdArr[i] <> 0 THEN
+        anyNonZero := TRUE;
+    END_IF
+END_FOR
+
+_attached := __ISVALIDREF(Publisher)
+    AND (FirstSlaveNode >= 1)
+    AND (SlaveCount >= 0)
+    AND (SlaveCount <= PL_Fraktal.MAX_BUS_NODES);
+IF _attached THEN
+    _pub := ADR(Publisher);
+    _autoDetect := NOT anyNonZero;
+    IF anyNonZero THEN
+        // Tc2_System helper: byte array -> 'a.b.c.d.e.f' string.
+        _netId := Tc2_System.F_CreateAmsNetId(nIds := MasterNetIdArr);
+        MasterNetId := _netId;
+        NetIdMissing := FALSE;
+        _step := 0;
+    ELSE
+        // Resolve the local NetId first (step -10), then start polling.
+        _netId := '';
+        MasterNetId := '';
+        NetIdMissing := TRUE;   // cleared once auto-detection succeeds
+        _step := -10;
+    END_IF
+    _firstSlaveNode := FirstSlaveNode;
+    _slaveCount := SlaveCount;
+    _masterNode := MasterNodeIndex;
+    // Consecutive default: master slave i -> topology node FirstSlaveNode+i-1.
+    // Correct only when EVERY catalogued node in that window is a real slave;
+    // call M_MapSlaveNode to state the mapping explicitly when it is not.
+    _passiveCount := 0;
+    FOR i := 1 TO PL_Fraktal.MAX_BUS_NODES DO
+        IF i <= _slaveCount THEN
+            _slaveNode[i] := _firstSlaveNode + i - 1;
+        ELSE
+            _slaveNode[i] := 0;
+        END_IF
+        _passiveNode[i] := 0;
+    END_FOR
+END_IF
+Setup := _attached;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_MapSlaveNode" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a07}">
+      <Declaration><![CDATA[// §10.5.1 — state explicitly which topology node the master's slave [SlaveIndex]
+// is, for a bus whose catalog is NOT one-to-one with the master's slave list.
+//
+// The master enumerates only devices with an EtherCAT slave controller on the
+// process-data ring. A bus coupler or a passive end cap appears in the project
+// tree and in the catalog, but never in that list, so the default consecutive
+// mapping shifts every state onto its neighbour. Call this once per real slave,
+// after Setup, and the shift is impossible:
+//
+//   _busHealth.Setup(..., FirstSlaveNode := 2, SlaveCount := 3, MasterNodeIndex := 1);
+//   _busHealth.M_MapSlaveNode(SlaveIndex := 1, NodeIndex := 3);  // EL1809
+//   _busHealth.M_MapSlaveNode(SlaveIndex := 2, NodeIndex := 4);  // EL2809
+//   _busHealth.M_MapSlaveNode(SlaveIndex := 3, NodeIndex := 5);  // EL6001
+//   _busHealth.M_MapPassiveNode(NodeIndex := 2);                 // EK1200 coupler
+//   _busHealth.M_MapPassiveNode(NodeIndex := 6);                 // EL9011 end cap
+METHOD M_MapSlaveNode : BOOL
+VAR_INPUT
+    SlaveIndex : INT;   // 1-based index in the master's slave list
+    NodeIndex : INT;    // topology node this slave IS (0 clears the mapping)
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_MapSlaveNode := _attached
+    AND (SlaveIndex >= 1) AND (SlaveIndex <= PL_Fraktal.MAX_BUS_NODES)
+    AND (NodeIndex >= 0);
+IF M_MapSlaveNode THEN
+    _slaveNode[SlaveIndex] := NodeIndex;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_MapPassiveNode" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a08}">
+      <Declaration><![CDATA[// §10.5.1 — declare a catalogued node that carries the bus but is NOT a slave
+// the master enumerates (bus coupler, end cap, power feed).
+//
+// Its state is INFERRED, never invented: the devices behind it can only answer
+// if it is passing traffic, so it is OPERATIONAL exactly when the read
+// succeeded and at least one real slave reported. Without this it would sit at
+// OFFLINE forever on a perfectly healthy bus -- which is the same "plausible
+// lie" the positional mapping produced, just in the other direction.
+METHOD M_MapPassiveNode : BOOL
+VAR_INPUT
+    NodeIndex : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_MapPassiveNode := _attached
+    AND (NodeIndex >= 1)
+    AND (_passiveCount < PL_Fraktal.MAX_BUS_NODES);
+IF M_MapPassiveNode THEN
+    _passiveCount := _passiveCount + 1;
+    _passiveNode[_passiveCount] := NodeIndex;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Refresh" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a02}">
+      <Declaration><![CDATA[// Non-blocking cyclic refresh: (re)issue the slave-state read at a bounded rate,
+// then publish each node's real state. On a read error every mapped node is
+// marked OFFLINE (fail-visible: an unreachable master is not "operational").
+METHOD M_Refresh
+VAR
+    i : INT;
+    node : INT;
+    mapped : E_NodeState;
+    linkOk : BOOL;
+    reported : INT;   // slaves the master actually returned this read
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT _attached THEN
+    RETURN;
+END_IF
+
+// Mirror the gate state every cycle so "why is it not updating?" is answerable
+// from published data alone: from the outside a PARKED scanner and a STUCK one
+// look identical.
+DiagScanRequested := _scanRequested;
+DiagFirstScanDone := _firstScanDone;
+
+// §10.5.1 is a DIAGNOSTIC surface: the bus picture is only consumed while the
+// fieldbus view is open. Polling the master every 250 ms regardless costs ADS
+// bandwidth and PLC time for data nobody is reading, so the read is demand-gated
+// (M_RequestScan, set by the HMI opening the view / a mailbox request). While no
+// consumer is active the state machine idles and the last published states are
+// held — they are not falsified, just not refreshed.
+// Exception: the FIRST scan after Setup always runs, so M_BusOk() (a control
+// input, not a view) has real data without anyone opening the HMI.
+IF NOT _scanRequested AND _firstScanDone THEN
+    _tPoll(IN := FALSE);
+    RETURN;
+END_IF
+
+// Drive the async read. Re-trigger on a slow poll so a stuck call cannot pin the
+// task; FB_EcGetAllSlaveStates is edge-triggered by bExecute. The slave count is
+// implied by cbBufLen (nSlave * SIZEOF(ST_EcSlaveState)); there is no count input.
+CASE _step OF
+    -10:
+        // Auto-detect: ask the router for this PC's AmsNetId.
+        _fbLocalNetId(bExecute := FALSE);
+        _fbLocalNetId(bExecute := TRUE);
+        _step := -5;
+    -5:
+        _fbLocalNetId(bExecute := FALSE);
+        IF NOT _fbLocalNetId.bBusy THEN
+            IF _fbLocalNetId.bError THEN
+                // Cannot resolve: stay fail-visible and retry on the next poll.
+                ReadOk := FALSE;
+                LastErrorId := _fbLocalNetId.nErrId;
+                NetIdMissing := TRUE;
+                _M_PublishAllOffline();
+                _step := -10;
+            ELSE
+                // Beckhoff convention: the EtherCAT master of a PC 'a.b.c.d.1.1'
+                // is 'a.b.c.d.2.1'. Keep the first four bytes, force 2.1.
+                _netIdArr := _fbLocalNetId.AddrBytes;
+                _netIdArr[4] := 2;
+                _netIdArr[5] := 1;
+                _netId := Tc2_System.F_CreateAmsNetId(nIds := _netIdArr);
+                MasterNetId := _netId;
+                NetIdMissing := FALSE;
+                _step := 0;
+            END_IF
+        END_IF
+    0:
+        _fbStates(bExecute := FALSE);
+        _fbStates(sNetId := _netId,
+            pStateBuf := ADR(_stateBuf),
+            cbBufLen := TO_UDINT(_slaveCount) * SIZEOF(Tc2_EtherCAT.ST_EcSlaveState),
+            bExecute := (_slaveCount > 0));
+        _step := 10;
+    10:
+        _fbStates(bExecute := FALSE);
+        IF NOT _fbStates.bBusy THEN
+            // Publish diagnostics every cycle so a failing read is visible.
+            ReadOk := NOT _fbStates.bError;
+            LastErrorId := _fbStates.nErrId;
+            SlavesReported := _fbStates.nSlaves;
+            IF NOT _fbStates.bError THEN
+                // Only the first nSlaves buffer entries were written by the
+                // master; the rest keep their previous/zero content. Decoding a
+                // zeroed entry yields linkState 0, which reads as "link OK" — a
+                // FAIL-OPEN that showed absent slaves as healthy. Publish only
+                // what the master actually reported and mark the surplus
+                // OFFLINE + link down (fail-closed).
+                reported := TO_INT(_fbStates.nSlaves);
+                IF reported > _slaveCount THEN
+                    reported := _slaveCount;
+                END_IF
+                CountMismatch := (TO_INT(_fbStates.nSlaves) <> _slaveCount);
+                // Commissioning trace: record what the master ACTUALLY returned,
+                // before any interpretation, for the first 8 slaves.
+                DiagScanCount := DiagScanCount + 1;
+                DiagBufferBytes := TO_UDINT(_slaveCount) * SIZEOF(Tc2_EtherCAT.ST_EcSlaveState);
+                DiagEntrySize := SIZEOF(Tc2_EtherCAT.ST_EcSlaveState);
+                FOR i := 1 TO 8 DO
+                    IF i <= _slaveCount THEN
+                        DiagRawDeviceState[i] := _stateBuf[i - 1].deviceState;
+                        DiagRawLinkState[i] := _stateBuf[i - 1].linkState;
+                        DiagNodeIndex[i] := _slaveNode[i];
+                    ELSE
+                        DiagRawDeviceState[i] := 0;
+                        DiagRawLinkState[i] := 0;
+                        DiagNodeIndex[i] := 0;
+                    END_IF
+                END_FOR
+                FOR i := 1 TO _slaveCount DO
+                    // The topology node this master slave IS -- from the
+                    // explicit map, not from position (see _slaveNode).
+                    node := _slaveNode[i];
+                    IF i <= reported THEN
+                        // pStateBuf is ARRAY[0..EC_MAX_SLAVES]: slave i is at i-1.
+                        // Decode the deviceState byte (AL state + flags).
+                        mapped := _M_MapSlaveState(DeviceState := _stateBuf[i - 1].deviceState);
+                        // linkState low nibble = link condition; 0 = OK.
+                        linkOk := (_stateBuf[i - 1].linkState AND 16#0F) = 0;
+                    ELSE
+                        // Declared in the topology but never reported by the
+                        // master: it is not on the bus. Never claim link OK.
+                        mapped := E_NodeState.OFFLINE;
+                        linkOk := FALSE;
+                    END_IF
+                    IF i <= 8 THEN
+                        DiagDecodedState[i] := TO_INT(mapped);
+                    END_IF
+                    IF node >= 1 THEN
+                        _pub^.M_SetNodeState(NodeIndex := node, State := mapped, LinkOk := linkOk);
+                    END_IF
+                END_FOR
+                // Couplers/end caps: inferred from the bus answering, never
+                // invented. See M_MapPassiveNode.
+                FOR i := 1 TO _passiveCount DO
+                    IF _passiveNode[i] >= 1 THEN
+                        IF reported >= 1 THEN
+                            _pub^.M_SetNodeState(NodeIndex := _passiveNode[i],
+                                State := E_NodeState.OPERATIONAL, LinkOk := TRUE);
+                        ELSE
+                            _pub^.M_SetNodeState(NodeIndex := _passiveNode[i],
+                                State := E_NodeState.OFFLINE, LinkOk := FALSE);
+                        END_IF
+                    END_IF
+                END_FOR
+                // The master node's state is inferred from the read: it answered
+                // ADS, so it is running. (A dedicated FB_EcGetMasterState read was
+                // dropped to avoid a version-sensitive member name.)
+                IF _masterNode >= 1 THEN
+                    _pub^.M_SetNodeState(NodeIndex := _masterNode,
+                        State := E_NodeState.OPERATIONAL, LinkOk := TRUE);
+                END_IF
+            ELSE
+                // Master unreachable: mark the whole segment (and master) offline.
+                _M_PublishAllOffline();
+            END_IF
+            _firstScanDone := TRUE;
+            _step := 20;
+        END_IF
+    20:
+        _tPoll(IN := TRUE, PT := T#250MS);
+        IF _tPoll.Q THEN
+            _tPoll(IN := FALSE);
+            _step := 0;
+        END_IF
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="M_BusOk" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a04}">
+      <Declaration><![CDATA[// TRUE when the fieldbus is delivering a valid process image: the master read
+// succeeded and every slave THE MASTER REPORTS is OPERATIONAL. This is the
+// library-detected replacement for a project-declared "bus valid" flag —
+// projects no longer wire their own RealBusOk. Derived from the last M_Refresh
+// cycle (no extra I/O).
+//
+// A catalog that declares MORE nodes than are fitted does not make this FALSE:
+// per N54 D2 the criterion is that the running bus is functioning properly, and
+// a stale catalog is a commissioning issue reported through CountMismatch /
+// MappingValid (§10.5.1). Conflating the two silently blocks Control On.
+METHOD M_BusOk : BOOL
+VAR
+    i : INT;
+    reported : INT;   // slaves the master actually returned
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// N54 D2 (Control On add-on): EnableControlOn is set when the fieldbus masters
+// are "functioning properly" — i.e. the bus that is RUNNING is healthy. That is
+// deliberately NOT the same question as "does the project catalog list exactly
+// the nodes that are fitted": a catalog with more entries than hardware is a
+// commissioning/mapping issue (surfaced as CountMismatch and MappingValid,
+// §10.5.1), not a running-bus fault, and must not hold off Control On.
+M_BusOk := FALSE;
+IF NOT _attached OR _fbStates.bError OR NOT ReadOk THEN
+    RETURN;  // master unreachable / read failed -> not "functioning properly"
+END_IF
+// Judge only what the master actually reports. reported = 0 means no slaves on
+// the bus at all, which is not a healthy running fieldbus.
+reported := TO_INT(_fbStates.nSlaves);
+IF reported < 1 THEN
+    RETURN;
+END_IF
+IF reported > _slaveCount THEN
+    reported := _slaveCount;   // never read past the mapped buffer
+END_IF
+FOR i := 1 TO reported DO
+    // Zero-based buffer (see _stateBuf): slave i is at i-1. Fully operational iff
+    // deviceState is exactly OP (no AL flag bits set).
+    IF _stateBuf[i - 1].deviceState <> Tc2_EtherCAT.EC_DEVICE_STATE_OP THEN
+        RETURN;  // a slave that IS on the bus is not OP -> bus not valid
+    END_IF
+END_FOR
+M_BusOk := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RequestScan" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a06}">
+      <Declaration><![CDATA[// §10.5.1 demand gate. Call every cycle with Active := TRUE while a consumer is
+// reading the bus picture (the HMI fieldbus view is open, or a mailbox scan was
+// requested); FALSE parks the scanner. Held states are NOT invalidated on
+// release — a stale-but-true picture beats a fabricated one; the view re-reads
+// on its next activation.
+METHOD M_RequestScan
+VAR_INPUT
+    Active : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Active AND NOT _scanRequested THEN
+    // Re-arm immediately on a rising request so opening the view does not wait
+    // out the poll timer.
+    _tPoll(IN := FALSE);
+    IF _step = 20 THEN
+        _step := 0;
+    END_IF
+END_IF
+_scanRequested := Active;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_PublishAllOffline" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a05}">
+      <Declaration><![CDATA[// Fail-visible fallback: publish every mapped node (and the master) as OFFLINE.
+// Used when the master cannot be reached and when its AmsNetId cannot be
+// resolved -- an unknown bus must never look "operational" on the HMI.
+METHOD PRIVATE _M_PublishAllOffline
+VAR
+    i : INT;
+    node : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT _attached THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _slaveCount DO
+    node := _slaveNode[i];
+    IF node >= 1 THEN
+        _pub^.M_SetNodeState(NodeIndex := node,
+            State := E_NodeState.OFFLINE, LinkOk := FALSE);
+    END_IF
+END_FOR
+// Couplers/end caps go dark with the bus they carry.
+FOR i := 1 TO _passiveCount DO
+    IF _passiveNode[i] >= 1 THEN
+        _pub^.M_SetNodeState(NodeIndex := _passiveNode[i],
+            State := E_NodeState.OFFLINE, LinkOk := FALSE);
+    END_IF
+END_FOR
+IF _masterNode >= 1 THEN
+    _pub^.M_SetNodeState(NodeIndex := _masterNode,
+        State := E_NodeState.OFFLINE, LinkOk := FALSE);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_MapSlaveState" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a03}">
+      <Declaration><![CDATA[// Decode an ST_EcSlaveState.deviceState byte (Beckhoff Tc2_EtherCAT, EtherCAT
+// AL state machine) into the neutral E_NodeState the HMI renders.
+//   low nibble  = AL state: INIT=1, PREOP=2, BOOTSTRAP=3, SAFEOP=4, OP=8
+//   high nibble = flags:    ERROR=0x10, INVALID_VPRS=0x20, INITCMD_ERROR=0x40,
+//                           DISABLED=0x80  -> any set is a fault.
+// Source: infosys.beckhoff.com ST_EcSlaveState / EC_DEVICE_STATE_*.
+METHOD PRIVATE _M_MapSlaveState : E_NodeState
+VAR_INPUT
+    DeviceState : BYTE;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// Any diagnostic flag bit (high nibble) overrides the AL state -> FAULT.
+// After that check only the AL-state bits remain, so compare directly.
+IF (DeviceState AND 16#F0) <> 0 THEN
+    _M_MapSlaveState := E_NodeState.FAULT;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_OP THEN
+    _M_MapSlaveState := E_NodeState.OPERATIONAL;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_SAFEOP THEN
+    _M_MapSlaveState := E_NodeState.SAFEOP;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_PREOP THEN
+    _M_MapSlaveState := E_NodeState.PREOP;
+ELSIF DeviceState = Tc2_EtherCAT.EC_DEVICE_STATE_INIT THEN
+    _M_MapSlaveState := E_NodeState.INIT;
+ELSE
+    // BOOTSTRAP (0x03) or no state reported -> show as offline.
+    _M_MapSlaveState := E_NodeState.OFFLINE;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

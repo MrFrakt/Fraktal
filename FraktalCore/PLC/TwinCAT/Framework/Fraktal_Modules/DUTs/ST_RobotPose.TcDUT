@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotPose" Id="{f84231d3-a70d-415f-8332-f5fad881d52e}">
+    <Declaration><![CDATA[// Annex I I.3 - one pose type for live readback, taught geometry and runtime
+// corrections. The connector owns the Euler convention and the units it speaks
+// to the controller in; per-model facts like that are data it reads, never
+// branches in application code.
+TYPE ST_RobotPose :
+STRUCT
+    X  : LREAL;   // mm
+    Y  : LREAL;
+    Z  : LREAL;
+    RX : LREAL;   // deg
+    RY : LREAL;
+    RZ : LREAL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

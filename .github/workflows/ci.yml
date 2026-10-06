@@ -1,0 +1,229 @@
+# Fraktal CI gate — Core §1.5: "A CI/lint gate (§5.5, §6.8) shall check the
+# machine-verifiable requirements — naming, step records, condition records, and
+# contract usage — on every commit."
+#
+# Gate order follows Annex H §CI wiring: lint -> test -> build.
+#
+# Scope note (O10 honest status): hosted jobs verify the HMI/gateway and PLC
+# source rules. Licensed PLC compilation and runtime execution are separate
+# self-hosted jobs at the end; they remain skipped until their explicit runner
+# variables are configured and never silently appear as a passing hosted gate.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pin the toolchain so a CI green is reproducible (§1.5 pinned verification).
+  FLUTTER_VERSION: 3.47.5
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ---- lint: PLC source rules (no TwinCAT needed) --------------------------
+  # Both build profiles are linted. The library targets modern TwinCAT
+  # (>= 3.1.4026) and keeps 3.1.4024 as a legacy profile selected by the
+  # FRAKTAL_TC3_4024 compiler define; the '4024' run proves every modern-only
+  # construct is pragma-guarded, so the legacy build stays compilable.
+  # See FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/Params/PL_FraktalCompat.TcGVL.
+  plc-lint:
+    name: PLC lint (${{ matrix.profile }} profile)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [modern, '4024']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lint TwinCAT sources
+        run: python FraktalCore/PLC/TwinCAT/tools/plc_lint.py --profile ${{ matrix.profile }}
+      # The TwinCAT gate tools now ship inside the binding they check, and their
+      # tests import them flat (the Allen-Bradley tools convention), so discovery
+      # runs from that directory rather than as a repository-root package.
+      - name: Test the TwinCAT gate tools
+        run: python -m unittest discover -s FraktalCore/PLC/TwinCAT/tools/ -t FraktalCore/PLC/TwinCAT/tools/
+
+  # ---- lint: agreement BETWEEN artifacts (PLC <-> HMI <-> docs) -----------
+  # Runs --strict: every operator-facing key a shipping PLC object emits must
+  # resolve in a shipped catalogue. This was a standing warning backlog for
+  # months, which is exactly how a warning-only gate trains people to skip it.
+  # The backlog is now zero, so the gate holds it there.
+  cross-artifact:
+    name: Cross-artifact consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check agreement between PLC, HMI and specification
+        run: python tools/check_consistency.py --strict
+      - name: Test the repository-level gates
+        run: python -m unittest tools.test_check_consistency tools.test_check_ab_spec tools.test_check_ab_contracts
+      - name: Fraktal/AB specification gates
+        run: |
+          python tools/check_ab_spec.py
+          python tools/check_ab_contracts.py
+
+  # ---- lint + test: HMI app (Flutter) -------------------------------------
+  hmi:
+    name: HMI analyze + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FraktalCore/HMI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Verify generated reason catalog
+        run: dart run tool/generate_reason_catalog.dart --check
+      # The suite is offline by design (SimRepository + fakes): no PLC, no ADS,
+      # no network. Anything needing real hardware lives in tool/probe_*.dart,
+      # which is intentionally not run here.
+      - name: Test
+        run: flutter test
+
+  # ---- lint: pure-Dart packages -------------------------------------------
+  dart-packages:
+    name: Dart packages analyze
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - FraktalCore/HMI/gateway
+          - FraktalCore/HMI/packages/fraktal_opcua_client
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: dart pub get
+      - name: Analyze
+        run: dart analyze
+      # Only run tests when the package actually has a suite, so an empty
+      # test/ dir is not reported as a false pass.
+      - name: Test (if present)
+        run: |
+          if compgen -G "test/*_test.dart" > /dev/null; then
+            dart test
+          else
+            echo "No test suite in ${{ matrix.package }} — skipping."
+          fi
+
+  # ---- build: the Web HMI must still compile ------------------------------
+  web-build:
+    name: Web HMI build
+    runs-on: ubuntu-latest
+    needs: [hmi]
+    defaults:
+      run:
+        working-directory: FraktalCore/HMI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build web
+        run: flutter build web --release
+
+  # ---- check: PLC object check (requires licensed TwinCAT XAE) ------------
+  # Each solution gets a fresh hidden XAE process so installed-library/source
+  # GUIDs never coexist. This gate never activates a configuration or touches a
+  # runtime. Enable it by registering a licensed self-hosted Windows runner with
+  # the `twincat` label and setting vars.HAS_TWINCAT_RUNNER=true.
+  plc-object-check:
+    name: PLC object check (self-hosted TwinCAT)
+    if: vars.HAS_TWINCAT_RUNNER == 'true'
+    runs-on: [self-hosted, windows, twincat]
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check all PLC objects in both isolated test solutions
+        run: .\FraktalCore\PLC\TwinCAT\tools\Invoke-TwinCatBuild.ps1
+      - name: Archive XAE build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twincat-build-logs
+          path: artifacts/twincat-build
+
+  # Runtime activation is deliberately a separate gate. The runner-owned hook
+  # selects an isolated target/ADS port, keeps Autostart Boot Project disabled,
+  # activates/downloads, waits for TcUnit completion, and writes the raw XAE
+  # event-log text requested by -OutputLog. It must never target a machine
+  # runtime. Repository code validates the summary and emits JUnit.
+  plc-tcunit:
+    name: PLC TcUnit (isolated runtime)
+    needs: plc-object-check
+    if: ${{ always() && needs.plc-object-check.result == 'success' && vars.HAS_TWINCAT_TEST_RUNTIME == 'true' }}
+    runs-on: [self-hosted, windows, twincat, twincat-test]
+    defaults:
+      run:
+        shell: powershell
+    env:
+      TCUNIT_RUNNER_SCRIPT: ${{ vars.TCUNIT_RUNNER_SCRIPT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run both TcUnit gates on the isolated target
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TCUNIT_RUNNER_SCRIPT)) {
+            throw 'Set repository variable TCUNIT_RUNNER_SCRIPT to the absolute runner-local PowerShell hook.'
+          }
+          $runner = (Resolve-Path -LiteralPath $env:TCUNIT_RUNNER_SCRIPT).Path
+          if ([System.IO.Path]::GetExtension($runner) -ne '.ps1') {
+            throw "TCUNIT_RUNNER_SCRIPT must resolve to a .ps1 file: $runner"
+          }
+          New-Item -ItemType Directory -Path artifacts\tcunit -Force | Out-Null
+          & $runner -Gate CoreModules `
+            -Solution (Resolve-Path FraktalCore\PLC\TwinCAT\Tests\FraktalTests.slnx).Path `
+            -OutputLog (Join-Path $PWD artifacts\tcunit\core-modules.log)
+          if ($LASTEXITCODE -ne 0) { throw "CoreModules runner hook failed: $LASTEXITCODE" }
+          & $runner -Gate Press `
+            -Solution (Resolve-Path FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressTests.slnx).Path `
+            -OutputLog (Join-Path $PWD artifacts\tcunit\press.log)
+          if ($LASTEXITCODE -ne 0) { throw "Press runner hook failed: $LASTEXITCODE" }
+      - name: Validate summaries and emit JUnit
+        run: |
+          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\core-modules.log artifacts\tcunit\core-modules.xml --gate-name CoreModules --expected-tests 215 --expected-suites 45 --expected-runner PRG_TcUnitRunner
+          python FraktalCore\PLC\TwinCAT\tools\tcunit_to_junit.py artifacts\tcunit\press.log artifacts\tcunit\press.xml --gate-name Press --expected-tests 9 --expected-suites 2 --expected-runner PRG_PressTestRunner
+      - name: Archive TcUnit logs and JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twincat-tcunit-results
+          path: artifacts/tcunit

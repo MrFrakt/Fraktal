@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeRecipeCatalog" Id="{0181356d-9ddb-467c-abe6-a4b8f92ad779}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ProbeRecipeCatalog EXTENDS FB_LocalRecipeProvider]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="M_ResetFixture" Id="{49effafe-c58d-4797-b43e-b5429c654481}">
+      <Declaration><![CDATA[METHOD M_ResetFixture]]></Declaration>
+      <Implementation><ST><![CDATA[// This seam belongs only to the isolated TcUnit image, never production.
+_catalog.SchemaVersion := 1;
+_catalog.Count := 0;
+_catalogInitialized := FALSE;
+_catalogRestoreVersion := 0;
+_n := 0;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

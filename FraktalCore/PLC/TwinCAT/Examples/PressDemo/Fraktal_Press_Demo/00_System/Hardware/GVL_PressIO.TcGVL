@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL_PressIO" Id="{3e5e0406-1d40-4cf0-bbd7-643fac8990b0}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// CX2030 local EtherCAT process image, reconciled with the supplied XTI export.
+// TcLinkTo owns the physical link by exact terminal/channel/PDO-entry name;
+// AT %I*/%Q* keeps the compiler-selected process-image offset non-positional.
+VAR_GLOBAL
+    // =000+S-K010B1 (EL1809) inputs
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 1^_101B301A'}
+    _101B301A AT %I* : BOOL;       // Ch1 feeder retracted = logical slide INSIDE
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 2^_101B301B'}
+    _101B301B AT %I* : BOOL;       // Ch2 feeder extended  = logical slide OUTSIDE
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 3^_101B201A'}
+    _101B201A AT %I* : BOOL;       // Ch3 door closed
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 4^_101B201B'}
+    _101B201B AT %I* : BOOL;       // Ch4 door open
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 5^_101B202A'}
+    _101B202A AT %I* : BOOL;       // Ch5 press down
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 6^_101B202B'}
+    _101B202B AT %I* : BOOL;       // Ch6 press up
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 7^_101S101'}
+    _101S101  AT %I* : BOOL;       // Ch7 right two-hand raw button
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 8^_101S102'}
+    _101S102  AT %I* : BOOL;       // Ch8 left two-hand raw button
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 10^_000MB085A_2'}
+    _000MB085A_2 AT %I* : BOOL;    // Ch10 compressed air below 0.3 bar
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 11^_000MB085A_4'}
+    _000MB085A_4 AT %I* : BOOL;    // Ch11 compressed air above 4.5 bar
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 12^_101B601'}
+    _101B601 AT %I* : BOOL;        // Ch12 part present
+    // N54 D2 operator buttons. Free EL1809 channels were 9/13/16; 9 and 13 are
+    // assigned here. The TcLinkTo names MUST match the terminal channel names in
+    // XAE - confirm the physical wiring before trusting these.
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 9^_000BS901'}
+    _000BS901 AT %I* : BOOL;       // Ch9  IsControlOnButtonPressed  (=000+B-S901:14)
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 13^_000BS902'}
+    _000BS902 AT %I* : BOOL;       // Ch13 IsControlOffButtonPressed (=000+B-S902:14)
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 14^_000K911_Y32'}
+    _000K911_Y32 AT %I* : BOOL;    // Ch14 Control On feedback
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010B1 (EL1809)]^Channel 15^_000K910A'}
+    _000K910A AT %I* : BOOL;       // Ch15 E-stop PRESSED (=000+S1-K910A:14); NORMALLY OPEN on this
+                                   // demo rig: TRUE = actuated. NOT fail-safe - production needs NC.
+
+    // =000+S-K010C1 (EL2809) outputs
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 1^_101K301A'}
+    _101K301A AT %Q* : BOOL;       // Ch1 feeder backward = move inside
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 2^_101K301B'}
+    _101K301B AT %Q* : BOOL;       // Ch2 feeder forward  = move outside
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 3^_101K201A'}
+    _101K201A AT %Q* : BOOL;       // Ch3 close door
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 4^_101K201B'}
+    _101K201B AT %Q* : BOOL;       // Ch4 open door
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 5^_101K202A'}
+    _101K202A AT %Q* : BOOL;       // Ch5 press downward
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 6^_101K202B'}
+    _101K202B AT %Q* : BOOL;       // Ch6 press upward
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 7^_101P101'}
+    _101P101  AT %Q* : BOOL;       // Ch7 right two-hand lamp
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 8^_101P102'}
+    _101P102  AT %Q* : BOOL;       // Ch8 left two-hand lamp
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 10^_000K951_A1'}
+    _000K951_A1 AT %Q* : BOOL;     // Ch10 SwitchControlOn functional request
+    {attribute 'TcLinkTo' := 'TIIB[=000+S-K010C1 (EL2809)]^Channel 11^_000K911_A1'}
+    _000K911_A1 AT %Q* : BOOL;     // Ch11 EnableControlOn functional request
+
+    // =000+S-K010D1 (EL6001) RS232 serial interface.
+    //
+    // The terminal is on the bus and was previously unmapped, so it appeared in the
+    // topology as a node with no channels: an operator diagnosing a dead serial link
+    // had nothing to look at. Nothing in this demo speaks a serial protocol yet - the
+    // process image is mapped so the card is visible, forceable and diagnosable like
+    // every other node, which is what the §10.5.1 bus view is for.
+    //
+    // [!] NOT LINKED YET. The guessed default 3-byte PDO names (0x1A00/0x1600) were
+    // wrong - XAE reports `TIIB[=000+S-K010D1 (EL6001)]^Inputs^Status` not found, so
+    // this terminal is on a different PDO assignment. The variables and their §10.5.1
+    // topology channels stay (the card is published and visible); only the process
+    // image link is missing. To finish: open the terminal's Process Data tab, read the
+    // actual PDO entry names, and restore a TcLinkTo per variable. A wrong TcLinkTo
+    // fails the build loudly, which is the right failure mode - it is why these are
+    // absent rather than guessed a second time.
+    _000K010D1_Status AT %I* : USINT;    // serial status byte
+    _000K010D1_DataIn0 AT %I* : USINT;
+    _000K010D1_DataIn1 AT %I* : USINT;
+    _000K010D1_DataIn2 AT %I* : USINT;
+    _000K010D1_Ctrl AT %Q* : USINT;      // serial control byte
+    _000K010D1_DataOut0 AT %Q* : USINT;
+    _000K010D1_DataOut1 AT %Q* : USINT;
+    _000K010D1_DataOut2 AT %Q* : USINT;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

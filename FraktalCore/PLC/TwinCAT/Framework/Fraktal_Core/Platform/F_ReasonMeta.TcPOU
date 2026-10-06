@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_ReasonMeta" Id="{f5bb2674-c3b7-4528-b71d-d895984b9af1}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §8.9 — resolve one generated rationalization by ReasonCode.
+FUNCTION F_ReasonMeta : BOOL
+VAR_INPUT
+    Reason : E_Reason;
+END_VAR
+VAR_IN_OUT
+    Meta : ST_AlarmMeta;
+END_VAR
+VAR
+    i : INT;
+    candidate : ST_AlarmMeta;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_ReasonMeta := FALSE;
+FOR i := 1 TO PL_ReasonCatalog.COUNT DO
+    IF F_ReasonMetaByIndex(Index := i, Meta := candidate)
+    AND (candidate.ReasonCode = Reason) THEN
+        Meta := candidate;
+        F_ReasonMeta := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

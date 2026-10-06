@@ -1,0 +1,1595 @@
+{
+  "schema": "fraktal.ab.phase6-shelving-memory-fix",
+  "schema_version": 1,
+  "date": "2026-10-03",
+  "timezone": "America/Bogota",
+  "parent": "e23d401",
+  "stage": "offline memory correction; owner Studio Verify/download and hardware gate pending",
+  "target": {
+    "ip": "192.168.100.89",
+    "serial": "7036B510",
+    "controller": "1769-L24ER-QB1B/A",
+    "firmware": "33.014",
+    "taskPeriodMs": 10
+  },
+  "authorization": {
+    "offlineItem": "owner reported mailbox out-of-memory and requested memory control",
+    "controllerWritesThisTurn": false,
+    "download": false,
+    "gatewayRestart": false,
+    "baseline": "v33 legacy zone-and-conduit",
+    "benchWriteEnabledDecision": "2026-09-29",
+    "S9Claim": "owed"
+  },
+  "ownerVerify": {
+    "artifact": "C:/work/press65.L5X",
+    "sha256": "062530E31E0F03335E2F3C0F7C3248E95AF50C4C2672A66D89772ACF9B0D5A1C",
+    "passed": false,
+    "source": "owner message",
+    "output": "Error: Routine 'FRK_PressProgram - FRK_PressHmiMailbox': Out of memory in the controller.\nComplete - 1 error(s), 0 warning(s)"
+  },
+  "lastConfirmedController": {
+    "artifact": "C:/work/press64.L5X",
+    "sha256": "A07AC994DAA8EC27F181FB52333364F9BBABAD7B2E0896ADFE5DB8A42830A339",
+    "contentHash": "7E0EC4F58C126852",
+    "manifestBytes": 80760
+  },
+  "sourceSha256": {
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py": "F231BBF55B4E023CE0D4611A16F45AAB739C8EF595FFBBAEAB1D949D054C7FA2",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generated_size.py": "22106C1431DB30CC88C2A6AED5F852E11014402AF8D4D25EDF6F4778EC149505",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_press_demo.py": "E12A1C64B2BB99F99A08BE3D5830DF2DEAD39CFB237E469D2AB95AFBC34E7CB5",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_shelving.py": "7181254FFC01F00BFC3A34A502A2457BD07078DABCCBDEEC350D97EA2A749525",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_station_template.py": "D6C63F842C893D9D6281F51FD3A60006AFF3E375501BED499E146FDE8452DDEE",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_access.py": "191A12DD737C6A7174212A5BD722C8D80BC200C1D04D511963C7C399BE0EEEF0",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_generated_size.py": "E95D6ED8FA1C4C322BA1E203611948216F17A5D4A2E526E2FE8035EE04A6F55C",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_platform_limits.py": "FE23855C2C8B7F43C314CB0F2FD6294BF2B7952C39CDC0DA91F5A17BA417D4DB",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_shelving.py": "AC5D8DC94C2ACB6904F2D74B223D83CE09F22DEFA444B61DDFCE7E4BC5714097",
+    "Specification/reason_rationalization.json": "7C6B3FA5B0ABF452EA411FD9EA84269C7B2E129BA891EA580F9C9A33B0424DB5"
+  },
+  "build": {
+    "artifacts": {
+      "press": {
+        "Schema": "fraktal.ab.generated-application",
+        "SchemaVersion": 1,
+        "Application": "Press",
+        "Source": "C:\\work\\seed_v33.L5X",
+        "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+        "Output": "C:\\work\\press66.L5X",
+        "OutputSha256": "C566E397760CE4FF621B7CE3C23B8DA7585FE9ED788BC0727901849ADA14DC5B",
+        "GeneratedSize": {
+          "Schema": "fraktal.ab.generated-size",
+          "SchemaVersion": 1,
+          "StudioFitVerified": false,
+          "Totals": {
+            "StSourceBytes": 301017,
+            "StStatementTerminators": 4651,
+            "StLines": 5704,
+            "RllRungs": 20,
+            "DeclaredDataBytes": 117824
+          },
+          "Routines": {
+            "Program/FRK_PressProgram/FRK_PressMain": {
+              "StSourceBytes": 75192,
+              "StStatementTerminators": 994,
+              "StLines": 1190,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_PressHmiMailbox": {
+              "StSourceBytes": 108735,
+              "StStatementTerminators": 1529,
+              "StLines": 1863,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_PressAutoSt": {
+              "StSourceBytes": 28109,
+              "StStatementTerminators": 521,
+              "StLines": 667,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_PressAutoSfc": {
+              "StSourceBytes": 29034,
+              "StStatementTerminators": 509,
+              "StLines": 648,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_PressAutoSfcRun": {
+              "StSourceBytes": 555,
+              "StStatementTerminators": 3,
+              "StLines": 10,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_PressAutoLd": {
+              "StSourceBytes": 0,
+              "StStatementTerminators": 0,
+              "StLines": 0,
+              "RllRungs": 20
+            },
+            "Program/FRK_PressProgram/FRK_Press_AccessSha256": {
+              "StSourceBytes": 14598,
+              "StStatementTerminators": 157,
+              "StLines": 138,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_Press_AccessRecordAudit": {
+              "StSourceBytes": 3949,
+              "StStatementTerminators": 48,
+              "StLines": 53,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_Press_DataResolveLevel": {
+              "StSourceBytes": 1208,
+              "StStatementTerminators": 18,
+              "StLines": 19,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_Press_DataRefreshLevels": {
+              "StSourceBytes": 6128,
+              "StStatementTerminators": 110,
+              "StLines": 101,
+              "RllRungs": 0
+            },
+            "Program/FRK_PressProgram/FRK_Press_AlarmShelfRequest": {
+              "StSourceBytes": 5626,
+              "StStatementTerminators": 71,
+              "StLines": 91,
+              "RllRungs": 0
+            },
+            "AOI/FRK_M_Cylinder/Logic": {
+              "StSourceBytes": 4403,
+              "StStatementTerminators": 100,
+              "StLines": 133,
+              "RllRungs": 0
+            },
+            "AOI/FRK_M_DigitalInput/Logic": {
+              "StSourceBytes": 1178,
+              "StStatementTerminators": 31,
+              "StLines": 37,
+              "RllRungs": 0
+            },
+            "AOI/FRK_M_TwoHand/Logic": {
+              "StSourceBytes": 1997,
+              "StStatementTerminators": 47,
+              "StLines": 57,
+              "RllRungs": 0
+            },
+            "AOI/FRK_M_AirPressure/Logic": {
+              "StSourceBytes": 2562,
+              "StStatementTerminators": 59,
+              "StLines": 73,
+              "RllRungs": 0
+            },
+            "AOI/FRK_U_Press/Logic": {
+              "StSourceBytes": 17743,
+              "StStatementTerminators": 454,
+              "StLines": 624,
+              "RllRungs": 0
+            }
+          },
+          "DeclaredTagBytes": {
+            "Controller/FRK_Press_AccessState": 212,
+            "Controller/FRK_Press_AccessAudit": 4108,
+            "Controller/FRK_Press_AccessUsers": 988,
+            "Controller/FRK_Press_AccessWork": 1060,
+            "Controller/FRK_Press_AccessLoginRequest": 2428,
+            "Controller/FRK_Press_AccessRoundConstants": 256,
+            "Controller/FRK_Press_DataPolicy": 40,
+            "Controller/FRK_Press_DataLevels": 128,
+            "Controller/FRK_Press_DataWork": 32,
+            "Controller/FRK_Press_ConfigSetState": 7900,
+            "Controller/FRK_Press_SetStaged": 1652,
+            "Controller/FRK_Press_SetIndex": 4,
+            "Controller/FRK_Press_SetPrior": 4,
+            "Controller/FRK_Press_SetCopy": 4,
+            "Controller/FRK_Press_ConfigAudit": 2700,
+            "Controller/FRK_Press_ConfigCandidate": 4,
+            "Controller/FRK_T_PressParCfgTag": 24,
+            "Controller/FRK_T_PressStationCfgTag": 24,
+            "Controller/FRK_Press_ConfigPersist": 44,
+            "Controller/FRK_Press_ModelCfg": 60,
+            "Controller/FRK_Press_AlarmActive": 888,
+            "Controller/FRK_Press_AlarmRing": 3332,
+            "Controller/FRK_Press_AlarmShelfWork": 96,
+            "Controller/FRK_Press_Oee": 1968,
+            "Controller/FRK_Press_Profiler": 3452,
+            "Controller/FRK_Press_StateFlags": 32,
+            "Controller/FRK_Press_HealthProbe": 80,
+            "Controller/FRK_Press_HealthCfg": 24,
+            "Controller/FRK_Press_SystemHealth": 48,
+            "Controller/FRK_Press_StartRelease": 136,
+            "Controller/FRK_Press_ReleaseReport": 136,
+            "Controller/FRK_Press_Clock": 28,
+            "Controller/FRK_Press_NowDate": 4,
+            "Controller/FRK_Press_NowTime": 4,
+            "Controller/FRK_Press_AlmI": 4,
+            "Controller/FRK_Press_AlmSlot": 4,
+            "Controller/FRK_Press_AnyHeld": 4,
+            "Controller/FRK_Press_StallLimitMs": 4,
+            "Controller/FRK_Press_ReleaseIndex": 4,
+            "Controller/FRK_Press_CtxPressRam": 352,
+            "Controller/FRK_Press_CtxDoor": 352,
+            "Controller/FRK_Press_CtxPartSlide": 352,
+            "Controller/FRK_Press_CtxPartPresentSensor": 108,
+            "Controller/FRK_Press_CtxTwoHand": 144,
+            "Controller/FRK_Press_CtxAirPressureMonitor": 140,
+            "Controller/FRK_Press_Unit": 188,
+            "Controller/FRK_Press_Chart": 960,
+            "Controller/FRK_Press_RunRequest": 4,
+            "Controller/FRK_Press_AbortRequest": 4,
+            "Controller/FRK_Press_ResetRequest": 4,
+            "Controller/FRK_Press_ModeRequest": 4,
+            "Controller/FRK_Press_DecisionAnswer": 4,
+            "Controller/FRK_Press_ModelRequest": 4,
+            "Controller/FRK_Press_FaultPressRam": 4,
+            "Controller/FRK_Press_HoldPressRam": 4,
+            "Controller/FRK_Press_FaultDoor": 4,
+            "Controller/FRK_Press_HoldDoor": 4,
+            "Controller/FRK_Press_FaultPartSlide": 4,
+            "Controller/FRK_Press_HoldPartSlide": 4,
+            "Controller/FRK_Press_TwoHand": 4,
+            "Controller/FRK_Press_PartPresent": 4,
+            "Controller/FRK_Press_AirOk": 4,
+            "Controller/FRK_Press_RenditionSelect": 4,
+            "Controller/FRK_Press_ScanCount": 4,
+            "Controller/FRK_Press_OrderFail": 4,
+            "Controller/FRK_Press_TaskPeriodMs": 4,
+            "Controller/FRK_Press_LdAdvanced": 4,
+            "Controller/FRK_Press_LdScratch": 4,
+            "Controller/FRK_Press_ForceMask": 4,
+            "Controller/FRK_Press_ForceValue": 4,
+            "Controller/FRK_Press_ForcePermitted": 4,
+            "Controller/FRK_Press_ForceOutputs": 4,
+            "Controller/FRK_Press_HmiRequest": 2428,
+            "Controller/FRK_Press_HmiResponse": 12,
+            "Controller/FRK_Press_HmiLastSequence": 4,
+            "Controller/FRK_Press_HmiWipe": 4,
+            "Controller/FRK_Press_MfHeader": 232,
+            "Controller/FRK_Press_MfRoots": 80,
+            "Controller/FRK_Press_MfModules": 640,
+            "Controller/FRK_Press_MfNameplates": 576,
+            "Controller/FRK_Press_MfFields": 24576,
+            "Controller/FRK_Press_MfOperations": 1024,
+            "Controller/FRK_Press_MfLocalization": 49152,
+            "Controller/FRK_Press_MfRationalization": 768,
+            "Controller/FRK_Press_MfOptionalProfiles": 128,
+            "Controller/FRK_Press_MfWriteCapabilities": 3584
+          },
+          "ExcludedTags": {
+            "Controller/FRK_Press_InstPressRam": "AOI instance",
+            "Controller/FRK_Press_InstDoor": "AOI instance",
+            "Controller/FRK_Press_InstPartSlide": "AOI instance",
+            "Controller/FRK_Press_InstPartPresentSensor": "AOI instance",
+            "Controller/FRK_Press_InstTwoHand": "AOI instance",
+            "Controller/FRK_Press_InstAirPressureMonitor": "AOI instance",
+            "Controller/FRK_Press_InstUnit": "AOI instance",
+            "Program/FRK_PressProgram/FRK_PressAutoS0": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA0": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS100": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA100": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS110": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA110": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS130": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA130": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS150": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA150": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS170": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA170": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS180": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA180": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS185": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA185": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS190": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA190": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS200": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA200": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS210": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA210": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS215": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA215": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS220": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA220": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS230": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA230": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS240": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA240": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS242": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA242": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS244": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA244": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoS999": "unsupported type: SFC_STEP",
+            "Program/FRK_PressProgram/FRK_PressAutoA999": "unsupported type: SFC_ACTION",
+            "Program/FRK_PressProgram/FRK_PressAutoT0A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT100A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT110A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT130A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT150A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT170A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT180A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT180J": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT185A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT190A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT200A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT200J": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT210A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT210J": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT215A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT220A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT230A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT240A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT242A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT244A": "unsupported type: BOOL",
+            "Program/FRK_PressProgram/FRK_PressAutoT999A": "unsupported type: BOOL"
+          },
+          "Limits": "Source/statement counts are trends, not compiled memory. Data excludes AOI storage, aliases, unsupported types, object metadata and reserve."
+        },
+        "Controller": "1769-L24ER-QB1B",
+        "MajorRevision": 33,
+        "TaskName": "FRK_PressTask",
+        "TaskPeriodMs": 10,
+        "WatchdogMs": 500,
+        "PhysicalIoReferences": 20,
+        "EmbeddedIoInhibited": false,
+        "TaskOutputUpdatesDisabled": false,
+        "ForceableOutputs": 8,
+        "BoolMembersInPublicUdt": 0,
+        "ContractRecords": [
+          "FRK_T_PressParCfg",
+          "FRK_T_PressStationCfg"
+        ],
+        "ModuleTypes": [
+          "FRK_M_Cylinder",
+          "FRK_M_DigitalInput",
+          "FRK_M_TwoHand",
+          "FRK_M_AirPressure"
+        ],
+        "ModeOwner": "FRK_U_Press",
+        "AoiDefinitions": 7,
+        "Chains": {
+          "AUTO": [
+            0,
+            100,
+            110,
+            130,
+            150,
+            170,
+            180,
+            185,
+            190,
+            200,
+            210,
+            215,
+            220,
+            230,
+            240,
+            242,
+            244,
+            999
+          ],
+          "HOME": [
+            0,
+            900,
+            902,
+            904,
+            998
+          ],
+          "CHANGEOVER": [
+            0,
+            700,
+            710,
+            712,
+            714,
+            780,
+            790,
+            798
+          ]
+        },
+        "DistinctSteps": 29,
+        "ChartSteps": 32,
+        "WritableInputs": [
+          "FRK_Press_FaultPressRam",
+          "FRK_Press_HoldPressRam",
+          "FRK_Press_FaultDoor",
+          "FRK_Press_HoldDoor",
+          "FRK_Press_FaultPartSlide",
+          "FRK_Press_HoldPartSlide",
+          "FRK_Press_TwoHand",
+          "FRK_Press_PartPresent",
+          "FRK_Press_AirOk",
+          "FRK_Press_RenditionSelect"
+        ],
+        "CommandInputs": [
+          "FRK_Press_RunRequest",
+          "FRK_Press_AbortRequest",
+          "FRK_Press_ResetRequest",
+          "FRK_Press_ModeRequest",
+          "FRK_Press_DecisionAnswer",
+          "FRK_Press_ModelRequest"
+        ],
+        "EvidenceTags": [
+          "FRK_Press_ScanCount",
+          "FRK_Press_OrderFail",
+          "FRK_Press_TaskPeriodMs",
+          "FRK_Press_LdAdvanced",
+          "FRK_Press_LdScratch"
+        ],
+        "HarnessOnlyTags": [
+          "FRK_Press_RenditionSelect",
+          "FRK_Press_LdAdvanced",
+          "FRK_Press_LdScratch"
+        ],
+        "PublishableTags": [
+          "FRK_T_PressParCfgTag",
+          "FRK_T_PressStationCfgTag",
+          "FRK_Press_CtxPressRam",
+          "FRK_Press_CtxDoor",
+          "FRK_Press_CtxPartSlide",
+          "FRK_Press_CtxPartPresentSensor",
+          "FRK_Press_CtxTwoHand",
+          "FRK_Press_CtxAirPressureMonitor",
+          "FRK_Press_Unit",
+          "FRK_Press_Chart",
+          "FRK_Press_ConfigPersist",
+          "FRK_Press_ModelCfg",
+          "FRK_Press_AlarmActive",
+          "FRK_Press_AlarmRing",
+          "FRK_Press_Oee",
+          "FRK_Press_Profiler",
+          "FRK_Press_AccessState",
+          "FRK_Press_AccessAudit",
+          "FRK_Press_DataPolicy",
+          "FRK_Press_DataLevels",
+          "FRK_Press_ConfigAudit",
+          "FRK_Press_ConfigSetState",
+          "FRK_Press_StateFlags",
+          "FRK_Press_HealthProbe",
+          "FRK_Press_HealthCfg",
+          "FRK_Press_SystemHealth",
+          "FRK_Press_FaultPressRam",
+          "FRK_Press_HoldPressRam",
+          "FRK_Press_FaultDoor",
+          "FRK_Press_HoldDoor",
+          "FRK_Press_FaultPartSlide",
+          "FRK_Press_HoldPartSlide",
+          "FRK_Press_TwoHand",
+          "FRK_Press_PartPresent",
+          "FRK_Press_AirOk",
+          "FRK_Press_ScanCount",
+          "FRK_Press_OrderFail",
+          "FRK_Press_TaskPeriodMs"
+        ],
+        "Manifest": {
+          "Schema": "fraktal.ab.manifest",
+          "SchemaMajor": 4,
+          "SchemaMinor": 0,
+          "ConfigRevision": 8596944,
+          "ContentHash": "832DD0D0F260872B",
+          "KeyLength": 56,
+          "Tables": {
+            "Roots": {
+              "rows": 1,
+              "capacity": 4
+            },
+            "Modules": {
+              "rows": 7,
+              "capacity": 16
+            },
+            "Nameplates": {
+              "rows": 0,
+              "capacity": 16
+            },
+            "Fields": {
+              "rows": 565,
+              "capacity": 768
+            },
+            "Operations": {
+              "rows": 6,
+              "capacity": 32
+            },
+            "Localization": {
+              "rows": 570,
+              "capacity": 768
+            },
+            "Rationalization": {
+              "rows": 23,
+              "capacity": 32
+            },
+            "OptionalProfiles": {
+              "rows": 0,
+              "capacity": 8
+            },
+            "WriteCapabilities": {
+              "rows": 9,
+              "capacity": 64
+            }
+          },
+          "Truncated": false,
+          "EstimatedBytes": 80760
+        },
+        "Programs": 1,
+        "Routines": 1,
+        "Tasks": 1,
+        "reproducedByteIdentical": true,
+        "reproduction": "C:\\work\\press66_repro.L5X"
+      },
+      "template": {
+        "Schema": "fraktal.ab.generated-application",
+        "SchemaVersion": 1,
+        "Application": "Cell",
+        "Source": "C:\\work\\seed_v33.L5X",
+        "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+        "Output": "C:\\work\\phase6_shelving_memory_template.L5X",
+        "OutputSha256": "99F5F0A2BC77575C926FF0D6C333CAAE6EC9EBC39F688A6A273954098FF9991A",
+        "GeneratedSize": {
+          "Schema": "fraktal.ab.generated-size",
+          "SchemaVersion": 1,
+          "StudioFitVerified": false,
+          "Totals": {
+            "StSourceBytes": 179068,
+            "StStatementTerminators": 2700,
+            "StLines": 3244,
+            "RllRungs": 0,
+            "DeclaredDataBytes": 115980
+          },
+          "Routines": {
+            "Program/FRK_CellProgram/FRK_CellMain": {
+              "StSourceBytes": 60962,
+              "StStatementTerminators": 823,
+              "StLines": 990,
+              "RllRungs": 0
+            },
+            "Program/FRK_CellProgram/FRK_CellHmiMailbox": {
+              "StSourceBytes": 73627,
+              "StStatementTerminators": 1111,
+              "StLines": 1329,
+              "RllRungs": 0
+            },
+            "Program/FRK_CellProgram/FRK_Cell_AccessSha256": {
+              "StSourceBytes": 14220,
+              "StStatementTerminators": 157,
+              "StLines": 138,
+              "RllRungs": 0
+            },
+            "Program/FRK_CellProgram/FRK_Cell_AccessRecordAudit": {
+              "StSourceBytes": 3838,
+              "StStatementTerminators": 48,
+              "StLines": 53,
+              "RllRungs": 0
+            },
+            "Program/FRK_CellProgram/FRK_Cell_DataResolveLevel": {
+              "StSourceBytes": 1174,
+              "StStatementTerminators": 18,
+              "StLines": 19,
+              "RllRungs": 0
+            },
+            "Program/FRK_CellProgram/FRK_Cell_DataRefreshLevels": {
+              "StSourceBytes": 2708,
+              "StStatementTerminators": 50,
+              "StLines": 46,
+              "RllRungs": 0
+            },
+            "Program/FRK_CellProgram/FRK_Cell_AlarmShelfRequest": {
+              "StSourceBytes": 5490,
+              "StStatementTerminators": 71,
+              "StLines": 91,
+              "RllRungs": 0
+            },
+            "AOI/FRK_M_Cylinder/Logic": {
+              "StSourceBytes": 4403,
+              "StStatementTerminators": 100,
+              "StLines": 133,
+              "RllRungs": 0
+            },
+            "AOI/FRK_M_DigitalInput/Logic": {
+              "StSourceBytes": 1178,
+              "StStatementTerminators": 31,
+              "StLines": 37,
+              "RllRungs": 0
+            },
+            "AOI/FRK_U_Cell/Logic": {
+              "StSourceBytes": 11468,
+              "StStatementTerminators": 291,
+              "StLines": 408,
+              "RllRungs": 0
+            }
+          },
+          "DeclaredTagBytes": {
+            "Controller/FRK_Cell_AccessState": 212,
+            "Controller/FRK_Cell_AccessAudit": 4108,
+            "Controller/FRK_Cell_AccessUsers": 332,
+            "Controller/FRK_Cell_AccessWork": 1060,
+            "Controller/FRK_Cell_AccessLoginRequest": 2428,
+            "Controller/FRK_Cell_AccessRoundConstants": 256,
+            "Controller/FRK_Cell_DataPolicy": 40,
+            "Controller/FRK_Cell_DataLevels": 68,
+            "Controller/FRK_Cell_DataWork": 32,
+            "Controller/FRK_Cell_ConfigSetState": 7880,
+            "Controller/FRK_Cell_SetStaged": 1652,
+            "Controller/FRK_Cell_SetIndex": 4,
+            "Controller/FRK_Cell_SetPrior": 4,
+            "Controller/FRK_Cell_SetCopy": 4,
+            "Controller/FRK_Cell_ConfigAudit": 2700,
+            "Controller/FRK_Cell_ConfigCandidate": 4,
+            "Controller/FRK_T_CellParCfgTag": 16,
+            "Controller/FRK_T_CellStationCfgTag": 8,
+            "Controller/FRK_Cell_ConfigPersist": 44,
+            "Controller/FRK_Cell_ModelCfg": 32,
+            "Controller/FRK_Cell_AlarmActive": 888,
+            "Controller/FRK_Cell_AlarmRing": 3332,
+            "Controller/FRK_Cell_AlarmShelfWork": 96,
+            "Controller/FRK_Cell_Oee": 1968,
+            "Controller/FRK_Cell_Profiler": 3452,
+            "Controller/FRK_Cell_StateFlags": 20,
+            "Controller/FRK_Cell_HealthProbe": 80,
+            "Controller/FRK_Cell_HealthCfg": 24,
+            "Controller/FRK_Cell_SystemHealth": 48,
+            "Controller/FRK_Cell_StartRelease": 136,
+            "Controller/FRK_Cell_ReleaseReport": 136,
+            "Controller/FRK_Cell_Clock": 28,
+            "Controller/FRK_Cell_NowDate": 4,
+            "Controller/FRK_Cell_NowTime": 4,
+            "Controller/FRK_Cell_AlmI": 4,
+            "Controller/FRK_Cell_AlmSlot": 4,
+            "Controller/FRK_Cell_AnyHeld": 4,
+            "Controller/FRK_Cell_StallLimitMs": 4,
+            "Controller/FRK_Cell_ReleaseIndex": 4,
+            "Controller/FRK_Cell_CtxClamp": 352,
+            "Controller/FRK_Cell_CtxPartSensor": 108,
+            "Controller/FRK_Cell_Unit": 184,
+            "Controller/FRK_Cell_Chart": 960,
+            "Controller/FRK_Cell_RunRequest": 4,
+            "Controller/FRK_Cell_AbortRequest": 4,
+            "Controller/FRK_Cell_ResetRequest": 4,
+            "Controller/FRK_Cell_ModeRequest": 4,
+            "Controller/FRK_Cell_DecisionAnswer": 4,
+            "Controller/FRK_Cell_ModelRequest": 4,
+            "Controller/FRK_Cell_FaultClamp": 4,
+            "Controller/FRK_Cell_HoldClamp": 4,
+            "Controller/FRK_Cell_PartPresent": 4,
+            "Controller/FRK_Cell_ScanCount": 4,
+            "Controller/FRK_Cell_OrderFail": 4,
+            "Controller/FRK_Cell_TaskPeriodMs": 4,
+            "Controller/FRK_Cell_HmiRequest": 2428,
+            "Controller/FRK_Cell_HmiResponse": 12,
+            "Controller/FRK_Cell_HmiLastSequence": 4,
+            "Controller/FRK_Cell_HmiWipe": 4,
+            "Controller/FRK_Cell_MfHeader": 232,
+            "Controller/FRK_Cell_MfRoots": 80,
+            "Controller/FRK_Cell_MfModules": 640,
+            "Controller/FRK_Cell_MfNameplates": 576,
+            "Controller/FRK_Cell_MfFields": 24576,
+            "Controller/FRK_Cell_MfOperations": 1024,
+            "Controller/FRK_Cell_MfLocalization": 49152,
+            "Controller/FRK_Cell_MfRationalization": 768,
+            "Controller/FRK_Cell_MfOptionalProfiles": 128,
+            "Controller/FRK_Cell_MfWriteCapabilities": 3584
+          },
+          "ExcludedTags": {
+            "Controller/FRK_Cell_InstClamp": "AOI instance",
+            "Controller/FRK_Cell_InstPartSensor": "AOI instance",
+            "Controller/FRK_Cell_InstUnit": "AOI instance"
+          },
+          "Limits": "Source/statement counts are trends, not compiled memory. Data excludes AOI storage, aliases, unsupported types, object metadata and reserve."
+        },
+        "Controller": "1769-L24ER-QB1B",
+        "MajorRevision": 33,
+        "TaskName": "FRK_CellTask",
+        "TaskPeriodMs": 10,
+        "WatchdogMs": 500,
+        "PhysicalIoReferences": 0,
+        "EmbeddedIoInhibited": true,
+        "TaskOutputUpdatesDisabled": true,
+        "ForceableOutputs": 0,
+        "BoolMembersInPublicUdt": 0,
+        "ContractRecords": [
+          "FRK_T_CellParCfg",
+          "FRK_T_CellStationCfg"
+        ],
+        "ModuleTypes": [
+          "FRK_M_Cylinder",
+          "FRK_M_DigitalInput"
+        ],
+        "ModeOwner": "FRK_U_Cell",
+        "AoiDefinitions": 3,
+        "Chains": {
+          "AUTO": [
+            0,
+            100,
+            110,
+            120,
+            130,
+            999
+          ],
+          "HOME": [
+            0,
+            900,
+            998
+          ]
+        },
+        "DistinctSteps": 8,
+        "ChartSteps": 32,
+        "WritableInputs": [
+          "FRK_Cell_FaultClamp",
+          "FRK_Cell_HoldClamp",
+          "FRK_Cell_PartPresent"
+        ],
+        "CommandInputs": [
+          "FRK_Cell_RunRequest",
+          "FRK_Cell_AbortRequest",
+          "FRK_Cell_ResetRequest",
+          "FRK_Cell_ModeRequest",
+          "FRK_Cell_DecisionAnswer",
+          "FRK_Cell_ModelRequest"
+        ],
+        "EvidenceTags": [
+          "FRK_Cell_ScanCount",
+          "FRK_Cell_OrderFail",
+          "FRK_Cell_TaskPeriodMs"
+        ],
+        "HarnessOnlyTags": [],
+        "PublishableTags": [
+          "FRK_T_CellParCfgTag",
+          "FRK_T_CellStationCfgTag",
+          "FRK_Cell_CtxClamp",
+          "FRK_Cell_CtxPartSensor",
+          "FRK_Cell_Unit",
+          "FRK_Cell_Chart",
+          "FRK_Cell_ConfigPersist",
+          "FRK_Cell_ModelCfg",
+          "FRK_Cell_AlarmActive",
+          "FRK_Cell_AlarmRing",
+          "FRK_Cell_Oee",
+          "FRK_Cell_Profiler",
+          "FRK_Cell_AccessState",
+          "FRK_Cell_AccessAudit",
+          "FRK_Cell_DataPolicy",
+          "FRK_Cell_DataLevels",
+          "FRK_Cell_ConfigAudit",
+          "FRK_Cell_ConfigSetState",
+          "FRK_Cell_StateFlags",
+          "FRK_Cell_HealthProbe",
+          "FRK_Cell_HealthCfg",
+          "FRK_Cell_SystemHealth",
+          "FRK_Cell_FaultClamp",
+          "FRK_Cell_HoldClamp",
+          "FRK_Cell_PartPresent",
+          "FRK_Cell_ScanCount",
+          "FRK_Cell_OrderFail",
+          "FRK_Cell_TaskPeriodMs"
+        ],
+        "Manifest": {
+          "Schema": "fraktal.ab.manifest",
+          "SchemaMajor": 4,
+          "SchemaMinor": 0,
+          "ConfigRevision": 1226427,
+          "ContentHash": "12B6BB5F18F8C282",
+          "KeyLength": 56,
+          "Tables": {
+            "Roots": {
+              "rows": 1,
+              "capacity": 4
+            },
+            "Modules": {
+              "rows": 3,
+              "capacity": 16
+            },
+            "Nameplates": {
+              "rows": 0,
+              "capacity": 16
+            },
+            "Fields": {
+              "rows": 379,
+              "capacity": 768
+            },
+            "Operations": {
+              "rows": 4,
+              "capacity": 32
+            },
+            "Localization": {
+              "rows": 481,
+              "capacity": 768
+            },
+            "Rationalization": {
+              "rows": 19,
+              "capacity": 32
+            },
+            "OptionalProfiles": {
+              "rows": 0,
+              "capacity": 8
+            },
+            "WriteCapabilities": {
+              "rows": 4,
+              "capacity": 64
+            }
+          },
+          "Truncated": false,
+          "EstimatedBytes": 80760
+        },
+        "Programs": 1,
+        "Routines": 1,
+        "Tasks": 1,
+        "reproducedByteIdentical": true,
+        "reproduction": "C:\\work\\phase6_shelving_memory_template_repro.L5X"
+      }
+    },
+    "comparisonAgainstPress64": {
+      "AOIs": true,
+      "Modules": true,
+      "Tasks": true,
+      "changedRoutines": [
+        "FRK_PressMain",
+        "FRK_PressHmiMailbox",
+        "FRK_Press_AccessRecordAudit",
+        "FRK_Press_DataRefreshLevels"
+      ],
+      "addedRoutines": [
+        "FRK_Press_AlarmShelfRequest"
+      ],
+      "privateUsers": true,
+      "accessState": true,
+      "addedDintPayloadBytes": 424,
+      "writableTagSetUnchanged": true,
+      "newPrivateWorkExternalAccess": "None"
+    },
+    "comparisonAgainstFailedPress65": {
+      "changedRoutines": [
+        "FRK_PressHmiMailbox"
+      ],
+      "addedRoutines": [
+        "FRK_Press_AlarmShelfRequest"
+      ],
+      "TagsUnchanged": true,
+      "DataTypesUnchanged": true,
+      "AOIsUnchanged": true,
+      "ModulesUnchanged": true,
+      "TasksUnchanged": true
+    },
+    "generatedSize": {
+      "press64": {
+        "Schema": "fraktal.ab.generated-size",
+        "SchemaVersion": 1,
+        "StudioFitVerified": false,
+        "Totals": {
+          "StSourceBytes": 291409,
+          "StStatementTerminators": 4523,
+          "StLines": 5551,
+          "RllRungs": 20,
+          "DeclaredDataBytes": 117400
+        },
+        "Routines": {
+          "Program/FRK_PressProgram/FRK_PressMain": {
+            "StSourceBytes": 72251,
+            "StStatementTerminators": 956,
+            "StLines": 1147,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressHmiMailbox": {
+            "StSourceBytes": 107805,
+            "StStatementTerminators": 1511,
+            "StLines": 1845,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoSt": {
+            "StSourceBytes": 28109,
+            "StStatementTerminators": 521,
+            "StLines": 667,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoSfc": {
+            "StSourceBytes": 29034,
+            "StStatementTerminators": 509,
+            "StLines": 648,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoSfcRun": {
+            "StSourceBytes": 555,
+            "StStatementTerminators": 3,
+            "StLines": 10,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoLd": {
+            "StSourceBytes": 0,
+            "StStatementTerminators": 0,
+            "StLines": 0,
+            "RllRungs": 20
+          },
+          "Program/FRK_PressProgram/FRK_Press_AccessSha256": {
+            "StSourceBytes": 14598,
+            "StStatementTerminators": 157,
+            "StLines": 138,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_AccessRecordAudit": {
+            "StSourceBytes": 3838,
+            "StStatementTerminators": 47,
+            "StLines": 52,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_DataResolveLevel": {
+            "StSourceBytes": 1208,
+            "StStatementTerminators": 18,
+            "StLines": 19,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_DataRefreshLevels": {
+            "StSourceBytes": 6128,
+            "StStatementTerminators": 110,
+            "StLines": 101,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_Cylinder/Logic": {
+            "StSourceBytes": 4403,
+            "StStatementTerminators": 100,
+            "StLines": 133,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_DigitalInput/Logic": {
+            "StSourceBytes": 1178,
+            "StStatementTerminators": 31,
+            "StLines": 37,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_TwoHand/Logic": {
+            "StSourceBytes": 1997,
+            "StStatementTerminators": 47,
+            "StLines": 57,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_AirPressure/Logic": {
+            "StSourceBytes": 2562,
+            "StStatementTerminators": 59,
+            "StLines": 73,
+            "RllRungs": 0
+          },
+          "AOI/FRK_U_Press/Logic": {
+            "StSourceBytes": 17743,
+            "StStatementTerminators": 454,
+            "StLines": 624,
+            "RllRungs": 0
+          }
+        },
+        "DeclaredTagBytes": {
+          "Controller/FRK_Press_AccessState": 212,
+          "Controller/FRK_Press_AccessAudit": 4108,
+          "Controller/FRK_Press_AccessUsers": 988,
+          "Controller/FRK_Press_AccessWork": 1052,
+          "Controller/FRK_Press_AccessLoginRequest": 2428,
+          "Controller/FRK_Press_AccessRoundConstants": 256,
+          "Controller/FRK_Press_DataPolicy": 40,
+          "Controller/FRK_Press_DataLevels": 128,
+          "Controller/FRK_Press_DataWork": 32,
+          "Controller/FRK_Press_ConfigSetState": 7900,
+          "Controller/FRK_Press_SetStaged": 1652,
+          "Controller/FRK_Press_SetIndex": 4,
+          "Controller/FRK_Press_SetPrior": 4,
+          "Controller/FRK_Press_SetCopy": 4,
+          "Controller/FRK_Press_ConfigAudit": 2700,
+          "Controller/FRK_Press_ConfigCandidate": 4,
+          "Controller/FRK_T_PressParCfgTag": 24,
+          "Controller/FRK_T_PressStationCfgTag": 24,
+          "Controller/FRK_Press_ConfigPersist": 44,
+          "Controller/FRK_Press_ModelCfg": 60,
+          "Controller/FRK_Press_AlarmActive": 824,
+          "Controller/FRK_Press_AlarmRing": 3076,
+          "Controller/FRK_Press_Oee": 1968,
+          "Controller/FRK_Press_Profiler": 3452,
+          "Controller/FRK_Press_StateFlags": 32,
+          "Controller/FRK_Press_HealthProbe": 80,
+          "Controller/FRK_Press_HealthCfg": 24,
+          "Controller/FRK_Press_SystemHealth": 48,
+          "Controller/FRK_Press_StartRelease": 136,
+          "Controller/FRK_Press_ReleaseReport": 136,
+          "Controller/FRK_Press_Clock": 28,
+          "Controller/FRK_Press_NowDate": 4,
+          "Controller/FRK_Press_NowTime": 4,
+          "Controller/FRK_Press_AlmI": 4,
+          "Controller/FRK_Press_AlmSlot": 4,
+          "Controller/FRK_Press_AnyHeld": 4,
+          "Controller/FRK_Press_StallLimitMs": 4,
+          "Controller/FRK_Press_ReleaseIndex": 4,
+          "Controller/FRK_Press_CtxPressRam": 352,
+          "Controller/FRK_Press_CtxDoor": 352,
+          "Controller/FRK_Press_CtxPartSlide": 352,
+          "Controller/FRK_Press_CtxPartPresentSensor": 108,
+          "Controller/FRK_Press_CtxTwoHand": 144,
+          "Controller/FRK_Press_CtxAirPressureMonitor": 140,
+          "Controller/FRK_Press_Unit": 188,
+          "Controller/FRK_Press_Chart": 960,
+          "Controller/FRK_Press_RunRequest": 4,
+          "Controller/FRK_Press_AbortRequest": 4,
+          "Controller/FRK_Press_ResetRequest": 4,
+          "Controller/FRK_Press_ModeRequest": 4,
+          "Controller/FRK_Press_DecisionAnswer": 4,
+          "Controller/FRK_Press_ModelRequest": 4,
+          "Controller/FRK_Press_FaultPressRam": 4,
+          "Controller/FRK_Press_HoldPressRam": 4,
+          "Controller/FRK_Press_FaultDoor": 4,
+          "Controller/FRK_Press_HoldDoor": 4,
+          "Controller/FRK_Press_FaultPartSlide": 4,
+          "Controller/FRK_Press_HoldPartSlide": 4,
+          "Controller/FRK_Press_TwoHand": 4,
+          "Controller/FRK_Press_PartPresent": 4,
+          "Controller/FRK_Press_AirOk": 4,
+          "Controller/FRK_Press_RenditionSelect": 4,
+          "Controller/FRK_Press_ScanCount": 4,
+          "Controller/FRK_Press_OrderFail": 4,
+          "Controller/FRK_Press_TaskPeriodMs": 4,
+          "Controller/FRK_Press_LdAdvanced": 4,
+          "Controller/FRK_Press_LdScratch": 4,
+          "Controller/FRK_Press_ForceMask": 4,
+          "Controller/FRK_Press_ForceValue": 4,
+          "Controller/FRK_Press_ForcePermitted": 4,
+          "Controller/FRK_Press_ForceOutputs": 4,
+          "Controller/FRK_Press_HmiRequest": 2428,
+          "Controller/FRK_Press_HmiResponse": 12,
+          "Controller/FRK_Press_HmiLastSequence": 4,
+          "Controller/FRK_Press_HmiWipe": 4,
+          "Controller/FRK_Press_MfHeader": 232,
+          "Controller/FRK_Press_MfRoots": 80,
+          "Controller/FRK_Press_MfModules": 640,
+          "Controller/FRK_Press_MfNameplates": 576,
+          "Controller/FRK_Press_MfFields": 24576,
+          "Controller/FRK_Press_MfOperations": 1024,
+          "Controller/FRK_Press_MfLocalization": 49152,
+          "Controller/FRK_Press_MfRationalization": 768,
+          "Controller/FRK_Press_MfOptionalProfiles": 128,
+          "Controller/FRK_Press_MfWriteCapabilities": 3584
+        },
+        "ExcludedTags": {
+          "Controller/FRK_Press_InstPressRam": "AOI instance",
+          "Controller/FRK_Press_InstDoor": "AOI instance",
+          "Controller/FRK_Press_InstPartSlide": "AOI instance",
+          "Controller/FRK_Press_InstPartPresentSensor": "AOI instance",
+          "Controller/FRK_Press_InstTwoHand": "AOI instance",
+          "Controller/FRK_Press_InstAirPressureMonitor": "AOI instance",
+          "Controller/FRK_Press_InstUnit": "AOI instance",
+          "Program/FRK_PressProgram/FRK_PressAutoS0": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA0": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS100": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA100": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS110": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA110": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS130": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA130": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS150": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA150": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS170": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA170": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS180": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA180": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS185": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA185": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS190": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA190": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS200": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA200": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS210": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA210": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS215": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA215": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS220": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA220": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS230": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA230": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS240": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA240": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS242": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA242": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS244": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA244": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS999": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA999": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoT0A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT100A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT110A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT130A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT150A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT170A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT180A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT180J": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT185A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT190A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT200A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT200J": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT210A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT210J": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT215A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT220A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT230A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT240A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT242A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT244A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT999A": "unsupported type: BOOL"
+        },
+        "Limits": "Source/statement counts are trends, not compiled memory. Data excludes AOI storage, aliases, unsupported types, object metadata and reserve."
+      },
+      "press65": {
+        "Schema": "fraktal.ab.generated-size",
+        "SchemaVersion": 1,
+        "StudioFitVerified": false,
+        "Totals": {
+          "StSourceBytes": 354598,
+          "StStatementTerminators": 5778,
+          "StLines": 6312,
+          "RllRungs": 20,
+          "DeclaredDataBytes": 117824
+        },
+        "Routines": {
+          "Program/FRK_PressProgram/FRK_PressMain": {
+            "StSourceBytes": 75192,
+            "StStatementTerminators": 994,
+            "StLines": 1190,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressHmiMailbox": {
+            "StSourceBytes": 167942,
+            "StStatementTerminators": 2727,
+            "StLines": 2562,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoSt": {
+            "StSourceBytes": 28109,
+            "StStatementTerminators": 521,
+            "StLines": 667,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoSfc": {
+            "StSourceBytes": 29034,
+            "StStatementTerminators": 509,
+            "StLines": 648,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoSfcRun": {
+            "StSourceBytes": 555,
+            "StStatementTerminators": 3,
+            "StLines": 10,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressAutoLd": {
+            "StSourceBytes": 0,
+            "StStatementTerminators": 0,
+            "StLines": 0,
+            "RllRungs": 20
+          },
+          "Program/FRK_PressProgram/FRK_Press_AccessSha256": {
+            "StSourceBytes": 14598,
+            "StStatementTerminators": 157,
+            "StLines": 138,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_AccessRecordAudit": {
+            "StSourceBytes": 3949,
+            "StStatementTerminators": 48,
+            "StLines": 53,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_DataResolveLevel": {
+            "StSourceBytes": 1208,
+            "StStatementTerminators": 18,
+            "StLines": 19,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_DataRefreshLevels": {
+            "StSourceBytes": 6128,
+            "StStatementTerminators": 110,
+            "StLines": 101,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_Cylinder/Logic": {
+            "StSourceBytes": 4403,
+            "StStatementTerminators": 100,
+            "StLines": 133,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_DigitalInput/Logic": {
+            "StSourceBytes": 1178,
+            "StStatementTerminators": 31,
+            "StLines": 37,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_TwoHand/Logic": {
+            "StSourceBytes": 1997,
+            "StStatementTerminators": 47,
+            "StLines": 57,
+            "RllRungs": 0
+          },
+          "AOI/FRK_M_AirPressure/Logic": {
+            "StSourceBytes": 2562,
+            "StStatementTerminators": 59,
+            "StLines": 73,
+            "RllRungs": 0
+          },
+          "AOI/FRK_U_Press/Logic": {
+            "StSourceBytes": 17743,
+            "StStatementTerminators": 454,
+            "StLines": 624,
+            "RllRungs": 0
+          }
+        },
+        "DeclaredTagBytes": {
+          "Controller/FRK_Press_AccessState": 212,
+          "Controller/FRK_Press_AccessAudit": 4108,
+          "Controller/FRK_Press_AccessUsers": 988,
+          "Controller/FRK_Press_AccessWork": 1060,
+          "Controller/FRK_Press_AccessLoginRequest": 2428,
+          "Controller/FRK_Press_AccessRoundConstants": 256,
+          "Controller/FRK_Press_DataPolicy": 40,
+          "Controller/FRK_Press_DataLevels": 128,
+          "Controller/FRK_Press_DataWork": 32,
+          "Controller/FRK_Press_ConfigSetState": 7900,
+          "Controller/FRK_Press_SetStaged": 1652,
+          "Controller/FRK_Press_SetIndex": 4,
+          "Controller/FRK_Press_SetPrior": 4,
+          "Controller/FRK_Press_SetCopy": 4,
+          "Controller/FRK_Press_ConfigAudit": 2700,
+          "Controller/FRK_Press_ConfigCandidate": 4,
+          "Controller/FRK_T_PressParCfgTag": 24,
+          "Controller/FRK_T_PressStationCfgTag": 24,
+          "Controller/FRK_Press_ConfigPersist": 44,
+          "Controller/FRK_Press_ModelCfg": 60,
+          "Controller/FRK_Press_AlarmActive": 888,
+          "Controller/FRK_Press_AlarmRing": 3332,
+          "Controller/FRK_Press_AlarmShelfWork": 96,
+          "Controller/FRK_Press_Oee": 1968,
+          "Controller/FRK_Press_Profiler": 3452,
+          "Controller/FRK_Press_StateFlags": 32,
+          "Controller/FRK_Press_HealthProbe": 80,
+          "Controller/FRK_Press_HealthCfg": 24,
+          "Controller/FRK_Press_SystemHealth": 48,
+          "Controller/FRK_Press_StartRelease": 136,
+          "Controller/FRK_Press_ReleaseReport": 136,
+          "Controller/FRK_Press_Clock": 28,
+          "Controller/FRK_Press_NowDate": 4,
+          "Controller/FRK_Press_NowTime": 4,
+          "Controller/FRK_Press_AlmI": 4,
+          "Controller/FRK_Press_AlmSlot": 4,
+          "Controller/FRK_Press_AnyHeld": 4,
+          "Controller/FRK_Press_StallLimitMs": 4,
+          "Controller/FRK_Press_ReleaseIndex": 4,
+          "Controller/FRK_Press_CtxPressRam": 352,
+          "Controller/FRK_Press_CtxDoor": 352,
+          "Controller/FRK_Press_CtxPartSlide": 352,
+          "Controller/FRK_Press_CtxPartPresentSensor": 108,
+          "Controller/FRK_Press_CtxTwoHand": 144,
+          "Controller/FRK_Press_CtxAirPressureMonitor": 140,
+          "Controller/FRK_Press_Unit": 188,
+          "Controller/FRK_Press_Chart": 960,
+          "Controller/FRK_Press_RunRequest": 4,
+          "Controller/FRK_Press_AbortRequest": 4,
+          "Controller/FRK_Press_ResetRequest": 4,
+          "Controller/FRK_Press_ModeRequest": 4,
+          "Controller/FRK_Press_DecisionAnswer": 4,
+          "Controller/FRK_Press_ModelRequest": 4,
+          "Controller/FRK_Press_FaultPressRam": 4,
+          "Controller/FRK_Press_HoldPressRam": 4,
+          "Controller/FRK_Press_FaultDoor": 4,
+          "Controller/FRK_Press_HoldDoor": 4,
+          "Controller/FRK_Press_FaultPartSlide": 4,
+          "Controller/FRK_Press_HoldPartSlide": 4,
+          "Controller/FRK_Press_TwoHand": 4,
+          "Controller/FRK_Press_PartPresent": 4,
+          "Controller/FRK_Press_AirOk": 4,
+          "Controller/FRK_Press_RenditionSelect": 4,
+          "Controller/FRK_Press_ScanCount": 4,
+          "Controller/FRK_Press_OrderFail": 4,
+          "Controller/FRK_Press_TaskPeriodMs": 4,
+          "Controller/FRK_Press_LdAdvanced": 4,
+          "Controller/FRK_Press_LdScratch": 4,
+          "Controller/FRK_Press_ForceMask": 4,
+          "Controller/FRK_Press_ForceValue": 4,
+          "Controller/FRK_Press_ForcePermitted": 4,
+          "Controller/FRK_Press_ForceOutputs": 4,
+          "Controller/FRK_Press_HmiRequest": 2428,
+          "Controller/FRK_Press_HmiResponse": 12,
+          "Controller/FRK_Press_HmiLastSequence": 4,
+          "Controller/FRK_Press_HmiWipe": 4,
+          "Controller/FRK_Press_MfHeader": 232,
+          "Controller/FRK_Press_MfRoots": 80,
+          "Controller/FRK_Press_MfModules": 640,
+          "Controller/FRK_Press_MfNameplates": 576,
+          "Controller/FRK_Press_MfFields": 24576,
+          "Controller/FRK_Press_MfOperations": 1024,
+          "Controller/FRK_Press_MfLocalization": 49152,
+          "Controller/FRK_Press_MfRationalization": 768,
+          "Controller/FRK_Press_MfOptionalProfiles": 128,
+          "Controller/FRK_Press_MfWriteCapabilities": 3584
+        },
+        "ExcludedTags": {
+          "Controller/FRK_Press_InstPressRam": "AOI instance",
+          "Controller/FRK_Press_InstDoor": "AOI instance",
+          "Controller/FRK_Press_InstPartSlide": "AOI instance",
+          "Controller/FRK_Press_InstPartPresentSensor": "AOI instance",
+          "Controller/FRK_Press_InstTwoHand": "AOI instance",
+          "Controller/FRK_Press_InstAirPressureMonitor": "AOI instance",
+          "Controller/FRK_Press_InstUnit": "AOI instance",
+          "Program/FRK_PressProgram/FRK_PressAutoS0": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA0": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS100": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA100": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS110": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA110": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS130": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA130": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS150": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA150": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS170": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA170": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS180": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA180": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS185": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA185": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS190": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA190": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS200": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA200": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS210": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA210": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS215": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA215": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS220": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA220": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS230": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA230": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS240": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA240": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS242": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA242": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS244": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA244": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoS999": "unsupported type: SFC_STEP",
+          "Program/FRK_PressProgram/FRK_PressAutoA999": "unsupported type: SFC_ACTION",
+          "Program/FRK_PressProgram/FRK_PressAutoT0A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT100A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT110A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT130A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT150A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT170A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT180A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT180J": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT185A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT190A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT200A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT200J": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT210A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT210J": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT215A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT220A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT230A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT240A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT242A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT244A": "unsupported type: BOOL",
+          "Program/FRK_PressProgram/FRK_PressAutoT999A": "unsupported type: BOOL"
+        },
+        "Limits": "Source/statement counts are trends, not compiled memory. Data excludes AOI storage, aliases, unsupported types, object metadata and reserve."
+      },
+      "deltaFromPress64": {
+        "TotalDelta": {
+          "StSourceBytes": 9608,
+          "StStatementTerminators": 128,
+          "StLines": 153,
+          "RllRungs": 0,
+          "DeclaredDataBytes": 424
+        },
+        "RoutineDelta": {
+          "Program/FRK_PressProgram/FRK_PressMain": {
+            "StSourceBytes": 2941,
+            "StStatementTerminators": 38,
+            "StLines": 43,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_PressHmiMailbox": {
+            "StSourceBytes": 930,
+            "StStatementTerminators": 18,
+            "StLines": 18,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_AccessRecordAudit": {
+            "StSourceBytes": 111,
+            "StStatementTerminators": 1,
+            "StLines": 1,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_AlarmShelfRequest": {
+            "StSourceBytes": 5626,
+            "StStatementTerminators": 71,
+            "StLines": 91,
+            "RllRungs": 0
+          }
+        },
+        "RemovedRoutines": []
+      },
+      "deltaFromPress65": {
+        "TotalDelta": {
+          "StSourceBytes": -53581,
+          "StStatementTerminators": -1127,
+          "StLines": -608,
+          "RllRungs": 0,
+          "DeclaredDataBytes": 0
+        },
+        "RoutineDelta": {
+          "Program/FRK_PressProgram/FRK_PressHmiMailbox": {
+            "StSourceBytes": -59207,
+            "StStatementTerminators": -1198,
+            "StLines": -699,
+            "RllRungs": 0
+          },
+          "Program/FRK_PressProgram/FRK_Press_AlarmShelfRequest": {
+            "StSourceBytes": 5626,
+            "StStatementTerminators": 71,
+            "StLines": 91,
+            "RllRungs": 0
+          }
+        },
+        "RemovedRoutines": []
+      }
+    },
+    "sdkProbe": {
+      "exit_code": 3762504530,
+      "log": "C:/work/press66_sdk.log",
+      "operation": "OpenLogixProjectAsync",
+      "refusal": "No valid license",
+      "openedProject": false,
+      "onlineOperation": false,
+      "output": "[2026-10-03T01:31:15][INFO][C:\\work\\press66.L5X] Open project started\n[2026-10-03T01:31:18][ERROR][C:\\work\\press66.L5X] Open project threw OperationFailedException: No valid license. C:\\work\\press66.L5X\n[2026-10-03T01:31:18][ERROR][C:\\work\\press66.L5X] Failed to open project.\nUnhandled exception. RockwellAutomation.LogixDesigner.OperationFailedException: No valid license. (C:\\work\\press66.L5X)\n   at RockwellAutomation.LogixDesigner.LogixProject.a[a](String A_0, Func`1 A_1)\n   at RockwellAutomation.LogixDesigner.LogixProject.a(CancellationToken A_0)\n   at RockwellAutomation.LogixDesigner.LogixProject.<>c__DisplayClass27_0.<<OpenLogixProjectAsync>b__0>d.MoveNext()\n--- End of stack trace from previous location ---\n   at RockwellAutomation.LogixDesigner.LogixProject.a(String A_0, Func`2 A_1, IEnumerable`1 A_2, CancellationToken A_3)\n   at RockwellAutomation.LogixDesigner.LogixProject.OpenLogixProjectAsync(String projectFilePath, IEnumerable`1 operationEventHandlers, CancellationToken cancellationToken)\n   at RockwellAutomation.LogixDesigner.LogixProject.OpenLogixProjectAsync(String projectFilePath, IOperationEvent operationEventHandler, CancellationToken cancellationToken)\n   at Program.<Main>$(String[] args) in C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\Fraktal.Ab.OfflineProbe\\Program.cs:line 133\n   at Program.<Main>(String[] args)\n",
+      "logSha256": "1F22A9BCC6C7415263B2680074E244C93C9656FD5401FC41BA6CC8B3AE1B59F8"
+    }
+  },
+  "gates": [
+    {
+      "name": "ab",
+      "exit_code": 0,
+      "seconds": 247.819,
+      "log": "C:\\work\\press66_ab.log",
+      "tests": 1479,
+      "logSha256": "F0F97A8582EB78899575972291992D4D91100CA8A2C3148C46DC214C0C17A5E1"
+    },
+    {
+      "name": "consistency",
+      "exit_code": 0,
+      "seconds": 0.519,
+      "log": "C:\\work\\press66_consistency.log",
+      "errors": 0,
+      "warnings": 0,
+      "checks": [
+        "inventory",
+        "localization",
+        "parity",
+        "readsurface"
+      ],
+      "logSha256": "0D95A88F896A710C22C35488D9B94F2B1E5EE954864D81BD65329379EBFD7B26"
+    },
+    {
+      "name": "root",
+      "exit_code": 0,
+      "seconds": 1.632,
+      "log": "C:\\work\\press66_root.log",
+      "tests": 33,
+      "logSha256": "2C106541CBD17786FFA628CD9BB969B3528FAACCF5776C061D0C35FA3B24A224"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "remove_duration_cap",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_duration_is_whole_seconds_and_capped_at_eight_hours"
+    },
+    {
+      "name": "allow_zero_duration",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_zero_negative_and_subsecond_duration_refuse"
+    },
+    {
+      "name": "allow_safety_flag",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_registry_flag_and_safety_category_both_refuse"
+    },
+    {
+      "name": "allow_ambiguous_identity",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_missing_foreign_and_ambiguous_identities_refuse"
+    },
+    {
+      "name": "omit_expiry_event",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_expiry_logs_once_without_session_or_wall_clock_dependency"
+    },
+    {
+      "name": "retain_shelf_on_slot_reuse",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_reset_closes_shelved_event_and_reused_slot_has_no_shelf"
+    },
+    {
+      "name": "clear_control_blocking_on_shelf",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_valid_shelf_changes_annunciation_and_keeps_blocking"
+    },
+    {
+      "name": "project_false_shelf",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_valid_shelf_changes_annunciation_and_keeps_blocking"
+    },
+    {
+      "name": "bypass_alarm_shelve_gate",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_native_claimed_admin_cannot_bypass_shelve_or_unshelve_gate"
+    },
+    {
+      "name": "skip_native_byte_comparison",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_lookup_resolves_every_declared_source_and_reason_from_manifest"
+    },
+    {
+      "name": "allow_unknown_shelvable_flag",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_permission_is_read_from_controller_rationalization_and_unknown_fails_closed"
+    },
+    {
+      "name": "bypass_manifest_count_guard",
+      "baselinePassed": true,
+      "killedByAssertion": true,
+      "failures": 1,
+      "errors": 0,
+      "test": "test_lookup_bounds_native_lengths_keys_and_manifest_counts"
+    }
+  ],
+  "mutationMechanism": {
+    "inMemoryOnly": true,
+    "sourceFileMutations": false,
+    "pythonFlag": "-B"
+  },
+  "memoryScope": {
+    "compiledMemoryMeasured": false,
+    "controllerFitVerified": false,
+    "fourUserCeilingPreserved": true,
+    "maxUsers": 4,
+    "registeredAndAllocatedPressUserRows": 3,
+    "newIdentityTableAllocated": false,
+    "dataLayoutsAndTagsUnchangedFromPress65": true,
+    "lookupBounds": "controller manifest count/key/length guards and declaration-bounded loops",
+    "futureGate": "GeneratedSize in every generation; compare total and per-routine trends with last owner-verified L5X; Studio Verify decides fit"
+  },
+  "hmi": {
+    "productionSourceChanged": false,
+    "newReleaseDeployment": false,
+    "origin": "https://press.localhost/"
+  },
+  "remaining": [
+    "owner Studio Verify/download",
+    "gateway restart",
+    "guarded shelving hardware and regression suites",
+    "measured fit and scan envelope",
+    "physical retention",
+    "write-enabled S9"
+  ]
+}

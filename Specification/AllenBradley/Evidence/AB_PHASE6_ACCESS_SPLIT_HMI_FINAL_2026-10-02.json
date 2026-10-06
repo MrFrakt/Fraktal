@@ -1,0 +1,110 @@
+{
+  "schema": "fraktal.hmi.phase6-access-split-final",
+  "utc": "2026-10-03T00:55:09.818236+00:00",
+  "refines": "AB_PHASE6_ACCESS_SPLIT_FIX_2026-10-02",
+  "controller_writes": false,
+  "reason": "Only explicit provider LoginFailed may produce a bad-PIN result; expired/unavailable sessions remain unavailable",
+  "gates": {
+    "tests": {
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 87.104,
+      "log": "C:\\work\\press62_hmi_final_tests.txt"
+    },
+    "analysis": {
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 6.756,
+      "log": "C:\\work\\press62_hmi_final_analysis.txt"
+    },
+    "web": {
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 52.79,
+      "log": "C:\\work\\press62_hmi_final_web.txt",
+      "output": "C:/work/press62_hmi_web_final",
+      "deployed": false
+    }
+  },
+  "mutations": {
+    "schema": "fraktal.hmi.phase6-access-fast-mutations",
+    "baseline": {
+      "mutation": "baseline",
+      "exit_code": 0,
+      "tests": 18,
+      "passed": true
+    },
+    "mutants": [
+      {
+        "mutation": "empty-session-as-bad-pin",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "result-sequence-ignored",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "pending-ignored",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "consumption-as-authentication",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "provider-budget-ignored",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "timeout-as-bad-pin",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "busy-refusal-as-bad-pin",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "stalled-read-unbounded",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      },
+      {
+        "mutation": "incomplete-state-accepted",
+        "exit_code": 1,
+        "tests": 18,
+        "passed": false
+      }
+    ],
+    "source_files_modified": false,
+    "passed": true,
+    "killed": 9,
+    "total": 9
+  },
+  "tests_passed": 439,
+  "skipped": 6,
+  "client_deployed": false,
+  "final_web_root": "C:/work/press62_hmi_web_final",
+  "final_main_dart_js_sha256": "5ec6112ad0e7b6bf490d2e46149724607837df0c74b1c0dbf6d9d07c689e415f",
+  "plc_artifact_unchanged": true,
+  "final_plc_source_reproduces": true,
+  "source_sha256": {
+    "FraktalCore/HMI/lib/data/opcua_repository.dart": "6b969baf6139d5fb87592df4198e04876d9293bab76d4481e99e3ca212e01b22",
+    "FraktalCore/HMI/test/opcua_repository_test.dart": "daf07be93c39bd2afed69f0d6e440b71c72371554f6e68f23c06adce674a7f8f",
+    "FraktalCore/HMI/test/connection_bootstrap_test.dart": "87e5d4d8b1a960d1e6dd5f32b398e6a256552e3e541cd86ecf389b4d39942760"
+  }
+}

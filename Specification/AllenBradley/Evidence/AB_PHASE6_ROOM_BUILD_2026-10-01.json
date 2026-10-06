@@ -1,0 +1,435 @@
+{
+  "schema": "fraktal.ab.phase6-room-offline-build",
+  "schema_version": 1,
+  "date_local": "2026-10-01",
+  "timezone": "America/Bogota",
+  "source_parent_commit": "692481b",
+  "target": {
+    "address": "192.168.100.89",
+    "expected_serial": "7036B510",
+    "controller": "1769-L24ER-QB1B/A",
+    "firmware": "33.014"
+  },
+  "controller_writes": false,
+  "deployment_posture": "v33 legacy zone-and-conduit; bench writes enabled by recorded owner decision",
+  "write_enabled_claim": "owed until S9 contract suite passes",
+  "stage": "offline; owner Studio import, Verify and download, then controller readback pending",
+  "manifest_budget_bytes": 98304,
+  "template_manifest": {
+    "Schema": "fraktal.ab.manifest",
+    "SchemaMajor": 2,
+    "SchemaMinor": 0,
+    "ConfigRevision": 6395073,
+    "ContentHash": "6194C193DCB842A3",
+    "KeyLength": 56,
+    "Tables": {
+      "Roots": {
+        "rows": 1,
+        "capacity": 4
+      },
+      "Modules": {
+        "rows": 3,
+        "capacity": 16
+      },
+      "Nameplates": {
+        "rows": 0,
+        "capacity": 16
+      },
+      "Fields": {
+        "rows": 299,
+        "capacity": 768
+      },
+      "Operations": {
+        "rows": 4,
+        "capacity": 32
+      },
+      "Localization": {
+        "rows": 371,
+        "capacity": 768
+      },
+      "Rationalization": {
+        "rows": 16,
+        "capacity": 32
+      },
+      "OptionalProfiles": {
+        "rows": 0,
+        "capacity": 8
+      },
+      "WriteCapabilities": {
+        "rows": 4,
+        "capacity": 64
+      }
+    },
+    "Truncated": false,
+    "EstimatedBytes": 79736
+  },
+  "gates": {
+    "ab_suite": {
+      "tests": 1292,
+      "exit_code": 0
+    },
+    "focused_suite": {
+      "tests": 89,
+      "exit_code": 0
+    },
+    "check_consistency": {
+      "errors": 0,
+      "warnings": 0,
+      "exit_code": 0
+    },
+    "consistency_suite": {
+      "tests": 32,
+      "exit_code": 0
+    },
+    "cache_isolation": "-B and fresh PYTHONPYCACHEPREFIX; mutations execute in child memory only"
+  },
+  "s7_cost_curve": {
+    "measured_bytes": 43728,
+    "measured_ms_500": 292.9,
+    "measured_ms_4000": 61.6,
+    "estimated_build_ms_500": 534.1,
+    "estimated_build_ms_4000": 112.3,
+    "estimated_budget_ms_500": 658.5,
+    "estimated_budget_ms_4000": 138.5
+  },
+  "generation": {
+    "Schema": "fraktal.ab.generated-application",
+    "SchemaVersion": 1,
+    "Application": "Press",
+    "Source": "C:\\work\\seed_v33.L5X",
+    "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+    "Output": "C:\\work\\press53.L5X",
+    "OutputSha256": "7E35230B1C07E0837B15E5A6BB83ED6DDB5FCE5DB15920AB5866D8CBB541A0EC",
+    "Controller": "1769-L24ER-QB1B",
+    "MajorRevision": 33,
+    "TaskName": "FRK_PressTask",
+    "TaskPeriodMs": 10,
+    "WatchdogMs": 500,
+    "PhysicalIoReferences": 20,
+    "EmbeddedIoInhibited": false,
+    "TaskOutputUpdatesDisabled": false,
+    "ForceableOutputs": 8,
+    "BoolMembersInPublicUdt": 0,
+    "ContractRecords": [
+      "FRK_T_PressParCfg",
+      "FRK_T_PressStationCfg"
+    ],
+    "ModuleTypes": [
+      "FRK_M_Cylinder",
+      "FRK_M_DigitalInput",
+      "FRK_M_TwoHand",
+      "FRK_M_AirPressure"
+    ],
+    "ModeOwner": "FRK_U_Press",
+    "AoiDefinitions": 7,
+    "Chains": {
+      "AUTO": [
+        0,
+        100,
+        110,
+        130,
+        150,
+        170,
+        180,
+        185,
+        190,
+        200,
+        210,
+        215,
+        220,
+        230,
+        240,
+        242,
+        244,
+        999
+      ],
+      "HOME": [
+        0,
+        900,
+        902,
+        904,
+        998
+      ],
+      "CHANGEOVER": [
+        0,
+        700,
+        710,
+        712,
+        714,
+        780,
+        790,
+        798
+      ]
+    },
+    "DistinctSteps": 29,
+    "ChartSteps": 32,
+    "WritableInputs": [
+      "FRK_Press_FaultPressRam",
+      "FRK_Press_HoldPressRam",
+      "FRK_Press_FaultDoor",
+      "FRK_Press_HoldDoor",
+      "FRK_Press_FaultPartSlide",
+      "FRK_Press_HoldPartSlide",
+      "FRK_Press_TwoHand",
+      "FRK_Press_PartPresent",
+      "FRK_Press_AirOk",
+      "FRK_Press_RenditionSelect"
+    ],
+    "CommandInputs": [
+      "FRK_Press_RunRequest",
+      "FRK_Press_AbortRequest",
+      "FRK_Press_ResetRequest",
+      "FRK_Press_ModeRequest",
+      "FRK_Press_DecisionAnswer",
+      "FRK_Press_ModelRequest"
+    ],
+    "EvidenceTags": [
+      "FRK_Press_ScanCount",
+      "FRK_Press_OrderFail",
+      "FRK_Press_TaskPeriodMs",
+      "FRK_Press_LdAdvanced",
+      "FRK_Press_LdScratch"
+    ],
+    "HarnessOnlyTags": [
+      "FRK_Press_RenditionSelect",
+      "FRK_Press_LdAdvanced",
+      "FRK_Press_LdScratch"
+    ],
+    "PublishableTags": [
+      "FRK_T_PressParCfgTag",
+      "FRK_T_PressStationCfgTag",
+      "FRK_Press_CtxPressRam",
+      "FRK_Press_CtxDoor",
+      "FRK_Press_CtxPartSlide",
+      "FRK_Press_CtxPartPresentSensor",
+      "FRK_Press_CtxTwoHand",
+      "FRK_Press_CtxAirPressureMonitor",
+      "FRK_Press_Unit",
+      "FRK_Press_Chart",
+      "FRK_Press_ConfigPersist",
+      "FRK_Press_ModelCfg",
+      "FRK_Press_AlarmActive",
+      "FRK_Press_AlarmRing",
+      "FRK_Press_Oee",
+      "FRK_Press_Profiler",
+      "FRK_Press_StateFlags",
+      "FRK_Press_HealthProbe",
+      "FRK_Press_HealthCfg",
+      "FRK_Press_SystemHealth",
+      "FRK_Press_FaultPressRam",
+      "FRK_Press_HoldPressRam",
+      "FRK_Press_FaultDoor",
+      "FRK_Press_HoldDoor",
+      "FRK_Press_FaultPartSlide",
+      "FRK_Press_HoldPartSlide",
+      "FRK_Press_TwoHand",
+      "FRK_Press_PartPresent",
+      "FRK_Press_AirOk",
+      "FRK_Press_ScanCount",
+      "FRK_Press_OrderFail",
+      "FRK_Press_TaskPeriodMs"
+    ],
+    "Manifest": {
+      "Schema": "fraktal.ab.manifest",
+      "SchemaMajor": 2,
+      "SchemaMinor": 0,
+      "ConfigRevision": 5232790,
+      "ContentHash": "4FD8961CE0AA3E17",
+      "KeyLength": 56,
+      "Tables": {
+        "Roots": {
+          "rows": 1,
+          "capacity": 4
+        },
+        "Modules": {
+          "rows": 7,
+          "capacity": 16
+        },
+        "Nameplates": {
+          "rows": 0,
+          "capacity": 16
+        },
+        "Fields": {
+          "rows": 485,
+          "capacity": 768
+        },
+        "Operations": {
+          "rows": 6,
+          "capacity": 32
+        },
+        "Localization": {
+          "rows": 460,
+          "capacity": 768
+        },
+        "Rationalization": {
+          "rows": 20,
+          "capacity": 32
+        },
+        "OptionalProfiles": {
+          "rows": 0,
+          "capacity": 8
+        },
+        "WriteCapabilities": {
+          "rows": 9,
+          "capacity": 64
+        }
+      },
+      "Truncated": false,
+      "EstimatedBytes": 79736
+    },
+    "Programs": 1,
+    "Routines": 1,
+    "Tasks": 1
+  },
+  "comparison": {
+    "schema": "fraktal.ab.phase6-room-build-comparison",
+    "previous": "C:/work/press52.L5X",
+    "current": "C:/work/press53.L5X",
+    "allowed_changed_tags": [
+      "FRK_Press_MfFields",
+      "FRK_Press_MfHeader",
+      "FRK_Press_MfLocalization"
+    ],
+    "every_other_project_element_equal": true,
+    "renditions": {
+      "Schema": "fraktal.ab.rendition-gate",
+      "SchemaVersion": 1,
+      "Project": "C:\\work\\press53.L5X",
+      "Application": "Press",
+      "Chains": {
+        "AUTO": {
+          "renditions": [
+            "ST",
+            "SFC",
+            "LD"
+          ],
+          "declaredSteps": [
+            0,
+            100,
+            110,
+            130,
+            150,
+            170,
+            180,
+            185,
+            190,
+            200,
+            210,
+            215,
+            220,
+            230,
+            240,
+            242,
+            244,
+            999
+          ],
+          "declaredTransitions": 21,
+          "ST": {
+            "steps": 18,
+            "transitions": 21,
+            "equalsDeclaration": true
+          },
+          "SFC": {
+            "steps": 18,
+            "transitions": 21,
+            "equalsDeclaration": true
+          },
+          "LD": {
+            "steps": 18,
+            "transitions": 21,
+            "equalsDeclaration": true
+          }
+        }
+      },
+      "Findings": [],
+      "Equal": true
+    }
+  },
+  "mutations": {
+    "schema": "fraktal.ab.phase6-room-mutations",
+    "baseline": {
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "passed": true
+    },
+    "mutants": [
+      {
+        "mutation": "fields-back-to-512",
+        "killed": true,
+        "tests": 14,
+        "failures": 4,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "localization-back-to-512",
+        "killed": true,
+        "tests": 14,
+        "failures": 4,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "old-byte-budget",
+        "killed": true,
+        "tests": 14,
+        "failures": 2,
+        "errors": 5,
+        "passed": false
+      },
+      {
+        "mutation": "budget-too-large",
+        "killed": true,
+        "tests": 14,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "byte-budget-not-enforced",
+        "killed": true,
+        "tests": 14,
+        "failures": 2,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "budget-exclusive",
+        "killed": true,
+        "tests": 14,
+        "failures": 0,
+        "errors": 1,
+        "passed": false
+      },
+      {
+        "mutation": "table-overflow-not-enforced",
+        "killed": true,
+        "tests": 14,
+        "failures": 2,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "fields-overflow-not-enforced",
+        "killed": true,
+        "tests": 14,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "new-slots-not-costed",
+        "killed": true,
+        "tests": 14,
+        "failures": 2,
+        "errors": 0,
+        "passed": false
+      }
+    ],
+    "killed": 9,
+    "total": 9,
+    "passed": true,
+    "source_files_modified": false
+  }
+}

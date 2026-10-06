@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotPoint" Id="{689e4acf-cbbb-4a80-86ca-63a9341c0078}">
+    <Declaration><![CDATA[// Annex I I.8 - one element of a generated or taught route. A point either
+// names a pose to move to, or (ListId <> 0) a taught list for the executor to
+// run at that place in the sequence.
+TYPE ST_RobotPoint :
+STRUCT
+    Target    : ST_RobotPose;
+    MoveClass : E_MoveClass;
+    ListId    : DWORD;    // 0 = move to Target; otherwise run this taught list
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

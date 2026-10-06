@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_HostEventSink" Id="{586ef5d3-2948-4cda-af33-b091c6b5accd}">
+    <Declaration><![CDATA[// Core §11.6.2 — optional north-bound transport adapter. The publisher and ring
+// remain the PLC authority; OPC UA/MES/REST/MQTT implementations only deliver.
+INTERFACE I_HostEventSink]]></Declaration>
+    <Method Name="OnHostEvent" Id="{55239d4d-8494-4f61-96dc-a65ad8affd4c}">
+      <Declaration><![CDATA[METHOD OnHostEvent : BOOL
+VAR_IN_OUT
+    Ev : ST_HostEvent;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

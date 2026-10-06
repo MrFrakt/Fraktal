@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ConfigSetInfo" Id="{d2947f60-8b15-42ae-83c7-6019b5ea3f28}">
+    <Declaration><![CDATA[// Core §3.8b — the header of one named parameter set: everything needed to
+// decide whether this set belongs on this machine BEFORE any value changes.
+//
+// RootIdentity and ConfigRev are the two that matter. A set taken from another
+// root, or at a revision whose capabilities have since changed meaning, is not
+// a set this root can silently replay - and the difference is only visible if
+// the set says where and when it came from.
+TYPE ST_ConfigSetInfo :
+STRUCT
+    Used             : BOOL;         // slot occupied (a store publishes a bounded table)
+    SetName          : STRING(80);
+    RootIdentity     : STRING(80);   // canonical identity of the root that produced it
+    SetSchema        : UINT;         // set-document schema version (§13)
+    ConfigRev        : UDINT;        // §3.10.2 manifest revision it was taken at
+    Kind             : E_ConfigKind; // STATION_CFG = station set; PAR_CFG = model set
+    ModelCode        : STRING(64);   // model set only; '' for a station set
+    RecordCount      : INT;
+    CreatedAt        : DT;           // §2.7 synchronized clock
+    TimeSynchronized : BOOL;         // quality of CreatedAt; FALSE = display as untrusted
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

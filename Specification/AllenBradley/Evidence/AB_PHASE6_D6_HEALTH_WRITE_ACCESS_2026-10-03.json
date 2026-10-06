@@ -1,0 +1,176 @@
+{
+  "schema": "fraktal.ab.phase6.d6.health-write-access.v1",
+  "localDate": "2026-10-03",
+  "timezone": "America/Bogota",
+  "baseCommit": "dfa9ed5484659e544b6827c17b78aab9d300bfef",
+  "status": "offline-passed-awaiting-owner-gateway-restart",
+  "sources": [
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\fraktal_ab_gateway.py",
+      "sha256": "827bd51dfb86a6c15a42575a4f5514d0899cde300e7c07f51af2ca070043880c"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\test_fraktal_ab_gateway.py",
+      "sha256": "9ee224800a4bbdaf59ef04ac8b56532b23c735e34c139b3a9c7588df5e277dbd"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\gateway\\lib\\src\\fraktal_gateway_server.dart",
+      "sha256": "a067916b5c5ee4a6e85197a5f02cce4ae3706585103d2e97e179a802173d3627"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\test\\fraktal_gateway_server_test.dart",
+      "sha256": "7ea9db744adc5c6aa473b8b9109db79ba85200c8441c4808b4a632d6d962bf20"
+    }
+  ],
+  "checks": [
+    {
+      "check": "ab",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_d6_ab_01.log",
+        "sha256": "cd9775cecd1cfdf96d4975649c92a3e5568b9f9c281b7a023fde4e1c7987ac3e"
+      },
+      "tests": 1537,
+      "seconds": 205.995
+    },
+    {
+      "check": "gateway-tests",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_d6_gateway-tests_01.log",
+        "sha256": "0487068ca849825ec1ebbd5bfa5a853643a84f20ea72156d5e89ec8ed2833b27"
+      },
+      "tests": 29
+    },
+    {
+      "check": "root",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_d6_root_01.log",
+        "sha256": "0d95a88f896a710c22c35488d9b94f2b1e5ee954864d81bd65329379ebfd7b26"
+      }
+    },
+    {
+      "check": "root-tests",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_d6_root-tests_01.log",
+        "sha256": "69deb45031404e9b0b0a75cdd532769a9a3231aba5a013c7f54673acbaaaa8fa"
+      },
+      "tests": 33,
+      "seconds": 2.638
+    },
+    {
+      "check": "analyze",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_d6_analyze_01.log",
+        "sha256": "3878413b0173b5cf4119b5ff3e729078925baffb32ee015081656cd7f5a3a951"
+      }
+    },
+    {
+      "check": "gateway-analyze",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_d6_gateway-analyze_01.log",
+        "sha256": "860d20a7ee5d067a3ff9cb435a82679ef4ef67f3f46f712dc8bb80231a2064d0"
+      }
+    },
+    {
+      "check": "gateway-build",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_d6_gateway-build_01.log",
+        "sha256": "cf6300dd1c147ad17265723e5d15e4da5f982039c394fca703ba3ea1c22bd30a"
+      }
+    }
+  ],
+  "abInMemoryMutants": [
+    {
+      "name": "ignore-token",
+      "killed": true,
+      "failures": 6,
+      "errors": 0
+    },
+    {
+      "name": "ignore-writer",
+      "killed": true,
+      "failures": 3,
+      "errors": 0
+    },
+    {
+      "name": "ignore-scope",
+      "killed": true,
+      "failures": 3,
+      "errors": 0
+    },
+    {
+      "name": "ignore-all-root-enablement",
+      "killed": true,
+      "failures": 3,
+      "errors": 0
+    },
+    {
+      "name": "all-roots-overrides-explicit",
+      "killed": true,
+      "failures": 3,
+      "errors": 0
+    },
+    {
+      "name": "leak-token",
+      "killed": true,
+      "failures": 27,
+      "errors": 0
+    }
+  ],
+  "readOnlyRunningGatewayBaseline": {
+    "observedUtc": "2026-10-04T04:13:55.929669+00:00",
+    "endpoint": "http://127.0.0.1:8099",
+    "readOnly": true,
+    "health": [
+      {
+        "route": "/healthz",
+        "httpStatus": 200,
+        "protocol": "fraktal.opcua.gateway.v1",
+        "status": "degraded",
+        "plcReady": false,
+        "hasWriteAccess": false
+      },
+      {
+        "route": "/livez",
+        "httpStatus": 200,
+        "protocol": "fraktal.opcua.gateway.v1",
+        "status": "live",
+        "plcReady": false,
+        "hasWriteAccess": false
+      },
+      {
+        "route": "/readyz",
+        "httpStatus": 503,
+        "protocol": "fraktal.opcua.gateway.v1",
+        "status": "degraded",
+        "plcReady": false,
+        "hasWriteAccess": false
+      }
+    ]
+  },
+  "compiledDartGateway": {
+    "path": "C:\\work\\press68_d6_gateway.exe",
+    "sha256": "481a09d937ce07e24a2c7ead6abe058b746cbdf129c153af5d1fe5e0ff1c1cc5",
+    "executed": false,
+    "deployed": false
+  },
+  "unchangedLoadedBuildArtifact": {
+    "path": "C:\\work\\press68.L5X",
+    "sha256": "e2c20374f8fc7364672e425ebc3e55cc5f6d9f81ed4894bb32366e737ba586f7"
+  },
+  "controllerOperations": {
+    "reads": 0,
+    "writes": 0,
+    "downloads": 0,
+    "powerCycles": 0
+  },
+  "plcMemoryChangeBytes": 0,
+  "benchGatewayStartedOrRestartedByAgent": false,
+  "webHmiChangedOrRebuilt": false
+}

@@ -1,0 +1,2235 @@
+library;
+
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'theme_surfaces.dart' show kInlineItemGap;
+
+import '../content/module_content_controller.dart';
+import '../domain/module_node.dart';
+import '../domain/types.dart';
+import '../localization/localized_text.dart';
+import '../state/app_state.dart';
+import 'app_theme.dart'
+    show stateTokenColor, ControlScaleScope, PresetSwitchListTile, PresetChip;
+import 'custom_module_tabs.dart' show moduleGlyphIcon;
+import 'touch_text_field.dart';
+
+/// [node] supplies the tags a layer condition may read; without it the view's
+/// layers keep the conditions they have.
+Future<ModuleTabDefinition?> showModuleTabEditor(
+  BuildContext context, {
+  ModuleTabDefinition? existing,
+  required bool allowGuidance,
+  ModuleNode? node,
+}) =>
+    showDialog<ModuleTabDefinition>(
+      context: context,
+      builder: (_) => _TabEditorDialog(
+        existing: existing,
+        allowGuidance: allowGuidance,
+        node: node,
+      ),
+    );
+
+/// [initialKind]/[placement]: a new control dropped from the palette onto a
+/// tab's picture - the editor opens on that kind and keeps that position.
+Future<ModuleControlDefinition?> showModuleControlEditor(
+  BuildContext context, {
+  ModuleControlDefinition? existing,
+  required ModuleNode node,
+  ModuleControlKind? initialKind,
+  ModulePlacement? placement,
+}) =>
+    showDialog<ModuleControlDefinition>(
+      context: context,
+      builder: (_) => _ControlEditorDialog(
+        existing: existing,
+        node: node,
+        initialKind: initialKind,
+        placement: placement,
+      ),
+    );
+
+/// Edits a station tile's slot contents (LOCALIZATION §7.5): up to
+/// [ModuleTileProfile.maxMetrics] metrics and [ModuleTileProfile.maxBadges]
+/// badges, each an ordinary value control or state shape. The geometry is not
+/// editable - that is the point of the tile.
+Future<ModuleTileProfile?> showStationTileEditor(
+  BuildContext context, {
+  required ModuleNode node,
+  ModuleTileProfile? existing,
+}) =>
+    showDialog<ModuleTileProfile>(
+      context: context,
+      builder: (_) => _StationTileDialog(node: node, existing: existing),
+    );
+
+class _StationTileDialog extends StatefulWidget {
+  final ModuleNode node;
+  final ModuleTileProfile? existing;
+  const _StationTileDialog({required this.node, this.existing});
+
+  @override
+  State<_StationTileDialog> createState() => _StationTileDialogState();
+}
+
+class _StationTileDialogState extends State<_StationTileDialog> {
+  late final List<ModuleControlDefinition> _metrics =
+      (widget.existing?.metrics ?? const []).toList();
+  late final List<ModuleControlDefinition> _badges =
+      (widget.existing?.badges ?? const []).toList();
+
+  Future<void> _edit(List<ModuleControlDefinition> slots, ModuleControlKind kind,
+      [int? index]) async {
+    final control = await showModuleControlEditor(
+      context,
+      node: widget.node,
+      existing: index == null ? null : slots[index],
+      initialKind: kind,
+    );
+    // A slot holds exactly its kind; anything else is not a slot.
+    if (control == null || control.kind != kind || !mounted) return;
+    setState(() {
+      if (index == null) {
+        slots.add(control);
+      } else {
+        slots[index] = control;
+      }
+    });
+  }
+
+  List<Widget> _section(String title, List<ModuleControlDefinition> slots,
+          ModuleControlKind kind, int maximum) =>
+      [
+        const SizedBox(height: 8),
+        LText(title, style: Theme.of(context).textTheme.titleSmall),
+        for (var i = 0; i < slots.length; i++)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Text('${i + 1}'),
+            title: LText(slots[i].label.isEmpty
+                ? slots[i].primaryBinding
+                : slots[i].label),
+            subtitle: Text(slots[i].primaryBinding),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: context.tr('std.common.edit'),
+                onPressed: () => _edit(slots, kind, i),
+                icon: const Icon(Icons.edit_outlined),
+              ),
+              IconButton(
+                tooltip: context.tr('std.common.delete'),
+                onPressed: () => setState(() => slots.removeAt(i)),
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ]),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: ValueKey('tile-add-${kind.name}'),
+            onPressed: slots.length < maximum ? () => _edit(slots, kind) : null,
+            icon: const Icon(Icons.add),
+            label: const LText('std.module.editor.tileAddSlot'),
+          ),
+        ),
+      ];
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const LText('std.module.editor.stationTile'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LText('std.module.editor.stationTileHelp',
+                    style: Theme.of(context).textTheme.bodySmall),
+                ..._section('std.module.editor.tileMetrics', _metrics,
+                    ModuleControlKind.value, ModuleTileProfile.maxMetrics),
+                ..._section('std.module.editor.tileBadges', _badges,
+                    ModuleControlKind.shape, ModuleTileProfile.maxBadges),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const LText('std.common.cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              ModuleTileProfile(
+                metrics: List.unmodifiable(_metrics),
+                badges: List.unmodifiable(_badges),
+              ),
+            ),
+            child: const LText('std.common.save'),
+          ),
+        ],
+      );
+}
+
+Future<void> exportHmiCustomization(BuildContext context, AppState app) async {
+  await FilePicker.saveFile(
+    dialogTitle: context.tr('std.module.editor.exportTitle'),
+    fileName: 'fraktal_hmi_customization.json',
+    type: FileType.custom,
+    allowedExtensions: const ['json'],
+    bytes: utf8.encode(app.content.exportBundle()),
+  );
+}
+
+Future<void> importHmiCustomization(BuildContext context, AppState app) async {
+  final picked = await FilePicker.pickFiles(
+    dialogTitle: context.tr('std.module.editor.importTitle'),
+    type: FileType.custom,
+    allowedExtensions: const ['json'],
+    withData: true,
+  );
+  final bytes = picked?.files.single.bytes;
+  if (bytes == null || !context.mounted) return;
+  final replace = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const LText('std.module.editor.importConfirmTitle'),
+          content: const LText('std.module.editor.importConfirmBody'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const LText('std.common.cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const LText('std.common.import'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+  if (!replace || !context.mounted) return;
+  try {
+    final report = await app.content.importBundle(
+      utf8.decode(bytes, allowMalformed: false),
+      availableModulePaths: _modulePaths(app),
+    );
+    if (context.mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const LText('std.module.editor.imported'),
+          content: SizedBox(
+            width: 600,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LText('std.module.editor.importSummary', args: {
+                    'exact': report.exactPaths.length,
+                    'remapped': report.remappedPaths.length,
+                    'deferred': report.deferredPaths.length,
+                  }),
+                  if (report.remappedPaths.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const LText('std.module.editor.remappedPaths'),
+                    const SizedBox(height: 6),
+                    for (final entry in report.remappedPaths.entries)
+                      SelectableText('${entry.key}  →  ${entry.value}'),
+                  ],
+                  if (report.deferredPaths.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const LText('std.module.editor.deferredPaths'),
+                    const SizedBox(height: 4),
+                    const LText('std.module.editor.deferredHelp'),
+                    const SizedBox(height: 6),
+                    for (final path in report.deferredPaths)
+                      SelectableText(path),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const LText('std.common.close'),
+            ),
+          ],
+        ),
+      );
+    }
+  } on Object {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: LText('std.module.editor.invalidBundle')),
+      );
+    }
+  }
+}
+
+Iterable<String> _modulePaths(AppState app) sync* {
+  Iterable<String> walk(ModuleNode node) sync* {
+    yield node.path;
+    for (final child in node.children) {
+      yield* walk(child);
+    }
+  }
+
+  for (final root in app.forest) {
+    yield* walk(root);
+  }
+}
+
+class _TabEditorDialog extends StatefulWidget {
+  final ModuleTabDefinition? existing;
+  final bool allowGuidance;
+  final ModuleNode? node;
+  const _TabEditorDialog(
+      {this.existing, required this.allowGuidance, this.node});
+
+  @override
+  State<_TabEditorDialog> createState() => _TabEditorDialogState();
+}
+
+class _TabEditorDialogState extends State<_TabEditorDialog> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _title;
+  late final TextEditingController _stepNo;
+  late final TextEditingController _stepName;
+  late final TextEditingController _marginLeft;
+  late final TextEditingController _marginTop;
+  late final TextEditingController _marginRight;
+  late final TextEditingController _marginBottom;
+  late AccessLevel _level;
+  late ModuleTabKind _kind;
+  late ModuleTabIcon _tabIcon;
+  late ModuleViewClass _viewClass;
+
+  /// Unit modes a guidance tab may auto-open in. Empty = every mode.
+  late Set<int> _triggerModes;
+  late GuidanceMode _guidanceMode;
+  late ModuleBackgroundFit _backgroundFit;
+  late ModuleBackgroundPosition _backgroundPosition;
+  String _backgroundImageBase64 = '';
+  // §7.4: set when choosing a picture moved an operating view to maintenance, so
+  // the change of class is said, not silent.
+  bool _classMovedForPicture = false;
+  String _backgroundImageName = '';
+  String? _backgroundImageError;
+
+  /// §7.3 declared read budget; blank = the standard.
+  late final TextEditingController _budget;
+
+  /// §7.2 bound layer visibility, one draft per layer the view names.
+  final Map<String, _ConditionDraft> _layerConditions = {};
+
+  /// §7.2 grid container instead of the flow (only without a picture).
+  bool _useGrid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final tab = widget.existing;
+    _budget = TextEditingController(
+        text: tab == null || tab.readBudget == 0 ? '' : '${tab.readBudget}');
+    _useGrid = tab?.grid != null;
+    for (final layer in tab?.layers ?? const <String>[]) {
+      _layerConditions[layer] = _ConditionDraft(tab!.layerConditions[layer]);
+    }
+    _title = TextEditingController(text: tab?.title ?? '');
+    _stepNo = TextEditingController(
+        text: tab == null || tab.triggerStepNo == 0
+            ? ''
+            : '${tab.triggerStepNo}');
+    _stepName = TextEditingController(text: tab?.triggerStepName ?? '');
+    // Guidance mode scoping. An existing tab keeps exactly what it had; a NEW
+    // guidance tab starts scoped to the setup modes, matching the shipped
+    // default — an unscoped wildcard interrupts a running AUTO cycle.
+    _triggerModes = {
+      ...(tab?.triggerModes ??
+          (tab == null ? kSetupGuidanceModes : const <int>[])),
+    };
+    _guidanceMode = tab?.guidanceMode ?? GuidanceMode.optional;
+    final background = tab?.background;
+    _marginLeft = TextEditingController(text: '${background?.marginLeft ?? 0}');
+    _marginTop = TextEditingController(text: '${background?.marginTop ?? 0}');
+    _marginRight =
+        TextEditingController(text: '${background?.marginRight ?? 0}');
+    _marginBottom =
+        TextEditingController(text: '${background?.marginBottom ?? 0}');
+    _level = tab?.requiredLevel ?? AccessLevel.operator;
+    _viewClass = tab?.viewClass ?? ModuleViewClass.operating;
+    _kind = tab?.kind ?? ModuleTabKind.custom;
+    _tabIcon = tab?.effectiveIcon ?? ModuleTabIcon.widgets;
+    _backgroundFit = background?.fit ?? ModuleBackgroundFit.contain;
+    _backgroundPosition =
+        background?.position ?? ModuleBackgroundPosition.center;
+    _backgroundImageBase64 = background?.imageBase64 ?? '';
+    _backgroundImageName = background?.imageName ?? '';
+  }
+
+  @override
+  void dispose() {
+    _budget.dispose();
+    for (final draft in _layerConditions.values) {
+      draft.constant.dispose();
+    }
+    _title.dispose();
+    _stepNo.dispose();
+    _stepName.dispose();
+    _marginLeft.dispose();
+    _marginTop.dispose();
+    _marginRight.dispose();
+    _marginBottom.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final existing = widget.existing;
+    final kindEditable = existing == null;
+    return AlertDialog(
+      title: LText(existing == null
+          ? 'std.module.editor.addTab'
+          : 'std.module.editor.editTab'),
+      content: SizedBox(
+        width: 620,
+        child: Form(
+          key: _form,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TouchTextFormField(
+                controller: _title,
+                maxLength: 160,
+                decoration: InputDecoration(
+                  labelText: context.tr('std.module.editor.tabTitle'),
+                  helperText: context.tr('std.module.editor.localizedHelp'),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? context.tr('std.module.editor.required')
+                    : null,
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<ModuleTabKind>(
+                initialValue: _kind,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.tabKind')),
+                items: [
+                  if (!kindEditable)
+                    DropdownMenuItem(
+                        value: _kind, child: LText(_tabKindLabel(_kind))),
+                  if (kindEditable)
+                    const DropdownMenuItem(
+                      value: ModuleTabKind.custom,
+                      child: LText('std.module.editor.customTab'),
+                    ),
+                  if (kindEditable && widget.allowGuidance)
+                    const DropdownMenuItem(
+                      value: ModuleTabKind.guidance,
+                      child: LText('std.module.editor.guidanceTab'),
+                    ),
+                ],
+                onChanged: kindEditable
+                    ? (value) => setState(() {
+                          _kind = value ?? _kind;
+                          _tabIcon = _kind == ModuleTabKind.guidance
+                              ? ModuleTabIcon.guidance
+                              : ModuleTabIcon.widgets;
+                        })
+                    : null,
+              ),
+              if (_kind == ModuleTabKind.custom ||
+                  _kind == ModuleTabKind.guidance) ...[
+                const SizedBox(height: 10),
+                DropdownButtonFormField<ModuleTabIcon>(
+                  key: ValueKey('tab-icon-${_kind.name}'),
+                  initialValue: _tabIcon,
+                  decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.tabIcon'),
+                  ),
+                  items: [
+                    for (final icon in ModuleTabIcon.values)
+                      DropdownMenuItem(
+                        value: icon,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_tabIconData(icon), size: 19),
+                            const SizedBox(width: 8),
+                            LText(_tabIconLabel(icon)),
+                          ],
+                        ),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _tabIcon = value ?? _tabIcon),
+                ),
+              ],
+              const SizedBox(height: 10),
+              DropdownButtonFormField<AccessLevel>(
+                initialValue: _level,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.minimumAccess')),
+                items: [
+                  for (final level in AccessLevel.values)
+                    DropdownMenuItem(
+                      value: level,
+                      child: Text(level.name.toUpperCase()),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _level = value ?? _level),
+              ),
+              if (_kind == ModuleTabKind.guidance) ...[
+                const SizedBox(height: 16),
+                const LText('std.module.editor.guidanceTriggerHelp'),
+                const SizedBox(height: 10),
+                TouchTextFormField(
+                  controller: _stepNo,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                      labelText:
+                          context.tr('std.module.editor.triggerStepNumber')),
+                  validator: (value) {
+                    if ((value ?? '').trim().isEmpty) return null;
+                    final number = int.tryParse(value!.trim());
+                    return number == null || number < 0
+                        ? context.tr('std.module.editor.invalidNumber')
+                        : null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TouchTextFormField(
+                  controller: _stepName,
+                  maxLength: 255,
+                  decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.triggerStepName'),
+                    helperText:
+                        context.tr('std.module.editor.triggerWildcardHelp'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Mode scoping. Without it a wildcard trigger fires in AUTO —
+                // where a WAIT_OPERATOR step is routine — and takes over the
+                // screen during production.
+                LText('std.module.editor.triggerModes',
+                    style: Theme.of(context).textTheme.titleSmall),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 6),
+                  child: LText('std.module.editor.triggerModesHelp',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ),
+                Wrap(
+                  spacing: kInlineItemGap,
+                  runSpacing: kInlineItemGap,
+                  children: [
+                    for (final mode in UnitMode.values)
+                      PresetChip(
+                        child: FilterChip(
+                          label: LText(mode.name.toUpperCase()),
+                          selected: _triggerModes.contains(mode.index),
+                          onSelected: (on) => setState(() {
+                            if (on) {
+                              _triggerModes.add(mode.index);
+                            } else {
+                              _triggerModes.remove(mode.index);
+                            }
+                          }),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Optional vs forced. Forced blocks the panel until the
+                // operator acknowledges, so it is opt-in and explained.
+                LText('std.module.editor.guidanceMode',
+                    style: Theme.of(context).textTheme.titleSmall),
+                RadioGroup<GuidanceMode>(
+                  groupValue: _guidanceMode,
+                  onChanged: (value) => setState(
+                      () => _guidanceMode = value ?? GuidanceMode.optional),
+                  child: Column(children: [
+                    RadioListTile<GuidanceMode>(
+                      radioScaleFactor:
+                          ControlScaleScope.of(context).toggleScale,
+                      materialTapTargetSize: MaterialTapTargetSize.padded,
+                      value: GuidanceMode.optional,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const LText('std.module.editor.guidanceModeOptional'),
+                    ),
+                    RadioListTile<GuidanceMode>(
+                      radioScaleFactor:
+                          ControlScaleScope.of(context).toggleScale,
+                      materialTapTargetSize: MaterialTapTargetSize.padded,
+                      value: GuidanceMode.forced,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const LText('std.module.editor.guidanceModeForced'),
+                    ),
+                  ]),
+                ),
+                LText('std.module.editor.guidanceModeHelp',
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
+              if (_kind.acceptsBackground) ...[
+                const SizedBox(height: 16),
+                // Keyed on the class so a class the picker changed is shown.
+                KeyedSubtree(
+                  key: ValueKey('tab-view-class-${_viewClass.name}'),
+                  child: DropdownButtonFormField<ModuleViewClass>(
+                  key: const Key('tab-view-class'),
+                  initialValue: _viewClass,
+                  decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.viewClass'),
+                    helperText: context.tr('std.module.editor.viewClassHelp'),
+                    helperMaxLines: 3,
+                  ),
+                  items: [
+                    for (final value in ModuleViewClass.values)
+                      DropdownMenuItem(
+                        value: value,
+                        child: LText('std.module.viewClass.${value.name}'),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _viewClass = value ?? _viewClass;
+                    _classMovedForPicture = false;
+                  }),
+                ),
+                ),
+                // §7.4: an operating view carries no imagery. The picture is
+                // still offered - hiding it read as "pictures are gone" - and
+                // choosing one moves the view to maintenance, visibly.
+                if (_classMovedForPicture)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: LText('std.module.editor.classMovedForPicture',
+                        key: const Key('class-moved-for-picture'),
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                if (_viewClass == ModuleViewClass.operating &&
+                    _backgroundImageBase64.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: LText('std.module.editor.operatingDropsPicture',
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                const SizedBox(height: 16),
+                PresetSwitchListTile(
+                  key: const ValueKey('tab-use-grid'),
+                  contentPadding: EdgeInsets.zero,
+                  value: _useGrid,
+                  title: const LText('std.module.grid.useGrid'),
+                  subtitle: LText(_backgroundImageBase64.isEmpty
+                      ? 'std.module.grid.useGridHelp'
+                      : 'std.module.grid.pictureWins'),
+                  onChanged: (value) => setState(() => _useGrid = value),
+                ),
+                const SizedBox(height: 16),
+                _backgroundEditor(context),
+              ],
+              if (_kind.acceptsBackground) ..._presentationBudget(context),
+            ]),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const LText('std.common.cancel'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const LText('std.common.save'),
+        ),
+      ],
+    );
+  }
+
+  /// The view's read budget and its bound layers (§7.2/§7.3).
+  List<Widget> _presentationBudget(BuildContext context) {
+    final existing = widget.existing;
+    final node = widget.node;
+    return [
+      const SizedBox(height: 16),
+      TouchTextFormField(
+        key: const ValueKey('tab-read-budget'),
+        controller: _budget,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: context.tr('std.module.editor.readBudget'),
+          helperText: '${context.tr('std.module.editor.readBudgetHelp')} '
+              '(${existing?.boundReads ?? 0} / '
+              '${ModuleTabDefinition.maxBoundReads})',
+          helperMaxLines: 3,
+        ),
+        validator: (value) {
+          final text = value?.trim() ?? '';
+          if (text.isEmpty) return null;
+          final budget = int.tryParse(text);
+          return budget == null ||
+                  budget < 1 ||
+                  budget > ModuleTabDefinition.maxBoundReads
+              ? context.tr('std.module.editor.readBudgetInvalid')
+              : null;
+        },
+      ),
+      if (node != null && _layerConditions.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        LText('std.module.editor.layerConditions',
+            style: Theme.of(context).textTheme.titleSmall),
+        LText('std.module.editor.layerConditionsHelp',
+            style: Theme.of(context).textTheme.bodySmall),
+        for (final entry in _layerConditions.entries) ...[
+          const SizedBox(height: 8),
+          Text(entry.key, style: Theme.of(context).textTheme.labelLarge),
+          ..._conditionFields(context, node, entry.value,
+              searchKey: 'opcua-layer-${entry.key}',
+              onChanged: () => setState(() {})),
+        ],
+      ],
+    ];
+  }
+
+  void _save() {
+    if (!(_form.currentState?.validate() ?? false)) return;
+    final existing = widget.existing;
+    final id = existing?.id ??
+        'custom-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
+    Navigator.pop(
+      context,
+      ModuleTabDefinition(
+        id: id,
+        title: _title.text.trim(),
+        kind: _kind,
+        requiredLevel: _level,
+        controls: existing?.controls ?? const [],
+        triggerStepNo: int.tryParse(_stepNo.text.trim()) ?? 0,
+        triggerStepName: _stepName.text.trim(),
+        // Must be carried explicitly: dropping it here would silently widen an
+        // existing guidance tab back to "every mode" on the next edit.
+        triggerModes: _kind == ModuleTabKind.guidance
+            ? (_triggerModes.toList()..sort())
+            : const <int>[],
+        guidanceMode: _kind == ModuleTabKind.guidance
+            ? _guidanceMode
+            : GuidanceMode.optional,
+        tabIcon:
+            _kind == ModuleTabKind.custom || _kind == ModuleTabKind.guidance
+                ? _tabIcon
+                : existing?.tabIcon,
+        declaredClass: _kind.acceptsBackground ? _viewClass : null,
+        background: _kind.acceptsBackground &&
+                _viewClass != ModuleViewClass.operating &&
+                _backgroundImageBase64.isNotEmpty
+            ? ModuleTabBackground(
+                imageBase64: _backgroundImageBase64,
+                imageName: _backgroundImageName,
+                fit: _backgroundFit,
+                position: _backgroundPosition,
+                marginLeft: double.tryParse(_marginLeft.text.trim()) ?? 0,
+                marginTop: double.tryParse(_marginTop.text.trim()) ?? 0,
+                marginRight: double.tryParse(_marginRight.text.trim()) ?? 0,
+                marginBottom: double.tryParse(_marginBottom.text.trim()) ?? 0,
+              )
+            : null,
+        // Card-tab arrangement is edited elsewhere; this dialog keeps it.
+        cards: existing?.cards ?? const [],
+        columns: existing?.columns ?? 0,
+        isDefault: existing?.isDefault ?? false,
+        layerConditions: widget.node == null
+            ? existing?.layerConditions ?? const {}
+            : {
+                for (final entry in _layerConditions.entries)
+                  if (entry.value.build() != null)
+                    entry.key: entry.value.build()!,
+              },
+        readBudget: int.tryParse(_budget.text.trim()) ?? 0,
+        // A picture view places on its picture; a grid needs a view without one.
+        grid: _kind.acceptsBackground &&
+                _useGrid &&
+                !(_viewClass != ModuleViewClass.operating &&
+                    _backgroundImageBase64.isNotEmpty)
+            ? existing?.grid ?? const ModuleGrid()
+            : null,
+      ),
+    );
+  }
+
+  Widget _backgroundEditor(BuildContext context) => Card.outlined(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LText(
+                'std.module.editor.backgroundImage',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              const LText('std.module.editor.backgroundHelp'),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.wallpaper_outlined),
+                title: Text(_backgroundImageName.isEmpty
+                    ? context.tr('std.module.editor.noBackgroundImage')
+                    : _backgroundImageName),
+                subtitle: _backgroundImageError == null
+                    ? null
+                    : LText(_backgroundImageError!),
+                trailing: Wrap(
+                  spacing: kInlineItemGap,
+                  runSpacing: kInlineItemGap,
+                  children: [
+                    if (_backgroundImageBase64.isNotEmpty)
+                      IconButton(
+                        tooltip: context.tr('std.common.delete'),
+                        onPressed: () => setState(() {
+                          _backgroundImageBase64 = '';
+                          _backgroundImageName = '';
+                          _backgroundImageError = null;
+                        }),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    OutlinedButton.icon(
+                      onPressed: _pickBackgroundImage,
+                      icon: const Icon(Icons.file_open_outlined),
+                      label: const LText('std.module.editor.chooseImage'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<ModuleBackgroundFit>(
+                      isExpanded: true,        // long labels ellipsize, never overflow
+                      initialValue: _backgroundFit,
+                      decoration: InputDecoration(
+                        labelText:
+                            context.tr('std.module.editor.backgroundFit'),
+                      ),
+                      items: [
+                        for (final fit in ModuleBackgroundFit.values)
+                          DropdownMenuItem(
+                            value: fit,
+                            child: LText(_backgroundFitLabel(fit)),
+                          ),
+                      ],
+                      onChanged: (value) => setState(
+                        () => _backgroundFit = value ?? _backgroundFit,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<ModuleBackgroundPosition>(
+                      isExpanded: true,
+                      initialValue: _backgroundPosition,
+                      decoration: InputDecoration(
+                        labelText:
+                            context.tr('std.module.editor.backgroundPosition'),
+                      ),
+                      items: [
+                        for (final position in ModuleBackgroundPosition.values)
+                          DropdownMenuItem(
+                            value: position,
+                            child: LText(_backgroundPositionLabel(position)),
+                          ),
+                      ],
+                      onChanged: (value) => setState(
+                        () =>
+                            _backgroundPosition = value ?? _backgroundPosition,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LText(
+                'std.module.editor.backgroundMargins',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  _marginField(context, _marginLeft, 'left'),
+                  const SizedBox(width: 8),
+                  _marginField(context, _marginTop, 'top'),
+                  const SizedBox(width: 8),
+                  _marginField(context, _marginRight, 'right'),
+                  const SizedBox(width: 8),
+                  _marginField(context, _marginBottom, 'bottom'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _marginField(
+    BuildContext context,
+    TextEditingController controller,
+    String side,
+  ) =>
+      Expanded(
+        child: TouchTextFormField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: context.tr('std.module.editor.margin.$side'),
+            suffixText: 'px',
+          ),
+          validator: (source) => _boundedDoubleError(
+            context,
+            source,
+            0,
+            ModuleTabBackground.maxMargin,
+          ),
+        ),
+      );
+
+  Future<void> _pickBackgroundImage() async {
+    final picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
+      withData: true,
+    );
+    final file = picked?.files.single;
+    final bytes = file?.bytes;
+    if (bytes == null) return;
+    if (bytes.length > ModuleTabBackground.maxImageBytes) {
+      setState(
+        () =>
+            _backgroundImageError = 'std.module.editor.backgroundImageTooLarge',
+      );
+      return;
+    }
+    setState(() {
+      _backgroundImageBase64 = base64Encode(bytes);
+      _backgroundImageName = file!.name;
+      _backgroundImageError = null;
+      _movePictureViewOutOfOperating();
+    });
+  }
+
+  /// §7.4: a picture makes this a maintenance view unless the author already
+  /// chose one that may carry it.
+  void _movePictureViewOutOfOperating() {
+    if (_viewClass == ModuleViewClass.operating) {
+      _viewClass = ModuleViewClass.maintenance;
+      _classMovedForPicture = true;
+    }
+  }
+}
+
+class _ControlEditorDialog extends StatefulWidget {
+  final ModuleControlDefinition? existing;
+  final ModuleNode node;
+  final ModuleControlKind? initialKind;
+  final ModulePlacement? placement;
+  const _ControlEditorDialog({
+    this.existing,
+    required this.node,
+    this.initialKind,
+    this.placement,
+  });
+
+  @override
+  State<_ControlEditorDialog> createState() => _ControlEditorDialogState();
+}
+
+class _ControlEditorDialogState extends State<_ControlEditorDialog> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _label;
+  late final TextEditingController _text;
+  late final TextEditingController _unit;
+  late final TextEditingController _actionValue;
+  late final TextEditingController _period;
+  late final TextEditingController _points;
+  late ModuleControlKind _kind;
+  late ModuleActionKind _action;
+  late bool _confirmAction;
+  late ModuleControlWidth _width;
+  String _imageBase64 = '';
+  String _imageName = '';
+  String? _imageError;
+  String? _bindingError;
+  late List<String> _bindings;
+  late ModuleShape _shape;
+  late ModuleStateToken _defaultToken;
+  late final TextEditingController _minimum;
+  late final TextEditingController _maximum;
+
+  /// One constant field per rule, kept in step with [_rules].
+  final List<ModuleStateRule> _rules = [];
+  final List<TextEditingController> _ruleConstants = [];
+
+  late final TextEditingController _layer;
+
+  /// The bound `visible` and `enabled` (§7.3): one tag, a comparison, a
+  /// constant each.
+  late final _ConditionDraft _visible;
+  late final _ConditionDraft _enabled;
+
+  /// Bound opacity (§7.3): dimmed while this holds.
+  late final _ConditionDraft _dimmed;
+  late ModuleGlyph _defaultGlyph;
+
+  /// Bound rotation (§7.3): a tag and its range-to-angle map.
+  List<String> _rotationBinding = [];
+  late final TextEditingController _rotationMin;
+  late final TextEditingController _rotationMax;
+  late final TextEditingController _rotationFrom;
+  late final TextEditingController _rotationTo;
+
+  @override
+  void initState() {
+    super.initState();
+    final control = widget.existing;
+    _kind = control?.kind ?? widget.initialKind ?? ModuleControlKind.text;
+    _action = control?.action ?? ModuleActionKind.none;
+    _label = TextEditingController(text: control?.label ?? '');
+    _text = TextEditingController(text: control?.text ?? '');
+    _bindings = control?.linkedBindings.toList() ?? [];
+    _unit = TextEditingController(text: control?.unit ?? '');
+    _actionValue = TextEditingController(text: '${control?.actionValue ?? 0}');
+    _confirmAction = control?.confirmation != ModuleActionConfirmation.none;
+    _width = control?.width ?? ModuleControlWidth.full;
+    _period = TextEditingController(text: '${control?.samplePeriodMs ?? 1000}');
+    _points = TextEditingController(text: '${control?.historyPoints ?? 120}');
+    _imageBase64 = control?.imageBase64 ?? '';
+    _imageName = control?.imageName ?? '';
+    _shape = control?.shape ?? ModuleShape.rectangle;
+    _defaultToken = control?.defaultToken ??
+        (_kind == ModuleControlKind.level
+            ? ModuleStateToken.info
+            : ModuleStateToken.neutral);
+    _minimum = TextEditingController(text: _number(control?.minimum ?? 0));
+    _layer = TextEditingController(text: control?.layer ?? '');
+    _visible = _ConditionDraft(control?.visibleWhen);
+    _enabled = _ConditionDraft(control?.enabledWhen);
+    _dimmed = _ConditionDraft(control?.dimmedWhen);
+    _defaultGlyph = control?.defaultGlyph ?? ModuleGlyph.none;
+    final rotation = control?.rotation;
+    _rotationBinding = rotation == null ? [] : [rotation.binding];
+    _rotationMin = TextEditingController(text: _number(rotation?.minimum ?? 0));
+    _rotationMax =
+        TextEditingController(text: _number(rotation?.maximum ?? 100));
+    _rotationFrom =
+        TextEditingController(text: _number(rotation?.minDegrees ?? 0));
+    _rotationTo = TextEditingController(text: _number(rotation?.maxDegrees ?? 90));
+    _maximum = TextEditingController(text: _number(control?.maximum ?? 100));
+    for (final rule in control?.rules ?? const <ModuleStateRule>[]) {
+      _rules.add(rule);
+      _ruleConstants.add(TextEditingController(text: _number(rule.constant)));
+    }
+  }
+
+  static String _number(double value) =>
+      value == value.roundToDouble() ? value.toInt().toString() : '$value';
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _label,
+      _text,
+      _unit,
+      _actionValue,
+      _period,
+      _points,
+      _minimum,
+      _layer,
+      _visible.constant,
+      _enabled.constant,
+      _dimmed.constant,
+      _rotationMin,
+      _rotationMax,
+      _rotationFrom,
+      _rotationTo,
+      _maximum,
+      ..._ruleConstants,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addRule() => setState(() {
+        _rules.add(const ModuleStateRule());
+        _ruleConstants.add(TextEditingController(text: '0'));
+      });
+
+  void _removeRule(int index) => setState(() {
+        _rules.removeAt(index);
+        _ruleConstants.removeAt(index).dispose();
+      });
+
+  static bool _takesConstant(ModuleCompare compare) =>
+      compare != ModuleCompare.isTrue && compare != ModuleCompare.isFalse;
+
+  /// Shape, range and the state rules of a shape or level control.
+  List<Widget> _stateEditor(BuildContext context) {
+    final bindingLabels = [
+      for (final binding in _bindings) binding.split('/').last,
+    ];
+    return [
+      const SizedBox(height: 10),
+      if (_kind == ModuleControlKind.shape)
+        DropdownButtonFormField<ModuleShape>(
+          initialValue: _shape,
+          decoration: InputDecoration(
+              labelText: context.tr('std.module.editor.shape')),
+          items: [
+            for (final shape in ModuleShape.values)
+              DropdownMenuItem(
+                value: shape,
+                child: LText('std.module.shape.${shape.name}'),
+              ),
+          ],
+          onChanged: (value) => setState(() => _shape = value ?? _shape),
+        ),
+      if (_kind == ModuleControlKind.level)
+        Row(children: [
+          Expanded(
+            child: TouchTextFormField(
+              controller: _minimum,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                  labelText: context.tr('std.module.editor.minimum')),
+              validator: (value) => double.tryParse(value?.trim() ?? '') == null
+                  ? context.tr('std.module.editor.required')
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TouchTextFormField(
+              controller: _maximum,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                  labelText: context.tr('std.module.editor.maximum')),
+              validator: (value) {
+                final maximum = double.tryParse(value?.trim() ?? '');
+                final minimum = double.tryParse(_minimum.text.trim());
+                if (maximum == null) {
+                  return context.tr('std.module.editor.required');
+                }
+                return minimum != null && maximum <= minimum
+                    ? context.tr('std.module.editor.rangeInvalid')
+                    : null;
+              },
+            ),
+          ),
+        ]),
+      const SizedBox(height: 14),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.stateRules',
+            style: Theme.of(context).textTheme.titleSmall),
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.stateRulesHelp',
+            style: Theme.of(context).textTheme.bodySmall),
+      ),
+      for (var index = 0; index < _rules.length; index++)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(children: [
+            Expanded(
+              flex: 3,
+              child: DropdownButtonFormField<int>(
+                // A binding removed after the rule was written: pick again.
+                initialValue: _rules[index].bindingIndex < _bindings.length
+                    ? _rules[index].bindingIndex
+                    : null,
+                isExpanded: true,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.ruleBinding')),
+                items: [
+                  for (var b = 0; b < bindingLabels.length; b++)
+                    DropdownMenuItem(
+                      value: b,
+                      child: Text(bindingLabels[b],
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _rules[index] =
+                    _ruleWith(index, bindingIndex: value)),
+                validator: (value) => value == null
+                    ? context.tr('std.module.editor.required')
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<ModuleCompare>(
+                initialValue: _rules[index].compare,
+                isExpanded: true,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.ruleCompare')),
+                items: [
+                  for (final compare in ModuleCompare.values)
+                    DropdownMenuItem(
+                      value: compare,
+                      child: LText('std.module.compare.${compare.name}'),
+                    ),
+                ],
+                onChanged: (value) => setState(() =>
+                    _rules[index] = _ruleWith(index, compare: value)),
+              ),
+            ),
+            if (_takesConstant(_rules[index].compare)) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: TouchTextFormField(
+                  controller: _ruleConstants[index],
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                      labelText: context.tr('std.module.editor.ruleConstant')),
+                  validator: (value) =>
+                      double.tryParse(value?.trim() ?? '') == null
+                          ? context.tr('std.module.editor.required')
+                          : null,
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: _tokenPicker(
+                context,
+                label: 'std.module.editor.ruleState',
+                value: _rules[index].token,
+                onChanged: (value) => setState(
+                    () => _rules[index] = _ruleWith(index, token: value)),
+              ),
+            ),
+            if (_kind == ModuleControlKind.shape)
+              _glyphPicker(
+                context,
+                key: ValueKey('rule-glyph-$index'),
+                value: _rules[index].glyph,
+                onChanged: (value) => setState(
+                    () => _rules[index] = _ruleWith(index, glyph: value)),
+              ),
+            IconButton(
+              key: ValueKey('rule-blink-$index'),
+              tooltip: context.tr('std.module.editor.ruleBlink'),
+              isSelected: _rules[index].blink,
+              onPressed: () => setState(() => _rules[index] =
+                  _ruleWith(index, blink: !_rules[index].blink)),
+              icon: const Icon(Icons.flash_off),
+              selectedIcon: const Icon(Icons.flash_on),
+            ),
+            IconButton(
+              tooltip: context.tr('std.common.delete'),
+              onPressed: () => _removeRule(index),
+              icon: const Icon(Icons.remove_circle_outline),
+            ),
+          ]),
+        ),
+      if (_rules.length < ModuleStateRule.maxRules)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _bindings.isEmpty ? null : _addRule,
+            icon: const Icon(Icons.add),
+            label: const LText('std.module.editor.addRule'),
+          ),
+        ),
+      const SizedBox(height: 6),
+      _tokenPicker(
+        context,
+        label: 'std.module.editor.defaultState',
+        value: _defaultToken,
+        onChanged: (value) =>
+            setState(() => _defaultToken = value ?? _defaultToken),
+      ),
+      if (_kind == ModuleControlKind.shape) ...[
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(
+            child: LText('std.module.editor.defaultGlyph',
+                style: Theme.of(context).textTheme.bodyMedium),
+          ),
+          _glyphPicker(
+            context,
+            key: const ValueKey('default-glyph'),
+            value: _defaultGlyph,
+            onChanged: (value) => setState(() => _defaultGlyph = value),
+          ),
+        ]),
+        ..._rotationEditor(context),
+      ],
+    ];
+  }
+
+  /// A compact picker over the bounded icon set.
+  Widget _glyphPicker(
+    BuildContext context, {
+    required Key key,
+    required ModuleGlyph value,
+    required ValueChanged<ModuleGlyph> onChanged,
+  }) =>
+      PopupMenuButton<ModuleGlyph>(
+        key: key,
+        tooltip: context.tr('std.module.editor.glyph'),
+        initialValue: value,
+        onSelected: onChanged,
+        itemBuilder: (context) => [
+          for (final glyph in ModuleGlyph.values)
+            PopupMenuItem(
+              value: glyph,
+              child: Row(children: [
+                Icon(moduleGlyphIcon(glyph) ?? Icons.do_not_disturb_alt,
+                    size: 20),
+                const SizedBox(width: 8),
+                LText('std.module.glyph.${glyph.name}'),
+              ]),
+            ),
+        ],
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(moduleGlyphIcon(value) ?? Icons.do_not_disturb_alt),
+        ),
+      );
+
+  /// A shape's bound rotation: a tag, the range it spans, and the angles.
+  List<Widget> _rotationEditor(BuildContext context) {
+    String? number(String? value) =>
+        double.tryParse(value?.trim() ?? '') == null
+            ? context.tr('std.module.editor.required')
+            : null;
+    Widget field(TextEditingController controller, String label,
+            {String? Function(String?)? validator}) =>
+        Expanded(
+          child: TouchTextFormField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(
+                decimal: true, signed: true),
+            decoration: InputDecoration(labelText: context.tr(label)),
+            validator: validator ?? number,
+          ),
+        );
+    return [
+      const SizedBox(height: 14),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.rotation',
+            style: Theme.of(context).textTheme.titleSmall),
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LText('std.module.editor.rotationHelp',
+            style: Theme.of(context).textTheme.bodySmall),
+      ),
+      _OpcUaBindingPicker(
+        candidates: _bindingCandidates(widget.node, ModuleControlKind.level),
+        selected: _rotationBinding,
+        maximum: 1,
+        errorText: null,
+        searchKey: 'opcua-rotation-search',
+        onChanged: (bindings) => setState(() => _rotationBinding = bindings),
+      ),
+      if (_rotationBinding.isNotEmpty) ...[
+        Row(children: [
+          field(_rotationMin, 'std.module.editor.minimum'),
+          const SizedBox(width: 8),
+          field(_rotationMax, 'std.module.editor.maximum', validator: (value) {
+            final maximum = double.tryParse(value?.trim() ?? '');
+            final minimum = double.tryParse(_rotationMin.text.trim());
+            if (maximum == null) return context.tr('std.module.editor.required');
+            return minimum != null && maximum <= minimum
+                ? context.tr('std.module.editor.rangeInvalid')
+                : null;
+          }),
+        ]),
+        Row(children: [
+          field(_rotationFrom, 'std.module.editor.rotationFrom',
+              validator: _degrees),
+          const SizedBox(width: 8),
+          field(_rotationTo, 'std.module.editor.rotationTo',
+              validator: _degrees),
+        ]),
+      ],
+    ];
+  }
+
+  String? _degrees(String? value) {
+    final degrees = double.tryParse(value?.trim() ?? '');
+    return degrees == null || degrees.abs() > 360
+        ? context.tr('std.module.editor.degreesInvalid')
+        : null;
+  }
+
+  ModuleRotation? _buildRotation() => _rotationBinding.isEmpty
+      ? null
+      : ModuleRotation(
+          binding: _rotationBinding.single,
+          minimum: double.tryParse(_rotationMin.text.trim()) ?? 0,
+          maximum: double.tryParse(_rotationMax.text.trim()) ?? 100,
+          minDegrees: double.tryParse(_rotationFrom.text.trim()) ?? 0,
+          maxDegrees: double.tryParse(_rotationTo.text.trim()) ?? 90,
+        );
+
+  ModuleStateRule _ruleWith(
+    int index, {
+    int? bindingIndex,
+    ModuleCompare? compare,
+    ModuleStateToken? token,
+    bool? blink,
+    ModuleGlyph? glyph,
+  }) {
+    final rule = _rules[index];
+    return ModuleStateRule(
+      bindingIndex: bindingIndex ?? rule.bindingIndex,
+      compare: compare ?? rule.compare,
+      constant: rule.constant,
+      token: token ?? rule.token,
+      blink: blink ?? rule.blink,
+      glyph: glyph ?? rule.glyph,
+    );
+  }
+
+  /// Layer and the bound `visible`, for every control kind.
+  List<Widget> _presentationEditor(BuildContext context) => [
+        const SizedBox(height: 14),
+        TouchTextFormField(
+          controller: _layer,
+          maxLength: ModuleControlDefinition.maxLayerLength,
+          decoration: InputDecoration(
+            labelText: context.tr('std.module.editor.layer'),
+            helperText: context.tr('std.module.editor.layerHelp'),
+            helperMaxLines: 2,
+          ),
+        ),
+        ..._conditionEditor(context, _visible,
+            title: 'std.module.editor.visibleWhen',
+            help: 'std.module.editor.visibleWhenHelp',
+            searchKey: 'opcua-visible-search'),
+        if (_kind == ModuleControlKind.button ||
+            _kind == ModuleControlKind.textInput)
+          ..._conditionEditor(context, _enabled,
+              title: 'std.module.editor.enabledWhen',
+              help: 'std.module.editor.enabledWhenHelp',
+              searchKey: 'opcua-enabled-search'),
+        ..._conditionEditor(context, _dimmed,
+            title: 'std.module.editor.dimmedWhen',
+            help: 'std.module.editor.dimmedWhenHelp',
+            searchKey: 'opcua-dimmed-search'),
+      ];
+
+  /// One bound condition: a tag, a comparison and (when it takes one) a value.
+  List<Widget> _conditionEditor(
+    BuildContext context,
+    _ConditionDraft draft, {
+    required String title,
+    required String help,
+    required String searchKey,
+  }) =>
+      [
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child:
+              LText(title, style: Theme.of(context).textTheme.titleSmall),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: LText(help, style: Theme.of(context).textTheme.bodySmall),
+        ),
+        ..._conditionFields(context, widget.node, draft,
+            searchKey: searchKey, onChanged: () => setState(() {})),
+      ];
+
+  Widget _tokenPicker(
+    BuildContext context, {
+    required String label,
+    required ModuleStateToken value,
+    required ValueChanged<ModuleStateToken?> onChanged,
+  }) =>
+      DropdownButtonFormField<ModuleStateToken>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: context.tr(label)),
+        items: [
+          for (final token in ModuleStateToken.values)
+            DropdownMenuItem(
+              value: token,
+              child: Row(children: [
+                Icon(Icons.circle,
+                    size: 12, color: stateTokenColor(context, token)),
+                const SizedBox(width: 8),
+                Flexible(child: LText('std.module.state.${token.name}')),
+              ]),
+            ),
+        ],
+        onChanged: onChanged,
+      );
+
+  bool get _usesBinding => ModuleControlDefinition.usesBindings(_kind);
+
+  int get _maximumBindings => ModuleControlDefinition.maximumBindingsFor(_kind);
+
+  int? get _selectedManualCommand {
+    final selected = int.tryParse(_actionValue.text);
+    return widget.node.commands.any((command) => command.value == selected)
+        ? selected
+        : null;
+  }
+
+  int? get _selectedDecisionOption {
+    final selected = int.tryParse(_actionValue.text);
+    final count = widget.node.decision?.options.length ?? 0;
+    return selected != null && selected >= 1 && selected <= count
+        ? selected
+        : null;
+  }
+
+  int? _firstCatalogActionValue(ModuleActionKind action) => switch (action) {
+        ModuleActionKind.manualCommand =>
+          widget.node.commands.firstOrNull?.value,
+        ModuleActionKind.decisionAnswer =>
+          widget.node.decision?.options.isNotEmpty == true ? 1 : null,
+        _ => 0,
+      };
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: LText(widget.existing == null
+            ? 'std.module.editor.addControl'
+            : 'std.module.editor.editControl'),
+        content: SizedBox(
+          width: 620,
+          child: Form(
+            key: _form,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                DropdownButtonFormField<ModuleControlKind>(
+                  initialValue: _kind,
+                  decoration: InputDecoration(
+                      labelText: context.tr('std.module.editor.controlKind')),
+                  items: [
+                    for (final kind in ModuleControlKind.values)
+                      DropdownMenuItem(
+                        value: kind,
+                        child: LText(_controlKindLabel(kind)),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() {
+                    if (value != null && value != _kind) {
+                      _kind = value;
+                      _bindings = [];
+                    }
+                    _bindingError = null;
+                  }),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<ModuleControlWidth>(
+                  initialValue: _width,
+                  decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.controlWidth'),
+                  ),
+                  items: [
+                    for (final width in ModuleControlWidth.values)
+                      DropdownMenuItem(
+                        value: width,
+                        child: LText('std.module.width.${width.name}'),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _width = value ?? _width),
+                ),
+                const SizedBox(height: 10),
+                TouchTextFormField(
+                  controller: _label,
+                  maxLength: 160,
+                  decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.label'),
+                    helperText: context.tr('std.module.editor.localizedHelp'),
+                  ),
+                ),
+                if (_kind == ModuleControlKind.text) ...[
+                  TouchTextFormField(
+                    controller: _text,
+                    maxLength: 4000,
+                    minLines: 3,
+                    maxLines: 8,
+                    decoration: InputDecoration(
+                        labelText: context.tr('std.module.editor.text')),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? context.tr('std.module.editor.required')
+                        : null,
+                  ),
+                ],
+                if (_usesBinding) ...[
+                  _OpcUaBindingPicker(
+                    candidates: _bindingCandidates(widget.node, _kind),
+                    selected: _bindings,
+                    maximum: _maximumBindings,
+                    errorText: _bindingError,
+                    onChanged: (bindings) => setState(() {
+                      _bindings = bindings;
+                      _bindingError = null;
+                    }),
+                  ),
+                  if (_kind == ModuleControlKind.chart ||
+                      _kind == ModuleControlKind.shape)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: LText(
+                          'std.module.editor.multiBindingHelp',
+                          args: {'maximum': _maximumBindings},
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  TouchTextFormField(
+                    controller: _unit,
+                    maxLength: 40,
+                    decoration: InputDecoration(
+                        labelText: context.tr('std.module.editor.unit')),
+                  ),
+                ],
+                if (ModuleControlDefinition.usesRules(_kind))
+                  ..._stateEditor(context),
+                ..._presentationEditor(context),
+                if (_kind == ModuleControlKind.chart) ...[
+                  Row(children: [
+                    Expanded(
+                      child: TouchTextFormField(
+                        controller: _period,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText:
+                              context.tr('std.module.editor.samplePeriod'),
+                          helperText:
+                              '${ModuleControlDefinition.minSamplePeriodMs}–${ModuleControlDefinition.maxSamplePeriodMs} ms',
+                        ),
+                        validator: (value) => _boundedNumberError(
+                          context,
+                          value,
+                          ModuleControlDefinition.minSamplePeriodMs,
+                          ModuleControlDefinition.maxSamplePeriodMs,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TouchTextFormField(
+                        controller: _points,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText:
+                              context.tr('std.module.editor.historyPoints'),
+                          helperText:
+                              '${ModuleControlDefinition.minHistoryPoints}–${ModuleControlDefinition.maxHistoryPoints}',
+                        ),
+                        validator: (value) => _boundedNumberError(
+                          context,
+                          value,
+                          ModuleControlDefinition.minHistoryPoints,
+                          ModuleControlDefinition.maxHistoryPoints,
+                        ),
+                      ),
+                    ),
+                  ]),
+                ],
+                if (_kind == ModuleControlKind.button) ...[
+                  DropdownButtonFormField<ModuleActionKind>(
+                    initialValue: _action == ModuleActionKind.writeConfig
+                        ? ModuleActionKind.none
+                        : _action,
+                    decoration: InputDecoration(
+                        labelText: context.tr('std.module.editor.action')),
+                    items: [
+                      for (final action in ModuleActionKind.values)
+                        if (action != ModuleActionKind.writeConfig)
+                          DropdownMenuItem(
+                            value: action,
+                            child: LText(_actionLabel(action)),
+                          ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _action = value ?? _action;
+                      final catalog = _firstCatalogActionValue(_action);
+                      if (catalog != null) _actionValue.text = '$catalog';
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_action == ModuleActionKind.manualCommand)
+                    DropdownButtonFormField<int>(
+                      initialValue: _selectedManualCommand,
+                      decoration: InputDecoration(
+                        labelText:
+                            context.tr('std.module.editor.manualCommand'),
+                        helperText:
+                            context.tr('std.module.editor.catalogActionHelp'),
+                      ),
+                      items: [
+                        for (final command in widget.node.commands)
+                          DropdownMenuItem(
+                            value: command.value,
+                            child: LText(command.label),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) _actionValue.text = '$value';
+                      },
+                      validator: (value) => value == null
+                          ? context.tr('std.module.editor.catalogRequired')
+                          : null,
+                    ),
+                  if (_action == ModuleActionKind.decisionAnswer)
+                    DropdownButtonFormField<int>(
+                      initialValue: _selectedDecisionOption,
+                      decoration: InputDecoration(
+                        labelText:
+                            context.tr('std.module.editor.decisionOption'),
+                        helperText:
+                            context.tr('std.module.editor.catalogActionHelp'),
+                      ),
+                      items: [
+                        for (var index = 0;
+                            index < (widget.node.decision?.options.length ?? 0);
+                            index++)
+                          DropdownMenuItem(
+                            value: index + 1,
+                            child: LText(widget.node.decision!.options[index]),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) _actionValue.text = '$value';
+                      },
+                      validator: (value) => value == null
+                          ? context.tr('std.module.editor.catalogRequired')
+                          : null,
+                    ),
+                  PresetSwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const LText('std.module.editor.confirmAction'),
+                    subtitle:
+                        const LText('std.module.editor.confirmActionHelp'),
+                    value: _confirmAction,
+                    onChanged: (value) =>
+                        setState(() => _confirmAction = value),
+                  ),
+                ],
+                if (_kind == ModuleControlKind.image) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.image_outlined),
+                    title: Text(_imageName.isEmpty
+                        ? context.tr('std.module.editor.noImage')
+                        : _imageName),
+                    subtitle: _imageError == null ? null : LText(_imageError!),
+                    trailing: OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.file_open_outlined),
+                      label: const LText('std.module.editor.chooseImage'),
+                    ),
+                  ),
+                ],
+              ]),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const LText('std.common.cancel'),
+          ),
+          FilledButton(
+            onPressed: _save,
+            child: const LText('std.common.save'),
+          ),
+        ],
+      );
+
+  Future<void> _pickImage() async {
+    final picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+      withData: true,
+    );
+    final file = picked?.files.single;
+    final bytes = file?.bytes;
+    if (bytes == null) return;
+    if (bytes.length > ModuleControlDefinition.maxImageBytes) {
+      setState(() => _imageError = 'std.module.editor.imageTooLarge');
+      return;
+    }
+    setState(() {
+      _imageBase64 = base64Encode(bytes);
+      _imageName = file!.name;
+      _imageError = null;
+    });
+  }
+
+  void _save() {
+    if (!(_form.currentState?.validate() ?? false)) return;
+    if (_usesBinding && _bindings.isEmpty) {
+      setState(() => _bindingError = 'std.module.editor.bindingRequired');
+      return;
+    }
+    if (_usesBinding && _bindings.length > _maximumBindings) {
+      setState(() => _bindingError = 'std.module.editor.tooManyBindings');
+      return;
+    }
+    if (_kind == ModuleControlKind.image && _imageBase64.isEmpty) {
+      setState(() => _imageError = 'std.module.editor.imageRequired');
+      return;
+    }
+    final existing = widget.existing;
+    Navigator.pop(
+      context,
+      ModuleControlDefinition(
+        id: existing?.id ??
+            'control-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}',
+        kind: _kind,
+        label: _label.text.trim(),
+        text: _text.text.trim(),
+        binding: _usesBinding ? _bindings.first : '',
+        bindings: _usesBinding ? List.unmodifiable(_bindings) : const [],
+        unit: _unit.text.trim(),
+        action: _kind == ModuleControlKind.textInput
+            ? ModuleActionKind.writeConfig
+            : _action,
+        actionValue: int.tryParse(_actionValue.text.trim()) ?? 0,
+        confirmation: _confirmAction
+            ? ModuleActionConfirmation.confirm
+            : ModuleActionConfirmation.none,
+        width: _width,
+        targetPath: '',
+        samplePeriodMs: int.tryParse(_period.text.trim()) ?? 1000,
+        historyPoints: int.tryParse(_points.text.trim()) ?? 120,
+        imageBase64: _imageBase64,
+        imageName: _imageName,
+        shape: _shape,
+        rules: [
+          for (var index = 0; index < _rules.length; index++)
+            if (_rules[index].bindingIndex < _bindings.length)
+              ModuleStateRule(
+                bindingIndex: _rules[index].bindingIndex,
+                compare: _rules[index].compare,
+                constant:
+                    double.tryParse(_ruleConstants[index].text.trim()) ?? 0,
+                token: _rules[index].token,
+                blink: _rules[index].blink,
+                glyph: _kind == ModuleControlKind.shape
+                    ? _rules[index].glyph
+                    : ModuleGlyph.none,
+              ),
+        ],
+        defaultToken: _defaultToken,
+        minimum: double.tryParse(_minimum.text.trim()) ?? 0,
+        maximum: double.tryParse(_maximum.text.trim()) ?? 100,
+        placement: existing?.placement ?? widget.placement,
+        layer: _layer.text.trim(),
+        visibleWhen: _visible.build(),
+        enabledWhen: _kind == ModuleControlKind.button ||
+                _kind == ModuleControlKind.textInput
+            ? _enabled.build()
+            : null,
+        dimmedWhen: _dimmed.build(),
+        defaultGlyph:
+            _kind == ModuleControlKind.shape ? _defaultGlyph : ModuleGlyph.none,
+        rotation: _kind == ModuleControlKind.shape ? _buildRotation() : null,
+      ),
+    );
+  }
+}
+
+/// The fields of one bound condition (LOCALIZATION §7.3): a tag of [node], a
+/// comparison and, when it takes one, a constant. [onChanged] rebuilds the owner.
+List<Widget> _conditionFields(
+  BuildContext context,
+  ModuleNode node,
+  _ConditionDraft draft, {
+  required String searchKey,
+  required VoidCallback onChanged,
+}) =>
+    [
+        _OpcUaBindingPicker(
+          candidates: _bindingCandidates(node, ModuleControlKind.shape),
+          selected: draft.binding,
+          maximum: 1,
+          errorText: null,
+          searchKey: searchKey,
+          onChanged: (bindings) {
+            draft.binding = bindings;
+            onChanged();
+          },
+        ),
+        if (draft.binding.isNotEmpty)
+          Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<ModuleCompare>(
+                initialValue: draft.compare,
+                isExpanded: true,
+                decoration: InputDecoration(
+                    labelText: context.tr('std.module.editor.ruleCompare')),
+                items: [
+                  for (final compare in ModuleCompare.values)
+                    DropdownMenuItem(
+                      value: compare,
+                      child: LText('std.module.compare.${compare.name}'),
+                    ),
+                ],
+                onChanged: (value) {
+                  draft.compare = value ?? draft.compare;
+                  onChanged();
+                },
+              ),
+            ),
+            if (_ControlEditorDialogState._takesConstant(draft.compare)) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: TouchTextFormField(
+                  controller: draft.constant,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                      labelText: context.tr('std.module.editor.ruleConstant')),
+                  validator: (value) =>
+                      double.tryParse(value?.trim() ?? '') == null
+                          ? context.tr('std.module.editor.required')
+                          : null,
+                ),
+              ),
+            ],
+          ]),
+    ];
+
+/// The editable form of one [ModuleCondition].
+class _ConditionDraft {
+  List<String> binding;
+  ModuleCompare compare;
+  final TextEditingController constant;
+
+  _ConditionDraft(ModuleCondition? source)
+      : binding = source == null ? [] : [source.binding],
+        compare = source?.compare ?? ModuleCompare.isTrue,
+        constant = TextEditingController(
+            text: _ControlEditorDialogState._number(source?.constant ?? 0));
+
+  ModuleCondition? build() => binding.isEmpty
+      ? null
+      : ModuleCondition(
+          binding: binding.single,
+          compare: compare,
+          constant: double.tryParse(constant.text.trim()) ?? 0,
+        );
+}
+
+class _OpcUaBindingPicker extends StatefulWidget {
+  final Map<String, PublishedTagValue> candidates;
+  final List<String> selected;
+  final int maximum;
+  final String? errorText;
+  final ValueChanged<List<String>> onChanged;
+
+  /// Distinguishes the search field when a dialog holds two pickers.
+  final String searchKey;
+
+  const _OpcUaBindingPicker({
+    required this.candidates,
+    required this.selected,
+    required this.maximum,
+    required this.errorText,
+    required this.onChanged,
+    this.searchKey = 'opcua-binding-search',
+  });
+
+  @override
+  State<_OpcUaBindingPicker> createState() => _OpcUaBindingPickerState();
+}
+
+class _OpcUaBindingPickerState extends State<_OpcUaBindingPicker> {
+  TextEditingController? _searchController;
+
+  @override
+  Widget build(BuildContext context) {
+    final atChartLimit =
+        widget.maximum > 1 && widget.selected.length >= widget.maximum;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.selected.isNotEmpty) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: LText(
+              'std.module.editor.bindingSelected',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: kInlineItemGap,
+            runSpacing: kInlineItemGap,
+            children: [
+              for (final binding in widget.selected)
+                PresetChip(
+                  child: InputChip(
+                    key: ValueKey('opcua-binding-chip-$binding'),
+                    avatar: widget.candidates.containsKey(binding)
+                        ? const Icon(Icons.link, size: 17)
+                        : Tooltip(
+                            message: context.tr(
+                              'std.module.editor.bindingUnavailable',
+                            ),
+                            child: Icon(
+                              Icons.warning_amber_rounded,
+                              size: 17,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                    label: Text(binding),
+                    onDeleted: () => widget.onChanged([
+                      for (final item in widget.selected)
+                        if (item != binding) item,
+                    ]),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+        Autocomplete<String>(
+          key: const ValueKey('opcua-binding-autocomplete'),
+          displayStringForOption: (option) => option,
+          optionsBuilder: (editingValue) {
+            if (atChartLimit) return const Iterable<String>.empty();
+            final query = editingValue.text.trim().toLowerCase();
+            return widget.candidates.keys.where((path) {
+              if (widget.selected.contains(path)) return false;
+              if (query.isEmpty) return true;
+              final value = widget.candidates[path];
+              return path.toLowerCase().contains(query) ||
+                  _bindingValueSummary(value).toLowerCase().contains(query);
+            }).take(50);
+          },
+          onSelected: (binding) {
+            final next = widget.maximum == 1
+                ? <String>[binding]
+                : <String>[...widget.selected, binding];
+            widget.onChanged(next);
+            _searchController?.clear();
+          },
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            _searchController = controller;
+            return TouchTextField(
+              key: ValueKey(widget.searchKey),
+              controller: controller,
+              focusNode: focusNode,
+              enabled: !atChartLimit,
+              onSubmitted: (_) => onFieldSubmitted(),
+              decoration: InputDecoration(
+                labelText: context.tr('std.module.editor.bindingSearch'),
+                helperText: atChartLimit
+                    ? context.tr('std.module.editor.bindingLimitReached')
+                    : context.tr('std.module.editor.bindingHelp'),
+                errorText: widget.errorText == null
+                    ? null
+                    : context.tr(widget.errorText!),
+                prefixIcon: const Icon(Icons.search),
+                suffixText: '${widget.selected.length}/${widget.maximum}',
+              ),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) => Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(8),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(maxWidth: 560, maxHeight: 280),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  itemBuilder: (context, index) {
+                    final path = options.elementAt(index);
+                    final value = widget.candidates[path];
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(_bindingValueIcon(value), size: 19),
+                      title: Text(path),
+                      subtitle: Text(_bindingValueSummary(value)),
+                      onTap: () => onSelected(path),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Map<String, PublishedTagValue> _bindingCandidates(
+  ModuleNode node,
+  ModuleControlKind kind,
+) {
+  final candidates = <String, PublishedTagValue>{};
+  if (kind == ModuleControlKind.textInput) {
+    for (final field
+        in node.config.where((item) => item.type == CfgType.text)) {
+      final prefix = field.kind == CfgKind.stationCfg ? 'StationCfg' : 'ParCfg';
+      final path = '$prefix/${field.name}';
+      candidates[path] =
+          node.tagAt(path) ?? PublishedTagValue.good(field.value);
+    }
+  } else {
+    for (final entry in node.hmiTags.entries) {
+      final tag = entry.value;
+      final accepted = switch (kind) {
+        ModuleControlKind.value => _isScalarTag(tag),
+        ModuleControlKind.indicator => _isBooleanTag(tag),
+        ModuleControlKind.chart ||
+        ModuleControlKind.level =>
+          _isNumericTag(tag),
+        // A door reads a Boolean; a mode or state word reads a number.
+        ModuleControlKind.shape => _isBooleanTag(tag) || _isNumericTag(tag),
+        _ => false,
+      };
+      if (accepted) candidates[entry.key] = tag;
+    }
+  }
+  return Map.fromEntries(
+    candidates.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+  );
+}
+
+IconData _bindingValueIcon(PublishedTagValue? tag) => switch (tag?.value) {
+      bool _ => Icons.toggle_on_outlined,
+      num _ => Icons.numbers,
+      String _ => Icons.text_fields,
+      _ when _isBooleanTag(tag) => Icons.toggle_on_outlined,
+      _ when _isNumericTag(tag) => Icons.numbers,
+      _ when _isStringTag(tag) => Icons.text_fields,
+      _ => Icons.data_object,
+    };
+
+String _bindingValueSummary(PublishedTagValue? tag) {
+  if (tag == null) return 'UNAVAILABLE';
+  final rendered = '${tag.value ?? '--'}';
+  final shortened =
+      rendered.length > 80 ? '${rendered.substring(0, 77)}...' : rendered;
+  return '${tag.typeName.toUpperCase()} · '
+      '${tag.quality.name.toUpperCase()} · $shortened';
+}
+
+bool _isScalarTag(PublishedTagValue? tag) =>
+    _isBooleanTag(tag) || _isNumericTag(tag) || _isStringTag(tag);
+
+bool _isBooleanTag(PublishedTagValue? tag) =>
+    tag?.value is bool || tag?.typeName.toLowerCase().contains('bool') == true;
+
+bool _isNumericTag(PublishedTagValue? tag) {
+  if (tag?.value is num) return true;
+  final type = tag?.typeName.toLowerCase() ?? '';
+  return const {
+    'sbyte',
+    'byte',
+    'int16',
+    'uint16',
+    'int32',
+    'uint32',
+    'int64',
+    'uint64',
+    'float',
+    'double',
+    'integer',
+    'number',
+  }.contains(type);
+}
+
+bool _isStringTag(PublishedTagValue? tag) =>
+    tag?.value is String ||
+    tag?.typeName.toLowerCase().contains('string') == true;
+
+String? _boundedNumberError(
+    BuildContext context, String? source, int minimum, int maximum) {
+  final value = int.tryParse((source ?? '').trim());
+  return value == null || value < minimum || value > maximum
+      ? context.tr('std.module.editor.range', {
+          'minimum': minimum,
+          'maximum': maximum,
+        })
+      : null;
+}
+
+String? _boundedDoubleError(
+    BuildContext context, String? source, double minimum, double maximum) {
+  final value = double.tryParse((source ?? '').trim());
+  return value == null || value < minimum || value > maximum
+      ? context.tr('std.module.editor.range', {
+          'minimum': minimum.toStringAsFixed(0),
+          'maximum': maximum.toStringAsFixed(0),
+        })
+      : null;
+}
+
+String _tabKindLabel(ModuleTabKind kind) => 'std.module.tab.${kind.name}';
+
+String _controlKindLabel(ModuleControlKind kind) =>
+    'std.module.control.${kind.name}';
+
+String _actionLabel(ModuleActionKind action) =>
+    'std.module.action.${action.name}';
+
+String _backgroundFitLabel(ModuleBackgroundFit fit) =>
+    'std.module.background.fit.${fit.name}';
+
+String _backgroundPositionLabel(ModuleBackgroundPosition position) =>
+    'std.module.background.position.${position.name}';
+
+String _tabIconLabel(ModuleTabIcon icon) => 'std.module.icon.${icon.name}';
+
+IconData _tabIconData(ModuleTabIcon icon) => switch (icon) {
+      ModuleTabIcon.widgets => Icons.widgets_outlined,
+      ModuleTabIcon.dashboard => Icons.dashboard_outlined,
+      ModuleTabIcon.tune => Icons.tune,
+      ModuleTabIcon.monitoring => Icons.monitor_heart_outlined,
+      ModuleTabIcon.chart => Icons.show_chart,
+      ModuleTabIcon.information => Icons.info_outline,
+      ModuleTabIcon.build => Icons.build_outlined,
+      ModuleTabIcon.science => Icons.science_outlined,
+      ModuleTabIcon.machine => Icons.precision_manufacturing_outlined,
+      ModuleTabIcon.camera => Icons.camera_alt_outlined,
+      ModuleTabIcon.scanner => Icons.qr_code_scanner,
+      ModuleTabIcon.contactless => Icons.contactless_outlined,
+      ModuleTabIcon.checklist => Icons.checklist_outlined,
+      ModuleTabIcon.guidance => Icons.assistant_outlined,
+      ModuleTabIcon.image => Icons.image_outlined,
+      ModuleTabIcon.description => Icons.description_outlined,
+      ModuleTabIcon.settings => Icons.settings_outlined,
+      ModuleTabIcon.speed => Icons.speed_outlined,
+      ModuleTabIcon.electrical => Icons.electrical_services_outlined,
+      ModuleTabIcon.events => Icons.notifications_outlined,
+    };

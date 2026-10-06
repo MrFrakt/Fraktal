@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_HelpRole" Id="{caa7e0cf-9b75-4b43-ac44-e95dcfcef387}">
+    <Declaration><![CDATA[// Annex I I.10 - which direction of travel a help corridor is legal for.
+// EITHER is 0 so a zero-initialized corridor is bidirectional: a nest is
+// exit-able the way it was entered unless its geometry is physically one-way.
+{attribute 'qualified_only'}
+TYPE E_HelpRole :
+(
+    EITHER   := 0,
+    APPROACH := 1,
+    DEPART   := 2
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

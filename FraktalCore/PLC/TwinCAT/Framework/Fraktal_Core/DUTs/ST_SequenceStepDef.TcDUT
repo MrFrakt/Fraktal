@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_SequenceStepDef" Id="{4c557c05-d39c-4ead-9da2-e2c5fdd12ed2}">
+    <Declaration><![CDATA[// Core §3.13/§3.10.2 — the STATIC definition of a flow-chart row.
+//
+// Every field here is fixed from the step's first visit, so none of it belongs in a
+// cyclic read. It is served through the config manifest (M_AppendConfig) under the
+// SAME browse paths the live row uses, so the HMI reads one row structure and never
+// learns that half of it arrived once and was cached.
+TYPE ST_SequenceStepDef :
+STRUCT
+    StepNo        : INT;
+    // §6.12 which concurrent leg this step belongs to. 0 = the chain's main line.
+    Branch        : INT;
+    TimeClass     : E_TimeClass;
+    ExpectedTime  : TIME;          // 0 = no declared guard
+    StepName      : STRING(120);   // localization key
+    AwaitingLabel : STRING(120);   // e.g. 'PressRam.EXTEND' ('' if none)
+    // §3.13 drill-down target: the Fraktal path of the module this step commands.
+    // STRING(80) because that is what it is copied from - I_Module.Name, backed by
+    // FB_ModuleBase._name : STRING(80). A module path cannot be longer than its own
+    // name, so 255 was reserving 175 bytes per row that could never be used.
+    AwaitsPath    : STRING(80);
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

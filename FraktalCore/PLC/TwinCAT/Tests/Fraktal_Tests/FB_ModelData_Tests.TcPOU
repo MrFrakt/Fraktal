@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ModelData_Tests" Id="{5a8c3e1f-9b27-4d64-a1e8-3f0c7b2d6e59}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8a under test: a root's model data is editable for every model it
+// offers. A request names the model by index (0 = the active one); the value is
+// served from, and stored in, that model's own record, and saved back to the
+// provider. The running recipe is never touched by another model's edit.
+FUNCTION_BLOCK FB_ModelData_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u     : FB_ProbeModelUnit;
+    _users : FB_LocalAccessProvider;
+    _recipes : FB_LocalRecipeProvider;
+    _rec0, _recA, _recB : ST_ProbeModelParCfg;
+    _pager : FB_ConfigPager;
+    _page  : ST_ConfigPage;
+    _entry : ST_ConfigEntry;
+    _init  : BOOL;
+    _w1, _w2, _w3, _w4 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Another_model_is_served_and_edited_in_its_own_record();
+An_edit_of_the_active_model_is_saved_to_its_record();
+An_unknown_model_is_refused();
+Another_model_page_holds_only_its_model_data();]]></ST>
+    </Implementation>
+    <Method Name="_M_Arm" Id="{7c2e9f41-3a56-4b08-9d1e-6f4a2c8b0e73}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Arm]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _init THEN
+    RETURN;
+END_IF
+_init := TRUE;
+_rec0.Speed := 1;
+_recA.Speed := 10;
+_recB.Speed := 20;
+_recipes.Register(ModelCode := '', RecipeKey := 'ProbeModel', pData := ADR(_rec0), Size := SIZEOF(_rec0));
+_recipes.Register(ModelCode := 'A', RecipeKey := 'ProbeModel', pData := ADR(_recA), Size := SIZEOF(_recA));
+_recipes.Register(ModelCode := 'B', RecipeKey := 'ProbeModel', pData := ADR(_recB), Size := SIZEOF(_recB));
+_u.ParCfg := _rec0;                         // the active model is '' (no changeover yet)
+_u.Setup(Name := 'Test.Model', Provider := _recipes);
+_u();
+_users.Register(User := 'eng', Pin := '4242', Level := E_AccessLevel.ENGINEER);
+_u.Access.Setup(Provider := _users, pAlarmLog := ADR(_u.AlarmLog));
+_u.Access.ConfigureRequired(Gate := E_GatedAction.DATA_WRITE, Level := E_AccessLevel.ENGINEER);
+_u.Access.ConfigureRequired(Gate := E_GatedAction.DATA_READ, Level := E_AccessLevel.NONE);
+_u.Access.RequestLogin(User := 'eng', Secret := '4242');
+_u();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Find" Id="{1d6b8e3a-4f27-4c95-b0a8-5e9c2f7d3b14}">
+      <Declaration><![CDATA[// Walk the manifest for AvailableModels[ModelIndex] and leave WriteKey's entry.
+METHOD PRIVATE _M_Find : BOOL
+VAR_INPUT
+    ModelIndex : UDINT;
+    WriteKey   : STRING(160);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Find := FALSE;
+_pager.M_SetAccess(pAccess := ADR(_u.Access));
+_pager.M_Setup(Target := ADR(_page), PageIndex := 0, Revision := 1);
+IF NOT _u.M_AppendModelConfig(Pager := _pager, ModelIndex := ModelIndex) THEN
+    RETURN;
+END_IF
+_pager.M_Finish();
+FOR i := 1 TO _page.EntryCount DO
+    IF _page.Entries[i].WriteKey = WriteKey THEN
+        _entry := _page.Entries[i];
+        _M_Find := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Another_model_is_served_and_edited_in_its_own_record" Id="{8f3a1c6e-2b94-4d07-a5e1-9c7d4b0f2e86}">
+      <Declaration><![CDATA[METHOD Another_model_is_served_and_edited_in_its_own_record]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Another_model_is_served_and_edited_in_its_own_record');
+_M_Arm();
+IF NOT _w1 THEN
+    AssertTrue(Condition := _M_Find(ModelIndex := 2, WriteKey := 'probe.speed'),
+        Message := 'model B is served');
+    AssertEquals_STRING(Expected := '20', Actual := _entry.ValueText,
+        Message := 'with B$'s own value, not the running one');
+    AssertTrue(Condition := _entry.ModelScoped, Message := 'and marked model-scoped');
+    AssertTrue(Condition := _u.WriteModelConfig(ModelIndex := 2, TargetPath := 'Test.Model',
+        WriteKey := 'probe.speed', Revision := 1, TextValue := '25'),
+        Message := 'B$'s value is edited');
+    AssertEquals_DINT(Expected := 25, Actual := _recB.Speed,
+        Message := 'into B$'s record, through the provider');
+    AssertEquals_DINT(Expected := 1, Actual := _u.ParCfg.Speed,
+        Message := 'and the running recipe is untouched');
+    AssertEquals_DINT(Expected := 10, Actual := _recA.Speed,
+        Message := 'as is every other model');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="An_edit_of_the_active_model_is_saved_to_its_record" Id="{3e9b7d2f-6a14-4c85-b0d3-1f8e5a9c7b26}">
+      <Declaration><![CDATA[METHOD An_edit_of_the_active_model_is_saved_to_its_record]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('An_edit_of_the_active_model_is_saved_to_its_record');
+_M_Arm();
+IF NOT _w2 THEN
+    AssertTrue(Condition := _u.WriteModelConfig(ModelIndex := 0, TargetPath := 'Test.Model',
+        WriteKey := 'probe.speed', Revision := 1, TextValue := '7'),
+        Message := 'the active model is edited');
+    AssertEquals_DINT(Expected := 7, Actual := _u.ParCfg.Speed, Message := 'live');
+    AssertEquals_DINT(Expected := 7, Actual := _rec0.Speed,
+        Message := 'and in its record, so a changeover back keeps it');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="An_unknown_model_is_refused" Id="{6b2f8e4a-9c31-4d76-a5b0-2e7d1c9f3a58}">
+      <Declaration><![CDATA[METHOD An_unknown_model_is_refused]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('An_unknown_model_is_refused');
+_M_Arm();
+IF NOT _w3 THEN
+    AssertFalse(Condition := _u.WriteModelConfig(ModelIndex := 9, TargetPath := 'Test.Model',
+        WriteKey := 'probe.speed', Revision := 1, TextValue := '30'),
+        Message := 'a write for a model the root does not offer is refused');
+    AssertFalse(Condition := _M_Find(ModelIndex := 9, WriteKey := 'probe.speed'),
+        Message := 'and so is a query');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Another_model_page_holds_only_its_model_data" Id="{9d4c1a7e-3f58-4b26-8e0b-5a2f9d6c1e37}">
+      <Declaration><![CDATA[// One page, not the whole station manifest: an HMI reading another model
+// must not walk every module's capabilities to find four values.
+METHOD Another_model_page_holds_only_its_model_data]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Another_model_page_holds_only_its_model_data');
+_M_Arm();
+IF NOT _w4 THEN
+    AssertFalse(Condition := _M_Find(ModelIndex := 2, WriteKey := 'probe.limit'),
+        Message := 'station data is not part of another model$'s page');
+    AssertEquals_INT(Expected := 1, Actual := _page.EntryCount,
+        Message := 'the page holds the model data and nothing else');
+    AssertEquals_INT(Expected := 1, Actual := _page.PageCount,
+        Message := 'so it is one page');
+    AssertTrue(Condition := _M_Find(ModelIndex := 0, WriteKey := 'probe.limit'),
+        Message := 'the running model$'s page is still the whole manifest');
+    AssertFalse(Condition := _entry.ModelScoped,
+        Message := 'where station data is marked as not model-scoped');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

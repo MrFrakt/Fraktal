@@ -1,0 +1,130 @@
+{
+  "schema": "fraktal.ab.hmi.filter-navigation-evidence",
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-05T07:52:06.333696+00:00",
+  "trigger": "Owner reported time-filter interaction followed by return to the main page without a Connecting to PLC frame, after two-minute idle-view acceptance.",
+  "diagnosis": {
+    "reproduced": "Full bootstrap: filter all six choices across trend/Gantt/Pareto, withdraw forest on STALE, recover LIVE before another frame. Baseline AppState sets showOverview=true; corrected state retains the selected unit, local tree scope, same TabController and all filters.",
+    "limit": "The owner browser console was unavailable. This proves the navigation reset path, not a filter-specific transport failure on the owner browser."
+  },
+  "behavior": {
+    "emptyForest": "Retains navigation paths only; forest/selected node unavailable, session level NONE, detail demand deactivated.",
+    "subFrameRecovery": "Preserves mounted unit/tab/filter state.",
+    "sustainedLoss": "ConnectionBootstrap removes interactive shell and displays connection page; recovery restores unit selection.",
+    "populatedReplacementForest": "Removed module selection still resets to first root and overview, clearing local tree scope.",
+    "qualityAndExpiryLimitsChanged": false
+  },
+  "source": [
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\state\\app_state.dart",
+      "sha256": "93AD11F95132226F2A6FAAB0301A23A91F8900B8790F6376749E9134210C6B36"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\test\\connection_bootstrap_test.dart",
+      "sha256": "D5EB9C0689E5B831A18CBD1D9485A3EC648A5FD4E1C2420DC094E8FB9E322AA2"
+    }
+  ],
+  "gates": {
+    "baselineExpectedFailure": {
+      "path": "C:\\work\\press75_filter_navigation_repro_06.log",
+      "sha256": "98F07394B14AFBD928744090F98486A234374876702B9332C07CA092BD29525B"
+    },
+    "focused": {
+      "passed": 47,
+      "failed": 0,
+      "path": "C:\\work\\press75_filter_navigation_focus_02.log",
+      "sha256": "8658EFDCDF1D896668653AEFDDECEA1529070A49025251DE87FF9E4318E3C068"
+    },
+    "fullHmi": {
+      "passed": 524,
+      "skipped": 7,
+      "failed": 0,
+      "path": "C:\\work\\press75_filter_navigation_full_01.log",
+      "sha256": "8318F6F879EAA8883D7D7EF873172B021B9D7D9538B1365F089550B8AD72366B"
+    },
+    "analyzer": {
+      "clean": true,
+      "path": "C:\\work\\press75_filter_navigation_analyze_01.log",
+      "sha256": "D20833BB77ABB6965AE592AF8144A2A6349338AD827663F5D997608C3436735F"
+    },
+    "webRelease": {
+      "passed": true,
+      "wasmRuntimeClaim": false,
+      "path": "C:\\work\\press75_filter_navigation_release_01.log",
+      "sha256": "5DC293BD1556D48C2BE5657D680BCE30E1B99266E65AF4829EFA5B4341F36182"
+    },
+    "consistency": {
+      "errors": 0,
+      "warnings": 0,
+      "path": "C:\\work\\press75_filter_navigation_consistency_01.log",
+      "sha256": "FA550B3B6901D31814398D110D5EB693FCFF1E0AB5E77B161640F0BD8C78B960"
+    }
+  },
+  "deployment": {
+    "schema": "fraktal.hmi.filter-navigation-deployment",
+    "schemaVersion": 1,
+    "root": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\build\\web",
+    "backup": "C:\\work\\press75_filter_navigation_web_backup_01",
+    "oldMainSha256": "1478306110F01EB7B6BD69214A3C3CD1DD9D479CDE8697858CC902BC4DA8A2FF",
+    "newMainSha256": "DB20AC81DAE12603150055A4746BD082783B1828CD53C027CDCA74D52FB86616",
+    "httpsAddress": "127.0.0.1:443",
+    "tlsHostValidated": "press.localhost",
+    "httpsChecks": [
+      {
+        "asset": "main.dart.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "DB20AC81DAE12603150055A4746BD082783B1828CD53C027CDCA74D52FB86616"
+      },
+      {
+        "asset": "flutter_bootstrap.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "7FBFBB9E12565288A08420D33118B4693AF8F2FE35BEE26F11BCDA1E94E29499"
+      },
+      {
+        "asset": "index.html",
+        "status": 200,
+        "identical": true,
+        "sha256": "66F2DC70A372CBC4B8B68781673BFE1EA86B0A8E63F55C6519259709F7F1D035"
+      }
+    ],
+    "gatewayRestarted": false,
+    "controllerWrites": false,
+    "passed": true
+  },
+  "deploymentRecord": {
+    "path": "C:\\work\\press75_filter_navigation_web_deployment_01.json",
+    "sha256": "CC1A361B19A1494DF6BDED88A1DB6D8624672BD352F808D1DB33007AF9E67489"
+  },
+  "liveAttempts": [
+    {
+      "result": "Failed before filter loop: live sample expired and TabBar unavailable. No automated live filter PASS.",
+      "path": "C:\\work\\press75_filter_navigation_live_01.log",
+      "sha256": "2B5B595AFE3ED09F9F328344847A1DDA2DBF23B675DB5434EBE2A7D10B1FA37F"
+    },
+    {
+      "result": "Real-zone wrapper retry stalled without completing or recording the gesture loop; owned test session cancelled. No automated live filter PASS.",
+      "path": "C:\\work\\press75_filter_navigation_live_02.log",
+      "sha256": "2CB9EF89D3B64D7252D46E12AAD20941A914E3154F4658FB1A369D4FC36A9978"
+    }
+  ],
+  "ownerBrowserAcceptance": "Requested after publication; pending when this record was created.",
+  "priorIdleViewAcceptance": {
+    "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\Specification\\AllenBradley\\Evidence\\AB_PRESS75_HMI_CYCLE_DETAIL_2026-10-05.json",
+    "sha256": "0E33EC627C3D391EF6BD0929F0290B38E3B290AB0CADB5E3BC2573119E091742"
+  },
+  "target": {
+    "address": "192.168.100.89",
+    "serial": "7036B510",
+    "loadedBuild": "press75",
+    "l5xSha256": "82AB065C32BCD112D49DD00839B8047C1B5E957A5356FB9D61EF3C1C2F3172A5",
+    "manifestHash": "94E302F650BA1DB5",
+    "manifestRevision": 9757442,
+    "controllerChanged": false,
+    "gatewayRestartedForThisFollowup": false,
+    "memoryGrowth": false
+  },
+  "safetyScope": "Live harness permits only inert QUERY_CONFIG and post-ACK NONE cleanup (refused when anonymous). No login, operator action, PLC configuration, mode, clock or output mutation. No agent write-enabled gateway startup.",
+  "remainingScope": "AB port and representative TC3 timing/physical retention remain unfinished; this record is the shared HMI navigation correction only."
+}

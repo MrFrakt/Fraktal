@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_EngineeringMode" Id="{1a0f3475-4008-4217-be8e-71aae4754110}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §7.5.1 — the station's commissioning/engineering gate register.
+//
+// A gate is any deliberate departure from the production configuration: a
+// simulation driver in place of the real one, an unverified electrical mapping
+// held off, untested logic fenced out — and the §10.5.1 output-force surface.
+// Each is a BUILD constant (§7.5.1), so this register is written once at Setup
+// and never changes at runtime: declaring a gate IS activating it, and an
+// inactive gate is simply never declared. That is why ST_EngineeringGate has no
+// `Active` member and why there is no cyclic call to forget (§1.1 O1) — a
+// production image registers nothing and this whole surface is empty.
+//
+// One instance per station, in the composition root, injected into every root
+// Unit with FB_UnitBase.SetEngineeringMode. Each Unit then raises the standing
+// §7.5.2 annunciation for every registered gate: LOW, SYSTEM, AUTO_RESET,
+// not shelvable, and closable only by a build without the gate.
+FUNCTION_BLOCK FB_EngineeringMode
+VAR_OUTPUT
+    Gates : ARRAY[1..PL_Fraktal.MAX_ENGINEERING_GATES] OF ST_EngineeringGate;
+    // 0 = a production image: nothing is gated, so nothing is annunciated and
+    // no gated surface is published. This is the value a released machine has.
+    Count : INT;
+    // §10.5.1 rule 1 — the one gate the framework owns rather than the project.
+    ForcingActive : BOOL;
+    // §7.5.1 bounded register: a station that declares more gates than the table
+    // holds would silently stop annunciating the rest, so say so instead (§5.6).
+    Truncated : BOOL;
+END_VAR
+VAR
+    _forcingDeclared : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// write-once register; no cyclic body]]></ST>
+    </Implementation>
+    <Method Name="M_Declare" Id="{0fd83834-543f-4c3e-ab29-f99bcad30540}">
+      <Declaration><![CDATA[// §7.5.1 — register one ACTIVE gate; returns its slot (0 = not registered).
+// `Active` is the caller's BUILD CONSTANT, taken as an input so a composition
+// root reads as one line per gate with no IF around it:
+//     Engineering.M_Declare(Name := 'USE_SIMULATION',
+//         DescriptionKey := 'std.engineering.simulation', Active := USE_SIMULATION);
+// Passing a runtime variable here defeats §7.5.1 and is a conformance defect,
+// not a shortcut: a gate the machine can switch on is not auditable.
+METHOD M_Declare : INT
+VAR_INPUT
+    Name : STRING(80);
+    DescriptionKey : STRING(160);
+    Active : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Declare := 0;
+IF NOT Active OR (Name = '') THEN
+    RETURN;
+END_IF
+// Idempotent: a re-declared gate keeps its slot, so the framework's own
+// M_DeclareOutputForcing and a project that names the same gate cannot produce
+// two standing annunciations for one departure.
+FOR i := 1 TO Count DO
+    IF Gates[i].Name = Name THEN
+        M_Declare := i;
+        RETURN;
+    END_IF
+END_FOR
+IF Count >= PL_Fraktal.MAX_ENGINEERING_GATES THEN
+    Truncated := TRUE;
+    RETURN;
+END_IF
+Count := Count + 1;
+Gates[Count].Name := Name;
+Gates[Count].DescriptionKey := DescriptionKey;
+M_Declare := Count;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_DeclareOutputForcing" Id="{714b2510-4681-46c2-a207-3eb3ac8a3b30}">
+      <Declaration><![CDATA[// §10.5.1 rule 1 — register the framework's own force gate from the build
+// constant. Called by FB_UnitBase.SetEngineeringMode, so a project that wires
+// the register at all gets this gate declared without remembering a second call
+// (§1.1 O1); a project that wires nothing simply cannot force (fail closed).
+METHOD M_DeclareOutputForcing : BOOL
+VAR
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT _forcingDeclared THEN
+    _forcingDeclared := TRUE;
+    slot := M_Declare(Name := 'OUTPUT_FORCING',
+        DescriptionKey := 'std.engineering.outputForcing',
+        Active := PL_FraktalEngineering.OUTPUT_FORCING);
+    // Only a registered gate arms forcing: a full register must not silently
+    // grant the capability while failing to annunciate it (§5.6 fail closed).
+    ForcingActive := (slot > 0);
+END_IF
+M_DeclareOutputForcing := ForcingActive;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SeparatorParCfg" Id="{73b5ed76-8417-495c-a766-96596f4a5816}">
+    <Declaration><![CDATA[// Core S3.8: SchemaVersion FIRST, initialized to the expected version.
+TYPE ST_SeparatorParCfg :
+STRUCT
+    SchemaVersion : UINT := 1;
+    Mode          : E_SeparatorMode := E_SeparatorMode.SEPARATOR;
+    CheckAfter    : BOOL := TRUE;    // require the carrier-after arrival/clear checks
+    UsesOpenFb    : BOOL := FALSE;   // require the open feedback on OPEN_CLOSE
+    MaxOpenTime   : TIME := T#3S;    // CarrierAt must clear within this after opening
+    SOnMaxTime    : TIME := T#3S;    // CarrierAfter must arrive/clear within this
+    CloseDelay    : TIME := T#0S;
+    Timeout       : TIME := T#10S;   // overall command timeout
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

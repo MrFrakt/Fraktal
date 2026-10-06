@@ -1,0 +1,178 @@
+{
+  "schema": "fraktal.ab.phase6.configuration-regressions",
+  "schemaVersion": 1,
+  "recordedUtc": "2026-10-04T05:12:57.494826+00:00",
+  "benchDate": "2026-10-04",
+  "benchTimezone": "America/Bogota",
+  "sourceBaseCommit": "8a879a469220a9da495d23f3eb87a051345c072a",
+  "sourceHashes": {
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_gateway.py": "797DAAFA85C5E9F1E58EC3F010C4291E1762E3E10CF57A3E9CC2E6EDE81B4B5D",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_gateway_concurrency.py": "2E5827AAF719BA2961FD07C7D6C83238363273565175BD65A38B1965B98EACFB",
+    "FraktalCore/HMI/lib/data/opcua_field_tier.dart": "6F6D122E4C6A5C9BB8F082531085B7EC194F5874CD120864830319168FC3B787",
+    "FraktalCore/HMI/lib/data/opcua_repository.dart": "7913289C87536356133229BFDCCBBC91D738691830EBB7E1E221782B5408B109",
+    "FraktalCore/HMI/test/opcua_config_loading_test.dart": "D4CE1E014E40EC9D6A81BADFCE04369E1B7D59DD81C9E8E762D1EA0AC48204CE"
+  },
+  "result": "offline checks passed; Web client served; owner gateway activation/browser acceptance pending",
+  "tests": {
+    "ab": 1541,
+    "hmiPassed": 478,
+    "hmiExpectedSkips": 7,
+    "sharedTc3Ab": 79,
+    "root": 33,
+    "concurrency": 4
+  },
+  "originalRegressionLogs": [
+    {
+      "log": "C:\\work\\press68_config_gateway_repro_01.log",
+      "sha256": "CE77637AF87F69108508ED3C52B7E9499FB244D8BB31712C503DB278931465F2",
+      "expectedRegressionFailure": true
+    },
+    {
+      "log": "C:\\work\\press68_config_model_repro_01.log",
+      "sha256": "6750959B30221BB4540C300DD1BDA9ADA4176CEC83B87567DE73AB039806E84F",
+      "expectedRegressionFailure": true
+    }
+  ],
+  "checks": [
+    {
+      "check": "focused",
+      "log": "C:\\work\\press68_config_focused_02.log",
+      "sha256": "1DDF95F52BF316E5AD93BB1A762E6AD3E14250F4EDB4705701654ABF799E68D4",
+      "passed": true
+    },
+    {
+      "check": "ab",
+      "log": "C:\\work\\press68_config_ab_01.log",
+      "sha256": "2B3628B47CE58FED22311A5BF6BE0BF60F64224162D5EFD91BBAF3B5F85EA9F8",
+      "passed": true
+    },
+    {
+      "check": "hmi",
+      "log": "C:\\work\\press68_config_hmi_01.log",
+      "sha256": "41AAD752BF8A78AAC14D109D6E5157E37DA4B7029E9742EB91C83F50951D541E",
+      "passed": true
+    },
+    {
+      "check": "contract",
+      "log": "C:\\work\\press68_config_contract_01.log",
+      "sha256": "AE7F80EC735627079DEE158D77534771D4527FE3B223236CDEBAF56A15BA0763",
+      "passed": true
+    },
+    {
+      "check": "analyze",
+      "log": "C:\\work\\press68_config_analyze_01.log",
+      "sha256": "97BDD5A20F225B594D45FC4CCF9E498B9DCFC9C4A2FF729D011B96962F560FA3",
+      "passed": true
+    },
+    {
+      "check": "web",
+      "log": "C:\\work\\press68_config_web_01.log",
+      "sha256": "60E017CE4B502A645CAC133DE9C37A93AEB06C6AEEE3A259C0413500832112B5",
+      "passed": true
+    },
+    {
+      "check": "root",
+      "log": "C:\\work\\press68_config_root_02.log",
+      "sha256": "0D95A88F896A710C22C35488D9B94F2B1E5EE954864D81BD65329379EBFD7B26",
+      "passed": true
+    },
+    {
+      "check": "root-tests",
+      "log": "C:\\work\\press68_config_root-tests_02.log",
+      "sha256": "8CBF29BE9FB605BFC48D33B2B8FCBEEBAF6D7F06AEBCF49A272C75557CE2CEF4",
+      "passed": true
+    }
+  ],
+  "mutations": {
+    "path": "C:\\work\\press68_config_mutants_01.json",
+    "sha256": "BDE52F1929CE4B511D95DFEAC97720D431580F70181CD1292FBF078FC1D61B5F",
+    "inMemoryOnly": true,
+    "source": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\fraktal_ab_gateway.py",
+    "mutants": [
+      {
+        "name": "serial-receive-loop",
+        "killed": true,
+        "failures": 3,
+        "errors": 0
+      },
+      {
+        "name": "retain-queued-disconnect-command",
+        "killed": true,
+        "failures": 1,
+        "errors": 0
+      },
+      {
+        "name": "cancel-native-drain-twice",
+        "killed": true,
+        "failures": 1,
+        "errors": 0
+      },
+      {
+        "name": "interleave-mailbox-transactions",
+        "killed": true,
+        "failures": 1,
+        "errors": 0
+      }
+    ],
+    "passed": true
+  },
+  "deployment": {
+    "record": "C:\\work\\press68_config_deployment_01.json",
+    "recordSha256": "979CA42C3ADAA142BC5D1DFDA3B50FFE4CCCBBE3F21C754186E7E5DB0A85DDC7",
+    "schema": "fraktal.hmi.configuration-regression-deployment",
+    "schemaVersion": 1,
+    "root": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\build\\web",
+    "backup": "C:\\work\\press68_config_fix_web_backup_01",
+    "oldMainSha256": "9E3854ABBFF8326D04A1B052DC2EB5BA8E0409453C50C45C9C328ADF34C8BFB5",
+    "newMainSha256": "A566AE9D54B271C48351751B357C7865C1DC86A27C39A6C25196AB1971B1BF4C",
+    "httpsAddress": "127.0.0.1:443",
+    "tlsHostValidated": "press.localhost",
+    "httpsChecks": [
+      {
+        "asset": "main.dart.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "A566AE9D54B271C48351751B357C7865C1DC86A27C39A6C25196AB1971B1BF4C"
+      },
+      {
+        "asset": "flutter_bootstrap.js",
+        "status": 200,
+        "identical": true,
+        "sha256": "9D34C35D942631BFA9FFF8EABBBE3550F0D4F06C5C6A3D001F785D9A5C7AE932"
+      },
+      {
+        "asset": "index.html",
+        "status": 200,
+        "identical": true,
+        "sha256": "66F2DC70A372CBC4B8B68781673BFE1EA86B0A8E63F55C6519259709F7F1D035"
+      }
+    ],
+    "gatewayRestarted": false,
+    "controllerWrites": false,
+    "passed": true
+  },
+  "controller": {
+    "loadedBaseline": "press68",
+    "l5x": "C:\\work\\press68.L5X",
+    "sha256": "E2C20374F8FC7364672E425EBC3E55CC5F6D9F81ED4894BB32366E737BA586F7",
+    "identityBasis": "previous owner confirmation and guarded evidence; no new native operation",
+    "manifestHash": "7A9B9A8B59EEFD16",
+    "manifestRevision": 8035226,
+    "manifestBytes": 68472,
+    "users": 4,
+    "memoryGrowthBytes": 0,
+    "sourceChanged": false,
+    "generated": false,
+    "writes": false,
+    "downloaded": false
+  },
+  "liveGatewayRestarted": false,
+  "liveBrowserAcceptance": false,
+  "ownerNextActions": [
+    "restart existing approved gateway once",
+    "hard-refresh Chrome",
+    "open Parameter sets without shell reset",
+    "select and query another model in configuration",
+    "read back D6 writeAccess on all three health endpoints"
+  ]
+}

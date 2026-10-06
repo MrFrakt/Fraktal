@@ -1,0 +1,1085 @@
+{
+  "schema": "fraktal.ab.phase6-access-runtime-fix",
+  "schema_version": 1,
+  "date_local": "2026-10-02",
+  "timezone": "America/Bogota",
+  "source_parent_commit": "14da3cc43274c1a21ebd3614487f527d2ed9198d",
+  "owner_instruction": "try to set the pin yourself and the login if you think i followed your instructions correctly",
+  "stage": "offline correction prepared; owner Studio Verify/download and updated HMI deployment pending",
+  "target": {
+    "address": "192.168.100.89",
+    "expected_serial": "7036B510",
+    "controller": "1769-L24ER-QB1B/A",
+    "firmware": "33.014"
+  },
+  "controller_writes": false,
+  "controller_download": false,
+  "gateway_started": false,
+  "fault_counters_cleared": false,
+  "prior_hardware_gate": "press58 failed: maximum scan 31065 us, overlap 606, login exceeded six seconds",
+  "artifacts": [
+    {
+      "Schema": "fraktal.ab.generated-application",
+      "SchemaVersion": 1,
+      "Application": "Press",
+      "Source": "C:\\work\\seed_v33.L5X",
+      "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+      "Output": "C:\\work\\press59.L5X",
+      "OutputSha256": "62AEDB124A4A2933684E61367C352869BB488B88FBCCD69F785FF079658AEE0E",
+      "Controller": "1769-L24ER-QB1B",
+      "MajorRevision": 33,
+      "TaskName": "FRK_PressTask",
+      "TaskPeriodMs": 10,
+      "WatchdogMs": 500,
+      "PhysicalIoReferences": 20,
+      "EmbeddedIoInhibited": false,
+      "TaskOutputUpdatesDisabled": false,
+      "ForceableOutputs": 8,
+      "BoolMembersInPublicUdt": 0,
+      "ContractRecords": [
+        "FRK_T_PressParCfg",
+        "FRK_T_PressStationCfg"
+      ],
+      "ModuleTypes": [
+        "FRK_M_Cylinder",
+        "FRK_M_DigitalInput",
+        "FRK_M_TwoHand",
+        "FRK_M_AirPressure"
+      ],
+      "ModeOwner": "FRK_U_Press",
+      "AoiDefinitions": 7,
+      "Chains": {
+        "AUTO": [
+          0,
+          100,
+          110,
+          130,
+          150,
+          170,
+          180,
+          185,
+          190,
+          200,
+          210,
+          215,
+          220,
+          230,
+          240,
+          242,
+          244,
+          999
+        ],
+        "HOME": [
+          0,
+          900,
+          902,
+          904,
+          998
+        ],
+        "CHANGEOVER": [
+          0,
+          700,
+          710,
+          712,
+          714,
+          780,
+          790,
+          798
+        ]
+      },
+      "DistinctSteps": 29,
+      "ChartSteps": 32,
+      "WritableInputs": [
+        "FRK_Press_FaultPressRam",
+        "FRK_Press_HoldPressRam",
+        "FRK_Press_FaultDoor",
+        "FRK_Press_HoldDoor",
+        "FRK_Press_FaultPartSlide",
+        "FRK_Press_HoldPartSlide",
+        "FRK_Press_TwoHand",
+        "FRK_Press_PartPresent",
+        "FRK_Press_AirOk",
+        "FRK_Press_RenditionSelect"
+      ],
+      "CommandInputs": [
+        "FRK_Press_RunRequest",
+        "FRK_Press_AbortRequest",
+        "FRK_Press_ResetRequest",
+        "FRK_Press_ModeRequest",
+        "FRK_Press_DecisionAnswer",
+        "FRK_Press_ModelRequest"
+      ],
+      "EvidenceTags": [
+        "FRK_Press_ScanCount",
+        "FRK_Press_OrderFail",
+        "FRK_Press_TaskPeriodMs",
+        "FRK_Press_LdAdvanced",
+        "FRK_Press_LdScratch"
+      ],
+      "HarnessOnlyTags": [
+        "FRK_Press_RenditionSelect",
+        "FRK_Press_LdAdvanced",
+        "FRK_Press_LdScratch"
+      ],
+      "PublishableTags": [
+        "FRK_T_PressParCfgTag",
+        "FRK_T_PressStationCfgTag",
+        "FRK_Press_CtxPressRam",
+        "FRK_Press_CtxDoor",
+        "FRK_Press_CtxPartSlide",
+        "FRK_Press_CtxPartPresentSensor",
+        "FRK_Press_CtxTwoHand",
+        "FRK_Press_CtxAirPressureMonitor",
+        "FRK_Press_Unit",
+        "FRK_Press_Chart",
+        "FRK_Press_ConfigPersist",
+        "FRK_Press_ModelCfg",
+        "FRK_Press_AlarmActive",
+        "FRK_Press_AlarmRing",
+        "FRK_Press_Oee",
+        "FRK_Press_Profiler",
+        "FRK_Press_AccessState",
+        "FRK_Press_AccessAudit",
+        "FRK_Press_ConfigAudit",
+        "FRK_Press_ConfigSetState",
+        "FRK_Press_StateFlags",
+        "FRK_Press_HealthProbe",
+        "FRK_Press_HealthCfg",
+        "FRK_Press_SystemHealth",
+        "FRK_Press_FaultPressRam",
+        "FRK_Press_HoldPressRam",
+        "FRK_Press_FaultDoor",
+        "FRK_Press_HoldDoor",
+        "FRK_Press_FaultPartSlide",
+        "FRK_Press_HoldPartSlide",
+        "FRK_Press_TwoHand",
+        "FRK_Press_PartPresent",
+        "FRK_Press_AirOk",
+        "FRK_Press_ScanCount",
+        "FRK_Press_OrderFail",
+        "FRK_Press_TaskPeriodMs"
+      ],
+      "Manifest": {
+        "Schema": "fraktal.ab.manifest",
+        "SchemaMajor": 3,
+        "SchemaMinor": 0,
+        "ConfigRevision": 6946859,
+        "ContentHash": "6A002B2FAA2E431D",
+        "KeyLength": 56,
+        "Tables": {
+          "Roots": {
+            "rows": 1,
+            "capacity": 4
+          },
+          "Modules": {
+            "rows": 7,
+            "capacity": 16
+          },
+          "Nameplates": {
+            "rows": 0,
+            "capacity": 16
+          },
+          "Fields": {
+            "rows": 545,
+            "capacity": 768
+          },
+          "Operations": {
+            "rows": 6,
+            "capacity": 32
+          },
+          "Localization": {
+            "rows": 542,
+            "capacity": 768
+          },
+          "Rationalization": {
+            "rows": 23,
+            "capacity": 32
+          },
+          "OptionalProfiles": {
+            "rows": 0,
+            "capacity": 8
+          },
+          "WriteCapabilities": {
+            "rows": 9,
+            "capacity": 64
+          }
+        },
+        "Truncated": false,
+        "EstimatedBytes": 79992
+      },
+      "Programs": 1,
+      "Routines": 1,
+      "Tasks": 1,
+      "reproduces": true,
+      "modules_unchanged": true,
+      "tasks_unchanged": true,
+      "aois_unchanged": true,
+      "changed_routines": [
+        "FRK_PressMain",
+        "FRK_PressHmiMailbox",
+        "FRK_Press_AccessSha256"
+      ],
+      "storage_before": {
+        "declared_access_bytes": 8504,
+        "access_tag_bytes": {
+          "FRK_Press_AccessState": 200,
+          "FRK_Press_AccessAudit": 3596,
+          "FRK_Press_AccessUsers": 988,
+          "FRK_Press_AccessWork": 1036,
+          "FRK_Press_AccessLoginRequest": 2428,
+          "FRK_Press_AccessRoundConstants": 256
+        },
+        "st_routines": {
+          "FRK_PressMain": {
+            "lines": 1135,
+            "statements": 950,
+            "characters": 70645,
+            "btdt_calls": 0
+          },
+          "FRK_PressHmiMailbox": {
+            "lines": 1426,
+            "statements": 1143,
+            "characters": 80610,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSt": {
+            "lines": 667,
+            "statements": 527,
+            "characters": 27443,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSfcRun": {
+            "lines": 10,
+            "statements": 3,
+            "characters": 546,
+            "btdt_calls": 0
+          },
+          "FRK_Press_AccessSha256": {
+            "lines": 209,
+            "statements": 209,
+            "characters": 15105,
+            "btdt_calls": 1
+          },
+          "FRK_Press_AccessRotate32": {
+            "lines": 13,
+            "statements": 12,
+            "characters": 552,
+            "btdt_calls": 2
+          },
+          "FRK_Press_AccessRecordAudit": {
+            "lines": 46,
+            "statements": 42,
+            "characters": 3360,
+            "btdt_calls": 0
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "storage_after": {
+        "declared_access_bytes": 8524,
+        "access_tag_bytes": {
+          "FRK_Press_AccessState": 204,
+          "FRK_Press_AccessAudit": 3596,
+          "FRK_Press_AccessUsers": 988,
+          "FRK_Press_AccessWork": 1052,
+          "FRK_Press_AccessLoginRequest": 2428,
+          "FRK_Press_AccessRoundConstants": 256
+        },
+        "st_routines": {
+          "FRK_PressMain": {
+            "lines": 1142,
+            "statements": 957,
+            "characters": 70884,
+            "btdt_calls": 0
+          },
+          "FRK_PressHmiMailbox": {
+            "lines": 1453,
+            "statements": 1170,
+            "characters": 81687,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSt": {
+            "lines": 667,
+            "statements": 527,
+            "characters": 27443,
+            "btdt_calls": 0
+          },
+          "FRK_PressAutoSfcRun": {
+            "lines": 10,
+            "statements": 3,
+            "characters": 546,
+            "btdt_calls": 0
+          },
+          "FRK_Press_AccessSha256": {
+            "lines": 233,
+            "statements": 228,
+            "characters": 16033,
+            "btdt_calls": 1
+          },
+          "FRK_Press_AccessRotate32": {
+            "lines": 13,
+            "statements": 12,
+            "characters": 552,
+            "btdt_calls": 2
+          },
+          "FRK_Press_AccessRecordAudit": {
+            "lines": 46,
+            "statements": 42,
+            "characters": 3360,
+            "btdt_calls": 0
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "hash_chunk_rounds": 8,
+      "hash_block_scans": 10,
+      "total_hashes": 257,
+      "nominal_login_ms": 25700,
+      "login_timeout_ms": 35700,
+      "users_maximum": 4,
+      "declared_users": 3,
+      "credential_rotation": {
+        "user": "phase6_admin",
+        "level": 4,
+        "fixture_matches_hash": true
+      }
+    },
+    {
+      "Schema": "fraktal.ab.generated-application",
+      "SchemaVersion": 1,
+      "Application": "Cell",
+      "Source": "C:\\work\\seed_v33.L5X",
+      "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+      "Output": "C:\\work\\phase6_access_runtime_template.L5X",
+      "OutputSha256": "BBA9846389237889AEEE1AE56E9ADFA5B4840086A8345531C768BB0A3A2FE6AC",
+      "Controller": "1769-L24ER-QB1B",
+      "MajorRevision": 33,
+      "TaskName": "FRK_CellTask",
+      "TaskPeriodMs": 10,
+      "WatchdogMs": 500,
+      "PhysicalIoReferences": 0,
+      "EmbeddedIoInhibited": true,
+      "TaskOutputUpdatesDisabled": true,
+      "ForceableOutputs": 0,
+      "BoolMembersInPublicUdt": 0,
+      "ContractRecords": [
+        "FRK_T_CellParCfg",
+        "FRK_T_CellStationCfg"
+      ],
+      "ModuleTypes": [
+        "FRK_M_Cylinder",
+        "FRK_M_DigitalInput"
+      ],
+      "ModeOwner": "FRK_U_Cell",
+      "AoiDefinitions": 3,
+      "Chains": {
+        "AUTO": [
+          0,
+          100,
+          110,
+          120,
+          130,
+          999
+        ],
+        "HOME": [
+          0,
+          900,
+          998
+        ]
+      },
+      "DistinctSteps": 8,
+      "ChartSteps": 32,
+      "WritableInputs": [
+        "FRK_Cell_FaultClamp",
+        "FRK_Cell_HoldClamp",
+        "FRK_Cell_PartPresent"
+      ],
+      "CommandInputs": [
+        "FRK_Cell_RunRequest",
+        "FRK_Cell_AbortRequest",
+        "FRK_Cell_ResetRequest",
+        "FRK_Cell_ModeRequest",
+        "FRK_Cell_DecisionAnswer",
+        "FRK_Cell_ModelRequest"
+      ],
+      "EvidenceTags": [
+        "FRK_Cell_ScanCount",
+        "FRK_Cell_OrderFail",
+        "FRK_Cell_TaskPeriodMs"
+      ],
+      "HarnessOnlyTags": [],
+      "PublishableTags": [
+        "FRK_T_CellParCfgTag",
+        "FRK_T_CellStationCfgTag",
+        "FRK_Cell_CtxClamp",
+        "FRK_Cell_CtxPartSensor",
+        "FRK_Cell_Unit",
+        "FRK_Cell_Chart",
+        "FRK_Cell_ConfigPersist",
+        "FRK_Cell_ModelCfg",
+        "FRK_Cell_AlarmActive",
+        "FRK_Cell_AlarmRing",
+        "FRK_Cell_Oee",
+        "FRK_Cell_Profiler",
+        "FRK_Cell_AccessState",
+        "FRK_Cell_AccessAudit",
+        "FRK_Cell_ConfigAudit",
+        "FRK_Cell_ConfigSetState",
+        "FRK_Cell_StateFlags",
+        "FRK_Cell_HealthProbe",
+        "FRK_Cell_HealthCfg",
+        "FRK_Cell_SystemHealth",
+        "FRK_Cell_FaultClamp",
+        "FRK_Cell_HoldClamp",
+        "FRK_Cell_PartPresent",
+        "FRK_Cell_ScanCount",
+        "FRK_Cell_OrderFail",
+        "FRK_Cell_TaskPeriodMs"
+      ],
+      "Manifest": {
+        "Schema": "fraktal.ab.manifest",
+        "SchemaMajor": 3,
+        "SchemaMinor": 0,
+        "ConfigRevision": 10598767,
+        "ContentHash": "A1B96FEDE7A52F3E",
+        "KeyLength": 56,
+        "Tables": {
+          "Roots": {
+            "rows": 1,
+            "capacity": 4
+          },
+          "Modules": {
+            "rows": 3,
+            "capacity": 16
+          },
+          "Nameplates": {
+            "rows": 0,
+            "capacity": 16
+          },
+          "Fields": {
+            "rows": 359,
+            "capacity": 768
+          },
+          "Operations": {
+            "rows": 4,
+            "capacity": 32
+          },
+          "Localization": {
+            "rows": 453,
+            "capacity": 768
+          },
+          "Rationalization": {
+            "rows": 19,
+            "capacity": 32
+          },
+          "OptionalProfiles": {
+            "rows": 0,
+            "capacity": 8
+          },
+          "WriteCapabilities": {
+            "rows": 4,
+            "capacity": 64
+          }
+        },
+        "Truncated": false,
+        "EstimatedBytes": 79992
+      },
+      "Programs": 1,
+      "Routines": 1,
+      "Tasks": 1,
+      "reproduces": true,
+      "modules_unchanged": true,
+      "tasks_unchanged": true,
+      "aois_unchanged": true,
+      "changed_routines": [
+        "FRK_CellMain",
+        "FRK_CellHmiMailbox",
+        "FRK_Cell_AccessSha256"
+      ],
+      "storage_before": {
+        "declared_access_bytes": 7848,
+        "access_tag_bytes": {
+          "FRK_Cell_AccessState": 200,
+          "FRK_Cell_AccessAudit": 3596,
+          "FRK_Cell_AccessUsers": 332,
+          "FRK_Cell_AccessWork": 1036,
+          "FRK_Cell_AccessLoginRequest": 2428,
+          "FRK_Cell_AccessRoundConstants": 256
+        },
+        "st_routines": {
+          "FRK_CellMain": {
+            "lines": 935,
+            "statements": 779,
+            "characters": 56713,
+            "btdt_calls": 0
+          },
+          "FRK_CellHmiMailbox": {
+            "lines": 1047,
+            "statements": 849,
+            "characters": 56029,
+            "btdt_calls": 0
+          },
+          "FRK_Cell_AccessSha256": {
+            "lines": 209,
+            "statements": 209,
+            "characters": 14668,
+            "btdt_calls": 1
+          },
+          "FRK_Cell_AccessRotate32": {
+            "lines": 13,
+            "statements": 12,
+            "characters": 535,
+            "btdt_calls": 2
+          },
+          "FRK_Cell_AccessRecordAudit": {
+            "lines": 46,
+            "statements": 42,
+            "characters": 3263,
+            "btdt_calls": 0
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "storage_after": {
+        "declared_access_bytes": 7868,
+        "access_tag_bytes": {
+          "FRK_Cell_AccessState": 204,
+          "FRK_Cell_AccessAudit": 3596,
+          "FRK_Cell_AccessUsers": 332,
+          "FRK_Cell_AccessWork": 1052,
+          "FRK_Cell_AccessLoginRequest": 2428,
+          "FRK_Cell_AccessRoundConstants": 256
+        },
+        "st_routines": {
+          "FRK_CellMain": {
+            "lines": 942,
+            "statements": 786,
+            "characters": 56945,
+            "btdt_calls": 0
+          },
+          "FRK_CellHmiMailbox": {
+            "lines": 1074,
+            "statements": 876,
+            "characters": 57095,
+            "btdt_calls": 0
+          },
+          "FRK_Cell_AccessSha256": {
+            "lines": 233,
+            "statements": 228,
+            "characters": 15570,
+            "btdt_calls": 1
+          },
+          "FRK_Cell_AccessRotate32": {
+            "lines": 13,
+            "statements": 12,
+            "characters": 535,
+            "btdt_calls": 2
+          },
+          "FRK_Cell_AccessRecordAudit": {
+            "lines": 46,
+            "statements": 42,
+            "characters": 3263,
+            "btdt_calls": 0
+          }
+        },
+        "statement": "Declared member storage with 4-byte UDT alignment; excludes native instruction records, symbol/type overhead and compiled code. ST counts are not compiler memory bytes."
+      },
+      "hash_chunk_rounds": 8,
+      "hash_block_scans": 10,
+      "total_hashes": 257,
+      "nominal_login_ms": 25700,
+      "login_timeout_ms": 35700,
+      "users_maximum": 4,
+      "declared_users": 0,
+      "credential_rotation": null
+    }
+  ],
+  "credential_rotation": {
+    "user": "phase6_admin",
+    "level": 4,
+    "fresh_salt_and_hash": true,
+    "private_fixture_matches_registration": true,
+    "applied_to_controller": false,
+    "pin_in_evidence": false
+  },
+  "cryptography": {
+    "hashes": 257,
+    "rounds_per_chunk": 8,
+    "scans_per_block": 10,
+    "nominal_task_scans": 2570,
+    "nominal_login_ms": 25700,
+    "provider_wait_ms": 35700,
+    "controller_cost_measured": false,
+    "input_byte_buffer_wiped_in_sampling_scan": true,
+    "private_and_transported_request_secrets_wiped_before_compression": true,
+    "partial_word_compression_state": "private transient work; wiped on completion/cancellation/Run entry"
+  },
+  "account_execution_model": {
+    "schema": "fraktal.ab.phase6-access-runtime-account-model",
+    "passed": true,
+    "controller_writes": false,
+    "real_emitted_sha": true,
+    "runtime": "Structured Text subset model, not Studio/controller",
+    "user": "phase6_admin",
+    "level": 4,
+    "hashes": 257,
+    "nominal_task_scans": 2570,
+    "nominal_task_ms": 25700,
+    "provider_wait_ms": 35700,
+    "model_wall_seconds": 9.124,
+    "private_fixture_matches_committed_hash": true,
+    "pin_in_evidence": false
+  },
+  "offline_gates": [
+    {
+      "gate": "ab",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "tail": "Ran 1408 tests in 144.527s\nOK",
+      "tests": 1408,
+      "seconds": 144.527,
+      "log": "C:\\work\\press59_ab_final.txt"
+    },
+    {
+      "gate": "consistency",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "tail": "\ncheck_consistency: 0 error(s), 0 warning(s) across inventory, localization, parity, readsurface\n\n"
+    },
+    {
+      "gate": "consistency_tests",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "tail": "\n......usage: python.exe -m unittest [-h] [--root ROOT] [--strict] [--emit] [--quiet]\n                              [{inventory,localization,parity,readsurface} ...]\npython.exe -m unittest: error: argument checks: invalid choice: 'bogus' (choose from inventory, localization, parity, readsurface)\n...........................\n----------------------------------------------------------------------\nRan 33 tests in 2.153s\n\nOK\n"
+    },
+    {
+      "gate": "sdk",
+      "exit_code": 3762504530,
+      "expected_exit_code": 1,
+      "passed": false,
+      "tail": "exception. RockwellAutomation.LogixDesigner.OperationFailedException: No valid license. (C:\\work\\press59.L5X)\n   at RockwellAutomation.LogixDesigner.LogixProject.a[a](String A_0, Func`1 A_1)\n   at RockwellAutomation.LogixDesigner.LogixProject.a(CancellationToken A_0)\n   at RockwellAutomation.LogixDesigner.LogixProject.<>c__DisplayClass27_0.<<OpenLogixProjectAsync>b__0>d.MoveNext()\n--- End of stack trace from previous location ---\n   at RockwellAutomation.LogixDesigner.LogixProject.a(String A_0, Func`2 A_1, IEnumerable`1 A_2, CancellationToken A_3)\n   at RockwellAutomation.LogixDesigner.LogixProject.OpenLogixProjectAsync(String projectFilePath, IEnumerable`1 operationEventHandlers, CancellationToken cancellationToken)\n   at RockwellAutomation.LogixDesigner.LogixProject.OpenLogixProjectAsync(String projectFilePath, IOperationEvent operationEventHandler, CancellationToken cancellationToken)\n   at Program.<Main>$(String[] args) in C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\Fraktal.Ab.OfflineProbe\\Program.cs:line 133\n   at Program.<Main>(String[] args)\n",
+      "blocked": true,
+      "reason": "OpenLogixProjectAsync refused No valid license",
+      "controller_connected": false
+    }
+  ],
+  "ab_mutations": {
+    "schema": "fraktal.ab.phase6-access-runtime-mutations",
+    "baseline": {
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "passed": true
+    },
+    "mutants": [
+      {
+        "mutation": "pin-rounds",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "sha-constant",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "sha-rotate",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "pin-not-wiped",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "compare-bypassed",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "provider-validity-shared",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "login-request-not-sampled",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "logout-not-cancelled",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "busy-login-replaces-attempt",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "login-rewrites-ack",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "gate-bypassed",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "self-lockout",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "timeout-no-bound",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "pure-query-rearms",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "accepted-mutation-not-rearmed",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "restore-ack-not-engineer",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "held-withdrawal-denied",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-actor-spoof",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-wrong-severity",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "session-survives-run-entry",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "gateway-grants-role",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "fixture-gate-restoration-skipped",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "fixture-native-serial-bypassed",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "unused-user-reserve",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "last-user-skipped",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "corrupt-count-beyond-allocation",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-high-byte-position",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-byte-high-bit-lost",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "audit-old-schema-decoded",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "digest-byte-order",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "rotate-second-half-skipped",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "constants-externally-writable",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "boolean-literal-regression",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "unbounded-round-chunk",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "double-hash-chunk-per-scan",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "initial-byte-buffer-retained",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "unfinished-digest-consumed",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "early-compression-completion",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "corrupt-cursor-not-guarded",
+        "killed": true,
+        "tests": 1,
+        "failures": 0,
+        "errors": 1,
+        "passed": false
+      },
+      {
+        "mutation": "partial-hash-cursor-survives-cancel",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "legacy-provider-wait",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      },
+      {
+        "mutation": "fifth-user-accepted",
+        "killed": true,
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "passed": false
+      }
+    ],
+    "passed": true,
+    "killed": 42,
+    "total": 42,
+    "source_files_modified": false
+  },
+  "hmi_mutations": {
+    "schema": "fraktal.hmi.phase6-access-mutations",
+    "baseline": {
+      "mutation": "baseline",
+      "exit_code": 0,
+      "tests": 13,
+      "passed": true
+    },
+    "mutants": [
+      {
+        "mutation": "pending-ignored",
+        "exit_code": 1,
+        "tests": 13,
+        "passed": false
+      },
+      {
+        "mutation": "consumption-as-authentication",
+        "exit_code": 1,
+        "tests": 13,
+        "passed": false
+      },
+      {
+        "mutation": "provider-budget-ignored",
+        "exit_code": 1,
+        "tests": 13,
+        "passed": false
+      }
+    ],
+    "source_files_modified": false,
+    "passed": true,
+    "killed": 3,
+    "total": 3
+  },
+  "hmi": {
+    "tests_passed": 433,
+    "tests_skipped": 6,
+    "analysis": "No issues found! (ran in 7.2s)",
+    "build": "release web; Wasm dry run succeeded; 53.7 seconds",
+    "path": "C:/work/press59_hmi_web",
+    "deployed": false,
+    "main_js_sha256": "F5A117F8BD61D1E6EDD76DB27AD7B16C0317738CECDBD9BFDE76C609EB5FB013"
+  },
+  "source_sha256": {
+    "FraktalCore/HMI/lib/data/opcua_repository.dart": "78E886BA5F4511283438E2DCE059527AECE0584C95C64475CBA9DA223415D31F",
+    "FraktalCore/HMI/test/opcua_repository_test.dart": "0478C0DAE31BB87DA783AF06EBFD3F55C0C0BAE1EAD7E15D792E45CA48165A38",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_access.py": "B1F9C5FD1E176E4F515CE264966CFA757483B971738324E4CB7041DE7BC4FE3C",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_declaration.py": "2C5097EA7220D8EA0C46718AE6DD4C31F1F4C94C198279410B6F55203FBC7389",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py": "2FF78DC816655B8C7045EA7F01DF35857F4AC89AF3745D633B472C8DD37520EB",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_access_execute.py": "F1DFD523678E0C486CD50BF532BB198572EC6A8A05F7A303F370BF2188A4BC4D",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_press_demo.py": "355CA0067B9304260FA1F1F91026E80FD9A71FDE890BA2AE20E7772B25A55A08",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_projection.py": "3E25AB9EBB8A09A9FC71B681DB9FCC2D9BBB3D2701C110610D5D791203E3E1D3",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_access.py": "5E11F35801CCB8FEF0816800B8EDA09A0F0E5370F8ADDC09703FD91E87CA4DE2",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_config_page.py": "D2597456426233990EA1D271946677C8741461B47312A60AC11FDEB682DE5B25",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_field_keys.py": "3CC3FAFAD95BBE39A95B9A21F6BB42A200AD22BA0EBC8BD9F5F8D174D8FE9C49",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_projection.py": "40F52B2AFEAB0D316FC7B4F251B73A3EFA4D4A7A9741EF6C6D9B93A371405429"
+  },
+  "deployment_posture": "v33 legacy zone-and-conduit; explicit 2026-09-29 write-enabled bench decision; S9 owed",
+  "pending": [
+    "owner Studio v33 Verify and memory fit",
+    "owner download and updated generic HMI deployment",
+    "serial-guarded authentication and task budget proof",
+    "remaining regressions",
+    "physical retention matrix",
+    "S9"
+  ]
+}

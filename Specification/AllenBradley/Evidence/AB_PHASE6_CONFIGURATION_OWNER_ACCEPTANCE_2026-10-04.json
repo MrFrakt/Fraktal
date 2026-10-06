@@ -1,0 +1,170 @@
+{
+  "schema": "fraktal.ab.phase6.configuration-owner-acceptance.v1",
+  "localDate": "2026-10-04",
+  "timezone": "America/Bogota",
+  "baseCommit": "8e873c8d8dc413f6cd10ff87854da449c7516148",
+  "ownerObservation": {
+    "question": "Press Ctrl+Shift+R in Chrome, log in if needed, then open Configuration → Parameter sets and leave it open for at least 10 seconds. Does it stay open and show a set list or “No parameter sets are stored”?",
+    "answer": "Yes — it stays open",
+    "status": "parameter-sets-browser-acceptance-passed",
+    "source": "Owner asynchronous question reply in this session."
+  },
+  "priorActivationEvidence": "AB_PHASE6_GATEWAY_ACTIVATION_2026-10-04.md",
+  "scope": "Owner confirms the dialog remains open after the corrected gateway restart and Chrome refresh; not save/load/retention acceptance.",
+  "retentionReadOnlyPreflight": {
+    "artifact": {
+      "path": "C:\\work\\press68_retention_preflight_01.json",
+      "sha256": "376764281ba7b3ecda188926ff7504aab42f419318e8391ff4c8256b94806fa5"
+    },
+    "observation": {
+      "schema": "fraktal.ab.phase6.retention-read-only-preflight.v1",
+      "observedAtUtc": "2026-10-04T15:46:08.351862+00:00",
+      "target": "192.168.100.89",
+      "serial": "7036B510",
+      "fingerprint": {
+        "passed": true,
+        "checks": {
+          "unit_schema": true,
+          "cfg_schema": true,
+          "task_period": true,
+          "scan_running": true
+        },
+        "readings": {
+          "FRK_Press_ScanCount": 6886174,
+          "FRK_Press_TaskPeriodMs": 10,
+          "FRK_Press_OrderFail": 0,
+          "Unit.SchemaVersion": 1,
+          "Unit.Par_TaskPeriodMs": 10,
+          "Cfg.SchemaVersion": 4
+        }
+      },
+      "unit": {
+        "Mode": 0,
+        "RunStyle": 0,
+        "Running": 0,
+        "Error": 0
+      },
+      "stationConfiguration": [
+        {
+          "record": "FRK_T_PressStationCfg",
+          "member": "StationNumber",
+          "writeKey": "station.number",
+          "kind": "scalar",
+          "minimum": 1,
+          "maximum": 99,
+          "value": 1
+        },
+        {
+          "record": "FRK_T_PressStationCfg",
+          "member": "RamExtendLimitMs",
+          "writeKey": "station.ramExtendLimitMs",
+          "kind": "duration_ms",
+          "minimum": 200,
+          "maximum": 30000,
+          "value": 2000
+        },
+        {
+          "record": "FRK_T_PressStationCfg",
+          "member": "AirPressureMinKpa",
+          "writeKey": "station.airPressureMinKpa",
+          "kind": "scalar",
+          "minimum": 100,
+          "maximum": 1000,
+          "value": 451
+        },
+        {
+          "record": "FRK_T_PressStationCfg",
+          "member": "AirConflictTimeMs",
+          "writeKey": "airPressure.conflictTime",
+          "kind": "duration_ms",
+          "minimum": 0,
+          "maximum": 10000,
+          "value": 500
+        },
+        {
+          "record": "FRK_T_PressStationCfg",
+          "member": "RequireTwoHandStart",
+          "writeKey": "press.requireTwoHandStart",
+          "kind": "boolean",
+          "minimum": 0,
+          "maximum": 1,
+          "value": 1
+        }
+      ],
+      "configPersist": {
+        "SchemaVersion": 1,
+        "Pending": 0,
+        "Failed": 0,
+        "WindowMs": 5000,
+        "PendingSince": 153917179,
+        "StorePresent": 1,
+        "StoreKind": 1,
+        "RestoreLost": 0,
+        "RestoreAcknowledged": 0,
+        "LostModuleId": 0,
+        "RestorePolicy": 0
+      },
+      "proposedTest": {
+        "writeKey": "station.number",
+        "original": 1,
+        "temporary": 2,
+        "namedSet": "phase6-retention-20261004",
+        "state": "planned-not-authorized-or-executed"
+      },
+      "operations": {
+        "controllerWrites": false,
+        "gatewayRestart": false,
+        "powerCycle": false,
+        "download": false
+      }
+    },
+    "source": {
+      "path": "C:\\work\\press68_retention_preflight_01.py",
+      "sha256": "9457451b97ebf18cb9995890f2cb20243ffc561dedaa337798eba30934de9fbc"
+    }
+  },
+  "checks": [
+    {
+      "check": "ab",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_configuration_acceptance_ab_01.log",
+        "sha256": "f6426379772e72ca0076d156aa2a756482be11311d87881b51897430c5f9f304"
+      }
+    },
+    {
+      "check": "root",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_configuration_acceptance_root_01.log",
+        "sha256": "0d95a88f896a710c22c35488d9b94f2b1e5ee954864d81bd65329379ebfd7b26"
+      }
+    },
+    {
+      "check": "root-tests",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_configuration_acceptance_root-tests_01.log",
+        "sha256": "b462d9bbcf08c89015c7d96b7110289d66671d35baca14682f5ca1fa95a71897"
+      }
+    }
+  ],
+  "operations": {
+    "controllerWrites": false,
+    "agentGatewayRestart": false,
+    "download": false,
+    "powerCycle": false,
+    "clockWrite": false,
+    "webRebuildOrDeployment": false
+  },
+  "plcMemoryGrowthBytes": 0,
+  "nextStep": {
+    "plan": "AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md",
+    "status": "prepared-awaiting-current-owner-authorization",
+    "nativeFixtureExecuted": false,
+    "artifact": {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\Specification\\AllenBradley\\AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md",
+      "sha256": "f0ec018ad1bfd45790d158cc0f540e4b993106f779cf7a19c17ecc4891caa56a"
+    }
+  }
+}

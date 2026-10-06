@@ -1,0 +1,491 @@
+{
+  "schema": "fraktal.ab.phase6-access-boolean-correction",
+  "date": "2026-10-02",
+  "timezone": "America/Bogota",
+  "parent_revision": "e09f6cf",
+  "controller_writes": false,
+  "hardware_verified": false,
+  "owner_compiler_result": {
+    "artifact": "press56.L5X",
+    "errors": 54,
+    "warnings": 0,
+    "message": "'TRUE': Referenced tag is undefined.",
+    "lines": [
+      16,
+      23,
+      31,
+      38,
+      46,
+      55,
+      62,
+      70,
+      77,
+      85,
+      122,
+      129,
+      137,
+      144,
+      152,
+      159,
+      257,
+      264,
+      272,
+      279,
+      287,
+      294,
+      367,
+      375,
+      383,
+      391,
+      413,
+      421,
+      429,
+      437,
+      459,
+      467,
+      475,
+      483,
+      505,
+      513,
+      521,
+      529,
+      551,
+      559,
+      567,
+      575,
+      597,
+      605,
+      613,
+      621,
+      643,
+      651,
+      659,
+      667,
+      689,
+      697,
+      705,
+      713
+    ]
+  },
+  "correction": {
+    "old": "EnableIn := TRUE;",
+    "new": "EnableIn := 1;",
+    "emission_helper": "fraktal_ab_access._move_bits",
+    "model": "TRUE/FALSE are ordinary tag names, not keywords",
+    "platform_gate": "all emitted press/template ST rejects TRUE/FALSE outside comments"
+  },
+  "artifacts": [
+    {
+      "Schema": "fraktal.ab.generated-application",
+      "SchemaVersion": 1,
+      "Application": "Press",
+      "Source": "C:\\work\\seed_v33.L5X",
+      "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+      "Output": "C:\\work\\press57.L5X",
+      "OutputSha256": "85D65A2A093A4DD1381309378917BA1FEA25C95EF4176C1988C752E0F09B9622",
+      "Controller": "1769-L24ER-QB1B",
+      "MajorRevision": 33,
+      "TaskName": "FRK_PressTask",
+      "TaskPeriodMs": 10,
+      "WatchdogMs": 500,
+      "PhysicalIoReferences": 20,
+      "EmbeddedIoInhibited": false,
+      "TaskOutputUpdatesDisabled": false,
+      "ForceableOutputs": 8,
+      "BoolMembersInPublicUdt": 0,
+      "ContractRecords": [
+        "FRK_T_PressParCfg",
+        "FRK_T_PressStationCfg"
+      ],
+      "ModuleTypes": [
+        "FRK_M_Cylinder",
+        "FRK_M_DigitalInput",
+        "FRK_M_TwoHand",
+        "FRK_M_AirPressure"
+      ],
+      "ModeOwner": "FRK_U_Press",
+      "AoiDefinitions": 7,
+      "Chains": {
+        "AUTO": [
+          0,
+          100,
+          110,
+          130,
+          150,
+          170,
+          180,
+          185,
+          190,
+          200,
+          210,
+          215,
+          220,
+          230,
+          240,
+          242,
+          244,
+          999
+        ],
+        "HOME": [
+          0,
+          900,
+          902,
+          904,
+          998
+        ],
+        "CHANGEOVER": [
+          0,
+          700,
+          710,
+          712,
+          714,
+          780,
+          790,
+          798
+        ]
+      },
+      "DistinctSteps": 29,
+      "ChartSteps": 32,
+      "WritableInputs": [
+        "FRK_Press_FaultPressRam",
+        "FRK_Press_HoldPressRam",
+        "FRK_Press_FaultDoor",
+        "FRK_Press_HoldDoor",
+        "FRK_Press_FaultPartSlide",
+        "FRK_Press_HoldPartSlide",
+        "FRK_Press_TwoHand",
+        "FRK_Press_PartPresent",
+        "FRK_Press_AirOk",
+        "FRK_Press_RenditionSelect"
+      ],
+      "CommandInputs": [
+        "FRK_Press_RunRequest",
+        "FRK_Press_AbortRequest",
+        "FRK_Press_ResetRequest",
+        "FRK_Press_ModeRequest",
+        "FRK_Press_DecisionAnswer",
+        "FRK_Press_ModelRequest"
+      ],
+      "EvidenceTags": [
+        "FRK_Press_ScanCount",
+        "FRK_Press_OrderFail",
+        "FRK_Press_TaskPeriodMs",
+        "FRK_Press_LdAdvanced",
+        "FRK_Press_LdScratch"
+      ],
+      "HarnessOnlyTags": [
+        "FRK_Press_RenditionSelect",
+        "FRK_Press_LdAdvanced",
+        "FRK_Press_LdScratch"
+      ],
+      "PublishableTags": [
+        "FRK_T_PressParCfgTag",
+        "FRK_T_PressStationCfgTag",
+        "FRK_Press_CtxPressRam",
+        "FRK_Press_CtxDoor",
+        "FRK_Press_CtxPartSlide",
+        "FRK_Press_CtxPartPresentSensor",
+        "FRK_Press_CtxTwoHand",
+        "FRK_Press_CtxAirPressureMonitor",
+        "FRK_Press_Unit",
+        "FRK_Press_Chart",
+        "FRK_Press_ConfigPersist",
+        "FRK_Press_ModelCfg",
+        "FRK_Press_AlarmActive",
+        "FRK_Press_AlarmRing",
+        "FRK_Press_Oee",
+        "FRK_Press_Profiler",
+        "FRK_Press_AccessState",
+        "FRK_Press_AccessAudit",
+        "FRK_Press_ConfigAudit",
+        "FRK_Press_ConfigSetState",
+        "FRK_Press_StateFlags",
+        "FRK_Press_HealthProbe",
+        "FRK_Press_HealthCfg",
+        "FRK_Press_SystemHealth",
+        "FRK_Press_FaultPressRam",
+        "FRK_Press_HoldPressRam",
+        "FRK_Press_FaultDoor",
+        "FRK_Press_HoldDoor",
+        "FRK_Press_FaultPartSlide",
+        "FRK_Press_HoldPartSlide",
+        "FRK_Press_TwoHand",
+        "FRK_Press_PartPresent",
+        "FRK_Press_AirOk",
+        "FRK_Press_ScanCount",
+        "FRK_Press_OrderFail",
+        "FRK_Press_TaskPeriodMs"
+      ],
+      "Manifest": {
+        "Schema": "fraktal.ab.manifest",
+        "SchemaMajor": 3,
+        "SchemaMinor": 0,
+        "ConfigRevision": 1032611,
+        "ContentHash": "0FC1A37DB998B41C",
+        "KeyLength": 56,
+        "Tables": {
+          "Roots": {
+            "rows": 1,
+            "capacity": 4
+          },
+          "Modules": {
+            "rows": 7,
+            "capacity": 16
+          },
+          "Nameplates": {
+            "rows": 0,
+            "capacity": 16
+          },
+          "Fields": {
+            "rows": 544,
+            "capacity": 768
+          },
+          "Operations": {
+            "rows": 6,
+            "capacity": 32
+          },
+          "Localization": {
+            "rows": 541,
+            "capacity": 768
+          },
+          "Rationalization": {
+            "rows": 23,
+            "capacity": 32
+          },
+          "OptionalProfiles": {
+            "rows": 0,
+            "capacity": 8
+          },
+          "WriteCapabilities": {
+            "rows": 9,
+            "capacity": 64
+          }
+        },
+        "Truncated": false,
+        "EstimatedBytes": 79992
+      },
+      "Programs": 1,
+      "Routines": 1,
+      "Tasks": 1,
+      "Reproduces": true,
+      "OnlyChangesFromPriorArtifact": {
+        "statements": 54,
+        "old": ".EnableIn := TRUE;",
+        "new": ".EnableIn := 1;"
+      }
+    },
+    {
+      "Schema": "fraktal.ab.generated-application",
+      "SchemaVersion": 1,
+      "Application": "Cell",
+      "Source": "C:\\work\\seed_v33.L5X",
+      "SourceSha256": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+      "Output": "C:\\work\\phase6_access_bool_fix_template.L5X",
+      "OutputSha256": "08B3C27ADDF4B6F6FE42DB5A63190FEFD478847969E17D28116F43A81C31C0B6",
+      "Controller": "1769-L24ER-QB1B",
+      "MajorRevision": 33,
+      "TaskName": "FRK_CellTask",
+      "TaskPeriodMs": 10,
+      "WatchdogMs": 500,
+      "PhysicalIoReferences": 0,
+      "EmbeddedIoInhibited": true,
+      "TaskOutputUpdatesDisabled": true,
+      "ForceableOutputs": 0,
+      "BoolMembersInPublicUdt": 0,
+      "ContractRecords": [
+        "FRK_T_CellParCfg",
+        "FRK_T_CellStationCfg"
+      ],
+      "ModuleTypes": [
+        "FRK_M_Cylinder",
+        "FRK_M_DigitalInput"
+      ],
+      "ModeOwner": "FRK_U_Cell",
+      "AoiDefinitions": 3,
+      "Chains": {
+        "AUTO": [
+          0,
+          100,
+          110,
+          120,
+          130,
+          999
+        ],
+        "HOME": [
+          0,
+          900,
+          998
+        ]
+      },
+      "DistinctSteps": 8,
+      "ChartSteps": 32,
+      "WritableInputs": [
+        "FRK_Cell_FaultClamp",
+        "FRK_Cell_HoldClamp",
+        "FRK_Cell_PartPresent"
+      ],
+      "CommandInputs": [
+        "FRK_Cell_RunRequest",
+        "FRK_Cell_AbortRequest",
+        "FRK_Cell_ResetRequest",
+        "FRK_Cell_ModeRequest",
+        "FRK_Cell_DecisionAnswer",
+        "FRK_Cell_ModelRequest"
+      ],
+      "EvidenceTags": [
+        "FRK_Cell_ScanCount",
+        "FRK_Cell_OrderFail",
+        "FRK_Cell_TaskPeriodMs"
+      ],
+      "HarnessOnlyTags": [],
+      "PublishableTags": [
+        "FRK_T_CellParCfgTag",
+        "FRK_T_CellStationCfgTag",
+        "FRK_Cell_CtxClamp",
+        "FRK_Cell_CtxPartSensor",
+        "FRK_Cell_Unit",
+        "FRK_Cell_Chart",
+        "FRK_Cell_ConfigPersist",
+        "FRK_Cell_ModelCfg",
+        "FRK_Cell_AlarmActive",
+        "FRK_Cell_AlarmRing",
+        "FRK_Cell_Oee",
+        "FRK_Cell_Profiler",
+        "FRK_Cell_AccessState",
+        "FRK_Cell_AccessAudit",
+        "FRK_Cell_ConfigAudit",
+        "FRK_Cell_ConfigSetState",
+        "FRK_Cell_StateFlags",
+        "FRK_Cell_HealthProbe",
+        "FRK_Cell_HealthCfg",
+        "FRK_Cell_SystemHealth",
+        "FRK_Cell_FaultClamp",
+        "FRK_Cell_HoldClamp",
+        "FRK_Cell_PartPresent",
+        "FRK_Cell_ScanCount",
+        "FRK_Cell_OrderFail",
+        "FRK_Cell_TaskPeriodMs"
+      ],
+      "Manifest": {
+        "Schema": "fraktal.ab.manifest",
+        "SchemaMajor": 3,
+        "SchemaMinor": 0,
+        "ConfigRevision": 12683075,
+        "ContentHash": "C18743A4092531BF",
+        "KeyLength": 56,
+        "Tables": {
+          "Roots": {
+            "rows": 1,
+            "capacity": 4
+          },
+          "Modules": {
+            "rows": 3,
+            "capacity": 16
+          },
+          "Nameplates": {
+            "rows": 0,
+            "capacity": 16
+          },
+          "Fields": {
+            "rows": 358,
+            "capacity": 768
+          },
+          "Operations": {
+            "rows": 4,
+            "capacity": 32
+          },
+          "Localization": {
+            "rows": 452,
+            "capacity": 768
+          },
+          "Rationalization": {
+            "rows": 19,
+            "capacity": 32
+          },
+          "OptionalProfiles": {
+            "rows": 0,
+            "capacity": 8
+          },
+          "WriteCapabilities": {
+            "rows": 4,
+            "capacity": 64
+          }
+        },
+        "Truncated": false,
+        "EstimatedBytes": 79992
+      },
+      "Programs": 1,
+      "Routines": 1,
+      "Tasks": 1,
+      "Reproduces": true,
+      "OnlyChangesFromPriorArtifact": {
+        "statements": 54,
+        "old": ".EnableIn := TRUE;",
+        "new": ".EnableIn := 1;"
+      }
+    }
+  ],
+  "offline_gates": {
+    "ab_tests": 1401,
+    "consistency_tests": 33,
+    "errors": 0,
+    "warnings": 0,
+    "runs": [
+      {
+        "gate": "press57_consistency",
+        "code": 0,
+        "tail": "\ncheck_consistency: 0 error(s), 0 warning(s) across inventory, localization, parity, readsurface\n"
+      },
+      {
+        "gate": "press57_root",
+        "code": 0,
+        "tail": "......usage: python.exe -m unittest [-h] [--root ROOT] [--strict] [--emit] [--quiet]\n                              [{inventory,localization,parity,readsurface} ...]\npython.exe -m unittest: error: argument checks: invalid choice: 'bogus' (choose from inventory, localization, parity, readsurface)\n...........................\n----------------------------------------------------------------------\nRan 33 tests in 2.114s\n\nOK\n"
+      },
+      {
+        "gate": "press57_ab",
+        "code": 0,
+        "tail": "e greater than zero and at most five seconds\n......................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: unrecognized arguments: --tag Arbitrary\n................................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: --settle must be greater than zero and at most five seconds\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: the following arguments are required: --expect-serial\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--settle SETTLE]\n                              [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\n.....................................................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\n.usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--execute-fixture]\n                              target\npython.exe -m unittest: error: unrecognized arguments: --tag Arbitrary\n........................................usage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--attempts ATTEMPTS]\n                              [--sweep SWEEP] [--execute-fixture]\n                              target\npython.exe -m unittest: error: --execute-fixture is required\nusage: python.exe -m unittest [-h] --expect-serial EXPECT_SERIAL\n                              [--timeout TIMEOUT] [--attempts ATTEMPTS]\n                              [--sweep SWEEP] [--execute-fixture]\n                              target\npython.exe -m unittest: error: every sweep period must be between 1 and 1000\n.............stage=write-refused detail=serial 00000123 is not 7036B510\n..................................................................................................................................................................\n----------------------------------------------------------------------\nRan 1401 tests in 141.062s\n\nOK\n"
+      }
+    ]
+  },
+  "mutation": {
+    "schema": "fraktal.ab.boolean-literal-regression-mutation",
+    "baseline": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "passed": true,
+      "name": "baseline"
+    },
+    "mutant": {
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "passed": false,
+      "name": "mutant"
+    },
+    "killed": true,
+    "source_files_modified": false
+  },
+  "sdk_probe": {
+    "file": "C:/work/press57.L5X",
+    "exit_code": 1,
+    "operation": "OpenLogixProjectAsync",
+    "error": "OperationFailedException: No valid license. C:/work/press57.L5X"
+  },
+  "source_sha256": {
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_access.py": "D09A0C544A0E65A53837297BE3E1B7B2F025882A772B1DD97BF92523B8BFD0B6",
+    "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_st_model.py": "B08211F62B8C589F7E1076D2137443909B0D00C0428B9882E3210CEFC9A224F6",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_platform_limits.py": "3E89F1793EB8B9046E800154075E7ACAD92732E32721A3AE30E7F11C2D79A722",
+    "FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_st_model.py": "2878C2CD625C14E392BF4884E733FBFEAB838417EE64CE0EA1951D757D91A43E"
+  },
+  "posture": "v33 legacy zone-and-conduit; bench write-enabled by explicit 2026-09-29 decision; S9 owed",
+  "pending": [
+    "owner Studio v33 Verify",
+    "owner download and gateway restart",
+    "guarded hardware access and regression fixtures",
+    "hash task cost, overlap and faults",
+    "physical retention matrix",
+    "S9 write-enabled contract suite"
+  ]
+}

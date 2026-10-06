@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ConfigSnapshot" Id="{99425514-73e8-4eee-9448-739d7ecda0f8}" SpecialFunc="None">
+    <Declaration><![CDATA[// Volatile bounded transaction/snapshot storage. No retained set slot is consumed.
+FUNCTION_BLOCK FB_ConfigSnapshot IMPLEMENTS I_ConfigStore
+VAR
+    _info : ST_ConfigSetInfo;
+    _records : ARRAY[1..PL_Fraktal.MAX_SET_RECORDS] OF ST_ConfigRecord;
+    _count : INT;
+    _open : BOOL;
+    _failed : BOOL;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="M_Kind" Id="{c56fac6c-efae-4c42-88bf-d629a9b834a1}">
+      <Declaration><![CDATA[METHOD M_Kind : E_ConfigStore]]></Declaration>
+      <Implementation><ST><![CDATA[M_Kind := E_ConfigStore.LOCAL_RETAIN;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SaveBegin" Id="{9472d93f-b1f3-4114-be30-9884e16c2515}">
+      <Declaration><![CDATA[METHOD M_SaveBegin : BOOL
+VAR_INPUT
+    Info : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_info := Info;
+_info.Used := FALSE;
+_count := 0;
+_failed := Info.SetName = '';
+_open := NOT _failed;
+M_SaveBegin := _open;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SaveRecord" Id="{ca34dd68-38ff-418f-abcb-80de8c9fb29e}">
+      <Declaration><![CDATA[METHOD M_SaveRecord : BOOL
+VAR_INPUT
+    Record : ST_ConfigRecord;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SaveRecord := FALSE;
+IF NOT _open OR _failed THEN RETURN; END_IF
+IF (Record.WriteKey = '') OR (_count >= PL_Fraktal.MAX_SET_RECORDS) THEN
+    _failed := TRUE;
+    RETURN;
+END_IF
+FOR i := 1 TO _count DO
+    IF (_records[i].Scope = Record.Scope) AND (_records[i].WriteKey = Record.WriteKey) THEN
+        _failed := TRUE;
+        RETURN;
+    END_IF
+END_FOR
+_count := _count + 1;
+_records[_count] := Record;
+M_SaveRecord := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SaveCommit" Id="{4a647c16-4f2b-4789-9224-c03fd8dad1e9}">
+      <Declaration><![CDATA[METHOD M_SaveCommit : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_SaveCommit := _open AND NOT _failed AND (_count > 0);
+_open := FALSE;
+_info.RecordCount := _count;
+_info.Used := M_SaveCommit;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SaveAbort" Id="{0cc98901-046d-4f2d-bbe9-33931a3a5a18}">
+      <Declaration><![CDATA[METHOD M_SaveAbort : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[_open := FALSE;
+_info.Used := FALSE;
+M_SaveAbort := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ReadInfo" Id="{39e97a5b-0525-4a3f-9229-9229c6d7e4ba}">
+      <Declaration><![CDATA[METHOD M_ReadInfo : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ReadInfo := _info.Used AND (_info.SetName = SetName);
+IF M_ReadInfo THEN Info := _info; END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ReadRecord" Id="{0df8d554-b873-44a3-8d5c-a4e12b16acb1}">
+      <Declaration><![CDATA[METHOD M_ReadRecord : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ReadRecord := FALSE;
+IF NOT _info.Used OR (_info.SetName <> SetName) THEN RETURN; END_IF
+IF (Index < 1) OR (Index > _count) THEN RETURN; END_IF
+Record := _records[Index];
+M_ReadRecord := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Count" Id="{03f737a5-a4dc-457b-87f0-e1d2bb86bae7}">
+      <Declaration><![CDATA[METHOD M_Count : INT]]></Declaration>
+      <Implementation><ST><![CDATA[M_Count := BOOL_TO_INT(_info.Used);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Delete" Id="{cfc0acae-38e5-4b73-b44f-620431a02e43}">
+      <Declaration><![CDATA[METHOD M_Delete : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Delete := _info.Used AND (_info.SetName = SetName);
+IF M_Delete THEN _info.Used := FALSE; END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_InfoAt" Id="{d6264e0f-e867-45bc-8176-64dca366c669}">
+      <Declaration><![CDATA[METHOD M_InfoAt : BOOL
+VAR_INPUT
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_InfoAt := _info.Used AND (Index = 1);
+IF M_InfoAt THEN Info := _info; END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

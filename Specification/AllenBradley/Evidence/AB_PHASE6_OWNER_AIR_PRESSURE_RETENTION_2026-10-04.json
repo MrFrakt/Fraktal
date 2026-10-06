@@ -1,0 +1,113 @@
+{
+  "schema": "fraktal.ab.phase6.owner-parameter-retention.v1",
+  "localDate": "2026-10-04",
+  "timezone": "America/Bogota",
+  "baseCommit": "ab8ff15f2f18b293b72216c92889c67ab8c58434",
+  "ownerObservation": {
+    "statement": "i changed minimum air presure from 450 to 451 (like 9 hours ago) and power cycle and confirmed it persists",
+    "writeKey": "station.airPressureMinKpa",
+    "original": 450,
+    "afterEditAndCycle": 451,
+    "reportedElapsed": "about nine hours since the edit; exact cycle timing not provided",
+    "status": "owner-confirmed-power-cycle-retention-for-this-parameter"
+  },
+  "corroboratingReadback": {
+    "artifact": {
+      "path": "C:\\work\\press68_retention_preflight_01.json",
+      "sha256": "376764281ba7b3ecda188926ff7504aab42f419318e8391ff4c8256b94806fa5"
+    },
+    "observedAtUtc": "2026-10-04T15:46:08.351862+00:00",
+    "serial": "7036B510",
+    "fingerprintPassed": true,
+    "parameter": {
+      "record": "FRK_T_PressStationCfg",
+      "member": "AirPressureMinKpa",
+      "writeKey": "station.airPressureMinKpa",
+      "kind": "scalar",
+      "minimum": 100,
+      "maximum": 1000,
+      "value": 451
+    },
+    "scope": "Previously recorded exact-serial native value 451; this run adds the owner power-cycle history, not an agent-controlled experiment."
+  },
+  "modelWorkflow": {
+    "catalog": [
+      "M-100",
+      "M-200",
+      "M-050"
+    ],
+    "registration": "Application.models, derived from the press MODELS declaration.",
+    "hmiExistingModelEditing": "Configuration → Model data → Model selector.",
+    "runtimeModelCreation": "not implemented in this build",
+    "modelSet": "Named snapshot of the active model parameters; set name is separate from ModelCode.",
+    "modelSetSaveExport": "supported",
+    "modelSetLoad": "deliberately refused until recipe/changeover integration",
+    "scope": "Source verification; owner reports saving a Model set and refusal on Load. No live set request is sent by this run."
+  },
+  "sources": [
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\fraktal_ab_press_demo.py",
+      "sha256": "ae4afdd4f3df6dc7171d88f9dd78c4acb1fb61f1fdbd76b82e500c6649fff6b8"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\Allen-Bradley\\tools\\fraktal_ab_sets.py",
+      "sha256": "2f7b55297caf1dd3d4d877dbf736f42253b1320067da6f634b0745dfb86684e6"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\HMI\\lib\\ui\\config_sets_dialog.dart",
+      "sha256": "b330d05607ab22a6dc2df1499ceb95c7eb3ffedaa60174e3b6aa5ed36f93bb1d"
+    },
+    {
+      "path": "C:\\Users\\Rockwell Automation\\repos\\Fraktal\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\BaseClasses\\FB_UnitBase.TcPOU",
+      "sha256": "fdb4dc224072b4d4bd9b5b510ec145ae6d1b48601fdeb6252273b22379d13d55"
+    }
+  ],
+  "checks": [
+    {
+      "check": "ab",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_owner_air_retention_ab_01.log",
+        "sha256": "79e84a075c23951d1be41f68e150f80d1c22f5486c0a048625d84cc679996b8f"
+      }
+    },
+    {
+      "check": "root",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_owner_air_retention_root_01.log",
+        "sha256": "0d95a88f896a710c22c35488d9b94f2b1e5ee954864d81bd65329379ebfd7b26"
+      }
+    },
+    {
+      "check": "root-tests",
+      "exitCode": 0,
+      "log": {
+        "path": "C:\\work\\press68_owner_air_retention_root-tests_01.log",
+        "sha256": "92d387bc61b65b075b5c7a4d68042136d03ce175e9ddee6c14a91ca3bf1dbd8c"
+      }
+    }
+  ],
+  "operationsThisTurn": {
+    "controllerIO": false,
+    "controllerWrites": false,
+    "agentGatewayRestart": false,
+    "download": false,
+    "powerCycle": false,
+    "clockWrite": false,
+    "webRebuildOrDeployment": false,
+    "plcMemoryGrowthBytes": 0
+  },
+  "previousProposedTest": {
+    "plan": "AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md",
+    "stationNumberTest": "not authorized or executed; redundant for a representative parameter-retention owner observation"
+  },
+  "remaining": [
+    "Saved-set power-cycle survival",
+    "Other configuration values and accounts",
+    "Download/upgrade retention and physical durability window",
+    "Historical S1 clock probe",
+    "TC3 native segmented transport",
+    "Runtime model creation and model-set load integration"
+  ]
+}

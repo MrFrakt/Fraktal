@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Shift_Tests" Id="{d8af2225-6cbd-4dcd-9d26-c985969f5c20}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §8.5.2 under test. The shift boundary is driven through M_ShiftTick with
+// synthetic UTC times - the same method the base calls every scan with the real
+// clock - and the units are never cycled, so the real clock cannot interfere.
+FUNCTION_BLOCK FB_Shift_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _u    : FB_ProbeLineUnit;
+    _bare : FB_ProbeConfigUnit;
+    _init : BOOL;
+    _i : INT;
+    _day : DT;
+    _w1, _w2, _w3, _w4, _w5, _w6 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT _init THEN
+    _init := TRUE;
+    _u.Setup(Name := 'Test.Shift', Role := E_LineRole.OWNER, Source := 0,
+        StaleAfterMs := 0, ExtraKey := FALSE);
+    _u.SetLine(pLine := ADR(_u.Line));
+    _bare.Setup(Name := 'Test.NoLine');
+    // The calendar is PERSISTENT line data: set it every run.
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
+        Revision := 1, TextValue := '0');
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.1.startMin',
+        Revision := 1, TextValue := '360');
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.2.startMin',
+        Revision := 1, TextValue := '840');
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.3.startMin',
+        Revision := 1, TextValue := '1320');
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.4.startMin',
+        Revision := 1, TextValue := '-1');
+END_IF
+Current_shift_follows_the_calendar_and_wraps_midnight();
+A_boundary_closes_the_shift_with_its_figures();
+An_unsynchronized_boundary_is_recorded_as_such();
+A_manual_reset_mid_shift_is_recorded();
+The_history_is_bounded_and_newest_first();
+No_line_means_no_shift_accounting();]]></ST>
+    </Implementation>
+    <Method Name="Current_shift_follows_the_calendar_and_wraps_midnight" Id="{1f077a30-d62f-4093-9124-d39780c4e158}">
+      <Declaration><![CDATA[METHOD Current_shift_follows_the_calendar_and_wraps_midnight]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Current_shift_follows_the_calendar_and_wraps_midnight');
+IF NOT _w1 THEN
+    AssertEquals_INT(Expected := 3, Actual := _u.Line.M_CurrentShift(MinuteOfDay := 300),
+        Message := 'before the first start of the day is the LAST shift of the day before');
+    AssertEquals_INT(Expected := 1, Actual := _u.Line.M_CurrentShift(MinuteOfDay := 360),
+        Message := 'a shift starts at its start minute');
+    AssertEquals_INT(Expected := 1, Actual := _u.Line.M_CurrentShift(MinuteOfDay := 839),
+        Message := 'and runs until the next used shift');
+    AssertEquals_INT(Expected := 2, Actual := _u.Line.M_CurrentShift(MinuteOfDay := 840),
+        Message := 'which then takes over');
+    AssertEquals_INT(Expected := 3, Actual := _u.Line.M_CurrentShift(MinuteOfDay := 1439),
+        Message := 'up to midnight');
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
+        Revision := 1, TextValue := '120');
+    AssertEquals_DINT(Expected := 360, Actual := _u.Line.M_MinuteOfDay(Now := DT#2026-09-27-04:00:00),
+        Message := 'the line offset turns the UTC clock into local minutes');
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
+        Revision := 1, TextValue := '-60');
+    AssertEquals_DINT(Expected := 1380, Actual := _u.Line.M_MinuteOfDay(Now := DT#2026-09-27-00:00:00),
+        Message := 'a negative offset wraps back across midnight');
+    _u.WriteConfig(TargetPath := 'Test.Shift', WriteKey := 'line.shift.utcOffsetMin',
+        Revision := 1, TextValue := '0');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_boundary_closes_the_shift_with_its_figures" Id="{dad94f4e-4742-4554-8f50-6963788c3ae7}">
+      <Declaration><![CDATA[METHOD A_boundary_closes_the_shift_with_its_figures]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_boundary_closes_the_shift_with_its_figures');
+IF NOT _w2 THEN
+    AssertFalse(Condition := _u.M_ShiftTick(Now := DT#2026-09-27-13:00:00, Synchronized := TRUE),
+        Message := 'the first evaluation only starts accounting');
+    AssertEquals_INT(Expected := 1, Actual := _u.CurrentShift, Message := 'in shift 1');
+    _u.CountGood();
+    _u.CountGood();
+    _u.CountGood();
+    AssertFalse(Condition := _u.M_ShiftTick(Now := DT#2026-09-27-13:59:59, Synchronized := TRUE),
+        Message := 'no boundary, nothing closes');
+    AssertTrue(Condition := _u.M_ShiftTick(Now := DT#2026-09-27-14:00:00, Synchronized := TRUE),
+        Message := 'the boundary closes the shift');
+    AssertEquals_INT(Expected := 1, Actual := _u.ShiftHistory[1].ShiftIndex, Message := 'the one that ended');
+    AssertEquals_UDINT(Expected := 3, Actual := _u.ShiftHistory[1].GoodCount,
+        Message := 'with the figures exactly as they stood at the boundary');
+    AssertTrue(Condition := _u.ShiftHistory[1].StartAt = DT#2026-09-27-13:00:00, Message := 'from when accounting began');
+    AssertTrue(Condition := _u.ShiftHistory[1].EndAt = DT#2026-09-27-14:00:00, Message := 'to the boundary');
+    AssertTrue(Condition := _u.ShiftHistory[1].TimeSynchronized, Message := 'on a synchronized clock');
+    AssertEquals_UDINT(Expected := 0, Actual := _u.GoodCount, Message := 'and the count starts again');
+    AssertEquals_INT(Expected := 2, Actual := _u.CurrentShift, Message := 'for shift 2');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="An_unsynchronized_boundary_is_recorded_as_such" Id="{e1f162f3-af3b-4cee-8f01-4b85822486fc}">
+      <Declaration><![CDATA[METHOD An_unsynchronized_boundary_is_recorded_as_such]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('An_unsynchronized_boundary_is_recorded_as_such');
+IF NOT _w3 THEN
+    AssertTrue(Condition := _u.M_ShiftTick(Now := DT#2026-09-27-22:00:00, Synchronized := FALSE),
+        Message := 'a boundary on an unsynchronized clock still closes the shift');
+    AssertEquals_INT(Expected := 2, Actual := _u.ShiftHistory[1].ShiftIndex, Message := 'shift 2');
+    AssertFalse(Condition := _u.ShiftHistory[1].TimeSynchronized,
+        Message := 'and the record says the clock was not to be trusted');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_manual_reset_mid_shift_is_recorded" Id="{b71fe3aa-0324-440c-994c-ed3018d045fc}">
+      <Declaration><![CDATA[METHOD A_manual_reset_mid_shift_is_recorded]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_manual_reset_mid_shift_is_recorded');
+IF NOT _w4 THEN
+    AssertTrue(Condition := _u.ResetOee(), Message := 'a hand reset during shift 3');
+    AssertTrue(Condition := _u.M_ShiftTick(Now := DT#2026-09-28-06:00:00, Synchronized := TRUE),
+        Message := 'the night shift closes the next morning');
+    AssertEquals_INT(Expected := 3, Actual := _u.ShiftHistory[1].ShiftIndex, Message := 'shift 3');
+    AssertTrue(Condition := _u.ShiftHistory[1].ManualReset,
+        Message := 'its total is marked as partial, never silently');
+    AssertTrue(Condition := _u.M_ShiftTick(Now := DT#2026-09-28-14:00:00, Synchronized := TRUE),
+        Message := 'the next shift closes');
+    AssertFalse(Condition := _u.ShiftHistory[1].ManualReset, Message := 'and the mark belonged to one shift only');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="The_history_is_bounded_and_newest_first" Id="{a6207dca-be46-4f61-87e8-8e45a99783ee}">
+      <Declaration><![CDATA[METHOD The_history_is_bounded_and_newest_first]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('The_history_is_bounded_and_newest_first');
+IF NOT _w5 THEN
+    _day := DT#2026-10-01-00:00:00;
+    FOR _i := 1 TO 12 DO
+        _u.M_ShiftTick(Now := _day + T#6H, Synchronized := TRUE);
+        _u.M_ShiftTick(Now := _day + T#14H, Synchronized := TRUE);
+        _day := _day + T#24H;
+    END_FOR
+    AssertEquals_INT(Expected := 8, Actual := _u.ShiftHistoryCount, Message := 'the history is bounded');
+    AssertTrue(Condition := _u.ShiftHistoryTruncated, Message := 'and says it dropped the oldest');
+    AssertTrue(Condition := _u.ShiftHistory[1].EndAt = _day - T#24H + T#14H,
+        Message := 'newest first');
+    _w5 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="No_line_means_no_shift_accounting" Id="{568bb0f5-ea3d-4ac1-9665-582bfbf597b0}">
+      <Declaration><![CDATA[METHOD No_line_means_no_shift_accounting]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('No_line_means_no_shift_accounting');
+IF NOT _w6 THEN
+    AssertFalse(Condition := _bare.M_ShiftTick(Now := DT#2026-09-27-14:00:00, Synchronized := TRUE),
+        Message := 'a Unit that references no line closes nothing');
+    AssertEquals_INT(Expected := 0, Actual := _bare.CurrentShift, Message := 'and is in no shift');
+    _w6 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
