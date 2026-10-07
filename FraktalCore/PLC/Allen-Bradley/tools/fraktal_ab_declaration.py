@@ -355,18 +355,28 @@ class SystemHealth:
     """Core §8.12 thresholds and requirements: TC3's ST_SystemHealthParCfg,
     reduced to what a Logix controller reports (AB spike S3). CPU load, free
     memory, IPC and distributed clock have no source here and are published
-    unavailable, so they carry no threshold."""
+    unavailable, so they carry no threshold.
+
+    `require_controller_metrics` is the CPU/memory requirement. Off, they are a
+    declared platform exclusion: published unavailable, never healthy, and never
+    an event - a condition nobody can act on would stand on the operator's
+    screen for the life of the station. On, the station asks to be told, and on
+    a controller without a source that is a permanent CONTROLLER_METRICS_UNAVAILABLE.
+    It is declaration data rather than a HealthCfg value because whether the
+    platform has a source is fixed by the controller, not tuned at run time."""
 
     max_task_cycle_us: int
     max_task_jitter_us: int
     require_time_sync: bool = True
     require_fieldbus: bool = False
     require_dc_sync: bool = False
+    require_controller_metrics: bool = False
 
     @classmethod
     def for_task(cls, task_period_ms: int, *, require_time_sync: bool = False,
                  require_fieldbus: bool = False,
-                 require_dc_sync: bool = False) -> "SystemHealth":
+                 require_dc_sync: bool = False,
+                 require_controller_metrics: bool = False) -> "SystemHealth":
         """The default for a station on this baseline: an overrun is a real
         period over twice the declared one, high jitter is over a fifth of it
         (on 10 ms: 20 ms and 2 ms, ten times the worst S3 measured), and
@@ -376,7 +386,8 @@ class SystemHealth:
                    max_task_jitter_us=task_period_ms * 1000 // 5,
                    require_time_sync=require_time_sync,
                    require_fieldbus=require_fieldbus,
-                   require_dc_sync=require_dc_sync)
+                   require_dc_sync=require_dc_sync,
+                   require_controller_metrics=require_controller_metrics)
 
 
 # TC3's PL_Fraktal.MAX_STATE_FLAGS: the published table's bound.

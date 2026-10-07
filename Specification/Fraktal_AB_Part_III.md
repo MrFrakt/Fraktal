@@ -1576,8 +1576,15 @@ the Core §8.3 audit/event ring without credentials or secret payloads.
   FaultLog, and time quality from `GSV` TimeSynchronize. Both are **settled by
   S3**. This controller exposes no CPU load or free memory through `GSV`, so
   those groups are published unavailable, as are IPC and distributed clock.
-  Module connection state, from the module object, remains
-  **[PROVISIONAL S3]**.
+  CPU and memory are therefore a **declared platform exclusion** from Core
+  §8.12's "shall monitor": unavailable and never shown healthy, but not an
+  event. TC3 raises `CONTROLLER_METRICS_UNAVAILABLE` whenever they are missing
+  because its IPC always has them; on a controller that has no source the
+  condition could never clear, and a permanent alarm nobody can act on teaches
+  operators to ignore the screen. A station may still declare
+  `SystemHealth(require_controller_metrics=True)`, like the time-sync, fieldbus
+  and distributed-clock requirements, and is then told on every scan. Module
+  connection state, from the module object, remains **[PROVISIONAL S3]**.
 - Localization keys bind to **numeric key IDs** resolved in the HMI catalogue,
   not repeated cyclic strings (AB §3.8). The gateway projects the same portable
   string key expected by the repository. Applying numeric IDs to TC3 is a

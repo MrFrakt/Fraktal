@@ -602,6 +602,10 @@ scanning program; at the owner's instruction press80 carries AUTO in ladder only
 (37,343 ST source bytes smaller than press78) and is unaccepted; see
 [press80](Specification/AllenBradley/Evidence/AB_PRESS80_LADDER_ONLY_AUTO_OFFLINE_2026-10-07.md).
 The generator keeps ST/SFC/LD; a station chooses which renditions to carry.
+Press80 fits and runs, with live documents kept. A metric the platform cannot
+supply is a declared exclusion, never a standing event: CPU/memory on the L24ER
+(`SystemHealth.require_controller_metrics`, default off, press81); see
+[record](Specification/AllenBradley/Evidence/AB_PRESS80_NATIVE_RUNNING_AND_PRESS81_HEALTH_EXCLUSION_2026-10-07.md).
 Current source also prepares Calendar V3, with five independently scheduled
 slots and per-shift good-part targets, PLC-latched current/closed target
 snapshots, a shared HMI progress/history view and explicit offline V2 migration.

@@ -5,8 +5,9 @@ each condition that holds is an AUTO_RESET event while it lasts - raised once,
 closed into the ring when it clears, never blocking a start - and the status
 is published where the HMI's health facet reads it. A group this controller
 cannot measure (CPU, memory, IPC, distributed clock) is unavailable, never
-healthy; and a station whose CPU and memory cannot be read says so, by TC3's
-own rule, as CONTROLLER_METRICS_UNAVAILABLE.
+healthy. CPU and memory are a declared platform exclusion on this controller:
+CONTROLLER_METRICS_UNAVAILABLE is raised only where a station requires them,
+so a fact nobody can act on is never a standing alarm on the operator's screen.
 """
 
 import dataclasses
@@ -25,13 +26,15 @@ from test_fraktal_ab_core_ordinals import CORE_DUTS
 
 APP = demo.application()
 H, P, C = gen.system_health_tag(APP), gen.health_probe_tag(APP), gen.health_cfg_tag(APP)
-LOGIC = st.parse("\n".join(gen.system_health_logic(APP)))
+REQUIRED = dataclasses.replace(APP, system_health=dataclasses.replace(
+    APP.system_health, require_controller_metrics=True))
 EVENT = {name: i for i, name in enumerate(gen.HEALTH_EVENTS)}
 PERIOD_US = APP.task_period_ms * 1000
 
 
 class Station:
-    def __init__(self, **cfg):
+    def __init__(self, app=APP, **cfg):
+        self.logic = st.parse("\n".join(gen.system_health_logic(app)))
         self.tags = {H: st.structure(gen.system_health_members()),
                      P: st.structure(gen.health_probe_members()),
                      C: st.structure(gen.health_cfg_members(APP))}
@@ -46,7 +49,7 @@ class Station:
         p = self.tags[P]
         p["Samples"] += 1
         p.update({"IntervalUs": PERIOD_US, "JitterUs": 0, **probe})
-        self.plc.run(LOGIC)
+        self.plc.run(self.logic)
         return self.h
 
     def bad(self):
@@ -67,8 +70,8 @@ class TheContract(unittest.TestCase):
 
     def test_the_press_requires_only_what_this_bench_has(self):
         h = APP.system_health
-        self.assertEqual((h.require_time_sync, h.require_fieldbus, h.require_dc_sync),
-                         (False, False, False))
+        self.assertEqual((h.require_time_sync, h.require_fieldbus, h.require_dc_sync,
+                          h.require_controller_metrics), (False, False, False, False))
         self.assertGreater(h.max_task_cycle_us, PERIOD_US)
 
     def test_a_threshold_inside_the_period_is_refused(self):
@@ -86,12 +89,20 @@ class ThePublisher(unittest.TestCase):
         s.scan(IntervalUs=0)
         self.assertEqual((s.bad(), s.h["TaskAvailable"], s.h["Healthy"]), (set(), 0, 0))
 
-    def test_steady_the_only_condition_is_the_metrics_it_cannot_read(self):
+    def test_steady_the_press_is_healthy_without_metrics_it_cannot_have(self):
+        """CPU and memory are excluded, not failing: no event, and healthy."""
         s = Station()
         s.scan()
         s.scan()
+        self.assertEqual(s.bad(), set())
+        self.assertEqual((s.h["Present"], s.h["TaskAvailable"], s.h["Healthy"]), (1, 1, 1))
+
+    def test_a_station_that_requires_the_metrics_is_told_they_are_missing(self):
+        s = Station(REQUIRED)
+        s.scan()
+        s.scan()
         self.assertEqual(s.bad(), {"CONTROLLER_METRICS_UNAVAILABLE"})
-        self.assertEqual((s.h["Present"], s.h["TaskAvailable"], s.h["Healthy"]), (1, 1, 0))
+        self.assertEqual(s.h["Healthy"], 0)
 
     def test_an_overlap_is_an_overrun_for_that_scan(self):
         s = Station()
@@ -201,7 +212,7 @@ class ThePublishedFacet(unittest.TestCase):
         out = projection.system_health_status(APP, health, s.tags[P])
         self.assertEqual((out["SystemHealth/Present"], out["SystemHealth/Healthy"],
                           out["SystemHealth/TaskAvailable"], out["SystemHealth/TaskCycleUs"],
-                          out["SystemHealth/TaskJitterUs"]), (True, False, True, PERIOD_US, 120))
+                          out["SystemHealth/TaskJitterUs"]), (True, True, True, PERIOD_US, 120))
 
     def test_what_it_cannot_measure_is_unavailable_never_healthy(self):
         s = Station()

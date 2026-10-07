@@ -65,6 +65,18 @@ capture and needs the owner's Capacity Estimate, Verify and download. See
 [failure](../../../Specification/AllenBradley/Evidence/AB_PRESS79_NATIVE_LINK_MEMORY_FAILURE_2026-10-07.md)
 and [press80](../../../Specification/AllenBradley/Evidence/AB_PRESS80_LADDER_ONLY_AUTO_OFFLINE_2026-10-07.md).
 
+**Press80 running; controller metrics excluded (2026-10-07):** press80 fits and
+scans on the bench, and the write-enabled gateway keeps the six live documents,
+each equal to a fresh capture. Its only health condition was
+`CONTROLLER_METRICS_UNAVAILABLE`, which the generator raised on every scan
+because the L24ER has no CPU/memory source: a permanent event and a red health
+card. CPU and memory are now a declared platform exclusion
+(`SystemHealth.require_controller_metrics`, default off): unavailable, never
+healthy, never an event. Press81 changes only `FRK_Press_ScanHealth` (−113 ST
+source bytes); `press81_restore_test.L5X` is the same build unseeded, for the
+restore acceptance. See
+[record](../../../Specification/AllenBradley/Evidence/AB_PRESS80_NATIVE_RUNNING_AND_PRESS81_HEALTH_EXCLUSION_2026-10-07.md).
+
 Shared HMI cycle-chart correction (2026-10-05): detail reads now follow the
 selected tab's visible cards rather than loading closed-tab rings and sequence
 rows. Tab scoping and timestamp-preserving targeted reads passed isolated

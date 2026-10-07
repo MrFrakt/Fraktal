@@ -3971,9 +3971,12 @@ def system_health_logic(app: decl.Application) -> list[str]:
 
     Nothing is evaluated on the probe's first sample, as TC3's MAIN skips the
     sample with no prior scan to take a period from: a download never raises a
-    false overrun. CONTROLLER_METRICS_UNAVAILABLE is TC3's rule, unchanged:
-    a station whose CPU and memory cannot be read says so, as TC3's own press
-    does outside simulation."""
+    false overrun. CPU load and free memory have no source on this controller
+    (S3). TC3 raises CONTROLLER_METRICS_UNAVAILABLE whenever they are missing
+    because its IPC always has them; here their absence is a property of the
+    platform, so it is an event only where the declaration requires them
+    (SystemHealth.require_controller_metrics) - otherwise a declared exclusion,
+    published unavailable and never a standing alarm."""
     if app.system_health is None:
         return []
     h, p, c = system_health_tag(app), health_probe_tag(app), health_cfg_tag(app)
@@ -3998,8 +4001,10 @@ def system_health_logic(app: decl.Application) -> list[str]:
         f"IF ({h}.TaskOverrun <> 0) OR ({p}.IntervalUs > {c}.MaxTaskCycleUs) THEN "
         f"{bad('TASK_OVERRUN')} := 1; END_IF;",
         f"IF {p}.JitterUs > {c}.MaxTaskJitterUs THEN {bad('TASK_JITTER_HIGH')} := 1; END_IF;",
-        "(* no CPU load or free memory through GSV on this controller (S3) *)",
-        f"{bad('CONTROLLER_METRICS_UNAVAILABLE')} := 1;",
+        *(["(* no CPU load or free memory through GSV on this controller (S3), "
+           "and the station requires them *)",
+           f"{bad('CONTROLLER_METRICS_UNAVAILABLE')} := 1;"]
+          if app.system_health.require_controller_metrics else []),
         "(* local I/O, no fieldbus or distributed clock here: bad only if required *)",
         f"IF {c}.RequireFieldbus <> 0 THEN {bad('FIELDBUS_MASTER_FAULT')} := 1; END_IF;",
         f"IF {c}.RequireDcSync <> 0 THEN {bad('DC_SYNC_LOST')} := 1; END_IF;",
