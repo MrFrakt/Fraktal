@@ -28,6 +28,9 @@ import 'sequence_module_tab.dart';
 import 'touch_text_field.dart';
 import '../diagnostics/hmi_log.dart';
 import 'module_layout_editor.dart';
+import 'hmi_icons.dart';
+import 'module_io_signals.dart';
+import 'theme_chrome.dart';
 
 Set<String> _controlDetailContainers(ModuleTabDefinition tab) =>
     OpcUaFieldTier.demandedContainers([
@@ -67,6 +70,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
   TabController? _detailController;
   VoidCallback? _detailDemandChanged;
   VoidCallback? _detailSelectionChanged;
+  String? _detailModulePath;
 
   void _onDetailTabChanged() {
     _detailSelectionChanged?.call();
@@ -79,6 +83,9 @@ class _ModuleDetailState extends State<ModuleDetail> {
 
   @override
   void dispose() {
+    if (_detailModulePath case final path?) {
+      app.setModuleDetailContainers(path, const {});
+    }
     _detailController?.removeListener(_onDetailTabChanged);
     _detailDemandChanged = null;
     _detailSelectionChanged = null;
@@ -88,6 +95,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
 
   void _bindDetailDemand(BuildContext context, ModuleNode node,
       List<ModuleTabDefinition> tabs, TabController controller) {
+    _detailModulePath = node.path;
     if (_detailController != controller) {
       _detailController?.removeListener(_onDetailTabChanged);
       _detailController = controller;
@@ -99,6 +107,9 @@ class _ModuleDetailState extends State<ModuleDetail> {
     _detailDemandChanged = () {
       final index = controller.index;
       final tab = tabs[index];
+      final includesIo = tab.kind.hostsCards &&
+          _ModuleCardsTab(app: app, node: node, tab: tab)
+              .usesModuleIo(context);
       final containers = tab.kind.hostsCards
           ? _ModuleCardsTab(
                   app: app, node: node, tab: tab, guidanceTab: _guidanceTab)
@@ -115,7 +126,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
         if (mounted &&
             _detailController == controller &&
             controller.index == index) {
-          app.setModuleDetailContainers(node.path, containers);
+          app.setModuleDetailContainers(node.path, containers,
+              includeIo: includesIo);
         }
       });
     };
@@ -202,7 +214,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
                 tabs: [
                   for (final tab in visibleTabs)
                     Tab(
-                      icon: Icon(_tabIcon(tab.effectiveIcon), size: 19),
+                      icon: Icon(moduleTabIcon(tab.effectiveIcon), size: 19),
                       text: context.tr(tab.title),
                     ),
                 ],
@@ -257,6 +269,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
               ),
             ),
             const SizedBox(width: 10),
+            ModuleIcon(node: node),
+            const SizedBox(width: 8),
             Expanded(
               child: LText(
                 node.path,
@@ -1050,28 +1064,6 @@ class _ModuleDetailState extends State<ModuleDetail> {
   }
 }
 
-IconData _tabIcon(ModuleTabIcon icon) => switch (icon) {
-      ModuleTabIcon.widgets => Icons.widgets_outlined,
-      ModuleTabIcon.dashboard => Icons.dashboard_outlined,
-      ModuleTabIcon.tune => Icons.tune,
-      ModuleTabIcon.monitoring => Icons.monitor_heart_outlined,
-      ModuleTabIcon.chart => Icons.show_chart,
-      ModuleTabIcon.information => Icons.info_outline,
-      ModuleTabIcon.build => Icons.build_outlined,
-      ModuleTabIcon.science => Icons.science_outlined,
-      ModuleTabIcon.machine => Icons.precision_manufacturing_outlined,
-      ModuleTabIcon.camera => Icons.camera_alt_outlined,
-      ModuleTabIcon.scanner => Icons.qr_code_scanner,
-      ModuleTabIcon.contactless => Icons.contactless_outlined,
-      ModuleTabIcon.checklist => Icons.checklist_outlined,
-      ModuleTabIcon.guidance => Icons.assistant_outlined,
-      ModuleTabIcon.image => Icons.image_outlined,
-      ModuleTabIcon.description => Icons.description_outlined,
-      ModuleTabIcon.settings => Icons.settings_outlined,
-      ModuleTabIcon.speed => Icons.speed_outlined,
-      ModuleTabIcon.electrical => Icons.electrical_services_outlined,
-      ModuleTabIcon.events => Icons.notifications_outlined,
-    };
 
 /// A view's display class, shown ON the view (LOCALIZATION §7.4): a
 /// maintenance display standing in as an operating screen is apparent to
@@ -1170,6 +1162,9 @@ class _ModuleCardsTab extends StatelessWidget {
                 .any((item) => item.key == ModuleCardKind.operatorGuidance))
           ..._controlDetailContainers(guidanceTab!),
       };
+
+  bool usesModuleIo(BuildContext context) => _shownCards(context)
+      .any((item) => item.key == ModuleCardKind.manualCommands);
 
   /// Narrower than this and a column is dropped: a card needs room to read.
   static const _minCardWidth = 320.0;
@@ -1634,12 +1629,14 @@ class _ModuleCardsTab extends StatelessWidget {
     // The card paints a tinted fill, so its content is wrapped in onContainer:
     // a Card only paints, it does not re-pair the foreground, and without this
     // every glyph inside inherits whatever style encloses the card (app_theme).
-    final cardFill = operatorActionContainer(context);
+    final bosch = FraktalChromeTheme.of(context) != null;
+    final cardFill = bosch ? Colors.white
+        : operatorActionContainer(context);
     return FraktalCard(
       color: cardFill,
       shape: RoundedRectangleBorder(
           side: const BorderSide(color: kOperatorActionColor),
-          borderRadius: BorderRadius.circular(12)),
+          borderRadius: BorderRadius.circular(bosch ? 0 : 12)),
       child: onContainer(
         context,
         cardFill,
@@ -1692,6 +1689,13 @@ class _ModuleCardsTab extends StatelessWidget {
                     child: LText(c.label),
                   ),
             ]),
+            const SizedBox(height: 16),
+            ModuleIoSignals(
+              modulePath: n.path,
+              fieldbus: app.fieldbus,
+              available: app.link == LinkState.live,
+              expected: app.repo.fieldbusExpected,
+            ),
           ]),
         ),
       ),

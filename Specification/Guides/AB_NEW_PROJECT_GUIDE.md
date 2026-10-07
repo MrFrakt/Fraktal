@@ -1,6 +1,6 @@
 # Fraktal/AB - starting a new station
 
-Updated 2026-10-05 through press75 fit, Line verification, shared HMI detail-read repair and press78 configuration memory reduction. This guide
+Updated 2026-10-05 through press75 fit, Line verification, shared HMI detail-read repair and press78 configuration memory reduction; 2026-10-06 adds where retained data lives and the [missing-features handover](../AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md). This guide
 explains how to apply the binding; [Part III](../Fraktal_AB_Part_III.md) is
 normative. Read [AGENTS.md](../../AGENTS.md), the
 [AB README](../../FraktalCore/PLC/Allen-Bradley/README.md) and the relevant Core
@@ -476,6 +476,19 @@ connection-scoped snapshot; missing/refused lines abort. Receipt Pending/Failed
 correlates to store transactions but does not prove all physical durability.
 See [station-set proof](../AllenBradley/Evidence/AB_PHASE6_SETS_ON_HARDWARE_2026-10-02.md).
 
+**Where retained data lives.** Logix has no PLC-side file system: controller
+tags are the native retained class, and a download resets every tag to its L5X
+initial value. Commissioned values cross a download only when a fresh serial-guarded
+capture is seeded into the replacement image (`fraktal_ab_initial_config.py`);
+credentials travel as declaration registrations. Saved sets are documents on the
+**gateway host** (`fraktal_ab_sets.FileStore`, one directory per commissioned root
+and controller serial, the same JSON-lines text TC3 writes). TC3 now lets a project
+choose its medium and keeps live station/line/model documents on it (Part II TC3
+§3.8b); on AB the gateway is that medium. A pluggable gateway store (database later)
+and gateway-held live documents restored after a download are open work - ask the
+owner before designing either, see the
+[handover](../AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md).
+
 ### Line owner and weekly shifts
 
 Select `application(line=Line('LINE-1', 'PLC-1', utc_offset_min=-300))` when
@@ -605,6 +618,7 @@ authorizes neither a clock write nor weakened freshness. State is derived.
 | Nameplate/IDTA, I/O connection state in health | absent/unclaimed; schema and S3 probe work remain |
 | MANUAL_HELD / Integrated Motion | no manual-held route; L24ER has no motion/S14 proof |
 | Retention | owner confirms one admin and one air-threshold edit across cycles; full values/accounts/sets/models, durability and upgrade matrix remain unverified |
+| Project-chosen retained-data medium (TC3 §3.8b, IMPLEMENTATION_NOTES §163) | sets already on the gateway file store; no store interface/database, and live configuration crosses a download only by seeding a fresh capture; owner decision pending |
 | S1 clock probe, other targets and packaged AB installer | separate acceptance; not implied by press68 S9 |
 
 The owner requested completion beyond the earlier Phase 6 boundary. Follow the
@@ -613,6 +627,8 @@ continuing with Chrome/physical Line checks after
 [press75 native acceptance](../AllenBradley/Evidence/AB_LINE_V2_PRESS75_NATIVE_ACCEPTANCE_2026-10-04.md), preserving
 [press70 native acceptance](../AllenBradley/Evidence/AB_PHASE6_PRESS70_NATIVE_ACCEPTANCE_2026-10-04.md).
 
+The current gap census and the next implementation order are in the
+[missing-features handover](../AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md).
 The [parity audit](../Reports/AB_TC3_PARITY_AUDIT_2026-09-29.md) preserves history.
 No earlier PASS is broadened by this guide. The
 [TC3 prompt](../AllenBradley/AB_TO_TC3_HANDOVER_PROMPT_2026-10-04.md) separates

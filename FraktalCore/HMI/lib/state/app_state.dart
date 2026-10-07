@@ -261,7 +261,7 @@ class AppState extends ChangeNotifier {
 
   // Activates the on-demand (view-gated) read scopes for the current view so the
   // direct OPC UA transport only reads a module's large drill-down rings/trends
-  // while its detail is open, and the fieldbus I/O tree only on the bus page.
+  // while its detail is open, and I/O only for a visible consuming view.
   // A no-op on transports that publish everything cyclically. Idempotent — the
   // repository ignores unchanged scopes.
   String? _activeDetailRoot;
@@ -275,6 +275,7 @@ class AppState extends ChangeNotifier {
     final detailModule = detailRoot == null ? null : selectedPath;
     if (detailRoot == _activeDetailRoot && detailModule == _activeDetailModule)
       return;
+    repo.setModuleIoViewActive(null);
     if (_activeDetailRoot != null) {
       repo.setModuleDetailActive(_activeDetailRoot!, false);
     }
@@ -287,10 +288,12 @@ class AppState extends ChangeNotifier {
     _activeDetailModule = detailModule;
   }
 
-  void setModuleDetailContainers(String modulePath, Set<String> containers) {
+  void setModuleDetailContainers(String modulePath, Set<String> containers,
+      {bool includeIo = false}) {
     if (_activeDetailRoot == null || _activeDetailModule != modulePath) return;
     repo.setModuleDetailActive(_activeDetailRoot!, true,
         containers: containers);
+    repo.setModuleIoViewActive(includeIo ? modulePath : null);
   }
 
   /// §7.8 — surface why an action is blocked (persistent panel). Pure query.

@@ -37,7 +37,7 @@ class ConfigEditor extends StatefulWidget {
   /// Title, what makes the kind different, and an icon.
   static const kindGroups = {
     CfgKind.parCfg: ('std.config.group.model', 'std.config.group.model.note',
-        Icons.category_outlined),
+        Icons.inventory_2_outlined),
     CfgKind.stationCfg: ('std.config.group.station',
         'std.config.group.station.note', Icons.precision_manufacturing_outlined),
     CfgKind.lineCfg: ('std.config.group.line', 'std.config.group.line.note',
@@ -570,7 +570,7 @@ class DecisionPrompt extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(Icons.help_outline),
+            const Icon(Icons.call_split),
             const SizedBox(width: 8),
             LText('Operator decision',
                 style: Theme.of(context).textTheme.titleMedium)

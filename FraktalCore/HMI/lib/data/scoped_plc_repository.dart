@@ -19,6 +19,7 @@ class ScopedPlcRepository implements PlcRepository {
   List<BusNode> _availableBus = const [];
   Set<String> _allowedRoots;
   bool _configured;
+  String? _moduleIoPath;
 
   ScopedPlcRepository(
     this.source, {
@@ -41,6 +42,9 @@ class ScopedPlcRepository implements PlcRepository {
   void setScope(Iterable<String> rootPaths) {
     _allowedRoots = Set<String>.from(rootPaths);
     _configured = true;
+    if (_moduleIoPath != null && !_allows(_moduleIoPath!)) {
+      setModuleIoViewActive(null);
+    }
     _publish();
     _publishBus();
   }
@@ -272,6 +276,12 @@ class ScopedPlcRepository implements PlcRepository {
   @override
   void setFieldbusViewActive(bool active) =>
       source.setFieldbusViewActive(active);
+
+  @override
+  void setModuleIoViewActive(String? modulePath) {
+    _moduleIoPath = modulePath != null && _allows(modulePath) ? modulePath : null;
+    source.setModuleIoViewActive(_moduleIoPath);
+  }
 
   @override
   void setModuleDetailActive(String rootPath, bool active,

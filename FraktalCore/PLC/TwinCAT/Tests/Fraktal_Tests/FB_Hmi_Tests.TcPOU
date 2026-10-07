@@ -144,6 +144,8 @@ TEST_FINISHED();]]></ST></Implementation>
       <Implementation><ST><![CDATA[TEST('Mailbox_policy_is_self_gated_and_power_ack_is_authoritative');
 IF NOT _policyInit THEN
     _policyUnit.Setup('Test.PolicyMailboxUnit');
+    // Not under test here: a volatile table, so no previous run's file is a precondition.
+    _policyProvider.M_UseKey(Key := '');
     _policyProvider.Register(User := 'admin1', Pin := '4711',
         Level := E_AccessLevel.ADMIN);
     _policyUnit();

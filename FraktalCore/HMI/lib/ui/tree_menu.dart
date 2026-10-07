@@ -9,9 +9,10 @@ import 'dart:math' as math;
 import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
 import '../domain/module_node.dart';
-import '../domain/types.dart';
 import '../state/app_state.dart';
 import 'app_theme.dart';
+import 'theme_chrome.dart';
+import 'hmi_icons.dart';
 
 class TreeMenu extends StatelessWidget {
   final AppState app;
@@ -19,6 +20,11 @@ class TreeMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chrome = FraktalChromeTheme.of(context);
+    if (chrome != null && Theme.of(context).brightness != Brightness.dark) {
+      return Theme(data: chrome.navigationTheme(Theme.of(context)),
+        child: TreeMenu(app: app));
+    }
     final collapsed = app.railCollapsed;
     // The collapsed rail must hold the toggle at the ACTIVE size preset: a
     // fixed 64 px rail overflowed the 62/76 px touch targets of the medium
@@ -30,7 +36,7 @@ class TreeMenu extends StatelessWidget {
         key: const Key('navigation-tree-animated-width'),
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
-        width: collapsed ? collapsedWidth : 300,
+        width: collapsed ? collapsedWidth : chrome?.navigationWidth ?? 300,
         child: LayoutBuilder(
           builder: (context, constraints) {
             // During the width tween the target state changes immediately.
@@ -102,14 +108,17 @@ class TreeMenu extends StatelessWidget {
     final hasKids = n.children.isNotEmpty;
     final open = app.expanded.contains(n.path) || depth == 0;
     final cs = Theme.of(context).colorScheme;
+    final chrome = FraktalChromeTheme.of(context);
     final tintColor = sev == null ? null : severityColor(context, sev);
     final tiles = <Widget>[
       InkWell(
         onTap: () => app.select(n.path),
         child: Container(
           // Every tree row is a tap target, so it follows the size preset.
-          height: ControlScaleScope.of(context).treeRowHeight,
-          margin: EdgeInsets.only(
+          height: math.max(ControlScaleScope.of(context).treeRowHeight,
+              chrome?.rowHeight ?? 0),
+          padding: chrome == null ? null : EdgeInsets.only(left: depth * 8),
+          margin: chrome != null ? EdgeInsets.zero : EdgeInsets.only(
               left: compact ? 4 : 4.0 + depth * 14, right: 4, bottom: 2),
           decoration: BoxDecoration(
             color: own != null
@@ -120,7 +129,7 @@ class TreeMenu extends StatelessWidget {
                     : selected
                         ? cs.secondaryContainer
                         : null,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(chrome == null ? 10 : 0),
             border: Border(
               left: BorderSide(
                 width: 4,
@@ -171,7 +180,7 @@ class TreeMenu extends StatelessWidget {
                         // work on the normal themes but collapses to 1.8:1 on
                         // the high-contrast ones — where that fill is dark.
                         color: own != null
-                            ? tintColor
+                            ? (chrome == null ? tintColor : cs.onSurface)
                             : (selected && sev == null
                                 ? cs.onSecondaryContainer
                                 : null),
@@ -195,14 +204,10 @@ class TreeMenu extends StatelessWidget {
 
   Widget _typeIcon(BuildContext context, ModuleNode n, Color? tint,
       {bool selected = false}) {
-    final icon = switch (n.type) {
-      ModuleType.unit => Icons.factory_outlined,
-      ModuleType.equipmentModule => Icons.widgets_outlined,
-      _ => Icons.settings_input_component_outlined,
-    };
+
     // Same pairing rule as the label: on a selected (secondaryContainer) row the
     // icon must use onSecondaryContainer, not the inherited onSurface.
-    return Icon(icon,
+    return ModuleIcon(node: n,
         size: ControlScaleScope.of(context).iconSize,
         color: tint ??
             (selected
@@ -210,10 +215,18 @@ class TreeMenu extends StatelessWidget {
                 : null));
   }
 
-  Widget _stateDot(BuildContext context, ModuleNode n) => Container(
+  Widget _stateDot(BuildContext context, ModuleNode n) {
+    final dot = Container(
         width: 10,
         height: 10,
         decoration: BoxDecoration(
             color: stateColor(context, n.state), shape: BoxShape.circle),
       );
+    final chrome = FraktalChromeTheme.of(context);
+    // Keep every status shade on the dark ground even in a cyan selected row.
+    return chrome == null ? dot : DecoratedBox(
+      decoration: BoxDecoration(color: chrome.navigation, shape: BoxShape.circle),
+      child: Padding(padding: const EdgeInsets.all(2), child: dot),
+    );
+  }
 }

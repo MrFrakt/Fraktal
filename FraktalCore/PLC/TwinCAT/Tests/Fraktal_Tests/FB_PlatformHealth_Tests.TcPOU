@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PlatformHealth_Tests" Id="{6e7cfbc0-fc80-46e0-9d87-8ac6b93a7b1e}" SpecialFunc="None">
+    <Declaration><![CDATA[// TC3 §8.12/§10.5 under test: what the target-specific providers publish when a
+// metric is measured, stale, out of range or not offered by the hardware. The
+// providers' measurement seams (M_ApplyReading, M_ApplyMasterSample) are the same
+// calls their own ADS state machines make, so these are the real evaluations.
+FUNCTION_BLOCK FB_PlatformHealth_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _log : FB_AlarmLog;
+    _health : FB_SystemHealthPublisher;
+    _input : ST_SystemHealthInput;
+    _fresh : ST_SystemHealthInput;
+    _cfg : ST_SystemHealthParCfg;
+    _ipc : FB_TcIpcDiagnostics;
+    _bus : FB_EcBusHealth;
+    _values : ARRAY[1..8] OF LREAL;
+    _done : ARRAY[1..3] OF BOOL;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[Unmeasured_fan_and_storage_raise_nothing();
+Ipc_metrics_are_available_only_while_measured();
+EtherCat_master_counts_windows_and_dc();]]></ST></Implementation>
+    <Method Name="Unmeasured_fan_and_storage_raise_nothing" Id="{76fbb5c8-e637-4aa1-907f-72a55fe72612}">
+      <Declaration><![CDATA[// Core §8.12 "where the hardware exposes them": a fanless IPC or a drive without
+// wear data is not a fault, and not a healthy reading either.
+METHOD Unmeasured_fan_and_storage_raise_nothing]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Unmeasured_fan_and_storage_raise_nothing');
+IF _done[1] THEN
+    RETURN;
+END_IF
+_done[1] := TRUE;
+AssertTrue(Condition := _fresh.FanAvailable AND _fresh.StorageAvailable,
+    Message := 'a producer that never sets the new flags keeps the single IPC meaning');
+_health.Setup(SourcePath := 'Test.Platform.SystemHealth', pAlarmLog := ADR(_log));
+_input.TaskAvailable := TRUE;
+_input.TaskCycleUs := 1000;
+_input.ControllerAvailable := TRUE;
+_input.CpuLoadPct := 10.0;
+_input.MemoryAvailableMb := 1024;
+_input.IpcAvailable := TRUE;
+_input.IpcTemperatureC := 40.0;
+_input.FanAvailable := FALSE;
+_input.FanHealthy := FALSE;
+_input.StorageAvailable := FALSE;
+_input.StorageHealthPct := 0.0;
+_input.TimeQuality.Available := TRUE;
+_input.TimeQuality.Synchronized := TRUE;
+_health.Cyclic(Input := _input, ParCfg := _cfg, Configured := TRUE);
+AssertFalse(Condition := F_ProbeAlarmActive(pLog := ADR(_log), Reason := E_Reason.IPC_FAN_FAULT,
+    Source := 'Test.Platform.SystemHealth'), Message := 'no fan to measure is no fan fault');
+AssertFalse(Condition := F_ProbeAlarmActive(pLog := ADR(_log), Reason := E_Reason.STORAGE_HEALTH_LOW,
+    Source := 'Test.Platform.SystemHealth'), Message := 'no wear data is no storage fault');
+AssertFalse(Condition := _health.Status.FanAvailable OR _health.Status.StorageAvailable,
+    Message := 'the published status says the readings are not measurements');
+_input.FanAvailable := TRUE;
+_input.StorageAvailable := TRUE;
+_health.Cyclic(Input := _input, ParCfg := _cfg, Configured := TRUE);
+AssertTrue(Condition := F_ProbeAlarmActive(pLog := ADR(_log), Reason := E_Reason.IPC_FAN_FAULT,
+    Source := 'Test.Platform.SystemHealth'), Message := 'a measured stopped fan is a fault');
+AssertTrue(Condition := F_ProbeAlarmActive(pLog := ADR(_log), Reason := E_Reason.STORAGE_HEALTH_LOW,
+    Source := 'Test.Platform.SystemHealth'), Message := 'measured worn storage is a fault');
+_input.FanHealthy := TRUE;
+_input.StorageHealthPct := 90.0;
+_health.Cyclic(Input := _input, ParCfg := _cfg, Configured := TRUE);
+AssertFalse(Condition := F_ProbeAlarmActive(pLog := ADR(_log), Reason := E_Reason.IPC_FAN_FAULT,
+    Source := 'Test.Platform.SystemHealth'), Message := 'a turning fan clears it');
+AssertFalse(Condition := F_ProbeAlarmActive(pLog := ADR(_log), Reason := E_Reason.STORAGE_HEALTH_LOW,
+    Source := 'Test.Platform.SystemHealth'), Message := 'healthy storage clears it');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Ipc_metrics_are_available_only_while_measured" Id="{d0bf56db-65b1-4a8d-a4cd-9766f69878e2}">
+      <Declaration><![CDATA[METHOD Ipc_metrics_are_available_only_while_measured]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Ipc_metrics_are_available_only_while_measured');
+IF _done[2] THEN
+    RETURN;
+END_IF
+_done[2] := TRUE;
+AssertFalse(Condition := _ipc.ControllerAvailable OR _ipc.IpcAvailable
+    OR _ipc.FanAvailable OR _ipc.StorageAvailable,
+    Message := 'nothing is available before it was measured');
+_values[1] := 35.0;
+AssertTrue(Condition := _ipc.M_ApplyReading(Metric := 0, Ok := TRUE, Values := _values,
+    Count := 1, MonoNow := T#10S), Message := 'CPU usage accepted');
+AssertFalse(Condition := _ipc.ControllerAvailable,
+    Message := 'controller metrics need CPU AND memory');
+_values[1] := 2147483648.0;     // 2 GiB available program memory
+_ipc.M_ApplyReading(Metric := 1, Ok := TRUE, Values := _values, Count := 1, MonoNow := T#12S);
+AssertTrue(Condition := _ipc.ControllerAvailable, Message := 'both measured: available');
+AssertEquals_LREAL(Expected := 35.0, Actual := _ipc.CpuLoadPct, Delta := 0.001,
+    Message := 'CPU usage in percent');
+AssertEquals_UDINT(Expected := 2048, Actual := _ipc.MemoryAvailableMb,
+    Message := 'available program memory in MB');
+_values[1] := 120.0;
+AssertFalse(Condition := _ipc.M_ApplyReading(Metric := 0, Ok := TRUE, Values := _values,
+    Count := 1, MonoNow := T#14S), Message := 'an impossible CPU reading is refused');
+AssertEquals_LREAL(Expected := 35.0, Actual := _ipc.CpuLoadPct, Delta := 0.001,
+    Message := 'and does not replace the last measurement');
+AssertFalse(Condition := _ipc.M_ApplyReading(Metric := 0, Ok := FALSE, Values := _values,
+    Count := 0, MonoNow := T#30S), Message := 'a failed read is reported');
+_values[1] := 55.0;
+_values[2] := 61.0;
+_ipc.M_ApplyReading(Metric := 2, Ok := TRUE, Values := _values, Count := 2, MonoNow := T#55S);
+AssertTrue(Condition := _ipc.IpcAvailable, Message := 'temperature measured');
+AssertEquals_LREAL(Expected := 61.0, Actual := _ipc.IpcTemperatureC, Delta := 0.001,
+    Message := 'the hottest CPU reading is the IPC temperature');
+AssertFalse(Condition := _ipc.ControllerAvailable,
+    Message := 'no fresh CPU or memory reading for over 40 s: controller metrics expire');
+_values[1] := 1800.0;
+_values[2] := 0.0;
+_ipc.M_ApplyReading(Metric := 3, Ok := TRUE, Values := _values, Count := 2, MonoNow := T#56S);
+AssertTrue(Condition := _ipc.FanAvailable AND NOT _ipc.FanHealthy,
+    Message := 'one stopped fan of two is a measured fan fault');
+_values[1] := 80.0;
+_values[2] := 60.0;
+_ipc.M_ApplyReading(Metric := 4, Ok := TRUE, Values := _values, Count := 2, MonoNow := T#57S);
+AssertFalse(Condition := _ipc.StorageAvailable,
+    Message := 'storage health needs both wear figures');
+_values[1] := 90.0;
+_ipc.M_ApplyReading(Metric := 5, Ok := TRUE, Values := _values, Count := 1, MonoNow := T#58S);
+AssertTrue(Condition := _ipc.StorageAvailable, Message := 'both wear figures measured');
+AssertEquals_LREAL(Expected := 60.0, Actual := _ipc.StorageHealthPct, Delta := 0.001,
+    Message := 'the worst figure of the worst drive');
+AssertFalse(Condition := _ipc.M_ApplyReading(Metric := 6, Ok := TRUE, Values := _values,
+    Count := 1, MonoNow := T#59S), Message := 'an unknown metric is refused');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="EtherCat_master_counts_windows_and_dc" Id="{15c2b8f8-42c0-49aa-9d91-934fd1b01ac3}">
+      <Declaration><![CDATA[// The master's counters are cumulative since it started. Losses during start-up
+// must not count, a burst must be held long enough to be seen, a cleared counter
+// must not underflow, and DC and the slave states are read from the device state.
+METHOD EtherCat_master_counts_windows_and_dc]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('EtherCat_master_counts_windows_and_dc');
+IF _done[3] THEN
+    RETURN;
+END_IF
+_done[3] := TRUE;
+AssertFalse(Condition := _bus.MasterAvailable OR _bus.MasterHealthy OR _bus.DcSynchronized,
+    Message := 'an unread master is neither available nor healthy');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := 0, LostFrames := 100, CrcErrors := 5,
+    MonoNow := T#1S);
+AssertTrue(Condition := _bus.MasterAvailable AND _bus.MasterHealthy AND _bus.DcSynchronized,
+    Message := 'a clean device state is a healthy, synchronized master');
+AssertEquals_UDINT(Expected := 0, Actual := _bus.LostFrameCount,
+    Message := 'frames lost before the first sample are not counted');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := 0, LostFrames := 103, CrcErrors := 7,
+    MonoNow := T#2S);
+AssertEquals_UDINT(Expected := 3, Actual := _bus.LostFrameCount,
+    Message := 'lost frames of the current window are visible at once');
+AssertEquals_UDINT(Expected := 2, Actual := _bus.SlaveErrorCount,
+    Message := 'and so are new CRC errors');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := 0, LostFrames := 104, CrcErrors := 7,
+    MonoNow := T#12S);
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := 0, LostFrames := 104, CrcErrors := 7,
+    MonoNow := T#13S);
+AssertEquals_UDINT(Expected := 4, Actual := _bus.LostFrameCount,
+    Message := 'a burst is held for the whole next window');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := 0, LostFrames := 104, CrcErrors := 7,
+    MonoNow := T#23S);
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := 0, LostFrames := 104, CrcErrors := 7,
+    MonoNow := T#24S);
+AssertEquals_UDINT(Expected := 0, Actual := _bus.LostFrameCount,
+    Message := 'a clean window clears it');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := 0, LostFrames := 2, CrcErrors := 0,
+    MonoNow := T#25S);
+AssertEquals_UDINT(Expected := 2, Actual := _bus.LostFrameCount,
+    Message := 'a cleared counter counts from zero instead of underflowing');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := WORD#16#1000, LostFrames := 2, CrcErrors := 0,
+    MonoNow := T#26S);
+AssertTrue(Condition := _bus.MasterHealthy AND NOT _bus.DcSynchronized,
+    Message := 'DC out of sync is reported apart from the master health');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := WORD#16#0004, LostFrames := 2, CrcErrors := 0,
+    MonoNow := T#27S);
+AssertTrue(Condition := _bus.MasterHealthy,
+    Message := 'a redundancy-adapter link note is not a fault of the working line');
+_bus.M_ApplyMasterSample(Ok := TRUE, DevState := WORD#16#0400, LostFrames := 2, CrcErrors := 0,
+    MonoNow := T#28S);
+AssertFalse(Condition := _bus.MasterHealthy, Message := 'a slave in SAFE-OP is not a healthy bus');
+_bus.M_ApplyMasterSample(Ok := FALSE, DevState := 0, LostFrames := 0, CrcErrors := 0,
+    MonoNow := T#32S);
+AssertFalse(Condition := _bus.MasterAvailable OR _bus.MasterHealthy OR _bus.DcSynchronized,
+    Message := 'no successful sample for more than 3 s: the master is unavailable');
+AssertFalse(Condition := _bus.M_BusOk(), Message := 'and the bus is never reported valid');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

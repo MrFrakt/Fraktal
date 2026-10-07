@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../localization/localized_text.dart';
 import 'app_theme.dart';
+import 'theme_chrome.dart';
 
 /// A two-way view selector, built from primitives rather than configured.
 ///
@@ -35,7 +36,7 @@ class ViewSwitch<T> extends StatelessWidget {
     // Deliberately squarer than Material's default. An industrial selector
     // reads as a piece of equipment, not a lozenge, and a modest radius keeps
     // the same silhouette whether the control is 48 or 76 px tall.
-    final radius = BorderRadius.circular(8);
+    final radius = BorderRadius.circular(FraktalChromeTheme.of(context) == null ? 8 : 0);
     return Container(
       height: m.touchTarget,
       decoration: BoxDecoration(

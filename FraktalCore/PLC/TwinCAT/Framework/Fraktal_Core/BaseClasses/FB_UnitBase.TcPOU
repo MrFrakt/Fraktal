@@ -204,6 +204,26 @@ VAR
     _restoreEvt : INT;                 // open restore-loss event slot (0 = none)
     {attribute 'OPC.UA.DA' := '0'}
     _setJson : FB_ConfigSetJson;       // §3.8b text projection (export/import)
+    // §3.8b - the project's persistence MEDIUM (SetPersistMedium): this root's live
+    // station, line and model data kept as documents on it and restored at start.
+    // Absent (the shipped default) = the native PERSISTENT data alone.
+    {attribute 'OPC.UA.DA' := '0'}
+    _medium : I_PersistMedium;
+    {attribute 'OPC.UA.DA' := '0'}
+    _liveDoc : FB_ConfigSetDocument;
+    // A store that writes its sets out itself (FB_MediumConfigStore): found on the
+    // injected store by __QUERYINTERFACE and driven beside _persistence.
+    {attribute 'OPC.UA.DA' := '0'}
+    _storePersistence : I_ConfigPersistence;
+    _livePhase : INT;
+    _liveItem : INT;                   // 1 station, 2 line, 3.. model n = item - 2
+    _liveArmed : BOOL;                 // OnInit ran: the capability walk is complete
+    _liveRestored : BOOL;
+    _liveDirty : BOOL;                 // an accepted change is not yet in the documents
+    _liveFailed : BOOL;                // the last pass did not write every document
+    _liveModels : BOOL;                // model data is kept per model (_M_LiveModelsKept)
+    _liveModelSlots : INT;             // highest model document known on the medium
+    _liveRetry : TON;
     _importOpen : BOOL;                // an IMPORT_CONFIG_SET save is in progress
     // §3.8b - a set line arriving in pieces (IMPORT_CONFIG_SET, IntValue = 1).
     // A request carries 255 characters and a line may hold 480, so the HMI
@@ -259,6 +279,11 @@ VAR CONSTANT
     // document that outlives the build that wrote it can be recognized rather
     // than guessed at (§13).
     CONFIG_SET_SCHEMA : UINT := 1;
+    // §3.8b - a live-document pass that failed is tried again this often.
+    LIVE_RETRY : TIME := T#10S;
+    // §3.8b - a live document the medium could not read is asked for again this
+    // often; until it answers, nothing is restored, written or started.
+    LIVE_READ_RETRY : TIME := T#2S;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -1939,9 +1964,38 @@ IF Store = 0 THEN
     RETURN;
 END_IF
 _configStore := Store;
+// A store that writes its own sets out is a durability provider as well.
+IF NOT __QUERYINTERFACE(Store, _storePersistence) THEN
+    _storePersistence := 0;
+END_IF
 ConfigPersist.StorePresent := TRUE;
 ConfigPersist.StoreKind := Store.M_Kind();
 SetConfigStore := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetPersistMedium" Id="{90949ce0-2dde-4312-82c9-779c3854619d}">
+      <Declaration><![CDATA[// §3.8b - keep this root's live configuration on the project's medium too: the
+// station data, the line data this root owns, and every model's data, one
+// document each ('<root>.station', '<root>.line', '<root>.model<n>'). At start
+// the documents are read back and replayed through the owning handlers, staged
+// and all-or-nothing per document, before any configuration write is accepted;
+// after every accepted write they are written again. A missing document is a
+// first start. One the medium confirmed and then lost, or one that no longer
+// fits this build, is announced as a lost image under its key (§3.8b restore).
+// The native PERSISTENT data stays: it seeds the first documents and is what a
+// lost one falls back to. The same medium may serve the set store and the
+// access provider. Refused once the restore has started.
+METHOD SetPersistMedium : BOOL
+VAR_INPUT
+    Medium : I_PersistMedium;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SetPersistMedium := FALSE;
+IF (Medium = 0) OR (_livePhase <> 0) THEN
+    RETURN;
+END_IF
+_medium := Medium;
+SetPersistMedium := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="SetConfigPersistence" Id="{a5c37e08-9412-4bd6-83f9-6e05b17c94a2}">
@@ -2016,6 +2070,15 @@ IF _persistEvt > 0 THEN
     AlarmLog.Gone(Slot := _persistEvt);
     _persistEvt := 0;
 END_IF
+IF _medium <> 0 THEN
+    _liveDirty := TRUE;                    // the live documents follow
+    _liveFailed := FALSE;                  // a new write re-arms a failed pass at once
+END_IF
+IF _storePersistence <> 0 THEN
+    IF NOT _storePersistence.M_Request() THEN
+        _M_ConfigPersistFailed();
+    END_IF
+END_IF
 IF _persistence = 0 THEN
     RETURN;                                // no provider: the window will expire
 END_IF
@@ -2062,6 +2125,16 @@ END_VAR]]></Declaration>
 IF _persistence <> 0 THEN
     busy := _persistence.M_Cyclic();
 END_IF
+// A store that writes its sets out, and the live documents, are durability
+// providers too: Pending holds until every one of them is done.
+IF _storePersistence <> 0 THEN
+    IF _storePersistence.M_Cyclic() THEN
+        busy := TRUE;
+    END_IF
+END_IF
+IF _M_LiveCyclic() THEN
+    busy := TRUE;
+END_IF
 IF NOT ConfigPersist.Pending THEN
     RETURN;
 END_IF
@@ -2086,12 +2159,363 @@ IF _persistence.M_Failed() THEN
     _M_ConfigPersistFailed();
     RETURN;
 END_IF
+IF _liveFailed THEN
+    _M_ConfigPersistFailed();
+    RETURN;
+END_IF
+IF _storePersistence <> 0 THEN
+    IF _storePersistence.M_Failed() THEN
+        _M_ConfigPersistFailed();
+        RETURN;
+    END_IF
+END_IF
 ConfigPersist.Pending := FALSE;
 ConfigPersist.Failed := FALSE;
 IF _persistEvt > 0 THEN
     AlarmLog.Gone(Slot := _persistEvt);
     _persistEvt := 0;
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ConfigRestored" Id="{c723ef57-9111-489a-87e1-2e9e98d880fe}">
+      <Declaration><![CDATA[// §3.8b - TRUE once the live documents are back (or there is no medium). Until
+// then a configuration write is refused: the restore would replay over it.
+METHOD PRIVATE _M_ConfigRestored : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_ConfigRestored := (_medium = 0) OR _liveRestored;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LiveCyclic" Id="{aad84a07-4f6e-415a-a949-44d11c57baf2}">
+      <Declaration><![CDATA[// §3.8b - read the live documents back once, then write all of them again after
+// every accepted change: station, line, then each model. TRUE while a document
+// is not yet where it belongs, which holds PersistPending for that long.
+//
+// One pass rewrites every document rather than tracking which value changed:
+// a pass is bounded (2 + MAX_RECIPES documents), and a document written whole
+// from the capability walk can never disagree with the machine.
+METHOD PRIVATE _M_LiveCyclic : BOOL
+VAR
+    n          : INT;
+    kind       : E_ConfigKind;
+    modelIndex : UDINT;
+    started    : BOOL;
+    refused    : BOOL;     // the medium's queue was full: ask again next scan
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_LiveCyclic := FALSE;
+IF _medium = 0 THEN
+    RETURN;
+END_IF
+CASE _livePhase OF
+    0:      // the capability walk is complete once OnInit ran
+        IF _liveArmed THEN
+            _liveModels := _M_LiveModelsKept();
+            _liveItem := 1;
+            _livePhase := 10;
+        END_IF
+    10:     // restore: the next document
+        IF _liveItem > 2 + PL_Fraktal.MAX_RECIPES THEN
+            _liveRestored := TRUE;
+            _livePhase := 30;
+            ConfigRev := ConfigRev + 1;    // restored values: the manifest reads differently
+            _M_MarkPersistPending();       // every store, and the documents as the new baseline
+        ELSIF NOT _M_LiveItemUsed(Item := _liveItem, Restoring := TRUE) THEN
+            _liveItem := _liveItem + 1;
+        ELSIF _liveDoc.M_Read(Medium := _medium, Key := _M_LiveKey(Item := _liveItem)) THEN
+            _livePhase := 11;
+        END_IF
+    11:
+        IF _liveDoc.M_Poll() THEN
+            IF _liveDoc.Ok THEN
+                _M_LiveRestoreItem();
+                _liveItem := _liveItem + 1;
+                _livePhase := 10;
+            ELSE
+                // The medium could not answer: that is not "nothing there". Restoring
+                // anyway would run on defaults and write them over the documents.
+                _M_LiveReadFailed();
+                _liveRetry(IN := FALSE, PT := LIVE_READ_RETRY);
+                _livePhase := 12;
+            END_IF
+        END_IF
+    12:     // the same document again after LIVE_READ_RETRY
+        _liveRetry(IN := TRUE, PT := LIVE_READ_RETRY);
+        IF _liveRetry.Q THEN
+            _liveRetry(IN := FALSE, PT := LIVE_READ_RETRY);
+            _livePhase := 10;
+        END_IF
+    30:     // idle: one pass after an accepted change; a failed pass is retried
+        _liveRetry(IN := _liveFailed AND _liveDirty, PT := LIVE_RETRY);
+        IF _liveDirty AND (NOT _liveFailed OR _liveRetry.Q) THEN
+            _liveRetry(IN := FALSE, PT := LIVE_RETRY);
+            _liveDirty := FALSE;           // a change during the pass marks it again
+            _liveItem := 1;
+            _livePhase := 40;
+        END_IF
+    40:
+        IF _liveItem > 2 + PL_Fraktal.MAX_RECIPES THEN
+            _liveFailed := FALSE;
+            IF _liveModels THEN
+                _liveModelSlots := AvailableModelCount;
+            END_IF
+            _livePhase := 30;
+        ELSIF NOT _M_LiveItemUsed(Item := _liveItem, Restoring := FALSE) THEN
+            _liveItem := _liveItem + 1;
+        ELSE
+            n := _liveItem - 2;
+            started := FALSE;
+            refused := FALSE;
+            IF n > AvailableModelCount THEN
+                // A model document past the catalog: the model is no longer offered.
+                started := _liveDoc.M_Delete(Medium := _medium, Key := _M_LiveKey(Item := _liveItem));
+                refused := NOT started AND (_liveDoc.ErrorId = 16#706);
+            ELSE
+                kind := E_ConfigKind.STATION_CFG;
+                modelIndex := 0;
+                IF _liveItem = 2 THEN
+                    kind := E_ConfigKind.LINE_CFG;
+                ELSIF _liveItem > 2 THEN
+                    kind := E_ConfigKind.PAR_CFG;
+                    modelIndex := INT_TO_UDINT(n);
+                END_IF
+                IF _M_CaptureInto(Store := _loadSnapshot, SetName := '_live', Kind := kind,
+                        ModelIndex := modelIndex) THEN
+                    started := _liveDoc.M_Write(Medium := _medium,
+                        Key := _M_LiveKey(Item := _liveItem), Store := _loadSnapshot,
+                        SetName := '_live');
+                    refused := NOT started AND (_liveDoc.ErrorId = 16#706);
+                END_IF
+            END_IF
+            IF started THEN
+                _livePhase := 41;
+            ELSIF NOT refused THEN
+                _M_LivePassFailed();            // not rendered, or the walk did not fit a set
+            END_IF
+        END_IF
+    41:
+        IF _liveDoc.M_Poll() THEN
+            IF _liveDoc.Ok THEN
+                _liveItem := _liveItem + 1;
+                _livePhase := 40;
+            ELSE
+                _M_LivePassFailed();
+            END_IF
+        END_IF
+ELSE
+    _livePhase := 30;
+END_CASE
+_M_LiveCyclic := NOT _liveRestored OR _liveDirty OR (_livePhase = 40) OR (_livePhase = 41);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LiveReadFailed" Id="{c1b391b8-49e2-405b-9490-706629300cca}">
+      <Declaration><![CDATA[// §3.8b - a live document could not be read at start. Announced once (AUTO_RESET,
+// gone when the restore completes, through _M_MarkPersistPending); Start meanwhile
+// names the restore and configuration writes are refused.
+METHOD PRIVATE _M_LiveReadFailed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ConfigPersist.Failed := TRUE;
+IF _persistEvt > 0 THEN
+    RETURN;
+END_IF
+_persistEvt := AlarmLog.Raise(Reason := E_Reason.CONFIG_PERSIST_FAILED,
+    Text := 'std.error.storageUnreadable', Source := _M_LiveKey(Item := _liveItem),
+    Severity := E_Severity.MED, Category := E_Category.SYSTEM,
+    ResetClass := E_ResetClass.AUTO_RESET);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LivePassFailed" Id="{3fff4db1-40c0-4916-a009-f750b7b16137}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_LivePassFailed]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_liveFailed := TRUE;
+_liveDirty := TRUE;            // retried after LIVE_RETRY, or at the next write
+_livePhase := 30;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LiveItemUsed" Id="{2d7178d4-917d-4032-9b90-b6d8a8215873}">
+      <Declaration><![CDATA[// Which documents this root keeps: always the station; the line only when this
+// root hosts a line it owns (a mirror's values are its owner's); a model when
+// model data is kept, every slot on restore and, when writing, every model the
+// catalog offers plus any older slot still to be cleared.
+METHOD PRIVATE _M_LiveItemUsed : BOOL
+VAR_INPUT
+    Item      : INT;
+    Restoring : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_LiveItemUsed := FALSE;
+IF Item = 1 THEN
+    _M_LiveItemUsed := TRUE;
+ELSIF Item = 2 THEN
+    IF (_pLine <> 0) AND _lineHost THEN
+        _M_LiveItemUsed := _pLine^.OutImm.Role = E_LineRole.OWNER;
+    END_IF
+ELSIF _liveModels THEN
+    _M_LiveItemUsed := Restoring OR ((Item - 2) <= MAX(AvailableModelCount, _liveModelSlots));
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LiveKey" Id="{77a63a7d-cd03-4447-be78-e758d5ef1591}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_LiveKey : STRING(80)
+VAR_INPUT
+    Item : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Item = 1 THEN
+    _M_LiveKey := CONCAT(Status.Name, '.station');
+ELSIF Item = 2 THEN
+    _M_LiveKey := CONCAT(Status.Name, '.line');
+ELSE
+    _M_LiveKey := CONCAT(Status.Name, CONCAT('.model', INT_TO_STRING(Item - 2)));
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LiveModelsKept" Id="{166da471-060a-4724-bca3-30a7b039d62b}">
+      <Declaration><![CDATA[// Model data is kept per model when this root registered its own record
+// (M_RegisterModelData) with a provider that stores records, and every PAR_CFG
+// value of the walk lives in that record. A child's model data belongs to the
+// child's recipe, which this root cannot select per model.
+METHOD PRIVATE _M_LiveModelsKept : BOOL
+VAR
+    store  : I_RecipeStore;
+    info   : ST_ConfigSetInfo;
+    record : ST_ConfigRecord;
+    i      : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_LiveModelsKept := FALSE;
+IF (_modelProvider = 0) OR (_pModelRegion = 0) THEN
+    RETURN;
+END_IF
+IF NOT __QUERYINTERFACE(_modelProvider, store) THEN
+    RETURN;
+END_IF
+IF NOT _M_CaptureInto(Store := _loadSnapshot, SetName := '_live',
+        Kind := E_ConfigKind.PAR_CFG, ModelIndex := 0) THEN
+    RETURN;
+END_IF
+IF NOT _loadSnapshot.M_ReadInfo(SetName := '_live', Info := info) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO info.RecordCount DO
+    IF NOT _loadSnapshot.M_ReadRecord(SetName := '_live', Index := i, Record := record) THEN
+        RETURN;
+    END_IF
+    IF NOT _M_OwnsModelRecord(Record := record) THEN
+        RETURN;
+    END_IF
+END_FOR
+_M_LiveModelsKept := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LiveRestoreItem" Id="{b20141f1-cfd8-47d0-b996-33c491a3a370}">
+      <Declaration><![CDATA[// §3.8b - the medium answered for one document: replay it, or announce why not.
+// Nothing there is a first start; nothing there where the medium confirmed a
+// write, a document that does not parse or no longer fits this build, or an older
+// copy than the one confirmed, is a lost image announced under the document's
+// key. The values then stay as they are - the native retained data - and the next
+// pass writes them as the new baseline, so the loss is announced once. (A medium
+// that could not answer never gets here: _M_LiveCyclic asks again.)
+METHOD PRIVATE _M_LiveRestoreItem
+VAR
+    info     : ST_ConfigSetInfo;
+    key      : STRING(80);
+    expected : E_ConfigKind;
+    applied  : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[key := _M_LiveKey(Item := _liveItem);
+IF NOT _liveDoc.Found THEN
+    IF _liveDoc.Lost THEN
+        _M_AnnounceRestoreLoss(Path := key, Text := 'std.error.configRestoreLost');
+    END_IF
+    RETURN;
+END_IF
+expected := E_ConfigKind.STATION_CFG;
+IF _liveItem = 2 THEN
+    expected := E_ConfigKind.LINE_CFG;
+ELSIF _liveItem > 2 THEN
+    expected := E_ConfigKind.PAR_CFG;
+    _liveModelSlots := MAX(_liveModelSlots, _liveItem - 2);
+END_IF
+applied := FALSE;
+IF _liveDoc.M_Parse(Store := _loadSnapshot, Info := info) THEN
+    IF (info.Kind = expected) AND (info.RootIdentity = Status.Name) THEN
+        applied := _M_LiveApply(Info := info);
+    END_IF
+END_IF
+IF NOT applied OR _liveDoc.Lost THEN
+    _M_AnnounceRestoreLoss(Path := key, Text := 'std.error.configRestoreLost');
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_LiveApply" Id="{031ae06a-8d84-4843-bce8-ed6d53fdc0d1}">
+      <Declaration><![CDATA[// Replay a restored document frozen in _loadSnapshot through the same staged,
+// all-or-nothing path a set load takes. A model document goes into that model's
+// record (the live one for the active model) and back to the provider; a model
+// created at run time whose catalog record did not survive is created again
+// from the live record first, then given its values.
+METHOD PRIVATE _M_LiveApply : BOOL
+VAR_INPUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    index : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_LiveApply := FALSE;
+index := 0;
+IF Info.Kind = E_ConfigKind.PAR_CFG THEN
+    index := _M_ModelIndexOf(ModelCode := Info.ModelCode);
+    IF (index = 0) AND (_modelCatalog <> 0) AND (Info.ModelCode <> '')
+    AND (AvailableModelCount < ModelCapacity) THEN
+        MEMCPY(destAddr := ADR(_modelBuf), srcAddr := _pModelRegion, n := _modelRegionSize);
+        IF _modelCatalog.M_CreateModel(ModelCode := Info.ModelCode, RecipeKey := _modelKey,
+                pData := ADR(_modelBuf), Size := _modelRegionSize) THEN
+            _M_SyncModelCatalog();
+            index := _M_ModelIndexOf(ModelCode := Info.ModelCode);
+        END_IF
+    END_IF
+    IF index = 0 THEN
+        RETURN;
+    END_IF
+END_IF
+IF NOT _M_CaptureConfig(SetName := '_validation', Kind := Info.Kind, ModelIndex := index) THEN
+    RETURN;
+END_IF
+IF NOT _M_ValidateSetShape(Store := _loadSnapshot, Info := Info, AnyRevision := TRUE) THEN
+    RETURN;
+END_IF
+IF NOT _M_OpenModelView(Index := index) THEN
+    RETURN;
+END_IF
+_M_LiveApply := _M_ApplySet(SetName := Info.SetName, RecordCount := Info.RecordCount,
+    Kind := Info.Kind, Restoring := TRUE);
+IF _M_LiveApply AND (Info.Kind = E_ConfigKind.PAR_CFG) THEN
+    _M_LiveApply := _M_SaveModelData();
+END_IF
+_pModelView := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ModelIndexOf" Id="{055b30d9-edd2-408c-ae7f-7015e649658e}">
+      <Declaration><![CDATA[// AvailableModels index of a model code, 0 when the catalog does not offer it.
+METHOD PRIVATE _M_ModelIndexOf : UDINT
+VAR_INPUT
+    ModelCode : STRING(64);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_ModelIndexOf := 0;
+IF ModelCode = '' THEN
+    RETURN;
+END_IF
+FOR i := 1 TO AvailableModelCount DO
+    IF AvailableModels[i].ModelCode = ModelCode THEN
+        _M_ModelIndexOf := INT_TO_UDINT(i);
+        RETURN;
+    END_IF
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_DrainRestoreLoss" Id="{0b7e5294-16ad-43c1-a8f6-249d038be715}">
@@ -2113,27 +2537,43 @@ VAR
     found    : UINT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// Bounded per scan (§5.6): losses are one-shot, so a large subtree simply
+        <ST><![CDATA[// §7.7(c) - the local user table is retained outside the module walk; its loss
+// is announced and acknowledged exactly like a module's.
+IF Access.M_TakeRestoreLoss() THEN
+    path := CONCAT(_name, '.Access');
+    _M_AnnounceRestoreLoss(Path := path, Text := 'std.error.accessRestoreLost');
+END_IF
+// Bounded per scan (§5.6): losses are one-shot, so a large subtree simply
 // finishes draining over the next few scans instead of stretching one.
 FOR guard := 1 TO PL_Fraktal.MAX_EM_CHILDREN DO
     IF NOT M_TakeRestoreLoss(Path => path, Expected => expected, Found => found) THEN
         RETURN;
     END_IF
-    ConfigPersist.RestoreLost := TRUE;
-    ConfigPersist.RestoreAcknowledged := FALSE;
-    ConfigPersist.LostPath := path;
-    IF _restoreEvt = 0 THEN
-        _restoreEvt := AlarmLog.Raise(Reason := E_Reason.CONFIG_RESTORE_LOST,
-            Text := 'std.error.configRestoreLost', Source := path,
-            Severity := E_Severity.MED, Category := E_Category.SYSTEM,
-            ResetClass := E_ResetClass.AUTO_RESET);
-    ELSE
-        // A second losing module gets its own ring entry naming ITS path: a
-        // summary that named only the first would hide the rest of the damage.
-        _M_RaiseMaintenance(Reason := E_Reason.CONFIG_RESTORE_LOST,
-            Text := 'std.error.configRestoreLost');
-    END_IF
+    _M_AnnounceRestoreLoss(Path := path, Text := 'std.error.configRestoreLost');
 END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_AnnounceRestoreLoss" Id="{77125c95-ab46-4aaa-9f22-3a07f8e7fd8f}">
+      <Declaration><![CDATA[// §3.8b - publish one lost image and open (or extend) its annunciation.
+METHOD PRIVATE _M_AnnounceRestoreLoss
+VAR_INPUT
+    Path : STRING(80);
+    Text : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ConfigPersist.RestoreLost := TRUE;
+ConfigPersist.RestoreAcknowledged := FALSE;
+ConfigPersist.LostPath := Path;
+IF _restoreEvt = 0 THEN
+    _restoreEvt := AlarmLog.Raise(Reason := E_Reason.CONFIG_RESTORE_LOST,
+        Text := Text, Source := Path,
+        Severity := E_Severity.MED, Category := E_Category.SYSTEM,
+        ResetClass := E_ResetClass.AUTO_RESET);
+ELSE
+    // A second losing owner gets its own ring entry: a summary that named only
+    // the first would hide the rest of the damage.
+    _M_RaiseMaintenance(Reason := E_Reason.CONFIG_RESTORE_LOST, Text := Text);
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="AcknowledgeConfigRestore" Id="{e18c47b3-5029-4ed6-9a71-b3406fc25d89}">
@@ -2187,6 +2627,9 @@ _M_RaiseMaintenance(Reason := E_Reason.CONFIG_SET_REJECTED,
 METHOD PRIVATE _M_SetOpAllowed : BOOL]]></Declaration>
       <Implementation>
         <ST><![CDATA[_M_SetOpAllowed := FALSE;
+IF NOT _M_ConfigRestored() THEN
+    RETURN;
+END_IF
 IF NOT Access.PermitsLogged(Gate := E_GatedAction.CONFIG_SET) THEN
     RETURN;
 END_IF
@@ -2731,9 +3174,6 @@ VAR_INPUT
 END_VAR
 VAR
     info    : ST_ConfigSetInfo;
-    record  : ST_ConfigRecord;
-    i       : INT;
-    applied : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[LoadConfigSet := FALSE;
@@ -2770,45 +3210,85 @@ IF info.Kind = E_ConfigKind.PAR_CFG THEN
     RETURN;
 END_IF
 IF NOT _M_CaptureConfig(SetName := '_validation', Kind := info.Kind, ModelIndex := 0) THEN RETURN; END_IF
-IF NOT _M_ValidateSetShape(Store := _loadSnapshot, Info := info) THEN
+IF NOT _M_ValidateSetShape(Store := _loadSnapshot, Info := info, AnyRevision := FALSE) THEN
     RETURN;
 END_IF
-IF (info.Kind = E_ConfigKind.LINE_CFG) AND (_pLine <> 0) THEN
+IF NOT _M_ApplySet(SetName := SetName, RecordCount := info.RecordCount, Kind := info.Kind,
+        Restoring := FALSE) THEN
+    RETURN;
+END_IF
+ConfigRev := ConfigRev + 1;
+ConfigPersist.LastSetRecords := info.RecordCount;
+_M_MarkPersistPending();
+_M_RaiseMaintenance(Reason := E_Reason.EVENT_CONFIG_SET_APPLIED,
+    Text := 'std.audit.configSetApplied');
+LoadConfigSet := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ApplySet" Id="{f003cd3e-e4eb-4ec5-b15b-c46e595f4b79}">
+      <Declaration><![CDATA[// §3.8b - replay the set frozen in _loadSnapshot. STAGED and ALL-OR-NOTHING:
+// pass 1 validates every record through its owning module's typed handler and
+// changes nothing; only if all of them pass does pass 2 apply them. A record
+// whose capability no longer exists fails pass 1 like any other and is named.
+//
+// Shared by an operator's LoadConfigSet and the start-up restore of the live
+// documents. Restoring skips the session's per-value level (§3.8d(e)): those
+// values were accepted once already, and replaying them is the machine's act,
+// not an operator's. With a model view open the values go to that record.
+METHOD PRIVATE _M_ApplySet : BOOL
+VAR_INPUT
+    SetName     : STRING(80);
+    RecordCount : INT;
+    Kind        : E_ConfigKind;
+    Restoring   : BOOL;
+END_VAR
+VAR
+    record    : ST_ConfigRecord;
+    i         : INT;
+    applied   : BOOL;
+    lineBatch : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_ApplySet := FALSE;
+lineBatch := (Kind = E_ConfigKind.LINE_CFG) AND (_pLine <> 0);
+IF lineBatch THEN
     IF NOT _pLine^.M_BeginConfigBatch() THEN RETURN; END_IF
 END_IF
 // ---- pass 1: stage. Nothing in the machine changes in this loop. ----
-FOR i := 1 TO info.RecordCount DO
+FOR i := 1 TO RecordCount DO
     IF NOT _loadSnapshot.M_ReadRecord(SetName := SetName, Index := i,
             Record := record) THEN
         _M_RejectConfigSet(Scope := '', Key := SetName);
-        IF _pLine <> 0 THEN _pLine^.M_EndConfigBatch(); END_IF
+        IF lineBatch THEN _pLine^.M_EndConfigBatch(); END_IF
         RETURN;
     END_IF
     // §3.8d(e) - CONFIG_SET alone cannot replace a value this session could
     // not edit one at a time. Checked in the staging pass, so nothing moved.
-    IF NOT Access.M_PermitsLevelLogged(Required := _M_DataLevelOf(TargetPath := record.Scope,
-            WriteKey := record.WriteKey, ForWrite := TRUE)) THEN
-        _M_RejectConfigSet(Scope := record.Scope, Key := record.WriteKey);
-        IF _pLine <> 0 THEN _pLine^.M_EndConfigBatch(); END_IF
-        RETURN;
+    IF NOT Restoring THEN
+        IF NOT Access.M_PermitsLevelLogged(Required := _M_DataLevelOf(TargetPath := record.Scope,
+                WriteKey := record.WriteKey, ForWrite := TRUE)) THEN
+            _M_RejectConfigSet(Scope := record.Scope, Key := record.WriteKey);
+            IF lineBatch THEN _pLine^.M_EndConfigBatch(); END_IF
+            RETURN;
+        END_IF
     END_IF
     IF NOT _M_StageOneRecord(Record := record) THEN
         _M_RejectConfigSet(Scope := record.Scope, Key := record.WriteKey);
-        IF _pLine <> 0 THEN _pLine^.M_EndConfigBatch(); END_IF
+        IF lineBatch THEN _pLine^.M_EndConfigBatch(); END_IF
         RETURN;
     END_IF
 END_FOR
-IF (info.Kind = E_ConfigKind.LINE_CFG) AND (_pLine <> 0) THEN
+IF lineBatch THEN
     IF NOT _pLine^.M_ValidateConfigBatch() THEN
         _pLine^.M_EndConfigBatch(); _M_RejectConfigSet(Scope := Status.Name, Key := SetName); RETURN;
     END_IF
 END_IF
 // ---- pass 2: apply. Every record already proved acceptable on the SAME
 // validator, so a refusal here cannot be a data problem. ----
-FOR i := 1 TO info.RecordCount DO
+FOR i := 1 TO RecordCount DO
     IF NOT _loadSnapshot.M_ReadRecord(SetName := SetName, Index := i,
             Record := record) THEN
-        IF _pLine <> 0 THEN _pLine^.M_EndConfigBatch(); END_IF
+        IF lineBatch THEN _pLine^.M_EndConfigBatch(); END_IF
         _M_ConfigSetHalfApplied(Scope := record.Scope, Key := record.WriteKey);
         RETURN;
     END_IF
@@ -2819,23 +3299,18 @@ FOR i := 1 TO info.RecordCount DO
         applied := M_ApplyConfigWrite(Scope := record.Scope,
             WriteKey := record.WriteKey, Revision := record.Revision,
             TextValue := record.ValueText,
-            RootReady := (_exec = E_ExecState.READY));
+            RootReady := (_exec = E_ExecState.READY) OR (_pModelView <> 0));
     END_IF
     IF NOT applied THEN
-        IF _pLine <> 0 THEN _pLine^.M_EndConfigBatch(); END_IF
+        IF lineBatch THEN _pLine^.M_EndConfigBatch(); END_IF
         _M_ConfigSetHalfApplied(Scope := record.Scope, Key := record.WriteKey);
         RETURN;
     END_IF
 END_FOR
-IF (info.Kind = E_ConfigKind.LINE_CFG) AND (_pLine <> 0) THEN
+IF lineBatch THEN
     _pLine^.M_CommitConfigBatch();
 END_IF
-ConfigRev := ConfigRev + 1;
-ConfigPersist.LastSetRecords := info.RecordCount;
-_M_MarkPersistPending();
-_M_RaiseMaintenance(Reason := E_Reason.EVENT_CONFIG_SET_APPLIED,
-    Text := 'std.audit.configSetApplied');
-LoadConfigSet := TRUE;]]></ST>
+_M_ApplySet := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_StageOneRecord" Id="{b6014e8d-72c3-49a5-80fe-c1738d92406b}">
@@ -2858,7 +3333,8 @@ END_IF
 _M_StageOneRecord := M_StageConfigWrite(Scope := Record.Scope,
     WriteKey := Record.WriteKey, Revision := Record.Revision,
     TextValue := Record.ValueText,
-    RootReady := (_exec = E_ExecState.READY));]]></ST>
+    // Another model's record is not what the machine is running on.
+    RootReady := (_exec = E_ExecState.READY) OR (_pModelView <> 0));]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_ConfigSetHalfApplied" Id="{47db6015-9a2e-4c38-b7f0-d5216e409a83}">
@@ -3891,6 +4367,7 @@ ConfigRev := DT_TO_UDINT(F_Now());
 IF _persistence = 0 THEN
     _persistence := _persistWriter;
 END_IF
+_liveArmed := TRUE;            // §3.8b the walk is complete: the documents may restore
 // The framework's OWN station config is subject to the same rule it imposes on
 // every module: version 0 is a first boot that lost nothing, any other
 // unrecognized version means a real ModePolicy image was rejected and that is
@@ -4163,6 +4640,9 @@ VAR_INPUT
     TextValue : STRING(255);
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[WriteConfig := FALSE;
+IF NOT _M_ConfigRestored() THEN
+    RETURN;                            // §3.8b the restore would replay over it
+END_IF
 IF (WriteKey = '') OR (Revision <= 0)
 OR NOT _M_OwnsModulePath(Path := TargetPath) THEN
     RETURN;
@@ -4205,6 +4685,9 @@ VAR_INPUT
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[CaptureConfig := FALSE;
+IF NOT _M_ConfigRestored() THEN
+    RETURN;
+END_IF
 IF (WriteKey = '') OR (Revision <= 0)
 OR NOT _M_OwnsModulePath(Path := TargetPath) THEN
     RETURN;
@@ -4442,6 +4925,11 @@ END_IF
 IF ConfigPersist.RestoreLost AND NOT ConfigPersist.RestoreAcknowledged
 AND (ConfigPersist.RestorePolicy = E_ConfigRestorePolicy.BLOCK_UNTIL_ACKNOWLEDGED) THEN
     _M_AddReason(Report := Report, Text := 'std.release.configRestoreUnacknowledged', Reason := E_Reason.CONFIG_RESTORE_LOST, Kind := E_ReleaseKind.ALARM);
+END_IF
+// §3.8b - the live documents are still being read back: the running values are
+// not yet the ones last made durable.
+IF NOT _M_ConfigRestored() THEN
+    _M_AddReason(Report := Report, Text := 'std.release.configRestoring', Reason := E_Reason.NONE, Kind := E_ReleaseKind.OTHER);
 END_IF
 IF ControlDomain.Present AND NOT ControlDomain.ReadyForStart THEN
     _M_AddReason(Report := Report, Text := 'std.release.controlDomainNotReady', Reason := E_Reason.NONE, Kind := E_ReleaseKind.INTERLOCK);
@@ -4818,13 +5306,26 @@ VAR_INPUT
     SetName : STRING(80);
     Kind : E_ConfigKind;
     ModelIndex : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_exportNext := 0; // every replacement invalidates the old immutable cursor
+_M_CaptureConfig := _M_CaptureInto(Store := _snapshot, SetName := SetName, Kind := Kind,
+    ModelIndex := ModelIndex);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_CaptureInto" Id="{29414adf-e5e0-41d7-bc26-9a37ff215723}">
+      <Declaration><![CDATA[// The capability walk as one set in Store. The live documents capture into
+// _loadSnapshot, so writing them never invalidates an export of _snapshot.
+METHOD PRIVATE _M_CaptureInto : BOOL
+VAR_INPUT
+    Store : I_ConfigStore;
+    SetName : STRING(80);
+    Kind : E_ConfigKind;
+    ModelIndex : UDINT;
 END_VAR
 VAR
     info : ST_ConfigSetInfo;
     records : INT;
 END_VAR]]></Declaration>
-      <Implementation><ST><![CDATA[_M_CaptureConfig := FALSE;
-_exportNext := 0; // every replacement invalidates the old immutable cursor
+      <Implementation><ST><![CDATA[_M_CaptureInto := FALSE;
 IF NOT _M_OpenModelView(Index := ModelIndex) THEN RETURN; END_IF
 info.SetName := SetName;
 info.Used := TRUE;
@@ -4837,18 +5338,21 @@ IF ModelIndex > 0 THEN info.ModelCode := AvailableModels[ModelIndex].ModelCode; 
 IF Kind <> E_ConfigKind.PAR_CFG THEN info.ModelCode := ''; END_IF
 info.CreatedAt := F_Now();
 info.TimeSynchronized := F_TimeSynchronized();
-IF _configPager.M_SetupSetSave(Store := _snapshot, Info := info) THEN
+IF _configPager.M_SetupSetSave(Store := Store, Info := info) THEN
     M_AppendConfig(Pager := _configPager);
-    _M_CaptureConfig := _configPager.M_FinishSetSave(Records => records);
+    _M_CaptureInto := _configPager.M_FinishSetSave(Records => records);
 END_IF
 _pModelView := 0;]]></ST></Implementation>
     </Method>
     <Method Name="_M_ValidateSetShape" Id="{6aad96f0-b145-4801-97ec-47145f5fcee6}">
       <Declaration><![CDATA[// Exact current capability identity/type/revision; no blanket stale migration.
+// AnyRevision: a restored document carries the ConfigRev of an earlier run, which
+// says nothing about this one; the per-record identity, type and revision still do.
 METHOD PRIVATE _M_ValidateSetShape : BOOL
 VAR_INPUT
     Store : I_ConfigStore;
     Info : ST_ConfigSetInfo;
+    AnyRevision : BOOL;
 END_VAR
 VAR
     expectedInfo : ST_ConfigSetInfo;
@@ -4860,8 +5364,11 @@ VAR
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[_M_ValidateSetShape := FALSE;
 IF (Store = 0) OR (Info.RootIdentity <> Status.Name)
-OR (Info.SetSchema <> CONFIG_SET_SCHEMA) OR ((Info.ConfigRev = 0) OR (Info.ConfigRev > ConfigRev))
+OR (Info.SetSchema <> CONFIG_SET_SCHEMA)
 OR (Info.RecordCount < 1) OR (Info.RecordCount > PL_Fraktal.MAX_SET_RECORDS) THEN
+    _M_RejectConfigSet(Scope := Info.RootIdentity, Key := Info.SetName); RETURN;
+END_IF
+IF NOT AnyRevision AND ((Info.ConfigRev = 0) OR (Info.ConfigRev > ConfigRev)) THEN
     _M_RejectConfigSet(Scope := Info.RootIdentity, Key := Info.SetName); RETURN;
 END_IF
 IF NOT _snapshot.M_ReadInfo(SetName := '_validation', Info := expectedInfo) THEN RETURN; END_IF
@@ -4906,6 +5413,9 @@ VAR
     sourceName : STRING(80);
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[CreateModel := FALSE;
+IF NOT _M_ConfigRestored() THEN
+    RETURN;
+END_IF
 _exportNext := 0;
 _M_SyncModelCatalog();
 IF (_modelCatalog = 0) OR (_pModelRegion = 0) OR (_modelRegionSize < SIZEOF(UINT))
@@ -4924,7 +5434,8 @@ IF FromSet THEN
     IF NOT _M_CopySet(SetName := SetName) THEN RETURN; END_IF
     IF NOT _loadSnapshot.M_ReadInfo(SetName := SetName, Info := info) THEN RETURN; END_IF
     IF info.Kind <> E_ConfigKind.PAR_CFG THEN RETURN; END_IF
-    IF NOT _M_ValidateSetShape(Store := _loadSnapshot, Info := info) THEN RETURN; END_IF
+    IF NOT _M_ValidateSetShape(Store := _loadSnapshot, Info := info,
+            AnyRevision := FALSE) THEN RETURN; END_IF
     source := _loadSnapshot;
     sourceName := SetName;
 END_IF

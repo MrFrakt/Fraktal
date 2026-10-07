@@ -78,6 +78,33 @@ object ownership, GUID/Line-ID rewrites, and more than one thousand warnings.
 
 ## 4. Full compile and local library installation
 
+### 4.0 The 32-bit XAE Shell
+
+The VS2017-based x32 Shell (`TcXaeShell.DTE.15.0`) opens legacy `.sln` files,
+not `.slnx`. Use the single-library wrappers `Framework/FraktalCore.sln` and
+`Framework/FraktalModules.sln`, in that order, then close the library solution
+before opening `Examples/PressDemo/PressDemoX32.sln`. They point at the same
+authoritative PLC projects as the modern wrappers. IDE bitness does not select
+the PLC architecture: choose `TwinCAT RT (x86)` or `TwinCAT RT (x64)` for the target.
+
+Run automation for this Shell from 32-bit PowerShell:
+
+```powershell
+& "$env:WINDIR\SysWOW64\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -File `
+  FraktalCore\PLC\TwinCAT\tools\Invoke-TwinCatLibraryInstall.ps1 `
+  -DteProgId TcXaeShell.DTE.15.0 -Platform 'TwinCAT RT (x86)' `
+  -OutputDirectory FraktalCore\PLC\TwinCAT\Framework\Release\x32
+```
+
+The installer selects the legacy library wrappers for this ProgID. Keep the
+Modules → Core reference and the consumer version pins. An installed Modules
+library that omits its Core dependency cannot be repaired by adding Core only
+to Press. Also refresh the exported `.library` files: reinstalling an older
+export replaces the repaired repository entry. The 2026-10-05 x32 repair found
+exactly that stale file under `Release/x32`, and verified both object checks
+and full offline builds in the actual x32 Shell. Download/activation still has
+the separate target/commissioning boundary in §1.
+
 ### 4.1 Build and install Fraktal_Core
 
 1. Close any application or Modules solution that consumes `Fraktal_Core`.
@@ -386,6 +413,15 @@ Perform this sequence first for `FraktalTests.slnx`, then close it and repeat fo
 9. Stop the test PLC or return the isolated target to Config mode after harvesting
    evidence. Do not create a boot project.
 
+**Unattended alternative to steps 6-8 (2026-10-06, §9.2).** Activation already
+writes the selected project's boot application; with Autostart off, the restarted
+runtime holds none loaded and the PLC port reports ADS state `Invalid`. An ADS Run
+request then loads and starts that boot application. `Invoke-TwinCatTcUnitGate.ps1
+-StartBootProjectWithAds` performs exactly this after its unchanged target, autostart
+and compile preconditions, refuses a port that is already running, verifies the loaded
+`_AppInfo.ProjectName` before reading any result, and stops the PLC over ADS when it
+is done. No Login, download prompt or Autostart is involved.
+
 ### 6.3 Prove the selected gate, not merely a green summary
 
 Accept a result only when runner identity, suite count, test count, and failure
@@ -412,7 +448,7 @@ Expect these counts for the next run:
 
 | Gate | Required runner in the log | Expected from current source |
 |---|---|---:|
-| Core/Modules | `PRG_TcUnitRunner` | 215 tests / 45 suites / 0 failed |
+| Core/Modules | `PRG_TcUnitRunner` | 235 tests / 49 suites (current inventory) |
 | Internal Press integration | `PRG_PressTestRunner` | 9 tests / 2 suites / 0 failed |
 
 Derive them from source rather than trusting this table — the suite count is the
@@ -514,3 +550,19 @@ Two rules follow, and they are the durable part:
   `tcunit_to_junit.py` already validates. It waits on TcUnit's
   `AllTestSuitesFinished` flag rather than a fixed window, and reads by name
   through `ADSIGRP_SYM_VALBYNAME` so it consumes no symbol handles.
+
+### 9.2 The runtime step without Login (2026-10-06)
+
+The mechanism §9.1 asked for does not need TcUnit-Runner. Measured on UmRT_Default,
+XAE/XAR 3.1.4026.24: after activation with Autostart off, port 851 reports `Invalid`
+(no application loaded), and `WriteControl(Run)` on that port loads and starts the
+boot application activation had just written - its SHA-256 matched the project's
+compiled `_Boot` output. The gate's `-StartBootProjectWithAds` switch is that route,
+guarded as described in §6.2; Login remains the interactive route. With it the
+aggregate gate ran 227/227 in 47 suites and the Press gate 9/9 for each of LD, ST and
+SFC, read back over ADS and validated by `tcunit_to_junit.py` (evidence:
+`Specification/Evidence/2026-10-06_TC3_MissingFeatures.md`). It still never enables
+Autostart, never targets a runtime it was not given by name, and a void call still
+proves nothing: the gate asserts the ADS Run state and the loaded project's name.
+A runtime that is loading the application may refuse a state read for a moment (ADS
+0x4, router mailbox, measured once); the poll retries until its deadline.

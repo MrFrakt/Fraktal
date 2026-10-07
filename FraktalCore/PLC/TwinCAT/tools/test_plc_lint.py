@@ -115,7 +115,7 @@ TYPE E_Bad : (READY := 0, {keyword} := 1) DINT; END_TYPE
         # Variable identifiers only — a qualified enum member does not collide
         # (E_CylinderPosition.MID compiles), so RESERVED_FUNCTIONS is not applied
         # to enum members.
-        for keyword in ("Sub", "Add", "Len", "Sel"):
+        for keyword in ("Sub", "Add", "Len", "Sel", "Insert", "From"):
             root = self._root()
             path = self._write(root, "Framework/FB_Bad.TcPOU", _pou(
                 "FB_Bad", "FUNCTION_BLOCK FB_Bad EXTENDS FB_ControlModuleBase",

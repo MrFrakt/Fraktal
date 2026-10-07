@@ -185,6 +185,11 @@ abstract class PlcRepository {
   /// no-op so a transport opts in only when it tiers reads.
   void setFieldbusViewActive(bool active) {}
 
+  /// Read-only I/O shown on a module's visible manual card. Null withdraws the
+  /// demand. Tiered transports read only its assigned channels and bus health;
+  /// this never enables output forcing or bypasses the manual-command path.
+  void setModuleIoViewActive(String? modulePath) {}
+
   /// Signals whether a module detail page for [rootPath] is open. The direct
   /// OPC UA transport gates that root's large drill-down rings/trends (alarm
   /// history, cycle/OEE trend, part records, command timing) as on-demand data —

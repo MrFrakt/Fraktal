@@ -1,0 +1,38 @@
+// Read-only MS-W32T status client. Slots 0..5 preserve opnum 6; never called.
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-w32t/
+[
+ uuid(8fb6d884-2388-11d0-8c35-00c04fda2795), version(4.1),
+ pointer_default(unique)
+]
+interface FraktalW32Time {
+ typedef struct {
+  unsigned long size;
+  unsigned long leap;
+  unsigned long stratum;
+  long poll;
+  unsigned long reference;
+  unsigned hyper lastSync;
+  hyper rootDelay;
+  unsigned hyper dispersion;
+  long precision;
+  [string, unique] wchar_t* source;
+  hyper offset;
+  unsigned long state;
+  unsigned long flags;
+  unsigned long rate;
+  unsigned long netlogon;
+  unsigned long lastResult;
+  unsigned hyper syncAge;
+  unsigned long count;
+  // QueryStatus specifies count=0 and entries=NULL (MS-W32T 3.2.5.7).
+  [size_is(count), unique] byte* entries;
+ } FraktalW32Status;
+ unsigned long Reserved0([in] handle_t binding);
+ unsigned long Reserved1([in] handle_t binding);
+ unsigned long Reserved2([in] handle_t binding);
+ unsigned long Reserved3([in] handle_t binding);
+ unsigned long Reserved4([in] handle_t binding);
+ unsigned long Reserved5([in] handle_t binding);
+ unsigned long FraktalQueryStatus([in] handle_t binding,
+   [out, ref] FraktalW32Status** status);
+}

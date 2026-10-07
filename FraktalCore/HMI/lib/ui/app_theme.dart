@@ -11,6 +11,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'theme_surfaces.dart';
+import 'theme_chrome.dart';
 import '../content/module_layout.dart' show ModuleStateToken;
 import '../domain/types.dart';
 
@@ -267,6 +268,9 @@ class PresetSwitchListTile extends StatelessWidget {
   );
 }
 
+/// The picker's collections; stored selections remain indices into kThemes.
+enum ThemeGroup { standard, modern, inspired }
+
 /// One selectable theme: a localised display-key, a Material seed, a brightness,
 /// and (for OLED) a true-black surface override.
 class FraktalThemeSpec {
@@ -289,13 +293,19 @@ class FraktalThemeSpec {
   /// A deeper shade of the HIGH/error red, for a canvas too grey for the seed's
   /// own red to stay AA on a tinted alarm banner. Same semantic, darker shade.
   final Color? alarmShade;
+  final FraktalChromeTheme? chrome;
 
   const FraktalThemeSpec(this.nameKey, this.seed, this.brightness,
       {this.trueBlack = false,
       this.highContrast = false,
       this.surfaces,
       this.isa101 = false,
-      this.alarmShade});
+      this.alarmShade,
+      this.chrome});
+
+  ThemeGroup get group => chrome != null
+      ? ThemeGroup.inspired
+      : standard ? ThemeGroup.standard : ThemeGroup.modern;
 
   /// Standard (orthodox): flat colour, no decorative material - the look
   /// industrial HMIs conventionally ship. Modern: glow, glass, grid, paper or
@@ -339,6 +349,20 @@ class FraktalThemeSpec {
         outlineVariant: Color.lerp(ink, skin.panel, 0.75),
       );
     }
+    if (chrome != null) {
+      scheme = scheme.copyWith(
+        primary: seed, onPrimary: Colors.white,
+        primaryContainer: const Color(0xFFE0EDF3),
+        onPrimaryContainer: const Color(0xFF003E60),
+        secondary: seed, onSecondary: Colors.white,
+        secondaryContainer: const Color(0xFFDDECF2),
+        onSecondaryContainer: const Color(0xFF172126),
+        onSurface: const Color(0xFF171C20),
+        onSurfaceVariant: const Color(0xFF424B50),
+        outline: const Color(0xFF757E84),
+        outlineVariant: const Color(0xFFB8BDC0),
+      );
+    }
     var theme = ThemeData(useMaterial3: true, colorScheme: scheme);
     if (skin?.luminous ?? false) {
       theme = theme.copyWith(
@@ -377,7 +401,8 @@ class FraktalThemeSpec {
       );
     }
     theme = _applyScale(theme, UiMetrics.of(scale));
-    return skin == null ? theme : applySurfaceTheme(theme, skin);
+    if (skin != null) theme = applySurfaceTheme(theme, skin);
+    return chrome == null ? theme : applyChromeTheme(theme, chrome!);
   }
 }
 
@@ -705,14 +730,24 @@ const kThemes = <FraktalThemeSpec>[
         glint: Color(0xFF6B737C),
         radius: 6,
       )),
+  // Reference-inspired themes are appended so existing selections never move.
+  FraktalThemeSpec('std.theme.likeABosch', Color(0xFF005C8F), Brightness.light,
+      chrome: kLikeABoschChrome,
+      alarmShade: Color(0xFFA51515),
+      surfaces: FraktalSurfaceTheme(
+        canvas: Color(0xFFEEEEEE), panel: Color(0xFFFFFFFF),
+        accent: Color(0xFF005C8F), glint: Color(0xFFB8BDC0), radius: 0,
+      )),
 ];
 
 /// The picker's order: the standard (orthodox) themes first - ISA-101 aligned
-/// ones leading - then the modern ones. Only the ORDER shown; a selection is
+/// ones leading - then modern and industry-inspired collections. Only the
+/// ORDER shown; a selection is
 /// still stored as its [kThemes] index, which must never move.
 List<int> get kThemeDisplayOrder {
   final indices = List<int>.generate(kThemes.length, (i) => i);
-  int rank(int i) => kThemes[i].isa101
+  int rank(int i) => kThemes[i].group == ThemeGroup.inspired
+      ? 3 : kThemes[i].isa101
       ? 0
       : kThemes[i].standard
           ? 1

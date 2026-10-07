@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="PRG_PlatformAcceptance" Id="{85110003-d598-43d2-9df7-96fc3fc8f8fa}" SpecialFunc="None">
+    <Declaration><![CDATA[// Live acceptance harness on the ISOLATED test runtime - not a TcUnit suite. After
+// the suites finish it keeps running, so an operator can read, over ADS, what the
+// real target providers report while they change the target underneath them:
+// stop/start the Windows clock observer or Windows Time, corrupt its record, and
+// see the Device Manager and EtherCAT master answer (or, on a host without them,
+// stay explicitly unavailable). It writes no global: GVL_FraktalTime stays the
+// suites' to set. CLOCK_FILE is a dedicated acceptance path, never the
+// installed observer's protected default directory.
+//
+// Retention is wired as the press wires it (§3.8b, IMPLEMENTATION_NOTES §163): one
+// file medium in DATA_FOLDER holds the user table (AccessUsers, key
+// 'Acceptance.users'), LiveUnit's station and model documents, and LiveSets'
+// parameter sets. The same instances, their confirmation markers and their files
+// are the only way to accept retention across a real runtime restart or download.
+// The acceptance script registers test users by writing RegisterUser/Pin/Level and
+// logs in through AccessUnit.Access exactly as an HMI does; it edits LiveUnit's
+// values through SetLimit/SetModelSpeed/SaveSet, which call the root's own write
+// methods.
+PROGRAM PRG_PlatformAcceptance
+VAR
+    Clock : FB_TcWindowsTime;
+    Ipc : FB_TcIpcDiagnostics;
+    Bus : FB_EcBusHealth;
+    {attribute 'OPC.UA.DA' := '0'}
+    _topology : FB_IoTopologyPublisher;
+    _setup : BOOL;
+    _noMaster : T_AmsNetIdArr;      // all zero: derive the local master's NetId
+    AccessUnit : FB_ProbeUnit;
+    AccessUsers : FB_LocalAccessProvider;
+    RegisterUser : STRING(32);      // written by the acceptance script, consumed here
+    RegisterPin : STRING(32);
+    RegisterLevel : E_AccessLevel;
+    Registered : UDINT;             // accepted registrations this run
+    Storage : FB_FilePersistMedium;
+    LiveRecipes : FB_LocalRecipeProvider;
+    LiveRec0 : ST_ProbeModelParCfg := (Speed := 1);
+    LiveRecA : ST_ProbeModelParCfg := (Speed := 10);
+    LiveRecB : ST_ProbeModelParCfg := (Speed := 20);
+    LiveSets : FB_MediumConfigStore;
+    LiveUnit : FB_ProbeModelUnit;
+    SetLimit : DINT;                // written by the script: 0 = nothing to do
+    SetModelSpeed : DINT;           // model B (AvailableModels[2]); 0 = nothing to do
+    SaveSet : BOOL;
+    LastWriteOk : BOOL;
+    Writes : UDINT;                 // accepted writes this run
+    // File commands into DATA_FOLDER through the PLC's own file service (the
+    // runtime's account owns the files; an ordinary host user may only read them).
+    DamageFile : STRING(80);        // overwritten with 16 bytes of 16#5A
+    RemoveFile : STRING(80);        // deleted
+    ObstructFile : STRING(80);      // a directory created in its place
+    ClearObstruction : STRING(80);  // that directory removed
+    FileOps : UDINT;                // completed file commands this run
+    FileOpError : UDINT;            // ErrorId of the last one (0 = none)
+    {attribute 'OPC.UA.DA' := '0'}
+    _files : FB_ProbeFileOps;
+    _garbage : ARRAY[0..15] OF BYTE := [16(16#5A)];
+    _fileOpBusy : BOOL;
+END_VAR
+VAR CONSTANT
+    CLOCK_FILE : STRING(80) := 'C:\ProgramData\Fraktal\ClockAcceptance\quality.bin';
+    DATA_FOLDER : STRING(80) := 'C:\ProgramData\Fraktal\Acceptance\';
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF NOT _setup THEN
+    _setup := TRUE;
+    // No slave is mapped: only the always-on master sample runs.
+    Bus.Setup(Publisher := _topology, MasterNetIdArr := _noMaster,
+        FirstSlaveNode := 1, SlaveCount := 0, MasterNodeIndex := 0);
+    Storage.Setup(Folder := DATA_FOLDER, Where := Tc2_System.PATH_GENERIC);
+    AccessUsers.M_UseMedium(Medium := Storage);
+    AccessUsers.M_UseKey(Key := 'Acceptance.users');
+    AccessUnit.Setup('Acceptance');
+    AccessUnit();
+    AccessUnit.Access.Setup(Provider := AccessUsers, pAlarmLog := ADR(AccessUnit.AlarmLog));
+    LiveRecipes.Register(ModelCode := '', RecipeKey := 'ProbeModel', pData := ADR(LiveRec0), Size := SIZEOF(LiveRec0));
+    LiveRecipes.Register(ModelCode := 'A', RecipeKey := 'ProbeModel', pData := ADR(LiveRecA), Size := SIZEOF(LiveRecA));
+    LiveRecipes.Register(ModelCode := 'B', RecipeKey := 'ProbeModel', pData := ADR(LiveRecB), Size := SIZEOF(LiveRecB));
+    LiveUnit.ParCfg := LiveRec0;
+    LiveUnit.Setup(Name := 'AcceptanceLive', Provider := LiveRecipes);
+    LiveSets.Setup(Medium := Storage, KeyPrefix := 'AcceptanceLive.sets');
+    LiveUnit.SetConfigStore(Store := LiveSets);
+    LiveUnit.SetPersistMedium(Medium := Storage);
+END_IF
+IF SetLimit <> 0 THEN
+    LastWriteOk := LiveUnit.WriteConfig(TargetPath := 'AcceptanceLive', WriteKey := 'probe.limit',
+        Revision := 1, TextValue := DINT_TO_STRING(SetLimit));
+    SetLimit := 0;
+    IF LastWriteOk THEN Writes := Writes + 1; END_IF
+END_IF
+IF SetModelSpeed <> 0 THEN
+    LastWriteOk := LiveUnit.WriteModelConfig(ModelIndex := 2, TargetPath := 'AcceptanceLive',
+        WriteKey := 'probe.speed', Revision := 1, TextValue := DINT_TO_STRING(SetModelSpeed));
+    SetModelSpeed := 0;
+    IF LastWriteOk THEN Writes := Writes + 1; END_IF
+END_IF
+IF SaveSet THEN
+    LastWriteOk := LiveUnit.SaveConfigSet(SetName := 'AcceptanceSet', Kind := E_ConfigKind.STATION_CFG);
+    SaveSet := FALSE;
+    IF LastWriteOk THEN Writes := Writes + 1; END_IF
+END_IF
+_files.Cyclic();
+IF _fileOpBusy AND NOT _files.Busy THEN
+    _fileOpBusy := FALSE;
+    FileOps := FileOps + 1;
+    FileOpError := _files.ErrorId;
+END_IF
+IF NOT _files.Busy THEN
+    IF DamageFile <> '' THEN
+        _fileOpBusy := _files.M_Write(Path := CONCAT(DATA_FOLDER, DamageFile),
+            Where := Tc2_System.PATH_GENERIC, pData := ADR(_garbage), Size := SIZEOF(_garbage));
+        DamageFile := '';
+    ELSIF RemoveFile <> '' THEN
+        _fileOpBusy := _files.M_Delete(Path := CONCAT(DATA_FOLDER, RemoveFile),
+            Where := Tc2_System.PATH_GENERIC);
+        RemoveFile := '';
+    ELSIF ObstructFile <> '' THEN
+        _fileOpBusy := _files.M_MakeDir(Path := CONCAT(DATA_FOLDER, ObstructFile),
+            Where := Tc2_System.PATH_GENERIC);
+        ObstructFile := '';
+    ELSIF ClearObstruction <> '' THEN
+        _fileOpBusy := _files.M_RemoveDir(Path := CONCAT(DATA_FOLDER, ClearObstruction),
+            Where := Tc2_System.PATH_GENERIC);
+        ClearObstruction := '';
+    END_IF
+END_IF
+LiveUnit();
+IF RegisterUser <> '' THEN
+    IF AccessUsers.Register(User := RegisterUser, Pin := RegisterPin, Level := RegisterLevel) THEN
+        Registered := Registered + 1;
+    END_IF
+    RegisterUser := '';
+    RegisterPin := '';
+END_IF
+AccessUnit();
+Clock.Cyclic(FilePath := CLOCK_FILE, PollInterval := T#10S, MaximumSampleAge := T#90S,
+    MaximumSyncAgeSeconds := 7200, MaximumOffsetUs := 1000);
+Ipc.Cyclic();
+Bus.M_Refresh();]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

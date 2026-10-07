@@ -53,6 +53,13 @@ $solutionOf = @{
     'Fraktal_Core'    = 'FraktalCore\PLC\TwinCAT\Framework\FraktalCore.slnx'
     'Fraktal_Modules' = 'FraktalCore\PLC\TwinCAT\Framework\FraktalModules.slnx'
 }
+# The VS2017-based x32 XAE Shell does not understand .slnx. Its wrappers point
+# at the same single-library .tsproj files, keeping source/consumer GUIDs isolated.
+if ($DteProgId -eq 'TcXaeShell.DTE.15.0') {
+    if (-not $PSBoundParameters.ContainsKey('Platform')) { $Platform = 'TwinCAT RT (x86)' }
+    $solutionOf['Fraktal_Core'] = 'FraktalCore\PLC\TwinCAT\Framework\FraktalCore.sln'
+    $solutionOf['Fraktal_Modules'] = 'FraktalCore\PLC\TwinCAT\Framework\FraktalModules.sln'
+}
 $dependencyOrder = @('Fraktal_Core', 'Fraktal_Modules')
 $requested = $dependencyOrder | Where-Object { $Library -contains $_ }
 if (($requested -join ',') -ne (($Library | Select-Object -Unique) -join ',')) {

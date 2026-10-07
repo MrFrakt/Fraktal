@@ -98,6 +98,22 @@ controller. Missing metrics remain `Available=FALSE`; an application shall not
 inject healthy zeros. `F_Now()` does not discipline the operating-system clock;
 the target's PTP/NTP/DC commissioning still owns that prerequisite.
 
+For a station choosing its existing Windows Time service, the reference binding
+provides `FB_TcWindowsTime`, configured once through
+`FB_TcSystemHealthProbe.M_UseWindowsTime`. A target-local read-only observer
+supplies structured Windows service quality; the reader validates and expires
+it through the same authority. Build and target installation are described in
+[`Guides/TC3_WINDOWS_CLOCK.md`](Guides/TC3_WINDOWS_CLOCK.md). This adapter observes
+the chosen service; it does not commission or discipline the clock.
+
+The observer's record is stamped by the operating-system clock, while `F_Now()` reads
+the TwinCAT system time that stamps every event, and the two can disagree: on the
+usermode test runtime the TwinCAT time fell 475 s behind Windows UTC within about
+2.4 h of run time. The reader therefore judges freshness by the record changing, and
+reports a PLC clock more than the sample age behind the observed OS clock as
+unsynchronized (`ErrorID 1398`) however well the OS clock itself is disciplined. A
+target's acceptance shall include this comparison.
+
 ---
 
 ## TC3 §3 — Language & wiring mechanics (TwinCAT 3)
@@ -212,6 +228,53 @@ window is `SetConfigPersistWindow` (default `PL_Fraktal.CONFIG_PERSIST_WINDOW_MS
 `MAX_CONFIG_SETS × MAX_SET_RECORDS` records of `ST_ConfigRecord` in the
 persistent area — a real claim on the controller's persistent budget, so a
 deployment that raises either constant sizes that area to match.
+
+**Where retained data lives is a project decision behind one medium.**
+`I_PersistMedium` moves keyed byte documents - queued, ticketed and polled, so a
+file or a network never blocks the task - and owns only the medium's own failure
+modes; content is validated by its consumer. The composition root declares one
+medium and hands the same instance to every consumer, so switching medium is one
+declaration. The binding ships two:
+
+- `FB_FilePersistMedium` (`FILE_JSON`): a folder given at `Setup` (`PATH_GENERIC`
+  absolute, or relative to `PATH_BOOTPATH`), created on the first request. Each key
+  is `<key>.a` and `<key>.b`, each an 80-byte text header (`FRAKTAL-DOC 1`,
+  generation, length, CRC-32 of the key, of the document and of the header) followed
+  by the document unchanged, so a set file stays readable. Both headers are read
+  before every write, which replaces the slot not holding the newest valid copy; a
+  read returns the newest copy that verifies, falling back to the other. A slot the
+  file service cannot read (any error but not-found) makes the request answer
+  `Ok = FALSE` and a write is refused: storage that did not answer is never taken
+  for empty. A persistent, non-secret table of confirmed generations, keyed by the
+  CRC of folder and key, reports `Lost` when a confirmed copy is missing, damaged or
+  older. It is confidential (documents pass through the caller's buffer). On an IPC
+  image with a write filter the folder shall be excluded.
+- `FB_RetainPersistMedium` (`LOCAL_RETAIN`): a bounded persistent pool
+  (`MAX_RETAIN_DOCUMENTS` of `MAX_PERSIST_DOC_BYTES`), each write followed by
+  `FB_WritePersistentData`. A full pool refuses a write. It cannot tell a persistent
+  image TwinCAT failed to restore from a first boot, and it is symbol-readable, so it
+  is not confidential.
+
+A database or MES medium is the same interface reached through a §3.15 connector;
+none ships. On a medium, `FB_MediumConfigStore` holds the named sets (one
+`FB_ConfigSetDocument` per set, `<prefix>.set<n>`): read back once at start, written
+after every save or delete, and found by the root through `__QUERYINTERFACE` as an
+`I_ConfigPersistence`, so `PersistPending` covers a saved set until its document is
+written. `FB_UnitBase.SetPersistMedium` keeps the root's **live** configuration on the
+medium as well: `<root>.station` (`STATION_CFG`), `<root>.line` when the root hosts a
+line it owns, and `<root>.model<n>` for every catalog model when the root registered
+its model data with a storing provider and owns every `PAR_CFG` value. At start each
+document is read back and replayed through `_M_ApplySet` - the same staged,
+all-or-nothing path `LoadConfigSet` takes, without the session's per-value level
+because the restore is the machine's act - before any configuration write is
+accepted; Start names the restore (`std.release.configRestoring`) until it is done.
+A read the medium cannot answer is retried every 2 s and announced
+(`CONFIG_PERSIST_FAILED`, `std.error.storageUnreadable`), never replaced by defaults.
+A missing document is a first start; one confirmed and lost, damaged, or not fitting
+this build is a §3.8b restore loss under its key. After every accepted write each
+document is written again from the capability walk; a failed pass is retried every
+10 s and holds `PersistPending`. The native `PERSISTENT` data stays as it was: it
+seeds the first documents and is what a lost one falls back to.
 
 **A set is the manifest walk, not a second walk.** `FB_ConfigPager` gains a
 record sink: `M_SetupSetSave` puts it in record mode and the ordinary
@@ -454,6 +517,36 @@ documented.
 
 ---
 
+### TC3 §7.7 Local user-table retention
+*Binds Core §7.7(c) and §3.8b.* The local table is excluded from the ADS symbol
+table and OPC UA (`hide`, `OPC.UA.DA := '0'`). TwinCAT restores `PERSISTENT` data by
+symbol, so a hidden variable cannot be persistent - the compiler warns that it will
+not be. `FB_LocalAccessProvider` therefore keeps the table as one image document
+(`ST_AccessImageV1`: packed, versioned, CRC-32 over every byte before the checksum) on
+a confidential `I_PersistMedium` (TC3 §3.8b). Without a call it uses its own file
+medium in the runtime's TwinCAT Boot directory (`PATH_BOOTPATH`), beside the persistent
+data and inside the same write-filter exclusion, under the key `FraktalAccess_` plus
+the CRC-32 of its instance path, so it needs no project call. `M_UseMedium` puts it on
+the project's medium - refused for a medium that is not confidential, so a credential
+never becomes symbol-readable - and `M_UseKey` names another key; `''` keeps a table
+volatile by choice. The medium's two copies, newest-valid restore and persistent
+confirmed generations are what make a torn write fall back to the previous table and
+a confirmed table that is now missing or corrupt a loss; the provider validates the
+image whole and never mixes records. A read the medium cannot answer is retried every
+10 s and raises `CONFIG_PERSIST_FAILED` (`std.error.storageUnreadable`) meanwhile;
+retained users cannot log in until it answers.
+
+The root's access manager finds `I_AccessStore` with `__QUERYINTERFACE` and services
+it every scan. A rejected, missing or older-than-confirmed table is a Core §3.8b
+restore loss on path `<root>.Access` (`CONFIG_RESTORE_LOST`, ENGINEER acknowledgement,
+the root's restore policy); what survived is written back as the new baseline, so the
+loss is announced once. A registration that cannot be written stays live and raises
+`CONFIG_PERSIST_FAILED` until a retried write succeeds (every 10 s). Registrations
+made before the restore completes are kept and win over retained records. The images
+hold salts and iterated hashes only; a reader of the Boot directory could already read
+the persistent data, which is the exposure the hash exists for. Recovery from a lost
+table is re-registration through the station's commissioning path.
+
 ## TC3 §8 — Diagnostics & performance binding (TwinCAT 3)
 
 ### TC3 §8.11 Timing sources for the cycle-time profile
@@ -468,6 +561,21 @@ the Unit base publishes `SystemHealth`. Task cycle/jitter use `TIME()`; controll
 IPC, EtherCAT/DC and clock-source inputs shall come from target-specific diagnostic
 APIs or remain explicitly unavailable. The Press Demo's synthetic values are an
 internal simulation profile, not live target evidence.
+
+The probe offers three one-time composition switches; each replaces the explicit
+`Cyclic` inputs of its group. `M_UseWindowsTime` reads the target-local observer
+record (see the Windows clock guide). `M_UseIpcDiagnostics` takes the controller and
+IPC groups from `FB_TcIpcDiagnostics`, which reads the Beckhoff Device Manager (MDP)
+through Tc3_IPCDiag on a Beckhoff IPC or CX: `CPU_Usage`, `Memory_ProgramMemoryAvailable`,
+`CPU_Temp` (hottest instance), `Fan_Speed` (every fan must turn) and the flash wear
+figures `MassStg_DriveList_EraseCyclesLeft`/`SpareBlocksLeft` (worst drive). Reads
+are one at a time after a 20 s start delay, as Beckhoff advises against querying MDP
+during boot; a metric is available only while read within 40 s, an out-of-range
+reading is refused, and a host without the Device Manager or without a module
+reports it unavailable. `FanAvailable`/`StorageAvailable` (default TRUE, so existing
+producers keep the single `IpcAvailable` meaning) separate an unmeasured fan or wear
+figure from a healthy one. `M_UseEtherCatMaster` takes the fieldbus and DC groups
+from `FB_EcBusHealth`'s always-on master sample (TC3 §10.5).
 
 ### TC3 §8.13 Signal-tower binding
 *Binds Core §8.13.* `FB_SignalTower` produces only semantic lamp/horn outputs.
@@ -508,6 +616,22 @@ through the paged configuration manifest. Static metadata is not a cyclic array.
 
 ### TC3 §10.5 EtherCAT & IPC diagnostics
 *Binds Core §10.5.* EtherCAT master state, lost frames, slave errors, distributed-clock sync loss, and watchdog surface as System alarms per Core §10.5/§8.6.
+
+`FB_EcBusHealth` samples the master once a second, independent of the demand-gated
+per-slave picture of TC3 §10.6: `FB_EcGetMasterDevState`, `FB_EcMasterFrameStatistic`
+(lost cyclic plus queued frames) and `FB_EcGetAllSlaveCrcErrors` (summed slave CRC
+errors). The master's counters are cumulative, so `LostFrameCount`/`SlaveErrorCount`
+publish the larger of the current and the last complete 10 s window's increase: losses
+before the first sample never count, a burst is held for a whole window, and a cleared
+counter restarts from zero. `MasterHealthy` requires that no device-state fault bit is
+set - link error, I/O locked, out of send resources, watchdog, driver missing, I/O
+reset, a device in INIT/PRE-OP/SAFE-OP or in error (mask `16#0FF3`). The redundancy-only
+bits are not faults of a working line, and DC is reported apart: `DcSynchronized` is
+the absence of "DC not in sync" (`16#1000`), so a bus without DC slaves is not out of
+sync and a station that needs DC states `RequireDcSync`. A sample counts only when all
+three reads succeeded; without one for 3 s the master is unavailable. `M_BusOk` also
+requires the live `MasterHealthy`, so a slave that drops out after the last on-demand
+slave read is still seen.
 
 ### TC3 §10.6 Fieldbus topology & I/O diagnostics (EtherCAT/ADS)
 *Binds Core §10.5.1.* The conforming base profile is a three-authority composition: `FB_EcBusHealth` reads the EtherCAT master's reported slave count/order plus each slave's `deviceState`/`linkState`; `FB_<Project>IoCatalog` imports the reviewed XAE/ESI/TMC/electrical channel identity, scaling, address, and owning-module data; and `FB_IoTopologyPublisher` validates the bounded join and publishes `ST_FieldbusTopology`. The `deviceState` mismatch flags make configured vendor/product/revision/serial disagreement fail visible; `E_NodeState.FAULT` covers those flags and lost/no-response conditions. Channel values are copied by the sole project Hardware Driver from the same linked process-image/HAL variables used by control logic, not re-read through CoE. A runtime force, when a project explicitly enables one, resolves only a reviewed `Forceable` output and writes through that application's output authority behind the Core §7.6/§7.7 gates; it is never a raw master/process-image or input force, and every accepted request is logged as a §8.3 event. `I_FieldbusScanner`/`FB_EcFieldbusScanner` remain an optional compatibility seam for deployments needing richer vendor-specific runtime discovery; the fail-closed skeleton is not the default profile and is not required for base conformance. Master/slave state changes continue to raise the System alarms of TC3 §10.5 — the topology view and alarm list are two views of one source. The implementation and acceptance guide is **`FIELDBUS_ADS_ADAPTER.md`**.

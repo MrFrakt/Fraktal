@@ -9,6 +9,16 @@ VAR_OUTPUT
 END_VAR
 VAR
     _last : TIME;
+    _windowsTime : FB_TcWindowsTime;
+    _useWindowsTime : BOOL;
+    _clockFile : STRING(255);
+    _clockMaximumAge : TIME := T#90S;
+    _clockMaximumSyncAgeSeconds : UDINT := 7200;
+    _clockMaximumOffsetUs : DINT := 1000;
+    _ipc : FB_TcIpcDiagnostics;
+    _useIpc : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _pBus : POINTER TO FB_EcBusHealth;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[;]]></ST></Implementation>
     <Method Name="Cyclic" Id="{0f06f042-fb73-40b5-913f-84b6372142dc}">
@@ -76,8 +86,79 @@ Health.TimeQuality.Source := TimeSource;
 Health.TimeQuality.OffsetUs := TimeOffsetUs;
 Health.TimeQuality.LastSyncAt := LastSyncAt;
 Health.TimeQuality.ObservedAt := F_Now();
+// Explicit inputs keep the single IPC availability meaning.
+Health.FanAvailable := TRUE;
+Health.StorageAvailable := TRUE;
+IF _useIpc THEN
+    _ipc.Cyclic();
+    Health.ControllerAvailable := _ipc.ControllerAvailable;
+    Health.CpuLoadPct := _ipc.CpuLoadPct;
+    Health.MemoryAvailableMb := _ipc.MemoryAvailableMb;
+    Health.IpcAvailable := _ipc.IpcAvailable;
+    Health.IpcTemperatureC := _ipc.IpcTemperatureC;
+    Health.FanAvailable := _ipc.FanAvailable;
+    Health.FanHealthy := _ipc.FanHealthy;
+    Health.StorageAvailable := _ipc.StorageAvailable;
+    Health.StorageHealthPct := _ipc.StorageHealthPct;
+END_IF
+IF _pBus <> 0 THEN
+    Health.FieldbusAvailable := _pBus^.MasterAvailable;
+    Health.FieldbusMasterHealthy := _pBus^.MasterHealthy;
+    Health.LostFrameCount := _pBus^.LostFrameCount;
+    Health.SlaveErrorCount := _pBus^.SlaveErrorCount;
+    Health.DcAvailable := _pBus^.MasterAvailable;
+    Health.DcSynchronized := _pBus^.DcSynchronized;
+END_IF
+IF _useWindowsTime THEN
+    _windowsTime.Cyclic(FilePath := _clockFile, PollInterval := T#10S,
+        MaximumSampleAge := _clockMaximumAge,
+        MaximumSyncAgeSeconds := _clockMaximumSyncAgeSeconds,
+        MaximumOffsetUs := _clockMaximumOffsetUs);
+    Health.TimeQuality := _windowsTime.Quality;
+END_IF
 GVL_FraktalTime.Current := Health.TimeQuality;
 Cyclic := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_UseIpcDiagnostics" Id="{3f6c65a9-1d28-4860-9f82-e5d477a410ac}">
+      <Declaration><![CDATA[// Enable once at composition on a Beckhoff IPC/CX with the Device Manager: the
+// controller and IPC groups then come from FB_TcIpcDiagnostics instead of the
+// explicit Cyclic inputs, each available only while it is actually measured.
+METHOD M_UseIpcDiagnostics : BOOL
+VAR_INPUT
+    Enabled : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_useIpc := Enabled;
+M_UseIpcDiagnostics := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_UseEtherCatMaster" Id="{4c524c85-5b8c-4e58-90fc-b7981021ac57}">
+      <Declaration><![CDATA[// Enable once at composition: the fieldbus and DC groups then come from this
+// EtherCAT adapter's always-on master sample (state, frame and CRC counters)
+// instead of the explicit Cyclic inputs. 0 returns to the explicit inputs.
+METHOD M_UseEtherCatMaster : BOOL
+VAR_INPUT
+    pBus : POINTER TO FB_EcBusHealth;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_pBus := pBus;
+M_UseEtherCatMaster := pBus <> 0;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_UseWindowsTime" Id="{747a1109-9972-4615-a872-79e28ab1fde6}">
+      <Declaration><![CDATA[// Enable once at composition. Cyclic owns observation and expiry thereafter.
+METHOD M_UseWindowsTime : BOOL
+VAR_INPUT
+    Enabled : BOOL;
+    FilePath : STRING(255);
+    MaximumSampleAge : TIME;
+    MaximumSyncAgeSeconds : UDINT;
+    MaximumOffsetUs : DINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_UseWindowsTime := (NOT Enabled)
+    OR ((FilePath <> '') AND (MaximumSampleAge >= T#1S)
+        AND (MaximumSyncAgeSeconds > 0) AND (MaximumOffsetUs >= 0));
+_useWindowsTime := Enabled;
+_clockFile := FilePath;
+_clockMaximumAge := MaximumSampleAge;
+_clockMaximumSyncAgeSeconds := MaximumSyncAgeSeconds;
+_clockMaximumOffsetUs := MaximumOffsetUs;]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

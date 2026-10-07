@@ -67,7 +67,7 @@ class _AppearanceSetupScreenState extends State<AppearanceSetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Icon(Icons.tune,
+                      Icon(Icons.palette_outlined,
                           size: 52,
                           color: Theme.of(context).colorScheme.primary),
                       const SizedBox(height: 12),

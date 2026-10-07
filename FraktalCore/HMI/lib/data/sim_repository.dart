@@ -1437,6 +1437,9 @@ class SimRepository implements PlcRepository {
       {Set<String>? containers}) {}
 
   @override
+  void setModuleIoViewActive(String? modulePath) {}
+
+  @override
   void dispose() {
     _timer?.cancel();
     _ctrl.close();

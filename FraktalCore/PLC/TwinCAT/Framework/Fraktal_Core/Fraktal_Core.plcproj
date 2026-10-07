@@ -17,7 +17,7 @@
     <Placeholder>Fraktal_Core</Placeholder>
     <Company>fraktal-automation</Company>
     <Title>Fraktal_Core</Title>
-    <ProjectVersion>0.23.0.0</ProjectVersion>
+    <ProjectVersion>0.25.0.0</ProjectVersion>
     <Released>false</Released>
     <Author>fraktal-automation</Author>
     <Description>Fraktal Core framework library: contracts, base classes (CM/EM/Unit), PermIntlk, profiler, connector base, recipe provider (Core 2.2).</Description>
@@ -134,6 +134,18 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Connectivity\FB_LocalAccessProvider.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Connectivity\FB_ConfigSetDocument.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Connectivity\FB_MediumConfigStore.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Connectivity\FB_PersistMediumBase.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Connectivity\FB_RetainPersistMedium.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Connectivity\FB_LocalPartCarrier.TcPOU">
@@ -505,6 +517,15 @@
     <Compile Include="DUTs\ST_UserRecord.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\ST_AccessImageV1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_PersistResult.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_RetainDocument.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="DeviceCMs\FB_TcpCodeReaderCM.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -538,6 +559,9 @@
     <Compile Include="Interfaces\I_AccessProvider.TcIO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Interfaces\I_AccessStore.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Interfaces\I_ByteChannel.TcIO">
       <SubType>Code</SubType>
     </Compile>
@@ -566,6 +590,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Interfaces\I_ConfigStore.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Interfaces\I_PersistMedium.TcIO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Interfaces\I_ManualTarget.TcIO">
@@ -619,6 +646,18 @@
     <Compile Include="Platform\F_Sha256.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Platform\F_Crc32.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Platform\F_ValidPersistKey.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Platform\FB_FilePersistMedium.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Platform\FB_TcIpcDiagnostics.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Platform\F_Now.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -638,6 +677,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Platform\FB_TcSystemHealthProbe.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_TcWindowsClockSampleV1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Platform\F_TcWindowsClockCrc.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Platform\FB_TcWindowsTime.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Platform\F_TimingUpdate.TcPOU">
@@ -664,6 +712,10 @@
     <PlaceholderReference Include="Tc3_Module">
       <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc3_Module</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_IPCDiag">
+      <DefaultResolution>Tc3_IPCDiag, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_IPCDiag</Namespace>
     </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>

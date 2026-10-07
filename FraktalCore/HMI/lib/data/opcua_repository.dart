@@ -96,6 +96,13 @@ class OpcUaRepository implements PlcRepository {
   Map<String, List<String>> _onDemandByScope = const {};
   final Set<String> _activeOnDemandScopes = {};
   final Map<String, Set<String>> _onDemandContainersByScope = {};
+  static const _moduleIoScope = '#moduleIo';
+  bool _fieldbusViewActive = false;
+  String? _moduleIoPath;
+  Set<String> _moduleIoChannels = const {};
+  Set<String> _moduleIoNodes = const {};
+  bool? _fieldbusScanRequested;
+  Future<void> _fieldbusGateUpdate = Future<void>.value();
   Timer? _onDemandContinuation;
   List<String> _tierSlowPaths = const [];
   List<String> _tierExcludedPaths = const [];
@@ -337,6 +344,7 @@ class OpcUaRepository implements PlcRepository {
       _aliasSignature = aliasSignature;
       _lastGood = DateTime.now();
       _maybeUpdatePathTiers();
+      _updateModuleIoPaths(merged);
       _maybeFetchConfigManifest();
       _setLink(LinkState.live);
       _scheduleFreshness();
@@ -477,6 +485,8 @@ class OpcUaRepository implements PlcRepository {
 
   @override
   void setFieldbusViewActive(bool active) {
+    if (_disposed || _fieldbusViewActive == active) return;
+    _fieldbusViewActive = active;
     _setOnDemandScopeActive(OpcUaFieldTier.fieldbusScope, active);
     // Core §10.5.1 is a diagnostic surface, so demand-gating is end-to-end: not
     // reading the topology here is only half of it — without this the PLC would
@@ -484,7 +494,91 @@ class OpcUaRepository implements PlcRepository {
     // nobody is looking at. Best-effort: a PLC that does not publish the flag
     // (older library, or a project that leaves it unmapped) simply keeps its own
     // cadence, so this must never surface as a user-visible failure.
-    unawaited(_setFieldbusScanRequested(active));
+    _syncFieldbusScanRequest();
+  }
+
+  @override
+  void setModuleIoViewActive(String? modulePath) {
+    if (_disposed || _moduleIoPath == modulePath) return;
+    _moduleIoPath = modulePath;
+    _updateModuleIoPaths({..._manifestValues, ..._values});
+    _setOnDemandScopeActive(_moduleIoScope, modulePath != null);
+    _syncFieldbusScanRequest();
+  }
+
+  // The full bus page and module card are independent consumers. Closing one
+  // must not turn off the other, and serialized writes preserve their order.
+  void _syncFieldbusScanRequest() {
+    final active = _fieldbusViewActive ||
+        (_moduleIoPath != null && _moduleIoChannels.isNotEmpty);
+    if (_fieldbusScanRequested == active) return;
+    _fieldbusScanRequested = active;
+    _fieldbusGateUpdate = _fieldbusGateUpdate
+        .then((_) => _setFieldbusScanRequested(active));
+  }
+
+  void _updateModuleIoPaths(Map<String, Object?> source) {
+    final channels = <String>{};
+    final nodes = <String>{};
+    if (_moduleIoPath != null) {
+      for (final entry in source.entries) {
+        if (entry.value == _moduleIoPath &&
+            entry.key.contains('/Topology/') &&
+            entry.key.contains('/Channels') &&
+            entry.key.endsWith('/ModulePath')) {
+          final base = entry.key.substring(0, entry.key.lastIndexOf('/'));
+          channels.add(base);
+          nodes.add(base.substring(0, base.indexOf('/Channels')));
+        }
+      }
+      // Read health only along the owning terminal's parent chain. Static
+      // ParentIdx/ownership comes from the same manifest the mapper consumes.
+      final nodeByIndex = <String, Map<int, String>>{};
+      final parents = <String, int>{};
+      for (final entry in source.entries) {
+        if (!entry.key.contains('/Topology/') ||
+            !entry.key.endsWith('/ParentIdx') || entry.value is! num) continue;
+        final base = entry.key.substring(0, entry.key.lastIndexOf('/'));
+        final index = RegExp(r'(?:\[|/)(\d+)\]?$').firstMatch(base);
+        if (index == null) continue;
+        final topology = base.substring(0, base.indexOf('/Topology/') + 9);
+        nodeByIndex.putIfAbsent(topology, () => {})[
+            int.parse(index.group(1)!)] = base;
+        parents[base] = (entry.value as num).toInt();
+      }
+      for (final leaf in nodes.toList()) {
+        var current = leaf;
+        final visited = <String>{};
+        while (visited.add(current)) {
+          final parent = parents[current] ?? 0;
+          if (parent == 0) break;
+          final topology = current.substring(
+              0, current.indexOf('/Topology/') + 9);
+          final indexed = nodeByIndex[topology];
+          final ancestor = indexed?[indexed.containsKey(0) ? parent - 1 : parent];
+          if (ancestor == null) break;
+          nodes.add(ancestor);
+          current = ancestor;
+        }
+      }
+    }
+    if (setEquals(channels, _moduleIoChannels) &&
+        setEquals(nodes, _moduleIoNodes)) return;
+    _moduleIoChannels = channels;
+    _moduleIoNodes = nodes;
+    _syncFieldbusScanRequest();
+    _invalidateOnDemand();
+    _publishPathTiers();
+  }
+
+  bool _moduleIoConsumes(String path) {
+    if (_moduleIoChannels.any((base) => path.startsWith('$base/'))) {
+      return !path.endsWith('/Forceable'); // this surface is read-only
+    }
+    if (_moduleIoNodes.any((base) =>
+        path == '$base/State' || path == '$base/LinkOk')) return true;
+    return path.endsWith('/Topology/MappingValid') ||
+        path.endsWith('/Topology/MappingDiagnostic');
   }
 
   /// Publishes the fieldbus-view demand gate to the PLC (`MAIN.FieldbusViewActive`).
@@ -557,14 +651,18 @@ class OpcUaRepository implements PlcRepository {
   @override
   bool get fieldbusExpected => _discoveredTopologyBase() != null;
 
-  List<String> _requestedOnDemandPaths() => [
+  List<String> _requestedOnDemandPaths() => <String>{
         for (final scope in _activeOnDemandScopes)
           for (final path in _onDemandByScope[scope] ?? const <String>[])
             if (_onDemandContainersByScope[scope] == null ||
                 OpcUaFieldTier.demandedContainers([path])
                     .any(_onDemandContainersByScope[scope]!.contains))
               path,
-      ];
+        if (_moduleIoPath != null)
+          for (final path in
+              _onDemandByScope[OpcUaFieldTier.fieldbusScope] ?? const <String>[])
+            if (_moduleIoConsumes(path)) path,
+      }.toList(growable: false);
 
   /// Target-reads the excluded paths of every active on-demand scope in one
   /// batch (bulk-read capable clients only), returning them for the snapshot
@@ -926,7 +1024,13 @@ class OpcUaRepository implements PlcRepository {
 
   void _checkFreshness() {
     final budget = _freshness;
-    if (_disposed || budget == null || _sampleAge < budget.fastGood) return;
+    if (_disposed || budget == null) return;
+    if (_sampleAge < budget.fastGood) {
+      // Timer durations have millisecond granularity. An early callback must
+      // re-arm the deadline rather than abandon freshness during a stalled RPC.
+      _scheduleFreshness();
+      return;
+    }
     _setLink(
         _sampleAge >= budget.fastExpiry ? LinkState.down : LinkState.stale);
     // Withdraw cached Good data as well as the operator shell. Keep canonical
@@ -955,7 +1059,9 @@ class OpcUaRepository implements PlcRepository {
     if (_disposed || budget == null || _sampleAge >= budget.fastExpiry) return;
     final limit =
         _sampleAge < budget.fastGood ? budget.fastGood : budget.fastExpiry;
-    _freshnessTimer = Timer(limit - _sampleAge, _checkFreshness);
+    final remainingUs = (limit - _sampleAge).inMicroseconds;
+    _freshnessTimer = Timer(Duration(milliseconds: (remainingUs + 999) ~/ 1000),
+        _checkFreshness);
   }
 
   @override
@@ -1741,8 +1847,8 @@ class OpcUaRepository implements PlcRepository {
   @override
   void dispose() => unawaited(_close());
 
-  Future<void> _close() {
-    if (_disposed) return Future<void>.value();
+  Future<void> _close() async {
+    if (_disposed) return;
     _disposed = true;
     _invalidateOnDemand();
     _timer?.cancel();
@@ -1750,7 +1856,11 @@ class OpcUaRepository implements PlcRepository {
     _forestController.close();
     _fieldbusController.close();
     _linkController.close();
-    return _client.close();
+    _fieldbusViewActive = false;
+    _moduleIoPath = null;
+    if (_fieldbusScanRequested == true) _syncFieldbusScanRequest();
+    await _fieldbusGateUpdate;
+    await _client.close();
   }
 }
 

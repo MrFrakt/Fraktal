@@ -21,6 +21,8 @@ Re_registering_replaces_the_PIN();]]></ST>
         <ST><![CDATA[TEST('Default_policy_is_fully_open');
 IF NOT _w THEN
     _u.Setup('Test.AccessUnit');
+    // Not under test here: a volatile table, so no previous run's file is a precondition.
+    _pr.M_UseKey(Key := '');
     _pr.Register(User := 'tech1', Pin := '4711', Level := E_AccessLevel.TECHNICIAN);
     _u();                                              // first scan wires audit log
     _u.Access.Setup(Provider := _pr, pAlarmLog := ADR(_u.AlarmLog));

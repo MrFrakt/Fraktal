@@ -353,7 +353,9 @@ A Unit with `SystemHealth.Present=TRUE` renders the bounded live health card fro
 task cycle/jitter/overrun, explicit controller/IPC/fieldbus/DC availability and
 values, and `SystemHealth.TimeQuality`. Unavailable is distinct from zero and a
 clock that is unavailable, unsynchronized, or outside the configured tolerance is
-conspicuous. `SignalTower` renders the semantic Red/Amber/Green/Blue/White/Horn and
+conspicuous. Within the IPC group, `FanAvailable`/`StorageAvailable` say whether
+`FanHealthy`/`StorageHealthPct` are measurements; `LostFrameCount`/`SlaveErrorCount`
+count the current or last complete 10 s window, not the master's lifetime totals. `SignalTower` renders the semantic Red/Amber/Green/Blue/White/Horn and
 `TestActive` state beside it; no HMI code knows electrical output addresses.
 
 Lamp test writes only append-only mailbox request `LAMP_TEST := 26`. The control is
@@ -394,6 +396,22 @@ gates, which — gates being build constants — means a new download.
 The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Nodes[] : ST_BusNode`, `MappingValid`, and `MappingDiagnostic`. An invalid mapping is a commissioning fault and shall be displayed rather than treated as an empty/healthy bus. Discovery reads `NodeCount` and each active node's `ChannelCount` before traversing the bounded arrays; unused fixed-array elements are not part of an HMI snapshot. For every `ST_IoChannel`, the client maps `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Dir`, `Kind`, values, `Unit`, `Forced`, `Quality`, `FaultActive`, `Diagnostic`, and `Forceable`. `Name` is the exact approved electrical/I/O-list tag and is shown verbatim in monospace; `DescriptionKey` and `Diagnostic` are localized by the project catalog. `Address` shows the terminal/channel locator. `Path` remains the unique forcing/audit identity, while `ModulePath` opens the owning module and defines the HMI assignment boundary. `Forceable` is an explicit PLC capability and defaults false when absent; output direction by itself never creates a force control. It is additionally FALSE on every channel unless the deployed image carries an active §7.5 `OUTPUT_FORCING` commissioning gate, so on a production station the client renders **no force affordance at all** — absent, not greyed (§3.9). The client shall not offer a local switch to reveal it: the capability is a property of the controller image, and a client that could turn it on would be exactly the authority §7.5.1 denies. The force dialog states both why the control exists (a commissioning gate) and how far it reaches (only while the owning Unit is idle in `MANUAL`; starting it or leaving `MANUAL` withdraws every force), so it can never be mistaken for the manual-command path that goes *through* a module. A snapshot marked `truncated=true` is rejected before mapping and shall never produce a `LIVE` repository or an empty-but-healthy fieldbus view.
 
 When `FaultActive` is true the channel and its diagnostic are highlighted. A module alarm simultaneously shows `ST_Diagnostic.IoTag`/`IoAddress`, so a cylinder timeout can read, for example, “press did not reach DOWN” plus `_101B202A · EL1809 Ch5`; the same exact tag is highlighted in the fieldbus tree. Transport adapters shall copy these fields without normalizing case, stripping the leading mapping marker, translating, or substituting a friendly label.
+
+The manual-command card also displays the physical I/O whose `ModulePath`
+exactly equals the selected module identity, grouped as Inputs and Outputs.
+It uses the same channel records, preserves electrical tags verbatim and
+localizes descriptions. Analog signals show value and unit; forced and fault
+indications remain visible. Missing, non-Good or disconnected data displays
+unavailable quality rather than an assumed OFF value. This is a read-only
+surface; commands continue through the existing release-gated module path.
+
+While that card is visible, the repository demands the selected channels'
+quality/diagnostic fields and their bus ancestors' health. Hidden or access-gated
+cards and other tabs withdraw that demand. The full bus view independently owns
+its broader demand; closing either consumer shall not stop the other. An HMI
+root assignment also bounds module I/O demand. The Like a Bosch theme draws
+circular white down/up arrows for inputs/outputs, light green/red active fills
+and gray inactive fills. Unavailable quality has a distinct neutral mark.
 
 ## Tree & theming (client behaviour)
 

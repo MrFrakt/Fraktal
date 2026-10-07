@@ -17,6 +17,10 @@ const availableLanguages = <String, String>{
 /// Standard-owned defaults. Project/module defaults live in their own catalog
 /// and never overwrite this map.
 const standardEnglish = <String, String>{
+  'std.clock.qualityUnavailable': 'TIME QUALITY UNAVAILABLE',
+  'std.clock.qualityUnavailable.note': 'The controller has not provided verified clock synchronization quality.',
+  'std.clock.synchronized.note': 'The controller reports synchronized station time.',
+  'std.clock.unsynchronized.note': 'The controller reports an unsynchronized clock. Check the station time source.',
   'std.config.shift.5.start':
       'Shift 5 start (minutes after midnight, -1 = unused)',
   'std.config.shift.5.duration': 'Shift 5 duration',
@@ -206,6 +210,15 @@ const standardEnglish = <String, String>{
   'std.system.controllerMetricsUnavailable':
       'Controller health metrics are unavailable on this target.',
   'std.fieldbus.openModule': 'Open owning module',
+  'std.io.inputs': 'Inputs',
+  'std.io.outputs': 'Outputs',
+  'std.io.input': 'Input',
+  'std.io.output': 'Output',
+  'std.io.on': 'ON',
+  'std.io.off': 'OFF',
+  'std.io.unavailable': 'I/O quality unavailable',
+  'std.io.noAssignedSignals': 'No I/O signals assigned to this module.',
+  'std.io.forced': 'FORCED',
   'std.fieldbus.loading': 'Loading fieldbus topology…',
   // Core §3.8b — durability. Said in terms of the consequence the operator
   // cares about (it will not survive a restart), not the mechanism.
@@ -245,6 +258,7 @@ const standardEnglish = <String, String>{
   'std.fieldbus.forceBlocked': 'Channel force blocked',
   'std.fieldbus.forceWhyBlocked': 'Why is forcing unavailable here?',
   'std.nav.overview': 'Plant overview',
+  'std.nav.more': 'More',
   'std.nav.language': 'Change language',
   'std.nav.languageSettings': 'Manage language catalogs',
   // Twelve operator-selectable themes (HMI_CONTRACT 'Tree & theming'). The
@@ -283,6 +297,9 @@ const standardEnglish = <String, String>{
   'std.theme.group.standardHelp':
       'Flat, conventional colours with colour reserved for status. ISA-101 marks the high-performance grey themes.',
   'std.theme.group.modern': 'Modern',
+  'std.theme.likeABosch': 'Like a Bosch',
+  'std.theme.group.inspired': 'Industry inspired',
+  'std.theme.group.inspiredHelp': 'Themes inspired by familiar industrial interfaces.',
   'std.theme.group.modernHelp':
       'Decorative materials: glow, glass, drafting grid, paper and reflections.',
   // Fullscreen settings dialog (Core O9): theme, language, touch keyboard, station.
@@ -443,6 +460,12 @@ const standardEnglish = <String, String>{
       'This module started on its default configuration: the stored values could not be read by this software version.',
   'std.error.configPersistFailed':
       'Configuration changes are active but could not be saved to permanent storage. They will be lost if the controller restarts.',
+  'std.error.accessRestoreLost':
+      'The stored user table could not be restored completely. Users that were not restored cannot log in until they are registered again.',
+  'std.error.accessPersistFailed':
+      'A user registration is active but could not be saved to permanent storage. It will be lost if the controller restarts.',
+  'std.error.storageUnreadable':
+      'Saved data could not be read from permanent storage. The station keeps retrying and neither uses nor overwrites it until it can.',
   'std.error.configRestoreAckRefused':
       'Acknowledging a lost configuration requires an Engineer-level login.',
   'std.error.configSetRejected':
@@ -466,6 +489,8 @@ const standardEnglish = <String, String>{
       'The parameter set was not deleted: it does not exist, or it is being written.',
   'std.release.configRestoreUnacknowledged':
       'A lost configuration must be acknowledged by an Engineer before this station can start.',
+  'std.release.configRestoring':
+      'The saved configuration is still being read back; the station starts when it is restored.',
   'std.release.noActiveDecision':
       'No decision is currently awaiting an answer.',
   'std.release.invalidDecisionOption':
@@ -1169,6 +1194,10 @@ const standardEnglish = <String, String>{
 };
 
 const standardSpanish = <String, String>{
+  'std.clock.qualityUnavailable': 'CALIDAD DEL RELOJ NO DISPONIBLE',
+  'std.clock.qualityUnavailable.note': 'El controlador no ha proporcionado una calidad verificada de sincronización del reloj.',
+  'std.clock.synchronized.note': 'El controlador informa que la hora de la estación está sincronizada.',
+  'std.clock.unsynchronized.note': 'El controlador informa que el reloj no está sincronizado. Revise la fuente de hora de la estación.',
   'std.config.shift.5.start':
       'Inicio del turno 5 (minutos tras medianoche, -1 = sin uso)',
   'std.config.shift.5.duration': 'Duración del turno 5',
@@ -1343,6 +1372,15 @@ const standardSpanish = <String, String>{
   'std.system.controllerMetricsUnavailable':
       'Las métricas de salud del controlador no están disponibles en este destino.',
   'std.fieldbus.openModule': 'Abrir el módulo propietario',
+  'std.io.inputs': 'Entradas',
+  'std.io.outputs': 'Salidas',
+  'std.io.input': 'Entrada',
+  'std.io.output': 'Salida',
+  'std.io.on': 'ACTIVA',
+  'std.io.off': 'INACTIVA',
+  'std.io.unavailable': 'Calidad de E/S no disponible',
+  'std.io.noAssignedSignals': 'No hay señales de E/S asignadas a este módulo.',
+  'std.io.forced': 'FORZADA',
   'std.fieldbus.loading': 'Cargando topología de bus de campo…',
   'std.config.durability.banner':
       'La configuración no está guardada de forma segura.',
@@ -1381,6 +1419,7 @@ const standardSpanish = <String, String>{
   'std.fieldbus.forceBlocked': 'Forzado de canal bloqueado',
   'std.fieldbus.forceWhyBlocked': '¿Por qué no puedo forzar esto?',
   'std.nav.overview': 'Vista general',
+  'std.nav.more': 'Más',
   'std.nav.language': 'Cambiar idioma',
   'std.nav.languageSettings': 'Gestionar catálogos de idioma',
   'std.theme.lightBlue': 'Azul claro',
@@ -1417,6 +1456,9 @@ const standardSpanish = <String, String>{
   'std.theme.group.standardHelp':
       'Colores planos y convencionales; el color se reserva para el estado. ISA-101 marca los temas grises de alto rendimiento.',
   'std.theme.group.modern': 'Modernos',
+  'std.theme.likeABosch': 'Like a Bosch',
+  'std.theme.group.inspired': 'Inspirados en la industria',
+  'std.theme.group.inspiredHelp': 'Temas inspirados en interfaces industriales conocidas.',
   'std.theme.group.modernHelp':
       'Materiales decorativos: brillo, vidrio, cuadrícula de dibujo, papel y reflejos.',
   'std.settings.title': 'Ajustes',
@@ -1551,6 +1593,12 @@ const standardSpanish = <String, String>{
       'Este módulo arrancó con su configuración por defecto: esta versión del software no pudo leer los valores guardados.',
   'std.error.configPersistFailed':
       'Los cambios de configuración están activos pero no se pudieron guardar en memoria permanente. Se perderán si el controlador se reinicia.',
+  'std.error.accessRestoreLost':
+      'La tabla de usuarios guardada no se pudo restaurar por completo. Los usuarios no restaurados no pueden iniciar sesión hasta que se registren de nuevo.',
+  'std.error.accessPersistFailed':
+      'Un registro de usuario está activo pero no se pudo guardar en memoria permanente. Se perderá si el controlador se reinicia.',
+  'std.error.storageUnreadable':
+      'No se pudieron leer los datos guardados de la memoria permanente. La estación sigue reintentando y no los usa ni los sobrescribe hasta poder leerlos.',
   'std.error.configRestoreAckRefused':
       'Reconocer una configuración perdida requiere una sesión de nivel Ingeniero.',
   'std.error.configSetRejected':
@@ -1563,6 +1611,8 @@ const standardSpanish = <String, String>{
       'No se pudo leer esa línea del documento del juego de parámetros.',
   'std.release.configRestoreUnacknowledged':
       'Un Ingeniero debe reconocer la configuración perdida antes de que esta estación pueda arrancar.',
+  'std.release.configRestoring':
+      'La configuración guardada aún se está leyendo; la estación arranca cuando esté restaurada.',
   'std.release.noActiveDecision': 'No hay una decisión esperando respuesta.',
   'std.release.invalidDecisionOption':
       'La respuesta elegida no pertenece a las opciones activas.',

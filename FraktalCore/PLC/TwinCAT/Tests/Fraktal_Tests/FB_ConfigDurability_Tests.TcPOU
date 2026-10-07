@@ -64,6 +64,8 @@ _u.Setup(Name := 'Test.Durability');
 _u();
 _u.SetConfigStore(Store := _store);
 _u.SetConfigPersistence(Provider := _persist);
+// Not under test here: a volatile table, so no previous run's file is a precondition.
+_users.M_UseKey(Key := '');
 _users.Register(User := 'eng', Pin := '4242', Level := E_AccessLevel.ENGINEER);
 _u.Access.Setup(Provider := _users, pAlarmLog := ADR(_u.AlarmLog));]]></ST>
       </Implementation>

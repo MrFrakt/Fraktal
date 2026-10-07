@@ -76,6 +76,13 @@ VAR_GLOBAL CONSTANT
     // is a stated property, not a hope", and a station whose store cannot meet it
     // says so through PersistFailed instead of reverting silently at the next start.
     CONFIG_PERSIST_WINDOW_MS : UDINT := 5000;
+    // Core §3.8b — one retained DOCUMENT on an I_PersistMedium: a rendered set (a
+    // header and MAX_SET_RECORDS lines of at most 480 characters fit) or the user
+    // table's image. Every FB_ConfigSetDocument holds one buffer of this size.
+    MAX_PERSIST_DOC_BYTES : UDINT := 16384;
+    MAX_PERSIST_QUEUE    : INT := 8;    // requests one medium holds at once (FIFO)
+    MAX_PERSIST_KEYS     : INT := 48;   // documents a file medium vouches for (loss detection)
+    MAX_RETAIN_DOCUMENTS : INT := 8;    // FB_RetainPersistMedium pool: 8 x 16 kB persistent
     // Core §7.6.1a — how long a latched hold-to-run request survives without a
     // refresh from the client. Long enough to ride out transport jitter, short
     // enough that a closed HMI or a dead link lets go rather than leaving the
@@ -105,6 +112,8 @@ VAR_GLOBAL CONSTANT
     // no run-time allocation). Legs are numbered 1..n; 0 is the main line and is
     // always available on top of these.
     MAX_PARALLEL_BRANCHES : INT := 9;
+    // TC3 Windows observer default, also emitted into the observer package.
+    WINDOWS_CLOCK_SAMPLE_FILE : STRING(255) := 'C:\ProgramData\Fraktal\Clock\quality.bin';
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

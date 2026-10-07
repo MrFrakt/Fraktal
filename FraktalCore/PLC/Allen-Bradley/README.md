@@ -97,7 +97,9 @@ changes are required. See
 
 The port is **not complete apart from power**: Part traceability,
 signal-tower/host integration and optional profiles/probes remain absent or
-unclaimed. Line owner/calendar V2 is loaded in corrective press75 after
+unclaimed. The current gap census against TwinCAT (including TC3's
+project-chosen retained-data medium) and the next implementation order are in
+the [missing-features handover](../../../Specification/AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md). Line owner/calendar V2 is loaded in corrective press75 after
 press72 failed linking at LineValidate and press73 failed with a final global
 memory error; owner-confirmed fit passes at 0/0 and Run, while native/browser/
 retention acceptance has separate scope and

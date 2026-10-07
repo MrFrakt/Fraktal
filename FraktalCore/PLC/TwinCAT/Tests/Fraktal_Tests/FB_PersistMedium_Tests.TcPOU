@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PersistMedium_Tests" Id="{e95cad38-2c11-4af9-be5c-20274a269300}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b under test: the plug-and-play persistence media through the real
+// TwinCAT file service and the real persistent-data writer of the test runtime.
+// A file medium keeps the newest whole copy through a torn write, refuses a
+// damaged one, reports a document it confirmed and then lost, and creates its
+// folder; the retentive medium keeps a bounded pool and says when it is full.
+// Every test uses per-run keys and removes what it wrote.
+FUNCTION_BLOCK FB_PersistMedium_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _tag     : STRING(24);
+    _docA    : ARRAY[0..99] OF BYTE;
+    _docB    : ARRAY[0..199] OF BYTE;
+    _buf     : ARRAY[0..299] OF BYTE;
+    _small   : ARRAY[0..9] OF BYTE;
+    _garbage : ARRAY[0..15] OF BYTE := [16(16#5A)];
+    _filled  : BOOL;
+    _s1 : INT;
+    _t1 : TON;
+    _k1 : UDINT;
+    _r1 : ST_PersistResult;
+    _m1 : FB_FilePersistMedium;
+    _f1 : FB_ProbeFileOps;
+    _done2 : BOOL;
+    _m2 : FB_FilePersistMedium;
+    _p2a : FB_LocalAccessProvider;
+    _p2b : FB_LocalAccessProvider;
+    _ret : FB_RetainPersistMedium;        // one pool for the whole suite (persistent)
+    _s3 : INT;
+    _t3 : TON;
+    _k3 : UDINT;
+    _r3 : ST_PersistResult;
+    _n3 : INT;
+    _full3 : INT;
+    _s4 : INT;
+    _t4 : TON;
+    _k4 : UDINT;
+    _r4 : ST_PersistResult;
+    _m4 : FB_FilePersistMedium;
+    _f4 : FB_ProbeFileOps;
+    _s5 : INT;
+    _t5 : TON;
+    _k5 : UDINT;
+    _r5 : ST_PersistResult;
+    _m5 : FB_FilePersistMedium;
+    _m6 : FB_FilePersistMedium;
+    _m7 : FB_FilePersistMedium;
+    _f5 : FB_ProbeFileOps;
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#60S;
+    GENERIC_FOLDER : STRING(80) := 'C:\ProgramData\Fraktal\Tests\Medium\';
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF _tag = '' THEN
+    _tag := ULINT_TO_STRING(Tc2_Utilities.F_GetSystemTime() MOD 1000000000000);
+END_IF
+IF NOT _filled THEN
+    _filled := TRUE;
+    MEMSET(destAddr := ADR(_docA), fillByte := 16#41, n := SIZEOF(_docA));
+    MEMSET(destAddr := ADR(_docB), fillByte := 16#42, n := SIZEOF(_docB));
+    _docB[0] := 10;                     // a line break inside a document is just a byte
+END_IF
+A_file_document_survives_a_torn_write_and_reports_a_loss();
+Requests_are_refused_or_answered_never_left_waiting();
+The_retentive_pool_keeps_documents_and_says_when_it_is_full();
+A_file_medium_creates_its_folder();
+The_newest_copy_wins_in_either_slot();]]></ST></Implementation>
+    <Method Name="_M_Key" Id="{d6dc743b-c992-4a4f-a907-b0dbaa8fa024}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Key : STRING(80)
+VAR_INPUT
+    Name : STRING(40);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Key := CONCAT(CONCAT('FrkMed_', Name), CONCAT('_', _tag));]]></ST></Implementation>
+    </Method>
+    <Method Name="A_file_document_survives_a_torn_write_and_reports_a_loss" Id="{8c341c40-fa05-4ab9-ae87-3ec5d88697c1}">
+      <Declaration><![CDATA[METHOD A_file_document_survives_a_torn_write_and_reports_a_loss
+VAR
+    key : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_file_document_survives_a_torn_write_and_reports_a_loss');
+_t1(IN := _s1 < 99, PT := TEST_TIMEOUT);
+IF _t1.Q AND (_s1 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s1)));
+    _s1 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+key := _M_Key(Name := 'Doc');
+_f1.Cyclic();
+CASE _s1 OF
+    0:
+        _m1.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+        _k1 := _m1.M_StartWrite(Key := key, pData := ADR(_docA), Size := SIZEOF(_docA));
+        AssertTrue(Condition := _k1 <> 0, Message := 'a write is queued');
+        _s1 := 1;
+    1:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Ok, Message := 'the first copy is durable');
+            _k1 := _m1.M_StartWrite(Key := key, pData := ADR(_docB), Size := SIZEOF(_docB));
+            _s1 := 2;
+        END_IF
+    2:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Ok, Message := 'the second copy is durable');
+            MEMSET(destAddr := ADR(_buf), fillByte := 0, n := SIZEOF(_buf));
+            _k1 := _m1.M_StartRead(Key := key, pData := ADR(_buf), Size := SIZEOF(_buf));
+            _s1 := 3;
+        END_IF
+    3:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Ok AND _r1.Found, Message := 'the document is read back');
+            AssertFalse(Condition := _r1.Lost, Message := 'nothing was lost');
+            AssertEquals_UDINT(Expected := SIZEOF(_docB), Actual := _r1.Length,
+                Message := 'the newest copy, whole');
+            AssertEquals_DINT(Expected := 0, Actual := MEMCMP(pBuf1 := ADR(_buf),
+                pBuf2 := ADR(_docB), n := SIZEOF(_docB)), Message := 'byte for byte');
+            // The second write went to slot b: tear it.
+            _f1.M_Write(Path := CONCAT(key, '.b'), Where := Tc2_System.PATH_BOOTPATH,
+                pData := ADR(_garbage), Size := SIZEOF(_garbage));
+            _s1 := 4;
+        END_IF
+    4:
+        IF NOT _f1.Busy THEN
+            _k1 := _m1.M_StartRead(Key := key, pData := ADR(_buf), Size := SIZEOF(_buf));
+            _s1 := 5;
+        END_IF
+    5:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Found, Message := 'the previous whole copy is returned');
+            AssertEquals_UDINT(Expected := SIZEOF(_docA), Actual := _r1.Length,
+                Message := 'never a mix of the two');
+            AssertEquals_DINT(Expected := 0, Actual := MEMCMP(pBuf1 := ADR(_buf),
+                pBuf2 := ADR(_docA), n := SIZEOF(_docA)), Message := 'the first document');
+            AssertTrue(Condition := _r1.Lost,
+                Message := 'and it is older than the copy confirmed written: a loss');
+            _f1.M_Write(Path := CONCAT(key, '.a'), Where := Tc2_System.PATH_BOOTPATH,
+                pData := ADR(_garbage), Size := SIZEOF(_garbage));
+            _s1 := 6;
+        END_IF
+    6:
+        IF NOT _f1.Busy THEN
+            _k1 := _m1.M_StartRead(Key := key, pData := ADR(_buf), Size := SIZEOF(_buf));
+            _s1 := 7;
+        END_IF
+    7:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Ok, Message := 'two damaged copies still get an answer');
+            AssertFalse(Condition := _r1.Found, Message := 'nothing damaged is returned');
+            AssertTrue(Condition := _r1.Lost, Message := 'and it is a loss');
+            _f1.M_Delete(Path := CONCAT(key, '.a'), Where := Tc2_System.PATH_BOOTPATH);
+            _s1 := 8;
+        END_IF
+    8:
+        IF NOT _f1.Busy THEN
+            _f1.M_Delete(Path := CONCAT(key, '.b'), Where := Tc2_System.PATH_BOOTPATH);
+            _s1 := 9;
+        END_IF
+    9:
+        IF NOT _f1.Busy THEN
+            _k1 := _m1.M_StartRead(Key := key, pData := ADR(_buf), Size := SIZEOF(_buf));
+            _s1 := 10;
+        END_IF
+    10:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertFalse(Condition := _r1.Found, Message := 'deleted files return nothing');
+            AssertTrue(Condition := _r1.Lost,
+                Message := 'and the persistent confirmation alone tells that from a first start');
+            _k1 := _m1.M_StartWrite(Key := key, pData := ADR(_docA), Size := 0);
+            _s1 := 11;
+        END_IF
+    11:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Ok, Message := 'an empty document is a durable deletion');
+            _k1 := _m1.M_StartRead(Key := key, pData := ADR(_buf), Size := SIZEOF(_buf));
+            _s1 := 12;
+        END_IF
+    12:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Ok AND NOT _r1.Found,
+                Message := 'a deleted document is not there');
+            AssertFalse(Condition := _r1.Lost, Message := 'by intent, so nothing was lost');
+            _k1 := _m1.M_StartWrite(Key := key, pData := ADR(_docB), Size := SIZEOF(_docB));
+            _s1 := 13;
+        END_IF
+    13:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            _k1 := _m1.M_StartRead(Key := key, pData := ADR(_small), Size := SIZEOF(_small));
+            _s1 := 14;
+        END_IF
+    14:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertFalse(Condition := _r1.Ok OR _r1.Found,
+                Message := 'a document larger than the buffer is refused, not cut');
+            AssertEquals_UDINT(Expected := 16#705, Actual := _r1.ErrorId,
+                Message := 'with the size error');
+            _k1 := _m1.M_StartRead(Key := _M_Key(Name := 'Never'), pData := ADR(_buf),
+                Size := SIZEOF(_buf));
+            _s1 := 15;
+        END_IF
+    15:
+        IF _m1.M_Poll(Ticket := _k1, Result := _r1) THEN
+            AssertTrue(Condition := _r1.Ok AND NOT _r1.Found AND NOT _r1.Lost,
+                Message := 'a key never written is a first start, not a loss');
+            _f1.M_Delete(Path := CONCAT(key, '.a'), Where := Tc2_System.PATH_BOOTPATH);
+            _s1 := 16;
+        END_IF
+    16:
+        IF NOT _f1.Busy THEN
+            _f1.M_Delete(Path := CONCAT(key, '.b'), Where := Tc2_System.PATH_BOOTPATH);
+            _s1 := 17;
+        END_IF
+    17:
+        IF NOT _f1.Busy THEN
+            _s1 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s1 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Requests_are_refused_or_answered_never_left_waiting" Id="{397f9595-cfc9-46bb-8ab7-d73c96e4aec0}">
+      <Declaration><![CDATA[METHOD Requests_are_refused_or_answered_never_left_waiting
+VAR
+    answer : ST_PersistResult;
+    queued : INT;
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Requests_are_refused_or_answered_never_left_waiting');
+IF _done2 THEN
+    RETURN;
+END_IF
+_done2 := TRUE;
+AssertTrue(Condition := _m2.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH),
+    Message := 'a medium is set up before its first request');
+AssertEquals_UDINT(Expected := 0, Actual := _m2.M_StartWrite(Key := 'two words',
+    pData := ADR(_docA), Size := SIZEOF(_docA)), Message := 'a key with a space is refused');
+AssertEquals_UDINT(Expected := 0, Actual := _m2.M_StartWrite(Key := '..\x',
+    pData := ADR(_docA), Size := SIZEOF(_docA)), Message := 'a key can never leave the folder');
+AssertEquals_UDINT(Expected := 0, Actual := _m2.M_StartRead(Key := '',
+    pData := ADR(_buf), Size := SIZEOF(_buf)), Message := 'an empty key is refused');
+AssertEquals_UDINT(Expected := 0, Actual := _m2.M_StartWrite(Key := 'k',
+    pData := ADR(_docA), Size := PL_Fraktal.MAX_PERSIST_DOC_BYTES + 1),
+    Message := 'a document over the bound is refused');
+AssertEquals_UDINT(Expected := 0, Actual := _m2.M_StartRead(Key := 'k',
+    pData := ADR(_buf), Size := 0), Message := 'a read needs a buffer');
+AssertTrue(Condition := _m2.M_Poll(Ticket := 424242, Result := answer),
+    Message := 'an unknown ticket finishes at once');
+AssertFalse(Condition := answer.Ok, Message := 'and is not a success');
+AssertEquals_UDINT(Expected := 16#706, Actual := answer.ErrorId, Message := 'it is an invalid request');
+queued := 0;
+FOR i := 1 TO PL_Fraktal.MAX_PERSIST_QUEUE + 1 DO
+    IF _m2.M_StartRead(Key := _M_Key(Name := 'Queue'), pData := ADR(_buf),
+            Size := SIZEOF(_buf)) <> 0 THEN
+        queued := queued + 1;
+    END_IF
+END_FOR
+AssertEquals_INT(Expected := PL_Fraktal.MAX_PERSIST_QUEUE, Actual := queued,
+    Message := 'the queue is bounded; one more is refused, to be asked again');
+AssertFalse(Condition := _m2.Setup(Folder := 'Elsewhere', Where := Tc2_System.PATH_BOOTPATH),
+    Message := 'a medium in use is never retargeted');
+AssertTrue(Condition := _m2.M_Confidential(), Message := 'files are not symbol-readable');
+AssertEquals_DINT(Expected := TO_DINT(E_ConfigStore.FILE_JSON), Actual := TO_DINT(_m2.M_Kind()),
+    Message := 'a file medium is FILE_JSON');
+AssertFalse(Condition := _ret.M_Confidential(), Message := 'a persistent pool is symbol-readable');
+AssertEquals_DINT(Expected := TO_DINT(E_ConfigStore.LOCAL_RETAIN), Actual := TO_DINT(_ret.M_Kind()),
+    Message := 'and is LOCAL_RETAIN');
+AssertFalse(Condition := _p2a.M_UseMedium(Medium := _ret),
+    Message := 'a user table never goes to a symbol-readable medium (14)');
+AssertTrue(Condition := _p2b.M_UseMedium(Medium := _m2),
+    Message := 'a confidential medium is accepted');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="The_retentive_pool_keeps_documents_and_says_when_it_is_full" Id="{a10bc99b-5dcc-4ae9-ae7d-aa2e090dddec}">
+      <Declaration><![CDATA[METHOD The_retentive_pool_keeps_documents_and_says_when_it_is_full]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('The_retentive_pool_keeps_documents_and_says_when_it_is_full');
+_t3(IN := _s3 < 99, PT := TEST_TIMEOUT);
+IF _t3.Q AND (_s3 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s3)));
+    _s3 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+CASE _s3 OF
+    0:
+        _k3 := _ret.M_StartWrite(Key := _M_Key(Name := 'Pool'), pData := ADR(_docB),
+            Size := SIZEOF(_docB));
+        _s3 := 1;
+    1:
+        IF _ret.M_Poll(Ticket := _k3, Result := _r3) THEN
+            AssertTrue(Condition := _r3.Ok, Message := 'the document reaches the persistent image');
+            MEMSET(destAddr := ADR(_buf), fillByte := 0, n := SIZEOF(_buf));
+            _k3 := _ret.M_StartRead(Key := _M_Key(Name := 'Pool'), pData := ADR(_buf),
+                Size := SIZEOF(_buf));
+            _s3 := 2;
+        END_IF
+    2:
+        IF _ret.M_Poll(Ticket := _k3, Result := _r3) THEN
+            AssertTrue(Condition := _r3.Found AND NOT _r3.Lost, Message := 'and comes back');
+            AssertEquals_DINT(Expected := 0, Actual := MEMCMP(pBuf1 := ADR(_buf),
+                pBuf2 := ADR(_docB), n := SIZEOF(_docB)), Message := 'byte for byte');
+            _k3 := _ret.M_StartWrite(Key := _M_Key(Name := 'Pool'), pData := ADR(_docB), Size := 0);
+            _s3 := 3;
+        END_IF
+    3:
+        IF _ret.M_Poll(Ticket := _k3, Result := _r3) THEN
+            _k3 := _ret.M_StartRead(Key := _M_Key(Name := 'Pool'), pData := ADR(_buf),
+                Size := SIZEOF(_buf));
+            _s3 := 4;
+        END_IF
+    4:
+        IF _ret.M_Poll(Ticket := _k3, Result := _r3) THEN
+            AssertTrue(Condition := _r3.Ok AND NOT _r3.Found AND NOT _r3.Lost,
+                Message := 'an empty document frees the slot');
+            _n3 := 1;
+            _full3 := 0;
+            _s3 := 5;
+        END_IF
+    5:      // fill the pool until it refuses
+        _k3 := _ret.M_StartWrite(Key := _M_Key(Name := CONCAT('Fill', INT_TO_STRING(_n3))),
+            pData := ADR(_docA), Size := SIZEOF(_docA));
+        _s3 := 6;
+    6:
+        IF _ret.M_Poll(Ticket := _k3, Result := _r3) THEN
+            IF NOT _r3.Ok THEN
+                _full3 := _n3;
+                AssertEquals_UDINT(Expected := 16#70A, Actual := _r3.ErrorId,
+                    Message := 'a full pool refuses with the memory error');
+                _n3 := _n3 - 1;
+                _s3 := 7;
+            ELSIF _n3 > PL_Fraktal.MAX_RETAIN_DOCUMENTS THEN
+                AssertTrue(Condition := FALSE, Message := 'the pool took more documents than it holds');
+                _s3 := 7;
+            ELSE
+                _n3 := _n3 + 1;
+                _s3 := 5;
+            END_IF
+        END_IF
+    7:      // remove what this run wrote
+        IF _n3 < 1 THEN
+            AssertTrue(Condition := (_full3 > 0) AND (_full3 <= PL_Fraktal.MAX_RETAIN_DOCUMENTS + 1),
+                Message := 'the pool is bounded by MAX_RETAIN_DOCUMENTS');
+            _s3 := 99;
+            TEST_FINISHED();
+        ELSE
+            _k3 := _ret.M_StartWrite(Key := _M_Key(Name := CONCAT('Fill', INT_TO_STRING(_n3))),
+                pData := ADR(_docA), Size := 0);
+            _s3 := 8;
+        END_IF
+    8:
+        IF _ret.M_Poll(Ticket := _k3, Result := _r3) THEN
+            _n3 := _n3 - 1;
+            _s3 := 7;
+        END_IF
+    99:
+        ;
+ELSE
+    _s3 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_file_medium_creates_its_folder" Id="{12d91d3c-9c1f-4813-8558-56eed32838a3}">
+      <Declaration><![CDATA[// The station's data folder is an absolute path the medium creates on its first
+// request (the press uses C:\ProgramData\Fraktal\PressDemo\).
+METHOD A_file_medium_creates_its_folder]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_file_medium_creates_its_folder');
+_t4(IN := _s4 < 99, PT := TEST_TIMEOUT);
+IF _t4.Q AND (_s4 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s4)));
+    _s4 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+_f4.Cyclic();
+CASE _s4 OF
+    0:
+        AssertTrue(Condition := _m4.Setup(Folder := GENERIC_FOLDER, Where := Tc2_System.PATH_GENERIC),
+            Message := 'an absolute folder is accepted');
+        _k4 := _m4.M_StartWrite(Key := _M_Key(Name := 'Folder'), pData := ADR(_docA),
+            Size := SIZEOF(_docA));
+        _s4 := 1;
+    1:
+        IF _m4.M_Poll(Ticket := _k4, Result := _r4) THEN
+            AssertTrue(Condition := _r4.Ok, Message := 'the document is written into the folder');
+            _k4 := _m4.M_StartRead(Key := _M_Key(Name := 'Folder'), pData := ADR(_buf),
+                Size := SIZEOF(_buf));
+            _s4 := 2;
+        END_IF
+    2:
+        IF _m4.M_Poll(Ticket := _k4, Result := _r4) THEN
+            AssertTrue(Condition := _r4.Found AND (_r4.Length = SIZEOF(_docA)),
+                Message := 'and read back from it');
+            _f4.M_Delete(Path := CONCAT(GENERIC_FOLDER, CONCAT(_M_Key(Name := 'Folder'), '.a')),
+                Where := Tc2_System.PATH_GENERIC);
+            _s4 := 3;
+        END_IF
+    3:
+        IF NOT _f4.Busy THEN
+            AssertFalse(Condition := _f4.Error, Message := 'the file was where the medium said');
+            _s4 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s4 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="The_newest_copy_wins_in_either_slot" Id="{0d0d5b25-ee27-43ac-8b2e-2253e8cc1d22}">
+      <Declaration><![CDATA[// Regression (live acceptance 2026-10-06): with the newest copy in slot a and an
+// older one in slot b, a fresh run returned nothing - the payload check compared
+// slot a against slot b's header - and its next write then replaced slot a, the
+// newest copy. A fresh medium must read slot a, and must write the next copy to b.
+METHOD The_newest_copy_wins_in_either_slot
+VAR
+    key : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('The_newest_copy_wins_in_either_slot');
+_t5(IN := _s5 < 99, PT := TEST_TIMEOUT);
+IF _t5.Q AND (_s5 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s5)));
+    _s5 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+key := _M_Key(Name := 'Slots');
+_f5.Cyclic();
+CASE _s5 OF
+    0:      // generation 1 -> a, 2 -> b, 3 -> a
+        _m5.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+        _k5 := _m5.M_StartWrite(Key := key, pData := ADR(_docA), Size := SIZEOF(_docA));
+        _s5 := 1;
+    1:
+        IF _m5.M_Poll(Ticket := _k5, Result := _r5) THEN
+            _k5 := _m5.M_StartWrite(Key := key, pData := ADR(_docB), Size := SIZEOF(_docB));
+            _s5 := 2;
+        END_IF
+    2:
+        IF _m5.M_Poll(Ticket := _k5, Result := _r5) THEN
+            _k5 := _m5.M_StartWrite(Key := key, pData := ADR(_docA), Size := SIZEOF(_docA));
+            _s5 := 3;
+        END_IF
+    3:
+        IF _m5.M_Poll(Ticket := _k5, Result := _r5) THEN
+            AssertTrue(Condition := _r5.Ok, Message := 'three copies written');
+            _m6.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+            MEMSET(destAddr := ADR(_buf), fillByte := 0, n := SIZEOF(_buf));
+            _k5 := _m6.M_StartRead(Key := key, pData := ADR(_buf), Size := SIZEOF(_buf));
+            _s5 := 4;
+        END_IF
+    4:      // a fresh run reads the newest copy, which is in slot a
+        IF _m6.M_Poll(Ticket := _k5, Result := _r5) THEN
+            AssertTrue(Condition := _r5.Ok AND _r5.Found AND NOT _r5.Lost,
+                Message := 'a fresh run finds the newest copy in slot a');
+            AssertEquals_UDINT(Expected := SIZEOF(_docA), Actual := _r5.Length,
+                Message := 'generation 3, not the older copy in slot b');
+            _k5 := _m6.M_StartWrite(Key := key, pData := ADR(_docB), Size := SIZEOF(_docB));
+            _s5 := 5;
+        END_IF
+    5:
+        IF _m6.M_Poll(Ticket := _k5, Result := _r5) THEN
+            AssertTrue(Condition := _r5.Ok, Message := 'generation 4 is written');
+            // It must have replaced slot b: remove b and slot a still holds generation 3.
+            _f5.M_Delete(Path := CONCAT(key, '.b'), Where := Tc2_System.PATH_BOOTPATH);
+            _s5 := 6;
+        END_IF
+    6:
+        IF NOT _f5.Busy THEN
+            _m7.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+            _k5 := _m7.M_StartRead(Key := key, pData := ADR(_buf), Size := SIZEOF(_buf));
+            _s5 := 7;
+        END_IF
+    7:
+        IF _m7.M_Poll(Ticket := _k5, Result := _r5) THEN
+            AssertTrue(Condition := _r5.Found, Message := 'slot a was not overwritten');
+            AssertEquals_UDINT(Expected := SIZEOF(_docA), Actual := _r5.Length,
+                Message := 'the next write went to the slot without the newest copy');
+            _f5.M_Delete(Path := CONCAT(key, '.a'), Where := Tc2_System.PATH_BOOTPATH);
+            _s5 := 8;
+        END_IF
+    8:
+        IF NOT _f5.Busy THEN
+            _s5 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s5 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

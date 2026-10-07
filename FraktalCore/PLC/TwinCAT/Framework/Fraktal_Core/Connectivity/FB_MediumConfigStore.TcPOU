@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_MediumConfigStore" Id="{94397e4f-5921-4f68-a308-53092d3cb201}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b - named parameter sets kept on any I_PersistMedium: each set is
+// one FB_ConfigSetDocument ('<KeyPrefix>.set<n>'), so on the file medium a set
+// is a readable JSON-lines file and on the retentive medium a pooled document.
+// The project picks the medium; this store is the same either way.
+//
+// The sets are held in volatile slots for the synchronous I_ConfigStore reads,
+// read back from the medium once at start, and every saved or deleted set is
+// written out. It is also this store's I_ConfigPersistence: the owning root finds
+// it by __QUERYINTERFACE and drives it with every other durability provider, so
+// PersistPending covers a saved set until its document is written (§3.8b), and
+// a project wires nothing beyond SetConfigStore.
+//
+// Like every store it validates nothing and authorizes nothing (§5.6, §14); a
+// set restored here is still validated by the root when somebody loads it. A set
+// lost on the medium is reported by RestoreLost and is simply not listed, as
+// FB_LocalConfigStore reports a rejected table.
+FUNCTION_BLOCK FB_MediumConfigStore IMPLEMENTS I_ConfigStore, I_ConfigPersistence
+VAR_OUTPUT
+    Restored    : BOOL;   // every stored set has been read back
+    RestoreLost : BOOL;   // a set the medium had, or confirmed, did not come back
+    Durable     : BOOL;   // every saved and deleted set is written
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _medium : I_PersistMedium;
+    _prefix : STRING(60);
+    {attribute 'OPC.UA.DA' := '0'}
+    _sets   : ARRAY[1..PL_Fraktal.MAX_CONFIG_SETS] OF FB_ConfigSnapshot;
+    _dirty  : ARRAY[1..PL_Fraktal.MAX_CONFIG_SETS] OF BOOL;
+    // The open save. A set becomes visible only at M_SaveCommit, exactly as in
+    // FB_LocalConfigStore: an aborted or refused save leaves the old set intact.
+    _saveSlot : INT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _staged   : FB_ConfigSnapshot;
+    {attribute 'OPC.UA.DA' := '0'}
+    _doc      : FB_ConfigSetDocument;
+    _phase    : INT;
+    _slot     : INT;
+    _failed   : BOOL;
+    _retry    : TON;
+END_VAR
+VAR CONSTANT
+    RETRY_INTERVAL : TIME := T#10S;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// no cyclic body: the owning root drives M_Cyclic]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{fa3c4957-6725-4fff-99c4-2141dc9db155}">
+      <Declaration><![CDATA[// The medium and the key prefix (letters, digits, '_', '.', '-'; at most 60).
+// Refused once the restore has started.
+METHOD Setup : BOOL
+VAR_INPUT
+    Medium    : I_PersistMedium;
+    KeyPrefix : STRING(60);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Setup := FALSE;
+IF (_phase <> 0) OR (Medium = 0) OR NOT F_ValidPersistKey(Key := KeyPrefix) THEN
+    RETURN;
+END_IF
+_medium := Medium;
+_prefix := KeyPrefix;
+Setup := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Kind" Id="{37f0b6a6-3eaa-42e1-ab66-04a63f415fe5}">
+      <Declaration><![CDATA[METHOD M_Kind : E_ConfigStore]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Kind := E_ConfigStore.FILE_JSON;
+IF _medium <> 0 THEN
+    M_Kind := _medium.M_Kind();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Request" Id="{d801d894-84ca-4828-82f1-4b5a54ae2f9e}">
+      <Declaration><![CDATA[// I_ConfigPersistence - the changed sets are already marked; a new request
+// re-arms a failed write at once instead of after the retry interval.
+METHOD M_Request : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_retry(IN := FALSE, PT := RETRY_INTERVAL);
+_failed := FALSE;
+M_Request := _medium <> 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Failed" Id="{9b1d6ec2-5167-42d6-af24-2468ab86227e}">
+      <Declaration><![CDATA[METHOD M_Failed : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Failed := _failed;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Cyclic" Id="{56cf1021-7cda-4189-9d52-95db10030de1}">
+      <Declaration><![CDATA[// I_ConfigPersistence - read every set back once, then write each changed set.
+// TRUE while the restore runs or a changed set is not yet written.
+METHOD M_Cyclic : BOOL
+VAR
+    i    : INT;
+    info : ST_ConfigSetInfo;
+    seen : ST_ConfigSetInfo;
+    k    : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Cyclic := FALSE;
+IF _medium = 0 THEN
+    RETURN;
+END_IF
+CASE _phase OF
+    0:      // restore: read slot 1 first
+        _slot := 1;
+        _phase := 10;
+    10:
+        IF _doc.M_Read(Medium := _medium, Key := _M_Key(Slot := _slot)) THEN
+            _phase := 11;
+        END_IF
+    11:
+        IF _doc.M_Poll() AND NOT _doc.Ok THEN
+            // The medium could not answer: the same set is asked for again later.
+            _failed := TRUE;
+            _retry(IN := FALSE, PT := RETRY_INTERVAL);
+            _phase := 12;
+        ELSIF NOT _doc.Busy THEN
+            _failed := FALSE;
+            IF _doc.Lost THEN
+                RestoreLost := TRUE;
+            END_IF
+            IF _doc.Found THEN
+                IF _doc.M_Parse(Store := _sets[_slot], Info := info) THEN
+                    // A set name appears once; a second copy is not listed.
+                    FOR k := 1 TO _slot - 1 DO
+                        IF _sets[k].M_ReadInfo(SetName := info.SetName, Info := seen) THEN
+                            _sets[_slot].M_Delete(SetName := info.SetName);
+                            RestoreLost := TRUE;
+                        END_IF
+                    END_FOR
+                ELSE
+                    RestoreLost := TRUE;
+                END_IF
+            END_IF
+            IF _slot < PL_Fraktal.MAX_CONFIG_SETS THEN
+                _slot := _slot + 1;
+                _phase := 10;
+            ELSE
+                Restored := TRUE;
+                _phase := 30;
+            END_IF
+        END_IF
+    12:
+        _retry(IN := TRUE, PT := RETRY_INTERVAL);
+        IF _retry.Q THEN
+            _retry(IN := FALSE, PT := RETRY_INTERVAL);
+            _phase := 10;
+        END_IF
+    30:     // idle: write the first changed set
+        _retry(IN := _failed, PT := RETRY_INTERVAL);
+        IF NOT _failed OR _retry.Q THEN
+            FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+                IF _dirty[i] AND (_phase = 30) THEN
+                    _slot := i;
+                    _phase := 40;
+                END_IF
+            END_FOR
+        END_IF
+    40:
+        _retry(IN := FALSE, PT := RETRY_INTERVAL);
+        IF _sets[_slot].M_InfoAt(Index := 1, Info := info) THEN
+            IF _doc.M_Write(Medium := _medium, Key := _M_Key(Slot := _slot),
+                    Store := _sets[_slot], SetName := info.SetName) THEN
+                _dirty[_slot] := FALSE;     // a commit during the write marks it again
+                _phase := 41;
+            ELSE
+                _M_WriteDone(Ok := FALSE);
+            END_IF
+        ELSIF _doc.M_Delete(Medium := _medium, Key := _M_Key(Slot := _slot)) THEN
+            _dirty[_slot] := FALSE;
+            _phase := 41;
+        ELSE
+            _M_WriteDone(Ok := FALSE);
+        END_IF
+    41:
+        IF _doc.M_Poll() THEN
+            _M_WriteDone(Ok := _doc.Ok);
+        END_IF
+ELSE
+    _phase := 30;
+END_CASE
+// Durable only when idle: a set whose write is in flight is not yet safe.
+Durable := (_phase = 30) AND NOT _failed;
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF _dirty[i] THEN
+        Durable := FALSE;
+    END_IF
+END_FOR
+M_Cyclic := NOT Durable;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_WriteDone" Id="{e9563599-02d6-4396-8b90-d3a7c94b150c}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_WriteDone
+VAR_INPUT
+    Ok : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Ok THEN
+    _failed := FALSE;
+ELSE
+    _dirty[_slot] := TRUE;     // retried after RETRY_INTERVAL
+    _failed := TRUE;
+END_IF
+_phase := 30;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Key" Id="{87cdc2a0-201f-40d9-a2e3-ac710fd3d923}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Key : STRING(80)
+VAR_INPUT
+    Slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Key := CONCAT(_prefix, CONCAT('.set', INT_TO_STRING(Slot)));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Find" Id="{ef8836d8-990e-444f-9893-3ae8639d3d0a}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Find : INT
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR
+    i : INT;
+    info : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Find := 0;
+IF SetName = '' THEN
+    RETURN;
+END_IF
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    IF _sets[i].M_ReadInfo(SetName := SetName, Info := info) THEN
+        _M_Find := i;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveBegin" Id="{c90a064f-5c7a-4465-8eb4-4c925701cd2c}">
+      <Declaration><![CDATA[// Open a save into the slot holding this name, else a free one. Refused until
+// the stored sets are back: a save then could silently replace one.
+METHOD M_SaveBegin : BOOL
+VAR_INPUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_SaveBegin := FALSE;
+_saveSlot := 0;
+IF NOT Restored OR (Info.SetName = '') THEN
+    RETURN;
+END_IF
+_saveSlot := _M_Find(SetName := Info.SetName);
+IF _saveSlot = 0 THEN
+    FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+        IF (_saveSlot = 0) AND (_sets[i].M_Count() = 0) THEN
+            _saveSlot := i;
+        END_IF
+    END_FOR
+END_IF
+IF _saveSlot = 0 THEN
+    RETURN;                     // full: refuse, never evict somebody's set
+END_IF
+M_SaveBegin := _staged.M_SaveBegin(Info := Info);
+IF NOT M_SaveBegin THEN
+    _saveSlot := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveRecord" Id="{74357700-90c7-4abc-adfc-9a3cae20aac0}">
+      <Declaration><![CDATA[METHOD M_SaveRecord : BOOL
+VAR_INPUT
+    Record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_SaveRecord := FALSE;
+IF _saveSlot = 0 THEN
+    RETURN;
+END_IF
+M_SaveRecord := _staged.M_SaveRecord(Record := Record);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveCommit" Id="{47bfaf5d-650d-4bb4-b1c5-fb0d3650fa9b}">
+      <Declaration><![CDATA[METHOD M_SaveCommit : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_SaveCommit := FALSE;
+IF _saveSlot = 0 THEN
+    RETURN;
+END_IF
+IF _staged.M_SaveCommit() THEN
+    _sets[_saveSlot] := _staged;            // published in one assignment
+    _dirty[_saveSlot] := TRUE;
+    Durable := FALSE;
+    M_SaveCommit := TRUE;
+END_IF
+_saveSlot := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SaveAbort" Id="{0e62814c-83e0-4f13-b511-1885b9bca27b}">
+      <Declaration><![CDATA[METHOD M_SaveAbort : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_staged.M_SaveAbort();
+_saveSlot := 0;
+M_SaveAbort := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReadInfo" Id="{19eefa8a-b539-4b61-8922-2542649eddb4}">
+      <Declaration><![CDATA[METHOD M_ReadInfo : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ReadInfo := FALSE;
+slot := _M_Find(SetName := SetName);
+IF slot > 0 THEN
+    M_ReadInfo := _sets[slot].M_ReadInfo(SetName := SetName, Info := Info);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReadRecord" Id="{76b28faf-36a7-437d-b266-9c61d00cd0ce}">
+      <Declaration><![CDATA[METHOD M_ReadRecord : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+    Index   : INT;
+END_VAR
+VAR_IN_OUT
+    Record : ST_ConfigRecord;
+END_VAR
+VAR
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ReadRecord := FALSE;
+slot := _M_Find(SetName := SetName);
+IF slot > 0 THEN
+    M_ReadRecord := _sets[slot].M_ReadRecord(SetName := SetName, Index := Index,
+        Record := Record);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Count" Id="{19a6d1e8-bcf2-4511-9830-f56db4c0e48d}">
+      <Declaration><![CDATA[METHOD M_Count : INT
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Count := 0;
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    M_Count := M_Count + _sets[i].M_Count();
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Delete" Id="{a5f898b0-099c-4903-acf6-4685410bf619}">
+      <Declaration><![CDATA[METHOD M_Delete : BOOL
+VAR_INPUT
+    SetName : STRING(80);
+END_VAR
+VAR
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Delete := FALSE;
+slot := _M_Find(SetName := SetName);
+IF (slot = 0) OR (slot = _saveSlot) THEN
+    RETURN;                     // unknown, or a save into this slot is open
+END_IF
+M_Delete := _sets[slot].M_Delete(SetName := SetName);
+IF M_Delete THEN
+    _dirty[slot] := TRUE;
+    Durable := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_InfoAt" Id="{a33879a7-c39e-4e74-a82e-efa0f08f5dd5}">
+      <Declaration><![CDATA[// Index runs over the OCCUPIED sets in slot order (1..M_Count).
+METHOD M_InfoAt : BOOL
+VAR_INPUT
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    i    : INT;
+    seen : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_InfoAt := FALSE;
+seen := 0;
+FOR i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+    seen := seen + _sets[i].M_Count();
+    IF (seen = Index) AND (_sets[i].M_Count() = 1) THEN
+        M_InfoAt := _sets[i].M_InfoAt(Index := 1, Info := Info);
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

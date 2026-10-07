@@ -207,6 +207,9 @@ RESERVED = {
     # Date/time type keywords and their short forms: a local named `tod` desynced
     # the parser (FB_LineData, 2026-09-27) into 47 errors, none naming the word.
     "tod", "time_of_day", "date", "date_and_time",
+    # A method input named `From` was rejected by 3.1.4026.24 with a C0009
+    # cascade on the declaration and every call (FB_FilePersistMedium, 2026-10-06).
+    "from",
 }
 
 

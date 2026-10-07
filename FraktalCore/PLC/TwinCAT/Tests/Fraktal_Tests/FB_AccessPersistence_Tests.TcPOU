@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AccessPersistence_Tests" Id="{eee000d4-7df9-495d-9d75-fde0b8545087}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §7.7(c)/§14 under test: the hidden local user table is retained through the
+// real TwinCAT file service, in the real Boot directory of the runtime.
+//
+// The provider keeps its default medium: a file medium in the Boot directory,
+// '<key>.a' and '<key>.b' (FB_FilePersistMedium; the medium itself is covered by
+// FB_PersistMedium_Tests). A "restart" here is a second provider instance over
+// the same retained files - exactly what a cold start, a download or a power
+// cycle leaves a new run with. Each test uses its own per-run key, so tests run
+// side by side and a previous run's files or confirmation marker can never decide
+// this run's result; every test removes its files when it finishes. A real
+// runtime restart with the same instance (the confirmation marker) is accepted
+// separately.
+FUNCTION_BLOCK FB_AccessPersistence_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _tag : STRING(24);                    // per-run suffix of every key
+    _garbage : ARRAY[0..15] OF BYTE := [16(16#5A)];
+    _s1 : INT;
+    _t1 : TON;
+    _p1a : FB_LocalAccessProvider;
+    _p1b : FB_LocalAccessProvider;
+    _p1c : FB_LocalAccessProvider;
+    _f1 : FB_ProbeFileOps;
+    _s2 : INT;
+    _t2 : TON;
+    _p2a : FB_LocalAccessProvider;
+    _p2b : FB_LocalAccessProvider;
+    _f2 : FB_ProbeFileOps;
+    _s3 : INT;
+    _t3 : TON;
+    _p3a : FB_LocalAccessProvider;
+    _p3b : FB_LocalAccessProvider;
+    _f3 : FB_ProbeFileOps;
+    _s4 : INT;
+    _t4 : TON;
+    _u4a : FB_ProbeUnit;
+    _u4b : FB_ProbeUnit;
+    _u4c : FB_ProbeUnit;
+    _p4a : FB_LocalAccessProvider;
+    _p4b : FB_LocalAccessProvider;
+    _p4c : FB_LocalAccessProvider;
+    _f4 : FB_ProbeFileOps;
+    _u5 : FB_ProbeUnit;
+    _store5 : FB_ProbeAccessStore;
+    _done5 : BOOL;                        // state-changing: runs exactly once
+    _p6 : FB_LocalAccessProvider;
+    _done6 : BOOL;                        // state-changing: runs exactly once
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#40S;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF _tag = '' THEN
+    _tag := ULINT_TO_STRING(Tc2_Utilities.F_GetSystemTime() MOD 1000000000000);
+END_IF
+A_retained_table_survives_a_restart_and_follows_changes();
+A_corrupt_table_is_announced_once_and_replaced();
+A_torn_newest_image_falls_back_to_the_previous_one();
+A_root_restores_logs_in_and_out_and_announces_a_lost_table();
+A_root_announces_a_failed_save_and_a_lost_table_once();
+Storage_names_are_bounded_and_fixed_before_restore();]]></ST></Implementation>
+    <Method Name="_M_Stem" Id="{5b61ee64-36fc-419d-8112-a63ccdb590a5}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Stem : STRING(80)
+VAR_INPUT
+    Name : STRING(40);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Stem := CONCAT(CONCAT('FrkTest_', Name), CONCAT('_', _tag));]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_File" Id="{8bcca8cc-f5cd-4ce3-b494-78821c818331}">
+      <Declaration><![CDATA[// The retained file of one slot, as the file medium names it ('<key>.a').
+METHOD PRIVATE _M_File : STRING(255)
+VAR_INPUT
+    Name : STRING(40);
+    SlotB : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF SlotB THEN
+    _M_File := CONCAT(_M_Stem(Name := Name), '.b');
+ELSE
+    _M_File := CONCAT(_M_Stem(Name := Name), '.a');
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_LevelOf" Id="{07d120fb-7754-4ffb-be97-fe43a101f7f2}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_LevelOf : DINT
+VAR_INPUT
+    Provider : I_AccessProvider;
+    User : STRING(32);
+    Pin : STRING(32);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_LevelOf := TO_DINT(Provider.Authenticate(User := User, Secret := Pin));]]></ST></Implementation>
+    </Method>
+    <Method Name="A_retained_table_survives_a_restart_and_follows_changes" Id="{d39da0fd-0661-476a-adf7-2ef4c3b32e51}">
+      <Declaration><![CDATA[// Restart retention, a PIN change and a level change all come back from storage.
+METHOD A_retained_table_survives_a_restart_and_follows_changes]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_retained_table_survives_a_restart_and_follows_changes');
+_t1(IN := _s1 < 99, PT := TEST_TIMEOUT);
+IF _t1.Q AND (_s1 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s1)));
+    _s1 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+_f1.Cyclic();
+CASE _s1 OF
+    0:
+        AssertTrue(Condition := _p1a.M_UseKey(Key := _M_Stem(Name := 'Retain')),
+            Message := 'a valid key is accepted before the restore');
+        // Registered BEFORE the restore finishes: kept, and written.
+        _p1a.Register(User := 'op', Pin := '1234', Level := E_AccessLevel.OPERATOR);
+        _p1a.Register(User := 'eng', Pin := '5678', Level := E_AccessLevel.ENGINEER);
+        _s1 := 1;
+    1:
+        _p1a.M_Service();
+        IF _p1a.Durable THEN
+            AssertFalse(Condition := _p1a.M_RestoreLost(),
+                Message := 'a store that never existed lost nothing');
+            AssertTrue(Condition := _p1b.M_UseKey(Key := _M_Stem(Name := 'Retain')),
+                Message := 'the restarted instance opens the same store');
+            _s1 := 2;
+        END_IF
+    2:
+        _p1b.M_Service();
+        IF _p1b.Restored THEN
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR),
+                Actual := _M_LevelOf(Provider := _p1b, User := 'op', Pin := '1234'),
+                Message := 'an operator registered before the restart logs in after it');
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.ENGINEER),
+                Actual := _M_LevelOf(Provider := _p1b, User := 'eng', Pin := '5678'),
+                Message := 'every retained user keeps its level');
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+                Actual := _M_LevelOf(Provider := _p1b, User := 'op', Pin := '0000'),
+                Message := 'a wrong PIN is still refused after the restore');
+            AssertFalse(Condition := _p1b.M_RestoreLost(), Message := 'nothing was lost');
+            // Access change: a new PIN for one user, a new level for another.
+            _p1b.Register(User := 'op', Pin := '2468', Level := E_AccessLevel.OPERATOR);
+            _p1b.Register(User := 'eng', Pin := '5678', Level := E_AccessLevel.TECHNICIAN);
+            _s1 := 3;
+        END_IF
+    3:
+        _p1b.M_Service();
+        IF _p1b.Durable THEN
+            _p1c.M_UseKey(Key := _M_Stem(Name := 'Retain'));
+            _s1 := 4;
+        END_IF
+    4:
+        _p1c.M_Service();
+        IF _p1c.Restored THEN
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+                Actual := _M_LevelOf(Provider := _p1c, User := 'op', Pin := '1234'),
+                Message := 'the replaced PIN does not come back after the next restart');
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR),
+                Actual := _M_LevelOf(Provider := _p1c, User := 'op', Pin := '2468'),
+                Message := 'the new PIN is the retained one');
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.TECHNICIAN),
+                Actual := _M_LevelOf(Provider := _p1c, User := 'eng', Pin := '5678'),
+                Message := 'the changed level is the retained one');
+            _f1.M_Delete(Path := _M_File(Name := 'Retain', SlotB := FALSE), Where := Tc2_System.PATH_BOOTPATH);
+            _s1 := 5;
+        END_IF
+    5:
+        IF NOT _f1.Busy THEN
+            _f1.M_Delete(Path := _M_File(Name := 'Retain', SlotB := TRUE), Where := Tc2_System.PATH_BOOTPATH);
+            _s1 := 6;
+        END_IF
+    6:
+        IF NOT _f1.Busy THEN
+            _s1 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s1 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_corrupt_table_is_announced_once_and_replaced" Id="{17d13581-0227-4cbf-86e6-fe6bf444ae98}">
+      <Declaration><![CDATA[// Both slots unreadable: the loss is reported, nothing half-restored, and what
+// survived is written back so the NEXT restart is silent and complete.
+METHOD A_corrupt_table_is_announced_once_and_replaced]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_corrupt_table_is_announced_once_and_replaced');
+_t2(IN := _s2 < 99, PT := TEST_TIMEOUT);
+IF _t2.Q AND (_s2 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s2)));
+    _s2 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+_f2.Cyclic();
+CASE _s2 OF
+    0:
+        IF _f2.M_Write(Path := _M_File(Name := 'Corrupt', SlotB := FALSE),
+            Where := Tc2_System.PATH_BOOTPATH, pData := ADR(_garbage), Size := SIZEOF(_garbage)) THEN
+            _s2 := 1;
+        END_IF
+    1:
+        IF NOT _f2.Busy AND _f2.M_Write(Path := _M_File(Name := 'Corrupt', SlotB := TRUE),
+            Where := Tc2_System.PATH_BOOTPATH, pData := ADR(_garbage), Size := SIZEOF(_garbage)) THEN
+            _s2 := 2;
+        END_IF
+    2:
+        IF NOT _f2.Busy THEN
+            AssertFalse(Condition := _f2.Error, Message := 'the damaged images were staged');
+            _p2a.M_UseKey(Key := _M_Stem(Name := 'Corrupt'));
+            _s2 := 3;
+        END_IF
+    3:
+        _p2a.M_Service();
+        IF _p2a.Restored THEN
+            AssertTrue(Condition := _p2a.M_RestoreLost(),
+                Message := 'two unreadable images are a loss, never a silent empty table');
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+                Actual := _M_LevelOf(Provider := _p2a, User := 'op', Pin := '1234'),
+                Message := 'nothing is half-restored from a corrupt image');
+            _s2 := 4;
+        END_IF
+    4:
+        _p2a.M_Service();
+        IF _p2a.Durable THEN
+            // Recovery is re-registration, the commissioning path a station already has.
+            _p2a.Register(User := 'op', Pin := '1234', Level := E_AccessLevel.OPERATOR);
+            _s2 := 5;
+        END_IF
+    5:
+        _p2a.M_Service();
+        IF _p2a.Durable THEN
+            _p2b.M_UseKey(Key := _M_Stem(Name := 'Corrupt'));
+            _s2 := 6;
+        END_IF
+    6:
+        _p2b.M_Service();
+        IF _p2b.Restored THEN
+            AssertFalse(Condition := _p2b.M_RestoreLost(),
+                Message := 'the rewritten baseline restores silently: the loss was announced once');
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR),
+                Actual := _M_LevelOf(Provider := _p2b, User := 'op', Pin := '1234'),
+                Message := 'the re-registered user is retained');
+            _f2.M_Delete(Path := _M_File(Name := 'Corrupt', SlotB := FALSE), Where := Tc2_System.PATH_BOOTPATH);
+            _s2 := 7;
+        END_IF
+    7:
+        IF NOT _f2.Busy THEN
+            _f2.M_Delete(Path := _M_File(Name := 'Corrupt', SlotB := TRUE), Where := Tc2_System.PATH_BOOTPATH);
+            _s2 := 8;
+        END_IF
+    8:
+        IF NOT _f2.Busy THEN
+            _s2 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s2 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_torn_newest_image_falls_back_to_the_previous_one" Id="{2d45ccac-6d58-4696-90bc-acdab8929b07}">
+      <Declaration><![CDATA[// A write interrupted mid-file leaves the other slot intact: the restore takes the
+// newest image that validates and never mixes records from the two.
+METHOD A_torn_newest_image_falls_back_to_the_previous_one]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_torn_newest_image_falls_back_to_the_previous_one');
+_t3(IN := _s3 < 99, PT := TEST_TIMEOUT);
+IF _t3.Q AND (_s3 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s3)));
+    _s3 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+_f3.Cyclic();
+CASE _s3 OF
+    0:
+        _p3a.M_UseKey(Key := _M_Stem(Name := 'Torn'));
+        _p3a.Register(User := 'op', Pin := '1111', Level := E_AccessLevel.OPERATOR);
+        _s3 := 1;
+    1:
+        _p3a.M_Service();
+        IF _p3a.Durable THEN            // generation 1 in slot A
+            _p3a.Register(User := 'eng', Pin := '2222', Level := E_AccessLevel.ENGINEER);
+            _s3 := 2;
+        END_IF
+    2:
+        _p3a.M_Service();
+        IF _p3a.Durable THEN            // generation 2 in slot B: now tear it
+            IF _f3.M_Write(Path := _M_File(Name := 'Torn', SlotB := TRUE),
+                Where := Tc2_System.PATH_BOOTPATH, pData := ADR(_garbage), Size := SIZEOF(_garbage)) THEN
+                _s3 := 3;
+            END_IF
+        END_IF
+    3:
+        IF NOT _f3.Busy THEN
+            _p3b.M_UseKey(Key := _M_Stem(Name := 'Torn'));
+            _s3 := 4;
+        END_IF
+    4:
+        _p3b.M_Service();
+        IF _p3b.Restored THEN
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.OPERATOR),
+                Actual := _M_LevelOf(Provider := _p3b, User := 'op', Pin := '1111'),
+                Message := 'the previous complete image is restored');
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+                Actual := _M_LevelOf(Provider := _p3b, User := 'eng', Pin := '2222'),
+                Message := 'no record of the torn image is used');
+            _f3.M_Delete(Path := _M_File(Name := 'Torn', SlotB := FALSE), Where := Tc2_System.PATH_BOOTPATH);
+            _s3 := 5;
+        END_IF
+    5:
+        IF NOT _f3.Busy THEN
+            _f3.M_Delete(Path := _M_File(Name := 'Torn', SlotB := TRUE), Where := Tc2_System.PATH_BOOTPATH);
+            _s3 := 6;
+        END_IF
+    6:
+        IF NOT _f3.Busy THEN
+            _s3 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s3 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_root_restores_logs_in_and_out_and_announces_a_lost_table" Id="{5a5b873e-f685-4d19-9945-24197497ce0c}">
+      <Declaration><![CDATA[// The surface a station uses: nothing but Access.Setup. The root's access manager
+// drives the store, a restored user logs in and out through the data-driven
+// request, and a lost table is announced through the root's §3.8b path.
+METHOD A_root_restores_logs_in_and_out_and_announces_a_lost_table]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_root_restores_logs_in_and_out_and_announces_a_lost_table');
+_t4(IN := _s4 < 99, PT := TEST_TIMEOUT);
+IF _t4.Q AND (_s4 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s4)));
+    _s4 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+_f4.Cyclic();
+CASE _s4 OF
+    0:
+        _p4a.M_UseKey(Key := _M_Stem(Name := 'Root'));
+        _u4a.Setup('Test.RetainA');
+        _u4a();
+        _u4a.Access.Setup(Provider := _p4a, pAlarmLog := ADR(_u4a.AlarmLog));
+        _p4a.Register(User := 'tech', Pin := '4711', Level := E_AccessLevel.TECHNICIAN);
+        _s4 := 1;
+    1:
+        _u4a();                         // the root, not the test, services the store
+        IF _p4a.Durable THEN
+            _p4b.M_UseKey(Key := _M_Stem(Name := 'Root'));
+            _u4b.Setup('Test.RetainB');
+            _u4b();
+            _u4b.Access.Setup(Provider := _p4b, pAlarmLog := ADR(_u4b.AlarmLog));
+            _s4 := 2;
+        END_IF
+    2:
+        _u4b();
+        IF _p4b.Restored THEN
+            _u4b.Access.RequestLogin(User := 'tech', Secret := '4711');
+            _u4b();
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.TECHNICIAN),
+                Actual := TO_DINT(_u4b.Access.CurrentLevel),
+                Message := 'a user retained by another run logs in through the root');
+            _u4b.Access.RequestLogout();
+            _u4b();
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+                Actual := TO_DINT(_u4b.Access.CurrentLevel), Message := 'and logs out');
+            _u4b.Access.RequestLogin(User := 'tech', Secret := '0000');
+            _u4b();
+            AssertTrue(Condition := _u4b.Access.LoginFailed,
+                Message := 'a wrong PIN for a retained user is refused');
+            AssertFalse(Condition := _u4b.ConfigPersist.RestoreLost,
+                Message := 'a good table is not a loss');
+            _s4 := 3;
+        END_IF
+    3:
+        IF _f4.M_Write(Path := _M_File(Name := 'Root', SlotB := FALSE),
+            Where := Tc2_System.PATH_BOOTPATH, pData := ADR(_garbage), Size := SIZEOF(_garbage)) THEN
+            _s4 := 4;
+        END_IF
+    4:
+        IF NOT _f4.Busy AND _f4.M_Write(Path := _M_File(Name := 'Root', SlotB := TRUE),
+            Where := Tc2_System.PATH_BOOTPATH, pData := ADR(_garbage), Size := SIZEOF(_garbage)) THEN
+            _s4 := 5;
+        END_IF
+    5:
+        IF NOT _f4.Busy THEN
+            _p4c.M_UseKey(Key := _M_Stem(Name := 'Root'));
+            _u4c.Setup('Test.RetainC');
+            _u4c();
+            _u4c.Access.Setup(Provider := _p4c, pAlarmLog := ADR(_u4c.AlarmLog));
+            _s4 := 6;
+        END_IF
+    6:
+        _u4c();
+        IF _p4c.Restored THEN
+            _u4c();                     // the root drains the loss on its next scan
+            _u4c();
+            AssertTrue(Condition := _u4c.ConfigPersist.RestoreLost,
+                Message := 'a lost user table is published like any lost image (3.8b)');
+            AssertEquals_STRING(Expected := 'Test.RetainC.Access',
+                Actual := _u4c.ConfigPersist.LostPath, Message := 'naming the access table');
+            AssertTrue(Condition := F_ProbeAlarmActive(pLog := ADR(_u4c.AlarmLog),
+                Reason := E_Reason.CONFIG_RESTORE_LOST, Source := 'Test.RetainC.Access'),
+                Message := 'and announced until an engineer acknowledges it');
+            _u4c.Access.RequestLogin(User := 'tech', Secret := '4711');
+            _u4c();
+            AssertEquals_DINT(Expected := TO_DINT(E_AccessLevel.NONE),
+                Actual := TO_DINT(_u4c.Access.CurrentLevel),
+                Message := 'a user from a lost table cannot log in');
+            _s4 := 7;
+        END_IF
+    7:
+        _u4c();
+        IF _p4c.Durable AND _f4.M_Delete(Path := _M_File(Name := 'Root', SlotB := FALSE),
+            Where := Tc2_System.PATH_BOOTPATH) THEN
+            _s4 := 8;
+        END_IF
+    8:
+        IF NOT _f4.Busy THEN
+            _f4.M_Delete(Path := _M_File(Name := 'Root', SlotB := TRUE), Where := Tc2_System.PATH_BOOTPATH);
+            _s4 := 9;
+        END_IF
+    9:
+        IF NOT _f4.Busy THEN
+            _s4 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s4 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_root_announces_a_failed_save_and_a_lost_table_once" Id="{79a998e8-2bed-4332-a55d-fd746e6b5976}">
+      <Declaration><![CDATA[// The root's side of a retained table, with the store's outcomes forced: a write
+// that cannot be made durable is CONFIG_PERSIST_FAILED until a later one succeeds,
+// and a lost table reaches the root's §3.8b restore annunciation exactly once.
+// (The provider's own failing write is accepted live, against a real Boot folder.)
+METHOD A_root_announces_a_failed_save_and_a_lost_table_once]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_root_announces_a_failed_save_and_a_lost_table_once');
+IF _done5 THEN
+    RETURN;
+END_IF
+_done5 := TRUE;
+_u5.Setup('Test.StoreRoot');
+_u5();
+_u5.Access.Setup(Provider := _store5, pAlarmLog := ADR(_u5.AlarmLog));
+_u5();
+AssertTrue(Condition := _store5.Serviced > 0,
+    Message := 'the root services a provider that retains its table: the project calls nothing');
+_store5.SaveFailed := TRUE;
+_u5();
+AssertTrue(Condition := F_ProbeAlarmActive(pLog := ADR(_u5.AlarmLog),
+    Reason := E_Reason.CONFIG_PERSIST_FAILED, Source := 'Access'),
+    Message := 'a registration that cannot be written is announced, not swallowed');
+AssertFalse(Condition := _u5.AlarmLog.Blocking,
+    Message := 'it does not stop a machine that can still finish its parts');
+_store5.SaveFailed := FALSE;
+_u5();
+AssertFalse(Condition := F_ProbeAlarmActive(pLog := ADR(_u5.AlarmLog),
+    Reason := E_Reason.CONFIG_PERSIST_FAILED, Source := 'Access'),
+    Message := 'a later successful write clears the announcement');
+_store5.RestoreLost := TRUE;
+_u5();
+_u5();
+AssertTrue(Condition := _u5.ConfigPersist.RestoreLost,
+    Message := 'a lost table is published by the root (3.8b)');
+AssertEquals_STRING(Expected := 'Test.StoreRoot.Access', Actual := _u5.ConfigPersist.LostPath,
+    Message := 'naming the access table');
+AssertTrue(Condition := F_ProbeAlarmActive(pLog := ADR(_u5.AlarmLog),
+    Reason := E_Reason.CONFIG_RESTORE_LOST, Source := 'Test.StoreRoot.Access'),
+    Message := 'and annunciated with that path');
+AssertFalse(Condition := _u5.Access.M_TakeRestoreLoss(),
+    Message := 'the root took it once: a standing loss is not re-announced every scan');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Storage_names_are_bounded_and_fixed_before_restore" Id="{0caec104-5816-452a-ae21-6263ec67e5c6}">
+      <Declaration><![CDATA[METHOD Storage_names_are_bounded_and_fixed_before_restore]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Storage_names_are_bounded_and_fixed_before_restore');
+IF _done6 THEN
+    RETURN;
+END_IF
+_done6 := TRUE;
+AssertFalse(Condition := _p6.M_UseKey(Key := '..\Boot'),
+    Message := 'a path separator can never leave the medium$'s folder');
+AssertFalse(Condition := _p6.M_UseKey(Key := 'two words'),
+    Message := 'only letters, digits, underscore, dot and dash are accepted');
+AssertTrue(Condition := _p6.M_UseKey(Key := ''),
+    Message := 'an empty key keeps the table volatile by choice');
+_p6.M_Service();
+AssertTrue(Condition := _p6.Restored, Message := 'a volatile table is restored at once');
+AssertFalse(Condition := _p6.Durable, Message := 'and never claims durability');
+AssertFalse(Condition := _p6.M_UseKey(Key := 'Later'),
+    Message := 'a started store cannot be retargeted');
+AssertFalse(Condition := _p6.Register(User := '', Pin := '1', Level := E_AccessLevel.OPERATOR),
+    Message := 'an unnamed user is refused');
+AssertTrue(Condition := _p6.Register(User := 'op', Pin := '1', Level := E_AccessLevel.OPERATOR),
+    Message := 'a named user is accepted');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

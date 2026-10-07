@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AccessImageV1" Id="{ffaa6c3e-0c5f-4ba2-89af-4bee26480a34}">
+    <Declaration><![CDATA[// Core §7.7(c)/§14 - FB_LocalAccessProvider's retained user table as it is kept
+// in the TwinCAT Boot directory: fixed-width, packed (identical on x86/x64/Arm),
+// versioned and CRC-protected, so a torn, foreign or edited file is rejected as a
+// whole instead of being half-restored. It carries salts and PIN hashes only.
+{attribute 'pack_mode' := '1'}
+TYPE ST_AccessImageV1 :
+STRUCT
+    SchemaVersion : UINT;      // 1
+    ByteCount     : UINT;      // SIZEOF(ST_AccessImageV1)
+    Magic         : DWORD;     // 'FRKA'
+    Generation    : UDINT;     // increases with every durable write
+    Count         : INT;       // valid entries in Users
+    Reserved      : INT;       // 0
+    Users         : ARRAY[1..PL_Fraktal.MAX_USERS] OF ST_UserRecord;
+    Crc           : DWORD;     // F_Crc32 of every byte before this field
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

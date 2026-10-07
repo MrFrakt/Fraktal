@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../localization/localized_text.dart';
 import 'app_theme.dart';
 import 'theme_surfaces.dart';
+import 'theme_chrome.dart';
 
 class ThemePicker extends StatelessWidget {
   final int selectedIndex;
@@ -33,10 +34,13 @@ class ThemePicker extends StatelessWidget {
         );
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       group('std.theme.group.standard', 'std.theme.group.standardHelp',
-          order.where((i) => kThemes[i].standard)),
+          order.where((i) => kThemes[i].group == ThemeGroup.standard)),
       const SizedBox(height: 16),
       group('std.theme.group.modern', 'std.theme.group.modernHelp',
-          order.where((i) => !kThemes[i].standard)),
+          order.where((i) => kThemes[i].group == ThemeGroup.modern)),
+      const SizedBox(height: 16),
+      group('std.theme.group.inspired', 'std.theme.group.inspiredHelp',
+          order.where((i) => kThemes[i].group == ThemeGroup.inspired)),
     ]);
   }
 }
@@ -86,7 +90,19 @@ class _ThemePreview extends StatelessWidget {
                           height: 62,
                           child: ColoredBox(
                             color: cs.surface,
-                            child: FraktalBackdrop(
+                            child: spec.chrome != null
+                                ? Column(children: [
+                                    FraktalAccentBand(colors: spec.chrome!.bandColors),
+                                    Expanded(child: Row(children: [
+                                      SizedBox(width: 25, child: ColoredBox(
+                                        color: spec.chrome!.navigation,
+                                        child: Align(alignment: Alignment.center,
+                                          child: Container(height: 14, color: spec.chrome!.selection)))),
+                                      Expanded(child: ColoredBox(color: cs.surfaceContainerLow,
+                                        child: Center(child: Container(width: 52, height: 20, color: cs.primary)))),
+                                    ])),
+                                  ])
+                                : FraktalBackdrop(
                               child: FraktalCard(
                                 margin: const EdgeInsets.all(9),
                                 child: Padding(
@@ -98,7 +114,7 @@ class _ThemePreview extends StatelessWidget {
                                         color: cs.primary,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
-                                      child: Icon(Icons.tune,
+                                      child: Icon(Icons.palette_outlined,
                                           size: 14, color: cs.onPrimary),
                                     ),
                                     const SizedBox(width: 8),

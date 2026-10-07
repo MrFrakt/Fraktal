@@ -16,6 +16,7 @@ import 'mode_bar.dart';
 import 'release_panel.dart';
 import 'global_reset_button.dart';
 import 'settings_dialog.dart';
+import 'app_theme.dart';
 import '../localization/localized_text.dart';
 
 class Shell extends StatelessWidget {
@@ -94,6 +95,9 @@ class Shell extends StatelessWidget {
 
   PreferredSizeWidget _appBar(BuildContext context, bool wide) {
     final s = app.session;
+    final metrics = ControlScaleScope.of(context);
+    final compactActions = !wide && metrics.touchTarget > 48 &&
+        MediaQuery.sizeOf(context).width < metrics.touchTarget * 6 + 120;
     return AppBar(
       title: Row(children: [
         Flexible(
@@ -106,7 +110,29 @@ class Shell extends StatelessWidget {
       ]),
       actions: [
         ConnectionChip(state: app.link),
-        if (wide)
+        if (compactActions)
+          PopupMenuButton<String>(
+            key: const Key('shell-more-actions'),
+            tooltip: context.tr('std.nav.more'),
+            child: SizedBox.square(dimension: metrics.touchTarget,
+              child: Icon(Icons.more_vert, size: metrics.iconSize)),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'view', height: metrics.touchTarget,
+                child: LText(app.showFieldbus ? 'Show modules' : 'Show fieldbus')),
+              PopupMenuItem(value: 'overview', height: metrics.touchTarget,
+                child: const LText('std.nav.overview')),
+              PopupMenuItem(value: 'settings', height: metrics.touchTarget,
+                child: const LText('std.settings.title')),
+            ],
+            onSelected: (action) {
+              switch (action) {
+                case 'view': app.setFieldbusView(!app.showFieldbus);
+                case 'overview': app.openOverview();
+                case 'settings': _showSettings(context);
+              }
+            },
+          )
+        else if (wide)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 1),
             child: ViewSwitch<bool>(
@@ -131,23 +157,18 @@ class Shell extends StatelessWidget {
             onPressed: () => app.setFieldbusView(!app.showFieldbus),
           ),
         const SizedBox(width: 8),
-        IconButton(
+        if (!compactActions) IconButton(
           tooltip: context.tr('std.nav.overview'),
           icon: const Icon(Icons.dashboard_outlined),
           onPressed: app.openOverview,
         ),
         // One settings entry consolidates theme, language, keyboard, and the
         // admin connection/unit-edit flows (declutters the bar; Core O9).
-        IconButton(
+        if (!compactActions) IconButton(
           key: const Key('settings'),
           tooltip: context.tr('std.settings.title'),
           icon: const Icon(Icons.settings_outlined),
-          onPressed: () => showSettingsDialog(context, app,
-              onEditConnection: onEditConnection,
-              onEditUnitSelection: onEditUnitSelection,
-              onEditAppearance: onEditAppearance,
-              onEditAccess: onEditAccess,
-              onLanguageChanged: onLanguageChanged),
+          onPressed: () => _showSettings(context),
         ),
         if (s.level == AccessLevel.none && wide)
           TextButton.icon(
@@ -183,4 +204,11 @@ class Shell extends StatelessWidget {
       ],
     );
   }
+
+  void _showSettings(BuildContext context) => showSettingsDialog(context, app,
+    onEditConnection: onEditConnection,
+    onEditUnitSelection: onEditUnitSelection,
+    onEditAppearance: onEditAppearance,
+    onEditAccess: onEditAccess,
+    onLanguageChanged: onLanguageChanged);
 }

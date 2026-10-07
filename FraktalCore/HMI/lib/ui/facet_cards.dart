@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'theme_surfaces.dart';
 import '../domain/types.dart';
 import 'app_theme.dart';
+import 'hmi_icons.dart';
 
 class SystemHealthCard extends StatelessWidget {
   final SystemHealthFacet health;
@@ -63,13 +64,21 @@ class SystemHealthCard extends StatelessWidget {
               spacing: kInlineItemGap,
               runSpacing: kInlineItemGap,
               children: [
-              Chip(
-                  avatar: Icon(
-                      clockOk ? Icons.schedule : Icons.schedule_outlined,
-                      size: 18),
-                  label: LText(clockOk
+              Tooltip(
+                message: context.tr(!health.time.available
+                    ? 'std.clock.qualityUnavailable.note'
+                    : clockOk ? 'std.clock.synchronized.note'
+                    : 'std.clock.unsynchronized.note'),
+                child: Chip(
+                  avatar: Icon(!health.time.available
+                      ? Icons.timer_off_outlined
+                      : clockOk ? Icons.more_time : Icons.sync_problem, size: 18),
+                  label: LText(!health.time.available
+                      ? 'std.clock.qualityUnavailable'
+                      : clockOk
                       ? '${health.time.source} ${health.time.offsetUs} µs'
                       : 'TIME UNSYNCHRONIZED')),
+              ),
               Chip(label: LText('Task ${health.taskCycleUs} µs')),
               Chip(label: LText('Jitter ${health.taskJitterUs} µs')),
               if (health.controllerAvailable)
@@ -158,11 +167,14 @@ class SafetyCard extends StatelessWidget {
               for (final d in safety.devices)
                 ListTile(
                     dense: true,
-                    leading: Icon(
-                        d.ready
-                            ? Icons.check_circle_outline
-                            : Icons.gpp_bad_outlined,
-                        color: d.ready ? okColor(context) : cs.error),
+                    leading: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(safetyDeviceIcon(d.kind),
+                          color: d.ready ? okColor(context) : cs.error),
+                      const SizedBox(width: 4),
+                      Icon(d.ready ? Icons.check_circle_outline
+                          : Icons.gpp_bad_outlined, size: 14,
+                          color: d.ready ? okColor(context) : cs.error),
+                    ]),
                     title: LText(d.name),
                     subtitle: LText(
                         '${d.kind.name} · ${d.state.name}${d.description.isEmpty ? '' : '\n${context.tr(d.description)}'}'),
@@ -238,7 +250,8 @@ class ControlPowerCard extends StatelessWidget {
             for (final g in power.groups)
               ListTile(
                   dense: true,
-                  leading: Icon(g.powerOn ? Icons.bolt : Icons.power_off),
+                  leading: Icon(powerGroupIcon(g.kind),
+                      color: g.powerOn ? okColor(context) : null),
                   title: LText(g.name),
                   subtitle: LText(
                       '${g.kind.name} · ${g.state.name} · safety ${g.safetyPermit ? 'permitted' : 'withheld'} · bus ${g.fieldbusHealthy ? 'healthy' : 'fault'}'),

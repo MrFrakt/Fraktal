@@ -12,6 +12,8 @@ import 'app_theme.dart';
 import 'timing_chart_filters.dart';
 import 'custom_module_tabs.dart' show formatControlValue;
 import '../content/module_layout.dart';
+import 'theme_chrome.dart';
+import 'hmi_icons.dart';
 
 /// §6.5/§6.9 — what the Unit is doing right now, and what it waits for.
 class CurrentStepCard extends StatelessWidget {
@@ -349,8 +351,11 @@ class GlobalAlarmBanner extends StatelessWidget {
     final worst = events.first;
     final c = severityColor(context, worst.severity);
     final more = events.length - 1;
+    final fill = FraktalChromeTheme.of(context)?.eventFill(worst.severity);
+    final foreground = fill == null
+        ? severityTextColor(context, worst.severity) : Colors.white;
     return Material(
-      color: c.withValues(alpha: 0.14),
+      color: fill ?? c.withValues(alpha: 0.14),
       child: InkWell(
         onTap: () => app.select(worst.sourcePath),
         child: Padding(
@@ -362,7 +367,7 @@ class GlobalAlarmBanner extends StatelessWidget {
                 Severity.medium => Icons.warning_amber,
                 Severity.low => Icons.info_outline
               },
-              color: c,
+              color: fill == null ? c : foreground,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -372,7 +377,7 @@ class GlobalAlarmBanner extends StatelessWidget {
                     // Body text, so the text-weight shade — the icon-weight one
                     // is only held to 3:1 and read 3.4:1 here.
                     style: TextStyle(
-                        color: severityTextColor(context, worst.severity),
+                        color: foreground,
                         fontWeight: FontWeight.w600))),
             if (more > 0)
               // The banner paints a severity tint over the surface, so a default
@@ -384,9 +389,9 @@ class GlobalAlarmBanner extends StatelessWidget {
               Chip(
                   label: LText('+$more',
                       style: TextStyle(
-                          color: foregroundOn(context, c),
+                          color: fill ?? foregroundOn(context, c),
                           fontWeight: FontWeight.w600)),
-                  backgroundColor: c,
+                  backgroundColor: fill == null ? c : Colors.white,
                   side: BorderSide.none,
                   visualDensity: VisualDensity.compact),
           ]),
@@ -450,7 +455,9 @@ class PlantOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, box) {
-      final cols = box.maxWidth ~/ 340;
+      // Wider cells keep enlarged labels/chip rows inside the fixed tile
+      // geometry, including while the landing screen is first connecting.
+      final cols = box.maxWidth ~/ (340 * ControlScaleScope.of(context).textScale);
       return GridView.count(
         padding: const EdgeInsets.all(16),
         crossAxisCount: cols.clamp(1, 4),
@@ -574,7 +581,7 @@ class StationCard extends StatelessWidget {
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Icon(Icons.factory_outlined, color: tint),
+              ModuleIcon(node: r, color: tint),
               const SizedBox(width: 8),
               Expanded(
                   child: LText(

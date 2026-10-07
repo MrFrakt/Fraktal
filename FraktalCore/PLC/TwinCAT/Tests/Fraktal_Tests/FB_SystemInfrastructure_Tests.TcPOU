@@ -15,9 +15,26 @@ VAR
     _slot : INT;
     _towerPhase : INT;
     _towerStarted : TIME;
+    _windowsClock : FB_TcWindowsTime;
+    _clockSample : ST_TcWindowsClockSampleV1;
+    _clockApplied : BOOL;
+    _fileClock : FB_TcWindowsTime;
+    _fileOps : FB_ProbeFileOps;
+    _fileSample : ST_TcWindowsClockSampleV1;
+    _fileStep : INT;
+    _fileGuard : TON;
+    _fileLog : FB_AlarmLog;
+END_VAR
+VAR CONSTANT
+    // Test-runtime only: the observer path is absolute by design (PATH_GENERIC).
+    CLOCK_TEST_DIR  : STRING(80) := 'C:\ProgramData\Fraktal\TcUnit';
+    CLOCK_TEST_FILE : STRING(80) := 'C:\ProgramData\Fraktal\TcUnit\clock.bin';
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[Health_fault_edges_are_auto_reset_and_time_qualified();
-Tower_mapping_and_bounded_test();]]></ST></Implementation>
+Tower_mapping_and_bounded_test();
+Windows_clock_quality_rejects_bad_and_stale_samples();
+Crc32_matches_the_standard_and_the_native_observer();
+Windows_clock_file_reader_reads_rejects_and_expires();]]></ST></Implementation>
     <Method Name="Health_fault_edges_are_auto_reset_and_time_qualified" Id="{38c0f0ca-c37f-4f4e-bf24-7aa7844b4dce}">
       <Declaration><![CDATA[METHOD Health_fault_edges_are_auto_reset_and_time_qualified]]></Declaration>
       <Implementation><ST><![CDATA[TEST('Health_fault_edges_are_auto_reset_and_time_qualified');
@@ -111,6 +128,262 @@ CASE _towerPhase OF
     ELSE
         _towerPhase := 0;
 END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Windows_clock_quality_rejects_bad_and_stale_samples" Id="{c16806a2-f7bd-47ce-b878-4f3d7efd7d41}">
+      <Declaration><![CDATA[METHOD Windows_clock_quality_rejects_bad_and_stale_samples]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Windows_clock_quality_rejects_bad_and_stale_samples');
+_clockSample.SchemaVersion := 1;
+_clockSample.ByteCount := SIZEOF(_clockSample);
+_clockSample.Magic := DWORD#16#434B5246;
+_clockSample.Sequence := 1;
+_clockSample.ObservedAt := DT#2026-10-06-00:00:00;
+_clockSample.LastSyncAt := DT#2026-10-05-23:59:50;
+_clockSample.OffsetUs := -25;
+_clockSample.SyncAgeSeconds := 10;
+_clockSample.ServiceError := 0;
+_clockSample.Flags := DWORD#3;
+_clockSample.Source := 'WINDOWS/W32TIME';
+_clockSample.Crc := F_TcWindowsClockCrc(Sample := _clockSample);
+_clockApplied := _windowsClock.M_ApplySample(Sample := _clockSample,
+    WallNow := DT#2026-10-06-00:00:00, MonoNow := T#10S,
+    MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 60, MaximumOffsetUs := 1000);
+AssertTrue(Condition := _clockApplied AND _windowsClock.Quality.Synchronized,
+    Message := 'fresh qualified Windows source is trusted');
+AssertEquals_DINT(Expected := -25, Actual := _windowsClock.Quality.OffsetUs,
+    Message := 'signed offset is preserved');
+
+_clockApplied := _windowsClock.M_ApplySample(Sample := _clockSample,
+    WallNow := DT#2026-10-06-00:01:31, MonoNow := T#101S,
+    MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 60, MaximumOffsetUs := 1000);
+AssertFalse(Condition := _windowsClock.Quality.Available,
+    Message := 'observer expiry invalidates cached quality');
+
+_clockSample.Sequence := 2;
+_clockSample.OffsetUs := 1001;
+_clockSample.Crc := F_TcWindowsClockCrc(Sample := _clockSample);
+_clockApplied := _windowsClock.M_ApplySample(Sample := _clockSample,
+    WallNow := DT#2026-10-06-00:00:00, MonoNow := T#102S,
+    MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 60, MaximumOffsetUs := 1000);
+AssertTrue(Condition := _windowsClock.Quality.Available,
+    Message := 'excess offset is measured, not unavailable');
+AssertFalse(Condition := _windowsClock.Quality.Synchronized,
+    Message := 'excess offset cannot pass synchronization');
+
+_clockSample.OffsetUs := 0;
+_clockSample.ServiceError := 1062;
+_clockSample.Flags := DWORD#0;
+_clockSample.Crc := F_TcWindowsClockCrc(Sample := _clockSample);
+_clockApplied := _windowsClock.M_ApplySample(Sample := _clockSample,
+    WallNow := DT#2026-10-06-00:00:00, MonoNow := T#103S,
+    MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 60, MaximumOffsetUs := 1000);
+AssertFalse(Condition := _windowsClock.Quality.Available,
+    Message := 'stopped Windows service is unavailable');
+
+_clockSample.ServiceError := 0;
+_clockSample.Flags := DWORD#3;
+_clockSample.OffsetUs := 777;
+// Deliberately omit recomputing the checksum: a corrupt record cannot pass.
+_clockApplied := _windowsClock.M_ApplySample(Sample := _clockSample,
+    WallNow := DT#2026-10-06-00:00:00, MonoNow := T#104S,
+    MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 60, MaximumOffsetUs := 1000);
+AssertFalse(Condition := _clockApplied OR _windowsClock.Quality.Synchronized,
+    Message := 'corruption is fail-closed');
+AssertEquals_DINT(Expected := 0, Actual := _windowsClock.Quality.OffsetUs,
+    Message := 'a rejected record never publishes its bytes; the last accepted offset stands');
+
+_clockSample.Crc := F_TcWindowsClockCrc(Sample := _clockSample);
+_clockApplied := _windowsClock.M_ApplySample(Sample := _clockSample,
+    WallNow := DT#2026-10-05-23:59:59, MonoNow := T#105S,
+    MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 60, MaximumOffsetUs := 1000);
+AssertTrue(Condition := _clockApplied AND _windowsClock.Quality.Synchronized,
+    Message := 'a PLC clock a second behind the OS clock is within the record resolution');
+_clockApplied := _windowsClock.M_ApplySample(Sample := _clockSample,
+    WallNow := DT#2026-10-05-23:58:00, MonoNow := T#106S,
+    MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 60, MaximumOffsetUs := 1000);
+AssertTrue(Condition := _clockApplied AND _windowsClock.Quality.Available
+    AND NOT _windowsClock.Quality.Synchronized,
+    Message := 'a fresh record is still read, but a PLC clock minutes behind is not synchronized');
+AssertEquals_UDINT(Expected := 1398, Actual := _windowsClock.ErrorID,
+    Message := 'and says why: the PLC clock disagrees with the OS clock');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Crc32_matches_the_standard_and_the_native_observer" Id="{47b28079-1ba8-486f-b1f3-3c67ce84c629}">
+      <Declaration><![CDATA[// One CRC for every wire record (F_Crc32), proven against the published check
+// value and against a record the native x64 observer actually wrote on the test
+// host (Windows Time stopped there: available=0, error 1062).
+METHOD Crc32_matches_the_standard_and_the_native_observer
+VAR
+    check : ARRAY[0..8] OF BYTE := [49, 50, 51, 52, 53, 54, 55, 56, 57];
+    native : ARRAY[0..75] OF BYTE := [
+        1, 0, 76, 0, 70, 82, 75, 67, 228, 145, 137, 5, 113, 70, 197, 106, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 4, 0, 0, 0, 0, 0, 0, 87, 73,
+        78, 68, 79, 87, 83, 47, 87, 51, 50, 84, 73, 77, 69, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63, 189, 91, 179];
+    sample : ST_TcWindowsClockSampleV1;
+    reader : FB_TcWindowsTime;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Crc32_matches_the_standard_and_the_native_observer');
+AssertEquals_DWORD(Expected := DWORD#16#CBF43926,
+    Actual := F_Crc32(pData := ADR(check), Size := SIZEOF(check)),
+    Message := 'the standard CRC-32 check value of 123456789');
+AssertEquals_DWORD(Expected := 0, Actual := F_Crc32(pData := 0, Size := 4),
+    Message := 'a null buffer is never read');
+MEMCPY(destAddr := ADR(sample), srcAddr := ADR(native), n := SIZEOF(sample));
+AssertEquals_DWORD(Expected := DWORD#16#B35BBD3F, Actual := F_TcWindowsClockCrc(Sample := sample),
+    Message := 'the PLC computes the checksum the native observer wrote');
+AssertTrue(Condition := reader.M_ApplySample(Sample := sample, WallNow := sample.ObservedAt,
+    MonoNow := T#1S, MaximumSampleAge := T#90S, MaximumSyncAgeSeconds := 7200,
+    MaximumOffsetUs := 1000), Message := 'a real observer record decodes in the PLC');
+AssertFalse(Condition := reader.Quality.Available,
+    Message := 'the stopped Windows Time service it recorded is unavailable quality');
+AssertEquals_UDINT(Expected := 1062, Actual := reader.ErrorID,
+    Message := 'with the service error the observer reported');
+AssertEquals_STRING(Expected := 'WINDOWS/W32TIME', Actual := reader.Quality.Source,
+    Message := 'and the source it named');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Windows_clock_file_reader_reads_rejects_and_expires" Id="{0f82f573-e985-4d69-b667-fe102e32a7e2}">
+      <Declaration><![CDATA[// The PLC file-reader path end to end through the real TwinCAT file service: a
+// fresh record is read, a corrupted one is rejected, a missing file and a record
+// that stops changing expire, a new record recovers - all without a PLC reset -
+// and an event stamped meanwhile carries exactly the reader's synchronized flag.
+METHOD Windows_clock_file_reader_reads_rejects_and_expires
+VAR
+    saved : ST_TimeQuality;
+    slot : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Windows_clock_file_reader_reads_rejects_and_expires');
+_fileGuard(IN := _fileStep < 99, PT := T#40S);
+IF _fileGuard.Q AND (_fileStep < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT(CONCAT(CONCAT('timed out in step ',
+        INT_TO_STRING(_fileStep)), CONCAT(' reader error ', UDINT_TO_STRING(_fileClock.ErrorID))),
+        CONCAT(' file error ', UDINT_TO_STRING(_fileOps.ErrorId))));
+    _fileStep := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+_fileOps.Cyclic();
+IF (_fileStep >= 3) AND (_fileStep < 99) THEN
+    _fileClock.Cyclic(FilePath := CLOCK_TEST_FILE, PollInterval := T#1S,
+        MaximumSampleAge := T#3S, MaximumSyncAgeSeconds := 7200, MaximumOffsetUs := 1000);
+END_IF
+CASE _fileStep OF
+    0:
+        IF _fileOps.M_MakeDir(Path := 'C:\ProgramData\Fraktal', Where := Tc2_System.PATH_GENERIC) THEN
+            _fileStep := 1;         // an existing directory is not an error here
+        END_IF
+    1:
+        IF NOT _fileOps.Busy AND _fileOps.M_MakeDir(Path := CLOCK_TEST_DIR, Where := Tc2_System.PATH_GENERIC) THEN
+            _fileStep := 2;
+        END_IF
+    2:
+        IF NOT _fileOps.Busy THEN
+            _M_WriteClockSample(Sequence := 1, OffsetUs := 12, Corrupt := FALSE);
+            _fileStep := 3;
+        END_IF
+    3:
+        IF NOT _fileOps.Busy THEN
+            AssertFalse(Condition := _fileOps.Error, Message := 'the observer record was staged');
+            _fileStep := 4;
+        END_IF
+    4:
+        IF _fileClock.Quality.Synchronized THEN
+            AssertEquals_DINT(Expected := 12, Actual := _fileClock.Quality.OffsetUs,
+                Message := 'the reader publishes the measured offset');
+            saved := GVL_FraktalTime.Current;
+            GVL_FraktalTime.Current := _fileClock.Quality;
+            slot := _fileLog.Raise(Reason := E_Reason.NONE, Text := 'test.synchronized',
+                Source := 'Test.Clock', Severity := E_Severity.LOW,
+                Category := E_Category.SYSTEM, ResetClass := E_ResetClass.AUTO_RESET);
+            AssertTrue(Condition := _fileLog.Active[slot].ComeTimeSynchronized,
+                Message := 'an event stamped from a synchronized reader says so');
+            _fileLog.Gone(Slot := slot);
+            GVL_FraktalTime.Current := saved;
+            _M_WriteClockSample(Sequence := 2, OffsetUs := 12, Corrupt := TRUE);
+            _fileStep := 5;
+        END_IF
+    5:
+        IF NOT _fileOps.Busy AND NOT _fileClock.Quality.Available
+            AND (_fileClock.ErrorID = 13) THEN
+            saved := GVL_FraktalTime.Current;
+            GVL_FraktalTime.Current := _fileClock.Quality;
+            slot := _fileLog.Raise(Reason := E_Reason.NONE, Text := 'test.unavailable',
+                Source := 'Test.Clock', Severity := E_Severity.LOW,
+                Category := E_Category.SYSTEM, ResetClass := E_ResetClass.AUTO_RESET);
+            AssertFalse(Condition := _fileLog.Active[slot].ComeTimeSynchronized,
+                Message := 'an event stamped while the record is corrupt is not synchronized');
+            _fileLog.Gone(Slot := slot);
+            GVL_FraktalTime.Current := saved;
+            _fileOps.M_Delete(Path := CLOCK_TEST_FILE, Where := Tc2_System.PATH_GENERIC);
+            _fileStep := 6;
+        END_IF
+    6:
+        IF NOT _fileOps.Busy THEN
+            IF _fileOps.Error THEN
+                // The reader holds the file for a few scans per poll, without
+                // delete-sharing: a delete that met it is simply retried.
+                _fileOps.M_Delete(Path := CLOCK_TEST_FILE, Where := Tc2_System.PATH_GENERIC);
+            ELSIF _fileClock.ErrorID = 16#70C THEN
+                AssertFalse(Condition := _fileClock.Quality.Available,
+                    Message := 'a missing observer record is unavailable and says why (not found)');
+                _M_WriteClockSample(Sequence := 3, OffsetUs := -40, Corrupt := FALSE);
+                _fileStep := 7;
+            END_IF
+        END_IF
+    7:
+        IF NOT _fileOps.Busy AND _fileClock.Quality.Synchronized THEN
+            AssertEquals_DINT(Expected := -40, Actual := _fileClock.Quality.OffsetUs,
+                Message := 'a new record recovers without a PLC reset');
+            _fileStep := 8;         // and is never rewritten again
+        END_IF
+    8:
+        IF NOT _fileClock.Quality.Available THEN
+            AssertEquals_UDINT(Expected := 1460, Actual := _fileClock.ErrorID,
+                Message := 'a record that stops changing expires (stale observer)');
+            _fileOps.M_Delete(Path := CLOCK_TEST_FILE, Where := Tc2_System.PATH_GENERIC);
+            _fileStep := 9;
+        END_IF
+    9:
+        IF NOT _fileOps.Busy THEN
+            IF _fileOps.Error THEN
+                _fileOps.M_Delete(Path := CLOCK_TEST_FILE, Where := Tc2_System.PATH_GENERIC);
+            ELSE
+                _fileStep := 99;
+                TEST_FINISHED();
+            END_IF
+        END_IF
+    99:
+        ;
+ELSE
+    _fileStep := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_WriteClockSample" Id="{840a77f8-cb4d-477c-8dfe-f3eec8509c35}">
+      <Declaration><![CDATA[// Stage a record exactly as the native observer writes it: synchronized just now.
+METHOD PRIVATE _M_WriteClockSample : BOOL
+VAR_INPUT
+    Sequence : UDINT;
+    OffsetUs : DINT;
+    Corrupt : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[MEMSET(destAddr := ADR(_fileSample), fillByte := 0, n := SIZEOF(_fileSample));
+_fileSample.SchemaVersion := 1;
+_fileSample.ByteCount := TO_UINT(SIZEOF(_fileSample));
+_fileSample.Magic := DWORD#16#434B5246;
+_fileSample.Sequence := Sequence;
+_fileSample.ObservedAt := F_Now();
+_fileSample.LastSyncAt := _fileSample.ObservedAt;
+_fileSample.OffsetUs := OffsetUs;
+_fileSample.SyncAgeSeconds := 0;
+_fileSample.ServiceError := 0;
+_fileSample.Flags := DWORD#3;
+_fileSample.Source := 'WINDOWS/W32TIME';
+_fileSample.Crc := F_TcWindowsClockCrc(Sample := _fileSample);
+IF Corrupt THEN
+    _fileSample.Crc := _fileSample.Crc XOR DWORD#1;
+END_IF
+_M_WriteClockSample := _fileOps.M_Write(Path := CLOCK_TEST_FILE, Where := Tc2_System.PATH_GENERIC,
+    pData := ADR(_fileSample), Size := SIZEOF(_fileSample));]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PersistMediumBase" Id="{92400794-ce00-4d20-afa7-6243c7f3e894}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b - what every I_PersistMedium shares, written once: the bounded
+// request queue, tickets, first-in-first-out service, polling and the key rules.
+// A concrete medium supplies M_Kind, M_Confidential and _M_Step, which works on
+// the one ACTIVE request (_qKey/_qData/_qSize/_qWrite[_active]) until it is done.
+FUNCTION_BLOCK ABSTRACT FB_PersistMediumBase IMPLEMENTS I_PersistMedium
+VAR
+    _qState  : ARRAY[1..PL_Fraktal.MAX_PERSIST_QUEUE] OF INT;    // FREE/QUEUED/ACTIVE/DONE
+    _qTicket : ARRAY[1..PL_Fraktal.MAX_PERSIST_QUEUE] OF UDINT;
+    _qKey    : ARRAY[1..PL_Fraktal.MAX_PERSIST_QUEUE] OF STRING(80);
+    {attribute 'OPC.UA.DA' := '0'}
+    _qData   : ARRAY[1..PL_Fraktal.MAX_PERSIST_QUEUE] OF PVOID;
+    _qSize   : ARRAY[1..PL_Fraktal.MAX_PERSIST_QUEUE] OF UDINT;
+    _qWrite  : ARRAY[1..PL_Fraktal.MAX_PERSIST_QUEUE] OF BOOL;
+    _qResult : ARRAY[1..PL_Fraktal.MAX_PERSIST_QUEUE] OF ST_PersistResult;
+    _lastTicket : UDINT;
+    _active     : INT;           // queue entry being worked on (0 = none)
+END_VAR
+VAR CONSTANT
+    FREE   : INT := 0;
+    QUEUED : INT := 1;
+    ACTIVE : INT := 2;
+    DONE   : INT := 3;
+    INVALID_REQUEST : UDINT := 16#706;   // ADSERR_DEVICE_INVALIDDATA
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// no cyclic body: every caller's M_Poll advances the medium]]></ST>
+    </Implementation>
+    <Method Name="M_Kind" Id="{f62313e9-ccd9-4725-a0bb-0dad0bc15837}">
+      <Declaration><![CDATA[METHOD ABSTRACT M_Kind : E_ConfigStore]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Confidential" Id="{d16c19bd-650d-484d-81c3-9ed16ecbc4bc}">
+      <Declaration><![CDATA[METHOD ABSTRACT M_Confidential : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWrite" Id="{259cb613-24b1-43a5-8d86-eb7ccc80abba}">
+      <Declaration><![CDATA[METHOD M_StartWrite : UDINT
+VAR_INPUT
+    Key   : STRING(80);
+    pData : PVOID;
+    Size  : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StartWrite := 0;
+IF (Size > PL_Fraktal.MAX_PERSIST_DOC_BYTES) OR ((Size > 0) AND (pData = 0)) THEN
+    RETURN;
+END_IF
+M_StartWrite := _M_Enqueue(Key := Key, pData := pData, Size := Size, Write := TRUE);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartRead" Id="{72682bff-72f6-4ffd-b43d-2a689c04b04b}">
+      <Declaration><![CDATA[METHOD M_StartRead : UDINT
+VAR_INPUT
+    Key   : STRING(80);
+    pData : PVOID;
+    Size  : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StartRead := 0;
+IF (Size = 0) OR (pData = 0) THEN
+    RETURN;
+END_IF
+M_StartRead := _M_Enqueue(Key := Key, pData := pData, Size := Size, Write := FALSE);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Poll" Id="{3b69dbb3-07ad-4275-a312-dc539717b9b2}">
+      <Declaration><![CDATA[METHOD M_Poll : BOOL
+VAR_INPUT
+    Ticket : UDINT;
+END_VAR
+VAR_IN_OUT
+    Result : ST_PersistResult;
+END_VAR
+VAR
+    i    : INT;
+    pick : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Start the oldest queued request when idle, then advance the active one.
+IF _active = 0 THEN
+    pick := 0;
+    FOR i := 1 TO PL_Fraktal.MAX_PERSIST_QUEUE DO
+        IF _qState[i] = QUEUED THEN
+            IF pick = 0 THEN
+                pick := i;
+            ELSIF _qTicket[i] < _qTicket[pick] THEN
+                pick := i;
+            END_IF
+        END_IF
+    END_FOR
+    IF pick > 0 THEN
+        _active := pick;
+        _qState[pick] := ACTIVE;
+        MEMSET(destAddr := ADR(_qResult[pick]), fillByte := 0, n := SIZEOF(ST_PersistResult));
+    END_IF
+END_IF
+IF _active > 0 THEN
+    IF _M_Step() THEN
+        _qState[_active] := DONE;
+        _active := 0;
+    END_IF
+END_IF
+// Report on the caller's own ticket.
+M_Poll := TRUE;
+FOR i := 1 TO PL_Fraktal.MAX_PERSIST_QUEUE DO
+    IF (_qState[i] <> FREE) AND (_qTicket[i] = Ticket) THEN
+        IF _qState[i] <> DONE THEN
+            M_Poll := FALSE;            // still queued or in progress
+            RETURN;
+        END_IF
+        Result := _qResult[i];
+        _qState[i] := FREE;
+        _qData[i] := 0;
+        RETURN;
+    END_IF
+END_FOR
+MEMSET(destAddr := ADR(Result), fillByte := 0, n := SIZEOF(ST_PersistResult));
+Result.ErrorId := INVALID_REQUEST;      // unknown or already collected ticket]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Enqueue" Id="{62990ff5-f5b6-49aa-a62b-672682c62bef}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Enqueue : UDINT
+VAR_INPUT
+    Key   : STRING(80);
+    pData : PVOID;
+    Size  : UDINT;
+    Write : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Enqueue := 0;
+IF NOT F_ValidPersistKey(Key := Key) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO PL_Fraktal.MAX_PERSIST_QUEUE DO
+    IF _qState[i] = FREE THEN
+        _lastTicket := _lastTicket + 1;
+        IF _lastTicket = 0 THEN
+            _lastTicket := 1;               // 0 always means refused
+        END_IF
+        _qTicket[i] := _lastTicket;
+        _qKey[i] := Key;
+        _qData[i] := pData;
+        _qSize[i] := Size;
+        _qWrite[i] := Write;
+        _qState[i] := QUEUED;
+        _M_Enqueue := _lastTicket;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Step" Id="{a42ede3c-9fae-4a08-ae93-489b08f7d3eb}">
+      <Declaration><![CDATA[// Advance the active request by at most one medium operation. TRUE = finished,
+// with _qResult[_active] filled in.
+METHOD PROTECTED ABSTRACT _M_Step : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,30 +1,249 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_LocalAccessProvider" Id="{e6013f23-fcc9-42e1-ae2f-9c0279742929}" SpecialFunc="None">
-    <Declaration><![CDATA[// Core §7.7(c) — DEFAULT local provider: persistent user table. Remote/central
+    <Declaration><![CDATA[// Core §7.7(c) — DEFAULT local provider: a durable user table. Remote/central
 // auth (server, LDAP via gateway) substitutes behind I_AccessProvider later.
 //
 // §14 - a PIN is never stored: each user keeps a random-per-registration salt and
 // an iterated SHA-256 of salt and PIN, and the table is hidden from the ADS symbol
 // table and OPC UA. Hiding is the control that matters for a short PIN - four
 // digits fall to an offline search whatever the hash - so the hash's job is that a
-// dump, backup or boot-data file does not hand the PINs out as text.
-FUNCTION_BLOCK FB_LocalAccessProvider IMPLEMENTS I_AccessProvider
-VAR PERSISTENT
+// dump, backup or retained file does not hand the PINs out as text.
+//
+// TwinCAT restores PERSISTENT data by symbol and a hidden variable has none, so a
+// hidden table cannot be PERSISTENT (IMPLEMENTATION_NOTES §154). The table is kept
+// instead as one CRC-protected image document on an I_PersistMedium (§163): by
+// default a file medium in the runtime's TwinCAT Boot directory, or the project's
+// own medium (M_UseMedium) - which must be confidential, so a retentive-memory
+// pool, readable over ADS, is refused. The medium keeps two copies, never
+// overwrites the newest, and reports a document it confirmed and then lost. The
+// owning root's FB_AccessManager drives restore and save through I_AccessStore
+// every scan: a project calls nothing to make its users durable.
+{attribute 'reflection'}
+FUNCTION_BLOCK FB_LocalAccessProvider IMPLEMENTS I_AccessProvider, I_AccessStore
+VAR_OUTPUT
+    Restored     : BOOL;    // the retained table has been read (or there was none)
+    Durable      : BOOL;    // every registration so far is in a written image
+    StorageError : UDINT;   // last medium error (0 = none)
+END_VAR
+VAR
     {attribute 'hide'}
     {attribute 'OPC.UA.DA' := '0'}
     _users : ARRAY[1..PL_Fraktal.MAX_USERS] OF ST_UserRecord;
     {attribute 'hide'}
     {attribute 'OPC.UA.DA' := '0'}
     _n     : INT;
-END_VAR
-VAR
     {attribute 'hide'}
     _saltSeq : UDINT;
+    // Transfer buffer: the image read, then each image written. It carries salts
+    // and hashes, so it is hidden like the table; the medium only borrows it.
+    {attribute 'hide'}
+    {attribute 'OPC.UA.DA' := '0'}
+    _image : ST_AccessImageV1;
+    // '<project>.<path>.<instance>': hashed into the default key, so two providers -
+    // or two PLC projects on one runtime - never share a document.
+    {attribute 'instance-path'}
+    {attribute 'noinit'}
+    _instancePath : STRING(255);
+    _key         : STRING(80);
+    _keyChosen   : BOOL;            // the key is decided (possibly '' = volatile)
+    {attribute 'OPC.UA.DA' := '0'}
+    _medium      : I_PersistMedium; // injected, or _ownMedium
+    {attribute 'OPC.UA.DA' := '0'}
+    _ownMedium   : FB_FilePersistMedium;
+    _ticket      : UDINT;
+    _result      : ST_PersistResult;
+    _phase       : INT;
+    _generation  : UDINT;           // generation of the newest image written or read
+    _restoreLost : BOOL;
+    _dirty       : BOOL;            // the table changed since the last written image
+    _changeSeq   : UDINT;
+    _writeSeq    : UDINT;           // _changeSeq captured into the image being written
+    _saveFailed  : BOOL;
+    _readFailed  : BOOL;            // the medium could not answer the restore read
+    _retry       : TON;
+END_VAR
+VAR CONSTANT
+    IMAGE_MAGIC    : DWORD := DWORD#16#414B5246;   // 'FRKA', little endian
+    RETRY_INTERVAL : TIME := T#10S;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[// no cyclic body]]></ST>
+      <ST><![CDATA[// no cyclic body: the owning root's FB_AccessManager calls M_Service]]></ST>
     </Implementation>
+    <Method Name="M_UseMedium" Id="{b0a927b4-7cc2-4d22-b177-aac8e9df5b8c}">
+      <Declaration><![CDATA[// Keep the table on the project's medium instead of the Boot directory - the
+// same instance the project gives its roots, so one line switches every
+// retained document. Refused: no medium, a medium that is not confidential
+// (a credential never becomes symbol-readable, §14), or a restore already begun.
+METHOD M_UseMedium : BOOL
+VAR_INPUT
+    Medium : I_PersistMedium;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_UseMedium := FALSE;
+IF (_phase <> 0) OR (Medium = 0) THEN
+    RETURN;
+END_IF
+IF NOT Medium.M_Confidential() THEN
+    RETURN;
+END_IF
+_medium := Medium;
+M_UseMedium := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_UseKey" Id="{1968f390-88a6-4ae6-80bc-252fd700d814}">
+      <Declaration><![CDATA[// The table's document key on the medium (a file medium stores '<key>.a' and
+// '<key>.b'). Without a call it is 'FraktalAccess_' and the CRC of this
+// instance's path, so two providers - or two PLC projects on one runtime - never
+// share a document. '' keeps the table volatile (a fixture, or a station whose
+// users come from elsewhere). Letters, digits, '_', '.' and '-'. Refused once
+// the restore has started: retargeting a live store would split one table.
+METHOD M_UseKey : BOOL
+VAR_INPUT
+    Key : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_UseKey := FALSE;
+IF _phase <> 0 THEN
+    RETURN;
+END_IF
+IF (Key <> '') AND NOT F_ValidPersistKey(Key := Key) THEN
+    RETURN;
+END_IF
+_key := Key;
+_keyChosen := TRUE;
+M_UseKey := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Service" Id="{945d4ebf-4530-498d-b80b-a1b24beba2a3}">
+      <Declaration><![CDATA[// I_AccessStore - read the table's image once, then keep the written image
+// current. A second root sharing this provider merely advances the same steps.
+METHOD M_Service : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[CASE _phase OF
+    0:
+        IF NOT _keyChosen THEN
+            _key := _M_DefaultKey();
+            _keyChosen := TRUE;
+        END_IF
+        IF _key = '' THEN
+            Restored := TRUE;       // volatile by choice: nothing to restore or save
+            Durable := FALSE;
+            _phase := 90;
+        ELSE
+            IF _medium = 0 THEN
+                _ownMedium.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+                _medium := _ownMedium;
+            END_IF
+            _phase := 10;
+        END_IF
+    10:     // ask for the image
+        MEMSET(destAddr := ADR(_image), fillByte := 0, n := SIZEOF(_image));
+        _ticket := _medium.M_StartRead(Key := _key, pData := ADR(_image),
+            Size := SIZEOF(_image));
+        IF _ticket <> 0 THEN
+            _phase := 11;
+        END_IF
+    11:
+        IF _medium.M_Poll(Ticket := _ticket, Result := _result) THEN
+            IF _result.Ok THEN
+                _readFailed := FALSE;
+                _M_FinishRestore();
+                _phase := 30;
+            ELSE
+                // Not "no table": the medium could not answer. Asked again; until
+                // then nothing is merged, written or claimed lost.
+                _readFailed := TRUE;
+                StorageError := _result.ErrorId;
+                _retry(IN := FALSE, PT := RETRY_INTERVAL);
+                _phase := 12;
+            END_IF
+        END_IF
+    12:
+        _retry(IN := TRUE, PT := RETRY_INTERVAL);
+        IF _retry.Q THEN
+            _retry(IN := FALSE, PT := RETRY_INTERVAL);
+            _phase := 10;
+        END_IF
+    30:     // idle: rewrite the table whenever it changed
+        _retry(IN := _saveFailed, PT := RETRY_INTERVAL);
+        IF _dirty AND (NOT _saveFailed OR _retry.Q) THEN
+            _retry(IN := FALSE, PT := RETRY_INTERVAL);
+            _M_BuildImage();
+            _phase := 40;
+        END_IF
+    40:
+        _ticket := _medium.M_StartWrite(Key := _key, pData := ADR(_image),
+            Size := SIZEOF(_image));
+        IF _ticket <> 0 THEN
+            _phase := 41;
+        END_IF
+    41:
+        IF _medium.M_Poll(Ticket := _ticket, Result := _result) THEN
+            _M_SaveDone(Ok := _result.Ok);
+            _phase := 30;
+        END_IF
+    90:
+        ;   // volatile: the table lives for this run only
+ELSE
+    _phase := 30;   // unknown step: idle again; a pending change is rewritten
+END_CASE
+M_Service := Restored;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_FinishRestore" Id="{2feea0d4-b46a-4adf-ae3d-74793f57fdeb}">
+      <Declaration><![CDATA[// Decide what the medium answered. A restore LOST something when the medium
+// reports a document it confirmed and lost, when the image it returned does not
+// validate, or when the image's users no longer fit. Nothing there and nothing
+// confirmed is a first start. (A medium that could not answer is asked again.)
+METHOD PRIVATE _M_FinishRestore]]></Declaration>
+      <Implementation><ST><![CDATA[StorageError := _result.ErrorId;
+_restoreLost := _result.Lost;
+IF _result.Found THEN
+    IF (_result.Length = SIZEOF(_image)) AND _M_ValidImage(Image := _image) THEN
+        _generation := _image.Generation;
+        IF NOT _M_Merge() THEN
+            _restoreLost := TRUE;
+        END_IF
+    ELSE
+        _restoreLost := TRUE;       // a document this build cannot read as a table
+    END_IF
+END_IF
+MEMSET(destAddr := ADR(_image), fillByte := 0, n := SIZEOF(_image));
+IF _restoreLost THEN
+    // Write what survived as the new baseline: the loss is announced once, not at
+    // every restart.
+    _M_Changed();
+END_IF
+Restored := TRUE;
+Durable := NOT _dirty;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_SaveDone" Id="{17c395ff-7e69-4664-be25-7f2f4ad71d2e}">
+      <Declaration><![CDATA[// A change made while the image was being written is newer than that image, so
+// the table stays dirty and is written again.
+METHOD PRIVATE _M_SaveDone
+VAR_INPUT
+    Ok : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Ok THEN
+    _generation := _image.Generation;
+    _saveFailed := FALSE;
+    StorageError := 0;
+    IF _changeSeq = _writeSeq THEN
+        _dirty := FALSE;
+    END_IF
+ELSE
+    _saveFailed := TRUE;    // retried; the medium never overwrites the newest copy
+    StorageError := _result.ErrorId;
+END_IF
+MEMSET(destAddr := ADR(_image), fillByte := 0, n := SIZEOF(_image));
+Durable := NOT _dirty AND NOT _saveFailed;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_DefaultKey" Id="{f41c9753-ed3e-4e8d-9e50-da6c209d9577}">
+      <Declaration><![CDATA[// 'FraktalAccess_' + the CRC-32 of this instance's path, in hexadecimal.
+METHOD PRIVATE _M_DefaultKey : STRING(80)
+VAR
+    pathLength : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[pathLength := INT_TO_UDINT(LEN(_instancePath));
+_M_DefaultKey := CONCAT('FraktalAccess_', Tc2_Utilities.DWORD_TO_HEXSTR(
+    in := F_Crc32(pData := ADR(_instancePath), Size := pathLength),
+    iPrecision := 8, bLoCase := FALSE));]]></ST></Implementation>
+    </Method>
     <Method Name="Authenticate" Id="{fe8a5189-9e6a-4024-a615-4875f3e2a8ca}">
       <Declaration><![CDATA[METHOD Authenticate : E_AccessLevel
 VAR_INPUT
@@ -64,9 +283,11 @@ END_IF]]></ST>
     </Method>
     <Method Name="Register" Id="{b51dad4c-34da-44b6-88a9-19f5db17f6af}">
       <Declaration><![CDATA[// commissioning-time user entry (itself an ACCESS_POLICY-gated edit via the HMI).
-// Idempotent by User: re-registering replaces PIN/level (the table is PERSISTENT,
-// so a composition root may register its defaults every boot without duplicates).
-// Every registration draws a new salt.
+// Idempotent by User: re-registering replaces PIN/level, and the retained table
+// keeps the user, so a composition root may register its defaults every boot
+// without duplicates. Every registration draws a new salt. A registration made
+// before the restore completes is kept and wins over the retained record.
+// Refused: an empty name, a level outside NONE..ADMIN, or a full table.
 METHOD Register : BOOL
 VAR_INPUT
     User : STRING(32);
@@ -79,6 +300,10 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[Register := FALSE;
+IF (User = '') OR (TO_DINT(Level) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(Level) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+    RETURN;     // an image holding such a record would be refused at restore
+END_IF
 slot := 0;
 FOR i := 1 TO _n DO
     IF _users[i].User = User THEN
@@ -96,8 +321,101 @@ END_IF
 _M_NewSalt(User := User, Salt := _users[slot].Salt);
 _M_Hash(Salt := _users[slot].Salt, Pin := Pin, Digest := _users[slot].PinHash);
 _users[slot].Level := Level;
+_M_Changed();
 Register := TRUE;]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="M_RestoreLost" Id="{862550f1-f256-4aca-935b-597508f36a4d}">
+      <Declaration><![CDATA[METHOD M_RestoreLost : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_RestoreLost := _restoreLost;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SaveFailed" Id="{36b81c9f-8d12-44bb-9b21-dddd6bad9070}">
+      <Declaration><![CDATA[METHOD M_SaveFailed : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_SaveFailed := _saveFailed OR _readFailed;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Merge" Id="{62a663c8-0d14-4ef5-b81b-d6dd07720bb1}">
+      <Declaration><![CDATA[// Add every retained user not registered in this run. A registration made before
+// the restore finished is newer, so it stands. FALSE = a user did not fit.
+METHOD PRIVATE _M_Merge : BOOL
+VAR
+    i : INT;
+    k : INT;
+    found : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Merge := TRUE;
+FOR i := 1 TO _image.Count DO
+    found := FALSE;
+    FOR k := 1 TO _n DO
+        IF _users[k].User = _image.Users[i].User THEN
+            found := TRUE;
+        END_IF
+    END_FOR
+    IF NOT found THEN
+        IF _n < PL_Fraktal.MAX_USERS THEN
+            _n := _n + 1;
+            _users[_n] := _image.Users[i];
+        ELSE
+            _M_Merge := FALSE;
+        END_IF
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ValidImage" Id="{eb8eccdc-4fef-4a92-bf39-d1a409278104}">
+      <Declaration><![CDATA[// Whole-image validation: format, checksum, then every record. One bad record
+// rejects the image - a table is restored completely or not at all.
+METHOD PRIVATE _M_ValidImage : BOOL
+VAR_IN_OUT
+    Image : ST_AccessImageV1;
+END_VAR
+VAR
+    i : INT;
+    k : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ValidImage := FALSE;
+IF (Image.SchemaVersion <> 1) OR (Image.ByteCount <> SIZEOF(Image))
+OR (Image.Magic <> IMAGE_MAGIC) OR (Image.Reserved <> 0)
+OR (Image.Count < 0) OR (Image.Count > PL_Fraktal.MAX_USERS) THEN
+    RETURN;
+END_IF
+IF Image.Crc <> F_Crc32(pData := ADR(Image), Size := SIZEOF(Image) - SIZEOF(Image.Crc)) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO Image.Count DO
+    IF (Image.Users[i].User = '')
+    OR (TO_DINT(Image.Users[i].Level) < TO_DINT(E_AccessLevel.NONE))
+    OR (TO_DINT(Image.Users[i].Level) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+        RETURN;
+    END_IF
+    FOR k := 1 TO i - 1 DO
+        IF Image.Users[k].User = Image.Users[i].User THEN
+            RETURN;
+        END_IF
+    END_FOR
+END_FOR
+_M_ValidImage := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_BuildImage" Id="{57bb7a20-55c7-45a7-9d5c-245c808e5b68}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_BuildImage
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[MEMSET(destAddr := ADR(_image), fillByte := 0, n := SIZEOF(_image));
+_image.SchemaVersion := 1;
+_image.ByteCount := TO_UINT(SIZEOF(_image));
+_image.Magic := IMAGE_MAGIC;
+_image.Generation := _generation + 1;
+_image.Count := _n;
+FOR i := 1 TO _n DO
+    _image.Users[i] := _users[i];
+END_FOR
+_image.Crc := F_Crc32(pData := ADR(_image), Size := SIZEOF(_image) - SIZEOF(_image.Crc));
+_writeSeq := _changeSeq;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Changed" Id="{cd566d28-1823-4744-be5b-c4ff07f74f4c}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Changed]]></Declaration>
+      <Implementation><ST><![CDATA[_dirty := TRUE;
+_changeSeq := _changeSeq + 1;
+Durable := FALSE;]]></ST></Implementation>
     </Method>
     <Method Name="_M_NewSalt" Id="{65b645b2-8cba-4248-bca6-674b4abcbb5c}">
       <Declaration><![CDATA[// A salt unique to this registration: the clock, a sequence and the user name,

@@ -3,6 +3,12 @@
 Implements `HMI_CONTRACT.md` / Core §3.13: the client is **generic** — it walks the
 module forest and renders it; a station adds zero HMI code.
 
+Manual-command cards include read-only Inputs/Outputs from each module's exact
+published I/O assignment, with localized descriptions, quality and diagnostics.
+The Like a Bosch theme uses circular white arrows (input down, output up), green
+and light red active fills, and gray inactive fills. Its multicolor top strip
+remains. Visible cards demand only their channels and ancestor bus health.
+
 ## Platforms
 One codebase for **Windows, Linux, Android, Web**. Platform folders for
 **windows** and **web** are generated; add the others as needed:
@@ -129,12 +135,29 @@ saved panel selections remain stable.
 | Gradient glass study | Coral Dusk | Dark translucent glass over a coral-to-teal wash, lit tab pill |
 | Dark dashboards | Midnight Console | Borderless slate panels, top-edge catch light, vignette, teal accent |
 | ANSI/ISA-101 | Process Grey, Process Grey Dark | Flat neutral grey, desaturated steel accent, colour left to status; a deeper alarm red keeps HIGH text AA on the grey |
+| Industry inspired | Like a Bosch | Multicolor top strip, white/light-grey content, dark navigation, cyan selection, square blue controls and underline tabs |
 
-The picker shows two groups: **Industrial standard** (every flat theme, the ISA-101
-greys first and badged) and **Modern** (every decorated finish). The group is derived
-from the finish (`FraktalThemeSpec.standard`), so a theme cannot sit in the wrong one,
-and only the display order changes - a selection is still stored by its `kThemes`
-index.
+The picker shows three groups: **Industrial standard** (the ISA-101 greys first
+and badged), **Modern** (decorated finishes), and **Industry inspired** (reference
+interfaces with their own shell chrome). `FraktalThemeSpec.group` derives the
+collection from the surface finish and optional `FraktalChromeTheme`. Only the
+display order changes; selections keep their persisted `kThemes` index.
+
+Choose **Settings → Appearance → Industry inspired → Like a Bosch**, or select
+the same theme in the setup wizard. Its static multicolor strip stays visible
+across operator screens and settings. The dark tree has its own contrasting
+status shades; PLC status colours and permission gates retain their semantics.
+
+Its active-event bar uses solid red, dark gold and blue with white message text.
+The module tree, detail header and overview share type-specific device symbols;
+hardware, safety and control-power icons follow their published kinds. Unknown
+types retain a device fallback. Clock quality now distinguishes unavailable
+telemetry from a measured unsynchronized clock. See the
+[clock-quality diagnosis](../../Specification/Reports/HMI_ICONS_CLOCK_QUALITY_2026-10-05.md)
+for the TwinCAT and Allen-Bradley commissioning gaps behind persistent warnings.
+Square controls retain the selected touch-size preset. Larger presets use wider
+overview cells and, on narrow screens, a More menu for view/settings actions so
+the connection, login and global reset controls still fit.
 
 Every decorated finish also paints a **reflection sheen** on its panels (under
 the content, never over text), and the luminous finishes a lit inner line with a

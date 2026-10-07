@@ -19,7 +19,10 @@
 // Save is a three-part transaction - begin, record*, commit - so a half-written
 // set never becomes loadable. Read is stateless and addressed by (SetName,
 // Index): a cursor would be one more thing to get wrong across a scan boundary.
-INTERFACE I_ConfigStore]]></Declaration>
+//
+// Queryable: a store that writes its sets out itself (FB_MediumConfigStore) also
+// implements I_ConfigPersistence, and the root finds it by __QUERYINTERFACE.
+INTERFACE I_ConfigStore EXTENDS __System.IQueryInterface]]></Declaration>
     <Method Name="M_Count" Id="{3849b4e4-525e-4960-9d2f-1926a89dad43}">
       <Declaration><![CDATA[// How many named sets this store holds, so a client can enumerate them.
 METHOD M_Count : INT]]></Declaration>

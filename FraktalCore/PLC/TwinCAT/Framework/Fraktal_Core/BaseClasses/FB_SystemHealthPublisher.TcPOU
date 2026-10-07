@@ -66,6 +66,8 @@ Status.SlaveErrorCount := Input.SlaveErrorCount;
 Status.DcAvailable := Input.DcAvailable;
 Status.DcSynchronized := Input.DcSynchronized;
 Status.TimeQuality := Input.TimeQuality;
+Status.FanAvailable := Input.IpcAvailable AND Input.FanAvailable;
+Status.StorageAvailable := Input.IpcAvailable AND Input.StorageAvailable;
 
 taskOverrunBad := validCfg AND (NOT Input.TaskAvailable OR Input.TaskOverrun
     OR (Input.TaskCycleUs > ParCfg.MaxTaskCycleUs));
@@ -78,8 +80,9 @@ memoryBad := validCfg AND Input.ControllerAvailable
     AND (Input.MemoryAvailableMb < ParCfg.MinMemoryAvailableMb);
 temperatureBad := validCfg AND Input.IpcAvailable
     AND (Input.IpcTemperatureC > ParCfg.MaxIpcTemperatureC);
-fanBad := validCfg AND Input.IpcAvailable AND NOT Input.FanHealthy;
-storageBad := validCfg AND Input.IpcAvailable
+fanBad := validCfg AND Input.IpcAvailable AND Input.FanAvailable
+    AND NOT Input.FanHealthy;
+storageBad := validCfg AND Input.IpcAvailable AND Input.StorageAvailable
     AND (Input.StorageHealthPct < ParCfg.MinStorageHealthPct);
 fieldbusBad := validCfg AND (Input.FieldbusAvailable
     AND (NOT Input.FieldbusMasterHealthy

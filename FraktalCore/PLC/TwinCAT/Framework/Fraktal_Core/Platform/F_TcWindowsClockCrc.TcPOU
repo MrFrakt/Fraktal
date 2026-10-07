@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_TcWindowsClockCrc" Id="{7b4f1648-51cc-4f31-8ec7-202761708e8c}" SpecialFunc="None">
+    <Declaration><![CDATA[// CRC-32/ISO-HDLC over the record except its final CRC field (F_Crc32).
+FUNCTION F_TcWindowsClockCrc : DWORD
+VAR_INPUT
+    Sample : ST_TcWindowsClockSampleV1;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[F_TcWindowsClockCrc := F_Crc32(pData := ADR(Sample),
+    Size := SIZEOF(Sample) - SIZEOF(Sample.Crc));]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

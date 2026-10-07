@@ -73,6 +73,16 @@
     by any route, `Read-TcUnitResults.ps1` reads the outcome over ADS with
     per-test detail, so nobody has to transcribe the log window.
 
+    UNATTENDED ROUTE (2026-10-06): `-StartBootProjectWithAds`. Activation already
+    wrote THIS solution's boot application, and with Autostart off the restarted
+    runtime holds no loaded application (ADS state Invalid on the PLC port). An
+    ADS Run request on that port loads and starts the boot application - measured
+    on UmRT_Default, XAE/XAR 3.1.4026.24, where it then ran 216/216 tests - so no
+    Login, download prompt or Autostart is involved. The gate refuses a port that
+    is already running something, asserts the loaded project's name over ADS
+    before reading any result, stops a foreign application at once, and stops the
+    test application over ADS in `finally`.
+
 .EXAMPLE
     powershell -File tools\Invoke-TwinCatTcUnitGate.ps1 `
         -Solution FraktalCore\PLC\TwinCAT\Examples\PressDemo\PressTests.slnx `
@@ -100,6 +110,11 @@ param(
     # desktop, one click answers it, and the rest of the gate proceeds unattended.
     # Not for CI: it needs a human present, by definition.
     [switch] $Interactive,
+    # Start the activated boot application with ADS Run instead of Login (see the
+    # header). The Login path stays the default; it is what an operator watches.
+    [switch] $StartBootProjectWithAds,
+    [int] $AdsPort = 851,
+    [string] $AdsAssembly = 'C:\Program Files (x86)\Beckhoff\TwinCAT\3.1\Components\Base\v170\TwinCAT.Ads.dll',
     [int] $RunSeconds = 40,
     [string] $ArtifactDirectory = 'artifacts\tcunit'
 )
@@ -215,11 +230,69 @@ if (Test-Path -LiteralPath $tsProjectPath) {
     $tsProjectBytes = [System.IO.File]::ReadAllBytes($tsProjectPath)
 }
 
+function Read-AdsProjectName {
+    # By name through ADSIGRP_SYM_VALBYNAME: no symbol handle is consumed.
+    param([object] $Client)
+    $nameBytes = [System.Text.Encoding]::ASCII.GetBytes('TwinCAT_SystemInfoVarList._AppInfo.ProjectName' + [char]0)
+    $wr = New-Object TwinCAT.Ads.AdsStream (,$nameBytes)
+    $rd = New-Object TwinCAT.Ads.AdsStream 64
+    [void]$Client.ReadWrite(0xF004, 0, $rd, $wr)
+    $b = $rd.ToArray()
+    $z = [Array]::IndexOf($b, [byte]0)
+    if ($z -lt 0) { $z = $b.Length }
+    [System.Text.Encoding]::ASCII.GetString($b, 0, $z)
+}
+
+function Set-AdsPlcState {
+    # A runtime loading an application can refuse a request for a moment (measured:
+    # ADS 0x4, router mailbox full, while the boot application loaded - on the poll
+    # and, on 2026-10-06, on the very first state read before the request). The
+    # request and the poll therefore both retry until the deadline; only the final
+    # state decides.
+    param([string] $NetId, [int] $Port, [string] $State, [int] $Seconds)
+    $client = New-Object TwinCAT.Ads.TcAdsClient
+    try {
+        $client.Connect($NetId, $Port)
+        $target = [TwinCAT.Ads.AdsState]$State
+        $by = [DateTime]::UtcNow.AddSeconds($Seconds)
+        while ($true) {
+            try {
+                $current = $client.ReadState()
+                $client.WriteControl((New-Object TwinCAT.Ads.StateInfo $target, $current.DeviceState))
+                break
+            } catch {
+                if ([DateTime]::UtcNow -ge $by) { throw }
+                Start-Sleep -Milliseconds 500
+            }
+        }
+        $seen = $null
+        do {
+            Start-Sleep -Milliseconds 500
+            try { $seen = $client.ReadState().AdsState } catch { $seen = $null }
+        } while ($seen -ne $target -and [DateTime]::UtcNow -lt $by)
+        if ($null -eq $seen) { return 'Unknown' }
+        return $seen
+    } finally { $client.Dispose() }
+}
+
+function Read-AdsProjectNameRetry {
+    param([string] $NetId, [int] $Port, [int] $Seconds)
+    $by = [DateTime]::UtcNow.AddSeconds($Seconds)
+    while ($true) {
+        $client = New-Object TwinCAT.Ads.TcAdsClient
+        try { $client.Connect($NetId, $Port); return (Read-AdsProjectName -Client $client) }
+        catch { if ([DateTime]::UtcNow -ge $by) { throw } }
+        finally { $client.Dispose() }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
 $dte = $null
 $plcRoot = $null
 $online = $null
 $started = $false
 $loggedIn = $false
+$adsStarted = $false
 try {
     Write-Host "Gate $solutionName -> $ExpectedNetId (expect $ExpectedRunner, $ExpectedTests tests / $ExpectedSuites suites)"
     $dte = New-Object -ComObject $DteProgId
@@ -294,6 +367,36 @@ try {
         Start-Sleep -Milliseconds 500
     }
 
+    if ($StartBootProjectWithAds) {
+        Add-Type -Path $AdsAssembly
+        $probe = New-Object TwinCAT.Ads.TcAdsClient
+        try {
+            $probe.Connect($netId, $AdsPort)
+            $answerBy = [DateTime]::UtcNow.AddSeconds(60)
+            $before = $null
+            while ($null -eq $before) {
+                try { $before = $probe.ReadState() }
+                catch {
+                    if ([DateTime]::UtcNow -ge $answerBy) { throw "ADS port $AdsPort never answered after activation" }
+                    Start-Sleep -Milliseconds 500
+                }
+            }
+        } finally { $probe.Dispose() }
+        Write-Host "  ADS port $AdsPort before start: $($before.AdsState)"
+        if ($before.AdsState -eq [TwinCAT.Ads.AdsState]::Run) {
+            throw "Port $AdsPort is already running an application; refusing to start anything over it"
+        }
+        Write-Host '  ADS Run: loads and starts the boot application activation just wrote'
+        $adsStarted = $true     # before the request: finally must stop whatever it started
+        $state = Set-AdsPlcState -NetId $netId -Port $AdsPort -State 'Run' -Seconds 60
+        if ($state -ne [TwinCAT.Ads.AdsState]::Run) { throw "PLC did not reach Run over ADS (state $state)" }
+        $loaded = Read-AdsProjectNameRetry -NetId $netId -Port $AdsPort -Seconds 15
+        if ($loaded -ne $plcRoot.Name) {
+            [void](Set-AdsPlcState -NetId $netId -Port $AdsPort -State 'Stop' -Seconds 10)
+            throw "Loaded application is '$loaded', not '$($plcRoot.Name)'; stopped it"
+        }
+        Write-Host "  PLC is RUNNING '$loaded' (verified over ADS)"
+    } else {
     # Re-resolve after the restart: activating rebuilds the configuration tree,
     # and a pointer taken before it survives as a stale generic __ComObject.
     $iecProject = $sysManager.LookupTreeItem($iecPath)
@@ -420,6 +523,7 @@ try {
         Start-Sleep -Milliseconds 500
     }
     Write-Host '  PLC is RUNNING'
+    }
 
     # The result comes out of the PLC itself over ADS. TcUnit keeps the whole run
     # in GVL_TcUnit, so this waits on its own completion flag instead of a fixed
@@ -462,6 +566,10 @@ try {
 }
 finally {
     # Never leave the application executing, even on an abort.
+    if ($adsStarted) {
+        try { [void](Set-AdsPlcState -NetId $netId -Port $AdsPort -State 'Stop' -Seconds 10) }
+        catch { Write-Warning "ADS Stop failed: $($_.Exception.Message)" }
+    }
     if ($null -ne $online) {
         if ($started) { try { $online.Stop() } catch { Write-Warning "Stop failed: $($_.Exception.Message)" } }
         if ($loggedIn) { try { $online.Logoff() } catch { Write-Warning "Logoff failed: $($_.Exception.Message)" } }

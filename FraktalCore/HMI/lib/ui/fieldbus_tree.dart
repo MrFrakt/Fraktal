@@ -22,6 +22,9 @@ import '../domain/fieldbus.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
 import 'app_theme.dart';
+import 'hmi_icons.dart';
+import 'io_signal_led.dart';
+import 'theme_chrome.dart';
 import 'touch_text_field.dart';
 
 Color nodeStateColor(BuildContext ctx, NodeState s) {
@@ -190,7 +193,7 @@ class _FieldbusTreeState extends State<FieldbusTree> {
               )
             else
               const SizedBox(width: 28),
-            Icon(n.children.isEmpty ? Icons.memory : Icons.hub_outlined,
+            Icon(fieldbusIcon(n),
                 size: 20, color: eff == NodeState.operational ? null : tint),
             const SizedBox(width: 6),
             Expanded(
@@ -261,9 +264,14 @@ class _FieldbusTreeState extends State<FieldbusTree> {
   }
 
   Widget _channelTile(BuildContext context, IoChannel c) {
-    final isOut = c.dir == ChannelDir.output;
+    final bosch = FraktalChromeTheme.of(context) != null;
     Widget value;
-    if (c.kind == ChannelKind.digital) {
+    if (!c.quality || (c.kind == ChannelKind.analog && !c.analogValue.isFinite)) {
+      value = Tooltip(message: context.tr('std.io.unavailable'),
+          child: const Text('—'));
+    } else if (c.kind == ChannelKind.digital && bosch) {
+      value = LText(c.boolValue ? 'std.io.on' : 'std.io.off');
+    } else if (c.kind == ChannelKind.digital) {
       value = Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
@@ -290,8 +298,10 @@ class _FieldbusTreeState extends State<FieldbusTree> {
             forSession: ownerRoot.access ?? const AccessSession());
     return ListTile(
       dense: true,
-      leading: Icon(
-        isOut ? Icons.output : Icons.input,
+      leading: bosch && c.kind == ChannelKind.digital
+          ? IoSignalLed(direction: c.dir, value: c.quality ? c.boolValue : null, size: 20)
+          : Icon(
+        channelIcon(c.kind, c.dir),
         color: c.forced
             ? warningColor(context)
             : (c.quality && !c.faultActive

@@ -51,9 +51,15 @@ VAR
     LineTests : FB_LineData_Tests;
     ShiftTests : FB_Shift_Tests;
     HandoverTests : FB_Handover_Tests;
+    AccessPersistenceTests : FB_AccessPersistence_Tests;
+    PlatformHealthTests : FB_PlatformHealth_Tests;
+    PersistMediumTests : FB_PersistMedium_Tests;
+    LiveConfigTests : FB_LiveConfig_Tests;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[TcUnit.RUN();]]></ST>
+      <ST><![CDATA[TcUnit.RUN();
+// Not a suite: the live target-provider harness for isolated acceptance.
+PRG_PlatformAcceptance();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

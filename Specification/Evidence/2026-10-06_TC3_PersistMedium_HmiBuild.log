@@ -1,0 +1,61 @@
+﻿> C:\Projects\Fraktal\artifacts\flutter-3.47.5\bin\flutter.bat build web --release --no-pub
+Compiling lib\main.dart for the Web...                          
+dart.bat : Wasm dry run succeeded. Consider building and testing your application with the `--wasm` flag. See docs for 
+more info: https://docs.flutter.dev/platform-integration/web/wasm
+At C:\Projects\Fraktal\artifacts\persist-medium-2026-10-06\hmi\build.ps1:16 char:1
++ & "$sdkBin\dart.bat" run tool/build_gateway.dart 2>&1 | Tee-Object -F ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Wasm dry run su...ration/web/wasm:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Use --no-wasm-dry-run to disable these warnings.
+Font asset "CupertinoIcons.ttf" was tree-shaken, reducing it from 257628 to 1472 bytes (99.4% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 31364 bytes (98.1% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Compiling lib\main.dart for the Web...                             65.1s
+√ Built build\web
+> C:\Program Files/Microsoft Visual Studio\18\Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe -S C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI/native/opcua -B C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI/build/gateway-native/windows-x64 -DCMAKE_BUILD_TYPE=Release
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+CMake Deprecation Warning at third_party/mbedtls-3.6.6/CMakeLists.txt:21 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Configuring done (1.0s)
+-- Generating done (0.9s)
+-- Build files have been written to: C:/Projects/Fraktal/artifacts/like-bosch-theme/FraktalCore/HMI/build/gateway-native/windows-x64
+> C:\Program Files/Microsoft Visual Studio\18\Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe --build C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI/build/gateway-native/windows-x64 --config Release --parallel
+MSBuild version 18.9.1+a81b43525 for .NET Framework
+
+  fraktal_gateway_tray.vcxproj -> C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\build\gateway-native\windows-x64\Release\fraktal_gateway_tray.exe
+  everest.vcxproj -> C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\build\gateway-native\windows-x64\mbedtls\3rdparty\everest\Release\everest.lib
+  p256m.vcxproj -> C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\build\gateway-native\windows-x64\mbedtls\3rdparty\p256-m\Release\p256m.lib
+  mbedcrypto.vcxproj -> C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\build\gateway-native\windows-x64\mbedtls\library\Release\mbedcrypto.lib
+  mbedx509.vcxproj -> C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\build\gateway-native\windows-x64\mbedtls\library\Release\mbedx509.lib
+  mbedtls.vcxproj -> C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\build\gateway-native\windows-x64\mbedtls\library\Release\mbedtls.lib
+  fraktal_opcua.vcxproj -> C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\build\gateway-native\windows-x64\Release\fraktal_opcua.dll
+> C:\Projects\Fraktal\artifacts\flutter-3.47.5\bin\cache\dart-sdk\bin\dart.exe compile exe C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\gateway/bin/fraktal_gateway.dart -o C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI/build/gateway/windows-x64/fraktal_gateway.exe
+Generated: c:\projects\fraktal\artifacts\like-bosch-theme\fraktalcore\hmi\build\gateway\windows-x64\fraktal_gateway.exe
+> C:\Projects\Fraktal\artifacts\flutter-3.47.5\bin\flutter.bat build windows --release --no-pub
+Building Windows application...                                 
+CMake Deprecation Warning at C:/Projects/Fraktal/artifacts/like-bosch-theme/FraktalCore/HMI/native/opcua/third_party/mb
+edtls-3.6.6/CMakeLists.txt:21 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+Building Windows application...                                    38.1s
+√ Built build\windows\x64\runner\Release\fraktal_hmi.exe
+Bundled fraktal_ads.dll (ADS PLC transport available).
+> C:\Projects\Fraktal\artifacts\flutter-3.47.5\bin\cache\dart-sdk\bin\dart.exe run C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI\gateway/tool/build_windows_installer.dart C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI/build/gateway/windows-x64
+Bundled Caddy v2.11.4 (verified SHA-512: cd5ccfd86a4b40732cf715890d0dca5bf3f63adefec5a7914de85adf240c60ce7e5d2791631b88ef9758e46b23bb1730e020b9c5d696889740b284ffd4788e35).
+Windows installer: C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI/build/gateway/installer/FraktalSetup.exe
+The installer is unsigned; sign it with the organization's Authenticode certificate before production distribution.
+Gateway package: C:\Projects\Fraktal\artifacts\like-bosch-theme\FraktalCore\HMI/build/gateway/windows-x64

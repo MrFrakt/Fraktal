@@ -195,6 +195,12 @@ ELSE
     GVL_PressIO._000K911_A1 := FALSE;
 END_IF]]></ST></Implementation>
     </Method>
+    <Method Name="M_BusHealth" Id="{f61f7ebd-dc5e-472b-8981-448a39505162}">
+      <Declaration><![CDATA[// The EtherCAT adapter this driver owns, handed once to the health probe by the
+// composition root (§8.12/§10.5): one master, sampled once, read by both.
+METHOD M_BusHealth : POINTER TO FB_EcBusHealth]]></Declaration>
+      <Implementation><ST><![CDATA[M_BusHealth := ADR(_busHealth);]]></ST></Implementation>
+    </Method>
     <Method Name="M_RefreshFieldbus" Id="{69fbd59b-ae26-4b9d-9552-541f2a36a52b}">
       <Declaration><![CDATA[// Node state now comes from the REAL EtherCAT master (FB_EcBusHealth), NOT from
 // the Control-On / StandardIoHealthy verdict — the HMI fieldbus tree mirrors

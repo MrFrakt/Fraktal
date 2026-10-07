@@ -7,11 +7,17 @@
 PROGRAM MAIN
 VAR
     RecipeCatalog : FB_PressRecipeCatalog;
-    // §3.8b - this station's parameter-set store. LOCAL_RETAIN is the shipped
-    // default: named sets of (Scope, WriteKey) records in the controller's own
-    // retentive memory, so the press persists and restores its parametrization
-    // with no file system, no network and no further configuration.
-    ConfigStore : FB_LocalConfigStore;
+    // §3.8b - WHERE this station's retained data lives is a project decision, made
+    // here once: the press keeps its station, line and model data, its saved
+    // parameter sets and its local users as files in DATA_FOLDER. A station with
+    // no usable file system declares FB_RetainPersistMedium instead and nothing
+    // else changes (users then stay in the Boot directory: a credential never goes
+    // to a symbol-readable medium). On an IPC image with a write filter the folder
+    // must be excluded, or every write reverts at the next boot.
+    Storage : FB_FilePersistMedium;
+    // §3.8b - named parameter sets on the same medium: one readable JSON-lines
+    // file per saved set.
+    ConfigStore : FB_MediumConfigStore;
     PartCarrier : FB_LocalPartCarrier;    // §3.16.2 BY_POSITION identity + local result ring
     AccessUsers : FB_LocalAccessProvider; // §7.7 commissioning user/PIN table
     // TF6100 TMC-Filtered publication starts at the deployed root instance.
@@ -44,6 +50,8 @@ VAR
     HealthCpuLoadPct : LREAL;
     HealthMemoryAvailableMb : UDINT;
     HealthTimeSource : STRING(32);
+    TaskIndex : Tc2_System.GETCURTASKINDEX;
+    TaskCycleUs : UDINT;
     InitialModel : ST_ModelId;
     Plate : ST_Nameplate;
     Init : BOOL;
@@ -104,6 +112,10 @@ VAR CONSTANT
     // announce the departure for as long as it is true. A real cell with a
     // person inside it sets this TRUE and the §G.4a rule applies unchanged.
     JOG_ENABLE_DEVICE_REQUIRED : BOOL := FALSE;
+END_VAR
+VAR CONSTANT
+    // §3.8b - this station's data folder (FB_FilePersistMedium, PATH_GENERIC).
+    DATA_FOLDER : STRING(160) := 'C:\ProgramData\Fraktal\PressDemo\';
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// Mirror the compile-time gates so they remain observable (see declaration).
@@ -161,10 +173,13 @@ IF NOT Init THEN
     // §3.16 traceability: station-local BY_POSITION serials; RFID/host substitutes later
     PartCarrier.Setup(UidPrefix := 'PRESS-2026-');
     PneumaticPress.SetPartCarrier(Carrier := PartCarrier);
-    // §3.8b — the parameter-set store, beside the recipe provider and the access
-    // provider it mirrors. Composition-root wiring, one line, no per-value glue:
-    // every capability any module in this tree registered is already in the set.
+    // §3.8b — the medium, then everything kept on it. Composition-root wiring, no
+    // per-value glue: every capability any module in this tree registered is in
+    // the station, line and model documents and in every saved set already.
+    Storage.Setup(Folder := DATA_FOLDER, Where := Tc2_System.PATH_GENERIC);
+    ConfigStore.Setup(Medium := Storage, KeyPrefix := 'PneumaticPress.sets');
     PneumaticPress.SetConfigStore(Store := ConfigStore);
+    PneumaticPress.SetPersistMedium(Medium := Storage);
     // §3.8b — this press declares the STRICT restore policy. Its station data
     // today is the two-hand requirement and the step stall guard, and the
     // two-hand requirement is the reason: losing it would mean a machine that
@@ -187,8 +202,23 @@ IF NOT Init THEN
     IF NOT JOG_ENABLE_DEVICE_REQUIRED THEN
         PneumaticPress.PartFeed.SetJogRequiresEnable(Required := FALSE);
     END_IF
+    // §7.7(c) - the user table (names and salted PIN hashes) on the same medium.
+    AccessUsers.M_UseMedium(Medium := Storage);
+    AccessUsers.M_UseKey(Key := 'PneumaticPress.users');
     PneumaticPress.Access.Setup(Provider := AccessUsers, pAlarmLog := ADR(PneumaticPress.AlarmLog));
-    HealthConfig.MaxTaskCycleUs := 5000;
+    TaskIndex();
+    TaskCycleUs := _TaskInfo[TaskIndex.index].CycleTime / 10;
+    HealthConfig.MaxTaskCycleUs := TaskCycleUs + 2000;
+    HealthProbe.M_UseWindowsTime(Enabled := NOT USE_SIMULATION,
+        FilePath := PL_Fraktal.WINDOWS_CLOCK_SAMPLE_FILE, MaximumSampleAge := T#90S,
+        MaximumSyncAgeSeconds := 7200, MaximumOffsetUs := HealthConfig.MaxTimeOffsetUs);
+    // §8.12/§10.5 - the real profile measures controller/IPC health through the
+    // Beckhoff Device Manager and the bus through the EtherCAT master's own state,
+    // frame and CRC counters; simulation keeps the synthetic explicit inputs.
+    HealthProbe.M_UseIpcDiagnostics(Enabled := NOT USE_SIMULATION);
+    IF NOT USE_SIMULATION THEN
+        HealthProbe.M_UseEtherCatMaster(pBus := IoDriver.M_BusHealth());
+    END_IF
     HealthConfig.MaxTaskJitterUs := 2000;
     HealthConfig.RequireFieldbus := TRUE;
     HealthConfig.RequireDcSync := FALSE;
@@ -285,9 +315,10 @@ ControlDomain.M_Update(SafeEStopOk := SafeEStopOk,
     TwoHandFieldbusHealthy := TwoHandHal.FieldbusHealthy);
 PneumaticPress.ControlDomain := ControlDomain.Status;
 
-// §2.7/§8.12 framework acceptance fixture. Simulation supplies explicit healthy
-// synthetic controller/time probes; a real target stays conspicuously
-// unavailable until its platform metrics and documented sync source are wired.
+// §2.7/§8.12: in the real profile the probe measures the target itself - Windows
+// Time through the local observer, controller/IPC metrics through the Device
+// Manager, the bus through the EtherCAT master - and those groups ignore the
+// explicit inputs below, which remain the simulation profile's synthetic values.
 IF USE_SIMULATION THEN
     HealthCpuLoadPct := 25.0;
     HealthMemoryAvailableMb := UDINT#1024;
@@ -295,9 +326,12 @@ IF USE_SIMULATION THEN
 ELSE
     HealthCpuLoadPct := 0.0;
     HealthMemoryAvailableMb := UDINT#0;
-    HealthTimeSource := 'UNCONFIGURED';
+    HealthTimeSource := 'WINDOWS/W32TIME';
 END_IF
-HealthProbe.Cyclic(ExpectedCycleUs := 1000, ExternalTaskOverrun := FALSE,
+TaskIndex();
+TaskCycleUs := _TaskInfo[TaskIndex.index].CycleTime / 10;
+HealthProbe.Cyclic(ExpectedCycleUs := TaskCycleUs,
+    ExternalTaskOverrun := _TaskInfo[TaskIndex.index].CycleTimeExceeded,
     ControllerAvailable := USE_SIMULATION,
     CpuLoadPct := HealthCpuLoadPct,
     MemoryAvailableMb := HealthMemoryAvailableMb,

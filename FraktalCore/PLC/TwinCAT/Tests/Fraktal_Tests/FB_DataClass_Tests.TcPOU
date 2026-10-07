@@ -36,6 +36,8 @@ END_IF
 _init := TRUE;
 _u.Setup(Name := 'Test.Class');
 _u();
+// Not under test here: a volatile table, so no previous run's file is a precondition.
+_users.M_UseKey(Key := '');
 _users.Register(User := 'op', Pin := '1111', Level := E_AccessLevel.OPERATOR);
 _users.Register(User := 'eng', Pin := '4242', Level := E_AccessLevel.ENGINEER);
 _users.Register(User := 'adm', Pin := '9999', Level := E_AccessLevel.ADMIN);

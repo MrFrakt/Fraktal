@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_ValidPersistKey" Id="{a943e1da-dfd6-440f-808a-50d06ef7827f}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b - the one rule for an I_PersistMedium document key: a plain name
+// of 1 to 80 letters, digits, '_', '.' and '-'. No separator, so on a file
+// medium a key can never leave its folder.
+FUNCTION F_ValidPersistKey : BOOL
+VAR_INPUT
+    Key : STRING(80);
+END_VAR
+VAR
+    p : POINTER TO BYTE;
+    i : INT;
+    c : BYTE;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[F_ValidPersistKey := FALSE;
+p := ADR(Key);
+IF p[0] = 0 THEN
+    RETURN;
+END_IF
+FOR i := 0 TO 79 DO
+    c := p[i];
+    IF c = 0 THEN
+        EXIT;
+    END_IF
+    IF NOT (((c >= 48) AND (c <= 57)) OR ((c >= 65) AND (c <= 90))
+            OR ((c >= 97) AND (c <= 122)) OR (c = 95) OR (c = 46) OR (c = 45)) THEN
+        RETURN;
+    END_IF
+END_FOR
+F_ValidPersistKey := TRUE;]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

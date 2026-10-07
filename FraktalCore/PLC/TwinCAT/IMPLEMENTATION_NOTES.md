@@ -5111,3 +5111,239 @@ the corrected fixture returns 5/9; restoring source returns 9/9. Earlier
 failed fixture and lifecycle attempts remain evidence, not passing mutants.
 The default source selects LD. Final all-six object checks and detailed scope
 are in Specification/Evidence/2026-10-05_TC3_Handover_Final.md.
+
+
+## 157. Press x32 cascaded errors from a removed Modules dependency (2026-10-05)
+
+The local Fraktal_Modules project and installed 0.11.0.0 library had lost the
+Fraktal_Core reference. A direct Core reference in Press cannot supply missing
+dependencies inside a referenced library: its bases and public field types were
+unknown, producing 501 pasted diagnostics. Restore the owning library's reference,
+then save/install Core before Modules and cold-open the consumer. Core 0.23.0.0
+and Modules 0.11.0.0 now pass PressDemoX32's native CheckAllObjects on Debug /
+TwinCAT RT (x86), XAE 3.1.4026.24. No IEC behavior or runtime license was changed.
+Evidence: Specification/Evidence/2026-10-05_TC3_PressX32_LibraryDependency.md.
+
+
+## 158. Use the native x32 IDE and refresh its exported libraries (2026-10-05)
+
+The missing-dependency Modules blob was reinstalled after §157's repair. It
+exactly matched Framework/Release/x32/Fraktal_Modules.library; that stale export
+could reintroduce the problem despite a repaired source reference. Rebuilt and
+installed through TcXaeShell.DTE.15.0 in 32-bit PowerShell, and refreshed both
+Release and Release/x32 exports. Both locations now match the installed Core
+0.23.0.0 / Modules 0.11.0.0 blobs. Legacy single-library .sln wrappers accompany
+the modern .slnx files, selected by the installer for DTE15.
+
+The actual x32 IDE passes Press object checks and full offline code generation
+for x86 and x64 PLC targets. Typed EnvDTE text-point dispatch restores its Build
+pane diagnostics. No PLC was downloaded or activated. The two existing hidden
+credential persistence warnings remain separate. See Specification/Evidence/
+2026-10-05_TC3_PressX32_NativeIDE.md for exact artifacts and memory measurements.
+
+## 159. Observe the selected Windows clock source and use the real task period (2026-10-06)
+
+The real Press profile previously supplied unavailable time quality, although
+F_Now already read Windows UTC. The user selected the target's existing Windows
+time service. Core 0.23.1.0 adds FB_TcWindowsTime and the owning health probe's
+one-time M_UseWindowsTime setup. A target-local native observer reads documented
+MS-W32T RPC status and atomically publishes a versioned, packed, CRC-protected
+sample. It observes only: no clock/peer/service settings are changed. Existing
+Tc2_System asynchronous file access avoids a new PLC socket license/dependency.
+
+The reader validates format, time bounds, service status, sync age and offset,
+and expires unchanged cached samples using monotonic time every scan. Quality
+continues through the existing single GVL authority and SystemHealth contract.
+Existing explicit-provider inputs remain supported; simulation stays synthetic.
+Modules 0.11.0.1 only rebuilds the Core dependency. Released health layouts and
+reason ordinals are unchanged. PL_Fraktal owns the default sample path; the
+native package defaults are derived from it.
+
+Press derives its expected period and overrun indication from its current
+_TaskInfo entry. The earlier hard-coded 1 ms expectation misdiagnosed the
+configured 10 ms task as 9 ms jitter. Task thresholds now follow that period.
+Real controller/IPC telemetry remains unavailable until wired to verified APIs.
+Local CMOS Clock remains unsynchronized; the adapter cannot manufacture sync.
+
+The guide is Specification/Guides/TC3_WINDOWS_CLOCK.md; dated evidence records
+native x86/x64 observer reads, compiler gates and the separate runtime scope.
+The new decoder fixture covers valid signed offsets, stale/future/corrupt
+samples, service loss and excess offset; inventory is now 216 tests / 45 suites.
+
+## 160. The local user table is retained outside the symbol table (Core 0.24.0.0, 2026-10-06)
+
+Closes §154. The table must stay hidden (§150) and TwinCAT persists by symbol, so
+`_users`/`_n` never persisted; same-run login tests could not see that.
+
+- **Two alternating images in the Boot directory.** `FB_LocalAccessProvider` keeps
+  `ST_AccessImageV1` (packed, versioned, CRC-32 through the new shared `F_Crc32`) as
+  `<stem>.A.bin`/`.B.bin` under `PATH_BOOTPATH`, beside the persistent data and inside
+  its write-filter exclusion. The default stem is `FraktalAccess_` plus the instance
+  path (`{attribute 'instance-path'}`), so retention follows persistent-data identity
+  and the project calls nothing; `M_UseStorage` overrides it and `''` is volatile. The
+  table, both transfer buffers and the salt sequence stay hidden.
+- **Restore is whole or nothing; a write never touches the newest image.** The newest
+  image that validates as a whole wins; a torn write falls back to the previous table.
+  A non-secret persistent marker - the highest generation confirmed written, bound to
+  the stem by CRC - catches a newer confirmed image that is gone. What survived a loss
+  is written back, so a loss is announced once.
+- **The root drives it.** `I_AccessProvider` extends `__System.IQueryInterface`;
+  `FB_AccessManager` finds the optional `I_AccessStore` and services it every scan. A
+  loss reaches the root's §3.8b drain as `<root>.Access` (`CONFIG_RESTORE_LOST`,
+  `std.error.accessRestoreLost`), with the ENGINEER acknowledgement and restore policy;
+  `_M_AnnounceRestoreLoss` is now the one announcer for modules and the table. A failed
+  write raises `CONFIG_PERSIST_FAILED` (`std.error.accessPersistFailed`) until a 10 s
+  retry succeeds.
+- **Registration.** A registration made before the restore completes wins over the
+  retained record; an empty name or out-of-range level is refused, because an image
+  holding one would be refused at restore. The five fixtures not about retention keep
+  volatile tables, so no earlier run's file becomes their precondition.
+
+The provider's persistent layout changed, so Core steps to 0.24.0.0; Modules 0.11.0.2
+only rebuilds against it. `FB_CreateDir` reports 0x70C for "exists or invalid path",
+so the TcUnit failure path uses a probe store, and the provider's real failing write
+was accepted live against a directory staged in the Boot folder.
+
+## 161. Controller/IPC metrics and the EtherCAT master's own health (Core 0.24.0.0, 2026-10-06)
+
+The real Press profile supplied unavailable controller metrics, `IpcAvailable=FALSE`,
+zero frame/slave counters and no DC. Separately, `M_BusOk` - Control On's bus
+criterion - was refreshed after the first scan only while the HMI bus view was open.
+
+- `FB_TcIpcDiagnostics` reads the Beckhoff Device Manager through Tc3_IPCDiag:
+  `CPU_Usage`, `Memory_ProgramMemoryAvailable`, `CPU_Temp`, `Fan_Speed`,
+  `MassStg_DriveList_EraseCyclesLeft`/`SpareBlocksLeft`, names and types taken from the
+  installed library 1.2.6.0. One read at a time after a 20 s start delay, 40 s
+  freshness, range checks, and re-registration after a whole round of failures.
+  `FB_TcSystemHealthProbe.M_UseIpcDiagnostics` enables it once.
+- `ST_SystemHealthInput/Status` gain `FanAvailable`/`StorageAvailable` (input default
+  TRUE): a fanless IPC or a drive without wear data is neither a fault nor a healthy
+  reading. The publisher gates the fan and storage alarms on them. Additive.
+- `FB_EcBusHealth` samples device state, frame statistics and summed slave CRC errors
+  every second, outside the demand gate. Counts are the larger of the current and last
+  complete 10 s window; `MasterHealthy` uses mask `16#0FF3`, DC bit `16#1000`.
+  `M_BusOk` also requires the live `MasterHealthy`. `M_UseEtherCatMaster` feeds the
+  probe; the Press driver hands over its adapter (`M_BusHealth`) and MAIN enables both
+  providers in the real profile only.
+
+On the test host both stay unavailable, as they should: no Device Manager
+(`0xECA8070C`) and no EtherCAT master (ADS 0x7 on `192.168.1.6.2.1`). Positive values
+need the Beckhoff IPC target.
+
+## 162. Clock acceptance findings and an unattended runtime gate (2026-10-06)
+
+- The 216-test aggregate from §159 executed for the first time: 216/216.
+- `FB_TcWindowsTime` reported 13 ("invalid data") for a missing observer record; it now
+  reports the file-service error whenever the cached record does not validate (1804,
+  not found). It also copied a rejected record's measurements into `Quality` before
+  validating it - a corrupted byte appeared as a 255 us offset; measurements now come
+  only from an accepted record.
+- Live on the isolated runtime with the native observer: 1062 (Windows Time stopped,
+  as `w32tm` reports), 1460 after 90 s without a new record, 13 for a corrupted record,
+  recovery without a PLC reset, and 1804 for a missing record.
+- Hours later the same harness read 1460 while the observer was still writing: the
+  usermode runtime's TwinCAT time (`F_Now`, which stamps every event) had fallen 475 s
+  behind Windows UTC, so every fresh record looked future-dated and was rejected before
+  its change was tracked. Freshness now rests on the record changing plus a maximum
+  age, the sync age is judged on the record's own OS time base, and a PLC clock more
+  than the sample age behind the OS clock is reported as unsynchronized (`ErrorID
+  1398`) - otherwise a synchronized OS would vouch for event stamps eight minutes off.
+- `Invoke-TwinCatTcUnitGate.ps1 -StartBootProjectWithAds`: activation already writes the
+  boot application, and with Autostart off the restarted runtime has none loaded (ADS
+  Invalid); an ADS Run request loads and starts it. The gate refuses a port already
+  running, verifies the loaded project name over ADS and stops it in `finally`. That
+  closes the Login blocker of workflow §9.1 for unattended runs. One Press run met a
+  transient ADS 0x4 (router mailbox) while the boot application loaded and aborted
+  before marking the start; the state poll now retries until its deadline, and the
+  start is marked before the Run request so `finally` always stops it.
+
+Final: aggregate 227/227 in 47 suites; Press 9/9 for each of LD, ST and SFC. Scope
+and artifacts: `Specification/Evidence/2026-10-06_TC3_MissingFeatures.md`.
+
+## 163. Retained data on a project-chosen medium (Core 0.25.0.0, 2026-10-06)
+
+Owner request: the Press bench keeps its station, model and line configuration and
+its local users (name and PIN hash) as files on the hard drive, and where retained
+data lives must be a per-project choice - a persistent variable, a file, a database -
+switchable without touching the modules, since not every platform offers every medium.
+The owner chose a dedicated folder, file plus persistent-variable media now (a database
+medium once a server and a TF6420 licence are named), and the saved parameter sets on
+the same medium.
+
+- **One medium interface.** `I_PersistMedium` moves keyed byte documents through a
+  bounded FIFO of tickets; every consumer polls its own ticket, which is what advances
+  the medium, so a project schedules nothing. `FB_PersistMediumBase` holds the queue
+  once; `F_ValidPersistKey` is the one key rule (no separator, at most 80 characters).
+  `M_Confidential` says whether a document stays out of the symbol interfaces.
+- **`FB_FilePersistMedium`.** Two files per key with a readable 80-byte header
+  (generation, length, CRC-32 of key, data and header); folder chain created on the
+  first request; persistent confirmed generations for loss detection, keyed by the CRC
+  of folder and key. **`FB_RetainPersistMedium`**: a bounded persistent pool flushed by
+  the shipped `FB_PersistentDataWriter`; not confidential.
+- **`FB_ConfigSetDocument`** renders a set from any `I_ConfigStore` to the existing
+  JSON-lines text and parses it back whole or not at all; `FB_MediumConfigStore`
+  (sets) and the root's live documents share it. `FB_ConfigSetJson` refused
+  `kind` 2, so a `LINE_CFG` set could be exported but never parsed back; it now accepts
+  every `E_ConfigKind` member.
+- **The root's live documents.** `SetPersistMedium` keeps `<root>.station`, the owned
+  line, and every catalog model's data. `LoadConfigSet`'s staged apply moved into
+  `_M_ApplySet`, which the restore reuses (without the session level: the restore is
+  the machine's act); `_M_ValidateSetShape` gains `AnyRevision`, because a document
+  carries an earlier run's `ConfigRev`; capture writes into any store
+  (`_M_CaptureInto`), so writing documents never invalidates an export cursor. Writes
+  are refused and Start names `std.release.configRestoring` until the documents are
+  back. A runtime-created model whose catalog record did not survive is created again
+  from its document.
+- **Stores that write themselves out.** `I_ConfigStore` extends
+  `__System.IQueryInterface`; `SetConfigStore` finds an `I_ConfigPersistence` on the
+  store and the root drives it beside its own writer, so `PersistPending` covers a
+  saved set until its file exists.
+- **User table on the medium.** `FB_LocalAccessProvider` lost its own A/B file code:
+  it keeps the image as one document on `M_UseMedium`'s medium (confidential only) or,
+  by default, on its own file medium in the Boot directory under
+  `FraktalAccess_<CRC of instance path>`; `M_UseKey` replaces `M_UseStorage`. Images
+  written by the never-released 0.24.0.0 layout (`<stem>.A.bin`) are not read.
+- **Press.** `MAIN` declares `Storage : FB_FilePersistMedium` on
+  `C:\ProgramData\Fraktal\PressDemo\` and gives it to the root
+  (`SetPersistMedium`), to `ConfigStore : FB_MediumConfigStore` and to the user
+  table (`PneumaticPress.users`).
+
+**Two defects found by live acceptance, not by TcUnit.** The first file medium kept one
+"expected header" buffer for both slots, so verifying the newest copy compared it with
+the other slot's header whenever the newest was not the last one scanned; the copy was
+rejected, the fallback then chose the rejected slot again, and the next write - steered
+by a per-key cache that recorded the wrong conclusion - replaced the newest copy. A
+second runtime restart of the acceptance harness therefore came back on defaults and
+announced its station and model documents lost while every file was intact (verified
+independently on the host). Every TcUnit restart had read a newest copy that happened
+to be the last scanned. Now the expected header is rebuilt per slot, the fallback takes
+the newest slot still valid, both headers are re-read before every write and the cache
+is gone, and `The_newest_copy_wins_in_either_slot` pins it. Separately, a file-service
+error other than not-found was counted as damaged content, so a transient error at
+start would have been restored as defaults and written over the documents; such a read
+now answers `Ok = FALSE`, writes are refused, and the root, the user table and the set
+store retry (announced as `std.error.storageUnreadable`) instead of concluding. Second,
+`FB_MediumConfigStore.Durable` went TRUE while a set's write was still in flight;
+TcUnit caught that one.
+
+Host-side files are created by the runtime's account (`TcSysSrv`); with the default
+`C:\ProgramData` ACL an ordinary user may read them but not change them - the live
+acceptance's attempt to damage a document from an unelevated shell was refused - so
+the acceptance harness damages, removes and obstructs documents through the PLC's own
+file service (`PRG_PlatformAcceptance`, test-only).
+
+The confirmed generations live in the runtime's persistent data, which activating a
+*different* PLC project on the same port replaces: the user table written before the
+PressTests gates ran had lost its marker, so deleting it afterwards went unreported (a
+lost marker can only miss a loss). Once written again in the current project, its
+deletion was announced on `Acceptance.Access`.
+
+Final: Core 0.25.0.0 / Modules 0.11.0.3 installed from the isolated checkout (one XAE
+crash while closing the Core solution after the library was saved - "Index was outside
+the bounds of the array"; the IDE restarted and the install completed); six
+`CheckAllObjects` clean; aggregate 235/235 in 49 suites; Press 9/9 for each of LD, ST
+and SFC. Live on the isolated runtime with files in `C:\ProgramData\Fraktal\Acceptance\`:
+two runtime restarts with the newest copies alternating between the slots restored
+every value, model record, set and user without a loss; damaged, deleted and obstructed
+documents behaved as described above. Scope and artifacts:
+`Specification/Evidence/2026-10-06_TC3_PersistMedium.md`.

@@ -10,6 +10,7 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
 import 'app_theme.dart';
+import 'theme_chrome.dart';
 
 IconData modeIcon(UnitMode m) => switch (m) {
       UnitMode.auto => Icons.autorenew,
@@ -74,7 +75,7 @@ class ModeBar extends StatelessWidget {
         height: mm.touchTarget,
         decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(FraktalChromeTheme.of(context) == null ? 12 : 0)),
         // The tile is filled with primaryContainer, so its glyph must use the
         // paired onPrimaryContainer — inheriting onSurface is the pairing that
         // collapses on the high-contrast themes.

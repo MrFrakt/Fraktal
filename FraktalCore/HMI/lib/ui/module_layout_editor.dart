@@ -15,6 +15,7 @@ import 'app_theme.dart'
     show stateTokenColor, ControlScaleScope, PresetSwitchListTile, PresetChip;
 import 'custom_module_tabs.dart' show moduleGlyphIcon;
 import 'touch_text_field.dart';
+import 'hmi_icons.dart';
 
 /// [node] supplies the tags a layer condition may read; without it the view's
 /// layers keep the conditions they have.
@@ -462,7 +463,7 @@ class _TabEditorDialogState extends State<_TabEditorDialog> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(_tabIconData(icon), size: 19),
+                            Icon(moduleTabIcon(icon), size: 19),
                             const SizedBox(width: 8),
                             LText(_tabIconLabel(icon)),
                           ],
@@ -2210,26 +2211,3 @@ String _backgroundPositionLabel(ModuleBackgroundPosition position) =>
     'std.module.background.position.${position.name}';
 
 String _tabIconLabel(ModuleTabIcon icon) => 'std.module.icon.${icon.name}';
-
-IconData _tabIconData(ModuleTabIcon icon) => switch (icon) {
-      ModuleTabIcon.widgets => Icons.widgets_outlined,
-      ModuleTabIcon.dashboard => Icons.dashboard_outlined,
-      ModuleTabIcon.tune => Icons.tune,
-      ModuleTabIcon.monitoring => Icons.monitor_heart_outlined,
-      ModuleTabIcon.chart => Icons.show_chart,
-      ModuleTabIcon.information => Icons.info_outline,
-      ModuleTabIcon.build => Icons.build_outlined,
-      ModuleTabIcon.science => Icons.science_outlined,
-      ModuleTabIcon.machine => Icons.precision_manufacturing_outlined,
-      ModuleTabIcon.camera => Icons.camera_alt_outlined,
-      ModuleTabIcon.scanner => Icons.qr_code_scanner,
-      ModuleTabIcon.contactless => Icons.contactless_outlined,
-      ModuleTabIcon.checklist => Icons.checklist_outlined,
-      ModuleTabIcon.guidance => Icons.assistant_outlined,
-      ModuleTabIcon.image => Icons.image_outlined,
-      ModuleTabIcon.description => Icons.description_outlined,
-      ModuleTabIcon.settings => Icons.settings_outlined,
-      ModuleTabIcon.speed => Icons.speed_outlined,
-      ModuleTabIcon.electrical => Icons.electrical_services_outlined,
-      ModuleTabIcon.events => Icons.notifications_outlined,
-    };

@@ -5,6 +5,7 @@ library;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'theme_chrome.dart';
 
 /// Unit-card spacing for inline chips, badges and actions, including wrap runs.
 const kInlineItemGap = 8.0;
@@ -116,7 +117,13 @@ class FraktalBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = FraktalSurfaceTheme.of(context);
-    if (skin == null || skin.finish == SurfaceFinish.flat) return child;
+    if (skin == null || skin.finish == SurfaceFinish.flat) {
+      final chrome = FraktalChromeTheme.of(context);
+      return chrome == null ? child : Column(children: [
+        FraktalAccentBand(colors: chrome.bandColors),
+        Expanded(child: child),
+      ]);
+    }
     return Stack(fit: StackFit.expand, children: [
       Positioned.fill(
         child: IgnorePointer(

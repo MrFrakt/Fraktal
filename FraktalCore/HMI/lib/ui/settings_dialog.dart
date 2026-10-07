@@ -235,7 +235,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     if (isAdmin && widget.onEditAppearance != null)
                       ListTile(
                         key: const Key('edit-appearance'),
-                        leading: const Icon(Icons.tune),
+                        leading: const Icon(Icons.palette_outlined),
                         title: const LText('std.appearance.title'),
                         subtitle: const LText('std.appearance.editHelp'),
                         trailing: const Icon(Icons.chevron_right),

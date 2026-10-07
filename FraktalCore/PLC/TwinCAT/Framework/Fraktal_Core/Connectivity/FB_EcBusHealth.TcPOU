@@ -67,6 +67,40 @@ VAR
     // feeds control logic, not a view — is never based on unread hardware.
     _scanRequested : BOOL;
     _firstScanDone : BOOL;
+
+    // §8.12/§10.5 master health. Unlike the per-slave picture it is NOT
+    // demand-gated: alarms and M_BusOk consume it every scan, so it is sampled
+    // once a second whether or not anyone has the bus view open.
+    {attribute 'OPC.UA.DA' := '0'}
+    _fbDevState : Tc2_EtherCAT.FB_EcGetMasterDevState;
+    {attribute 'OPC.UA.DA' := '0'}
+    _fbFrames : Tc2_EtherCAT.FB_EcMasterFrameStatistic;
+    {attribute 'OPC.UA.DA' := '0'}
+    _fbCrc : Tc2_EtherCAT.FB_EcGetAllSlaveCrcErrors;
+    {attribute 'OPC.UA.DA' := '0'}
+    _crcBuf : ARRAY[0..PL_Fraktal.MAX_BUS_NODES] OF DWORD;
+    _mPhase : INT;
+    _mPoll : TON;
+    _mSampled : BOOL;
+    _mSampledAt : TIME;
+    _mBaselined : BOOL;
+    _mWindowStart : TIME;
+    _mLostBase : UDINT;
+    _mCrcBase : UDINT;
+    _mLastWindowLost : UDINT;
+    _mLastWindowCrc : UDINT;
+END_VAR
+VAR CONSTANT
+    // Tc2_EtherCAT master device-state bits (F_ConvMasterDevStateToString): link
+    // error 0x0001, I/O locked 0x0002, out of send resources 0x0010, watchdog
+    // 0x0020, driver missing 0x0040, I/O reset 0x0080, a device in INIT/PRE-OP/
+    // SAFE-OP 0x0100/0x0200/0x0400, a device in error 0x0800. The redundancy-only
+    // bits 0x0004/0x0008 are not faults of a working line; DC is reported apart.
+    MASTER_FAULT_BITS : WORD := 16#0FF3;
+    MASTER_DC_NOT_IN_SYNC : WORD := 16#1000;
+    MASTER_POLL : TIME := T#1S;
+    MASTER_WINDOW : TIME := T#10S;
+    MASTER_FRESH_FOR : TIME := T#3S;
 END_VAR
 VAR_OUTPUT
     // Diagnostics so a fieldbus read failure is visible instead of silently
@@ -99,6 +133,15 @@ VAR_OUTPUT
     DiagScanCount : UDINT;                      // completed reads (proves polling)
     DiagScanRequested : BOOL;                   // the §10.5.1 demand-gate state
     DiagFirstScanDone : BOOL;
+
+    // ---- Master health (§8.12/§10.5): sampled every second, never gated ----
+    MasterAvailable : BOOL;     // state, frame and CRC counters read within 3 s
+    MasterDevState  : WORD;     // raw master device state (F_ConvMasterDevStateToString)
+    MasterHealthy   : BOOL;     // available and no MASTER_FAULT_BITS set
+    LostFrameCount  : UDINT;    // lost cyclic+queued frames: current or last 10 s window
+    SlaveErrorCount : UDINT;    // summed slave CRC errors: current or last 10 s window
+    DcSynchronized  : BOOL;     // available and DC not reported out of sync
+    MasterErrorId   : UDINT;    // ADS error of the last failed master read (0 = none)
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[;]]></ST></Implementation>
     <Method Name="Setup" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a01}">
@@ -242,6 +285,9 @@ END_IF
 // look identical.
 DiagScanRequested := _scanRequested;
 DiagFirstScanDone := _firstScanDone;
+
+// Master health first: it is consumed by alarms and M_BusOk, never parked.
+_M_SampleMaster();
 
 // §10.5.1 is a DIAGNOSTIC surface: the bus picture is only consumed while the
 // fieldbus view is open. Polling the master every 250 ms regardless costs ADS
@@ -429,7 +475,144 @@ FOR i := 1 TO reported DO
         RETURN;  // a slave that IS on the bus is not OP -> bus not valid
     END_IF
 END_FOR
+// The per-slave read above is refreshed only on demand; the master's own summary
+// is sampled every second, so a slave that drops out later is seen here.
+IF NOT MasterHealthy THEN
+    RETURN;
+END_IF
 M_BusOk := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyMasterSample" Id="{d3d37407-d479-4290-b8e3-1a5be7070dff}">
+      <Declaration><![CDATA[// Record one complete master sample; _M_SampleMaster calls it after reading the
+// device state, frame statistics and slave CRC counters, and it is the seam a
+// fixture drives. The master's counters are cumulative, so each published count
+// is the larger of the current window's and the last full window's increase: a
+// burst is held for a whole window and a startup's losses never count.
+METHOD M_ApplyMasterSample : BOOL
+VAR_INPUT
+    Ok         : BOOL;      // every read of this sample succeeded
+    DevState   : WORD;
+    LostFrames : UDINT;     // cumulative lost cyclic + queued frames
+    CrcErrors  : UDINT;     // cumulative slave CRC errors, summed over slaves
+    MonoNow    : TIME;
+END_VAR
+VAR
+    lostNow : UDINT;
+    crcNow : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Ok THEN
+    MasterDevState := DevState;
+    IF NOT _mBaselined THEN
+        _mLostBase := LostFrames;
+        _mCrcBase := CrcErrors;
+        _mLastWindowLost := 0;
+        _mLastWindowCrc := 0;
+        _mWindowStart := MonoNow;
+        _mBaselined := TRUE;
+    END_IF
+    // A counter cleared since the window began counts again from zero.
+    IF LostFrames < _mLostBase THEN
+        _mLostBase := 0;
+    END_IF
+    IF CrcErrors < _mCrcBase THEN
+        _mCrcBase := 0;
+    END_IF
+    lostNow := LostFrames - _mLostBase;
+    crcNow := CrcErrors - _mCrcBase;
+    LostFrameCount := MAX(_mLastWindowLost, lostNow);
+    SlaveErrorCount := MAX(_mLastWindowCrc, crcNow);
+    IF MonoNow - _mWindowStart >= MASTER_WINDOW THEN
+        _mLastWindowLost := lostNow;
+        _mLastWindowCrc := crcNow;
+        _mLostBase := LostFrames;
+        _mCrcBase := CrcErrors;
+        _mWindowStart := MonoNow;
+    END_IF
+    _mSampled := TRUE;
+    _mSampledAt := MonoNow;
+END_IF
+_M_PublishMaster(MonoNow := MonoNow);
+M_ApplyMasterSample := Ok;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_PublishMaster" Id="{08640f6a-658e-40ca-8e1d-b7b813c84f13}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_PublishMaster
+VAR_INPUT
+    MonoNow : TIME;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[MasterAvailable := _mSampled AND (MonoNow - _mSampledAt <= MASTER_FRESH_FOR);
+MasterHealthy := MasterAvailable AND ((MasterDevState AND MASTER_FAULT_BITS) = 0);
+DcSynchronized := MasterAvailable AND ((MasterDevState AND MASTER_DC_NOT_IN_SYNC) = 0);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_SampleMaster" Id="{0c0d856f-547d-4030-99bb-f6a45db2fb32}">
+      <Declaration><![CDATA[// One bounded ADS read at a time: device state, frame statistics, then the slave
+// CRC counters; a sample counts only when all three succeeded.
+METHOD PRIVATE _M_SampleMaster
+VAR
+    crc : UDINT;
+    n : INT;
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[CASE _mPhase OF
+    0:
+        IF NOT NetIdMissing THEN
+            _fbDevState(bExecute := FALSE);
+            _fbDevState(sNetId := _netId, bExecute := TRUE, tTimeout := T#1S);
+            _mPhase := 1;
+        END_IF
+    1:
+        _fbDevState(bExecute := FALSE);
+        IF NOT _fbDevState.bBusy THEN
+            IF _fbDevState.bError THEN
+                MasterErrorId := _fbDevState.nErrId;
+                _mPhase := 9;
+            ELSE
+                _fbFrames(bExecute := FALSE);
+                _fbFrames(sNetId := _netId, bExecute := TRUE, tTimeout := T#1S);
+                _mPhase := 2;
+            END_IF
+        END_IF
+    2:
+        _fbFrames(bExecute := FALSE);
+        IF NOT _fbFrames.bBusy THEN
+            IF _fbFrames.bError THEN
+                MasterErrorId := _fbFrames.nErrId;
+                _mPhase := 9;
+            ELSE
+                _fbCrc(bExecute := FALSE);
+                _fbCrc(sNetId := _netId, pCrcErrorBuf := ADR(_crcBuf),
+                    cbBufLen := SIZEOF(_crcBuf), bExecute := TRUE, tTimeout := T#1S);
+                _mPhase := 3;
+            END_IF
+        END_IF
+    3:
+        _fbCrc(bExecute := FALSE);
+        IF NOT _fbCrc.bBusy THEN
+            IF _fbCrc.bError THEN
+                MasterErrorId := _fbCrc.nErrId;
+            ELSE
+                // pCrcErrorBuf is zero-based like pStateBuf: slave i is entry i-1.
+                crc := 0;
+                n := MIN(UINT_TO_INT(_fbCrc.nSlaves), PL_Fraktal.MAX_BUS_NODES + 1);
+                FOR i := 0 TO n - 1 DO
+                    crc := crc + DWORD_TO_UDINT(_crcBuf[i]);
+                END_FOR
+                MasterErrorId := 0;
+                M_ApplyMasterSample(Ok := TRUE, DevState := _fbDevState.nDevState,
+                    LostFrames := _fbFrames.nLostFrames + _fbFrames.nLostQueuedFrames,
+                    CrcErrors := crc, MonoNow := TIME());
+            END_IF
+            _mPhase := 9;
+        END_IF
+    9:
+        _mPoll(IN := TRUE, PT := MASTER_POLL);
+        IF _mPoll.Q THEN
+            _mPoll(IN := FALSE, PT := MASTER_POLL);
+            _mPhase := 0;
+        END_IF
+ELSE
+    _mPhase := 0;
+END_CASE
+_M_PublishMaster(MonoNow := TIME());   // freshness expires even while a read hangs]]></ST></Implementation>
     </Method>
     <Method Name="M_RequestScan" Id="{b7e14a02-9c3d-4f18-8a26-2d5f6c810a06}">
       <Declaration><![CDATA[// §10.5.1 demand gate. Call every cycle with Active := TRUE while a consumer is

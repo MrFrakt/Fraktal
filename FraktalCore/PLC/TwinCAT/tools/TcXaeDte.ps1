@@ -136,10 +136,13 @@ function Get-DteDiagnosticsSnapshot {
                 $pane = $panes.Item($index)
                 $lines.Add("--- DTE output pane: $($pane.Name) ---")
                 $document = $pane.TextDocument
-                $startPoint = $document.StartPoint
-                $endPoint = $document.EndPoint
-                $editPoint = $startPoint.CreateEditPoint()
-                $paneText = [string]$editPoint.GetText($endPoint)
+                # The x32 XAE Shell returns an untyped COM TextDocument. Its
+                # late-bound StartPoint is missing even though the interface is
+                # present; dispatch through the same typed interop as DTE2 above.
+                $startPoint = [EnvDTE.TextDocument].GetProperty('StartPoint').GetValue($document, $null)
+                $endPoint = [EnvDTE.TextDocument].GetProperty('EndPoint').GetValue($document, $null)
+                $editPoint = [EnvDTE.TextPoint].GetMethod('CreateEditPoint').Invoke($startPoint, $null)
+                $paneText = [string][EnvDTE.EditPoint].GetMethod('GetText').Invoke($editPoint, @($endPoint))
                 if ([string]::IsNullOrWhiteSpace($paneText)) {
                     $lines.Add('[empty]')
                 } else {

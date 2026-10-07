@@ -33,6 +33,13 @@ VAR
     _log      : POINTER TO FB_AlarmLog;
     _tIdle    : TON;
     _activityPending : BOOL;          // accepted operator action rearms the idle timer
+    // §7.7(c) - the provider's durable-table service, when it offers one.
+    {attribute 'OPC.UA.DA' := '0'}
+    _store : I_AccessStore;
+    _storeRestored : BOOL;              // the store's table has been read
+    _restoreLossSeen : BOOL;          // this root has taken the provider's loss
+    _restoreLossTake : BOOL;          // pending for the root's §3.8b annunciation
+    _saveFailedSlot : INT;            // open CONFIG_PERSIST_FAILED event (0 = none)
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// event/session handling is in Cyclic (called by the owning Unit each scan)]]></ST>
@@ -47,7 +54,13 @@ VAR
     activityHandled : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[sessionRearm := FALSE;
+        <ST><![CDATA[// §7.7(c) - restore/save the provider's table before this scan's login, so a
+// restored user can log in on the scan the table arrives.
+IF _store <> 0 THEN
+    _storeRestored := _store.M_Service();
+    _M_StoreCyclic();
+END_IF
+sessionRearm := FALSE;
 loginHandled := ReqLogin;
 IF loginHandled THEN
     ReqLogin := FALSE;
@@ -342,10 +355,52 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF Provider <> 0 THEN
     _provider := Provider;                  // Unit OnInit may attach only the audit log
+    _store := 0;
+    __QUERYINTERFACE(Provider, _store);     // optional: a provider that retains its table
 END_IF
 _log := pAlarmLog;
 Setup := TRUE;]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="M_TakeRestoreLoss" Id="{0bfca304-195b-4616-8112-6b3c451a1dba}">
+      <Declaration><![CDATA[// §3.8b/§7.7(c) - TRUE exactly once per loss: the provider's retained user table
+// was rejected or missing at restore. The owning root announces it like any
+// other lost configuration image; taking it here never clears the provider.
+METHOD M_TakeRestoreLoss : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_TakeRestoreLoss := _restoreLossTake;
+_restoreLossTake := FALSE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_StoreCyclic" Id="{68bd7de3-3fc6-42ad-a9a1-3ee99b0c65e1}">
+      <Declaration><![CDATA[// A registration that cannot be written is live now and lost at the next
+// restart, so it stands as CONFIG_PERSIST_FAILED until a later write succeeds; a
+// retained table that cannot be read stands the same way until it can.
+METHOD PRIVATE _M_StoreCyclic
+VAR
+    text : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF _store.M_RestoreLost() THEN
+    IF NOT _restoreLossSeen THEN
+        _restoreLossSeen := TRUE;
+        _restoreLossTake := TRUE;
+    END_IF
+END_IF
+IF _store.M_SaveFailed() THEN
+    IF (_saveFailedSlot = 0) AND (_log <> 0) THEN
+        text := 'std.error.accessPersistFailed';
+        IF NOT _storeRestored THEN
+            text := 'std.error.storageUnreadable';
+        END_IF
+        _saveFailedSlot := _log^.Raise(Reason := E_Reason.CONFIG_PERSIST_FAILED,
+            Text := text, Source := 'Access',
+            Severity := E_Severity.MED, Category := E_Category.SYSTEM,
+            ResetClass := E_ResetClass.AUTO_RESET);
+    END_IF
+ELSIF _saveFailedSlot > 0 THEN
+    IF _log <> 0 THEN
+        _log^.Gone(Slot := _saveFailedSlot);
+    END_IF
+    _saveFailedSlot := 0;
+END_IF]]></ST></Implementation>
     </Method>
     <Method Name="_M_Audit" Id="{4a43a0c7-56fe-4d93-9850-5fda5b3cfdb6}">
       <Declaration><![CDATA[// audit trail for free: come+gone MESSAGE lands in the §8.3 ring

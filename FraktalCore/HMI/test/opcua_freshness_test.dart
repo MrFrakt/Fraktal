@@ -368,6 +368,36 @@ void main() {
     expect(await repository.forest().first, isNotEmpty);
   });
 
+  test('an early freshness timer re-arms and still withdraws a stalled sample', () async {
+    var shortened = false;
+    await runZoned(() async {
+      final client = _Client()..blockSecond = true;
+      final repository = await OpcUaRepository.connectWithClient(client);
+      final links = <LinkState>[];
+      final subscription = repository.linkState().listen(links.add);
+      try {
+        await client.blocked.future;
+        await Future<void>.delayed(const Duration(milliseconds: 380));
+        expect(shortened, isTrue);
+        expect(links, containsAllInOrder([LinkState.live, LinkState.stale, LinkState.down]));
+        expect(client.release.isCompleted, isFalse);
+        expect(await repository.forest().first, isEmpty);
+        expect(await repository.setMode('Press', UnitMode.manual), isFalse);
+        expect(client.writes, isEmpty);
+      } finally {
+        await subscription.cancel();
+        repository.dispose();
+        if (!client.release.isCompleted) client.release.complete();
+      }
+    }, zoneSpecification: ZoneSpecification(createTimer: (self, parent, zone, duration, callback) {
+      if (!shortened && duration.inMilliseconds >= 120 && duration.inMilliseconds <= 170) {
+        shortened = true;
+        return parent.createTimer(zone, duration - const Duration(milliseconds: 20), callback);
+      }
+      return parent.createTimer(zone, duration, callback);
+    }));
+  });
+
   test('server-aged first frame is refused before connecting', () async {
     final client = _Client()..serverAge = 160;
     await expectLater(

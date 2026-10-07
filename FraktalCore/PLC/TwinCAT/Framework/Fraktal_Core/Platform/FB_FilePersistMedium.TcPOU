@@ -1,0 +1,703 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_FilePersistMedium" Id="{d26efce4-823b-4b10-9878-cedd27eff11a}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b - the FILE medium (E_ConfigStore.FILE_JSON) on Tc2_System file
+// services. Each key is two files in one folder, '<key>.a' and '<key>.b', and a
+// write always replaces the slot NOT holding the newest valid copy, so a write
+// cut short by a power loss leaves the previous document whole.
+//
+// Every file is an 80-byte text header line, then the document unchanged:
+//   FRAKTAL-DOC 1 G=<generation> L=<length> K=<key CRC> C=<data CRC> H=<header CRC>
+// in hexadecimal, so a set document stays readable in an editor. K binds a file
+// to its key (a copy renamed to another key is refused), C checks the document
+// and H the header. The highest valid generation wins on read.
+//
+// Both headers are read again before every write: the slot to replace and the
+// next generation always come from what is on storage NOW, never from an earlier
+// conclusion. A slot that cannot be READ (a file-service error other than "not
+// found") is not a slot that is empty: a read then answers Ok = FALSE - the
+// medium could not answer, nothing is claimed lost - and a write is refused
+// without touching either file. Only content that reads but does not verify is
+// treated as damaged.
+//
+// The generation each key was last CONFIRMED written at is kept PERSISTENT
+// (it is not secret). A read that finds nothing valid where something was
+// confirmed, or finds an older generation, reports Lost. TwinCAT stores the
+// table at shutdown or on an explicit persistent write, so it can lag and never
+// vouches for a write that did not happen; a stale marker can only miss a loss.
+// The table is keyed by F_Crc32(folder + key), so retargeting the medium never
+// claims a loss for files that were simply never written there. Keys beyond
+// MAX_PERSIST_KEYS still work, without loss detection.
+//
+// Not symbol-readable: documents pass through the caller's buffer, so this
+// medium may hold credentials (M_Confidential). On an IPC image with a write
+// filter (UWF/EWF/FBWF), the folder must be excluded or every write reverts at
+// the next boot. Files are created by the TwinCAT runtime's account; the
+// folder's ACL decides who else may change them.
+FUNCTION_BLOCK FB_FilePersistMedium EXTENDS FB_PersistMediumBase
+VAR_OUTPUT
+    StorageError : UDINT;   // last file-service error (0 = none)
+END_VAR
+VAR PERSISTENT
+    {attribute 'OPC.UA.DA' := '0'}
+    _confirmedKey : ARRAY[1..PL_Fraktal.MAX_PERSIST_KEYS] OF DWORD;
+    {attribute 'OPC.UA.DA' := '0'}
+    _confirmedGen : ARRAY[1..PL_Fraktal.MAX_PERSIST_KEYS] OF UDINT;
+END_VAR
+VAR
+    _folder      : STRING(160);
+    _where       : Tc2_System.E_OpenPath := Tc2_System.PATH_BOOTPATH;
+    _foldersMade : BOOL;
+    _mkPos       : INT;
+    // The active request.
+    _phase    : INT;
+    _keyCrc   : DWORD;
+    _slot     : INT;
+    _hdrValid : ARRAY[1..2] OF BOOL;
+    _hdrGen   : ARRAY[1..2] OF UDINT;
+    _hdrLen   : ARRAY[1..2] OF UDINT;
+    _hdrCrc   : ARRAY[1..2] OF DWORD;
+    _invalidSeen : BOOL;    // a slot read but did not verify
+    _ioFailed : BOOL;       // a slot could not be read at all
+    _attempt  : INT;
+    _ioOk     : BOOL;
+    _handle   : UINT;
+    _newGen   : UDINT;
+    _header   : ARRAY[0..79] OF BYTE;   // read into / written from
+    _expect   : ARRAY[0..79] OF BYTE;   // the header a read one must equal
+    {attribute 'OPC.UA.DA' := '0'}
+    _mkdir : Tc2_System.FB_CreateDir;
+    {attribute 'OPC.UA.DA' := '0'}
+    _open  : Tc2_System.FB_FileOpen;
+    {attribute 'OPC.UA.DA' := '0'}
+    _read  : Tc2_System.FB_FileRead;
+    {attribute 'OPC.UA.DA' := '0'}
+    _write : Tc2_System.FB_FileWrite;
+    {attribute 'OPC.UA.DA' := '0'}
+    _close : Tc2_System.FB_FileClose;
+END_VAR
+VAR CONSTANT
+    HEADER_BYTES   : UDINT := 80;
+    HEADER_TEXT    : STRING(80) := 'FRAKTAL-DOC 1 G=00000000 L=00000000 K=00000000 C=00000000 H=00000000';
+    HEADER_CRC_SPAN : UDINT := 58;      // bytes before 'H='
+    FILE_NOT_FOUND : UDINT := 16#70C;   // ADSERR_DEVICE_NOTFOUND
+    CLOSE_DONE     : UDINT := 16#703;   // the handle is already released
+    TOO_LARGE      : UDINT := 16#705;   // the document exceeds the caller's buffer
+    IO_TIMEOUT     : TIME := T#3S;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// no cyclic body: every caller's M_Poll advances the medium]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{2956ffea-5551-4709-914e-8f7c10bc2cf7}">
+      <Declaration><![CDATA[// Where the files live. Where = PATH_GENERIC takes an absolute Folder, for
+// example 'C:\ProgramData\Fraktal\Station\'; PATH_BOOTPATH is relative to the
+// TwinCAT Boot directory ('' = the directory itself). Missing folders are
+// created on the first request. At most 160 characters; a trailing separator is
+// added. Refused once a request was queued: one medium never splits a document
+// over two folders.
+METHOD Setup : BOOL
+VAR_INPUT
+    Folder : STRING(200);
+    Where  : Tc2_System.E_OpenPath;
+END_VAR
+VAR
+    n : INT;
+    p : POINTER TO BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Setup := FALSE;
+IF (_lastTicket > 0) OR (LEN(Folder) > 159) THEN
+    RETURN;
+END_IF
+_folder := Folder;
+n := LEN(_folder);
+IF n > 0 THEN
+    p := ADR(_folder);
+    IF (p[n - 1] <> 92) AND (p[n - 1] <> 47) THEN
+        _folder := CONCAT(_folder, '\');
+    END_IF
+END_IF
+_where := Where;
+_foldersMade := FALSE;
+_mkPos := 0;
+Setup := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Kind" Id="{ca8bcf36-2ed7-4698-82be-391afb89ab72}">
+      <Declaration><![CDATA[METHOD M_Kind : E_ConfigStore]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Kind := E_ConfigStore.FILE_JSON;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Confidential" Id="{ea1143a0-5eea-4621-a379-18000a5a0baa}">
+      <Declaration><![CDATA[METHOD M_Confidential : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Confidential := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Step" Id="{2eafea60-6392-46f2-b54e-791241deafde}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Step : BOOL
+VAR
+    i : INT;
+    best : INT;
+    confirmed : UDINT;
+    keyPath : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Step := FALSE;
+CASE _phase OF
+    0:      // a new request: read both headers first, for a read and a write alike
+        IF NOT _foldersMade THEN
+            _phase := 1;
+            RETURN;
+        END_IF
+        keyPath := CONCAT(_folder, _qKey[_active]);
+        _keyCrc := F_Crc32(pData := ADR(keyPath), Size := INT_TO_UDINT(LEN(keyPath)));
+        _invalidSeen := FALSE;
+        _ioFailed := FALSE;
+        FOR i := 1 TO 2 DO
+            _hdrValid[i] := FALSE;
+        END_FOR
+        _slot := 1;
+        _phase := 10;
+    1:      // create the folder chain, one level per operation
+        i := _M_NextSeparator(StartAt := _mkPos);
+        IF i < 0 THEN
+            _foldersMade := TRUE;
+            _phase := 0;
+        ELSE
+            _mkPos := i + 1;
+            _mkdir(bExecute := FALSE);
+            _mkdir(sNetId := '', sPathName := LEFT(_folder, i), ePath := _where,
+                bExecute := TRUE, tTimeout := IO_TIMEOUT);
+            _phase := 2;
+        END_IF
+    2:
+        _mkdir(bExecute := FALSE);
+        IF NOT _mkdir.bBusy THEN
+            _phase := 1;            // an existing folder answers with an error: ignored
+        END_IF
+
+    10:     // header scan: open the slot
+        _open(bExecute := FALSE);
+        _open(sNetId := '', sPathName := _M_Path(Slot := _slot),
+            nMode := Tc2_System.FOPEN_MODEREAD OR Tc2_System.FOPEN_MODEBINARY,
+            ePath := _where, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 11;
+    11:
+        _open(bExecute := FALSE);
+        IF NOT _open.bBusy THEN
+            IF _open.bError THEN
+                IF _open.nErrId <> FILE_NOT_FOUND THEN
+                    _M_IoFailed(ErrorId := _open.nErrId);   // there, but not readable
+                END_IF
+                _phase := 16;
+            ELSE
+                _handle := _open.hFile;
+                _phase := 12;
+            END_IF
+        END_IF
+    12:
+        MEMSET(destAddr := ADR(_header), fillByte := 0, n := HEADER_BYTES);
+        _read(bExecute := FALSE);
+        _read(sNetId := '', hFile := _handle, pReadBuff := ADR(_header),
+            cbReadLen := HEADER_BYTES, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 13;
+    13:
+        _read(bExecute := FALSE);
+        IF NOT _read.bBusy THEN
+            IF _read.bError THEN
+                _M_IoFailed(ErrorId := _read.nErrId);
+            ELSE
+                // A short file or a header that does not verify is damaged content.
+                _hdrValid[_slot] := (_read.cbRead = HEADER_BYTES) AND _M_ParseHeader(Slot := _slot);
+                IF NOT _hdrValid[_slot] THEN
+                    _invalidSeen := TRUE;
+                END_IF
+            END_IF
+            _phase := 14;
+        END_IF
+    14:
+        _close(bExecute := FALSE);
+        _close(sNetId := '', hFile := _handle, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 15;
+    15:
+        _close(bExecute := FALSE);
+        IF NOT _close.bBusy THEN
+            IF _close.bError AND (_close.nErrId <> CLOSE_DONE) THEN
+                StorageError := _close.nErrId;
+                _phase := 14;                       // never leak an open handle
+            ELSE
+                _handle := 0;
+                _phase := 16;
+            END_IF
+        END_IF
+    16:
+        IF _slot = 1 THEN
+            _slot := 2;
+            _phase := 10;
+        ELSIF _ioFailed THEN
+            // Storage did not answer: never conclude "empty" from that, and never
+            // write over a copy that could not be read.
+            _qResult[_active].ErrorId := StorageError;
+            _M_Finish();
+            _M_Step := TRUE;
+        ELSIF _qWrite[_active] THEN
+            _phase := 40;
+        ELSE
+            _attempt := 0;
+            _phase := 30;
+        END_IF
+
+    30:     // read the newest slot still valid; a rejected slot is no longer valid
+        IF _attempt < 2 THEN
+            _slot := _M_Newest();
+        ELSE
+            _slot := 0;
+        END_IF
+        confirmed := _M_ConfirmedGen();
+        IF _slot = 0 THEN
+            // Nothing valid. Lost when something existed or was confirmed.
+            _qResult[_active].Ok := TRUE;
+            _qResult[_active].Lost := _invalidSeen OR (confirmed > 0);
+            _M_Finish();
+            _M_Step := TRUE;
+        ELSIF _hdrLen[_slot] > _qSize[_active] THEN
+            _qResult[_active].ErrorId := TOO_LARGE;
+            _M_Finish();
+            _M_Step := TRUE;
+        ELSIF _hdrLen[_slot] = 0 THEN
+            // A deletion record: nothing there, by intent.
+            _qResult[_active].Ok := TRUE;
+            _qResult[_active].Lost := confirmed > _hdrGen[_slot];
+            _M_Finish();
+            _M_Step := TRUE;
+        ELSE
+            _phase := 31;
+        END_IF
+    31:
+        _open(bExecute := FALSE);
+        _open(sNetId := '', sPathName := _M_Path(Slot := _slot),
+            nMode := Tc2_System.FOPEN_MODEREAD OR Tc2_System.FOPEN_MODEBINARY,
+            ePath := _where, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 32;
+    32:
+        _open(bExecute := FALSE);
+        IF NOT _open.bBusy THEN
+            IF _open.bError THEN
+                _M_IoFailed(ErrorId := _open.nErrId);
+                _qResult[_active].ErrorId := StorageError;
+                _M_Finish();
+                _M_Step := TRUE;
+            ELSE
+                _handle := _open.hFile;
+                _phase := 33;
+            END_IF
+        END_IF
+    33:
+        _read(bExecute := FALSE);
+        _read(sNetId := '', hFile := _handle, pReadBuff := ADR(_header),
+            cbReadLen := HEADER_BYTES, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 34;
+    34:
+        _read(bExecute := FALSE);
+        IF NOT _read.bBusy THEN
+            IF _read.bError THEN
+                _M_IoFailed(ErrorId := _read.nErrId);
+                _ioOk := FALSE;
+                _phase := 37;
+            ELSE
+                // The header must still be the one the scan accepted for THIS slot.
+                _M_BuildHeader(pDst := ADR(_expect), Generation := _hdrGen[_slot],
+                    Length := _hdrLen[_slot], DataCrc := _hdrCrc[_slot]);
+                _ioOk := (_read.cbRead = HEADER_BYTES)
+                    AND (MEMCMP(pBuf1 := ADR(_header), pBuf2 := ADR(_expect), n := HEADER_BYTES) = 0);
+                IF _ioOk THEN
+                    _phase := 35;
+                ELSE
+                    _phase := 37;
+                END_IF
+            END_IF
+        END_IF
+    35:
+        _read(bExecute := FALSE);
+        _read(sNetId := '', hFile := _handle, pReadBuff := _qData[_active],
+            cbReadLen := _hdrLen[_slot], bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 36;
+    36:
+        _read(bExecute := FALSE);
+        IF NOT _read.bBusy THEN
+            IF _read.bError THEN
+                _M_IoFailed(ErrorId := _read.nErrId);
+                _ioOk := FALSE;
+            ELSE
+                _ioOk := (_read.cbRead = _hdrLen[_slot]);
+            END_IF
+            _phase := 37;
+        END_IF
+    37:
+        _close(bExecute := FALSE);
+        _close(sNetId := '', hFile := _handle, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 38;
+    38:
+        _close(bExecute := FALSE);
+        IF NOT _close.bBusy THEN
+            IF _close.bError AND (_close.nErrId <> CLOSE_DONE) THEN
+                StorageError := _close.nErrId;
+                _phase := 37;
+            ELSE
+                _handle := 0;
+                IF _ioFailed THEN
+                    _qResult[_active].ErrorId := StorageError;
+                    _M_Finish();
+                    _M_Step := TRUE;
+                ELSIF _ioOk AND (F_Crc32(pData := _qData[_active], Size := _hdrLen[_slot])
+                        = _hdrCrc[_slot]) THEN
+                    _qResult[_active].Ok := TRUE;
+                    _qResult[_active].Found := TRUE;
+                    _qResult[_active].Length := _hdrLen[_slot];
+                    _qResult[_active].Lost := _M_ConfirmedGen() > _hdrGen[_slot];
+                    StorageError := 0;
+                    _M_Finish();
+                    _M_Step := TRUE;
+                ELSE
+                    _M_RejectSlot();            // damaged content: try the other slot
+                END_IF
+            END_IF
+        END_IF
+
+    40:     // write into the slot not holding the newest valid copy
+        best := _M_Newest();
+        _slot := 1;
+        IF best = 1 THEN
+            _slot := 2;
+        END_IF
+        _newGen := _M_ConfirmedGen();
+        FOR i := 1 TO 2 DO
+            IF _hdrValid[i] THEN
+                _newGen := MAX(_newGen, _hdrGen[i]);
+            END_IF
+        END_FOR
+        _newGen := _newGen + 1;
+        _M_BuildHeader(pDst := ADR(_header), Generation := _newGen, Length := _qSize[_active],
+            DataCrc := F_Crc32(pData := _qData[_active], Size := _qSize[_active]));
+        _ioOk := TRUE;
+        _phase := 41;
+    41:
+        _open(bExecute := FALSE);
+        _open(sNetId := '', sPathName := _M_Path(Slot := _slot),
+            nMode := Tc2_System.FOPEN_MODEWRITE OR Tc2_System.FOPEN_MODEBINARY,
+            ePath := _where, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 42;
+    42:
+        _open(bExecute := FALSE);
+        IF NOT _open.bBusy THEN
+            IF _open.bError THEN
+                StorageError := _open.nErrId;
+                _qResult[_active].ErrorId := _open.nErrId;
+                _M_Finish();
+                _M_Step := TRUE;
+            ELSE
+                _handle := _open.hFile;
+                _phase := 43;
+            END_IF
+        END_IF
+    43:
+        _write(bExecute := FALSE);
+        _write(sNetId := '', hFile := _handle, pWriteBuff := ADR(_header),
+            cbWriteLen := HEADER_BYTES, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 44;
+    44:
+        _write(bExecute := FALSE);
+        IF NOT _write.bBusy THEN
+            _ioOk := NOT _write.bError AND (_write.cbWrite = HEADER_BYTES);
+            IF _write.bError THEN
+                StorageError := _write.nErrId;
+            END_IF
+            IF _ioOk AND (_qSize[_active] > 0) THEN
+                _phase := 45;
+            ELSE
+                _phase := 47;
+            END_IF
+        END_IF
+    45:
+        _write(bExecute := FALSE);
+        _write(sNetId := '', hFile := _handle, pWriteBuff := _qData[_active],
+            cbWriteLen := _qSize[_active], bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 46;
+    46:
+        _write(bExecute := FALSE);
+        IF NOT _write.bBusy THEN
+            _ioOk := NOT _write.bError AND (_write.cbWrite = _qSize[_active]);
+            IF _write.bError THEN
+                StorageError := _write.nErrId;
+            END_IF
+            _phase := 47;
+        END_IF
+    47:
+        _close(bExecute := FALSE);
+        _close(sNetId := '', hFile := _handle, bExecute := TRUE, tTimeout := IO_TIMEOUT);
+        _phase := 48;
+    48:
+        _close(bExecute := FALSE);
+        IF NOT _close.bBusy THEN
+            IF _close.bError AND (_close.nErrId <> CLOSE_DONE) THEN
+                StorageError := _close.nErrId;
+                _phase := 47;
+            ELSE
+                _handle := 0;
+                // Durable only if the handle closed cleanly as well.
+                IF _ioOk AND NOT _close.bError THEN
+                    _M_Confirm();
+                    _qResult[_active].Ok := TRUE;
+                    StorageError := 0;
+                ELSE
+                    _qResult[_active].ErrorId := StorageError;
+                END_IF
+                _M_Finish();
+                _M_Step := TRUE;
+            END_IF
+        END_IF
+ELSE
+    _qResult[_active].ErrorId := INVALID_REQUEST;   // unknown step: fail the request
+    _M_Finish();
+    _M_Step := TRUE;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Finish" Id="{2b4a5de9-91e7-42d6-867e-29a484b2fcfc}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Finish]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _qResult[_active].Ok AND (_qResult[_active].ErrorId = 0) THEN
+    _qResult[_active].ErrorId := INVALID_REQUEST;
+END_IF
+_phase := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_IoFailed" Id="{1a53ecc8-094c-46dc-929a-e088af91cb6b}">
+      <Declaration><![CDATA[// A slot could not be read at all: the request cannot conclude anything about it.
+METHOD PRIVATE _M_IoFailed
+VAR_INPUT
+    ErrorId : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_ioFailed := TRUE;
+StorageError := ErrorId;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_RejectSlot" Id="{c6b20133-6113-47a3-a7b0-db2dfd5a302a}">
+      <Declaration><![CDATA[// The slot's document did not verify: it is damaged, so it stops being a
+// candidate and the newest remaining valid slot is tried.
+METHOD PRIVATE _M_RejectSlot]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_invalidSeen := TRUE;
+_hdrValid[_slot] := FALSE;
+_attempt := _attempt + 1;
+_phase := 30;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Newest" Id="{96a260b1-90a9-4bf6-a7f0-2d53d220d5a5}">
+      <Declaration><![CDATA[// The slot with the highest valid header generation, 0 when neither is valid.
+METHOD PRIVATE _M_Newest : INT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Newest := 0;
+IF _hdrValid[1] THEN
+    _M_Newest := 1;
+END_IF
+IF _hdrValid[2] THEN
+    IF _M_Newest = 0 THEN
+        _M_Newest := 2;
+    ELSIF _hdrGen[2] > _hdrGen[1] THEN
+        _M_Newest := 2;
+    END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Confirm" Id="{b28e7015-6feb-4c94-bfd5-3f012d20a171}">
+      <Declaration><![CDATA[// Record the generation just written for this key (the persistent marker).
+METHOD PRIVATE _M_Confirm
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO PL_Fraktal.MAX_PERSIST_KEYS DO
+    IF (_confirmedGen[i] > 0) AND (_confirmedKey[i] = _keyCrc) THEN
+        _confirmedGen[i] := _newGen;
+        RETURN;
+    END_IF
+END_FOR
+FOR i := 1 TO PL_Fraktal.MAX_PERSIST_KEYS DO
+    IF _confirmedGen[i] = 0 THEN
+        _confirmedKey[i] := _keyCrc;
+        _confirmedGen[i] := _newGen;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ConfirmedGen" Id="{46b2f58e-4746-4588-945a-5b4b768a09a2}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_ConfirmedGen : UDINT
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_ConfirmedGen := 0;
+FOR i := 1 TO PL_Fraktal.MAX_PERSIST_KEYS DO
+    IF (_confirmedGen[i] > 0) AND (_confirmedKey[i] = _keyCrc) THEN
+        _M_ConfirmedGen := _confirmedGen[i];
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Path" Id="{9c04e69c-78c1-4718-ac94-2b34cebf020e}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Path : STRING(255)
+VAR_INPUT
+    Slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Slot = 2 THEN
+    _M_Path := CONCAT(CONCAT(_folder, _qKey[_active]), '.b');
+ELSE
+    _M_Path := CONCAT(CONCAT(_folder, _qKey[_active]), '.a');
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_NextSeparator" Id="{55cac85a-0533-4b39-8707-7ad246ebb817}">
+      <Declaration><![CDATA[// Position of the next '\' or '/' at or after StartAt that ends a folder to create,
+// -1 when none is left. A drive root ('C:\') and a leading UNC prefix are skipped.
+METHOD PRIVATE _M_NextSeparator : INT
+VAR_INPUT
+    StartAt : INT;
+END_VAR
+VAR
+    p : POINTER TO BYTE;
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_NextSeparator := -1;
+p := ADR(_folder);
+FOR i := MAX(StartAt, 0) TO 159 DO
+    IF p[i] = 0 THEN
+        RETURN;
+    END_IF
+    IF ((p[i] = 92) OR (p[i] = 47)) AND (i > 2) THEN
+        _M_NextSeparator := i;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_BuildHeader" Id="{4b2f36e9-f4ad-4b0d-a8b3-9d6ee7720b4e}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_BuildHeader
+VAR_INPUT
+    pDst       : POINTER TO BYTE;
+    Generation : UDINT;
+    Length     : UDINT;
+    DataCrc    : DWORD;
+END_VAR
+VAR
+    text : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[text := HEADER_TEXT;
+MEMSET(destAddr := pDst, fillByte := 32, n := HEADER_BYTES);
+MEMCPY(destAddr := pDst, srcAddr := ADR(text), n := INT_TO_UDINT(LEN(text)));
+pDst[HEADER_BYTES - 1] := 10;
+_M_PutHex(pDst := pDst + 16, Value := UDINT_TO_DWORD(Generation));
+_M_PutHex(pDst := pDst + 27, Value := UDINT_TO_DWORD(Length));
+_M_PutHex(pDst := pDst + 38, Value := _keyCrc);
+_M_PutHex(pDst := pDst + 49, Value := DataCrc);
+_M_PutHex(pDst := pDst + 60, Value := F_Crc32(pData := pDst, Size := HEADER_CRC_SPAN));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ParseHeader" Id="{74539541-2b0c-4951-a450-1e246602024d}">
+      <Declaration><![CDATA[// A header is valid when re-building it from its own fields gives the same 80
+// bytes: that checks the labels, the padding, the header CRC and the key in one
+// comparison. Its fields are kept per slot; the payload read rebuilds the
+// expected header from them for the slot it is reading.
+METHOD PRIVATE _M_ParseHeader : BOOL
+VAR_INPUT
+    Slot : INT;
+END_VAR
+VAR
+    fileGen : DWORD;
+    fileLen : DWORD;
+    fileKey : DWORD;
+    fileCrc : DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_ParseHeader := FALSE;
+IF NOT _M_GetHex(pSrc := ADR(_header) + 16, Value := fileGen) THEN RETURN; END_IF
+IF NOT _M_GetHex(pSrc := ADR(_header) + 27, Value := fileLen) THEN RETURN; END_IF
+IF NOT _M_GetHex(pSrc := ADR(_header) + 38, Value := fileKey) THEN RETURN; END_IF
+IF NOT _M_GetHex(pSrc := ADR(_header) + 49, Value := fileCrc) THEN RETURN; END_IF
+IF (fileGen = 0) OR (fileKey <> _keyCrc)
+OR (DWORD_TO_UDINT(fileLen) > PL_Fraktal.MAX_PERSIST_DOC_BYTES) THEN
+    RETURN;
+END_IF
+_M_BuildHeader(pDst := ADR(_expect), Generation := DWORD_TO_UDINT(fileGen),
+    Length := DWORD_TO_UDINT(fileLen), DataCrc := fileCrc);
+IF MEMCMP(pBuf1 := ADR(_header), pBuf2 := ADR(_expect), n := HEADER_BYTES) <> 0 THEN
+    RETURN;
+END_IF
+_hdrGen[Slot] := DWORD_TO_UDINT(fileGen);
+_hdrLen[Slot] := DWORD_TO_UDINT(fileLen);
+_hdrCrc[Slot] := fileCrc;
+_M_ParseHeader := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_PutHex" Id="{b2dea28a-8e77-44bf-9a0a-0ff9e6abe27b}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_PutHex
+VAR_INPUT
+    pDst  : POINTER TO BYTE;
+    Value : DWORD;
+END_VAR
+VAR
+    i : INT;
+    nibble : BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO 7 DO
+    nibble := DWORD_TO_BYTE(SHR(Value, INT_TO_UINT((7 - i) * 4)) AND DWORD#16#F);
+    IF nibble < 10 THEN
+        pDst[i] := BYTE#48 + nibble;    // '0'..'9'
+    ELSE
+        pDst[i] := BYTE#55 + nibble;    // 'A'..'F'
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_GetHex" Id="{685edf79-0b4f-4aca-bbe8-aa81d775c6f2}">
+      <Declaration><![CDATA[// Eight upper-case hexadecimal digits at pSrc, exactly as _M_PutHex writes them.
+METHOD PRIVATE _M_GetHex : BOOL
+VAR_INPUT
+    pSrc : POINTER TO BYTE;
+END_VAR
+VAR_IN_OUT
+    Value : DWORD;
+END_VAR
+VAR
+    i : INT;
+    c : BYTE;
+    acc : DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_GetHex := FALSE;
+acc := 0;
+FOR i := 0 TO 7 DO
+    c := pSrc[i];
+    IF (c >= 48) AND (c <= 57) THEN
+        acc := SHL(acc, 4) OR (BYTE_TO_DWORD(c) - DWORD#48);
+    ELSIF (c >= 65) AND (c <= 70) THEN
+        acc := SHL(acc, 4) OR (BYTE_TO_DWORD(c) - DWORD#55);
+    ELSE
+        RETURN;
+    END_IF
+END_FOR
+Value := acc;
+_M_GetHex := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

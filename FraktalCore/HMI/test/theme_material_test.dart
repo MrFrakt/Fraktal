@@ -31,7 +31,10 @@ void main() {
       'std.theme.highContrastLight',
       'std.theme.highContrastDark',
     ]);
-    expect(kThemes.skip(14), hasLength(15));
+    expect(kThemes.skip(14), hasLength(16));
+    expect(kThemes[27].nameKey, 'std.theme.processGrey');
+    expect(kThemes[28].nameKey, 'std.theme.processGreyDark');
+    expect(kThemes[29].nameKey, 'std.theme.likeABosch');
     expect(kThemes.map((theme) => theme.nameKey).toSet(),
         hasLength(kThemes.length));
     for (final spec in kThemes) {
@@ -43,9 +46,11 @@ void main() {
     final order = kThemeDisplayOrder;
     expect(order.toSet(), hasLength(kThemes.length),
         reason: 'every theme exactly once');
-    final firstModern = order.indexWhere((i) => !kThemes[i].standard);
-    expect(order.skip(firstModern).every((i) => !kThemes[i].standard), isTrue,
-        reason: 'no standard theme after a modern one');
+    expect(order.map((i) => kThemes[i].group), [
+      ...List.filled(16, ThemeGroup.standard),
+      ...List.filled(13, ThemeGroup.modern),
+      ThemeGroup.inspired,
+    ], reason: 'the new reference group is separate; existing groups keep their order');
     expect(order.take(2).map((i) => kThemes[i].nameKey),
         ['std.theme.processGrey', 'std.theme.processGreyDark']);
     expect(kThemes.where((t) => t.isa101).every((t) => t.standard), isTrue);

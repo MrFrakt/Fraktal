@@ -112,7 +112,7 @@ class ReleasePanel extends StatelessWidget {
 
   Widget _reasonChip(BuildContext context, ReleaseReason reason) {
     final icon = switch (reason.kind) {
-      ReleaseKind.mode => Icons.tune,
+      ReleaseKind.mode => Icons.swap_horiz,
       ReleaseKind.access => Icons.lock_outline,
       ReleaseKind.alarm => Icons.notification_important_outlined,
       ReleaseKind.interlock => Icons.link_off,

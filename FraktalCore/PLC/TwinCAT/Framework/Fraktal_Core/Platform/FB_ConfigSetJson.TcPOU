@@ -469,7 +469,7 @@ END_IF
 IF NOT F_TryParseNumber(Text := kindText, Value => kindValue) THEN
     RETURN;
 END_IF
-IF (kindValue < 0.0) OR (kindValue > 1.0) THEN
+IF (kindValue < 0.0) OR (kindValue > DINT_TO_LREAL(TO_DINT(E_ConfigKind.LINE_CFG))) THEN
     RETURN;                                // outside E_ConfigKind: fail closed
 END_IF
 IF NOT F_TryParseNumber(Text := typeText, Value => typeValue) THEN
@@ -576,7 +576,7 @@ END_IF
 IF NOT F_TryParseNumber(Text := kindText, Value => kind) THEN
     RETURN;
 END_IF
-IF (kind < 0.0) OR (kind > 1.0) THEN
+IF (kind < 0.0) OR (kind > DINT_TO_LREAL(TO_DINT(E_ConfigKind.LINE_CFG))) THEN
     RETURN;                                // outside E_ConfigKind: fail closed
 END_IF
 IF NOT F_TryParseNumber(Text := countText, Value => records) THEN

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_PersistMedium" Id="{d0614bba-f20e-470b-b76b-130736adefd0}">
+    <Declaration><![CDATA[// Core §3.8b - WHERE retained documents physically live: a file system, the
+// controller's retentive memory, a database. Which one is a PROJECT decision, and
+// not every platform offers every medium, so the composition root picks one and
+// hands the same instance to every consumer; switching medium is that one line.
+//
+// A medium moves keyed byte documents and nothing else (§3.8b: "the store moves
+// bytes"). It validates no content and authorizes nothing: what it returns is
+// untrusted input that the consumer validates (§5.6, §14). What it does own is
+// the medium's own failure modes - a torn write, a corrupt or vanished copy - so
+// a read answers either a whole document it wrote, or that nothing is there, and
+// says when a document it confirmed writing is gone (Lost).
+//
+// Requests are queued and answered asynchronously, because a file or a network
+// takes scans; a ticket names one request. The caller's buffer belongs to the
+// medium from M_Start* until M_Poll returns TRUE for that ticket. Every caller
+// polls its own ticket each scan, and that polling is what advances the medium,
+// so a project never schedules it. A zero-length document is a deletion.
+INTERFACE I_PersistMedium]]></Declaration>
+    <Method Name="M_Kind" Id="{050e6a3b-f0ef-4d7d-bde3-810e001612ae}">
+      <Declaration><![CDATA[// The §3.8b medium class, published by a store built on this medium.
+METHOD M_Kind : E_ConfigStore]]></Declaration>
+    </Method>
+    <Method Name="M_Confidential" Id="{3ba207fe-4483-4d6d-b31c-6a7fbeb25089}">
+      <Declaration><![CDATA[// TRUE when a document written here cannot be read back through the
+// controller's symbol interfaces (ADS symbols, OPC UA). Only such a medium may
+// hold credentials, even salted hashes (§14).
+METHOD M_Confidential : BOOL]]></Declaration>
+    </Method>
+    <Method Name="M_StartWrite" Id="{b9187848-31fa-4b73-9990-977c0f6c6c41}">
+      <Declaration><![CDATA[// Queue a write of Size bytes at pData under Key (letters, digits, '_', '.',
+// '-'; at most 80). 0 = refused: an invalid key or size, or a full queue - ask
+// again next scan. The bytes are taken when the write starts, not now.
+METHOD M_StartWrite : UDINT
+VAR_INPUT
+    Key   : STRING(80);
+    pData : PVOID;
+    Size  : UDINT;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_StartRead" Id="{ed371140-7a8c-4197-b1f5-a7ccaf1df2c7}">
+      <Declaration><![CDATA[// Queue a read of the newest valid document under Key into at most Size bytes
+// at pData. 0 = refused, as for M_StartWrite.
+METHOD M_StartRead : UDINT
+VAR_INPUT
+    Key   : STRING(80);
+    pData : PVOID;
+    Size  : UDINT;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_Poll" Id="{8209d3f9-6e25-4cc3-80e4-955e6b70d20a}">
+      <Declaration><![CDATA[// Advance the medium and report on one ticket. TRUE = that request is finished
+// and Result holds its outcome; the ticket is then released. An unknown ticket
+// finishes at once with Ok = FALSE, so a caller can never wait forever.
+METHOD M_Poll : BOOL
+VAR_INPUT
+    Ticket : UDINT;
+END_VAR
+VAR_IN_OUT
+    Result : ST_PersistResult;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

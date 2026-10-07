@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_PersistResult" Id="{b62b2d83-fc3b-409e-9f11-15b18d0882b3}">
+    <Declaration><![CDATA[// Core §3.8b - the outcome of one I_PersistMedium request.
+TYPE ST_PersistResult :
+STRUCT
+    Ok      : BOOL;    // write: durable. read: the medium answered (Found or not)
+    Found   : BOOL;    // read: a valid, non-empty document was returned
+    Lost    : BOOL;    // read: a document this medium confirmed writing is missing,
+                       // corrupt or older than confirmed - something was lost
+    Length  : UDINT;   // read: bytes returned
+    ErrorId : UDINT;   // last medium error (0 = none)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

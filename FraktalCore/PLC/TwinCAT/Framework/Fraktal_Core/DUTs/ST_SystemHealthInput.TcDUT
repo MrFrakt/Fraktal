@@ -23,6 +23,12 @@ STRUCT
     DcAvailable         : BOOL;
     DcSynchronized      : BOOL;
     TimeQuality         : ST_TimeQuality;
+    // Per-metric availability inside the IPC group (Core §8.12: "where the hardware
+    // exposes them"). TRUE by default, so a producer that sets only IpcAvailable
+    // keeps its meaning; a target provider clears the one it cannot measure - a
+    // fanless IPC, a drive without flash wear data - instead of inventing a value.
+    FanAvailable        : BOOL := TRUE;
+    StorageAvailable    : BOOL := TRUE;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

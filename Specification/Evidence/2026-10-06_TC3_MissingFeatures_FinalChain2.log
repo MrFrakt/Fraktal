@@ -1,0 +1,45 @@
+﻿== Press rendition st : sequence=STRUCTURED_TEXT release=STRUCTURED_TEXT
+
+Gate PressTests -> 192.168.1.6.1.1 (expect PRG_PressTestRunner, 9 tests / 2 suites)
+  ADS Run: loads and starts the boot application activation just wrote
+  PLC is RUNNING 'PressTests' (verified over ADS)
+  ADS: 9 tests / 2 suites, 9 successful, 0 failed
+  ADS: wrote C:\Projects\Fraktal\artifacts\tc3-missing-2026-10-06\checkout\artifacts\runtime-press-st\PressTests-2026-1
+0-06_171124.raw.log
+  restored the .tsproj that activation rewrote
+== Press rendition sfc : sequence=SEQUENTIAL_FUNCTION_CHART release=LADDER_DIAGRAM
+Gate PressTests -> 192.168.1.6.1.1 (expect PRG_PressTestRunner, 9 tests / 2 suites)
+  ADS Run: loads and starts the boot application activation just wrote
+  PLC is RUNNING 'PressTests' (verified over ADS)
+  ADS: 9 tests / 2 suites, 9 successful, 0 failed
+  ADS: wrote C:\Projects\Fraktal\artifacts\tc3-missing-2026-10-06\checkout\artifacts\runtime-press-sfc\PressTests-2026-
+10-06_171213.raw.log
+  restored the .tsproj that activation rewrote
+canonical Ladder selector restored in the checkout
+
+
+Gate FraktalTests -> 192.168.1.6.1.1 (expect PRG_TcUnitRunner, 227 tests / 47 suites)
+  target NetId: 192.168.1.6.1.1
+  PLC project: Fraktal_Tests (autostart disabled)
+  compiles clean
+  activating configuration
+  restarting TwinCAT into Run
+  ADS port 851 before start: Invalid
+  ADS Run: loads and starts the boot application activation just wrote
+  PLC is RUNNING 'Fraktal_Tests' (verified over ADS)
+  ADS: resolved TcUnit globals as 'GVL_TcUnit.TcUnitRunner'
+  ADS: 227 tests / 47 suites, 227 successful, 0 failed
+  ADS: wrote C:\Projects\Fraktal\artifacts\tc3-missing-2026-10-06\checkout\artifacts\runtime-aggregate-final2\FraktalTe
+sts-2026-10-06_171306.raw.log
+  raw log: C:\Projects\Fraktal\artifacts\tc3-missing-2026-10-06\checkout\artifacts\runtime-aggregate-final2\FraktalTest
+s-2026-10-06_171306.raw.log
+  restored the .tsproj that activation rewrote
+
+Validate with:
+  python tools\tcunit_to_junit.py "C:\Projects\Fraktal\artifacts\tc3-missing-2026-10-06\checkout\artifacts\runtime-aggr
+egate-final2\FraktalTests-2026-10-06_171306.raw.log" "C:\Projects\Fraktal\artifacts\tc3-missing-2026-10-06\checkout\art
+ifacts\runtime-aggregate-final2\FraktalTests-2026-10-06_171306.junit.xml" `
+    --gate-name FraktalTests --expected-tests 227 `
+    --expected-suites 47 --expected-runner PRG_TcUnitRunner
+
+The target is left in Run mode with the application stopped. Returning it to Config is yours to do.

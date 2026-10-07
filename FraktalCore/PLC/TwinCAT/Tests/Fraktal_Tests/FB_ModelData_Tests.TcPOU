@@ -39,6 +39,8 @@ _recipes.Register(ModelCode := 'B', RecipeKey := 'ProbeModel', pData := ADR(_rec
 _u.ParCfg := _rec0;                         // the active model is '' (no changeover yet)
 _u.Setup(Name := 'Test.Model', Provider := _recipes);
 _u();
+// Not under test here: a volatile table, so no previous run's file is a precondition.
+_users.M_UseKey(Key := '');
 _users.Register(User := 'eng', Pin := '4242', Level := E_AccessLevel.ENGINEER);
 _u.Access.Setup(Provider := _users, pAlarmLog := ADR(_u.AlarmLog));
 _u.Access.ConfigureRequired(Gate := E_GatedAction.DATA_WRITE, Level := E_AccessLevel.ENGINEER);

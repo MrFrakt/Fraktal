@@ -46,7 +46,13 @@ The agent shall identify or explicitly mark unknown:
 - network addresses and conduits, TF6100 version, endpoint/security policy,
   HMI platforms, station languages, and which root Units each HMI owns;
 - project target security level, user roles, credential/certificate owner, and
-  whether the current activity is commissioning or production.
+  whether the current activity is commissioning or production;
+- **where retained data lives** - a project decision: a folder on the controller
+  (`FB_FilePersistMedium`; on a CX/IPC with a write filter that folder needs an
+  exclusion), the controller's retentive memory (`FB_RetainPersistMedium`), or an
+  external store a later adapter provides - and the restore policy the station
+  declares for a lost configuration (`DEFAULTS_AND_ANNUNCIATE` or
+  `BLOCK_UNTIL_ACKNOWLEDGED`).
 
 Unknown mechanical or naming details may be isolated behind configuration.
 Unknown safety authority or ambiguous output polarity shall remain fail-closed.
@@ -144,6 +150,45 @@ enforces, written back to the model's record so a changeover keeps the edit),
 and `LINE_CFG` on the line only, with keys beginning `line.`. Give each a
 `project.config.*` label; the HMI groups them as station, model and line data.
 
+**Retained data.** Without wiring, a station keeps its values in TwinCAT
+`PERSISTENT` data, its parameter sets in `FB_LocalConfigStore` and its users in
+the Boot directory. To keep them where the project decided (Part II TC3 §3.8b,
+IMPLEMENTATION_NOTES §163), declare **one** medium in `MAIN` and hand that instance
+to every consumer before the first cyclic call; switching medium later is the one
+declaration:
+
+```iecst
+VAR
+    Storage     : FB_FilePersistMedium;    // or FB_RetainPersistMedium
+    ConfigStore : FB_MediumConfigStore;    // named parameter sets on the medium
+    AccessUsers : FB_LocalAccessProvider;
+END_VAR
+VAR CONSTANT
+    DATA_FOLDER : STRING(160) := 'C:\ProgramData\Fraktal\<Station>\';
+END_VAR
+
+// once, at setup:
+Storage.Setup(Folder := DATA_FOLDER, Where := Tc2_System.PATH_GENERIC);
+ConfigStore.Setup(Medium := Storage, KeyPrefix := '<Root>.sets');
+Station1.SetConfigStore(Store := ConfigStore);
+Station1.SetPersistMedium(Medium := Storage);       // station, owned line, every model
+AccessUsers.M_UseMedium(Medium := Storage);         // refused for a non-confidential medium
+AccessUsers.M_UseKey(Key := '<Root>.users');
+Station1.Access.Setup(Provider := AccessUsers, pAlarmLog := ADR(Station1.AlarmLog));
+```
+
+Then expect: the documents are read back at start and replayed through the staged
+set path before any configuration write is accepted, and Start names the restore
+until it is done; the first start on a new medium loses nothing and writes the
+current values as the first documents; a document confirmed and later missing,
+damaged or no longer fitting is a §3.8b restore loss under its key; a write the
+medium cannot complete holds `PersistPending` and raises `CONFIG_PERSIST_FAILED`
+until a retry succeeds. The retentive pool is readable over ADS, so the user table
+stays in the Boot directory on it. A value the composition root states every boot
+should not also be an editable capability, because the restore replays the
+document over it. The files belong to the runtime's account; an ordinary
+Windows user can read them but not change them.
+
 Every deployed root declaration shall carry the binding’s explicit publication
 marker. For TwinCAT TMC-Filtered publication:
 
@@ -176,7 +221,8 @@ persistent pointer/interface/reference fields without an immediate `DA=0`.
 **Exit evidence:** application/library separation, instance-tree folders, one
 source for each I/O tag, validated topology mapping, explicit root markers,
 chains on `FB_SequenceBase`, every Start condition in the release report, every
-editable value registered with kind, unit and label, and documented scan order.
+editable value registered with kind, unit and label, the retained-data medium
+and restore policy chosen and wired, and documented scan order.
 
 ## 5. Phase C — simulation and automated acceptance
 
@@ -489,6 +535,11 @@ Before FAT/SAT completion, the agent shall require evidence that:
 - PLC access policy, safety aliases, control-domain membership, fieldbus loss
   response, recipes, localization, documentation access, backups, boot project,
   and recovery procedure have been reviewed;
+- retention is proven on the target across **real** runtime restarts - at least
+  two, so the newest copy of each document has been in both slots - plus one
+  deliberately lost document and one blocked write; the data folder is excluded
+  from the write filter and its ACL reviewed. A second FB instance standing in for
+  a restart is not this evidence (IMPLEMENTATION_NOTES §163);
 - the final running versions of PLC, libraries, HMI, TF6100, safety project,
   I/O list, TMC, and configuration exports are recorded under change control.
 
@@ -565,7 +616,9 @@ development PC.
 2. Run Phases D–E **for the controller target:** build + install the libraries,
    resolve to the controller, scan and validate the EtherCAT I/O against the
    approved list, link the process image, enable **TMC File**, activate + create
-   the boot project, and confirm the task cycles and the ADS port.
+   the boot project, and confirm the task cycles and the ADS port. If the image
+   runs a write filter (UWF/EWF/FBWF), exclude the station's data folder (and the
+   TwinCAT Boot directory) before relying on any retained value.
 3. Install/license **TF6100 on the controller** (the CX runs the server; the HMI
    PC does not need its own TF6100). Apply the real or trial license on the
    controller.

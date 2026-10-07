@@ -990,14 +990,17 @@ class OpcUaSnapshotMapper {
 
     return OpcUaProjection(
       forest: roots,
-      fieldbus: _mapFieldbus(values, parentPaths),
+      fieldbus: _mapFieldbus(values, parentPaths, dataValues),
       browsePathByModulePath: browseByModule,
       discardedAliases: discardedAliases,
     );
   }
 
   List<BusNode> _mapFieldbus(
-      Map<String, Object?> values, Set<String> parentPaths) {
+      Map<String, Object?> values, Set<String> parentPaths,
+      Map<String, Object?> dataValues) {
+    bool usable(String path) => values[path] != null &&
+        _publishedTag(dataValues[path], values[path]).usable;
     String? topology;
     for (final key in values.keys) {
       if (key.endsWith('/Topology/NodeCount')) {
@@ -1033,7 +1036,9 @@ class OpcUaSnapshotMapper {
           analogValue: _number(values['$channelPrefix/AnalogValue']),
           unit: _string(values['$channelPrefix/Unit']),
           forced: _boolean(values['$channelPrefix/Forced']),
-          quality: _boolean(values['$channelPrefix/Quality'], fallback: true),
+          quality: _boolean(values['$channelPrefix/Quality']) &&
+              usable('$channelPrefix/Quality') &&
+              usable('$channelPrefix/${_integer(values['$channelPrefix/Kind']) == ChannelKind.analog.index ? 'AnalogValue' : 'BoolValue'}'),
           faultActive: _boolean(values['$channelPrefix/FaultActive']),
           diagnosticKey: _string(values['$channelPrefix/Diagnostic']),
           forceable: _boolean(values['$channelPrefix/Forceable']),

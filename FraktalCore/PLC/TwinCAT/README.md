@@ -2,6 +2,18 @@
 
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
+Core `0.25.0.0` puts retained data behind a project-chosen persistence medium
+(`I_PersistMedium`: files in a folder, or a retentive pool): a root's live station,
+line and model configuration, its parameter sets and the local user table, restored at
+start and rewritten after every accepted change (IMPLEMENTATION_NOTES §163; the Press
+bench keeps them in `C:\ProgramData\Fraktal\PressDemo\`). Core `0.24.0.0` added
+the user table outside the symbol table, controller/IPC health from the Beckhoff
+Device Manager and the EtherCAT master's own state, frame and CRC counters (§160-§162).
+The Windows clock adapter observes the target's existing time service and expires
+missing quality; see the [build and installation guide](../../../Specification/Guides/TC3_WINDOWS_CLOCK.md).
+Modules `0.11.0.3` pins that Core dependency. The latest source audit is
+[Core and Press TC3 feature gaps](../../../Specification/Reports/TC3_CORE_PRESS_FEATURE_AUDIT_2026-10-06.md).
+
 > **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their
 > TcUnit gates are green.** All three PLC projects returned `LastBuildInfo=0` with an
 > empty Error List and regenerated their TMC files, and both isolated-runtime gates
@@ -114,6 +126,17 @@ execution history.
    The ready-made 4026 system project is `Examples/PressDemo/PressDemo.slnx`
    (`PressDemo.tsproj`); `PressDemoX32.sln` is the legacy XAE-shell wrapper. Open
    one wrapper only—both point at the same Press PLC source project.
+   For the VS2017-based x32 Shell, use `Framework/FraktalCore.sln`, then
+   `Framework/FraktalModules.sln` for library preparation: `.slnx` is a modern
+   IDE format. Save/install updated exports under `Framework/Release/x32` and
+   reopen Press before compiling. The x32 IDE supports x86 and x64 PLC targets;
+   select the PLC's target architecture. See the workflow guide §4.0 for the
+   matching 32-bit PowerShell automation.
+   If a consumer reports unknown Core types or missing base classes *inside*
+   `Fraktal_Modules`, check the Modules library's own `Fraktal_Core` reference.
+   Adding Core directly to the application cannot repair an installed Modules
+   library that omitted its dependency. Restore the reference, save/install the
+   libraries in dependency order, then reopen the consumer to reload its graph.
 5. Open the dedicated `Tests/FraktalTests.slnx`, or
    create a **separate XAE solution** and add `Tests/Fraktal_Tests.plcproj`;
    install **TcUnit** (tcunit.org) first. Then run the press gate too:

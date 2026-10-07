@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_TcWindowsClockSampleV1" Id="{77c467ec-4cc9-4d32-9a9f-c0e96c647afa}">
+    <Declaration><![CDATA[// Fixed-width Windows observer wire record: 76 bytes on x86/x64.
+{attribute 'pack_mode' := '1'}
+TYPE ST_TcWindowsClockSampleV1 :
+STRUCT
+    SchemaVersion  : UINT;
+    ByteCount      : UINT;
+    Magic          : DWORD;
+    Sequence       : UDINT;
+    ObservedAt     : DT;
+    LastSyncAt     : DT;
+    OffsetUs       : DINT;
+    SyncAgeSeconds : UDINT;
+    ServiceError   : UDINT;
+    Flags          : DWORD;
+    Source         : STRING(32);
+    ReservedBytes  : ARRAY[0..2] OF BYTE;
+    Crc            : DWORD;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
