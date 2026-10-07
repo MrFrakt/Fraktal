@@ -149,7 +149,8 @@ class BrokerCatalog(unittest.TestCase):
         import dataclasses
         import fraktal_ab_manifest as mf
         doc = document(APP, name='older', kind=0)
-        revision = mf.config_revision(dataclasses.replace(APP, model_capacity=0))
+        # The historical pre-catalog press, which also predates live documents.
+        revision = mf.config_revision(dataclasses.replace(APP, model_capacity=0, config_medium=None))
         for row in doc:
             row['configRev' if 'set' in row else 'rev'] = revision
         self.store.save(doc)

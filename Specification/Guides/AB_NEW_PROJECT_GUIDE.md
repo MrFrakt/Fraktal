@@ -91,6 +91,7 @@ copied template. Remove absent capabilities instead of publishing placeholders.
 | I/O / forcing | `io_modules`; electrical identity once; safety/control-power coils never forceable |
 | ST/SFC/LD | one graph, generated renditions; selector is harness-only |
 | Capture / named sets | `decl.capture(...)`, `config_sets=True`; typed capabilities and PARAMETER_SETS reasons |
+| Retained-data medium / live documents | `config_medium=decl.ConfigMedium(live_documents=...)`; file medium; live documents need a write-enabled gateway, the access provider and a seeded first image; press79 prepared offline, fit/retention are owner gates |
 | PLC users / data classes | `access_users`, `data_classes`, `decl.config_access(...)`; provision before tightening policy |
 | Shelving | eligible rationalized events; blocking semantics unchanged |
 | Runtime model creation | `model_capacity=N`, seeds and sets; seed count <= N <= 8; press70 owner-created M-101/native bank and duplicate refusal verified |
@@ -156,6 +157,8 @@ Capture twice under exact serial/build guards and require identical values;
 recapture immediately before generating a later upgrade. Credentials, sessions
 and command latches are excluded and need their own migration procedure. See the
 [catalog-image proof](../AllenBradley/Evidence/AB_PHASE6_CATALOG_IMAGE_2026-10-04.md).
+A live-document station needs a seed only for its first live-document image; the
+gateway restores later downloads from its documents (Part III AB §3.8b).
 
 ### 4.4 Import, download, gateway
 
@@ -478,16 +481,30 @@ See [station-set proof](../AllenBradley/Evidence/AB_PHASE6_SETS_ON_HARDWARE_2026
 
 **Where retained data lives.** Logix has no PLC-side file system: controller
 tags are the native retained class, and a download resets every tag to its L5X
-initial value. Commissioned values cross a download only when a fresh serial-guarded
-capture is seeded into the replacement image (`fraktal_ab_initial_config.py`);
-credentials travel as declaration registrations. Saved sets are documents on the
-**gateway host** (`fraktal_ab_sets.FileStore`, one directory per commissioned root
-and controller serial, the same JSON-lines text TC3 writes). TC3 now lets a project
-choose its medium and keeps live station/line/model documents on it (Part II TC3
-§3.8b); on AB the gateway is that medium. A pluggable gateway store (database later)
-and gateway-held live documents restored after a download are open work - ask the
-owner before designing either, see the
-[handover](../AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md).
+initial value. Credentials travel as declaration registrations. The declaration
+picks the medium for everything else, as TC3's `MAIN` does (Part III AB §3.8b):
+`config_medium=decl.ConfigMedium(...)`, the file medium (`FILE_JSON`) today, with
+the folder `%LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root>` (or
+`FRAKTAL_AB_CONFIG_SET_DIR`) on the **gateway host**. Saved sets are the four named
+`FileStore` documents there, the same JSON-lines text TC3 writes, behind the
+gateway's `SetStore` interface. A database medium is refused until the owner names
+a server, schema and credentials owner.
+
+Without live documents, commissioned values cross a download only when a fresh
+serial-guarded capture is seeded into the replacement image
+(`fraktal_ab_initial_config.py`). With `ConfigMedium(live_documents=True)` the
+gateway keeps the station, line and model data as documents in `live\` beside the
+sets and re-applies them after a download: Start names
+`std.release.configRestoring` and configuration writes are refused until the
+restore answers. Enable it only where the binding record answers
+**write-enabled** and the access provider is declared: the restore runs under a
+logged-in session that the set gate permits, so after a download someone with
+that level logs in and the gateway restores immediately; a read-only gateway never
+restores. Seed the first live-document image from a fresh capture, because no
+document exists before it; later downloads need no seed. Watch `liveDocuments` in
+`/healthz` (`kept`, `restoring`, `restored`, `unreadable`, `failed`, with any
+losses by key). Do not delete the folder to "reset" a station: without its index a
+missing document reads as a first commissioning.
 
 ### Line owner and weekly shifts
 
@@ -618,7 +635,7 @@ authorizes neither a clock write nor weakened freshness. State is derived.
 | Nameplate/IDTA, I/O connection state in health | absent/unclaimed; schema and S3 probe work remain |
 | MANUAL_HELD / Integrated Motion | no manual-held route; L24ER has no motion/S14 proof |
 | Retention | owner confirms one admin and one air-threshold edit across cycles; full values/accounts/sets/models, durability and upgrade matrix remain unverified |
-| Project-chosen retained-data medium (TC3 §3.8b, IMPLEMENTATION_NOTES §163) | sets already on the gateway file store; no store interface/database, and live configuration crosses a download only by seeding a fresh capture; owner decision pending |
+| Project-chosen retained-data medium (TC3 §3.8b, IMPLEMENTATION_NOTES §163) | declared medium and `SetStore` interface (file medium; database refused until named); live station/line/model documents restored after a download through the staged set path, offline-proved; press79 Verify/Capacity/download, power-cycle/download acceptance and Chrome view remain owner gates |
 | S1 clock probe, other targets and packaged AB installer | separate acceptance; not implied by press68 S9 |
 
 The owner requested completion beyond the earlier Phase 6 boundary. Follow the

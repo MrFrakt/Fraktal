@@ -177,6 +177,9 @@ class ThePhysicalStart(unittest.TestCase):
             gen.alarm_active_tag(APP): {"Blocking": blocking},
             gen.start_release_tag(APP): st.structure(gen.release_report_members()),
             f"FRK_{N}_RunRequest": 0,
+            # A station in operation: its image is stamped, not restoring.
+            f"{gen.station_cfg_record(APP).name}Tag": {
+                "SchemaVersion": gen.station_cfg_record(APP).schema_version},
         }
         plc = st.Controller(tags)
         from test_fraktal_ab_access import add_access

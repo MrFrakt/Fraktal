@@ -177,8 +177,8 @@ class CapacityTests(unittest.TestCase):
             records = tuple(dataclasses.replace(record, members=tuple(
                 dataclasses.replace(member, class_id='', min_read_level=0, min_write_level=0)
                 for member in record.members)) for record in app.records if not record.line_cfg)
-            app = dataclasses.replace(app, config_sets=False, model_capacity=0, access_users=None,
-                                      data_classes=(), records=records, line=None)
+            app = dataclasses.replace(app, config_sets=False, config_medium=None, model_capacity=0,
+                                      access_users=None, data_classes=(), records=records, line=None)
             with self.subTest(station=app.name):
                 previous = old_tables(app)
                 new, _, _ = emit(app)

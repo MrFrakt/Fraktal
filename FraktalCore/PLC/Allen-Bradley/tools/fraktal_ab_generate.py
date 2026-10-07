@@ -1904,6 +1904,8 @@ RELEASE_CAPACITY = 8
 UNIT_NOT_READY_KEY = "std.release.unitNotReady"
 MANUAL_RESET_KEY = "std.release.manualReset"
 NO_BLOCKING_ALARM_KEY = "std.release.noBlockingAlarm"
+# TC3's text while its live documents are read back (FB_UnitBase §163).
+CONFIG_RESTORING_KEY = "std.release.configRestoring"
 GATED_ALARM_RESET = 7                       # Core E_GatedAction.ALARM_RESET
 
 
@@ -1975,8 +1977,23 @@ def report_copy(app: decl.Application, source: str, target: str) -> list[str]:
 def release_keys(app: decl.Application) -> tuple[str, ...]:
     """Every text a release report can carry, for the manifest to intern."""
     keys = [UNIT_NOT_READY_KEY, MANUAL_RESET_KEY, NO_BLOCKING_ALARM_KEY]
+    if decl.live_documents(app):
+        keys.append(CONFIG_RESTORING_KEY)
     keys += [p.key for p in app.start_permits]
     return tuple(keys)
+
+
+def config_restoring(app: decl.Application) -> str:
+    """Core 3.8b, derived and never latched: the controller started on an image
+    it did not keep and the gateway's live documents have not answered yet.
+
+    The first-scan gate leaves the station image at version zero (never
+    written) instead of stamping it, and the restore's final station load
+    stamps it. Until then Start names the restore and configuration writes
+    are refused, as TC3's _M_ConfigRestored does: the restore would replay
+    over them. Only meaningful when the declaration keeps live documents."""
+    record = station_cfg_record(app)
+    return f"({record.name}Tag.{decl.SCHEMA_VERSION_MEMBER} = 0)"
 
 
 def start_release_routine_name(app: decl.Application) -> str:
@@ -2013,6 +2030,11 @@ def start_release_logic(app: decl.Application) -> list[str]:
               f"IF {alarm_active_tag(app)}.Blocking <> 0 THEN",
               *report_add(tag, keys[MANUAL_RESET_KEY], 0, 0, "ALARM", MANUAL_RESET_KEY),
               "END_IF;"]
+    if decl.live_documents(app):
+        lines += [f"IF {config_restoring(app)} THEN",
+                  *report_add(tag, keys[CONFIG_RESTORING_KEY], 0, 0, "OTHER",
+                              CONFIG_RESTORING_KEY),
+                  "END_IF;"]
     for permit in app.start_permits:
         scope = " OR ".join(f"({u}.Mode = {m})" for m in permit.modes)
         guard = f"({scope}) AND " if scope else ""
@@ -4355,18 +4377,22 @@ def config_restore_logic(app: decl.Application) -> list[str]:
         f"{persist}.LostModuleId := 0;",
     ]
     if record is not None:
+        # With live documents the station image is not stamped here: version
+        # zero is the derived "restoring" state until the gateway's restore
+        # answers through the staged set path (config_restoring).
         lines += _restore_gate(
             f"{record.name}Tag", record.schema_version,
             [(m.name, m.initial) for m in record.members
              if m.name != decl.SCHEMA_VERSION_MEMBER],
-            persist, label="StationCfg")
+            persist, label="StationCfg",
+            stamp=0 if decl.live_documents(app) else record.schema_version)
     lines += _model_restore_logic(app, persist)
     lines.append("END_IF;")
     return lines
 
 
 def _restore_gate(tag: str, version: int, defaults: list[tuple[str, int]],
-                  persist: str, label: str) -> list[str]:
+                  persist: str, label: str, stamp: int | None = None) -> list[str]:
     """Core §3.8a's three cases for ONE retained image.
 
     Written once and used for every record, because the model elements first
@@ -4380,9 +4406,12 @@ def _restore_gate(tag: str, version: int, defaults: list[tuple[str, int]],
                     that "restored" a matching image would overwrite the
                     machine with the program's idea of itself every boot.
       anything else rejected. Declared values, and SAY SO.
+
+    `stamp` is the version the installed values are marked with: the declared
+    one, or zero for a station image whose live documents are still to come.
     """
     install = [f"{tag}.{name} := {value};" for name, value in defaults]
-    stamp = f"{tag}.{decl.SCHEMA_VERSION_MEMBER} := {version};"
+    stamp = f"{tag}.{decl.SCHEMA_VERSION_MEMBER} := {version if stamp is None else stamp};"
     return [
         f"(* {label} *)",
         f"IF {tag}.{decl.SCHEMA_VERSION_MEMBER} <> {version} THEN",

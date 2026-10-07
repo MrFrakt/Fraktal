@@ -704,6 +704,45 @@ class ReadBudget:
                     slowExpiryMs=self.slow_expiry_ms)
 
 
+# Core E_ConfigStore, append-only and pinned to the TwinCAT DUT by test.
+CONFIG_STORE_FILE_JSON = 1
+CONFIG_STORE_EXTERNAL = 3
+CONFIG_STORE_NAMES = {CONFIG_STORE_FILE_JSON: "FILE_JSON", CONFIG_STORE_EXTERNAL: "EXTERNAL"}
+
+
+@dataclass(frozen=True)
+class ConfigMedium:
+    """Core 3.8b: where the gateway keeps this station's documents.
+
+    The project picks the medium here, the way TC3's MAIN declares its
+    I_PersistMedium and hands it to the root, the set store and the users.
+    The directory is deployment data (one per controller serial), not part of
+    the declaration. A database medium (EXTERNAL) is the same interface and is
+    refused until an owner names its server, schema and credentials owner.
+
+    `live_documents` keeps the root's station, line and model data as documents
+    on the same medium and re-applies them through the controller's staged
+    set path when the controller starts on an image it did not keep (after a
+    download), instead of seeding each new image from a capture.
+    """
+
+    store: int = CONFIG_STORE_FILE_JSON
+    live_documents: bool = False
+
+
+def config_medium(app: "Application") -> "ConfigMedium | None":
+    """The medium in force: a set store with no declared medium is the file
+    medium, which is what every declaration before ConfigMedium had."""
+    if app.config_medium is not None:
+        return app.config_medium
+    return ConfigMedium() if app.config_sets else None
+
+
+def live_documents(app: "Application") -> bool:
+    medium = config_medium(app)
+    return medium is not None and medium.live_documents
+
+
 @dataclass(frozen=True)
 class Application:
     """One committed declaration: everything a Logix project is emitted from."""
@@ -775,6 +814,8 @@ class Application:
     system_health: "SystemHealth | None" = None
     # Core 3.8b: opt-in gateway document store and controller set transaction.
     config_sets: bool = False
+    # Core 3.8b: the medium those documents live on; None is the file medium.
+    config_medium: ConfigMedium | None = None
     # Core 7.7: controller-owned policy/session and private provider records.
     # None keeps an older declaration's contract; () enables an empty provider.
     access_users: tuple | None = None
@@ -1287,6 +1328,20 @@ def validate(app: Application) -> list[str]:
         for name, code in reasons.PARAMETER_SETS.items():
             if app.reasons.get(name) != code:
                 findings.append(f'parameter sets require the registered {name} reason')
+    if app.config_medium is not None:
+        if not app.config_sets:
+            findings.append('a configuration medium holds parameter-set documents; declare config_sets')
+        if app.config_medium.store != CONFIG_STORE_FILE_JSON:
+            findings.append('only the file medium is implemented; a database medium needs a named '
+                            'server, schema and credentials owner')
+        if app.config_medium.live_documents:
+            # The restore replays documents through the authenticated set
+            # transaction; it never gains a write path the operator lacks.
+            if gen.station_cfg_record(app) is None:
+                findings.append('live documents restore a StationCfg record; declare one')
+            if app.access_users is None:
+                findings.append('live documents are restored under a controller session; '
+                                'declare the access provider')
     sources = {f"{prefix}.{m.name}" for prefix, members in gen.root_field_records(app)
                for m in members if not m.dimension and m.external_access != "None"}
     keys = [m.write_key for r in app.records for m in r.members if m.editable]

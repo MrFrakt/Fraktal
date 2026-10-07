@@ -1,0 +1,311 @@
+{
+  "Schema": "fraktal.ab.evidence",
+  "SchemaVersion": 1,
+  "Title": "AB press79 declared medium and live documents (offline)",
+  "RecordedDate": "2026-10-07",
+  "BaseCommit": "3d77e7a",
+  "ControllerWrites": false,
+  "Downloads": false,
+  "PowerCycles": false,
+  "ReadOnlyIdentity": {
+    "serial": "7036B510",
+    "productName": "1769-L24ER-QB1B/A LOGIX5324ER",
+    "revision": "33.14",
+    "passed": true,
+    "bytesRead": 68048,
+    "ContentHash": "026DC8F584CA2D70",
+    "ConfigRevision": 159176,
+    "LoadedArtifact": "press76 or press78 (contract hash cannot distinguish; owner to state)"
+  },
+  "FreshCapture": {
+    "timestampUtc": "2026-10-07T15:08:34.158768+00:00",
+    "serial": "7036B510",
+    "manifestHash": "026DC8F584CA2D70",
+    "configRevision": 159176,
+    "twoCapturesIdentical": true,
+    "modelCodes": [
+      "M-100",
+      "M-200",
+      "M-050",
+      "M-101"
+    ],
+    "modelOrdinal": 1,
+    "image": "C:\\work\\press79_source_config_01.json",
+    "imageSha256": "5D044C0A6CEEB15F8AD3B38C108F1A7B3C35C87DBDCC4FC35777E0496055C65D",
+    "controllerWrites": false,
+    "credentialsCaptured": false
+  },
+  "Press79": {
+    "OutputSha256": "3074710A088D56F8EC83056B02F76294ECB3044561934DDF0D95E3C383EBB134",
+    "ManifestHash": "E5F914E06055CD3B",
+    "ConfigRevision": 15071508,
+    "Deterministic": true,
+    "ChangedRoutines": [
+      "FRK_PressHmiMailbox",
+      "FRK_Press_AlarmShelfRequest",
+      "FRK_Press_ConfigRecordAudit",
+      "FRK_Press_ConfigSets",
+      "FRK_Press_ConfigWrite",
+      "FRK_Press_ReleaseStart",
+      "FRK_Press_ScanConfigRestore",
+      "FRK_Press_ScanModules"
+    ],
+    "ChangedTagInitializers": [
+      "FRK_Press_MfHeader",
+      "FRK_Press_MfLocalization"
+    ],
+    "Totals": {
+      "StSourceBytes": 335560,
+      "StStatementTerminators": 4088,
+      "StLines": 6514,
+      "RllRungs": 20,
+      "DeclaredDataBytes": 110268
+    },
+    "DeltaTo78": {
+      "StSourceBytes": 3132,
+      "StStatementTerminators": 28,
+      "StLines": 54,
+      "RllRungs": 0,
+      "DeclaredDataBytes": 0
+    },
+    "RoutineDeltaTo78": {
+      "FRK_Press_ReleaseStart": {
+        "StSourceBytes": 527,
+        "StStatementTerminators": 7,
+        "StLines": 10,
+        "RllRungs": 0
+      },
+      "FRK_Press_ConfigWrite": {
+        "StSourceBytes": 165,
+        "StStatementTerminators": 2,
+        "StLines": 4,
+        "RllRungs": 0
+      },
+      "FRK_Press_ConfigSets": {
+        "StSourceBytes": 2438,
+        "StStatementTerminators": 19,
+        "StLines": 40,
+        "RllRungs": 0
+      },
+      "FRK_Press_ConfigRecordAudit": {
+        "StSourceBytes": 2,
+        "StStatementTerminators": 0,
+        "StLines": 0,
+        "RllRungs": 0
+      }
+    },
+    "DeltaToAccepted75": {
+      "StSourceBytes": 74716,
+      "StStatementTerminators": -3,
+      "StLines": 1358,
+      "RllRungs": 0,
+      "DeclaredDataBytes": 2756
+    },
+    "Manifest": {
+      "Roots": {
+        "rows": 1,
+        "capacity": 2
+      },
+      "Modules": {
+        "rows": 7,
+        "capacity": 8
+      },
+      "Nameplates": {
+        "rows": 0,
+        "capacity": 8
+      },
+      "Fields": {
+        "rows": 626,
+        "capacity": 640
+      },
+      "Operations": {
+        "rows": 6,
+        "capacity": 8
+      },
+      "Localization": {
+        "rows": 679,
+        "capacity": 688
+      },
+      "Rationalization": {
+        "rows": 23,
+        "capacity": 24
+      },
+      "OptionalProfiles": {
+        "rows": 1,
+        "capacity": 2
+      },
+      "WriteCapabilities": {
+        "rows": 30,
+        "capacity": 32
+      }
+    }
+  },
+  "AcceptedSetRevisions": {
+    "press78": [
+      159176,
+      6735008,
+      8035226,
+      11575352
+    ],
+    "press79": [
+      159176,
+      6735008,
+      8035226,
+      11575352,
+      15071508
+    ]
+  },
+  "Validation": {
+    "AbSuite": {
+      "tests": 1664,
+      "failures": 0,
+      "log": "press79_ab_tests_03.log"
+    },
+    "NewLiveTests": 39,
+    "Mutants": {
+      "count": 19,
+      "killed": 19,
+      "rows": [
+        {
+          "mutant": "station image stamped at first scan",
+          "file": "fraktal_ab_generate.py",
+          "killed": true
+        },
+        {
+          "mutant": "restore answer never stamps",
+          "file": "fraktal_ab_sets.py",
+          "killed": true
+        },
+        {
+          "mutant": "model loads allowed outside a restore",
+          "file": "fraktal_ab_sets.py",
+          "killed": true
+        },
+        {
+          "mutant": "bank ordinal unchecked",
+          "file": "fraktal_ab_sets.py",
+          "killed": true
+        },
+        {
+          "mutant": "active bank does not reach ParCfg",
+          "file": "fraktal_ab_sets.py",
+          "killed": true
+        },
+        {
+          "mutant": "loss not raised",
+          "file": "fraktal_ab_sets.py",
+          "killed": true
+        },
+        {
+          "mutant": "Start does not name the restore",
+          "file": "fraktal_ab_generate.py",
+          "killed": true
+        },
+        {
+          "mutant": "writes not refused while restoring",
+          "file": "fraktal_ab_config.py",
+          "killed": true
+        },
+        {
+          "mutant": "save not refused while restoring",
+          "file": "fraktal_ab_sets.py",
+          "killed": true
+        },
+        {
+          "mutant": "keeper writes while restoring",
+          "file": "fraktal_ab_live.py",
+          "killed": true
+        },
+        {
+          "mutant": "unreadable medium read as nothing there",
+          "file": "fraktal_ab_live.py",
+          "killed": true
+        },
+        {
+          "mutant": "missing confirmed document read as first start",
+          "file": "fraktal_ab_live.py",
+          "killed": true
+        },
+        {
+          "mutant": "access refusal concluded as a loss",
+          "file": "fraktal_ab_live.py",
+          "killed": true
+        },
+        {
+          "mutant": "losses answered as no loss",
+          "file": "fraktal_ab_live.py",
+          "killed": true
+        },
+        {
+          "mutant": "restore without a session check",
+          "file": "fraktal_ab_live.py",
+          "killed": true
+        },
+        {
+          "mutant": "read-only gateway restores",
+          "file": "fraktal_ab_gateway.py",
+          "killed": true
+        },
+        {
+          "mutant": "restore reuses a consumed sequence",
+          "file": "fraktal_ab_gateway.py",
+          "killed": true
+        },
+        {
+          "mutant": "earlier sets refused",
+          "file": "fraktal_ab_sets.py",
+          "killed": true
+        },
+        {
+          "mutant": "capture sent to clients",
+          "file": "fraktal_ab_gateway.py",
+          "killed": true
+        }
+      ]
+    },
+    "RenditionGateEqual": true,
+    "CheckAbContracts": "clean",
+    "CheckConsistencyStrict": "0 errors, 0 warnings",
+    "ConsistencyTests": 33,
+    "CheckAbSpec": "3 errors, identical on unmodified 3d77e7a Part III (gate predates R4-R6 PASS and S16)",
+    "Press78RegeneratedIdenticalWithLiveDocumentsOff": true
+  },
+  "RejectedAttempts": [
+    {
+      "artifact": "rejected_platform_limit_press79.L5X",
+      "reason": "eight accepted revisions chained seven ANDs; Studio v33 compiles at most five"
+    },
+    {
+      "log": "press79_ab_tests_superseded_01.log / press79_ab_tests_02.log",
+      "reason": "1 failure: model test built its historical identity from the live press"
+    }
+  ],
+  "Files": {
+    "press79.L5X": "3074710A088D56F8EC83056B02F76294ECB3044561934DDF0D95E3C383EBB134",
+    "press79_determinism_01.L5X": "3074710A088D56F8EC83056B02F76294ECB3044561934DDF0D95E3C383EBB134",
+    "press79_build_01.json": "4B9B753679C266D8C1479A3A9005E6361BDE4A67FB9C1FC3872198684F4534E7",
+    "press79_generate_01.py": "BA1C8B4807C1E7EA7FE8D89C37A41B5564D2F56D7DC7DF5B6198B656414F799F",
+    "press79_source_config_01.json": "5D044C0A6CEEB15F8AD3B38C108F1A7B3C35C87DBDCC4FC35777E0496055C65D",
+    "press79_source_capture_01.json": "1866850C792031F15F6496601929BC479BEF8134921D5134035E8C11EED8358D",
+    "press79_source_capture_01.py": "30924B623D264B5276782C4482A3DF2C07F4374B540AC853E7BDD93864222B7B",
+    "press79_preflight_manifest_read_01.json": "E32DF9643094F7F60AEE2E52B5F1DC96E62471C58BE51F9925D2C604981D5C9F",
+    "press79_rendition_gate_01.json": "F5E7E715EDE430FCC6462D59607AF381E195BE8E18F62B25C209F415F71E1BFC",
+    "press79_mutations_01.py": "BD7D6E0BB6C9EE75B1BBE556C701D641F9D04C38883F9758AC346AF4BA0B87E1",
+    "press79_mutations_03.json": "77ACE959155FD0AFCE83BFA5CB680D371A738916B46D8188A03F57C3738FDD1B",
+    "press79_ab_tests_03.log": "E56396B8B505040AF8A274DFAF0FED72D753912C7BBC11E7F742915218CD491B",
+    "press79_ab_tests_02.log": "CCD21E32FD60E339952CAAF7A96CE24E6CACD2E1F949CD198C5B3536CDEA494D",
+    "press79_ab_tests_superseded_01.log": "A3399E588F0FACB423B9552952A9C9CCC12193603F2F644751AE00F2B8321DE2",
+    "rejected_platform_limit_press79.L5X": "1D1C3C61B551AF94ECA147E1A0EF43E30628E629D6705A9220CCCC528AB7BCCC",
+    "seed_v33.L5X": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+    "press78.L5X": "6063EE0B2E15B9E4C162765701D88E24D58340C1D1D83C4B45E469DFC4735168",
+    "press75.L5X": "82AB065C32BCD112D49DD00839B8047C1B5E957A5356FB9D61EF3C1C2F3172A5"
+  },
+  "OwnerGates": [
+    "state loaded artifact and press78 Capacity Estimate",
+    "press79 Capacity Estimate and Verify",
+    "seeded first press79 download, then gateway documents kept",
+    "unseeded later download restored and compared",
+    "retention check plan power cycle",
+    "Chrome Start reason and durability banner while restoring"
+  ]
+}

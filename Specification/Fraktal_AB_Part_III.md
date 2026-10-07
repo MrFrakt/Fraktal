@@ -567,6 +567,78 @@ the physical form — nonvolatile medium, the durability window measured on the
 pinned v33 baseline, and the download/upgrade retention matrix — is owed a spike
 before any AB deployment claims Core §3.8b conformance.
 
+**The medium is the project's choice (Core §3.8b).** The declaration's
+`ConfigMedium` says where the gateway keeps this station's documents, as TC3's
+`MAIN` declares one `I_PersistMedium` and hands it to the root, the set store and
+the users. `store` is the Core `E_ConfigStore` ordinal and is what
+`ConfigPersist.StoreKind` publishes; a declaration with sets and no medium is the
+file medium, which is what every earlier declaration had. `FILE_JSON` is the first
+and only implementation: the four named sets keep their existing `FileStore`
+documents behind the gateway's `SetStore` interface. A database medium
+(`EXTERNAL`) is the same interface and is refused until an owner names its
+server, schema and credentials owner. The folder is deployment data, one per
+controller serial and root (`FRAKTAL_AB_CONFIG_SET_DIR`, else
+`%LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root>`), never a declaration literal.
+
+**Live documents (Core §3.8b), opt-in with `ConfigMedium(live_documents=True)`.**
+A download resets every tag to its L5X initial value. Instead of seeding each new
+image from a capture, the gateway keeps the root's live configuration as
+documents on the same medium (`live\` under the set folder) and re-applies them
+after a download. TC3's live documents (`IMPLEMENTATION_NOTES` §163) are the
+oracle; the controller remains the only validator and the only authority.
+
+- *Documents.* `<root>.station`, `<root>.line` for a Line owner and
+  `<root>.model<n>` for each catalog position, each the existing JSON-lines set
+  document with set name `_live`; a station document's `model` names the active
+  model. An index of confirmed keys sits beside them, written after each
+  document.
+- *Keeping.* While the controller's image is intact it is the truth: the gateway
+  renders the documents from the values the projection already reads, with no
+  additional controller read, and rewrites only those whose content changed. A
+  write the medium refuses is published as `ConfigPersist.Failed` for every viewer
+  and retried. These documents add no `Pending` window to ordinary writes.
+- *Restoring is controller state, derived and never latched.* On the first scan a
+  station image that is not intact receives the declared values but stays at
+  `SchemaVersion` zero (a rejected image also raises `RestoreLost`). While it reads
+  zero, Start names `std.release.configRestoring`, `WRITE_CONFIG` and
+  `CAPTURE_CONFIG` are refused with that key, and a set cannot be saved: TC3's
+  rule that the restore would replay over them. Model documents may load into
+  their bank only in this state, never into live ParCfg; the active model's record
+  follows its bank through the changeover's own bounded `CommitModel` copy.
+- *The restore* runs only from a write-enabled gateway, under a controller session
+  the set gate already permits (`CurrentLevel >= Required[CONFIG_SET]`). Every
+  document goes through the ordinary staged, all-or-nothing transaction and is
+  audited as a set load by that session's user; nothing gains a write path the
+  logged-in operator lacks, and there is no anonymous or gateway-credential
+  restore. Model banks load first, a model the catalog no longer holds is
+  created again at its next position (`CREATE_MODEL`), then the line, and the
+  station load answers last: it carries the active model by code (the
+  changeover's copy follows) and `StoreResult` 2 when anything was lost, which
+  raises `RestoreLost`. Stamping the station image ends the restore. A read-only
+  gateway keeps documents and never restores, so Start keeps naming the restore
+  and the read-only claim is unchanged.
+- *Failure is announced, never concluded.* A confirmed document that is missing or
+  does not parse, a document whose identity differs, a bank whose catalog
+  position moved and a document the controller refuses are losses: named in
+  `ConfigPersist.LastRejectScope/LastRejectKey` and the gateway's health, and
+  raised with the station answer. A medium that cannot answer (an I/O error or a
+  damaged index) and an access refusal conclude nothing: the restore is retried
+  every ten seconds and never completes on defaults, so defaults are never
+  captured over documents. A lost whole folder, index included, is
+  indistinguishable from first commissioning: a lost index can only miss a loss,
+  as TC3's lost marker can.
+- *The first live-document image is seeded.* No document exists before the first
+  download of a live-document build, so that image is generated from a fresh,
+  twice-identical capture (`--initial-config`); a seeded image is intact, is not
+  restored and becomes the documents. Later downloads need no seed.
+
+Unlike TC3, which replays its documents at every start, this binding restores only
+when the controller did not keep its image: Logix is expected to retain tags across
+a power cycle, which the retention matrix above has yet to measure. If it does
+not, the image reads not intact and the same restore runs. **[PROVISIONAL]** the
+power-cycle/download/upgrade matrix, host power loss and compiled fit are owner
+acceptance steps; offline tests prove the mechanism only.
+
 ### AB §3.9 Feature selectability
 *Binds Core §3.9, §1.1 O4.*
 

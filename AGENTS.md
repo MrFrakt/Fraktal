@@ -592,6 +592,12 @@ see [native acceptance](Specification/AllenBradley/Evidence/AB_LINE_V2_PRESS75_N
 Mirror/shared-root composition remains unbound. The current AB gap census
 against TwinCAT and the next implementation order are in
 [`AB_MISSING_FEATURES_HANDOVER_2026-10-06.md`](Specification/AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md).
+Its items 1b/1c are implemented offline: the declaration picks the medium
+(`decl.ConfigMedium`) and the press keeps live station/line/model documents that a
+write-enabled gateway re-applies after a download, under a session the set gate
+permits; restoring is derived from the unstamped station image (Part III AB
+§3.8b). Prepared press79 is unaccepted and seeded for its first download; see
+[offline evidence](Specification/AllenBradley/Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md).
 Current source also prepares Calendar V3, with five independently scheduled
 slots and per-shift good-part targets, PLC-latched current/closed target
 snapshots, a shared HMI progress/history view and explicit offline V2 migration.

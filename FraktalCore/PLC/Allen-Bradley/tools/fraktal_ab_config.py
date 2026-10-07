@@ -140,6 +140,9 @@ def write_logic(app):
         lines += [f'{ordinals}:', f'{low} := {minimum};', f'{high} := {maximum};', f'{flags} := {bits};']
     lines += ['ELSE', *mb._refuse(app, mb.CONFIG_KEY_UNKNOWN_KEY), 'END_CASE;',
               f'IF {flags} >= 0 THEN']
+    if decl.live_documents(app):
+        # Core 3.8b: the live documents' restore would replay over this write.
+        lines += [f'IF {gen.config_restoring(app)} THEN', *mb._refuse(app, gen.CONFIG_RESTORING_KEY), 'END_IF;']
     if app.access_users is not None:
         import fraktal_ab_data_access as data
         lines += data.check_value(app, ordinal)

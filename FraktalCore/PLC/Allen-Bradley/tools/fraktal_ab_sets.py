@@ -90,9 +90,14 @@ def revision_rejected(app, value):
     import dataclasses
     import fraktal_ab_manifest as mf
     revisions = {mf.config_revision(app)}
-    variants = [app]
+    # Live documents add one release text, not a value: sets saved before them
+    # carry the earlier identity. Every earlier build predates them, so the
+    # historical variants below are of that identity, never hypothetical
+    # live builds (Studio v33 compiles at most five chained ANDs).
+    earlier = dataclasses.replace(app, config_medium=None) if decl.live_documents(app) else app
+    variants = [earlier]
     if app.line is not None:
-        variants.append(dataclasses.replace(app, line=None, records=tuple(r for r in app.records if not r.line_cfg)))
+        variants.append(dataclasses.replace(earlier, line=None, records=tuple(r for r in app.records if not r.line_cfg)))
     # The catalog extension changes build identity, not the declared value
     # schema. Recognize that exact prior content; all other revisions refuse.
     if app.model_capacity:
@@ -152,6 +157,14 @@ def dispatch_logic(app):
     q, s, p = staged_tag(app), state_tag(app), gen.config_persist_tag(app)
     i, j, b = scratch_names(app)
     reject = mf.numeric_key(app, REJECTED_KEY)
+    import fraktal_ab_models as models
+    # Core 3.8b live documents: while the controller restores (station image
+    # still unstamped), a model document may load into its bank and the
+    # station document answers the restore. Otherwise models stay refused.
+    live = decl.live_documents(app)
+    restoring = gen.config_restoring(app) if live else ''
+    keep = f'NOT {restoring}' if live else ''
+    model_ordinal = f'{req}.DurationMs'
     lines = [f'CPS({req}.ConfigSet,{q},1); (* immutable controller staging *)',
              f'{s}.Sequence := FRK_{app.name}_HmiLastSequence;', f'{s}.Count := {q}.Count;',
              f'{s}.RejectIndex := 0;', f'{s}.Reason := 0;',
@@ -163,6 +176,9 @@ def dispatch_logic(app):
              f'IF {unit}.Complete <> 0 THEN {s}.Reason := {reject}; END_IF;',
              f'IF {p}.Pending <> 0 THEN {s}.Reason := {reject}; END_IF;',
              'END_IF;',
+             # A set saved before the restore answered holds unrestored values.
+             *([f'IF ({q}.Operation = {mb.SAVE_CONFIG_SET}) AND {restoring} THEN {s}.Reason := {reject}; END_IF;']
+               if live else []),
              f'IF {q}.SchemaVersion <> 1 THEN {s}.Reason := {reject}; END_IF;',
              f'IF {q}.Sequence <> FRK_{app.name}_HmiLastSequence THEN {s}.Reason := {reject}; END_IF;',
              f'IF {q}.Operation <> {req}.Kind THEN {s}.Reason := {reject}; END_IF;',
@@ -180,7 +196,12 @@ def dispatch_logic(app):
              f'IF ({q}.Kind < 0) OR ({q}.Kind > {2 if app.line is not None else 1}) THEN {s}.Reason := {reject}; END_IF;',
              'END_IF;',
              f'IF ({q}.Operation = {mb.LOAD_CONFIG_SET}) OR ({q}.Operation = {mb.EXPORT_CONFIG_SET}) OR (({q}.Operation = {mb.CREATE_MODEL}) AND ({req}.BoolValue <> 0)) THEN',
-             f'IF ({q}.Operation = {mb.LOAD_CONFIG_SET}) AND ({q}.Kind = 0) AND ({s}.Reason = 0) THEN {s}.Reason := {mf.numeric_key(app, MODEL_KEY)}; END_IF;',
+             f'IF ({q}.Operation = {mb.LOAD_CONFIG_SET}) AND ({q}.Kind = 0) AND ({s}.Reason = 0){" AND " + keep if live else ""} THEN {s}.Reason := {mf.numeric_key(app, MODEL_KEY)}; END_IF;',
+             # The restore names the bank it loads, and the active model with
+             # its final station load; each is a model the catalog offers.
+             *([f'IF ({q}.Operation = {mb.LOAD_CONFIG_SET}) AND ({q}.Kind <> 2) AND {restoring} AND (({q}.Kind = 0) OR ({model_ordinal} <> 0)) THEN',
+                f'IF NOT ({models.ordinal_guard(app, model_ordinal)}) THEN {s}.Reason := {reject}; END_IF;', 'END_IF;']
+               if live else []),
              f'IF {s}.Reason = 0 THEN',
              f'FOR {i} := 0 TO {q}.Count - 1 DO',
              f'IF {s}.Reason = 0 THEN',
@@ -204,7 +225,8 @@ def dispatch_logic(app):
               f'IF {q}.RecordKind[{i}] <> {q}.Kind THEN {s}.Reason := {reject}; END_IF;',
               f'IF {q}.ValueType[{i}] <> ({facts} MOD 4) THEN {s}.Reason := {reject}; END_IF;',
               f'IF {q}.Operation = {mb.LOAD_CONFIG_SET} THEN',
-              f'IF {q}.Kind = 0 THEN {s}.Reason := {reject}; END_IF;', 'END_IF;',
+              (f'IF ({q}.Kind = 0) AND {keep} THEN {s}.Reason := {reject}; END_IF;' if live
+               else f'IF {q}.Kind = 0 THEN {s}.Reason := {reject}; END_IF;'), 'END_IF;',
               f'IF {q}.Operation = {mb.CREATE_MODEL} THEN',
               f'IF {facts} < 16 THEN {s}.Reason := {reject}; END_IF;', 'END_IF;',
               f'IF ({q}.Operation = {mb.LOAD_CONFIG_SET}) OR ({q}.Operation = {mb.CREATE_MODEL}) THEN',
@@ -270,13 +292,29 @@ def dispatch_logic(app):
     for ordinal, record, member in gen.editable_values(app):
         if record.station_cfg or record.line_cfg:
             lines += [f'{ordinal}: {record.name}Tag.{member.name} := {q}.Value[{i}];']
+        elif live and gen.is_model_scoped(app, record, member.name):
+            # Only a restore reaches here (pass one); the provider's bank, never ParCfg.
+            lines += [f'{ordinal}: {gen.model_cfg_tag(app)}[{model_ordinal} - 1].{member.name} := {q}.Value[{i}];']
     lines += ['ELSE', '(* Unreachable: pass one rejected unknown capabilities. *)',
               'END_CASE;', 'END_FOR;']
     if app.line is not None:
         lines += [f'IF {q}.Kind = 2 THEN', *line.accepted(app), 'END_IF;']
+    if live:
+        unit_tag, station = f'FRK_{app.name}_Unit', gen.station_cfg_record(app)
+        # The active model's record follows its bank through the changeover's
+        # own bounded commit (model_commit_logic), in this scan.
+        lines += [f'IF ({q}.Kind = 0) AND ({model_ordinal} = {unit_tag}.ModelOrdinal) THEN {unit_tag}.CommitModel := {model_ordinal}; END_IF;',
+                  # The station document answers the restore: a loss the host
+                  # announced is raised here, the active model is the one the
+                  # documents kept, and stamping the image ends restoring.
+                  f'IF ({q}.Kind = 1) AND {restoring} THEN',
+                  f'IF {q}.StoreResult = 2 THEN {p}.RestoreLost := 1; {p}.LostModuleId := 1; END_IF;',
+                  f'IF {model_ordinal} <> 0 THEN {unit_tag}.ModelOrdinal := {model_ordinal}; {unit_tag}.CommitModel := {model_ordinal}; END_IF;',
+                  f'{station.name}Tag.{decl.SCHEMA_VERSION_MEMBER} := {station.schema_version};', 'END_IF;']
+    store = decl.config_medium(app).store
     lines += ['ELSE', '(* Document operations do not apply equipment values. *)',
               'END_CASE;', *mb._accept(app),
-              f'{p}.StorePresent := 1;', f'{p}.StoreKind := 1; (* FILE_JSON *)',
+              f'{p}.StorePresent := 1;', f'{p}.StoreKind := {store}; (* {decl.CONFIG_STORE_NAMES[store]} *)',
               f'IF ({q}.Operation = {mb.SAVE_CONFIG_SET}) OR ({q}.Operation = {mb.DELETE_CONFIG_SET}) THEN',
               f'{p}.Pending := 1;', f'{p}.Failed := 0;', f'{p}.PendingSince := FRK_{app.name}_NowTime;',
               f'{s}.PendingMs := 0;', f'{s}.PendingSequence := {q}.Sequence;',
@@ -407,6 +445,44 @@ def checked_document(document):
     return result
 
 
+def values_document(app, name, kind, value_of, model_code, created, clock):
+    """One document of `kind` from the editable walk; `value_of(ordinal,
+    record, member)` supplies each number. The set snapshot and the live
+    documents both render here, so their records cannot disagree."""
+    import fraktal_ab_generate as gen
+    import fraktal_ab_manifest as mf
+    records = []
+    for ordinal, record, member in gen.editable_values(app):
+        if config_kind(record) != kind:
+            continue
+        value = value_of(ordinal, record, member)
+        text = ('TRUE' if value else 'FALSE') if member.kind == 'boolean' else str(value)
+        records.append({'scope': app.name, 'key': member.write_key,
+                        'rev': mf.config_revision(app), 'kind': kind,
+                        'type': value_type(member), 'value': text})
+    return checked_document([{'set': name, 'root': app.name, 'schema': 1,
+              'configRev': mf.config_revision(app), 'kind': kind, 'model': model_code,
+              'records': len(records), 'created': created, 'clock': clock}, *records])
+
+
+def replace_text(directory, path, text):
+    """Atomic ASCII replacement: fsync a sibling temporary, then os.replace."""
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    if path.is_symlink():
+        raise SetRejected('store symlink')
+    fd, temporary = tempfile.mkstemp(prefix='.pending-', dir=directory)
+    try:
+        with os.fdopen(fd, 'w', encoding='ascii', newline='\n') as stream:
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)  # exact file we just created, never a tree
+
+
 class FileStore:
     """Four named documents, atomic replacement and explicit I/O failures.
 
@@ -454,20 +530,7 @@ class FileStore:
         rows = self.list()
         if not any(h['set'] == document[0]['set'] for h in rows) and len(rows) >= MAX_SETS:
             raise SetRejected('store is full; delete a set first')
-        self.directory.mkdir(parents=True, exist_ok=True)
-        if path.is_symlink():
-            raise SetRejected('store symlink')
-        text = '\n'.join(render_line(v) for v in document) + '\n'
-        fd, temporary = tempfile.mkstemp(prefix='.pending-', dir=self.directory)
-        try:
-            with os.fdopen(fd, 'w', encoding='ascii', newline='\n') as stream:
-                stream.write(text)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, path)
-        finally:
-            if os.path.exists(temporary):
-                os.unlink(temporary)  # exact file we just created, never a tree
+        replace_text(self.directory, path, '\n'.join(render_line(v) for v in document) + '\n')
 
     def delete(self, name):
         self.read(name)  # refuse absent/corrupt entries; never guess a path

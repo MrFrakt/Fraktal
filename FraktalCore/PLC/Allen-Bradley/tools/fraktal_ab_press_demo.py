@@ -641,6 +641,11 @@ def application() -> decl.Application:
         # Measured press68 read cost; independent expiry also covers a stalled RPC.
         read_budget=decl.ReadBudget(500, 250, 2000, 3000, 1000, 2000, 3000, connection_bytes=4000),
         config_sets=True,
+        # Core 3.8b, the owner's choice of 2026-10-07: the gateway keeps the
+        # station, line and model data as documents on the file medium and
+        # re-applies them after a download (Part III AB §3.8b), as TC3's MAIN
+        # keeps them on its FB_FilePersistMedium. This bench is write-enabled.
+        config_medium=decl.ConfigMedium(live_documents=True),
         data_classes=(decl.DataClass("public", "project.dataClass.public"),
                       decl.DataClass("commissioning", "project.dataClass.commissioning")),
         # Internal bench accounts: only salted hashes; fixture PINs are local.

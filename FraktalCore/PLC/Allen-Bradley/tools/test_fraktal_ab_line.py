@@ -181,7 +181,9 @@ class Writes(unittest.TestCase):
         self.assertEqual(audit['ModelOrdinal'][audit['Head'] - 1], 2)
 
     def test_pre_line_station_set_revision_is_compatible_but_foreign_is_not(self):
-        prior = dataclasses.replace(APP, line=None, records=tuple(r for r in APP.records if not r.line_cfg))
+        # The historical pre-line press, which also predates live documents.
+        prior = dataclasses.replace(APP, line=None, config_medium=None,
+                                    records=tuple(r for r in APP.records if not r.line_cfg))
         self.assertEqual(mf.content_hash(prior), '66C4A00ABDB4FCC3')
         self.assertEqual([(o, m.write_key) for o, r, m in gen.editable_values(prior)],
                          [(o, m.write_key) for o, r, m in gen.editable_values(APP) if not r.line_cfg])

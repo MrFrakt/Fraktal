@@ -67,6 +67,19 @@ See [native acceptance](Evidence/AB_LINE_V2_PRESS75_NATIVE_ACCEPTANCE_2026-10-04
 Chrome controls and physical Line retention are separate owner gates, and
 mirror/shared-root transport remains unbound. This is not full port closure.
 
+## Retained data on a declared medium (added 2026-10-07)
+
+Handover items 1b and 1c run beside the stages below and are now implemented
+offline: the declaration picks the medium (`ConfigMedium`, file medium only), and
+the press keeps live station/line/model documents that the gateway re-applies
+after a download through the staged set path (Part III AB §3.8b). Prepared
+press79 adds 3,132 ST source bytes and no data to press78. Before any further
+controller growth: the owner states which V3 artifact is loaded and records
+press78's and press79's Capacity Estimates; press79's first download is seeded;
+then download and power-cycle acceptance of the restore run per the
+[offline record](Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md) and the
+[retention check plan](AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md).
+
 ## Implementation order after acceptance
 
 The owner now prioritizes missing line data. Implement stage 2 before Part

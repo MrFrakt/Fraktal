@@ -70,6 +70,9 @@ class RestoreLogic(unittest.TestCase):
         self.text = "\n".join(self.lines)
         self.record = _station_cfg_of(APP)
         self.tag = f"{self.record.name}Tag"
+        # Installed values are stamped with the declared version, or left at
+        # zero while a live-document restore is still to answer (§3.8b).
+        self.stamp = 0 if decl.live_documents(APP) else self.record.schema_version
 
     def restore(self, version, *, first_scan=True):
         c = controller(APP)
@@ -98,14 +101,14 @@ class RestoreLogic(unittest.TestCase):
 
     def test_never_written_installs_defaults_and_says_nothing(self):
         image, persist, _ = self.restore(0)
-        self.assertEqual(image['SchemaVersion'], self.record.schema_version)
+        self.assertEqual(image['SchemaVersion'], self.stamp)
         self.assertEqual((persist['RestoreLost'], persist['LostModuleId']), (0, 0))
 
     def test_an_unrecognized_version_is_annunciated(self):
         """The difference between an empty machine and one that has just lost
         its commissioning is exactly what an operator needs told."""
         image, persist, _ = self.restore(99)
-        self.assertEqual(image['SchemaVersion'], self.record.schema_version)
+        self.assertEqual(image['SchemaVersion'], self.stamp)
         self.assertEqual((persist['RestoreLost'], persist['LostModuleId'],
                           persist['RestoreAcknowledged']), (1, 1, 0))
 

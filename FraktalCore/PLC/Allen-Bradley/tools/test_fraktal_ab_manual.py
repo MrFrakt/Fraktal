@@ -80,6 +80,10 @@ class Bench:
         for tag in APP.sim_inputs:
             tags[tag] = 0
         tags.update({PART: 1, AIR: 1, TWO_HAND: 1})
+        # A station in operation: its first scan (or the live-document
+        # restore's answer) has stamped the station image.
+        station = gen.station_cfg_record(APP)
+        tags[f"{station.name}Tag"]["SchemaVersion"] = station.schema_version
         self.tags = tags
         self.unit["Mode"] = APP.manual_mode if mode is None else mode
         self.unit["ModeRequest"] = self.unit["Mode"]

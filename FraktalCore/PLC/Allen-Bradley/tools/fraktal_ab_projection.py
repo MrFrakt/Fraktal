@@ -1465,14 +1465,26 @@ def read_document(comm: Any,
 
     import fraktal_ab_models as models
     codes = models.read(comm, APP)
+    # Core 3.8b live documents are rendered from these same reads; nothing is
+    # read twice and the read order is the one the projection always had.
+    kept: dict[str, Any] = {}
+
+    def keep(name, value):
+        kept[name] = value
+        return value
     doc = project(header, rows, unit, contexts, chart, read_mailbox(comm),
-                   plan.group('io', (APP.name + 'Fieldbus/',), lambda: read_io(comm)), read_persist(comm), read_records(comm),
-                   access_level, read_models(comm, len(codes)), read_alarm_log(comm),
+                   plan.group('io', (APP.name + 'Fieldbus/',), lambda: read_io(comm)), read_persist(comm),
+                   keep('records', read_records(comm)),
+                   access_level, keep('banks', read_models(comm, len(codes))), read_alarm_log(comm),
                    read_oee(comm), plan.group('profiler', (APP.name + '/Profiler/',), lambda: read_profiler(comm)), read_state_flags(comm),
-                   read_system_health(comm), read_access(comm),
+                   read_system_health(comm), keep('access', read_access(comm)),
                    plan.group('accessAudit', (APP.name + '/AlarmLog/Ring[',), lambda: read_access(comm, audit=True)),
                    read_data_access(comm, policy=True), read_data_access(comm), codes,
                    read_line(comm))
+    if decl.live_documents(APP):
+        import fraktal_ab_live as live
+        # Not sent to a client: the gateway's document keeper consumes it.
+        doc["liveConfig"] = live.capture(APP, unit, kept['records'], kept['banks'], codes, kept['access'])
     # Validate the same coherence token after all table AND live reads. Cache a
     # manifest only after both headers agree; a torn station never becomes Good.
     after, status, _ = reader._read_raw(comm, manifest.header_tag(APP))

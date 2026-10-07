@@ -63,21 +63,11 @@ def snapshot_document(app, name, kind, snapshot, codes=None):
     stamp = datetime.datetime(date // 10000, (date // 100) % 100, date % 100,
                               clock // 10000000, (clock // 100000) % 100,
                               (clock // 1000) % 100, tzinfo=datetime.timezone.utc)
-    records = []
-    for ordinal, record, member in gen.editable_values(app):
-        if sets.config_kind(record) != kind:
-            continue
-        value = snapshot['Snapshot'][ordinal - 1]
-        text = ('TRUE' if value else 'FALSE') if member.kind == 'boolean' else str(value)
-        records.append({'scope': app.name, 'key': member.write_key,
-                        'rev': mf.config_revision(app), 'kind': kind,
-                        'type': sets.value_type(member), 'value': text})
-    if snapshot['Count'] != len(records):
+    document = sets.values_document(app, name, kind, lambda ordinal, _r, _m: snapshot['Snapshot'][ordinal - 1],
+                                    model_code, int(stamp.timestamp()), int(bool(snapshot['TimeSynchronized'])))
+    if snapshot['Count'] != len(document) - 1:
         raise sets.SetRejected('controller snapshot count differs')
-    return sets.checked_document([{'set': name, 'root': app.name, 'schema': 1,
-              'configRev': mf.config_revision(app), 'kind': kind, 'model': model_code,
-              'records': len(records), 'created': int(stamp.timestamp()),
-              'clock': int(bool(snapshot['TimeSynchronized']))}, *records])
+    return document
 
 
 def read_state(comm, app):
@@ -108,6 +98,50 @@ def _write(comm, target, value):
     reply = comm.Write(target, value)
     if not _success(reply):
         raise sets.SetRejected(f'set staging write failed: {target}')
+
+
+def _proposal(app, kind, sequence, *, valid, name, document, proposal_kind, commit):
+    # Export is checked by the PLC against every record before any line returns.
+    staged_doc = document if kind in (mb.LOAD_CONFIG_SET, mb.EXPORT_CONFIG_SET, mb.CREATE_MODEL) else None
+    proposal = staging(app, sequence, valid=valid, document=staged_doc,
+                       name=name, kind=proposal_kind, operation=kind, commit=commit)
+    if kind == mb.CREATE_MODEL:
+        proposal['NameLength'] = len(name)
+        proposal['NameBytes'] = list(name.encode('ascii')) + [0] * (sets.NAME_MAX - len(name))
+    if document and kind != mb.LOAD_CONFIG_SET:
+        proposal['Count'] = len(document) - 1
+    return proposal
+
+
+def _stage(comm, app, proposal):
+    # The complete payload is planned before the first write. ConfigSet is an
+    # appended request member; no other tag gains ExternalAccess Read/Write.
+    target = mb.request_tag_name(app) + '.ConfigSet'
+    for member in sets.request_members():
+        _write(comm, target + '.' + member.name, proposal[member.name])
+    return target
+
+
+def restore_command(comm, app, writes, write_base, document, store_result=0):
+    """One live-document transaction (fraktal_ab_live.restore).
+
+    The document is staged exactly as a stored set is, under the same
+    Sequence-last commit, and the controller validates and decides. Only the
+    station load's StoreResult differs: the host's answer for the restore.
+    Returns the response, or None when the base request was not delivered.
+    """
+    import fraktal_ab_live as live
+    arguments = {p.rsplit('/', 1)[-1]: v for p, _t, v in writes}
+    kind, sequence = arguments['Kind'], arguments['Sequence']
+    name = arguments.get('NameValue', '') if kind == mb.CREATE_MODEL else live.LIVE_NAME
+    proposal = _proposal(app, kind, sequence, valid=1, name=name, document=document,
+                         proposal_kind=document[0]['kind'],
+                         commit=int(bool(arguments.get('BoolValue', False))))
+    proposal['StoreResult'] = store_result
+    _stage(comm, app, proposal)
+    if not write_base(comm, writes):
+        return None
+    return wait_response(comm, app, sequence)
 
 
 def process(comm, app, store, session, writes, write_base):
@@ -161,20 +195,9 @@ def process(comm, app, store, session, writes, write_base):
     except (sets.SetRejected, OSError, UnicodeError):
         session.interrupt()
         valid = 0
-    # Export is checked by the PLC against every record before any line returns.
-    staged_doc = document if kind in (mb.LOAD_CONFIG_SET, mb.EXPORT_CONFIG_SET, mb.CREATE_MODEL) else None
-    proposal = staging(app, sequence, valid=valid, document=staged_doc,
-                       name=name, kind=proposal_kind, operation=kind, commit=int(bool(arguments.get('BoolValue', False))))
-    if kind == mb.CREATE_MODEL:
-        proposal['NameLength'] = len(name)
-        proposal['NameBytes'] = list(name.encode('ascii')) + [0] * (sets.NAME_MAX - len(name))
-    if document and kind != mb.LOAD_CONFIG_SET:
-        proposal['Count'] = len(document) - 1
-    # The complete payload is planned before the first write. ConfigSet is an
-    # appended request member; no other tag gains ExternalAccess Read/Write.
-    target = mb.request_tag_name(app) + '.ConfigSet'
-    for member in sets.request_members():
-        _write(comm, target + '.' + member.name, proposal[member.name])
+    proposal = _proposal(app, kind, sequence, valid=valid, name=name, document=document,
+                         proposal_kind=proposal_kind, commit=int(bool(arguments.get('BoolValue', False))))
+    target = _stage(comm, app, proposal)
     if not write_base(comm, writes):
         session.interrupt()
         return False

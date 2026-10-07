@@ -46,6 +46,10 @@ def controller(app=APP):
         'BoolValue': 999999, 'DurationMs': mf.config_revision(app), 'Sequence': 1,
         'User': {'LEN': 5, 'DATA': list(b'owner') + [0] * (mb.USER_LENGTH - 5)}}
     tags[mb.response_tag_name(app)] = {'Accepted': 0, 'DiagnosticKey': 0}
+    # A commissioned controller after its first scan: the station image is
+    # stamped (live documents leave it at zero only until their restore).
+    station = gen.station_cfg_record(app)
+    tags[f'{station.name}Tag']['SchemaVersion'] = station.schema_version
     c = Controller(tags)
     if app.line is not None:
         import fraktal_ab_line as line

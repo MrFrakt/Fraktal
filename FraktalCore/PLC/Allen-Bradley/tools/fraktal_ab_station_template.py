@@ -205,6 +205,11 @@ def application(*, line=None) -> decl.Application:
         # Candidate transport limits: measure and freeze them for each new station.
         read_budget=decl.ReadBudget(500, 250, 2000, 3000, 1000, 2000, 3000),
         config_sets=True,
+        # Where the gateway keeps this station's documents. Live documents
+        # replace seeding each new image, but their restore writes the
+        # controller: enable them only where the binding record answers
+        # "write-enabled" (AB_NEW_PROJECT_GUIDE §3).
+        config_medium=decl.ConfigMedium(live_documents=False),
         data_classes=(decl.DataClass("public", "project.dataClass.public"),
                       decl.DataClass("commissioning", "project.dataClass.commissioning")),
         access_users=(),  # provision salted hashes before locking the open policy

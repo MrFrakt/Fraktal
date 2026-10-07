@@ -127,12 +127,9 @@ class MailboxWriter:
         self._app = app if app is not None else projection.APP
         self._set_store = set_store
         if self._app.config_sets and set_store is None:
-            from pathlib import Path
-            from fraktal_ab_sets import FileStore
-            directory = os.environ.get('FRAKTAL_AB_CONFIG_SET_DIR')
-            if not directory:
-                directory = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'Fraktal' / 'ConfigSets' / (expect_serial + '-' + self._app.name)
-            self._set_store = FileStore(directory)
+            # The declaration picks the medium; the directory is deployment data.
+            import fraktal_ab_medium as medium
+            self._set_store = medium.open_set_store(self._app, expect_serial)
 
     def tag_for(self, path):
         """``Press/HmiRequest/Kind`` maps to ``FRK_Press_HmiRequest.Kind``."""
@@ -215,6 +212,11 @@ class MailboxWriter:
     def set_command(self, writes, mailbox_path, session):
         return self._command(writes, mailbox_path, session)
 
+    def live_command(self, writes, mailbox_path, document, store_result=0):
+        """One live-document restore transaction (fraktal_ab_live.restore):
+        the same guarded connection, identity check and staged set path."""
+        return self._command(writes, mailbox_path, live=(document, store_result))
+
     def _verify_login_profile(self, comm, writes):
         import fraktal_ab_access as access
         import fraktal_ab_mailbox as mailbox
@@ -229,7 +231,7 @@ class MailboxWriter:
                 or state['LoginPrehashRounds'] != access.PIN_HASH_ROUNDS):
             raise WriteRefused('Controller login derivation profile does not match the gateway')
 
-    def _command(self, writes, mailbox_path, session=None):
+    def _command(self, writes, mailbox_path, session=None, live=None):
         from pylogix import PLC
 
         from fraktal_ab_s16_execute import _normalize_serial, _success, _value
@@ -265,6 +267,10 @@ class MailboxWriter:
 
             self._verify_login_profile(comm, writes)
 
+            if live is not None:
+                from fraktal_ab_set_broker import restore_command
+                return restore_command(_GuardedConnection(comm, self._expect_serial), self._app,
+                                       writes, self._write_base, *live)
             if session is not None and self._app.config_sets:
                 from fraktal_ab_set_broker import process
                 return process(_GuardedConnection(comm, self._expect_serial), self._app, self._set_store, session, writes, self._write_base)
@@ -686,8 +692,12 @@ class Gateway:
                  write_roots: frozenset[str] = frozenset(),
                  allow_all_root_mailboxes: bool = False,
                  write_fn: Optional[Callable[[list[tuple[str, str, Any]],
-                                              Optional[str]], bool]] = None):
+                                              Optional[str]], bool]] = None,
+                 live_keeper: Any = None):
         self.station = station
+        # Core 3.8b live documents (fraktal_ab_live.Keeper), None when the
+        # declaration keeps none.
+        self.live = live_keeper
         self.allowed_origins = allowed_origins
         # Mutations are off unless a token is configured (read-only default), never
         # anonymous (Core §14), confined to HmiRequest mailboxes (permits_write),
@@ -757,6 +767,8 @@ class Gateway:
             body["lastControllerFailure"] = self.station.last_failure
         if self.station.last_refusal is not None:
             body["controllerRefusal"] = self.station.last_refusal
+        if self.live is not None:
+            body["liveDocuments"] = self.live.health()
         code = (http.HTTPStatus.SERVICE_UNAVAILABLE
                 if (is_ready and not ready) else http.HTTPStatus.OK)
         return connection.respond(code, json.dumps(body) + "\n")
@@ -876,19 +888,21 @@ class Gateway:
             log.warning("stage=method-failed method=%s detail=%s", method, exc)
             await send(_error(rid, f"controller read failed: {exc}"))
 
-    @staticmethod
-    def _values_for(state: _ConnState, doc: dict[str, Any]) -> dict[str, Any]:
+    def _values_for(self, state: _ConnState, doc: dict[str, Any]) -> dict[str, Any]:
         """The shared values, with this connection's configuration page.
 
         Every model's page is already computed; this only picks the one the
         connection last asked for. The path set is identical across models, so
-        nothing about discovery changes - only the numbers do.
+        nothing about discovery changes - only the numbers do. A live-document
+        failure or loss overlays the published §3.8b status for every viewer.
         """
         values = doc.get("values", {})
         page = (doc.get("configPages") or {}).get(state.config_model)
         merged = dict(values)
         if page:
             merged.update(page)
+        if self.live is not None:
+            merged.update({p: v for p, v in self.live.values(merged).items() if p in merged})
         merged.update(state.sets.values)
         return merged
 
@@ -906,6 +920,7 @@ class Gateway:
             # Clients add only the remaining RPC time, avoiding double aging.
             result['responseProcessingMs'] = max(0, (aged_at - started) * 1000)
         result.pop("configPages", None)
+        result.pop("liveConfig", None)
         result["discoveryRevision"] = self.station.revision
         result["nodeCount"] = len(paths)
         result["truncated"] = bool(doc.get("truncated", False))
@@ -1159,6 +1174,90 @@ class Gateway:
                 writes, state.config_model)
         return accepted
 
+    # --- Core 3.8b live documents ------------------------------------------
+
+    LIVE_PERIOD_S = 2.0
+
+    def _live_writes_enabled(self, mailbox: str) -> bool:
+        """A restore writes the controller, so it needs what any command needs:
+        a configured write gate covering this root. A read-only gateway keeps
+        its documents (reads only) and leaves Start naming the restore."""
+        return (bool(self._write_token) and self._write_fn is not None
+                and hasattr(self._write_fn, 'live_command')
+                and permits_write(mailbox + '/Kind', self._write_roots,
+                                  self._allow_all_root_mailboxes))
+
+    async def live_cycle(self) -> None:
+        """One pass: keep the documents, or answer the controller's restore."""
+        if self.live is None:
+            return
+        try:
+            doc = await self.station.document()
+        except Exception:
+            return  # the station's own health already reports the read
+        held = doc.get('liveConfig')
+        if held is None:
+            return
+        if not held.restoring:
+            await asyncio.to_thread(self.live.keep, held)
+            return
+        import fraktal_ab_projection as station_projection
+        mailbox = f'{station_projection.APP.name}/HmiRequest'
+        if not self._live_writes_enabled(mailbox):
+            self.live.state, self.live.error = 'restoring', 'read-only gateway: the restore needs a write gate'
+            return
+        if not self.live.wants_restore(held):
+            return
+        async with self._mailbox_lock:
+            await self._live_restore(held, mailbox)
+
+    async def _live_restore(self, held, mailbox: str) -> None:
+        import functools
+        document = await self.station.mailbox_document()
+        if self.station.budget is not None and not self.station.healthy:
+            return
+        self.seed_sequences(document)
+        observed = document['values']
+        request = observed.get(mailbox + '/Sequence')
+        ack = observed.get(mailbox.replace('/HmiRequest', '/HmiResponse') + '/AckSequence')
+        if request is not None and ack is not None and request != ack:
+            return  # another request still awaits its answer; try next cycle
+        command = functools.partial(self._live_command, mailbox, request or 0)
+        try:
+            outcome = await self._run_fresh_writer(self.live.run_restore, held, command)
+        finally:
+            self.station._doc = None
+        if outcome is not None:
+            log.warning('stage=live-restore complete=%s losses=%s detail=%s', outcome.complete,
+                        [key for key, _ in outcome.losses], outcome.detail)
+
+    def _live_command(self, mailbox, observed, kind, staged, *, name='', model=0, store_result=0):
+        """One restore transaction, run on the writer thread under the lock.
+
+        The sequence is burned before I/O, exactly as an operator's batch is:
+        an HMI that raced this request is refused as stale, never answered
+        with the restore's acknowledgement."""
+        import fraktal_ab_live as live
+        import fraktal_ab_mailbox as mailbox_contract
+        sequence = (self._mailbox_sequences.get(mailbox, observed) + 1) & 0xffffffff
+        self._mailbox_sequences[mailbox] = sequence
+        self.station._doc = None
+        writes = [(mailbox + '/Kind', 'int32', kind),
+                  (mailbox + '/TextValue', 'string', live.LIVE_NAME),
+                  (mailbox + '/NameValue', 'string', name),
+                  (mailbox + '/BoolValue', 'boolean', kind == mailbox_contract.CREATE_MODEL),
+                  (mailbox + '/DurationMs', 'uint32', model),
+                  (mailbox + '/Sequence', 'uint32', sequence)]
+        return self._write_fn.live_command(writes, mailbox, staged, store_result)
+
+    async def live_loop(self) -> None:
+        while not self._closing:
+            try:
+                await self.live_cycle()
+            except Exception as exc:  # never let the keeper stop the gateway
+                log.warning('stage=live-cycle-failed detail=%s', exc)
+            await asyncio.sleep(self.LIVE_PERIOD_S)
+
     async def _run_fresh_writer(self, call, *args):
         def deliver():
             # Re-check after waiting for the native worker, immediately before
@@ -1373,7 +1472,12 @@ async def serve_gateway(gateway: Gateway, host: str, port: int,
                      ssl=ssl_context):
         log.info("stage=listening endpoint=%s://%s:%d%s",
                  "wss" if ssl_context else "ws", host, port, WS_PATH)
-        await asyncio.Future()  # run until cancelled
+        keeper = asyncio.create_task(gateway.live_loop()) if gateway.live is not None else None
+        try:
+            await asyncio.Future()  # run until cancelled
+        finally:
+            if keeper is not None:
+                keeper.cancel()
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -1456,6 +1560,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                     "Legacy declarations apply this level to every viewer", args.access_level)
     station = Station(build_reader(args.target, args.slot, args.expect_serial,
                                    access_level))
+    import fraktal_ab_declaration as decl
+    keeper = None
+    if decl.live_documents(projection.APP):
+        import fraktal_ab_live as live
+        directory = live.live_directory(projection.APP, args.expect_serial)
+        log.info("stage=live-documents directory=%s", directory)
+        keeper = live.Keeper(projection.APP, live.FileMedium(directory))
     gateway = Gateway(
         station,
         allowed_origins=frozenset(_normalize_origin(o) for o in args.allow_origin),
@@ -1464,7 +1575,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         allow_all_root_mailboxes=bool(write_token) and not args.write_root,
         # D5 page queries use the same serialized, serial-guarded mailbox
         # writer in a viewer. Every mutation still needs the bearer and scope.
-        write_fn=MailboxWriter(args.target, args.slot, args.expect_serial))
+        write_fn=MailboxWriter(args.target, args.slot, args.expect_serial),
+        live_keeper=keeper)
     if write_token and ssl_context is None:
         # Not fatal - the gate still refuses anonymous writes - but a client
         # that honours the credential rule cannot authenticate here, so say so

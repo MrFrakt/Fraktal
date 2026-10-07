@@ -38,6 +38,25 @@ download transcript accompanies that report. Press75 retains the measured
 memory baseline. See [failure](../../../Specification/AllenBradley/Evidence/AB_PRESS77_NATIVE_LINK_MEMORY_FAILURE_2026-10-05.md)
 and [correction evidence](../../../Specification/AllenBradley/Evidence/AB_PRESS78_CONFIG_MEMORY_REDUCTION_2026-10-05.md).
 
+**Declared medium and live documents (2026-10-07):** a declaration now picks
+where the gateway keeps its documents (`decl.ConfigMedium`, Core
+`E_ConfigStore`; the file medium is the only implementation, behind
+`fraktal_ab_medium.SetStore`). At the owner's request the press also keeps its
+station, line and model data as **live documents** in `live\` beside its sets
+and re-applies them after a download through the ordinary staged set path,
+under a controller session the set gate permits (`fraktal_ab_live.py`, Part III
+AB §3.8b). Restoring is derived controller state: Start names
+`std.release.configRestoring` and configuration writes wait until the station
+load answers. A read-only gateway never restores. Prepared
+`C:/work/press79.L5X` adds 3,132 ST source bytes and 28 statements to press78,
+with no new data or tag; the manifest moves to `E5F914E06055CD3B / 15071508`,
+and sets saved under press78's revisions still load. A read-only read on
+2026-10-07 shows the V3 contract loaded (press76 or press78; the owner must say
+which). Capacity Estimate, Verify, the seeded first download and download/power
+cycle acceptance are owner gates; until press79 is loaded, run any gateway from a
+worktree at `3d77e7a`. See
+[offline evidence](../../../Specification/AllenBradley/Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md).
+
 Shared HMI cycle-chart correction (2026-10-05): detail reads now follow the
 selected tab's visible cards rather than loading closed-tab rings and sequence
 rows. Tab scoping and timestamp-preserving targeted reads passed isolated
