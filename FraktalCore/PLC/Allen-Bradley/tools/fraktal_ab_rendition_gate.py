@@ -188,7 +188,7 @@ def compare(app: decl.Application, project: Path) -> dict[str, object]:
     chains: dict[str, object] = {}
 
     for chain in app.chains:
-        if not chain.multi_rendition:
+        if not chain.program_hosted:
             continue
         declared = declared_graph(chain)
         recovered: dict[str, dict[int, set[int]]] = {}

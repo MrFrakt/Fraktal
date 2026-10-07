@@ -26,7 +26,10 @@ import fraktal_ab_press_demo as demo
 import fraktal_ab_st_model as st
 
 
-APP = demo.application()
+# The capability variant: AUTO in ST, SFC and LD. The shipped press carries
+# the ladder alone (press80); every rendition must still walk the same cycle.
+from test_fraktal_ab_renditions import every_rendition
+APP = every_rendition(demo.application())
 N = APP.name
 AUTO = next(c for c in APP.chains if c.name == "AUTO")
 UNIT, CHART, SCAN = f"FRK_{N}_Unit", f"FRK_{N}_Chart", f"FRK_{N}_ScanCount"

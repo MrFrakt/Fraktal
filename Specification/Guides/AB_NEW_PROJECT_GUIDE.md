@@ -89,7 +89,7 @@ copied template. Remove absent capabilities instead of publishing placeholders.
 | Start / direction permits | `start_permits`, module `permits`; one report and action predicate |
 | Manual / Changeover | manual mode + actual command catalogue; models/default + CHANGEOVER chain |
 | I/O / forcing | `io_modules`; electrical identity once; safety/control-power coils never forceable |
-| ST/SFC/LD | one graph, generated renditions; selector is harness-only |
+| ST/SFC/LD | one graph, generated renditions; selector is harness-only and exists only for several; carry one where memory is short (the press ships AUTO in LD only since press80) |
 | Capture / named sets | `decl.capture(...)`, `config_sets=True`; typed capabilities and PARAMETER_SETS reasons |
 | Retained-data medium / live documents | `config_medium=decl.ConfigMedium(live_documents=...)`; file medium; live documents need a write-enabled gateway, the access provider and a seeded first image; press79 prepared offline, fit/retention are owner gates |
 | PLC users / data classes | `access_users`, `data_classes`, `decl.config_access(...)`; provision before tightening policy |
@@ -301,7 +301,7 @@ Keep the AOI lifecycle at its owning level. Program services may use controller
 scope; AOIs cannot call those services. Extract whole blocks rather than moving
 RETURN/RTN/EXIT across boundaries. Share repeated behavior; do not split every
 small conditional into a new routine or add scratch solely for organization.
-Keep released names/layouts/ordinals and all three sequence renditions intact.
+Keep released names/layouts/ordinals and every rendition a chain declares intact.
 The inline scan/mailbox views are derived from the same plan for test execution;
 they are not a second authored implementation.
 

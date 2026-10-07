@@ -47,15 +47,23 @@ and re-applies them after a download through the ordinary staged set path,
 under a controller session the set gate permits (`fraktal_ab_live.py`, Part III
 AB §3.8b). Restoring is derived controller state: Start names
 `std.release.configRestoring` and configuration writes wait until the station
-load answers. A read-only gateway never restores. Prepared
-`C:/work/press79.L5X` adds 3,132 ST source bytes and 28 statements to press78,
-with no new data or tag; the manifest moves to `E5F914E06055CD3B / 15071508`,
-and sets saved under press78's revisions still load. A read-only read on
-2026-10-07 shows the V3 contract loaded (press76 or press78; the owner must say
-which). Capacity Estimate, Verify, the seeded first download and download/power
-cycle acceptance are owner gates; until press79 is loaded, run any gateway from a
-worktree at `3d77e7a`. See
-[offline evidence](../../../Specification/AllenBradley/Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md).
+load answers. A read-only gateway never restores. Prepared press79 added 3,132
+ST source bytes and 28 statements to press78; the manifest moved to
+`E5F914E06055CD3B / 15071508`, and sets saved under press78's revisions still
+load. See [offline evidence](../../../Specification/AllenBradley/Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md).
+
+**Press79 out of memory; press80 ladder-only AUTO (2026-10-07):** the owner's
+press79 download verified and compiled, then failed linking with "Out of memory
+in the controller"; afterwards the controller holds press79's tags and manifest
+and scans no program. At the owner's instruction press80 carries AUTO in ladder
+only and drops what only ST and SFC used: the ST and SFC routines, the SFC
+runner, the shared step-mark routine, 57 chart step/action/transition tags and
+the rendition selector. Against press78 it is 37,343 ST source bytes and 558
+statements smaller, with the same manifest as press79; live documents and
+permissives are unchanged. `C:/work/press80.L5X` is seeded from the fresh
+capture and needs the owner's Capacity Estimate, Verify and download. See
+[failure](../../../Specification/AllenBradley/Evidence/AB_PRESS79_NATIVE_LINK_MEMORY_FAILURE_2026-10-07.md)
+and [press80](../../../Specification/AllenBradley/Evidence/AB_PRESS80_LADDER_ONLY_AUTO_OFFLINE_2026-10-07.md).
 
 Shared HMI cycle-chart correction (2026-10-05): detail reads now follow the
 selected tab's visible cards rather than loading closed-tab rings and sequence
@@ -178,11 +186,13 @@ and runs on the bench with all fifteen matrix rows passing on three consecutive
 runs. **Hand-authored L5X remains forbidden** - the declaration and the
 generator are the committed sources and the L5X is output.
 
-The press AUTO graph is declared once and **rendered in all three languages** -
-ST, native SFC and ladder - each emitted from that one declaration, read back
-and machine-checked for graph equality, and walked on the bench with identical
-traces. MANUAL and HOME stay single-rendition ST, as the TwinCAT press keeps
-them. **Hand-authored ladder is forbidden along with hand-authored L5X**: a
+The press AUTO graph is declared once and was **rendered in all three languages**
+through press79 - ST, native SFC and ladder - each emitted from that one
+declaration, read back and machine-checked for graph equality, and walked on
+the bench with identical traces. From press80 the press carries the **ladder
+alone**, at the owner's request after press79 ran out of controller memory; the
+generator and its tests keep all three renditions, on a press variant. MANUAL
+and HOME stay single-rendition ST, as the TwinCAT press keeps them. **Hand-authored ladder is forbidden along with hand-authored L5X**: a
 rendition is an emission, never a second maintained source. And the published
 contract will describe that graph **once, rendition-agnostic** - the rendition
 selector is a harness input, probe-only and never published, because which

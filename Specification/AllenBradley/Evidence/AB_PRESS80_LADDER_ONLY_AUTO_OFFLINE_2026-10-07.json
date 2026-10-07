@@ -1,0 +1,177 @@
+{
+  "Schema": "fraktal.ab.evidence",
+  "SchemaVersion": 1,
+  "Title": "AB press80 AUTO in ladder only (offline), after press79 native out-of-memory",
+  "RecordedDate": "2026-10-07",
+  "ControllerWrites": false,
+  "Downloads": false,
+  "OwnerInstruction": "remove unused code and sfc, leave only LD sequences and permissives to save memory",
+  "Press79NativeDownload": {
+    "result": "Error: Out of memory in the controller (linking); download cancelled",
+    "excerpt": "AB_PRESS79_NATIVE_LINK_MEMORY_FAILURE_2026-10-07_DOWNLOAD_EXCERPT.txt"
+  },
+  "AfterFailure": {
+    "serial": "7036B510",
+    "ContentHash": "E5F914E06055CD3B",
+    "ConfigRevision": 15071508,
+    "manifestPassed": true,
+    "controllerTags": 123,
+    "scanCountBefore": 0,
+    "scanCountAfterOneSecond": 0,
+    "programScanning": false
+  },
+  "Press80": {
+    "OutputSha256": "F293A34D65B2C508049FDD3E0D9235A7CB70C15CDA17950CEE064B7F359976B1",
+    "ManifestHash": "E5F914E06055CD3B",
+    "ConfigRevision": 15071508,
+    "RemovedRoutines": [
+      "FRK_PressAutoSfc",
+      "FRK_PressAutoSfcRun",
+      "FRK_PressAutoSt",
+      "FRK_Press_SequenceMarkStep"
+    ],
+    "RemovedControllerTags": [
+      "FRK_Press_RenditionSelect"
+    ],
+    "RemovedProgramTags": [
+      "FRK_PressAutoA0",
+      "FRK_PressAutoA100",
+      "FRK_PressAutoA110",
+      "FRK_PressAutoA130",
+      "FRK_PressAutoA150",
+      "FRK_PressAutoA170",
+      "FRK_PressAutoA180",
+      "FRK_PressAutoA185",
+      "FRK_PressAutoA190",
+      "FRK_PressAutoA200",
+      "FRK_PressAutoA210",
+      "FRK_PressAutoA215",
+      "FRK_PressAutoA220",
+      "FRK_PressAutoA230",
+      "FRK_PressAutoA240",
+      "FRK_PressAutoA242",
+      "FRK_PressAutoA244",
+      "FRK_PressAutoA999",
+      "FRK_PressAutoS0",
+      "FRK_PressAutoS100",
+      "FRK_PressAutoS110",
+      "FRK_PressAutoS130",
+      "FRK_PressAutoS150",
+      "FRK_PressAutoS170",
+      "FRK_PressAutoS180",
+      "FRK_PressAutoS185",
+      "FRK_PressAutoS190",
+      "FRK_PressAutoS200",
+      "FRK_PressAutoS210",
+      "FRK_PressAutoS215",
+      "FRK_PressAutoS220",
+      "FRK_PressAutoS230",
+      "FRK_PressAutoS240",
+      "FRK_PressAutoS242",
+      "FRK_PressAutoS244",
+      "FRK_PressAutoS999",
+      "FRK_PressAutoT0A",
+      "FRK_PressAutoT100A",
+      "FRK_PressAutoT110A",
+      "FRK_PressAutoT130A",
+      "FRK_PressAutoT150A",
+      "FRK_PressAutoT170A",
+      "FRK_PressAutoT180A",
+      "FRK_PressAutoT180J",
+      "FRK_PressAutoT185A",
+      "FRK_PressAutoT190A",
+      "FRK_PressAutoT200A",
+      "FRK_PressAutoT200J",
+      "FRK_PressAutoT210A",
+      "FRK_PressAutoT210J",
+      "FRK_PressAutoT215A",
+      "FRK_PressAutoT220A",
+      "FRK_PressAutoT230A",
+      "FRK_PressAutoT240A",
+      "FRK_PressAutoT242A",
+      "FRK_PressAutoT244A",
+      "FRK_PressAutoT999A"
+    ],
+    "ChangedRoutines": [
+      "FRK_PressHmiMailbox",
+      "FRK_Press_AlarmShelfRequest",
+      "FRK_Press_ConfigRecordAudit",
+      "FRK_Press_ConfigSets",
+      "FRK_Press_ConfigWrite",
+      "FRK_Press_ReleaseStart",
+      "FRK_Press_ScanConfigRestore",
+      "FRK_Press_ScanModules",
+      "FRK_Press_ScanUnit"
+    ],
+    "ChangedTagInitializers": [
+      "FRK_Press_MfHeader",
+      "FRK_Press_MfLocalization"
+    ],
+    "Totals": {
+      "StSourceBytes": 295085,
+      "StStatementTerminators": 3502,
+      "StLines": 5596,
+      "RllRungs": 20,
+      "DeclaredDataBytes": 110264
+    },
+    "DeltaTo78": {
+      "StSourceBytes": -37343,
+      "StStatementTerminators": -558,
+      "StLines": -864,
+      "RllRungs": 0,
+      "DeclaredDataBytes": -4
+    },
+    "DeltaTo79": {
+      "StSourceBytes": -40475,
+      "StStatementTerminators": -586,
+      "StLines": -918,
+      "RllRungs": 0,
+      "DeclaredDataBytes": -4
+    },
+    "DeltaToAccepted75": {
+      "StSourceBytes": 34241,
+      "StStatementTerminators": -589,
+      "StLines": 440,
+      "RllRungs": 0,
+      "DeclaredDataBytes": 2752
+    }
+  },
+  "Validation": {
+    "AbSuite": {
+      "tests": 1670,
+      "failures": 0,
+      "log": "press80_ab_tests_02.log"
+    },
+    "Mutants": {
+      "count": 19,
+      "killed": 19
+    },
+    "RenditionGateEqual": true,
+    "CheckAbContracts": "clean",
+    "CheckConsistencyStrict": "0 errors, 0 warnings",
+    "CheckAbSpec": "3 pre-existing errors, identical on 3d77e7a"
+  },
+  "Files": {
+    "press80.L5X": "F293A34D65B2C508049FDD3E0D9235A7CB70C15CDA17950CEE064B7F359976B1",
+    "press80_determinism_01.L5X": "F293A34D65B2C508049FDD3E0D9235A7CB70C15CDA17950CEE064B7F359976B1",
+    "press80_build_01.json": "7F64CE91259FC02B875FA47B54B36478C0F4F20489BC690F0021D7BEF64A9E7A",
+    "press80_generate_01.py": "26B08499F9DE1032734F72B57DC045363BB9FF0D62FF622AD111CF8FA741C2BD",
+    "press80_rendition_gate_01.json": "A7A48162B87771142CAA9F345B7EDD0F34A16BF13A176B549D2D2F7C1EED6A9A",
+    "press80_mutations_01.py": "DA013AF894E1949D272049386FF13917A9CB1F740F5F4B5CC7F8CE5C6C49A122",
+    "press80_mutations_01.json": "77ACE959155FD0AFCE83BFA5CB680D371A738916B46D8188A03F57C3738FDD1B",
+    "press80_ab_tests_02.log": "231BAF40CDEDFB6B568D608B7BB95B5A28B3E9E8D0B6D66FBA09EA19261E411B",
+    "press80_ab_tests_01.log": "3047732C7240CE27CCFF2C211F028886ACEBF2D77896FD02394A2938632E7A68",
+    "press79_after_failed_download_manifest_read_01.json": "A388932C59E7EA8C8B3806441639D0A3EA60F9D86EB2FE5AE1F0EC959E357D63",
+    "press79_source_config_01.json": "5D044C0A6CEEB15F8AD3B38C108F1A7B3C35C87DBDCC4FC35777E0496055C65D",
+    "seed_v33.L5X": "0E596EC140BB4FA24B089942A6AE3825ABC7B0898E06AB0D2298252FA5475E7A",
+    "press79.L5X": "3074710A088D56F8EC83056B02F76294ECB3044561934DDF0D95E3C383EBB134",
+    "press78.L5X": "6063EE0B2E15B9E4C162765701D88E24D58340C1D1D83C4B45E469DFC4735168",
+    "press75.L5X": "82AB065C32BCD112D49DD00839B8047C1B5E957A5356FB9D61EF3C1C2F3172A5"
+  },
+  "OwnerGates": [
+    "press80 Capacity Estimate and Verify",
+    "press80 seeded download; gateway documents kept",
+    "record press80 online memory as baseline",
+    "restore and power-cycle acceptance"
+  ]
+}

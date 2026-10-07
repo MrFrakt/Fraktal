@@ -562,6 +562,16 @@ class Chain:
         """
         return len(self.renditions) > 1
 
+    @property
+    def program_hosted(self) -> bool:
+        """True when this chain runs in program routines, not the owner AOI.
+
+        Everything but a single ST rendition: an AOI routine here is ST, so a
+        chain carried only in LD (or SFC) lives in a program routine just as a
+        multi-rendition chain does - without a selector, there is one to run.
+        """
+        return self.renditions != (ST,)
+
 
 # --- the application --------------------------------------------------------
 
@@ -1071,9 +1081,10 @@ def _validate_chain(app: Application, chain: Chain) -> list[str]:
             findings.append(f"{chain.name}: unknown rendition {rendition!r}")
     if len(set(chain.renditions)) != len(chain.renditions):
         findings.append(f"{chain.name}: duplicate renditions {list(chain.renditions)}")
-    if chain.renditions and chain.renditions[0] != ST:
+    if len(chain.renditions) > 1 and chain.renditions[0] != ST:
         # ST is the reference rendition every other one is compared against, so
-        # it is the one that must always exist and be listed first.
+        # where a chain is carried in several languages it is listed first. A
+        # chain carried in one language is compared with the declaration itself.
         findings.append(f"{chain.name}: ST is the reference rendition and comes first")
     return findings
 

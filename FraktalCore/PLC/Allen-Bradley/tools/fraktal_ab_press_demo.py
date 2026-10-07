@@ -420,10 +420,13 @@ def application() -> decl.Application:
         name="AUTO",
         mode_ordinal=MODE_AUTO,
         loops=True,
-        # The AUTO graph is declared once and rendered in all three languages,
-        # the way the TwinCAT press carries its own. MANUAL and HOME stay
-        # single-rendition ST, also as the TwinCAT press keeps them.
-        renditions=(decl.ST, decl.SFC, decl.LD),
+        # The AUTO graph is declared once. It was rendered in ST, SFC and LD
+        # until press79, proving all three on the bench; the owner then asked,
+        # on 2026-10-07, for the ladder alone to fit the controller's memory
+        # (press79 ran out of memory linking). The generator still emits all
+        # three, which the tests keep proving on a variant. MANUAL and HOME
+        # stay single-rendition ST, as the TwinCAT press keeps them.
+        renditions=(decl.LD,),
         comment="the continuous production cycle",
         steps=(
             decl.Step(0, "autoInitialize", decl.MARK,

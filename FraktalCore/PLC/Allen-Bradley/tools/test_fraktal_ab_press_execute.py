@@ -272,6 +272,9 @@ class ParityWriteSurface(unittest.TestCase):
             tags = (list(resolved.values()) if isinstance(resolved, dict)
                     else [resolved])
             for tag in tags:
+                if tag == parity.RENDITION and not parity.AUTO.multi_rendition:
+                    # select() returns before this write: one rendition, no selector.
+                    continue
                 self.assertIn(
                     tag, px.WRITABLE,
                     f"line {call.lineno} writes {tag}, outside the write surface")

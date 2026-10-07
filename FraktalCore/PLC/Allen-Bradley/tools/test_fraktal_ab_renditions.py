@@ -17,6 +17,8 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_press_demo as demo
 import fraktal_ab_rendition_gate as gate
+
+PRESS = demo.application
 from test_fraktal_ab_generate import SEED, emit
 
 
@@ -32,29 +34,56 @@ def _name_tokens(name: str) -> list[str]:
     return tokens
 
 
-def emit_project():
+def every_rendition(app=None):
+    """The press with AUTO carried in ST, SFC and LD.
+
+    The shipped press carries AUTO in ladder only since press80, to fit the
+    controller's memory; the generator keeps all three renditions, proven on
+    the bench through press78, and these tests keep proving them here.
+    """
+    app = app if app is not None else PRESS()
+    return dataclasses.replace(app, chains=tuple(
+        dataclasses.replace(c, renditions=(decl.ST, decl.SFC, decl.LD)) if c.name == "AUTO" else c
+        for c in app.chains))
+
+
+def emit_project(app=None):
     with tempfile.TemporaryDirectory() as directory:
         source = Path(directory) / "seed.L5X"
         source.write_text(SEED, encoding="utf-8")
         output = Path(directory) / "app.L5X"
-        gen.generate(demo.application(), source, output)
+        gen.generate(app if app is not None else every_rendition(), source, output)
         return ET.fromstring(output.read_text(encoding="utf-8"))
 
 
 class DeclarationRenditionTests(unittest.TestCase):
-    def test_auto_is_multi_rendition_and_the_others_are_not(self):
-        app = demo.application()
+    def test_the_press_ships_auto_in_ladder_and_the_others_in_st(self):
+        app = PRESS()
         auto = next(c for c in app.chains if c.name == "AUTO")
-        self.assertTrue(auto.multi_rendition)
-        self.assertEqual(auto.renditions[0], decl.ST)
+        self.assertEqual(auto.renditions, (decl.LD,))
+        self.assertTrue(auto.program_hosted)
+        self.assertFalse(auto.multi_rendition)
         for chain in app.chains:
             if chain.name != "AUTO":
-                self.assertFalse(chain.multi_rendition, chain.name)
+                self.assertFalse(chain.program_hosted, chain.name)
                 self.assertEqual(chain.renditions, (decl.ST,))
+
+    def test_auto_is_multi_rendition_in_the_capability_variant(self):
+        auto = next(c for c in every_rendition().chains if c.name == "AUTO")
+        self.assertTrue(auto.multi_rendition and auto.program_hosted)
+        self.assertEqual(auto.renditions[0], decl.ST)
+
+    def test_a_single_rendition_may_be_any_language(self):
+        """ST is the reference only among several renditions."""
+        app = PRESS()
+        for rendition in decl.RENDITIONS:
+            chains = tuple(dataclasses.replace(c, renditions=(rendition,)) if c.name == "AUTO" else c
+                           for c in app.chains)
+            self.assertEqual(decl.validate(dataclasses.replace(app, chains=chains)), [], rendition)
 
     def test_st_must_be_the_first_rendition(self):
         """ST is the reference every other rendition is compared against."""
-        app = demo.application()
+        app = every_rendition()
         auto = next(c for c in app.chains if c.name == "AUTO")
         broken = dataclasses.replace(auto, renditions=(decl.LD, decl.ST))
         app = dataclasses.replace(
@@ -62,7 +91,7 @@ class DeclarationRenditionTests(unittest.TestCase):
         self.assertTrue(any("reference rendition" in f for f in decl.validate(app)))
 
     def test_an_unknown_rendition_is_refused(self):
-        app = demo.application()
+        app = every_rendition()
         auto = next(c for c in app.chains if c.name == "AUTO")
         broken = dataclasses.replace(auto, renditions=(decl.ST, "FBD"))
         app = dataclasses.replace(
@@ -70,7 +99,7 @@ class DeclarationRenditionTests(unittest.TestCase):
         self.assertTrue(any("unknown rendition" in f for f in decl.validate(app)))
 
     def test_a_duplicate_rendition_is_refused(self):
-        app = demo.application()
+        app = every_rendition()
         auto = next(c for c in app.chains if c.name == "AUTO")
         broken = dataclasses.replace(auto, renditions=(decl.ST, decl.LD, decl.LD))
         app = dataclasses.replace(
@@ -80,7 +109,7 @@ class DeclarationRenditionTests(unittest.TestCase):
 
 class LadderEmissionTests(unittest.TestCase):
     def setUp(self):
-        self.app = demo.application()
+        self.app = every_rendition()
         self.auto = next(c for c in self.app.chains if c.name == "AUTO")
         self.rungs = gen.chain_ld_rungs(self.app, self.auto)
 
@@ -128,7 +157,7 @@ class LadderEmissionTests(unittest.TestCase):
 
 class RenditionGateTests(unittest.TestCase):
     def setUp(self):
-        self.app = demo.application()
+        self.app = every_rendition()
         self.root = emit_project()
 
     def test_every_rendition_equals_the_declaration(self):
@@ -231,7 +260,7 @@ class RenditionGateTests(unittest.TestCase):
 class EmittedRenditionTests(unittest.TestCase):
     def setUp(self):
         self.root = emit_project()
-        self.app = demo.application()
+        self.app = every_rendition()
 
     def test_the_program_carries_one_routine_per_rendition(self):
         names = {r.get("Name"): r.get("Type")
@@ -279,7 +308,7 @@ class SfcEmissionTests(unittest.TestCase):
     """The chart is a real SFC rendering, not an ST chain wearing a chart."""
 
     def setUp(self):
-        self.app = demo.application()
+        self.app = every_rendition()
         self.auto = next(c for c in self.app.chains if c.name == "AUTO")
         self.root = emit_project()
         self.chart = [r for r in self.root.findall(".//Program/Routines/Routine")
@@ -392,7 +421,7 @@ class ParityHarnessTests(unittest.TestCase):
     def setUp(self):
         import fraktal_ab_press_parity as parity
         self.parity = parity
-        self.app = demo.application()
+        self.app = every_rendition()
         self.auto = next(c for c in self.app.chains if c.name == "AUTO")
 
     def test_the_park_step_is_where_the_loop_closes(self):
@@ -423,11 +452,18 @@ class ParityHarnessTests(unittest.TestCase):
                    if any(reads(c) for c in s.conditions)]
         self.assertEqual(readers, [self.parity.PARK_STEP])
 
-    def test_every_rendition_is_walked(self):
-        self.assertEqual(list(self.auto.renditions), list(decl.RENDITIONS))
+    def test_the_harness_walks_the_renditions_the_press_carries(self):
+        self.assertEqual(self.parity.AUTO.renditions, (decl.LD,))
 
-    def test_the_rendition_selector_is_writable_and_ordinals_are_stable(self):
-        self.assertIn(gen.rendition_tag(self.app), self.parity.px.WRITABLE)
+    def test_a_single_rendition_is_never_selected(self):
+        """The shipped press has no selector: select() must not write one."""
+        class Refuse:
+            def Write(self, *_):
+                raise AssertionError("a single rendition has nothing to select")
+        self.assertTrue(self.parity.select(Refuse(), decl.LD))
+        self.assertNotIn(gen.rendition_tag(PRESS()), self.parity.px.WRITABLE)
+
+    def test_rendition_ordinals_are_stable(self):
         self.assertEqual(gen.rendition_ordinal(decl.ST), 0)
         self.assertEqual(
             [gen.rendition_ordinal(r) for r in decl.RENDITIONS], [0, 1, 2])
@@ -435,6 +471,44 @@ class ParityHarnessTests(unittest.TestCase):
     def test_the_entry_vector_covers_every_declared_auto_step(self):
         self.assertEqual(sorted(self.parity.AUTO_INDEXES),
                          sorted(s.number for s in self.auto.steps))
+
+
+class ShippedPressTests(unittest.TestCase):
+    """What press80 actually emits: AUTO in ladder, nothing for ST or SFC."""
+
+    def setUp(self):
+        self.app = PRESS()
+        self.root = emit_project(self.app)
+        self.routines = {r.get("Name"): r for r in self.root.findall(".//Program/Routines/Routine")}
+
+    def test_only_the_ladder_rendition_is_emitted(self):
+        auto = next(c for c in self.app.chains if c.name == "AUTO")
+        ladder = gen.chain_routine_name(self.app, auto, decl.LD)
+        self.assertEqual(self.routines[ladder].get("Type"), "RLL")
+        for gone in (gen.chain_routine_name(self.app, auto, decl.ST),
+                     gen.chain_routine_name(self.app, auto, decl.SFC),
+                     gen.sfc_runner_name(self.app, auto), gen.step_mark_routine_name(self.app)):
+            self.assertNotIn(gone, self.routines)
+        self.assertFalse(any(r.get("Type") == "SFC" for r in self.routines.values()))
+
+    def test_the_ladder_is_called_without_a_selector(self):
+        selector = gen.rendition_tag(self.app)
+        names = {t.get("Name") for t in self.root.findall(".//Tags/Tag")}
+        self.assertNotIn(selector, names)
+        self.assertNotIn(selector, gen.writable_inputs(self.app))
+        body = "\n".join((l.text or "") for l in
+                          self.routines[f"FRK_{self.app.name}_ScanUnit"].findall(".//STContent/Line"))
+        auto = next(c for c in self.app.chains if c.name == "AUTO")
+        self.assertIn(f"JSR({gen.chain_routine_name(self.app, auto, decl.LD)}, 0);", body)
+        self.assertNotIn(selector, body)
+
+    def test_the_ladder_still_equals_the_declaration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "app.L5X"
+            path.write_bytes(ET.tostring(self.root))
+            report = gate.compare(self.app, path)
+        self.assertTrue(report["Equal"], report["Findings"])
+        self.assertIn("AUTO", report["Chains"])
 
 
 class PublishedContractTests(unittest.TestCase):
@@ -446,7 +520,7 @@ class PublishedContractTests(unittest.TestCase):
     """
 
     def setUp(self):
-        self.app = demo.application()
+        self.app = every_rendition()
         self.selector = gen.rendition_tag(self.app)
 
     def test_the_rendition_selector_is_harness_only(self):

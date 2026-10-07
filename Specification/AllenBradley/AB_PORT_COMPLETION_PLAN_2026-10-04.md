@@ -72,13 +72,18 @@ mirror/shared-root transport remains unbound. This is not full port closure.
 Handover items 1b and 1c run beside the stages below and are now implemented
 offline: the declaration picks the medium (`ConfigMedium`, file medium only), and
 the press keeps live station/line/model documents that the gateway re-applies
-after a download through the staged set path (Part III AB §3.8b). Prepared
-press79 adds 3,132 ST source bytes and no data to press78. Before any further
-controller growth: the owner states which V3 artifact is loaded and records
-press78's and press79's Capacity Estimates; press79's first download is seeded;
-then download and power-cycle acceptance of the restore run per the
-[offline record](Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md) and the
-[retention check plan](AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md).
+after a download through the staged set path (Part III AB §3.8b). Press79
+(+3,132 ST source bytes over press78) ran out of controller memory while linking
+([failure](Evidence/AB_PRESS79_NATIVE_LINK_MEMORY_FAILURE_2026-10-07.md)); the
+bench now scans no program. At the owner's instruction press80 carries AUTO in
+ladder only, 37,343 ST source bytes and 558 statements below press78
+([record](Evidence/AB_PRESS80_LADDER_ONLY_AUTO_OFFLINE_2026-10-07.md)). Next: the
+owner's press80 Capacity Estimate and Verify, its seeded download (the first
+live-document image), then download and power-cycle acceptance of the restore per
+the [offline record](Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md) and
+the [retention check plan](AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md). Record
+press80's Capacity as the new memory baseline once its download completes;
+press75 remains the last measured one until then.
 
 ## Implementation order after acceptance
 

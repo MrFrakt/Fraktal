@@ -1859,10 +1859,10 @@ def unit_logic(app: decl.Application) -> tuple[str, ...]:
         "IF Ctx.Running <> 0 THEN",
     ]
     for chain in app.chains:
-        if chain.multi_rendition:
-            # Hosted in program routines instead: an AOI cannot contain an SFC
-            # routine, so a chain carried in three languages cannot live here.
-            # The owner still owns the latches and the ordering check for it.
+        if chain.program_hosted:
+            # Hosted in program routines instead: this AOI's routine is ST, and
+            # an AOI cannot contain an SFC routine. The owner still owns the
+            # latches and the ordering check for it.
             lines.append(f"(* {chain.name}: rendered in "
                          f"{', '.join(chain.renditions)} as program routines *)")
             continue
@@ -2418,7 +2418,13 @@ def rendition_tag(app: decl.Application) -> str:
 
 
 def multi_chains(app: decl.Application):
+    """Chains carried in several languages: the ones a selector chooses among."""
     return [c for c in app.chains if c.multi_rendition]
+
+
+def hosted_chains(app: decl.Application):
+    """Chains that run in program routines (every rendition but a lone ST)."""
+    return [c for c in app.chains if c.program_hosted]
 
 
 def rendition_ordinal(rendition: str) -> int:
@@ -2426,9 +2432,9 @@ def rendition_ordinal(rendition: str) -> int:
 
 
 def chain_routines(app: decl.Application) -> list[str]:
-    """Every rendition of every multi-rendition chain, as program routines."""
+    """Every rendition of every program-hosted chain, as program routines."""
     out: list[str] = []
-    for chain in multi_chains(app):
+    for chain in hosted_chains(app):
         for rendition in chain.renditions:
             name = chain_routine_name(app, chain, rendition)
             if rendition == decl.ST:
@@ -2443,24 +2449,29 @@ def chain_routines(app: decl.Application) -> list[str]:
 
 
 def dispatch_logic(app: decl.Application) -> list[str]:
-    """JSR exactly one rendition of the active multi-rendition chain.
+    """JSR exactly one rendition of the active program-hosted chain.
 
     The owner AOI has already run, so the latches and the ordering check are
     settled before any rendition executes - sequence intent still comes second.
+    A chain carried in one language has nothing to select: it is called.
     """
     lines: list[str] = []
     unit = f"FRK_{app.name}_Unit"
     select = rendition_tag(app)
-    for chain in multi_chains(app):
-        lines.append(f"(* {chain.name}: one rendition runs, chosen by {select} *)")
+    for chain in hosted_chains(app):
+        lines.append(f"(* {chain.name}: one rendition runs, chosen by {select} *)"
+                     if chain.multi_rendition else
+                     f"(* {chain.name}: rendered in {chain.renditions[0]} *)")
         lines.append(f"IF ({unit}.Mode = {chain.mode_ordinal}) "
                      f"AND ({unit}.Running <> 0) THEN")
         for rendition in chain.renditions:
             target = (sfc_runner_name(app, chain) if rendition == decl.SFC
                       else chain_routine_name(app, chain, rendition))
-            lines.append(f"IF {select} = {rendition_ordinal(rendition)} THEN")
+            if chain.multi_rendition:
+                lines.append(f"IF {select} = {rendition_ordinal(rendition)} THEN")
             lines.append(f"JSR({target},0);")
-            lines.append("END_IF;")
+            if chain.multi_rendition:
+                lines.append("END_IF;")
         lines.append("END_IF;")
     return lines
 
@@ -4589,7 +4600,7 @@ def programs(app: decl.Application) -> str:
         + chain_routines(app)
         + [st_program_routine(name, body) for name, body in alarm_service_routines(app)]
         + ([st_program_routine(step_mark_routine_name(app), step_mark_logic(app))]
-           if any(decl.ST in c.renditions or decl.SFC in c.renditions for c in multi_chains(app)) else [])
+           if any(decl.ST in c.renditions or decl.SFC in c.renditions for c in hosted_chains(app)) else [])
         + ([st_program_routine(name, body) for name, body in line.routines(app)]
            if app.line is not None else [])
         + ([st_program_routine(config.audit_routine_name(app), config.audit_logic(app))]

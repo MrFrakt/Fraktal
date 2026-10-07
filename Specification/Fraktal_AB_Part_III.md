@@ -461,6 +461,17 @@ reset and Program→Run edges. Generated Ladder, alternative branches, jumps,
 private sub-chains, and the abort/hold/mode-exit edges still owe their own
 evidence, and none of it may be supplied by hand editing.
 
+**Which renditions a station carries is a declaration choice.** A chain whose only
+rendition is ST stays in its owner AOI. Any other choice — one LD or SFC rendition,
+or several — is hosted in program routines that the owner's scan calls after the
+module AOIs. A rendition selector (harness-only, never published) exists only where
+a chain carries more than one; ST is then the reference and comes first, while a
+single rendition is compared with the declaration itself by the rendition gate.
+Memory is the usual reason to carry one: the press carried AUTO in ST, SFC and LD
+through press79, which proved all three on the bench, and from press80 carries the
+ladder alone, at the owner's request after press79 ran out of controller memory
+while linking. The generator and its tests keep all three renditions.
+
 ### AB §3.8 Configuration, providers, and value-type binding
 *Binds Core §3.8, §3.8b, §3.10.2, §5.6.*
 

@@ -85,6 +85,9 @@ def ack(settle: float) -> float:
 
 
 def select(comm: Any, rendition: str) -> bool:
+    # A chain carried in one language has no selector: that one always runs.
+    if not AUTO.multi_rendition:
+        return True
     return px.write(comm, RENDITION, gen.rendition_ordinal(rendition))
 
 
