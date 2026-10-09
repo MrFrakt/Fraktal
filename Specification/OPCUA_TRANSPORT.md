@@ -21,6 +21,7 @@ transport is specified in `ADS_TRANSPORT_MIGRATION.md`; the summary is below.
 | Windows (remote / non-Beckhoff) | direct OPC UA or the gateway | native `ws`/`wss` client; open62541 through `dart:ffi` |
 | Linux / Android | Fraktal WebSocket gateway | native `ws`/`wss` client; direct C ABI remains source-compatible where packaged |
 | Web | Fraktal WebSocket gateway | browser WebSocket client; the gateway owns the OPC UA session |
+| Gateway → Siemens S7 (Fraktal/TIA) | **S7 Web API** (`s7web://`) | `WebApiSessionClient` over one pinned HTTPS connection; licence-free (Part IV §11.1a) |
 
 Browsers shall never attempt raw OPC UA TCP. Every transport delivers the same
 flat `fraktal.opcua.snapshot.v1` document to `OpcUaSnapshotMapper`, so discovery
@@ -61,10 +62,46 @@ is absent, so the HMI falls back to OPC UA and non-TwinCAT builds are unaffected
   OPC UA excluded tier.
 
 ADS is Beckhoff-specific by design: it is the native fast path, while OPC UA stays
-the portable multi-brand path so a future Siemens/Rockwell PLC integrates by
-pointing the same HMI at `opc.tcp://…`. Reconnect-on-router-loss and
+the portable multi-brand path — a PLC with a licensed OPC UA server integrates by
+pointing the same HMI at `opc.tcp://…`. A Siemens CPU without that licence uses
+the gateway's `s7web://` transport (below); Allen-Bradley uses its CIP gateway. Reconnect-on-router-loss and
 first-snapshot handle batching are tracked as hardening in
 `ADS_TRANSPORT_MIGRATION.md` §11.
+
+## Siemens S7 Web API transport (Fraktal/TIA)
+
+The gateway may connect to a Siemens S7-1500 / S7-1200 (≥ V4.5) CPU with an
+`s7web://<host>[:port]` endpoint. `WebApiSessionClient`
+(`packages/fraktal_opcua_client`) speaks the CPU's own JSON-RPC 2.0 Web API over
+HTTPS and emits the same `fraktal.opcua.snapshot.v1` document, so the mapper,
+manifest and mailbox contracts apply unchanged — no runtime licence is needed,
+unlike the CPU's OPC UA server. Measured on a CPU 1214C V4.7.3
+(`Siemens/Evidence/TIA_S1W_WEBAPI_2026-10-08.md`):
+
+- **Trust** is one pinned server certificate (`--plc-certificate`, PEM or DER),
+  checked on every new connection; system roots are never consulted. The CPU
+  user (UMAC on S7-1200 V4.7) holds only read/write-process-data rights, and
+  members without "Writable from HMI/OPC UA/Web API" refuse writes in the CPU
+  (`205`), so the mailbox remains the single write surface even past the gateway.
+- **Discovery** browses every DB whose top level has a `Status` structure,
+  breadth-first in batched requests, and expands structures and arrays to scalar
+  leaves (the Web API reads leaves only). Paths are spelled as on ADS:
+  `PLC1/<Root>/<Member>/Rows[3]/<Leaf>`; Web API names quote every segment.
+- **Cost** is ≈ 57 ms per request + ≈ 15 ms per leaf; the CPU serves one request
+  at a time across sessions, so requests carry at most `--webapi-batch` leaves
+  (default 20). Slow and excluded tiers behave as on the native clients; a slow
+  path is re-read every 10 s or on `refreshSlowPaths`.
+- **Connection.** An S7-1200 TLS handshake costs ≈ 2.75 s, the CPU closes an idle
+  connection after 1–2 s, and `dart:io` `HttpClient` opened a new connection per
+  request to it. The client therefore keeps ONE persistent TLS connection,
+  serializes requests on it and sends `Api.Ping` before the idle close. A request
+  on a connection the CPU dropped is resent once on a new one — safe, because
+  reads are idempotent and the PLC acts only on a *changed* `Sequence`.
+- **Session.** One `Api.Login`; an expired token (`2`, after 2.5 min idle) is
+  renewed once and the call resent (a refused call applied nothing); `Api.Login`
+  is never sent with the old token (`101`).
+- **Mailbox.** `writeBatch` writes every argument in one request, then the
+  `Sequence` commit alone — only if every argument was accepted.
 
 ## Native ABI
 

@@ -5,6 +5,7 @@ import 'package:fraktal_gateway/fraktal_gateway.dart';
 import 'package:fraktal_opcua_client/ads_session_client.dart';
 import 'package:fraktal_opcua_client/opcua_native_client.dart';
 import 'package:fraktal_opcua_client/opcua_session_client.dart';
+import 'package:fraktal_opcua_client/webapi_session_client.dart';
 
 Future<void> main(List<String> arguments) async {
   _GatewayOptions options;
@@ -29,13 +30,14 @@ Future<void> main(List<String> arguments) async {
   final securityProfileName = _securityProfileName(options.securityProfile);
   final plcScheme = options.plcEndpoint.scheme;
   final isAds = plcScheme == 'ads';
+  final isWebApi = plcScheme == 's7web';
   stdout.writeln('[Fraktal/Gateway] stage=config '
       'instance=${options.instanceName.isEmpty ? '(unnamed)' : options.instanceName} '
       'plcEndpoint=${options.plcEndpoint} '
       'plcTransport=${plcScheme.isEmpty ? "(unknown)" : plcScheme} '
       // On ADS the OPC UA profile is not applied at all; say so explicitly so a
       // leftover --security-profile in gateway.args is not mistaken for active.
-      'securityProfile=${isAds ? "$securityProfileName (ignored: ADS transport)" : securityProfileName} '
+      'securityProfile=${isAds ? "$securityProfileName (ignored: ADS transport)" : isWebApi ? "$securityProfileName (ignored: Web API transport)" : securityProfileName} '
       'listenPort=${options.port} path=${options.path} '
       'webRoot=${options.webRoot.isEmpty ? "(none)" : options.webRoot} '
       'readRoots=${options.readRoots.isEmpty ? "(OPC-authorized)" : options.readRoots.join(",")} '
@@ -63,6 +65,37 @@ Future<void> main(List<String> arguments) async {
       );
       stdout.writeln('[Fraktal/Gateway] stage=connected '
           'transport=ads amsNetId=$amsNetId amsPort=$amsPort');
+    } else if (isWebApi) {
+      // Siemens S7 Web API (Fraktal/TIA Part IV §11.1a): licence-free HTTPS to
+      // the CPU's web server, trusting exactly the pinned server certificate;
+      // the web user's rights in the CPU are the PLC-side write gate.
+      final user = Platform.environment['FRAKTAL_TIA_WEB_USER'] ?? '';
+      final password = Platform.environment['FRAKTAL_TIA_WEB_PASSWORD'] ?? '';
+      if (user.isEmpty || password.isEmpty) {
+        throw const FormatException(
+          'The s7web transport requires FRAKTAL_TIA_WEB_USER and '
+          'FRAKTAL_TIA_WEB_PASSWORD (never on the command line).',
+        );
+      }
+      final host = options.plcEndpoint.host;
+      final port = options.plcEndpoint.hasPort ? options.plcEndpoint.port : 443;
+      stdout.writeln('[Fraktal/Gateway] stage=webapi-connect '
+          'host=$host port=$port user=$user '
+          'pinnedCertificate=${options.plcCertificatePath} '
+          'batch=${options.webApiBatch}');
+      client = await WebApiSessionClient.connect(
+        transport: HttpsWebApiTransport(
+          host: host,
+          port: port,
+          pinnedCertificate: File(options.plcCertificatePath).readAsBytesSync(),
+          timeout: options.connectTimeout * 2,
+        ),
+        user: user,
+        password: password,
+        batchSize: options.webApiBatch,
+      );
+      stdout.writeln('[Fraktal/Gateway] stage=connected '
+          'transport=s7web host=$host port=$port');
     } else {
       final configuredUsername =
           Platform.environment['FRAKTAL_OPCUA_USERNAME'] ?? '';
@@ -180,6 +213,8 @@ class _GatewayOptions {
   final String trustListPath;
   final String revocationListPath;
   final Duration commissioningTtl;
+  final String plcCertificatePath;
+  final int webApiBatch;
   final bool help;
 
   const _GatewayOptions({
@@ -201,6 +236,8 @@ class _GatewayOptions {
     required this.trustListPath,
     required this.revocationListPath,
     required this.commissioningTtl,
+    required this.plcCertificatePath,
+    required this.webApiBatch,
     required this.help,
   });
 
@@ -249,6 +286,8 @@ class _GatewayOptions {
     var trustListPath = '';
     var revocationListPath = '';
     var commissioningTtl = const Duration(hours: 2);
+    var plcCertificatePath = '';
+    var webApiBatch = 20;
     var help = false;
 
     String valueAfter(int index, String option) {
@@ -321,6 +360,12 @@ class _GatewayOptions {
             minutes: int.parse(valueAfter(index, argument)),
           );
           index++;
+        case '--plc-certificate':
+          plcCertificatePath = valueAfter(index, argument);
+          index++;
+        case '--webapi-batch':
+          webApiBatch = int.parse(valueAfter(index, argument));
+          index++;
         default:
           throw FormatException('Unknown option: $argument');
       }
@@ -335,9 +380,24 @@ class _GatewayOptions {
           'ads://5.132.128.188.1.1:851.',
         );
       }
+    } else if (endpoint.scheme == 's7web') {
+      // Siemens S7 Web API: s7web://<host>[:443]. The server certificate is
+      // pinned; there is no "accept any certificate" mode.
+      if (endpoint.host.isEmpty) {
+        throw const FormatException('--plc-endpoint s7web:// needs a host.');
+      }
+      if (plcCertificatePath.isEmpty) {
+        throw const FormatException(
+          's7web:// requires --plc-certificate (the CPU web server certificate '
+          'captured at commissioning, PEM or DER).',
+        );
+      }
+      if (webApiBatch < 1 || webApiBatch > 200) {
+        throw const FormatException('--webapi-batch must be between 1 and 200.');
+      }
     } else if (endpoint.scheme != 'opc.tcp' || endpoint.host.isEmpty) {
       throw const FormatException(
-        '--plc-endpoint must be a complete opc.tcp:// or ads:// URI.',
+        '--plc-endpoint must be a complete opc.tcp://, ads:// or s7web:// URI.',
       );
     }
     if (port < 1 || port > 65535) {
@@ -379,6 +439,8 @@ class _GatewayOptions {
       trustListPath: trustListPath,
       revocationListPath: revocationListPath,
       commissioningTtl: commissioningTtl,
+      plcCertificatePath: plcCertificatePath,
+      webApiBatch: webApiBatch,
       help: help,
     );
   }
@@ -410,11 +472,19 @@ Usage:
   fraktal_gateway [options]
 
 Options:
-  --plc-endpoint URI       PLC endpoint. Two transports:
+  --plc-endpoint URI       PLC endpoint. Three transports:
                              opc.tcp://<host>:4840  (TF6100, default)
                              ads://<AmsNetId>:851   (native TwinCAT; the AMS
                              route is the trust boundary, so the OPC UA security
                              profile/credentials below are ignored)
+                             s7web://<host>[:443]   (Siemens S7 Web API, no
+                             runtime licence; needs --plc-certificate and the
+                             FRAKTAL_TIA_WEB_* variables; OPC UA profile ignored)
+  --plc-certificate PATH   s7web: the CPU web server certificate (PEM or DER)
+                            pinned at commissioning; nothing else is trusted
+  --webapi-batch N         s7web: leaves per Web API request (default 20); the
+                            CPU serves one request at a time, so small batches
+                            keep a mailbox acknowledgement from queueing
   --port PORT              Loopback WebSocket port (default 8080)
   --path PATH              WebSocket path (default /fraktal)
   --instance-name NAME     Label for this gateway when several run on one host,
@@ -447,6 +517,8 @@ Environment:
   FRAKTAL_OPCUA_PRIVATE_KEY_PASSWORD
                             Optional encrypted client-key password
   FRAKTAL_OPCUA_LIBRARY    Absolute native bridge library path (optional)
+  FRAKTAL_TIA_WEB_USER     s7web: the CPU web (UMAC) user
+  FRAKTAL_TIA_WEB_PASSWORD s7web: its password (never CLI)
 
 The gateway listens on 127.0.0.1 only. Local http(s) origins are accepted by
 default. Remote browsers require a same-host TLS/authenticating reverse proxy

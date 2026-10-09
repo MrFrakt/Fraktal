@@ -1,0 +1,162 @@
+// Fraktal/TIA Phase 0 fixture S2 - one Control Module type in the generated
+// frame form (Part IV s.3.1). Regions marked GENERATED are what the generator
+// will emit; DEVICE LOGIC is the only authored part of a real type.
+
+FUNCTION_BLOCK "FB_SpkCylinderCM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Execute { ExternalWritable := 'False'} : Bool;
+      Abort { ExternalWritable := 'False'} : Bool;
+      Command { ExternalWritable := 'False'} : DInt;          // 1 EXTEND, 2 RETRACT
+      IntlkOk { ExternalWritable := 'False'} : Bool := TRUE;  // owner-supplied interlock (Core s.7.2)
+      ParCfg { ExternalWritable := 'False'} : "ST_SpkCylinderParCfg";
+      ParentIndex { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+   END_VAR
+
+   VAR_OUTPUT
+      Busy { ExternalWritable := 'False'} : Bool;
+      Done { ExternalWritable := 'False'} : Bool;
+      Error { ExternalWritable := 'False'} : Bool;
+      Aborted { ExternalWritable := 'False'} : Bool;
+      ErrorID { ExternalWritable := 'False'} : DWord;
+      OutImm { ExternalWritable := 'False'} : "ST_SpkCylinderOutImm";
+   END_VAR
+
+   VAR_IN_OUT
+      Hal : "ST_SpkCylHal";
+   END_VAR
+
+   VAR
+      Status { ExternalWritable := 'False'} : "ST_ModuleStatus";   // static, not an output: the lifecycle reads it back,
+                                                                // and reading an FB output draws 'might not be initialized'
+      Core { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+   END_VAR
+
+   VAR_TEMP
+      instancePath : WString;
+   END_VAR
+
+   VAR CONSTANT
+      MODULE_CM : DInt := 3;
+      EXEC_READY : DInt := 0;
+      CMD_EXTEND : DInt := 1;
+      CMD_RETRACT : DInt := 2;
+      MAX_COMMAND : DInt := 2;
+      R_INTERLOCK_DROPPED : DInt := 2003;
+      R_UNSUPPORTED_COMMAND : DInt := 2008;
+      SEV_MED : DInt := 1;
+      CAT_PROCESS : DInt := 0;
+   END_VAR
+
+
+BEGIN
+	// ---- GENERATED: identity (once) ---------------------------------------
+	IF NOT #Core.Named THEN
+	    #instancePath := GetInstancePath(SIZE := 0);
+	    "FRK_SetIdentity"(InstancePath := #instancePath, ModuleType := #MODULE_CM,
+	                      ParentIndex := #ParentIndex, Core := #Core, Status := #Status);
+	    #Core.ModuleType := #MODULE_CM;
+	END_IF;
+
+	// Derived state, unconditionally every scan (Core s.3.12) - never latched.
+	#OutImm.Extended := #Hal.Extended AND NOT #Hal.Retracted;
+	#OutImm.Retracted := #Hal.Retracted AND NOT #Hal.Extended;
+
+	// ---- GENERATED: quiescent fast path (Part IV s.3.14, S3) ----------------
+	// An initialised, READY module with Execute/Abort low and no edge, hold or
+	// one-shot pending would leave the lifecycle exactly as it is, so the frame
+	// skips it: on a 1214C the lifecycle costs ~0.16 ms per idle module per scan
+	// (measured). Outputs, Status and the registry row already hold READY.
+	IF NOT (#Core.Initialized AND #Core.Exec = #EXEC_READY AND NOT #Execute AND NOT #Abort
+	        AND NOT #Core.ExecPrev AND NOT #Core.AbortPrev AND #Core.HoldReason = 0 AND NOT #Core.EvInit) THEN
+
+	// ---- GENERATED: lifecycle begin ---------------------------------------
+	"FRK_Begin"(Execute := #Execute, Abort := #Abort, Command := #Command, MaxCommand := #MAX_COMMAND,
+	            Core := #Core, Status := #Status);
+
+	// ---- GENERATED hook frame / AUTHORED reactions -------------------------
+	IF #Core.EvCommandStart THEN
+	    #Core.TimeoutMs := #ParCfg.MoveTimeoutMs;
+	END_IF;
+	IF #Core.EvAbort OR #Core.EvAbortInError THEN
+	    // Safe reaction: withdraw both coils; nothing resumes by itself (T4).
+	    #Hal.Extend := FALSE;
+	    #Hal.Retract := FALSE;
+	END_IF;
+
+	// ---- DEVICE LOGIC (authored) -------------------------------------------
+	IF #Core.Dispatch THEN
+	    IF NOT #IntlkOk THEN
+	        // HELD, as the TC3 reference cylinder: an interlock is a condition that must
+	        // hold DURING motion, and losing it is often expected (a released two-hand
+	        // button). Same permit, outputs off; rewind so the resume re-drives the coil.
+	        #Hal.Extend := FALSE;
+	        #Hal.Retract := FALSE;
+	        "FRK_Hold"(ReasonCode := #R_INTERLOCK_DROPPED, Description := 'std.interlock.areaSafe',
+	                   Core := #Core, Status := #Status);
+	        #Core.Step := 0;
+	    ELSE
+	        CASE #Core.Step OF
+	            0:  // drive the valve
+	                #Hal.Extend := #Core.Command = #CMD_EXTEND;
+	                #Hal.Retract := #Core.Command = #CMD_RETRACT;
+	                #Core.Step := 10;
+	            10: // await the end position
+	                IF (#Core.Command = #CMD_EXTEND AND #Hal.Extended)
+	                    OR (#Core.Command = #CMD_RETRACT AND #Hal.Retracted) THEN
+	                    "FRK_Complete"(Core := #Core);
+	                END_IF;
+	            ELSE
+	                "FRK_Fault"(ReasonCode := #R_UNSUPPORTED_COMMAND, Description := 'std.reason.unsupportedCommand',
+	                            Severity := #SEV_MED, Category := #CAT_PROCESS, Core := #Core, Status := #Status);
+	        END_CASE;
+	    END_IF;
+	END_IF;
+
+	// ---- GENERATED: lifecycle end -----------------------------------------
+	"FRK_End"(Core := #Core, Status := #Status, Busy => #Busy, Done => #Done, Error => #Error,
+	          Aborted => #Aborted, ErrorID => #ErrorID);
+	END_IF;
+END_FUNCTION_BLOCK
+
+// Sim plant (Core s.5.7 "small sim plant model"): travel time, optional feedback
+// withholding driven by the test harness - never part of the CM type itself.
+FUNCTION_BLOCK "FB_SpkCylinderSim"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      TravelMs : UDInt := 300;
+      Block : Bool;                // withhold the end-position feedback
+   END_VAR
+
+   VAR_IN_OUT
+      Hal : "ST_SpkCylHal";
+   END_VAR
+
+   VAR
+      Position : Real;             // 0.0 retracted .. 1.0 extended
+      LastMs : UDInt;
+      Started : Bool;
+   END_VAR
+
+   VAR_TEMP
+      deltaRel : Real;           // "dt" is reserved (the DT type)
+   END_VAR
+
+
+BEGIN
+	IF NOT #Started THEN
+	    #Started := TRUE;
+	    #LastMs := "FRK_Clock".NowMs;
+	END_IF;
+	#deltaRel := UDINT_TO_REAL("FRK_Clock".NowMs - #LastMs) / UDINT_TO_REAL(MAX(IN1 := #TravelMs, IN2 := 1));
+	#LastMs := "FRK_Clock".NowMs;
+	IF #Hal.Extend AND NOT #Hal.Retract THEN
+	    #Position := MIN(IN1 := #Position + #deltaRel, IN2 := 1.0);
+	ELSIF #Hal.Retract AND NOT #Hal.Extend THEN
+	    #Position := MAX(IN1 := #Position - #deltaRel, IN2 := 0.0);
+	END_IF;
+	#Hal.Extended := #Position >= 1.0 AND NOT #Block;
+	#Hal.Retracted := #Position <= 0.0 AND NOT #Block;
+END_FUNCTION_BLOCK

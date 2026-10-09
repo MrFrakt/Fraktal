@@ -1,0 +1,17 @@
+{"t":"2026-10-08T06:24:18.9927913Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-08T06:24:18.9948788Z","event":"step","command":"open-project","args":"--path C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T06:24:26.5762115Z","event":"project-opened","path":"C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T06:24:26.5762115Z","event":"step","command":"service-get","args":"--plc PLC_1 --service OnlineProvider --path Configuration"}
+{"t":"2026-10-08T06:24:28.3659916Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"Modes","value":"Siemens.Engineering.Connection.ConfigurationModeComposition","writable":false,"options":null}
+{"t":"2026-10-08T06:24:28.3659916Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"Parent","value":"Siemens.Engineering.Online.OnlineProvider","writable":false,"options":null}
+{"t":"2026-10-08T06:24:28.3812094Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"EnableLegacyCommunication","value":false,"writable":true,"options":null}
+{"t":"2026-10-08T06:24:31.0641546Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"IsConfigured","value":true,"writable":false,"options":null}
+{"t":"2026-10-08T06:24:31.0641546Z","event":"step","command":"online-state","args":"--plc PLC_1 --pc-interface Intel(R) 82574L Gigabit Network Connection --pc-number 2 --target 1 X1 --legacy true"}
+{"t":"2026-10-08T06:24:31.1284416Z","event":"connection","legacy":true,"configured":true}
+{"t":"2026-10-08T06:24:32.6744954Z","event":"step-exception","command":"online-state","message":"EngineeringTargetInvocationException: Error when calling method 'GoOnline' of type 'Siemens.Engineering.Online.OnlineProvider'.\r\n\r\nChanging to online mode failed. | Changing to online mode failed."}
+{"t":"2026-10-08T06:24:32.6744954Z","event":"step-failed","command":"online-state","rc":10,"continue":true}
+{"t":"2026-10-08T06:24:32.6744954Z","event":"step","command":"online-state","args":"--plc PLC_1 --pc-interface Intel(R) 82574L Gigabit Network Connection --pc-number 2 --target 1 X1 --legacy false"}
+{"t":"2026-10-08T06:24:32.7061823Z","event":"connection","legacy":false,"configured":true}
+{"t":"2026-10-08T06:24:32.7424151Z","event":"step-exception","command":"online-state","message":"EngineeringTargetInvocationException: Error when calling method 'ApplyConfiguration' of type 'Siemens.Engineering.Connection.ConnectionConfiguration'.\r\n\r\nThe operation is not permitted in online mode. | The operation is not permitted in online mode."}
+{"t":"2026-10-08T06:24:32.7424151Z","event":"step-failed","command":"online-state","rc":10,"continue":true}
+{"t":"2026-10-08T06:24:32.7424151Z","event":"plan-complete","steps":4,"tolerated-failures":2}

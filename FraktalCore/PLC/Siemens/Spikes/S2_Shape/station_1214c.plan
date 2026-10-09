@@ -1,0 +1,24 @@
+# ONE-TIME: create the bench's station project (hardware + security), Part IV s.2.5.
+#
+# A TIA project is not a pure build output: it holds the PLC communication
+# certificate (and the master secret, when one is set) that the CPU receives on
+# download. A V4.7 / V3.1+ CPU then accepts secure PG/PC communication only from
+# a project that holds that certificate, so recreating the project per build
+# locks the next download out (measured 2026-10-08). Create the station project
+# once per target; build_1214c.plan re-imports the program into it every build.
+#
+#   Fraktal.Tia.Cli plan station_1214c.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations
+#
+create-project --dir ${work} --name FrkSpikeS2
+add-device --order "OrderNumber:6ES7 214-1AG40-0XB0/V4.7" --name PLC_1 --station S71200_Bench
+set-ip --plc PLC_1 --ip 192.168.0.10 --mask 255.255.255.0
+#
+# BENCH-ONLY security posture (Part IV s.14 records it; never a deployed default):
+#  - TIA V20 refuses to compile an S7-1200 V4.7 left with "confidential PLC
+#    configuration data" protection enabled but no password: switched off here;
+#  - user management (UMAC) needs a user with the Full-access runtime right:
+#    the bench uses classic access levels with full access instead.
+master-secret --plc PLC_1 --mode none
+service-set --plc PLC_1 --service PlcAccessControlConfigurationProvider --prop PlcAccessControlConfiguration --value Disabled
+? compile --plc PLC_1 --hw
+save

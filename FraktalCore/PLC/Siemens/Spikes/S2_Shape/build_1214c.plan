@@ -1,0 +1,15 @@
+# S15/S2 - rebuild the S2 program in the bench's station project (Part IV s.5.4).
+# Run station_1214c.plan once first. Nothing here touches the controller.
+#
+#   Fraktal.Tia.Cli plan build_1214c.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations --set src=<this dir>
+#
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+# the program is regenerated from source every build; hardware and certificates stay
+delete-blocks --plc PLC_1
+# '?' = record failure and continue, so compile reports every error in one run
+? import-sources --plc PLC_1 --dir ${src} --keep-on-error
+? compile --plc PLC_1
+? compile --plc PLC_1 --hw
+list-blocks --plc PLC_1
+save
+? export --plc PLC_1 --out ${work}\FrkSpikeS2_export --scl

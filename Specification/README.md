@@ -14,6 +14,7 @@ satisfy without first filtering out fifty working documents.
 | [`Fraktal_Core_Part_I.md`](Fraktal_Core_Part_I.md) | **Part I** — the platform-neutral normative core (§1–14). Every `shall` starts here. |
 | [`Fraktal_TC3_Part_II.md`](Fraktal_TC3_Part_II.md) | **Part II** — the TwinCAT 3 binding. Every clause binds a Core clause and cites it. |
 | [`Fraktal_AB_Part_III.md`](Fraktal_AB_Part_III.md) | **Part III** — the Allen-Bradley Logix binding (draft; Phase 0). |
+| [`Fraktal_TIA_Part_IV.md`](Fraktal_TIA_Part_IV.md) | **Part IV** — the Siemens TIA Portal (S7-1500 / S7-1200) binding (draft; Phase 0, spike-ready). |
 | [`HMI_CONTRACT.md`](HMI_CONTRACT.md) | The symbol → widget bind table the generic HMI implements. |
 | [`OPCUA_TRANSPORT.md`](OPCUA_TRANSPORT.md) | The OPC UA transport, config manifest and read tiers. |
 | [`SAFETY_AND_CONTROL_POWER_PROFILE.md`](SAFETY_AND_CONTROL_POWER_PROFILE.md) | The §9.8 profile a station with Control On/off or power groups **shall** implement. |
@@ -33,6 +34,7 @@ belongs below.
 | [`Reports/`](Reports/) | Audits, status, plans and one-off analyses: objectives audit and its review, the automation/AI review, the implementation roadmap, the ADS migration, and the press-bench records. | Describes what **is** or what was **decided**, never what **shall** be. |
 | [`Evidence/`](Evidence/) | Dated TwinCAT runtime evidence — logs, JUnit, SHA-256s. | Append-only. Never edit a past record to match the present. |
 | [`AllenBradley/`](AllenBradley/) | The Fraktal/AB working set: port plan, implementation plan, handover prompts, engineering runbooks, the frozen contracts, and `Evidence/` for the R- and S-gate spikes. | Part III itself stays at the root; everything used to *produce* it lives here. |
+| [`Siemens/`](Siemens/) | The Fraktal/TIA working set: the port plan and `Evidence/` for the R- and S-gate spikes. | Part IV itself stays at the root; everything used to *produce* it lives here. |
 
 Two conventions worth knowing before you edit anything here:
 

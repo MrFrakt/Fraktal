@@ -1,0 +1,307 @@
+// Fraktal/TIA Phase 0 fixture S2 - self-test harness (Part IV s.5.7 prototype).
+// Runs once after start-up, drives the modules through their real surfaces
+// (inputs, mailbox, sim plant), and writes one row per assertion to the
+// non-optimized "SpkResults" DB that the host harvests.
+//
+// Case ids (expected value / actual value recorded per row):
+//   1 T1  CylA EXTEND completes (Done)            9  identity: Status.Name = 'SpikeUnit.CylA'
+//   2 T1  idle after Execute drops                10 registry: 3 rows, children parented to the Unit
+//   3 T4  Abort mid-move: Aborted, coils off      11 mailbox SET_MODE AUTO acknowledged
+//   4 T4  no self-resume after Abort/Execute drop 12 mailbox START -> Unit BUSY
+//   5 T2  feedback withheld -> ErrorID 2001       13 S11 chain trace 0,100,110,120,100,110
+//   6 T2  SourcePath = 'SpikeUnit.CylB'           14 STOP -> Unit READY, child commands released
+//   7     Execute drop clears ERROR + first-out   15 T6 Unit adopts CylA first-out verbatim
+//   8 T3  interlock open -> HELD: BUSY, coils off, 16 OPERATOR_RESET -> Unit and CylA READY
+//         reason 2003 at LOW, no fault            17 T3  interlock restored -> resumes to DONE
+
+FUNCTION "FRK_TestRecord" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      CaseId : Int;
+      Pass : Bool;
+      Expected : DInt;
+      Actual : DInt;
+   END_VAR
+
+   VAR_TEMP
+      n : Int;
+   END_VAR
+
+
+BEGIN
+	IF "SpkResults".T.RowCount < 32 THEN
+	    #n := "SpkResults".T.RowCount + 1;
+	    "SpkResults".T.RowCount := #n;
+	    "SpkResults".T.Rows[#n].CaseId := #CaseId;
+	    "SpkResults".T.Rows[#n].Pass := #Pass;
+	    "SpkResults".T.Rows[#n].Expected := #Expected;
+	    "SpkResults".T.Rows[#n].Actual := #Actual;
+	    IF #Pass THEN
+	        "SpkResults".T.Passed := "SpkResults".T.Passed + 1;
+	    ELSE
+	        "SpkResults".T.Failed := "SpkResults".T.Failed + 1;
+	    END_IF;
+	END_IF;
+END_FUNCTION
+
+FUNCTION_BLOCK "FB_SpkHarness"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR
+      State : Int;
+      T0 : UDInt;
+      MbSeq : UDInt := 1000;
+      TraceOk : Bool;
+   END_VAR
+
+   VAR_TEMP
+      el : UDInt;
+   END_VAR
+
+
+BEGIN
+	IF "FRK_Clock".FirstScan THEN
+	    #State := 0;
+	    #T0 := "FRK_Clock".NowMs;
+	END_IF;
+	#el := "FRK_Clock".NowMs - #T0;
+
+	CASE #State OF
+	    0:  // settle, then reset the result table
+	        IF #el > 2000 THEN
+	            "SpkResults".T.Magic := 16#46524B31;       // 'FRK1'
+	            "SpkResults".T.Done := FALSE;
+	            "SpkResults".T.Passed := 0;
+	            "SpkResults".T.Failed := 0;
+	            "SpkResults".T.RowCount := 0;
+	            #State := 10;
+	        END_IF;
+
+	    10: // T1: CylA EXTEND
+	        "SpikeUnit".CylA.Command := 1;
+	        "SpikeUnit".CylA.Execute := TRUE;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 11;
+	    11:
+	        IF "SpikeUnit".CylA.Done THEN
+	            "FRK_TestRecord"(CaseId := 1, Pass := TRUE, Expected := 2, Actual := "SpikeUnit".CylA.Status.State);
+	            "SpikeUnit".CylA.Execute := FALSE;
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 12;
+	        ELSIF #el > 3000 THEN
+	            "FRK_TestRecord"(CaseId := 1, Pass := FALSE, Expected := 2, Actual := "SpikeUnit".CylA.Status.State);
+	            "SpikeUnit".CylA.Execute := FALSE;
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 12;
+	        END_IF;
+	    12:
+	        IF #el > 200 THEN
+	            "FRK_TestRecord"(CaseId := 2, Pass := "SpikeUnit".CylA.Status.State = 0 AND NOT "SpikeUnit".CylA.Done,
+	                             Expected := 0, Actual := "SpikeUnit".CylA.Status.State);
+	            #State := 20;
+	        END_IF;
+
+	    20: // T4: RETRACT, abort mid-move
+	        "SpikeUnit".CylA.Command := 2;
+	        "SpikeUnit".CylA.Execute := TRUE;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 21;
+	    21:
+	        IF #el > 100 THEN
+	            "SpikeUnit".CylA.Abort := TRUE;
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 22;
+	        END_IF;
+	    22:
+	        IF #el > 200 THEN
+	            "FRK_TestRecord"(CaseId := 3,
+	                             Pass := "SpikeUnit".CylA.Aborted AND NOT "SpkHal".Unit.CylA.Retract AND NOT "SpkHal".Unit.CylA.Extend,
+	                             Expected := 4, Actual := "SpikeUnit".CylA.Status.State);
+	            "SpikeUnit".CylA.Abort := FALSE;
+	            "SpikeUnit".CylA.Execute := FALSE;
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 23;
+	        END_IF;
+	    23:
+	        IF #el > 500 THEN
+	            "FRK_TestRecord"(CaseId := 4,
+	                             Pass := "SpikeUnit".CylA.Status.State = 0 AND NOT "SpkHal".Unit.CylA.Retract AND NOT "SpkHal".Unit.CylA.Extend,
+	                             Expected := 0, Actual := "SpikeUnit".CylA.Status.State);
+	            #State := 30;
+	        END_IF;
+
+	    30: // T2: withhold CylB feedback -> TIMEOUT first-out
+	        "SpkHal".BlockB := TRUE;
+	        "SpikeUnit".CylB.Command := 1;
+	        "SpikeUnit".CylB.Execute := TRUE;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 31;
+	    31:
+	        IF "SpikeUnit".CylB.Error THEN
+	            "FRK_TestRecord"(CaseId := 5, Pass := DWORD_TO_DINT("SpikeUnit".CylB.ErrorID) = 2001,
+	                             Expected := 2001, Actual := DWORD_TO_DINT("SpikeUnit".CylB.ErrorID));
+	            "FRK_TestRecord"(CaseId := 6, Pass := "SpikeUnit".CylB.Status.Diagnostic.SourcePath = 'SpikeUnit.CylB',
+	                             Expected := 0, Actual := LEN("SpikeUnit".CylB.Status.Diagnostic.SourcePath));
+	            #State := 32;
+	        ELSIF #el > 4000 THEN
+	            "FRK_TestRecord"(CaseId := 5, Pass := FALSE, Expected := 2001, Actual := "SpikeUnit".CylB.Status.State);
+	            #State := 32;
+	        END_IF;
+	    32:
+	        "SpkHal".BlockB := FALSE;
+	        "SpikeUnit".CylB.Execute := FALSE;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 33;
+	    33:
+	        IF #el > 200 THEN
+	            "FRK_TestRecord"(CaseId := 7,
+	                             Pass := "SpikeUnit".CylB.Status.State = 0 AND "SpikeUnit".CylB.Status.Diagnostic.ReasonCode = 0,
+	                             Expected := 0, Actual := "SpikeUnit".CylB.Status.Diagnostic.ReasonCode);
+	            #State := 40;
+	        END_IF;
+
+	    40: // T3: interlock open while commanded -> HELD (Core s.6.1), not a fault
+	        "SpikeUnit".CylB.IntlkOk := FALSE;
+	        "SpikeUnit".CylB.Command := 2;              // RETRACT: the resume must really move
+	        "SpikeUnit".CylB.Execute := TRUE;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 41;
+	    41:
+	        IF #el > 300 THEN
+	            "FRK_TestRecord"(CaseId := 8,
+	                             Pass := "SpikeUnit".CylB.Busy AND NOT "SpikeUnit".CylB.Error
+	                                     AND NOT "SpkHal".Unit.CylB.Extend AND NOT "SpkHal".Unit.CylB.Retract
+	                                     AND "SpikeUnit".CylB.Status.Diagnostic.ReasonCode = 2003
+	                                     AND "SpikeUnit".CylB.Status.Diagnostic.Severity = 0,
+	                             Expected := 2003, Actual := "SpikeUnit".CylB.Status.Diagnostic.ReasonCode);
+	            "SpikeUnit".CylB.IntlkOk := TRUE;     // condition restored: no operator action
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 42;
+	        END_IF;
+	    42:
+	        IF "SpikeUnit".CylB.Done THEN
+	            "FRK_TestRecord"(CaseId := 17,
+	                             Pass := "SpikeUnit".CylB.Status.Diagnostic.ReasonCode = 0 AND "SpikeUnit".CylB.OutImm.Retracted,
+	                             Expected := 2, Actual := "SpikeUnit".CylB.Status.State);
+	            "SpikeUnit".CylB.Execute := FALSE;
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 50;
+	        ELSIF #el > 3000 THEN
+	            "FRK_TestRecord"(CaseId := 17, Pass := FALSE, Expected := 2, Actual := "SpikeUnit".CylB.Status.State);
+	            "SpikeUnit".CylB.Execute := FALSE;
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 50;
+	        END_IF;
+
+	    50: // identity and registry
+	        IF #el > 200 THEN
+	            "FRK_TestRecord"(CaseId := 9, Pass := "SpikeUnit".CylA.Status.Name = 'SpikeUnit.CylA',
+	                             Expected := 14, Actual := LEN("SpikeUnit".CylA.Status.Name));
+	            "FRK_TestRecord"(CaseId := 10,
+	                             Pass := "FRK_Registry".Count = 3 AND NOT "FRK_Registry".Overflow
+	                                     AND "FRK_Registry".Rows[2].Parent = 1 AND "FRK_Registry".Rows[3].Parent = 1,
+	                             Expected := 3, Actual := "FRK_Registry".Count);
+	            #State := 60;
+	        END_IF;
+
+	    60: // mailbox SET_MODE AUTO (arguments first, Sequence last)
+	        "SpikeUnit".HmiRequest.Kind := 3;
+	        "SpikeUnit".HmiRequest.IntValue := 0;
+	        #MbSeq := #MbSeq + 1;
+	        "SpikeUnit".HmiRequest.Sequence := #MbSeq;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 61;
+	    61:
+	        IF "SpikeUnit".HmiResponse.AckSequence = #MbSeq THEN
+	            "FRK_TestRecord"(CaseId := 11, Pass := "SpikeUnit".HmiResponse.Accepted AND "SpikeUnit".Mode = 0,
+	                             Expected := 0, Actual := "SpikeUnit".Mode);
+	            #State := 62;
+	        ELSIF #el > 1000 THEN
+	            "FRK_TestRecord"(CaseId := 11, Pass := FALSE, Expected := 0, Actual := -1);
+	            #State := 62;
+	        END_IF;
+	    62: // START
+	        "SpikeUnit".HmiRequest.Kind := 5;
+	        #MbSeq := #MbSeq + 1;
+	        "SpikeUnit".HmiRequest.Sequence := #MbSeq;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 63;
+	    63:
+	        IF "SpikeUnit".HmiResponse.AckSequence = #MbSeq AND #el > 50 THEN
+	            "FRK_TestRecord"(CaseId := 12, Pass := "SpikeUnit".HmiResponse.Accepted AND "SpikeUnit".Busy,
+	                             Expected := 1, Actual := "SpikeUnit".Status.State);
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 64;
+	        ELSIF #el > 1000 THEN
+	            "FRK_TestRecord"(CaseId := 12, Pass := FALSE, Expected := 1, Actual := "SpikeUnit".Status.State);
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 64;
+	        END_IF;
+	    64: // S11: let the chain run until six steps are recorded
+	        IF "SpikeUnit".Seq.TraceCount >= 6 OR #el > 8000 THEN
+	            #TraceOk := "SpikeUnit".Seq.TraceCount >= 6
+	                AND "SpikeUnit".Seq.Trace[0] = 0 AND "SpikeUnit".Seq.Trace[1] = 100
+	                AND "SpikeUnit".Seq.Trace[2] = 110 AND "SpikeUnit".Seq.Trace[3] = 120
+	                AND "SpikeUnit".Seq.Trace[4] = 100 AND "SpikeUnit".Seq.Trace[5] = 110;
+	            "FRK_TestRecord"(CaseId := 13, Pass := #TraceOk, Expected := 6, Actual := "SpikeUnit".Seq.TraceCount);
+	            #State := 65;
+	        END_IF;
+	    65: // STOP
+	        "SpikeUnit".HmiRequest.Kind := 6;
+	        #MbSeq := #MbSeq + 1;
+	        "SpikeUnit".HmiRequest.Sequence := #MbSeq;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 66;
+	    66:
+	        IF #el > 300 THEN
+	            "FRK_TestRecord"(CaseId := 14,
+	                             Pass := "SpikeUnit".HmiResponse.AckSequence = #MbSeq AND "SpikeUnit".Status.State = 0
+	                                     AND NOT "SpikeUnit".CylA.Execute AND NOT "SpikeUnit".CylB.Execute,
+	                             Expected := 0, Actual := "SpikeUnit".Status.State);
+	            #State := 70;
+	        END_IF;
+
+	    70: // T6: withhold CylA feedback while AUTO runs -> Unit adopts CylA's first-out
+	        "SpkHal".BlockA := TRUE;
+	        "SpikeUnit".HmiRequest.Kind := 5;
+	        #MbSeq := #MbSeq + 1;
+	        "SpikeUnit".HmiRequest.Sequence := #MbSeq;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 71;
+	    71:
+	        IF "SpikeUnit".Error THEN
+	            "FRK_TestRecord"(CaseId := 15,
+	                             Pass := "SpikeUnit".Status.Diagnostic.SourcePath = 'SpikeUnit.CylA'
+	                                     AND DWORD_TO_DINT("SpikeUnit".ErrorID) = 2001,
+	                             Expected := 2001, Actual := DWORD_TO_DINT("SpikeUnit".ErrorID));
+	            #State := 72;
+	        ELSIF #el > 8000 THEN
+	            "FRK_TestRecord"(CaseId := 15, Pass := FALSE, Expected := 2001, Actual := "SpikeUnit".Status.State);
+	            #State := 72;
+	        END_IF;
+	    72: // OPERATOR_RESET
+	        "SpkHal".BlockA := FALSE;
+	        "SpikeUnit".HmiRequest.Kind := 9;
+	        #MbSeq := #MbSeq + 1;
+	        "SpikeUnit".HmiRequest.Sequence := #MbSeq;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 73;
+	    73:
+	        IF #el > 300 THEN
+	            "FRK_TestRecord"(CaseId := 16,
+	                             Pass := "SpikeUnit".HmiResponse.Accepted AND "SpikeUnit".Status.State = 0
+	                                     AND "SpikeUnit".CylA.Status.State = 0,
+	                             Expected := 0, Actual := "SpikeUnit".Status.State);
+	            #State := 80;
+	        END_IF;
+
+	    80:
+	        "SpkResults".T.Done := TRUE;
+	        #State := 99;
+	    99:
+	        ;
+	    ELSE
+	        #State := 99;
+	END_CASE;
+END_FUNCTION_BLOCK

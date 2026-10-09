@@ -11,7 +11,7 @@ static server. Flutter Web, Windows, Linux, and Android clients can use the same
 HMI and standard-PLC requests remain untrusted; only TwinSAFE/certified safety
 logic may grant safe motion, reset, unlock, muting, bridging, or safe outputs.
 
-**PLC transport.** `--plc-endpoint` selects one of two transports (both emit the
+**PLC transport.** `--plc-endpoint` selects one of three transports (all emit the
 same gateway protocol to browsers, so the Web HMI is identical either way):
 
 - `opc.tcp://<host>:4840` — TF6100 / multi-brand OPC UA, governed by the security
@@ -21,6 +21,17 @@ same gateway protocol to browsers, so the Web HMI is identical either way):
   by the installer when built with the TwinCAT ADS SDK) and an AMS route to the
   target. The **AMS route is the trust boundary**, so the OPC UA security profile,
   certificates, and `FRAKTAL_OPCUA_USERNAME`/`PASSWORD` **do not apply** to ADS.
+- `s7web://<host>[:443]` — Siemens S7 **Web API** (JSON-RPC over HTTPS), the
+  licence-free Fraktal/TIA path (Part IV §11.1a). Requires `--plc-certificate
+  <file>`: the CPU's web server certificate (PEM or DER) captured once at
+  commissioning — the gateway trusts exactly that certificate, never system roots
+  or "accept any". Credentials come from `FRAKTAL_TIA_WEB_USER` /
+  `FRAKTAL_TIA_WEB_PASSWORD` only; the user's rights in the CPU (read/write process
+  data, nothing else) are the PLC-side write gate. `--webapi-batch` (default 20)
+  bounds leaves per request: the CPU serves one request at a time, so small batches
+  keep a mailbox acknowledgement from queueing behind a snapshot. The OPC UA
+  security profile does not apply. One gateway holds ONE persistent TLS connection
+  per CPU (an S7-1200 handshake costs ≈ 2.75 s) and keeps it warm.
 
 For the complete Windows installer and Linux systemd walkthrough, acceptance
 evidence, upgrades, and remote-browser topology, see

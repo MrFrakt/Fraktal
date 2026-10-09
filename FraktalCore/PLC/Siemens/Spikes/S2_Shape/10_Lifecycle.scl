@@ -1,0 +1,365 @@
+// Fraktal/TIA Phase 0 fixture S2 - the lifecycle, written ONCE (Core s.2.2,
+// Part IV s.3.1/s.3.14). Every module FB calls FRK_Begin first and FRK_End last;
+// device logic sits between them and only requests completion/fault.
+
+FUNCTION "FRK_ClockTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP
+      deltaS : LReal;
+      cycleMs : Real;
+   END_VAR
+
+
+BEGIN
+	// Part IV s.8.11: one monotonic millisecond source per scan, from RUNTIME.
+	#deltaS := RUNTIME("FRK_Clock".Mem);
+	IF #deltaS < 0.0 OR #deltaS > 60.0 THEN
+	    #deltaS := 0.0;                       // first call / implausible: no time passes
+	END_IF;
+	"FRK_Clock".AccMs := "FRK_Clock".AccMs + #deltaS * 1000.0;
+	IF "FRK_Clock".AccMs >= 4294967296.0 THEN
+	    "FRK_Clock".AccMs := "FRK_Clock".AccMs - 4294967296.0;   // wrap like a UDInt
+	END_IF;
+	"FRK_Clock".NowMs := TRUNC_UDINT("FRK_Clock".AccMs);
+	#cycleMs := LREAL_TO_REAL(#deltaS * 1000.0);
+	"FRK_Clock".CycleMs := #cycleMs;
+	IF #cycleMs > "FRK_Clock".MaxCycleMs THEN
+	    "FRK_Clock".MaxCycleMs := #cycleMs;
+	END_IF;
+	"FRK_Clock".Scans := "FRK_Clock".Scans + 1;
+END_FUNCTION
+
+FUNCTION "FRK_SetIdentity" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      InstancePath : WString;      // GetInstancePath result, e.g. '"SpikeUnit".CylA'
+      ModuleType : DInt;
+      ParentIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP
+      path : String[96];
+      pos : Int;
+      idx : Int;
+   END_VAR
+
+
+BEGIN
+	// Core s.4.8: the qualified identity IS the instance path, read once from the
+	// instance tree (Part IV s.4.8), so no generated name can drift from it.
+	#path := WSTRING_TO_STRING(#InstancePath);
+	#pos := FIND(IN1 := #path, IN2 := '"');
+	WHILE #pos > 0 DO
+	    #path := DELETE(IN := #path, L := 1, P := #pos);
+	    #pos := FIND(IN1 := #path, IN2 := '"');
+	END_WHILE;
+	#Status.Name := #path;
+	#Status.ModuleType := #ModuleType;
+	#Core.ModuleType := #ModuleType;
+	#Core.ParentIndex := #ParentIndex;
+
+	// Register once (Part IV s.3.2). Overflow fails closed: no index, flag raised.
+	IF "FRK_Registry".Count < 15 THEN
+	    "FRK_Registry".Count := "FRK_Registry".Count + 1;
+	    #idx := "FRK_Registry".Count;
+	    #Core.RegIndex := #idx;
+	    "FRK_Registry".Rows[#idx].Valid := TRUE;
+	    "FRK_Registry".Rows[#idx].ModuleType := #ModuleType;
+	    "FRK_Registry".Rows[#idx].Parent := #ParentIndex;
+	ELSE
+	    "FRK_Registry".Overflow := TRUE;
+	    #Core.RegIndex := 0;
+	END_IF;
+	#Core.Named := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_Fault" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      ReasonCode : DInt;
+      Description : String;        // FC string parameters take no length (STEP 7)
+      Severity : DInt;
+      Category : DInt;
+   END_VAR
+
+   VAR_IN_OUT
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP
+      now : DTL;
+      rc : Int;
+   END_VAR
+
+
+BEGIN
+	// First-out wins (Core s.8.8): a later fault in the same episode is not recorded.
+	#Core.FaultReq := TRUE;
+	#Core.Dispatch := FALSE;
+	IF #Status.Diagnostic.ReasonCode = 0 THEN
+	    #rc := RD_SYS_T(OUT => #now);
+	    #Status.Diagnostic.ReasonCode := #ReasonCode;
+	    #Status.Diagnostic.SourcePath := #Status.Name;
+	    #Status.Diagnostic.Description := #Description;
+	    #Status.Diagnostic.Severity := #Severity;
+	    #Status.Diagnostic.Category := #Category;
+	    #Status.Diagnostic.Since := #now;
+	    #Status.Diagnostic.TimeSynchronized := FALSE;   // Part IV s.2.7: no sync source declared
+	END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AdoptChild" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Child : "ST_Diagnostic";
+   END_VAR
+
+   VAR_IN_OUT
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	// Core s.8.2: the awaited child's first-out is adopted VERBATIM - its
+	// SourcePath stays the child's, so the operator is sent to the root cause.
+	#Core.FaultReq := TRUE;
+	#Core.Dispatch := FALSE;
+	IF #Status.Diagnostic.ReasonCode = 0 THEN
+	    #Status.Diagnostic := #Child;
+	END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_Hold" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      ReasonCode : DInt;
+      Description : String;
+   END_VAR
+
+   VAR_IN_OUT
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR CONSTANT
+      SEV_LOW : DInt := 0;
+      CAT_PROCESS : DInt := 0;
+   END_VAR
+
+
+BEGIN
+	// Core s.6.1 HELD: a condition the operator or process is EXPECTED to restore
+	// (an interlock released mid-stroke) is not a defect. The module stays BUSY,
+	// the caller has already withdrawn its outputs, the reason is published at LOW
+	// with no fault, and the command resumes by itself when the condition returns.
+	// Called every scan the condition stands; the command window restarts so a hold
+	// can never silently consume the travel time it was not moving for.
+	#Core.HoldReq := TRUE;
+	#Core.StartMs := "FRK_Clock".NowMs;
+	IF #Status.Diagnostic.ReasonCode = 0 OR #Status.Diagnostic.ReasonCode = #Core.HoldReason THEN
+	    #Core.HoldReason := #ReasonCode;
+	    #Status.Diagnostic.ReasonCode := #ReasonCode;
+	    #Status.Diagnostic.SourcePath := #Status.Name;
+	    #Status.Diagnostic.Description := #Description;
+	    #Status.Diagnostic.Severity := #SEV_LOW;
+	    #Status.Diagnostic.Category := #CAT_PROCESS;
+	END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_Complete" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT
+      Core : "FRK_Core";
+   END_VAR
+
+
+BEGIN
+	#Core.CompleteReq := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_Begin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Execute : Bool;
+      Abort : Bool;
+      Command : DInt;
+      MaxCommand : DInt;           // supported commands are 1..MaxCommand
+   END_VAR
+
+   VAR_IN_OUT
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP
+      now : UDInt;
+   END_VAR
+
+   VAR CONSTANT
+      // EXEC_ prefix: STEP 7 identifiers are case-insensitive, so a constant
+      // named BUSY would collide with a Busy parameter or output.
+      EXEC_READY : DInt := 0;
+      EXEC_BUSY : DInt := 1;
+      EXEC_DONE : DInt := 2;
+      EXEC_ERROR : DInt := 3;
+      EXEC_ABORTED : DInt := 4;
+      R_TIMEOUT : DInt := 2001;
+      R_UNSUPPORTED_COMMAND : DInt := 2008;
+      SEV_MED : DInt := 1;
+      CAT_PROCESS : DInt := 0;
+   END_VAR
+
+
+BEGIN
+	#now := "FRK_Clock".NowMs;
+	// Framework one-shots live exactly one scan (Core s.2.2 step 7, released here
+	// at the top of the next scan so the frame's reactions can read them).
+	#Core.EvInit := FALSE;
+	#Core.EvCommandStart := FALSE;
+	#Core.EvAbort := FALSE;
+	#Core.EvAbortInError := FALSE;
+	#Core.CompleteReq := FALSE;
+	#Core.FaultReq := FALSE;
+	#Core.HoldReq := FALSE;
+
+	// 1. Execute-drop reset of a published terminal state (Core s.6.1).
+	IF NOT #Execute AND (#Core.Exec = #EXEC_DONE OR #Core.Exec = #EXEC_ERROR OR #Core.Exec = #EXEC_ABORTED) THEN
+	    #Core.Exec := #EXEC_READY;
+	    #Status.Diagnostic.ReasonCode := 0;
+	    #Status.Diagnostic.SourcePath := '';
+	    #Status.Diagnostic.Description := '';
+	END_IF;
+
+	// 2. One-shot initialization (OnInit) - first operational scan.
+	IF NOT #Core.Initialized THEN
+	    #Core.Initialized := TRUE;
+	    #Core.EvInit := TRUE;
+	END_IF;
+
+	//    Accept a new command edge (OnCommandStart).
+	IF #Execute AND NOT #Core.ExecPrev AND #Core.Exec = #EXEC_READY THEN
+	    #Core.Command := #Command;
+	    #Core.Step := 0;
+	    #Core.StartMs := #now;
+	    #Core.TimeoutMs := 0;
+	    #Core.Exec := #EXEC_BUSY;
+	    #Core.EvCommandStart := TRUE;
+	    IF #Command < 1 OR #Command > #MaxCommand THEN
+	        // Core s.5.6: an unsupported command is refused with a reason, never defaulted.
+	        "FRK_Fault"(ReasonCode := #R_UNSUPPORTED_COMMAND, Description := 'std.reason.unsupportedCommand',
+	                    Severity := #SEV_MED, Category := #CAT_PROCESS, Core := #Core, Status := #Status);
+	    END_IF;
+	END_IF;
+	#Core.ExecPrev := #Execute;
+
+	// 3. Cyclic management: the command timeout.
+	IF #Core.Exec = #EXEC_BUSY AND #Core.TimeoutMs > 0 AND NOT #Core.FaultReq THEN
+	    IF #now - #Core.StartMs > #Core.TimeoutMs THEN
+	        "FRK_Fault"(ReasonCode := #R_TIMEOUT, Description := 'std.reason.timeout',
+	                    Severity := #SEV_MED, Category := #CAT_PROCESS, Core := #Core, Status := #Status);
+	    END_IF;
+	END_IF;
+
+	// 4. Abort routing (OnAbort / OnAbortInError), on the rising Abort edge.
+	IF #Abort AND NOT #Core.AbortPrev THEN
+	    IF #Core.Exec = #EXEC_BUSY THEN
+	        #Core.Exec := #EXEC_ABORTED;
+	        #Core.EvAbort := TRUE;
+	    ELSIF #Core.Exec = #EXEC_ERROR THEN
+	        #Core.EvAbortInError := TRUE;
+	    END_IF;
+	END_IF;
+	#Core.AbortPrev := #Abort;
+
+	// 5. Device logic runs only while BUSY and not already faulted this scan.
+	#Core.Dispatch := #Core.Exec = #EXEC_BUSY AND NOT #Core.FaultReq;
+END_FUNCTION
+
+FUNCTION "FRK_End" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_OUTPUT
+      Busy : Bool;                 // the PLCopen strip is written, never read, here:
+      Done : Bool;                 // outputs (not InOut) keep the module FB free of
+      Error : Bool;                // "might not be initialized" reads of its own outputs
+      Aborted : Bool;
+      ErrorID : DWord;
+   END_VAR
+
+   VAR_IN_OUT
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP
+      idx : Int;
+   END_VAR
+
+   VAR CONSTANT
+      EXEC_BUSY : DInt := 1;
+      EXEC_DONE : DInt := 2;
+      EXEC_ERROR : DInt := 3;
+      EXEC_ABORTED : DInt := 4;
+   END_VAR
+
+
+BEGIN
+	// 6. Resolve the scan: fault beats completion; HELD only while BUSY.
+	IF #Core.Exec = #EXEC_BUSY THEN
+	    IF #Core.FaultReq THEN
+	        #Core.Exec := #EXEC_ERROR;
+	    ELSIF #Core.CompleteReq THEN
+	        #Core.Exec := #EXEC_DONE;
+	        #Core.LastCmdMs := "FRK_Clock".NowMs - #Core.StartMs;
+	    END_IF;
+	END_IF;
+	#Core.Held := #Core.HoldReq AND #Core.Exec = #EXEC_BUSY;
+	// Release of a hold withdraws its published reason (a fault's first-out stays).
+	IF NOT #Core.Held AND #Core.HoldReason <> 0 THEN
+	    IF #Status.Diagnostic.ReasonCode = #Core.HoldReason AND #Core.Exec <> #EXEC_ERROR THEN
+	        #Status.Diagnostic.ReasonCode := 0;
+	        #Status.Diagnostic.SourcePath := '';
+	        #Status.Diagnostic.Description := '';
+	    END_IF;
+	    #Core.HoldReason := 0;
+	END_IF;
+	
+	// PLCopen strip and the status mirror (Core s.3.10(a')) - derived, never latched.
+	#Busy := #Core.Exec = #EXEC_BUSY;
+	#Done := #Core.Exec = #EXEC_DONE;
+	#Error := #Core.Exec = #EXEC_ERROR;
+	#Aborted := #Core.Exec = #EXEC_ABORTED;
+	IF #Core.Exec = #EXEC_ERROR THEN
+	    #ErrorID := DINT_TO_DWORD(#Status.Diagnostic.ReasonCode);
+	ELSE
+	    #ErrorID := 16#0;
+	END_IF;
+	#Status.State := #Core.Exec;
+	#Status.FaultActive := #Core.Exec = #EXEC_ERROR;
+	
+	// Registry row (Part IV s.3.2): compact, string-free, revisioned.
+	#idx := #Core.RegIndex;
+	IF #idx > 0 AND #idx <= 15 THEN
+	    IF "FRK_Registry".Rows[#idx].Exec <> #Core.Exec
+	        OR "FRK_Registry".Rows[#idx].ReasonCode <> #Status.Diagnostic.ReasonCode THEN
+	        "FRK_Registry".Rows[#idx].Exec := #Core.Exec;
+	        "FRK_Registry".Rows[#idx].ReasonCode := #Status.Diagnostic.ReasonCode;
+	        "FRK_Registry".Rows[#idx].Severity := #Status.Diagnostic.Severity;
+	        "FRK_Registry".Rows[#idx].DataRevision := "FRK_Registry".Rows[#idx].DataRevision + 1;
+	    END_IF;
+	END_IF;
+END_FUNCTION

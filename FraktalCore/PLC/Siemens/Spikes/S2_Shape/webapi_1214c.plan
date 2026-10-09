@@ -1,0 +1,47 @@
+# S1/S7/S9 licence-free leg - enable the CPU web server and one Web API user in
+# the bench's station project (Part IV s.11.1a). Offline: nothing here touches the
+# controller; download_1214c.plan (--set um=reset the first time) carries it to the CPU.
+#
+#   set FRAKTAL_TIA_WEB_PASSWORD=<the web user's password>   (never in a plan or log)
+#   Fraktal.Tia.Cli plan webapi_1214c.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations
+#
+# Why the Web API: JSON-RPC over HTTPS is built into every S7-1500 and every
+# S7-1200 from V4.5, needs no runtime licence (the OPC UA server needs one per
+# CPU), and reads optimized data symbolically. It honours the same "Accessible /
+# Writable from HMI/OPC UA/Web API" member attributes the generator already sets.
+#
+# Measured on the 1214C V4.7.3 / TIA V20 (2026-10-08):
+#  - WebserverActivate is the only listed web-server switch; WebserverHttpsOnly and
+#    the interface's UseWebServerForInterface are not supported on this family.
+#  - HTTPS needs a certificate AND a certificate type. The type is TIA's internal
+#    WebserverCertificateType (0 NoneSelected, 1 HardwareGenerated, 2
+#    SoftwareDownloaded); Openness V20 knows the name but supports neither its
+#    getter nor its setter on a 1214C. It is therefore ONE MANUAL STEP per station
+#    in the TIA editor (PLC_1 > Properties > Web server > Security: certificate
+#    loaded via the software, server certificate PLC-1/Webserver-<n>), kept in the
+#    station project. Until it is set the hardware compile reports "No certificate
+#    type is assigned to the Web server security" and a download refuses.
+#  - There is no classic web-user list: web users are UMAC project users, so access
+#    control is enabled "via access level". Then access without login (the
+#    anonymous user) must be full access or a full-access password must be set.
+#    BENCH: anonymous gets the PLCAdministrator system role (the three access
+#    levels, no web/OPC UA rights) = today's "full access, no password" posture.
+#    A deployed station sets the full-access password instead (Part IV s.14).
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+service-set --plc PLC_1 --service PlcAccessControlConfigurationProvider --prop PlcAccessControlConfiguration --value EnabledWithAccessControlViaAccessLevel
+set-hw-attribute --plc PLC_1 --attr WebserverActivate --value true
+# created once, then kept (clients pin its fingerprint)
+webserver-certificate --plc PLC_1
+# kept as tolerant probes: they record whether a later Openness exposes the setter
+? set-hw-attribute --plc PLC_1 --attr WebserverCertificateType --value 2 --type int
+umac-user --plc PLC_1 --anonymous --system-roles PLCAdministrator
+# least privilege: the gateway user reads and writes process data, nothing else (no
+# operating-mode change, diagnostics, firmware, files, backup) - which HMI user may
+# command is the gateway's Core s.14 role mapping, as on AB
+umac-user --plc PLC_1 --name fraktal --password-env FRAKTAL_TIA_WEB_PASSWORD --role FraktalGateway --rights WebReadTags,WebWriteTags
+umac-user --plc PLC_1 --list
+hw-attributes --plc PLC_1 --filter Web
+# tolerant only for the manual certificate-type step above; download compiles
+# again and refuses on any error
+? compile --plc PLC_1 --hw
+save

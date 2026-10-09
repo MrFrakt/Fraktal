@@ -49,6 +49,17 @@ if echo "$staged" | grep -qE '\.(TcPOU|TcDUT|TcGVL|TcIO)$|FraktalCore/PLC/TwinCA
     done
 fi
 
+# --- Siemens (Fraktal/TIA) sources or gate staged: T-rules (<1s) ------------
+if echo "$staged" | grep -qE 'FraktalCore/PLC/Siemens/.*\.(scl|udt|db|plan)$|FraktalCore/PLC/Siemens/tools/'; then
+    if ! python FraktalCore/PLC/Siemens/tools/tia_lint.py; then
+        fail=1
+    fi
+    if ! python -m unittest discover -s FraktalCore/PLC/Siemens/tools \
+                                     -t FraktalCore/PLC/Siemens/tools -q; then
+        fail=1
+    fi
+fi
+
 # --- gate tooling itself staged: its own suites must still pass -----------
 if echo "$staged" | grep -qE '^tools/|FraktalCore/PLC/TwinCAT/tools/'; then
     if ! python -m unittest discover -s FraktalCore/PLC/TwinCAT/tools \

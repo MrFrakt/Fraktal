@@ -1,0 +1,27 @@
+// Fraktal/TIA Phase 0 fixture S2 - composition root (Part IV s.3.11): scan
+// order only, no channel assignments. Infrastructure instances are private so
+// they can never become extra browse roots (Part IV s.3.10.1).
+
+FUNCTION_BLOCK "FB_SpkMain"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR
+      SimA { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_SpkCylinderSim";
+      SimB { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_SpkCylinderSim";
+      Harness { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_SpkHarness";
+      ResultServer { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_SpkResultServer";
+   END_VAR
+
+
+BEGIN
+	// 1. plant model (simulation driver) - inputs for this scan
+	#SimA(Block := "SpkHal".BlockA, Hal := "SpkHal".Unit.CylA);
+	#SimB(Block := "SpkHal".BlockB, Hal := "SpkHal".Unit.CylB);
+	// 2. the forest: one root, called unconditionally exactly once
+	"SpikeUnit"(Hal := "SpkHal".Unit);
+	// 3. the self-test (test image only)
+	#Harness();
+	#ResultServer(Port := 2000);
+	// 4. framework one-shot released at the end of the first scan
+	"FRK_Clock".FirstScan := FALSE;
+END_FUNCTION_BLOCK

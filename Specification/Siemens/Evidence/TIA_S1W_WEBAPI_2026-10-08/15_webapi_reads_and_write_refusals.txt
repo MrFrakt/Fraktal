@@ -1,0 +1,18 @@
+﻿permissions: [{"name": "read_value"}, {"name": "write_value"}]
+read "SpikeUnit".Status."Name" -> "SpikeUnit"
+read "SpikeUnit".CylB.Status."Name" -> "SpikeUnit.CylB"
+read "SpikeUnit".Status.State -> 0
+read "SpikeUnit".Mode -> 0
+read "SpikeUnit".CylA.Status.Diagnostic.Since -> error 204 PlcProgram.Read -> 204 Unsupported address
+read "SpikeUnit".CylA.Status.Diagnostic.Since.YEAR -> 2012
+read "SpikeUnit".CylA.Status.Diagnostic.Since.NANOSECOND -> 162222000
+read "SpikeUnit".CylA.Status -> error 204 PlcProgram.Read -> 204 Unsupported address
+read "SpikeUnit".Core.Exec -> error 200 PlcProgram.Read -> 200 Address does not exist
+write "SpikeUnit".CylA.Execute -> refused 205 PlcProgram.Write -> 205 Address is read-only
+write "SpikeUnit".CylA.Command -> refused 205 PlcProgram.Write -> 205 Address is read-only
+write "SpikeUnit".Status.State -> refused 205 PlcProgram.Write -> 205 Address is read-only
+write "SpikeUnit".Core.Exec -> refused 200 PlcProgram.Write -> 200 Address does not exist
+write "SpikeUnit".HmiResponse.Accepted -> refused 205 PlcProgram.Write -> 205 Address is read-only
+write HmiRequest.TextValue -> true
+readback -> "webapi-probe"
+anonymous read -> refused 2 PlcProgram.Read -> 2 Permission denied

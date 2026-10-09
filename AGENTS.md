@@ -29,7 +29,8 @@ Specification/        The standard, and ONLY the standard at the top level: Part
 ├── Guides/           HOW to apply it (first project, XAE workflow, deployment) — non-normative
 ├── Reports/          audits, status, plans, one-off analyses — what IS, never what SHALL be
 ├── Evidence/         dated TwinCAT runtime evidence; append-only, never edited to match today
-└── AllenBradley/     the Fraktal/AB working set + Evidence/ for its R-/S-gate spikes
+├── AllenBradley/     the Fraktal/AB working set + Evidence/ for its R-/S-gate spikes
+└── Siemens/          the Fraktal/TIA working set (Part IV port plan) + Evidence/
                       Read Specification/README.md before filing anything new here.
 FraktalCore/
 ├── PLC/
@@ -44,7 +45,10 @@ FraktalCore/
 │   │   │                                Compile path, so Tests/ cannot reach
 │   │   │                                Examples/ - run BOTH)
 │   │   └── scaffold/FB_TemplateCM/       copy-template (not compiled; born RED)
-│   └── Allen-Bradley/            Fraktal/AB binding; current claims in its guide
+│   ├── Allen-Bradley/            Fraktal/AB binding; current claims in its guide
+│   └── Siemens/                  Fraktal/TIA binding — Phase 0 only: Openness driver,
+│                                 bench probe, spike fixtures (TIA V20; SFC/GRAPH + SCL,
+│                                 no LD; bench = S7-1200 1214C, not the S7-1500 reference)
 └── HMI/               Generic operator HMI (Flutter). lib/{data,domain,state,ui}.
 ```
 
@@ -838,7 +842,7 @@ rather than hard-coding a path):
 ```
 flutter pub get
 flutter analyze                 # clean as of 2026-09-28 (Flutter 3.47.5)
-flutter test                    # 413 passing, 6 intentional live-environment skips
+flutter test                    # 563 passing, 7 intentional skips (2026-10-08, Flutter 3.47.6)
 flutter run -d windows|chrome
 ```
 **The pinned version is 3.47.5, and `pub get` will not tell you when you are on the
@@ -868,6 +872,11 @@ cd gateway
 dart pub get
 dart run tool/build_gateway.dart --clean
 ```
+**PLC transports:** `--plc-endpoint` is `opc.tcp://` (TF6100/licensed OPC UA),
+`ads://` (TwinCAT) or `s7web://` (Siemens S7 Web API, licence-free, pinned
+`--plc-certificate`, `FRAKTAL_TIA_WEB_USER/PASSWORD`; OPCUA_TRANSPORT "Siemens S7
+Web API transport"). All three emit `fraktal.opcua.snapshot.v1`.
+
 **One gateway process serves ONE PLC.** A host serving several controllers runs
 one *instance* per PLC, and an instance is just a folder:
 `%LOCALAPPDATA%\Fraktal\Gateway\instances\<name>\gateway.args` (the folder name

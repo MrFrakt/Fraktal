@@ -1,0 +1,9 @@
+# S11 - download the FrkS11 station to the S7-PLCSIM instance (softbus only).
+# The PG/PC interface is fixed to "PLCSIM": it reaches the local simulation runtime
+# and nothing on the network. Start the instance first:
+#   powershell -File tools\Invoke-PlcSimInstance.ps1 -Action host -Name FrkS11   (background)
+#
+#   Fraktal.Tia.Cli plan download_plcsim.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations
+open-project --path ${work}\FrkS11\FrkS11.ap20
+download --plc PLC_1 --pc-interface "PLCSIM" --pc-number 1 --target "1 X1" --confirm-target 192.168.252.1 --user-management keep
+online-state --plc PLC_1 --pc-interface "PLCSIM" --pc-number 1 --target "1 X1"

@@ -1,0 +1,15 @@
+# S3 (scale & memory) - a read-diagnostics web user for the bench's station project.
+# Offline: download_1214c.plan (--set um=reset when the user is new) carries it.
+#
+#   set FRAKTAL_TIA_DIAG_PASSWORD=<its password>   (never in a plan or log)
+#   Fraktal.Tia.Cli plan diagnostics_user_1214c.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations
+#
+# Why: neither Openness nor S7comm (SZL 0x0013/0x0113 refused, measured) nor the
+# Web API (no memory method on V4.7) reports the CPU's memory use; the system web
+# page "Diagnostics > Memory" does, for a user with the WebAllowDiagnostics right.
+# A separate user keeps the gateway user (fraktal) at read/write process data only.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+umac-user --plc PLC_1 --name fraktal-diag --password-env FRAKTAL_TIA_DIAG_PASSWORD --role FraktalDiagnostics --rights WebAllowDiagnostics
+umac-user --plc PLC_1 --list
+compile --plc PLC_1 --hw
+save

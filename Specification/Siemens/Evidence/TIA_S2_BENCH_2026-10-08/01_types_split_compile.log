@@ -1,0 +1,326 @@
+{"t":"2026-10-08T05:41:03.8564915Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-08T05:41:03.8564915Z","event":"step","command":"create-project","args":"--dir C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia --name FrkSpikeS2 --replace true"}
+{"t":"2026-10-08T05:41:18.7756041Z","event":"project-created","path":"C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T05:41:18.7756041Z","event":"step","command":"add-device","args":"--order OrderNumber:6ES7 214-1AG40-0XB0/V4.7 --name PLC_1 --station S71200_Bench"}
+{"t":"2026-10-08T05:41:34.9243725Z","event":"device-added","station":"S71200_Bench","order":"OrderNumber:6ES7 214-1AG40-0XB0/V4.7","plc":"PLC_1"}
+{"t":"2026-10-08T05:41:34.9243725Z","event":"step","command":"set-ip","args":"--plc PLC_1 --ip 192.168.0.10 --mask 255.255.255.0"}
+{"t":"2026-10-08T05:41:35.2928584Z","event":"ip-set","interface":"PROFINET interface_1","address":"192.168.0.10","mask":"255.255.255.0"}
+{"t":"2026-10-08T05:41:35.2928584Z","event":"step","command":"master-secret","args":"--plc PLC_1 --mode none"}
+{"t":"2026-10-08T05:41:37.7345873Z","event":"master-secret","was":"WithoutPassword","now":"None"}
+{"t":"2026-10-08T05:41:37.7345873Z","event":"step","command":"set-hw-attribute","args":"--plc PLC_1 --attr ProtectionEnablePutGetCommunication --value true"}
+{"t":"2026-10-08T05:41:37.9820038Z","event":"step-exception","command":"set-hw-attribute","message":"EngineeringNotSupportedException: 'ProtectionEnablePutGetCommunication' is not supported by type 'Siemens.Engineering.HW.DeviceItemImpl'."}
+{"t":"2026-10-08T05:41:37.9820038Z","event":"step-failed","command":"set-hw-attribute","rc":10,"continue":true}
+{"t":"2026-10-08T05:41:37.9820038Z","event":"step","command":"hw-attributes","args":"--plc PLC_1 --filter Startup"}
+{"t":"2026-10-08T05:41:38.4720406Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\s2_split --keep-on-error true"}
+{"t":"2026-10-08T05:41:41.9927426Z","event":"source-generated","file":"00_00_ST_Diagnostic.udt","sha256":"36c30e7540e1b5354df4e05850abc89a3239c1d0144eee9b3d7dbe598f806ec5"}
+{"t":"2026-10-08T05:41:42.0478603Z","event":"source-generated","file":"00_01_ST_ModuleStatus.udt","sha256":"c2442ee5dcfb4c485a03caa4a6c1af80c5e84415fe2369b7e5683508c0df7d84"}
+{"t":"2026-10-08T05:41:42.0946647Z","event":"source-generated","file":"00_02_FRK_Core.udt","sha256":"1b95e21951d926b0fb095fada2de2e968534b83940365ff8edccca512b546b8a"}
+{"t":"2026-10-08T05:41:42.1364420Z","event":"source-generated","file":"00_03_FRK_RegistryRow.udt","sha256":"f412a782210240febdca4f480ab8f10fae057e23260c0b22441ba515df0357d6"}
+{"t":"2026-10-08T05:41:42.1736261Z","event":"source-generated","file":"00_04_ST_StepRecord.udt","sha256":"08cc9af0f66afd316b064a5da6df237ab2041878d844b45053476f07dd164e0e"}
+{"t":"2026-10-08T05:41:42.4131141Z","event":"source-generated","file":"00_05_FRK_SeqCtx.udt","sha256":"dae37f95cc43b0f743cf91f46b055545af40fee587258a2056337db55bc222c4"}
+{"t":"2026-10-08T05:41:42.4601647Z","event":"source-generated","file":"00_06_ST_HmiRequest.udt","sha256":"e6957f7981f6df9a95cb667c7ae8fdb157b91037a6120e530a619ab526985548"}
+{"t":"2026-10-08T05:41:42.5108641Z","event":"source-generated","file":"00_07_ST_HmiResponse.udt","sha256":"ebf3aa889e10e391ab7157ac4eaedbeff3bd3853fc5c77904450529146f0899d"}
+{"t":"2026-10-08T05:41:42.5525710Z","event":"source-generated","file":"00_08_ST_SpkCylHal.udt","sha256":"2923a299e216c22782fdf307266953316f0731495a37fcf96edcc134ae0bf4dc"}
+{"t":"2026-10-08T05:41:42.5915772Z","event":"source-generated","file":"00_09_ST_SpkUnitHal.udt","sha256":"896c8a79f8b672d063440d7de7cf818789afeab041641235a3064273634dfca8"}
+{"t":"2026-10-08T05:41:42.6261100Z","event":"source-generated","file":"00_10_ST_SpkCylinderParCfg.udt","sha256":"d112e4092932fc51b06ff950a019c282f5fe9ff96d7a1c0aee584eee3f348473"}
+{"t":"2026-10-08T05:41:42.6604016Z","event":"source-generated","file":"00_11_ST_SpkCylinderOutImm.udt","sha256":"bd7bc2394c5f739b65e8f6fd5fc12ada133072bd998987cdc337b6988564cf00"}
+{"t":"2026-10-08T05:41:42.6986127Z","event":"source-generated","file":"00_12_FRK_TestRow.udt","sha256":"88e92d6687085e3b8b4fd77b8d2b46a97158153fac24f6d763edbe2ded59bef5"}
+{"t":"2026-10-08T05:41:43.5327314Z","event":"source-generated","file":"05_GlobalData.db","sha256":"161db661bf17cad248c8b9fef01bc31232bd2ab7caabbe90433677cb61e59f17"}
+{"t":"2026-10-08T05:41:47.4494537Z","event":"source-generated","file":"10_Lifecycle.scl","sha256":"c217b6cffc602a67273a6b39f9bd9e02e202ccbddfbe1d94b054d88db937014a"}
+{"t":"2026-10-08T05:41:47.5619834Z","event":"source-generated","file":"20_Sequence.scl","sha256":"a0243741b60ef8df615e450ed9559c83d67d91730afa0c53589cbcebd764e0cc"}
+{"t":"2026-10-08T05:41:48.1023086Z","event":"source-generated","file":"30_CylinderCM.scl","sha256":"50ee6a95c016117e94ce88b2d8439455d1ea4e630fc73343168dfa153bc04ec7"}
+{"t":"2026-10-08T05:41:48.1809930Z","event":"source-generated","file":"40_AutoSeq.scl","sha256":"e724e3398011070a455c20fe97a338de25aceb92b3ea0071e20761fc3f58181a"}
+{"t":"2026-10-08T05:41:48.2829836Z","event":"source-generated","file":"50_Unit.scl","sha256":"ec5181eaf610cad32f981117080df405c8b54b499087ff0257916f636a8af615"}
+{"t":"2026-10-08T05:41:48.8726788Z","event":"source-generated","file":"55_UnitInstance.db","sha256":"6962febbd05bdfcafcf614b95ed24dddc544e42659753bdeae8bb9789be1c50e"}
+{"t":"2026-10-08T05:41:49.1313595Z","event":"source-generated","file":"60_Harness.scl","sha256":"11513a9bdc890e5829a9a0a7dec44ff6414bd89a2a30fa3fad2e43fa054de6f9"}
+{"t":"2026-10-08T05:41:49.2104201Z","event":"source-generated","file":"70_Main.scl","sha256":"b87655b728471cce6b3a7d56c09f78647c1391e6164802e9216bd240fd28b521"}
+{"t":"2026-10-08T05:41:49.3894517Z","event":"source-generated","file":"75_MainInstance.db","sha256":"29eeb1f14b870059af8eebd5b0f66ece7efb19ea28e4a766d91825ee48693030"}
+{"t":"2026-10-08T05:41:49.8714899Z","event":"source-generated","file":"80_OB1.scl","sha256":"7978285018d2afc7a2e34609dc5d103759cda2c3f2f3bbea3f2c434c48497d12"}
+{"t":"2026-10-08T05:41:49.8714899Z","event":"step","command":"compile","args":"--plc PLC_1"}
+{"t":"2026-10-08T05:41:53.8210650Z","event":"compile","state":"Error","errors":172,"warnings":5}
+{"t":"2026-10-08T05:41:53.8210650Z","event":"compile-message","depth":0,"state":"Error","path":"PLC_1","text":""}
+{"t":"2026-10-08T05:41:53.8210650Z","event":"compile-message","depth":1,"state":"Error","path":"PLC data types","text":""}
+{"t":"2026-10-08T05:41:53.8368513Z","event":"compile-message","depth":2,"state":"Error","path":"ST_ModuleStatus (UDT)","text":""}
+{"t":"2026-10-08T05:41:53.8368513Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:53.8680240Z","event":"compile-message","depth":1,"state":"Error","path":"Program blocks","text":""}
+{"t":"2026-10-08T05:41:53.8680240Z","event":"compile-message","depth":2,"state":"Error","path":"FB_SpkCylinderCM (FB1)","text":""}
+{"t":"2026-10-08T05:41:53.8680240Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:53.8680240Z","event":"compile-message","depth":3,"state":"Error","path":"5","text":"Block \"FRK_SetIdentity\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:53.8680240Z","event":"compile-message","depth":3,"state":"Error","path":"14","text":"Block \"FRK_Begin\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:53.8835261Z","event":"compile-message","depth":3,"state":"Error","path":"62","text":"Block \"FRK_Fault\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:53.8835261Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"Block \"FRK_End\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:53.8835261Z","event":"compile-message","depth":3,"state":"Error","path":"4","text":"The formal parameter 'OUT' is invalid."}
+{"t":"2026-10-08T05:41:53.8835261Z","event":"compile-message","depth":3,"state":"Error","path":"4","text":"Number of parameters passed to the function or the function block does not match."}
+{"t":"2026-10-08T05:41:53.8835261Z","event":"compile-message","depth":3,"state":"Error","path":"9","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.8835261Z","event":"compile-message","depth":3,"state":"Error","path":"19","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.8992185Z","event":"compile-message","depth":3,"state":"Error","path":"26","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.8992185Z","event":"compile-message","depth":3,"state":"Error","path":"30","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.8992185Z","event":"compile-message","depth":3,"state":"Error","path":"45","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.8992185Z","event":"compile-message","depth":3,"state":"Error","path":"49","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.8992185Z","event":"compile-message","depth":3,"state":"Error","path":"63","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.8992185Z","event":"compile-message","depth":3,"state":"Error","path":"67","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9147812Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9147812Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"The formal parameter 'Busy' is invalid."}
+{"t":"2026-10-08T05:41:53.9147812Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"The formal parameter 'Done' is invalid."}
+{"t":"2026-10-08T05:41:53.9147812Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"The formal parameter 'Error' is invalid."}
+{"t":"2026-10-08T05:41:53.9308097Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:53.9317657Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:53.9317657Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:53.9317657Z","event":"compile-message","depth":3,"state":"Error","path":"78","text":"The formal parameter 'Aborted' is invalid."}
+{"t":"2026-10-08T05:41:53.9317657Z","event":"compile-message","depth":3,"state":"Error","path":"78","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:53.9317657Z","event":"compile-message","depth":3,"state":"Warning","path":"78","text":"The parameter '#ErrorID' might not be initialized."}
+{"t":"2026-10-08T05:41:53.9317657Z","event":"compile-message","depth":2,"state":"Error","path":"FB_SpkAutoSeq (FB3)","text":""}
+{"t":"2026-10-08T05:41:53.9478017Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"The 'FB_SpkCylinderCM' block you are accessing has not been compiled yet."}
+{"t":"2026-10-08T05:41:53.9478017Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"The 'FB_SpkCylinderCM' block you are accessing has not been compiled yet."}
+{"t":"2026-10-08T05:41:53.9478017Z","event":"compile-message","depth":3,"state":"Error","path":"81","text":"Block \"FRK_Seq_Step\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:53.9478017Z","event":"compile-message","depth":3,"state":"Error","path":"65","text":"Block \"FRK_Seq_Await\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:53.9478017Z","event":"compile-message","depth":3,"state":"Error","path":"71","text":"Block \"FB_SpkCylinderCM\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:53.9478017Z","event":"compile-message","depth":3,"state":"Error","path":"5","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9633218Z","event":"compile-message","depth":3,"state":"Error","path":"14","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9633218Z","event":"compile-message","depth":3,"state":"Error","path":"17","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9633218Z","event":"compile-message","depth":3,"state":"Error","path":"18","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9633218Z","event":"compile-message","depth":3,"state":"Error","path":"21","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9633218Z","event":"compile-message","depth":3,"state":"Error","path":"23","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9633218Z","event":"compile-message","depth":3,"state":"Error","path":"24","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9788625Z","event":"compile-message","depth":3,"state":"Error","path":"33","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9788625Z","event":"compile-message","depth":3,"state":"Error","path":"36","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9788625Z","event":"compile-message","depth":3,"state":"Error","path":"37","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9788625Z","event":"compile-message","depth":3,"state":"Error","path":"40","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9788625Z","event":"compile-message","depth":3,"state":"Error","path":"42","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9788625Z","event":"compile-message","depth":3,"state":"Error","path":"43","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9788625Z","event":"compile-message","depth":3,"state":"Error","path":"52","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9948936Z","event":"compile-message","depth":3,"state":"Error","path":"55","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9948936Z","event":"compile-message","depth":3,"state":"Error","path":"56","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9948936Z","event":"compile-message","depth":3,"state":"Error","path":"57","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9948936Z","event":"compile-message","depth":3,"state":"Error","path":"58","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9948936Z","event":"compile-message","depth":3,"state":"Error","path":"60","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:53.9948936Z","event":"compile-message","depth":3,"state":"Error","path":"62","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0104493Z","event":"compile-message","depth":3,"state":"Error","path":"66","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0104493Z","event":"compile-message","depth":3,"state":"Error","path":"69","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0104493Z","event":"compile-message","depth":3,"state":"Error","path":"69","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0104493Z","event":"compile-message","depth":3,"state":"Error","path":"70","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0104493Z","event":"compile-message","depth":3,"state":"Error","path":"71","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0104493Z","event":"compile-message","depth":3,"state":"Error","path":"82","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0270822Z","event":"compile-message","depth":2,"state":"Error","path":"FB_SpkUnit (FB4)","text":""}
+{"t":"2026-10-08T05:41:54.0302221Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:54.0330585Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"The 'FB_SpkCylinderCM' block you are accessing has not been compiled yet."}
+{"t":"2026-10-08T05:41:54.0370944Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"The 'FB_SpkCylinderCM' block you are accessing has not been compiled yet."}
+{"t":"2026-10-08T05:41:54.0401338Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"The 'FB_SpkAutoSeq' block you are accessing has not been compiled yet."}
+{"t":"2026-10-08T05:41:54.0431676Z","event":"compile-message","depth":3,"state":"Error","path":"5","text":"Block \"FRK_SetIdentity\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.0462443Z","event":"compile-message","depth":3,"state":"Error","path":"53","text":"Block \"FRK_Begin\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.0482626Z","event":"compile-message","depth":3,"state":"Error","path":"91","text":"Block \"FRK_AdoptChild\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.0505581Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"Block \"FRK_End\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.0505581Z","event":"compile-message","depth":3,"state":"Error","path":"105","text":"Block \"FB_SpkCylinderCM\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.0505581Z","event":"compile-message","depth":3,"state":"Error","path":"103","text":"Block \"FB_SpkAutoSeq\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.0572809Z","event":"compile-message","depth":3,"state":"Error","path":"4","text":"The formal parameter 'OUT' is invalid."}
+{"t":"2026-10-08T05:41:54.0572809Z","event":"compile-message","depth":3,"state":"Error","path":"4","text":"Number of parameters passed to the function or the function block does not match."}
+{"t":"2026-10-08T05:41:54.0572809Z","event":"compile-message","depth":3,"state":"Error","path":"9","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0572809Z","event":"compile-message","depth":3,"state":"Warning","path":"15","text":"When the input parameter 'Secret' is written, you do not access the operand that was transferred as actual parameter, but rather only the formal parameter of the block."}
+{"t":"2026-10-08T05:41:54.0572809Z","event":"compile-message","depth":3,"state":"Warning","path":"29","text":"The parameter '#Mode' might not be initialized."}
+{"t":"2026-10-08T05:41:54.0572809Z","event":"compile-message","depth":3,"state":"Error","path":"43","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0728070Z","event":"compile-message","depth":3,"state":"Error","path":"44","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0728070Z","event":"compile-message","depth":3,"state":"Error","path":"58","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0728070Z","event":"compile-message","depth":3,"state":"Error","path":"71","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0728070Z","event":"compile-message","depth":3,"state":"Error","path":"72","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0728070Z","event":"compile-message","depth":3,"state":"Error","path":"77","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0728070Z","event":"compile-message","depth":3,"state":"Error","path":"78","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0884859Z","event":"compile-message","depth":3,"state":"Error","path":"84","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0884859Z","event":"compile-message","depth":3,"state":"Error","path":"85","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0884859Z","event":"compile-message","depth":3,"state":"Error","path":"85","text":"Tag #CylA.Status.Diagnostic not defined."}
+{"t":"2026-10-08T05:41:54.0884859Z","event":"compile-message","depth":3,"state":"Error","path":"87","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0884859Z","event":"compile-message","depth":3,"state":"Error","path":"90","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.0884859Z","event":"compile-message","depth":3,"state":"Error","path":"91","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.1041126Z","event":"compile-message","depth":3,"state":"Error","path":"91","text":"Tag #CylB.Status.Diagnostic not defined."}
+{"t":"2026-10-08T05:41:54.1041126Z","event":"compile-message","depth":3,"state":"Error","path":"93","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.1041126Z","event":"compile-message","depth":3,"state":"Warning","path":"102","text":"The parameter '#Mode' might not be initialized."}
+{"t":"2026-10-08T05:41:54.1041126Z","event":"compile-message","depth":3,"state":"Error","path":"103","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.1041126Z","event":"compile-message","depth":3,"state":"Error","path":"104","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.1041126Z","event":"compile-message","depth":3,"state":"Error","path":"105","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.1196308Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.1196308Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"The formal parameter 'Busy' is invalid."}
+{"t":"2026-10-08T05:41:54.1196308Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"The formal parameter 'Done' is invalid."}
+{"t":"2026-10-08T05:41:54.1196308Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"The formal parameter 'Error' is invalid."}
+{"t":"2026-10-08T05:41:54.1196308Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:54.1321080Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:54.1321080Z","event":"compile-message","depth":3,"state":"Error","path":"110","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:54.1321080Z","event":"compile-message","depth":3,"state":"Error","path":"111","text":"The formal parameter 'Aborted' is invalid."}
+{"t":"2026-10-08T05:41:54.1321080Z","event":"compile-message","depth":3,"state":"Error","path":"111","text":"Parameters of the function or the function block do not match the transferred formal parameters.  "}
+{"t":"2026-10-08T05:41:54.1321080Z","event":"compile-message","depth":3,"state":"Warning","path":"111","text":"The parameter '#ErrorID' might not be initialized."}
+{"t":"2026-10-08T05:41:54.1321080Z","event":"compile-message","depth":2,"state":"Error","path":"FB_SpkHarness (FB5)","text":""}
+{"t":"2026-10-08T05:41:54.1496552Z","event":"compile-message","depth":3,"state":"Error","path":"258","text":"Block \"SpikeUnit\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.1522257Z","event":"compile-message","depth":3,"state":"Error","path":"258","text":"Block \"FB_SpkUnit\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.1545774Z","event":"compile-message","depth":3,"state":"Error","path":"29","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1576863Z","event":"compile-message","depth":3,"state":"Error","path":"37","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1607049Z","event":"compile-message","depth":3,"state":"Error","path":"45","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1642356Z","event":"compile-message","depth":3,"state":"Error","path":"47","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1662303Z","event":"compile-message","depth":3,"state":"Error","path":"67","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1692502Z","event":"compile-message","depth":3,"state":"Error","path":"76","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1722789Z","event":"compile-message","depth":3,"state":"Error","path":"78","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1752822Z","event":"compile-message","depth":3,"state":"Error","path":"95","text":"Tag \"SpikeUnit\".CylB.Status.Diagnostic.SourcePath not defined."}
+{"t":"2026-10-08T05:41:54.1793020Z","event":"compile-message","depth":3,"state":"Error","path":"97","text":"Tag \"SpikeUnit\".CylB.Status.Diagnostic.SourcePath not defined."}
+{"t":"2026-10-08T05:41:54.1813159Z","event":"compile-message","depth":3,"state":"Error","path":"103","text":"Tag \"SpikeUnit\".CylB.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1845427Z","event":"compile-message","depth":3,"state":"Error","path":"114","text":"Tag \"SpikeUnit\".CylB.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1865727Z","event":"compile-message","depth":3,"state":"Error","path":"114","text":"Tag \"SpikeUnit\".CylB.Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.1896771Z","event":"compile-message","depth":3,"state":"Error","path":"116","text":"Tag \"SpikeUnit\".CylB.Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.1908106Z","event":"compile-message","depth":3,"state":"Error","path":"141","text":"Tag \"SpikeUnit\".CylA.Status.Name not defined."}
+{"t":"2026-10-08T05:41:54.1948879Z","event":"compile-message","depth":3,"state":"Error","path":"143","text":"Tag \"SpikeUnit\".CylA.Status.Name not defined."}
+{"t":"2026-10-08T05:41:54.1948879Z","event":"compile-message","depth":3,"state":"Error","path":"182","text":"Tag \"SpikeUnit\".Busy not defined."}
+{"t":"2026-10-08T05:41:54.1948879Z","event":"compile-message","depth":3,"state":"Error","path":"184","text":"Tag \"SpikeUnit\".Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1948879Z","event":"compile-message","depth":3,"state":"Error","path":"191","text":"Tag \"SpikeUnit\".Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1948879Z","event":"compile-message","depth":3,"state":"Error","path":"216","text":"Tag \"SpikeUnit\".Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1948879Z","event":"compile-message","depth":3,"state":"Error","path":"219","text":"Tag \"SpikeUnit\".Status.State not defined."}
+{"t":"2026-10-08T05:41:54.1948879Z","event":"compile-message","depth":3,"state":"Error","path":"233","text":"Tag \"SpikeUnit\".Status.Diagnostic.SourcePath not defined."}
+{"t":"2026-10-08T05:41:54.2103727Z","event":"compile-message","depth":3,"state":"Error","path":"242","text":"Tag \"SpikeUnit\".Status.State not defined."}
+{"t":"2026-10-08T05:41:54.2103727Z","event":"compile-message","depth":3,"state":"Error","path":"255","text":"Tag \"SpikeUnit\".Status.State not defined."}
+{"t":"2026-10-08T05:41:54.2103727Z","event":"compile-message","depth":3,"state":"Error","path":"256","text":"Tag \"SpikeUnit\".CylA.Status.State not defined."}
+{"t":"2026-10-08T05:41:54.2103727Z","event":"compile-message","depth":3,"state":"Error","path":"258","text":"Tag \"SpikeUnit\".Status.State not defined."}
+{"t":"2026-10-08T05:41:54.2103727Z","event":"compile-message","depth":2,"state":"Error","path":"FB_SpkMain (FB6)","text":""}
+{"t":"2026-10-08T05:41:54.2103727Z","event":"compile-message","depth":3,"state":"Error","path":"8","text":"Block \"FB_SpkUnit\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.2283299Z","event":"compile-message","depth":3,"state":"Error","path":"8","text":"Block \"SpikeUnit\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.2342491Z","event":"compile-message","depth":2,"state":"Error","path":"FRK_SetIdentity (FC2)","text":""}
+{"t":"2026-10-08T05:41:54.2359006Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:54.2383325Z","event":"compile-message","depth":3,"state":"Error","path":"10","text":"Tag #Status.Name not defined."}
+{"t":"2026-10-08T05:41:54.2416640Z","event":"compile-message","depth":3,"state":"Error","path":"11","text":"Tag #Status.ModuleType not defined."}
+{"t":"2026-10-08T05:41:54.2446781Z","event":"compile-message","depth":2,"state":"Error","path":"FRK_Begin (FC6)","text":""}
+{"t":"2026-10-08T05:41:54.2477070Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:54.2502020Z","event":"compile-message","depth":3,"state":"Error","path":"50","text":"Block \"FRK_Fault\" that is accessed has not been compiled."}
+{"t":"2026-10-08T05:41:54.2522197Z","event":"compile-message","depth":3,"state":"Error","path":"16","text":"Tag #Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.2552610Z","event":"compile-message","depth":3,"state":"Error","path":"17","text":"Tag #Status.Diagnostic.SourcePath not defined."}
+{"t":"2026-10-08T05:41:54.2573751Z","event":"compile-message","depth":3,"state":"Error","path":"18","text":"Tag #Status.Diagnostic.Description not defined."}
+{"t":"2026-10-08T05:41:54.2573751Z","event":"compile-message","depth":3,"state":"Error","path":"38","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.2573751Z","event":"compile-message","depth":3,"state":"Error","path":"42","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.2573751Z","event":"compile-message","depth":3,"state":"Error","path":"51","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.2573751Z","event":"compile-message","depth":3,"state":"Error","path":"55","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.2573751Z","event":"compile-message","depth":2,"state":"Error","path":"FRK_Fault (FC3)","text":""}
+{"t":"2026-10-08T05:41:54.2734779Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"Please remove the length specification. It is not necessary at this location."}
+{"t":"2026-10-08T05:41:54.2766615Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:54.2793672Z","event":"compile-message","depth":3,"state":"Error","path":"5","text":"Tag #Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.2814270Z","event":"compile-message","depth":3,"state":"Error","path":"7","text":"Tag #Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.2834969Z","event":"compile-message","depth":3,"state":"Error","path":"8","text":"Tag #Status.Diagnostic.SourcePath not defined."}
+{"t":"2026-10-08T05:41:54.2875324Z","event":"compile-message","depth":3,"state":"Error","path":"8","text":"Tag #Status.Name not defined."}
+{"t":"2026-10-08T05:41:54.2895349Z","event":"compile-message","depth":3,"state":"Error","path":"9","text":"Tag #Status.Diagnostic.Description not defined."}
+{"t":"2026-10-08T05:41:54.2923266Z","event":"compile-message","depth":3,"state":"Error","path":"9","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.2953503Z","event":"compile-message","depth":3,"state":"Error","path":"10","text":"Tag #Status.Diagnostic.Severity not defined."}
+{"t":"2026-10-08T05:41:54.2976831Z","event":"compile-message","depth":3,"state":"Error","path":"11","text":"Tag #Status.Diagnostic.Category not defined."}
+{"t":"2026-10-08T05:41:54.3008718Z","event":"compile-message","depth":3,"state":"Error","path":"12","text":"Tag #Status.Diagnostic.Since not defined."}
+{"t":"2026-10-08T05:41:54.3028931Z","event":"compile-message","depth":3,"state":"Error","path":"13","text":"Tag #Status.Diagnostic.TimeSynchronized not defined."}
+{"t":"2026-10-08T05:41:54.3059602Z","event":"compile-message","depth":2,"state":"Error","path":"FRK_AdoptChild (FC4)","text":""}
+{"t":"2026-10-08T05:41:54.3089181Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:54.3100296Z","event":"compile-message","depth":3,"state":"Error","path":"6","text":"Tag #Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.3100296Z","event":"compile-message","depth":3,"state":"Error","path":"7","text":"Tag #Status.Diagnostic not defined."}
+{"t":"2026-10-08T05:41:54.3100296Z","event":"compile-message","depth":2,"state":"Error","path":"FRK_End (FC7)","text":""}
+{"t":"2026-10-08T05:41:54.3100296Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"A structure without components is not allowed."}
+{"t":"2026-10-08T05:41:54.3100296Z","event":"compile-message","depth":3,"state":"Error","path":"14","text":"A constant is not permitted here."}
+{"t":"2026-10-08T05:41:54.3259443Z","event":"compile-message","depth":3,"state":"Error","path":"15","text":"A constant is not permitted here."}
+{"t":"2026-10-08T05:41:54.3259443Z","event":"compile-message","depth":3,"state":"Error","path":"16","text":"A constant is not permitted here."}
+{"t":"2026-10-08T05:41:54.3259443Z","event":"compile-message","depth":3,"state":"Error","path":"17","text":"A constant is not permitted here."}
+{"t":"2026-10-08T05:41:54.3338365Z","event":"compile-message","depth":3,"state":"Error","path":"18","text":"Data type 'DInt' cannot be converted implicitly into data type 'Bool'."}
+{"t":"2026-10-08T05:41:54.3338365Z","event":"compile-message","depth":3,"state":"Error","path":"19","text":"Tag #Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.3338365Z","event":"compile-message","depth":3,"state":"Error","path":"23","text":"Tag #Status.State not defined."}
+{"t":"2026-10-08T05:41:54.3338365Z","event":"compile-message","depth":3,"state":"Error","path":"24","text":"Tag #Status.FaultActive not defined."}
+{"t":"2026-10-08T05:41:54.3338365Z","event":"compile-message","depth":3,"state":"Error","path":"30","text":"Tag #Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.3338365Z","event":"compile-message","depth":3,"state":"Error","path":"32","text":"Tag #Status.Diagnostic.ReasonCode not defined."}
+{"t":"2026-10-08T05:41:54.3496814Z","event":"compile-message","depth":3,"state":"Error","path":"33","text":"Tag #Status.Diagnostic.Severity not defined."}
+{"t":"2026-10-08T05:41:54.3496814Z","event":"compile-message","depth":2,"state":"Error","path":"FB_SpkCylinderSim (FB2)","text":""}
+{"t":"2026-10-08T05:41:54.3496814Z","event":"compile-message","depth":3,"state":"Error","path":"6","text":"Tag #dt not defined."}
+{"t":"2026-10-08T05:41:54.3496814Z","event":"compile-message","depth":3,"state":"Error","path":"9","text":"Tag #dt not defined."}
+{"t":"2026-10-08T05:41:54.3496814Z","event":"compile-message","depth":3,"state":"Error","path":"11","text":"Tag #dt not defined."}
+{"t":"2026-10-08T05:41:54.3496814Z","event":"compile-message","depth":2,"state":"Error","path":"FRK_Seq_Step (FC8)","text":""}
+{"t":"2026-10-08T05:41:54.3656629Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"Please remove the length specification. It is not necessary at this location."}
+{"t":"2026-10-08T05:41:54.3656629Z","event":"compile-message","depth":3,"state":"Error","path":"15","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.3656629Z","event":"compile-message","depth":2,"state":"Error","path":"FRK_Seq_Await (FC10)","text":""}
+{"t":"2026-10-08T05:41:54.3656629Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"Please remove the length specification. It is not necessary at this location."}
+{"t":"2026-10-08T05:41:54.3656629Z","event":"compile-message","depth":3,"state":"Error","path":"5","text":"Invalid data type."}
+{"t":"2026-10-08T05:41:54.3812064Z","event":"compile-message","depth":2,"state":"Error","path":"SpikeUnit (DB5)","text":""}
+{"t":"2026-10-08T05:41:54.3812064Z","event":"compile-message","depth":3,"state":"Error","path":"Interface","text":"The 'FB_SpkUnit' block you are accessing has not been compiled yet."}
+{"t":"2026-10-08T05:41:54.3812064Z","event":"compile-message","depth":0,"state":"Error","path":null,"text":"Compiling finished (errors: 172; warnings: 5)"}
+{"t":"2026-10-08T05:41:54.3812064Z","event":"step-failed","command":"compile","rc":5,"continue":true}
+{"t":"2026-10-08T05:41:54.3812064Z","event":"step","command":"compile","args":"--plc PLC_1 --hw true"}
+{"t":"2026-10-08T05:41:55.6181673Z","event":"compile","state":"Error","errors":1,"warnings":0}
+{"t":"2026-10-08T05:41:55.6337364Z","event":"compile-message","depth":0,"state":"Error","path":"PLC_1","text":""}
+{"t":"2026-10-08T05:41:55.6337364Z","event":"compile-message","depth":1,"state":"Error","path":"Hardware configuration","text":""}
+{"t":"2026-10-08T05:41:55.6424859Z","event":"compile-message","depth":2,"state":"Error","path":"S71200_Bench","text":" "}
+{"t":"2026-10-08T05:41:55.6424859Z","event":"compile-message","depth":3,"state":"Error","path":"Rack_0","text":" "}
+{"t":"2026-10-08T05:41:55.6424859Z","event":"compile-message","depth":4,"state":"Error","path":"PLC_1","text":" "}
+{"t":"2026-10-08T05:41:55.6586146Z","event":"compile-message","depth":5,"state":"Error","path":"Users and roles","text":"At least one user must have the following runtime right: Full access"}
+{"t":"2026-10-08T05:41:55.6586146Z","event":"compile-message","depth":0,"state":"Error","path":null,"text":"Compiling finished (errors: 1; warnings: 0)"}
+{"t":"2026-10-08T05:41:55.6586146Z","event":"step-failed","command":"compile","rc":5,"continue":true}
+{"t":"2026-10-08T05:41:55.6586146Z","event":"step","command":"list-blocks","args":"--plc PLC_1"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"FRK_Clock","number":1,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"FRK_Registry","number":2,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"SpkHal","number":3,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"SpkResults","number":4,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"FRK_ClockTick","number":1,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"FRK_SetIdentity","number":2,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"FRK_Fault","number":3,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.6896419Z","event":"block","name":"FRK_AdoptChild","number":4,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_Complete","number":5,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_Begin","number":6,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_End","number":7,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_Seq_Step","number":8,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_Seq_TryIssue","number":9,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_Seq_Await","number":10,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_Seq_Advance","number":11,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FB_SpkCylinderCM","number":1,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FB_SpkCylinderSim","number":2,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FB_SpkAutoSeq","number":3,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FB_SpkUnit","number":4,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"SpikeUnit","number":5,"kind":"InstanceDB","language":"DB"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FRK_TestRecord","number":12,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FB_SpkHarness","number":5,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"FB_SpkMain","number":6,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7051206Z","event":"block","name":"SpkMain","number":6,"kind":"InstanceDB","language":"DB"}
+{"t":"2026-10-08T05:41:55.7211631Z","event":"block","name":"Main","number":1,"kind":"OB","language":"SCL"}
+{"t":"2026-10-08T05:41:55.7242862Z","event":"step","command":"save","args":""}
+{"t":"2026-10-08T05:41:55.8608229Z","event":"saved","path":"C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T05:41:55.8608229Z","event":"step","command":"export","args":"--plc PLC_1 --out C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2_export --scl true"}
+{"t":"2026-10-08T05:41:56.9317382Z","event":"exported","name":"FRK_Clock","language":"DB","sha256":"ee0caddc21cee66d73f0f31588f0268d5a9e74a826f0299cb9db535c4cbfade0"}
+{"t":"2026-10-08T05:41:56.9863493Z","event":"exported","name":"FRK_Registry","language":"DB","sha256":"24438f34eb4e66f0e89d6ab9da135b73cc7a52148780ffff2f65c482e86a6fff"}
+{"t":"2026-10-08T05:41:57.0153821Z","event":"exported","name":"SpkHal","language":"DB","sha256":"0369a30565dc04d775e443944a039ddee47e911ec0e61d169c1de976a6529ee6"}
+{"t":"2026-10-08T05:41:57.0374610Z","event":"exported","name":"SpkResults","language":"DB","sha256":"12ccf25e86843041e2fa66396b3388c1bbd9bef90c0ecb9f639f18204eef16b9"}
+{"t":"2026-10-08T05:41:57.3593608Z","event":"exported","name":"FRK_ClockTick","language":"SCL","sha256":"da802ced94970ab5de00686d462580594a390c9c48868e03c00fbd7d0648fd69"}
+{"t":"2026-10-08T05:41:57.3603687Z","event":"export-skipped","name":"FRK_SetIdentity","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.3603687Z","event":"export-skipped","name":"FRK_Fault","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.3618762Z","event":"export-skipped","name":"FRK_AdoptChild","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.3863996Z","event":"exported","name":"FRK_Complete","language":"SCL","sha256":"87cefe54a29733afdac99fa1b91329a0721be8d7745f7facecd66cb18787c01a"}
+{"t":"2026-10-08T05:41:57.3874103Z","event":"export-skipped","name":"FRK_Begin","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.3884711Z","event":"export-skipped","name":"FRK_End","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.3894745Z","event":"export-skipped","name":"FRK_Seq_Step","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4144966Z","event":"exported","name":"FRK_Seq_TryIssue","language":"SCL","sha256":"c65434df386a6dbd799e68df51d45a19f7004cfd9bc58722707daddf65e33a72"}
+{"t":"2026-10-08T05:41:57.4155475Z","event":"export-skipped","name":"FRK_Seq_Await","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4406795Z","event":"exported","name":"FRK_Seq_Advance","language":"SCL","sha256":"6e77c6604b6ca5223b4de8757c44c99a7044e6538cebec41e84258ce7285dba5"}
+{"t":"2026-10-08T05:41:57.4416858Z","event":"export-skipped","name":"FB_SpkCylinderCM","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4426935Z","event":"export-skipped","name":"FB_SpkCylinderSim","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4438659Z","event":"export-skipped","name":"FB_SpkAutoSeq","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4440230Z","event":"export-skipped","name":"FB_SpkUnit","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4450792Z","event":"export-skipped","name":"SpikeUnit","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4756293Z","event":"exported","name":"FRK_TestRecord","language":"SCL","sha256":"fcad092412426603dd5383695ec59e3f48cab50e6231677069d56f7337292b35"}
+{"t":"2026-10-08T05:41:57.4766368Z","event":"export-skipped","name":"FB_SpkHarness","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.4776435Z","event":"export-skipped","name":"FB_SpkMain","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.5026465Z","event":"exported","name":"SpkMain","language":"DB","sha256":"7f210d9a3e9fcca8fcbcd48895a69c6fae6f0bb12d7bfff3502ba47e26ac3b6f"}
+{"t":"2026-10-08T05:41:57.5460551Z","event":"exported","name":"Main","language":"SCL","sha256":"8bbe21e99c0960adbb2ecbb0af80db88f197c31d6bdb48b0f9bfec3e2ecd92c8"}
+{"t":"2026-10-08T05:41:57.6061319Z","event":"export-skipped","name":"ST_ModuleStatus","reason":"inconsistent (compile it first)"}
+{"t":"2026-10-08T05:41:57.8687282Z","event":"source-exported","name":"FRK_Clock","sha256":"5f7692c05ddef2af988fb9a10ab79bb4141e4bfc1e8d4df7d229cdffd8c3ce9a"}
+{"t":"2026-10-08T05:41:57.8831657Z","event":"source-exported","name":"FRK_Registry","sha256":"b6222222e4d143832c145dad3867b7bfa03a7cef92c79ab722bf07b818a05d5d"}
+{"t":"2026-10-08T05:41:57.8935573Z","event":"source-exported","name":"SpkHal","sha256":"354db4be047f6efd14d359d1127e8e435bc77fe6b2b0609dbd9885026bc8f898"}
+{"t":"2026-10-08T05:41:57.9027759Z","event":"source-exported","name":"SpkResults","sha256":"9298f793499d62d80f2dc2e84c524615da54057368d76f7609521f13ef98b172"}
+{"t":"2026-10-08T05:41:57.9506919Z","event":"source-exported","name":"FRK_ClockTick","sha256":"bd5b4f1a82f25f0391ad7bc0a95b9e0ef81cf52a09b5135a0221b23949ebfffe"}
+{"t":"2026-10-08T05:41:57.9506919Z","event":"source-exported","name":"FRK_Complete","sha256":"11f0ec97ae2bbebf9e0bae42b76feaa1a01efc5f188233d62cb6e60231a65b66"}
+{"t":"2026-10-08T05:41:57.9666782Z","event":"source-exported","name":"FRK_Seq_TryIssue","sha256":"da32d88e145e8e2845e92da0d55680f1f53f05f0253aca003a12ac9542748aa6"}
+{"t":"2026-10-08T05:41:57.9822030Z","event":"source-exported","name":"FRK_Seq_Advance","sha256":"18f5da87cd649601c50a68cf339486df491c1143a3ef3e90eec9933abb23ef93"}
+{"t":"2026-10-08T05:41:58.0062207Z","event":"source-exported","name":"FRK_TestRecord","sha256":"816103e38996f164fead05f2c82d63c6df104fbb72add2f1e1f08a793c95b0ff"}
+{"t":"2026-10-08T05:41:58.0172885Z","event":"source-exported","name":"SpkMain","sha256":"d61720a7b0110e0d5fb6490608960d12e73098373930e8975cf7a39a343d6721"}
+{"t":"2026-10-08T05:41:58.0298730Z","event":"source-exported","name":"Main","sha256":"cea8e51c6bb9ef0e96818638972456f38f546cb98881431306c3d5a99b5d37f4"}
+{"t":"2026-10-08T05:41:58.0410551Z","event":"source-exported","name":"ST_Diagnostic","sha256":"0623aad3b5b5a89b4f725292f06c973761f235566368be495bc362c4cc747b81"}
+{"t":"2026-10-08T05:41:58.0493050Z","event":"source-exported","name":"FRK_Core","sha256":"7f57a6206cc36607cab770e5f9124a2af358ee799696e1bf62d97fd219d30941"}
+{"t":"2026-10-08T05:41:58.0606824Z","event":"source-exported","name":"FRK_RegistryRow","sha256":"0dd51abb1c736da53bcc706cc778c26ff3bf42516859a809b1f19d196b8df86e"}
+{"t":"2026-10-08T05:41:58.0606824Z","event":"source-exported","name":"ST_StepRecord","sha256":"041c6c7f49b0a417b4cf580d081d74a7e5cb44949132a27daaa21c3e45ee75b9"}
+{"t":"2026-10-08T05:41:58.0760021Z","event":"source-exported","name":"FRK_SeqCtx","sha256":"bb68a67e15b83958927af7228d57aa15aad2e36d0718324eb4d88bf342c5a4ce"}
+{"t":"2026-10-08T05:41:58.0916903Z","event":"source-exported","name":"ST_HmiRequest","sha256":"20ac776ff8a36635addfdd9189ec9e75bf86daadca01938709dd9e325bfd8251"}
+{"t":"2026-10-08T05:41:58.0916903Z","event":"source-exported","name":"ST_HmiResponse","sha256":"1d364a2fe19e0f87357a1ec6f3c18bcb84a88b8ca5850d954e473b716ec676a2"}
+{"t":"2026-10-08T05:41:58.1098537Z","event":"source-exported","name":"ST_SpkCylHal","sha256":"7fa9f13e0a6cd6092d534b5b4224876977e9d67a6a0f56427ee28997f52b06a3"}
+{"t":"2026-10-08T05:41:58.1200846Z","event":"source-exported","name":"ST_SpkUnitHal","sha256":"c08d782ded274fd603ad9beab81aeb456cf3fc4a225eaaff010f48c5163b3067"}
+{"t":"2026-10-08T05:41:58.1299538Z","event":"source-exported","name":"ST_SpkCylinderParCfg","sha256":"636aafa5283d88509440a046147f0e9c4de1f5a5458fe43e3f6aaac43b363550"}
+{"t":"2026-10-08T05:41:58.1383011Z","event":"source-exported","name":"ST_SpkCylinderOutImm","sha256":"0ed33469824feb4d69304a384737ac7b67d9b066929b3bf96204311f39cf3d4e"}
+{"t":"2026-10-08T05:41:58.1469607Z","event":"source-exported","name":"FRK_TestRow","sha256":"9052f28a3d50d5f6718f871a38928d7a7ddb30acd4bb86c587343548b130fca2"}
+{"t":"2026-10-08T05:41:58.1469607Z","event":"plan-complete","steps":12,"tolerated-failures":3}

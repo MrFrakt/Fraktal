@@ -1,0 +1,41 @@
+﻿idle (sampler only)          samples=244 cycle ms: median=2.28 p95=2.57 max=2.64  scans/s=448 (mean cycle 2.23 ms)
+python : Traceback (most recent call last):
+At line:4 char:7
++ try { python "$sp\webapi_scanload.py" *> "$sp\tia\webapi_scanload1.tx ...
++       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\Siemens\AppData\Local\Temp\claude\c--Projects-Fraktal\557e92d1-b71c-4c7c-8e05-907ccca6dc19\scratchpad\
+webapi_scanload.py", line 59, in <module>
+    busy = sample(20)
+  File "C:\Users\Siemens\AppData\Local\Temp\claude\c--Projects-Fraktal\557e92d1-b71c-4c7c-8e05-907ccca6dc19\scratchpad\
+webapi_scanload.py", line 26, in sample
+    (c, _), (n, _) = sampler.bulk([("PlcProgram.Read", {"var": v}) for v in CYCLE])
+                     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\tia_webapi.py", line 102, in bulk
+    replies = self._post(reqs)
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\tia_webapi.py", line 79, in _post
+    self.conn.request("POST", "/api/jsonrpc", body=body, headers=headers)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\http\client.py", line 1386, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\http\client.py", line 1432, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\http\client.py", line 1381, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\http\client.py", line 1141, in _send_output
+    self.send(msg)
+    ~~~~~~~~~^^^^^
+  File "C:\Python314\Lib\http\client.py", line 1105, in send
+    self.sock.sendall(data)
+    ~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python314\Lib\ssl.py", line 1274, in sendall
+    v = self.send(byte_view[count:])
+  File "C:\Python314\Lib\ssl.py", line 1243, in send
+    return self._sslobj.write(data)
+           ~~~~~~~~~~~~~~~~~~^^^^^^
+ConnectionResetError: [Errno 10054] An existing connection was forcibly closed by the remote host

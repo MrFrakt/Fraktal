@@ -1,0 +1,12 @@
+TYPE "FRK_TestTable"
+VERSION : 0.1
+   STRUCT
+      Magic : DInt;                // 16#46524B31 'FRK1' once the harness has initialized the table
+      Done : Bool;                 // every case has run
+      Passed : Int;
+      Failed : Int;
+      RowCount : Int;
+      Rows : Array[1..32] of "FRK_TestRow";
+   END_STRUCT;
+
+END_TYPE

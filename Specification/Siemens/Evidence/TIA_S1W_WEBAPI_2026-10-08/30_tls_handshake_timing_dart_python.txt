@@ -1,0 +1,25 @@
+#0 tcp=17ms tls=2740ms protocol=null
+#1 tcp=3ms tls=2766ms protocol=null
+#2 tcp=7ms tls=2761ms protocol=null
+Traceback (most recent call last):
+  File "<string>", line 6, in <module>
+    x=ctx.wrap_socket(s); b=time.perf_counter(); print('python #%d tcp=%.0fms tls=%.0fms %s'%(i,(a-t)*1000,(b-t)*1000,x.version())); x.close()
+  File "C:\Python314\Lib\ssl.py", line 469, in wrap_socket
+    return self.sslsocket_class._create(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sock=sock,
+        ^^^^^^^^^^
+    ...<5 lines>...
+        session=session
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python314\Lib\ssl.py", line 1087, in _create
+    self.do_handshake()
+    ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\ssl.py", line 1383, in do_handshake
+    self._sslobj.do_handshake()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+TimeoutError: _ssl.c:1064: The handshake operation timed out
+
+[exited with code 1]

@@ -1,0 +1,20 @@
+// S3 scale fixture (Part IV s.12): 10 idle cylinder CMs called every scan, as
+// most modules of a press are idle. Measures work memory and cycle time per CM.
+FUNCTION_BLOCK "FB_SpkScale"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR
+      Cyl : Array[1..10] of "FB_SpkCylinderCM";
+      Hal : Array[1..10] of "ST_SpkCylHal";
+   END_VAR
+
+   VAR_TEMP
+      i : Int;
+   END_VAR
+
+
+BEGIN
+	FOR #i := 1 TO 10 DO
+	    #Cyl[#i](Hal := #Hal[#i]);
+	END_FOR;
+END_FUNCTION_BLOCK

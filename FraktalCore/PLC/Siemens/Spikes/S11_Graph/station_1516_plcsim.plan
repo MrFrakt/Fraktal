@@ -1,0 +1,33 @@
+# S11 - ONE-TIME: the S7-1500 station project for S7-PLCSIM (Part IV s.12, S11).
+# Offline. The CPU is simulated (S7-PLCSIM Advanced runtime, softbus): no
+# physical controller is ever addressed by this project. Its IP is on a subnet the
+# bench network does not use, so a download can only reach the simulator.
+#
+#   Fraktal.Tia.Cli plan station_1516_plcsim.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations
+#        --set s2=<repo>\FraktalCore\PLC\Siemens\Spikes\S2_Shape
+#
+# Measured on TIA V20 (2026-10-09):
+#  - CPU 1516-3 PN/DP 6ES7 516-3AP03-0AB0: the -3AN02 article has no V3.0 in the
+#    catalog. Firmware V3.0: the newest S7-1500 firmware the installed simulation
+#    runtime (5.0, file 50.42.10.00) is expected to accept - measured on download.
+#  - The CPU also has a PROFIBUS port: set-ip targets Ethernet nodes only.
+#  - Openness creates blocks only in ProDiag ("Create block only supports the
+#    programming language 'ProDiag'"), so the GRAPH reference block is drawn ONCE
+#    in the TIA editor and exported (S11_Graph/README.md); generated charts are then
+#    written against that export, never against a guess from the schema.
+#  - A new S7-1500 V3.0 defaults to protection level NoAccess, which needs a
+#    full-access password; on V3.0 the access levels are the classic CPU setting
+#    (PlcAccessLevelProvider), not UMAC rights. SIMULATOR ONLY: FullAccess.
+create-project --dir ${work} --name FrkS11
+add-device --order "OrderNumber:6ES7 516-3AP03-0AB0/V3.0" --name PLC_1 --station S71500_Sim
+set-ip --plc PLC_1 --ip 192.168.252.1 --mask 255.255.255.0
+master-secret --plc PLC_1 --mode none
+service-set --plc PLC_1 --service PlcAccessLevelProvider --prop PlcProtectionAccessLevel --value FullAccess
+# blocks compiled without simulation support are refused by S7-PLCSIM on download
+# ('cannot be simulated', measured); per-block PLCSimAdvancedSupport is read-only
+project-set --prop IsSimulationDuringBlockCompilationEnabled --value true
+? compile --plc PLC_1 --hw
+# the Fraktal types and services, so the reference chart can use the real pattern
+? import-sources --plc PLC_1 --dir ${s2} --keep-on-error
+? compile --plc PLC_1
+save

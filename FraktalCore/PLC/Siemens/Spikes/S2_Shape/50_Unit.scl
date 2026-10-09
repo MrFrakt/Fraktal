@@ -1,0 +1,157 @@
+// Fraktal/TIA Phase 0 fixture S2 - a root Unit: lifecycle, root mailbox,
+// children called exactly once, verbatim rollup of the awaited child, and a
+// lifecycle-only adapter that runs the AUTO chain (Part IV s.3.1, s.3.5, s.3.10.2).
+
+FUNCTION_BLOCK "FB_SpkUnit"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_OUTPUT
+      Busy { ExternalWritable := 'False'} : Bool;
+      Done { ExternalWritable := 'False'} : Bool;
+      Error { ExternalWritable := 'False'} : Bool;
+      Aborted { ExternalWritable := 'False'} : Bool;
+      ErrorID { ExternalWritable := 'False'} : DWord;
+      Mode { ExternalWritable := 'False'} : DInt;          // E_Mode AUTO=0 MANUAL=1, published from ModeActive
+      CurrentStep { ExternalWritable := 'False'} : "ST_StepRecord";
+      HmiResponse { ExternalWritable := 'False'} : "ST_HmiResponse";
+   END_VAR
+
+   VAR_IN_OUT
+      Hal : "ST_SpkUnitHal";
+   END_VAR
+
+   VAR
+      Status { ExternalWritable := 'False'} : "ST_ModuleStatus";   // static, not an output: the lifecycle reads it back,
+                                                                // and reading an FB output draws 'might not be initialized'
+      HmiRequest { ExternalWritable := 'True'} : "ST_HmiRequest";   // the ONLY writable Fraktal surface (a static:
+                                                    // the block itself clears Secret, which an input would warn about)
+      CylA : "FB_SpkCylinderCM";
+      CylB : "FB_SpkCylinderCM";
+      Core { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+      Seq { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_SeqCtx";
+      Auto { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_SpkAutoSeq";
+      RunReq { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      AbortReq { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      MbLastSeq { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      ModeActive { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := 1;
+   END_VAR
+
+   VAR_TEMP
+      instancePath : WString;
+   END_VAR
+
+   VAR CONSTANT
+      MODULE_UNIT : DInt := 1;
+      EXEC_READY : DInt := 0;
+      EXEC_BUSY : DInt := 1;
+      MODE_AUTO : DInt := 0;
+      MODE_MANUAL : DInt := 1;
+      K_SET_MODE : DInt := 3;
+      K_START : DInt := 5;
+      K_STOP : DInt := 6;
+      K_OPERATOR_RESET : DInt := 9;
+      CHILD_CYLA : Int := 1;
+      CHILD_CYLB : Int := 2;
+   END_VAR
+
+
+BEGIN
+	// ---- GENERATED: identity (once) ---------------------------------------
+	IF NOT #Core.Named THEN
+	    #instancePath := GetInstancePath(SIZE := 0);
+	    "FRK_SetIdentity"(InstancePath := #instancePath, ModuleType := #MODULE_UNIT,
+	                      ParentIndex := 0, Core := #Core, Status := #Status);
+	END_IF;
+
+	// ---- GENERATED: root mailbox (Core s.3.10(a'')) - one sample per Sequence --
+	IF #HmiRequest.Sequence <> #MbLastSeq THEN
+	    #MbLastSeq := #HmiRequest.Sequence;
+	    #HmiRequest.Secret := '';                  // transported secret cleared at once
+	    #HmiResponse.Accepted := FALSE;
+	    #HmiResponse.Diagnostic := '';
+	    CASE #HmiRequest.Kind OF
+	        3:  // SET_MODE
+	            IF #Core.Exec = #EXEC_BUSY THEN
+	                #HmiResponse.Diagnostic := 'std.release.unitBusy';
+	            ELSIF #HmiRequest.IntValue = #MODE_AUTO OR #HmiRequest.IntValue = #MODE_MANUAL THEN
+	                #ModeActive := #HmiRequest.IntValue;
+	                #HmiResponse.Accepted := TRUE;
+	            ELSE
+	                #HmiResponse.Diagnostic := 'std.mailbox.modeUnsupported';
+	            END_IF;
+	        5:  // START
+	            IF #ModeActive <> #MODE_AUTO THEN
+	                #HmiResponse.Diagnostic := 'std.release.notAuto';
+	            ELSIF #Core.Exec <> #EXEC_READY THEN
+	                #HmiResponse.Diagnostic := 'std.release.notReady';
+	            ELSE
+	                #RunReq := TRUE;
+	                #HmiResponse.Accepted := TRUE;
+	            END_IF;
+	        6:  // STOP (fixture: immediate software abort, Core s.3.14.4 default)
+	            #RunReq := FALSE;
+	            #AbortReq := TRUE;
+	            #HmiResponse.Accepted := TRUE;
+	        9:  // OPERATOR_RESET: release the latch and every child command the chain issued
+	            #RunReq := FALSE;
+	            #CylA.Execute := FALSE;
+	            #CylB.Execute := FALSE;
+	            #HmiResponse.Accepted := TRUE;
+	        ELSE
+	            #HmiResponse.Diagnostic := 'std.mailbox.unsupportedKind';
+	    END_CASE;
+	    #HmiResponse.AckSequence := #HmiRequest.Sequence;
+	END_IF;
+
+	// ---- GENERATED: lifecycle begin ---------------------------------------
+	"FRK_Begin"(Execute := #RunReq, Abort := #AbortReq, Command := 1, MaxCommand := 1,
+	            Core := #Core, Status := #Status);
+	#AbortReq := FALSE;                            // framework one-shot request consumed
+
+	// ---- GENERATED hook frame ----------------------------------------------
+	IF #Core.EvCommandStart THEN
+	    // Project policy (Core s.6.9(d)): a fresh Start restarts the chain.
+	    #Seq.Step := 0;
+	    #Seq.RetVal := 0;
+	    #Seq.Issued := FALSE;
+	    #Seq.LastRecorded := -1;
+	    #Seq.TraceCount := 0;
+	END_IF;
+	IF #Core.EvAbort OR #Core.EvAbortInError THEN
+	    #CylA.Execute := FALSE;
+	    #CylB.Execute := FALSE;
+	    #Seq.Step := 0;
+	END_IF;
+
+	// ---- GENERATED: children, each exactly once, unconditionally -----------
+	#CylA(ParentIndex := #Core.RegIndex, Hal := #Hal.CylA);
+	#CylB(ParentIndex := #Core.RegIndex, Hal := #Hal.CylB);
+
+	// ---- GENERATED: rollup - adopt the awaited direct child's first-out ----
+	IF #Core.Exec = #EXEC_BUSY THEN
+	    CASE #Seq.Record.AwaitIdx OF
+	        1:
+	            IF #CylA.Error THEN
+	                "FRK_AdoptChild"(Child := #CylA.Status.Diagnostic, Core := #Core, Status := #Status);
+	            END_IF;
+	        2:
+	            IF #CylB.Error THEN
+	                "FRK_AdoptChild"(Child := #CylB.Status.Diagnostic, Core := #Core, Status := #Status);
+	            END_IF;
+	        ELSE
+	            ;
+	    END_CASE;
+	END_IF;
+
+	// ---- GENERATED: dispatch - lifecycle-only chain adapter ----------------
+	#Seq.RetVal := 0;                              // per-scan result clear (Core s.6.8), framework-owned
+	IF #Core.Dispatch AND #ModeActive = #MODE_AUTO THEN
+	    #Auto(Seq := #Seq, CylA := #CylA, CylB := #CylB);
+	END_IF;
+	#CurrentStep := #Seq.Record;
+	#Mode := #ModeActive;                          // published every scan, never read back
+
+	// ---- GENERATED: lifecycle end -----------------------------------------
+	"FRK_End"(Core := #Core, Status := #Status, Busy => #Busy, Done => #Done, Error => #Error,
+	          Aborted => #Aborted, ErrorID => #ErrorID);
+END_FUNCTION_BLOCK

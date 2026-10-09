@@ -1,0 +1,90 @@
+﻿{"t":"2026-10-08T19:02:04.3522020Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-08T19:02:04.4269496Z","event":"step","command":"open-project","args":"--path C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T19:02:16.6124611Z","event":"project-opened","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T19:02:16.6124611Z","event":"step","command":"service-set","args":"--plc PLC_1 --service PlcAccessControlConfigurationProvider --prop PlcAccessControlConfiguration --value EnabledWithAccessControlViaAccessLevel"}
+{"t":"2026-10-08T19:02:21.9057967Z","event":"service-set","service":"PlcAccessControlConfigurationProvider","prop":"PlcAccessControlConfiguration","was":"Disabled","now":"EnabledWithAccessControlViaAccessLevel"}
+{"t":"2026-10-08T19:02:21.9057967Z","event":"step","command":"set-hw-attribute","args":"--plc PLC_1 --attr WebserverActivate --value true"}
+{"t":"2026-10-08T19:02:22.2800477Z","event":"hw-attribute-set","item":"PLC_1","attr":"WebserverActivate","was":false,"now":true}
+{"t":"2026-10-08T19:02:22.2800477Z","event":"step","command":"webserver-certificate","args":"--plc PLC_1"}
+{"t":"2026-10-08T19:02:22.5148319Z","event":"certificate-template","subject":"PLC-1/Webserver-2","signature":"Sha256RSA","validFrom":"2026-10-08T20:02:22.4959042+01:00","validUntil":"2037-10-08T00:00:00.0000000","subjectAlternativeNames":2}
+{"t":"2026-10-08T19:02:22.8106834Z","event":"webserver-certificate","action":"created","id":"2","subject":"PLC-1/Webserver-2","validUntil":"2037-10-08T00:00:00.0000000+01:00","privateKey":true}
+{"t":"2026-10-08T19:02:22.8106834Z","event":"step","command":"set-hw-attribute","args":"--plc PLC_1 --attr WebserverCertificateType --value 2 --type int"}
+{"t":"2026-10-08T19:02:22.9048297Z","event":"step-exception","command":"set-hw-attribute","message":"EngineeringNotSupportedException: 'set_WebserverCertificateType' is not supported by type 'Siemens.Engineering.HW.DeviceItemImpl'."}
+{"t":"2026-10-08T19:02:22.9048297Z","event":"step-failed","command":"set-hw-attribute","rc":10,"continue":true}
+{"t":"2026-10-08T19:02:22.9048297Z","event":"step","command":"set-hw-attribute","args":"--plc PLC_1 --attr WebserverCertificateType --value 2 --type uint"}
+{"t":"2026-10-08T19:02:22.9203312Z","event":"step-exception","command":"set-hw-attribute","message":"EngineeringNotSupportedException: 'set_WebserverCertificateType' is not supported by type 'Siemens.Engineering.HW.DeviceItemImpl'."}
+{"t":"2026-10-08T19:02:22.9203312Z","event":"step-failed","command":"set-hw-attribute","rc":10,"continue":true}
+{"t":"2026-10-08T19:02:22.9203312Z","event":"step","command":"umac-user","args":"--plc PLC_1 --anonymous true --system-roles PLCAdministrator"}
+{"t":"2026-10-08T19:02:22.9360032Z","event":"service-found","service":"UmacConfigurator","owner":"project"}
+{"t":"2026-10-08T19:02:22.9529152Z","event":"service-found","service":"UmacDevice","owner":"device"}
+{"t":"2026-10-08T19:02:25.1481571Z","event":"umac-user","name":"Anonymous","action":"activated","roles":"PLC administrator","rights":""}
+{"t":"2026-10-08T19:02:25.1481571Z","event":"step","command":"umac-user","args":"--plc PLC_1 --name fraktal --password-env FRAKTAL_TIA_WEB_PASSWORD --role FraktalGateway --rights WebReadTags,WebWriteTags"}
+{"t":"2026-10-08T19:02:25.1590588Z","event":"service-found","service":"UmacConfigurator","owner":"project"}
+{"t":"2026-10-08T19:02:25.1748522Z","event":"service-found","service":"UmacDevice","owner":"device"}
+{"t":"2026-10-08T19:02:25.7223368Z","event":"umac-user","name":"fraktal","action":"created","roles":"FraktalGateway","rights":"WebReadTags|WebWriteTags"}
+{"t":"2026-10-08T19:02:25.7233651Z","event":"step","command":"umac-user","args":"--plc PLC_1 --list true"}
+{"t":"2026-10-08T19:02:25.7435774Z","event":"service-found","service":"UmacConfigurator","owner":"project"}
+{"t":"2026-10-08T19:02:25.7490969Z","event":"service-found","service":"UmacDevice","owner":"device"}
+{"t":"2026-10-08T19:02:25.7564502Z","event":"device-function-right","group":"Access level","identifier":"ProtectionLevelHMIAccess","name":"HMI access"}
+{"t":"2026-10-08T19:02:25.7575051Z","event":"device-function-right","group":"Access level","identifier":"ProtectionLevelReadAccess","name":"Read access"}
+{"t":"2026-10-08T19:02:25.7592610Z","event":"device-function-right","group":"Access level","identifier":"ProtectionLevelFullAccess","name":"Full access"}
+{"t":"2026-10-08T19:02:25.7602546Z","event":"device-function-right","group":"OPC UA","identifier":"OPCUAServerAccess","name":"OPC UA server access"}
+{"t":"2026-10-08T19:02:25.7614660Z","event":"device-function-right","group":"Web server - General","identifier":"WebChangeOperatingMode","name":"Change operating mode"}
+{"t":"2026-10-08T19:02:25.7624715Z","event":"device-function-right","group":"Web server - General","identifier":"WebChangeDefaultWebPage","name":"Change web server default page"}
+{"t":"2026-10-08T19:02:25.7631605Z","event":"device-function-right","group":"Web server - PLC diagnostics","identifier":"WebAllowDiagnostics","name":"Read diagnostics"}
+{"t":"2026-10-08T19:02:25.7643442Z","event":"device-function-right","group":"Web server - PLC diagnostics","identifier":"WebReadSyslog","name":"Read syslog buffer of the CPU "}
+{"t":"2026-10-08T19:02:25.7651759Z","event":"device-function-right","group":"Web server - PLC diagnostics","identifier":"WebFlashLED","name":"Flash LEDs"}
+{"t":"2026-10-08T19:02:25.7662573Z","event":"device-function-right","group":"Web server - Maintenance","identifier":"WebPerformFirmwareUpdate","name":"Update firmware"}
+{"t":"2026-10-08T19:02:25.7683922Z","event":"device-function-right","group":"Web server - Maintenance","identifier":"WebChangeTimeSetting","name":"Change time settings"}
+{"t":"2026-10-08T19:02:25.7694556Z","event":"device-function-right","group":"Web server - Maintenance","identifier":"WebCreateBackupPLC","name":"Create a backup of the CPU"}
+{"t":"2026-10-08T19:02:25.7704835Z","event":"device-function-right","group":"Web server - Maintenance","identifier":"WebRestorePLCBackupFile","name":"Restore the CPU using a backup file"}
+{"t":"2026-10-08T19:02:25.7715196Z","event":"device-function-right","group":"Web server - Access to process data","identifier":"WebReadTags","name":"Read process data"}
+{"t":"2026-10-08T19:02:25.7725750Z","event":"device-function-right","group":"Web server - Access to process data","identifier":"WebReadWatchTables","name":"Read process data of watch tables"}
+{"t":"2026-10-08T19:02:25.7731265Z","event":"device-function-right","group":"Web server - Access to process data","identifier":"WebWriteTags","name":"Write process data"}
+{"t":"2026-10-08T19:02:25.7741911Z","event":"device-function-right","group":"Web server - Access to process data","identifier":"WebWriteWatchTables","name":"Write process data of watch tables"}
+{"t":"2026-10-08T19:02:25.7752020Z","event":"device-function-right","group":"Web server - User-defined web pages","identifier":"WebOpenUserDefinedWebPages","name":"Open user-defined web pages"}
+{"t":"2026-10-08T19:02:25.7762316Z","event":"device-function-right","group":"Web server - User-defined web pages","identifier":"WebWriteUserDefinedWebPages","name":"Write process data via automation webpage programming (AWP) command"}
+{"t":"2026-10-08T19:02:25.7775474Z","event":"device-function-right","group":"Web server - Access to file browser","identifier":"WebReadFiles","name":"Read files"}
+{"t":"2026-10-08T19:02:25.7783334Z","event":"device-function-right","group":"Web server - Access to file browser","identifier":"WebWriteFiles","name":"Write/delete files"}
+{"t":"2026-10-08T19:02:25.7915003Z","event":"system-role","identifier":"EngineeringAdministrator","name":"Engineering administrator","rights":""}
+{"t":"2026-10-08T19:02:25.7985148Z","event":"system-role","identifier":"Standard","name":"Engineering standard","rights":""}
+{"t":"2026-10-08T19:02:25.8047035Z","event":"system-role","identifier":"DriveAdministratorSystemRoleOp","name":"Drive Administrator","rights":""}
+{"t":"2026-10-08T19:02:25.8105157Z","event":"system-role","identifier":"DriveSafetyEngineerSystemRoleOp","name":"Drive Safety Engineer","rights":""}
+{"t":"2026-10-08T19:02:25.8180609Z","event":"system-role","identifier":"DriveEngineerAndServiceSystemRoleOp","name":"Drive Engineer and Service","rights":""}
+{"t":"2026-10-08T19:02:25.8255801Z","event":"system-role","identifier":"DriveOperatorSystemRoleOp","name":"Drive Operator","rights":""}
+{"t":"2026-10-08T19:02:25.8315446Z","event":"system-role","identifier":"DriveGuestSystemRoleOp","name":"Drive Guest","rights":""}
+{"t":"2026-10-08T19:02:25.8384345Z","event":"system-role","identifier":"ExtensionSystemRoleForFieldbusOp","name":"Drive Ext. Role Fieldbus","rights":""}
+{"t":"2026-10-08T19:02:25.8451945Z","event":"system-role","identifier":"ExtensionSystemRoleForPanelOp","name":"Drive Ext. Role SDI Standard/Adv","rights":""}
+{"t":"2026-10-08T19:02:25.8520343Z","event":"system-role","identifier":"HMIAdministrator","name":"HMI Administrator","rights":""}
+{"t":"2026-10-08T19:02:25.8573144Z","event":"system-role","identifier":"HMIOperator","name":"HMI Operator","rights":""}
+{"t":"2026-10-08T19:02:25.8634246Z","event":"system-role","identifier":"HMIMonitor","name":"HMI Monitor","rights":""}
+{"t":"2026-10-08T19:02:25.8695644Z","event":"system-role","identifier":"HMIMonitorClient","name":"HMI Monitor Client","rights":""}
+{"t":"2026-10-08T19:02:25.8761529Z","event":"system-role","identifier":"HMIOnlineConfigEngineer","name":"HMI Online Configuration Engineer","rights":""}
+{"t":"2026-10-08T19:02:25.8833925Z","event":"system-role","identifier":"PLCAdministrator","name":"PLC administrator","rights":"ProtectionLevelHMIAccess|ProtectionLevelReadAccess|ProtectionLevelFullAccess"}
+{"t":"2026-10-08T19:02:25.8933551Z","event":"system-role","identifier":"PLCFAdministrator","name":"PLC F administrator","rights":"ProtectionLevelHMIAccess|ProtectionLevelReadAccess|ProtectionLevelFullAccess"}
+{"t":"2026-10-08T19:02:25.9004298Z","event":"system-role","identifier":"PLCOperator","name":"PLC user","rights":"ProtectionLevelHMIAccess"}
+{"t":"2026-10-08T19:02:25.9065893Z","event":"system-role","identifier":"NETAdministrator","name":"NET Administrator","rights":""}
+{"t":"2026-10-08T19:02:25.9114210Z","event":"system-role","identifier":"NETStandard","name":"NET Standard","rights":""}
+{"t":"2026-10-08T19:02:25.9214512Z","event":"system-role","identifier":"NETDiagnose","name":"NET Diagnose","rights":""}
+{"t":"2026-10-08T19:02:25.9334526Z","event":"custom-role","name":"FraktalGateway","rights":"WebReadTags|WebWriteTags"}
+{"t":"2026-10-08T19:02:25.9395001Z","event":"project-user","name":"Anonymous","active":true,"roles":"PLC administrator"}
+{"t":"2026-10-08T19:02:25.9421811Z","event":"project-user","name":"fraktal","active":true,"roles":"FraktalGateway"}
+{"t":"2026-10-08T19:02:26.1073394Z","event":"anonymous-user","active":true}
+{"t":"2026-10-08T19:02:26.1073394Z","event":"step","command":"hw-attributes","args":"--plc PLC_1 --filter Web"}
+{"t":"2026-10-08T19:02:26.2191824Z","event":"hw-attribute","item":"PLC_1","attr":"WebserverActivate","value":true,"access":"ReadWrite"}
+{"t":"2026-10-08T19:02:26.2276003Z","event":"hw-attribute","item":"PLC_1","attr":"WebserverCertificate","value":"Siemens.Engineering.Security.Certificate","access":"ReadWrite"}
+{"t":"2026-10-08T19:02:26.2313780Z","event":"hw-attribute","item":"PLC_1","attr":"WebserverDefaultHTMLPage","value":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\FrkSpikeS2\\index.htm","access":"ReadWrite"}
+{"t":"2026-10-08T19:02:26.2330392Z","event":"hw-attribute","item":"PLC_1","attr":"WebserverHTMLDirectory","value":null,"access":"ReadWrite"}
+{"t":"2026-10-08T19:02:26.4628333Z","event":"step","command":"compile","args":"--plc PLC_1 --hw true"}
+{"t":"2026-10-08T19:02:29.9426642Z","event":"compile","state":"Error","errors":1,"warnings":2}
+{"t":"2026-10-08T19:02:29.9484170Z","event":"compile-message","depth":0,"state":"Error","path":"PLC_1","text":""}
+{"t":"2026-10-08T19:02:29.9525843Z","event":"compile-message","depth":1,"state":"Error","path":"Hardware configuration","text":""}
+{"t":"2026-10-08T19:02:29.9542873Z","event":"compile-message","depth":2,"state":"Error","path":"S71200_Bench","text":" "}
+{"t":"2026-10-08T19:02:29.9542873Z","event":"compile-message","depth":3,"state":"Error","path":"Rack_0","text":" "}
+{"t":"2026-10-08T19:02:29.9542873Z","event":"compile-message","depth":4,"state":"Error","path":"PLC_1","text":" "}
+{"t":"2026-10-08T19:02:29.9542873Z","event":"compile-message","depth":5,"state":"Warning","path":"Users and roles","text":"The Anonymous user currently has the \"Full access\" runtime right. This is only allowed for testing purposes and shall not be used in productive operation."}
+{"t":"2026-10-08T19:02:29.9648034Z","event":"compile-message","depth":5,"state":"Error","path":"","text":"No certificate type is assigned to the Web server security."}
+{"t":"2026-10-08T19:02:29.9648034Z","event":"compile-message","depth":5,"state":"Warning","path":"PLC_1","text":" "}
+{"t":"2026-10-08T19:02:29.9648034Z","event":"compile-message","depth":6,"state":"Warning","path":"","text":"PLC_1 does not contain a configured protection level"}
+{"t":"2026-10-08T19:02:29.9648034Z","event":"compile-message","depth":0,"state":"Error","path":null,"text":"Compiling finished (errors: 1; warnings: 2)"}
+{"t":"2026-10-08T19:02:29.9648034Z","event":"step-failed","command":"compile","rc":5,"continue":false}
