@@ -30,7 +30,7 @@ The runtime library shall not begin until these gates record PASS:
 |---|---|---|
 | R0 Core authority | **PASS by inheritance** | Core §2.2/§3.14/§5.5 already permit generated composition and §3.10/§11 define the transport-neutral Self-Description Service (AB R0). This Part needs no further Core amendment; one editorial item (Core header lists "Part I of III") is tracked in the port plan. |
 | R1 platform baseline | **OPEN — partly evidenced** | Bench controller identified from the controller itself (CPU 1214C DC/DC/DC `6ES7 214-1AG40-0XB0`, firmware V4.7.3, 2026-10-08); TIA Portal V20 (STEP 7 `20.00.0000`) and Openness V20; Openness access granted (group membership + new logon) and every build whitelisted by hash; PG/PC interface `Intel(R) 82574L Gigabit Network Connection` #2. Compile and download ran, so a usable STEP 7 licence is present (its exact key not yet inventoried). Still owed: licence inventory, S7-1500 target choice. No runtime licence is needed on the default (Web API) path; an OPC UA runtime licence only where a site uses that optional projection. Evidence: [`TIA_R1_PLATFORM_BASELINE_2026-10-08.md`](Siemens/Evidence/TIA_R1_PLATFORM_BASELINE_2026-10-08.md), [`TIA_S2_S15_FIRST_BENCH_RUN_2026-10-08.md`](Siemens/Evidence/TIA_S2_S15_FIRST_BENCH_RUN_2026-10-08.md) |
-| R2 executable shape | **OPEN — S2 and S15 PASS (bench)** | S1W/S2/S4/S11/S12 prove the Web API data path, the module FB form, source round-trip, both sequence forms and the physical type map. Recorded: S2 (frame, lifecycle FCs, parameter instances, `GetInstancePath` identity, registry, HELD) and S15 (headless create → compile 0/0 → download → TLS online) on the 1214C; S11 SCL leg partial; S4 first look; **S1W PASS (functional, bench; throughput-narrowed on S7-1200)** ([evidence](Siemens/Evidence/TIA_S1W_WEBAPI_2026-10-08.md)); S12 not started |
+| R2 executable shape | **OPEN — S2 and S15 PASS (bench)** | S1W/S2/S4/S11/S12 prove the Web API data path, the module FB form, source round-trip, both sequence forms and the physical type map. Recorded: S2 (frame, lifecycle FCs, parameter instances, `GetInstancePath` identity, registry, HELD) and S15 (headless create → compile 0/0 → download → TLS online) on the 1214C; S11 SCL leg partial and **GRAPH leg PASS (generated chart, PLCSIM 1500)** ([evidence](Siemens/Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md)); S4 first look; **S1W PASS (functional, bench; throughput-narrowed on S7-1200)** ([evidence](Siemens/Evidence/TIA_S1W_WEBAPI_2026-10-08.md)); S12 not started |
 | R3 frozen contracts | OPEN | the TIA type map, Web API (and optional OPC UA) browse projection, mailbox layout and step-table encoding frozen at version 1 and gated |
 | R4 gates | OPEN | a fresh clone regenerates every fixture, imports it through Openness, compiles warning-clean and round-trips canonically |
 | R5 test execution | OPEN — first evidence | a reference suite downloaded to the named bench and run, machine-readable rows harvested, three consecutive green runs. Recorded: the S2 fixture's 17 assertion rows harvested over the test image's TCP result server as JUnit, green on three consecutive download-and-restart runs, and again ×3 on the ASCII, web-enabled image (S1W record); still owed: the reference suite of ≥2 module types and the generated runner |
@@ -248,11 +248,14 @@ S7-GRAPH blocks**, PLC tag tables and anything external sources cannot express.
 
 Every reusable type runs against the same semantic HAL in real and simulated
 projects. The project's hardware-driver FB selects simulation by a build constant
-(TIA §7.5) and never writes `%Q` while simulating. S7-PLCSIM V20 is the isolated
-runner for S7-1500 code; **[PROVISIONAL S5]** whether it can be started,
-downloaded and harvested without the TIA user interface (Openness has no
-"start simulation" call; PLCSIM Advanced has an API, but the installed V5.0 may
-not accept a V20 project). The physical S7-1200 bench is the hardware runner. No
+(TIA §7.5) and never writes `%Q` while simulating. S7-PLCSIM Advanced is the isolated
+runner for S7-1500 code. It runs **headless** (S11, 2026-10-09):
+`Invoke-PlcSimInstance.ps1` registers and powers on an instance through the Runtime
+API 5.0; `Fraktal.Tia.Cli` downloads a V20 project over the `PLCSIM` PG/PC interface;
+and the API's read-only tag access harvests the results. The project must enable
+*simulation support during block compilation* (`IsSimulationDuringBlockCompilationEnabled`),
+or the download is refused. A newly registered instance presents a new certificate,
+so its first download is a logged trust-on-first-use act (§14). The physical S7-1200 bench is the hardware runner. No
 test image is ever a production download.
 
 ### TIA §2.7 Time-synchronization mechanics
@@ -441,24 +444,49 @@ renders it. Two renditions are bound:
    decisions — and ends with `"FRK_Seq_Advance"(Seq := #Seq, OnAdvance := <next>, ...)`,
    which commits the transition and clears the step-scoped latches. `RetVal` has
    exactly one writer per scan.
-2. **S7-GRAPH (chart form, S7-1500 only).** The same graph as a GRAPH FB. Each step
-   `N<StepNo>` carries the step's behaviour in its actions (non-stored `N` actions
-   and `CALL`s of `FRK_Seq_*` services); each transition reads the shared result
-   (`#Seq.RetVal = ADVANCE`, or `= JUMP1` on a branch). The chart is the only
-   progression owner; an owner adapter that selects behaviour with
-   `CASE ActiveStep OF` is non-conforming (Core §5.5). **[PROVISIONAL S11]**: which
-   GRAPH action forms can carry Fraktal step behaviour on InOut parameter instances,
-   GRAPH's own interlock/supervision (C/V) semantics versus Fraktal's step record,
-   the GRAPH initial-step/`INIT_SQ` reset path for the Core restart edges, and
-   whether "skip steps"/"acknowledge" modes must be disabled.
+2. **S7-GRAPH (chart form, S7-1500 only).** The same graph as a GRAPH FB,
+   **generated** from the chain declaration (`fraktal_tia_graph.py`, TIA §5.2) and
+   never drawn by hand; the one exception is the reference chart whose TIA export is
+   the writer's template. Settled by S11 on PLCSIM
+   ([evidence](Siemens/Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md)):
+   - A step `N<StepNo>` carries the step's behaviour in **actions**, which are `CALL`s
+     of the `FRK_Seq_*` services (one parameter per line) and single-operand
+     assignments, each `N` or once on activation (`S1`) or deactivation (`S0`). A GRAPH
+     action admits **no `IF` and no expression** (measured), so a step's exit
+     condition is its **transition**: an FBD network, the AND of the declared
+     operands into the `TrCoil`. A condition a service needs is passed as an
+     operand (`FRK_Seq_AwaitPending(..., Done := #CylA.Done, ...)` names a child only
+     while it is pending). The chart is the only progression owner. `RetVal` and
+     `FRK_Seq_Advance` belong to the SCL form; one declaration renders both, so the
+     exit condition is still written once (O9).
+   - GRAPH switches step and runs the new step's actions **in the same call**,
+     together with the old step's `S0`. A child issued by a step is therefore
+     raised one scan after entry: `S1 #Seq.Issued := FALSE`,
+     `N #<child>.Execute := #Seq.Issued`, `N #Seq.Issued := TRUE`,
+     `S0 #<child>.Execute := FALSE`. Without the delay, a child commanded by two
+     consecutive steps would never see the Execute drop that Core §6.1 needs. Cost:
+     one scan per issuing step compared with SCL.
+   - The Core restart edges (first scan, fresh Start policy, both abort paths) drive
+     **`INIT_SQ`**. On that call the chart runs the active step's `S0` (dropping its
+     child commands), returns to the initial step and runs that step's actions.
+   - A GRAPH FB **cannot be a multi-instance** (refused with or without GRAPH alarm
+     handling). The owner takes it as a **parameter instance**
+     (`VAR_IN_OUT Chart : "FB_<Thing><Mode>"`), exactly as it takes its children,
+     and the composition root declares one single-instance DB per deployed chain.
+     This is AB's per-owner chart rule (AB §3.5). A reusable owner type stays a type.
+   - **[PROVISIONAL S11]** GRAPH's own supervision (`MaximumStepTime`, V/C networks)
+     and acknowledge/skip modes versus Fraktal's step record and §6.9 stall walk:
+     generated charts keep TIA's empty networks and default step times until
+     this is measured.
 
 **Children are parameter instances.** The sequence FB declares the modules it
 commands as `VAR_IN_OUT Ram : "FB_CylinderCM"; ...` and its owner passes its own
 child instances: `#Auto(Seq := ..., Ram := #Ram, Door := #Door)`. This is the TIA
 equivalent of TC3's owner-bound `REFERENCE TO` aliases: the step branch names the
 child, the command and the wait, and no alias is stored or published.
-**[PROVISIONAL S2]** that STEP 7 accepts multi-instance parameter instances on
-S7-1200 V4.7 and in GRAPH FBs, and their call cost.
+Settled for S7-1200 V4.7 SCL by S2 and for GRAPH FBs on S7-1500 V3.0 by S11, where
+InOut FB-instance members are read and written in actions and transitions. The call
+cost is measured in S3.
 
 The framework services that are methods on `FB_SequenceBase` in Part II become
 **FCs taking `Seq` as `InOut`**: `FRK_Seq_Step`, `FRK_Seq_Await`, `FRK_Seq_Gate`,
@@ -470,7 +498,9 @@ lifecycle for every attached chain (Core §6.8, O1); a project writes neither.
 
 **Which renditions a station carries is a declaration choice** (AB §3.5): ST
 only on S7-1200; SCL and/or GRAPH on S7-1500. Where a chain carries both, a
-rendition gate proves identical steps and transitions (TIA §5.3), the same check
+rendition gate proves identical steps and transitions (TIA §5.3):
+`fraktal_tia_graph.py parity` reads the GRAPH SimaticML, including TIA's own
+re-export, and the SCL `CASE`, and compares the step graphs. It is the same check
 `check_consistency.py` performs for TC3's three AUTO renditions.
 
 ### TIA §3.8 Configuration, providers, and value-type binding
@@ -764,7 +794,11 @@ of every generated `Status.Name` equals the member name it is published under.
 
 `fraktal_tia_generate.py` reads a declaration (types, instances, sequences,
 reasons, profile) and emits SCL external sources, GRAPH SimaticML, the constant
-tag table and the OPC UA server-interface definition. It is the only author of:
+tag table and the OPC UA server-interface definition. Its GRAPH writer
+(`fraktal_tia_graph.py`, implemented for S11) writes against a block TIA itself
+exported, never against the schema alone. It reads every chart back, its own output
+and TIA's re-export, into one canonical dump (steps, actions, edges, transition
+operands). It is the only author of:
 module frames, registry indices, `ExternalAccessible`/`ExternalWritable`
 attributes, the enum constants (generated from the same ordinals as the TC3
 DUTs and `reason_rationalization.json`), family-profile widths and capacities,
@@ -785,7 +819,7 @@ reported as **pending**, never as passed. It runs in `.githooks/pre-commit`.
 | T-CORE | no authored region writes `#Core.` lifecycle members |
 | T-EXT | only `HmiRequest` is `ExternalWritable`; private members not `ExternalAccessible` |
 | T-TIER | no Unit reachable inside an EM (Core §3.3) |
-| T-SEQ | every non-terminal `CASE #Seq.Step` branch ends in `FRK_Seq_Advance`; GRAPH steps/transitions equal the SCL rendition |
+| T-SEQ | every non-terminal `CASE #Seq.Step` branch ends in `FRK_Seq_Advance`; GRAPH steps/transitions equal the SCL rendition (`fraktal_tia_graph.py parity`, run on the exported chart) |
 | T-IO | no block but the project IoDriver references `IO_` tags |
 | T-WIDTH | generated identities and keys fit the family profile's widths |
 | T-GEN | generated regions unchanged since generation (hash) |
@@ -886,8 +920,9 @@ each root (mailbox, `FRK_Begin`, hook reactions, **children**, rollup, attached
 chains while BUSY, `FRK_End`). Because children are cyclic work and the chain is
 dispatch, a chain's command is seen by the child on the **next** scan and the
 child's `Done` by the chain on the scan after — a two-scan command/result loop,
-the same deliberate latency AB §3.5 documents for its SFC runner. S11 measures it
-on both families; no project compensates for it.
+the same deliberate latency AB §3.5 documents for its SFC runner. S11 measured it
+for SCL on the 1214C and for GRAPH on PLCSIM. The GRAPH form adds one scan per
+issuing step (§3.5). No project compensates for it.
 
 ---
 
@@ -1106,7 +1141,13 @@ rendered and commanded (Start/Stop) the spike Unit; S3's polling cost measured
 numbers** ([evidence](Siemens/Evidence/TIA_S3_SCAN_AND_MEMORY_2026-10-08.md)): S2 image
 19.7 KB of 150 KB work memory; **≈ 1.16 KB work memory and ≈ 0.04 ms cycle per
 idle CM** with the quiescent fast path (§3.14; ≈ 0.20 ms without it); real generated
-types still to be measured. S1, S6, S10, S12, S14, S16 not started.
+types still to be measured. **S11 GRAPH leg PASS (PLCSIM 1500, 2026-10-09)**
+([evidence](Siemens/Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md)): a GRAPH chain **generated** from a declaration
+compiles 0/0, survives TIA's re-export unchanged, walks the SCL chain's trace
+`0,100,110,120,100,110`, and restarts mid-run through `INIT_SQ`. It runs as a
+parameter instance, since a multi-instance is refused. 19/19 rows on three downloads. S11 still
+owes STOP→RUN, download-in-RUN and error-OB behaviour. S1, S6, S10, S12, S14, S16 not
+started.
 
 ---
 

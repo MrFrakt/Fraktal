@@ -1,0 +1,17 @@
+# S11 - add the GENERATED GRAPH chain and its rig to the FrkS11 station, compile,
+# save and export (the export is what the parity gate reads back). Offline.
+#
+#   python tools\fraktal_tia_graph.py generate Spikes\S11_Graph\chain_auto.json
+#          Spikes\S11_Graph\reference\FB_GraphSample.xml ${gen}\FB_SpkAutoGraph.xml
+#   Fraktal.Tia.Cli plan build_plcsim.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations
+#          --set s11=<repo>\FraktalCore\PLC\Siemens\Spikes\S11_Graph --set gen=<dir of the generated XML>
+#
+# Order matters: the chart CALLs FRK_Seq_AwaitPending, the owner takes the chart
+# as a parameter instance and the rig passes its DB, so each follows what it uses.
+open-project --path ${work}\FrkS11\FrkS11.ap20
+import-sources --plc PLC_1 --dir ${s11} --only 10_
+import-xml --plc PLC_1 --file ${gen}\FB_SpkAutoGraph.xml --kind block
+import-sources --plc PLC_1 --dir ${s11} --only 15_,18_,20_,25_,30_
+compile --plc PLC_1
+save
+export --plc PLC_1 --out ${work}\FrkS11_export

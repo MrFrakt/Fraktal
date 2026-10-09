@@ -1,0 +1,217 @@
+{
+ "steps": [
+  {
+   "step": 0,
+   "init": true,
+   "actions": [
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_Step\" (StepNo := 0 StepName := 'spike.step.start' Seq := #Seq )"
+    }
+   ]
+  },
+  {
+   "step": 100,
+   "init": false,
+   "actions": [
+    {
+     "event": "S1",
+     "qualifier": "N",
+     "text": "#Seq.Issued := FALSE"
+    },
+    {
+     "event": "S1",
+     "qualifier": "N",
+     "text": "#CylA.Command := 1"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_Step\" (StepNo := 100 StepName := 'spike.step.extendA' Seq := #Seq )"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "#CylA.Execute := #Seq.Issued"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_Await\" (ChildIdx := 1 Label := 'CylA.EXTEND' Seq := #Seq )"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "#Seq.Issued := TRUE"
+    },
+    {
+     "event": "S0",
+     "qualifier": "N",
+     "text": "#CylA.Execute := FALSE"
+    }
+   ]
+  },
+  {
+   "step": 110,
+   "init": false,
+   "actions": [
+    {
+     "event": "S1",
+     "qualifier": "N",
+     "text": "#Seq.Issued := FALSE"
+    },
+    {
+     "event": "S1",
+     "qualifier": "N",
+     "text": "#CylB.Command := 1"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_Step\" (StepNo := 110 StepName := 'spike.step.extendB' Seq := #Seq )"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "#CylB.Execute := #Seq.Issued"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_Await\" (ChildIdx := 2 Label := 'CylB.EXTEND' Seq := #Seq )"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "#Seq.Issued := TRUE"
+    },
+    {
+     "event": "S0",
+     "qualifier": "N",
+     "text": "#CylB.Execute := FALSE"
+    }
+   ]
+  },
+  {
+   "step": 120,
+   "init": false,
+   "actions": [
+    {
+     "event": "S1",
+     "qualifier": "N",
+     "text": "#Seq.Issued := FALSE"
+    },
+    {
+     "event": "S1",
+     "qualifier": "N",
+     "text": "#CylA.Command := 2"
+    },
+    {
+     "event": "S1",
+     "qualifier": "N",
+     "text": "#CylB.Command := 2"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_Step\" (StepNo := 120 StepName := 'spike.step.retractBoth' Seq := #Seq )"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "#CylA.Execute := #Seq.Issued"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "#CylB.Execute := #Seq.Issued"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_AwaitPending\" (ChildIdx := 2 Label := 'CylB.RETRACT' Done := #CylB.Done Seq := #Seq )"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "CALL \"FRK_Seq_AwaitPending\" (ChildIdx := 1 Label := 'CylA.RETRACT' Done := #CylA.Done Seq := #Seq )"
+    },
+    {
+     "event": "",
+     "qualifier": "N",
+     "text": "#Seq.Issued := TRUE"
+    },
+    {
+     "event": "S0",
+     "qualifier": "N",
+     "text": "#CylA.Execute := FALSE"
+    },
+    {
+     "event": "S0",
+     "qualifier": "N",
+     "text": "#CylB.Execute := FALSE"
+    }
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": 0,
+   "to": 100,
+   "link": "Direct",
+   "when": {
+    "language": "FBD",
+    "operands": [
+     "TRUE"
+    ],
+    "boxes": [
+     "A"
+    ]
+   }
+  },
+  {
+   "from": 100,
+   "to": 110,
+   "link": "Direct",
+   "when": {
+    "language": "FBD",
+    "operands": [
+     "#CylA.Done"
+    ],
+    "boxes": [
+     "A"
+    ]
+   }
+  },
+  {
+   "from": 110,
+   "to": 120,
+   "link": "Direct",
+   "when": {
+    "language": "FBD",
+    "operands": [
+     "#CylB.Done"
+    ],
+    "boxes": [
+     "A"
+    ]
+   }
+  },
+  {
+   "from": 120,
+   "to": 100,
+   "link": "Jump",
+   "when": {
+    "language": "FBD",
+    "operands": [
+     "#CylA.Done",
+     "#CylB.Done"
+    ],
+    "boxes": [
+     "A"
+    ]
+   }
+  }
+ ]
+}

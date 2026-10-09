@@ -40,7 +40,8 @@ Facts recorded on 2026-10-08 (evidence:
 | S7-GRAPH, `REF_TO` references, named value types, `LTIME`/`LDT`/`ULINT` are **S7-1500 only**; VARIANT, LREAL, WSTRING exist on S7-1200 | TIA V20 information system | S7-1200 sequences are SCL only; enums are DInt constants on both families; no stored references anywhere |
 | TIA Portal V20 + Openness V20 installed; Openness first refused the session (account not in `Siemens TIA Openness`) — **resolved** the same day by group membership, a new logon and per-build whitelisting | `Fraktal.Tia.Cli` probe | every driver rebuild needs an administrator's whitelist step (Part IV §5.4) |
 | **First bench run:** S2 fixture compiled 0/0, downloaded, 17/17 self-test rows ×3 runs; secure-only PG/PC communication is bound to the project's certificate | [`TIA_S2_S15_FIRST_BENCH_RUN_2026-10-08.md`](Evidence/TIA_S2_S15_FIRST_BENCH_RUN_2026-10-08.md) | the module form and lifecycle composition work on S7-1200; the TIA project is per-station engineering state |
-| PLCSIM V20 and PLCSIM Advanced V5.0 installed | inventory | S7-1500/GRAPH evidence is simulation-only until S7-1500 hardware exists; PLCSIM Advanced V5.0 likely predates V20 |
+| PLCSIM V20 and PLCSIM Advanced V5.0 installed | inventory | S7-1500/GRAPH evidence is simulation-only until S7-1500 hardware exists |
+| **S11 GRAPH leg PASS on PLCSIM Advanced 5.0** (CPU 1516-3 V3.0, headless): a GRAPH chain *generated* from a declaration compiles 0/0, round-trips through TIA's export unchanged, walks the SCL trace, restarts by `INIT_SQ`; 19/19 rows ×3 downloads. A GRAPH FB cannot be a multi-instance, but is accepted as a parameter instance; actions take no `IF`/expression | [`TIA_S11_GRAPH_PLCSIM_2026-10-09.md`](Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md) | the GRAPH form is viable for S7-1500; exit conditions live in transitions; one chart DB per deployed chain; +1 scan per issuing step |
 
 **The honest reading.** Fraktal/TIA is very likely viable on S7-1500 — every
 mechanism the TC3 reference needs has a TIA equivalent there — and the open
@@ -110,7 +111,7 @@ through the registry.
 | Target | Purpose | Available |
 |---|---|---|
 | **CPU 1214C V4.7.3 @ 192.168.0.10** | physical evidence: Web API path, timing, memory fit, download/restart behaviour, the S7-1200 profile | **in use** (S15/S2/S5 passed 2026-10-08) |
-| **S7-PLCSIM V20 (S7-1500)** | S7-1500 shape: GRAPH rendition, references-free registry on 1500, full press logic | now, GUI-started (S5 decides automation) |
+| **S7-PLCSIM Advanced 5.0 (S7-1500)** | S7-1500 shape: GRAPH rendition, references-free registry on 1500, full press logic | **in use headless** (Runtime API; S11 GRAPH leg 2026-10-09) |
 | **Physical S7-1500** (recommended: CPU 1515-2 PN or 1516-3 PN/DP, FW ≥ V3.1; an OPC UA licence only if that projection is evidenced) | reference-family conformance, OPC UA budgets, full press bench | **to procure**; required before any S7-1500 conformance claim |
 
 ### 4.2 S7-1200 memory budget (hypothesis — S3 replaces every number)
@@ -151,7 +152,7 @@ spike's fixture is the next one's starting point:
 | 5 | **S1W/S7/S8** Web API — **S1W PASS (functional, bench), S7 PASS (spike scope) 2026-10-08** | S2 fixture + `webapi_1214c.plan` | layered acceptance (TCP 443 → pinned certificate → `Api.Login` → browse of `SpikeUnit` → batch read cost → writes refused off the mailbox → mailbox ack); then the **unchanged Web HMI** renders the spike Unit through the gateway's `WebApiSessionClient` |
 | 6 | **S9** repository parity | S2 + HMI | separate-call `Sequence` commit, stale/expiry, token expiry and re-login, reconnect, no replay |
 | 7 | **S3** scale & memory | generated forests of 10/30/60 modules | work-memory use per type, scan time, published leaf count, comm load under Web API polling → fixes the S7-1200 profile |
-| 8 | **S11** execution & restart | S2 (SCL) + `S11_Graph` on PLCSIM 1500 | identical step trace SCL vs GRAPH; STOP→RUN, download, OB100, error OB behaviour |
+| 8 | **S11** execution & restart — **GRAPH leg PASS (PLCSIM) 2026-10-09** | S2 (SCL) + `S11_Graph` on PLCSIM 1500 | identical step trace SCL vs GRAPH (**done**: generated chart, 19/19); restart edge by `INIT_SQ` (**done**); STOP→RUN, download-in-RUN, OB100, error OB behaviour; GRAPH supervision/ack modes |
 | 9 | **S4** round-trip | every fixture | import → generate source / export → compare canonical |
 | 10 | **S6, S13, S16** | dedicated fixtures | online extension, OUC TCP, persistence media |
 | — | **S10, S14** | S7-1500 only | optional projections; motion |
@@ -340,8 +341,8 @@ never committed; the committed form is source plus the plan files that build it.
 | Every driver rebuild needs an administrator to re-whitelist it (Openness firewall is per exe hash, headless included) | **certain** | CI on an unattended agent cannot rebuild the driver | batch driver changes; generic reflection commands; pin a released driver build per agent and whitelist it once at agent setup |
 | Engineering lockout when a project's certificate is lost (station project deleted, workstation rebuilt) | medium | no download until a logged trust-on-first-use recovery | station projects under `%LOCALAPPDATA%\Fraktal\TiaStations`, part of the workstation backup; `--trust-plc` recovery documented |
 | `DTL` not served as one value (Web API) or as DateTime (OPC UA) | medium | contract change for `Since` | S12 decides; derived member |
-| GRAPH semantics (interlock/supervision, skip/ack modes) conflict with Fraktal's step record | medium | GRAPH form narrowed | S11 on PLCSIM; SCL remains reference |
-| PLCSIM not automatable headless | medium | S7-1500 evidence semi-manual | record as narrowing (AB R5 precedent); procure S7-1500 |
+| GRAPH semantics (interlock/supervision, skip/ack modes) conflict with Fraktal's step record | medium (actions, transitions, restart now measured) | GRAPH form narrowed | supervision/ack still open in S11; SCL remains reference |
+| PLCSIM not automatable headless | **retired 2026-10-09** | — | PLCSIM Advanced 5.0 registered, downloaded and harvested headless (S11) |
 | SCL code density higher than assumed | medium | budgets slip | measure `FRK_Begin`/`End` first (S2/S3) |
 | Download of changes reinitializes registry/instances | medium | commissioning workflow | S6; registry headroom by profile |
 
@@ -393,11 +394,16 @@ on the 1214C ([evidence](Evidence/TIA_S1W_WEBAPI_2026-10-08.md)).
    CMs). Owed: the Unit's fast path and the real generated types' sizes (alarm ring,
    step table, configuration); then fix the S7-1200 profile widths/capacities. No
    library code before these numbers exist.
-5. **S11 GRAPH leg on S7-PLCSIM** (installed on the workstation, 2026-10-08: S7-PLCSIM V20
-   and **S7-PLCSIM Advanced 5.0** with its Runtime API 1.0–5.0 for headless virtual S7-1500
-   instances; Advanced's licence not yet verified): generate the AUTO chain as S7-GRAPH SimaticML for an
-   S7-1500 station project, import, compile, run in PLCSIM, compare the step trace with
-   the SCL rendition.
+5. **S11 GRAPH leg on S7-PLCSIM — done 2026-10-09**
+   ([evidence](Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md)). `fraktal_tia_graph.py` generates the AUTO chain as GRAPH
+   SimaticML from `S11_Graph/chain_auto.json` against TIA's exported reference chart
+   and dumps any chart back. It compiled 0/0 on the `FrkS11` station, and TIA's
+   re-export dumps identical. It ran on PLCSIM Advanced 5.0, headless, with the SCL
+   chain's trace and a mid-run `INIT_SQ` restart (19/19). Measured design facts, now
+   in Part IV §3.5: actions take no `IF`/expression, so exit conditions sit in the
+   transitions; the GRAPH FB is a parameter instance, never a multi-instance; and
+   Execute is raised one scan after entry. Still owed in S11: GRAPH
+   supervision/acknowledge modes, STOP→RUN, download-in-RUN, error OBs.
 6. **Tooling Phase 2 start** — `tia_lint.py` **done 2026-10-08** (11 rules + 18 tests, pre-commit;
    T-TIER/T-IO/T-WIDTH/T-GEN pending the generator). Original scope: `tia_lint.py` with T-FRAME, T-CYCLIC, T-EXT, T-ASCII,
    T-KEYWORD, T-COLLIDE, T-OWNIO, T-TYPEFILE over `Spikes/`, wired into

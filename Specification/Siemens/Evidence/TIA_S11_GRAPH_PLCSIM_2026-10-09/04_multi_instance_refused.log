@@ -1,0 +1,15 @@
+# Console capture (not tee'd to a file at the time): the two import runs where the
+# rig declared the GRAPH chart as a multi-instance. Lines copied verbatim from the
+# Fraktal.Tia.Cli event stream; the project was not saved by either run.
+#
+# Run A - generated chart as exported (WithAlarmHandling = true), build_plcsim.plan
+{"t":"2026-10-09T07:23:45.8697302Z","event":"block-imported","name":"FB_SpkAutoGraph","language":"GRAPH"}
+{"t":"2026-10-09T07:23:47.1303809Z","event":"source-failed","file":"20_GraphRig.scl","message":"EngineeringTargetInvocationException: Error when calling method 'GenerateBlocksFromSource' of type 'Siemens.Engineering.SW.ExternalSources.PlcExternalSource'.\r\n\r\nAn error occurred during code generation. External source files 20_GraphRig.scl Generating block \"FB_SpkGraphRig\"... Interface: The data type '\"FB_SpkAutoGraph\"' is not supported as a multiple instance.   1 Errors, 0 Warning: Import of '20_GraphRig.scl' completed with errors."}
+#
+# Run B - the same chart with <WithAlarmHandling>false</WithAlarmHandling>, probe plan (never saved)
+{"t":"2026-10-09T07:24:56.5094596Z","event":"block-imported","name":"FB_SpkAutoGraph","language":"GRAPH"}
+{"t":"2026-10-09T07:24:57.5528630Z","event":"source-failed","file":"20_GraphRig.scl","message":"EngineeringTargetInvocationException: Error when calling method 'GenerateBlocksFromSource' of type 'Siemens.Engineering.SW.ExternalSources.PlcExternalSource'.\r\n\r\nAn error occurred during code generation. External source files 20_GraphRig.scl Generating block \"FB_SpkGraphRig\"... Interface: The data type '\"FB_SpkAutoGraph\"' is not supported as a multiple instance.   1 Errors, 0 Warning: Import of '20_GraphRig.scl' completed with errors."}
+{"t":"2026-10-09T07:25:05.6951025Z","event":"compile","state":"Error","errors":1,"warnings":0}
+{"t":"2026-10-09T07:25:05.7197014Z","event":"compile-message","depth":3,"state":"Error","path":"2","text":"Tag \"S11Rig\" not defined."}
+# The one compile error is the OB calling the rig DB that could not be generated;
+# the generated GRAPH chart itself compiled without error in both runs.

@@ -1,0 +1,24 @@
+// Fraktal/TIA Phase 0 fixture S11 - the owner's lifecycle-only adapter with the
+// GRAPH chart as a PARAMETER INSTANCE (Part IV s.3.5). A GRAPH FB cannot be a
+// multi-instance, so a reusable owner type cannot contain its chart; it takes
+// the chart the way it takes its children, and the composition root supplies one
+// single-instance DB per deployed chain.
+
+FUNCTION_BLOCK "FB_SpkGraphOwner"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Restart : Bool;              // Core restart edge -> GRAPH INIT_SQ
+   END_VAR
+
+   VAR_IN_OUT
+      Chart : "FB_SpkAutoGraph";
+      Seq : "FRK_SeqCtx";
+      CylA : "FB_SpkCylinderCM";
+      CylB : "FB_SpkCylinderCM";
+   END_VAR
+
+
+BEGIN
+	#Chart(INIT_SQ := #Restart, Seq := #Seq, CylA := #CylA, CylB := #CylB);
+END_FUNCTION_BLOCK

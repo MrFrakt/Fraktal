@@ -1,0 +1,6 @@
+$ diff 07_dump_generated.json 08_dump_tia_reexport.json
+(identical)
+$ fraktal_tia_graph.py parity 06_tia_reexport_FB_SpkAutoGraph.xml S2_Shape/40_AutoSeq.scl
+parity OK; only in GRAPH []; only in SCL []
+$ fraktal_tia_graph.py parity reference/FB_GraphSample.xml S2_Shape/40_AutoSeq.scl   (negative control)
+parity FAILED; only in GRAPH [(100, 0)]; only in SCL [(100, 110), (110, 120), (120, 100)]

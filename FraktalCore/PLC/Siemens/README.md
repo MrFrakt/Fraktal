@@ -38,11 +38,16 @@ tools/
   s7_probe.py            read-only: identify a CPU (SZL), dump an SZL, harvest test results
   tia_webapi.py          Web API probe (S1W): pinned HTTPS, login, browse, snapshot, mailbox
   tia_lint.py            source gate (Part IV §5.3 T-rules) + test_tia_lint.py; pre-commit
+  fraktal_tia_graph.py   S7-GRAPH writer (from a chain declaration + TIA's exported template),
+                         reader (canonical dump) and SCL rendition parity + its tests
+  Invoke-PlcSimInstance.ps1  S7-PLCSIM Advanced instance: host/status/run/stop, read-only tag read
   Enable-TiaOpenness.ps1 admin setup: Openness group, and whitelisting of a driver build
 Spikes/
   S2_Shape/              module FB frame, FRK_Begin/FRK_End/FRK_Hold, CM ×2, Unit, mailbox,
                          SCL AUTO chain with parameter instances, self-test harness,
                          TCP result server; station/build/download/webapi plans for the bench
+  S11_Graph/             the AUTO chain as GENERATED S7-GRAPH on a simulated S7-1500 (PLCSIM
+                         Advanced): reference export, chain declaration, owner/rig, plans
 ```
 
 ## Bench

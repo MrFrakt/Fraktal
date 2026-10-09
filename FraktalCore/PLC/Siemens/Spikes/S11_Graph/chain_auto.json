@@ -1,0 +1,17 @@
+{
+  "_doc": "S11: the S2 AUTO chain (../S2_Shape/40_AutoSeq.scl) declared once for the GRAPH writer (tools/fraktal_tia_graph.py). Step numbers, labels, commands and waits are the SCL rendition's; 'when' is the step's exit condition.",
+  "name": "FB_SpkAutoGraph",
+  "number": 30,
+  "inout": [["Seq", "FRK_SeqCtx"], ["CylA", "FB_SpkCylinderCM"], ["CylB", "FB_SpkCylinderCM"]],
+  "steps": [
+    {"no": 0, "label": "spike.step.start", "when": ["TRUE"], "next": 100},
+    {"no": 100, "label": "spike.step.extendA", "issue": [["CylA", 1]],
+     "await": [{"idx": 1, "label": "CylA.EXTEND"}], "when": ["#CylA.Done"], "next": 110},
+    {"no": 110, "label": "spike.step.extendB", "issue": [["CylB", 1]],
+     "await": [{"idx": 2, "label": "CylB.EXTEND"}], "when": ["#CylB.Done"], "next": 120},
+    {"no": 120, "label": "spike.step.retractBoth", "issue": [["CylA", 2], ["CylB", 2]],
+     "await": [{"idx": 2, "label": "CylB.RETRACT", "pending_until": "#CylB.Done"},
+               {"idx": 1, "label": "CylA.RETRACT", "pending_until": "#CylA.Done"}],
+     "when": ["#CylA.Done", "#CylB.Done"], "next": 100}
+  ]
+}
