@@ -3,7 +3,7 @@
 Status: **plan, not a commitment — Phase 0 started 2026-10-08.** The binding is
 [`Fraktal_TIA_Part_IV.md`](../Fraktal_TIA_Part_IV.md) (draft, spike-ready). The
 implementation tree is `FraktalCore/PLC/Siemens/`; at this date it holds the
-Openness engineering driver and the first Phase 0 fixture, and no runtime library.
+Openness engineering driver and the first Phase 0 fixture, and no released runtime library. A shared command-kernel prototype now exists.
 
 This plan is the third binding's version of
 [`ALLEN_BRADLEY_PORT_PLAN.md`](../AllenBradley/ALLEN_BRADLEY_PORT_PLAN.md). It
@@ -24,6 +24,16 @@ gates with the feature they protect — and differs where Siemens differs.
 | D6 | **S7-1500 is the reference family; S7-1200 is a constrained family** | measured facts (§1) | the full press bench is an S7-1500 target; the 1214C carries a declared subset |
 | D7 | The physical bench **192.168.0.10** may be downloaded, stopped and reset freely (nothing connected) | project owner, 2026-10-08 | every controller-changing operation still names this target and is logged |
 
+**Implementation priority (owner clarification, 2026-10-10):** build the full
+reference implementation on the simulated S7-1500, including SCL and generated
+S7-GRAPH. The existing CPU1516-3 V3.0 / PLCSIM Advanced 7.0 is the current
+simulation prototype. The physical 1214C is a secondary compatibility and hardware
+test bench. Its 150 KB limit, compact S3 capacities and press-lite fit shall not
+gate or reduce the S7-1500 implementation. Use the reference CPU's own limits;
+retain Core capacities subject to actual Siemens representation requirements.
+Resolve prototype firmware against the declared reference baseline before a
+reference conformance claim. Preserve all dated S7-1200 evidence as S7-1200 evidence.
+
 ---
 
 ## 1. What is measured, and what follows from it
@@ -40,7 +50,7 @@ Facts recorded on 2026-10-08 (evidence:
 | S7-GRAPH, `REF_TO` references, named value types, `LTIME`/`LDT`/`ULINT` are **S7-1500 only**; VARIANT, LREAL, WSTRING exist on S7-1200 | TIA V20 information system | S7-1200 sequences are SCL only; enums are DInt constants on both families; no stored references anywhere |
 | TIA Portal V20 + Openness V20 installed; Openness first refused the session (account not in `Siemens TIA Openness`) — **resolved** the same day by group membership, a new logon and per-build whitelisting | `Fraktal.Tia.Cli` probe | every driver rebuild needs an administrator's whitelist step (Part IV §5.4) |
 | **First bench run:** S2 fixture compiled 0/0, downloaded, 17/17 self-test rows ×3 runs; secure-only PG/PC communication is bound to the project's certificate | [`TIA_S2_S15_FIRST_BENCH_RUN_2026-10-08.md`](Evidence/TIA_S2_S15_FIRST_BENCH_RUN_2026-10-08.md) | the module form and lifecycle composition work on S7-1200; the TIA project is per-station engineering state |
-| PLCSIM V20 and PLCSIM Advanced V5.0 installed | inventory | S7-1500/GRAPH evidence is simulation-only until S7-1500 hardware exists |
+| PLCSIM V20 and PLCSIM Advanced7 installed; earlier Advanced5 results remain frozen | inventory + S12 upgrade record | S7-1500/GRAPH evidence is simulation-only until S7-1500 hardware exists |
 | **S11 GRAPH leg PASS on PLCSIM Advanced 5.0** (CPU 1516-3 V3.0, headless): a GRAPH chain *generated* from a declaration compiles 0/0, round-trips through TIA's export unchanged, walks the SCL trace, restarts by `INIT_SQ`; 19/19 rows ×3 downloads. A GRAPH FB cannot be a multi-instance, but is accepted as a parameter instance; actions take no `IF`/expression | [`TIA_S11_GRAPH_PLCSIM_2026-10-09.md`](Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md) | the GRAPH form is viable for S7-1500; exit conditions live in transitions; one chart DB per deployed chain; +1 scan per issuing step |
 
 **The honest reading.** Fraktal/TIA is very likely viable on S7-1500 — every
@@ -84,8 +94,8 @@ the **gates**.
 | `FB_init` / `Setup` | — | first-scan `Setup` driven from OB100's flag, generated call order | §3.11 |
 | `{attribute 'OPC.UA.DA'}` | — | `ExternalAccessible`/`ExternalVisible`/`ExternalWritable` member attributes; root = named instance DB | §3.10 |
 | enums with `qualified_only` | ~45 | `DInt` + generated constants (same ordinals) | §3.8 |
-| `STRING(255)`/`STRING(480)` | — | `String[n≤254]`, family-profile widths; 480-char set lines → pieces (already supported by the mailbox) | §3.8.1 |
-| `DT`, `TIME()` monotonic | — | `DTL`/`LDT` (S12), `FRK_Clock` from `RUNTIME` | §2.7, §8.11 |
+| `STRING(255)`/`STRING(480)` | — | S7-1500 width-preserving WString candidates; S7-1200 compact widths/pieces remain a separate profile | §3.8.1 |
+| `DT`, `TIME()` monotonic | — | reference1500 `LDT` with type-aware Web API codec;1200 DTL projection provisional; `FRK_Clock` from `RUNTIME` | §2.7, §8.11 |
 | `VAR PERSISTENT` + `FB_WritePersistentData` | — | retentive DBs (small) + load-memory DB documents / card files | §3.8b |
 | TF6100 TMC-filtered publication | — | standard SIMATIC server interface (S7-1500) / generated user-defined interface (S7-1200) | §3.10.3 |
 | TcUnit + TcUnit-Runner | — | `FRK_Test*` SCL framework + `fraktal_tia_test.py` harvest + JUnit | §5.7 |
@@ -111,7 +121,7 @@ through the registry.
 | Target | Purpose | Available |
 |---|---|---|
 | **CPU 1214C V4.7.3 @ 192.168.0.10** | physical evidence: Web API path, timing, memory fit, download/restart behaviour, the S7-1200 profile | **in use** (S15/S2/S5 passed 2026-10-08) |
-| **S7-PLCSIM Advanced 5.0 (S7-1500)** | S7-1500 shape: GRAPH rendition, references-free registry on 1500, full press logic | **in use headless** (Runtime API; S11 GRAPH leg 2026-10-09) |
+| **S7-PLCSIM Advanced7 (S7-1500)** | S7-1500 shape: GRAPH rendition, references-free registry on1500, full press logic | **verified headless** through the updated API5 compatibility DLL; native Web API recovery and LDT mapping pass in S12 |
 | **Physical S7-1500** (recommended: CPU 1515-2 PN or 1516-3 PN/DP, FW ≥ V3.1; an OPC UA licence only if that projection is evidenced) | reference-family conformance, OPC UA budgets, full press bench | **to procure**; required before any S7-1500 conformance claim |
 
 ### 4.2 S7-1200 memory budget (hypothesis — S3 replaces every number)
@@ -120,19 +130,30 @@ through the registry.
 |---|---|---|
 | Framework code (lifecycle FCs, registry, sequence services, mailbox, PermIntlk, alarm ring, minimal config pager) | ≤ 55 KB | SCL code density is unknown on V4.7 — S3 measures `FRK_Begin`/`FRK_End` first |
 | Framework data (registry 32 rows, roots' rings at reduced depth) | ≤ 20 KB | compact string-free registry rows; rings sized by profile |
-| Module instances | ≤ 2.5 KB each data | `ST_ModuleStatus` at S7-1200 widths ≈ 0.6 KB (vs ≈ 1.4 KB at TC3 widths) |
+| Module instances | ≤ 2.5 KB each data | S3 compact status + six state rows averages 1.43 KB/module, before private lifecycle/device/config-write storage; the complete-instance target remains unproven |
 | Project (press-lite: Unit + 6 CMs + 3 SCL chains + release) | ≤ 45 KB | |
 | Reserve (download of changes, growth) | ≥ 15 KB (10 %) | |
 
-**String widths are the biggest lever.** At TC3 widths one `ST_Diagnostic` is
-≈ 700 B; at the proposed S7-1200 widths (`SourcePath` 96, `Description` 96,
-`IoTag`/`IoAddress` 32) it is ≈ 270 B, and `ST_ModuleStatus` drops from ≈ 1.4 KB to
-≈ 0.6 KB. The family profile fixes these; T-WIDTH proves every generated key and
-path fits; the HMI reads strings of any length unchanged.
+**Use compiled allocation, not a sum of string widths.** S3 2026-10-10 measures
+full Core-derived UDTs in optimized, non-retentive DB arrays; TIA re-export proves
+every field/type, count and access attribute. Six state rows/module and candidate
+96-character identities/keys, 32-character I/O names reduce the 16-module
+status/state group from 47.03 to 22.84 KB added work memory. Those are group
+deltas including DB overhead, not standalone status-record sizes. The profile
+and full press fit remain provisional; T-WIDTH must prove every generated key
+and path fits, and reduced capacity must reject overflow explicitly.
+
+**Dense write metadata breaks the per-module target.** The isolated eight-row
+compact `ST_ConfigWriteDef` array adds **5.49 KB** before any lifecycle/device
+data. TC3's `FB_ModuleBase` owns a maximum-sized write array per instance; do not
+copy that allocation into the 1200 generator. Share immutable metadata by type,
+derive identity from the registry, and allocate only consumed instance-dependent
+state. The configuration page/snapshot still needs its value-keyed contract;
+pointer-to-index substitution in S3 is an allocation probe, not a working writer.
 
 **Exit rule for S7-1200.** If S3 shows press-lite does not fit with ≥ 10 % reserve,
 the S7-1200 profile is cut to *base lifecycle + one Unit + CMs + SCL chain +
-mailbox + OPC UA*, the press bench becomes S7-1500-only, and Annex A says so.
+mailbox + Web API*, the press bench becomes S7-1500-only, and Annex A says so.
 That is a legitimate binding outcome; quietly over-filling the controller and
 discovering it on download (AB press72/73/77/79) is not.
 
@@ -152,14 +173,15 @@ spike's fixture is the next one's starting point:
 | 5 | **S1W/S7/S8** Web API — **S1W PASS (functional, bench), S7 PASS (spike scope) 2026-10-08** | S2 fixture + `webapi_1214c.plan` | layered acceptance (TCP 443 → pinned certificate → `Api.Login` → browse of `SpikeUnit` → batch read cost → writes refused off the mailbox → mailbox ack); then the **unchanged Web HMI** renders the spike Unit through the gateway's `WebApiSessionClient` |
 | 6 | **S9** repository parity | S2 + HMI | separate-call `Sequence` commit, stale/expiry, token expiry and re-login, reconnect, no replay |
 | 7 | **S3** scale & memory | generated forests of 10/30/60 modules | work-memory use per type, scan time, published leaf count, comm load under Web API polling → fixes the S7-1200 profile |
-| 8 | **S11** execution & restart — **GRAPH leg PASS (PLCSIM) 2026-10-09** | S2 (SCL) + `S11_Graph` on PLCSIM 1500 | identical step trace SCL vs GRAPH (**done**: generated chart, 19/19); restart edge by `INIT_SQ` (**done**); STOP→RUN, download-in-RUN, OB100, error OB behaviour; GRAPH supervision/ack modes |
+| 8 | **S11** execution & restart — **partial, measured 2026-10-10** | S2/S11_Scl physical 1214C + S11_Graph PLCSIM 1500 | GRAPH parity/supervision/ack/skip done (28/28); active reset/STOP→RUN and FC delta done on PLCSIM (16 recovery checks). GRAPH body delta requires native turn-off/DB reinitialization; quiesced deployment workflow, retention and other modes/errors remain. Physical SCL idle deltas/restart 19/19 and diagnostics role restored |
 | 9 | **S4** round-trip | every fixture | import → generate source / export → compare canonical |
 | 10 | **S6, S13, S16** | dedicated fixtures | online extension, OUC TCP, persistence media |
 | — | **S10, S14** | S7-1500 only | optional projections; motion |
 
 **Phase 0 exit:** a written answer per spike, each with a dated evidence record in
 `Specification/Siemens/Evidence/`, an explicit go/no-go for each family, and the
-S7-1200 profile fixed from S3.
+selected family's applicable profile fixed. The S7-1500 reference track proceeds
+independently of the constrained1200 profile's fit/width/capacity work.
 
 ---
 
@@ -167,8 +189,9 @@ S7-1200 profile fixed from S3.
 
 Each phase ends in evidence. Gates arrive with the feature they protect.
 
-**Phase 1 — Part IV freeze (R3).** Resolve every `[PROVISIONAL]` clause from the
-spike answers. Freeze the TIA type map, the Web API (and optional OPC UA) browse projection, the mailbox
+**Phase 1 — Part IV freeze (R3).** Resolve the S7-1500 reference track's
+`[PROVISIONAL]` clauses from its spike answers. Freeze its type map, the Web API
+(and optional OPC UA) browse projection, the mailbox
 layout and the step-table encoding as `TIA_FROZEN_CONTRACTS_V1.json`, gated
 against Part IV by `tools/check_tia_contracts.py` (mirror of `check_ab_contracts.py`).
 Editorial Core items: the Part I header ("Part I of III") and the binding list
@@ -176,11 +199,25 @@ gain Fraktal/TIA; O8's "future: Fraktal/TIA" becomes a reference. *Exit:* R3 PAS
 
 **Phase 2 — tooling (R4).**
 
+The initial [declaration-model slice](Evidence/TIA_R4_DECLARATION_MODEL_2026-10-10.md)
+validates reusable types and a two-root forest, derives eight registration rows
+and rejects structural violations. The
+[frame/registry slice](Evidence/TIA_R4_FRAME_REGISTRY_2026-10-10.md) now emits
+typed contracts, HAL bundles/calls, identity setup and compact registry services.
+The two-root fixture passes103 runtime assertions and canonical36-block/19-
+interface read-back/reimport. Manifest-scoped replay checks generated source;
+the broader rules remain pending. Begin/end FCs in this fixture are test-only
+probes. The separate shared command kernel now implements command/reset/abort/
+HELD/timeout/timing semantics and generation includes it with --shared-runtime.
+Its55 cases/238 assertions and native/public/private checks pass; full Core/Unit
+facets remain required.
+
 | Tool | Location | Role |
 |---|---|---|
 | `Fraktal.Tia.Cli` | `PLC/Siemens/tools/TiaCli` | **built** — Openness plans: create/open, add CPU, IP, import SCL/XML, compile, interfaces/scan, guarded download, online state, export |
-| `fraktal_tia_declaration.py` | `PLC/Siemens/tools` | the declaration model: families/profiles, types, instances, chains, reasons |
-| `fraktal_tia_generate.py` | ″ | emits SCL frames, constants table XML, GRAPH SimaticML, server-interface definition, setup order, retention list |
+| `fraktal_tia_declaration.py` | `PLC/Siemens/tools` | **started2026-10-10** - strict reference type/forest model and registration inventory; Core-derived widths/tier ordinals; chains, HAL, capabilities, reasons and additional profiles remain |
+| `fraktal_tia_generate.py` | ″ | **started2026-10-10**: common contract frames, typed HAL bundles/calls, registry/setup and replay manifest; constants table XML, GRAPH integration, server-interface and retention list remain |
+| `fraktal_tia_runtime.py` | PLC/Siemens/tools | shared command kernel from Framework/Core template; Core enums/capacities/rationalization are generated once, replayed by the frame manifest |
 | `fraktal_tia_graph.py` + `graph_dump.py` | ″ | GRAPH SimaticML writer **and reader** (every generated chart is dumped and compared to its declaration) |
 | `tia_lint.py` | ″ | the T-rules of Part IV §5.3 |
 | `fraktal_tia_test.py` | ″ | download test image, wait, harvest, JUnit |
@@ -188,29 +225,32 @@ gain Fraktal/TIA; O8's "future: Fraktal/TIA" becomes a reference. *Exit:* R3 PAS
 | `tia_webapi.py` | ″ | **built** — Web API probe (S1W): certificate pinning, login from the environment, browse tree, batch snapshot timing, mailbox commit/ack; the reference for the gateway's `WebApiSessionClient` |
 | `Invoke-FraktalTiaGate.ps1` | ″ | lint → generate → import/compile (both families) → optional bench test |
 
-*Exit:* a fresh clone regenerates and compiles every fixture warning-clean for
-both families; each deliberately broken invariant is rejected by a named rule;
-canonical round-trip stable (R4).
+*Exit:* a fresh clone regenerates and compiles the S7-1500 reference fixtures
+warning-clean; each deliberately broken invariant is rejected by a named rule;
+canonical round-trip stable (R4). The1200 profile has its own subsequent gate.
 
 **Phase 3 — communication vertical slice.** One root, one CM, registry, mailbox
 (`SET_MODE`, `START`, `STOP`, `OPERATOR_RESET`, `MANUAL_COMMAND`), the gateway's
 `WebApiSessionClient` (`FraktalCore/HMI/packages/fraktal_opcua_client`, beside
-`AdsSessionClient`), on the 1214C. *Exit:* the unchanged HMI discovers,
+`AdsSessionClient`), on the simulated S7-1500; existing1214C evidence is supporting
+hardware evidence. *Exit:* the unchanged HMI discovers,
 renders and commands it; stale data, disconnect, rejected write and reconnect
 fail closed; latency measured.
 
 **Phase 4 — runtime base (`Fraktal_Core_TIA`).** Object-by-object in §7.1's order;
 the base suite (`FRK_Test_Base`) grows with each behaviour. *Exit:* a single
-generated CM satisfies T1–T5 on the bench and on PLCSIM 1500; T6–T10 mechanisms
-proven once.
+generated CM satisfies T1–T5 on PLCSIM1500; T6–T10 mechanisms proven once there.
+Physical reference validation follows when hardware is available;1200 subset
+validation is independent.
 
 **Phase 5 — module library (`Fraktal_Modules_TIA`).** §7.2's set, each with its
-suite. *Exit:* all base and type suites green on both targets; a scan/memory
-report per type.
+suite. *Exit:* all base and type suites green on the simulated S7-1500 reference
+target; a target-scoped resource report per type. The1200 subset follows separately.
 
 **Phase 6 — press bench without power control.** §7.3. *Exit:* the full bench runs
-on S7-1500 (PLCSIM until hardware; then hardware), press-lite runs on the 1214C;
-the unchanged HMI operates both; integration suites green.
+on S7-1500 (PLCSIM until hardware; then hardware), the unchanged HMI operates it,
+and integration suites are green. A1214C press-lite is a separate constrained
+compatibility deliverable and does not block the reference press.
 
 **Phase 7 — GRAPH renditions and rendition parity.** AUTO, HOME, CHANGEOVER and
 LoadPosition generated as S7-GRAPH for S7-1500 from the same graph declaration as
@@ -341,7 +381,7 @@ never committed; the committed form is source plus the plan files that build it.
 | Every driver rebuild needs an administrator to re-whitelist it (Openness firewall is per exe hash, headless included) | **certain** | CI on an unattended agent cannot rebuild the driver | batch driver changes; generic reflection commands; pin a released driver build per agent and whitelist it once at agent setup |
 | Engineering lockout when a project's certificate is lost (station project deleted, workstation rebuilt) | medium | no download until a logged trust-on-first-use recovery | station projects under `%LOCALAPPDATA%\Fraktal\TiaStations`, part of the workstation backup; `--trust-plc` recovery documented |
 | `DTL` not served as one value (Web API) or as DateTime (OPC UA) | medium | contract change for `Since` | S12 decides; derived member |
-| GRAPH semantics (interlock/supervision, skip/ack modes) conflict with Fraktal's step record | medium (actions, transitions, restart now measured) | GRAPH form narrowed | supervision/ack still open in S11; SCL remains reference |
+| GRAPH semantics (interlock/supervision, skip/ack modes) conflict with Fraktal's step record | medium (actions, transitions, restart and supervision now measured) | GRAPH form narrowed | V/C networks empty, skip disabled; manual/semi-auto still open in S11; SCL remains reference |
 | PLCSIM not automatable headless | **retired 2026-10-09** | — | PLCSIM Advanced 5.0 registered, downloaded and harvested headless (S11) |
 | SCL code density higher than assumed | medium | budgets slip | measure `FRK_Begin`/`End` first (S2/S3) |
 | Download of changes reinitializes registry/instances | medium | commissioning workflow | S6; registry headroom by profile |
@@ -366,6 +406,77 @@ never committed; the committed form is source plus the plan files that build it.
 
 ## 11. Immediate next steps
 
+**Current priority: S7-1500 reference implementation.** Extend the measured shared
+command/Unit services through the native Phase3 forest/rendering/mailbox slice,
+then complete release frontiers and alarm/state/recipe/retention services, modules
+and full press without power control. Validate
+SCL/GRAPH parity as each chain arrives. The S7-1200 S3 numbers below are retained
+compatibility results; no 150 KB cap or compact profile applies to this track.
+
+S12/S4 continued2026-10-10 on isolated simulated1516 station FrkS12: complete
+88-type/610-field layout,269-source canonical round-trip,1405/1405 SDK witnesses
+and43/43 scalar checks including295 enum constants and wide-string operations.
+The strict parser is shared in tools/fraktal_tia_types.py. The host-time hour
+fails tolerance; simulator-time accumulation agrees within8.664ms over the
+separate ten-minute comparison. At that Advanced5 scope, symbolic CPU Web API
+reads remained denied despite login/read_value and a diagnostic-right control.
+See
+[S12/S4 evidence](Evidence/TIA_S12_TYPES_ROUNDTRIP_2026-10-10.md).
+Native isolation controls now reproduce the denial with a three-field DB;
+a valid token reads RUN with diagnostic permission, but symbolic reads remain2.
+Cold restart and CommunicationMode0 do not fix it. Full1405/1405 and43/43
+witnesses pass after restoring the complete image, mode1 and process-data rights.
+See [native isolation evidence](Evidence/TIA_S12_WEBAPI_RECOVERY_2026-10-10.md).
+The owner installed Advanced7; symbolic Read/Browse now work on the preserved
+DTL image before any program/configuration change. The upgrade also replaced
+API5's compatibility DLL and virtual adapter, so no single cause is isolated.
+The reference mapping is now Core DT to LDT; the candidate retains88 types,
+610 fields and Core capacities. Native1081/1081, SDK1146/1146 type and43/43
+scalar witnesses pass;269 sources pass canonical reimport/compile/export.
+The live HMI client/date parser passes36 checks across99 Good leaves, including
+full-width strings and exact64-bit values. See
+[Advanced7 evidence](Evidence/TIA_S12_WEBAPI_ADVANCED7_2026-10-10.md).
+The saved simulator image belongs to the copied LDT station at
+`%LOCALAPPDATA%\Fraktal\TiaStations\S12_Ldt_20261010\FrkS12\FrkS12.ap20`;
+the original FrkS12 project remains the DTL control. Use an explicit work path.
+The frame/registry generator now emits24 sources from that shared declaration;
+the independent test package compiles0/0 and passes103 runtime assertions,
+native public/private reads and STOP/RUN setup.36 blocks and19 interfaces
+round-trip canonically. T-TIER/T-IO/T-WIDTH/T-GEN replay applies to its manifest;
+full generator facets remain open. The saved FrkS12 simulator image now belongs
+to `TiaStations\R4_Frame_20261010\FrkS12\FrkS12.ap20`; both earlier projects
+remain preserved. The shared Framework/Core command kernel now passes238
+assertions in55 cases and again after STOP/RUN. Native public100/private7 checks
+pass;47 blocks/18 interfaces round-trip. Generator0.2 owns the parameter latch,
+command/timeout validation, management-before-abort order and full path for
+CMs with management hooks. See
+[command-kernel evidence](Evidence/TIA_CORE_LIFECYCLE_2026-10-10.md).
+The current saved image/project is
+`TiaStations\Core_Lifecycle_20261010\FrkS12\FrkS12.ap20`; older projects,
+secrets and certificates remain preserved. The subsequent Unit control slice
+passes103 native checks for mode/mailbox/release/reset/local Part and STOP/RUN;
+79 blocks/34 interfaces round-trip warning-free. The active image now belongs to
+TiaStations/Unit_Runtime_20261011/FrkS12/FrkS12.ap20. See
+[Unit control evidence](Evidence/TIA_UNIT_CONTROLS_2026-10-11.md).
+The subsequent Unit routing bench passes120 native checks across24 instances,
+three Unit levels, manual catalogs/release rollup, reset and STOP/RUN.104 blocks/
+40 interfaces round-trip with0 errors/warnings. The current saved project/image
+is TiaStations/Routing_Runtime_20261011/FrkS12/FrkS12.ap20; prior projects remain
+preserved. See [routing evidence](Evidence/TIA_UNIT_ROUTING_2026-10-11.md).
+The static manifest/native HMI slice now passes241 native checks and120 routing
+regressions. The production HMI path maps24 modules, hydrates492 manifest entries
+and commands the rendered Instant button; peer mode changes remain isolated.
+Its display preference is test-only NONE because there is no login provider.
+117 blocks/41 interfaces round-trip warning-free; production114/41 compiles0/0.
+Current saved image: TiaStations/Manifest_Runtime_20261011/FrkS12/FrkS12.ap20.
+See [manifest/HMI evidence](Evidence/TIA_STATIC_MANIFEST_HMI_2026-10-11.md).
+Next implement authentication/session/full audit and derived-state/alarm services,
+then configuration/recipe/retention and full sequence/GRAPH services. Complete
+application/frontier release services remain alongside that Core work.
+See [frame/registry evidence](Evidence/TIA_R4_FRAME_REGISTRY_2026-10-10.md).
+The broader Phase3 feature set, clock quality, library upgrades, retained-state
+and remaining S11 deployment/modes are still owed. The1200 timestamp projection is separate.
+
 Done on 2026-10-08: Openness access; S15; S2 fixture compiled 0/0, downloaded,
 17/17 ×3 on hardware; S5 TCP harvest; station-project workflow; ASCII rebuild
 17/17 ×3; **S1W PASS (functional, bench)** — web server, certificate, UMAC user,
@@ -382,8 +493,18 @@ on the 1214C ([evidence](Evidence/TIA_S1W_WEBAPI_2026-10-08.md)).
    leaf-only reads (structures and `DTL` member by member), a fast tier sized for
    ≈ 15 ms/leaf, the mailbox commit as `tia_webapi.py mailbox` does it. Exit: the
    unchanged Web HMI renders and commands the spike Unit.
-2. **S9 remainder over the Web API:** token expiry and re-login, CPU STOP/RUN and
-   cable-pull recovery, two concurrent clients, snapshot coherence within one batch.
+2. **S9 Web API read/session observations measured 2026-10-09**
+   ([evidence](Evidence/TIA_S9_READ_SESSIONS_2026-10-09.md)): two independent tokens,
+   ten concurrent reads per client; pinned socket reconnect retaining the token;
+   explicit logout invalidates protected reads with code 2, and re-login succeeds
+   without disturbing the other client. **One batch is not one scan:** all ten
+   batches of sixteen reads of the same cyclic counter returned differing values.
+   Part IV §3.13 keeps the established eventually consistent snapshot boundary.
+   Natural invalidation after 160 s idle and explicit re-login also passed;
+   a retained Python read client crossed native STOP→RUN with the same token,
+   counter frozen in STOP and rebuilt/increasing in RUN, followed by 19/19.
+   Still owed: retained-client download and cable-pull recovery, concurrent
+   mailbox writers and end-to-end HMI freshness.
 3. **S3 polling cost** — done (+0.23 ms mean cycle under continuous full-tree Web API
    polling, S1W evidence §8).
 4. **S3 memory and per-module cost** — first numbers 2026-10-08
@@ -391,9 +512,20 @@ on the 1214C ([evidence](Evidence/TIA_S1W_WEBAPI_2026-10-08.md)).
    memory (only the CPU's system web page reports it — Openness, SZL and the Web API
    do not); idle CM 0.20 ms/scan → 0.053 ms with the **quiescent fast path** now in the
    generated frame (Part IV §3.14); **≈ 1.16 KB work memory per minimal CM** (S2 + 10/30
-   CMs). Owed: the Unit's fast path and the real generated types' sizes (alarm ring,
-   step table, configuration); then fix the S7-1200 profile widths/capacities. No
-   library code before these numbers exist.
+   CMs). **Unit guard and Core-derived storage measured 2026-10-10**
+   ([evidence](Evidence/TIA_S3_BUDGET_2026-10-10.md)): five Units plus ten CMs,
+   19/19 with both frames; guard saves about 0.202 ms per idle Unit. Added work
+   memory, wide → compact: status/state 47.03 → 22.84 KB, alarms 75.57 → 12.41 KB,
+   sequence 48.57 → 21.77 KB, configuration 48.07 → 19.42 KB. Complete field/type
+   and DB count/access read-back accompanies the measurements. The candidate
+   combined storage image uses 96.89/150 KB and passes 19/19; its 53.11 KB free
+   still has to hold additional runtime/project code and at least 15 KB reserve.
+   Eight compact write definitions alone add 5.49 KB. The candidate
+   capacities are in `Spikes/S3_Budget/make_fixture.py`, not a released profile.
+   Owed: type-shared write metadata instead of dense per-instance strings;
+   encoded-value/domain/persistence-piece width gates; complete-instance and
+   press runtime cost with at least 15 KB reserve, real published surface and
+   full hook semantics. Freeze capacities only after those checks.
 5. **S11 GRAPH leg on S7-PLCSIM — done 2026-10-09**
    ([evidence](Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md)). `fraktal_tia_graph.py` generates the AUTO chain as GRAPH
    SimaticML from `S11_Graph/chain_auto.json` against TIA's exported reference chart
@@ -402,8 +534,51 @@ on the 1214C ([evidence](Evidence/TIA_S1W_WEBAPI_2026-10-08.md)).
    chain's trace and a mid-run `INIT_SQ` restart (19/19). Measured design facts, now
    in Part IV §3.5: actions take no `IF`/expression, so exit conditions sit in the
    transitions; the GRAPH FB is a parameter instance, never a multi-instance; and
-   Execute is raised one scan after entry. Still owed in S11: GRAPH
-   supervision/acknowledge modes, STOP→RUN, download-in-RUN, error OBs.
+   Execute is raised one scan after entry. **Remainder measured 2026-10-09**
+   ([evidence](Evidence/TIA_S11_SEMANTICS_2026-10-09.md)): four generated probes,
+   full read-back equality, 28/28 after download and a direct PLCSIM STOP→RUN;
+   19/19 after download/start on the physical 1214C. Empty V/C networks do not
+   enforce maximum time, an explicit supervision waits for ACK_EF when enabled,
+   skip mode omits step records, and local invalid-index handling returns 16#2522
+   on both families (OB121 fallback on 1500: 16#22, substitute zero). Part IV
+   now keeps V/C networks empty and skip disabled. **Native SCL bench remainder
+   PASS, idle fixture scope**
+   ([evidence](Evidence/TIA_S11_NATIVE_2026-10-09.md)): authenticated web STOP→RUN,
+   fresh OB100 stamp and 19/19; two code-only downloads in RUN, compile/download
+   0/0 and 19/19 each. Marker 1101→1102 preserved the DB sentinel, startup stamp
+   and mailbox sequence/ack while counters increased; DB interface unchanged.
+   No stop/start or reinitialization question appeared in either delta.
+   **Active GRAPH recovery measured 2026-10-10**
+   ([evidence](Evidence/TIA_S11_GRAPH_RECOVERY_2026-10-10.md)): the new two-root
+   fixture passed 28/28 in fifteen completed harvests and 16 recovery checks.
+   Reset while BUSY and native STOP→RUN withdraw outputs and wait for a new Arm.
+   An FC delta preserves observed active command/DB state. A GRAPH body-only
+   delta keeps its exported interfaces but requests sequence turn-off and DB
+   reinitialization: state-preserving GRAPH download is **not passed**.
+   The cylinder's interlock now withdraws outputs even in READY; reset after
+   completion and a second active restart passed after the fix. This remains a
+   mechanism probe, not the full Unit runtime. Implement the quiesced deployment
+   workflow and prove retention/other modes/errors before closing S11.
+   **Diagnostics-role cleanup PASS**
+   ([evidence](Evidence/TIA_S11_ENUMERATION_2026-10-09.md)): direct enumeration
+   removed WebChangeOperatingMode, hardware compile and UMAC download 0/0;
+   authenticated native mode forms absent, gateway reads and 19/19 retained.
+   V20's assigned-rights IList enumerated two valid objects but `.ToList()`
+   produced one null entry. The driver now enumerates identifiers directly and
+   verifies the requested set before save/download. Previous causal guesses
+   and failures remain in frozen records; this measured comparison resolves them.
+   **Current approved driver:** `TiaCli/bin/candidate_s11_enumeration/Fraktal.Tia.Cli.exe`,
+   Base64 SHA-256 `5FXuk+YWxHiAAbB4MBZNqSty44F9apDJDgPZiTcCbzM=`. Never overwrite
+   it or earlier approved binaries. Passwords and station certificates preserved.
+   Still owed: enforcing quiesced GRAPH deployment, retentive state, other error
+   classes, manual/semi-auto GRAPH modes and full Unit lifecycle integration.
+   Host Python Web API transport now pins each
+   reconnect and never replays mutations after a lost response (four fault tests);
+   this does not close the S9 runtime remainder. S3 now supplies the storage
+   measurements in item 4. S12 type/date projection and S4 source checks now
+   pass on Advanced7; generated frames/registry now pass their boundary fixture;
+   next are the remaining Core/Unit facets behind the measured command kernel,
+   with the S9 recovery/writer remainder still open.
 6. **Tooling Phase 2 start** — `tia_lint.py` **done 2026-10-08** (11 rules + 18 tests, pre-commit;
    T-TIER/T-IO/T-WIDTH/T-GEN pending the generator). Original scope: `tia_lint.py` with T-FRAME, T-CYCLIC, T-EXT, T-ASCII,
    T-KEYWORD, T-COLLIDE, T-OWNIO, T-TYPEFILE over `Spikes/`, wired into

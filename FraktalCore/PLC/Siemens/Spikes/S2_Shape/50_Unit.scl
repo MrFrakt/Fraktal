@@ -38,6 +38,7 @@ VERSION : 0.1
 
    VAR_TEMP
       instancePath : WString;
+      LifecycleActive : Bool;
    END_VAR
 
    VAR CONSTANT
@@ -103,6 +104,9 @@ BEGIN
 	    #HmiResponse.AckSequence := #HmiRequest.Sequence;
 	END_IF;
 
+	#LifecycleActive := NOT (#Core.Initialized AND #Core.Exec = #EXEC_READY AND NOT #RunReq AND NOT #AbortReq
+	        AND NOT #Core.ExecPrev AND NOT #Core.AbortPrev AND #Core.HoldReason = 0 AND NOT #Core.EvInit);
+	IF #LifecycleActive THEN
 	// ---- GENERATED: lifecycle begin ---------------------------------------
 	"FRK_Begin"(Execute := #RunReq, Abort := #AbortReq, Command := 1, MaxCommand := 1,
 	            Core := #Core, Status := #Status);
@@ -121,6 +125,8 @@ BEGIN
 	    #CylA.Execute := FALSE;
 	    #CylB.Execute := FALSE;
 	    #Seq.Step := 0;
+	END_IF;
+
 	END_IF;
 
 	// ---- GENERATED: children, each exactly once, unconditionally -----------
@@ -151,7 +157,9 @@ BEGIN
 	#CurrentStep := #Seq.Record;
 	#Mode := #ModeActive;                          // published every scan, never read back
 
+	IF #LifecycleActive THEN
 	// ---- GENERATED: lifecycle end -----------------------------------------
 	"FRK_End"(Core := #Core, Status := #Status, Busy => #Busy, Done => #Done, Error => #Error,
 	          Aborted => #Aborted, ErrorID => #ErrorID);
+	END_IF;
 END_FUNCTION_BLOCK

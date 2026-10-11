@@ -93,6 +93,30 @@ class WriterTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             g.generate(chain, REFERENCE)
 
+    def test_supervision_and_settings_survive_read_back(self):
+        chain = copy.deepcopy(CHAIN)
+        chain["graph_settings"] = {"skip_steps": True, "acknowledge_errors_required": False}
+        chain["steps"][0].update(maximum_step_time="T#100MS", warning_time="T#50MS", supervision=["#CylA.Error"])
+        chart = g.dump(g.generate(chain, REFERENCE))
+        self.assertEqual(chart["settings"], {"SkipSteps": "true", "AcknowledgeErrorsRequired": "false"})
+        self.assertEqual(chart["steps"][0]["maximum_step_time"], "T#100MS")
+        self.assertEqual(chart["steps"][0]["warning_time"], "T#50MS")
+        self.assertIn('"SvCoil"', json.dumps(chart["steps"][0]["supervisions"]))
+        self.assertIn('"Error"', json.dumps(chart["steps"][0]["supervisions"]))
+        self.assertNotEqual(chart["steps"][0]["supervisions"], chart["steps"][1]["supervisions"])
+
+    def test_bad_timing_or_setting_is_rejected(self):
+        for change in ({"maximum_step_time": 'T#1S" bad="yes'}, {"supervision": []}):
+            chain = copy.deepcopy(CHAIN)
+            chain["steps"][0].update(change)
+            with self.assertRaises(ValueError):
+                g.generate(chain, REFERENCE)
+        for settings in ({"skip_steps": "false"}, {"skip_stpes": False}):
+            chain = copy.deepcopy(CHAIN)
+            chain["graph_settings"] = settings
+            with self.assertRaises(ValueError):
+                g.generate(chain, REFERENCE)
+
 
 class SclEdgesTest(unittest.TestCase):
     def test_comments_do_not_declare_steps(self):

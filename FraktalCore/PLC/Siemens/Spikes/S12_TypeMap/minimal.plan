@@ -1,0 +1,9 @@
+open-project --path ${work}\FrkS12\FrkS12.ap20
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir ${gen}
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+block-attribute --plc PLC_1 --name S12Probe
+export --plc PLC_1 --out ${export} --scl
+${download}

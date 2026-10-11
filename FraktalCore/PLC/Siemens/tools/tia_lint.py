@@ -32,14 +32,19 @@ RESERVED = {"dt", "tod", "date", "time", "ltime", "s5time", "ldt", "ltod", "dtl"
 # The quiescent guard of the generated frame (Part IV §3.14), normalized.
 QUIET_GUARD = ("NOT (#Core.Initialized AND #Core.Exec = #EXEC_READY AND NOT #Execute AND NOT #Abort "
                "AND NOT #Core.ExecPrev AND NOT #Core.AbortPrev AND #Core.HoldReason = 0 AND NOT #Core.EvInit)")
+QUIET_RELEASE_GUARD = QUIET_GUARD[:-1] + ' AND NOT #Core.ReleasePending)'
 # Members the lifecycle FCs own: authored regions never write them (T-CORE).
 LIFECYCLE = {"exec", "execprev", "abortprev", "initialized", "evinit", "evcommandstart", "evabort",
              "evabortinerror", "dispatch", "held", "holdreq", "holdreason", "faultreq", "completereq",
-             "regindex", "named", "moduletype", "parentindex", "startms", "lastcmdms"}
+             "regindex", "named", "moduletype", "parentindex", "startms", "lastcmdms",
+             "armed", "command", "commandlabel", "timingopen", "lastnowms", "deltams",
+             "activems", "diagtouched", "timing", "releasepending"}
 # Published contract members of a module FB (Core §3.12, Part IV §3.3) - every
 # other non-FB static must carry ExternalAccessible := 'False' (T-EXT).
 CONTRACT = {"status", "hmirequest", "hmiresponse", "parcfg", "parcmd", "outcmd", "outimm",
-            "currentstep", "mode"}
+            "currentstep", "mode", "access", "part", "history", "historyhead", "goodcount",
+            "nokcount", "reworkcount", "nokreason", "modeactivepublished", "runningpublished",
+            "stoppendingpublished", "supportedmodespublished", "catalog", "catalogcount", "configrev"}
 
 
 @dataclass
@@ -245,10 +250,33 @@ def check_frame(path: pathlib.Path, block: Block) -> list[Finding]:
     depth_end = nesting_depth(block.body, ends[0])
     if guarded:
         guard = list(re.finditer(r"\bIF\s+(NOT\s*\(.*?\))\s+THEN\b", block.body[:begins[0]], re.S))
-        if not guard or norm(guard[-1].group(1)) != norm(QUIET_GUARD):
+        if not guard or norm(guard[-1].group(1)) not in (norm(QUIET_GUARD), norm(QUIET_RELEASE_GUARD)):
             out.append(Finding(path, line_of(block, begins[0]), "T-FRAME", "the lifecycle is not inside the exact quiescent guard (Part IV §3.14)"))
         elif depth_begin != 1 or depth_end != 1:
             out.append(Finding(path, line_of(block, begins[0]), "T-FRAME", "FRK_Begin/FRK_End must sit directly inside the quiescent guard"))
+    elif any(c.name == "MODULE_UNIT" for c in block.constants) and (depth_begin or depth_end):
+        unit_guard = QUIET_GUARD.replace("#Execute", "#RunReq").replace("#Abort", "#AbortReq")
+        assignment = re.findall(r"#LifecycleActive\s*:=\s*([^;]+);", block.body, re.S)
+        fences = list(re.finditer(r"\bIF\s+#LifecycleActive\s+THEN\b", block.body))
+        valid = (len(assignment) == 1 and norm(assignment[0]) == norm(unit_guard)
+                 and len(fences) == 2 and depth_begin == depth_end == 1
+                 and fences[0].end() < begins[0] < fences[1].start() < ends[0])
+        if not valid:
+            out.append(Finding(path, line_of(block, begins[0]), "T-FRAME", "Unit lifecycle needs the exact RunReq/AbortReq quiescent assignment and paired LifecycleActive fences"))
+        mailbox = list(re.finditer(r"\bIF\s+#HmiRequest.Sequence\s*<>\s*#MbLastSeq\s+THEN\b", block.body))
+        predicate = re.search(r"#LifecycleActive\s*:=", block.body)
+        if (len(mailbox) != 1 or predicate is None
+                or nesting_depth(block.body, mailbox[0].start()) != 0
+                or nesting_depth(block.body, predicate.start()) != 0
+                or mailbox[0].start() >= predicate.start()):
+            out.append(Finding(path, line_of(block, begins[0]), "T-FRAME", "Unit mailbox must run outside and before its lifecycle predicate"))
+        clears = list(re.finditer(r"#Seq.RetVal\s*:=\s*0\s*;", block.body))
+        if not any(nesting_depth(block.body, clear.start()) == 0 for clear in clears):
+            out.append(Finding(path, line_of(block, begins[0]), "T-FRAME", "Unit per-scan sequence result clear must remain unconditional"))
+        for mirror in ("Mode", "CurrentStep"):
+            for write in re.finditer(r"#" + mirror + r"\s*:=", block.body):
+                if nesting_depth(block.body, write.start()) != 0:
+                    out.append(Finding(path, line_of(block, write.start()), "T-FRAME", "Unit published mirror must remain unconditional: " + mirror))
     elif depth_begin != 0 or depth_end != 0:
         out.append(Finding(path, line_of(block, begins[0]), "T-FRAME", "FRK_Begin/FRK_End must be unconditional"))
     return out
@@ -366,12 +394,28 @@ def lint(paths: list[pathlib.Path]) -> list[Finding]:
                 findings += check_frame(f, b)
                 findings += check_cyclic(f, b, module_names)
                 findings += check_core(f, b)
+    # Generated directories have a replayable declaration. The existing spikes
+    # retain their separate pending scope; never infer a manifest from filenames.
+    manifests = set()
+    for path in paths:
+        if path.is_dir():
+            manifests.update(path.rglob("manifest.json"))
+    for manifest in sorted(manifests):
+        import json
+        try:
+            value = json.loads(manifest.read_text(encoding="ascii"))
+            if value.get("kind") != "fraktal.tia.generated.frames.v1":
+                continue
+            from fraktal_tia_generate import verify
+            verify(manifest.parent)
+        except (ValueError, OSError, KeyError) as error:
+            findings.append(Finding(manifest, 1, getattr(error, "rule", "T-GEN"), str(error)))
     return findings
 
 
 def main(argv: list[str]) -> int:
     root = pathlib.Path(__file__).resolve().parents[1]
-    paths = [pathlib.Path(a) for a in argv if not a.startswith("--")] or [root / "Spikes"]
+    paths = [pathlib.Path(a) for a in argv if not a.startswith("--")] or [root / "Spikes", root / "Tests/Generator/generated"]
     findings = lint(paths)
     for f in findings:
         print(f)

@@ -159,9 +159,25 @@ def generate(chain: dict, reference: str) -> str:
 
     step_xml, trans_xml, conns = [], [], []
     for i, s in enumerate(steps, start=1):
+        attrs = step_attrs
+        for key, attr in (("maximum_step_time", "MaximumStepTime"), ("warning_time", "WarningTime")):
+            if key in s:
+                value = s[key]
+                if not isinstance(value, str) or not re.fullmatch(r"T#(?:\d+(?:MS|S|M|H|D))+", value, re.I):
+                    raise ValueError("invalid %s: %r" % (key, value))
+                attrs = once(attrs, r'%s="[^"]*"' % attr, '%s="%s"' % (attr, value))
+        networks = sv_il
+        if "supervision" in s:
+            # The same compiled FBD operand/AND network, ending in SvCoil rather
+            # than TrCoil. TRUE is the supervision error condition.
+            network = transition_xml(i, s["supervision"])
+            network = re.search(r"        <FlgNet>.*?        </FlgNet>", network, re.S).group(0)
+            network = network.replace('Name="TrCoil"', 'Name="SvCoil"')
+            networks = once(networks, r'<Supervision ProgrammingLanguage="LAD">.*?</Supervision>',
+                            lambda m: '<Supervision ProgrammingLanguage="FBD">\n' + network + '\n          </Supervision>', re.S)
         step_xml.append('      <Step Number="%d" Init="%s" Name="N%03d"%s>\n        <Actions>\n%s'
                         '          <Action />\n        </Actions>\n%s      </Step>\n'
-                        % (i, "true" if i == 1 else "false", s["no"], step_attrs, "".join(step_actions(s)), sv_il))
+                        % (i, "true" if i == 1 else "false", s["no"], attrs, "".join(step_actions(s)), networks))
         trans_xml.append(transition_xml(i, s["when"]))
         if s["next"] not in graph_no:
             raise ValueError("step %d advances to undeclared step %d" % (s["no"], s["next"]))
@@ -187,6 +203,13 @@ def generate(chain: dict, reference: str) -> str:
     out = once(out, r'\n  <Section Name="Temp">\n.*?\n  </Section>\n', '\n  <Section Name="Temp" />\n', re.S)
     out = once(out, r"<Name>[^<]+</Name>", "<Name>%s</Name>" % chain["name"])
     out = once(out, r"<Number>\d+</Number>", "<Number>%d</Number>" % chain["number"])
+    settings = {"acknowledge_errors_required": "AcknowledgeErrorsRequired", "skip_steps": "SkipSteps"}
+    for key, value in chain.get("graph_settings", {}).items():
+        if key not in settings or not isinstance(value, bool):
+            raise ValueError("invalid GRAPH setting %s: %r" % (key, value))
+        attr = settings[key]
+        out = once(out, r"<%s>.*?</%s>" % (attr, attr),
+                   "<%s>%s</%s>" % (attr, str(value).lower(), attr))
     ET.fromstring(out.encode("utf-8"))                       # well-formed, or fail here
     return out
 
@@ -213,7 +236,10 @@ def dump(xml_text: str) -> dict:
             if text:
                 actions.append({"event": a.get("Event", ""), "qualifier": a.get("Qualifier", ""),
                                 "text": re.sub(r"\s+", " ", text)})
-        steps.append({"step": no, "init": st.get("Init") == "true", "actions": actions})
+        steps.append({"step": no, "init": st.get("Init") == "true", "actions": actions,
+                      "maximum_step_time": st.get("MaximumStepTime"), "warning_time": st.get("WarningTime"),
+                      "supervisions": [_network_dump(n) for n in st.findall("g:Supervisions/g:Supervision", NS)],
+                      "interlocks": [_network_dump(n) for n in st.findall("g:Interlocks/g:Interlock", NS)]})
     conditions = {}
     for t in seq.findall("g:Transitions/g:Transition", NS):
         operands = []
@@ -235,7 +261,17 @@ def dump(xml_text: str) -> dict:
             edges.append({"from": source.get(t), "to": by_number[to.get("Number")], "link": link,
                           "when": conditions.get(t)})
     edges.sort(key=lambda e: (str(e["from"]), str(e["to"])))
-    return {"steps": steps, "edges": edges}
+    attrs = root.find("SW.Blocks.FB/AttributeList")
+    settings = {name: attrs.findtext(name) for name in ("AcknowledgeErrorsRequired", "SkipSteps")}
+    return {"settings": settings, "steps": steps, "edges": edges}
+
+
+def _network_dump(network: ET.Element) -> dict:
+    """Include supervision/interlock topology so read-back detects a changed gate."""
+    def node(e):
+        return {"tag": _local(e.tag), "attrs": dict(sorted(e.attrib.items())),
+                "text": (e.text or "").strip(), "children": [node(c) for c in e]}
+    return node(network)
 
 
 def scl_edges(scl: str) -> set[tuple[int, int]]:

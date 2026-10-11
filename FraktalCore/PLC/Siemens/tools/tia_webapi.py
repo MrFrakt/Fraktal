@@ -39,6 +39,12 @@ import time
 
 DEFAULT_HOST = "192.168.0.10"
 
+# Transport retries are permitted only for these observations. A dropped reply
+# to a write/login has an unknown outcome; never replay across a CPU restart.
+READ_ONLY_METHODS = frozenset(("Api.Ping", "Api.Version", "Api.Browse", "Api.GetPermissions",
+                             "Api.GetQuantityStructures", "Api.GetAuthenticationMode",
+                             "PlcProgram.Browse", "PlcProgram.Read", "Syslog.Browse"))
+
 
 class WebApiError(RuntimeError):
     def __init__(self, method, error):
@@ -83,6 +89,12 @@ class WebApi:
                                % (self.host, self.fingerprint))
 
     def _post(self, payload):
+        # http.client automatically reconnects after a Connection: close response.
+        # Open it ourselves so every new TLS connection checks the pin.
+        if self.conn.sock is None:
+            self._connect()
+        requests = payload if isinstance(payload, list) else [payload]
+        read_only = all(request.get("method") in READ_ONLY_METHODS for request in requests)
         body = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.token:
@@ -91,11 +103,10 @@ class WebApi:
             self.conn.request("POST", "/api/jsonrpc", body=body, headers=headers)
             resp = self.conn.getresponse()
         except (ConnectionError, http.client.RemoteDisconnected, http.client.CannotSendRequest,
-                http.client.BadStatusLine):
-            # The server dropped an idle connection: reconnect (pin re-checked) and
-            # send once more. Safe for reads; a mailbox write is idempotent because
-            # the PLC acts only on a CHANGED Sequence, so a resent value is inert.
+                http.client.BadStatusLine) as error:
             self.conn.close()
+            if not read_only:
+                raise RuntimeError("transport lost; request outcome unknown; not replayed") from error
             self._connect()
             self.conn.request("POST", "/api/jsonrpc", body=body, headers=headers)
             resp = self.conn.getresponse()

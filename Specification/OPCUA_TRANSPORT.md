@@ -102,6 +102,15 @@ unlike the CPU's OPC UA server. Measured on a CPU 1214C V4.7.3
   is never sent with the old token (`101`).
 - **Mailbox.** `writeBatch` writes every argument in one request, then the
   `Sequence` commit alone — only if every argument was accepted.
+- **Scalar encodings on the S7-1500 reference.** `time` becomes Int32
+  milliseconds. `ldt` is a signed64-bit decimal string of Unix nanoseconds;
+  the transport emits DateTime as an ISO UTC string with nine fractional
+  digits, or zero for Core's unset sentinel. Malformed or out-of-range LDT
+  yields Bad status and no value. The generic HMI date parser retains
+  microseconds. `lint`/`ulint` keep exact decimal strings labelled Int64/UInt64;
+  wide `wstring` fields become String. These encodings passed the live client
+  on simulated1516 V3.0/Advanced7; full Unit rendering and commands are separate
+  gates ([evidence](Siemens/Evidence/TIA_S12_WEBAPI_ADVANCED7_2026-10-10.md)).
 
 ## Native ABI
 

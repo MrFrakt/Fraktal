@@ -9,6 +9,7 @@ import pathlib
 import shutil
 import tempfile
 import unittest
+import importlib.util
 
 import tia_lint
 
@@ -87,6 +88,52 @@ class TiaLintTest(unittest.TestCase):
 
     def test_frame_without_quiescent_guard(self):
         self.mutate("30_CylinderCM.scl", "AND NOT #Core.EvInit) THEN", "AND NOT #Core.EvInit AND TRUE) THEN")
+        self.assertRejected("T-FRAME")
+
+    def quiet_unit(self):
+        fixture = S2.parent / "S3_Budget/make_fixture.py"
+        spec = importlib.util.spec_from_file_location("s3_fixture", fixture)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        path = self.tmp / "50_Unit.scl"
+        path.write_bytes(module.unit_quiet(path.read_text(encoding="ascii")).encode("ascii"))
+
+    def test_unit_quiet_keeps_children_and_mailbox_live(self):
+        self.quiet_unit()
+        self.assertEqual([str(f) for f in tia_lint.lint([self.tmp])], [])
+        self.mutate("50_Unit.scl", "#CylA(ParentIndex", "IF #LifecycleActive THEN\n#CylA(ParentIndex")
+        self.mutate("50_Unit.scl", "Hal := #Hal.CylA);", "Hal := #Hal.CylA);\nEND_IF;")
+        self.assertRejected("T-CYCLIC")
+
+    def test_unit_quiet_rejects_changed_permit_and_conditional_mirror(self):
+        self.quiet_unit()
+        self.mutate("50_Unit.scl", "AND NOT #Core.EvInit);", "AND NOT #Core.EvInit AND #ModeActive = 0);")
+        self.assertRejected("T-FRAME")
+
+    def test_unit_quiet_rejects_conditional_published_mode(self):
+        self.quiet_unit()
+        self.mutate("50_Unit.scl", "#Mode := #ModeActive;", "IF #LifecycleActive THEN\n#Mode := #ModeActive;\nEND_IF;")
+        self.assertRejected("T-FRAME")
+
+    def test_unit_quiet_rejects_conditional_mailbox(self):
+        self.quiet_unit()
+        self.mutate("50_Unit.scl", "IF #HmiRequest.Sequence <> #MbLastSeq THEN", "IF #LifecycleActive THEN\nIF #HmiRequest.Sequence <> #MbLastSeq THEN")
+        self.mutate("50_Unit.scl", "#HmiResponse.AckSequence := #HmiRequest.Sequence;", "#HmiResponse.AckSequence := #HmiRequest.Sequence;\nEND_IF;")
+        self.assertRejected("T-FRAME")
+
+    def test_unit_quiet_rejects_conditional_scan_clear(self):
+        self.quiet_unit()
+        self.mutate("50_Unit.scl", "#Seq.RetVal := 0;                              // per-scan", "IF #LifecycleActive THEN\n#Seq.RetVal := 0;\nEND_IF;                              // per-scan")
+        self.assertRejected("T-FRAME")
+
+    def test_unit_quiet_rejects_predicate_before_mailbox(self):
+        self.quiet_unit()
+        path = self.tmp / "50_Unit.scl"
+        text = path.read_text(encoding="ascii")
+        predicate = next(line for line in text.splitlines(keepends=True) if "#LifecycleActive :=" in line)
+        text = text.replace(predicate, "", 1)
+        text = text.replace("IF #HmiRequest.Sequence <> #MbLastSeq THEN", predicate + "IF #HmiRequest.Sequence <> #MbLastSeq THEN", 1)
+        path.write_bytes(text.encode("ascii"))
         self.assertRejected("T-FRAME")
 
     def test_frame_end_twice(self):

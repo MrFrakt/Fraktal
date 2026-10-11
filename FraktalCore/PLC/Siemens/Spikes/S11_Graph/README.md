@@ -5,6 +5,40 @@ declaration, run on S7-PLCSIM Advanced. Its step trace must match the SCL
 rendition's (`../S2_Shape/40_AutoSeq.scl`). Result 2026-10-09: 19/19, see
 [`TIA_S11_GRAPH_PLCSIM_2026-10-09.md`](../../../../../Specification/Siemens/Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md).
 
+Continuation: [`TIA_S11_SEMANTICS_2026-10-09.md`](../../../../../Specification/Siemens/Evidence/TIA_S11_SEMANTICS_2026-10-09.md)
+records 28/28 after download and a direct STOP→RUN. `Semantics/make_charts.py`
+generates four probes (empty networks, acknowledge, auto-release, skip), with
+100 ms maximum time and 50 ms warning time. `Semantics/build.plan` imports them;
+`Errors/build.plan` adds the local-error and OB121 tests. Both reuse `FrkS11`.
+After generation, pass the export directory as a second argument to
+`make_charts.py` to compare settings, times, V/C wiring, actions and transitions.
+
+For a direct simulated warm restart, `Invoke-PlcSimInstance.ps1 -Action halt`
+then `-Action run`, both with `-ConfirmTarget 192.168.252.1`, retain registration
+and the downloaded image. `off` releases the virtual CPU's memory during offline
+TIA builds. `stop` powers off **and unregisters**; a new registration needs the
+logged TLS trust step again. Use `status` first: mode changes are restricted to
+Softbus and an IP it reports. Validate a full numeric result read with
+`tools/plcsim_results.py read.log --cases 1-28 --junit result.xml`.
+
+`Recovery/` adds an independent Unit, a generated three-step GRAPH chart and
+host-controlled simulated feedback. `make_fixture.py <new-directory>` generates
+the complete build input; `build.plan` rebuilds the existing station's program
+without replacing its certificates. `run_probe.py` records one guarded read,
+typed write, delta download or mode change to a new log file. Use the approved
+`candidate_s11_enumeration` executable; it is never rebuilt by these scripts.
+`verify.py <raw-directory>` validates the recorded case sets and recovery
+observations. These are test-owner mechanisms, not the full Unit lifecycle.
+
+Results 2026-10-10: 16 checks passed; GRAPH state-preserving RUN delta **unpassed**
+([evidence](../../../../../Specification/Siemens/Evidence/TIA_S11_GRAPH_RECOVERY_2026-10-10.md)).
+The FC delta preserved observed BUSY/step/DB state. The GRAPH label-only delta
+requested TurnOffSequence and DataBlockReinitialization with unchanged exported
+interfaces. Do not infer preservation from `--changes-only`. The corrected CM
+applies the same interlock to its coils outside the idle guard, so the owner can
+withdraw them after a completed command as well as while BUSY. The final image
+passed an active restart and stayed idle awaiting a fresh Arm.
+
 | File | Role |
 |---|---|
 | `reference/FB_GraphSample.xml` | the one chart drawn in the TIA editor, exported verbatim (BOM, CRLF). It is the writer's template, not a source |
@@ -31,7 +65,7 @@ python "$repo\FraktalCore\PLC\Siemens\tools\fraktal_tia_graph.py" generate "$s11
 & $cli plan "$s11\build_plcsim.plan" --set "work=$work" --set "s11=$s11" --set "gen=$gen"
 python "$repo\FraktalCore\PLC\Siemens\tools\fraktal_tia_graph.py" parity "$work\FrkS11_export\xml\FB_SpkAutoGraph.xml" "$s11\..\S2_Shape\40_AutoSeq.scl"
 # 4. the virtual CPU lives as long as its host process: start it in the background
-Start-Process powershell -ArgumentList "-File `"$sim`" -Action host -Name FrkS11"
+Start-Process powershell -WindowStyle Hidden -ArgumentList "-File `"$sim`" -Action host -Name FrkS11"
 # 5. download (simulator only), then about 30 s later read the rows
 & $cli plan "$s11\download_plcsim.plan" --set "work=$work"
 powershell -File $sim -Action read -DataBlocks 'SpkResults,S11Rig' -Match '^SpkResults\.T\.(Passed|Failed|RowCount)$'

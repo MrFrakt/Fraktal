@@ -1,0 +1,300 @@
+// Shared Unit routing: typed generated edges carry these owning predicates.
+FUNCTION "FRK_HistoryEvent" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Reason : DInt;
+    Description : WString;
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
+    Head : Int;
+END_VAR
+VAR_TEMP
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    IF #Head < 0 OR #Head >= @MAX_DIAG_RING@ THEN #Head := 0; END_IF;
+    #Head := #Head + 1;
+    #History[#Head] := "FRK_UnitScratch".EmptyDiagnostic;
+    #History[#Head].ReasonCode := #Reason;
+    #History[#Head].Description := #Description;
+    #History[#Head].SourcePath := #SourcePath;
+    #History[#Head].Severity := @E_Severity.LOW@;
+    #History[#Head].Category := @E_Category.SYSTEM@;
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN #History[#Head].Since := DTL_TO_LDT(#Stamp); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_PathOwned" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    OwnerPath : String;
+    TargetPath : WString;
+END_VAR
+VAR_TEMP
+    Width : Int;
+END_VAR
+BEGIN
+    #FRK_PathOwned := FALSE;
+    #Width := LEN(#OwnerPath);
+    IF #Width = 0 THEN RETURN; END_IF;
+    IF #TargetPath = STRING_TO_WSTRING(#OwnerPath) THEN #FRK_PathOwned := TRUE; RETURN; END_IF;
+    IF LEN(#TargetPath) <= #Width THEN RETURN; END_IF;
+    #FRK_PathOwned := LEFT(IN := #TargetPath, L := #Width) = STRING_TO_WSTRING(#OwnerPath) AND #TargetPath[#Width + 1] = WCHAR#'.';
+END_FUNCTION
+
+FUNCTION "FRK_UnitRelease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Gate : DInt;
+    Desired : DInt;
+    Trusted : Bool;
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Supported : Array[0..@MODE_LAST@] of Bool;
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+END_VAR
+BEGIN
+    #Report.Count := 0;
+    #Report.Released := TRUE;
+    IF #Gate <> @E_GatedAction.START_STOP@ AND #Gate <> @E_GatedAction.MODE_CHANGE@
+        AND #Gate <> @E_GatedAction.ALARM_RESET@ AND #Gate <> @E_GatedAction.MANUAL@ THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := @E_Reason.UNSUPPORTED_COMMAND@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+        RETURN;
+    END_IF;
+    IF NOT #Trusted THEN
+        IF #Access.CurrentLevel < #Access.Policy.Required[#Gate] THEN
+            "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.insufficientAction', Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.ACCESS@);
+        END_IF;
+    END_IF;
+    CASE #Gate OF
+        @E_GatedAction.START_STOP@:
+            // Desired=0 is Start, Desired=1 is Stop. Generic action query is Stop.
+            IF #Desired = 0 THEN
+                IF #Unit.Mode = @E_Mode.MANUAL@ OR #Unit.ModePending THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedModeRequest', Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.MODE@);
+                END_IF;
+                IF #Core.Exec <> @E_ExecState.READY@ OR #Unit.RunReq OR #Unit.Clearing OR #Unit.FaultLatched THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+                END_IF;
+                IF NOT #Unit.Permit THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := @E_ReleaseKind.INTERLOCK@);
+                END_IF;
+            END_IF;
+        @E_GatedAction.MODE_CHANGE@:
+            IF #Unit.ModePending THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.modeChangeAlreadyPending', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.MODE@);
+            END_IF;
+            IF #Core.Exec = @E_ExecState.BUSY@ AND #Unit.Mode <> @E_Mode.MANUAL@ THEN
+                IF #Policy[#Unit.Mode].Shield = @E_ModeSwitchShield.BLOCKED_WHILE_RUNNING@ THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.modeSwitchBlockedWhileRunning', Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.MODE@);
+                END_IF;
+            END_IF;
+            IF #Desired <> -1 THEN
+                IF #Desired < 0 OR #Desired >= @MODE_COUNT@ THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedModeRequest', Reason := @E_Reason.UNSUPPORTED_COMMAND@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.MODE@);
+                ELSIF NOT #Supported[#Desired] THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedModeRequest', Reason := @E_Reason.UNSUPPORTED_COMMAND@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.MODE@);
+                END_IF;
+            END_IF;
+        @E_GatedAction.ALARM_RESET@:
+            // The complete alarm model is separate; this gate owns the current latch.
+            IF NOT #Unit.FaultLatched AND #Core.Exec = @E_ExecState.READY@ AND NOT #Unit.Clearing AND NOT #Unit.ModePending AND NOT #Unit.FollowStart THEN
+                IF "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noBlockingAlarm', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+                END_IF;
+            END_IF;
+        @E_GatedAction.MANUAL@:
+            "FRK_ManualCommon"(Core := #Core, Unit := #Unit, Status := #Status, Report := #Report);
+        ELSE
+            RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_ManualCommon" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+END_VAR
+BEGIN
+    IF #Unit.Mode <> @E_Mode.MANUAL@ OR #Unit.ModePending THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualModeRequired', Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.MODE@);
+    END_IF;
+    IF #Core.Exec <> @E_ExecState.READY@ OR #Unit.Clearing OR #Unit.FaultLatched THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+    END_IF;
+    IF NOT #Unit.Permit THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := @E_ReleaseKind.INTERLOCK@);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ManualCondition" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    Value : DInt;
+    Ok : Bool;
+    Diag : "ST_Diagnostic";
+    Bypassable : Bool;
+END_VAR
+VAR_IN_OUT
+    Conditions : Array[1..@MAX_PERMINTLK_COND@] of "FRK_ManualConditionRow";
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > @MAX_PERMINTLK_COND@ THEN RETURN; END_IF;
+    #Conditions[#Slot].Used := TRUE;
+    #Conditions[#Slot].Value := #Value;
+    #Conditions[#Slot].Ok := #Ok;
+    #Conditions[#Slot].Diag := #Diag;
+    #Conditions[#Slot].Bypassable := #Bypassable;
+END_FUNCTION
+
+FUNCTION "FRK_ManualApply" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Status : "ST_ModuleStatus";
+    Core : "FRK_Core";
+    Commands : Array[1..@MAX_CMD_CATALOG@] of "ST_CommandInfo";
+    Count : DInt;
+    Conditions : Array[1..@MAX_PERMINTLK_COND@] of "FRK_ManualConditionRow";
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+    Execute : Bool;
+    Command : DInt;
+    ManualOwned : Bool;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Supported : Bool;
+    PreviousCount : Int;
+END_VAR
+BEGIN
+    #Supported := FALSE;
+    IF #Count >= 0 AND #Count <= @MAX_CMD_CATALOG@ THEN
+        FOR #Index := 1 TO DINT_TO_INT(#Count) DO
+            IF #Commands[#Index].Value = #Request.IntValue AND #Commands[#Index].Style = @E_CommandStyle.ONESHOT@ THEN #Supported := TRUE; END_IF;
+        END_FOR;
+    END_IF;
+    IF NOT #Supported THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := @E_Reason.UNSUPPORTED_COMMAND@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+    END_IF;
+    IF #Core.Exec <> @E_ExecState.READY@ OR #Execute OR #Core.ReleasePending THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+    END_IF;
+    FOR #Index := 1 TO @MAX_PERMINTLK_COND@ DO
+        IF #Conditions[#Index].Used AND NOT #Conditions[#Index].Ok THEN
+            IF #Conditions[#Index].Value = 0 OR #Conditions[#Index].Value = #Request.IntValue THEN
+                #PreviousCount := #Report.Count;
+                "FRK_ReleaseReason"(Report := #Report, Description := #Conditions[#Index].Diag.Description, Reason := #Conditions[#Index].Diag.ReasonCode, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.INTERLOCK@);
+                IF #Report.Count > #PreviousCount THEN #Report.Reasons[#Report.Count].Bypassable := #Conditions[#Index].Bypassable; END_IF;
+            END_IF;
+        END_IF;
+    END_FOR;
+    IF #Request.Kind = @E_HmiRequestKind.MANUAL_COMMAND@ AND #Report.Released THEN
+        #Command := #Request.IntValue;
+        #Execute := TRUE;
+        #ManualOwned := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ManualFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Core : "FRK_Core";
+END_VAR
+VAR_IN_OUT
+    Execute : Bool;
+    ManualOwned : Bool;
+END_VAR
+BEGIN
+    IF #ManualOwned AND #Core.Exec <> @E_ExecState.BUSY@ THEN
+        #Execute := FALSE;
+        #ManualOwned := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitCascade" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ParentUnit : "FRK_Unit";
+    Supported : Array[0..@MODE_LAST@] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
+    Head : Int;
+END_VAR
+VAR_TEMP
+    Request : "ST_HmiRequest";
+END_VAR
+BEGIN
+    IF NOT #ParentUnit.CascadePending THEN RETURN; END_IF;
+    IF #ParentUnit.CascadeKind = @E_HmiRequestKind.STOP@ OR #ParentUnit.CascadeKind = @E_HmiRequestKind.OPERATOR_RESET@ THEN
+        #Unit.FollowStart := FALSE;
+        #Request.Kind := #ParentUnit.CascadeKind;
+        "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+        RETURN;
+    END_IF;
+    #Request.Kind := @E_HmiRequestKind.SET_MODE@;
+    #Request.IntValue := #ParentUnit.CascadeMode;
+    "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+    IF NOT "FRK_UnitScratch".Response.Accepted THEN
+        #Unit.FollowStart := FALSE;
+        #Request.Kind := @E_HmiRequestKind.STOP@;
+        "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+        // Core names this event but has no assigned E_Reason ordinal yet.
+        "FRK_HistoryEvent"(History := #History, Head := #Head, Reason := @E_Reason.UNSUPPORTED_COMMAND@, Description := WSTRING#'std.event.childModeUnsupported', SourcePath := STRING_TO_WSTRING(#Status.Name));
+    ELSE
+        #Unit.FollowStart := #ParentUnit.CascadeKind = @E_HmiRequestKind.START@;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitFollow" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..@MODE_LAST@] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Request : "ST_HmiRequest";
+END_VAR
+BEGIN
+    IF #Unit.FollowStart AND NOT #Unit.ModePending AND NOT #Unit.Clearing THEN
+        #Unit.FollowStart := FALSE;
+        #Request.Kind := @E_HmiRequestKind.START@;
+        "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+    END_IF;
+END_FUNCTION

@@ -118,6 +118,12 @@ BEGIN
 	"FRK_End"(Core := #Core, Status := #Status, Busy => #Busy, Done => #Done, Error => #Error,
 	          Aborted => #Aborted, ErrorID => #ErrorID);
 	END_IF;
+	// The same interlock withdraws valve outputs in every lifecycle state,
+	// including READY after a completed command. It remains outside the guard.
+	IF NOT #IntlkOk THEN
+	    #Hal.Extend := FALSE;
+	    #Hal.Retract := FALSE;
+	END_IF;
 END_FUNCTION_BLOCK
 
 // Sim plant (Core s.5.7 "small sim plant model"): travel time, optional feedback

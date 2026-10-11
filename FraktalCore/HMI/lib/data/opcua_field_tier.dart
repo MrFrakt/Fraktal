@@ -167,6 +167,17 @@ class OpcUaFieldTier {
   /// Reserved on-demand scope key for the fieldbus topology (owned by no module).
   static const String fieldbusScope = '#fieldbus';
 
+  /// Mailbox payloads are read after their acknowledgement. They have no cyclic
+  /// consumer and opening a module detail must not promote them to a live tier.
+  static bool isRequestPayload(String browsePath) {
+    final segments = browsePath.split('/');
+    for (var i = 0; i + 1 < segments.length; i++) {
+      if (segments[i] == 'HmiResponse' &&
+          const {'ConfigPage', 'Report'}.contains(segments[i + 1])) return true;
+    }
+    return false;
+  }
+
   /// Leaves that stay LIVE even inside an on-demand subtree (§10.5.1).
   ///
   /// The fieldbus topology is on-demand because its identity, addressing and

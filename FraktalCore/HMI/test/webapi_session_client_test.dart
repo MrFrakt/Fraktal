@@ -315,6 +315,61 @@ void main() {
     expect(HttpsWebApiTransport.certificateDer(der), der);
   });
 
+  test('LDT becomes a UTC DateTime without losing nanosecond digits', () async {
+    final cpu = _FakeCpu();
+    final unit = cpu.dbs['Unit'] as Map<String, Object>;
+    final stamp = _Leaf('ldt', '1709251198123456789');
+    unit['Since'] = stamp;
+    final client = await _connect(cpu);
+    addTearDown(client.close);
+    for (final example in <String, Object>{
+      '1709251198123456789': '2024-02-29T23:59:58.123456789Z',
+      '-1': '1969-12-31T23:59:59.999999999Z',
+      '1': '1970-01-01T00:00:00.000000001Z',
+      '0': 0,
+      '9223372036854775807': '2262-04-11T23:47:16.854775807Z',
+      '-9223372036854775808': '1677-09-21T00:12:43.145224192Z',
+    }.entries) {
+      stamp.value = example.key;
+      final doc = await client.snapshot();
+      final value = (doc['dataValues'] as Map)['PLC1/Unit/Since'] as Map;
+      expect(value['status'], 0);
+      expect(value['type'], 'DateTime');
+      expect(value['value'], example.value);
+    }
+  });
+
+  test('invalid LDT clears a previous Good value and recovers', () async {
+    final cpu = _FakeCpu();
+    final stamp = _Leaf('ldt', '1');
+    (cpu.dbs['Unit'] as Map<String, Object>)['Since'] = stamp;
+    final client = await _connect(cpu);
+    addTearDown(client.close);
+    await client.snapshot();
+    for (final invalid in <Object?>['1.5', 'NaN', null, 1709251198123456789,
+      '9223372036854775808', '-9223372036854775809']) {
+      stamp.value = invalid;
+      final doc = await client.snapshot();
+      expect((doc['values'] as Map).containsKey('PLC1/Unit/Since'), isFalse);
+      expect(((doc['dataValues'] as Map)['PLC1/Unit/Since'] as Map)['status'],
+          0x80000000);
+    }
+    stamp.value = '1';
+    expect((await client.readValues(['PLC1/Unit/Since']))['PLC1/Unit/Since'],
+        '1970-01-01T00:00:00.000000001Z');
+  });
+
+  test('TIME is a signed Int32 millisecond value', () async {
+    final cpu = _FakeCpu();
+    (cpu.dbs['Unit'] as Map<String, Object>)['Delay'] = _Leaf('time', -2345);
+    final client = await _connect(cpu);
+    addTearDown(client.close);
+    final doc = await client.snapshot();
+    final value = (doc['dataValues'] as Map)['PLC1/Unit/Delay'] as Map;
+    expect(value['type'], 'Int32');
+    expect(value['value'], -2345);
+  });
+
   test('close logs out and releases the transport', () async {
     final cpu = _FakeCpu();
     final client = await _connect(cpu);

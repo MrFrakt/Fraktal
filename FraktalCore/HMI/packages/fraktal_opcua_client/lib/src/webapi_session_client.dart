@@ -350,9 +350,18 @@ class WebApiSessionClient
       for (var k = 0; k < chunk.length; k++) {
         final leaf = chunk[k];
         final reply = replies[k];
-        out[leaf.path] = reply.error == null
-            ? {'status': 0, 'type': leaf.opcUaType, 'value': reply.result}
-            : {'status': _badStatus, 'type': leaf.opcUaType, 'error': reply.describe('PlcProgram.Read')};
+        if (reply.error != null) {
+          out[leaf.path] = {'status': _badStatus, 'type': leaf.opcUaType,
+            'error': reply.describe('PlcProgram.Read')};
+          continue;
+        }
+        try {
+          out[leaf.path] = {'status': 0, 'type': leaf.opcUaType,
+            'value': leaf._decode(reply.result)};
+        } on FormatException catch (error) {
+          out[leaf.path] = {'status': _badStatus, 'type': leaf.opcUaType,
+            'error': error.message};
+        }
       }
     }
     return out;
@@ -434,6 +443,10 @@ class WebApiSessionClient
 /// One discovered scalar leaf: its snapshot browse path, its Web API name and
 /// its Web API datatype.
 final class WebApiLeaf {
+  static final _ldtDecimal = RegExp(r'^-?[0-9]+$');
+  static final _ldtMinimum = -(BigInt.one << 63);
+  static final _ldtMaximum = -_ldtMinimum - BigInt.one;
+  static final _nanosPerSecond = BigInt.from(1000000000);
   final String path;
   final String webVar;
   final String datatype;
@@ -453,9 +466,33 @@ final class WebApiLeaf {
         'lword' || 'ulint' => 'UInt64',
         'real' => 'Float',
         'lreal' => 'Double',
+        'time' => 'Int32',
+        'ldt' => 'DateTime',
         'string' || 'wstring' || 'char' || 'wchar' => 'String',
         _ => datatype,
       };
+
+  Object? _decode(Object? value) {
+    if (datatype != 'ldt') return value;
+    // S7 LDT is signed Unix nanoseconds, sent as a decimal string. Decode
+    // using integer arithmetic; the generic mapper's numeric epoch heuristic
+    // belongs to OPC UA/TwinCAT and cannot identify this encoding by magnitude.
+    if (value is! String || !_ldtDecimal.hasMatch(value)) {
+      throw const FormatException('LDT must be a decimal int64 string');
+    }
+    final nanos = BigInt.parse(value);
+    if (nanos < _ldtMinimum || nanos > _ldtMaximum) {
+      throw const FormatException('LDT exceeds signed int64 range');
+    }
+    // Core's zero timestamp is unset, as on the other transports.
+    if (nanos == BigInt.zero) return 0;
+    final fraction = nanos % _nanosPerSecond;
+    final seconds = (nanos - fraction) ~/ _nanosPerSecond;
+    final instant = DateTime.fromMillisecondsSinceEpoch(seconds.toInt() * 1000,
+        isUtc: true);
+    final whole = instant.toIso8601String().split('.').first;
+    return '$whole.${fraction.toString().padLeft(9, '0')}Z';
+  }
 }
 
 final class _Node {

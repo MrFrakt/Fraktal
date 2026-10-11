@@ -63,7 +63,7 @@ namespace Fraktal.Tia.Cli
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void ReportFatal(Exception ex)
         {
-            Log.Emit("fatal", ("type", ex.GetType().FullName), ("message", Flatten(ex)));
+            Log.Emit("fatal", ("type", ex.GetType().FullName), ("message", Flatten(ex)), ("stack", ex.StackTrace));
             // Measured on V20: a NEW headless instance also passes the Openness
             // firewall; an exe whose hash is not whitelisted waits for a prompt
             // nobody answers and fails with "The operation has timed out".
@@ -208,7 +208,7 @@ Commands:
   compile        --plc PLC_1 [--hw]
   interfaces     --plc PLC_1 [--scan]
   download       --plc PLC_1 --pc-interface ""name"" [--pc-number 1] [--target ""1 X1""]
-                 --confirm-target 192.168.0.10 [--software-only]
+                 --confirm-target 192.168.0.10 [--software-only | --changes-only]
                  [--accept-unencrypted-sensitive] [--plc-password-env VAR] [--plc-user U]
                  [--user-management keep|update|reset] [--accept-lower-protection] [--trust-plc PLC]
   online-state   --plc PLC_1 --pc-interface ""name"" [--target ""1 X1""] [--plc-user U --plc-password-env VAR]
@@ -231,7 +231,7 @@ Commands:
   webserver-user --plc PLC_1 --name N --permissions ReadTag,ModifyTag --password-env VAR
   webserver-certificate --plc PLC_1 [--item I]     (create once from the WebServer template; kept after)
   umac-user --plc PLC_1 --list
-            | (--anonymous | --name N --password-env VAR) [--role R --rights id1,id2] [--system-roles id1,id2]
+            | (--anonymous | --name N [--password-env VAR | --keep-password]) [--role R --rights id1,id2] [--system-roles id1,id2]
                                                           (the custom role gets exactly these rights)
   ?<command> ...                                             (plan line) record failure, continue
   import-sources ... [--only 00_,10_]                         restrict to file-name prefixes
@@ -555,7 +555,12 @@ Commands:
 
             var dp = cpu.GetService<DownloadProvider>();
             var target = Target(cpu, dp.Configuration, a);
-            var options = a.Flag("software-only") ? DownloadOptions.Software : DownloadOptions.Hardware | DownloadOptions.Software;
+            if (a.Flag("software-only") && a.Flag("changes-only"))
+                throw new ArgumentException("--software-only and --changes-only are mutually exclusive");
+            // SoftwareOnlyChanges preserves unchanged DBs and permits a code-only
+            // change in RUN. Reinitialization questions remain explicit in the log.
+            var options = a.Flag("changes-only") ? DownloadOptions.SoftwareOnlyChanges
+                : a.Flag("software-only") ? DownloadOptions.Software : DownloadOptions.Hardware | DownloadOptions.Software;
             var answers = new DownloadAnswers(a);
             Log.Emit("download-start", ("plc", cpu.Name), ("target", target.Name), ("address", configured), ("options", options.ToString()));
             try
@@ -1030,7 +1035,7 @@ Commands:
                     Log.Emit("system-role", ("identifier", role.Identifier), ("name", role.Name), ("rights", rights));
                 }
                 foreach (var role in umac.CustomRoles)
-                    Log.Emit("custom-role", ("name", role.Name),
+                    Log.Emit("custom-role", ("name", role.Name), ("identifier", role.Identifier),
                              ("rights", string.Join("|", role.GetAssignedDeviceFunctionRights(device).Select(r => r.Identifier))));
                 foreach (var u in umac.ProjectUsers)
                     Log.Emit("project-user", ("name", u.Name), ("active", u.IsActive), ("roles", string.Join("|", u.Roles.Select(r => r.Name))));
@@ -1054,11 +1059,20 @@ Commands:
             else
             {
                 var name = a.Require("name");
-                var password = SecretFromEnvironment(a.Require("password-env"));
                 var projectUser = umac.ProjectUsers.Find(name);
-                action = "updated";
-                if (projectUser == null) { projectUser = umac.ProjectUsers.Create(name, password); action = "created"; }
-                else projectUser.SetPassword(password);
+                if (a.Flag("keep-password"))
+                {
+                    if (a.Has("password-env")) throw new ArgumentException("--keep-password and --password-env are mutually exclusive");
+                    if (projectUser == null) throw new InvalidOperationException("--keep-password requires an existing user: " + name);
+                    action = "roles-updated-password-kept";
+                }
+                else
+                {
+                    var password = SecretFromEnvironment(a.Require("password-env"));
+                    action = "updated";
+                    if (projectUser == null) { projectUser = umac.ProjectUsers.Create(name, password); action = "created"; }
+                    else projectUser.SetPassword(password);
+                }
                 user = projectUser;
             }
 
@@ -1066,20 +1080,53 @@ Commands:
             if (a.Has("role"))
             {
                 var roleName = a.Require("role");
-                var customRole = umac.CustomRoles.Find(roleName) ?? umac.CustomRoles.Create(roleName, "Fraktal (Part IV s.11.1a)");
+                // --role is a display name. V20 CustomRoles.Find takes Identifier,
+                // which is a different value; a lookup by name must enumerate.
+                Log.Emit("umac-role-lookup", ("name", roleName), ("state", "before"));
+                var customRole = umac.CustomRoles.SingleOrDefault(r => string.Equals(r.Name, roleName, StringComparison.Ordinal))
+                    ?? umac.CustomRoles.Create(roleName, "Fraktal (Part IV s.11.1a)");
+                Log.Emit("umac-role-lookup", ("name", customRole.Name), ("identifier", customRole.Identifier), ("state", "after"));
                 var wanted = a.Require("rights").Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
-                var available = device.AvailableDeviceFunctionRights.ToList();
-                var assigned = customRole.GetAssignedDeviceFunctionRights(device).ToList();
+                // Materialize API rights by enumeration, not ICollection.CopyTo:
+                // V20's assigned-right IList can copy null slots into ToList().
+                var available = new Dictionary<string, Siemens.Engineering.Umac.DeviceFunctionRight>(StringComparer.Ordinal);
+                foreach (var right in device.AvailableDeviceFunctionRights)
+                {
+                    if (right == null) throw new InvalidOperationException("Available device rights enumerated a null entry");
+                    available.Add(right.Identifier, right);
+                }
+                var assignedApi = customRole.GetAssignedDeviceFunctionRights(device);
+                var assigned = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var right in assignedApi)
+                {
+                    if (right == null) throw new InvalidOperationException("Assigned device rights enumerated a null entry; refusing partial replacement");
+                    assigned.Add(right.Identifier);
+                }
+                Log.Emit("umac-rights-enumerated", ("role", roleName), ("api-count", assignedApi.Count),
+                         ("enumerated-count", assigned.Count), ("copy-null-count", assignedApi.ToList().Count(r => r == null)),
+                         ("rights", string.Join("|", assigned)));
                 foreach (var id in wanted)
                 {
-                    var right = available.FirstOrDefault(r => r.Identifier == id)
-                                ?? throw new InvalidOperationException("Device function right not offered: " + id + " (run umac-user --list)");
-                    if (!assigned.Any(r => r.Identifier == id)) customRole.AssignDeviceFunctionRight(device, right);
+                    if (!available.TryGetValue(id, out var right))
+                        throw new InvalidOperationException("Device function right not offered: " + id + " (run umac-user --list)");
+                    if (!assigned.Contains(id)) customRole.AssignDeviceFunctionRight(device, right);
                 }
-                foreach (var extra in assigned.Where(r => !wanted.Contains(r.Identifier)))
-                    customRole.UnAssignDeviceFunctionRight(device, extra);
-                if (user.Roles.Find(customRole.Name) == null) user.Roles.Add(customRole);
-                customRights = string.Join("|", customRole.GetAssignedDeviceFunctionRights(device).Select(r => r.Identifier));
+                // Resolve mutation arguments from the device's catalog, as the
+                // V20 API example does. Capture identifiers before changing rights.
+                var extraIds = assigned.Where(id => !wanted.Contains(id)).ToList();
+                foreach (var id in extraIds)
+                {
+                    if (!available.TryGetValue(id, out var right))
+                        throw new InvalidOperationException("Assigned device function right not offered: " + id);
+                    Log.Emit("umac-right-remove", ("role", roleName), ("identifier", id), ("state", "before"));
+                    customRole.UnAssignDeviceFunctionRight(device, right);
+                    Log.Emit("umac-right-remove", ("role", roleName), ("identifier", id), ("state", "after"));
+                }
+                if (!user.Roles.Any(r => r.Identifier == customRole.Identifier)) user.Roles.Add(customRole);
+                var verifiedRights = customRole.GetAssignedDeviceFunctionRights(device).Select(r => r.Identifier).ToList();
+                if (!new HashSet<string>(verifiedRights, StringComparer.Ordinal).SetEquals(wanted))
+                    throw new InvalidOperationException("UMAC role rights differ from requested replacement; refusing save/download");
+                customRights = string.Join("|", verifiedRights);
             }
             // System roles carry fixed rights (e.g. PLCAdministrator = the three access
             // levels); named by exact identifier, as rights are.
@@ -1087,7 +1134,7 @@ Commands:
             {
                 var systemRole = umac.SystemRoles.FirstOrDefault(r => r.Identifier == id)
                                  ?? throw new InvalidOperationException("System role not offered: " + id + " (run umac-user --list)");
-                if (user.Roles.Find(systemRole.Name) == null) user.Roles.Add(systemRole);
+                if (!user.Roles.Any(r => r.Identifier == systemRole.Identifier)) user.Roles.Add(systemRole);
             }
             Log.Emit("umac-user", ("name", user.Name), ("action", action),
                      ("roles", string.Join("|", user.Roles.Select(r => r.Name))), ("rights", customRights));

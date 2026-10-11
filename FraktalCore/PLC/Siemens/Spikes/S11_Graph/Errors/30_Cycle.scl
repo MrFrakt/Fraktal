@@ -1,0 +1,25 @@
+ORGANIZATION_BLOCK "S11ErrorCycle"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    CASE "S11Errors".State OF
+        0:
+            IF "S11Semantics".State = 99 AND "SpkResults".T.Done THEN
+                "SpkResults".T.Done := FALSE;
+                "FC_S11LocalError"(Idx := "S11Errors".Idx);
+                "FRK_TestRecord"(CaseId := 27, Pass := "S11Errors".LocalCode <> 0 AND "S11Errors".AfterLocal AND "S11Errors".GlobalCalls = 0,
+                                 Expected := 1, Actual := WORD_TO_DINT("S11Errors".LocalCode));
+                "S11Errors".State := 10;
+            END_IF;
+        10:
+            "FC_S11GlobalError"(Idx := "S11Errors".Idx);
+            "FRK_TestRecord"(CaseId := 28, Pass := "S11Errors".GlobalCalls > 0 AND "S11Errors".FaultId <> 0,
+                             Expected := 1, Actual := UDINT_TO_DINT("S11Errors".GlobalCalls));
+            "SpkResults".T.Done := TRUE;
+            "S11Errors".State := 99;
+        99:
+            ;
+        ELSE
+            "S11Errors".State := 99;
+    END_CASE;
+END_ORGANIZATION_BLOCK

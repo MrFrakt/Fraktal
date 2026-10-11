@@ -2,6 +2,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/data/opcua_field_tier.dart';
 
 void main() {
+  test('only acknowledged mailbox payloads are excluded from cyclic reads', () {
+    for (final path in [
+      'PLC1/Root/HmiResponse/ConfigPage/Entries[1]/ValueText',
+      'PLC1/Root/Child/HmiResponse/Report/Reasons/Reasons[1]/Description',
+    ]) {
+      expect(OpcUaFieldTier.isRequestPayload(path), isTrue);
+    }
+    for (final path in [
+      'PLC1/Root/HmiResponse/AckSequence',
+      'PLC1/Root/HmiResponse/Accepted',
+      'PLC1/Root/Report/Value',
+      'PLC1/Root/ConfigPage/Status/Name',
+    ]) {
+      expect(OpcUaFieldTier.isRequestPayload(path), isFalse);
+    }
+  });
   test('detail demand matches exact dotted or indexed contract segments', () {
     expect(OpcUaFieldTier.demandedContainers([
       'Profiler.History[1].CycleNo',

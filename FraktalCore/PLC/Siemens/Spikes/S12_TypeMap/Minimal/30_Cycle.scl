@@ -1,0 +1,12 @@
+ORGANIZATION_BLOCK "Main"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Initial_Call : Bool;
+      Remanence : Bool;
+   END_VAR
+BEGIN
+    "S12Probe".Ready := TRUE;
+    "S12Probe".Marker := 12010;
+    "S12Probe".Scans := "S12Probe".Scans + 1;
+END_ORGANIZATION_BLOCK

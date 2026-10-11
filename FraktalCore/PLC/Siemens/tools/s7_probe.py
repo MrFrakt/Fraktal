@@ -47,6 +47,19 @@ CASES = {
     15: "T6 Unit adopts CylA first-out verbatim",
     16: "OPERATOR_RESET -> Unit and CylA READY",
     17: "T3 interlock restored -> resumes to DONE",
+    18: "S11 GRAPH trace matches SCL",
+    19: "S11 GRAPH INIT_SQ restart mid-run",
+    20: "S11 empty supervision ignores maximum-time value",
+    21: "S11 explicit GRAPH supervision detected",
+    22: "S11 supervision blocks without acknowledgement",
+    23: "S11 ACK_EF releases supervision latch",
+    24: "S11 non-acknowledged mode advances after condition clears",
+    25: "S11 skip mode omits intermediate step records",
+    26: "S11 OB100, Initial_Call and initial GRAPH record",
+    27: "S11 local error handling bypasses OB121",
+    28: "S11 programming-error OB records invalid index",
+    29: "S11 SCL startup requests and simulated coils safe",
+    30: "S11 SCL local invalid-index error detected",
 }
 
 

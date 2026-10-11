@@ -6,9 +6,8 @@
     TIA Portal refuses every Openness session whose Windows account is not a
     member of the local group "Siemens TIA Openness" (EngineeringSecurityException).
     This script adds the account to that group and, optionally, whitelists the
-    built Fraktal.Tia.Cli.exe in the Openness firewall so that ATTACHING to a
-    running TIA Portal does not raise the interactive prompt. Starting a new,
-    headless TIA instance (the default CLI mode) needs only the group membership.
+    built Fraktal.Tia.Cli.exe in the Openness firewall. Both attaching and starting
+    a headless TIA instance require that exact build to be whitelisted (measured).
 
     Run in an ELEVATED PowerShell. Group membership takes effect at the next
     logon: sign out and back in (or reboot) afterwards.

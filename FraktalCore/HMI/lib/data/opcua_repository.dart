@@ -412,6 +412,10 @@ class OpcUaRepository implements PlcRepository {
         offContract++;
         continue;
       }
+      if (OpcUaFieldTier.isRequestPayload(path)) {
+        excluded.add(path);
+        continue;
+      }
       // Exclude published static data only after its exact replacement is
       // hydrated. Bindings need not serve every static container in their
       // pages; guessing from the name removed the AB model list entirely.
@@ -1480,24 +1484,31 @@ class OpcUaRepository implements PlcRepository {
 
   @override
   Future<ReleaseReport> releaseReportStart(String unitPath) async {
-    final accepted = await _request(unitPath, _HmiRequestKind.releaseStart);
-    return _readReleaseReport(unitPath, accepted);
+    Map<String, Object?>? response;
+    final accepted = await _request(unitPath, _HmiRequestKind.releaseStart,
+        onResponseValues: (values) => response = Map.unmodifiable(values));
+    return _readReleaseReport(unitPath, accepted, values: response);
   }
 
   @override
   Future<ReleaseReport> releaseReportManual(
       String unitPath, String targetPath, int commandValue) async {
+    Map<String, Object?>? response;
     final accepted = await _request(unitPath, _HmiRequestKind.releaseManual,
-        targetPath: targetPath, intValue: commandValue);
-    return _readReleaseReport(unitPath, accepted);
+        targetPath: targetPath,
+        intValue: commandValue,
+        onResponseValues: (values) => response = Map.unmodifiable(values));
+    return _readReleaseReport(unitPath, accepted, values: response);
   }
 
   @override
   Future<ReleaseReport> releaseReportAction(
       String unitPath, GatedAction action) async {
+    Map<String, Object?>? response;
     final accepted = await _request(unitPath, _HmiRequestKind.releaseAction,
-        intValue: action.index);
-    return _readReleaseReport(unitPath, accepted);
+        intValue: action.index,
+        onResponseValues: (values) => response = Map.unmodifiable(values));
+    return _readReleaseReport(unitPath, accepted, values: response);
   }
 
   /// Response payloads follow the exact discovered subtree. Bindings may use
@@ -1527,7 +1538,8 @@ class OpcUaRepository implements PlcRepository {
   /// operator needs the first one.
   String _lastRefusal = '';
 
-  ReleaseReport _readReleaseReport(String unitPath, bool requestAccepted) {
+  ReleaseReport _readReleaseReport(String unitPath, bool requestAccepted,
+      {Map<String, Object?>? values}) {
     final base = _browseBase(unitPath);
     if (base == null || !requestAccepted) {
       // A station that answered and refused told us why. Saying "the
@@ -1539,20 +1551,21 @@ class OpcUaRepository implements PlcRepository {
           : 'std.release.transportUnavailable';
       return ReleaseReport(false, [ReleaseReason(reason, ReleaseKind.other)]);
     }
+    final payload = values ?? const <String, Object?>{};
     final response = '$base/HmiResponse/Report';
-    final released = _values['$response/Released'] == true;
-    final count = _integer(_values['$response/Count']);
+    final released = payload['$response/Released'] == true;
+    final count = _integer(payload['$response/Count']);
     final reasons = <ReleaseReason>[];
     for (var i = 1; i <= count; i++) {
-      final prefix = _indexedPrefix(_values, '$response/Reasons', i);
+      final prefix = _indexedPrefix(payload, '$response/Reasons', i);
       if (prefix == null) continue;
       reasons.add(ReleaseReason(
-        '${_values['$prefix/Description'] ?? ''}',
-        _enumAt(ReleaseKind.values, _integer(_values['$prefix/Kind']),
+        '${payload['$prefix/Description'] ?? ''}',
+        _enumAt(ReleaseKind.values, _integer(payload['$prefix/Kind']),
             ReleaseKind.other),
-        bypassable: _values['$prefix/Bypassable'] == true,
-        reasonCode: _integer(_values['$prefix/ReasonCode']),
-        sourcePath: '${_values['$prefix/SourcePath'] ?? ''}',
+        bypassable: payload['$prefix/Bypassable'] == true,
+        reasonCode: _integer(payload['$prefix/ReasonCode']),
+        sourcePath: '${payload['$prefix/SourcePath'] ?? ''}',
       ));
     }
     debugPrint('[Fraktal/Connection] stage=opcua-release-report '
