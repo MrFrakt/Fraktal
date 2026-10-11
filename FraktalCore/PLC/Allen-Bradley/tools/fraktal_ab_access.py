@@ -18,7 +18,13 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mb
 
-MAX_USERS, PIN_HASH_ROUNDS, WIDTH = 4, 256, 32
+# PIN_HASH_ROUNDS trades offline-guessing cost against login latency: the
+# runtime hashes one block per HASH_BLOCK_SCANS scans, so a login costs
+# (rounds+1) blocks of task time. 256 rounds took ~25 s on the Logix Echo
+# (the owner's floor is ~3 s); 16 keeps an iterated salted hash at ~1.6 s
+# emulated while remaining an oracle-verified derivation. Bench accounts
+# carry local fixture PINs; raising the rounds re-provisions every user.
+MAX_USERS, PIN_HASH_ROUNDS, WIDTH = 4, 16, 32
 HASH_CHUNK = 8
 HASH_BLOCK_SCANS = 2 + 64 // HASH_CHUNK
 STATE_SCHEMA = 3

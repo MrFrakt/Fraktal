@@ -77,7 +77,7 @@ def add_access(c, app=APP, real_sha=False):
         else:
             # Provider/control tests use an independent compression oracle.
             # Crypto tests below separately execute the emitted compression,
-            # plus one complete 257-block login with no oracle substitution.
+            # plus one complete login hash with no oracle substitution.
             w = plc.tags[access.tag(app, 'Work')]
             length = int.from_bytes(bytes(w['Buffer'][56:64]), 'big') // 8
             if w['HashPhase'] == 0:
@@ -195,14 +195,15 @@ def login(c, app=APP, user='tester', pin=PIN.decode()):
 
 
 class Cryptography(unittest.TestCase):
-    def test_provisioning_hash_is_initial_salted_hash_plus_256_fixed_rounds(self):
+    def test_provisioning_hash_is_initial_salted_hash_plus_fixed_rounds(self):
         expected = hashlib.sha256(SALT + PIN).digest()
-        for _ in range(256):
+        for _ in range(access.PIN_HASH_ROUNDS):
             expected = hashlib.sha256(expected + SALT).digest()
         self.assertEqual(access.pin_hash(SALT, PIN), expected)
         c = controller()
         request(c, mb.LOGIN, User='tester', Secret=PIN.decode())
-        self.assertEqual(c.tags[access.tag(APP, 'Work')]['Remaining'], 257)
+        self.assertEqual(c.tags[access.tag(APP, 'Work')]['Remaining'],
+                         access.PIN_HASH_ROUNDS + 1)
 
     def test_compression_does_not_overflow_signed_dint_at_any_intermediate(self):
         base = controller(real_sha=True)
@@ -273,19 +274,19 @@ class Cryptography(unittest.TestCase):
                         expected |= (unsigned << (32 - amount)) & 0xffffffff
                     self.assertEqual(w['Temp'][1], access._signed(expected), (value, amount, logical))
 
-    def test_complete_257_hash_login_executes_the_real_compression(self):
+    def test_complete_hash_login_executes_the_real_compression(self):
         c = controller(real_sha=True)
         blocks = observe_hash_blocks(c)
         request(c, mb.LOGIN, User='tester', Secret=PIN.decode())
         code = st.parse('\n'.join(mb.handler_logic(APP)))
-        for scan in range(257 * access.HASH_BLOCK_SCANS - 1):
+        for scan in range((access.PIN_HASH_ROUNDS + 1) * access.HASH_BLOCK_SCANS - 1):
             before = len(blocks)
             c.run(code)
             self.assertLessEqual(len(blocks) - before, 1)
         held = c.tags[access.tag(APP, 'State')]
         self.assertEqual((held['CurrentLevel'], held['LoginFailed'], held['LoginBusy']), (4, 0, 0))
         expected = [hashlib.sha256(SALT + PIN).digest()]
-        for _ in range(256):
+        for _ in range(access.PIN_HASH_ROUNDS):
             expected.append(hashlib.sha256(expected[-1] + SALT).digest())
         self.assertEqual(blocks, expected)
 
@@ -303,7 +304,7 @@ class Cryptography(unittest.TestCase):
         c.run(code)
         self.assertEqual(bytes(w['Digest']), hashlib.sha256(SALT + PIN).digest())
         self.assertFalse(any(w['Words']))
-        self.assertEqual(w['Remaining'], 256)
+        self.assertEqual(w['Remaining'], access.PIN_HASH_ROUNDS)
 
     def test_corrupt_remaining_hash_count_fails_closed(self):
         for remaining in (-1, 0, 258, 2147483647):
@@ -322,7 +323,7 @@ class Cryptography(unittest.TestCase):
         blocks = observe_hash_blocks(c)
         request(c, mb.LOGIN, User='tester', Secret=PIN.decode())
         code = st.parse('\n'.join(mb.handler_logic(APP)))
-        for _ in range(257 * access.HASH_BLOCK_SCANS - 2):
+        for _ in range((access.PIN_HASH_ROUNDS + 1) * access.HASH_BLOCK_SCANS - 2):
             c.run(code)
         before = len(blocks)
         answer = request(c, mb.LOGIN, User='tester', Secret=PIN.decode())
@@ -433,14 +434,14 @@ class AssistedLogin(unittest.TestCase):
     def test_gateway_checks_live_provider_profile_before_any_credential_write(self):
         writer = gw.MailboxWriter('unused', 0, '7036B510', app=APP, set_store=object())
         comm = mock.Mock()
-        for state in (None, {'SchemaVersion': 2, 'LoginPrehashRounds': 256},
-                      {'SchemaVersion': 3, 'LoginPrehashRounds': 16}):
+        for state in (None, {'SchemaVersion': 2, 'LoginPrehashRounds': access.PIN_HASH_ROUNDS},
+                      {'SchemaVersion': 3, 'LoginPrehashRounds': access.PIN_HASH_ROUNDS + 1}):
             with mock.patch('fraktal_ab_press_execute.read_layout', return_value=state):
                 with self.assertRaises(gw.WriteRefused):
                     writer._verify_login_profile(comm, self.writes())
             comm.Write.assert_not_called()
         with mock.patch('fraktal_ab_press_execute.read_layout', return_value={
-                'SchemaVersion': 3, 'LoginPrehashRounds': 256}) as reader:
+                'SchemaVersion': 3, 'LoginPrehashRounds': access.PIN_HASH_ROUNDS}) as reader:
             writer._verify_login_profile(comm, self.writes())
             reader.assert_called_once_with(comm, access.tag(APP, 'State'), access.state_members(APP))
 
@@ -661,12 +662,14 @@ class SessionAuthority(unittest.TestCase):
 
 class PublishedContract(unittest.TestCase):
     def test_provider_budget_is_derived_versioned_read_only_and_discovered(self):
-        self.assertEqual(access.login_timeout_ms(APP), 35700)
+        self.assertEqual(access.login_timeout_ms(APP),
+                         (access.PIN_HASH_ROUNDS + 1) * access.HASH_BLOCK_SCANS
+                         * APP.task_period_ms + 10000)
         for period in (1, 10, 20):
             app = dataclasses.replace(APP, task_period_ms=period)
             state = st.structure(access.state_members(app))
             self.assertEqual(state['SchemaVersion'], access.STATE_SCHEMA)
-            self.assertEqual(state['LoginTimeoutMs'], 257 * access.HASH_BLOCK_SCANS * period + 10000)
+            self.assertEqual(state['LoginTimeoutMs'], (access.PIN_HASH_ROUNDS + 1) * access.HASH_BLOCK_SCANS * period + 10000)
             self.assertEqual(access.status(app, state)['Access/LoginTimeoutMs'], state['LoginTimeoutMs'])
             root = ET.fromstring(gen.controller_tags(app))
             node = root.find(f"Tag[@Name='{access.tag(app, 'State')}']")
@@ -676,8 +679,14 @@ class PublishedContract(unittest.TestCase):
             fields = {data['Localization'][row['PathKey'] - 1]['PortableKey']: row for row in data['Fields'] if row['ModuleId'] == 1}
             self.assertIn('AccessState.LoginTimeoutMs', fields)
             self.assertEqual(fields['AccessState.LoginTimeoutMs']['WriteCapabilityIndex'], 0)
-        self.assertIn('access provider login budget exceeds the HMI ten-minute limit',
-                      decl.validate(dataclasses.replace(APP, task_period_ms=3000)))
+        # At 16 rounds the budget cannot reach the HMI ten-minute limit even
+        # at the largest task period, so the guard stays silent; pin the
+        # worst case instead of the (now unreachable) refusal.
+        worst = dataclasses.replace(APP, task_period_ms=1000)
+        self.assertLessEqual(access.login_timeout_ms(worst), 600000)
+        self.assertNotIn(
+            'access provider login budget exceeds the HMI ten-minute limit',
+            decl.validate(worst))
 
     def test_private_user_storage_follows_registration_count_through_the_ceiling(self):
         for count in (0, 1, 3, 4):

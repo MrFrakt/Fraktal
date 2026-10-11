@@ -18,6 +18,7 @@ import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
 import fraktal_ab_press_demo as demo
+import fraktal_ab_press_echo38 as echo38
 
 
 SEED = """<?xml version="1.0" encoding="UTF-8"?>
@@ -42,6 +43,36 @@ def emit(app):
     with tempfile.TemporaryDirectory() as directory:
         source = Path(directory) / "seed.L5X"
         source.write_text(SEED, encoding="utf-8")
+        output = Path(directory) / "app.L5X"
+        evidence = gen.generate(app, source, output)
+        text = output.read_text(encoding="utf-8")
+        return ET.fromstring(text), text, evidence
+
+
+# A fresh SDK-created 5580 project: the controller module only. The L24ER's
+# fresh shape carried the embedded Discrete_IO module; a ControlLogix 5580
+# has no local discrete I/O at all, so there is no module entry.
+SEED_38 = """<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" TargetName="FraktalPhase0" ExportDate="x">
+<Controller Use="Target" Name="FraktalPhase0" ProcessorType="1756-L81E" MajorRev="38" SFCExecutionControl="CurrentActive" SFCRestartPosition="MostRecent" SFCLastScan="DontScan">
+<DataTypes/>
+<Modules>
+<Module Name="Local" CatalogNumber="1756-L81E" Inhibited="false"></Module>
+</Modules>
+<AddOnInstructionDefinitions/>
+<Tags/>
+<Programs/>
+<Tasks/>
+</Controller>
+</RSLogix5000Content>
+"""
+
+
+def emit_seed(app, seed):
+    """Emit against an explicit seed shape and return (root, text, evidence)."""
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "seed.L5X"
+        source.write_text(seed, encoding="utf-8")
         output = Path(directory) / "app.L5X"
         evidence = gen.generate(app, source, output)
         text = output.read_text(encoding="utf-8")
@@ -541,6 +572,69 @@ class PressDemoShapeTests(unittest.TestCase):
             + [s.comment for c in self.app.chains for s in c.steps])
         for forbidden in ("ControlOn", "ControlPower", "Local:", "Discrete_IO:"):
             self.assertNotIn(forbidden, text)
+
+
+class Echo38TargetTests(unittest.TestCase):
+    """The Logix Echo retarget: a ControlLogix 5580 seed at major revision 38.
+
+    Echo cannot emulate the 1769-L2x bench controller, and this
+    workstation's Echo Dashboard offers no CompactLogix 5380 type, so the
+    simulated station is a 1756-L81E project. Its fresh seed carries no
+    embedded-I/O module entry (a 1756 chassis is populated with modules),
+    and the AOIs and the manifest identity carry the v38 identity instead of
+    the bench's.
+    """
+
+    def test_the_echo38_declaration_is_emittable(self):
+        self.assertEqual(decl.validate(echo38.application()), [])
+
+    def test_it_targets_the_emulator_and_stamps_the_v38_identity(self):
+        root, text, evidence = emit_seed(echo38.application(), SEED_38)
+        self.assertIn('ProcessorType="1756-L81E"', text)
+        self.assertIn('MajorRev="38"', text)
+        self.assertEqual(evidence["ControllerIdentity"], "1756-L81E/A 38.011")
+        self.assertIn("1756-L81E/A 38.011", text)
+
+    def test_aois_carry_the_declared_revision(self):
+        root, text, _ = emit_seed(echo38.application(), SEED_38)
+        revisions = set(re.findall(r'SoftwareRevision="([^"]+)"', text))
+        self.assertEqual(revisions, {"v38.00"})
+
+    def test_a_5580_seed_needs_no_embedded_module_entry(self):
+        root, text, evidence = emit_seed(echo38.application(), SEED_38)
+        self.assertFalse(evidence["EmbeddedIoModuleInSeed"])
+        self.assertIsNone(evidence["EmbeddedIoInhibited"])
+        self.assertNotIn('Name="Discrete_IO"', text)
+
+    def test_the_bench_v33_evidence_keys_are_unchanged(self):
+        # The default path must keep its recorded evidence shape: a seed that
+        # carries the module still reports the inhibit decision, not None.
+        _, _, evidence = emit(demo.application())
+        self.assertFalse(evidence["EmbeddedIoModuleInSeed"] is None)
+        self.assertFalse(evidence["EmbeddedIoInhibited"])
+
+    def test_the_echo_mailbox_is_writable_and_the_bench_stays_write_only(self):
+        # The Echo drops connected writes to ExternalAccess=None members, so
+        # the simulation build declares the mailbox argument members
+        # Read/Write; the bench build keeps the guarded write-only form.
+        _, echo_text, _ = emit_seed(echo38.application(), SEED_38)
+        request_type = re.search(
+            r'<DataType Name="FRK_T_PressHmiRequestV3".*?</DataType>',
+            echo_text, re.S)
+        self.assertIsNotNone(request_type)
+        self.assertIn(
+            'Name="Kind" DataType="DINT" Dimension="0" Radix="Decimal"'
+            ' Hidden="false" ExternalAccess="Read/Write"',
+            request_type.group(0))
+        _, bench_text, _ = emit(demo.application())
+        bench_request = re.search(
+            r'<DataType Name="FRK_T_PressHmiRequestV3".*?</DataType>',
+            bench_text, re.S)
+        self.assertIsNotNone(bench_request)
+        self.assertIn(
+            'Name="Kind" DataType="DINT" Dimension="0" Radix="Decimal"'
+            ' Hidden="false" ExternalAccess="None"',
+            bench_request.group(0))
 
 
 if __name__ == "__main__":

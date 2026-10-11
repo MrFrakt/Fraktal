@@ -5,7 +5,59 @@ using RockwellAutomation.LogixDesigner.Logging;
 
 const string usage =
     "Usage: Fraktal.Ab.OfflineProbe <project.ACD|L5K|L5X> [--export <new-file.ACD|L5X>]\n" +
+    "       Fraktal.Ab.OfflineProbe --build <project.ACD|L5K|L5X>\n" +
     "       Fraktal.Ab.OfflineProbe --create-seed <controller> <majorRevision> <name> <seed.ACD> [--export <seed.L5X>]";
+
+// Build mode compiles the project offline (Logix Designer v37+ only, per the
+// SDK). It is still offline: no controller connection is made, the file is
+// opened read-only and proved unchanged by hash, and the compiler diagnostics
+// come back in the JSON evidence. This is the headless form of Studio's
+// Verify and the gate a generated project must pass before a download.
+if (args.Length is 2 or 3 && args[0] == "--build")
+{
+    var buildPath = Path.GetFullPath(args[1]);
+    if (!File.Exists(buildPath))
+    {
+        Console.Error.WriteLine($"Project does not exist: {buildPath}");
+        return 2;
+    }
+
+    var buildHashBefore = Hash(buildPath);
+
+    using (var project = await LogixProject.OpenLogixProjectAsync(buildPath, new StdOutEventLogger()))
+    {
+        // Compiler diagnostics stream through the event logger to stdout;
+        // BuildAsync itself returns void. A build that fails still throws or
+        // logs - the hash guard below proves only that the FILE is untouched.
+        var target = LogixProject.RequestedBuildTarget.DefaultTarget;
+        if (args.Length == 3)
+        {
+            target = (LogixProject.RequestedBuildTarget)Enum.Parse(
+                typeof(LogixProject.RequestedBuildTarget), args[2], true);
+        }
+        await project.BuildAsync(target, CancellationToken.None);
+    }
+
+    var buildHashAfter = Hash(buildPath);
+    if (!buildHashBefore.Equals(buildHashAfter, StringComparison.Ordinal))
+    {
+        Console.Error.WriteLine("The input project changed during the offline build.");
+        return 1;
+    }
+
+    var buildEvidence = new
+    {
+        Schema = "fraktal.ab.offline-probe-build",
+        SchemaVersion = 1,
+        Input = buildPath,
+        InputSha256 = buildHashAfter,
+        InputUnchanged = true,
+        BuildTarget = args.Length == 3 ? args[2] : "DefaultTarget",
+        Note = "compiler diagnostics stream on stdout via the event logger",
+    };
+    Console.WriteLine(JsonSerializer.Serialize(buildEvidence, new JsonSerializerOptions { WriteIndented = true }));
+    return 0;
+}
 
 // Seed mode makes the empty controller skeleton every fixture generator starts
 // from reproducible from a clean checkout, instead of a hand-driven SDK example

@@ -1,0 +1,176 @@
+{
+  "Schema": "fraktal.ab.evidence",
+  "SchemaVersion": 1,
+  "Title": "AB press82_echo38: the press demo retargeted to Studio 5000 v38 / Logix Echo 5069-L310ER (offline)",
+  "RecordedDate": "2026-10-09",
+  "Workstation": "SoftIndVM",
+  "ControllerWrites": false,
+  "Downloads": false,
+  "BindingDecisions": {
+    "AskedExplicitly": true,
+    "HmiTarget": "Fraktal Flutter Windows desktop HMI via fraktal_ab_gateway.py (pylogix CIP -> WebSocket fraktal.opcua.gateway.v1)",
+    "WriteSurface": "WRITE-ENABLED, token-gated, write root scoped to the press HmiRequest mailbox; scoped to this test station; Core 14 armed",
+    "DownloadAuthorization": "Granted for the Logix Echo emulator on this workstation only, after a clean Studio import; Studio steps remain manual by policy (S15)"
+  },
+  "Target": {
+    "Controller": "5069-L310ER",
+    "MajorRevision": 38,
+    "ControllerIdentity": "5069-L310ER/A 38.011",
+    "EchoFirmwarePackage": "CompactLogix 5380 Emulator 38.011",
+    "Rationale": "Echo cannot emulate the 5370/1769-L2x family; S12 v38 exploratory (5069-L310ER, Studio v38.01) is the precedent",
+    "LogixDesignerInstalled": [
+      "v37",
+      "v38"
+    ],
+    "LogixEcho": {
+      "service": "RUNNING",
+      "messageBroker": "RUNNING",
+      "dashboard": "37.4.0"
+    }
+  },
+  "GeneratorDeltas": [
+    "Application.controller_identity (default empty = pinned v33 bench identity)",
+    "manifest identity uses app.controller_identity or CONTROLLER_IDENTITY",
+    "AOI SoftwareRevision derived from major revision (v<major>.00)",
+    "Discrete_IO Inhibited flip conditional on the seed carrying the module (5380 fresh seeds carry none); evidence adds EmbeddedIoModuleInSeed, EmbeddedIoInhibited null when absent",
+    "evidence dict adds ControllerIdentity"
+  ],
+  "FamilyFinding": {
+    "Finding": "A fresh SDK-created 5069-L310ER @ 38 project has no embedded-I/O module entry (the bank is part of the controller), unlike the L24ER fresh shape",
+    "GuaranteeUnchanged": "generated logic references no physical I/O operand (asserted); declared channels stay harness metadata; projection io_state drops a module whose reads fail",
+    "WholeFileDiff": "emitted application byte-identical to a v33 generation of the shipped press after normalising controller catalog, major revision, AOI SoftwareRevision, manifest identity and the module entry"
+  },
+  "Press82Echo38": {
+    "OutputSha256": "510854406AFC43F3DAC959917D4A3DC256011F0BE8194BEC95758E3093518644",
+    "DeterminismRegenerationSha256": "510854406AFC43F3DAC959917D4A3DC256011F0BE8194BEC95758E3093518644",
+    "ManifestHash": "E5F914E06055CD3B",
+    "ConfigRevision": 15071508,
+    "ManifestEqualsPress80": true,
+    "Totals": {
+      "StSourceBytes": 294972,
+      "StStatementTerminators": 3501,
+      "StLines": 5594,
+      "RllRungs": 20,
+      "DeclaredDataBytes": 110264
+    },
+    "DeltaToPress80Recorded": {
+      "StSourceBytes": -113,
+      "StStatementTerminators": -1,
+      "StLines": -2,
+      "RllRungs": 0,
+      "DeclaredDataBytes": 0,
+      "Explanation": "press81's declared controller-metrics exclusion (HEAD 7ba25cc), not the retarget"
+    }
+  },
+  "SdkLicenceFinding": {
+    "PriorRecord": "AB_R1_WORKSTATION_BASELINE_ADDENDUM_2026-09-06: CreateNewProjectAsync and conversion refused, No valid license (no LDSDK feature)",
+    "ThisWorkstation": "Both operations SUCCEEDED: seed created 2026-10-09, generated L5X converted to ACD",
+    "SdkServer": "shipped with installed Studio v38 (LdSdkServer)",
+    "CsClient": "RockwellAutomation.LogixDesigner.CSClient 2.1.974 (local feed)",
+    "ProbeBuild": "net8.0 / win-x86, x86 .NET 8 runtimes 8.0.20, FraktalSdkClientVersion=2.1.974",
+    "Note": "the csproj's recorded 2.2.1109/net10.0 pair is not what this workstation's feed and runtimes carry; probe remains offline-only"
+  },
+  "Validation": {
+    "AbSuite": {
+      "tests": 1676,
+      "failures": 0,
+      "log": "press82_echo38_ab_tests_01.log"
+    },
+    "NewTests": "Echo38TargetTests (5) in test_fraktal_ab_generate.py; generator module 56 tests",
+    "RenditionGateEqual": true,
+    "CheckAbContracts": "clean",
+    "CheckConsistency": "0 errors, 0 warnings",
+    "CheckAbSpec": "3 pre-existing errors, unchanged since press80 (readiness/S16 doc drift)",
+    "SdkImport": "ImportLog Warnings=0 Errors=0; L5X converted to ACD, input unchanged by hash",
+    "Mutants": "not re-run: emitted logic byte-identical to the shipped press",
+    "EnvironmentFix": "pylogix 1.1.5 + websockets 17.1 installed from requirements-gateway.txt; 8 pre-existing ModuleNotFoundError suite errors cleared"
+  },
+  "Files": {
+    "press82_echo38.L5X": "510854406AFC43F3DAC959917D4A3DC256011F0BE8194BEC95758E3093518644",
+    "press82_echo38_determinism_01.L5X": "510854406AFC43F3DAC959917D4A3DC256011F0BE8194BEC95758E3093518644",
+    "press82_echo38.ACD": "453054EAFBFF73459EA9408A55B6033C521E276DF7BCFA4CC51A421E905432F8",
+    "echo38_seed.ACD": "3211EE467EE70B13F32F6A9071EDDC4B036D900E5F869B2D4890C62DD661A840",
+    "echo38_seed.L5X": "121978864329C8748D7EF8138CA35D1590D4410A20934D67D77A38D7F8A70864",
+    "press82_echo38_build_01.json": "821F3CD9E21105ACFC307C656480803355DE7A254185E4B2D74636732CF54642",
+    "press82_echo38_rendition_gate_01.json": "4691DC7C094490F8085152CB89A82455A47722F86A69F79DBC8F8B637D79F9CB",
+    "press82_echo38_ab_tests_01.log": "64A6F5054047DFC64B98A311AADB4CC86F3213295B8DB72A260CA2B70DD09544"
+  },
+  "OwnerGates": [
+    "Echo Dashboard: 5069-L310ER @ 38.011 chassis, EtherNet/IP at 127.0.0.1:44818",
+    "open press82_echo38.ACD in Logix Designer v38 and Verify",
+    "download to the Echo emulator and set Run; record the emulator serial",
+    "agent: CIP probe, token-gated gateway over TLS, Windows HMI end-to-end"
+  ],
+  "Addendum_2026_10_09_Retarget": {
+    "Reason": "The Echo Dashboard Type list on this workstation offers only ControlLogix 5580 / ControlLogix 5590 / GuardLogix 5580 emulators - no CompactLogix 5380 type despite installed 5380 firmware packages; 5069-L310ER is not creatable",
+    "NewTarget": {
+      "Controller": "1756-L81E",
+      "MajorRevision": 38,
+      "ControllerIdentity": "1756-L81E/A 38.011",
+      "EchoFirmwarePackage": "ControlLogix 5580 Emulator 38.011"
+    },
+    "DeclarationChangedInPlace": "fraktal_ab_press_echo38.py; generator code unchanged; generator module 56 tests OK; rendition gate Equal=true",
+    "Seed": {
+      "ACD": "C:/work/echo38_5580_seed.ACD",
+      "ACDSHA256": "4DC33503828F594C5629F740ADDDA396B9FDEE29F22A6185D591C5C20C51880A",
+      "L5XSHA256": "FA96516C9E8D7F45874A825003756363C71DE528EDEDC0BD2766C19C1711C0C7"
+    },
+    "Press83Echo38": {
+      "OutputSha256": "345E4F2A50E390C01FF0090C9F704DAE3E6DCDD6E6AEBE206B729ACE0458F8AA",
+      "ManifestHash": "E5F914E06055CD3B",
+      "ConfigRevision": 15071508,
+      "SdkImport": "Summary Warnings=0 Errors=0 (RSLogix 5000 v38.00)",
+      "ACDSHA256": "A8436C67CBC33A58461C010971BE672938A9820A91730EB130BB3C6050D7CC90"
+    },
+    "Press82Status": "recorded above as generated and importable; no creatable Echo chassis on this workstation",
+    "EmbeddedIoNote": "the emulated 5580 has no local discrete I/O; declared channels have no hardware behind them and no live channel words publish"
+  },
+  "Addendum2_2026_10_09_MnemonicDialect": {
+    "Finding": "Studio 5000 v38.00 ladder compiler refuses v33 spellings: EQU/NEQ/GEQ/LEQ/GRT/LES must be EQ/NE/GE/LE/GT/LT and MOV must be MOVE; XIC/OTE/ADD/SUB/MUL unchanged. Proven both ways with minimal rungs against the Logix Echo v38.011 compiler.",
+    "OfflineGate": "L5X-direct open+build always fails RxCMP_E_AUDIT_OUTPUTS for ladder on v38.00 (even Studio-authored L5X); the working offline gate is partial-import of the fragment into a fresh SDK-created ACD + SaveAsync + --build (EchoController|PhysicalController). Fraktal.Ab.OfflineProbe gained --build [target] (offline, hash-guarded).",
+    "Local1ForceWrite": "press82 wrote Local:1:O.Data (force apply) - undefined on a 5580 emulator; fixed by io_modules=() on the Echo declaration. The emitter's no-physical-operand assertion regex (Local:I) never matched the real Local:1:O shape; noted for follow-up hardening.",
+    "GeneratorChange": "chain_ld_rungs maps compare/move mnemonics for major_revision>=38; rendition gate reads both spellings; v33 output byte-identical",
+    "Press86Echo38": {
+      "OutputSha256": "FA76E84A9D5501DFE782A7958BE22190CDD88CE6AF0CD491BC177BA94DEACAE4",
+      "AcdSha256": "E51B565C7EBC388408167BF59160D93B5AE44CC79E2C5AEFEFD9331A0361A9E4",
+      "ManifestHash": "E5F914E06055CD3B",
+      "ConfigRevision": 15071508,
+      "SdkPartialImport": "ImportLog 0/0",
+      "OfflineBuild": "Build succeeded on EchoController AND PhysicalController targets",
+      "AbSuite": {
+        "tests": 1676,
+        "failures": 0,
+        "log": "press86_echo38_ab_tests_01.log"
+      },
+      "RenditionGateEqual": true
+    },
+    "OwnerGate": "Studio v38 Verify of press86_echo38.acd, then download to the Echo emulator and Remote Run"
+  },
+  "NotClaimed": [
+    "controller fit/capacity/timing (no Echo Capacity Estimate exists)",
+    "native hardware parity; press75 memory baseline untouched",
+    "the write-enabled decision is scoped to this test station"
+  ],
+  "Addendum3_2026_10_10_DirectCipTransport": {
+    "Goal": "Fraktal Windows HMI connecting directly to the Logix Echo press over EtherNet/IP (ADS-style), no gateway process",
+    "Working": [
+      "press86_echo38 running on the Echo emulator (owner-downloaded)",
+      "libplctag 2.7.2 vendored with checksums; reads require plc=lgx attribute in v2.7",
+      "cip:// scheme wired: wizard, preflight (port 44818), factory, OpcUaRepository envelope",
+      "HMI renders the press directly from the emulator (core surface)",
+      "Mailbox write-only members reject reads by contract (None access guards User/Secret)"
+    ],
+    "OpenItems": [
+      "Echo requires connected messaging: pure-Dart ForwardOpen implemented, connected Read returns 0x13 not-enough-data (path-length word covers path+count); fix = split pathLen from element count in _cipTransaction/connectedRead",
+      "libplctag writes to ExternalAccess=None members report OK but do not land on the Echo (unconnected route); connected or raw-CIP writes are the alternatives",
+      "VS Code debug Flutter is 3.47.2 vs repo pin 3.47.5 (lockfile untouched, recorded)"
+    ],
+    "Files": {
+      "HMI/lib/data/cip/eip_cip_client.dart": "pure-Dart EtherNet/IP + connected transport (spike)",
+      "HMI/lib/data/cip/fraktal_manifest.dart": "manifest decoder (header + 9 tables)",
+      "HMI/lib/data/cip/cip_session_client.dart": "OpcUaSessionClient implementation (core snapshot + mailbox writes)",
+      "HMI/native/cip/third_party/libplctag-2.7.2/": "vendored library",
+      "Evidence/AB_CIP_DIRECT_HMI_SPIKE_2026-10-10.md": "session handoff record"
+    }
+  }
+}
