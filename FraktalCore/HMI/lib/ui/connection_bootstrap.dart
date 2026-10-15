@@ -819,7 +819,7 @@ class _ConnectionWizardState extends State<ConnectionWizard> {
     final uri = Uri.tryParse(value?.trim() ?? '');
     if (uri == null || !uri.hasScheme || uri.host.isEmpty)
       return context.tr('std.connection.endpointInvalid');
-    const accepted = {'ws', 'wss', 'http', 'https', 'opc.tcp', 'ads'};
+    const accepted = {'ws', 'wss', 'http', 'https', 'opc.tcp', 'ads', 'cip'};
     if (!accepted.contains(uri.scheme))
       return context.tr('std.connection.schemeInvalid');
     if (uri.scheme == 'ads' && uri.host.split('.').length != 6)

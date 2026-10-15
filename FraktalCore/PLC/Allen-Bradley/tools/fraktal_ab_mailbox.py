@@ -669,8 +669,15 @@ def _record_xml(app, type_name: str, members, access: str, comment: str) -> str:
     for name, kind, length, note in members:
         data_type = (string_type_name(app, length) if kind == STRING_MEMBER
                      else "DINT")
-        member_access = ('None' if type_name == request_type_name(app)
-                         and name != 'Sequence' else access)
+        write_only = (type_name == request_type_name(app)
+                      and name != 'Sequence')
+        if write_only and getattr(app, 'simulation_mailbox_rw', False):
+            # The Logix Echo silently drops writes to None members; a
+            # simulation build keeps the mailbox commandable by declaring
+            # the argument members Read/Write (bench builds keep None).
+            member_access = "Read/Write"
+        else:
+            member_access = 'None' if write_only else access
         body.append(_member_xml(name, data_type, note, member_access))
     return (f'<DataType Name="{type_name}" Family="NoFamily" Class="User">'
             f"<Description><![CDATA[{comment}]]></Description>\n<Members>\n"

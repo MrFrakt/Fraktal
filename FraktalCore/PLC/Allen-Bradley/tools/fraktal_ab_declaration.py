@@ -844,6 +844,18 @@ class Application:
     program_name: str = ""
     routine_name: str = ""
     read_budget: ReadBudget | None = None
+    # The controller identity stamped into the §3.10.2 manifest, as
+    # "catalog/series firmware" - the v33 bench's "1769-L24ER-QB1B/A 33.014",
+    # or a Logix Echo emulator's "5069-L310ER/A 38.011". Empty keeps the
+    # bench default the generator pins.
+    controller_identity: str = ""
+    # The Logix Echo emulator drops connected writes to ExternalAccess=None
+    # members (reports success, stores nothing), where the real controller
+    # family honors write-only access. A simulation build sets this to emit
+    # the command mailbox's argument members Read/Write so the one §14
+    # writable surface stays commandable on the emulator. The bench builds
+    # keep the guarded write-only form.
+    simulation_mailbox_rw: bool = False
     # Optional composition-owned line, beside (never inside) the root forest.
     line: object | None = None
 

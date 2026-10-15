@@ -45,6 +45,8 @@ from fraktal_ab_st_format import format_lines
 SCHEMA = "fraktal.ab.generated-application"
 # Published in the manifest header so a reader can tell which controller
 # the description belongs to without inferring it from the connection.
+# The v33 bench identity is the default; a declaration names its own through
+# Application.controller_identity (e.g. a Logix Echo emulator target).
 CONTROLLER_IDENTITY = "1769-L24ER-QB1B/A 33.014"
 
 # Emitted verbatim ahead of every CASE ELSE. The fallback assigns a step number
@@ -815,11 +817,12 @@ ENABLE_PARAMETERS = (
 
 
 def _aoi(name: str, note: str, parameters: tuple[str, ...],
-         logic: tuple[str, ...], dependencies: tuple[str, ...]) -> str:
+         logic: tuple[str, ...], dependencies: tuple[str, ...],
+         software_revision: str = "v33.00") -> str:
     parameter_block = "\n".join(parameters)
     lines = st_content_lines(logic)
     deps = "\n".join(f'<Dependency Type="DataType" Name="{d}"/>' for d in dependencies)
-    return f"""<AddOnInstructionDefinition Name="{name}" Revision="1.0" ExecutePrescan="false" ExecutePostscan="false" ExecuteEnableInFalse="false" CreatedDate="2026-09-07T00:00:00.000Z" CreatedBy="Fraktal" EditedDate="2026-09-07T00:00:00.000Z" EditedBy="Fraktal" SoftwareRevision="v33.00">
+    return f"""<AddOnInstructionDefinition Name="{name}" Revision="1.0" ExecutePrescan="false" ExecutePostscan="false" ExecuteEnableInFalse="false" CreatedDate="2026-09-07T00:00:00.000Z" CreatedBy="Fraktal" EditedDate="2026-09-07T00:00:00.000Z" EditedBy="Fraktal" SoftwareRevision="{software_revision}">
 <RevisionNote><![CDATA[{note}]]></RevisionNote>
 <Parameters>
 {parameter_block}
@@ -1157,8 +1160,10 @@ def type_logic(mtype: decl.ModuleType) -> tuple[str, ...]:
     return tuple(lines)
 
 
-def type_aoi(mtype: decl.ModuleType) -> str:
-    """One library type's AOI definition - the same bytes in every application.
+def type_aoi(mtype: decl.ModuleType,
+             software_revision: str = "v33.00") -> str:
+    """One library type's AOI definition - the same bytes in every application
+    on the same declared controller revision.
 
     Its RevisionNote describes the TYPE. It used to carry the instance's
     comment ("the press ram; EXTEND presses..."), which was the only other
@@ -1175,12 +1180,15 @@ def type_aoi(mtype: decl.ModuleType) -> str:
         ),
         type_logic(mtype),
         (ctx,),
+        software_revision=software_revision,
     )
 
 
 def module_aois(app: decl.Application) -> list[str]:
     """One AOI per library type the application uses, not one per instance."""
-    return [type_aoi(mtype) for mtype in library.types_used(app)]
+    revision = f"v{app.major_revision}.00"
+    return [type_aoi(mtype, software_revision=revision)
+            for mtype in library.types_used(app)]
 
 
 # --- chain logic ------------------------------------------------------------
@@ -2387,6 +2395,18 @@ def chain_ld_rungs(app: decl.Application, chain: decl.Chain) -> list[str]:
     for step in ordered:
         rungs.append(ld_step_rung(app, chain, step,
                                   steps_order.index(step.number), names))
+    if app.major_revision >= 38:
+        # Studio 5000 v38's ladder compiler wants the IEC spellings for the
+        # compare instructions and MOVE, and refuses the v33 ones at verify
+        # ("Update instruction to EQ/NE/GE/LT/GT/MOVE"). Measured on v38.00
+        # against the Logix Echo compiler: EQU/GRT/MOV-spelled rungs fail,
+        # EQ/GT/MOVE-spelled rungs verify; series outputs and comma branch
+        # legs stay legal. Applies to the L5X rung TEXT only; ST code keeps
+        # its operators.
+        rename = {"EQU": "EQ", "NEQ": "NE", "GEQ": "GE", "LEQ": "LE",
+                  "GRT": "GT", "LES": "LT", "MOV": "MOVE"}
+        rungs = [re.sub(r"\b(EQU|NEQ|GEQ|LEQ|GRT|LES|MOV)\(", lambda m:
+                        rename[m.group(1)] + "(", rung) for rung in rungs]
     return rungs
 
 
@@ -2817,6 +2837,7 @@ def unit_aoi(app: decl.Application) -> str:
         (unit_context_name(app), chart_name(app),
          *(module_context_name(t) for t in library.types_used(app)),
          app.records[0].name),
+        software_revision=f"v{app.major_revision}.00",
     )
 
 
@@ -3237,7 +3258,7 @@ def controller_tags(app: decl.Application) -> str:
     # client is given. It ships with the application because a mailbox that
     # appeared only once something wrote to it could not be discovered.
     tags.extend(mailbox.tags(app))
-    tags.extend(manifest.tags(app, CONTROLLER_IDENTITY))
+    tags.extend(manifest.tags(app, app.controller_identity or CONTROLLER_IDENTITY))
     return "<Tags>\n" + "\n".join(tags) + "\n</Tags>"
 
 
@@ -4772,13 +4793,24 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
     # review. The assertion stays either way, because a substitution that
     # matched zero times or twice would leave the chassis in whichever state
     # the source happened to carry.
-    wanted = "false" if app.io_modules else "true"
-    text, changed = re.subn(
-        r'(<Module Name="Discrete_IO"[^>]*\bInhibited=")(?:true|false)("[^>]*>)',
-        rf"\g<1>{wanted}\g<2>", text, count=1)
-    if changed != 1:
-        raise ValueError(
-            "embedded Discrete_IO module inhibit was not set exactly once")
+    #
+    # A 5380-family seed (the v38 Logix Echo targets) carries no embedded-I/O
+    # module entry at all - its discrete bank is part of the controller - so
+    # there is nothing to flip, and the same guarantee is carried by the
+    # assertion above: generated logic references no physical I/O operand,
+    # and the I/O table stays harness metadata. Declared channels on such a
+    # station describe what the channels ARE (diagnostics, force mask, field
+    # view); the module they name does not exist to inhibit, and the live
+    # channel words simply do not publish.
+    embedded_io_in_seed = '<Module Name="Discrete_IO"' in text
+    if embedded_io_in_seed:
+        wanted = "false" if app.io_modules else "true"
+        text, changed = re.subn(
+            r'(<Module Name="Discrete_IO"[^>]*\bInhibited=")(?:true|false)("[^>]*>)',
+            rf"\g<1>{wanted}\g<2>", text, count=1)
+        if changed != 1:
+            raise ValueError(
+                "embedded Discrete_IO module inhibit was not set exactly once")
 
     fenced = text
     for allowed in SCOPE_FENCE_ALLOWED:
@@ -4803,11 +4835,13 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
         "GeneratedSize": generated_size.report(emitted),
         "Controller": app.controller,
         "MajorRevision": app.major_revision,
+        "ControllerIdentity": app.controller_identity or CONTROLLER_IDENTITY,
         "TaskName": app.task_name,
         "TaskPeriodMs": app.task_period_ms,
         "WatchdogMs": app.watchdog_ms,
         "PhysicalIoReferences": sum(len(m.channels) for m in app.io_modules),
-        "EmbeddedIoInhibited": not app.io_modules,
+        "EmbeddedIoModuleInSeed": embedded_io_in_seed,
+        "EmbeddedIoInhibited": (not app.io_modules) if embedded_io_in_seed else None,
         "TaskOutputUpdatesDisabled": not app.io_modules,
         "ForceableOutputs": bin(force_output_mask(app)).count("1"),
         "BoolMembersInPublicUdt": 0,

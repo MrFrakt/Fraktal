@@ -47,6 +47,7 @@ int _effectivePort(Uri endpoint) {
     'opc.tcp' => 4840,
     'ws' || 'http' => 80,
     'wss' || 'https' => 443,
+    'cip' => 44818,
     _ => 0,
   };
 }

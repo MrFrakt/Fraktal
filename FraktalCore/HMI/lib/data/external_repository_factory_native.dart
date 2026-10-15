@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/connection_settings.dart';
 import 'ads_session_client.dart';
+import 'cip/cip_session_client.dart';
 import 'opcua_gateway_client_io.dart';
 import 'opcua_native_client.dart';
 import 'opcua_repository.dart';
@@ -50,8 +51,23 @@ Future<PlcRepository> createExternalRepository(
     );
     return OpcUaRepository.connectWithClient(client);
   }
+  // Direct EtherNet/IP (CIP): cip://<controller ip>:<port>, slot on the query
+  // string is not supported — the controller is expected in slot 0. Spike
+  // transport: serves the manifest-derived core surface; the CIP gateway
+  // remains the supported production path with the complete projection.
+  if (endpoint.scheme == 'cip') {
+    final port = endpoint.hasPort ? endpoint.port : 44818;
+    debugPrint('[Fraktal/Connection] stage=cip-connect host=${endpoint.host} '
+        'port=$port');
+    final client = await CipSessionClient.connect(
+      host: endpoint.host,
+      port: port,
+    );
+    return OpcUaRepository.connectWithClient(client);
+  }
   if (endpoint.scheme != 'opc.tcp') {
-    throw UnsupportedError('Native connections require opc.tcp, ws, or wss.');
+    throw UnsupportedError(
+        'Native connections require opc.tcp, ws, wss, or cip.');
   }
   // Direct native OPC UA remains the explicit local/commissioning path. The
   // production plug-and-produce path is WSS through the machine gateway, whose

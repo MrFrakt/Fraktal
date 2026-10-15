@@ -102,8 +102,10 @@ def ld_graph(root: ET.Element, name: str, unit_tag: str) -> dict[int, set[int]]:
              for rung in routine.findall(".//RLLContent/Rung")]
     graph: dict[int, set[int]] = {}
     order: list[int] = []
-    gate = re.compile(rf"^EQU\({re.escape(unit_tag)}\.Step,(\d+)\)")
-    move = re.compile(rf"MOV\((-?\d+),{re.escape(unit_tag)}\.Step\)")
+    # v38 emits the IEC spellings (EQ, MOVE) for the compares and the move;
+    # v33 and earlier keep EQU/MOV. Accept both when reading back.
+    gate = re.compile(rf"^EQ(?:U)?\({re.escape(unit_tag)}\.Step,(\d+)\)")
+    move = re.compile(rf"MOV(?:E)?\((-?\d+),{re.escape(unit_tag)}\.Step\)")
     for rung in rungs:
         text = rung.strip()
         matched = gate.match(text)

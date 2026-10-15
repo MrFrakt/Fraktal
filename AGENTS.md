@@ -859,8 +859,11 @@ two days because of it — see
 
 `flutter run -d windows` additionally needs Visual Studio's *Desktop development with
 C++* workload. The desktop build uses the native FFI OPC UA adapter, so it reaches a
-TwinCAT target but **not** an Allen-Bradley one — the AB path is the gateway over
-WebSocket, which is the **web** build (`-d chrome`).
+TwinCAT target; the supported AB path is the gateway over WebSocket, which is the
+**web** build (`-d chrome`). A desktop build can also reach an AB controller directly
+with `cip://<controller>` (`lib/data/cip/`), but that is **spike scope**: it serves the
+core operator surface only and writes the mailbox without the gateway's write-root
+policy, so it is not the read-only AB posture of §3a.
 `analysis_options.yaml` is self-contained (no flutter_lints include) per the zero-package policy.
 
 **Gateway + Web HMI deployment:** follow
