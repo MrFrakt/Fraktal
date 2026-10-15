@@ -1779,3 +1779,29 @@ as underflow under the S7-1500 arithmetic profile. The REAL Web API leaf carries
 seven significant decimal digits on this bench; typed configuration text is the
 precision witness used by the generic editor/export contract. Native comparisons
 and source limits are recorded in the qualification above.
+
+### TIA candidate contract baseline, version 1
+
+The implemented S7-1500 subset is frozen as a **draft candidate ABI**, not a
+released reference binding. The [machine baseline](../FraktalCore/PLC/Siemens/Contracts/TIA_FROZEN_CONTRACTS_V1.json)
+is derived from the owning Core DUTs, binding and native HMI adapter. Run
+`python tools/check_tia_contracts.py` before changing them. The gate compares
+field order, logical/native types, widths, initializers, publication flags,
+referenced enum ordinals and capacities, the consumed-size sequence table
+shape, and the adapter's datatype projection. Any change to this V1 subset,
+including an addition, requires explicit versioned contract review; an ordinary
+check never rewrites the baseline. A subsequent baseline shall preserve V1.
+
+`--generated <package>` and `--native <Openness-export-directory>` additionally
+require every frozen record and compare the complete ordered native interfaces,
+including ExternalAccessible/ExternalVisible/ExternalWritable. These options
+apply to a full-profile bench, not to a station that omits optional features.
+Mailbox commit/acknowledgement behavior, codecs and session recovery retain
+their executable tests; layout checks alone do not prove behavior.
+
+R3 remains **OPEN**: this subset does not resolve provisional read coherence,
+clock quality, optional OPC UA, S7-1200 layouts or the unimplemented facets.
+The frozen records describe implemented surface and impose no extra allocation
+on a station; sequence tables retain their declaration-derived dimensions.
+
+<!-- TIA-CONTRACTS-V1 sha256:65ea0e812b82586de6f27012880a9d0200f4ed283dee39a8f420a7dead101524 -->

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_ConfigRestorePolicy" Id="{3f1b6c24-9d07-4a58-b2e1-7c4d05a89e36}">
+    <Declaration><![CDATA[// Core §3.8b — what a station DOES about a configuration image it could not
+// restore. The loss itself is never silent either way; this chooses the
+// consequence, and the deployment declares it rather than inheriting a habit.
+// Ordinals are an append-only PLC/HMI transport contract.
+{attribute 'qualified_only'}
+TYPE E_ConfigRestorePolicy :
+(
+    // Shipped default: the station runs on its declared defaults and the
+    // annunciation stands until an operator acknowledges it. A machine that
+    // still moves is the right answer for a station whose lost values are
+    // conveniences; the standing alarm is what stops it being silent.
+    DEFAULTS_AND_ANNUNCIATE  := 0,
+    // No START_STOP release until an operator of at least ENGINEER level
+    // acknowledges the loss. For a station whose commissioned values are the
+    // difference between a good part and a wrecked tool, running on defaults
+    // while presenting itself as commissioned is the failure to prevent.
+    BLOCK_UNTIL_ACKNOWLEDGED := 1
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

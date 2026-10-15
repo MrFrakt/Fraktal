@@ -1,0 +1,61 @@
+{
+  "commands": [
+    {
+      "args": [
+        "python",
+        "tools/check_tia_contracts.py",
+        "--generated",
+        "FraktalCore/PLC/Siemens/Examples/PressDemo/generated",
+        "--native",
+        "C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_Complete_20261015\\press07_native"
+      ],
+      "exit_code": 0,
+      "log": "native_gate.log"
+    },
+    {
+      "args": [
+        "python",
+        "tools/check_consistency.py",
+        "--strict"
+      ],
+      "exit_code": 0,
+      "log": "consistency.log"
+    },
+    {
+      "args": [
+        "python",
+        "tools/check_ab_spec.py"
+      ],
+      "exit_code": 1,
+      "log": "ab_spec_existing_failure.log"
+    }
+  ],
+  "existing_ab_gate_inputs": [
+    {
+      "path": "tools/check_ab_spec.py",
+      "sha256": "20274fe0d87edd8f08fb962404cb60a5c7f411266845774d74b9848e5d7eb0e3",
+      "equals_base_commit": true
+    },
+    {
+      "path": "Specification/Fraktal_AB_Part_III.md",
+      "sha256": "d90a7a0973ea5501a1ca8b7f1c59538c6cd93b9e3aed6647f24cf0e91b0a1f40",
+      "equals_base_commit": true
+    }
+  ],
+  "previous_execution_observations": {
+    "siemens_tool_tests": 208,
+    "siemens_tool_exit_code": 0,
+    "tia_lint_findings": 0,
+    "default_replayed_sources": 24,
+    "press_replayed_sources": 216,
+    "graph_steps": {
+      "AUTO": 19,
+      "HOME": 4
+    },
+    "ladder_networks": 198,
+    "ladder_calls": 192,
+    "combined_repository_tests": 80,
+    "combined_repository_failures": 1,
+    "failing_test": "tools.test_check_ab_spec.AbSpecificationGateTests.test_repository_specification_is_consistent"
+  }
+}

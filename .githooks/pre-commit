@@ -40,6 +40,12 @@ if ! python tools/check_consistency.py; then
     fail=1
 fi
 
+# The implemented TIA candidate ABI also spans Core, its generator and the HMI.
+# Check it on every commit so changes outside the Siemens tree cannot bypass it.
+if ! python tools/check_tia_contracts.py; then
+    fail=1
+fi
+
 # --- PLC objects staged: naming, contract and lifecycle rules (~6s) -------
 if echo "$staged" | grep -qE '\.(TcPOU|TcDUT|TcGVL|TcIO)$|FraktalCore/PLC/TwinCAT/tools/plc_lint\.py'; then
     for profile in modern 4024; do
@@ -67,6 +73,12 @@ if echo "$staged" | grep -qE '^tools/|FraktalCore/PLC/TwinCAT/tools/'; then
         fail=1
     fi
     if ! python -m unittest tools.test_check_consistency -q; then
+        fail=1
+    fi
+fi
+
+if echo "$staged" | grep -qE '^tools/(check_tia_contracts|test_check_tia_contracts)\.py$|FraktalCore/PLC/Siemens/Contracts/'; then
+    if ! python -m unittest tools.test_check_tia_contracts -q; then
         fail=1
     fi
 fi
