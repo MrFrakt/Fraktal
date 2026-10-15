@@ -1,0 +1,97 @@
+﻿FUNCTION "FRK_AccessCyclic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+      SourcePath : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+      AlarmLog : "FRK_AlarmLog";
+      Revision : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Data : Array[0..47] of Byte;
+      Index : DInt;
+      Difference : Byte;
+      HashOk : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Access.LoginTimeoutMs := 6000;
+	IF #Startup THEN
+	    "FRK_AccessLogout"(Access := #Access);
+	    #Access.LoginResultSequence := 0;
+	END_IF;
+	IF #Access.ProviderGeneration <> "FRK_LocalUsers".Generation OR NOT "FRK_AccessStorage".UsersReady THEN
+	    IF #Access.CurrentLevel > 0 THEN
+	        "FRK_AccessDropSession"(Access := #Access);
+	        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	    END_IF;
+	    IF #Access.LoginBusy THEN
+	        #Access.CandidateLevel := 0;
+	    END_IF;
+	    #Access.ProviderGeneration := "FRK_LocalUsers".Generation;
+	END_IF;
+	IF #Access.CurrentLevel > 0 AND #Access.Policy.SessionTimeout > T#0ms THEN
+	    IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Access.LastActivity) >= DINT_TO_UDINT(TIME_TO_DINT(#Access.Policy.SessionTimeout)) THEN
+	        "FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                          What := WSTRING#'std.audit.autoLogout',
+	                          Who := #Access.CurrentUser,
+	                          SourcePath := #SourcePath);
+	        // Expiring the old session does not discard a separately committed
+	        // credential attempt. Explicit logout cancels both.
+	        "FRK_AccessDropSession"(Access := #Access);
+	        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	    END_IF;
+	END_IF;
+	IF NOT #Access.LoginBusy THEN
+	    RETURN;
+	END_IF;
+	// One compression per active scan; never run all PIN rounds in one scan.
+	FOR #Index := 0 TO 31 DO
+	    #Data[#Index] := #Access.Digest[#Index];
+	END_FOR;
+	FOR #Index := 0 TO 15 DO
+	    #Data[32 + #Index] := #Access.Salt[#Index];
+	END_FOR;
+	#HashOk := "FRK_Sha256Pin"(Data := #Data, Size := 48, Digest := #Access.Digest);
+	FOR #Index := 0 TO 47 DO
+	    #Data[#Index] := 0;
+	END_FOR;
+	#Access.Round := #Access.Round + 1;
+	IF NOT #HashOk OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Access.LoginSince) >= #Access.LoginTimeoutMs THEN
+	    #Access.CandidateLevel := 0;
+	ELSIF #Access.Round < 256 THEN
+	    RETURN;
+	END_IF;
+	#Difference := 0;
+	FOR #Index := 0 TO 31 DO
+	    #Difference := #Difference OR (#Access.Digest[#Index] XOR #Access.Expected[#Index]);
+	END_FOR;
+	#Access.LoginFailed := #Difference <> 0 OR #Access.CandidateLevel = 0 OR NOT #Access.ProviderEnabled OR NOT "FRK_AccessStorage".UsersReady OR #Access.CandidateGeneration <> "FRK_LocalUsers".Generation;
+	IF #Access.LoginFailed THEN
+	    "FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                      What := WSTRING#'std.audit.loginFailed',
+	                      Who := #Access.CandidateUser,
+	                      SourcePath := #SourcePath);
+	ELSE
+	    #Access.CurrentUser := #Access.CandidateUser;
+	    #Access.CurrentLevel := #Access.CandidateLevel;
+	    #Access.LastActivity := "FRK_Clock".NowMs;
+	    #Access.SessionGeneration := "FRK_AccessNext"(Previous := #Access.SessionGeneration);
+	    #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	    "FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                      What := WSTRING#'std.audit.login',
+	                      Who := #Access.CurrentUser,
+	                      SourcePath := #SourcePath);
+	END_IF;
+	#Access.LoginResultSequence := #Access.LoginSequence;
+	"FRK_AccessCancel"(Access := #Access);
+	
+END_FUNCTION
+

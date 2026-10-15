@@ -80,7 +80,8 @@ void main() {
     return (repo, app);
   }
 
-  testWidgets('new model dialog adds an inactive model to the selector', (tester) async {
+  testWidgets('new model dialog adds an inactive model to the selector',
+      (tester) async {
     final (repo, app) = await pumpCards(tester);
     final running = app.forest.first.modelCode;
     await repo.stop('StationA');
@@ -107,7 +108,7 @@ void main() {
     expect(find.byKey(const ValueKey('cfg-card-parCfg')), findsOneWidget);
     expect(find.byKey(const ValueKey('cfg-card-lineCfg')), findsNothing,
         reason: 'a kind the module does not publish has no card');
-    expect(find.text('Station configuration'), findsOneWidget);
+    expect(find.text('Station config'), findsOneWidget);
 
     final flag = find.byKey(const ValueKey('cfg-flag-Require two-hand start'));
     expect(find.descendant(of: station, matching: flag), findsOneWidget,

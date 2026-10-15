@@ -1,0 +1,542 @@
+﻿FUNCTION "FRK_DocReject" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Stored : Int;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Slot OF
+	    1:
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA', Key := 'siteLabel', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA', Key := 'enabled', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite', Key := 'siteLabel', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite', Key := 'enabled', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner', Key := 'siteLabel', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner', Key := 'enabled', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    2:
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    3:
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    4:
+	        "FRK_AccessPolicies".Rows[1].Scope := 'StationA';
+	        "FRK_AccessPolicies".Rows[1].SchemaVersion := 0;
+	        "FRK_AccessPolicies".Rows[1].Initialized := TRUE;
+	    5:
+	        "FRK_SetStore".Sets[1, 1].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    6:
+	        "FRK_SetStore".Sets[1, 2].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    7:
+	        "FRK_SetStore".Sets[1, 3].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    8:
+	        "FRK_SetStore".Sets[1, 4].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    9:
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'siteLabel', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'enabled', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'siteLabel', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'enabled', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'siteLabel', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'enabled', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    10:
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_A');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    11:
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    12:
+	        "FRK_AccessPolicies".Rows[2].Scope := 'StationB';
+	        "FRK_AccessPolicies".Rows[2].SchemaVersion := 0;
+	        "FRK_AccessPolicies".Rows[2].Initialized := TRUE;
+	    13:
+	        "FRK_SetStore".Sets[2, 1].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    14:
+	        "FRK_SetStore".Sets[2, 2].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    15:
+	        "FRK_SetStore".Sets[2, 3].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    16:
+	        "FRK_SetStore".Sets[2, 4].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    17:
+	        "FRK_LocalUsers".SchemaVersion := 0;
+	        "FRK_LocalUsers".Generation := 0;
+	        "FRK_LocalUsers".Checksum := DWORD#0;
+	        "FRK_AccessStorage".UsersCommissioned := TRUE;
+	        "FRK_AccessStorage".UsersReady := FALSE;
+	        "FRK_AccessStorage".UsersLost := TRUE;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

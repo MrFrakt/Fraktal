@@ -1,0 +1,85 @@
+﻿FUNCTION "FRK_ViewDiagnostic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      Pending : "ST_Diagnostic";
+      Current : "ST_StepRecord";
+      Cursors : Array[*] of "ST_SequenceCursor";
+      Book : "FRK_ViewBook";
+      Visits : Array[*] of UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Summary : "FRK_DiagSummary";
+      Candidate : "ST_Diagnostic";
+      RowIdx : Int;
+      SameVisit : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Summary := "FRK_Diagnostics".Empty;
+	IF #Book.PublishedPending AND NOT #Core.DiagTouched AND #Core.Exec <> 3 THEN
+	    "FRK_ClearDiag"(Status := #Status);
+	END_IF;
+	#Book.PublishedPending := FALSE;
+	IF #Core.Exec = 1 AND #Book.FaultFound THEN
+	    "FRK_AdoptFault"(Core := #Core,
+	                     Status := #Status,
+	                     Diag := #Book.FaultDiagnostic);
+	END_IF;
+	#Candidate := "FRK_ViewScratch".Diagnostic;
+	#RowIdx := #Cursors[0].RowIdx;
+	IF #Core.Exec = 1 THEN
+	    IF #Book.AwaitIndex > 0 THEN
+	        "FRK_DiagRead"(Owner := #Owner,
+	                       Target := #Book.AwaitIndex,
+	                       Faults := FALSE,
+	                       DescendantsOnly := FALSE,
+	                       Summary := #Summary);
+	        IF #Summary.Held AND NOT #Core.HoldReq THEN
+	            "FRK_HoldDiag"(Core := #Core,
+	                           Status := #Status,
+	                           Diag := #Summary.Diagnostic);
+	        END_IF;
+	    END_IF;
+	    IF #Core.HoldReq THEN
+	        #Cursors[0].TimedOut := FALSE;
+	    ELSIF #RowIdx > 0 AND #Cursors[0].TimedOut THEN
+	        #Candidate := #Summary.Diagnostic;
+	        IF #Book.AwaitIndex = 0 OR #Candidate.ReasonCode = 0 THEN
+	            #Candidate := "FRK_ViewScratch".Diagnostic;
+	            #Candidate.ReasonCode := 2005;
+	            #Candidate.SourcePath := STRING_TO_WSTRING(#Status.Name);
+	            #Candidate.Description := WSTRING#'std.diagnostic.stepStalled';
+	            #Candidate.Category := 0;
+	        END_IF;
+	        #Candidate.Severity := 0;
+	        #SameVisit := #Book.PendingStep = #Current.StepNo AND #Book.PendingVisit = #Visits[#RowIdx];
+	        IF #SameVisit AND #Pending.ReasonCode = #Candidate.ReasonCode AND #Pending.SourcePath = #Candidate.SourcePath AND #Pending.Description = #Candidate.Description THEN
+	            #Candidate.Since := #Pending.Since;
+	            #Candidate.TimeSynchronized := #Pending.TimeSynchronized;
+	        ELSE
+	            #Candidate.Since := "FRK_Now"();
+	            #Candidate.TimeSynchronized := FALSE;
+	        END_IF;
+	        #Book.PendingStep := #Current.StepNo;
+	        #Book.PendingVisit := #Visits[#RowIdx];
+	        IF NOT #Core.DiagTouched THEN
+	            #Status.Diagnostic := #Candidate;
+	            #Core.DiagTouched := TRUE;
+	            #Book.PublishedPending := TRUE;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	#Pending := #Candidate;
+	
+END_FUNCTION
+

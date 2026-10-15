@@ -1,5 +1,5 @@
 """Reference-1500 value types derived from Core and application declarations."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 from pathlib import Path
 import re
@@ -56,6 +56,7 @@ class Catalog:
     enums: dict
     capacities: dict
     inputs: dict
+    defaults: dict = field(default_factory=dict)
 
     @classmethod
     def read(cls, application=()):
@@ -74,11 +75,12 @@ class Catalog:
         text = plain(ET.fromstring(data).findtext(".//Declaration"))
         capacities = {name: int(value) for name, value in
                       re.findall(r"(MAX_\w+)\s*:\s*\w+\s*:=\s*(\d+)", text)}
+        defaults = {name: int(value) for name, value in re.findall(r'(\w+)\s*:\s*(?:U?D?INT)\s*:=\s*(\d+)', text, re.I)}
         for name, text in application:
             if name.casefold() in {key.casefold() for key in records}:
                 raise ValueError("application record collides with Core: " + name)
             records[name] = struct_members(text)
-        return cls(records, enums, capacities, inputs)
+        return cls(records, enums, capacities, inputs, defaults)
 
     def resolve(self, requested):
         """Dependency order and physical fields; reject unresolved/recursive types."""
@@ -108,6 +110,11 @@ class Catalog:
                         raise ValueError("invalid array bounds: " + original)
                     native = "Array[%d..%d] of %s" % (low, high, native)
                 if initial:
+                    if initial.startswith('PL_Fraktal.'):
+                        constant = initial.split('.', 1)[1]
+                        if constant not in self.defaults:
+                            raise ValueError('unsupported Core initializer: ' + initial)
+                        initial = str(self.defaults[constant])
                     if scalar.upper() == 'TIME' and initial.upper() == 'T#0S':
                         initial = 'T#0ms'  # TIA's native source spelling of zero TIME.
                     if scalar in self.enums:

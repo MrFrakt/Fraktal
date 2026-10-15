@@ -1,0 +1,35 @@
+﻿FUNCTION "F_PressDemoScrap" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Cycle : "ST_PressDemoCycle";
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Written : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF "FRK_SeqOnce"(Seq := #Seq, Enable := TRUE, Token := #Seq.Step) THEN
+	    #Written := "FRK_PartProcessed"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog,
+	                                    Verdict := 2, Reason := #Cycle.FailureReason);
+	    IF NOT #Written AND #Unit.CarrierIndex = 0 AND #Unit.Nok < UDINT#4294967295 THEN
+	        #Unit.Nok := #Unit.Nok + 1;
+	        #Unit.NokReason := #Cycle.FailureReason;
+	    END_IF;
+	    #Cycle.PartDispositioned := TRUE;
+	    #Cycle.PartInMachine := FALSE;
+	    #Cycle.CycleCompleted := FALSE;
+	END_IF;
+	#F_PressDemoScrap := #Core.Exec <> 3;
+	
+END_FUNCTION
+

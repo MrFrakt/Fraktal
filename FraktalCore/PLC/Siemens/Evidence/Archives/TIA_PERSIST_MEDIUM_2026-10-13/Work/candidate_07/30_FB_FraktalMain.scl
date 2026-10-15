@@ -1,0 +1,40 @@
+FUNCTION_BLOCK "FB_FraktalMain"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR
+    MediaBoot {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;
+END_VAR
+VAR_TEMP
+    MediaReady : Bool;
+    RootStartup : Bool;
+END_VAR
+BEGIN
+    IF #Startup THEN
+        "FRK_Registry".Count := 0;
+        "FRK_Registry".Fault := FALSE;
+    END_IF;
+    "FRK_ClockTick"();
+    IF #Startup THEN #MediaBoot := TRUE; END_IF;
+    IF #Startup THEN
+        "FRK_Quiesce_DeclarationUnit"(Module := "StationA", Hal := "GDB_FraktalHal".Data.StationA);
+        "FRK_Quiesce_DeclarationUnit"(Module := "StationB", Hal := "GDB_FraktalHal".Data.StationB);
+    END_IF;
+    "FRK_PersistEnter"(Startup := #Startup);
+    "FRK_DocBoot"(Startup := #Startup, Ready := #MediaReady);
+    IF NOT #MediaReady THEN
+        "StationA".ConfigPersist.Failed := "FRK_PersistStatus".Failed;
+        "StationB".ConfigPersist.Failed := "FRK_PersistStatus".Failed;
+        RETURN;
+    END_IF;
+    #RootStartup := #MediaBoot; #MediaBoot := FALSE;
+    "FRK_AlarmRecoveryPrepare"(Startup := #RootStartup);
+    "FRK_AccessStoreBoot"(Startup := #RootStartup);
+    "FRK_ConfigBoot"(Startup := #RootStartup);
+    "FRK_SetBoot"(Startup := #RootStartup);
+    "StationA"(ParentIndex := 0, Startup := #RootStartup, Hal := "GDB_FraktalHal".Data.StationA, BoundPath := WSTRING#'StationA');
+    "StationB"(ParentIndex := 0, Startup := #RootStartup, Hal := "GDB_FraktalHal".Data.StationB, BoundPath := WSTRING#'StationB');
+    "FRK_DocCyclic"();
+END_FUNCTION_BLOCK

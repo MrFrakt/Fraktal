@@ -1,0 +1,26 @@
+﻿DATA_BLOCK "GDB_RecoveryTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      Enabled : Bool;
+      RestartOnStart : Bool;
+      Fault : Bool;
+      Finish : Bool;
+      Permit : Bool;
+      LateTimeout : Bool;
+      RequestSeq : UDInt;
+      AckSeq { ExternalWritable := 'False'} : UDInt;
+      Seq { ExternalWritable := 'False'} : "FRK_SequenceCtx";
+      EntryCount { ExternalWritable := 'False'} : UDInt;
+      IssueCount { ExternalWritable := 'False'} : UDInt;
+      EventCount { ExternalWritable := 'False'} : UDInt;
+      LowScans { ExternalWritable := 'False'} : UDInt;
+      Running { ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+

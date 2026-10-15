@@ -1,0 +1,42 @@
+﻿FUNCTION "FRK_CfgRecipe_PressDemoUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ModelCode : String;
+      Phase : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+      RejectScope : String;
+      RejectKey : String;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgRecipe_PressDemoUnit := TRUE;
+	#Ok := "FRK_CfgRecipe_CylinderCM"(Module := #PressRam, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_CylinderCM"(Module := #Door, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_CylinderCM"(Module := #PartSlide, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,18 @@
+﻿{"t":"2026-10-08T17:54:10.6264095Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-08T17:54:10.6842683Z","event":"step","command":"open-project","args":"--path C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T17:54:20.0901471Z","event":"project-opened","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T17:54:20.0901471Z","event":"step","command":"hw-attributes","args":"--plc PLC_1 --filter Web"}
+{"t":"2026-10-08T17:54:22.7810282Z","event":"hw-attribute","item":"PLC_1","attr":"WebserverActivate","value":false,"access":"ReadWrite"}
+{"t":"2026-10-08T17:54:23.1232799Z","event":"step","command":"set-hw-attribute","args":"--plc PLC_1 --attr WebserverActivate --value true"}
+{"t":"2026-10-08T17:54:23.8784361Z","event":"hw-attribute-set","item":"PLC_1","attr":"WebserverActivate","was":false,"now":true}
+{"t":"2026-10-08T17:54:23.8784361Z","event":"step","command":"set-hw-attribute","args":"--plc PLC_1 --attr WebserverHttpsOnly --value true"}
+{"t":"2026-10-08T17:54:23.9401006Z","event":"step-exception","command":"set-hw-attribute","message":"EngineeringNotSupportedException: 'WebserverHttpsOnly' is not supported by type 'Siemens.Engineering.HW.DeviceItemImpl'."}
+{"t":"2026-10-08T17:54:23.9401006Z","event":"step-failed","command":"set-hw-attribute","rc":10,"continue":true}
+{"t":"2026-10-08T17:54:23.9401006Z","event":"step","command":"set-hw-attribute","args":"--plc PLC_1 --item PROFINET interface_1 --attr UseWebServerForInterface --value true"}
+{"t":"2026-10-08T17:54:23.9601333Z","event":"step-exception","command":"set-hw-attribute","message":"EngineeringNotSupportedException: 'UseWebServerForInterface' is not supported by type 'Siemens.Engineering.HW.DeviceItemImpl'."}
+{"t":"2026-10-08T17:54:23.9601333Z","event":"step-failed","command":"set-hw-attribute","rc":10,"continue":true}
+{"t":"2026-10-08T17:54:23.9601333Z","event":"step","command":"webserver-certificate","args":"--plc PLC_1"}
+{"t":"2026-10-08T17:54:25.8634808Z","event":"certificate-template","subject":"PLC-1/Webserver-2","signature":"Sha256RSA","validFrom":"2026-10-08T18:54:25.8474105+01:00","validUntil":"2037-10-08T00:00:00.0000000","subjectAlternativeNames":2}
+{"t":"2026-10-08T17:54:26.1420790Z","event":"webserver-certificate","action":"created","id":"2","subject":"PLC-1/Webserver-2","validUntil":"2037-10-08T00:00:00.0000000+01:00","privateKey":true}
+{"t":"2026-10-08T17:54:26.1420790Z","event":"step","command":"webserver-user","args":"--plc PLC_1 --name fraktal --permissions ReadTag,ModifyTag --password-env FRAKTAL_TIA_WEB_PASSWORD"}
+{"t":"2026-10-08T17:54:26.7068386Z","event":"fatal","type":"System.InvalidOperationException","message":"InvalidOperationException: CPU offers no WebserverUserManagement: PLC_1"}

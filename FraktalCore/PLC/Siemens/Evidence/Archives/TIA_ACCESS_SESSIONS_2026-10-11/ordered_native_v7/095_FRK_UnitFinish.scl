@@ -1,0 +1,48 @@
+﻿FUNCTION "FRK_UnitFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Response : "ST_HmiResponse";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      History : Array[1..16] of "ST_Diagnostic";
+      Head : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Core.Exec = 3 THEN
+	    IF NOT #Unit.EvReset THEN
+	        #Unit.FaultLatched := TRUE;
+	    END_IF;
+	    IF NOT #Unit.PrevError THEN
+	        "FRK_PartAborted"(Core := #Core,
+	                          Unit := #Unit,
+	                          Status := #Status,
+	                          Part := #Part,
+	                          History := #History,
+	                          Head := #Head);
+	    END_IF;
+	END_IF;
+	#Unit.PrevError := #Core.Exec = 3;
+	IF #Core.Exec = 2 OR #Core.Exec = 4 THEN
+	    #Unit.RunReq := FALSE;
+	END_IF;
+	IF #Unit.Clearing AND #Core.Exec = 0 THEN
+	    IF "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
+	        #Unit.Clearing := FALSE;
+	    END_IF;
+	END_IF;
+	#Unit.AbortReq := FALSE;
+	#Unit.ReleaseChildren := FALSE;
+	#Unit.EvReset := FALSE;
+	IF #Unit.RequestPending THEN
+	    #Response.AckSequence := #Unit.SeenSequence;
+	    #Unit.RequestPending := FALSE;
+	END_IF;
+	
+END_FUNCTION
+

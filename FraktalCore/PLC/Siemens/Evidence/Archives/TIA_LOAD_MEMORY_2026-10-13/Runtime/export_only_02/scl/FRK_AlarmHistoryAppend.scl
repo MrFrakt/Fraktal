@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_AlarmHistoryAppend" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Head : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.HistorySlot;
+	#Head := #AlarmLog.RingHead;
+	IF #Slot < 1 OR #Slot > 3 OR #Head < 1 OR #Head > 64 THEN
+	    RETURN;
+	END_IF;
+	"FRK_AlarmHistory".Rows[#Slot].Ring[#Head] := #AlarmLog.Ring[#Head];
+	"FRK_AlarmHistory".Rows[#Slot].EventCrc[#Head] := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Ring[#Head]);
+	"FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+	
+END_FUNCTION
+

@@ -1,0 +1,11 @@
+open-project --path ${work}\FrkS11\FrkS11.ap20
+import-sources --plc PLC_1 --dir ${sem} --only 00_
+import-xml --plc PLC_1 --file ${gen}\FB_S11Empty.xml --kind block
+import-xml --plc PLC_1 --file ${gen}\FB_S11Ack.xml --kind block
+import-xml --plc PLC_1 --file ${gen}\FB_S11Auto.xml --kind block
+import-xml --plc PLC_1 --file ${gen}\FB_S11Skip.xml --kind block
+import-sources --plc PLC_1 --dir ${sem} --only 10_,20_,30_
+set-block-number --plc PLC_1 --name S11SemanticsCycle --number 124
+compile --plc PLC_1
+save
+export --plc PLC_1 --out ${export}

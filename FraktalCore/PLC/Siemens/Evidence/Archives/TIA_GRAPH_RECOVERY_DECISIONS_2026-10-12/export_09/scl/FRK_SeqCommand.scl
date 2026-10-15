@@ -1,0 +1,68 @@
+﻿FUNCTION "FRK_SeqCommand" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Value : DInt;
+      Label : String;
+      Ready : Bool;
+      Done : Bool;
+      Error : Bool;
+      OwnFailure : Bool;
+      Diagnostic : "ST_Diagnostic";
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Lease : "ST_SequenceCommandLease";
+      Execute : Bool;
+      Command : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      WaitOk : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SeqCommand := FALSE;
+	IF NOT #Seq.Running OR #Seq.Error OR #Seq.OwnerIndex <= 0 OR #Seq.ChainIndex <= 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Lease.Raised THEN
+	    IF #Lease.OwnerIndex <> #Seq.OwnerIndex OR #Lease.ChainIndex <> #Seq.ChainIndex OR #Lease.BranchIndex <> #Seq.BranchIndex
+	        OR #Lease.Step <> #Seq.Step OR #Command <> #Value THEN
+	        // Another chain owns this command; never borrow its Done result.
+	        #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := 'std.release.commandOwned', Ok := FALSE);
+	        RETURN;
+	    END_IF;
+	    IF #Done THEN
+	        #FRK_SeqCommand := TRUE;
+	    ELSIF #Error THEN
+	        IF #OwnFailure THEN
+	            #Seq.CommandFailed := TRUE;
+	            #Seq.HandledDiagnostic := #Diagnostic;
+	        ELSE
+	            #Seq.Error := TRUE;
+	            #Seq.ErrorDiagnostic := #Diagnostic;
+	        END_IF;
+	        #Execute := FALSE;
+	    ELSE
+	        #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #Label, Ok := FALSE);
+	    END_IF;
+	ELSIF #Ready AND #Lease.ReleasedScan <> #Seq.Scan THEN
+	    #Lease.OwnerIndex := #Seq.OwnerIndex;
+	    #Lease.ChainIndex := #Seq.ChainIndex;
+	    #Lease.BranchIndex := #Seq.BranchIndex;
+	    #Lease.Step := #Seq.Step;
+	    #Lease.Raised := TRUE;
+	    #Seq.CommandIssued := TRUE;
+	    #Command := #Value;
+	    #Execute := TRUE;
+	    #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #Label, Ok := FALSE);
+	ELSE
+	    #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #Label, Ok := FALSE);
+	END_IF;
+	
+END_FUNCTION
+

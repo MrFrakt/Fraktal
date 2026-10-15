@@ -1,0 +1,550 @@
+﻿FUNCTION "F_TestProfileCases" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF "GDB_ProfileCases".Complete THEN
+	    RETURN;
+	END_IF;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+	                  TimeClass := 0,
+	                  Expected := T#20ms,
+	                  NowMs := UDINT#100,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#30ms,
+	                  NowMs := UDINT#105,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 20,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 1,
+	                  Expected := T#40ms,
+	                  NowMs := UDINT#120,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#150,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[1] := "GDB_ProfileWork".Book.Last.CycleNo = 1;
+	"GDB_ProfileCases".Passed[2] := "GDB_ProfileWork".Book.Last.Total = T#50ms;
+	"GDB_ProfileCases".Passed[3] := "GDB_ProfileWork".Book.Last.WorkTime = T#20ms;
+	"GDB_ProfileCases".Passed[4] := "GDB_ProfileWork".Book.Last.WaitTime = T#30ms;
+	"GDB_ProfileCases".Passed[5] := "GDB_ProfileWork".Book.LastNSteps = 2;
+	"GDB_ProfileCases".Passed[6] := "GDB_ProfileWork".LastSteps[1].Duration = T#20ms;
+	"GDB_ProfileCases".Passed[7] := "GDB_ProfileWork".LastSteps[1].StepName = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+	"GDB_ProfileCases".Passed[8] := "GDB_ProfileWork".LastSteps[1].Expected = T#30ms;
+	"GDB_ProfileCases".Passed[9] := "GDB_ProfileWork".LastSteps[2].Duration = T#30ms;
+	"GDB_ProfileCases".Passed[10] := "GDB_ProfileWork".LastSteps[1].Started = LDT#2026-10-14-12:00:00.123456789;
+	"GDB_ProfileCases".Passed[11] := NOT "GDB_ProfileWork".LastSteps[1].StartedTimeSynchronized;
+	"GDB_ProfileCases".Passed[12] := NOT "GDB_ProfileWork".Book.Last.StartedTimeSynchronized;
+	"GDB_ProfileCases".Passed[13] := "GDB_ProfileWork".Book.Head = 1;
+	"GDB_ProfileCases".Passed[14] := "GDB_ProfileWork".Book.MinCycleTime = T#50ms;
+	"FRK_ProfileComplete"(NowMs := UDINT#170,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"FRK_ProfileStep"(StepNo := 20,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#180,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#200,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[15] := "GDB_ProfileWork".Book.Last.CycleNo = 1;
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 2,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#200,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#210,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[16] := "GDB_ProfileWork".Book.Last.CycleNo = 2;
+	"GDB_ProfileCases".Passed[17] := "GDB_ProfileWork".Stats[1].Count = 2;
+	"GDB_ProfileCases".Passed[18] := "GDB_ProfileWork".Stats[1].Avg = T#15ms;
+	"GDB_ProfileCases".Passed[19] := "GDB_ProfileWork".Stats[1].Minimum = T#10ms;
+	"GDB_ProfileCases".Passed[20] := "GDB_ProfileWork".Stats[1].Maximum = T#20ms;
+	"GDB_ProfileCases".Passed[21] := "GDB_ProfileWork".Book.MinCycleTime = T#10ms;
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 3,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#220,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#220,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 4,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#230,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#240,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[22] := "GDB_ProfileWork".Book.MinCycleTime = T#0ms;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#4294967290,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#10,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[23] := "GDB_ProfileWork".Book.Last.Total = T#16ms;
+	"GDB_ProfileCases".Passed[24] := "GDB_ProfileWork".LastSteps[1].Duration = T#16ms;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#0,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#2147483648,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[25] := "GDB_ProfileWork".Book.Last.Total = T#2147483647ms;
+	"GDB_ProfileCases".Passed[26] := "GDB_ProfileWork".Book.LastTruncated;
+	"GDB_ProfileCases".Passed[27] := "GDB_ProfileWork".LastSteps[1].Duration = T#2147483647ms;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileStep"(StepNo := 1,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#10,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 2,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 1,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#20,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 3,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 2,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#30,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 4,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 3,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#40,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 5,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 4,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#50,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 6,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#60,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#70,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[28] := "GDB_ProfileWork".Book.LastNSteps = 4;
+	"GDB_ProfileCases".Passed[29] := "GDB_ProfileWork".Book.LastTruncated;
+	"GDB_ProfileCases".Passed[30] := "GDB_ProfileWork".Book.StatsTruncated;
+	"GDB_ProfileCases".Passed[31] := "GDB_ProfileWork".Book.Last.Total = T#60ms;
+	"GDB_ProfileCases".Passed[32] := "GDB_ProfileWork".Book.Last.WorkTime = T#20ms;
+	"GDB_ProfileCases".Passed[33] := "GDB_ProfileWork".Book.Last.ByClass[0] = T#20ms;
+	"GDB_ProfileCases".Passed[34] := "GDB_ProfileWork".Book.Last.ByClass[1] = T#10ms;
+	"GDB_ProfileCases".Passed[35] := "GDB_ProfileWork".Book.Last.ByClass[2] = T#10ms;
+	"GDB_ProfileCases".Passed[36] := "GDB_ProfileWork".Book.Last.ByClass[3] = T#10ms;
+	"GDB_ProfileCases".Passed[37] := "GDB_ProfileWork".Book.Last.ByClass[4] = T#10ms;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileStep"(StepNo := -1,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#10,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 40000,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#10,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 5,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#10,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#-1ms,
+	                  NowMs := UDINT#10,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"GDB_ProfileCases".Passed[38] := NOT "GDB_ProfileWork".Book.Running;
+	"GDB_ProfileCases".Passed[39] := "GDB_ProfileWork".Book.StatsTruncated;
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#20,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileStep"(StepNo := 20,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := -1,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#25,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#30,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[40] := "GDB_ProfileWork".Book.Last.CycleNo = 0;
+	"GDB_ProfileCases".Passed[41] := "GDB_ProfileWork".Book.Head = 0;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#10,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#20,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"FRK_ProfileStep"(StepNo := 20,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#30,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfilePrepare"(Run := FALSE,
+	                     Withdraw := TRUE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileComplete"(NowMs := UDINT#50,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[42] := NOT "GDB_ProfileWork".Book.HasOpen;
+	"GDB_ProfileCases".Passed[43] := "GDB_ProfileWork".Book.Last.CycleNo = 1;
+	"GDB_ProfileCases".Passed[44] := "GDB_ProfileWork".History[1].Total = T#10ms;
+	"FRK_ProfileStep"(StepNo := 30,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#60,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"GDB_ProfileCases".Passed[45] := NOT "GDB_ProfileWork".Book.Running;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	FOR #Index := 1 TO 65 DO
+	    "FRK_ProfileStep"(StepNo := 10,
+	                      Visit := INT_TO_UDINT(#Index),
+	                      StepName := 'test.profile',
+	                      TimeClass := 0,
+	                      Expected := T#0ms,
+	                      NowMs := UDINT#0,
+	                      Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats);
+	    "FRK_ProfileComplete"(NowMs := UDINT#1,
+	                          Book := "GDB_ProfileWork".Book,
+	                          Steps := "GDB_ProfileWork".Steps,
+	                          Stats := "GDB_ProfileWork".Stats,
+	                          LastSteps := "GDB_ProfileWork".LastSteps,
+	                          History := "GDB_ProfileWork".History);
+	END_FOR;
+	"GDB_ProfileCases".Passed[46] := "GDB_ProfileWork".Book.Head = 5;
+	"GDB_ProfileCases".Passed[47] := "GDB_ProfileWork".History[5].CycleNo = 65;
+	"GDB_ProfileCases".Passed[48] := "GDB_ProfileWork".History[6].CycleNo = 6;
+	"GDB_ProfileWork".Book.Last.CycleNo := UDINT#4294967295;
+	"FRK_ProfileStep"(StepNo := 20,
+	                  Visit := 66,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#2,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileComplete"(NowMs := UDINT#3,
+	                      Book := "GDB_ProfileWork".Book,
+	                      Steps := "GDB_ProfileWork".Steps,
+	                      Stats := "GDB_ProfileWork".Stats,
+	                      LastSteps := "GDB_ProfileWork".LastSteps,
+	                      History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[49] := "GDB_ProfileWork".Book.Last.CycleNo = UDINT#4294967295;
+	"GDB_ProfileWork".Book := "GDB_ProfileWork".EmptyBook;
+	FOR #Index := 1 TO 4 DO
+	    "GDB_ProfileWork".Steps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".LastSteps[#Index] := "FRK_ProfileScratch".Step;
+	    "GDB_ProfileWork".Stats[#Index] := "GDB_ProfileWork".EmptyRow;
+	END_FOR;
+	FOR #Index := 1 TO 60 DO
+	    "GDB_ProfileWork".History[#Index] := "FRK_ProfileScratch".Summary;
+	END_FOR;
+	"FRK_ProfilePrepare"(Run := TRUE,
+	                     Withdraw := FALSE,
+	                     Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileStep"(StepNo := 10,
+	                  Visit := 1,
+	                  StepName := 'test.profile',
+	                  TimeClass := 0,
+	                  Expected := T#0ms,
+	                  NowMs := UDINT#0,
+	                  Stamp := LDT#2026-10-14-12:00:00.123456789,
+	                  Book := "GDB_ProfileWork".Book,
+	                  Steps := "GDB_ProfileWork".Steps,
+	                  Stats := "GDB_ProfileWork".Stats);
+	"FRK_ProfileRequest"(Book := "GDB_ProfileWork".Book);
+	"FRK_ProfileEnd"(StepNo := 10,
+	                 Expected := T#700ms,
+	                 NowMs := 20,
+	                 Book := "GDB_ProfileWork".Book,
+	                 Steps := "GDB_ProfileWork".Steps,
+	                 Stats := "GDB_ProfileWork".Stats,
+	                 LastSteps := "GDB_ProfileWork".LastSteps,
+	                 History := "GDB_ProfileWork".History);
+	"GDB_ProfileCases".Passed[50] := "GDB_ProfileWork".LastSteps[1].Expected = T#700ms;
+	"GDB_ProfileCases".Passed[51] := NOT "GDB_ProfileWork".Book.CompleteRequested;
+	"GDB_ProfileWork".Row := "GDB_ProfileWork".EmptyRow;
+	"FRK_TimingUpdate"(DurationMs := 100,
+	                   Row := "GDB_ProfileWork".Row);
+	"FRK_TimingUpdate"(DurationMs := 300,
+	                   Row := "GDB_ProfileWork".Row);
+	"FRK_TimingUpdate"(DurationMs := 0,
+	                   Row := "GDB_ProfileWork".Row);
+	"GDB_ProfileCases".Passed[52] := "GDB_ProfileWork".Row.Count = 3;
+	"GDB_ProfileCases".Passed[53] := "GDB_ProfileWork".Row.Minimum = T#0ms;
+	"GDB_ProfileCases".Passed[54] := "GDB_ProfileWork".Row.Maximum = T#300ms;
+	"GDB_ProfileCases".Passed[55] := "GDB_ProfileWork".Row.Avg = T#134ms;
+	"GDB_ProfileWork".Row.Count := UDINT#4294967295;
+	"FRK_TimingUpdate"(DurationMs := UDINT#4294967295,
+	                   Row := "GDB_ProfileWork".Row);
+	"GDB_ProfileCases".Passed[56] := "GDB_ProfileWork".Row.Count = UDINT#4294967295;
+	"GDB_ProfileCases".Passed[57] := "GDB_ProfileWork".Row.Last = T#2147483647ms;
+	"GDB_ProfileCases".Count := 57;
+	"GDB_ProfileCases".Complete := TRUE;
+	
+END_FUNCTION
+

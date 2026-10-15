@@ -1,0 +1,1690 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-13T01:49:01.6753092Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Startup" Datatype="Bool" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp">
+    <Member Name="Index" Datatype="Int" />
+    <Member Name="NativeResult" Datatype="Int" />
+    <Member Name="Crc" Datatype="DWord" />
+    <Member Name="Sequence" Datatype="UDInt" />
+    <Member Name="Kind" Datatype="Int" />
+    <Member Name="Seed" Datatype="Byte" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>F_LoadMemoryBench</Name>
+      <Namespace />
+      <Number>218</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text> Test-only native instruction gate. No application config or credential image.</Text>
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="IF" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Startup" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="THEN" UId="28" />
+  <NewLine Num="1" UId="29" />
+  <Blank Num="4" UId="30" />
+  <Access Scope="GlobalVariable" UId="31">
+    <Symbol UId="32">
+      <Component Name="GDB_LoadMemoryTest" UId="33">
+        <BooleanAttribute Name="HasQuotes" UId="34">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="35" />
+      <Component Name="StartupCount" UId="36" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="37" />
+  <Token Text=":=" UId="38" />
+  <Blank Num="1" UId="39" />
+  <Access Scope="GlobalVariable" UId="40">
+    <Symbol UId="41">
+      <Component Name="GDB_LoadMemoryTest" UId="42">
+        <BooleanAttribute Name="HasQuotes" UId="43">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="44" />
+      <Component Name="StartupCount" UId="45" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="46" />
+  <Token Text="+" UId="47" />
+  <Blank Num="1" UId="48" />
+  <Access Scope="LiteralConstant" UId="49">
+    <Constant UId="50">
+      <ConstantValue UId="52">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="53" />
+  <NewLine Num="1" UId="54" />
+  <Blank Num="4" UId="55" />
+  <Access Scope="GlobalVariable" UId="56">
+    <Symbol UId="57">
+      <Component Name="GDB_LoadMemoryTest" UId="58">
+        <BooleanAttribute Name="HasQuotes" UId="59">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="60" />
+      <Component Name="PendingKind" UId="61" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="62" />
+  <Token Text=":=" UId="63" />
+  <Blank Num="1" UId="64" />
+  <Access Scope="LiteralConstant" UId="65">
+    <Constant UId="66">
+      <ConstantValue UId="68">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="69" />
+  <NewLine Num="1" UId="70" />
+  <Blank Num="4" UId="71" />
+  <Access Scope="GlobalVariable" UId="72">
+    <Symbol UId="73">
+      <Component Name="GDB_LoadMemoryTest" UId="74">
+        <BooleanAttribute Name="HasQuotes" UId="75">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="76" />
+      <Component Name="Busy" UId="77" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="78" />
+  <Token Text=":=" UId="79" />
+  <Blank Num="1" UId="80" />
+  <Access Scope="LiteralConstant" UId="81">
+    <Constant UId="82">
+      <ConstantValue UId="84">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="85" />
+  <NewLine Num="1" UId="86" />
+  <Blank Num="4" UId="87" />
+  <Access Scope="GlobalVariable" UId="88">
+    <Symbol UId="89">
+      <Component Name="GDB_LoadMemoryTest" UId="90">
+        <BooleanAttribute Name="HasQuotes" UId="91">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="92" />
+      <Component Name="RequestPulse" UId="93" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="94" />
+  <Token Text=":=" UId="95" />
+  <Blank Num="1" UId="96" />
+  <Access Scope="LiteralConstant" UId="97">
+    <Constant UId="98">
+      <ConstantValue UId="100">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="101" />
+  <NewLine Num="1" UId="102" />
+  <Blank Num="4" UId="103" />
+  <Access Scope="GlobalVariable" UId="104">
+    <Symbol UId="105">
+      <Component Name="GDB_LoadMemoryTest" UId="106">
+        <BooleanAttribute Name="HasQuotes" UId="107">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="108" />
+      <Component Name="SeenSequence" UId="109" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="110" />
+  <Token Text=":=" UId="111" />
+  <Blank Num="1" UId="112" />
+  <Access Scope="GlobalVariable" UId="113">
+    <Symbol UId="114">
+      <Component Name="GDB_LoadMemoryTest" UId="115">
+        <BooleanAttribute Name="HasQuotes" UId="116">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="117" />
+      <Component Name="Sequence" UId="118" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="119" />
+  <NewLine Num="1" UId="120" />
+  <Token Text="END_IF" UId="121" />
+  <Token Text=";" UId="122" />
+  <NewLine Num="1" UId="123" />
+  <Token Text="IF" UId="124" />
+  <Blank Num="1" UId="125" />
+  <Token Text="NOT" UId="126" />
+  <Blank Num="1" UId="127" />
+  <Access Scope="GlobalVariable" UId="128">
+    <Symbol UId="129">
+      <Component Name="GDB_LoadMemoryTest" UId="130">
+        <BooleanAttribute Name="HasQuotes" UId="131">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="132" />
+      <Component Name="Busy" UId="133" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="134" />
+  <Token Text="AND" UId="135" />
+  <Blank Num="1" UId="136" />
+  <Access Scope="GlobalVariable" UId="137">
+    <Symbol UId="138">
+      <Component Name="GDB_LoadMemoryTest" UId="139">
+        <BooleanAttribute Name="HasQuotes" UId="140">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="141" />
+      <Component Name="Sequence" UId="142" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="143" />
+  <Token Text="&lt;&gt;" UId="144" />
+  <Blank Num="1" UId="145" />
+  <Access Scope="GlobalVariable" UId="146">
+    <Symbol UId="147">
+      <Component Name="GDB_LoadMemoryTest" UId="148">
+        <BooleanAttribute Name="HasQuotes" UId="149">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="150" />
+      <Component Name="SeenSequence" UId="151" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="152" />
+  <Token Text="THEN" UId="153" />
+  <NewLine Num="1" UId="154" />
+  <Blank Num="4" UId="155" />
+  <Access Scope="LocalVariable" UId="156">
+    <Symbol UId="157">
+      <Component Name="Sequence" UId="158" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="159" />
+  <Token Text=":=" UId="160" />
+  <Blank Num="1" UId="161" />
+  <Access Scope="GlobalVariable" UId="162">
+    <Symbol UId="163">
+      <Component Name="GDB_LoadMemoryTest" UId="164">
+        <BooleanAttribute Name="HasQuotes" UId="165">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="166" />
+      <Component Name="Sequence" UId="167" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="168" />
+  <NewLine Num="1" UId="169" />
+  <Blank Num="4" UId="170" />
+  <Access Scope="LocalVariable" UId="171">
+    <Symbol UId="172">
+      <Component Name="Kind" UId="173" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="174" />
+  <Token Text=":=" UId="175" />
+  <Blank Num="1" UId="176" />
+  <Access Scope="GlobalVariable" UId="177">
+    <Symbol UId="178">
+      <Component Name="GDB_LoadMemoryTest" UId="179">
+        <BooleanAttribute Name="HasQuotes" UId="180">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="181" />
+      <Component Name="Kind" UId="182" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="183" />
+  <NewLine Num="1" UId="184" />
+  <Blank Num="4" UId="185" />
+  <Access Scope="LocalVariable" UId="186">
+    <Symbol UId="187">
+      <Component Name="Seed" UId="188" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="189" />
+  <Token Text=":=" UId="190" />
+  <Blank Num="1" UId="191" />
+  <Access Scope="GlobalVariable" UId="192">
+    <Symbol UId="193">
+      <Component Name="GDB_LoadMemoryTest" UId="194">
+        <BooleanAttribute Name="HasQuotes" UId="195">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="196" />
+      <Component Name="Seed" UId="197" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="198" />
+  <NewLine Num="1" UId="199" />
+  <Blank Num="4" UId="200" />
+  <Token Text="IF" UId="201" />
+  <Blank Num="1" UId="202" />
+  <Access Scope="LocalVariable" UId="203">
+    <Symbol UId="204">
+      <Component Name="Sequence" UId="205" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="206" />
+  <Token Text="&lt;&gt;" UId="207" />
+  <Blank Num="1" UId="208" />
+  <Access Scope="GlobalVariable" UId="209">
+    <Symbol UId="210">
+      <Component Name="GDB_LoadMemoryTest" UId="211">
+        <BooleanAttribute Name="HasQuotes" UId="212">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="213" />
+      <Component Name="Sequence" UId="214" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="215" />
+  <Token Text="THEN" UId="216" />
+  <NewLine Num="1" UId="217" />
+  <Blank Num="8" UId="218" />
+  <Token Text="RETURN" UId="219" />
+  <Token Text=";" UId="220" />
+  <NewLine Num="1" UId="221" />
+  <Blank Num="4" UId="222" />
+  <Token Text="END_IF" UId="223" />
+  <Token Text=";" UId="224" />
+  <NewLine Num="1" UId="225" />
+  <Blank Num="4" UId="226" />
+  <Access Scope="GlobalVariable" UId="227">
+    <Symbol UId="228">
+      <Component Name="GDB_LoadMemoryTest" UId="229">
+        <BooleanAttribute Name="HasQuotes" UId="230">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="231" />
+      <Component Name="SeenSequence" UId="232" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="233" />
+  <Token Text=":=" UId="234" />
+  <Blank Num="1" UId="235" />
+  <Access Scope="LocalVariable" UId="236">
+    <Symbol UId="237">
+      <Component Name="Sequence" UId="238" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="239" />
+  <NewLine Num="1" UId="240" />
+  <Blank Num="4" UId="241" />
+  <Access Scope="GlobalVariable" UId="242">
+    <Symbol UId="243">
+      <Component Name="GDB_LoadMemoryTest" UId="244">
+        <BooleanAttribute Name="HasQuotes" UId="245">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="246" />
+      <Component Name="Accepted" UId="247" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="248" />
+  <Token Text=":=" UId="249" />
+  <Blank Num="1" UId="250" />
+  <Access Scope="LiteralConstant" UId="251">
+    <Constant UId="252">
+      <ConstantValue UId="254">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="255" />
+  <NewLine Num="1" UId="256" />
+  <Blank Num="4" UId="257" />
+  <Access Scope="GlobalVariable" UId="258">
+    <Symbol UId="259">
+      <Component Name="GDB_LoadMemoryTest" UId="260">
+        <BooleanAttribute Name="HasQuotes" UId="261">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="262" />
+      <Component Name="NativeStatus" UId="263" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="264" />
+  <Token Text=":=" UId="265" />
+  <Blank Num="1" UId="266" />
+  <Access Scope="TypedConstant" UId="267">
+    <Constant UId="268">
+      <ConstantValue UId="269">WORD#0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="270" />
+  <NewLine Num="1" UId="271" />
+  <Blank Num="4" UId="272" />
+  <Access Scope="GlobalVariable" UId="273">
+    <Symbol UId="274">
+      <Component Name="GDB_LoadMemoryTest" UId="275">
+        <BooleanAttribute Name="HasQuotes" UId="276">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="277" />
+      <Component Name="BusyScans" UId="278" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="279" />
+  <Token Text=":=" UId="280" />
+  <Blank Num="1" UId="281" />
+  <Access Scope="LiteralConstant" UId="282">
+    <Constant UId="283">
+      <ConstantValue UId="285">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="286" />
+  <NewLine Num="1" UId="287" />
+  <Blank Num="4" UId="288" />
+  <Token Text="CASE" UId="289" />
+  <Blank Num="1" UId="290" />
+  <Access Scope="LocalVariable" UId="291">
+    <Symbol UId="292">
+      <Component Name="Kind" UId="293" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="294" />
+  <Token Text="OF" UId="295" />
+  <NewLine Num="1" UId="296" />
+  <Blank Num="8" UId="297" />
+  <Access Scope="LiteralConstant" UId="298">
+    <Constant UId="299">
+      <ConstantValue UId="301">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text="," UId="302" />
+  <Blank Num="1" UId="303" />
+  <Access Scope="LiteralConstant" UId="304">
+    <Constant UId="305">
+      <ConstantValue UId="307">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text="," UId="308" />
+  <Blank Num="1" UId="309" />
+  <Access Scope="LiteralConstant" UId="310">
+    <Constant UId="311">
+      <ConstantValue UId="313">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text="," UId="314" />
+  <Blank Num="1" UId="315" />
+  <Access Scope="LiteralConstant" UId="316">
+    <Constant UId="317">
+      <ConstantValue UId="319">6</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="320" />
+  <NewLine Num="1" UId="321" />
+  <Blank Num="12" UId="322" />
+  <Token Text="IF" UId="323" />
+  <Blank Num="1" UId="324" />
+  <Access Scope="LocalVariable" UId="325">
+    <Symbol UId="326">
+      <Component Name="Kind" UId="327" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="328" />
+  <Token Text="=" UId="329" />
+  <Blank Num="1" UId="330" />
+  <Access Scope="LiteralConstant" UId="331">
+    <Constant UId="332">
+      <ConstantValue UId="334">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="335" />
+  <Token Text="OR" UId="336" />
+  <Blank Num="1" UId="337" />
+  <Access Scope="LocalVariable" UId="338">
+    <Symbol UId="339">
+      <Component Name="Kind" UId="340" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="341" />
+  <Token Text="=" UId="342" />
+  <Blank Num="1" UId="343" />
+  <Access Scope="LiteralConstant" UId="344">
+    <Constant UId="345">
+      <ConstantValue UId="347">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="348" />
+  <Token Text="THEN" UId="349" />
+  <NewLine Num="1" UId="350" />
+  <Blank Num="16" UId="351" />
+  <Token Text="FOR" UId="352" />
+  <Blank Num="1" UId="353" />
+  <Access Scope="LocalVariable" UId="354">
+    <Symbol UId="355">
+      <Component Name="Index" UId="356" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="357" />
+  <Token Text=":=" UId="358" />
+  <Blank Num="1" UId="359" />
+  <Access Scope="LiteralConstant" UId="360">
+    <Constant UId="361">
+      <ConstantValue UId="363">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="364" />
+  <Token Text="TO" UId="365" />
+  <Blank Num="1" UId="366" />
+  <Access Scope="LiteralConstant" UId="367">
+    <Constant UId="368">
+      <ConstantValue UId="370">63</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="371" />
+  <Token Text="DO" UId="372" />
+  <NewLine Num="1" UId="373" />
+  <Blank Num="20" UId="374" />
+  <Access Scope="GlobalVariable" UId="375">
+    <Symbol UId="376">
+      <Component Name="GDB_LoadSource" UId="377">
+        <BooleanAttribute Name="HasQuotes" UId="378">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="379" />
+      <Component Name="Payload" UId="380">
+        <Token Text="[" UId="381" />
+        <Access Scope="LocalVariable" UId="382">
+          <Symbol UId="383">
+            <Component Name="Index" UId="384" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="385" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="386" />
+  <Token Text=":=" UId="387" />
+  <Blank Num="1" UId="388" />
+  <Access Scope="Call" UId="389">
+    <Instruction Name="INT_TO_BYTE" UId="390">
+      <Token Text="(" UId="391" />
+      <NamelessParameter UId="392">
+        <Token Text="(" UId="393" />
+        <Access Scope="Call" UId="394">
+          <Instruction Name="BYTE_TO_INT" UId="395">
+            <Token Text="(" UId="396" />
+            <NamelessParameter UId="397">
+              <Access Scope="LocalVariable" UId="398">
+                <Symbol UId="399">
+                  <Component Name="Seed" UId="400" />
+                </Symbol>
+              </Access>
+            </NamelessParameter>
+            <Token Text=")" UId="402" />
+          </Instruction>
+        </Access>
+        <Blank Num="1" UId="403" />
+        <Token Text="+" UId="404" />
+        <Blank Num="1" UId="405" />
+        <Access Scope="LocalVariable" UId="406">
+          <Symbol UId="407">
+            <Component Name="Index" UId="408" />
+          </Symbol>
+        </Access>
+        <Token Text=")" UId="409" />
+        <Blank Num="1" UId="410" />
+        <Token Text="MOD" UId="411" />
+        <Blank Num="1" UId="412" />
+        <Access Scope="LiteralConstant" UId="413">
+          <Constant UId="414">
+            <ConstantValue UId="416">256</ConstantValue>
+          </Constant>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="418" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="419" />
+  <NewLine Num="1" UId="420" />
+  <Blank Num="16" UId="421" />
+  <Token Text="END_FOR" UId="422" />
+  <Token Text=";" UId="423" />
+  <NewLine Num="1" UId="424" />
+  <Blank Num="12" UId="425" />
+  <Token Text="END_IF" UId="426" />
+  <Token Text=";" UId="427" />
+  <NewLine Num="1" UId="428" />
+  <Blank Num="12" UId="429" />
+  <Access Scope="GlobalVariable" UId="430">
+    <Symbol UId="431">
+      <Component Name="GDB_LoadMemoryTest" UId="432">
+        <BooleanAttribute Name="HasQuotes" UId="433">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="434" />
+      <Component Name="PendingKind" UId="435" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="436" />
+  <Token Text=":=" UId="437" />
+  <Blank Num="1" UId="438" />
+  <Access Scope="LocalVariable" UId="439">
+    <Symbol UId="440">
+      <Component Name="Kind" UId="441" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="442" />
+  <NewLine Num="1" UId="443" />
+  <Blank Num="12" UId="444" />
+  <Access Scope="GlobalVariable" UId="445">
+    <Symbol UId="446">
+      <Component Name="GDB_LoadMemoryTest" UId="447">
+        <BooleanAttribute Name="HasQuotes" UId="448">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="449" />
+      <Component Name="RequestPulse" UId="450" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="451" />
+  <Token Text=":=" UId="452" />
+  <Blank Num="1" UId="453" />
+  <Access Scope="LiteralConstant" UId="454">
+    <Constant UId="455">
+      <ConstantValue UId="457">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="458" />
+  <NewLine Num="1" UId="459" />
+  <Blank Num="12" UId="460" />
+  <Access Scope="GlobalVariable" UId="461">
+    <Symbol UId="462">
+      <Component Name="GDB_LoadMemoryTest" UId="463">
+        <BooleanAttribute Name="HasQuotes" UId="464">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="465" />
+      <Component Name="Busy" UId="466" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="467" />
+  <Token Text=":=" UId="468" />
+  <Blank Num="1" UId="469" />
+  <Access Scope="LiteralConstant" UId="470">
+    <Constant UId="471">
+      <ConstantValue UId="473">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="474" />
+  <NewLine Num="1" UId="475" />
+  <Blank Num="8" UId="476" />
+  <Access Scope="LiteralConstant" UId="477">
+    <Constant UId="478">
+      <ConstantValue UId="480">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="481" />
+  <NewLine Num="1" UId="482" />
+  <Blank Num="12" UId="483" />
+  <Access Scope="GlobalVariable" UId="484">
+    <Symbol UId="485">
+      <Component Name="GDB_LoadMemoryTest" UId="486">
+        <BooleanAttribute Name="HasQuotes" UId="487">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="488" />
+      <Component Name="NativeStatus" UId="489" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="490" />
+  <Token Text=":=" UId="491" />
+  <Blank Num="1" UId="492" />
+  <Access Scope="TypedConstant" UId="493">
+    <Constant UId="494">
+      <ConstantValue UId="495">WORD#16#FFFF</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="496" />
+  <NewLine Num="1" UId="497" />
+  <Blank Num="8" UId="498" />
+  <Access Scope="LiteralConstant" UId="499">
+    <Constant UId="500">
+      <ConstantValue UId="502">4</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="503" />
+  <NewLine Num="1" UId="504" />
+  <Blank Num="12" UId="505" />
+  <Token Text="FOR" UId="506" />
+  <Blank Num="1" UId="507" />
+  <Access Scope="LocalVariable" UId="508">
+    <Symbol UId="509">
+      <Component Name="Index" UId="510" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="511" />
+  <Token Text=":=" UId="512" />
+  <Blank Num="1" UId="513" />
+  <Access Scope="LiteralConstant" UId="514">
+    <Constant UId="515">
+      <ConstantValue UId="517">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="518" />
+  <Token Text="TO" UId="519" />
+  <Blank Num="1" UId="520" />
+  <Access Scope="LiteralConstant" UId="521">
+    <Constant UId="522">
+      <ConstantValue UId="524">63</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="525" />
+  <Token Text="DO" UId="526" />
+  <NewLine Num="1" UId="527" />
+  <Blank Num="16" UId="528" />
+  <Access Scope="GlobalVariable" UId="529">
+    <Symbol UId="530">
+      <Component Name="GDB_LoadRead" UId="531">
+        <BooleanAttribute Name="HasQuotes" UId="532">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="533" />
+      <Component Name="Payload" UId="534">
+        <Token Text="[" UId="535" />
+        <Access Scope="LocalVariable" UId="536">
+          <Symbol UId="537">
+            <Component Name="Index" UId="538" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="539" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="540" />
+  <Token Text=":=" UId="541" />
+  <Blank Num="1" UId="542" />
+  <Access Scope="LocalVariable" UId="543">
+    <Symbol UId="544">
+      <Component Name="Seed" UId="545" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="546" />
+  <NewLine Num="1" UId="547" />
+  <Blank Num="12" UId="548" />
+  <Token Text="END_FOR" UId="549" />
+  <Token Text=";" UId="550" />
+  <NewLine Num="1" UId="551" />
+  <Blank Num="12" UId="552" />
+  <Access Scope="GlobalVariable" UId="553">
+    <Symbol UId="554">
+      <Component Name="GDB_LoadMemoryTest" UId="555">
+        <BooleanAttribute Name="HasQuotes" UId="556">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="557" />
+      <Component Name="Accepted" UId="558" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="559" />
+  <Token Text=":=" UId="560" />
+  <Blank Num="1" UId="561" />
+  <Access Scope="LiteralConstant" UId="562">
+    <Constant UId="563">
+      <ConstantValue UId="565">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="566" />
+  <NewLine Num="1" UId="567" />
+  <Blank Num="8" UId="568" />
+  <Token Text="ELSE" UId="569" />
+  <NewLine Num="1" UId="570" />
+  <Blank Num="12" UId="571" />
+  <Access Scope="GlobalVariable" UId="572">
+    <Symbol UId="573">
+      <Component Name="GDB_LoadMemoryTest" UId="574">
+        <BooleanAttribute Name="HasQuotes" UId="575">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="576" />
+      <Component Name="NativeStatus" UId="577" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="578" />
+  <Token Text=":=" UId="579" />
+  <Blank Num="1" UId="580" />
+  <Access Scope="TypedConstant" UId="581">
+    <Constant UId="582">
+      <ConstantValue UId="583">WORD#16#FFFF</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="584" />
+  <NewLine Num="1" UId="585" />
+  <Blank Num="4" UId="586" />
+  <Token Text="END_CASE" UId="587" />
+  <Token Text=";" UId="588" />
+  <NewLine Num="1" UId="589" />
+  <Blank Num="4" UId="590" />
+  <Token Text="IF" UId="591" />
+  <Blank Num="1" UId="592" />
+  <Token Text="NOT" UId="593" />
+  <Blank Num="1" UId="594" />
+  <Access Scope="GlobalVariable" UId="595">
+    <Symbol UId="596">
+      <Component Name="GDB_LoadMemoryTest" UId="597">
+        <BooleanAttribute Name="HasQuotes" UId="598">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="599" />
+      <Component Name="Busy" UId="600" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="601" />
+  <Token Text="THEN" UId="602" />
+  <NewLine Num="1" UId="603" />
+  <Blank Num="8" UId="604" />
+  <Access Scope="GlobalVariable" UId="605">
+    <Symbol UId="606">
+      <Component Name="GDB_LoadMemoryTest" UId="607">
+        <BooleanAttribute Name="HasQuotes" UId="608">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="609" />
+      <Component Name="AckSequence" UId="610" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="611" />
+  <Token Text=":=" UId="612" />
+  <Blank Num="1" UId="613" />
+  <Access Scope="LocalVariable" UId="614">
+    <Symbol UId="615">
+      <Component Name="Sequence" UId="616" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="617" />
+  <NewLine Num="1" UId="618" />
+  <Blank Num="4" UId="619" />
+  <Token Text="END_IF" UId="620" />
+  <Token Text=";" UId="621" />
+  <NewLine Num="1" UId="622" />
+  <Token Text="END_IF" UId="623" />
+  <Token Text=";" UId="624" />
+  <NewLine Num="1" UId="625" />
+  <Token Text="IF" UId="626" />
+  <Blank Num="1" UId="627" />
+  <Access Scope="GlobalVariable" UId="628">
+    <Symbol UId="629">
+      <Component Name="GDB_LoadMemoryTest" UId="630">
+        <BooleanAttribute Name="HasQuotes" UId="631">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="632" />
+      <Component Name="PendingKind" UId="633" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="634" />
+  <Token Text="&lt;&gt;" UId="635" />
+  <Blank Num="1" UId="636" />
+  <Access Scope="LiteralConstant" UId="637">
+    <Constant UId="638">
+      <ConstantValue UId="640">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="641" />
+  <Token Text="THEN" UId="642" />
+  <NewLine Num="1" UId="643" />
+  <Blank Num="4" UId="644" />
+  <Access Scope="GlobalVariable" UId="645">
+    <Symbol UId="646">
+      <Component Name="GDB_LoadMemoryTest" UId="647">
+        <BooleanAttribute Name="HasQuotes" UId="648">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="649" />
+      <Component Name="BusyScans" UId="650" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="651" />
+  <Token Text=":=" UId="652" />
+  <Blank Num="1" UId="653" />
+  <Access Scope="GlobalVariable" UId="654">
+    <Symbol UId="655">
+      <Component Name="GDB_LoadMemoryTest" UId="656">
+        <BooleanAttribute Name="HasQuotes" UId="657">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="658" />
+      <Component Name="BusyScans" UId="659" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="660" />
+  <Token Text="+" UId="661" />
+  <Blank Num="1" UId="662" />
+  <Access Scope="LiteralConstant" UId="663">
+    <Constant UId="664">
+      <ConstantValue UId="666">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="667" />
+  <NewLine Num="1" UId="668" />
+  <Blank Num="4" UId="669" />
+  <Token Text="CASE" UId="670" />
+  <Blank Num="1" UId="671" />
+  <Access Scope="GlobalVariable" UId="672">
+    <Symbol UId="673">
+      <Component Name="GDB_LoadMemoryTest" UId="674">
+        <BooleanAttribute Name="HasQuotes" UId="675">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="676" />
+      <Component Name="PendingKind" UId="677" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="678" />
+  <Token Text="OF" UId="679" />
+  <NewLine Num="1" UId="680" />
+  <Blank Num="8" UId="681" />
+  <Access Scope="LiteralConstant" UId="682">
+    <Constant UId="683">
+      <ConstantValue UId="685">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="686" />
+  <NewLine Num="1" UId="687" />
+  <Blank Num="12" UId="688" />
+  <Access Scope="LocalVariable" UId="689">
+    <Symbol UId="690">
+      <Component Name="NativeResult" UId="691" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="692" />
+  <Token Text=":=" UId="693" />
+  <Blank Num="1" UId="694" />
+  <Access Scope="Call" UId="695">
+    <Instruction Name="READ_DBL" UId="696">
+      <Token Text="(" UId="697" />
+      <Parameter Name="REQ" UId="698">
+        <Blank Num="1" UId="699" />
+        <Token Text=":=" UId="700" />
+        <Blank Num="1" UId="701" />
+        <Access Scope="GlobalVariable" UId="702">
+          <Symbol UId="703">
+            <Component Name="GDB_LoadMemoryTest" UId="704">
+              <BooleanAttribute Name="HasQuotes" UId="705">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="706" />
+            <Component Name="RequestPulse" UId="707" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="708" />
+      <Blank Num="1" UId="709" />
+      <Parameter Name="SRCBLK" UId="710">
+        <Blank Num="1" UId="711" />
+        <Token Text=":=" UId="712" />
+        <Blank Num="1" UId="713" />
+        <Access Scope="GlobalVariable" UId="714">
+          <Symbol UId="715">
+            <Component Name="GDB_LoadBankA" UId="716">
+              <BooleanAttribute Name="HasQuotes" UId="717">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="718" />
+            <Component Name="Payload" UId="719" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="720" />
+      <Blank Num="1" UId="721" />
+      <Parameter Name="BUSY" UId="722">
+        <Blank Num="1" UId="723" />
+        <Token Text="=&gt;" UId="724" />
+        <Blank Num="1" UId="725" />
+        <Access Scope="GlobalVariable" UId="726">
+          <Symbol UId="727">
+            <Component Name="GDB_LoadMemoryTest" UId="728">
+              <BooleanAttribute Name="HasQuotes" UId="729">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="730" />
+            <Component Name="Busy" UId="731" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="732" />
+      <Blank Num="1" UId="733" />
+      <Parameter Name="DSTBLK" UId="734">
+        <Blank Num="1" UId="735" />
+        <Token Text="=&gt;" UId="736" />
+        <Blank Num="1" UId="737" />
+        <Access Scope="GlobalVariable" UId="738">
+          <Symbol UId="739">
+            <Component Name="GDB_LoadRead" UId="740">
+              <BooleanAttribute Name="HasQuotes" UId="741">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="742" />
+            <Component Name="Payload" UId="743" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="745" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="746" />
+  <NewLine Num="1" UId="747" />
+  <Blank Num="8" UId="748" />
+  <Access Scope="LiteralConstant" UId="749">
+    <Constant UId="750">
+      <ConstantValue UId="752">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="753" />
+  <NewLine Num="1" UId="754" />
+  <Blank Num="12" UId="755" />
+  <Access Scope="LocalVariable" UId="756">
+    <Symbol UId="757">
+      <Component Name="NativeResult" UId="758" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="759" />
+  <Token Text=":=" UId="760" />
+  <Blank Num="1" UId="761" />
+  <Access Scope="Call" UId="762">
+    <Instruction Name="WRIT_DBL" UId="763">
+      <Token Text="(" UId="764" />
+      <Parameter Name="REQ" UId="765">
+        <Blank Num="1" UId="766" />
+        <Token Text=":=" UId="767" />
+        <Blank Num="1" UId="768" />
+        <Access Scope="GlobalVariable" UId="769">
+          <Symbol UId="770">
+            <Component Name="GDB_LoadMemoryTest" UId="771">
+              <BooleanAttribute Name="HasQuotes" UId="772">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="773" />
+            <Component Name="RequestPulse" UId="774" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="775" />
+      <Blank Num="1" UId="776" />
+      <Parameter Name="SRCBLK" UId="777">
+        <Blank Num="1" UId="778" />
+        <Token Text=":=" UId="779" />
+        <Blank Num="1" UId="780" />
+        <Access Scope="GlobalVariable" UId="781">
+          <Symbol UId="782">
+            <Component Name="GDB_LoadSource" UId="783">
+              <BooleanAttribute Name="HasQuotes" UId="784">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="785" />
+            <Component Name="Payload" UId="786" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="787" />
+      <Blank Num="1" UId="788" />
+      <Parameter Name="BUSY" UId="789">
+        <Blank Num="1" UId="790" />
+        <Token Text="=&gt;" UId="791" />
+        <Blank Num="1" UId="792" />
+        <Access Scope="GlobalVariable" UId="793">
+          <Symbol UId="794">
+            <Component Name="GDB_LoadMemoryTest" UId="795">
+              <BooleanAttribute Name="HasQuotes" UId="796">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="797" />
+            <Component Name="Busy" UId="798" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="799" />
+      <Blank Num="1" UId="800" />
+      <Parameter Name="DSTBLK" UId="801">
+        <Blank Num="1" UId="802" />
+        <Token Text="=&gt;" UId="803" />
+        <Blank Num="1" UId="804" />
+        <Access Scope="GlobalVariable" UId="805">
+          <Symbol UId="806">
+            <Component Name="GDB_LoadBankA" UId="807">
+              <BooleanAttribute Name="HasQuotes" UId="808">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="809" />
+            <Component Name="Payload" UId="810" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="812" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="813" />
+  <NewLine Num="1" UId="814" />
+  <Blank Num="8" UId="815" />
+  <Access Scope="LiteralConstant" UId="816">
+    <Constant UId="817">
+      <ConstantValue UId="819">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="820" />
+  <NewLine Num="1" UId="821" />
+  <Blank Num="12" UId="822" />
+  <Access Scope="LocalVariable" UId="823">
+    <Symbol UId="824">
+      <Component Name="NativeResult" UId="825" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="826" />
+  <Token Text=":=" UId="827" />
+  <Blank Num="1" UId="828" />
+  <Access Scope="Call" UId="829">
+    <Instruction Name="WRIT_DBL" UId="830">
+      <Token Text="(" UId="831" />
+      <Parameter Name="REQ" UId="832">
+        <Blank Num="1" UId="833" />
+        <Token Text=":=" UId="834" />
+        <Blank Num="1" UId="835" />
+        <Access Scope="GlobalVariable" UId="836">
+          <Symbol UId="837">
+            <Component Name="GDB_LoadMemoryTest" UId="838">
+              <BooleanAttribute Name="HasQuotes" UId="839">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="840" />
+            <Component Name="RequestPulse" UId="841" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="842" />
+      <Blank Num="1" UId="843" />
+      <Parameter Name="SRCBLK" UId="844">
+        <Blank Num="1" UId="845" />
+        <Token Text=":=" UId="846" />
+        <Blank Num="1" UId="847" />
+        <Access Scope="GlobalVariable" UId="848">
+          <Symbol UId="849">
+            <Component Name="GDB_LoadSource" UId="850">
+              <BooleanAttribute Name="HasQuotes" UId="851">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="852" />
+            <Component Name="Payload" UId="853" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="854" />
+      <Blank Num="1" UId="855" />
+      <Parameter Name="BUSY" UId="856">
+        <Blank Num="1" UId="857" />
+        <Token Text="=&gt;" UId="858" />
+        <Blank Num="1" UId="859" />
+        <Access Scope="GlobalVariable" UId="860">
+          <Symbol UId="861">
+            <Component Name="GDB_LoadMemoryTest" UId="862">
+              <BooleanAttribute Name="HasQuotes" UId="863">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="864" />
+            <Component Name="Busy" UId="865" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="866" />
+      <Blank Num="1" UId="867" />
+      <Parameter Name="DSTBLK" UId="868">
+        <Blank Num="1" UId="869" />
+        <Token Text="=&gt;" UId="870" />
+        <Blank Num="1" UId="871" />
+        <Access Scope="GlobalVariable" UId="872">
+          <Symbol UId="873">
+            <Component Name="GDB_LoadBankB" UId="874">
+              <BooleanAttribute Name="HasQuotes" UId="875">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="876" />
+            <Component Name="Payload" UId="877" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="879" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="880" />
+  <NewLine Num="1" UId="881" />
+  <Blank Num="8" UId="882" />
+  <Access Scope="LiteralConstant" UId="883">
+    <Constant UId="884">
+      <ConstantValue UId="886">6</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="887" />
+  <NewLine Num="1" UId="888" />
+  <Blank Num="12" UId="889" />
+  <Access Scope="LocalVariable" UId="890">
+    <Symbol UId="891">
+      <Component Name="NativeResult" UId="892" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="893" />
+  <Token Text=":=" UId="894" />
+  <Blank Num="1" UId="895" />
+  <Access Scope="Call" UId="896">
+    <Instruction Name="READ_DBL" UId="897">
+      <Token Text="(" UId="898" />
+      <Parameter Name="REQ" UId="899">
+        <Blank Num="1" UId="900" />
+        <Token Text=":=" UId="901" />
+        <Blank Num="1" UId="902" />
+        <Access Scope="GlobalVariable" UId="903">
+          <Symbol UId="904">
+            <Component Name="GDB_LoadMemoryTest" UId="905">
+              <BooleanAttribute Name="HasQuotes" UId="906">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="907" />
+            <Component Name="RequestPulse" UId="908" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="909" />
+      <Blank Num="1" UId="910" />
+      <Parameter Name="SRCBLK" UId="911">
+        <Blank Num="1" UId="912" />
+        <Token Text=":=" UId="913" />
+        <Blank Num="1" UId="914" />
+        <Access Scope="GlobalVariable" UId="915">
+          <Symbol UId="916">
+            <Component Name="GDB_LoadBankB" UId="917">
+              <BooleanAttribute Name="HasQuotes" UId="918">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="919" />
+            <Component Name="Payload" UId="920" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="921" />
+      <Blank Num="1" UId="922" />
+      <Parameter Name="BUSY" UId="923">
+        <Blank Num="1" UId="924" />
+        <Token Text="=&gt;" UId="925" />
+        <Blank Num="1" UId="926" />
+        <Access Scope="GlobalVariable" UId="927">
+          <Symbol UId="928">
+            <Component Name="GDB_LoadMemoryTest" UId="929">
+              <BooleanAttribute Name="HasQuotes" UId="930">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="931" />
+            <Component Name="Busy" UId="932" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="933" />
+      <Blank Num="1" UId="934" />
+      <Parameter Name="DSTBLK" UId="935">
+        <Blank Num="1" UId="936" />
+        <Token Text="=&gt;" UId="937" />
+        <Blank Num="1" UId="938" />
+        <Access Scope="GlobalVariable" UId="939">
+          <Symbol UId="940">
+            <Component Name="GDB_LoadRead" UId="941">
+              <BooleanAttribute Name="HasQuotes" UId="942">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="943" />
+            <Component Name="Payload" UId="944" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="946" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="947" />
+  <NewLine Num="1" UId="948" />
+  <Blank Num="8" UId="949" />
+  <Token Text="ELSE" UId="950" />
+  <NewLine Num="1" UId="951" />
+  <Blank Num="12" UId="952" />
+  <Access Scope="LocalVariable" UId="953">
+    <Symbol UId="954">
+      <Component Name="NativeResult" UId="955" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="956" />
+  <Token Text=":=" UId="957" />
+  <Blank Num="1" UId="958" />
+  <Access Scope="LiteralConstant" UId="959">
+    <Constant UId="960">
+      <ConstantValue UId="962">-1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="963" />
+  <NewLine Num="1" UId="964" />
+  <Blank Num="12" UId="965" />
+  <Access Scope="GlobalVariable" UId="966">
+    <Symbol UId="967">
+      <Component Name="GDB_LoadMemoryTest" UId="968">
+        <BooleanAttribute Name="HasQuotes" UId="969">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="970" />
+      <Component Name="Busy" UId="971" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="972" />
+  <Token Text=":=" UId="973" />
+  <Blank Num="1" UId="974" />
+  <Access Scope="LiteralConstant" UId="975">
+    <Constant UId="976">
+      <ConstantValue UId="978">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="979" />
+  <NewLine Num="1" UId="980" />
+  <Blank Num="4" UId="981" />
+  <Token Text="END_CASE" UId="982" />
+  <Token Text=";" UId="983" />
+  <NewLine Num="1" UId="984" />
+  <Blank Num="4" UId="985" />
+  <Access Scope="GlobalVariable" UId="986">
+    <Symbol UId="987">
+      <Component Name="GDB_LoadMemoryTest" UId="988">
+        <BooleanAttribute Name="HasQuotes" UId="989">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="990" />
+      <Component Name="NativeStatus" UId="991" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="992" />
+  <Token Text=":=" UId="993" />
+  <Blank Num="1" UId="994" />
+  <Access Scope="Call" UId="995">
+    <Instruction Name="INT_TO_WORD" UId="996">
+      <Token Text="(" UId="997" />
+      <NamelessParameter UId="998">
+        <Access Scope="LocalVariable" UId="999">
+          <Symbol UId="1000">
+            <Component Name="NativeResult" UId="1001" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="1003" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="1004" />
+  <NewLine Num="1" UId="1005" />
+  <Blank Num="4" UId="1006" />
+  <Access Scope="GlobalVariable" UId="1007">
+    <Symbol UId="1008">
+      <Component Name="GDB_LoadMemoryTest" UId="1009">
+        <BooleanAttribute Name="HasQuotes" UId="1010">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1011" />
+      <Component Name="RequestPulse" UId="1012" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1013" />
+  <Token Text=":=" UId="1014" />
+  <Blank Num="1" UId="1015" />
+  <Access Scope="LiteralConstant" UId="1016">
+    <Constant UId="1017">
+      <ConstantValue UId="1019">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1020" />
+  <NewLine Num="1" UId="1021" />
+  <Blank Num="4" UId="1022" />
+  <Token Text="IF" UId="1023" />
+  <Blank Num="1" UId="1024" />
+  <Token Text="NOT" UId="1025" />
+  <Blank Num="1" UId="1026" />
+  <Access Scope="GlobalVariable" UId="1027">
+    <Symbol UId="1028">
+      <Component Name="GDB_LoadMemoryTest" UId="1029">
+        <BooleanAttribute Name="HasQuotes" UId="1030">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1031" />
+      <Component Name="Busy" UId="1032" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1033" />
+  <Token Text="THEN" UId="1034" />
+  <NewLine Num="1" UId="1035" />
+  <Blank Num="8" UId="1036" />
+  <Access Scope="GlobalVariable" UId="1037">
+    <Symbol UId="1038">
+      <Component Name="GDB_LoadMemoryTest" UId="1039">
+        <BooleanAttribute Name="HasQuotes" UId="1040">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1041" />
+      <Component Name="Accepted" UId="1042" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1043" />
+  <Token Text=":=" UId="1044" />
+  <Blank Num="1" UId="1045" />
+  <Access Scope="LocalVariable" UId="1046">
+    <Symbol UId="1047">
+      <Component Name="NativeResult" UId="1048" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1049" />
+  <Token Text="=" UId="1050" />
+  <Blank Num="1" UId="1051" />
+  <Access Scope="LiteralConstant" UId="1052">
+    <Constant UId="1053">
+      <ConstantValue UId="1055">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1056" />
+  <NewLine Num="1" UId="1057" />
+  <Blank Num="8" UId="1058" />
+  <Access Scope="GlobalVariable" UId="1059">
+    <Symbol UId="1060">
+      <Component Name="GDB_LoadMemoryTest" UId="1061">
+        <BooleanAttribute Name="HasQuotes" UId="1062">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1063" />
+      <Component Name="AckSequence" UId="1064" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1065" />
+  <Token Text=":=" UId="1066" />
+  <Blank Num="1" UId="1067" />
+  <Access Scope="GlobalVariable" UId="1068">
+    <Symbol UId="1069">
+      <Component Name="GDB_LoadMemoryTest" UId="1070">
+        <BooleanAttribute Name="HasQuotes" UId="1071">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1072" />
+      <Component Name="SeenSequence" UId="1073" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1074" />
+  <NewLine Num="1" UId="1075" />
+  <Blank Num="8" UId="1076" />
+  <Access Scope="GlobalVariable" UId="1077">
+    <Symbol UId="1078">
+      <Component Name="GDB_LoadMemoryTest" UId="1079">
+        <BooleanAttribute Name="HasQuotes" UId="1080">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1081" />
+      <Component Name="PendingKind" UId="1082" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1083" />
+  <Token Text=":=" UId="1084" />
+  <Blank Num="1" UId="1085" />
+  <Access Scope="LiteralConstant" UId="1086">
+    <Constant UId="1087">
+      <ConstantValue UId="1089">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1090" />
+  <NewLine Num="1" UId="1091" />
+  <Blank Num="4" UId="1092" />
+  <Token Text="END_IF" UId="1093" />
+  <Token Text=";" UId="1094" />
+  <NewLine Num="1" UId="1095" />
+  <Token Text="END_IF" UId="1096" />
+  <Token Text=";" UId="1097" />
+  <NewLine Num="1" UId="1098" />
+  <Access Scope="GlobalVariable" UId="1099">
+    <Symbol UId="1100">
+      <Component Name="GDB_LoadMemoryTest" UId="1101">
+        <BooleanAttribute Name="HasQuotes" UId="1102">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1103" />
+      <Component Name="FirstByte" UId="1104" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1105" />
+  <Token Text=":=" UId="1106" />
+  <Blank Num="1" UId="1107" />
+  <Access Scope="GlobalVariable" UId="1108">
+    <Symbol UId="1109">
+      <Component Name="GDB_LoadRead" UId="1110">
+        <BooleanAttribute Name="HasQuotes" UId="1111">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1112" />
+      <Component Name="Payload" UId="1113">
+        <Token Text="[" UId="1114" />
+        <Access Scope="LiteralConstant" UId="1115">
+          <Constant UId="1116">
+            <ConstantValue UId="1118">0</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1119" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1120" />
+  <NewLine Num="1" UId="1121" />
+  <Access Scope="GlobalVariable" UId="1122">
+    <Symbol UId="1123">
+      <Component Name="GDB_LoadMemoryTest" UId="1124">
+        <BooleanAttribute Name="HasQuotes" UId="1125">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1126" />
+      <Component Name="LastByte" UId="1127" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1128" />
+  <Token Text=":=" UId="1129" />
+  <Blank Num="1" UId="1130" />
+  <Access Scope="GlobalVariable" UId="1131">
+    <Symbol UId="1132">
+      <Component Name="GDB_LoadRead" UId="1133">
+        <BooleanAttribute Name="HasQuotes" UId="1134">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1135" />
+      <Component Name="Payload" UId="1136">
+        <Token Text="[" UId="1137" />
+        <Access Scope="LiteralConstant" UId="1138">
+          <Constant UId="1139">
+            <ConstantValue UId="1141">63</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1142" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1143" />
+  <NewLine Num="1" UId="1144" />
+  <Access Scope="LocalVariable" UId="1145">
+    <Symbol UId="1146">
+      <Component Name="Crc" UId="1147" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1148" />
+  <Token Text=":=" UId="1149" />
+  <Blank Num="1" UId="1150" />
+  <Access Scope="TypedConstant" UId="1151">
+    <Constant UId="1152">
+      <ConstantValue UId="1153">DWORD#16#FFFFFFFF</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1154" />
+  <NewLine Num="1" UId="1155" />
+  <Token Text="FOR" UId="1156" />
+  <Blank Num="1" UId="1157" />
+  <Access Scope="LocalVariable" UId="1158">
+    <Symbol UId="1159">
+      <Component Name="Index" UId="1160" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1161" />
+  <Token Text=":=" UId="1162" />
+  <Blank Num="1" UId="1163" />
+  <Access Scope="LiteralConstant" UId="1164">
+    <Constant UId="1165">
+      <ConstantValue UId="1167">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1168" />
+  <Token Text="TO" UId="1169" />
+  <Blank Num="1" UId="1170" />
+  <Access Scope="LiteralConstant" UId="1171">
+    <Constant UId="1172">
+      <ConstantValue UId="1174">63</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1175" />
+  <Token Text="DO" UId="1176" />
+  <NewLine Num="1" UId="1177" />
+  <Blank Num="4" UId="1178" />
+  <Access Scope="LocalVariable" UId="1179">
+    <Symbol UId="1180">
+      <Component Name="Crc" UId="1181" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1182" />
+  <Token Text=":=" UId="1183" />
+  <Blank Num="1" UId="1184" />
+  <Access Scope="Call" UId="1185">
+    <CallInfo UId="1186" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1188">
+        <Component Name="FRK_CrcByte" UId="1187" />
+      </Instance>
+      <Token Text="(" UId="1189" />
+      <Parameter Name="Previous" UId="1190">
+        <Blank Num="1" UId="1191" />
+        <Token Text=":=" UId="1192" />
+        <Blank Num="1" UId="1193" />
+        <Access Scope="LocalVariable" UId="1194">
+          <Symbol UId="1195">
+            <Component Name="Crc" UId="1196" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1197" />
+      <Blank Num="1" UId="1198" />
+      <Parameter Name="Value" UId="1199">
+        <Blank Num="1" UId="1200" />
+        <Token Text=":=" UId="1201" />
+        <Blank Num="1" UId="1202" />
+        <Access Scope="GlobalVariable" UId="1203">
+          <Symbol UId="1204">
+            <Component Name="GDB_LoadRead" UId="1205">
+              <BooleanAttribute Name="HasQuotes" UId="1206">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1207" />
+            <Component Name="Payload" UId="1208">
+              <Token Text="[" UId="1209" />
+              <Access Scope="LocalVariable" UId="1210">
+                <Symbol UId="1211">
+                  <Component Name="Index" UId="1212" />
+                </Symbol>
+              </Access>
+              <Token Text="]" UId="1213" />
+            </Component>
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1215" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1216" />
+  <NewLine Num="1" UId="1217" />
+  <Token Text="END_FOR" UId="1218" />
+  <Token Text=";" UId="1219" />
+  <NewLine Num="1" UId="1220" />
+  <Access Scope="GlobalVariable" UId="1221">
+    <Symbol UId="1222">
+      <Component Name="GDB_LoadMemoryTest" UId="1223">
+        <BooleanAttribute Name="HasQuotes" UId="1224">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1225" />
+      <Component Name="ReadCrc" UId="1226" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1227" />
+  <Token Text=":=" UId="1228" />
+  <Blank Num="1" UId="1229" />
+  <Token Text="NOT" UId="1230" />
+  <Blank Num="1" UId="1231" />
+  <Access Scope="LocalVariable" UId="1232">
+    <Symbol UId="1233">
+      <Component Name="Crc" UId="1234" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1235" />
+  <NewLine Num="1" UId="1236" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

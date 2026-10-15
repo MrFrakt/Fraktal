@@ -18,9 +18,12 @@ const availableLanguages = <String, String>{
 /// and never overwrite this map.
 const standardEnglish = <String, String>{
   'std.clock.qualityUnavailable': 'TIME QUALITY UNAVAILABLE',
-  'std.clock.qualityUnavailable.note': 'The controller has not provided verified clock synchronization quality.',
-  'std.clock.synchronized.note': 'The controller reports synchronized station time.',
-  'std.clock.unsynchronized.note': 'The controller reports an unsynchronized clock. Check the station time source.',
+  'std.clock.qualityUnavailable.note':
+      'The controller has not provided verified clock synchronization quality.',
+  'std.clock.synchronized.note':
+      'The controller reports synchronized station time.',
+  'std.clock.unsynchronized.note':
+      'The controller reports an unsynchronized clock. Check the station time source.',
   'std.config.shift.5.start':
       'Shift 5 start (minutes after midnight, -1 = unused)',
   'std.config.shift.5.duration': 'Shift 5 duration',
@@ -40,7 +43,8 @@ const standardEnglish = <String, String>{
   'std.config.shift.5.target':
       'Shift 5 production target (good parts, 0 = unset)',
   'std.profile.line': 'Line',
-  'std.error.shiftCalendarInvalid': 'Shift calendar rejected: check ranges and overlapping shifts.',
+  'std.error.shiftCalendarInvalid':
+      'Shift calendar rejected: check ranges and overlapping shifts.',
   'std.config.shift.1.duration': 'Shift 1 duration',
   'std.config.shift.2.duration': 'Shift 2 duration',
   'std.config.shift.3.duration': 'Shift 3 duration',
@@ -50,7 +54,8 @@ const standardEnglish = <String, String>{
   'std.config.shift.3.days': 'Shift 3 active days',
   'std.config.shift.4.days': 'Shift 4 active days',
   'std.weekday.mon': 'Mon', 'std.weekday.tue': 'Tue', 'std.weekday.wed': 'Wed',
-  'std.weekday.thu': 'Thu', 'std.weekday.fri': 'Fri', 'std.weekday.sat': 'Sat', 'std.weekday.sun': 'Sun',
+  'std.weekday.thu': 'Thu', 'std.weekday.fri': 'Fri', 'std.weekday.sat': 'Sat',
+  'std.weekday.sun': 'Sun',
   'std.shift.unscheduled': 'Unscheduled',
   'std.shift.runTime': 'Run time',
   'std.shift.downTime': 'Down time',
@@ -58,13 +63,16 @@ const standardEnglish = <String, String>{
   'std.shift.endsAt': 'Next boundary: {time}',
   'std.shift.calendarPending': 'Calendar changes apply at the next boundary.',
   'std.shift.clockQuality': 'Shift clock quality is unverified.',
-  'std.shift.elapsedRemaining': 'Elapsed {elapsed} min · remaining {remaining} min',
+  'std.shift.elapsedRemaining':
+      'Elapsed {elapsed} min · remaining {remaining} min',
   'std.config.model.new': 'New model',
   'std.config.model.create': 'Create',
-  'std.config.model.copyNote': 'Creates an inactive copy. Edit its values, then use Changeover to activate it.',
+  'std.config.model.copyNote':
+      'Creates an inactive copy. Edit its values, then use Changeover to activate it.',
   'std.config.model.code': 'New model code',
   'std.config.model.source': 'Copy values from',
-  'std.config.model.uniqueCode': 'Enter a unique model code (1?80 characters, no spaces).',
+  'std.config.model.uniqueCode':
+      'Enter a unique model code (1?80 characters, no spaces).',
   'std.config.model.fromSet': 'Create model from set',
   'std.config.model.plural': 'models',
   'std.config.export.current': 'Export current values',
@@ -195,12 +203,14 @@ const standardEnglish = <String, String>{
   'std.system.taskJitterHigh':
       'Control-task timing is unsteady. Timing-dependent results may be less reliable.',
   'std.system.cpuLoadHigh': 'Controller CPU load is sustained high.',
-  'std.system.memoryLow': 'Controller memory is low. Stop nonessential consumers.',
+  'std.system.memoryLow':
+      'Controller memory is low. Stop nonessential consumers.',
   'std.system.storageHealthLow':
       'Controller storage health is low. Plan replacement before it fails.',
   'std.system.ipcTemperatureHigh':
       'Controller temperature is high. Check cabinet cooling, filters and fans.',
-  'std.system.ipcFanFault': 'A controller fan has failed. Check cabinet cooling.',
+  'std.system.ipcFanFault':
+      'A controller fan has failed. Check cabinet cooling.',
   'std.system.fieldbusMasterFault':
       'The fieldbus master is faulted. Field devices are not trustworthy.',
   'std.system.dcSyncLost':
@@ -222,8 +232,7 @@ const standardEnglish = <String, String>{
   'std.fieldbus.loading': 'Loading fieldbus topology…',
   // Core §3.8b — durability. Said in terms of the consequence the operator
   // cares about (it will not survive a restart), not the mechanism.
-  'std.config.durability.banner':
-      'Configuration is not safely stored.',
+  'std.config.durability.banner': 'Configuration is not safely stored.',
   'std.config.durability.failed':
       'a setting was accepted but could not be written to permanent storage, '
           'so it will be lost at the next restart.',
@@ -254,7 +263,8 @@ const standardEnglish = <String, String>{
   'std.fieldbus.forceApplied': 'Channel forced (logged)',
   'std.fieldbus.forceCleared': 'Force cleared',
   'std.fieldbus.forceDenied': 'Denied — the PLC refused this force',
-  'std.fieldbus.forceNoRoot': 'Channel has no owning root; forcing is disabled.',
+  'std.fieldbus.forceNoRoot':
+      'Channel has no owning root; forcing is disabled.',
   'std.fieldbus.forceBlocked': 'Channel force blocked',
   'std.fieldbus.forceWhyBlocked': 'Why is forcing unavailable here?',
   'std.nav.overview': 'Plant overview',
@@ -299,7 +309,8 @@ const standardEnglish = <String, String>{
   'std.theme.group.modern': 'Modern',
   'std.theme.likeABosch': 'Like a Bosch',
   'std.theme.group.inspired': 'Industry inspired',
-  'std.theme.group.inspiredHelp': 'Themes inspired by familiar industrial interfaces.',
+  'std.theme.group.inspiredHelp':
+      'Themes inspired by familiar industrial interfaces.',
   'std.theme.group.modernHelp':
       'Decorative materials: glow, glass, drafting grid, paper and reflections.',
   // Fullscreen settings dialog (Core O9): theme, language, touch keyboard, station.
@@ -460,6 +471,9 @@ const standardEnglish = <String, String>{
       'This module started on its default configuration: the stored values could not be read by this software version.',
   'std.error.configPersistFailed':
       'Configuration changes are active but could not be saved to permanent storage. They will be lost if the controller restarts.',
+  'std.error.alarmRestoreLost':
+      'Alarm state could not be restored. Check the machine before resetting.',
+  'std.error.eventDeliveryRestoreLost': 'Event delivery state could not be restored. Engineering recovery is required.',
   'std.error.accessRestoreLost':
       'The stored user table could not be restored completely. Users that were not restored cannot log in until they are registered again.',
   'std.error.accessPersistFailed':
@@ -473,17 +487,21 @@ const standardEnglish = <String, String>{
   'std.error.configSetHalfApplied':
       'A parameter set failed partway through applying. Check the reported value before running production.',
   'std.error.configSetKindInvalid':
-      'The requested parameter-set type is not station configuration or model data.',
+      'The requested parameter-set type is not station config or model config.',
   'std.error.configSetLineRejected':
       'That line of the parameter-set document could not be read.',
   'std.audit.dataAccessDenied': 'Configuration access denied.',
   'std.error.lineDataStale':
-      'Line data has not been updated from its owner within the declared window.',
+      'Line config has not been updated from its owner within the declared window.',
   'std.config.shiftUtcOffset': 'Line clock offset from UTC',
-  'std.config.shift.1.start': 'Shift 1 start (minutes after midnight, -1 = unused)',
-  'std.config.shift.2.start': 'Shift 2 start (minutes after midnight, -1 = unused)',
-  'std.config.shift.3.start': 'Shift 3 start (minutes after midnight, -1 = unused)',
-  'std.config.shift.4.start': 'Shift 4 start (minutes after midnight, -1 = unused)',
+  'std.config.shift.1.start':
+      'Shift 1 start (minutes after midnight, -1 = unused)',
+  'std.config.shift.2.start':
+      'Shift 2 start (minutes after midnight, -1 = unused)',
+  'std.config.shift.3.start':
+      'Shift 3 start (minutes after midnight, -1 = unused)',
+  'std.config.shift.4.start':
+      'Shift 4 start (minutes after midnight, -1 = unused)',
   'std.audit.shiftClosed': 'Shift closed.',
   'std.error.configSetDeleteRefused':
       'The parameter set was not deleted: it does not exist, or it is being written.',
@@ -632,8 +650,10 @@ const standardEnglish = <String, String>{
   'std.audit.autoLogout': 'Automatic logout',
   'std.audit.accessDenied': 'Access denied',
   'std.audit.operatorAction': 'Accepted operator action',
-  'std.error.accessLoginBusy': 'A login is already being checked. Try again shortly.',
-  'std.error.accessPolicyInvalid': 'The access action, level or timeout is invalid.',
+  'std.error.accessLoginBusy':
+      'A login is already being checked. Try again shortly.',
+  'std.error.accessPolicyInvalid':
+      'The access action, level or timeout is invalid.',
   'std.audit.manualCommandWrongMode':
       'Manual command rejected because the Unit is not in MANUAL.',
   'std.audit.manualCommandAccepted': 'Manual command accepted.',
@@ -759,19 +779,20 @@ const standardEnglish = <String, String>{
   'std.unit.piecePerHour': 'pcs/h',
   'std.enum.modeSwitchShield': 'Mode-switch protection',
   'std.enum.modeSwitchShield.0': 'Interruptible – the switch goes ahead',
-  'std.enum.modeSwitchShield.1': 'Confirm first – the HMI asks before switching',
+  'std.enum.modeSwitchShield.1':
+      'Confirm first – the HMI asks before switching',
   'std.enum.modeSwitchShield.2': 'Blocked while running – press Stop first',
   'std.enum.modeSwitchStyle': 'Mode-switch style',
-  'std.config.group.model': 'Model data',
+  'std.config.group.model': 'Model config',
   'std.config.group.model.note':
       'The recipe of one model - the running one unless you pick another (ParCfg)',
   'std.config.model.shown': 'Model',
   'std.config.model.running': 'running',
   'std.config.model.reload': 'Read again',
-  'std.config.group.station': 'Station configuration',
+  'std.config.group.station': 'Station config',
   'std.config.group.station.note':
       'This station, whatever the model - not part of any recipe (StationCfg)',
-  'std.config.group.line': 'Line data',
+  'std.config.group.line': 'Line config',
   'std.config.group.line.note':
       'Held once and shared by every station on the line (LineCfg)',
   'std.enum.modeSwitchStyle.0': 'Graceful – finish the cycle, then switch',
@@ -884,9 +905,9 @@ const standardEnglish = <String, String>{
   'std.module.card.history': 'Event history',
   'std.module.card.description': 'Description',
   'std.module.card.documents': 'Documents',
-  'std.module.card.modelData': 'Model data',
-  'std.module.card.stationData': 'Station configuration',
-  'std.module.card.lineData': 'Line data',
+  'std.module.card.modelData': 'Model config',
+  'std.module.card.stationData': 'Station config',
+  'std.module.card.lineData': 'Line config',
   'std.module.card.operatorGuidance': 'Operator guidance',
   'std.module.editor.setDefaultTab': 'Make this the default tab (shown first)',
   'std.module.editor.clearDefaultTab': 'Stop being the default tab',
@@ -898,7 +919,8 @@ const standardEnglish = <String, String>{
   'std.module.editor.hideCard': 'Hide card',
   'std.module.editor.showCard': 'Show card',
   'std.module.editor.removeCard': 'Remove card from this tab',
-  'std.module.editor.cardNoData': 'This module has no data for this card right now.',
+  'std.module.editor.cardNoData':
+      'This module has no data for this card right now.',
   'std.module.editor.dropCardHere': 'Drop here to move a card to the end',
   'std.module.editor.tabOrder': 'Tab order',
   'std.module.editor.viewClassHelp':
@@ -961,8 +983,8 @@ const standardEnglish = <String, String>{
   'std.module.editor.triggerModes': 'Open only in these modes',
   'std.module.editor.triggerModesHelp':
       'Leave all cleared to open in every mode. AUTO is normally excluded: a '
-      'running cycle waits for the operator routinely, so guidance there '
-      'interrupts production.',
+          'running cycle waits for the operator routinely, so guidance there '
+          'interrupts production.',
   'std.module.editor.invalidNumber': 'Enter a valid non-negative number.',
   'std.module.editor.addControl': 'Add control',
   'std.module.editor.editControl': 'Edit control',
@@ -1119,7 +1141,7 @@ const standardEnglish = <String, String>{
   'std.guidance.acknowledge': 'Acknowledge',
   'std.guidance.forcedNotice':
       'This step is waiting for you. Read the instructions, complete any '
-      'decision below, then acknowledge to continue.',
+          'decision below, then acknowledge to continue.',
   'std.module.editor.guidanceMode': 'When it opens automatically',
   'std.module.editor.guidanceModeOptional':
       'Optional — the operator can close it and keep working',
@@ -1127,18 +1149,20 @@ const standardEnglish = <String, String>{
       'Forced — must be acknowledged (decisions, safety confirmations)',
   'std.module.editor.guidanceModeHelp':
       'Use Forced only when the step genuinely waits on the operator, such as '
-      'selecting a changeover model or confirming it is safe to open the '
-      'doors. Blocking the panel when it was not necessary teaches operators '
-      'to dismiss guidance without reading it.',
+          'selecting a changeover model or confirming it is safe to open the '
+          'doors. Blocking the panel when it was not necessary teaches operators '
+          'to dismiss guidance without reading it.',
   'std.moduleType.separator': 'Separator',
   'std.moduleType.separator.name': 'Separator',
-  'std.moduleType.separator.description': 'Separator/stopper releasing carriers one at a time',
+  'std.moduleType.separator.description':
+      'Separator/stopper releasing carriers one at a time',
   'std.command.separate': 'Separate',
   'std.command.openClose': 'Open / Close',
   'std.error.unsupportedSeparatorCommand': 'Unsupported separator command',
   'std.error.separatorNoCarrierAt': 'No carrier at separator',
   'std.error.separatorCarrierNotCleared': 'Carrier did not clear separator',
-  'std.error.separatorCarrierNotArrived': 'Carrier did not arrive after separator',
+  'std.error.separatorCarrierNotArrived':
+      'Carrier did not arrive after separator',
   'std.error.separatorSonNotCleared': 'Carrier did not clear downstream sensor',
   'std.error.separatorNotOpenedFb': 'Separator did not report open',
   'std.moduleType.axis': 'Axis',
@@ -1146,13 +1170,16 @@ const standardEnglish = <String, String>{
   'std.moduleType.axis.description': 'Servo axis driven through PLCopen Motion',
   'std.moduleType.visionCamera': 'Vision camera',
   'std.moduleType.visionCamera.name': 'Vision camera',
-  'std.moduleType.visionCamera.description': 'Vision sensor triggered over a line protocol',
+  'std.moduleType.visionCamera.description':
+      'Vision sensor triggered over a line protocol',
   'std.moduleType.codeReader': 'Code reader',
   'std.moduleType.codeReader.name': 'Code reader',
-  'std.moduleType.codeReader.description': 'Barcode/DataMatrix reader triggered over a line protocol',
+  'std.moduleType.codeReader.description':
+      'Barcode/DataMatrix reader triggered over a line protocol',
   'std.moduleType.robot': 'Robot',
   'std.moduleType.robot.name': 'Robot',
-  'std.moduleType.robot.description': 'Robot commanded by position identifiers through its connector',
+  'std.moduleType.robot.description':
+      'Robot commanded by position identifiers through its connector',
   'std.command.home': 'Home',
   'std.command.moveTo': 'Move to',
   'std.config.axisTaughtPosition': 'Taught position',
@@ -1173,7 +1200,8 @@ const standardEnglish = <String, String>{
   'std.error.robotControllerFault': 'Robot controller reported a fault',
   'std.error.robotPointUnreachable': 'Robot cannot reach the commanded point',
   'std.error.axisJogNotEnabled': 'Jog refused: enabling device not held',
-  'std.error.axisTaughtPositionLost': 'Taught position lost; running on defaults',
+  'std.error.axisTaughtPositionLost':
+      'Taught position lost; running on defaults',
   'std.error.axisJogReleased': 'Jog stopped: request no longer received',
   'std.error.robotBusy': 'Robot is still executing the previous command',
   'std.error.robotNotPowered': 'Robot drives are not powered',
@@ -1182,9 +1210,11 @@ const standardEnglish = <String, String>{
   'std.error.robotJogParamInvalid': 'Jog axis or direction is invalid',
   'std.error.robotMoveTimeout': 'Robot motion did not complete in time',
   'std.error.robotNotReferenced': 'Robot motion before homing',
-  'std.error.robotModeNotPermitted': 'Robot controller mode does not permit this command',
+  'std.error.robotModeNotPermitted':
+      'Robot controller mode does not permit this command',
   'std.error.robotProtectiveStop': 'Robot protective stop tripped',
-  'std.error.robotSpeedScaleOutOfRange': 'Robot speed scale outside its configured band',
+  'std.error.robotSpeedScaleOutOfRange':
+      'Robot speed scale outside its configured band',
   'std.error.robotResumeInvalid': 'Robot cannot resume: it moved while held',
   'std.error.unsupportedRobotCommand': 'Unsupported robot command',
   'std.error.robotNoRoute': 'No route between these positions',
@@ -1195,9 +1225,12 @@ const standardEnglish = <String, String>{
 
 const standardSpanish = <String, String>{
   'std.clock.qualityUnavailable': 'CALIDAD DEL RELOJ NO DISPONIBLE',
-  'std.clock.qualityUnavailable.note': 'El controlador no ha proporcionado una calidad verificada de sincronización del reloj.',
-  'std.clock.synchronized.note': 'El controlador informa que la hora de la estación está sincronizada.',
-  'std.clock.unsynchronized.note': 'El controlador informa que el reloj no está sincronizado. Revise la fuente de hora de la estación.',
+  'std.clock.qualityUnavailable.note':
+      'El controlador no ha proporcionado una calidad verificada de sincronización del reloj.',
+  'std.clock.synchronized.note':
+      'El controlador informa que la hora de la estación está sincronizada.',
+  'std.clock.unsynchronized.note':
+      'El controlador informa que el reloj no está sincronizado. Revise la fuente de hora de la estación.',
   'std.config.shift.5.start':
       'Inicio del turno 5 (minutos tras medianoche, -1 = sin uso)',
   'std.config.shift.5.duration': 'Duración del turno 5',
@@ -1219,7 +1252,8 @@ const standardSpanish = <String, String>{
   'std.config.shift.5.target':
       'Objetivo de producción del turno 5 (piezas buenas, 0 = sin definir)',
   'std.profile.line': 'Línea',
-  'std.error.shiftCalendarInvalid': 'Calendario rechazado: revise los límites y los turnos superpuestos.',
+  'std.error.shiftCalendarInvalid':
+      'Calendario rechazado: revise los límites y los turnos superpuestos.',
   'std.config.shift.1.duration': 'Duración del turno 1',
   'std.config.shift.2.duration': 'Duración del turno 2',
   'std.config.shift.3.duration': 'Duración del turno 3',
@@ -1229,21 +1263,26 @@ const standardSpanish = <String, String>{
   'std.config.shift.3.days': 'Días activos del turno 3',
   'std.config.shift.4.days': 'Días activos del turno 4',
   'std.weekday.mon': 'Lun', 'std.weekday.tue': 'Mar', 'std.weekday.wed': 'Mié',
-  'std.weekday.thu': 'Jue', 'std.weekday.fri': 'Vie', 'std.weekday.sat': 'Sáb', 'std.weekday.sun': 'Dom',
+  'std.weekday.thu': 'Jue', 'std.weekday.fri': 'Vie', 'std.weekday.sat': 'Sáb',
+  'std.weekday.sun': 'Dom',
   'std.shift.unscheduled': 'Sin programación',
   'std.shift.runTime': 'Tiempo en marcha',
   'std.shift.downTime': 'Tiempo detenido',
   'std.shift.idleTime': 'Tiempo inactivo',
   'std.shift.endsAt': 'Próximo límite: {time}',
-  'std.shift.calendarPending': 'Los cambios se aplican en el próximo límite de turno.',
+  'std.shift.calendarPending':
+      'Los cambios se aplican en el próximo límite de turno.',
   'std.shift.clockQuality': 'La calidad del reloj de turno no está verificada.',
-  'std.shift.elapsedRemaining': 'Transcurrido {elapsed} min · restante {remaining} min',
+  'std.shift.elapsedRemaining':
+      'Transcurrido {elapsed} min · restante {remaining} min',
   'std.config.model.new': 'Nuevo modelo',
   'std.config.model.create': 'Crear',
-  'std.config.model.copyNote': 'Crea una copia inactiva. Edite sus valores y luego use Cambio de modelo para activarla.',
+  'std.config.model.copyNote':
+      'Crea una copia inactiva. Edite sus valores y luego use Cambio de modelo para activarla.',
   'std.config.model.code': 'C?digo del nuevo modelo',
   'std.config.model.source': 'Copiar valores de',
-  'std.config.model.uniqueCode': 'Introduzca un c?digo ?nico (1?80 caracteres, sin espacios).',
+  'std.config.model.uniqueCode':
+      'Introduzca un c?digo ?nico (1?80 caracteres, sin espacios).',
   'std.config.model.fromSet': 'Crear modelo desde conjunto',
   'std.config.model.plural': 'modelos',
   'std.config.export.current': 'Exportar valores actuales',
@@ -1354,7 +1393,8 @@ const standardSpanish = <String, String>{
       'La tarea de control excedió su ciclo. Reduzca la carga antes de reiniciar.',
   'std.system.taskJitterHigh':
       'La temporización de la tarea es inestable. Los resultados por tiempo pueden ser menos fiables.',
-  'std.system.cpuLoadHigh': 'La carga de CPU del controlador es alta y sostenida.',
+  'std.system.cpuLoadHigh':
+      'La carga de CPU del controlador es alta y sostenida.',
   'std.system.memoryLow':
       'Memoria baja en el controlador. Detenga los consumidores no esenciales.',
   'std.system.storageHealthLow':
@@ -1403,7 +1443,8 @@ const standardSpanish = <String, String>{
       'Mapeo del circuito de mando sin confirmar: las bobinas de mando se mantienen desactivadas en cada ciclo.',
   'std.engineering.jogEnableDeviceNotRequired':
       'Movimiento manual sin un dispositivo de habilitación calificado para seguridad.',
-  'std.config.axisJogRequiresEnable': 'El jog requiere un dispositivo de habilitación',
+  'std.config.axisJogRequiresEnable':
+      'El jog requiere un dispositivo de habilitación',
   'std.fieldbus.forceTitle': 'Forzar salida',
   'std.fieldbus.forceWhy':
       'Este control existe solo porque hay una puerta de puesta en marcha activa (Core §7.5); una compilación de producción no ofrece forzado alguno.',
@@ -1415,7 +1456,8 @@ const standardSpanish = <String, String>{
   'std.fieldbus.forceApplied': 'Canal forzado (registrado)',
   'std.fieldbus.forceCleared': 'Forzado retirado',
   'std.fieldbus.forceDenied': 'Denegado: el PLC rechazó este forzado',
-  'std.fieldbus.forceNoRoot': 'El canal no tiene raíz propietaria; el forzado está deshabilitado.',
+  'std.fieldbus.forceNoRoot':
+      'El canal no tiene raíz propietaria; el forzado está deshabilitado.',
   'std.fieldbus.forceBlocked': 'Forzado de canal bloqueado',
   'std.fieldbus.forceWhyBlocked': '¿Por qué no puedo forzar esto?',
   'std.nav.overview': 'Vista general',
@@ -1458,7 +1500,8 @@ const standardSpanish = <String, String>{
   'std.theme.group.modern': 'Modernos',
   'std.theme.likeABosch': 'Like a Bosch',
   'std.theme.group.inspired': 'Inspirados en la industria',
-  'std.theme.group.inspiredHelp': 'Temas inspirados en interfaces industriales conocidas.',
+  'std.theme.group.inspiredHelp':
+      'Temas inspirados en interfaces industriales conocidas.',
   'std.theme.group.modernHelp':
       'Materiales decorativos: brillo, vidrio, cuadrícula de dibujo, papel y reflejos.',
   'std.settings.title': 'Ajustes',
@@ -1582,8 +1625,10 @@ const standardSpanish = <String, String>{
   'std.error.catalogImported': 'Catálogo de idioma importado.',
   'std.error.accessDenied': 'La sesión actual del PLC no está autorizada.',
   'std.audit.operatorAction': 'Acción de operador aceptada',
-  'std.error.accessLoginBusy': 'Ya se está verificando un inicio de sesión. Intente de nuevo en un momento.',
-  'std.error.accessPolicyInvalid': 'La acción, el nivel o el tiempo de acceso no es válido.',
+  'std.error.accessLoginBusy':
+      'Ya se está verificando un inicio de sesión. Intente de nuevo en un momento.',
+  'std.error.accessPolicyInvalid':
+      'La acción, el nivel o el tiempo de acceso no es válido.',
   'std.error.accessPolicyValueInvalid':
       'El nivel solicitado para la política de acceso no es válido.',
   'std.error.alarmIdentityNotUnique':
@@ -1593,6 +1638,9 @@ const standardSpanish = <String, String>{
       'Este módulo arrancó con su configuración por defecto: esta versión del software no pudo leer los valores guardados.',
   'std.error.configPersistFailed':
       'Los cambios de configuración están activos pero no se pudieron guardar en memoria permanente. Se perderán si el controlador se reinicia.',
+  'std.error.alarmRestoreLost':
+      'No se pudo restaurar el estado de alarmas. Revise la maquina antes de restablecer.',
+  'std.error.eventDeliveryRestoreLost': 'No se pudo restaurar el envio de eventos. Se requiere recuperacion de ingenieria.',
   'std.error.accessRestoreLost':
       'La tabla de usuarios guardada no se pudo restaurar por completo. Los usuarios no restaurados no pueden iniciar sesión hasta que se registren de nuevo.',
   'std.error.accessPersistFailed':
@@ -1714,8 +1762,8 @@ const standardSpanish = <String, String>{
   'std.module.editor.triggerModes': 'Abrir solo en estos modos',
   'std.module.editor.triggerModesHelp':
       'Deje todo sin marcar para abrir en cualquier modo. AUTO se excluye '
-      'normalmente: un ciclo en marcha espera al operador de forma rutinaria, '
-      'por lo que la guía allí interrumpe la producción.',
+          'normalmente: un ciclo en marcha espera al operador de forma rutinaria, '
+          'por lo que la guía allí interrumpe la producción.',
   'std.module.editor.invalidNumber': 'Ingrese un número no negativo válido.',
   'std.module.editor.addControl': 'Agregar control',
   'std.module.editor.editControl': 'Editar control',
@@ -1919,21 +1967,26 @@ const standardSpanish = <String, String>{
   'std.unit.piecePerHour': 'pzs/h',
   'std.enum.modeSwitchShield': 'Protección del cambio de modo',
   'std.enum.modeSwitchShield.0': 'Interrumpible – el cambio se realiza',
-  'std.enum.modeSwitchShield.1': 'Confirmar primero – la HMI pregunta antes de cambiar',
+  'std.enum.modeSwitchShield.1':
+      'Confirmar primero – la HMI pregunta antes de cambiar',
   'std.enum.modeSwitchShield.2': 'Bloqueado en marcha – pulse Paro primero',
   'std.enum.modeSwitchStyle': 'Estilo del cambio de modo',
   'std.config.shiftUtcOffset': 'Desfase del reloj de línea respecto a UTC',
-  'std.config.shift.1.start': 'Inicio del turno 1 (minutos tras medianoche, -1 = sin uso)',
-  'std.config.shift.2.start': 'Inicio del turno 2 (minutos tras medianoche, -1 = sin uso)',
-  'std.config.shift.3.start': 'Inicio del turno 3 (minutos tras medianoche, -1 = sin uso)',
-  'std.config.shift.4.start': 'Inicio del turno 4 (minutos tras medianoche, -1 = sin uso)',
+  'std.config.shift.1.start':
+      'Inicio del turno 1 (minutos tras medianoche, -1 = sin uso)',
+  'std.config.shift.2.start':
+      'Inicio del turno 2 (minutos tras medianoche, -1 = sin uso)',
+  'std.config.shift.3.start':
+      'Inicio del turno 3 (minutos tras medianoche, -1 = sin uso)',
+  'std.config.shift.4.start':
+      'Inicio del turno 4 (minutos tras medianoche, -1 = sin uso)',
   'std.error.clampNotConfirmedAfterSettle':
       'La sujeción no se confirmó tras el tiempo de asentamiento.',
   'std.error.modelNotAvailable':
       'Ese modelo no está en el catálogo de esta estación, o su receta no se pudo cargar.',
   'std.safety.twoHandControl':
       'Evaluación certificada del mando a dos manos y estado de los pulsadores.',
-  'std.config.group.model': 'Datos del modelo',
+  'std.config.group.model': 'Configuración del modelo',
   'std.config.group.model.note':
       'La receta de un modelo - el que está en marcha, salvo que elija otro (ParCfg)',
   'std.config.model.shown': 'Modelo',
@@ -1942,20 +1995,25 @@ const standardSpanish = <String, String>{
   'std.config.group.station': 'Configuración de la estación',
   'std.config.group.station.note':
       'Esta estación, sea cual sea el modelo - no forma parte de ninguna receta (StationCfg)',
-  'std.config.group.line': 'Datos de línea',
+  'std.config.group.line': 'Configuración de línea',
   'std.config.group.line.note':
       'Se guardan una vez y los comparten todas las estaciones de la línea (LineCfg)',
   'std.enum.modeSwitchStyle.0': 'Ordenado – termina el ciclo y luego cambia',
   'std.enum.modeSwitchStyle.1': 'Inmediato – aborta ahora y luego cambia',
-  'std.config.modePolicy.0.shield': 'AUTOMÁTICO – protección del cambio de modo',
+  'std.config.modePolicy.0.shield':
+      'AUTOMÁTICO – protección del cambio de modo',
   'std.config.modePolicy.0.style': 'AUTOMÁTICO – estilo del cambio de modo',
   'std.config.modePolicy.1.shield': 'MANUAL – protección del cambio de modo',
   'std.config.modePolicy.1.style': 'MANUAL – estilo del cambio de modo',
-  'std.config.modePolicy.2.shield': 'REFERENCIA – protección del cambio de modo',
+  'std.config.modePolicy.2.shield':
+      'REFERENCIA – protección del cambio de modo',
   'std.config.modePolicy.2.style': 'REFERENCIA – estilo del cambio de modo',
-  'std.config.modePolicy.3.shield': 'CAMBIO DE MODELO – protección del cambio de modo',
-  'std.config.modePolicy.3.style': 'CAMBIO DE MODELO – estilo del cambio de modo',
-  'std.config.modePolicy.4.shield': 'CALIBRACIÓN – protección del cambio de modo',
+  'std.config.modePolicy.3.shield':
+      'CAMBIO DE MODELO – protección del cambio de modo',
+  'std.config.modePolicy.3.style':
+      'CAMBIO DE MODELO – estilo del cambio de modo',
+  'std.config.modePolicy.4.shield':
+      'CALIBRACIÓN – protección del cambio de modo',
   'std.config.modePolicy.4.style': 'CALIBRACIÓN – estilo del cambio de modo',
   'std.config.modePolicy.5.shield': 'CAPACIDAD – protección del cambio de modo',
   'std.config.modePolicy.5.style': 'CAPACIDAD – estilo del cambio de modo',
@@ -1991,7 +2049,8 @@ const standardSpanish = <String, String>{
   'std.module.grid.row': 'Fila',
   'std.module.grid.columnSpan': 'Columnas de ancho',
   'std.module.grid.rowSpan': 'Filas de alto',
-  'std.module.grid.cellInvalid': 'La celda debe quedar dentro de la cuadrícula.',
+  'std.module.grid.cellInvalid':
+      'La celda debe quedar dentro de la cuadrícula.',
   'std.module.editor.dimmedWhen': 'Atenuado mientras',
   'std.module.editor.dimmedWhenHelp':
       'El control se dibuja atenuado mientras se cumpla. Mientras la etiqueta no esté disponible se dibuja normal.',
@@ -2055,22 +2114,27 @@ const standardSpanish = <String, String>{
   'std.module.card.history': 'Historial de eventos',
   'std.module.card.description': 'Descripción',
   'std.module.card.documents': 'Documentos',
-  'std.module.card.modelData': 'Datos del modelo',
+  'std.module.card.modelData': 'Configuración del modelo',
   'std.module.card.stationData': 'Configuración de la estación',
-  'std.module.card.lineData': 'Datos de línea',
+  'std.module.card.lineData': 'Configuración de línea',
   'std.module.card.operatorGuidance': 'Guía del operador',
-  'std.module.editor.setDefaultTab': 'Hacer esta la pestaña predeterminada (se muestra primero)',
+  'std.module.editor.setDefaultTab':
+      'Hacer esta la pestaña predeterminada (se muestra primero)',
   'std.module.editor.clearDefaultTab': 'Dejar de ser la pestaña predeterminada',
-  'std.module.editor.oneDefaultTab': 'Solo una pestaña puede ser la predeterminada.',
+  'std.module.editor.oneDefaultTab':
+      'Solo una pestaña puede ser la predeterminada.',
   'std.module.editor.columns': 'Columnas',
   'std.module.editor.addCard': 'Añadir tarjeta',
   'std.module.editor.dragCard': 'Arrastrar para reordenar',
-  'std.module.editor.cardLevel': 'Nivel de acceso necesario para ver esta tarjeta',
+  'std.module.editor.cardLevel':
+      'Nivel de acceso necesario para ver esta tarjeta',
   'std.module.editor.hideCard': 'Ocultar tarjeta',
   'std.module.editor.showCard': 'Mostrar tarjeta',
   'std.module.editor.removeCard': 'Quitar la tarjeta de esta pestaña',
-  'std.module.editor.cardNoData': 'Este módulo no tiene datos para esta tarjeta ahora mismo.',
-  'std.module.editor.dropCardHere': 'Suelte aquí para mover una tarjeta al final',
+  'std.module.editor.cardNoData':
+      'Este módulo no tiene datos para esta tarjeta ahora mismo.',
+  'std.module.editor.dropCardHere':
+      'Suelte aquí para mover una tarjeta al final',
   'std.module.editor.tabOrder': 'Orden de pestañas',
   'std.module.editor.classMovedForPicture':
       'Clase de pantalla cambiada a Mantenimiento: una pantalla de operación no lleva imagen.',
@@ -2145,7 +2209,7 @@ const standardSpanish = <String, String>{
   'std.guidance.acknowledge': 'Confirmar',
   'std.guidance.forcedNotice':
       'Este paso le está esperando. Lea las instrucciones, complete cualquier '
-      'decisión y confirme para continuar.',
+          'decisión y confirme para continuar.',
   'std.module.editor.guidanceMode': 'Cuándo se abre automáticamente',
   'std.module.editor.guidanceModeOptional':
       'Opcional: el operador puede cerrarla y seguir trabajando',
@@ -2153,32 +2217,40 @@ const standardSpanish = <String, String>{
       'Forzada: debe confirmarse (decisiones, confirmaciones de seguridad)',
   'std.module.editor.guidanceModeHelp':
       'Use Forzada solo cuando el paso realmente espera al operador, como '
-      'seleccionar un modelo de cambio o confirmar que es seguro abrir las '
-      'puertas. Bloquear el panel sin necesidad enseña a descartar la guía '
-      'sin leerla.',
+          'seleccionar un modelo de cambio o confirmar que es seguro abrir las '
+          'puertas. Bloquear el panel sin necesidad enseña a descartar la guía '
+          'sin leerla.',
   'std.moduleType.separator': 'Separador',
   'std.moduleType.separator.name': 'Separador',
-  'std.moduleType.separator.description': 'Separador/tope que libera portapiezas de uno en uno',
+  'std.moduleType.separator.description':
+      'Separador/tope que libera portapiezas de uno en uno',
   'std.command.separate': 'Separar',
   'std.command.openClose': 'Abrir / Cerrar',
   'std.error.unsupportedSeparatorCommand': 'Comando de separador no admitido',
   'std.error.separatorNoCarrierAt': 'No hay portapiezas en el separador',
-  'std.error.separatorCarrierNotCleared': 'El portapiezas no liberó el separador',
-  'std.error.separatorCarrierNotArrived': 'El portapiezas no llegó tras el separador',
-  'std.error.separatorSonNotCleared': 'El portapiezas no liberó el sensor posterior',
+  'std.error.separatorCarrierNotCleared':
+      'El portapiezas no liberó el separador',
+  'std.error.separatorCarrierNotArrived':
+      'El portapiezas no llegó tras el separador',
+  'std.error.separatorSonNotCleared':
+      'El portapiezas no liberó el sensor posterior',
   'std.error.separatorNotOpenedFb': 'El separador no confirmó apertura',
   'std.moduleType.axis': 'Eje',
   'std.moduleType.axis.name': 'Eje',
-  'std.moduleType.axis.description': 'Eje servo accionado mediante PLCopen Motion',
+  'std.moduleType.axis.description':
+      'Eje servo accionado mediante PLCopen Motion',
   'std.moduleType.visionCamera': 'Cámara de visión',
   'std.moduleType.visionCamera.name': 'Cámara de visión',
-  'std.moduleType.visionCamera.description': 'Sensor de visión disparado mediante un protocolo de líneas',
+  'std.moduleType.visionCamera.description':
+      'Sensor de visión disparado mediante un protocolo de líneas',
   'std.moduleType.codeReader': 'Lector de códigos',
   'std.moduleType.codeReader.name': 'Lector de códigos',
-  'std.moduleType.codeReader.description': 'Lector de códigos de barras/DataMatrix disparado mediante un protocolo de líneas',
+  'std.moduleType.codeReader.description':
+      'Lector de códigos de barras/DataMatrix disparado mediante un protocolo de líneas',
   'std.moduleType.robot': 'Robot',
   'std.moduleType.robot.name': 'Robot',
-  'std.moduleType.robot.description': 'Robot mandado por identificadores de posición a través de su conector',
+  'std.moduleType.robot.description':
+      'Robot mandado por identificadores de posición a través de su conector',
   'std.command.home': 'Referenciar',
   'std.command.moveTo': 'Mover a',
   'std.config.axisTaughtPosition': 'Posición enseñada',
@@ -2196,25 +2268,38 @@ const standardSpanish = <String, String>{
   'std.error.axisDriveFault': 'El variador notificó un fallo',
   'std.error.axisMoveTimeout': 'El movimiento no terminó a tiempo',
   'std.error.robotLinkDown': 'Sin conexión con el controlador del robot',
-  'std.error.robotControllerFault': 'El controlador del robot notificó un fallo',
-  'std.error.robotPointUnreachable': 'El robot no puede alcanzar el punto indicado',
-  'std.error.axisJogNotEnabled': 'Movimiento manual rechazado: dispositivo de habilitación no accionado',
-  'std.error.axisTaughtPositionLost': 'Posición enseñada perdida; usando valores por defecto',
-  'std.error.axisJogReleased': 'Movimiento manual detenido: ya no se recibe la petición',
+  'std.error.robotControllerFault':
+      'El controlador del robot notificó un fallo',
+  'std.error.robotPointUnreachable':
+      'El robot no puede alcanzar el punto indicado',
+  'std.error.axisJogNotEnabled':
+      'Movimiento manual rechazado: dispositivo de habilitación no accionado',
+  'std.error.axisTaughtPositionLost':
+      'Posición enseñada perdida; usando valores por defecto',
+  'std.error.axisJogReleased':
+      'Movimiento manual detenido: ya no se recibe la petición',
   'std.error.robotBusy': 'El robot aún está ejecutando el comando anterior',
-  'std.error.robotNotPowered': 'Los accionamientos del robot no tienen potencia',
-  'std.error.robotPathRangeInvalid': 'El rango de segmentos de la trayectoria no es válido',
+  'std.error.robotNotPowered':
+      'Los accionamientos del robot no tienen potencia',
+  'std.error.robotPathRangeInvalid':
+      'El rango de segmentos de la trayectoria no es válido',
   'std.error.robotNestInvalid': 'El número de nido del paletizado no es válido',
-  'std.error.robotJogParamInvalid': 'El eje o la dirección de movimiento manual no son válidos',
+  'std.error.robotJogParamInvalid':
+      'El eje o la dirección de movimiento manual no son válidos',
   'std.error.robotMoveTimeout': 'El movimiento del robot no terminó a tiempo',
   'std.error.robotNotReferenced': 'Movimiento del robot antes de referenciar',
-  'std.error.robotModeNotPermitted': 'El modo del controlador no permite este comando',
-  'std.error.robotProtectiveStop': 'Disparada la protección de colisión del robot',
-  'std.error.robotSpeedScaleOutOfRange': 'Velocidad del robot fuera de la banda configurada',
-  'std.error.robotResumeInvalid': 'El robot no puede reanudar: se movió mientras estaba en espera',
+  'std.error.robotModeNotPermitted':
+      'El modo del controlador no permite este comando',
+  'std.error.robotProtectiveStop':
+      'Disparada la protección de colisión del robot',
+  'std.error.robotSpeedScaleOutOfRange':
+      'Velocidad del robot fuera de la banda configurada',
+  'std.error.robotResumeInvalid':
+      'El robot no puede reanudar: se movió mientras estaba en espera',
   'std.error.unsupportedRobotCommand': 'Comando de robot no admitido',
   'std.error.robotNoRoute': 'No hay ruta entre estas posiciones',
-  'std.error.robotNoHelpForNest': 'No hay trayecto de aproximación para esta posición',
+  'std.error.robotNoHelpForNest':
+      'No hay trayecto de aproximación para esta posición',
   'std.error.axisTargetOutOfRange': 'Destino fuera de los límites de software',
   'std.error.axisNotHomed': 'Movimiento solicitado antes de referenciar',
 };
@@ -2342,8 +2427,7 @@ const projectEnglish = <String, String>{
       'This station stores no configuration sets',
   'project.mailbox.refused.no_control_power':
       'This station has no control-power domain',
-  'project.mailbox.refused.no_shelving':
-      'This station does not shelve alarms',
+  'project.mailbox.refused.no_shelving': 'This station does not shelve alarms',
   'project.mailbox.refused.no_hold_run_control':
       'This station has no hold-to-run control for the sequence',
   'project.mailbox.refused.no_hold_to_run':
@@ -2400,7 +2484,8 @@ const projectEnglish = <String, String>{
   'project.step.pressScrapPart': 'Scrap the part and return it',
   'project.step.pressParallelWork': 'Run the parallel work branch',
   'project.step.pressAwaitParallelBranch': 'Wait for the parallel branch',
-  'project.step.pressAwaitParallelJoin': 'Wait for the parallel branches to join',
+  'project.step.pressAwaitParallelJoin':
+      'Wait for the parallel branches to join',
   'project.step.bothPositions': 'Both positions reached',
   'project.condition.pressRamExtended': 'Press ram extended',
   'project.condition.pressFailureConfirmation':
@@ -2417,7 +2502,7 @@ const projectEnglish = <String, String>{
   'project.state.atHome': 'At home position',
   'project.state.pressAtLoadPosition': 'At load position',
   'project.state.pressTwoHandStartReady': 'Ready for a two-hand start',
-  // Press bench §3.8a/§3.8b configuration: station and model data.
+  // Press bench §3.8a/§3.8b configuration: station and model config.
   'project.config.pressRequireTwoHandStart': 'Require two-hand start',
   'project.config.pressStallGuardMs': 'Step stall guard',
   'project.config.pressSettleTime': 'Press settle time',
@@ -2524,17 +2609,17 @@ const projectEnglish = <String, String>{
   'project.mailbox.refused.config_out_of_range':
       'That value is outside the range this setting allows. Enter a value '
           'within the limits shown.',
-    'project.mailbox.refused.config_requires_ready':
-        'This setting can only be changed while the station is stopped. Stop '
-            'the station and try again.',
-    'project.mailbox.refused.capture_not_registered':
-        'This setting has no machine value to capture. Enter its value instead.',
-    'project.mailbox.refused.capture_needs_setup':
-        'Capture requires manual setup with no fault. Stop and reset the station first.',
-    'project.mailbox.refused.config_revision_stale':
-        'The configuration capability has changed. Reconnect and try again.',
-    'project.mailbox.refused.config_set_model_load':
-        'Model parameter sets cannot be loaded until a recipe store is connected. Use the model configuration page.',
+  'project.mailbox.refused.config_requires_ready':
+      'This setting can only be changed while the station is stopped. Stop '
+          'the station and try again.',
+  'project.mailbox.refused.capture_not_registered':
+      'This setting has no machine value to capture. Enter its value instead.',
+  'project.mailbox.refused.capture_needs_setup':
+      'Capture requires manual setup with no fault. Stop and reset the station first.',
+  'project.mailbox.refused.config_revision_stale':
+      'The configuration capability has changed. Reconnect and try again.',
+  'project.mailbox.refused.config_set_model_load':
+      'Model parameter sets cannot be loaded until a recipe store is connected. Use the model config page.',
   'project.decision.toolWorn':
       'The tool is worn. Replace it now or finish the batch?',
   'project.decision.replaceNow': 'Replace now',
@@ -2666,8 +2751,10 @@ const projectEnglish = <String, String>{
   'project.decision.confirmChangeover': 'Confirm changeover',
   'project.decision.repeatChangeoverPosition':
       'Repeat safe changeover positioning',
-  'project.interlock.feedRequiresControlPower': 'Part feed requires control power on',
-  'project.interlock.feedRequiresGuardClosed': 'Part feed requires the guard closed',
+  'project.interlock.feedRequiresControlPower':
+      'Part feed requires control power on',
+  'project.interlock.feedRequiresGuardClosed':
+      'Part feed requires the guard closed',
 };
 
 /// Shipped project translation for the demo. Imported project CSV values still
@@ -2698,7 +2785,8 @@ const projectSpanish = <String, String>{
   'project.step.pressScrapPart': 'Desechar la pieza y devolverla',
   'project.step.pressParallelWork': 'Ejecutar la rama de trabajo paralela',
   'project.step.pressAwaitParallelBranch': 'Esperar la rama paralela',
-  'project.step.pressAwaitParallelJoin': 'Esperar la unión de las ramas paralelas',
+  'project.step.pressAwaitParallelJoin':
+      'Esperar la unión de las ramas paralelas',
   'project.step.bothPositions': 'Ambas posiciones alcanzadas',
   'project.condition.pressRamExtended': 'Ariete de la prensa extendido',
   'project.condition.pressFailureConfirmation':
@@ -2718,9 +2806,11 @@ const projectSpanish = <String, String>{
   'project.config.pressRequireTwoHandStart': 'Exigir arranque a dos manos',
   'project.config.pressStallGuardMs': 'Vigilancia de paso detenido',
   'project.config.pressSettleTime': 'Tiempo de asentamiento de la prensa',
-  'project.config.transferSettleTime': 'Tiempo de asentamiento de la transferencia',
+  'project.config.transferSettleTime':
+      'Tiempo de asentamiento de la transferencia',
   'project.config.idealCycleMs': 'Tiempo de ciclo ideal (rendimiento OEE)',
-  'project.config.baselineWorkMs': 'Tiempo de trabajo de referencia (vigilancia de degradación)',
+  'project.config.baselineWorkMs':
+      'Tiempo de trabajo de referencia (vigilancia de degradación)',
   'project.io.el6001Status': 'Palabra de estado del terminal RS232',
   'project.io.el6001Ctrl': 'Palabra de control del terminal RS232',
   'project.io.el6001DataIn': 'Byte de recepción del terminal RS232',
@@ -2820,6 +2910,8 @@ const projectSpanish = <String, String>{
   'project.decision.confirmChangeover': 'Confirmar cambio de modelo',
   'project.decision.repeatChangeoverPosition':
       'Repetir posicionamiento seguro para cambio',
-  'project.interlock.feedRequiresControlPower': 'El avance de pieza requiere mando activado',
-  'project.interlock.feedRequiresGuardClosed': 'El avance de pieza requiere el resguardo cerrado',
+  'project.interlock.feedRequiresControlPower':
+      'El avance de pieza requiere mando activado',
+  'project.interlock.feedRequiresGuardClosed':
+      'El avance de pieza requiere el resguardo cerrado',
 };

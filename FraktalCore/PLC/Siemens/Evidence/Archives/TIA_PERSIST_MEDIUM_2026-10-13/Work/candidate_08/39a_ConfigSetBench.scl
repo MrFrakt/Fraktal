@@ -1,0 +1,28 @@
+// Test-only tampering: the production retained store stays inaccessible.
+FUNCTION "F_ConfigSetBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+END_VAR
+BEGIN
+    IF NOT "GDB_ConfigSetTest".Corrupt THEN RETURN; END_IF;
+    "GDB_ConfigSetTest".Corrupt := FALSE;
+    #Slot := "FRK_SetFind"(RootIndex := 1, SetName := "GDB_ConfigSetTest".SetName);
+    "GDB_ConfigSetTest".Slot := #Slot;
+    IF #Slot = 0 THEN RETURN; END_IF;
+    #Index := "FRK_SetStore".Sets[1,#Slot].Info.RecordCount;
+    "GDB_ConfigSetTest".RecordScope := "FRK_SetStore".Sets[1,#Slot].Records[#Index].Scope;
+    "GDB_ConfigSetTest".RecordKey := "FRK_SetStore".Sets[1,#Slot].Records[#Index].WriteKey;
+    CASE "GDB_ConfigSetTest".Field OF
+        1: "FRK_SetStore".Sets[1,#Slot].Records[#Index].ValueText := "GDB_ConfigSetTest".Text;
+        2: "FRK_SetStore".Sets[1,#Slot].Records[#Index].Revision := 99;
+        3: "FRK_SetStore".Sets[1,#Slot].Records[#Index].ValueType := 99;
+        4: "FRK_SetStore".Sets[1,#Slot].Records[#Index].WriteKey := 'unknown';
+        5: "FRK_SetStore".Sets[1,#Slot].Records[#Index].Scope := 'StationB';
+        6: "FRK_SetStore".Sets[1,#Slot].Info.RecordCount := #Index - 1;
+        7: "FRK_SetStore".Sets[1,#Slot].Records[#Index] := "FRK_SetStore".Sets[1,#Slot].Records[1];
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION

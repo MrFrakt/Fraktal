@@ -1,0 +1,21 @@
+﻿FUNCTION "FRK_PersistAnchorValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PersistAnchorValid := FALSE;
+	IF #Slot < 1 OR #Slot > 17 THEN
+	    RETURN;
+	END_IF;
+	#FRK_PersistAnchorValid := "FRK_PersistAnchors".Commissioned[#Slot]
+	AND "FRK_PersistRuntime".Anchor[#Slot].SchemaVersion = 1
+	AND "FRK_PersistRuntime".Anchor[#Slot].KeyCrc = "FRK_PersistRuntime".KeyCrc[#Slot]
+	AND "FRK_PersistRuntime".Anchor[#Slot].Checksum = "FRK_PersistAnchorCrc"(Image := "FRK_PersistRuntime".Anchor[#Slot]);
+	
+END_FUNCTION
+

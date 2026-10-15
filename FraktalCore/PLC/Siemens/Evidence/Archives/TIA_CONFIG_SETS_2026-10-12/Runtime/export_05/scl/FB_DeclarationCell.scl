@@ -1,0 +1,206 @@
+﻿FUNCTION_BLOCK "FB_DeclarationCell"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Generated frame v0.10; change the declaration, then regenerate.
+   VAR_INPUT 
+      Execute { ExternalWritable := 'False'} : Bool;
+      Abort { ExternalWritable := 'False'} : Bool;
+      Command { ExternalWritable := 'False'} : DInt;
+      ParCmd { ExternalWritable := 'False'} : "ST_DeclarationParCmd";
+      ParentIndex { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+      Startup { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+   VAR_OUTPUT 
+      Busy { ExternalWritable := 'False'} : Bool;
+      Done { ExternalWritable := 'False'} : Bool;
+      Error { ExternalWritable := 'False'} : Bool;
+      Aborted { ExternalWritable := 'False'} : Bool;
+      Held { ExternalWritable := 'False'} : Bool;
+      ErrorID { ExternalWritable := 'False'} : DWord;
+      Timing { ExternalWritable := 'False'} : "ST_ModuleTiming";
+      OutCmd { ExternalWritable := 'False'} : "ST_DeclarationOutCmd";
+      OutImm { ExternalWritable := 'False'} : "ST_DeclarationOutImm";
+   END_VAR
+
+   VAR_IN_OUT 
+      Hal : "ST_DeclarationCellHal";
+   END_VAR
+
+   VAR 
+      Status { ExternalWritable := 'False'} : "ST_ModuleStatus";
+      Core { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+      ParCfg { ExternalWritable := 'False'} : "ST_DeclarationParCfg";
+      LatchedParCmd { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DeclarationParCmd";
+      Device { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DeclarationOutImm";
+      ConfigStageParCfg { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DeclarationParCfg";
+      ConfigDefaultParCfg { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DeclarationParCfg";
+      ConfigStaged { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Catalog { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of "ST_CommandInfo";
+      CatalogCount { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      ManConditions { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of "FRK_ManualConditionRow";
+      ManualOwned { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Clamp { ExternalWritable := 'False'} : "FB_DeclarationCylinder";
+      Gate { ExternalWritable := 'False'} : "FB_DeclarationCylinder";
+   END_VAR
+
+   VAR_TEMP 
+      InstancePath : WString[254];
+   END_VAR
+
+   VAR CONSTANT 
+      EXEC_READY : DInt := 0;
+      MODULE_TIER : DInt := 2;
+   END_VAR
+
+
+BEGIN
+	
+	// ---- GENERATED: setup
+	IF #Startup OR NOT #Core.Named THEN
+	    #InstancePath := GetInstancePath(size := 0);
+	    "FRK_SetIdentity"(Core := #Core,
+	                      Status := #Status,
+	                      InstancePath := #InstancePath,
+	                      ModuleType := 2,
+	                      TypeId := 2,
+	                      Capabilities := DWORD#16#00000000,
+	                      ParentIndex := #ParentIndex,
+	                      TypeKey := 'Fraktal.Declaration.Cell');
+	    #CatalogCount := 7;
+	    #Catalog[1].Value := 1;
+	    #Catalog[1].Label := 'Finish';
+	    #Catalog[1].Style := 0;
+	    #Catalog[2].Value := 2;
+	    #Catalog[2].Label := 'Wait';
+	    #Catalog[2].Style := 0;
+	    #Catalog[3].Value := 3;
+	    #Catalog[3].Label := 'Hold';
+	    #Catalog[3].Style := 0;
+	    #Catalog[4].Value := 4;
+	    #Catalog[4].Label := 'Fault';
+	    #Catalog[4].Style := 0;
+	    #Catalog[5].Value := 5;
+	    #Catalog[5].Label := 'Pending';
+	    #Catalog[5].Style := 0;
+	    #Catalog[6].Value := 6;
+	    #Catalog[6].Label := 'Instant';
+	    #Catalog[6].Style := 0;
+	    #Catalog[7].Value := 7;
+	    #Catalog[7].Label := 'Adopt';
+	    #Catalog[7].Style := 0;
+	END_IF;
+	IF #Startup THEN "FRK_CfgRestore_DeclarationCell"(Core := #Core,
+	                                                      Status := #Status,
+	                                                      ParCfg := #ParCfg,
+	                                                      ConfigStageParCfg := #ConfigStageParCfg,
+	                                                      ConfigDefaultParCfg := #ConfigDefaultParCfg);
+	END_IF;
+	// ---- GENERATED: begin
+	"FRK_Begin"(Core := #Core,
+	            Status := #Status,
+	            Execute := #Execute,
+	            Abort := #Abort,
+	            Command := #Command);
+	IF #Core.EvInit THEN
+	    // ---- AUTHORED: Init
+	    #Device.InitCount := #Device.InitCount + 1;
+	    // ---- GENERATED: reaction end
+	END_IF;
+	IF #Core.EvCommandStart THEN
+	    #LatchedParCmd := #ParCmd;
+	    CASE #Core.Command OF
+	        1:
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := TRUE,
+	                        Timeout := #ParCfg.Timeout,
+	                        Label := 'Finish');
+	        2:
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := TRUE,
+	                        Timeout := #ParCfg.Timeout,
+	                        Label := 'Wait');
+	        3:
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := TRUE,
+	                        Timeout := #ParCfg.Timeout,
+	                        Label := 'Hold');
+	        4:
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := TRUE,
+	                        Timeout := #ParCfg.Timeout,
+	                        Label := 'Fault');
+	        5:
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := TRUE,
+	                        Timeout := #ParCfg.Timeout,
+	                        Label := 'Pending');
+	        6:
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := TRUE,
+	                        Timeout := #ParCfg.Timeout,
+	                        Label := 'Instant');
+	        7:
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := TRUE,
+	                        Timeout := #ParCfg.Timeout,
+	                        Label := 'Adopt');
+	        ELSE
+	            "FRK_Start"(Core := #Core,
+	                        Status := #Status,
+	                        Supported := FALSE,
+	                        Timeout := T#0ms,
+	                        Label := '');
+	    END_CASE;
+	END_IF;
+	IF #Core.EvCommandStart THEN
+	    // ---- AUTHORED: CommandStart
+	    #Device.StartCount := #Device.StartCount + 1;
+	    #Device.Ordered := #Device.InitCount = 1;
+	    // ---- GENERATED: reaction end
+	END_IF;
+	IF #Core.ReleasePending THEN
+	    "FRK_ReleaseCommand"(Core := #Clamp.Core,
+	                         Execute := #Clamp.Execute);
+	    "FRK_ReleaseCommand"(Core := #Gate.Core,
+	                         Execute := #Gate.Execute);
+	END_IF;
+	// ---- GENERATED: child call
+	#Clamp(ParentIndex := #Core.RegIndex,
+	       Startup := #Startup,
+	       Hal := #Hal.Clamp);
+	"FRK_ManualFinish"(Core := #Clamp.Core,
+	                   Execute := #Clamp.Execute,
+	                   ManualOwned := #Clamp.ManualOwned);
+	// ---- GENERATED: child call
+	#Gate(ParentIndex := #Core.RegIndex,
+	      Startup := #Startup,
+	      Hal := #Hal.Gate);
+	"FRK_ManualFinish"(Core := #Gate.Core,
+	                   Execute := #Gate.Execute,
+	                   ManualOwned := #Gate.ManualOwned);
+	"FRK_RouteAbort"(Core := #Core,
+	                 Abort := #Abort);
+	"FRK_End"(Core := #Core,
+	          Status := #Status,
+	          Busy => #Busy,
+	          Done => #Done,
+	          Error => #Error,
+	          Aborted => #Aborted,
+	          Held => #Held,
+	          ErrorID => #ErrorID,
+	          Timing => #Timing);
+	// ---- AUTHORED: unconditional cyclic/derived data
+	#Device.Sample := #Device.Sample + 1;
+	#OutImm := #Device;
+	// ---- GENERATED: frame end
+	
+END_FUNCTION_BLOCK
+

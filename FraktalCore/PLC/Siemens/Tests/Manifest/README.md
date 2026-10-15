@@ -20,7 +20,8 @@ isolated1516 target and produces JSON-lines, captured entries and JUnit. It chec
 without values below DATA_READ, query purity and restart revision changes.
 
 run_gateway.dart uses the production gateway and Web API client. Its test-only
-transport checks FrkS12/CPU1516/TCPIP169.254.212.49 and zero physical mappings
+transport checks the approved FrkS12 or Fraktal name selected by
+FRAKTAL_TIA_SIM_INSTANCE, CPU1516/TCPIP169.254.212.49 and zero physical mappings
 before every native write. Run with the gateway package configuration and the
 existing DPAPI wrapper; credentials never enter arguments. Arguments are the
 captured certificate DER, simulator.ps1 path and a stop-file path. It listens on
@@ -34,6 +35,8 @@ clicks the rendered Instant command and independently checks the native counter.
 The prototype has no login provider: the test sets only its in-memory operations
 display preference to NONE to match the current PLC MANUAL gate. PLC authorization
 still applies. This is not an authenticated production commissioning gate.
+The subsequent Tests/Access fixture sets FRAKTAL_TIA_ACCESS_LIVE=1 to use a real
+PLC login and the normal OPERATOR display policy with this same generic HMI path.
 
 The generic repository excludes acknowledged ConfigPage/Report payloads from
 cyclic reads. Queries read their exact discovered subtree after acknowledgement;

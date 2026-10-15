@@ -1,0 +1,19 @@
+﻿FUNCTION "FRK_CyclicHook_DeclarationCylinder" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Device : "ST_DeclarationOutImm";
+      Hal : "ST_DeclarationLeafHal";
+      OutImm : "ST_DeclarationOutImm";
+   END_VAR
+
+
+BEGIN
+	
+	#Device.Sample := #Hal.Sample;
+	#Device.Output := #Core.Exec = 1 AND NOT #Core.Held AND #Hal.Permit;
+	#OutImm := #Device;
+	
+END_FUNCTION
+

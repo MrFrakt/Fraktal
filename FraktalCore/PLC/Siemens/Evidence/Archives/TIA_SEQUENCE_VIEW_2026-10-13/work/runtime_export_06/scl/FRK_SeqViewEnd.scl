@@ -1,0 +1,57 @@
+﻿FUNCTION "FRK_SeqViewEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Revision : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewEnd"(Cursors := "FRK_Views".V001.Cursors,
+	                      Book := "FRK_Views".V001.Book,
+	                      Touched := "FRK_Views".V001.Touched,
+	                      Current := "FRK_Views".V001.Current,
+	                      Revision := #Revision);
+	    5:
+	        "FRK_ViewEnd"(Cursors := "FRK_Views".V005.Cursors,
+	                      Book := "FRK_Views".V005.Book,
+	                      Touched := "FRK_Views".V005.Touched,
+	                      Current := "FRK_Views".V005.Current,
+	                      Revision := #Revision);
+	    9:
+	        "FRK_ViewEnd"(Cursors := "FRK_Views".V009.Cursors,
+	                      Book := "FRK_Views".V009.Book,
+	                      Touched := "FRK_Views".V009.Touched,
+	                      Current := "FRK_Views".V009.Current,
+	                      Revision := #Revision);
+	    13:
+	        "FRK_ViewEnd"(Cursors := "FRK_Views".V013.Cursors,
+	                      Book := "FRK_Views".V013.Book,
+	                      Touched := "FRK_Views".V013.Touched,
+	                      Current := "FRK_Views".V013.Current,
+	                      Revision := #Revision);
+	    17:
+	        "FRK_ViewEnd"(Cursors := "FRK_Views".V017.Cursors,
+	                      Book := "FRK_Views".V017.Book,
+	                      Touched := "FRK_Views".V017.Touched,
+	                      Current := "FRK_Views".V017.Current,
+	                      Revision := #Revision);
+	    21:
+	        "FRK_ViewEnd"(Cursors := "FRK_Views".V021.Cursors,
+	                      Book := "FRK_Views".V021.Book,
+	                      Touched := "FRK_Views".V021.Touched,
+	                      Current := "FRK_Views".V021.Current,
+	                      Revision := #Revision);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

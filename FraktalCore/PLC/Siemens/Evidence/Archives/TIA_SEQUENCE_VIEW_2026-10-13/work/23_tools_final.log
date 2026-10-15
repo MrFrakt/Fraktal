@@ -1,0 +1,31 @@
+........................................................................................................F..............................................................................
+======================================================================
+FAIL: test_consumed_arrays_readonly_and_defs_private (test_fraktal_tia_sequence_view.SequenceViewTests.test_consumed_arrays_readonly_and_defs_private)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 47, in test_consumed_arrays_readonly_and_defs_private
+    self.assertEqual(tia_lint.check_ext(Path('view.scl'),frame,set()),[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [Finding(path=WindowsPath('view.scl'), lin[220 chars]e'")] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+Finding(path=WindowsPath('view.scl'), line=87, rule='T-EXT', message="private static Cell must be ExternalAccessible := 'False'")
+
++ []
+- [Finding(path=WindowsPath('view.scl'),
+-          line=87,
+-          rule='T-EXT',
+-          message="private static Cell must be ExternalAccessible := 'False'"),
+-  Finding(path=WindowsPath('view.scl'),
+-          line=88,
+-          rule='T-EXT',
+-          message='private static Satellite must be ExternalAccessible := '
+-                  "'False'")]
+
+----------------------------------------------------------------------
+Ran 183 tests in 41.907s
+
+FAILED (failures=1)
+{"cases": 55, "checks": 238, "sources": 31}
+{"generated": "C:\\Users\\Siemens\\AppData\\Local\\Temp\\tmpdt0p9ijz\\ldt", "structs": 88, "enums": 42, "witnesses": 1146}

@@ -1,0 +1,446 @@
+// Shared sequence services. The examples generator binds Core enum constants.
+FUNCTION "FRK_SeqBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Run : Bool;
+    Reset : Bool;
+    OwnerIndex : DInt;
+    ChainIndex : DInt;
+    BranchIndex : DInt;
+    ViewOffset : DInt;
+    ViewDepth : Int;
+    Delta : Time;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    #Seq.Scan := #Seq.Scan + 1;
+    #Seq.Restart := #Reset OR (#Run AND NOT #Seq.RunPrevious);
+    #Seq.RunPrevious := #Run;
+    #Seq.OwnerIndex := #OwnerIndex;
+    #Seq.ChainIndex := #ChainIndex;
+    #Seq.BranchIndex := #BranchIndex;
+    #Seq.ViewOffset := #ViewOffset;
+    #Seq.ViewDepth := #ViewDepth;
+    #Seq.RetVal := 0;
+    #Seq.Pending := FALSE;
+    #Seq.CommandFailed := FALSE;
+    #Seq.CommandIssued := FALSE;
+    #Seq.Awaiting := '';
+    IF NOT #Run OR #Seq.Restart THEN
+        #Seq.Step := 0;
+        #Seq.RecordedStep := -1;
+        #Seq.Visit := #Seq.Visit + 1;
+        #Seq.Done := FALSE;
+        #Seq.Error := FALSE;
+        #Seq.StartLatched := FALSE;
+        #Seq.Elapsed := T#0ms;
+        #Seq.DelayElapsed := T#0ms;
+        #Seq.ErrorDiagnostic.ReasonCode := 0;
+    END_IF;
+    #Seq.Running := #Run AND NOT #Seq.Done AND NOT #Seq.Error
+        AND #OwnerIndex > 0 AND #ChainIndex > 0;
+    #Seq.ScanStep := #Seq.Step;
+    IF #Seq.Running AND #Delta > T#0ms THEN #Seq.Elapsed := #Seq.Elapsed + #Delta; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqStart" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    StartPulse : Bool;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    IF #Seq.Running THEN #Seq.StartLatched := #Seq.StartLatched OR #StartPulse; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqCycleEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    #Seq.StartLatched := FALSE;
+    IF #Seq.BranchIndex = 0 THEN "FRK_SeqProfileComplete"(Owner := #Seq.OwnerIndex); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqComplete" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    #Seq.Done := TRUE;
+    #Seq.Running := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqAt" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    StepNo : DInt;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    // Capture dispatch once: a forward LD transition cannot execute the next
+    // state's rung in this scan or hide an Execute-low reset scan.
+    #FRK_SeqAt := #Seq.Running AND NOT #Seq.Error AND #Seq.ScanStep = #StepNo;
+END_FUNCTION
+
+FUNCTION "FRK_SeqStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    StepNo : DInt;
+    StepName : String;
+    AwaitingLabel : String;
+    AwaitsPath : String;
+    TimeClass : DInt;
+    ExpectedTime : Time;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Row : "FRK_SequenceRow";
+END_VAR
+BEGIN
+    IF #Seq.RecordedStep <> #StepNo THEN
+        #Seq.Visit := #Seq.Visit + 1;
+        #Seq.Elapsed := T#0ms;
+        #Seq.DelayElapsed := T#0ms;
+        #Seq.RecordedStep := #StepNo;
+        #Seq.Warned := FALSE;
+    END_IF;
+    #Seq.Step := #StepNo;
+    #Seq.StepName := #StepName;
+    #Row.StepNo := #StepNo;
+    #Row.Visited := TRUE;
+    #Row.LastDuration := #Seq.Elapsed;
+    "FRK_SeqViewStep"(Owner := #Seq.OwnerIndex, StepNo := #StepNo + #Seq.ViewOffset,
+        Branch := #Seq.BranchIndex, Depth := #Seq.ViewDepth, Visit := #Seq.Visit, StepName := #StepName,
+        AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass,
+        ExpectedTime := #ExpectedTime, Elapsed := #Seq.Elapsed);
+END_FUNCTION
+
+FUNCTION "FRK_SeqAwait" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Label : String;
+    Ok : Bool;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    #FRK_SeqAwait := #Ok;
+    "FRK_SeqViewAwait"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+        Branch := #Seq.BranchIndex, Label := #Label, Ok := #Ok);
+    IF NOT #Ok AND NOT #Seq.Pending THEN
+        #Seq.Pending := TRUE;
+        #Seq.Awaiting := #Label;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqDelay" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Permit : Bool;
+    PT : Time;
+    Delta : Time;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    IF #Permit AND #Delta > T#0ms THEN #Seq.DelayElapsed := #Seq.DelayElapsed + #Delta; END_IF;
+    #FRK_SeqDelay := #Permit AND #Seq.DelayElapsed >= #PT;
+END_FUNCTION
+
+FUNCTION "FRK_SeqAdvance" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ok : Bool;
+    OnAdvance : DInt;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+END_VAR
+BEGIN
+    "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := #Ok, Jump1Ok := FALSE);
+    "FRK_SeqRoute"(Seq := #Seq, OnAdvance := #OnAdvance, OnJump1 := -1);
+END_FUNCTION
+
+FUNCTION "FRK_SeqLease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT TargetIndex : DInt; END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Lease : "ST_SequenceCommandLease";
+    Execute : Bool;
+    Abort : Bool;
+END_VAR
+VAR_TEMP Slot : Int; END_VAR
+BEGIN
+    IF #Lease.OwnerIndex = #Seq.OwnerIndex AND #Lease.ChainIndex = #Seq.ChainIndex AND #Lease.BranchIndex = #Seq.BranchIndex
+        AND #Lease.AbortIssued AND #Lease.ReleasedScan <> #Seq.Scan THEN
+        #Abort := FALSE; #Lease.AbortIssued := FALSE;
+    END_IF;
+    IF #Lease.Raised AND #Lease.OwnerIndex > 0 AND #Lease.ChainIndex > 0
+        AND #Lease.OwnerIndex = #Seq.OwnerIndex AND #Lease.ChainIndex = #Seq.ChainIndex
+        AND #Lease.BranchIndex = #Seq.BranchIndex THEN
+        IF NOT #Seq.Running OR #Seq.Error OR #Seq.Restart OR #Lease.Step <> #Seq.Step THEN
+            #Slot := "FRK_DiagSlot"(Index := #TargetIndex);
+            IF #Slot > 0 THEN
+                #Abort := "FRK_Diagnostics".Samples[#Slot].Valid AND "FRK_Diagnostics".Samples[#Slot].State = 1;
+                #Lease.AbortIssued := #Abort;
+            END_IF;
+            #Execute := FALSE;
+            #Lease.Raised := FALSE;
+            #Lease.ReleasedScan := #Seq.Scan;
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqCommand" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Value : DInt;
+    Label : String;
+    TargetIndex : DInt;
+    OwnFailure : Bool;
+END_VAR
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Lease : "ST_SequenceCommandLease";
+    Execute : Bool;
+    Command : DInt;
+END_VAR
+VAR_TEMP
+    WaitOk : Bool;
+    Summary : "FRK_DiagSummary";
+    WaitLabel : String[120];
+END_VAR
+BEGIN
+    #FRK_SeqCommand := FALSE;
+    IF NOT #Seq.Running OR #Seq.Error OR #Seq.OwnerIndex <= 0 OR #Seq.ChainIndex <= 0 THEN RETURN; END_IF;
+    "FRK_DiagRead"(Owner := #Seq.OwnerIndex, Target := #TargetIndex, Faults := TRUE, DescendantsOnly := FALSE, Summary := #Summary);
+    IF NOT #Summary.Valid THEN
+        #Seq.Error := TRUE;
+        #Seq.ErrorDiagnostic := "FRK_Diagnostics".Empty.Diagnostic;
+        #Seq.ErrorDiagnostic.ReasonCode := 2011;
+        #Seq.ErrorDiagnostic.Description := WSTRING#'std.error.hmiRequestRejected';
+        #Seq.ErrorDiagnostic.SourcePath := STRING_TO_WSTRING("FRK_DiagName"(Index := #Seq.OwnerIndex));
+        #Seq.ErrorDiagnostic.Severity := 1;
+        #Seq.ErrorDiagnostic.Since := "FRK_Now"();
+        "FRK_Rationalize"(Diag := #Seq.ErrorDiagnostic);
+        "FRK_SeqViewFail"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+            Branch := #Seq.BranchIndex, Diag := #Seq.ErrorDiagnostic);
+        #Execute := FALSE;
+        RETURN;
+    END_IF;
+    #WaitLabel := "FRK_DiagName"(Index := #TargetIndex);
+    #WaitLabel := CONCAT(IN1 := #WaitLabel, IN2 := '.');
+    #WaitLabel := CONCAT(IN1 := #WaitLabel, IN2 := #Label);
+    IF #Lease.Raised THEN
+        IF #Lease.OwnerIndex <> #Seq.OwnerIndex OR #Lease.ChainIndex <> #Seq.ChainIndex OR #Lease.BranchIndex <> #Seq.BranchIndex
+            OR #Lease.Step <> #Seq.Step OR #Command <> #Value THEN
+            // Another chain owns this command; never borrow its Done result.
+            #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := 'std.release.commandOwned', Ok := FALSE);
+            RETURN;
+        END_IF;
+        "FRK_SeqViewWatch"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+            Branch := #Seq.BranchIndex, Target := #TargetIndex, Waiting := #Summary.State <> 2, OwnFailure := #OwnFailure);
+        IF #Summary.Fault THEN
+            IF #OwnFailure THEN
+                #Seq.CommandFailed := TRUE;
+                #Seq.HandledDiagnostic := #Summary.Diagnostic;
+            ELSE
+                #Seq.Error := TRUE;
+                #Seq.ErrorDiagnostic := #Summary.Diagnostic;
+                "FRK_SeqViewNote"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+                    Branch := #Seq.BranchIndex, IsError := TRUE, Key := WSTRING_TO_STRING(#Summary.Diagnostic.Description), SourcePath := WSTRING_TO_STRING(#Summary.Diagnostic.SourcePath));
+            END_IF;
+            #Execute := FALSE;
+        ELSIF #Summary.State = 2 THEN
+            #FRK_SeqCommand := TRUE;
+        ELSE
+            #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #WaitLabel, Ok := FALSE);
+        END_IF;
+    ELSIF #Summary.State = 0 AND NOT #Summary.Fault AND #Lease.ReleasedScan <> #Seq.Scan THEN
+        #Lease.OwnerIndex := #Seq.OwnerIndex;
+        #Lease.ChainIndex := #Seq.ChainIndex;
+        #Lease.BranchIndex := #Seq.BranchIndex;
+        #Lease.Step := #Seq.Step;
+        #Lease.Raised := TRUE;
+        #Seq.CommandIssued := TRUE;
+        #Command := #Value;
+        #Execute := TRUE;
+        "FRK_SeqViewWatch"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+            Branch := #Seq.BranchIndex, Target := #TargetIndex, Waiting := TRUE, OwnFailure := TRUE);
+        #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #WaitLabel, Ok := FALSE);
+    ELSE
+        "FRK_SeqViewWatch"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+            Branch := #Seq.BranchIndex, Target := #TargetIndex, Waiting := TRUE, OwnFailure := TRUE);
+        #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #WaitLabel, Ok := FALSE);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqInitial" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT InitialStep : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    IF #Seq.Restart OR NOT #Seq.Running THEN #Seq.Step := #InitialStep; #Seq.ScanStep := #InitialStep; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqSubActive" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Run : Bool; StepNo : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    #FRK_SeqSubActive := #Run AND #Seq.Running AND NOT #Seq.Error AND #Seq.Step = #StepNo;
+END_FUNCTION
+
+FUNCTION "FRK_SeqSubStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Child : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    IF #Child.Error THEN #Seq.Error := TRUE; #Seq.ErrorDiagnostic := #Child.ErrorDiagnostic; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqReady" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Ok1 : Bool; Ok2 : Bool; Ok3 : Bool; Ok4 : Bool; Ok5 : Bool; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := #Ok1 AND #Ok2 AND #Ok3 AND #Ok4 AND #Ok5, Jump1Ok := FALSE);
+END_FUNCTION
+
+FUNCTION "FRK_SeqSelect" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT AdvanceOk : Bool; Jump1Ok : Bool; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    #Seq.RetVal := 0;
+    IF NOT #Seq.Running OR #Seq.Error THEN RETURN; END_IF;
+    IF #AdvanceOk THEN #Seq.RetVal := 1;
+    ELSIF #Jump1Ok THEN #Seq.RetVal := 2;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqHandled" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; ChildCore : "FRK_Core"; END_VAR
+BEGIN
+    // The owning step reports this occurrence through the closed AUTO_RESET
+    // path. Ordinary child faults retain their MANUAL_RESET capture.
+    IF #Seq.CommandFailed THEN #ChildCore.FaultHandled := TRUE; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqOwnerStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Core : "FRK_Core"; Status : "ST_ModuleStatus"; END_VAR
+BEGIN
+    IF #Core.Exec = 3 THEN
+        #Seq.Error := TRUE;
+        #Seq.ErrorDiagnostic := #Status.Diagnostic;
+    ELSIF #Seq.Error THEN
+        "FRK_AdoptFault"(Core := #Core, Status := #Status, Diag := #Seq.ErrorDiagnostic);
+    END_IF;
+    IF #Seq.Error AND #Seq.RecordedStep >= 0 THEN
+        "FRK_SeqViewNote"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+            Branch := #Seq.BranchIndex, IsError := TRUE, Key := WSTRING_TO_STRING(#Seq.ErrorDiagnostic.Description), SourcePath := WSTRING_TO_STRING(#Seq.ErrorDiagnostic.SourcePath));
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqRoute" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT OnAdvance : DInt; OnJump1 : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    IF NOT #Seq.Running OR #Seq.Error THEN RETURN; END_IF;
+    CASE #Seq.RetVal OF
+        1: IF #OnAdvance >= 0 THEN #Seq.Step := #OnAdvance; END_IF;
+        2: IF #OnJump1 >= 0 THEN #Seq.Step := #OnJump1; END_IF;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqOnce" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Enable : Bool; Token : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    #FRK_SeqOnce := #Enable AND #Seq.Running AND NOT #Seq.Error
+        AND (#Seq.EventVisit <> #Seq.Visit OR #Seq.EventToken <> #Token);
+    IF #FRK_SeqOnce THEN #Seq.EventVisit := #Seq.Visit; #Seq.EventToken := #Token; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqMessage" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Diag : "ST_Diagnostic"; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; Gone : Bool; END_VAR
+BEGIN
+    IF #Seq.Warned THEN RETURN; END_IF;
+    "FRK_SeqViewNote"(Owner := #Seq.OwnerIndex, StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+        Branch := #Seq.BranchIndex, IsError := FALSE, Key := WSTRING_TO_STRING(#Diag.Description), SourcePath := WSTRING_TO_STRING(#Diag.SourcePath));
+    #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+    IF #Slot > 0 THEN
+        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot);
+        #Seq.Warned := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_PartRecord" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RecordName : String; Value : LReal; Minimum : LReal; Maximum : LReal; Target : LReal; EngUnit : String; END_VAR
+VAR_IN_OUT Core : "FRK_Core"; Status : "ST_ModuleStatus"; Part : "ST_PartContext"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_PartRecord := FALSE;
+    IF NOT #Part.Present THEN RETURN; END_IF;
+    IF #RecordName = '' OR LEN(#RecordName) > 64 OR LEN(#EngUnit) > 16
+        OR #Minimum > #Maximum OR #Value <> #Value OR #Minimum <> #Minimum OR #Maximum <> #Maximum OR #Target <> #Target THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2023, Description := WSTRING#'std.error.partRecordRejected');
+        RETURN;
+    END_IF;
+    FOR #Index := 1 TO 32 DO
+        IF #Part.Result.Records[#Index].Name = #RecordName OR #Part.Result.Records[#Index].Name = '' THEN
+            #Part.Result.Records[#Index].Name := #RecordName;
+            #Part.Result.Records[#Index].Value := #Value;
+            #Part.Result.Records[#Index].Minimum := #Minimum;
+            #Part.Result.Records[#Index].Maximum := #Maximum;
+            #Part.Result.Records[#Index].Target := #Target;
+            #Part.Result.Records[#Index].Unit := #EngUnit;
+            #Part.Result.Records[#Index].InTol := #Value >= #Minimum AND #Value <= #Maximum;
+            #FRK_PartRecord := TRUE;
+            RETURN;
+        END_IF;
+    END_FOR;
+    "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2023, Description := WSTRING#'std.error.partRecordTableFull');
+END_FUNCTION

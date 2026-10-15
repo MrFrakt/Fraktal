@@ -1,0 +1,15 @@
+﻿FUNCTION "F_PressDemoWriteOutputs" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	
+	"GDB_PressDemoIO".RamExtend := "GDB_FraktalHal".Data.PressDemo.PressRam.CoilExtend;
+	"GDB_PressDemoIO".RamRetract := "GDB_FraktalHal".Data.PressDemo.PressRam.CoilRetract;
+	"GDB_PressDemoIO".DoorClose := "GDB_FraktalHal".Data.PressDemo.Door.CoilExtend;
+	"GDB_PressDemoIO".DoorRelease := "GDB_FraktalHal".Data.PressDemo.Door.CoilRetract;
+	"GDB_PressDemoIO".SlideExtend := "GDB_FraktalHal".Data.PressDemo.PartSlide.CoilExtend;
+	"GDB_PressDemoIO".SlideRetract := "GDB_FraktalHal".Data.PressDemo.PartSlide.CoilRetract;
+	
+END_FUNCTION
+

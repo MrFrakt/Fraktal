@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_PersistCommitAnchor" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 17 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistAnchors".SelectedB[#Slot] THEN
+	    "FRK_PersistAnchors".RowsA[#Slot] := "FRK_PersistRuntime".Anchor[#Slot];
+	ELSE
+	    "FRK_PersistAnchors".RowsB[#Slot] := "FRK_PersistRuntime".Anchor[#Slot];
+	END_IF;
+	"FRK_PersistAnchors".SelectedB[#Slot] := NOT "FRK_PersistAnchors".SelectedB[#Slot];
+	"FRK_PersistAnchors".Commissioned[#Slot] := TRUE;
+	
+END_FUNCTION
+

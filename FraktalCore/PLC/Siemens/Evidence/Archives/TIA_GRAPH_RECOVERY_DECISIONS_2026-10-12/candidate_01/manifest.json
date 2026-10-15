@@ -1,0 +1,436 @@
+{
+  "kind": "fraktal.tia.press.examples.v1",
+  "wired": false,
+  "definition": {
+    "schema_version": 1,
+    "invalid_step_reason": 10001,
+    "roles": [
+      "PressRam",
+      "Door",
+      "PartSlide"
+    ],
+    "chains": [
+      {
+        "name": "PressDemoAuto",
+        "chain_index": 1,
+        "loop": true,
+        "steps": [
+          {
+            "no": 0,
+            "label": "project.step.pressAutoInitialize",
+            "next": 100
+          },
+          {
+            "no": 100,
+            "label": "project.step.pressAwaitTwoHand",
+            "wait": [
+              "PartPresent",
+              "AirPressureOk",
+              "StartLatched"
+            ],
+            "next": 110
+          },
+          {
+            "no": 110,
+            "label": "project.step.pressRamUp",
+            "commands": [
+              [
+                "PressRam",
+                "RETRACT"
+              ]
+            ],
+            "next": 130
+          },
+          {
+            "no": 130,
+            "label": "project.step.pressDoorOpen",
+            "commands": [
+              [
+                "Door",
+                "RETRACT"
+              ]
+            ],
+            "next": 150
+          },
+          {
+            "no": 150,
+            "label": "project.step.pressSlideInside",
+            "commands": [
+              [
+                "PartSlide",
+                "EXTEND"
+              ]
+            ],
+            "next": 170
+          },
+          {
+            "no": 170,
+            "label": "project.step.pressTransferSettle",
+            "delay": "TransferSettleTime",
+            "next": 180
+          },
+          {
+            "no": 180,
+            "label": "project.step.pressDoorClose",
+            "commands": [
+              [
+                "Door",
+                "EXTEND"
+              ]
+            ],
+            "next": 200
+          },
+          {
+            "no": 200,
+            "label": "project.step.pressStroke",
+            "commands": [
+              [
+                "PressRam",
+                "EXTEND"
+              ]
+            ],
+            "next": 220
+          },
+          {
+            "no": 220,
+            "label": "project.step.pressDwell",
+            "delay": "PressSettleTime",
+            "hold_force": "PressRam",
+            "wait": [
+              "TwoHandHeld"
+            ],
+            "next": 240
+          },
+          {
+            "no": 240,
+            "label": "project.step.pressReturnRam",
+            "commands": [
+              [
+                "PressRam",
+                "RETRACT"
+              ]
+            ],
+            "next": 250
+          },
+          {
+            "no": 250,
+            "label": "project.step.pressReturnDoor",
+            "commands": [
+              [
+                "Door",
+                "RETRACT"
+              ]
+            ],
+            "next": 260
+          },
+          {
+            "no": 260,
+            "label": "project.step.pressReturnSlide",
+            "commands": [
+              [
+                "PartSlide",
+                "RETRACT"
+              ]
+            ],
+            "next": 999
+          },
+          {
+            "no": 999,
+            "label": "project.step.pressAutoComplete",
+            "cycle_end": true,
+            "next": 100
+          }
+        ]
+      },
+      {
+        "name": "PressDemoHome",
+        "chain_index": 2,
+        "loop": false,
+        "steps": [
+          {
+            "no": 0,
+            "label": "project.step.pressHomeInitialize",
+            "next": 900
+          },
+          {
+            "no": 900,
+            "label": "project.step.pressHomeRam",
+            "commands": [
+              [
+                "PressRam",
+                "RETRACT"
+              ]
+            ],
+            "next": 910
+          },
+          {
+            "no": 910,
+            "label": "project.step.pressHomeDoorAndSlide",
+            "commands": [
+              [
+                "Door",
+                "RETRACT"
+              ],
+              [
+                "PartSlide",
+                "RETRACT"
+              ]
+            ],
+            "next": 999
+          },
+          {
+            "no": 999,
+            "label": "project.step.pressHomeComplete",
+            "complete": true
+          }
+        ]
+      }
+    ],
+    "release": [
+      {
+        "name": "ModeStartAirPressureOk",
+        "all": [
+          "AirPressureOk"
+        ]
+      },
+      {
+        "name": "RamGuardClosed",
+        "all": [
+          "DoorClosed"
+        ]
+      },
+      {
+        "name": "RamSlideInside",
+        "all": [
+          "SlideInside"
+        ]
+      },
+      {
+        "name": "RamDevicesHealthy",
+        "all": [
+          "RamHealthy",
+          "DoorHealthy",
+          "SlideHealthy"
+        ]
+      },
+      {
+        "name": "RamAirPressureOk",
+        "all": [
+          "AirPressureOk"
+        ]
+      },
+      {
+        "name": "RamTwoHandHeld",
+        "all": [
+          "TwoHandHeld"
+        ]
+      }
+    ]
+  },
+  "generated": {
+    "00_000_ST_Diagnostic.udt": "835b5df9834c449b0c80d59095282aad9ef9f7cfe95867a9a031b4d2446051e9",
+    "00_001_ST_ModuleStatus.udt": "5d2f48c83c6435c7576d70345aaa1e3f33ff205e33ff5c698a1f62bc1b675a9b",
+    "00_002_ST_TimingRow.udt": "b4631634bd082c8fc71e3c1f9cb094e9ce77941a570054b89dfd09a33550df84",
+    "00_003_ST_ModuleTiming.udt": "3468f1a62c7b50a38db591a36248f810464d69052c7e9d0997bccca75d711eeb",
+    "00_004_ST_CylinderParCfg.udt": "1503aef87736aa3fccc7b730a4014e8a8d335e7cc27dcb674b90e1f91ea92b9f",
+    "00_005_ST_CylinderParCmd.udt": "c5eeaae5b2f889608e69f3452ce2728a81dda4cb3cf413a443f66dc8aec85f03",
+    "00_006_ST_CylinderOutCmd.udt": "a1034da21b97a1dba175324f6b3c57e7b31fa49114cc4be9a3a4c95266cd90be",
+    "00_007_ST_CylinderOutImm.udt": "d7628c3c87e71d010ecd446a0b25525541e184caf44e1a35a6034a9af04b9016",
+    "00_008_ST_SequenceCommandLease.udt": "f79e12df05fb156aa0146bd5eb8e1ae31280f937e2d7b70650cba5562d44a84c",
+    "00_009_ST_CylinderDevice.udt": "ab9adb58d0fe0c7b85b2f1f46cab3cc777bdcc879a7f0ababbc26edabc3d4f5e",
+    "00_010_ST_CylinderHal.udt": "cce422e6f22171dca590171739e6f2afcd336473f53b33d8759dccbce2b73e06",
+    "00_011_ST_PressDemoParCfg.udt": "7f5dd288c0097f7704c2c05211556f689cb6416d66f8013c33b4449aea91fc7b",
+    "00_012_ST_PressDemoParCmd.udt": "adfc6a421653147f5222a1a57747fe90e45945ff70aeabd66eb30392202e6f88",
+    "00_013_ST_PressDemoOutCmd.udt": "b9da13f55c94696abddc15b8dae1519901d096580c0ab2ad953a5a2ff9645303",
+    "00_014_ST_PressDemoOutImm.udt": "5ff0adc9da66eef2dd9c75a9d1782d562bcab476c7d05b7d920dfce3142d200e",
+    "00_015_ST_HmiRequest.udt": "e60cf0524e97f9d577f6344ce8f0df4187bfd0e8716364a521b7582e5f2a47d2",
+    "00_016_ST_ReleaseReason.udt": "ab21913a0b893a98e66362005598a9aaa1cd200c2427b8f8ed5be3a041431e57",
+    "00_017_ST_ReleaseReport.udt": "959e7c7a1be8b7d68d8a98e05eea4ee6b55bcd3fdefb3f7ac264b52a6535b360",
+    "00_018_ST_ConfigEntry.udt": "4c2ba73bca7d793b9f4a0947433de7e6a11bbf36123feec5e707569ad21bfe7c",
+    "00_019_ST_ConfigPage.udt": "4a831f3a1af7326dea468e4dd313f386495e3d81b55319c8f7984f0a9e7433b4",
+    "00_020_ST_HmiResponse.udt": "abe47cb85c6c1dca748a5309e04ad001ea8b70b7741e072624cde8c285276679",
+    "00_021_ST_ModePolicy.udt": "31c007c0227671490088ac9a6b65b20cc66ce35fcb2d83ad70d5f736e9f738dc",
+    "00_022_ST_AccessPolicy.udt": "cbaa283e5a92a3b9681a96a077ea980cd42008c2cb886c16ad113f3e3df62ee3",
+    "00_023_ST_MeasRecord.udt": "324b2437470d9318b54ff16778324d0a6b8d9c263141c6ec155300d252fc2b37",
+    "00_024_ST_PartResult.udt": "d41ee7082358ee50a8262666e4ff4588ed01ca3efe9de97380d354936be523ce",
+    "00_025_ST_PartContext.udt": "751bf9a261b40a77381ca9c6fbc3417870bf5479cd8508bc442fbe0cf27ec5b3",
+    "00_026_ST_UserRecord.udt": "2f168c71f93aa95f34fe441570cbbb33e9f2ac7e9368c526d1e8e68c92ea56cd",
+    "00_027_ST_AlarmEvent.udt": "6a29297eab77e7b855d80e16a45a2545b7f26a4e03ba710587e843c72abaac3a",
+    "00_028_ST_DecisionRequest.udt": "0ba0db687e96e08f25796f879377411c594e622e0237d7dc40c1649cd1457dfb",
+    "00_029_ST_PressDemoUnitHal.udt": "a6e8dce65f38053e47967483999bdce4f04b2ea9744f638496bd20219d6cb058",
+    "00_030_ST_FraktalHal.udt": "a09801ad11fbc0ebb28079868cfa9587c035ac2726da33fdb1d4fb61194558cc",
+    "00_031_ST_CommandInfo.udt": "d002d7bd0d4908f5738b2e6528b9636af5c232a5b49f32d04451b4d12ac68255",
+    "00_032_ST_StateFlag.udt": "e9349c8b4580741e336af3c3c0a6d607e7fb9622aec16d566cba64e3d90a77a0",
+    "01_FRK_RegistryRow.udt": "e0553040883d88e1f6c62a6fe2980f9495a8ee4bc0c5b092da67764d55bd7e05",
+    "04_FRK_Registry.db": "9002eac43e1d881c15d09cd4e53bdbc44a34caece5a11b6e68855f41c2bf2312",
+    "10_Registry.scl": "6e74b161d085d135ac4ade36ab7cce765aad7bda253342ef568c0b10174be7a8",
+    "20_000_FB_CylinderCM.scl": "81927832cb1a34b8f03e43ad5c4b7a24ac72190c3ea9834c3f518409c60f2e76",
+    "20_001_FB_PressDemoUnit.scl": "326d9e6dee10c0b00482233b6995f245b81ca41808a10114c8bf2312ef96a8a2",
+    "02_FRK_Core.udt": "1917acea557a5d6f9f90e621f8b023b26bed15e802b9bc61e7884d0b0d11adaa",
+    "03_FRK_Clock.db": "d57ec67dca249ec8e083ce99a738533daec11cc3ee9112efed69782d379a8608",
+    "12_CommandKernel.scl": "3ffc3c0b741ebb97c63e1be4d86d263a9dac2a535a12299793883ea062b6e7db",
+    "02_FRK_DecisionSlot.udt": "eda2bed3fef4e455c102f935f8c45c7da660489698730b258b8a6484807eaa15",
+    "05_FRK_Decisions.db": "e2f4de0680a76d8ce6945ae34d1752267a9663290d74eb9350ea7e1c9dbf91f0",
+    "02_FRK_Unit.udt": "f0f22e862ec42cdf69cc61ddb03a2e4eefae86ba4fcce19c93547459160958aa",
+    "02_FRK_Access.udt": "456309c2f0ea7b26aa37dc8281ac3d4bf2cd86290a640085b3d5f3f5f847ef15",
+    "02_FRK_Carrier.udt": "94b93ec2cfdea09fab0c91701196deece4587a8bedc0eb08d5fc87b0536bec6f",
+    "02_FRK_ManualConditionRow.udt": "1c33992f6abca42f490b6f5694014923ef8c0897b24989c4458a927fa5e4d62f",
+    "02_FRK_ConfigCursor.udt": "68095452230e9dd2a4e8cc8fff8160330c9dc563c78a373fca38dc7cb1db9a5e",
+    "05_FRK_Carriers.db": "96c2860a8a982eb31cff7757e170b216f987eb5a3ad3fb5f7b91ff20e592d68c",
+    "05_FRK_UnitScratch.db": "7de1386a9b7c2b001a34313c775f9db877883ae50014d240d9d8421160e1f9b8",
+    "02_FRK_AlarmLog.udt": "2597cdfdacf306a235c3e8d0c641fc7316a3ad1df232f18a1b224a4edecb88eb",
+    "13_UnitServices.scl": "d54e3cdc9e2d39b3dec8053a5f7f90f1d5a621e24de719d2df7023f414323bca",
+    "05_FRK_LocalUsers.db": "c027f037a9d18fd89c3d98a12df4d7c841b38c9130d949a779f8c10385045e86",
+    "12a_StateServices.scl": "6a0526aace7aac4b0eca801ad8f701b1bb950f26441c789a930a3e9d291d91c9",
+    "06_FRK_SequenceCtx.udt": "7257932a81627d8053a6d421da3f99e1e03988eeb37ecc8732ba9e0238bd40fe",
+    "06_FRK_SequenceRow.udt": "e2516debf3f76a92a1a719bcb93cd93889216c0826edf7cc5754304f7abe4f69",
+    "16_SequenceServices.scl": "5372d444eb0a052e621a4a9c561a11b60d3a708255477f2bb73e704aa17b6cdd",
+    "22_CylinderApi.scl": "31f634ea87542353a683ac2af2e68043d7d5459e240b9a8343b04969acab2e10",
+    "06_ST_PressDemoReleaseConditions.udt": "da40f4b3eb6bdb0cd956e933622fd31b4b97f4908efeccb8e87eaa94a2374f6f",
+    "06_FRK_PermCtx.udt": "ca8bc363b0ab6360f46207d7d60954fef567b9813a6162f49894acd73d9497fa",
+    "16_PermissiveServices.scl": "57511fce129bbe590a65940a033db09ddde6d8bbefa08e91c6721462d8937d6e",
+    "23_FB_PressDemoRelease.scl": "6eafc93345ee6a5cfa045b34d4e645dd5febde569cb4cb7397b995a48effe482",
+    "26_FB_LD_PressDemoRelease.xml": "424ed505d8ecf54cf87842ffbc4d2507ae1dfaf15ef28529c4f1f150458187ad",
+    "23_FB_PressDemoAuto.scl": "1f61d59831cd5016115604b4e0d9130a3d2ad1eb88863c2dad3c9db9df45daef",
+    "26_FB_LD_PressDemoAuto.xml": "a1e0ace33f36feece5230916720a60310dbb55adbc7311c9a43e3fe6624c1ca0",
+    "27_FB_SFC_PressDemoAuto.xml": "16fabe123a97501920631a14ced2d69667fc2cabbc03a000f1982e0c21aff40b",
+    "28_FB_PressDemoAutoGraphOwner.scl": "032a83a43649bb4fde803ab105c4202e3641b31d030cff78767bee22f5125e34",
+    "23_FB_PressDemoHome.scl": "b9bd355fb5c05174d076d8420c97841d8bd6a7e52251ef53505e4e6a2ba0c5fc",
+    "26_FB_LD_PressDemoHome.xml": "fb5a37ef1cc69f44d62cbaee8d023ea095b81946fd9f1e8f520846b17d2e9a52",
+    "27_FB_SFC_PressDemoHome.xml": "31991055b7513c32e17013f81ea46c58ba1b81a6a0e59f2c34b775ede5a95175",
+    "28_FB_PressDemoHomeGraphOwner.scl": "babb50c90fbd4ea864a153095c1a3bb059766197fca46fd2f8cb35032e6623a0"
+  },
+  "core_inputs": {
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_AccessLevel.TcDUT": "ec005e7f2c476e75593c253fb272f3ce673c40fcfafbaeda38c18653c1adf909",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_AlarmState.TcDUT": "e00b5fd6878f0a84c7b4aa18751c9c7581569f5f67a750967ea3a3cb6895fa34",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_AsciiLinkEvent.TcDUT": "0f4b102f7cea050f6d3a06497d321a5cd5b269c31e867a4aa9fa7016c38572b0",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ByteChannelState.TcDUT": "af4da21c976f9fcf5671835a180069fab203395cb8b29f7c2a66dd60690c19d9",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_CarrierKind.TcDUT": "b30f5f9f26bc3a062538435776e3b4d225de7953d453e97f1722f517579a26de",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_Category.TcDUT": "eca3f4eb3ee22bc87679f6459e47f29f6671ad376076d5d74a134ce4b10729c9",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ChannelDir.TcDUT": "0287f23a68d1d0c7a1b0df5f7207874508d61ce154dfbdf431dd6174bf8ed31a",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ChannelKind.TcDUT": "cfd6006ce9987dcc832fe6ce5e789a69796a52012b601646c0a70f600fb8f2b8",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_CommandStyle.TcDUT": "96ade0fcb1347ee1690ec6f2be5538b91170c32cb64cc089d8976db3764e43ec",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ConfigKind.TcDUT": "b3c94499b5b32f4da920395113b590611343187907247d6b6833c62318baee93",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ConfigRestorePolicy.TcDUT": "68e11d17737ba3ee69f103ada2ce890212f78a9647bfc3f4fa626e18e64481d6",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ConfigStorage.TcDUT": "c18672de31fc8c30ff3cf77e274bb8af16acf47f7a119f01d9f1c169ab688b45",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ConfigStore.TcDUT": "0940b0ab96d05018ec335927b39120a13877ca2d73588223c8a5ca4478eb7cb8",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ConfigValueType.TcDUT": "dc9362178ec484bdcfb1de0ebde2e28b5eb676bb876f845d7efb4d1d8809ef87",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_EngUnit.TcDUT": "7af4a79af76a55a9237763b4bef3a258105318e5e850fa4a7ade5fc63c7c2108",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ExecState.TcDUT": "01ece0d3356933634cd899d4535ab675bf40c836efe6c507e1d903d8ed5aba2b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_FieldbusLossReaction.TcDUT": "09fb99c642aea9f5537e717cd2b9dae8fb21e5852be4c6cbf9b53f9f681f9195",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_GatedAction.TcDUT": "269a831b47718da636ac534970ae3f5b1a12074505b0c9424b6c10fa89bcd44c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_HbResult.TcDUT": "9b675c1bc09076f2b3127199a5e17e9615b1f9fca28473e49d49008667770624",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_HmiRequestKind.TcDUT": "0e55e11663e0f8a2f5ea65a766b7d48d9f0af102f33a2356b937ecaa436fff8c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_HostEventKind.TcDUT": "c82a62e9214990addbf2e02d89b9e1182cf7a4e7e362bd7136398f10aee26a5b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_LineRole.TcDUT": "9fbe285413f375bd570712594c85feacd0055b3cc438b29991d2284183df3fc9",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_LinkReaction.TcDUT": "7ae009357a354cbce4991a9766459d6e02457c51fa03ffc8e21a6cb18f252866",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_MachineState.TcDUT": "5e3cbb61b2d85fee37ed3bb300451646eca7e00b3838a2a45303d15428eccda7",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_Mode.TcDUT": "ec09d628130da3d817f1847c7afe41a2dfb1835d466b191ab455ba8c878f42c6",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ModeSwitchShield.TcDUT": "3d59bc335a6ad922058dc346ddbbb70450cf06cd622873201465d85cd1d7629f",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ModeSwitchStyle.TcDUT": "6f4efdddb6fd8458ab4173d4ec74be90e4d78b20b02a8e0680279bbfae31eb5d",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ModuleType.TcDUT": "d556706b969f16f074ec642de56287b5a0b6b13a9183aa9db34762354130fade",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_NodeState.TcDUT": "5721fbc642dd5a22b97ce25a86cf57082b00269fc0c32f3a8323dac58eaf2e7c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_PowerGroupKind.TcDUT": "b4d0a6b7ac9b832eceadaaae21696b253dd1d34591a45c95a283785769ea5a33",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_PowerState.TcDUT": "7bb115500a8eea6d07e5b977f18882978c86dabf2c0e3d0fafa6a2d6a6fc7a21",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_Reason.TcDUT": "90ccc4d6e17f3128ab004219d2f6bc151c82e1aab11db834e76fc71366033ac5",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_RecipeSource.TcDUT": "5d74bace1f51566a304bf981db9512b24ba87bda62d885207b7b0adf087c1231",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ReleaseKind.TcDUT": "c5a89d33543b052fba2196c64bd0b8043ea441f49f791480f54ab003ad8b2588",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_ResetClass.TcDUT": "d0f6fda90c157cce3141d0e1861d5054d265b09be722e4e843807574713fcaaf",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_RunStyle.TcDUT": "0f1e9b28658cc154dfcf4990c1500e4969026f558d5efdb253c8d5af18949a15",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_SafetyDeviceKind.TcDUT": "ba9a82dbff267b29380db324a5333798e0a1524f1bcca021c1d1f080d79fcd37",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_SafetyState.TcDUT": "020dd1ae42bf4abb8481684703da1fd7d512adfdf51239b77418a95b7d3cf77a",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_Severity.TcDUT": "07486b798c365caa867fa32a791bc371cd0de925d635ae29a8640c4fddf29f8b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_StepResult.TcDUT": "87023c0f1a68e928b0863736a0fd4970cb051aed8c5dfe79cca0bb4153ba899c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_TimeClass.TcDUT": "1b17ccf93b434d18d6278dc7606ea602f3713bfcc6dd6b831e601764eb46f6f2",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/E_Verdict.TcDUT": "68fa4ab437aef2cd8d59b7d553b663d3bf4dc1c3874837a3e46af611d0d44f47",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_AccessImageV1.TcDUT": "8b427e09feb839454718f372240ccf8f59ebb4ba90cb067454d8e0bf2b5cbc69",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_AccessPolicy.TcDUT": "0591dcc1c494d77aaba5c2eae565a935fe43e28055f63e8adbd6d8d6f8554e0f",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_AlarmEvent.TcDUT": "7103fb3acab72f261a677c4a9ce488aedc352cd2b54fdb6f8c14492fb3a35215",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_AlarmMeta.TcDUT": "b5dad6856f2cbe722c836452cb3483e79f2aa7acf803fcecf92525e278e21433",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_BusNode.TcDUT": "de713e33ab1b38f7adc2ca3d69e365dc0988fdb17f9301f1e5a61ee26b2d7a22",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_CommandInfo.TcDUT": "a49212dd442979d01fd210801c62638d34e55c65a7e1a365e665154fcc129d6b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_CondRecord.TcDUT": "f8f267278b977925bd0beaacdcd4d4167d555e5eaae4aab4fb5ba3d9d53e73bf",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigAccess.TcDUT": "1c9dc5d641adc324b1b90b4fc9efe0e24fef50ffdd919355b968c22d222efa23",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigEntry.TcDUT": "3ec6905fe508d9193ee50a01e1db1c26e0b204fbf6a76bccf4222c87ea2850ac",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigFeatures.TcDUT": "65a436533201a4c19529247efb81d0a180947618dd24ddfd79dd5d8395483e06",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigPage.TcDUT": "ad3311c523bfa01cef545b399b9481b980731819bd20018b54c91cc521c8c464",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigPersistStatus.TcDUT": "650cab1bf58291263fab89e7ea9fc08330d8da6543f1c92ed9001128ca1c6acb",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigRecord.TcDUT": "e92ca53be48f2020d48b57c0970355e046722cba5179f73ea1877da044f64364",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigSetInfo.TcDUT": "3f53aacaea17110982c81c9702538adba0b4d555b177294a3702f69a3583d23b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ConfigWriteDef.TcDUT": "9eeb34d72bf16c3788d1d4604950fb233b3a2c4448483d10523c7f6c66c19c66",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ControlDomainStatus.TcDUT": "692d6e1ca08b0556888b974d74148cc5929f683a2909f3578ad3e9e3885c09a0",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ControlPowerStatus.TcDUT": "8755b132bc5e80c9e250d13f34456672e0e73271ab461ae44c22fda61509747f",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_CycleProfile.TcDUT": "aceab06caccbb3073cca063c818b1c002cdda1849970e488fcb59cdae01e3e99",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_CycleSummary.TcDUT": "5fa0b312245bff51c0f87cd7ac90549ce48ccc2b5d317f44c337e707fd76602e",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_DataClassPolicy.TcDUT": "4a8438414190b6d6624b8befb52bed04d65aeb5c47d006c135e5c3bf72be05b1",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_DecisionRequest.TcDUT": "eae7e96108cecba1b4f11eeb05eb6a0ec9b3d86c9b12b1162889e65d2e79e183",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_Diagnostic.TcDUT": "84b4a678b9b24751f6659f8c9605e93e240d30fd49b43be749080ad7f3e2029a",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_EngineeringGate.TcDUT": "900cbab80cd44095991531e92b1b4be6a71227f90db38abf6126058bd1e12d54",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_FieldbusTopology.TcDUT": "3fb4760aeafac002f07959b1559ce6e4eefaec233bce073a135d561915972776",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_HmiRequest.TcDUT": "47059ee7d7e597f98c45c3c585a1bba36042953e491a76710d0781e0d71415d6",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_HmiResponse.TcDUT": "cd9e8eea63c61dfca7c143f9eda6380122d65957b9f00c07dd52d36ea8ebd28b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_HostEvent.TcDUT": "541dc3d1807d22e906e2086edca8922ee5bcac29a632c1562dc95b68dd2908c1",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_IntlkCond.TcDUT": "5e2403914a66bed0e5aa9f2b4db0fbea4ef002f5776be26dc53a9fcdd3aba0b0",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_IoChannel.TcDUT": "a656137d4db9ceec1c24cbb0b78aad8624beb48c386f1a1c15f4151265e3e316",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_IoPointIdentity.TcDUT": "71a9cd948c2f19b6bb989b32b469b20db6624efb98dd103d4962fee08340b7fa",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LineDataOutCmd.TcDUT": "9b05044a647f4a884074bf20baeff7cfacccef4931f8c0096e721c6632a60186",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LineDataParCfg.TcDUT": "1e2b2f1961338e1a93312d1a91a4da9cbed502d3aaff4f8b60aa6759e5446e48",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LineDataParCmd.TcDUT": "39ebbb021d45b41a40d39239973939ce257c2ba00bfcf075408c00c652a16d6c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LineImage.TcDUT": "0e0e80ecb9badf970eeb8a447ba625afcb130de935035592effbf77f6649426f",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LineRecord.TcDUT": "b6ba119bddf5d2211341592101d14be2d41ea3aa5b4918225735fd36c5d0cc91",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LineStatus.TcDUT": "98bfb68ac63138468ff797b5d8963eec737aa39840e41affa09dbd59fbe8e0d3",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LocalRecipeCatalog.TcDUT": "270598fc6a0aa543d2619c552bd9b98a168909e533596b6d1ce6609c8e5e57f3",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_LocalRecipeRecord.TcDUT": "db3f631624aaa7273b21677b6f78796ab13615572fcc614502381a63631f6c46",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ManualEnableStatus.TcDUT": "f65faf20a686c2bd074b4d676485eff041f6f69e068cd6559f3c3ad083802b3c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_MeasRecord.TcDUT": "9acb27b3dc357be26205935c613c067ee03d920aa9501d2b921d8b26751643d1",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ModelField.TcDUT": "13dfd995525452ea24da96c84e1e9bdb9eb7ccedee843829df2f9966dfda017a",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ModelId.TcDUT": "6319bd89a616a4438d1e0f19c1b3e09358bb80c7990a21ae4c730fa971b0e6f5",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ModePolicy.TcDUT": "defc4f9480abf90a6feae0a94847283d386512eb5f109af107720246e4212823",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ModuleStatus.TcDUT": "6773f25e0744ae7dff7c6042cafaa06800427941d905490b774c461a0e9c7f4e",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ModuleTiming.TcDUT": "d995d8a0618b271e5248d88a8b54bcf0feaad4fd5e9c7b892ad9070e234fd0d2",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_Nameplate.TcDUT": "2c5b990e0f48186fe79c24b8a4839e4845d378b5f931a63b73bbe31f4926779b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_Oee.TcDUT": "80ea1117957a7007cd645e272b4ec9a9084cec845eb22e310f7d8cd0a3cc388e",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_OeeSample.TcDUT": "c6b0b35b2ca97b745a5c9dd1703a26b0ba9fc8d7a113e22b027e8006138e0045",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_PartContext.TcDUT": "126d12b8d15d155f831a6150c7f47f5f472ebfb9e821f386220dc5bb14fa7b14",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_PartResult.TcDUT": "be422ad862145c425abea0329d517073740da347f458384e722283df0f939e3b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_PersistResult.TcDUT": "68843379de53675c4f54cbbc5a9340ea4ce6dd743a226588815470944004634e",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_PowerGroupStatus.TcDUT": "2e498646886c59924755c878c6b0b612bb5bd5a2d413573ff1bc0553ce7801fb",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ReleaseReason.TcDUT": "a08ddebc00e63d3cbfb4447e86d8715e870674fb5977c09c1365c1dd590b049c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ReleaseReport.TcDUT": "207c65c2b9505d0f5b7255fdc7d0d64b8bdc1f389f6d8798df7fa2754341dc60",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_RetainDocument.TcDUT": "39298c1421b361f34578b983f8271cb7035a6c9db7b61dc0fccb9670de31d8e5",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SafetyDeviceStatus.TcDUT": "70e1e127403d09aebd0f9a4b2b65070af5d2bd1303b674c23829cd9daa76debe",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SafetyStatus.TcDUT": "43d7c107ea57e464eade276a8bb301109bdd75b97872a4a531ebc2bfc31f66c7",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SequenceAnnotation.TcDUT": "a93a756aef13f7226a36a4fb9cd4998ea5ae9d7bd1c45dc2fbf57cb651042ded",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SequenceCursor.TcDUT": "c014a26ef9867fb15cdf092e260794426807887e7b153f0cb3d9765c24b9792a",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SequenceStep.TcDUT": "2deb6cfc2e2aec7b89f9d51ec5188224a1037062b9b2c190f108649741502e7b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SequenceStepDef.TcDUT": "9be3439962d906ddb1c9896f300112185062f6f9b9ddbd6a094a63a16585e508",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ShiftCalendar.TcDUT": "97f1ff0a5629cc956a1e07766a29d81d5f3e0e6b2fc617f1708d7707d16bca4e",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ShiftCalendarV2.TcDUT": "67d9a39a02b950f20086cbcdd4031b478cff98cb5f39cf9346404528003ae53b",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ShiftCalendarV3.TcDUT": "81f0a0b062d6bbc753e860a51f7b14374e24f3b2fbc91885f2db0a4970801ee6",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ShiftRecord.TcDUT": "ecf9776fba9c509dd1c9ae3ef73001d334e8603b272d672fdcd57dbc9804278d",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ShiftRecordV3.TcDUT": "6589510dd1f971e7bddc97d46227659390147953778eb4a8949a2e470ce66706",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ShiftRowV2.TcDUT": "f84abf295cb96c0fd54c6d0e638a364157371e7a33c2098f498683e020412010",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_ShiftRowV3.TcDUT": "02af397fa2df8cabf7fb93999ab11ae6015354c85873c3ae1d8c53894689280e",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SignalTowerOut.TcDUT": "ee6d53becca252120959ef9eeded464da8af2a36340cc4be605f120e2cc6d375",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SignalTowerParCfg.TcDUT": "69902ac45ef777ef59e4ae0ea492fa3e0cdeae213cf5a23382f471558c09f051",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_StateFlag.TcDUT": "fe6776e2917039ea48b9a2f9b4711b3e92ddf700b8232c5e305d38c54fe12044",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_StepRecord.TcDUT": "63cae857cfd38dae45d560c67cbe9ee5fe8d870a41350388f1bfc20c34f0d4a6",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_StepTiming.TcDUT": "c57764b53f0407539728c21d900c396e1fe2036d2339c228a484a3c01af94589",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SystemHealthInput.TcDUT": "71c51c051e2c50c4cf74c58dba4ec1965107f746728b055ca633af1c84347710",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SystemHealthParCfg.TcDUT": "9950b0255293ac631a1a376d7ff78905bfaceccb7967fb6f37b72d005f33ae56",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_SystemHealthStatus.TcDUT": "c1a960b2ccba6dce0748899fbbbb8c88d0ebc9bb4f05cfa8b70cb03e53baef35",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpCodeReaderOutCmd.TcDUT": "ec6f8d9a29e0ec8cd284f092acb743491d1963a422188adace679a7a604c429c",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpCodeReaderOutImm.TcDUT": "efa3d1670bc44dc4fa64336bb0f244a4adb6e4693534869f149344504452dbe3",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpCodeReaderParCfg.TcDUT": "d33ee086a639b8fe3491ce68007b5c489511c81830521602ec359dd0560f535d",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpCodeReaderParCmd.TcDUT": "f165e70c509e4868946c99e23cea4d2b5a3ebbbc12ec5775ff09fed7806cba32",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpVisionOutCmd.TcDUT": "549d24eca91f4547de9bda7b442d9b328450c39ad90a9ee413be69b70fe4b236",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpVisionOutImm.TcDUT": "bbdfdd4d4acb529906f915ec2f7eb010e8c5eba529f03d72422b75f5f601b146",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpVisionParCfg.TcDUT": "9ed2511c52972624c389a867bbb5a5cb545c7036bad739b6c7f2f4af26c8e059",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcpVisionParCmd.TcDUT": "bd0350679f47cd062effa4ace751cfb41f81e6ec386448e9e316a1693d247267",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TcWindowsClockSampleV1.TcDUT": "d9c53df00f74500a6e91cff07cb44317b9942d9c7b350ae0280e15087cf71589",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TimeQuality.TcDUT": "a540fdd83bb74ce40c33253daafa4c4a2815e9c760edab3221ebea28cf62362f",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_TimingRow.TcDUT": "76e7ca78f3c6ffa5014e5ce0a31439cc84015b3d3ff2ab43925919e993b2d9cc",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/DUTs/ST_UserRecord.TcDUT": "6e0a328b1725504019014517e816facfbf7457876e15218de572c8c58205e03e",
+    "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/Params/PL_Fraktal.TcGVL": "f34262d94631551e1a50350a48d6b3fd8838025e28799eb044cbed2b496bb001"
+  }
+}

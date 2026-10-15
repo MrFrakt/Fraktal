@@ -1,0 +1,21 @@
+﻿FUNCTION "FRK_Capture_DeclarationCell" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Module : "FB_DeclarationCell";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_AlarmCapture"(AlarmLog := #AlarmLog,
+	                   Core := #Module.Core,
+	                   Status := #Module.Status);
+	"FRK_Capture_DeclarationCylinder"(Module := #Module.Clamp,
+	                                  AlarmLog := #AlarmLog);
+	"FRK_Capture_DeclarationCylinder"(Module := #Module.Gate,
+	                                  AlarmLog := #AlarmLog);
+	
+END_FUNCTION
+

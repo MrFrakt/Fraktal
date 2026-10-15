@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_AlarmHistoryClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.HistorySlot;
+	IF #Slot < 1 OR #Slot > 3 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 64 DO
+	    "FRK_AlarmHistory".Rows[#Slot].Ring[#Index] := "FRK_UnitScratch".EmptyEvent;
+	    "FRK_AlarmHistory".Rows[#Slot].EventCrc[#Index] := DWORD#0;
+	END_FOR;
+	"FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+	
+END_FUNCTION
+

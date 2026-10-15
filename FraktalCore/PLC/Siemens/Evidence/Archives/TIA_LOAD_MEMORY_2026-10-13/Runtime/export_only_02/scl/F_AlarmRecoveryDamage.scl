@@ -1,0 +1,59 @@
+﻿FUNCTION "F_AlarmRecoveryDamage" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	#Slot := "FRK_AlarmRecoveryIndex"(Scope := "GDB_AlarmRecoveryTest".Scope);
+	IF #Slot < 1 THEN
+	    RETURN;
+	END_IF;
+	"GDB_AlarmRecoveryTest".DamageApplied := "GDB_AlarmRecoveryTest".Damage <> 0;
+	CASE "GDB_AlarmRecoveryTest".Damage OF
+	    1:
+	        "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion := 99;
+	    2:
+	        "FRK_AlarmRecovery".Rows[#Slot].Scope := 'foreign';
+	    3:
+	        "FRK_AlarmRecovery".Rows[#Slot].Checksum := "FRK_AlarmRecovery".Rows[#Slot].Checksum XOR DWORD#1;
+	    4:
+	        "FRK_AlarmRecovery".Rows[#Slot].Active[1].Description := WSTRING#'damaged';
+	    5:
+	        IF "FRK_AlarmRecovery".Rows[#Slot].TimeBank[1] THEN
+	            "FRK_AlarmRecovery".Rows[#Slot].ElapsedAlt[1] := UDINT#4294967295;
+	        ELSE
+	            "FRK_AlarmRecovery".Rows[#Slot].Elapsed[1] := UDINT#4294967295;
+	        END_IF;
+	    6:
+	        IF "FRK_AlarmRecovery".Rows[#Slot].TimeBank[1] THEN
+	            "FRK_AlarmRecovery".Rows[#Slot].TimeCrcAlt[1] := "FRK_AlarmRecovery".Rows[#Slot].TimeCrcAlt[1] XOR DWORD#1;
+	        ELSE
+	            "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[1] := "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[1] XOR DWORD#1;
+	        END_IF;
+	    7:
+	        "FRK_AlarmRecovery".Rows[#Slot].Automatic[1] := NOT "FRK_AlarmRecovery".Rows[#Slot].Automatic[1];
+	    8:
+	        "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion := 0;
+	        "FRK_AlarmRecovery".Rows[#Slot].Scope := '';
+	        "FRK_AlarmRecovery".Rows[#Slot].Generation := 0;
+	        "FRK_AlarmRecovery".Rows[#Slot].Checksum := DWORD#0;
+	    9:
+	        "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := 17;
+	    10:
+	        "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := "FRK_AlarmRecovery".Rows[#Slot].PendingCrc XOR DWORD#1;
+	END_CASE;
+	"GDB_AlarmRecoveryTest".Damage := 0;
+	
+END_FUNCTION
+

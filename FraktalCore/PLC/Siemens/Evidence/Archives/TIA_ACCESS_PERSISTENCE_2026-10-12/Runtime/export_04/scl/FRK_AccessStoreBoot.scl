@@ -1,0 +1,32 @@
+﻿FUNCTION "FRK_AccessStoreBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Accepted : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	"FRK_AccessStorage".UsersReady := FALSE;
+	"FRK_AccessStorage".UsersLost := FALSE;
+	// A virgin image may accept deliberate composition-root provisioning.
+	IF "FRK_LocalUsers".SchemaVersion = 0 AND "FRK_LocalUsers".Generation = 0 AND "FRK_LocalUsers".Checksum = DWORD#0 THEN
+	    #Accepted := "FRK_AccessUsersCommit"();
+	    "FRK_AccessStorage".UsersLost := NOT #Accepted;
+	ELSIF "FRK_LocalUsers".SchemaVersion = 1 AND "FRK_LocalUsers".Generation > 0 AND "FRK_AccessUsersShape"() THEN
+	    "FRK_AccessStorage".UsersReady := "FRK_LocalUsers".Checksum = "FRK_AccessUsersCrc"();
+	    "FRK_AccessStorage".UsersLost := NOT "FRK_AccessStorage".UsersReady;
+	ELSE
+	    "FRK_AccessStorage".UsersLost := TRUE;
+	END_IF;
+	
+END_FUNCTION
+

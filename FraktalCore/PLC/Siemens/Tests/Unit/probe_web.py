@@ -13,14 +13,7 @@ from tia_webapi import WebApi, leaf_var
 from fraktal_tia_binding import Catalog
 
 
-def guard():
-    result=subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',
-        str(HERE.parents[1]/'Spikes/S12_TypeMap/simulator.ps1'),'-Action','status'],capture_output=True)
-    if result.returncode:raise RuntimeError('simulator identity unavailable')
-    status=json.loads(result.stdout.decode('utf-8-sig'))
-    if status['name']!='FrkS12' or status['cpu']!='CPU1516' or status['comm']!='TCPIP' or '169.254.212.49' not in status['addresses'] or any(status[k]!=0 for k in ('ie1','ie2','ie3')):
-        raise RuntimeError('isolated target guard failed')
-    return status
+from tia_target_guard import guard
 
 
 def probe(out):
@@ -56,8 +49,24 @@ def probe(out):
             wait(root+'.HmiResponse.AckSequence',seq)
             accepted=read(root+'.HmiResponse.Accepted')
             emit({'event':'ack','root':root,'kind':kind,'sequence':seq,'accepted':accepted,'diagnostic':read(root+'.HmiResponse.Diagnostic')})
+            if kind == 'LOGIN':
+                if not accepted:raise AssertionError('login attempt was not consumed')
+                wait(root+'.Access.LoginResultSequence',seq)
+                wait(root+'.Access.LoginBusy',False)
+                return not read(root+'.Access.LoginFailed') and read(root+'.Access.CurrentLevel')>0
             return accepted
         def set_input(**values):write_many({'GDB_UnitTest.'+name:value for name,value in values.items()})
+        def last_part_event():
+            # Operator access traces may follow a part event in the same scan.
+            # Inspect the newest canonical part record, rather than assuming the
+            # entire history ring contains only part events.
+            head=read('StationA.AlarmLog.RingHead')
+            reasons={catalog.enums['E_Reason'][name] for name in ('EVENT_PART_RECEIVED','EVENT_PART_PROCESSING_STARTED','EVENT_PART_PROCESSED','EVENT_PART_PROCESSING_ABORTED')}
+            for offset in range(catalog.capacities['MAX_ALARM_RING']):
+                slot=(head-1-offset)%catalog.capacities['MAX_ALARM_RING']+1
+                reason=read('StationA.AlarmLog.Ring[%d].ReasonCode'%slot)
+                if reason in reasons:return reason
+            return 0
         def reset(ready=True):
             check('reset accepted',request('StationA','OPERATOR_RESET'),True)
             if ready:wait('StationA.Status.State',0);wait('GDB_UnitTest.ChildState',0)
@@ -108,7 +117,7 @@ def probe(out):
             start();time.sleep(2.2)
             check('continuous run beyond timeout',read('StationA.RunningPublished'),True)
             check('part received present',read('StationA.Part.Present'),True)
-            check('canonical started event',read('GDB_UnitTest.LastEvent'),catalog.enums['E_Reason']['EVENT_PART_PROCESSING_STARTED'])
+            check('canonical started event',last_part_event(),catalog.enums['E_Reason']['EVENT_PART_PROCESSING_STARTED'])
             uid=read('StationA.Part.Uid')
             check('nonempty local uid',len(uid)>0,True)
             sequence=read('StationA.HmiRequest.Sequence')
@@ -118,7 +127,7 @@ def probe(out):
             check('good count once',read('StationA.GoodCount'),baseline_good+1)
             check('result provider uid',read('GDB_UnitTest.WrittenUid'),uid)
             check('result write once',read('GDB_UnitTest.CarrierWrites'),baseline_writes+1)
-            check('canonical processed event',read('GDB_UnitTest.LastEvent'),catalog.enums['E_Reason']['EVENT_PART_PROCESSED'])
+            check('canonical processed event',last_part_event(),catalog.enums['E_Reason']['EVENT_PART_PROCESSED'])
             check('part no longer present',read('StationA.Part.Present'),False)
             ack=read('StationA.HmiResponse.AckSequence')
             write_many({'StationA.HmiRequest.Kind':kinds['START'],'StationA.HmiRequest.Sequence':0})
@@ -134,7 +143,7 @@ def probe(out):
             check('home held by exit hook',read('StationA.ModeActivePublished'),modes['HOME'])
             set_input(ExitHold=False);wait('StationA.ModeActivePublished',modes['AUTO'])
             check('immediate cancel releases part',read('StationA.Part.Present'),False)
-            check('abort event',read('GDB_UnitTest.LastEvent'),catalog.enums['E_Reason']['EVENT_PART_PROCESSING_ABORTED'])
+            check('abort event',last_part_event(),catalog.enums['E_Reason']['EVENT_PART_PROCESSING_ABORTED'])
             mode('CHANGEOVER');start()
             check('blocked while running',request('StationA','SET_MODE',modes['AUTO']),False)
             stop_cycle();mode('AUTO')
@@ -155,7 +164,7 @@ def probe(out):
             set_input(FinishCycle=True);wait('StationA.ErrorID',catalog.enums['E_Reason']['CARRIER_WRITE_FAILED']);set_input(FinishCycle=False)
             check('failed write no good count',read('StationA.GoodCount'),good)
             check('failed write no provider result',read('GDB_UnitTest.CarrierWrites'),writes)
-            check('failed write abort event',read('GDB_UnitTest.LastEvent'),catalog.enums['E_Reason']['EVENT_PART_PROCESSING_ABORTED'])
+            check('failed write abort event',last_part_event(),catalog.enums['E_Reason']['EVENT_PART_PROCESSING_ABORTED'])
             reset();set_input(CarrierControl=1)
             set_input(CarrierControl=2)
             check('start read-failure attempt accepted',request('StationA','START'),True)

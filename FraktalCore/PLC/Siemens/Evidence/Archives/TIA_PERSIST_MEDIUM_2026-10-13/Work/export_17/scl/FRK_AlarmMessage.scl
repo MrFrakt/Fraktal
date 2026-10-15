@@ -1,0 +1,35 @@
+﻿FUNCTION "FRK_AlarmMessage" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Reason : DInt;
+      Description : WString;
+      SourcePath : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Diag : "ST_Diagnostic";
+      Slot : Int;
+      Gone : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	#Diag.ReasonCode := #Reason;
+	#Diag.Description := #Description;
+	#Diag.SourcePath := #SourcePath;
+	#Diag.Severity := 0;
+	#Diag.Category := 2;
+	#Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	IF #Slot > 0 THEN
+	    #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot);
+	END_IF;
+	
+END_FUNCTION
+

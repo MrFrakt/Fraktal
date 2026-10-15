@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_AccessCancel" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Access.LoginBusy := FALSE;
+	#Access.CandidateUser := '';
+	#Access.CandidateLevel := 0;
+	#Access.Round := 0;
+	FOR #Index := 0 TO 15 DO
+	    #Access.Salt[#Index] := 0;
+	END_FOR;
+	FOR #Index := 0 TO 31 DO
+	    #Access.Digest[#Index] := 0;
+	    #Access.Expected[#Index] := 0;
+	END_FOR;
+	
+END_FUNCTION
+

@@ -1,0 +1,7 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Sequence_Diagnostics_Press_Offline_20261014\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Diagnostics_20261014\press_04" --only "20_000_FB_CylinderCM.scl" --group "Framework/Modules/ControlModules/Cylinder"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Diagnostics_20261014\press_04" --only "29_FB_PressDemoUnit.scl" --group "Examples/PressDemo/01_PneumaticPress"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Diagnostics_20261014\press_04" --only "29_PersistQuiesce.scl" --group "Framework/Core"
+compile --plc PLC_1
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Diagnostics_20261014\press_export_final" --scl true
+save

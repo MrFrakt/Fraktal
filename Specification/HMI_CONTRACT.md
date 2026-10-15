@@ -249,7 +249,7 @@ one: `QUERY_CONFIG` and `WRITE_CONFIG` carry the chosen model in `DurationMs`
 (0 = running, n = `AvailableModels[n]`), and the card reads the record back after each
 accepted write because another model's values are not in the live tree. A query for
 another model answers with its model-scoped values only - normally one page - never the
-station manifest. `DurationMs` is 0 for every other value. Model data, station configuration and line data are separate
+station manifest. `DurationMs` is 0 for every other value. Model config, station config and line config are separate
 cards (`modelData`, `stationData`, `lineData`); a stored layout naming the former single
 `configuration` card expands to the three in place.
 
@@ -435,7 +435,7 @@ the first item in the system-health metrics row, before Task and Jitter.
 
 Connection ownership precedes the operator shell. On first use—or whenever settings exist but have never produced a `LIVE` repository state—the HMI **shall open a connection wizard**. Step 1 configures and proves the endpoint. After `LIVE` discovery, step 2 lists canonical root Unit repository paths and requires at least one Unit assignment for this HMI. The selected paths are saved locally and form both a display filter and a repository write boundary, including fieldbus branches through their channel-to-module paths; global connection status remains visible. `EverConnected` becomes true only after the repository is live and Unit assignment is complete; saving an endpoint alone is not proof.
 
-When settings have previously connected, startup goes directly to a full-screen **Connecting to PLC** view. The interactive HMI is not built while the repository is `CONNECTING`, `STALE`, or `DOWN`. A transition away from `LIVE` removes operator interaction immediately; commands are never queued or replayed across reconnection. After 30 seconds without `LIVE`, and not before, the view exposes **Edit connection settings**. A successful `LIVE` transition cancels that timer and opens the shell only if every saved Unit path is rediscovered; missing/renamed assignments return to step 2 fail-closed. An authenticated `ADMIN` may edit the Unit assignment later from the shell. Native settings use a local JSON file; Web uses browser local storage. Both are HMI-local connection configuration, not PLC recipe/station data.
+When settings have previously connected, startup goes directly to a full-screen **Connecting to PLC** view. The interactive HMI is not built while the repository is `CONNECTING`, `STALE`, or `DOWN`. A transition away from `LIVE` removes operator interaction immediately; commands are never queued or replayed across reconnection. After 30 seconds without `LIVE`, and not before, the view exposes **Edit connection settings**. A successful `LIVE` transition cancels that timer and opens the shell only if every saved Unit path is rediscovered; missing/renamed assignments return to step 2 fail-closed. An authenticated `ADMIN` may edit the Unit assignment later from the shell. Native settings use a local JSON file; Web uses browser local storage. Both are HMI-local connection configuration, not PLC recipe/station config.
 
 ## Access levels (§7.7) — how the Flutter client behaves
 
@@ -541,7 +541,7 @@ toward the good-part goal. Zero shows an unconfigured target and no progress
 bar; absent target leaves legacy binding presentation unchanged. The client
 never looks up today's calendar to assign targets to old records.
 
-Line configuration uses the normal `LINE_CFG` capability editor. For calendar
+Line config uses the normal `LINE_CFG` capability editor. For calendar
 V2, `line.shift.<1..MAX_SHIFTS>.activeDays` is an integer mask 0..127 rendered
 as seven translated weekday checkboxes, Monday bit 0 through Sunday bit 6.
 The controls use the selected interaction preset and shared inline spacing;

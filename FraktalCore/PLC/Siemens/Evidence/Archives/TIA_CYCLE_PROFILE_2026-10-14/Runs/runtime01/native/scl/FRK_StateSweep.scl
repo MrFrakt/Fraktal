@@ -1,0 +1,34 @@
+﻿FUNCTION "FRK_StateSweep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core 3.12: derived facts; owning frame resolves freshness every scan.
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Flags : Array[1..12] of "ST_StateFlag";
+      Count : Int;
+      Touched : Array[1..12] of Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Count < 0 OR #Count > 12 THEN
+	    #Count := 0;
+	END_IF;
+	FOR #Index := 1 TO #Count DO
+	    IF #Startup OR NOT #Touched[#Index] THEN
+	        #Flags[#Index].Value := FALSE;
+	        #Flags[#Index].Stale := TRUE;
+	    END_IF;
+	    #Touched[#Index] := FALSE;
+	END_FOR;
+	
+END_FUNCTION
+

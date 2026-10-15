@@ -1,0 +1,57 @@
+﻿FUNCTION "FRK_AlarmRecoveryStore" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      EventSlot : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Span : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.RecoverySlot;
+	IF #Slot < 1 OR #Slot > 2 OR #EventSlot < 1 OR #EventSlot > 16 THEN
+	    RETURN;
+	END_IF;
+	IF #AlarmLog.Active[#EventSlot].State <> 0 AND #AlarmLog.Active[#EventSlot].ResetClass = 1 THEN
+	    "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot] := #AlarmLog.Active[#EventSlot];
+	    "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot] := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Active[#EventSlot]);
+	    "FRK_AlarmRecovery".Rows[#Slot].Automatic[#EventSlot] := #AlarmLog.Automatic[#EventSlot];
+	    IF #AlarmLog.Active[#EventSlot].State = 1 THEN
+	        #Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #EventSlot);
+	    ELSE
+	        #Span := DINT_TO_UDINT(TIME_TO_DINT(#AlarmLog.Active[#EventSlot].Duration));
+	    END_IF;
+	    "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot] := #Span;
+	    "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot] := "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #EventSlot, Value := #Span, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot]);
+	ELSE
+	    IF "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot].State = 0 AND "FRK_AlarmRecovery".Rows[#Slot].PendingSlot <> #EventSlot THEN
+	        RETURN;
+	    END_IF;
+	    "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot] := "FRK_UnitScratch".EmptyEvent;
+	    "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot] := DWORD#0;
+	    "FRK_AlarmRecovery".Rows[#Slot].Automatic[#EventSlot] := FALSE;
+	    "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot] := 0;
+	    "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot] := DWORD#0;
+	    #AlarmLog.ElapsedBefore[#EventSlot] := 0;
+	    #AlarmLog.Recovering[#EventSlot] := FALSE;
+	END_IF;
+	IF "FRK_AlarmRecovery".Rows[#Slot].PendingSlot = #EventSlot THEN
+	    "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := 0;
+	    "FRK_AlarmRecovery".Rows[#Slot].PendingClosed := "FRK_UnitScratch".EmptyEvent;
+	    "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := DWORD#0;
+	    "FRK_AlarmRecovery".Rows[#Slot].PendingHead := 0;
+	    "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := 0;
+	END_IF;
+	"FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+	
+END_FUNCTION
+

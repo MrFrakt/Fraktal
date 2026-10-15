@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ConfigRecord" Id="{b70e4d19-52a8-4c31-9f6d-0a83e27c5d14}">
+    <Declaration><![CDATA[// Core §3.8b — ONE value inside a parameter set, keyed by (Scope, WriteKey).
+//
+// This is the type that makes §3.8b's central prohibition structural. A byte
+// image of a station's configuration - one aggregate memory-copied in and out -
+// SHALL NOT be used, because it reinterprets retained bytes silently when a type
+// changes, carries no per-value identity a file/database/MES can bind to, and
+// cannot reject one bad value without rejecting all of them. A set built from
+// these records has the opposite property on all three counts.
+//
+// Widths are not arbitrary: Scope is ST_ModuleStatus.Name, WriteKey is the
+// §3.10.2 mutation identity, and ValueText is capped at the same 80 characters
+// M_RegisterConfigWrite refuses to exceed for a text target - so a record can
+// always carry any value the write path would have accepted.
+TYPE ST_ConfigRecord :
+STRUCT
+    Scope     : STRING(80);    // owning module's canonical identity (= Status.Name)
+    WriteKey  : STRING(160);   // §3.10.2 mutation identity, scoped to that module
+    Revision  : UDINT;         // the capability revision the value was taken at
+    Kind      : E_ConfigKind;
+    ValueType : E_ConfigValueType;
+    ValueText : STRING(80);    // serialized exactly as a WRITE_CONFIG would carry it
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

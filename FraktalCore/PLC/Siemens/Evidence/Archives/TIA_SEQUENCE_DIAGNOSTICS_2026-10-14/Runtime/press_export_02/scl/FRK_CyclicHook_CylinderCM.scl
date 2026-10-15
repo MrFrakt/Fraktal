@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_CyclicHook_CylinderCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Device : "ST_CylinderDevice";
+      Hal : "ST_CylinderHal";
+      Held : Bool;
+      OutImm : "ST_CylinderOutImm";
+      ParCfg : "ST_CylinderParCfg";
+      StateFlagCount : Int;
+      StateFlags : Array[1..12] of "ST_StateFlag";
+      StateTouched : Array[1..12] of Bool;
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	// Apply the SAME live permit to latched coils after completion as while BUSY.
+	#Hal.CoilExtend := #Device.Direction = 1 AND #Hal.ExtendPermit
+	AND NOT #Device.Withdrawn AND #Core.Exec <> 3 AND #Core.Exec <> 4;
+	#Hal.CoilRetract := #Device.Direction = 2 AND #Hal.RetractPermit
+	AND NOT #Device.Withdrawn AND #Core.Exec <> 3 AND #Core.Exec <> 4;
+	#OutImm.Extended := "FRK_State"(Idx := 1, Key := 'module.state.extended',
+	                                Ok := #Device.Extended, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+	#OutImm.Retracted := "FRK_State"(Idx := 2, Key := 'module.state.retracted',
+	                                 Ok := #Device.Retracted, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+	
+	"FRK_DiagSync"(Index := #Core.RegIndex,
+	               Withdraw := FALSE,
+	               Status := #Status,
+	               Held := #Held,
+	               Timeout := #ParCfg.Timeout,
+	               ActiveTimeoutMs := #Core.TimeoutMs);
+	
+END_FUNCTION
+

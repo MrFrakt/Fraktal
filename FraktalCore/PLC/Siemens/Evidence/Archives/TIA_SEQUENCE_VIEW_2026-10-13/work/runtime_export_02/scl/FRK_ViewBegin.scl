@@ -1,0 +1,66 @@
+﻿FUNCTION "FRK_ViewBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Clear : Bool;
+      ResetErrors : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Defs : Array[*] of "ST_SequenceStepDef";
+      Rows : Array[*] of "ST_SequenceStep";
+      Cursors : Array[*] of "ST_SequenceCursor";
+      Notes : Array[*] of "ST_SequenceAnnotation";
+      Count : Int;
+      NoteCount : Int;
+      Current : "ST_StepRecord";
+      Book : "FRK_ViewBook";
+      Touched : Array[*] of Bool;
+      Depths : Array[*] of Int;
+      Visits : Array[*] of UDInt;
+      Enabled : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Enabled := TRUE;
+	#Current := "FRK_ViewScratch".Step;
+	#Book.CondIndex := 0;
+	FOR #Index := LOWER_BOUND(ARR := #Cursors, DIM := 1) TO UPPER_BOUND(ARR := #Cursors, DIM := 1) DO
+	    #Touched[#Index] := FALSE;
+	    #Depths[#Index] := -1;
+	    IF #Clear THEN
+	        #Cursors[#Index] := "FRK_ViewScratch".Cursor;
+	    END_IF;
+	END_FOR;
+	IF #Clear THEN
+	    FOR #Index := 1 TO UPPER_BOUND(ARR := #Rows, DIM := 1) DO
+	        #Defs[#Index] := "FRK_ViewScratch".Def;
+	        #Rows[#Index] := "FRK_ViewScratch".Row;
+	        #Visits[#Index] := 0;
+	    END_FOR;
+	    FOR #Index := 1 TO UPPER_BOUND(ARR := #Notes, DIM := 1) DO
+	        #Notes[#Index] := "FRK_ViewScratch".Note;
+	    END_FOR;
+	    #Count := 0;
+	    #NoteCount := 0;
+	    #Book.Overflow := FALSE;
+	    #Book.Dirty := TRUE;
+	    #Book.ChangedMs := "FRK_Clock".NowMs;
+	ELSIF #ResetErrors THEN
+	    FOR #Index := 1 TO #Count DO
+	        #Rows[#Index].ErrorActive := FALSE;
+	    END_FOR;
+	    "FRK_ViewClearNotes"(RowIdx := 0,
+	                         IsError := TRUE,
+	                         Notes := #Notes,
+	                         NoteCount := #NoteCount);
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,10 @@
+# One-time S12 station, isolated virtual Ethernet; keep its engineering state.
+create-project --dir ${work} --name FrkS12
+add-device --order "OrderNumber:6ES7 516-3AP03-0AB0/V3.0" --name PLC_1 --station S71500_TypeMap
+set-ip --plc PLC_1 --ip 169.254.212.49 --mask 255.255.0.0
+master-secret --plc PLC_1 --mode none
+service-set --plc PLC_1 --service PlcAccessLevelProvider --prop PlcProtectionAccessLevel --value FullAccess
+project-set --prop IsSimulationDuringBlockCompilationEnabled --value true
+hw-attributes --plc PLC_1 --filter Web
+service-get --plc PLC_1 --service WebserverUserManagement
+save

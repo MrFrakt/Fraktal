@@ -1,0 +1,118 @@
+﻿FUNCTION "FRK_CfgDef_InnerUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      FieldIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;
+	CASE #FieldIndex OF
+	    1:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'timeout';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'ParCfg/Timeout';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 0;
+	        "FRK_ConfigScratch".Entry.ValueType := 3;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+	        "FRK_ConfigScratch".Entry.Minimum := 1.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 60000.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'test.config.timeout';
+	        "FRK_ConfigScratch".Storage := 7;
+	        "FRK_ConfigScratch".Schema := 4;
+	        "FRK_ConfigScratch".Minimum := 1.0;
+	        "FRK_ConfigScratch".Maximum := 60000.0;
+	        "FRK_ConfigScratch".MaxLength := 0;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 0;
+	    2:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'preset';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#2;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'ParCfg/Preset';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 0;
+	        "FRK_ConfigScratch".Entry.ValueType := 0;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+	        "FRK_ConfigScratch".Entry.Minimum := 0.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 1000.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+	        "FRK_ConfigScratch".Storage := 3;
+	        "FRK_ConfigScratch".Schema := 4;
+	        "FRK_ConfigScratch".Minimum := 0.0;
+	        "FRK_ConfigScratch".Maximum := 1000.0;
+	        "FRK_ConfigScratch".MaxLength := 0;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 1;
+	    3:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'siteLabel';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/SiteLabel';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 1;
+	        "FRK_ConfigScratch".Entry.ValueType := 1;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+	        "FRK_ConfigScratch".Entry.Minimum := 0.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 1.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'test.config.siteLabel';
+	        "FRK_ConfigScratch".Storage := 8;
+	        "FRK_ConfigScratch".Schema := 2;
+	        "FRK_ConfigScratch".Minimum := 0.0;
+	        "FRK_ConfigScratch".Maximum := 1.0;
+	        "FRK_ConfigScratch".MaxLength := 80;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 1;
+	    4:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/LongText';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 1;
+	        "FRK_ConfigScratch".Entry.ValueType := 1;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+	        "FRK_ConfigScratch".Entry.Minimum := 0.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 1.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'test.config.siteLabel';
+	        "FRK_ConfigScratch".Storage := 8;
+	        "FRK_ConfigScratch".Schema := 2;
+	        "FRK_ConfigScratch".Minimum := 0.0;
+	        "FRK_ConfigScratch".Maximum := 1.0;
+	        "FRK_ConfigScratch".MaxLength := 80;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 1;
+	    5:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'enabled';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/Enabled';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 1;
+	        "FRK_ConfigScratch".Entry.ValueType := 2;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+	        "FRK_ConfigScratch".Entry.Minimum := 0.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 1.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'test.config.enabled';
+	        "FRK_ConfigScratch".Storage := 1;
+	        "FRK_ConfigScratch".Schema := 2;
+	        "FRK_ConfigScratch".Minimum := 0.0;
+	        "FRK_ConfigScratch".Maximum := 1.0;
+	        "FRK_ConfigScratch".MaxLength := 0;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 0;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

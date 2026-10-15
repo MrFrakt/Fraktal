@@ -1,0 +1,71 @@
+// Fraktal/TIA Phase 0 fixture S2 - CPU-wide framework data.
+
+// FRK_Clock: the one timing source (Part IV s.8.11), advanced once per scan by
+// FRK_ClockTick from RUNTIME. Not published.
+DATA_BLOCK "FRK_Clock"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR
+      NowMs : UDInt;               // monotonic milliseconds, wraps at 2^32
+      AccMs : LReal;               // sub-millisecond accumulator
+      Mem : LReal;                 // RUNTIME memory
+      FirstScan : Bool;            // set from OB1 Initial_Call, consumed by roots
+      Scans : UDInt;
+      CycleMs : Real;
+      MaxCycleMs : Real;
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+
+// FRK_Registry: bounded module rows (Part IV s.3.2). Row 0 = none.
+DATA_BLOCK "FRK_Registry"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR
+      Count : Int;
+      Overflow : Bool;
+      Rows : Array[0..15] of "FRK_RegistryRow";
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+
+// SpkHal: the fixture's HAL records, written by the sim plant and the Unit's CMs.
+DATA_BLOCK "SpkHal"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR
+      Unit : "ST_SpkUnitHal";
+      BlockA : Bool;               // sim plant: withhold CylA end-position feedback
+      BlockB : Bool;
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+
+// SpkResults: self-test rows. NON-optimized on purpose: the bench harvest path
+// receives it by byte offset from FB_SpkResultServer over TCP (Part IV s.5.7). Test projects only.
+// Layout of T (offset 0): Magic DInt @0, Done Bool @4.0, Passed Int @6,
+// Failed Int @8, RowCount Int @10, Rows[1..32] @12, 12 bytes each = 396 bytes.
+DATA_BLOCK "SpkResults"
+{ S7_Optimized_Access := 'FALSE' }
+VERSION : 0.1
+NON_RETAIN
+   STRUCT
+      T : "FRK_TestTable";   // one member, so TSEND_C can send it as one VARIANT
+   END_STRUCT;
+
+
+BEGIN
+
+END_DATA_BLOCK

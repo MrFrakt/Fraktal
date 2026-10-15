@@ -202,8 +202,8 @@ Commands:
   open-project   --path P.ap20
   add-device     --order ""OrderNumber:6ES7 214-1AG40-0XB0/V4.7"" --name PLC_1 [--station S]
   set-ip         --plc PLC_1 --ip 192.168.0.10 [--mask 255.255.255.0] [--item <interface>]   (Ethernet nodes only)
-  import-sources --plc PLC_1 --dir D [--keep-on-error]      (*.udt, *.scl, *.db in name order)
-  import-xml     --plc PLC_1 --file F.xml [--kind block|type|tags]
+  import-sources --plc PLC_1 --dir D [--group A/B] [--keep-on-error] (sources in name order)
+  import-xml     --plc PLC_1 --file F.xml [--kind block|type|tags] [--group A/B]
   delete-blocks  --plc PLC_1                                  (program blocks + types + sources)
   compile        --plc PLC_1 [--hw]
   interfaces     --plc PLC_1 [--scan]
@@ -217,6 +217,7 @@ Commands:
   cax-export     --plc PLC_1 --out F.aml                      hardware configuration as AutomationML
   set-hw-attribute --plc PLC_1 [--item name] --attr A --value V [--type int|uint|long|bool|string]  (--type: write without reading)
   list-blocks    --plc PLC_1
+  list-groups    --plc PLC_1                              recursive block/type paths
   set-block-number --plc PLC_1 --name B --number N
   create-block   --plc PLC_1 --name B --lang GRAPH|SCL|FBD|LAD [--number N]   (an empty FB; export it for the format)
   project-get    [--filter fragment]                           public properties of the open project
@@ -298,6 +299,7 @@ Commands:
                 case "hw-attributes": return HwAttributes(a);
                 case "set-hw-attribute": return SetHwAttribute(a);
                 case "list-blocks": return ListBlocks(a);
+                case "list-groups": return ListGroups(a);
                 case "set-block-number": return SetBlockNumber(a);
                 case "create-block": return CreateBlock(a);
                 case "project-get": return ProjectGet(a);
@@ -406,7 +408,11 @@ Commands:
                 var source = plc.ExternalSourceGroup.ExternalSources.CreateFromFile(file.Name, file.FullName);
                 try
                 {
-                    source.GenerateBlocksFromSource(option);
+                    var group = a.Get("group", null);
+                    if (string.IsNullOrEmpty(group)) source.GenerateBlocksFromSource(option);
+                    else if (file.Extension.Equals(".udt", StringComparison.OrdinalIgnoreCase))
+                        source.GenerateBlocksFromSource(TypeUserGroup(plc, group), option);
+                    else source.GenerateBlocksFromSource(BlockUserGroup(plc, group), option);
                     Log.Emit("source-generated", ("file", file.Name), ("sha256", Hash(file)));
                 }
                 catch (Exception ex)
@@ -438,7 +444,7 @@ Commands:
             switch (a.Get("kind", "block"))
             {
                 case "type":
-                    foreach (var t in plc.TypeGroup.Types.Import(file, ImportOptions.Override))
+                    foreach (var t in (string.IsNullOrEmpty(a.Get("group", null)) ? plc.TypeGroup.Types : TypeUserGroup(plc, a.Get("group", null)).Types).Import(file, ImportOptions.Override))
                         Log.Emit("type-imported", ("name", t.Name));
                     break;
                 case "tags":
@@ -446,7 +452,7 @@ Commands:
                         Log.Emit("tagtable-imported", ("name", t.Name));
                     break;
                 default:
-                    foreach (var b in plc.BlockGroup.Blocks.Import(file, ImportOptions.Override))
+                    foreach (var b in (string.IsNullOrEmpty(a.Get("group", null)) ? plc.BlockGroup.Blocks : BlockUserGroup(plc, a.Get("group", null)).Blocks).Import(file, ImportOptions.Override))
                         Log.Emit("block-imported", ("name", b.Name), ("language", b.ProgrammingLanguage.ToString()));
                     break;
             }
@@ -459,6 +465,7 @@ Commands:
             foreach (var b in plc.BlockGroup.Blocks.ToList()) { Log.Emit("block-deleted", ("name", b.Name)); b.Delete(); }
             foreach (var g in plc.BlockGroup.Groups.ToList()) { Log.Emit("group-deleted", ("name", g.Name)); g.Delete(); }
             foreach (var t in plc.TypeGroup.Types.ToList()) { Log.Emit("type-deleted", ("name", t.Name)); t.Delete(); }
+            foreach (var group in plc.TypeGroup.Groups.ToList()) { Log.Emit("group-deleted", ("kind", "types"), ("name", group.Name)); group.Delete(); }
             foreach (var s in plc.ExternalSourceGroup.ExternalSources.ToList()) s.Delete();
             return 0;
         }
@@ -625,7 +632,7 @@ Commands:
                 if (b is IGenerateSource g && b.ProgrammingLanguage == ProgrammingLanguage.SCL) generators.Add(g);
                 if (b is IGenerateSource gd && b is DataBlock) generators.Add(gd);
             }
-            foreach (var t in plc.TypeGroup.Types)
+            foreach (var t in AllTypes(plc.TypeGroup))
             {
                 if (!t.IsConsistent)
                 {
@@ -1178,6 +1185,80 @@ Commands:
             foreach (var b in group.Blocks) yield return b;
             foreach (var g in group.Groups)
                 foreach (var b in AllBlocks(g)) yield return b;
+        }
+
+        private static IEnumerable<PlcType> AllTypes(PlcTypeGroup group)
+        {
+            foreach (var type in group.Types) yield return type;
+            foreach (var child in group.Groups)
+                foreach (var type in AllTypes(child)) yield return type;
+        }
+
+        private static string[] GroupSegments(string path)
+        {
+            var segments = path.Split('/');
+            if (segments.Length == 0 || segments.Any(segment => string.IsNullOrWhiteSpace(segment)
+                || segment == "." || segment == ".." || segment.IndexOf('\\') >= 0))
+                throw new ArgumentException("Group must be a nonempty slash-separated logical path");
+            return segments;
+        }
+
+        private static PlcBlockUserGroup BlockUserGroup(PlcSoftware plc, string path)
+        {
+            var segments = GroupSegments(path);
+            PlcBlockGroup current = plc.BlockGroup;
+            foreach (var segment in segments)
+            {
+                var found = current.Groups.Find(segment);
+                if (found == null)
+                {
+                    found = current.Groups.Create(segment);
+                    Log.Emit("group-created", ("kind", "blocks"), ("path", path), ("name", segment));
+                }
+                current = found;
+            }
+            return (PlcBlockUserGroup)current;
+        }
+
+        private static PlcTypeUserGroup TypeUserGroup(PlcSoftware plc, string path)
+        {
+            var segments = GroupSegments(path);
+            PlcTypeGroup current = plc.TypeGroup;
+            foreach (var segment in segments)
+            {
+                var found = current.Groups.Find(segment);
+                if (found == null)
+                {
+                    found = current.Groups.Create(segment);
+                    Log.Emit("group-created", ("kind", "types"), ("path", path), ("name", segment));
+                }
+                current = found;
+            }
+            return (PlcTypeUserGroup)current;
+        }
+
+        private int ListGroups(Args args)
+        {
+            var plc = Plc(args);
+            ListBlockGroups(plc.BlockGroup, "");
+            ListTypeGroups(plc.TypeGroup, "");
+            return 0;
+        }
+
+        private static void ListBlockGroups(PlcBlockGroup group, string path)
+        {
+            foreach (var block in group.Blocks)
+                Log.Emit("group-member", ("kind", "block"), ("path", path), ("name", block.Name), ("language", block.ProgrammingLanguage.ToString()));
+            foreach (var child in group.Groups)
+                ListBlockGroups(child, path.Length == 0 ? child.Name : path + "/" + child.Name);
+        }
+
+        private static void ListTypeGroups(PlcTypeGroup group, string path)
+        {
+            foreach (var type in group.Types)
+                Log.Emit("group-member", ("kind", "type"), ("path", path), ("name", type.Name));
+            foreach (var child in group.Groups)
+                ListTypeGroups(child, path.Length == 0 ? child.Name : path + "/" + child.Name);
         }
 
         // ---- device lookup -------------------------------------------------------

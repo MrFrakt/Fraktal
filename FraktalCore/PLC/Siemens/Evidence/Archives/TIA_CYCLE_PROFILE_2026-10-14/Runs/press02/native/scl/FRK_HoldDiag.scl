@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_HoldDiag" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Diag : "ST_Diagnostic";
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Core.Exec <> 1 THEN
+	    RETURN;
+	END_IF;
+	#Status.Diagnostic := #Diag;
+	#Status.Diagnostic.Severity := 0;
+	#Core.HoldReq := TRUE;
+	#Core.HoldReason := #Diag.ReasonCode;
+	#Core.DiagTouched := TRUE;
+	
+END_FUNCTION
+

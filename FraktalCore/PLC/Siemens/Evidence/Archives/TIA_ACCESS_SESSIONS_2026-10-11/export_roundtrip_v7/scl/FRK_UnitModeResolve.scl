@@ -1,0 +1,41 @@
+﻿FUNCTION "FRK_UnitModeResolve" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Policy : Array[0..6] of "ST_ModePolicy";
+      Timeout : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Unit.ModePending THEN
+	    IF #Timeout <= T#0ms OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Unit.ModeSince) >= DINT_TO_UDINT(TIME_TO_DINT(#Timeout)) THEN
+	        "FRK_Fault"(Core := #Core,
+	                    Status := #Status,
+	                    ReasonCode := 2001,
+	                    Description := WSTRING#'std.error.hmiRequestRejected');
+	        #Unit.ModePending := FALSE;
+	        #Unit.FollowStart := FALSE;
+	        #Unit.ReleaseChildren := TRUE;
+	        #Unit.Clearing := TRUE;
+	    ELSIF #Core.EvModeExit THEN
+	        #Unit.ExitFirst := FALSE;
+	        IF #Policy[#Unit.Mode].Style = 0 THEN
+	            #Unit.StopReq := TRUE;
+	        ELSIF #Core.HookResult <= 0 THEN
+	            #Unit.AbortReq := TRUE;
+	            #Unit.ReleaseChildren := TRUE;
+	            #Unit.Clearing := TRUE;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

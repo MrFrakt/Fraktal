@@ -1,0 +1,57 @@
+﻿FUNCTION "FRK_SetCheck" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Scope : String;
+      Access : "FRK_Access";
+      Ready : Bool;
+      WriteAccess : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetCheck := 0;
+	"FRK_SetRuntime".Work[#RootIndex].RejectScope := #Scope;
+	"FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	#Index := "FRK_SetRecord"(RootIndex := #RootIndex, Scope := #Scope, WriteKey := "FRK_ConfigScratch".Entry.WriteKey);
+	IF #Index = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN
+	    RETURN;
+	END_IF;
+	IF #WriteAccess THEN
+	    IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite) THEN
+	        RETURN;
+	    END_IF;
+	    IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Revision <> "FRK_ConfigScratch".Entry.WriteRevision
+	    OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Kind <> "FRK_ConfigScratch".Entry.ConfigKind
+	    OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueText), Storage := "FRK_ConfigScratch".Storage,
+	                          Minimum := "FRK_ConfigScratch".Minimum, Maximum := "FRK_ConfigScratch".Maximum, MaxLength := "FRK_ConfigScratch".MaxLength, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	// Existing keyed slots are reserved before commit: commit cannot allocate.
+	IF #WriteAccess AND "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := TRUE;
+	"FRK_SetRuntime".Work[#RootIndex].Matched := "FRK_SetRuntime".Work[#RootIndex].Matched + 1;
+	#FRK_SetCheck := #Index;
+	
+END_FUNCTION
+

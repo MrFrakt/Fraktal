@@ -1,0 +1,56 @@
+﻿FUNCTION "FRK_ConfigStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Scope : String;
+      PolicyLost : Bool;
+      UsersLost : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Persist : "ST_ConfigPersistStatus";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Diag : "ST_Diagnostic";
+      Accepted : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex < 1 OR #RootIndex > 1 THEN
+	    RETURN;
+	END_IF;
+	#Persist.Pending := FALSE;
+	#Persist.Failed := "FRK_ConfigRuntime".Failed[#RootIndex];
+	#Persist.StoreKind := 0;
+	// Named set operations are not wired by the live retained-value provider.
+	#Persist.StorePresent := TRUE;
+	#Persist.RestoreLost := "FRK_ConfigStore".Lost[#RootIndex] OR #PolicyLost OR #UsersLost;
+	#Persist.RestoreAcknowledged := "FRK_ConfigStore".Acknowledged[#RootIndex] AND NOT #PolicyLost AND NOT #UsersLost;
+	IF #PolicyLost THEN
+	    #Persist.LostPath := CONCAT(IN1 := #Scope, IN2 := '.AccessPolicy');
+	ELSIF #UsersLost THEN
+	    #Persist.LostPath := CONCAT(IN1 := #Scope, IN2 := '.Access');
+	ELSE
+	    #Persist.LostPath := "FRK_ConfigStore".LostPath[#RootIndex];
+	END_IF;
+	// Access owns its precise loss events; announce only typed-config loss here.
+	IF "FRK_ConfigStore".Lost[#RootIndex] AND NOT "FRK_ConfigStore".Acknowledged[#RootIndex] THEN
+	    IF "FRK_ConfigRuntime".LossSlot[#RootIndex] = 0 THEN
+	        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	        #Diag.ReasonCode := 2040;
+	        #Diag.Description := WSTRING#'std.error.configRestoreLost';
+	        #Diag.SourcePath := STRING_TO_WSTRING("FRK_ConfigStore".LostPath[#RootIndex]);
+	        "FRK_ConfigRuntime".LossSlot[#RootIndex] := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	    END_IF;
+	ELSIF "FRK_ConfigRuntime".LossSlot[#RootIndex] > 0 THEN
+	    #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := "FRK_ConfigRuntime".LossSlot[#RootIndex]);
+	    "FRK_ConfigRuntime".LossSlot[#RootIndex] := 0;
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,73 @@
+﻿FUNCTION "FRK_ProfileClose" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      NowMs : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Book : "FRK_ProfileBook";
+      Steps : Array[*] of "ST_StepTiming";
+      Stats : Array[*] of "ST_TimingRow";
+   END_VAR
+
+   VAR_TEMP 
+      DurationMs : UDInt;
+      Duration : Time;
+      Index : Int;
+      Slot : Int;
+      Wide : LInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Book.HasOpen THEN
+	    RETURN;
+	END_IF;
+	#DurationMs := "FRK_Elapsed"(NewMs := #NowMs, OldMs := #Book.OpenMs);
+	IF #DurationMs > UDINT#2147483647 THEN
+	    #DurationMs := UDINT#2147483647;
+	    #Book.Truncated := TRUE;
+	END_IF;
+	#Duration := DINT_TO_TIME(UDINT_TO_DINT(#DurationMs));
+	IF #Book.NSteps < UPPER_BOUND(ARR := #Steps, DIM := 1) THEN
+	    #Book.NSteps := #Book.NSteps + 1;
+	    #Steps[#Book.NSteps].StepNo := #Book.OpenNo;
+	    #Steps[#Book.NSteps].StepName := #Book.OpenName;
+	    #Steps[#Book.NSteps].TimeClass := #Book.OpenClass;
+	    #Steps[#Book.NSteps].Started := #Book.OpenStamp;
+	    #Steps[#Book.NSteps].StartedTimeSynchronized := FALSE;
+	    #Steps[#Book.NSteps].Duration := #Duration;
+	    #Steps[#Book.NSteps].Expected := #Book.OpenExpected;
+	ELSE
+	    #Book.Truncated := TRUE;
+	END_IF;
+	#Wide := DINT_TO_LINT(TIME_TO_DINT(#Book.Current.ByClass[#Book.OpenClass])) + UDINT_TO_LINT(#DurationMs);
+	IF #Wide > LINT#2147483647 THEN
+	    #Wide := LINT#2147483647;
+	    #Book.Truncated := TRUE;
+	END_IF;
+	#Book.Current.ByClass[#Book.OpenClass] := DINT_TO_TIME(LINT_TO_DINT(#Wide));
+	#Slot := 0;
+	FOR #Index := 1 TO UPPER_BOUND(ARR := #Stats, DIM := 1) DO
+	    IF #Stats[#Index].Count > 0 AND #Stats[#Index].Id = #Book.OpenNo THEN
+	        #Slot := #Index;
+	        EXIT;
+	    ELSIF #Slot = 0 AND #Stats[#Index].Count = 0 THEN
+	        #Slot := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Slot = 0 THEN
+	    #Book.StatsTruncated := TRUE;
+	ELSE
+	    #Stats[#Slot].Id := #Book.OpenNo;
+	    #Stats[#Slot].Label := #Book.OpenName;
+	    #Stats[#Slot].TimeClass := #Book.OpenClass;
+	    "FRK_TimingUpdate"(DurationMs := #DurationMs,
+	                       Row := #Stats[#Slot]);
+	END_IF;
+	#Book.HasOpen := FALSE;
+	
+END_FUNCTION
+

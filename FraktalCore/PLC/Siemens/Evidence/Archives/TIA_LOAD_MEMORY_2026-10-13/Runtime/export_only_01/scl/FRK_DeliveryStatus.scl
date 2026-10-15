@@ -1,0 +1,53 @@
+﻿FUNCTION "FRK_DeliveryStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      EventSlot : Int;
+      Gone : Bool;
+      Diag : "ST_Diagnostic";
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.DeliverySlot;
+	IF #Slot < 1 OR #Slot > 3 THEN
+	    RETURN;
+	END_IF;
+	#EventSlot := #AlarmLog.DeliveryLossSlot;
+	IF #EventSlot < 1 OR #EventSlot > 16 THEN
+	    #EventSlot := 0;
+	ELSIF #AlarmLog.Active[#EventSlot].State <> 1
+	    OR #AlarmLog.Active[#EventSlot].ReasonCode <> 11002
+	    OR #AlarmLog.Active[#EventSlot].SourcePath <> STRING_TO_WSTRING(#Scope) THEN
+	    #EventSlot := 0;
+	END_IF;
+	IF NOT "FRK_EventDeliveryRuntime".Valid[#Slot] THEN
+	    IF #EventSlot = 0 THEN
+	        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	        #Diag.ReasonCode := 11002;
+	        #Diag.Description := WSTRING#'std.error.eventDeliveryRestoreLost';
+	        #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	        #EventSlot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	    END_IF;
+	    #AlarmLog.DeliveryLossSlot := #EventSlot;
+	ELSE
+	    IF #EventSlot > 0 THEN
+	        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #EventSlot);
+	    END_IF;
+	    #AlarmLog.DeliveryLossSlot := 0;
+	END_IF;
+	
+END_FUNCTION
+

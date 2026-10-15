@@ -5,6 +5,45 @@ import 'package:fraktal_hmi/domain/types.dart';
 import 'package:fraktal_hmi/localization/reason_catalog.g.dart';
 
 void main() {
+  test('live config values supersede cached values within declared capability',
+      () {
+    const preset = CfgField(
+        'ParCfg/Preset', CfgKind.parCfg, CfgType.number, '10',
+        writeKey: 'preset',
+        writeRevision: 2,
+        writable: true,
+        minimum: 0,
+        maximum: 1000,
+        writeLevel: AccessLevel.engineer,
+        modelScoped: true);
+    const hidden = CfgField(
+        'StationCfg/Secret', CfgKind.stationCfg, CfgType.text, '',
+        readable: false);
+    for (final measured in [21, null, 'invalid', 1001]) {
+      final config = OpcUaSnapshotMapper()
+          .map({
+            'values': {
+              'PLC1/Unit/Status/Name': 'Unit',
+              'PLC1/Unit/Status/ModuleType': ModuleType.unit.index,
+              if (measured != null) 'PLC1/Unit/ParCfg/Preset': measured,
+              'PLC1/Unit/StationCfg/Secret': 'private',
+            },
+          }, configByModulePath: {
+            'Unit': [preset, hidden]
+          })
+          .forest
+          .single
+          .config;
+      expect(config.first.value, measured == 21 ? '21' : '10');
+      expect(config.first.writeRevision, 2);
+      expect(config.first.maximum, 1000);
+      expect(config.first.writeLevel, AccessLevel.engineer);
+      expect(config.first.modelScoped, isTrue);
+      expect(config.last.value, '');
+      expect(config.last.readable, isFalse);
+    }
+  });
+
   test('shelf updates preserve the active alarm and PLC blocking', () {
     for (final shelved in [true, false]) {
       final unit = OpcUaSnapshotMapper()

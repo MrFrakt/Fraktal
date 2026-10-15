@@ -1,0 +1,100 @@
+ORGANIZATION_BLOCK "Main"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Initial_Call : Bool;
+    Remanence : Bool;
+END_VAR
+VAR_TEMP
+    StartupStamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    IF #Initial_Call THEN
+        "GDB_RoutingTest".PermitOne := TRUE;
+        "GDB_RoutingTest".PermitTwo := TRUE;
+        "GDB_RoutingTest".RootManualPermit := TRUE;
+        "GDB_RoutingTest".NestedFinish := FALSE;
+        "GDB_RoutingTest".InnerFinish := FALSE;
+        "GDB_RoutingTest".NestedAccessLock := FALSE;
+        #ResultCode := RD_SYS_T(OUT => #StartupStamp);
+        IF #ResultCode = 0 THEN "GDB_UnitTest".BootStamp := DTL_TO_LDT(#StartupStamp); END_IF;
+        "GDB_UnitTest".Restarts := "GDB_UnitTest".Restarts + 1;
+        "GDB_UnitTest".FinishCycle := FALSE;
+        "GDB_UnitTest".Permit := TRUE;
+        "GDB_UnitTest".FaultRoot := FALSE;
+        "GDB_UnitTest".ExitHold := FALSE;
+        "GDB_UnitTest".IssueChild := FALSE;
+        "GDB_UnitTest".LockStart := FALSE;
+        "GDB_UnitTest".ChildCommand := 2;
+        "GDB_UnitTest".Verdict := 1;
+        "GDB_UnitTest".Reason := 2003;
+        "GDB_UnitTest".CarrierControl := 0;
+        "FRK_UnitSetLocalCarrier"(Unit := "StationA".Unit, Index := 1);
+    END_IF;
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Finish := "GDB_UnitTest".FinishCycle;
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Permit := "GDB_UnitTest".Permit;
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.ExitHold := "GDB_UnitTest".ExitHold;
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.BackgroundFault := "GDB_UnitTest".FaultRoot;
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Verdict := "GDB_UnitTest".Verdict;
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Diag.ReasonCode := "GDB_UnitTest".Reason;
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Diag.Description := WSTRING#'test.start.permit';
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Diag.SourcePath := WSTRING#'StationA.Cell.Clamp';
+    IF "GDB_UnitTest".IssueChild THEN
+        "StationA".Cell.Clamp.Command := "GDB_UnitTest".ChildCommand;
+        "StationA".Cell.Clamp.Execute := TRUE;
+        "GDB_UnitTest".IssueChild := FALSE;
+    END_IF;
+    CASE "GDB_UnitTest".CarrierControl OF
+        1: "FRK_UnitSetLocalCarrier"(Unit := "StationA".Unit, Index := 1);
+        2: "FRK_Carriers".Slots[1].Enabled := FALSE;
+        3: "FRK_Carriers".Slots[1].Context.Uid := 'other';
+        ELSE "GDB_UnitTest".CarrierControl := 0;
+    END_CASE;
+    "GDB_UnitTest".CarrierControl := 0;
+    IF "GDB_UnitTest".LockStart THEN "StationA".Access.Policy.Required[5] := 3; ELSE "StationA".Access.Policy.Required[5] := 0; END_IF;
+    "StationA".Cell.Gate.ParCfg.Timeout := T#8s;
+    IF "GDB_RoutingTest".ManualAccessLock THEN "StationA".Access.Policy.Required[2] := 3; ELSE "StationA".Access.Policy.Required[2] := 0; END_IF;
+    "GDB_FraktalHal".Data.StationA.Cell.Gate.Permit := "GDB_RoutingTest".PermitOne;
+    IF "GDB_RoutingTest".PermitTwo THEN "GDB_FraktalHal".Data.StationA.Cell.Gate.Sample := 0; ELSE "GDB_FraktalHal".Data.StationA.Cell.Gate.Sample := 1; END_IF;
+    "GDB_FraktalHal".Data.StationA.Cell.Gate.Diag.ReasonCode := 2002;
+    "GDB_FraktalHal".Data.StationA.Cell.Gate.Diag.Description := WSTRING#'test.manual.first';
+    "GDB_FraktalHal".Data.StationA.Cell.Gate.LaterDiag.ReasonCode := 2003;
+    "GDB_FraktalHal".Data.StationA.Cell.Gate.LaterDiag.Description := WSTRING#'test.manual.second';
+    "GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Permit := "GDB_RoutingTest".RootManualPermit;
+    "GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Diag.SourcePath := WSTRING#'StationA.Satellite.Cell.Clamp';
+    "GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Diag.Description := WSTRING#'test.nested.permit';
+    "GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Diag.ReasonCode := 2002;
+    "GDB_FraktalHal".Data.StationA.Satellite.Inner.Cell.Clamp.Permit := TRUE;
+    "GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Finish := "GDB_RoutingTest".NestedFinish;
+    "GDB_FraktalHal".Data.StationA.Satellite.Inner.Cell.Clamp.Finish := "GDB_RoutingTest".InnerFinish;
+    IF "GDB_RoutingTest".NestedAccessLock THEN
+        "StationA".Satellite.Access.Policy.Required[5] := 4;
+    ELSE
+        "StationA".Satellite.Access.Policy.Required[5] := 0;
+    END_IF;
+    IF "GDB_RoutingTest".LocalPulse THEN
+        "GDB_RoutingTest".LocalRequest.Kind := "GDB_RoutingTest".LocalKind;
+        "GDB_RoutingTest".LocalRequest.IntValue := "GDB_RoutingTest".LocalValue;
+        "FRK_UnitOperation"(Core := "StationA".Satellite.Core, Unit := "StationA".Satellite.Unit, Status := "StationA".Satellite.Status, Policy := "StationA".Satellite.ModePolicy, Access := "StationA".Satellite.Access, Supported := "StationA".Satellite.SupportedModesPublished, Request := "GDB_RoutingTest".LocalRequest, Response := "FRK_UnitScratch".Response, Trusted := FALSE);
+        "GDB_RoutingTest".LocalAccepted := "FRK_UnitScratch".Response.Accepted;
+        "GDB_RoutingTest".LocalFirstKind := -1;
+        IF "FRK_UnitScratch".Response.Report.Count > 0 THEN "GDB_RoutingTest".LocalFirstKind := "FRK_UnitScratch".Response.Report.Reasons[1].Kind; END_IF;
+        "GDB_RoutingTest".LocalPulse := FALSE;
+    END_IF;
+    "GDB_FraktalMain"(Startup := #Initial_Call);
+    "GDB_RoutingTest".ManExecute := "StationA".Cell.Gate.Execute;
+    "GDB_RoutingTest".ManStarts := "StationA".Cell.Gate.Device.StartCount;
+    "GDB_UnitTest".Scans := "GDB_UnitTest".Scans + 1;
+    "GDB_UnitTest".ChildExecute := "StationA".Cell.Clamp.Execute;
+    "GDB_UnitTest".ChildState := "StationA".Cell.Clamp.Core.Exec;
+    "GDB_UnitTest".CarrierWrites := "FRK_Carriers".Slots[1].Writes;
+    "GDB_UnitTest".CarrierSerial := "FRK_Carriers".Slots[1].Serial;
+    "GDB_UnitTest".WrittenUid := "FRK_Carriers".Slots[1].Written.Uid;
+    "GDB_UnitTest".WrittenVerdict := "FRK_Carriers".Slots[1].Written.Result.Verdict;
+    IF "StationA".AlarmLog.RingHead > 0 AND "StationA".AlarmLog.RingHead <= 64 THEN
+        "GDB_UnitTest".LastEvent := "StationA".AlarmLog.Ring["StationA".AlarmLog.RingHead].ReasonCode;
+    END_IF;
+    "GDB_UnitTest".SecretCleared := "StationA".HmiRequest.Secret = '';
+    "GDB_UnitTest".SnapshotSecretCleared := "StationA".Unit.Request.Secret = '';
+END_ORGANIZATION_BLOCK

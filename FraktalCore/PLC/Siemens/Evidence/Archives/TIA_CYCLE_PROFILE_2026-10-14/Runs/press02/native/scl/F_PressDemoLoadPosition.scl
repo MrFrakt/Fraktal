@@ -1,0 +1,31 @@
+﻿FUNCTION "F_PressDemoLoadPosition" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Run : Bool;
+      Reset : Bool;
+      OwnerIndex : DInt;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Target : "FB_PressDemoLoadPosition";
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+   END_VAR
+
+
+BEGIN
+	
+	#Target(Run := #Run,
+	        Reset := #Reset,
+	        OwnerIndex := #OwnerIndex,
+	        Delta := #Delta,
+	        PressRam := #PressRam,
+	        Door := #Door,
+	        PartSlide := #PartSlide);
+	#F_PressDemoLoadPosition := #Target.Seq.Done;
+	
+END_FUNCTION
+

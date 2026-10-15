@@ -26,7 +26,8 @@ def verify(source,exported):
         for match in matches:
             body=match[0]
             name=re.match(r'\w+\s+"([^"]+)"',body)[1]
-            target=exported/'scl'/(name+path.suffix)
+            suffix={'TYPE':'.udt','DATA_BLOCK':'.db'}.get(match[1],'.scl')
+            target=exported/'scl'/(name+suffix)
             if CANON.canonical(body)!=CANON.canonical(target.read_text(encoding='utf-8-sig')):
                 raise ValueError('canonical source differs: '+name)
             result['sources'][name]=True

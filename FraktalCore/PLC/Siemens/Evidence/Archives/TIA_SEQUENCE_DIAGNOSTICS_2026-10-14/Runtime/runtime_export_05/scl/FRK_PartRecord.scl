@@ -1,0 +1,57 @@
+﻿FUNCTION "FRK_PartRecord" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RecordName : String;
+      Value : LReal;
+      Minimum : LReal;
+      Maximum : LReal;
+      Target : LReal;
+      EngUnit : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PartRecord := FALSE;
+	IF NOT #Part.Present THEN
+	    RETURN;
+	END_IF;
+	IF #RecordName = '' OR LEN(#RecordName) > 64 OR LEN(#EngUnit) > 16
+	    OR #Minimum > #Maximum OR #Value <> #Value OR #Minimum <> #Minimum OR #Maximum <> #Maximum OR #Target <> #Target THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2023,
+	                Description := WSTRING#'std.error.partRecordRejected');
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 32 DO
+	    IF #Part.Result.Records[#Index].Name = #RecordName OR #Part.Result.Records[#Index].Name = '' THEN
+	        #Part.Result.Records[#Index].Name := #RecordName;
+	        #Part.Result.Records[#Index].Value := #Value;
+	        #Part.Result.Records[#Index].Minimum := #Minimum;
+	        #Part.Result.Records[#Index].Maximum := #Maximum;
+	        #Part.Result.Records[#Index].Target := #Target;
+	        #Part.Result.Records[#Index].Unit := #EngUnit;
+	        #Part.Result.Records[#Index].InTol := #Value >= #Minimum AND #Value <= #Maximum;
+	        #FRK_PartRecord := TRUE;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	"FRK_Fault"(Core := #Core,
+	            Status := #Status,
+	            ReasonCode := 2023,
+	            Description := WSTRING#'std.error.partRecordTableFull');
+	
+END_FUNCTION
+

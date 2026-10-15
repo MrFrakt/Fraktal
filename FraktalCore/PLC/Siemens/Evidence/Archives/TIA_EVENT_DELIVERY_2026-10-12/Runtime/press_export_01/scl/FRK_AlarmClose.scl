@@ -1,0 +1,42 @@
+﻿FUNCTION "FRK_AlarmClose" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 16 THEN
+	    RETURN;
+	END_IF;
+	IF #AlarmLog.Active[#Slot].State = 0 THEN
+	    RETURN;
+	END_IF;
+	#AlarmLog.Active[#Slot].State := 0;
+	"FRK_DeliveryCapture"(AlarmLog := #AlarmLog, Ev := #AlarmLog.Active[#Slot]);
+	"FRK_AlarmRecoveryClosePrepare"(AlarmLog := #AlarmLog, EventSlot := #Slot);
+	IF #AlarmLog.RingHead < 0 OR #AlarmLog.RingHead > 64 THEN
+	    #AlarmLog.RingHead := 0;
+	END_IF;
+	#AlarmLog.RingHead := (#AlarmLog.RingHead MOD 64) + 1;
+	IF #AlarmLog.RingUsed >= 64 THEN
+	    #AlarmLog.Truncated := TRUE;
+	ELSE
+	    #AlarmLog.RingUsed := #AlarmLog.RingUsed + 1;
+	END_IF;
+	#AlarmLog.Ring[#AlarmLog.RingHead] := #AlarmLog.Active[#Slot];
+	"FRK_AlarmHistoryAppend"(AlarmLog := #AlarmLog);
+	"FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog, EventSlot := #Slot);
+	#AlarmLog.Automatic[#Slot] := FALSE;
+	"FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+	"FRK_AlarmNotify"(AlarmLog := #AlarmLog,
+	                  Ev := #AlarmLog.Ring[#AlarmLog.RingHead]);
+	
+END_FUNCTION
+

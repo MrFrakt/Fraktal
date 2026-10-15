@@ -1,0 +1,23 @@
+// Invalid index only in this isolated test image, to measure local error handling.
+FUNCTION "FC_S11LocalError" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Idx : Int;
+   END_VAR
+BEGIN
+    "S11Errors".ValueRead := "S11Errors".Samples[#Idx];
+    "S11Errors".LocalCode := GET_ERR_ID();
+    "S11Errors".AfterLocal := TRUE;
+END_FUNCTION
+
+FUNCTION "FC_S11GlobalError" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Idx : Int;
+   END_VAR
+BEGIN
+    "S11Errors".ValueRead := "S11Errors".Samples[#Idx];
+    "S11Errors".AfterGlobal := TRUE;
+END_FUNCTION

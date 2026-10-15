@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_SeqViewBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Clear : Bool;
+      ResetErrors : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Enabled : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewBegin"(Clear := #Clear,
+	                        ResetErrors := #ResetErrors,
+	                        Defs := "FRK_Views".V001.Defs,
+	                        Rows := "FRK_Views".V001.Rows,
+	                        Cursors := "FRK_Views".V001.Cursors,
+	                        Notes := "FRK_Views".V001.Notes,
+	                        Count := "FRK_Views".V001.Count,
+	                        NoteCount := "FRK_Views".V001.NoteCount,
+	                        Current := "FRK_Views".V001.Current,
+	                        Book := "FRK_Views".V001.Book,
+	                        Touched := "FRK_Views".V001.Touched,
+	                        Depths := "FRK_Views".V001.Depths,
+	                        Visits := "FRK_Views".V001.Visits,
+	                        Enabled := #Enabled);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_ManualCommon" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_IN_OUT 
+      Report : "ST_ReleaseReport";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Unit.Mode <> 1 OR #Unit.ModePending THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.release.manualModeRequired',
+	                        Reason := 2002,
+	                        Path := STRING_TO_WSTRING(#Status.Name),
+	                        Kind := 0);
+	END_IF;
+	IF #Core.Exec <> 0 OR #Unit.Clearing OR #Unit.FaultLatched OR #Unit.AlarmBlocking THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.error.hmiRequestRejected',
+	                        Reason := 2011,
+	                        Path := STRING_TO_WSTRING(#Status.Name),
+	                        Kind := 4);
+	END_IF;
+	IF NOT #Unit.Permit THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := #Unit.PermitDiag.Description,
+	                        Reason := #Unit.PermitDiag.ReasonCode,
+	                        Path := #Unit.PermitDiag.SourcePath,
+	                        Kind := 3);
+	END_IF;
+	
+END_FUNCTION
+

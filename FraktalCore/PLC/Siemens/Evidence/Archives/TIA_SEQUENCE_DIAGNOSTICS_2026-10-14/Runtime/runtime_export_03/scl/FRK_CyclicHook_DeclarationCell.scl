@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_CyclicHook_DeclarationCell" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Device : "ST_DeclarationOutImm";
+      Held : Bool;
+      OutImm : "ST_DeclarationOutImm";
+      ParCfg : "ST_DeclarationParCfg";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	#Device.Sample := #Device.Sample + 1;
+	#OutImm := #Device;
+	"FRK_DiagSync"(Index := #Core.RegIndex,
+	               Withdraw := FALSE,
+	               Status := #Status,
+	               Held := #Held,
+	               Timeout := #ParCfg.Timeout,
+	               ActiveTimeoutMs := #Core.TimeoutMs);
+	
+END_FUNCTION
+

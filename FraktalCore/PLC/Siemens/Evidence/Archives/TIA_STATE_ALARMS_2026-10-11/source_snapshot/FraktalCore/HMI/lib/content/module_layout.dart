@@ -1,0 +1,1886 @@
+library;
+
+import 'dart:convert';
+
+import '../domain/types.dart';
+
+/// The Unit modes in which auto-opening operator guidance is appropriate: the
+/// SETUP modes, where the operator is being walked through a procedure.
+///
+/// AUTO is deliberately absent. A production cycle waits for the operator as a
+/// matter of course — the press bench parks AUTO on a two-hand start, a
+/// WAIT_OPERATOR step — so a wildcard guidance trigger threw a fullscreen
+/// dialog over the machine view the instant AUTO was selected. Guidance that
+/// interrupts routine running teaches the operator to dismiss it, including
+/// when it matters.
+///
+/// Derived from the enum rather than written as ordinals: `UnitMode` is the PLC
+/// contract, and a literal list here would silently rot if a member moved.
+final List<int> kSetupGuidanceModes = List<int>.unmodifiable([
+  UnitMode.changeover.index,
+  UnitMode.home.index,
+  UnitMode.calibration.index,
+  UnitMode.capability.index,
+  UnitMode.adjustment.index,
+]);
+
+/// How insistent an auto-opened guidance tab is.
+///
+/// The distinction is about what the step NEEDS from the operator, not about
+/// how important the content is:
+///
+/// * [optional] — reference material. The operator may already know the job, so
+///   the panel offers it and gets out of the way: dismissible, and the rest of
+///   the HMI stays reachable while it is open.
+/// * [forced] — the step is *waiting on this person*. A changeover model
+///   selection, or confirming it is safe to open the doors before tooling is
+///   swapped. Acknowledgement is the point, so it cannot be waved away.
+///
+/// Forced is deliberately the narrower case. Guidance that blocks the screen
+/// when it did not need to is the fastest way to teach an operator to dismiss
+/// guidance without reading it — including the time it mattered.
+enum GuidanceMode { optional, forced }
+
+enum ModuleTabKind {
+  overview,
+  description,
+  sequence,
+  motion,
+  vision,
+  codeReader,
+  rfid,
+  custom,
+  guidance,
+  // Appended: kinds persist by name, and new ones go last regardless.
+  configuration,
+  hardware,
+  statistics,
+  events;
+
+  /// The one tab kind that may carry a background picture: a tab an
+  /// administrator authors, with controls placed on the picture. The Overview
+  /// and every other tab are card views.
+  bool get acceptsBackground => this == custom;
+
+  /// Tabs whose body is a flow of cards (the built-in data views) rather than
+  /// authored controls or a dedicated device view.
+  bool get hostsCards => const {
+        overview,
+        description,
+        configuration,
+        hardware,
+        statistics,
+        events,
+      }.contains(this);
+}
+
+/// One card a card tab can show. Persisted by name; new kinds go last.
+enum ModuleCardKind {
+  diagnostic,       // the live first-out line, its I/O tag and clock quality
+  decision,         // §6.11 operator decision prompt
+  currentStep,
+  link,
+  packML,
+  motion,
+  part,
+  safety,
+  systemHealth,
+  controlPower,
+  nameplate,
+  shift,
+  oee,
+  manualCommands,
+  unitControls,     // reset banner, mode/model chips, state flags, Start/Stop
+  counters,         // good / NOK / rework / cycle time
+  cycleAnalysis,    // cycle trend, Gantt, step Pareto, command timing
+  activeEvents,
+  history,
+  description,
+  documents,
+  // §3.8a/§3.8e - one card per kind of persistent data: they differ in who
+  // owns them and what they follow (the model, the station, the line).
+  modelData,
+  stationData,
+  lineData,
+  operatorGuidance;
+
+  /// Large contract tables consumed by this card. Live values need no demand.
+  Set<String> get detailContainers => switch (this) {
+        cycleAnalysis => const {'History', 'StepStats', 'Timing'},
+        oee => const {'OeeTrend'},
+        part => const {'Records'},
+        history => const {'Ring'},
+        _ => const {},
+      };
+
+  /// Cards that have a tab of their own: on the Overview they start hidden.
+  static const ownTab = {
+    description,
+    documents,
+    modelData,
+    stationData,
+    lineData,
+  };
+
+  /// The kind of persistent data a configuration card edits, or null.
+  CfgKind? get configKind => switch (this) {
+        modelData => CfgKind.parCfg,
+        stationData => CfgKind.stationCfg,
+        lineData => CfgKind.lineCfg,
+        _ => null,
+      };
+
+  /// The cards a tab of [kind] shows until an administrator arranges it.
+  /// The Overview shows every card; the others their own subject.
+  static List<ModuleCardKind> defaultsFor(ModuleTabKind kind) => switch (kind) {
+        ModuleTabKind.overview => values,
+        ModuleTabKind.hardware => const [
+            link,
+            safety,
+            systemHealth,
+            controlPower,
+            motion,
+            nameplate,
+          ],
+        ModuleTabKind.statistics => const [
+            counters,
+            oee,
+            shift,
+            cycleAnalysis,
+          ],
+        ModuleTabKind.events => const [activeEvents, history],
+        ModuleTabKind.description => const [description, documents],
+        ModuleTabKind.configuration => const [modelData, stationData, lineData],
+        _ => const [],
+      };
+}
+
+/// A card's place on a card tab: which card, whether it is shown, and the
+/// access level needed to see it (on top of the module's section policy).
+class ModuleCardPlacement {
+  final ModuleCardKind kind;
+  final bool hidden;
+  final AccessLevel requiredLevel;
+  const ModuleCardPlacement(
+    this.kind, {
+    this.hidden = false,
+    this.requiredLevel = AccessLevel.none,
+  });
+
+  ModuleCardPlacement copyWith({bool? hidden, AccessLevel? requiredLevel}) =>
+      ModuleCardPlacement(kind,
+          hidden: hidden ?? this.hidden,
+          requiredLevel: requiredLevel ?? this.requiredLevel);
+
+  Map<String, Object?> toJson() => {
+        'kind': kind.name,
+        if (hidden) 'hidden': true,
+        if (requiredLevel != AccessLevel.none)
+          'requiredLevel': requiredLevel.name,
+      };
+
+  /// Names a stored layout may use that this build replaced: one
+  /// 'configuration' card held model, station and line data together.
+  static const _replaced = {
+    'configuration': [
+      ModuleCardKind.modelData,
+      ModuleCardKind.stationData,
+      ModuleCardKind.lineData,
+    ],
+  };
+
+  /// [fromJson], expanding a replaced card into its successors in place (same
+  /// visibility and level), so an arranged tab keeps its arrangement.
+  static List<ModuleCardPlacement> allFromJson(Object? source) {
+    if (source is Map) {
+      final successors = _replaced[source['kind']];
+      if (successors != null) {
+        return [
+          for (final kind in successors)
+            ModuleCardPlacement(kind,
+                hidden: source['hidden'] == true,
+                requiredLevel: _level(source['requiredLevel'])),
+        ];
+      }
+    }
+    final card = fromJson(source);
+    return card == null ? const [] : [card];
+  }
+
+  static ModuleCardPlacement? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final kind = ModuleCardKind.values
+        .where((value) => value.name == source['kind'])
+        .firstOrNull;
+    if (kind == null) return null;
+    return ModuleCardPlacement(kind,
+        hidden: source['hidden'] == true,
+        requiredLevel: _level(source['requiredLevel']));
+  }
+
+  static AccessLevel _level(Object? name) =>
+      AccessLevel.values.where((value) => value.name == name).firstOrNull ??
+      AccessLevel.none;
+}
+
+enum ModuleControlKind {
+  text,
+  value,
+  indicator,
+  chart,
+  button,
+  textInput,
+  image,
+  // Appended (kinds persist by name): overlay-first kinds for a machine
+  // picture - a door or e-stop drawn as a coloured shape, a tank level bar.
+  shape,
+  level,
+}
+
+/// A station tile's authored slots (LOCALIZATION §7.5). The tile's GEOMETRY is
+/// fixed - identity, state, the built-in chips, then these slots in fixed
+/// columns - because tiles that differ in layout cannot be scanned as a set;
+/// only what each slot shows is authored, with the same bindings and tokens as
+/// any view. Metrics are value controls, badges are state shapes.
+class ModuleTileProfile {
+  static const maxMetrics = 3;
+  static const maxBadges = 2;
+
+  final List<ModuleControlDefinition> metrics;
+  final List<ModuleControlDefinition> badges;
+
+  const ModuleTileProfile({this.metrics = const [], this.badges = const []});
+
+  bool get isEmpty => metrics.isEmpty && badges.isEmpty;
+
+  bool get isValid =>
+      metrics.length <= maxMetrics &&
+      badges.length <= maxBadges &&
+      metrics.every((slot) =>
+          slot.kind == ModuleControlKind.value && slot.bindingsAreValid) &&
+      badges.every((slot) =>
+          slot.kind == ModuleControlKind.shape && slot.bindingsAreValid);
+
+  /// The reads one tile makes; the overview renders every station at once.
+  int get boundReads => [...metrics, ...badges]
+      .fold(0, (sum, slot) => sum + slot.boundReads);
+
+  Map<String, Object?> toJson() => {
+        'metrics': [for (final slot in metrics) slot.toJson()],
+        'badges': [for (final slot in badges) slot.toJson()],
+      };
+
+  /// Null when anything in it is not a valid slot: a tile is refused whole,
+  /// never shown with a slot silently missing.
+  static ModuleTileProfile? fromJson(Object? source) {
+    if (source is! Map) return null;
+    List<ModuleControlDefinition>? slots(Object? raw) {
+      if (raw == null) return const [];
+      if (raw is! List) return null;
+      final out = <ModuleControlDefinition>[];
+      for (final item in raw) {
+        final slot = ModuleControlDefinition.fromJson(item);
+        if (slot == null) return null;
+        out.add(slot);
+      }
+      return out;
+    }
+
+    final metrics = slots(source['metrics']);
+    final badges = slots(source['badges']);
+    if (metrics == null || badges == null) return null;
+    final profile = ModuleTileProfile(metrics: metrics, badges: badges);
+    return profile.isValid ? profile : null;
+  }
+}
+
+/// A view's display class (LOCALIZATION §7.4). The authoring rules tighten
+/// with it: an OPERATING view is a primary production display and carries no
+/// imagery; a MAINTENANCE view may carry a picture and the overlay on it
+/// (locating a sensor is a maintenance task); ENGINEERING is unrestricted.
+enum ModuleViewClass { operating, maintenance, engineering }
+
+/// The outline of a [ModuleControlKind.shape].
+enum ModuleShape { rectangle, rounded, circle }
+
+/// The semantic state an overlay control shows. A TOKEN, never a literal
+/// colour: every theme is measured against these (theme_contrast_test), and a
+/// literal would leave that guarantee.
+enum ModuleStateToken { neutral, ok, warning, error, info, off }
+
+/// The bounded comparisons a [ModuleStateRule] may make. Deliberately no
+/// expression language: a surface nobody reviews, at a cost nobody bounds on
+/// a picture holding hundreds of indicators.
+enum ModuleCompare { isTrue, isFalse, equals, notEquals, above, below }
+
+/// The bounded icon set a state may show (LOCALIZATION §7.3 bound icon). A set,
+/// not a free icon name: every entry is drawn in the state's token colour, so an
+/// icon stays inside the same contrast measurement as the rest of the view.
+/// Persisted by name - append only.
+enum ModuleGlyph {
+  none,
+  check,
+  close,
+  warning,
+  info,
+  lock,
+  lockOpen,
+  arrowUp,
+  arrowDown,
+  arrowLeft,
+  arrowRight,
+  play,
+  pause,
+  stop,
+  block,
+  power,
+}
+
+/// A bound rotation (LOCALIZATION §7.3): one numeric tag mapped linearly from
+/// [minimum]..[maximum] onto [minDegrees]..[maxDegrees], clamped at both ends -
+/// a range transform, not an expression. A value outside the range draws at the
+/// nearer end, and unavailable data draws at [minDegrees].
+class ModuleRotation {
+  final String binding;
+  final double minimum;
+  final double maximum;
+  final double minDegrees;
+  final double maxDegrees;
+
+  const ModuleRotation({
+    required this.binding,
+    this.minimum = 0,
+    this.maximum = 100,
+    this.minDegrees = 0,
+    this.maxDegrees = 90,
+  });
+
+  /// The angle for [value], in degrees.
+  double degreesFor(Object? value) {
+    final number = switch (value) {
+      num n => n.toDouble(),
+      bool b => b ? 1.0 : 0.0,
+      String s => double.tryParse(s),
+      _ => null,
+    };
+    if (number == null || !number.isFinite) return minDegrees;
+    final t = ((number - minimum) / (maximum - minimum)).clamp(0.0, 1.0);
+    return minDegrees + (maxDegrees - minDegrees) * t;
+  }
+
+  Map<String, Object?> toJson() => {
+        'binding': binding,
+        'minimum': minimum,
+        'maximum': maximum,
+        'minDegrees': minDegrees,
+        'maxDegrees': maxDegrees,
+      };
+
+  static ModuleRotation? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final binding = source['binding'];
+    double? read(String name) {
+      final value = source[name];
+      return value is num && value.isFinite ? value.toDouble() : null;
+    }
+
+    final minimum = read('minimum'), maximum = read('maximum');
+    final from = read('minDegrees'), to = read('maxDegrees');
+    if (binding is! String ||
+        binding.trim().isEmpty ||
+        binding.length > 512 ||
+        minimum == null ||
+        maximum == null ||
+        from == null ||
+        to == null ||
+        !(minimum < maximum) ||
+        from.abs() > 360 ||
+        to.abs() > 360) {
+      return null;
+    }
+    return ModuleRotation(
+      binding: binding.trim(),
+      minimum: minimum,
+      maximum: maximum,
+      minDegrees: from,
+      maxDegrees: to,
+    );
+  }
+}
+
+/// One "this binding compares so -> this state" rule. A control checks its
+/// rules in order and takes the first match, else its default state: a door is
+/// `Faulted isTrue -> error`, `Closed isTrue -> ok`, default `warning`.
+class ModuleStateRule {
+  static const maxRules = 4;
+
+  /// Index into the control's linked bindings.
+  final int bindingIndex;
+  final ModuleCompare compare;
+  final double constant;
+  final ModuleStateToken token;
+
+  /// The state flashes while this rule is the one in force (an e-stop pressed,
+  /// a door forced). Steady when the panel asks for reduced motion.
+  final bool blink;
+
+  /// The icon drawn while this rule is in force; [ModuleGlyph.none] = none.
+  final ModuleGlyph glyph;
+
+  const ModuleStateRule({
+    this.bindingIndex = 0,
+    this.compare = ModuleCompare.isTrue,
+    this.constant = 0,
+    this.token = ModuleStateToken.ok,
+    this.blink = false,
+    this.glyph = ModuleGlyph.none,
+  });
+
+  /// Whether [value] satisfies this rule. See [moduleCompare].
+  bool matches(Object? value) => moduleCompare(compare, constant, value);
+
+  Map<String, Object?> toJson() => {
+        'binding': bindingIndex,
+        'compare': compare.name,
+        'constant': constant,
+        'token': token.name,
+        if (blink) 'blink': true,
+        if (glyph != ModuleGlyph.none) 'glyph': glyph.name,
+      };
+
+  static ModuleStateRule? fromJson(Object? source, int bindingCount) {
+    if (source is! Map) return null;
+    final index = source['binding'];
+    final constant = source['constant'];
+    final compare = ModuleCompare.values
+        .where((value) => value.name == source['compare'])
+        .firstOrNull;
+    final token = ModuleStateToken.values
+        .where((value) => value.name == source['token'])
+        .firstOrNull;
+    if (index is! num ||
+        index < 0 ||
+        index >= bindingCount ||
+        compare == null ||
+        token == null) {
+      return null;
+    }
+    final value = constant is num ? constant.toDouble() : 0.0;
+    return ModuleStateRule(
+      bindingIndex: index.toInt(),
+      compare: compare,
+      constant: value.isFinite ? value : 0,
+      token: token,
+      blink: source['blink'] == true,
+      glyph: ModuleGlyph.values
+              .where((value) => value.name == source['glyph'])
+              .firstOrNull ??
+          ModuleGlyph.none,
+    );
+  }
+}
+
+/// The one comparison every bound presentation property uses (LOCALIZATION
+/// §7.3). A value that is neither a number nor a Boolean never satisfies it,
+/// so nothing can be claimed from text.
+bool moduleCompare(ModuleCompare compare, double constant, Object? value) {
+  final number = switch (value) {
+    bool b => b ? 1.0 : 0.0,
+    num n => n.toDouble(),
+    String s when s.toLowerCase() == 'true' => 1.0,
+    String s when s.toLowerCase() == 'false' => 0.0,
+    String s => double.tryParse(s),
+    _ => null,
+  };
+  if (number == null) return false;
+  return switch (compare) {
+    ModuleCompare.isTrue => number != 0,
+    ModuleCompare.isFalse => number == 0,
+    ModuleCompare.equals => number == constant,
+    ModuleCompare.notEquals => number != constant,
+    ModuleCompare.above => number > constant,
+    ModuleCompare.below => number < constant,
+  };
+}
+
+/// "Show this control only while <tag> compares so" - a bound `visible`
+/// (LOCALIZATION §7.3). Presentation, never enforcement: the PLC re-checks
+/// every request whatever the screen showed. While the tag is unavailable the
+/// control stays SHOWN, so missing data never hides an indicator.
+class ModuleCondition {
+  final String binding;
+  final ModuleCompare compare;
+  final double constant;
+
+  const ModuleCondition({
+    required this.binding,
+    this.compare = ModuleCompare.isTrue,
+    this.constant = 0,
+  });
+
+  bool matches(Object? value) => moduleCompare(compare, constant, value);
+
+  Map<String, Object?> toJson() =>
+      {'binding': binding, 'compare': compare.name, 'constant': constant};
+
+  static ModuleCondition? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final binding = source['binding'];
+    final compare = ModuleCompare.values
+        .where((value) => value.name == source['compare'])
+        .firstOrNull;
+    final constant = source['constant'];
+    if (binding is! String ||
+        binding.trim().isEmpty ||
+        binding.length > 512 ||
+        compare == null) {
+      return null;
+    }
+    final value = constant is num ? constant.toDouble() : 0.0;
+    return ModuleCondition(
+      binding: binding.trim(),
+      compare: compare,
+      constant: value.isFinite ? value : 0,
+    );
+  }
+}
+
+/// Where a control sits on its tab's background image, as fractions (0..1) of
+/// the image's own PAINTED box - never of the tab. A grid cell stops covering
+/// the sensor it annotates the moment the image letterboxes; a position in the
+/// image's own box does not, whatever the panel size, fit or margins.
+class ModulePlacement {
+  static const minSize = 0.01;
+
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+
+  const ModulePlacement({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  /// The same placement kept inside the image and at least [minSize] big.
+  ModulePlacement clamped() {
+    double unit(double v) => v.isFinite ? v.clamp(0.0, 1.0) : 0.0;
+    final w = unit(width).clamp(minSize, 1.0);
+    final h = unit(height).clamp(minSize, 1.0);
+    return ModulePlacement(
+      x: unit(x).clamp(0.0, 1.0 - w),
+      y: unit(y).clamp(0.0, 1.0 - h),
+      width: w,
+      height: h,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ModulePlacement &&
+      other.x == x &&
+      other.y == y &&
+      other.width == width &&
+      other.height == height;
+
+  @override
+  int get hashCode => Object.hash(x, y, width, height);
+
+  Map<String, Object?> toJson() =>
+      {'x': x, 'y': y, 'width': width, 'height': height};
+
+  static ModulePlacement? fromJson(Object? source) {
+    if (source is! Map) return null;
+    double? read(String name) {
+      final value = source[name];
+      return value is num && value.isFinite ? value.toDouble() : null;
+    }
+
+    final x = read('x'), y = read('y'), w = read('width'), h = read('height');
+    if (x == null || y == null || w == null || h == null) return null;
+    return ModulePlacement(x: x, y: y, width: w, height: h).clamped();
+  }
+}
+
+/// A control's cell in a grid container (LOCALIZATION §7.2): a column/row
+/// origin and a column/row span, in the grid's own units. Where that lands on
+/// screen is a fraction of the container, never a pixel.
+class ModuleGridCell {
+  final int column;
+  final int row;
+  final int columnSpan;
+  final int rowSpan;
+
+  const ModuleGridCell({
+    required this.column,
+    required this.row,
+    this.columnSpan = 1,
+    this.rowSpan = 1,
+  });
+
+  /// Whether this cell lies wholly inside a [columns] x [rows] grid.
+  bool fits(int columns, int rows) =>
+      column >= 0 &&
+      row >= 0 &&
+      columnSpan >= 1 &&
+      rowSpan >= 1 &&
+      column + columnSpan <= columns &&
+      row + rowSpan <= rows;
+
+  /// The cell as fractions (0..1) of its container.
+  ({double x, double y, double width, double height}) fractionIn(
+          int columns, int rows) =>
+      (
+        x: column / columns,
+        y: row / rows,
+        width: columnSpan / columns,
+        height: rowSpan / rows,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is ModuleGridCell &&
+      other.column == column &&
+      other.row == row &&
+      other.columnSpan == columnSpan &&
+      other.rowSpan == rowSpan;
+
+  @override
+  int get hashCode => Object.hash(column, row, columnSpan, rowSpan);
+
+  Map<String, Object?> toJson() => {
+        'column': column,
+        'row': row,
+        'columnSpan': columnSpan,
+        'rowSpan': rowSpan,
+      };
+
+  static ModuleGridCell? fromJson(Object? source) {
+    if (source is! Map) return null;
+    int? read(String name) {
+      final value = source[name];
+      return value is num ? value.toInt() : null;
+    }
+
+    final column = read('column'), row = read('row');
+    if (column == null || row == null) return null;
+    return ModuleGridCell(
+      column: column,
+      row: row,
+      columnSpan: read('columnSpan') ?? 1,
+      rowSpan: read('rowSpan') ?? 1,
+    );
+  }
+}
+
+/// One grid: a column and row count and the cell of each control it places,
+/// by control id. A control it does not place is listed beneath the grid.
+class ModuleGridLayout {
+  static const maxColumns = 12;
+  static const maxRows = 24;
+
+  final int columns;
+  final int rows;
+  final Map<String, ModuleGridCell> cells;
+
+  const ModuleGridLayout({
+    this.columns = 4,
+    this.rows = 4,
+    this.cells = const {},
+  });
+
+  ModuleGridLayout copyWith({
+    int? columns,
+    int? rows,
+    Map<String, ModuleGridCell>? cells,
+  }) {
+    final c = (columns ?? this.columns).clamp(1, maxColumns).toInt();
+    final r = (rows ?? this.rows).clamp(1, maxRows).toInt();
+    // A resize never leaves a cell outside the grid: it is taken off instead.
+    return ModuleGridLayout(
+      columns: c,
+      rows: r,
+      cells: {
+        for (final entry in (cells ?? this.cells).entries)
+          if (entry.value.fits(c, r)) entry.key: entry.value,
+      },
+    );
+  }
+
+  /// This grid with [id] placed at [cell], or taken off (null).
+  ModuleGridLayout place(String id, ModuleGridCell? cell) => copyWith(cells: {
+        for (final entry in cells.entries)
+          if (entry.key != id) entry.key: entry.value,
+        if (cell != null && cell.fits(columns, rows)) id: cell,
+      });
+
+  Map<String, Object?> toJson() => {
+        'columns': columns,
+        'rows': rows,
+        'cells': {
+          for (final entry in cells.entries) entry.key: entry.value.toJson(),
+        },
+      };
+
+  static ModuleGridLayout? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final columns = source['columns'], rows = source['rows'];
+    if (columns is! num ||
+        rows is! num ||
+        columns < 1 ||
+        columns > maxColumns ||
+        rows < 1 ||
+        rows > maxRows) {
+      return null;
+    }
+    final c = columns.toInt(), r = rows.toInt();
+    final cells = <String, ModuleGridCell>{};
+    final rawCells = source['cells'];
+    if (rawCells is Map) {
+      for (final entry in rawCells.entries) {
+        final cell = ModuleGridCell.fromJson(entry.value);
+        // A cell outside the grid is dropped - its control is listed beneath,
+        // never drawn somewhere nobody placed it.
+        if (entry.key is String && cell != null && cell.fits(c, r)) {
+          cells[entry.key as String] = cell;
+        }
+      }
+    }
+    return ModuleGridLayout(columns: c, rows: r, cells: cells);
+  }
+}
+
+/// A grid container (LOCALIZATION §7.2): a base grid and optional variants keyed
+/// to the operator control-scale presets. A scale with no variant uses the base,
+/// scaled rather than reflowed - geometry is fractions of the container.
+class ModuleGrid {
+  /// The control-scale presets a variant may be keyed to (`ControlScale`).
+  static const scales = ['compact', 'medium', 'large'];
+
+  final ModuleGridLayout base;
+  final Map<String, ModuleGridLayout> variants;
+
+  const ModuleGrid({
+    this.base = const ModuleGridLayout(),
+    this.variants = const {},
+  });
+
+  /// The grid in force at control scale [scale].
+  ModuleGridLayout layoutFor(String scale) => variants[scale] ?? base;
+
+  /// This grid with [layout] as the base ([scale] null) or a scale's variant.
+  ModuleGrid withLayout(String? scale, ModuleGridLayout layout) => scale == null
+      ? ModuleGrid(base: layout, variants: variants)
+      : ModuleGrid(base: base, variants: {...variants, scale: layout});
+
+  /// This grid without [scale]'s variant.
+  ModuleGrid withoutVariant(String scale) => ModuleGrid(base: base, variants: {
+        for (final entry in variants.entries)
+          if (entry.key != scale) entry.key: entry.value,
+      });
+
+  /// This grid without any cell for a control not in [ids].
+  ModuleGrid keepOnly(Set<String> ids) {
+    ModuleGridLayout prune(ModuleGridLayout layout) => layout.copyWith(cells: {
+          for (final entry in layout.cells.entries)
+            if (ids.contains(entry.key)) entry.key: entry.value,
+        });
+    return ModuleGrid(base: prune(base), variants: {
+      for (final entry in variants.entries) entry.key: prune(entry.value),
+    });
+  }
+
+  Map<String, Object?> toJson() => {
+        'base': base.toJson(),
+        if (variants.isNotEmpty)
+          'variants': {
+            for (final entry in variants.entries)
+              entry.key: entry.value.toJson(),
+          },
+      };
+
+  static ModuleGrid? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final base = ModuleGridLayout.fromJson(source['base']);
+    if (base == null) return null;
+    final variants = <String, ModuleGridLayout>{};
+    final rawVariants = source['variants'];
+    if (rawVariants is Map) {
+      for (final entry in rawVariants.entries) {
+        final layout = ModuleGridLayout.fromJson(entry.value);
+        if (scales.contains(entry.key) && layout != null) {
+          variants[entry.key as String] = layout;
+        }
+      }
+    }
+    return ModuleGrid(base: base, variants: variants);
+  }
+}
+
+enum ModuleBackgroundFit { contain, cover, fitWidth, fitHeight }
+
+enum ModuleBackgroundPosition {
+  topLeft,
+  topCenter,
+  topRight,
+  centerLeft,
+  center,
+  centerRight,
+  bottomLeft,
+  bottomCenter,
+  bottomRight,
+}
+
+/// Whitelisted Material icon presets keep imported layouts portable across
+/// Windows, Linux, Android, and Web without persisting font code points.
+enum ModuleTabIcon {
+  widgets,
+  dashboard,
+  tune,
+  monitoring,
+  chart,
+  information,
+  build,
+  science,
+  machine,
+  camera,
+  scanner,
+  contactless,
+  checklist,
+  guidance,
+  image,
+  description,
+  settings,
+  speed,
+  electrical,
+  // Appended (persisted by name).
+  events,
+}
+
+/// Custom buttons deliberately map only to the existing PLC-owned write
+/// surfaces. The HMI layout can choose and label an action; it cannot invent a
+/// writable OPC UA path or bypass the Unit mailbox/release checks.
+enum ModuleActionKind {
+  none,
+  manualCommand,
+  unitStart,
+  unitStop,
+  operatorReset,
+  decisionAnswer,
+  writeConfig,
+}
+
+enum ModuleActionConfirmation { none, confirm }
+
+enum ModuleControlWidth { quarter, third, half, twoThirds, full }
+
+class ModuleTabCapabilities {
+  final bool unit;
+  final bool sequence;
+  final bool motion;
+  final bool vision;
+  final bool codeReader;
+  final bool rfid;
+
+  /// The module publishes editable configuration (Core §3.10.2 capabilities).
+  final bool configuration;
+
+  const ModuleTabCapabilities({
+    this.unit = false,
+    this.sequence = false,
+    this.motion = false,
+    this.vision = false,
+    this.codeReader = false,
+    this.rfid = false,
+    this.configuration = false,
+  });
+}
+
+class ModuleTabBackground {
+  static const maxImageBytes = 10 * 1024 * 1024;
+  static const maxMargin = 600.0;
+
+  final String imageBase64;
+  final String imageName;
+  final ModuleBackgroundFit fit;
+  final ModuleBackgroundPosition position;
+  final double marginLeft;
+  final double marginTop;
+  final double marginRight;
+  final double marginBottom;
+
+  const ModuleTabBackground({
+    required this.imageBase64,
+    this.imageName = '',
+    this.fit = ModuleBackgroundFit.contain,
+    this.position = ModuleBackgroundPosition.center,
+    this.marginLeft = 0,
+    this.marginTop = 0,
+    this.marginRight = 0,
+    this.marginBottom = 0,
+  });
+
+  Map<String, Object?> toJson() => {
+        'imageBase64': imageBase64,
+        'imageName': imageName,
+        'fit': fit.name,
+        'position': position.name,
+        'marginLeft': marginLeft,
+        'marginTop': marginTop,
+        'marginRight': marginRight,
+        'marginBottom': marginBottom,
+      };
+
+  static ModuleTabBackground? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final image = source['imageBase64'];
+    if (image is! String || image.isEmpty) return null;
+    if (image.length > ((maxImageBytes * 4 / 3).ceil() + 16)) return null;
+    try {
+      if (base64Decode(image).length > maxImageBytes) return null;
+    } on FormatException {
+      return null;
+    }
+    final fit = ModuleBackgroundFit.values
+            .where((value) => value.name == source['fit'])
+            .firstOrNull ??
+        ModuleBackgroundFit.contain;
+    final position = ModuleBackgroundPosition.values
+            .where((value) => value.name == source['position'])
+            .firstOrNull ??
+        ModuleBackgroundPosition.center;
+    double margin(String name) {
+      final value = source[name];
+      return value is num ? value.clamp(0, maxMargin).toDouble() : 0;
+    }
+
+    final name = source['imageName'];
+    return ModuleTabBackground(
+      imageBase64: image,
+      imageName: name is String && name.length <= 255 ? name : '',
+      fit: fit,
+      position: position,
+      marginLeft: margin('marginLeft'),
+      marginTop: margin('marginTop'),
+      marginRight: margin('marginRight'),
+      marginBottom: margin('marginBottom'),
+    );
+  }
+}
+
+class ModuleControlDefinition {
+  static const minSamplePeriodMs = 250;
+  static const maxSamplePeriodMs = 60000;
+  static const minHistoryPoints = 20;
+  static const maxHistoryPoints = 600;
+  static const maxImageBytes = 5 * 1024 * 1024;
+  static const maxChartBindings = 8;
+
+  /// A shape may read several signals (door closed + door faulted).
+  static const maxShapeBindings = ModuleStateRule.maxRules;
+
+  static bool usesBindings(ModuleControlKind kind) => const {
+        ModuleControlKind.value,
+        ModuleControlKind.indicator,
+        ModuleControlKind.chart,
+        ModuleControlKind.textInput,
+        ModuleControlKind.shape,
+        ModuleControlKind.level,
+      }.contains(kind);
+
+  /// The kinds whose colour comes from [rules] and [defaultToken].
+  static bool usesRules(ModuleControlKind kind) =>
+      kind == ModuleControlKind.shape || kind == ModuleControlKind.level;
+
+  static int maximumBindingsFor(ModuleControlKind kind) => switch (kind) {
+        ModuleControlKind.chart => maxChartBindings,
+        ModuleControlKind.shape => maxShapeBindings,
+        ModuleControlKind.value ||
+        ModuleControlKind.indicator ||
+        ModuleControlKind.textInput ||
+        ModuleControlKind.level =>
+          1,
+        _ => 0,
+      };
+
+  final String id;
+  final ModuleControlKind kind;
+  final String label;
+  final String text;
+  final String binding;
+  final List<String> bindings;
+  final String unit;
+  final ModuleActionKind action;
+  final int actionValue;
+  final ModuleActionConfirmation confirmation;
+  final ModuleControlWidth width;
+  // Retained only to import older layout files. New actions ignore this path.
+  final String targetPath;
+  final int samplePeriodMs;
+  final int historyPoints;
+  final String imageBase64;
+  final String imageName;
+  final ModuleShape shape;
+  final List<ModuleStateRule> rules;
+  final ModuleStateToken defaultToken;
+
+  /// The range a [ModuleControlKind.level] bar spans.
+  final double minimum;
+  final double maximum;
+
+  /// Set = drawn over the tab's background image at this position; null = in
+  /// the tab's normal flow.
+  final ModulePlacement? placement;
+
+  /// A named show/hide set (LOCALIZATION §7.2): "sensor names", "I/O
+  /// addresses". Empty = always shown. Layers are sets, not stacking; drawing
+  /// order is the control order.
+  final String layer;
+
+  /// Shown only while this holds; null = always.
+  final ModuleCondition? visibleWhen;
+
+  /// A bound `enabled` for a button or input: usable only while this holds.
+  /// Unlike [visibleWhen], an UNAVAILABLE tag disables - Bad/Uncertain data
+  /// never enables an input. Presentation only: the PLC re-checks the request.
+  final ModuleCondition? enabledWhen;
+
+  /// The icon of the default state (no rule in force). See [glyphFor].
+  final ModuleGlyph defaultGlyph;
+
+  /// A bound rotation of a shape (a valve, a flap); null = upright.
+  final ModuleRotation? rotation;
+
+  /// A bound opacity: while this holds the control draws dimmed (a station
+  /// out of service, a disabled lane). Unavailable data never dims.
+  final ModuleCondition? dimmedWhen;
+
+  static const maxLayerLength = 40;
+
+  /// The opacity of a dimmed control: faded, still legible.
+  static const dimmedOpacity = 0.35;
+
+  const ModuleControlDefinition({
+    required this.id,
+    required this.kind,
+    this.label = '',
+    this.text = '',
+    this.binding = '',
+    this.bindings = const [],
+    this.unit = '',
+    this.action = ModuleActionKind.none,
+    this.actionValue = 0,
+    this.confirmation = ModuleActionConfirmation.confirm,
+    this.width = ModuleControlWidth.full,
+    this.targetPath = '',
+    this.samplePeriodMs = 1000,
+    this.historyPoints = 120,
+    this.imageBase64 = '',
+    this.imageName = '',
+    this.shape = ModuleShape.rectangle,
+    this.rules = const [],
+    this.defaultToken = ModuleStateToken.neutral,
+    this.minimum = 0,
+    this.maximum = 100,
+    this.placement,
+    this.layer = '',
+    this.visibleWhen,
+    this.enabledWhen,
+    this.defaultGlyph = ModuleGlyph.none,
+    this.rotation,
+    this.dimmedWhen,
+  });
+
+  /// The icon [values] put this control in: the first matching rule's, else
+  /// [defaultGlyph].
+  ModuleGlyph glyphFor(List<Object?> values) =>
+      ruleFor(values)?.glyph ?? defaultGlyph;
+
+  /// The rule in force for [values], or null when the default state applies.
+  ModuleStateRule? ruleFor(List<Object?> values) {
+    for (final rule in rules) {
+      if (rule.bindingIndex < values.length &&
+          rule.matches(values[rule.bindingIndex])) {
+        return rule;
+      }
+    }
+    return null;
+  }
+
+  /// Every tag read this control makes: its bindings and its visibility.
+  int get boundReads =>
+      linkedBindings.length +
+      (visibleWhen == null ? 0 : 1) +
+      (enabledWhen == null ? 0 : 1) +
+      (rotation == null ? 0 : 1) +
+      (dimmedWhen == null ? 0 : 1);
+
+  /// The state [values] (this control's linked bindings, in order) put it in:
+  /// the first matching rule, else [defaultToken].
+  ModuleStateToken resolveState(List<Object?> values) =>
+      ruleFor(values)?.token ?? defaultToken;
+
+  /// This control moved onto the image, or back into the flow (null).
+  ModuleControlDefinition withPlacement(ModulePlacement? next) =>
+      ModuleControlDefinition(
+        id: id,
+        kind: kind,
+        label: label,
+        text: text,
+        binding: binding,
+        bindings: bindings,
+        unit: unit,
+        action: action,
+        actionValue: actionValue,
+        confirmation: confirmation,
+        width: width,
+        targetPath: targetPath,
+        samplePeriodMs: samplePeriodMs,
+        historyPoints: historyPoints,
+        imageBase64: imageBase64,
+        imageName: imageName,
+        shape: shape,
+        rules: rules,
+        defaultToken: defaultToken,
+        minimum: minimum,
+        maximum: maximum,
+        placement: next?.clamped(),
+        layer: layer,
+        visibleWhen: visibleWhen,
+        enabledWhen: enabledWhen,
+        defaultGlyph: defaultGlyph,
+        rotation: rotation,
+        dimmedWhen: dimmedWhen,
+      );
+
+  /// Version-2 layouts stored one `binding`. New layouts store a list while
+  /// retaining the first item in that legacy field for downgrade/import
+  /// compatibility.
+  List<String> get linkedBindings {
+    if (bindings.isNotEmpty) return List.unmodifiable(bindings);
+    final legacy = binding.trim();
+    return legacy.isEmpty ? const [] : [legacy];
+  }
+
+  String get primaryBinding => linkedBindings.firstOrNull ?? '';
+
+  bool get bindingsAreValid {
+    final linked = linkedBindings;
+    return linked.length <= maximumBindingsFor(kind) &&
+        linked.every((item) => item.trim().isNotEmpty && item.length <= 512) &&
+        linked.toSet().length == linked.length;
+  }
+
+  ModuleControlDefinition copyWith({
+    String? id,
+    ModuleControlKind? kind,
+    String? label,
+    String? text,
+    String? binding,
+    List<String>? bindings,
+    String? unit,
+    ModuleActionKind? action,
+    int? actionValue,
+    ModuleActionConfirmation? confirmation,
+    ModuleControlWidth? width,
+    String? targetPath,
+    int? samplePeriodMs,
+    int? historyPoints,
+    String? imageBase64,
+    String? imageName,
+    ModuleShape? shape,
+    List<ModuleStateRule>? rules,
+    ModuleStateToken? defaultToken,
+    double? minimum,
+    double? maximum,
+  }) =>
+      ModuleControlDefinition(
+        id: id ?? this.id,
+        kind: kind ?? this.kind,
+        label: label ?? this.label,
+        text: text ?? this.text,
+        binding: binding ?? this.binding,
+        bindings: bindings ?? this.bindings,
+        unit: unit ?? this.unit,
+        action: action ?? this.action,
+        actionValue: actionValue ?? this.actionValue,
+        confirmation: confirmation ?? this.confirmation,
+        width: width ?? this.width,
+        targetPath: targetPath ?? this.targetPath,
+        samplePeriodMs: (samplePeriodMs ?? this.samplePeriodMs)
+            .clamp(minSamplePeriodMs, maxSamplePeriodMs)
+            .toInt(),
+        historyPoints: (historyPoints ?? this.historyPoints)
+            .clamp(minHistoryPoints, maxHistoryPoints)
+            .toInt(),
+        imageBase64: imageBase64 ?? this.imageBase64,
+        imageName: imageName ?? this.imageName,
+        shape: shape ?? this.shape,
+        rules: rules ?? this.rules,
+        defaultToken: defaultToken ?? this.defaultToken,
+        minimum: minimum ?? this.minimum,
+        maximum: maximum ?? this.maximum,
+        placement: placement,
+        layer: layer,
+        visibleWhen: visibleWhen,
+        enabledWhen: enabledWhen,
+        defaultGlyph: defaultGlyph,
+        rotation: rotation,
+        dimmedWhen: dimmedWhen,
+      );
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'kind': kind.name,
+        'label': label,
+        'text': text,
+        'binding': primaryBinding,
+        'bindings': linkedBindings,
+        'unit': unit,
+        'action': action.name,
+        'actionValue': actionValue,
+        'confirmation': confirmation.name,
+        'width': width.name,
+        'targetPath': targetPath,
+        'samplePeriodMs': samplePeriodMs,
+        'historyPoints': historyPoints,
+        'imageBase64': imageBase64,
+        'imageName': imageName,
+        'shape': shape.name,
+        'rules': [for (final rule in rules) rule.toJson()],
+        'defaultToken': defaultToken.name,
+        'minimum': minimum,
+        'maximum': maximum,
+        if (placement != null) 'placement': placement!.toJson(),
+        if (layer.isNotEmpty) 'layer': layer,
+        if (visibleWhen != null) 'visibleWhen': visibleWhen!.toJson(),
+        if (enabledWhen != null) 'enabledWhen': enabledWhen!.toJson(),
+        if (defaultGlyph != ModuleGlyph.none) 'defaultGlyph': defaultGlyph.name,
+        if (rotation != null) 'rotation': rotation!.toJson(),
+        if (dimmedWhen != null) 'dimmedWhen': dimmedWhen!.toJson(),
+      };
+
+  static ModuleControlDefinition? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final id = source['id'];
+    final kindName = source['kind'];
+    if (id is! String || id.isEmpty || id.length > 120 || kindName is! String) {
+      return null;
+    }
+    final kind = ModuleControlKind.values
+        .where((value) => value.name == kindName)
+        .firstOrNull;
+    if (kind == null) return null;
+    final actionName = source['action'];
+    final action = ModuleActionKind.values
+            .where((value) => value.name == actionName)
+            .firstOrNull ??
+        ModuleActionKind.none;
+    final image =
+        source['imageBase64'] is String ? source['imageBase64'] as String : '';
+    if (image.length > ((maxImageBytes * 4 / 3).ceil() + 16)) return null;
+    if (image.isNotEmpty) {
+      try {
+        if (base64Decode(image).length > maxImageBytes) return null;
+      } on FormatException {
+        return null;
+      }
+    }
+    String field(String name, [int maximum = 512]) {
+      final value = source[name];
+      return value is String && value.length <= maximum ? value : '';
+    }
+
+    int number(String name, int fallback) {
+      final value = source[name];
+      return value is num ? value.toInt() : fallback;
+    }
+
+    final bindings = <String>[];
+    final rawBindings = source['bindings'];
+    if (rawBindings is List) {
+      final maximum = maximumBindingsFor(kind);
+      if (rawBindings.length > maximum) return null;
+      for (final item in rawBindings) {
+        if (item is! String ||
+            item.trim().isEmpty ||
+            item.length > 512 ||
+            bindings.contains(item.trim())) {
+          return null;
+        }
+        bindings.add(item.trim());
+      }
+    }
+    final legacyBinding = field('binding').trim();
+    if (usesBindings(kind) && bindings.isEmpty && legacyBinding.isNotEmpty) {
+      bindings.add(legacyBinding);
+    }
+    // Rules are all-or-nothing: a layout whose rule points past its bindings
+    // is rejected, never half-applied (a door that silently lost its fault
+    // rule would read green).
+    final rules = <ModuleStateRule>[];
+    final rawRules = source['rules'];
+    if (rawRules is List) {
+      if (rawRules.length > ModuleStateRule.maxRules) return null;
+      for (final item in rawRules) {
+        final rule = ModuleStateRule.fromJson(item, bindings.length);
+        if (rule == null) return null;
+        rules.add(rule);
+      }
+    }
+    double real(String name, double fallback) {
+      final value = source[name];
+      return value is num && value.isFinite ? value.toDouble() : fallback;
+    }
+
+    var minimum = real('minimum', 0);
+    var maximum = real('maximum', 100);
+    if (!(minimum < maximum)) {
+      minimum = 0;
+      maximum = 100;
+    }
+
+    return ModuleControlDefinition(
+      id: id,
+      kind: kind,
+      label: field('label', 160),
+      text: field('text', 4000),
+      binding: bindings.firstOrNull ?? '',
+      bindings: bindings,
+      unit: field('unit', 40),
+      action: action,
+      actionValue: number('actionValue', 0),
+      confirmation: ModuleActionConfirmation.values
+              .where((value) => value.name == source['confirmation'])
+              .firstOrNull ??
+          ModuleActionConfirmation.confirm,
+      width: ModuleControlWidth.values
+              .where((value) => value.name == source['width'])
+              .firstOrNull ??
+          ModuleControlWidth.full,
+      targetPath: field('targetPath'),
+      samplePeriodMs: number('samplePeriodMs', 1000)
+          .clamp(minSamplePeriodMs, maxSamplePeriodMs)
+          .toInt(),
+      historyPoints: number('historyPoints', 120)
+          .clamp(minHistoryPoints, maxHistoryPoints)
+          .toInt(),
+      imageBase64: image,
+      imageName: field('imageName', 255),
+      shape: ModuleShape.values
+              .where((value) => value.name == source['shape'])
+              .firstOrNull ??
+          ModuleShape.rectangle,
+      rules: rules,
+      defaultToken: ModuleStateToken.values
+              .where((value) => value.name == source['defaultToken'])
+              .firstOrNull ??
+          ModuleStateToken.neutral,
+      minimum: minimum,
+      maximum: maximum,
+      placement: ModulePlacement.fromJson(source['placement']),
+      layer: field('layer', maxLayerLength).trim(),
+      visibleWhen: ModuleCondition.fromJson(source['visibleWhen']),
+      enabledWhen: ModuleCondition.fromJson(source['enabledWhen']),
+      defaultGlyph: ModuleGlyph.values
+              .where((value) => value.name == source['defaultGlyph'])
+              .firstOrNull ??
+          ModuleGlyph.none,
+      rotation: ModuleRotation.fromJson(source['rotation']),
+      dimmedWhen: ModuleCondition.fromJson(source['dimmedWhen']),
+    );
+  }
+}
+
+class ModuleTabDefinition {
+  final String id;
+  final String title;
+  final ModuleTabKind kind;
+  final AccessLevel requiredLevel;
+  final List<ModuleControlDefinition> controls;
+  final int triggerStepNo;
+  final String triggerStepName;
+
+  /// Unit modes this guidance may auto-open in, by `UnitMode.index`. Empty =
+  /// every mode.
+  ///
+  /// Without this a wildcard trigger fires in ANY mode: the press bench parks
+  /// AUTO on `pressAwaitTwoHand`, a WAIT_OPERATOR step, so simply selecting
+  /// AUTO threw a fullscreen dialog over the machine view before the operator
+  /// had done anything. Guidance that interrupts routine running is worse than
+  /// no guidance — the operator learns to dismiss it, including when it matters.
+  final List<int> triggerModes;
+
+  /// Whether the operator may dismiss this guidance and carry on, or must
+  /// acknowledge it. See [GuidanceMode]. Defaults to [GuidanceMode.optional]:
+  /// blocking the panel is opt-in, never the accident of leaving a field unset.
+  final GuidanceMode guidanceMode;
+  final ModuleTabBackground? background;
+  final ModuleTabIcon? tabIcon;
+
+  /// The class this view declares; null = never declared (a layout from
+  /// before §7.4), see [viewClass].
+  final ModuleViewClass? declaredClass;
+
+  /// A card tab's cards, in order. Empty = the kind's defaults
+  /// ([ModuleCardKind.defaultsFor]), so an unarranged tab needs no storage.
+  final List<ModuleCardPlacement> cards;
+
+  /// A card tab's column count; 0 = the kind's default (Overview 2, others 1).
+  final int columns;
+
+  /// The tab a module opens on. It is shown first, and stays first.
+  final bool isDefault;
+
+  /// Bound layer visibility (LOCALIZATION §7.2): a layer named here is shown
+  /// only while its condition holds, so one tag reveals or hides a whole
+  /// annotation set. Unavailable data never hides a layer. A viewer's own
+  /// show/hide chip still applies on top.
+  final Map<String, ModuleCondition> layerConditions;
+
+  /// The view's declared read budget (LOCALIZATION §7.3); 0 = the standard
+  /// [maxBoundReads]. A declaration may lower the standard, never raise it.
+  final int readBudget;
+
+  /// A grid container (LOCALIZATION §7.2); null = the flow. A view with a
+  /// picture places controls on the picture instead, so it carries no grid.
+  final ModuleGrid? grid;
+
+  static const maxColumns = 4;
+  static const maxCards = 48;
+  static const maxLayerConditions = 16;
+
+  /// A view's reads are bounded (LOCALIZATION §7.3): every bound tag is a
+  /// read, so the budget is refused at publish, not discovered on the panel.
+  static const maxBoundReads = 200;
+
+  /// The budget in force: the declared one, else the standard.
+  int get effectiveReadBudget =>
+      readBudget > 0 && readBudget < maxBoundReads ? readBudget : maxBoundReads;
+
+  const ModuleTabDefinition({
+    required this.id,
+    required this.title,
+    required this.kind,
+    this.requiredLevel = AccessLevel.none,
+    this.controls = const [],
+    this.triggerStepNo = 0,
+    this.triggerStepName = '',
+    this.triggerModes = const [],
+    this.guidanceMode = GuidanceMode.optional,
+    this.background,
+    this.tabIcon,
+    this.declaredClass,
+    this.cards = const [],
+    this.columns = 0,
+    this.isDefault = false,
+    this.layerConditions = const {},
+    this.readBudget = 0,
+    this.grid,
+  });
+
+  /// The cards in force: the arranged ones, else the kind's defaults. The
+  /// Overview carries every card, but the ones with a tab of their own
+  /// (description, documents, configuration) start hidden there.
+  List<ModuleCardPlacement> get effectiveCards => cards.isNotEmpty
+      ? cards
+      : [
+          for (final card in ModuleCardKind.defaultsFor(kind))
+            ModuleCardPlacement(card,
+                hidden: kind == ModuleTabKind.overview &&
+                    ModuleCardKind.ownTab.contains(card)),
+        ];
+
+  /// The columns in force.
+  int get effectiveColumns => columns > 0
+      ? columns.clamp(1, maxColumns).toInt()
+      : (kind == ModuleTabKind.overview ? 2 : 1);
+
+  /// The class in force. An undeclared view with a picture is a maintenance
+  /// view and one without is an operating view, so no layout saved before
+  /// §7.4 becomes invalid - and the class is still always visible.
+  ModuleViewClass get viewClass =>
+      declaredClass ??
+      (background == null
+          ? ModuleViewClass.operating
+          : ModuleViewClass.maintenance);
+
+  /// The tag reads this view makes each refresh.
+  int get boundReads =>
+      controls.fold(0, (sum, control) => sum + control.boundReads) +
+      layerConditions.length;
+
+  /// The layers this view's controls name, in first-use order.
+  List<String> get layers => [
+        for (final control in controls)
+          if (control.layer.isNotEmpty) control.layer,
+      ].toSet().toList(growable: false);
+
+  ModuleTabIcon get effectiveIcon =>
+      tabIcon ??
+      switch (kind) {
+        ModuleTabKind.overview => ModuleTabIcon.dashboard,
+        ModuleTabKind.description => ModuleTabIcon.description,
+        ModuleTabKind.sequence => ModuleTabIcon.checklist,
+        ModuleTabKind.motion => ModuleTabIcon.machine,
+        ModuleTabKind.vision => ModuleTabIcon.camera,
+        ModuleTabKind.codeReader => ModuleTabIcon.scanner,
+        ModuleTabKind.rfid => ModuleTabIcon.contactless,
+        ModuleTabKind.custom => ModuleTabIcon.widgets,
+        ModuleTabKind.guidance => ModuleTabIcon.guidance,
+        ModuleTabKind.configuration => ModuleTabIcon.tune,
+        ModuleTabKind.hardware => ModuleTabIcon.electrical,
+        ModuleTabKind.statistics => ModuleTabIcon.chart,
+        ModuleTabKind.events => ModuleTabIcon.events,
+      };
+
+  bool get builtIn => const {
+        'overview',
+        'description',
+        'motion',
+        'vision',
+        'code-reader',
+        'rfid',
+        'operator-guidance',
+        'configuration',
+        'hardware',
+        'statistics',
+        'events',
+      }.contains(id);
+
+  /// Whether this guidance tab should auto-open for the given live step.
+  ///
+  /// [modeIndex] is the Unit's active `UnitMode.index`, or null when unknown;
+  /// an unknown mode never satisfies a mode-scoped trigger, because opening a
+  /// fullscreen dialog on a guess is the failure this scoping exists to stop.
+  bool triggers(int stepNo, String stepName, {int? modeIndex}) {
+    if (kind != ModuleTabKind.guidance || stepNo == 0) return false;
+    final hasNumber = triggerStepNo > 0;
+    final hasName = triggerStepName.trim().isNotEmpty;
+    if (!hasNumber && !hasName) return false;
+    if (hasNumber && triggerStepNo != stepNo) return false;
+    if (hasName &&
+        triggerStepName.trim() != '*' &&
+        triggerStepName.trim() != stepName) {
+      return false;
+    }
+    if (triggerModes.isNotEmpty &&
+        (modeIndex == null || !triggerModes.contains(modeIndex))) {
+      return false;
+    }
+    return true;
+  }
+
+  ModuleTabDefinition copyWith({
+    String? id,
+    String? title,
+    ModuleTabKind? kind,
+    AccessLevel? requiredLevel,
+    List<ModuleControlDefinition>? controls,
+    int? triggerStepNo,
+    String? triggerStepName,
+    List<int>? triggerModes,
+    GuidanceMode? guidanceMode,
+    ModuleTabBackground? background,
+    ModuleTabIcon? tabIcon,
+    ModuleViewClass? declaredClass,
+    List<ModuleCardPlacement>? cards,
+    int? columns,
+    bool? isDefault,
+    Map<String, ModuleCondition>? layerConditions,
+    int? readBudget,
+    ModuleGrid? grid,
+  }) =>
+      ModuleTabDefinition(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        kind: kind ?? this.kind,
+        requiredLevel: requiredLevel ?? this.requiredLevel,
+        controls: controls ?? this.controls,
+        triggerStepNo: triggerStepNo ?? this.triggerStepNo,
+        triggerStepName: triggerStepName ?? this.triggerStepName,
+        triggerModes: triggerModes ?? this.triggerModes,
+        guidanceMode: guidanceMode ?? this.guidanceMode,
+        background: background ?? this.background,
+        tabIcon: tabIcon ?? this.tabIcon,
+        declaredClass: declaredClass ?? this.declaredClass,
+        cards: cards ?? this.cards,
+        columns: columns ?? this.columns,
+        isDefault: isDefault ?? this.isDefault,
+        layerConditions: layerConditions ?? this.layerConditions,
+        readBudget: readBudget ?? this.readBudget,
+        grid: grid ?? this.grid,
+      );
+
+  /// This view with [next] as its grid, or back on the flow (null).
+  ModuleTabDefinition withGrid(ModuleGrid? next) => ModuleTabDefinition(
+        id: id,
+        title: title,
+        kind: kind,
+        requiredLevel: requiredLevel,
+        controls: controls,
+        triggerStepNo: triggerStepNo,
+        triggerStepName: triggerStepName,
+        triggerModes: triggerModes,
+        guidanceMode: guidanceMode,
+        background: background,
+        tabIcon: tabIcon,
+        declaredClass: declaredClass,
+        cards: cards,
+        columns: columns,
+        isDefault: isDefault,
+        layerConditions: layerConditions,
+        readBudget: readBudget,
+        grid: next,
+      );
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'title': title,
+        'kind': kind.name,
+        'requiredLevel': requiredLevel.name,
+        'triggerStepNo': triggerStepNo,
+        'triggerStepName': triggerStepName,
+        if (triggerModes.isNotEmpty) 'triggerModes': triggerModes,
+        if (guidanceMode != GuidanceMode.optional)
+          'guidanceMode': guidanceMode.name,
+        if (background != null) 'background': background!.toJson(),
+        if (tabIcon != null) 'tabIcon': tabIcon!.name,
+        // Recorded in the export (§7.4): a class claimed silently would be.
+        if (declaredClass != null) 'viewClass': declaredClass!.name,
+        if (cards.isNotEmpty) 'cards': [for (final card in cards) card.toJson()],
+        if (columns > 0) 'columns': columns,
+        if (isDefault) 'isDefault': true,
+        if (layerConditions.isNotEmpty)
+          'layerConditions': {
+            for (final entry in layerConditions.entries)
+              entry.key: entry.value.toJson(),
+          },
+        if (readBudget > 0) 'readBudget': readBudget,
+        if (grid != null) 'grid': grid!.toJson(),
+        'controls': [for (final control in controls) control.toJson()],
+      };
+
+  static ModuleTabDefinition? fromJson(Object? source) {
+    if (source is! Map) return null;
+    final id = source['id'];
+    final title = source['title'];
+    if (id is! String ||
+        id.isEmpty ||
+        id.length > 120 ||
+        title is! String ||
+        title.isEmpty ||
+        title.length > 160) {
+      return null;
+    }
+    final kind = ModuleTabKind.values
+        .where((value) => value.name == source['kind'])
+        .firstOrNull;
+    final level = AccessLevel.values
+        .where((value) => value.name == source['requiredLevel'])
+        .firstOrNull;
+    if (kind == null || level == null) return null;
+    final controls = <ModuleControlDefinition>[];
+    final rawControls = source['controls'];
+    if (rawControls is List) {
+      if (rawControls.length > 64) return null;
+      for (final item in rawControls) {
+        final control = ModuleControlDefinition.fromJson(item);
+        if (control == null) return null;
+        controls.add(control);
+      }
+    }
+    final triggerStepNo = source['triggerStepNo'];
+    final triggerStepName = source['triggerStepName'];
+    // Absent in a profile exported before mode scoping existed: an empty list
+    // means "every mode", which is exactly the old behaviour, so an imported
+    // legacy bundle keeps working unchanged.
+    final rawModes = source['triggerModes'];
+    final triggerModes = <int>[];
+    if (rawModes is List) {
+      for (final item in rawModes) {
+        if (item is num) {
+          final index = item.toInt();
+          if (index >= 0 && index < 64 && !triggerModes.contains(index)) {
+            triggerModes.add(index);
+          }
+        }
+      }
+    }
+    final rawBackground = source['background'];
+    final background = ModuleTabBackground.fromJson(rawBackground);
+    if (rawBackground != null && background == null) return null;
+    final cards = <ModuleCardPlacement>[];
+    final rawCards = source['cards'];
+    if (rawCards is List) {
+      if (rawCards.length > maxCards) return null;
+      for (final item in rawCards) {
+        // A card kind this build does not know is skipped, never fatal: a
+        // profile from a newer HMI still loads.
+        for (final card in ModuleCardPlacement.allFromJson(item)) {
+          if (!cards.any((c) => c.kind == card.kind)) cards.add(card);
+        }
+      }
+    }
+    final rawColumns = source['columns'];
+    final layerConditions = <String, ModuleCondition>{};
+    final rawLayers = source['layerConditions'];
+    if (rawLayers is Map) {
+      for (final entry in rawLayers.entries) {
+        final name = entry.key;
+        final condition = ModuleCondition.fromJson(entry.value);
+        if (name is String &&
+            name.trim().isNotEmpty &&
+            name.length <= ModuleControlDefinition.maxLayerLength &&
+            condition != null &&
+            layerConditions.length < maxLayerConditions) {
+          layerConditions[name.trim()] = condition;
+        }
+      }
+    }
+    final rawBudget = source['readBudget'];
+    final grid = ModuleGrid.fromJson(source['grid'])
+        ?.keepOnly({for (final control in controls) control.id});
+    return ModuleTabDefinition(
+      id: id,
+      title: title,
+      kind: kind,
+      requiredLevel: level,
+      controls: controls,
+      triggerStepNo: triggerStepNo is num ? triggerStepNo.toInt() : 0,
+      triggerStepName:
+          triggerStepName is String && triggerStepName.length <= 255
+              ? triggerStepName
+              : '',
+      triggerModes: triggerModes,
+      // Absent (or unrecognised) = optional: an imported profile can only ever
+      // become LESS insistent by accident, never more.
+      guidanceMode: GuidanceMode.values
+              .where((value) => value.name == source['guidanceMode'])
+              .firstOrNull ??
+          GuidanceMode.optional,
+      // Only an authored tab carries a picture: one stored on the Overview
+      // before pictures left it is dropped, not failed on.
+      background: kind.acceptsBackground ? background : null,
+      declaredClass: kind.acceptsBackground
+          ? ModuleViewClass.values
+              .where((value) => value.name == source['viewClass'])
+              .firstOrNull
+          : null,
+      cards: kind.hostsCards ? cards : const [],
+      columns: kind.hostsCards && rawColumns is num
+          ? rawColumns.toInt().clamp(0, maxColumns).toInt()
+          : 0,
+      isDefault: source['isDefault'] == true,
+      layerConditions: layerConditions,
+      // A declared budget may lower the standard, never raise it.
+      readBudget: rawBudget is num
+          ? rawBudget.toInt().clamp(0, maxBoundReads).toInt()
+          : 0,
+      // A picture view places on its picture: a grid is kept only without one.
+      grid: kind.acceptsBackground && background == null ? grid : null,
+      tabIcon: ModuleTabIcon.values
+          .where((value) => value.name == source['tabIcon'])
+          .firstOrNull,
+    );
+  }
+
+  static List<ModuleTabDefinition> defaults(
+      ModuleTabCapabilities capabilities) {
+    return [
+      const ModuleTabDefinition(
+        id: 'overview',
+        title: 'std.module.tab.overview',
+        kind: ModuleTabKind.overview,
+      ),
+      const ModuleTabDefinition(
+        id: 'hardware',
+        title: 'std.module.tab.hardware',
+        kind: ModuleTabKind.hardware,
+      ),
+      if (capabilities.unit)
+        const ModuleTabDefinition(
+          id: 'statistics',
+          title: 'std.module.tab.statistics',
+          kind: ModuleTabKind.statistics,
+        ),
+      const ModuleTabDefinition(
+        id: 'events',
+        title: 'std.module.tab.events',
+        kind: ModuleTabKind.events,
+      ),
+      const ModuleTabDefinition(
+        id: 'description',
+        title: 'std.module.tab.description',
+        kind: ModuleTabKind.description,
+      ),
+      // Its own tab rather than a card under Overview: configuration is
+      // edited deliberately, not scrolled past. Only for a module that has any.
+      if (capabilities.configuration)
+        const ModuleTabDefinition(
+          id: 'configuration',
+          title: 'std.module.tab.configuration',
+          kind: ModuleTabKind.configuration,
+        ),
+      if (capabilities.sequence)
+        const ModuleTabDefinition(
+          id: 'sequence',
+          title: 'std.module.tab.sequence',
+          kind: ModuleTabKind.sequence,
+        ),
+      if (capabilities.motion)
+        const ModuleTabDefinition(
+          id: 'motion',
+          title: 'std.module.tab.motion',
+          kind: ModuleTabKind.motion,
+          requiredLevel: AccessLevel.operator,
+        ),
+      if (capabilities.vision)
+        const ModuleTabDefinition(
+          id: 'vision',
+          title: 'std.module.tab.vision',
+          kind: ModuleTabKind.vision,
+          requiredLevel: AccessLevel.operator,
+        ),
+      if (capabilities.codeReader)
+        const ModuleTabDefinition(
+          id: 'code-reader',
+          title: 'std.module.tab.codeReader',
+          kind: ModuleTabKind.codeReader,
+          requiredLevel: AccessLevel.operator,
+        ),
+      if (capabilities.rfid)
+        const ModuleTabDefinition(
+          id: 'rfid',
+          title: 'std.module.tab.rfid',
+          kind: ModuleTabKind.rfid,
+          requiredLevel: AccessLevel.operator,
+        ),
+      if (capabilities.unit)
+        // Not const: triggerModes is derived from the UnitMode enum rather than
+        // written as literal ordinals, so the list cannot be a compile-time
+        // constant. Deriving it is the point — a hand-written [3, 2, 4, 5, 6]
+        // would rot silently the day a mode is inserted.
+        ModuleTabDefinition(
+          id: 'operator-guidance',
+          title: 'std.module.tab.guidance',
+          kind: ModuleTabKind.guidance,
+          requiredLevel: AccessLevel.operator,
+          // The renderer limits this wildcard to WAIT_OPERATOR steps. Admins
+          // can replace it with an exact StepName or StepNo.
+          triggerStepName: '*',
+          // ...and to the SETUP modes. A WAIT_OPERATOR step is not by itself a
+          // reason to take over the screen: a production AUTO cycle waits for
+          // the operator all the time (the press parks on a two-hand start),
+          // and throwing a fullscreen dialog there interrupts normal running
+          // the moment the mode is selected. Changeover, home, calibration,
+          // capability and adjustment are the modes where the operator IS
+          // being walked through something, so guidance belongs to them.
+          // Admins can widen or narrow this per Unit.
+          triggerModes: kSetupGuidanceModes,
+        ),
+    ];
+  }
+}

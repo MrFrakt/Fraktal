@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_SetFind" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Deployment-sized keyed set storage; validation belongs to the typed walk.
+   VAR_INPUT 
+      RootIndex : Int;
+      SetName : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetFind := 0;
+	FOR #Index := 1 TO 4 DO
+	    IF "FRK_SetStore".Sets[#RootIndex, #Index].Info.Used AND "FRK_SetStore".Sets[#RootIndex, #Index].Info.SetName = #SetName THEN
+	        #FRK_SetFind := #Index;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

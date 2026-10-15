@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_DeliverySave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 3 THEN
+	    RETURN;
+	END_IF;
+	"FRK_EventDeliveryStore".Images[#Slot].Revision := "FRK_ConfigRevision"(Previous := "FRK_EventDeliveryStore".Images[#Slot].Revision);
+	"FRK_EventDeliveryStore".Images[#Slot].Checksum := "FRK_DeliveryHeaderCrc"(Slot := #Slot);
+	"FRK_EventDeliveryRuntime".PublishedRevision[#Slot] := 0;
+	"FRK_DeliveryPublish"(Slot := #Slot);
+	
+END_FUNCTION
+

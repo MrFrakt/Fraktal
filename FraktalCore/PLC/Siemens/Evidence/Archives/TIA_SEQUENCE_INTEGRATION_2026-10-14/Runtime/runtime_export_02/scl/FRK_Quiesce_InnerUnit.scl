@@ -1,0 +1,70 @@
+﻿FUNCTION "FRK_Quiesce_InnerUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Module : "FB_InnerUnit";
+      Hal : "ST_InnerUnitHal";
+   END_VAR
+
+   VAR_TEMP 
+      WasBusy : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Module.Execute := FALSE;
+	#Module.Abort := FALSE;
+	#WasBusy := #Module.Core.Exec = 1;
+	"FRK_RouteAbort"(Abort := TRUE,
+	                 Core := #Module.Core);
+	IF #Module.Core.RegIndex > 0 THEN
+	    "FRK_End"(Core := #Module.Core,
+	              Status := #Module.Status,
+	              Busy => #Module.Busy,
+	              Done => #Module.Done,
+	              Error => #Module.Error,
+	              Aborted => #Module.Aborted,
+	              Held => #Module.Held,
+	              ErrorID => #Module.ErrorID,
+	              Timing => #Module.Timing);
+	END_IF;
+	"FRK_AccessDropSession"(Access := #Module.Access);
+	"FRK_AccessCancel"(Access := #Module.Access);
+	#Module.RunningPublished := FALSE;
+	"FRK_SeqViewWithdraw"(Owner := #Module.Core.RegIndex);
+	CASE #Module.Core.RegIndex OF
+	    9:
+	        #Module.SequenceStepDef := "FRK_Views".V009.Defs;
+	        #Module.SequenceSteps := "FRK_Views".V009.Rows;
+	        #Module.ActiveSteps := "FRK_Views".V009.Cursors;
+	        #Module.SequenceAnnotations := "FRK_Views".V009.Notes;
+	        #Module.SequenceStepCount := "FRK_Views".V009.Count;
+	        #Module.SequenceAnnotationCount := "FRK_Views".V009.NoteCount;
+	        #Module.CurrentStep := "FRK_Views".V009.Current;
+	        #Module.CurrentStepElapsed := "FRK_Views".V009.Cursors[0].Elapsed;
+	        #Module.CurrentStepTimedOut := "FRK_Views".V009.Cursors[0].TimedOut;
+	    21:
+	        #Module.SequenceStepDef := "FRK_Views".V021.Defs;
+	        #Module.SequenceSteps := "FRK_Views".V021.Rows;
+	        #Module.ActiveSteps := "FRK_Views".V021.Cursors;
+	        #Module.SequenceAnnotations := "FRK_Views".V021.Notes;
+	        #Module.SequenceStepCount := "FRK_Views".V021.Count;
+	        #Module.SequenceAnnotationCount := "FRK_Views".V021.NoteCount;
+	        #Module.CurrentStep := "FRK_Views".V021.Current;
+	        #Module.CurrentStepElapsed := "FRK_Views".V021.Cursors[0].Elapsed;
+	        #Module.CurrentStepTimedOut := "FRK_Views".V021.Cursors[0].TimedOut;
+	    ELSE
+	        #Module.SequenceViewEnabled := FALSE;
+	END_CASE;
+	"FRK_CyclicHook_InnerUnit"(Device := #Module.Device,
+	                           Hal := #Hal,
+	                           OutImm := #Module.OutImm,
+	                           StateFlagCount := #Module.StateFlagCount,
+	                           StateFlags := #Module.StateFlags,
+	                           StateTouched := #Module.StateTouched);
+	"FRK_Quiesce_DeclarationCell"(Module := #Module.Cell,
+	                              Hal := #Hal.Cell);
+	
+END_FUNCTION
+

@@ -1,0 +1,16 @@
+TYPE "ST_HmiRequest"
+VERSION : 0.1
+   STRUCT
+      Kind : DInt;                 // E_HmiRequestKind (TC3 ordinals, append-only)
+      TargetPath : String[96];
+      NameValue : String[64];
+      TextValue : String[254];
+      User : String[32];
+      Secret : String[32];         // cleared by the root immediately after sampling
+      IntValue : DInt;
+      BoolValue : Bool;
+      DurationMs : UDInt;
+      Sequence : UDInt;            // commit marker, written last in its own Write call
+   END_STRUCT;
+
+END_TYPE

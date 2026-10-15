@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_SetBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      RootIndex : Int;
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_SetStore".SchemaVersion <> 1 THEN
+	    FOR #RootIndex := 1 TO 2 DO
+	        IF "FRK_SetStore".SchemaVersion <> 0 THEN
+	            "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                             Scope := "FRK_SetStore".Sets[#RootIndex, 1].Info.RootIdentity);
+	        END_IF;
+	        FOR #Slot := 1 TO 4 DO
+	            "FRK_SetStore".Sets[#RootIndex, #Slot].Info.Used := FALSE;
+	        END_FOR;
+	    END_FOR;
+	    "FRK_SetStore".SchemaVersion := 1;
+	END_IF;
+	
+END_FUNCTION
+

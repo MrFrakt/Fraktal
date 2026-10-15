@@ -622,6 +622,19 @@ def _mapper_surface(text: str) -> tuple[set[str], set[str], list[str]]:
     scan = re.compile(r"\.endsWith\('/([^']*)'\)")
     alarm_call = re.compile(r"_alarmEvent\(\s*values\s*,\s*(\w+)")
 
+    # Optional current readings are keyed by the field's published manifest
+    # Item, rather than by a fixed member name. Recognize only the actual
+    # capability loop and readable scalar pattern, then record its authority
+    # leaves. Missing current values use the manifest's ValueText. An arbitrary
+    # dynamic path elsewhere must still be reported unresolved.
+    capability_read = re.compile(
+        r"for\s*\(final field in configByModulePath\[path\]\s*\?\?\s*"
+        r"const <CfgField>\[\]\)\s*(?://[^\n]*\n\s*)*"
+        r"if\s*\(values\[\s*'\$base/\$\{field.name\}'\s*\]"
+        r"\s*case final Object measured\s*when field.readable")
+    capability_reads = {text.index("values[", hit.start(), hit.end())
+                        for hit in capability_read.finditer(text)}
+
     # `_alarmEvent` reads through a parameter, so its reads belong to whatever
     # each call site passed. Lift its body out and expand it per call site.
     alarm_suffixes: list[str] = []
@@ -647,6 +660,11 @@ def _mapper_surface(text: str) -> tuple[set[str], set[str], list[str]]:
     for hit in bind_literal.finditer(text):
         events.append((hit.start(), "bind", hit.group(1), hit.group(2)))
     for hit in direct.finditer(text):
+        if hit.start() in capability_reads:
+            for leaf in ('Scope', 'Item', 'ValueText'):
+                events.append((hit.start(), "read", "",
+                               "$base/HmiResponse/ConfigPage/Entries[*]/" + leaf))
+            continue
         events.append((hit.start(), "read", "", hit.group(1)))
     for hit in array_read.finditer(text):
         events.append((hit.start(), "read", "", hit.group(1) + "[*]"))
@@ -837,19 +855,12 @@ def check_read_surface(root: Path) -> list[Finding]:
     # outside the snapshot mapper. Parse those actual reads with the same path
     # resolver, so a dropped catalog leaf cannot hide behind a blanket excuse.
     repository = _read(HMI_MAPPER.with_name('opcua_repository.dart'))
-    for method in ('listConfigSets', 'configSetRejection', 'login'):
+    for method in ('listConfigSets', 'configSetRejection', 'login', '_exportDocument'):
         body = re.search(r'Future<[^\n]+>\s+' + method + r'\(.*?\n  \}', repository, re.S)
         if body:
             consumed, _, errors = _mapper_surface(body.group(0))
             modules.update(consumed)
             unresolved.extend(errors)
-    # Export reads a response map through the already-resolved root base.
-    body = re.search(r'Future<String\?>\s+exportConfigSet\(.*?\n  \}', repository, re.S)
-    if body:
-        consumed, _, errors = _mapper_surface(body.group(0))
-        modules.update(consumed)
-        unresolved.extend(errors)
-
     for key in unresolved:
         findings.append(Finding(
             "readsurface", "error", where,

@@ -1,0 +1,61 @@
+﻿FUNCTION "FRK_AccessFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Unit : "FRK_Unit";
+      Response : "ST_HmiResponse";
+      SourcePath : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+      History : Array[1..16] of "ST_Diagnostic";
+      Head : Int;
+      Revision : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      What : WString[160];
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending THEN
+	    RETURN;
+	END_IF;
+	CASE #Unit.Request.Kind OF
+	    23, 15,
+	    16, 17,
+	    1:
+	        RETURN;
+	    2:
+	        "FRK_AccessAudit"(History := #History,
+	                          Head := #Head,
+	                          What := WSTRING#'std.audit.logout',
+	                          Who := #Unit.RequestUser,
+	                          SourcePath := #SourcePath);
+	        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	        RETURN;
+	    ELSE
+	        #What := WSTRING#'std.audit.accessDenied';
+	END_CASE;
+	IF #Response.Accepted THEN
+	    #What := WSTRING#'std.audit.operatorMutation';
+	    IF #Access.CurrentLevel > 0 THEN
+	        #Access.LastActivity := "FRK_Clock".NowMs;
+	    END_IF;
+	    IF #Unit.Request.Kind = 24 THEN
+	        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	    END_IF;
+	END_IF;
+	#What := CONCAT(IN1 := #What, IN2 := WSTRING#' kind=');
+	#What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.Kind));
+	"FRK_AccessAudit"(History := #History,
+	                  Head := #Head,
+	                  What := #What,
+	                  Who := #Access.CurrentUser,
+	                  SourcePath := #SourcePath);
+	
+END_FUNCTION
+

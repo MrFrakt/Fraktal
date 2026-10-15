@@ -1,0 +1,19 @@
+TYPE "ST_ConfigPersistStatus"
+VERSION : 0.1
+   STRUCT
+      "Pending" : Bool;
+      "Failed" : Bool;
+      "WindowMs" : UDInt := 5000;
+      "PendingSince" : LDT;
+      "StorePresent" : Bool;
+      "StoreKind" : DInt;
+      "RestorePolicy" : DInt;
+      "RestoreLost" : Bool;
+      "RestoreAcknowledged" : Bool;
+      "LostPath" : String[80];
+      "LastSetName" : String[80];
+      "LastSetRecords" : Int;
+      "LastRejectScope" : String[80];
+      "LastRejectKey" : String[160];
+   END_STRUCT;
+END_TYPE

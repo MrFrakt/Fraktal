@@ -1,0 +1,140 @@
+FUNCTION "FRK_SeqInitial" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT InitialStep : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    IF #Seq.Restart OR NOT #Seq.Running THEN #Seq.Step := #InitialStep; #Seq.ScanStep := #InitialStep; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqSubActive" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Run : Bool; StepNo : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    #FRK_SeqSubActive := #Run AND #Seq.Running AND NOT #Seq.Error AND #Seq.Step = #StepNo;
+END_FUNCTION
+
+FUNCTION "FRK_SeqSubStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Child : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    IF #Child.Error THEN #Seq.Error := TRUE; #Seq.ErrorDiagnostic := #Child.ErrorDiagnostic; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqReady" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Ok1 : Bool; Ok2 : Bool; Ok3 : Bool; Ok4 : Bool; Ok5 : Bool; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := #Ok1 AND #Ok2 AND #Ok3 AND #Ok4 AND #Ok5, Jump1Ok := FALSE);
+END_FUNCTION
+
+FUNCTION "FRK_SeqSelect" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT AdvanceOk : Bool; Jump1Ok : Bool; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    #Seq.RetVal := @E_StepResult.NONE@;
+    IF NOT #Seq.Running OR #Seq.Error THEN RETURN; END_IF;
+    IF #AdvanceOk THEN #Seq.RetVal := @E_StepResult.ADVANCE@;
+    ELSIF #Jump1Ok THEN #Seq.RetVal := @E_StepResult.JUMP1@;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqHandled" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; ChildCore : "FRK_Core"; END_VAR
+BEGIN
+    // The owning step reports this occurrence through the closed AUTO_RESET
+    // path. Ordinary child faults retain their MANUAL_RESET capture.
+    IF #Seq.CommandFailed THEN #ChildCore.FaultHandled := TRUE; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqOwnerStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Core : "FRK_Core"; Status : "ST_ModuleStatus"; END_VAR
+BEGIN
+    IF #Core.Exec = @E_ExecState.ERROR@ THEN
+        #Seq.Error := TRUE;
+        #Seq.ErrorDiagnostic := #Status.Diagnostic;
+    ELSIF #Seq.Error THEN
+        "FRK_AdoptFault"(Core := #Core, Status := #Status, Diag := #Seq.ErrorDiagnostic);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqRoute" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT OnAdvance : DInt; OnJump1 : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    IF NOT #Seq.Running OR #Seq.Error THEN RETURN; END_IF;
+    CASE #Seq.RetVal OF
+        @E_StepResult.ADVANCE@: IF #OnAdvance >= 0 THEN #Seq.Step := #OnAdvance; END_IF;
+        @E_StepResult.JUMP1@: IF #OnJump1 >= 0 THEN #Seq.Step := #OnJump1; END_IF;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqOnce" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Enable : Bool; Token : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    #FRK_SeqOnce := #Enable AND #Seq.Running AND NOT #Seq.Error
+        AND (#Seq.EventVisit <> #Seq.Visit OR #Seq.EventToken <> #Token);
+    IF #FRK_SeqOnce THEN #Seq.EventVisit := #Seq.Visit; #Seq.EventToken := #Token; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_SeqMessage" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Diag : "ST_Diagnostic"; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; Gone : Bool; END_VAR
+BEGIN
+    IF #Seq.Warned THEN RETURN; END_IF;
+    #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
+    IF #Slot > 0 THEN
+        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot);
+        #Seq.Warned := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_PartRecord" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RecordName : String; Value : LReal; Minimum : LReal; Maximum : LReal; Target : LReal; EngUnit : String; END_VAR
+VAR_IN_OUT Core : "FRK_Core"; Status : "ST_ModuleStatus"; Part : "ST_PartContext"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_PartRecord := FALSE;
+    IF NOT #Part.Present THEN RETURN; END_IF;
+    IF #RecordName = '' OR LEN(#RecordName) > @RECORD_NAME_WIDTH@ OR LEN(#EngUnit) > @RECORD_UNIT_WIDTH@
+        OR #Minimum > #Maximum OR #Value <> #Value OR #Minimum <> #Minimum OR #Maximum <> #Maximum OR #Target <> #Target THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.RESULT_RECORD_REJECTED@, Description := WSTRING#'std.error.partRecordRejected');
+        RETURN;
+    END_IF;
+    FOR #Index := 1 TO @MAX_RESULTS@ DO
+        IF #Part.Result.Records[#Index].Name = #RecordName OR #Part.Result.Records[#Index].Name = '' THEN
+            #Part.Result.Records[#Index].Name := #RecordName;
+            #Part.Result.Records[#Index].Value := #Value;
+            #Part.Result.Records[#Index].Minimum := #Minimum;
+            #Part.Result.Records[#Index].Maximum := #Maximum;
+            #Part.Result.Records[#Index].Target := #Target;
+            #Part.Result.Records[#Index].Unit := #EngUnit;
+            #Part.Result.Records[#Index].InTol := #Value >= #Minimum AND #Value <= #Maximum;
+            #FRK_PartRecord := TRUE;
+            RETURN;
+        END_IF;
+    END_FOR;
+    "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.RESULT_RECORD_REJECTED@, Description := WSTRING#'std.error.partRecordTableFull');
+END_FUNCTION

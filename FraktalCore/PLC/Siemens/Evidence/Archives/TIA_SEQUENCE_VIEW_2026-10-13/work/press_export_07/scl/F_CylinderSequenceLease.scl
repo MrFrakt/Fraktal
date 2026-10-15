@@ -1,0 +1,38 @@
+﻿FUNCTION "F_CylinderSequenceLease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Target : "FB_CylinderCM";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+	    AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex
+	    AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex
+	    AND #Seq.OwnerIndex > 0 AND #Seq.ChainIndex > 0
+	    AND (NOT #Seq.Running OR #Seq.Error OR #Seq.Restart) THEN
+	    #Target.Device.Withdrawn := TRUE;
+	END_IF;
+	IF #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+	    AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex
+	    AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex
+	    AND #Target.Device.Lease.AbortIssued AND #Target.Device.Lease.ReleasedScan <> #Seq.Scan THEN
+	    #Target.Abort := FALSE;
+	    #Target.Device.Lease.AbortIssued := FALSE;
+	END_IF;
+	IF #Target.Device.Lease.Raised AND #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+	    AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex
+	    AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex
+	    AND (NOT #Seq.Running OR #Seq.Error OR #Seq.Restart OR #Target.Device.Lease.Step <> #Seq.Step) THEN
+	    #Target.Abort := #Target.Busy;
+	    #Target.Device.Lease.AbortIssued := #Target.Busy;
+	END_IF;
+	"FRK_SeqLease"(Seq := #Seq,
+	               Lease := #Target.Device.Lease,
+	               Execute := #Target.Execute);
+	
+END_FUNCTION
+

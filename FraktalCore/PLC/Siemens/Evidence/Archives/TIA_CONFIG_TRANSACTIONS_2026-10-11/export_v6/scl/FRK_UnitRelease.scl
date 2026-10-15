@@ -1,0 +1,161 @@
+﻿FUNCTION "FRK_UnitRelease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Gate : DInt;
+      Desired : DInt;
+      Trusted : Bool;
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Policy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      Supported : Array[0..6] of Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Report : "ST_ReleaseReport";
+   END_VAR
+
+
+BEGIN
+	
+	#Report.Count := 0;
+	#Report.Released := TRUE;
+	IF #Gate <> 5 AND #Gate <> 4
+	    AND #Gate <> 7 AND #Gate <> 2
+	    AND #Gate <> 8
+	    AND NOT (#Unit.ConfigEnabled AND #Gate = 1)
+	    AND NOT (#Unit.ModelEnabled AND #Gate = 3) THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.error.unsupportedHmiRequest',
+	                        Reason := 2008,
+	                        Path := STRING_TO_WSTRING(#Status.Name),
+	                        Kind := 4);
+	    RETURN;
+	END_IF;
+	IF NOT #Trusted THEN
+	    IF #Access.CurrentLevel < #Access.Policy.Required[#Gate] THEN
+	        "FRK_ReleaseReason"(Report := #Report,
+	                            Description := WSTRING#'std.release.insufficientAction',
+	                            Reason := 2002,
+	                            Path := STRING_TO_WSTRING(#Status.Name),
+	                            Kind := 1);
+	    END_IF;
+	END_IF;
+	CASE #Gate OF
+	    3:
+	        IF #Core.Exec <> 0 OR #Unit.ModePending OR #Unit.Clearing OR NOT "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
+	            "FRK_ReleaseReason"(Report := #Report,
+	                                Description := WSTRING#'std.error.hmiRequestRejected',
+	                                Reason := 2011,
+	                                Path := STRING_TO_WSTRING(#Status.Name),
+	                                Kind := 4);
+	        END_IF;
+	        IF #Unit.AlarmBlocking THEN
+	            "FRK_ReleaseReason"(Report := #Report,
+	                                Description := WSTRING#'std.release.manualReset',
+	                                Reason := 0,
+	                                Path := STRING_TO_WSTRING(#Status.Name),
+	                                Kind := 2);
+	        END_IF;
+	        IF NOT #Unit.Permit THEN
+	            "FRK_ReleaseReason"(Report := #Report,
+	                                Description := #Unit.PermitDiag.Description,
+	                                Reason := #Unit.PermitDiag.ReasonCode,
+	                                Path := #Unit.PermitDiag.SourcePath,
+	                                Kind := 3);
+	        END_IF;
+	    5:
+	        // Desired=0 is Start, Desired=1 is Stop. Generic action query is Stop.
+	        IF #Desired = 0 THEN
+	            IF #Unit.Mode = 1 OR #Unit.ModePending THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.error.unsupportedModeRequest',
+	                                    Reason := 2002,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 0);
+	            END_IF;
+	            IF #Core.Exec <> 0 OR #Unit.RunReq OR #Unit.Clearing OR #Unit.FaultLatched THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.error.hmiRequestRejected',
+	                                    Reason := 2011,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 4);
+	            END_IF;
+	            IF #Unit.AlarmBlocking THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.release.manualReset',
+	                                    Reason := 0,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 2);
+	            END_IF;
+	            IF #Unit.ConfigBlocked THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.release.configRestoreUnacknowledged',
+	                                    Reason := 2040,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 2);
+	            END_IF;
+	            IF NOT #Unit.Permit THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := #Unit.PermitDiag.Description,
+	                                    Reason := #Unit.PermitDiag.ReasonCode,
+	                                    Path := #Unit.PermitDiag.SourcePath,
+	                                    Kind := 3);
+	            END_IF;
+	        END_IF;
+	    4:
+	        IF #Unit.ModePending THEN
+	            "FRK_ReleaseReason"(Report := #Report,
+	                                Description := WSTRING#'std.release.modeChangeAlreadyPending',
+	                                Reason := 2011,
+	                                Path := STRING_TO_WSTRING(#Status.Name),
+	                                Kind := 0);
+	        END_IF;
+	        IF #Core.Exec = 1 AND #Unit.Mode <> 1 THEN
+	            IF #Policy[#Unit.Mode].Shield = 2 THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.release.modeSwitchBlockedWhileRunning',
+	                                    Reason := 2002,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 0);
+	            END_IF;
+	        END_IF;
+	        IF #Desired <> -1 THEN
+	            IF #Desired < 0 OR #Desired >= 7 THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.error.unsupportedModeRequest',
+	                                    Reason := 2008,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 0);
+	            ELSIF NOT #Supported[#Desired] THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.error.unsupportedModeRequest',
+	                                    Reason := 2008,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 0);
+	            END_IF;
+	        END_IF;
+	    7:
+	        // The complete alarm model is separate; this gate owns the current latch.
+	        IF NOT #Unit.FaultLatched AND NOT #Unit.AlarmBlocking AND #Core.Exec = 0 AND NOT #Unit.Clearing AND NOT #Unit.ModePending AND NOT #Unit.FollowStart THEN
+	            IF "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
+	                "FRK_ReleaseReason"(Report := #Report,
+	                                    Description := WSTRING#'std.release.noBlockingAlarm',
+	                                    Reason := 2011,
+	                                    Path := STRING_TO_WSTRING(#Status.Name),
+	                                    Kind := 4);
+	            END_IF;
+	        END_IF;
+	    2:
+	        "FRK_ManualCommon"(Core := #Core,
+	                           Unit := #Unit,
+	                           Status := #Status,
+	                           Report := #Report);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

@@ -72,3 +72,22 @@ The subsequent generator0.4 nested Unit/manual bench passes120 native checks
 and104-block/40-interface canonical reimport. Current saved FrkS12 image:
 TiaStations/Routing_Runtime_20261011/FrkS12/FrkS12.ap20. Previous Unit/lifecycle/type
 projects remain preserved. Full native HMI rendering and Core services remain open.
+
+Generator0.7 adds the [state/alarm fixture](../StateAlarm/README.md). Unconditional
+FRK_State calls in the derived `cyclic` region declare bounded unique literal
+indices/keys; the generator supplies context and allocates state facets only on
+consuming types. Unit frames own alarm sweep/capture/reset assembly. Projects may
+raise/gone/message events but cannot write published authority or invoke assembly.
+Optional top-level `event_sink: "F_ProjectEventSink"` requires a separate composition
+function taking `Ev : ST_AlarmEvent` as input; it is a generated external dependency.
+Omitting it emits no callback dependency. The composition root controls private
+SinkEnabled. No durable adapter or retained log is implied by this seam.
+
+Generator 0.8 adds [station config and model config](../Config/README.md).
+Declare `station_config` and the typed `config` member/key/revision metadata on
+each consuming type; declare the offered models and initial model in the
+top-level `model_config`. One definition generates the manifest, typed writer,
+restore and model transaction participants. The generator owns staging and
+assembly; project code supplies no extra call for correctness. The current
+scalar/local-retain prototype and its remaining scope are recorded in the
+[dated evidence](../../../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_CONFIG_TRANSACTIONS_2026-10-11.md).

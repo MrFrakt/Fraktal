@@ -1,0 +1,177 @@
+﻿FUNCTION "FRK_JsonParse" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Strict flat JSON object scanner: whole object, unique known fields, exact
+// types, numeric integer grammar; strings decode escapes before owner checks.
+   VAR_INPUT 
+      Line : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Fields : Array[1..9] of "FRK_JsonField";
+      Count : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Pos : Int;
+      Limit : Int;
+      Digit : Int;
+      CodePoint : UInt;
+      HexIndex : Int;
+      Index : Int;
+      Part : Int;
+      Text : WString[160];
+      Piece : WString[1];
+      Quoted : Bool;
+      Closed : Bool;
+      Ch : WChar;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_JsonParse := FALSE;
+	#Count := 0;
+	#Pos := 1;
+	#Limit := LEN(#Line);
+	IF #Limit < 2 OR #Line[#Pos] <> WCHAR#'{' THEN
+	    RETURN;
+	END_IF;
+	#Pos := #Pos + 1;
+	WHILE #Pos <= #Limit DO
+	    "FRK_JsonSkip"(Line := #Line,
+	                   Pos := #Pos);
+	    IF #Pos > #Limit OR #Count >= 9 THEN
+	        RETURN;
+	    END_IF;
+	    #Count := #Count + 1;
+	    FOR #Part := 1 TO 2 DO
+	        #Text := WSTRING#'';
+	        #Closed := FALSE;
+	        #Quoted := #Line[#Pos] = WCHAR#'"';
+	        IF #Part = 1 AND NOT #Quoted THEN
+	            RETURN;
+	        END_IF;
+	        IF #Quoted THEN
+	            #Pos := #Pos + 1;
+	        END_IF;
+	        WHILE #Pos <= #Limit DO
+	            #Ch := #Line[#Pos];
+	            IF #Quoted AND #Ch = WCHAR#'"' THEN
+	                #Closed := TRUE;
+	                #Pos := #Pos + 1;
+	                EXIT;
+	            END_IF;
+	            IF NOT #Quoted AND (#Ch = WCHAR#',' OR #Ch = WCHAR#'}' OR #Ch = WCHAR#' ') THEN
+	                #Closed := TRUE;
+	                EXIT;
+	            END_IF;
+	            IF #Ch < WCHAR#'$0020' THEN
+	                RETURN;
+	            END_IF;
+	            IF #Quoted AND #Ch = WCHAR#'\' THEN
+	                #Pos := #Pos + 1;
+	                IF #Pos > #Limit THEN
+	                    RETURN;
+	                END_IF;
+	                #Ch := #Line[#Pos];
+	                IF #Ch = WCHAR#'u' THEN
+	                    #CodePoint := 0;
+	                    FOR #HexIndex := 1 TO 4 DO
+	                        #Pos := #Pos + 1;
+	                        IF #Pos > #Limit THEN
+	                            RETURN;
+	                        END_IF;
+	                        #Ch := #Line[#Pos];
+	                        #Digit := -1;
+	                        IF #Ch >= WCHAR#'0' AND #Ch <= WCHAR#'9' THEN
+	                            #Digit := WORD_TO_INT(WCHAR_TO_WORD(#Ch)) - 48;
+	                        ELSIF #Ch >= WCHAR#'a' AND #Ch <= WCHAR#'f' THEN
+	                            #Digit := WORD_TO_INT(WCHAR_TO_WORD(#Ch)) - 87;
+	                        ELSIF #Ch >= WCHAR#'A' AND #Ch <= WCHAR#'F' THEN
+	                            #Digit := WORD_TO_INT(WCHAR_TO_WORD(#Ch)) - 55;
+	                        END_IF;
+	                        IF #Digit < 0 THEN
+	                            RETURN;
+	                        END_IF;
+	                        #CodePoint := #CodePoint * 16 + INT_TO_UINT(#Digit);
+	                    END_FOR;
+	                    IF #CodePoint = 0 OR #CodePoint >= UINT#16#D000 THEN
+	                        RETURN;
+	                    END_IF;
+	                    #Ch := WORD_TO_WCHAR(UINT_TO_WORD(#CodePoint));
+	                ELSIF #Ch = WCHAR#'n' THEN
+	                    #Ch := WCHAR#'$000A';
+	                ELSIF #Ch = WCHAR#'r' THEN
+	                    #Ch := WCHAR#'$000D';
+	                ELSIF #Ch = WCHAR#'t' THEN
+	                    #Ch := WCHAR#'$0009';
+	                ELSIF #Ch <> WCHAR#'"' AND #Ch <> WCHAR#'\' AND #Ch <> WCHAR#'/' THEN
+	                    RETURN;
+	                END_IF;
+	            ELSIF NOT #Quoted AND (#Ch < WCHAR#'0' OR #Ch > WCHAR#'9') THEN
+	                RETURN;
+	            END_IF;
+	            IF LEN(#Text) >= 160 THEN
+	                RETURN;
+	            END_IF;
+	            #Piece := WSTRING#' ';
+	            #Piece[1] := #Ch;
+	            #Text := CONCAT(IN1 := #Text, IN2 := #Piece);
+	            #Pos := #Pos + 1;
+	        END_WHILE;
+	        IF NOT #Closed THEN
+	            RETURN;
+	        END_IF;
+	        IF #Part = 1 THEN
+	            IF LEN(#Text) < 1 OR LEN(#Text) > 16 THEN
+	                RETURN;
+	            END_IF;
+	            #Fields[#Count].Key := WSTRING_TO_STRING(#Text);
+	            FOR #Index := 1 TO #Count - 1 DO
+	                IF #Fields[#Index].Key = #Fields[#Count].Key THEN
+	                    RETURN;
+	                END_IF;
+	            END_FOR;
+	            "FRK_JsonSkip"(Line := #Line,
+	                           Pos := #Pos);
+	            IF #Pos > #Limit THEN
+	                RETURN;
+	            END_IF;
+	            IF #Line[#Pos] <> WCHAR#':' THEN
+	                RETURN;
+	            END_IF;
+	            #Pos := #Pos + 1;
+	            "FRK_JsonSkip"(Line := #Line,
+	                           Pos := #Pos);
+	            IF #Pos > #Limit THEN
+	                RETURN;
+	            END_IF;
+	        ELSE
+	            IF NOT #Quoted AND (LEN(#Text) = 0 OR (LEN(#Text) > 1 AND #Text[1] = WCHAR#'0')) THEN
+	                RETURN;
+	            END_IF;
+	            #Fields[#Count].Text := #Text;
+	            #Fields[#Count].Quoted := #Quoted;
+	        END_IF;
+	    END_FOR;
+	    "FRK_JsonSkip"(Line := #Line,
+	                   Pos := #Pos);
+	    IF #Pos > #Limit THEN
+	        RETURN;
+	    END_IF;
+	    IF #Line[#Pos] = WCHAR#'}' THEN
+	        #Pos := #Pos + 1;
+	        "FRK_JsonSkip"(Line := #Line,
+	                       Pos := #Pos);
+	        #FRK_JsonParse := #Pos > #Limit;
+	        RETURN;
+	    END_IF;
+	    IF #Line[#Pos] <> WCHAR#',' THEN
+	        RETURN;
+	    END_IF;
+	    #Pos := #Pos + 1;
+	END_WHILE;
+	
+END_FUNCTION
+

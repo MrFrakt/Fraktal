@@ -1,0 +1,19 @@
+﻿FUNCTION "FRK_SeqSubActive" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Run : Bool;
+      StepNo : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SeqSubActive := #Run AND #Seq.Running AND NOT #Seq.Error AND #Seq.Step = #StepNo;
+	
+END_FUNCTION
+

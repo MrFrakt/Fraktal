@@ -1,0 +1,25 @@
+// Fraktal/TIA Phase 0 fixture S11 - sequence service the GRAPH rendition needs
+// beyond S2's (Part IV s.3.5). A GRAPH action is an assignment or a CALL, never
+// an IF, so a wait that depends on a condition takes the condition as an operand.
+
+FUNCTION "FRK_Seq_AwaitPending" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      ChildIdx : Int;              // generated index of a direct child of the owner
+      Label : String;
+      Done : Bool;                 // the awaited child's result: a finished child is not named
+   END_VAR
+
+   VAR_IN_OUT
+      Seq : "FRK_SeqCtx";
+   END_VAR
+
+
+BEGIN
+	// Several pending waits in one step: the LAST call that is still pending names
+	// the child, so a step lists its waits in reverse priority.
+	IF NOT #Done THEN
+	    "FRK_Seq_Await"(ChildIdx := #ChildIdx, Label := #Label, Seq := #Seq);
+	END_IF;
+END_FUNCTION

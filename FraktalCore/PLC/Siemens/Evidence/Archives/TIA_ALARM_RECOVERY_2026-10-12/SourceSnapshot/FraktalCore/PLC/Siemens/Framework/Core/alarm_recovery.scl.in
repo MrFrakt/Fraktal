@@ -1,0 +1,439 @@
+// Binding-local opt-in recovery of manual-reset latches. Commands remain volatile.
+FUNCTION "FRK_AlarmRecoveryIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryIndex := 0;
+@RECOVERY_INDEX@
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryScope" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    CASE #Slot OF
+@RECOVERY_OWNERS@
+        ELSE #FRK_AlarmRecoveryScope := '';
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    // All selected descendants are conservative until their owning frame restores.
+    FOR #Slot := 1 TO @RECOVERY_COUNT@ DO
+        "FRK_AlarmRecoveryRuntime".Ready[#Slot] := FALSE;
+        "FRK_AlarmRecoveryRuntime".Blocked[#Slot] := TRUE;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryTreeBlocking" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Expected : String[@NAME_WIDTH@];
+    Prefix : String[@NAME_WIDTH@];
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryTreeBlocking := FALSE;
+    #Prefix := CONCAT(IN1 := #Scope, IN2 := '.');
+    FOR #Slot := 1 TO @RECOVERY_COUNT@ DO
+        #Expected := "FRK_AlarmRecoveryScope"(Slot := #Slot);
+        IF #Expected = #Scope OR LEFT(IN := #Expected, L := LEN(#Prefix)) = #Prefix THEN
+            IF NOT "FRK_AlarmRecoveryRuntime".Ready[#Slot] OR "FRK_AlarmRecoveryRuntime".Blocked[#Slot] THEN
+                #FRK_AlarmRecoveryTreeBlocking := TRUE; RETURN;
+            END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryRefresh" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #AlarmLog.RecoverySlot < 1 OR #AlarmLog.RecoverySlot > @RECOVERY_COUNT@ THEN RETURN; END_IF;
+    "FRK_AlarmRecoveryRuntime".Blocked[#AlarmLog.RecoverySlot] := #AlarmLog.Blocking;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryElapsed" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    EventSlot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Span : UDInt;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryElapsed := 0;
+    IF #EventSlot < 1 OR #EventSlot > @MAX_ALARM_ACTIVE@ THEN RETURN; END_IF;
+    #Span := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ComeMs[#EventSlot]);
+    IF #Span > 2147483647 - #AlarmLog.ElapsedBefore[#EventSlot] THEN #Span := 2147483647;
+    ELSE #Span := #Span + #AlarmLog.ElapsedBefore[#EventSlot]; END_IF;
+    #FRK_AlarmRecoveryElapsed := #Span;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryTimeCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    EventSlot : Int;
+    Value : UDInt;
+    EventCrc : DWord;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := INT_TO_UDINT(#Slot));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#EventSlot));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(#EventCrc));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Value);
+    #FRK_AlarmRecoveryTimeCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryHeaderCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryHeaderCrc := DWORD#0;
+    IF #Slot < 1 OR #Slot > @RECOVERY_COUNT@ THEN RETURN; END_IF;
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].SchemaVersion));
+    #Size := LEN("FRK_AlarmRecovery".Rows[#Slot].Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_AlarmRecovery".Rows[#Slot].Scope[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmRecovery".Rows[#Slot].Generation);
+    FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]));
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingSlot));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingCrc));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingHead));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration);
+    #FRK_AlarmRecoveryHeaderCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryHeaderSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > @RECOVERY_COUNT@ THEN RETURN; END_IF;
+    "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion := 1;
+    "FRK_AlarmRecovery".Rows[#Slot].Generation := "FRK_AccessNext"(Previous := "FRK_AlarmRecovery".Rows[#Slot].Generation);
+    "FRK_AlarmRecovery".Rows[#Slot].Checksum := "FRK_AlarmRecoveryHeaderCrc"(Slot := #Slot);
+    "FRK_AlarmRecovery".Commissioned[#Slot] := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > @RECOVERY_COUNT@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+        "FRK_AlarmRecovery".Rows[#Slot].Active[#Index] := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index] := FALSE;
+        "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#Index] := DWORD#0;
+        #AlarmLog.ElapsedBefore[#Index] := 0;
+        #AlarmLog.Recovering[#Index] := FALSE;
+    END_FOR;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := 0;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingClosed := "FRK_UnitScratch".EmptyEvent;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := DWORD#0;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHead := 0;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := 0;
+    "FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryStore" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    EventSlot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Span : UDInt;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > @RECOVERY_COUNT@ OR #EventSlot < 1 OR #EventSlot > @MAX_ALARM_ACTIVE@ THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#EventSlot].State <> @E_AlarmState.CLOSED@ AND #AlarmLog.Active[#EventSlot].ResetClass = @E_ResetClass.MANUAL_RESET@ THEN
+        "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot] := #AlarmLog.Active[#EventSlot];
+        "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot] := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Active[#EventSlot]);
+        "FRK_AlarmRecovery".Rows[#Slot].Automatic[#EventSlot] := #AlarmLog.Automatic[#EventSlot];
+        IF #AlarmLog.Active[#EventSlot].State = @E_AlarmState.ACTIVE@ THEN #Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #EventSlot);
+        ELSE #Span := DINT_TO_UDINT(TIME_TO_DINT(#AlarmLog.Active[#EventSlot].Duration)); END_IF;
+        "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot] := #Span;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot] := "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #EventSlot, Value := #Span, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot]);
+    ELSE
+        IF "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot].State = @E_AlarmState.CLOSED@ AND "FRK_AlarmRecovery".Rows[#Slot].PendingSlot <> #EventSlot THEN RETURN; END_IF;
+        "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot] := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].Automatic[#EventSlot] := FALSE;
+        "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot] := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot] := DWORD#0;
+        #AlarmLog.ElapsedBefore[#EventSlot] := 0;
+        #AlarmLog.Recovering[#EventSlot] := FALSE;
+    END_IF;
+    IF "FRK_AlarmRecovery".Rows[#Slot].PendingSlot = #EventSlot THEN
+        "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingClosed := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingHead := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := 0;
+    END_IF;
+    "FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Span : UDInt;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > @RECOVERY_COUNT@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Active[#Index].State = @E_AlarmState.ACTIVE@ AND #AlarmLog.Active[#Index].ResetClass = @E_ResetClass.MANUAL_RESET@ THEN
+            #Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #Index);
+            IF "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] <> #Span THEN
+                "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] := #Span;
+                "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#Index] := "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #Index, Value := #Span, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]);
+            END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryClaim" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Diag : "ST_Diagnostic";
+    ResetClass : DInt;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryClaim := 0;
+    IF #ResetClass <> @E_ResetClass.MANUAL_RESET@ THEN RETURN; END_IF;
+    FOR #Slot := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Recovering[#Slot] AND #AlarmLog.Active[#Slot].State = @E_AlarmState.ACTIVE@
+            AND #AlarmLog.Active[#Slot].ReasonCode = #Diag.ReasonCode
+            AND #AlarmLog.Active[#Slot].Description = #Diag.Description
+            AND #AlarmLog.Active[#Slot].SourcePath = #Diag.SourcePath THEN
+            #AlarmLog.Recovering[#Slot] := FALSE;
+            #FRK_AlarmRecoveryClaim := #Slot; RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryClosePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    EventSlot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > @RECOVERY_COUNT@ OR #EventSlot < 1 OR #EventSlot > @MAX_ALARM_ACTIVE@ THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#EventSlot].ResetClass <> @E_ResetClass.MANUAL_RESET@ THEN RETURN; END_IF;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := #EventSlot;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingClosed := #AlarmLog.Active[#EventSlot];
+    "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Active[#EventSlot]);
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHead := (#AlarmLog.RingHead MOD @MAX_ALARM_RING@) + 1;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := "FRK_AccessNext"(Previous := "FRK_AlarmHistory".Rows[#AlarmLog.HistorySlot].Generation);
+    "FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryEventValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryEventValid := #Ev.ResetClass = @E_ResetClass.MANUAL_RESET@
+        AND #Ev.Severity >= @E_Severity.LOW@ AND #Ev.Severity <= @E_Severity.HIGH@
+        AND #Ev.Category >= @E_Category.PROCESS@ AND #Ev.Category <= @E_Category.SYSTEM@
+        AND #Ev.SourcePath <> WSTRING#'' AND #Ev.Description <> WSTRING#'' AND #Ev.ReasonCode > 0 AND #Ev.Duration >= T#0ms;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Pending : Int;
+    Head : Int;
+    Valid : Bool;
+    ClosedPresent : Bool;
+    LossSlot : Int;
+    Diag : "ST_Diagnostic";
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Slot := "FRK_AlarmRecoveryIndex"(Scope := #Scope);
+    #AlarmLog.RecoverySlot := #Slot;
+    IF #Slot < 1 OR #Slot > @RECOVERY_COUNT@ THEN RETURN; END_IF;
+    IF NOT "FRK_AlarmRecovery".Commissioned[#Slot] AND "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion = 0
+        AND "FRK_AlarmRecovery".Rows[#Slot].Generation = 0 AND "FRK_AlarmRecovery".Rows[#Slot].Scope = '' AND "FRK_AlarmRecovery".Rows[#Slot].Checksum = DWORD#0 THEN
+        "FRK_AlarmRecovery".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmRecoveryClear"(AlarmLog := #AlarmLog);
+        "FRK_AlarmRecoveryRuntime".Ready[#Slot] := TRUE;
+        "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+        RETURN;
+    END_IF;
+    #Valid := "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion = 1 AND "FRK_AlarmRecovery".Rows[#Slot].Scope = #Scope
+        AND "FRK_AlarmRecovery".Rows[#Slot].Generation <> 0;
+    IF #Valid THEN #Valid := "FRK_AlarmRecovery".Rows[#Slot].Checksum = "FRK_AlarmRecoveryHeaderCrc"(Slot := #Slot); END_IF;
+    IF #Valid THEN
+        FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+            IF "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State = @E_AlarmState.CLOSED@ THEN
+                IF "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index] <> DWORD#0 OR "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] <> 0
+                    OR "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#Index] <> DWORD#0 OR "FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index] THEN #Valid := FALSE; EXIT; END_IF;
+            ELSE
+                IF NOT "FRK_AlarmRecoveryEventValid"(Ev := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index])
+                    OR ("FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State <> @E_AlarmState.ACTIVE@ AND "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State <> @E_AlarmState.WAIT_RESET@)
+                    OR "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index] <> "FRK_AlarmEventCrc"(Ev := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index])
+                    OR "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] > 2147483647
+                    OR "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#Index] <> "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #Index, Value := "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index], EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]) THEN #Valid := FALSE; EXIT; END_IF;
+                IF "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State = @E_AlarmState.WAIT_RESET@
+                    AND ("FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index] OR "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] <> DINT_TO_UDINT(TIME_TO_DINT("FRK_AlarmRecovery".Rows[#Slot].Active[#Index].Duration))) THEN #Valid := FALSE; EXIT; END_IF;
+            END_IF;
+        END_FOR;
+    END_IF;
+    #Pending := "FRK_AlarmRecovery".Rows[#Slot].PendingSlot;
+    IF #Valid THEN
+        IF #Pending < 0 OR #Pending > @MAX_ALARM_ACTIVE@ THEN #Valid := FALSE;
+        ELSIF #Pending = 0 THEN
+            IF "FRK_AlarmRecovery".Rows[#Slot].PendingCrc <> DWORD#0 OR "FRK_AlarmRecovery".Rows[#Slot].PendingHead <> 0 OR "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration <> 0 THEN #Valid := FALSE; END_IF;
+        ELSE
+            #Valid := "FRK_AlarmRecoveryEventValid"(Ev := "FRK_AlarmRecovery".Rows[#Slot].PendingClosed)
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.State = @E_AlarmState.CLOSED@
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingCrc = "FRK_AlarmEventCrc"(Ev := "FRK_AlarmRecovery".Rows[#Slot].PendingClosed)
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingHead >= 1 AND "FRK_AlarmRecovery".Rows[#Slot].PendingHead <= @MAX_ALARM_RING@
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration <> 0
+                AND "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].State <> @E_AlarmState.CLOSED@
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.ReasonCode = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].ReasonCode
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.SourcePath = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].SourcePath
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.Description = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].Description
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.ComeAt = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].ComeAt;
+        END_IF;
+    END_IF;
+    IF NOT #Valid THEN
+        // Unknown prior manual-reset latches fail closed until one deliberate reset.
+        #AlarmLog.Truncated := TRUE;
+        "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+        "FRK_AlarmRecovery".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmRecoveryClear"(AlarmLog := #AlarmLog);
+        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+        #Diag.ReasonCode := @RECOVERY_LOST_CODE@;
+        #Diag.Description := WSTRING#'@RECOVERY_LOST_DESCRIPTION@';
+        #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+        #Diag.Severity := @RECOVERY_LOST_SEVERITY@; #Diag.Category := @RECOVERY_LOST_CATEGORY@;
+        #LossSlot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @RECOVERY_LOST_RESET_CLASS@);
+    ELSE
+        FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+            IF "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State <> @E_AlarmState.CLOSED@ THEN
+                #AlarmLog.Active[#Index] := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index];
+                #AlarmLog.Automatic[#Index] := "FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index];
+                #AlarmLog.Recovering[#Index] := #AlarmLog.Active[#Index].State = @E_AlarmState.ACTIVE@;
+                #AlarmLog.ComeMs[#Index] := "FRK_Clock".NowMs;
+                IF #AlarmLog.Active[#Index].State = @E_AlarmState.ACTIVE@ THEN #AlarmLog.ElapsedBefore[#Index] := "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index]; END_IF;
+            END_IF;
+        END_FOR;
+        IF #Pending > 0 THEN
+            #Head := "FRK_AlarmRecovery".Rows[#Slot].PendingHead;
+            #ClosedPresent := "FRK_AlarmHistory".Rows[#AlarmLog.HistorySlot].Generation = "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration
+                AND #AlarmLog.RingHead = #Head
+                AND "FRK_AlarmHistory".Rows[#AlarmLog.HistorySlot].EventCrc[#Head] = "FRK_AlarmRecovery".Rows[#Slot].PendingCrc;
+            IF NOT #ClosedPresent THEN
+                #AlarmLog.RingHead := (#AlarmLog.RingHead MOD @MAX_ALARM_RING@) + 1;
+                IF #AlarmLog.RingUsed < @MAX_ALARM_RING@ THEN #AlarmLog.RingUsed := #AlarmLog.RingUsed + 1; ELSE #AlarmLog.Truncated := TRUE; END_IF;
+                #AlarmLog.Ring[#AlarmLog.RingHead] := "FRK_AlarmRecovery".Rows[#Slot].PendingClosed;
+                "FRK_AlarmHistoryAppend"(AlarmLog := #AlarmLog);
+            END_IF;
+            #AlarmLog.Active[#Pending] := "FRK_UnitScratch".EmptyEvent;
+            #AlarmLog.Automatic[#Pending] := FALSE;
+            "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog, EventSlot := #Pending);
+        END_IF;
+    END_IF;
+    "FRK_AlarmRecoveryRuntime".Ready[#Slot] := TRUE;
+    "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+END_FUNCTION

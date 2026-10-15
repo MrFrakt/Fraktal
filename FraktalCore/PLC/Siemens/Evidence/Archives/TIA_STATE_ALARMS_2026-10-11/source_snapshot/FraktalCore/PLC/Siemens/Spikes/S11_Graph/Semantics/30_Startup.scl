@@ -1,0 +1,10 @@
+// Absolute OB100 selects the Startup event class. Test observation only.
+ORGANIZATION_BLOCK OB100
+TITLE = "S11 startup marker"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    "S11Semantics".StartupSeen := TRUE;
+    "S11Semantics".StartupRc := RD_SYS_T(OUT => "S11Semantics".StartupAt);
+    "S11Semantics".StartupCalls := "S11Semantics".StartupCalls + 1;
+END_ORGANIZATION_BLOCK

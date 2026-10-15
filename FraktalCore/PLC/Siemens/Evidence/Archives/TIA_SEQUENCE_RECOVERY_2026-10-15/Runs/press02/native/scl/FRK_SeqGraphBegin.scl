@@ -1,0 +1,44 @@
+﻿FUNCTION "FRK_SeqGraphBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Run : Bool;
+      Reset : Bool;
+      OwnerIndex : DInt;
+      ChainIndex : DInt;
+      BranchIndex : DInt;
+      ViewOffset : DInt;
+      ViewDepth : Int;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+   VAR_TEMP 
+      PreviousResult : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	// Native GRAPH evaluates transitions before the new step's actions.
+	// Preserve exactly the preceding active scan's result for that evaluation;
+	// the mandatory step record clears it before the current action decides.
+	#PreviousResult := #Seq.RetVal;
+	"FRK_SeqBegin"(Run := #Run,
+	               Reset := #Reset,
+	               OwnerIndex := #OwnerIndex,
+	               ChainIndex := #ChainIndex,
+	               BranchIndex := #BranchIndex,
+	               ViewOffset := #ViewOffset,
+	               ViewDepth := #ViewDepth,
+	               Delta := #Delta,
+	               Seq := #Seq);
+	IF #Seq.Running AND NOT #Seq.Restart AND NOT #Seq.Rearm THEN
+	    #Seq.RetVal := #PreviousResult;
+	END_IF;
+	
+END_FUNCTION
+

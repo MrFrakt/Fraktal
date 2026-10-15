@@ -1,0 +1,148 @@
+﻿FUNCTION "FRK_CfgOperation_DeclarationUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      ParCfg : "ST_DeclarationParCfg";
+      ModePolicy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      Unit : "FRK_Unit";
+      HmiResponse : "ST_HmiResponse";
+      ConfigPersist : "ST_ConfigPersistStatus";
+      ConfigCursor : "FRK_ConfigCursor";
+      ConfigRev : UDInt;
+      ModelId : "ST_ModelId";
+      AvailableModelCount : Int;
+      ConfigStaged : Bool;
+      SupportedModesPublished : Array[0..6] of Bool;
+      StationCfg : "ST_UnitProbeStationCfg";
+      ConfigStageParCfg : "ST_DeclarationParCfg";
+      ConfigDefaultParCfg : "ST_DeclarationParCfg";
+      Cell : "FB_DeclarationCell";
+      Satellite : "FB_SatelliteUnit";
+   END_VAR
+
+   VAR_TEMP 
+      RootIndex : Int;
+      Request : "ST_HmiRequest";
+      Ready : Bool;
+      Matched : Bool;
+      Ok : Bool;
+      Desired : String[64];
+      Scope : String[80];
+      Key : String[160];
+   END_VAR
+
+
+BEGIN
+	
+	#RootIndex := "FRK_ConfigRoot"(RegIndex := #Core.RegIndex);
+	IF #Core.ParentIndex <> 0 OR #RootIndex = 0 THEN
+	    RETURN;
+	END_IF;
+	#ModelId.ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex];
+	IF NOT #Unit.RequestPending THEN
+	    RETURN;
+	END_IF;
+	#Request := #Unit.Request;
+	#Ready := #Core.Exec = 0 AND NOT #Unit.ModePending AND NOT #Unit.Clearing AND "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex);
+	CASE #Request.Kind OF
+	    23:
+	        "FRK_ConfigBegin"(Cursor := #ConfigCursor,
+	                          Page := #HmiResponse.ConfigPage,
+	                          PageIndex := #Request.IntValue,
+	                          Revision := #ConfigRev);
+	        #HmiResponse.Accepted := FALSE;
+	        #HmiResponse.Diagnostic := WSTRING#'std.error.modelNotAvailable';
+	        IF #Request.DurationMs <= 2 AND #Request.IntValue >= 0 AND #Request.IntValue <= 32767 THEN
+	            "FRK_Config_DeclarationUnit"(Core := #Core,
+	                                         Status := #Status,
+	                                         ParCfg := #ParCfg,
+	                                         ModePolicy := #ModePolicy,
+	                                         AvailableModelCount := #AvailableModelCount,
+	                                         StationCfg := #StationCfg,
+	                                         Cell := #Cell,
+	                                         Satellite := #Satellite,
+	                                         Access := #Access,
+	                                         RootIndex := #RootIndex,
+	                                         ModelIndex := #Request.DurationMs,
+	                                         Cursor := #ConfigCursor,
+	                                         Page := #HmiResponse.ConfigPage);
+	            "FRK_ConfigFinish"(Cursor := #ConfigCursor,
+	                               Page := #HmiResponse.ConfigPage);
+	            #HmiResponse.Accepted := TRUE;
+	            #HmiResponse.Diagnostic := WSTRING#'';
+	        END_IF;
+	    19:
+	        #HmiResponse.Accepted := FALSE;
+	        #HmiResponse.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+	        #ConfigPersist.LastRejectScope := #Status.Name;
+	        #ConfigPersist.LastRejectKey := #Request.NameValue;
+	        IF #Request.DurationMs <= 2 THEN
+	            #Matched := FALSE;
+	            #HmiResponse.Accepted := "FRK_CfgWrite_DeclarationUnit"(Core := #Core, Status := #Status, ParCfg := #ParCfg, StationCfg := #StationCfg, Cell := #Cell, Satellite := #Satellite, Access := #Access, Request := #Request, RootIndex := #RootIndex, RootReady := #Ready, Matched := #Matched);
+	        END_IF;
+	        IF #HmiResponse.Accepted THEN
+	            #ConfigRev := "FRK_ConfigRevision"(Previous := #ConfigRev);
+	            #HmiResponse.Diagnostic := WSTRING#'';
+	            #ConfigPersist.LastRejectScope := '';
+	            #ConfigPersist.LastRejectKey := '';
+	        END_IF;
+	    4:
+	        #HmiResponse.Accepted := FALSE;
+	        #HmiResponse.Diagnostic := WSTRING#'std.error.modelNotAvailable';
+	        #Desired := '';
+	        IF #Request.TextValue = WSTRING#'MODEL_A' THEN
+	            #Desired := 'MODEL_A';
+	        END_IF;
+	        IF #Request.TextValue = WSTRING#'MODEL_B' THEN
+	            #Desired := 'MODEL_B';
+	        END_IF;
+	        "FRK_UnitRelease"(Core := #Core,
+	                          Unit := #Unit,
+	                          Status := #Status,
+	                          Policy := #ModePolicy,
+	                          Access := #Access,
+	                          Supported := #SupportedModesPublished,
+	                          Report := #HmiResponse.Report,
+	                          Gate := 3,
+	                          Desired := -1,
+	                          Trusted := FALSE);
+	        IF #Desired <> '' AND #HmiResponse.Report.Released THEN
+	            #Scope := '';
+	            #Key := '';
+	            #Ok := "FRK_CfgRecipe_DeclarationUnit"(Status := #Status, ParCfg := #ParCfg, ConfigStaged := #ConfigStaged, ConfigStageParCfg := #ConfigStageParCfg, ConfigDefaultParCfg := #ConfigDefaultParCfg, Cell := #Cell, Satellite := #Satellite, ModelCode := #Desired, Phase := 1, RejectScope := #Scope, RejectKey := #Key);
+	            IF #Ok THEN
+	                #Ok := "FRK_CfgRecipe_DeclarationUnit"(Status := #Status, ParCfg := #ParCfg, ConfigStaged := #ConfigStaged, ConfigStageParCfg := #ConfigStageParCfg, ConfigDefaultParCfg := #ConfigDefaultParCfg, Cell := #Cell, Satellite := #Satellite, ModelCode := #Desired, Phase := 2, RejectScope := #Scope, RejectKey := #Key);
+	                "FRK_ConfigStore".ActiveModels[#RootIndex] := #Desired;
+	                "FRK_PersistModelDirty"(RootIndex := #RootIndex);
+	                #ModelId.ModelCode := #Desired;
+	                #ConfigRev := "FRK_ConfigRevision"(Previous := #ConfigRev);
+	                #HmiResponse.Accepted := TRUE;
+	                #HmiResponse.Diagnostic := WSTRING#'';
+	            ELSE
+	                #ConfigPersist.LastRejectScope := #Scope;
+	                #ConfigPersist.LastRejectKey := #Key;
+	                #Ok := "FRK_CfgRecipe_DeclarationUnit"(Status := #Status, ParCfg := #ParCfg, ConfigStaged := #ConfigStaged, ConfigStageParCfg := #ConfigStageParCfg, ConfigDefaultParCfg := #ConfigDefaultParCfg, Cell := #Cell, Satellite := #Satellite, ModelCode := #Desired, Phase := 0, RejectScope := #Scope, RejectKey := #Key);
+	                #HmiResponse.Diagnostic := WSTRING#'std.error.recipeSchemaInvalid';
+	                "FRK_Fault"(Core := #Core,
+	                            Status := #Status,
+	                            ReasonCode := 2004,
+	                            Description := #HmiResponse.Diagnostic);
+	                #Status.Diagnostic.SourcePath := STRING_TO_WSTRING(#Scope);
+	            END_IF;
+	        END_IF;
+	    31:
+	        #HmiResponse.Accepted := #Access.CurrentLevel >= 3;
+	        IF #HmiResponse.Accepted THEN
+	            "FRK_ConfigStore".Acknowledged[#RootIndex] := TRUE;
+	        ELSE
+	            #HmiResponse.Diagnostic := WSTRING#'std.error.configRestoreAckRefused';
+	        END_IF;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

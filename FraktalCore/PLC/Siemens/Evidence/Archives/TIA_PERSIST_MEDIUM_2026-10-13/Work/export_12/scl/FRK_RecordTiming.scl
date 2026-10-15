@@ -1,0 +1,55 @@
+﻿FUNCTION "FRK_RecordTiming" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Slot : DInt;
+      DurationMs : UDInt;
+      AverageMs : LInt;
+   END_VAR
+
+
+BEGIN
+	
+	#DurationMs := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Core.StartMs);
+	// TIME's positive domain is bounded; clamp instead of publishing negatives.
+	IF #DurationMs > UDINT#2147483647 THEN
+	    #DurationMs := UDINT#2147483647;
+	END_IF;
+	#Core.Timing.LastCmdTime := DINT_TO_TIME(UDINT_TO_DINT(#DurationMs));
+	#Slot := 0;
+	FOR #Index := 1 TO 8 DO
+	    IF #Core.Timing.Rows[#Index].Count > 0 AND #Core.Timing.Rows[#Index].Id = #Core.Command THEN
+	        #Slot := #Index;
+	        EXIT;
+	    ELSIF #Slot = 0 AND #Core.Timing.Rows[#Index].Count = 0 THEN
+	        #Slot := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Slot = 0 THEN
+	    #Core.Timing.Truncated := TRUE;
+	ELSE
+	    #Core.Timing.Rows[#Slot].Id := #Core.Command;
+	    #Core.Timing.Rows[#Slot].Label := #Core.CommandLabel;
+	    IF #Core.Timing.Rows[#Slot].Count < UDINT#4294967295 THEN
+	        #Core.Timing.Rows[#Slot].Count := #Core.Timing.Rows[#Slot].Count + 1;
+	    END_IF;
+	    #Core.Timing.Rows[#Slot].Last := #Core.Timing.LastCmdTime;
+	    IF #Core.Timing.Rows[#Slot].Count = 1 OR #Core.Timing.LastCmdTime < #Core.Timing.Rows[#Slot].Minimum THEN
+	        #Core.Timing.Rows[#Slot].Minimum := #Core.Timing.LastCmdTime;
+	    END_IF;
+	    IF #Core.Timing.LastCmdTime > #Core.Timing.Rows[#Slot].Maximum THEN
+	        #Core.Timing.Rows[#Slot].Maximum := #Core.Timing.LastCmdTime;
+	    END_IF;
+	    #AverageMs := DINT_TO_LINT(TIME_TO_DINT(#Core.Timing.Rows[#Slot].Avg));
+	    #AverageMs := #AverageMs + (UDINT_TO_LINT(#DurationMs) - #AverageMs) / UDINT_TO_LINT(#Core.Timing.Rows[#Slot].Count);
+	    #Core.Timing.Rows[#Slot].Avg := DINT_TO_TIME(LINT_TO_DINT(#AverageMs));
+	END_IF;
+	#Core.TimingOpen := FALSE;
+	
+END_FUNCTION
+

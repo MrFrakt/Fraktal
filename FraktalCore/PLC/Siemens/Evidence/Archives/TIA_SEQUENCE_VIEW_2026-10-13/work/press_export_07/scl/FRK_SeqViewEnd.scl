@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_SeqViewEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Revision : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewEnd"(Cursors := "FRK_Views".V001.Cursors,
+	                      Book := "FRK_Views".V001.Book,
+	                      Touched := "FRK_Views".V001.Touched,
+	                      Current := "FRK_Views".V001.Current,
+	                      Revision := #Revision);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

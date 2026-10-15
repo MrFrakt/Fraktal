@@ -1,0 +1,6 @@
+# Final simulation user: process-data rights only, no diagnostic/mode privilege.
+open-project --path ${work}\FrkS12\FrkS12.ap20
+webserver-user --plc PLC_1 --name fraktal --permissions ReadTagStatus,ModifyTagStatus --password-env FRAKTAL_TIA_WEB_PASSWORD
+compile --plc PLC_1 --hw
+save
+${download}

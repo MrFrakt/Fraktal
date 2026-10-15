@@ -1,0 +1,6 @@
+open-project --path ${work}\FrkS12\FrkS12.ap20
+set-hw-attribute --plc PLC_1 --attr CommunicationMode --value 1
+webserver-user --plc PLC_1 --name fraktal --permissions ${permissions} --password-env FRAKTAL_TIA_WEB_PASSWORD
+compile --plc PLC_1 --hw
+save
+${download}

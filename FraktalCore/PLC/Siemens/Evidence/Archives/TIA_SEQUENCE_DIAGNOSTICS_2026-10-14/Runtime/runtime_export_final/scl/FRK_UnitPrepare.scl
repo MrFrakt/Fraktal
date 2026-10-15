@@ -1,0 +1,71 @@
+﻿FUNCTION "FRK_UnitPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Shared Unit services v0.1: operation authority, mailbox, modes and local carrier.
+   VAR_INPUT 
+      Startup : Bool;
+      InitialMode : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Policy : Array[0..6] of "ST_ModePolicy";
+      Request : "ST_HmiRequest";
+      Response : "ST_HmiResponse";
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Core.EvModeExit := FALSE;
+	#Core.EvModeChanged := FALSE;
+	IF NOT #Unit.Initialized THEN
+	    #Unit.Initialized := TRUE;
+	    #Unit.Permit := TRUE;
+	    FOR #Index := 0 TO 7 - 1 DO
+	        #Policy[#Index].Shield := 1;
+	        #Policy[#Index].Style := 1;
+	    END_FOR;
+	    #Policy[0].Style := 0;
+	    #Policy[2].Shield := 0;
+	    #Policy[1].Shield := 0;
+	    #Policy[3].Shield := 2;
+	    #Policy[4].Shield := 2;
+	    #Unit.Mode := #InitialMode;
+	END_IF;
+	IF #Startup THEN
+	    #Unit.EvReset := FALSE;
+	    #Unit.Mode := #InitialMode;
+	    #Unit.RunReq := FALSE;
+	    #Unit.AbortReq := #Core.Exec = 1;
+	    #Unit.StopReq := FALSE;
+	    #Unit.ModePending := FALSE;
+	    #Unit.FollowStart := FALSE;
+	    #Unit.CascadePending := FALSE;
+	    #Unit.ReleaseChildren := TRUE;
+	    #Unit.Clearing := TRUE;
+	    // Consume the restart boundary without executing a transported request.
+	    #Unit.SeenSequence := #Request.Sequence;
+	    #Unit.RequestPending := FALSE;
+	    #Request.Secret := '';
+	    #Response.Accepted := FALSE;
+	    #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+	    #Response.AckSequence := #Unit.SeenSequence;
+	END_IF;
+	IF #Core.ReleasePending THEN
+	    #Unit.FollowStart := FALSE;
+	    // An incoming parent mode/reset operation is already queued for this scan.
+	    // Preserve its cascade while cancelling the old command.
+	    #Unit.RunReq := FALSE;
+	    #Unit.AbortReq := TRUE;
+	    #Unit.ReleaseChildren := TRUE;
+	    #Unit.Clearing := TRUE;
+	END_IF;
+	
+END_FUNCTION
+

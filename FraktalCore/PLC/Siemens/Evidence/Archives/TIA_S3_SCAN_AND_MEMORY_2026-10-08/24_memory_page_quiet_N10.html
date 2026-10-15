@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>S71200_Bench</title><meta http-equiv="x-ua-compatible" content="ie=edge">
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta http-equiv="cache-control" content="no-cache">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="-1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0">
+<link rel="stylesheet" type="text/css" href="/CSS/S7Web.css" media="all">
+<link rel="stylesheet" type="text/css" href="/CSS/S7WebPrint.css" media="print">
+<link rel="shortcut icon" href="/favicon.ico">
+<script src="/Scripts/jquery.min.js" type="text/javascript"></script>
+<script src="/Scripts/popup.js" type="text/javascript"></script>
+<script src="/Scripts/update.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+var update_interval = "10000";
+var url_to_update = window.location.href;
+var lang_str_details = "Details";
+</script>
+</head>
+<body>
+<table class="main_table">
+<tr class="Header_Area">
+<td><img src="/Images/Siemens_Firmenmarke_Header.gif" alt="Siemens"></td><td valign="top">
+<div id="Header_Title_Description">
+S71200_Bench / PLC_1
+</div>
+</td>
+</tr>
+<tr id="Header_Language_Time_Date">
+<td></td><td>
+<table id="Language_Time_Date_Table">
+<tr>
+<td></td><td class="datetime-selection">
+<form action="/ChangeTime.mwsl" method="get" class="Header_Selection_Form">
+<div>
+<span id="dynamic-date" class="updatable">10:09:06 pm&nbsp;&nbsp;&nbsp;01&#x2F;04&#x2F;2012</span>
+<select name="time_preference" id="time_preference">
+<option value="system"  selected>UTC&nbsp;</option>
+<option value="local" >PLC Local&nbsp;</option>
+</select>
+</div>
+</form>
+<script type="text/javascript">
+$(window).on('load', function(){
+$("select#time_preference").change(function() {
+document.cookie = "siemens_automation_time_preference=" + $(this).val() + "; SameSite=lax; expires=Tue, 01 Jan 2036 00:00:00 GMT; path=/ ;";
+top.window.location.reload();
+return false;
+});
+});
+</script>
+</td>
+<td class="language-selection"><form class="Header_Selection_Form" method="get">
+<div>
+<select name="Language" id="language_preference">
+<option value="en"  selected>English</option>
+<option value="de" >Deutsch</option>
+<option value="fr" >Français</option>
+<option value="it" >Italiano</option>
+<option value="es" >Español</option>
+<option value="zh" >简体中文</option>
+</select>
+</div>
+</form>
+<script type="text/javascript">
+$("select#language_preference").change(function() {
+document.cookie = "siemens_automation_language=" + $(this).val() + "; SameSite=lax; expires=Tue, 01 Jan 2036 00:00:00 GMT; path=/ ;";
+top.window.location.reload();
+return false;
+});
+</script>
+
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr class="Separation_Line"><td colspan="2"></td></tr>
+<tr>
+<td valign="top" id="MainMenu_Area">
+<table id="MainMenu_Area_Layout">
+<tr>
+<td colspan="2">
+  
+<div class="Logout_Area">
+<script type="text/javascript">
+function logout() {
+window.top.document.cookie = "siemens_ad_session=;SameSite=lax;expires=Fri, 31 Dec 1999 23:59:59 GMT;";
+}
+</script>
+<form id="Logout_Area_Form" action="/FormLogin?LOGOUT" method="post" enctype="application/x-www-form-urlencoded">
+<div id="logout_user_name" title="User: fraktal-diag">
+<nobr>User: fraktal-diag</nobr>
+</div>
+<input type="hidden" name="Redirection" value="">
+<input type="hidden" name="Cookie" value="iU.SESaOPg8Z5DasmVX2NDt4cGGVZRwOkrhwOl2BpJ7q">
+<div id="logout_area_logout_button">
+<button type="submit" class="Logout_Button">Logout</button>
+</div>
+</form>
+</div>
+ 
+</td>
+</tr>
+<tr class="main-menu">
+<td colspan="2">
+<ul>
+<li class=""><a href="/Portal/Portal.mwsl?PriNav=Start">Start Page</a></li>
+<li class="selected"><a href="/Portal/Portal.mwsl?PriNav=Online">Diagnostics</a></li>
+<li class=""><a href="/Portal/Portal.mwsl?PriNav=Diag">Diagnostic Buffer</a></li>
+<li class=""><a href="/Portal/Portal.mwsl?PriNav=Bgz">Module Information</a></li>
+<li class=""><a href="/Portal/Portal.mwsl?PriNav=Communication">Communication</a></li>
+<li class="intro"><a href="/Portal/Intro.mwsl">Introduction</a></li>
+</ul>
+</td>
+</tr>
+</table>
+</td>
+<td class="Client_Area"><table class="Data_Area">
+<tr>
+<td colspan="2" class="Title_Area">
+<table class="Title_Area_Table">
+<tr>
+<td class="Title_Area_Name">Diagnostics</td>
+<td class="Title_Area_ReloadIcon">&nbsp;
+
+<span id="dynamic_link_on" style="display:none" onclick="update_off()"><img title="Automatic refresh enabled" src="/Images/update_active.gif" height="13px" alt="">&nbsp;<span title="Disable automatic refresh" class="Text_ReloadIcon">Off</span></span>
+<span id="dynamic_link_off" style="display:none" onclick="update_on()"><img title="Automatic refresh disabled" src="/Images/update_inactive.gif" height="13px" alt="">&nbsp;<span title="Automatic refresh enabled" class="Text_ReloadIcon">On</span></span>
+</td>
+<td class="Title_Area_PrinterIcon"><a class="PrinterIcon_Active" href="javascript:window.print()">&nbsp;<img title="Print" style="padding-right: 0px; padding-left: 0px; padding-bottom: 0px; margin: 0px; padding-top: 0px; height: 13px;" alt="Print" src="/Images/Drucken.gif"></a></td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td align="left" valign="top" class="table_position" style="padding:0">
+<table class="Data_Area">
+<tr>
+<td valign="top">
+<table class="Second_Nav_Menu">
+<tr>
+<td class="Second_Nav_Menu_NonSelected"><a href="/Portal/Portal.mwsl?PriNav=Online&amp;SecNav=Ident" class="Second_Nav_Menu_Link_NoSel">Identification</a></td>
+<td class="Second_Nav_Menu_NonSelected"><a href="/Portal/Portal.mwsl?PriNav=Online&amp;SecNav=ProgramProtection" class="Second_Nav_Menu_Link_NoSel">Program protection</a></td>
+<td class="Second_Nav_Menu_Selected"><a href="/Portal/Portal.mwsl?PriNav=Online&amp;SecNav=Memory" class="Second_Nav_Menu_Link_Sel">Memory</a></td>
+<td style="width:100%"></td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td style="vertical-align:top;height:100%"><div class="updatable" id="MemoryUsage">
+<div class="usage">
+<h4>Load memory</h4>
+<div class="progress-bar">
+<div class="taken" style="width:8.0%">&nbsp;</div>
+<div class="text">8.0% in use</div>
+</div>
+<div class="desc-text">Free: 3.68 MB / Total: 4.00 MB</div>
+</div>
+<div class="usage">
+<h4>Work Memory</h4>
+<div class="progress-bar">
+<div class="taken" style="width:13.1%">&nbsp;</div>
+<div class="text">13.1% in use</div>
+</div>
+<div class="desc-text">Free: 130.32 KB / Total: 150.00 KB</div>
+</div>
+<div class="usage">
+<h4>Retentive memory</h4>
+<div class="progress-bar">
+<div class="taken" style="width:0.0%">&nbsp;</div>
+<div class="text">0.0% in use</div>
+</div>
+<div class="desc-text">Free: 14.00 KB / Total: 14.00 KB</div>
+</div>
+</div>
+
+
+
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+
+
+</td>
+</tr>
+</table>
+</body>
+</html>
+

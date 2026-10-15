@@ -1,0 +1,36 @@
+﻿FUNCTION "FRK_Config_SatelliteUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ReadLevel : DInt;
+      Readable : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_SatelliteUnit";
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_ConfigUnit"(Scope := #Module.Status.Name,
+	                 Policy := #Module.ModePolicy,
+	                 ReadLevel := #ReadLevel,
+	                 Readable := #Readable,
+	                 Cursor := #Cursor,
+	                 Page := #Page);
+	"FRK_Config_DeclarationCell"(Module := #Module.Cell,
+	                             ReadLevel := #ReadLevel,
+	                             Readable := #Readable,
+	                             Cursor := #Cursor,
+	                             Page := #Page);
+	"FRK_Config_InnerUnit"(Module := #Module.Inner,
+	                       ReadLevel := #ReadLevel,
+	                       Readable := #Readable,
+	                       Cursor := #Cursor,
+	                       Page := #Page);
+	
+END_FUNCTION
+

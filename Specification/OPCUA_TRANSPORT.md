@@ -500,6 +500,9 @@ validate every record, and apply all or nothing. Model loads use the recipe
 prepare/readiness/commit path; an adapter lacking that integration shall refuse.
 List/export are reads and do not require READY. The persistence outcome remains
 visible separately from the live configuration.
+The client serializes a complete import/export, including every line and piece,
+through the mailbox queue. Background config queries wait until that transfer
+ends; a disconnected transfer is abandoned, never continued on a later link.
 
 Core `0.22.0.0` adds two optional kinds. `CREATE_MODEL = 37` uses `NameValue`
 for the new code, `IntValue` for the source model index (0 running), or

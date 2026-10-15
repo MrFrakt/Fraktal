@@ -1,0 +1,26 @@
+// Test-only invalid setup inputs. Restore the registry after each guarded probe.
+FUNCTION "FRK_FrameProbeInvalidRegistry" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    SavedCount : DInt;
+    ErrorCode : Word;
+END_VAR
+BEGIN
+    #SavedCount := "FRK_Registry".Count;
+    "FRK_Registry".Count := 16;
+    "FRK_SetIdentity"(Core := "GDB_RegistryFaultProbe".Core, Status := "GDB_RegistryFaultProbe".Status,
+        InstancePath := WSTRING#'OverflowProbe', ModuleType := 3, TypeId := 3,
+        Capabilities := DWORD#0, ParentIndex := 0, TypeKey := 'Probe');
+    #ErrorCode := GET_ERR_ID();
+    "GDB_FrameProbe".OverflowPassed := "FRK_Registry".Fault AND "GDB_RegistryFaultProbe".Core.RegIndex = 0 AND #ErrorCode = 0;
+    "FRK_Registry".Count := #SavedCount;
+    "FRK_Registry".Fault := FALSE;
+    "FRK_SetIdentity"(Core := "GDB_RegistryFaultProbe".Core, Status := "GDB_RegistryFaultProbe".Status,
+        InstancePath := WSTRING#'BadParentProbe', ModuleType := 3, TypeId := 3,
+        Capabilities := DWORD#0, ParentIndex := 17, TypeKey := 'Probe');
+    #ErrorCode := GET_ERR_ID();
+    "GDB_FrameProbe".BadParentPassed := "FRK_Registry".Fault AND "GDB_RegistryFaultProbe".Core.RegIndex = 0 AND #ErrorCode = 0;
+    "FRK_Registry".Count := #SavedCount;
+    "FRK_Registry".Fault := FALSE;
+END_FUNCTION

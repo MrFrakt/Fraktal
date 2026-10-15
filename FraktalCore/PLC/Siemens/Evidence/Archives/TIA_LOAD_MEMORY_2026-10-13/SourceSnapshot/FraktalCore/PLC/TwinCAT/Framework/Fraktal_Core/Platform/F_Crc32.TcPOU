@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_Crc32" Id="{82f61cf1-528a-452f-bda3-8f81e9fa08e0}" SpecialFunc="None">
+    <Declaration><![CDATA[// CRC-32/ISO-HDLC (reflected polynomial 0xEDB88320, initial value and final XOR
+// 0xFFFFFFFF) over Size bytes at pData: the one implementation behind every
+// Fraktal wire record, so a record written natively and one written by the PLC
+// are checked by the same arithmetic. Check value: '123456789' -> 0xCBF43926.
+// An empty or absent buffer is 0 and is never read.
+FUNCTION F_Crc32 : DWORD
+VAR_INPUT
+    pData : POINTER TO BYTE;
+    Size  : UDINT;
+END_VAR
+VAR
+    value    : DWORD;
+    index    : UDINT;
+    bitIndex : INT;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[F_Crc32 := 0;
+IF (pData = 0) OR (Size = 0) THEN
+    RETURN;
+END_IF
+value := DWORD#16#FFFFFFFF;
+FOR index := 0 TO Size - 1 DO
+    value := value XOR BYTE_TO_DWORD(pData[index]);
+    FOR bitIndex := 0 TO 7 DO
+        IF (value AND DWORD#1) <> 0 THEN
+            value := SHR(value, 1) XOR DWORD#16#EDB88320;
+        ELSE
+            value := SHR(value, 1);
+        END_IF
+    END_FOR
+END_FOR
+F_Crc32 := NOT value;]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

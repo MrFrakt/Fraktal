@@ -1,0 +1,304 @@
+// Core 3.13: discovered definitions, per-leg frontier, PLC-owned history and
+// sparse notes. Open arrays preserve each Unit's declared consumed capacities.
+FUNCTION "FRK_ViewClearNotes" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RowIdx : Int; IsError : Bool; END_VAR
+VAR_IN_OUT Notes : Array[*] of "ST_SequenceAnnotation"; NoteCount : Int; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    FOR #Index := 1 TO #NoteCount DO
+        IF (#RowIdx = 0 OR #Notes[#Index].RowIdx = #RowIdx) AND #Notes[#Index].IsError = #IsError THEN
+            #Notes[#Index] := "FRK_ViewScratch".Note;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ViewBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Clear : Bool; ResetErrors : Bool; END_VAR
+VAR_IN_OUT
+    Defs : Array[*] of "ST_SequenceStepDef";
+    Rows : Array[*] of "ST_SequenceStep";
+    Cursors : Array[*] of "ST_SequenceCursor";
+    Notes : Array[*] of "ST_SequenceAnnotation";
+    Count : Int; NoteCount : Int; Current : "ST_StepRecord";
+    Book : "FRK_ViewBook"; Touched : Array[*] of Bool;
+    Depths : Array[*] of Int; Visits : Array[*] of UDInt; Enabled : Bool;
+END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #Enabled := TRUE;
+    #Current := "FRK_ViewScratch".Step;
+    #Book.CondIndex := 0;
+    #Book.PendingFound := FALSE;
+    FOR #Index := LOWER_BOUND(ARR := #Cursors, DIM := 1) TO UPPER_BOUND(ARR := #Cursors, DIM := 1) DO
+        #Touched[#Index] := FALSE;
+        #Depths[#Index] := -1;
+        IF #Clear THEN #Cursors[#Index] := "FRK_ViewScratch".Cursor; END_IF;
+    END_FOR;
+    IF #Clear THEN
+        FOR #Index := 1 TO UPPER_BOUND(ARR := #Rows, DIM := 1) DO
+            #Defs[#Index] := "FRK_ViewScratch".Def;
+            #Rows[#Index] := "FRK_ViewScratch".Row;
+            #Visits[#Index] := 0;
+        END_FOR;
+        FOR #Index := 1 TO UPPER_BOUND(ARR := #Notes, DIM := 1) DO #Notes[#Index] := "FRK_ViewScratch".Note; END_FOR;
+        #Count := 0; #NoteCount := 0; #Book.Overflow := FALSE;
+        #Book.Dirty := TRUE; #Book.ChangedMs := "FRK_Clock".NowMs;
+    ELSIF #ResetErrors THEN
+        FOR #Index := 1 TO #Count DO #Rows[#Index].ErrorActive := FALSE; END_FOR;
+        "FRK_ViewClearNotes"(RowIdx := 0, IsError := TRUE, Notes := #Notes, NoteCount := #NoteCount);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ViewRecord" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    StepNo : DInt; Branch : DInt; Depth : Int; Visit : UDInt;
+    StepName : String; AwaitingLabel : String; AwaitsPath : String;
+    TimeClass : DInt; ExpectedTime : Time; Elapsed : Time;
+END_VAR
+VAR_IN_OUT
+    Defs : Array[*] of "ST_SequenceStepDef"; Rows : Array[*] of "ST_SequenceStep";
+    Cursors : Array[*] of "ST_SequenceCursor"; Notes : Array[*] of "ST_SequenceAnnotation";
+    Count : Int; NoteCount : Int; Current : "ST_StepRecord"; Book : "FRK_ViewBook";
+    Touched : Array[*] of Bool; Depths : Array[*] of Int; Visits : Array[*] of UDInt;
+END_VAR
+VAR_TEMP Index : Int; RowIdx : Int; Leg : Int; END_VAR
+BEGIN
+    IF #StepNo < 0 OR #StepNo > 32767 OR #Branch < 0 OR #Branch > UPPER_BOUND(ARR := #Cursors, DIM := 1)
+        OR #Depth < 0 OR #ExpectedTime < T#0ms OR #Elapsed < T#0ms THEN #Book.Overflow := TRUE; RETURN; END_IF;
+    #Leg := DINT_TO_INT(#Branch); #RowIdx := 0;
+    FOR #Index := 1 TO #Count DO
+        IF #Defs[#Index].StepNo = #StepNo THEN #RowIdx := #Index; EXIT; END_IF;
+    END_FOR;
+    IF #RowIdx = 0 THEN
+        IF #Count >= UPPER_BOUND(ARR := #Rows, DIM := 1) THEN #Book.Overflow := TRUE; RETURN; END_IF;
+        #Count := #Count + 1; #RowIdx := #Count;
+        #Defs[#RowIdx].StepNo := DINT_TO_INT(#StepNo);
+        #Defs[#RowIdx].Branch := #Leg;
+        #Defs[#RowIdx].StepName := #StepName;
+        #Defs[#RowIdx].AwaitingLabel := #AwaitingLabel;
+        #Defs[#RowIdx].AwaitsPath := #AwaitsPath;
+        #Defs[#RowIdx].TimeClass := #TimeClass;
+        #Defs[#RowIdx].ExpectedTime := #ExpectedTime;
+        #Book.Dirty := TRUE; #Book.ChangedMs := "FRK_Clock".NowMs;
+    ELSIF #Defs[#RowIdx].Branch <> #Leg OR #Defs[#RowIdx].StepName <> #StepName THEN
+        // A number is a unique identity within the running mode; fail closed on aliasing.
+        #Book.Overflow := TRUE; RETURN;
+    END_IF;
+    IF #Defs[#RowIdx].ExpectedTime <> #ExpectedTime OR #Defs[#RowIdx].TimeClass <> #TimeClass
+        OR #Defs[#RowIdx].AwaitingLabel <> #AwaitingLabel OR #Defs[#RowIdx].AwaitsPath <> #AwaitsPath THEN
+        #Defs[#RowIdx].ExpectedTime := #ExpectedTime; #Defs[#RowIdx].TimeClass := #TimeClass;
+        #Defs[#RowIdx].AwaitingLabel := #AwaitingLabel; #Defs[#RowIdx].AwaitsPath := #AwaitsPath;
+        #Book.Dirty := TRUE; #Book.ChangedMs := "FRK_Clock".NowMs;
+    END_IF;
+    IF #Visits[#RowIdx] <> #Visit THEN
+        #Rows[#RowIdx].WarningActive := FALSE;
+        "FRK_ViewClearNotes"(RowIdx := #RowIdx, IsError := FALSE, Notes := #Notes, NoteCount := #NoteCount);
+        #Visits[#RowIdx] := #Visit;
+    END_IF;
+    #Rows[#RowIdx].Visited := TRUE;
+    #Rows[#RowIdx].LastDuration := #Elapsed;
+    // A composite's parent row cannot replace a deeper active sub-chain cursor,
+    // regardless of whether its call precedes or follows the parent's action.
+    IF #Depth >= #Depths[#Leg] THEN
+        #Cursors[#Leg].RowIdx := #RowIdx;
+        #Cursors[#Leg].Elapsed := #Elapsed;
+        #Cursors[#Leg].TimedOut := #Defs[#RowIdx].ExpectedTime > T#0ms AND #Elapsed > #Defs[#RowIdx].ExpectedTime;
+        #Depths[#Leg] := #Depth; #Touched[#Leg] := TRUE;
+        IF #Leg = 0 THEN
+            IF #Current.StepNo <> #StepNo THEN #Current := "FRK_ViewScratch".Step; #Book.CondIndex := 0; #Book.PendingFound := FALSE; END_IF;
+            #Current.StepNo := DINT_TO_INT(#StepNo); #Current.StepName := #StepName;
+            #Current.AwaitingLabel := #AwaitingLabel; #Current.TimeClass := #TimeClass;
+            #Current.ExpectedTime := #Defs[#RowIdx].ExpectedTime;
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ViewAwait" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT StepNo : DInt; Branch : DInt; Label : String; Ok : Bool; END_VAR
+VAR_IN_OUT Defs : Array[*] of "ST_SequenceStepDef"; Cursors : Array[*] of "ST_SequenceCursor";
+    Count : Int; Current : "ST_StepRecord"; Book : "FRK_ViewBook";
+END_VAR
+BEGIN
+    IF #Branch <> 0 OR #Cursors[0].RowIdx < 1 OR #Cursors[0].RowIdx > #Count THEN RETURN; END_IF;
+    IF #Defs[#Cursors[0].RowIdx].StepNo <> #StepNo THEN RETURN; END_IF;
+    IF #Book.CondIndex < 8 THEN
+        #Book.CondIndex := #Book.CondIndex + 1;
+        #Current.Conds[#Book.CondIndex].Label := #Label;
+        #Current.Conds[#Book.CondIndex].Ok := #Ok;
+    END_IF;
+    IF NOT #Ok AND NOT #Book.PendingFound THEN #Current.AwaitingLabel := #Label; #Book.PendingFound := TRUE; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ViewNote" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT StepNo : DInt; Branch : DInt; IsError : Bool; Key : String; SourcePath : String; END_VAR
+VAR_IN_OUT Defs : Array[*] of "ST_SequenceStepDef"; Rows : Array[*] of "ST_SequenceStep";
+    Notes : Array[*] of "ST_SequenceAnnotation"; Count : Int; NoteCount : Int;
+END_VAR
+VAR_TEMP Index : Int; RowIdx : Int; Slot : Int; END_VAR
+BEGIN
+    #RowIdx := 0; #Slot := 0;
+    FOR #Index := 1 TO #Count DO
+        IF #Defs[#Index].StepNo = #StepNo AND #Defs[#Index].Branch = #Branch THEN #RowIdx := #Index; EXIT; END_IF;
+    END_FOR;
+    IF #RowIdx = 0 THEN RETURN; END_IF;
+    IF #IsError THEN #Rows[#RowIdx].ErrorActive := TRUE; ELSE #Rows[#RowIdx].WarningActive := TRUE; END_IF;
+    FOR #Index := 1 TO #NoteCount DO
+        IF #Notes[#Index].RowIdx = #RowIdx AND #Notes[#Index].IsError = #IsError THEN #Slot := #Index; EXIT; END_IF;
+        IF #Slot = 0 AND #Notes[#Index].RowIdx = 0 THEN #Slot := #Index; END_IF;
+    END_FOR;
+    IF #Slot = 0 THEN
+        IF #NoteCount >= UPPER_BOUND(ARR := #Notes, DIM := 1) THEN RETURN; END_IF;
+        #NoteCount := #NoteCount + 1; #Slot := #NoteCount;
+    END_IF;
+    #Notes[#Slot].RowIdx := #RowIdx; #Notes[#Slot].IsError := #IsError;
+    #Notes[#Slot].Key := #Key; #Notes[#Slot].SourcePath := #SourcePath;
+END_FUNCTION
+
+FUNCTION "FRK_ViewEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Cursors : Array[*] of "ST_SequenceCursor"; Book : "FRK_ViewBook";
+    Touched : Array[*] of Bool; Current : "ST_StepRecord";
+    Revision : UDInt; Elapsed : Time; TimedOut : Bool;
+END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    FOR #Index := 0 TO UPPER_BOUND(ARR := #Cursors, DIM := 1) DO
+        IF NOT #Touched[#Index] THEN #Cursors[#Index] := "FRK_ViewScratch".Cursor; END_IF;
+    END_FOR;
+    #Elapsed := #Cursors[0].Elapsed; #TimedOut := #Cursors[0].TimedOut;
+    IF #Cursors[0].RowIdx = 0 THEN #Current := "FRK_ViewScratch".Step; END_IF;
+    IF #Book.Dirty AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Book.ChangedMs) >= 1000 THEN
+        #Revision := "FRK_ConfigRevision"(Previous := #Revision); #Book.Dirty := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ViewManifest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; Count : Int; ReadLevel : DInt; Readable : Bool; END_VAR
+VAR_IN_OUT Defs : Array[*] of "ST_SequenceStepDef"; Cursor : "FRK_ConfigCursor"; Page : "ST_ConfigPage"; END_VAR
+VAR_TEMP Index : Int; IndexText : String[8]; Prefix : String[254]; Item : String[254]; END_VAR
+BEGIN
+    FOR #Index := 1 TO #Count DO
+        #IndexText := INT_TO_STRING(#Index);
+        IF #IndexText[1] = '+' THEN #IndexText := DELETE(IN := #IndexText, L := 1, P := 1); END_IF;
+        #Prefix := CONCAT(IN1 := 'SequenceSteps/SequenceSteps[', IN2 := #IndexText);
+        #Prefix := CONCAT(IN1 := #Prefix, IN2 := ']/');
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'StepNo');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := INT_TO_WSTRING(#Defs[#Index].StepNo), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Branch');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := INT_TO_WSTRING(#Defs[#Index].Branch), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'TimeClass');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := DINT_TO_WSTRING(#Defs[#Index].TimeClass), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'ExpectedTime');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#Defs[#Index].ExpectedTime)), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'StepName');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(#Defs[#Index].StepName), ValueType := 1, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'AwaitingLabel');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(#Defs[#Index].AwaitingLabel), ValueType := 1, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'AwaitsPath');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(#Defs[#Index].AwaitsPath), ValueType := 1, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    END_FOR;
+END_FUNCTION
+FUNCTION "FRK_SeqViewStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    Depth : Int;
+    Visit : UDInt;
+    StepName : String;
+    AwaitingLabel : String;
+    AwaitsPath : String;
+    TimeClass : DInt;
+    ExpectedTime : Time;
+    Elapsed : Time;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "FRK_Views".V001.SequenceStepDef, Rows := "FRK_Views".V001.SequenceSteps, Cursors := "FRK_Views".V001.ActiveSteps, Notes := "FRK_Views".V001.SequenceAnnotations, Count := "FRK_Views".V001.SequenceStepCount, NoteCount := "FRK_Views".V001.SequenceAnnotationCount, Current := "FRK_Views".V001.CurrentStep, Book := "FRK_Views".V001.SequenceViewBook, Touched := "FRK_Views".V001.SequenceViewTouched, Depths := "FRK_Views".V001.SequenceViewDepths, Visits := "FRK_Views".V001.SequenceViewVisits);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewAwait" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    Label : String;
+    Ok : Bool;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "FRK_Views".V001.SequenceStepDef, Cursors := "FRK_Views".V001.ActiveSteps, Count := "FRK_Views".V001.SequenceStepCount, Current := "FRK_Views".V001.CurrentStep, Book := "FRK_Views".V001.SequenceViewBook);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewNote" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    IsError : Bool;
+    Key : String;
+    SourcePath : String;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "FRK_Views".V001.SequenceStepDef, Rows := "FRK_Views".V001.SequenceSteps, Notes := "FRK_Views".V001.SequenceAnnotations, Count := "FRK_Views".V001.SequenceStepCount, NoteCount := "FRK_Views".V001.SequenceAnnotationCount);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    Clear : Bool;
+    ResetErrors : Bool;
+END_VAR
+VAR_IN_OUT
+    Enabled : Bool;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewBegin"(Clear := #Clear, ResetErrors := #ResetErrors, Defs := "FRK_Views".V001.SequenceStepDef, Rows := "FRK_Views".V001.SequenceSteps, Cursors := "FRK_Views".V001.ActiveSteps, Notes := "FRK_Views".V001.SequenceAnnotations, Count := "FRK_Views".V001.SequenceStepCount, NoteCount := "FRK_Views".V001.SequenceAnnotationCount, Current := "FRK_Views".V001.CurrentStep, Book := "FRK_Views".V001.SequenceViewBook, Touched := "FRK_Views".V001.SequenceViewTouched, Depths := "FRK_Views".V001.SequenceViewDepths, Visits := "FRK_Views".V001.SequenceViewVisits, Enabled := #Enabled);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+END_VAR
+VAR_IN_OUT
+    Revision : UDInt;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewEnd"(Cursors := "FRK_Views".V001.ActiveSteps, Book := "FRK_Views".V001.SequenceViewBook, Touched := "FRK_Views".V001.SequenceViewTouched, Current := "FRK_Views".V001.CurrentStep, Revision := #Revision, Elapsed := "FRK_Views".V001.Cursors[0].Elapsed, TimedOut := "FRK_Views".V001.Cursors[0].TimedOut);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION

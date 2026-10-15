@@ -1,0 +1,31 @@
+﻿FUNCTION "FRK_PathOwned" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      OwnerPath : String;
+      TargetPath : WString;
+   END_VAR
+
+   VAR_TEMP 
+      Width : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PathOwned := FALSE;
+	#Width := LEN(#OwnerPath);
+	IF #Width = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #TargetPath = STRING_TO_WSTRING(#OwnerPath) THEN
+	    #FRK_PathOwned := TRUE;
+	    RETURN;
+	END_IF;
+	IF LEN(#TargetPath) <= #Width THEN
+	    RETURN;
+	END_IF;
+	#FRK_PathOwned := LEFT(IN := #TargetPath, L := #Width) = STRING_TO_WSTRING(#OwnerPath) AND #TargetPath[#Width + 1] = WCHAR#'.';
+	
+END_FUNCTION
+

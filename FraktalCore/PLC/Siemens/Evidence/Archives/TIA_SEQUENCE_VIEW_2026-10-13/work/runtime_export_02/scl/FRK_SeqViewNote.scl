@@ -1,0 +1,88 @@
+﻿FUNCTION "FRK_SeqViewNote" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Branch : DInt;
+      IsError : Bool;
+      Key : String;
+      SourcePath : String;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewNote"(StepNo := #StepNo,
+	                       Branch := #Branch,
+	                       IsError := #IsError,
+	                       Key := #Key,
+	                       SourcePath := #SourcePath,
+	                       Defs := "StationA".SequenceStepDef,
+	                       Rows := "StationA".SequenceSteps,
+	                       Notes := "StationA".SequenceAnnotations,
+	                       Count := "StationA".SequenceStepCount,
+	                       NoteCount := "StationA".SequenceAnnotationCount);
+	    5:
+	        "FRK_ViewNote"(StepNo := #StepNo,
+	                       Branch := #Branch,
+	                       IsError := #IsError,
+	                       Key := #Key,
+	                       SourcePath := #SourcePath,
+	                       Defs := "StationA".Satellite.SequenceStepDef,
+	                       Rows := "StationA".Satellite.SequenceSteps,
+	                       Notes := "StationA".Satellite.SequenceAnnotations,
+	                       Count := "StationA".Satellite.SequenceStepCount,
+	                       NoteCount := "StationA".Satellite.SequenceAnnotationCount);
+	    9:
+	        "FRK_ViewNote"(StepNo := #StepNo,
+	                       Branch := #Branch,
+	                       IsError := #IsError,
+	                       Key := #Key,
+	                       SourcePath := #SourcePath,
+	                       Defs := "StationA".Satellite.Inner.SequenceStepDef,
+	                       Rows := "StationA".Satellite.Inner.SequenceSteps,
+	                       Notes := "StationA".Satellite.Inner.SequenceAnnotations,
+	                       Count := "StationA".Satellite.Inner.SequenceStepCount,
+	                       NoteCount := "StationA".Satellite.Inner.SequenceAnnotationCount);
+	    13:
+	        "FRK_ViewNote"(StepNo := #StepNo,
+	                       Branch := #Branch,
+	                       IsError := #IsError,
+	                       Key := #Key,
+	                       SourcePath := #SourcePath,
+	                       Defs := "StationB".SequenceStepDef,
+	                       Rows := "StationB".SequenceSteps,
+	                       Notes := "StationB".SequenceAnnotations,
+	                       Count := "StationB".SequenceStepCount,
+	                       NoteCount := "StationB".SequenceAnnotationCount);
+	    17:
+	        "FRK_ViewNote"(StepNo := #StepNo,
+	                       Branch := #Branch,
+	                       IsError := #IsError,
+	                       Key := #Key,
+	                       SourcePath := #SourcePath,
+	                       Defs := "StationB".Satellite.SequenceStepDef,
+	                       Rows := "StationB".Satellite.SequenceSteps,
+	                       Notes := "StationB".Satellite.SequenceAnnotations,
+	                       Count := "StationB".Satellite.SequenceStepCount,
+	                       NoteCount := "StationB".Satellite.SequenceAnnotationCount);
+	    21:
+	        "FRK_ViewNote"(StepNo := #StepNo,
+	                       Branch := #Branch,
+	                       IsError := #IsError,
+	                       Key := #Key,
+	                       SourcePath := #SourcePath,
+	                       Defs := "StationB".Satellite.Inner.SequenceStepDef,
+	                       Rows := "StationB".Satellite.Inner.SequenceSteps,
+	                       Notes := "StationB".Satellite.Inner.SequenceAnnotations,
+	                       Count := "StationB".Satellite.Inner.SequenceStepCount,
+	                       NoteCount := "StationB".Satellite.Inner.SequenceAnnotationCount);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

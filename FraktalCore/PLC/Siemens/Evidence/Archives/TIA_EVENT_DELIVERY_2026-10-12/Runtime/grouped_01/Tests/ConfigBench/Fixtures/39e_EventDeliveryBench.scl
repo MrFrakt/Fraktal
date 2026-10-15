@@ -1,0 +1,77 @@
+// Test-only corruption before restore and real alarm callback stimulus after scan.
+FUNCTION "F_DeliveryDamage" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Head : Int;
+END_VAR
+BEGIN
+    IF NOT #Startup OR "GDB_DeliveryTest".Damage = 0 THEN RETURN; END_IF;
+    #Slot := "FRK_DeliveryIndex"(Scope := "GDB_DeliveryTest".Scope);
+    IF #Slot < 1 OR #Slot > 3 THEN RETURN; END_IF;
+    #Head := "FRK_EventDeliveryStore".Images[#Slot].Head;
+    CASE "GDB_DeliveryTest".Damage OF
+        1: "FRK_EventDeliveryStore".Images[#Slot].SchemaVersion := 999;
+        2: "FRK_EventDeliveryStore".Images[#Slot].Head := 0;
+        3: "FRK_EventDeliveryStore".Images[#Slot].Count := 9;
+        4: "FRK_EventDeliveryStore".Images[#Slot].Checksum := "FRK_EventDeliveryStore".Images[#Slot].Checksum XOR DWORD#1;
+        5: IF #Head >= 1 AND #Head <= 8 THEN "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Ev.Description := WSTRING#'test.tampered'; END_IF;
+        6: IF #Head >= 1 AND #Head <= 8 THEN "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Sequence := 0; END_IF;
+        7: "FRK_EventDeliveryStore".Anchors[#Slot].Checksum := "FRK_EventDeliveryStore".Anchors[#Slot].Checksum XOR DWORD#1;
+        8: "FRK_EventDeliveryStore".Images[#Slot].SchemaVersion := 0;
+           "FRK_EventDeliveryStore".Images[#Slot].Revision := 0;
+           "FRK_EventDeliveryStore".Images[#Slot].Checksum := DWORD#0;
+        9: "FRK_EventDeliveryStore".Images[#Slot].NextSequence := UDINT#4294967295;
+           "FRK_DeliverySave"(Slot := #Slot);
+        10: "FRK_EventDeliveryStore".Anchors[#Slot].Checksum := "FRK_DeliveryAnchorCrc"(Slot := #Slot);
+        ELSE RETURN;
+    END_CASE;
+    "GDB_DeliveryTest".Applied := TRUE;
+    "GDB_DeliveryTest".Damage := 0;
+END_FUNCTION
+
+FUNCTION "F_DeliveryStimulus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Gone : Bool;
+END_VAR
+BEGIN
+    CASE "GDB_DeliveryTest".Operation OF
+        1: "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := "GDB_DeliveryTest".Reason, Description := "GDB_DeliveryTest".Text, SourcePath := STRING_TO_WSTRING("GDB_DeliveryTest".Scope));
+        2: #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := "GDB_DeliveryTest".Diag, ResetClass := 1);
+           "GDB_DeliveryTest".EventSlot := #Slot;
+        3: #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := "GDB_DeliveryTest".EventSlot);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "F_DeliveryBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    IF "GDB_DeliveryTest".Operation = 0 THEN RETURN; END_IF;
+    IF "GDB_DeliveryTest".UnicodeMode THEN
+        "GDB_DeliveryTest".Text := WSTRING#'test.';
+        "GDB_DeliveryTest".Text[6] := UINT_TO_WCHAR(20013);
+        "GDB_DeliveryTest".Text[7] := UINT_TO_WCHAR(25991);
+    END_IF;
+    "GDB_DeliveryTest".Diag := "FRK_UnitScratch".EmptyDiagnostic;
+    "GDB_DeliveryTest".Diag.ReasonCode := "GDB_DeliveryTest".Reason;
+    "GDB_DeliveryTest".Diag.Description := "GDB_DeliveryTest".Text;
+    "GDB_DeliveryTest".Diag.SourcePath := STRING_TO_WSTRING("GDB_DeliveryTest".Scope);
+    "GDB_DeliveryTest".Diag.Severity := 2;
+    "GDB_DeliveryTest".Diag.Category := 0;
+    IF "GDB_DeliveryTest".Scope = 'StationA' THEN "F_DeliveryStimulus"(AlarmLog := "StationA".AlarmLog); END_IF;
+    IF "GDB_DeliveryTest".Scope = 'StationA.Satellite' THEN "F_DeliveryStimulus"(AlarmLog := "StationA".Satellite.AlarmLog); END_IF;
+    IF "GDB_DeliveryTest".Scope = 'StationB' THEN "F_DeliveryStimulus"(AlarmLog := "StationB".AlarmLog); END_IF;
+    "GDB_DeliveryTest".Operation := 0;
+END_FUNCTION

@@ -1,0 +1,469 @@
+// Optional Core 8.3 sink adapter. FIFO ownership is private; delivery receipts
+// use the existing root commit mailbox and never modify alarm/control state.
+FUNCTION "FRK_DeliveryIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_DeliveryIndex := 0;
+@DELIVERY_INDEX@
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryRootIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootScope : String;
+END_VAR
+BEGIN
+    #FRK_DeliveryRootIndex := 0;
+@DELIVERY_ROOT_INDEX@
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryMailbox" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootScope : String;
+    Access : "FRK_Access";
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    SequenceBefore : UDInt;
+    Receipt : "FRK_DeliveryReceipt";
+    Request : "ST_HmiRequest";
+    Accepted : Bool;
+    What : WString[160];
+END_VAR
+BEGIN
+    #Slot := "FRK_DeliveryRootIndex"(RootScope := #RootScope);
+    IF #Slot < 1 OR #Slot > @DELIVERY_ROOT_COUNT@ THEN RETURN; END_IF;
+    "FRK_EventDeliveryReceipt".Roots[#Slot] := #RootScope;
+    #SequenceBefore := "FRK_EventDeliveryReceipt".Request[#Slot].Sequence;
+    IF #SequenceBefore = 0 OR #SequenceBefore = "FRK_EventDeliveryRuntime".SeenReceipt[#Slot] THEN RETURN; END_IF;
+    #Receipt := "FRK_EventDeliveryReceipt".Request[#Slot];
+    IF #SequenceBefore <> "FRK_EventDeliveryReceipt".Request[#Slot].Sequence THEN RETURN; END_IF;
+    #Request.TargetPath := STRING_TO_WSTRING(#Receipt.TargetPath);
+    #Request.NameValue := #Receipt.Token;
+    #Request.DurationMs := #Receipt.Checksum;
+    #Request.Kind := @ACK_EVENT_DELIVERY@;
+    #Request.BoolValue := #Receipt.DiscardLost;
+    IF #Receipt.DiscardLost THEN
+        #Request.Kind := @DISCARD_LOST_EVENT_DELIVERY@;
+        #Request.NameValue := "FRK_DeliveryNumber"(Value := #Receipt.Epoch);
+        #Request.TextValue := STRING_TO_WSTRING(#Receipt.StreamId);
+    END_IF;
+    #Accepted := FALSE;
+    IF #Receipt.SchemaVersion = 1 THEN #Accepted := "FRK_DeliveryRequest"(RootScope := #RootScope, Request := #Request, Access := #Access); END_IF;
+    "FRK_EventDeliveryRuntime".SeenReceipt[#Slot] := #SequenceBefore;
+    // Audit metadata receipts locally, without creating work to acknowledge the
+    // acknowledgement. The operator session's idle time is not refreshed.
+    #What := WSTRING#'std.audit.accessDenied';
+    IF #Accepted THEN #What := WSTRING#'std.audit.operatorAction'; END_IF;
+    #What := CONCAT(IN1 := #What, IN2 := WSTRING#' eventDelivery=');
+    #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Request.Kind));
+    #AlarmLog.DeliveryMuted := TRUE;
+    "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := #What, Who := #Access.CurrentUser, SourcePath := STRING_TO_WSTRING(#RootScope));
+    #AlarmLog.DeliveryMuted := FALSE;
+    "FRK_EventDeliveryReceipt".Response[#Slot].SchemaVersion := 1;
+    "FRK_EventDeliveryReceipt".Response[#Slot].Accepted := #Accepted;
+    "FRK_EventDeliveryReceipt".Response[#Slot].AckSequence := #SequenceBefore;
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    EventSlot : Int;
+    Gone : Bool;
+    Diag : "ST_Diagnostic";
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.DeliverySlot;
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    #EventSlot := #AlarmLog.DeliveryLossSlot;
+    IF #EventSlot < 1 OR #EventSlot > @MAX_ALARM_ACTIVE@ THEN #EventSlot := 0;
+    ELSIF #AlarmLog.Active[#EventSlot].State <> @E_AlarmState.ACTIVE@
+        OR #AlarmLog.Active[#EventSlot].ReasonCode <> @DELIVERY_LOST_CODE@
+        OR #AlarmLog.Active[#EventSlot].SourcePath <> STRING_TO_WSTRING(#Scope) THEN #EventSlot := 0; END_IF;
+    IF NOT "FRK_EventDeliveryRuntime".Valid[#Slot] THEN
+        IF #EventSlot = 0 THEN
+            #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+            #Diag.ReasonCode := @DELIVERY_LOST_CODE@;
+            #Diag.Description := WSTRING#'@DELIVERY_LOST_DESCRIPTION@';
+            #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+            #Diag.Severity := @DELIVERY_LOST_SEVERITY@;
+            #Diag.Category := @DELIVERY_LOST_CATEGORY@;
+            #EventSlot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @DELIVERY_LOST_RESET_CLASS@);
+        END_IF;
+        #AlarmLog.DeliveryLossSlot := #EventSlot;
+    ELSE
+        IF #EventSlot > 0 THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #EventSlot); END_IF;
+        #AlarmLog.DeliveryLossSlot := 0;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryScope" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    #FRK_DeliveryScope := '';
+    CASE #Slot OF
+@DELIVERY_OWNERS@
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryAnchorCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_DeliveryAnchorCrc := DWORD#0;
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_EventDeliveryStore".Anchors[#Slot].SchemaVersion));
+    FOR #Index := 1 TO LEN("FRK_EventDeliveryStore".Anchors[#Slot].Scope) DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_EventDeliveryStore".Anchors[#Slot].Scope[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcByte"(Previous := #Work, Value := BYTE#0);
+    FOR #Index := 1 TO LEN("FRK_EventDeliveryStore".Anchors[#Slot].StreamId) DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_EventDeliveryStore".Anchors[#Slot].StreamId[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch);
+    #FRK_DeliveryAnchorCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryHeaderCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+END_VAR
+BEGIN
+    #FRK_DeliveryHeaderCrc := DWORD#0;
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].SchemaVersion));
+@DELIVERY_HEADER_FIELDS@
+    #FRK_DeliveryHeaderCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryRowCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Sequence : UDInt;
+    Ev : "ST_AlarmEvent";
+END_VAR
+BEGIN
+    #FRK_DeliveryRowCrc := "FRK_CrcNumber"(Previous := "FRK_AlarmEventCrc"(Ev := #Ev), Value := #Sequence);
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryNumber" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Value : UDInt;
+END_VAR
+VAR_TEMP
+    Text : String[12];
+END_VAR
+BEGIN
+    #Text := UDINT_TO_STRING(#Value);
+    IF LEFT(IN := #Text, L := 1) = '+' THEN #Text := RIGHT(IN := #Text, L := LEN(#Text) - 1); END_IF;
+    #FRK_DeliveryNumber := #Text;
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryToken" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    Sequence : UDInt;
+END_VAR
+VAR_TEMP
+    Work : String[160];
+END_VAR
+BEGIN
+    #FRK_DeliveryToken := '';
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    #Work := CONCAT(IN1 := "FRK_EventDeliveryStore".Anchors[#Slot].StreamId, IN2 := '/');
+    #Work := CONCAT(IN1 := #Work, IN2 := "FRK_EventDeliveryStore".Anchors[#Slot].Scope);
+    #Work := CONCAT(IN1 := #Work, IN2 := '/');
+    #Work := CONCAT(IN1 := #Work, IN2 := "FRK_DeliveryNumber"(Value := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch));
+    #Work := CONCAT(IN1 := #Work, IN2 := '/');
+    #FRK_DeliveryToken := CONCAT(IN1 := #Work, IN2 := "FRK_DeliveryNumber"(Value := #Sequence));
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryPublish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Head : Int;
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    // Copy event text only on a lifecycle change; never every scan.
+    IF "FRK_EventDeliveryRuntime".PublishedRevision[#Slot] = "FRK_EventDeliveryStore".Images[#Slot].Revision
+        AND "FRK_EventDeliveryView".Rows[#Slot].SchemaVersion = 1 THEN RETURN; END_IF;
+    "FRK_EventDeliveryView".Rows[#Slot].SchemaVersion := 1;
+    "FRK_EventDeliveryView".Rows[#Slot].Scope := "FRK_DeliveryScope"(Slot := #Slot);
+    "FRK_EventDeliveryView".Rows[#Slot].StreamId := '@DELIVERY_STREAM@';
+    "FRK_EventDeliveryView".Rows[#Slot].Capacity := @DELIVERY_CAPACITY@;
+    "FRK_EventDeliveryView".Rows[#Slot].AnchorValid := "FRK_EventDeliveryRuntime".AnchorValid[#Slot];
+    "FRK_EventDeliveryView".Rows[#Slot].RestoreLost := NOT "FRK_EventDeliveryRuntime".Valid[#Slot];
+    "FRK_EventDeliveryView".Rows[#Slot].Pending := 0;
+    "FRK_EventDeliveryView".Rows[#Slot].Token := '';
+    "FRK_EventDeliveryView".Rows[#Slot].Checksum := 0;
+    "FRK_EventDeliveryView".Rows[#Slot].Ev := "FRK_UnitScratch".EmptyEvent;
+    IF "FRK_EventDeliveryRuntime".AnchorValid[#Slot] THEN "FRK_EventDeliveryView".Rows[#Slot].Epoch := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch; END_IF;
+    IF "FRK_EventDeliveryRuntime".Valid[#Slot] THEN
+        "FRK_EventDeliveryView".Rows[#Slot].Pending := "FRK_EventDeliveryStore".Images[#Slot].Count;
+        "FRK_EventDeliveryView".Rows[#Slot].Overflow := "FRK_EventDeliveryStore".Images[#Slot].Overflow;
+        "FRK_EventDeliveryView".Rows[#Slot].Dropped := "FRK_EventDeliveryStore".Images[#Slot].Dropped;
+        #Head := "FRK_EventDeliveryStore".Images[#Slot].Head;
+        IF "FRK_EventDeliveryStore".Images[#Slot].Count > 0 AND #Head >= 1 AND #Head <= @DELIVERY_CAPACITY@ THEN
+            "FRK_EventDeliveryView".Rows[#Slot].Token := "FRK_DeliveryToken"(Slot := #Slot, Sequence := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Sequence);
+            "FRK_EventDeliveryView".Rows[#Slot].Checksum := DWORD_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Checksum);
+            "FRK_EventDeliveryView".Rows[#Slot].Ev := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Ev;
+        END_IF;
+    ELSE
+        "FRK_EventDeliveryView".Rows[#Slot].Overflow := TRUE;
+        "FRK_EventDeliveryView".Rows[#Slot].Dropped := 0;
+    END_IF;
+    "FRK_EventDeliveryRuntime".PublishedRevision[#Slot] := "FRK_EventDeliveryStore".Images[#Slot].Revision;
+END_FUNCTION
+
+FUNCTION "FRK_DeliverySave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    "FRK_EventDeliveryStore".Images[#Slot].Revision := "FRK_ConfigRevision"(Previous := "FRK_EventDeliveryStore".Images[#Slot].Revision);
+    "FRK_EventDeliveryStore".Images[#Slot].Checksum := "FRK_DeliveryHeaderCrc"(Slot := #Slot);
+    "FRK_EventDeliveryRuntime".PublishedRevision[#Slot] := 0;
+    "FRK_DeliveryPublish"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryInitialize" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    Discarded : Bool;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    "FRK_EventDeliveryStore".Images[#Slot].SchemaVersion := 1;
+    "FRK_EventDeliveryStore".Images[#Slot].Epoch := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch;
+    "FRK_EventDeliveryStore".Images[#Slot].Revision := 0;
+    "FRK_EventDeliveryStore".Images[#Slot].NextSequence := 0;
+    "FRK_EventDeliveryStore".Images[#Slot].Head := 1;
+    "FRK_EventDeliveryStore".Images[#Slot].Count := 0;
+    "FRK_EventDeliveryStore".Images[#Slot].Overflow := #Discarded;
+    "FRK_EventDeliveryStore".Images[#Slot].Dropped := 0;
+    FOR #Index := 1 TO @DELIVERY_CAPACITY@ DO
+        "FRK_EventDeliveryStore".Images[#Slot].Entries[#Index].Sequence := 0;
+        "FRK_EventDeliveryStore".Images[#Slot].Entries[#Index].Checksum := DWORD#0;
+        "FRK_EventDeliveryStore".Images[#Slot].Entries[#Index].Ev := "FRK_UnitScratch".EmptyEvent;
+    END_FOR;
+    "FRK_EventDeliveryRuntime".Valid[#Slot] := TRUE;
+    "FRK_DeliverySave"(Slot := #Slot);
+    "FRK_EventDeliveryStore".Commissioned[#Slot] := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Startup : Bool;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Position : Int;
+    Previous : UDInt;
+    Valid : Bool;
+    AnchorOk : Bool;
+    Ev : "ST_AlarmEvent";
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Slot := "FRK_DeliveryIndex"(Scope := #Scope);
+    #AlarmLog.DeliverySlot := #Slot;
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    "FRK_EventDeliveryRuntime".PublishedRevision[#Slot] := 0;
+    "FRK_EventDeliveryView".Rows[#Slot].SchemaVersion := 0;
+    IF NOT "FRK_EventDeliveryStore".Commissioned[#Slot]
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].SchemaVersion = 0
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].Epoch = 0
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].Scope = ''
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].StreamId = ''
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].Checksum = DWORD#0
+        AND "FRK_EventDeliveryStore".Images[#Slot].SchemaVersion = 0
+        AND "FRK_EventDeliveryStore".Images[#Slot].Revision = 0
+        AND "FRK_EventDeliveryStore".Images[#Slot].Checksum = DWORD#0 THEN
+        "FRK_EventDeliveryStore".Anchors[#Slot].SchemaVersion := 1;
+        "FRK_EventDeliveryStore".Anchors[#Slot].Scope := #Scope;
+        "FRK_EventDeliveryStore".Anchors[#Slot].StreamId := '@DELIVERY_STREAM@';
+        "FRK_EventDeliveryStore".Anchors[#Slot].Epoch := 1;
+        "FRK_EventDeliveryStore".Anchors[#Slot].Checksum := "FRK_DeliveryAnchorCrc"(Slot := #Slot);
+        "FRK_EventDeliveryRuntime".AnchorValid[#Slot] := TRUE;
+        "FRK_DeliveryInitialize"(Slot := #Slot, Discarded := FALSE);
+        RETURN;
+    END_IF;
+    #AnchorOk := "FRK_EventDeliveryStore".Commissioned[#Slot]
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].SchemaVersion = 1
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].Scope = #Scope
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].StreamId = '@DELIVERY_STREAM@'
+        AND "FRK_EventDeliveryStore".Anchors[#Slot].Epoch > 0;
+    IF #AnchorOk THEN #AnchorOk := "FRK_EventDeliveryStore".Anchors[#Slot].Checksum = "FRK_DeliveryAnchorCrc"(Slot := #Slot); END_IF;
+    "FRK_EventDeliveryRuntime".AnchorValid[#Slot] := #AnchorOk;
+    #Valid := #AnchorOk AND "FRK_EventDeliveryStore".Images[#Slot].SchemaVersion = 1
+        AND "FRK_EventDeliveryStore".Images[#Slot].Epoch = "FRK_EventDeliveryStore".Anchors[#Slot].Epoch
+        AND "FRK_EventDeliveryStore".Images[#Slot].Revision > 0
+        AND "FRK_EventDeliveryStore".Images[#Slot].Head >= 1 AND "FRK_EventDeliveryStore".Images[#Slot].Head <= @DELIVERY_CAPACITY@
+        AND "FRK_EventDeliveryStore".Images[#Slot].Count >= 0 AND "FRK_EventDeliveryStore".Images[#Slot].Count <= @DELIVERY_CAPACITY@;
+    IF #Valid THEN #Valid := "FRK_EventDeliveryStore".Images[#Slot].Checksum = "FRK_DeliveryHeaderCrc"(Slot := #Slot); END_IF;
+    #Previous := 0;
+    IF #Valid THEN
+        FOR #Index := 0 TO "FRK_EventDeliveryStore".Images[#Slot].Count - 1 DO
+            #Position := (("FRK_EventDeliveryStore".Images[#Slot].Head - 1 + #Index) MOD @DELIVERY_CAPACITY@) + 1;
+            #Ev := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Ev;
+            #Valid := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence > #Previous
+                AND "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence <= "FRK_EventDeliveryStore".Images[#Slot].NextSequence
+                AND "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Checksum = "FRK_DeliveryRowCrc"(Sequence := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence, Ev := #Ev)
+                AND (#Ev.State = @E_AlarmState.ACTIVE@ OR #Ev.State = @E_AlarmState.CLOSED@)
+                AND #Ev.ResetClass >= @E_ResetClass.AUTO_RESET@ AND #Ev.ResetClass <= @E_ResetClass.MANUAL_RESET@
+                AND #Ev.Severity >= @E_Severity.LOW@ AND #Ev.Severity <= @E_Severity.HIGH@
+                AND #Ev.Category >= @E_Category.PROCESS@ AND #Ev.Category <= @E_Category.SYSTEM@
+                AND #Ev.Description <> WSTRING#'' AND #Ev.SourcePath <> WSTRING#'' AND #Ev.Duration >= T#0ms;
+            IF NOT #Valid THEN EXIT; END_IF;
+            #Previous := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence;
+        END_FOR;
+    END_IF;
+    "FRK_EventDeliveryRuntime".Valid[#Slot] := #Valid;
+    "FRK_DeliveryPublish"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryCapture" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Position : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.DeliverySlot;
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ OR #AlarmLog.DeliveryMuted THEN RETURN; END_IF;
+    IF NOT "FRK_EventDeliveryRuntime".Valid[#Slot] THEN RETURN; END_IF;
+    IF "FRK_EventDeliveryStore".Images[#Slot].Count >= @DELIVERY_CAPACITY@ OR "FRK_EventDeliveryStore".Images[#Slot].NextSequence = UDINT#4294967295 THEN
+        "FRK_EventDeliveryStore".Images[#Slot].Overflow := TRUE;
+        IF "FRK_EventDeliveryStore".Images[#Slot].Dropped < UDINT#4294967295 THEN "FRK_EventDeliveryStore".Images[#Slot].Dropped := "FRK_EventDeliveryStore".Images[#Slot].Dropped + 1; END_IF;
+        "FRK_DeliverySave"(Slot := #Slot);
+        RETURN;
+    END_IF;
+    #Position := (("FRK_EventDeliveryStore".Images[#Slot].Head - 1 + "FRK_EventDeliveryStore".Images[#Slot].Count) MOD @DELIVERY_CAPACITY@) + 1;
+    "FRK_EventDeliveryStore".Images[#Slot].NextSequence := "FRK_EventDeliveryStore".Images[#Slot].NextSequence + 1;
+    "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence := "FRK_EventDeliveryStore".Images[#Slot].NextSequence;
+    "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Ev := #Ev;
+    "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Checksum := "FRK_DeliveryRowCrc"(Sequence := "FRK_EventDeliveryStore".Images[#Slot].NextSequence, Ev := #Ev);
+    "FRK_EventDeliveryStore".Images[#Slot].Count := "FRK_EventDeliveryStore".Images[#Slot].Count + 1;
+    "FRK_DeliverySave"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_DeliveryRequest" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootScope : String;
+    Request : "ST_HmiRequest";
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Head : Int;
+    Token : String[160];
+    Prefix : String[254];
+    Target : String[@NAME_WIDTH@];
+END_VAR
+BEGIN
+    #FRK_DeliveryRequest := FALSE;
+    // Receipts are data mutations, with a non-lowerable deployment minimum.
+    IF #Access.CurrentLevel < @DELIVERY_MINIMUM@ OR #Access.CurrentLevel < #Access.Policy.Required[@E_GatedAction.DATA_WRITE@] THEN RETURN; END_IF;
+    IF LEN(#Request.TargetPath) > @NAME_WIDTH@ THEN RETURN; END_IF;
+    #Target := WSTRING_TO_STRING(#Request.TargetPath);
+    IF STRING_TO_WSTRING(#Target) <> #Request.TargetPath THEN RETURN; END_IF;
+    #Prefix := CONCAT(IN1 := #RootScope, IN2 := '.');
+    IF #Target <> #RootScope AND LEFT(IN := #Target, L := LEN(#Prefix)) <> #Prefix THEN RETURN; END_IF;
+    #Slot := "FRK_DeliveryIndex"(Scope := #Target);
+    IF #Slot < 1 OR #Slot > @DELIVERY_COUNT@ THEN RETURN; END_IF;
+    CASE #Request.Kind OF
+        @ACK_EVENT_DELIVERY@:
+            IF NOT "FRK_EventDeliveryRuntime".Valid[#Slot] OR #Request.BoolValue THEN RETURN; END_IF;
+            IF "FRK_EventDeliveryStore".Images[#Slot].Count <= 0 THEN RETURN; END_IF;
+            #Head := "FRK_EventDeliveryStore".Images[#Slot].Head;
+            IF #Head < 1 OR #Head > @DELIVERY_CAPACITY@ THEN RETURN; END_IF;
+            #Token := "FRK_DeliveryToken"(Slot := #Slot, Sequence := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Sequence);
+            IF #Request.NameValue <> #Token OR #Request.DurationMs <> DWORD_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Checksum) THEN RETURN; END_IF;
+            "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Sequence := 0;
+            "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Checksum := DWORD#0;
+            "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Ev := "FRK_UnitScratch".EmptyEvent;
+            "FRK_EventDeliveryStore".Images[#Slot].Head := (#Head MOD @DELIVERY_CAPACITY@) + 1;
+            "FRK_EventDeliveryStore".Images[#Slot].Count := "FRK_EventDeliveryStore".Images[#Slot].Count - 1;
+            "FRK_DeliverySave"(Slot := #Slot);
+            #FRK_DeliveryRequest := TRUE;
+        @DISCARD_LOST_EVENT_DELIVERY@:
+            IF "FRK_EventDeliveryRuntime".Valid[#Slot] OR NOT "FRK_EventDeliveryRuntime".AnchorValid[#Slot] OR NOT #Request.BoolValue THEN RETURN; END_IF;
+            IF #Request.TextValue <> WSTRING#'@DELIVERY_STREAM@' OR #Request.NameValue <> "FRK_DeliveryNumber"(Value := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch)
+                OR "FRK_EventDeliveryStore".Anchors[#Slot].Epoch = UDINT#4294967295 THEN RETURN; END_IF;
+            // Advance the independently checked identity before discarding data.
+            "FRK_EventDeliveryStore".Anchors[#Slot].Epoch := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch + 1;
+            "FRK_EventDeliveryStore".Anchors[#Slot].Checksum := "FRK_DeliveryAnchorCrc"(Slot := #Slot);
+            "FRK_DeliveryInitialize"(Slot := #Slot, Discarded := TRUE);
+            #FRK_DeliveryRequest := TRUE;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION

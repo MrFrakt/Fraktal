@@ -1,0 +1,171 @@
+// Project policy only. Lifecycle, ownership, waits, messages and once-per-visit
+// bookkeeping stay in Core; GRAPH actions and the ST/LD twins call these FCs.
+FUNCTION "F_PressDemoAwaitCycle" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT PartPresent : Bool; PartQuality : Bool; AirPressureOk : Bool; RequireTwoHandStart : Bool; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Cycle : "ST_PressDemoCycle"; Core : "FRK_Core"; Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus"; Part : "ST_PartContext"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP PartReady : Bool; AirReady : Bool; StartReady : Bool; Received : Bool; END_VAR
+BEGIN
+    #F_PressDemoAwaitCycle := FALSE;
+    #Cycle.CycleCompleted := FALSE;
+    IF #Unit.StopReq THEN
+        "FRK_Complete"(Core := #Core, Status := #Status);
+        "FRK_SeqComplete"(Seq := #Seq);
+        RETURN;
+    END_IF;
+    #PartReady := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.partPresent', Ok := #PartPresent AND #PartQuality);
+    #AirReady := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.airPressureOk', Ok := #AirPressureOk);
+    #StartReady := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.twoHandStart', Ok := #Seq.StartLatched OR NOT #RequireTwoHandStart);
+    IF NOT (#PartReady AND #AirReady AND #StartReady) THEN RETURN; END_IF;
+    IF NOT #Cycle.PartInMachine THEN
+        #Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+        IF #Core.Exec = 3 THEN #Seq.Error := TRUE; #Seq.ErrorDiagnostic := #Status.Diagnostic; RETURN; END_IF;
+        #Cycle.PartInMachine := TRUE;
+    END_IF;
+    #F_PressDemoAwaitCycle := TRUE;
+END_FUNCTION
+
+FUNCTION "F_PressDemoStarted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Unit : "FRK_Unit"; Status : "ST_ModuleStatus"; Part : "ST_PartContext"; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    IF "FRK_SeqOnce"(Seq := #Seq, Enable := #Seq.CommandIssued, Token := 150) THEN
+        "FRK_PartStarted"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "F_PressDemoDoorClose" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Closed : Bool; TwoHandHeld : Bool; RequireTwoHandStart : Bool; SourcePath : String; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Held : Bool; Diag : "ST_Diagnostic"; END_VAR
+BEGIN
+    #Held := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.twoHandHeldDuringDoorClose', Ok := #TwoHandHeld OR NOT #RequireTwoHandStart);
+    "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := #Closed, Jump1Ok := NOT #Held);
+    IF #Seq.RetVal = 2 THEN
+        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+        #Diag.ReasonCode := 12001;
+        #Diag.Description := WSTRING#'project.warning.twoHandReleasedDuringDoorClose';
+        #Diag.SourcePath := STRING_TO_WSTRING(#SourcePath);
+        #Diag.Severity := 0;
+        #Diag.Category := 0;
+        "FRK_SeqMessage"(Seq := #Seq, AlarmLog := #AlarmLog, Diag := #Diag);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "F_PressDemoClearStart" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Complete : Bool; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    IF #Complete THEN "FRK_SeqCycleEnd"(Seq := #Seq); END_IF;
+END_FUNCTION
+
+FUNCTION "F_PressDemoRamResult" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Reached : Bool; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Cycle : "ST_PressDemoCycle"; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := #Reached, Jump1Ok := #Seq.CommandFailed);
+    IF #Seq.RetVal = 2 THEN
+        #Cycle.FailureReason := #Seq.HandledDiagnostic.ReasonCode;
+        "FRK_SeqMessage"(Seq := #Seq, AlarmLog := #AlarmLog, Diag := #Seq.HandledDiagnostic);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "F_PressDemoConfirmScrap" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT SourcePath : String; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Request : "ST_DecisionRequest"; Asked : Bool; Answer : Int; Ready : Bool; END_VAR
+BEGIN
+    #Request := "FRK_Decisions".EmptyRequest;
+    #Request.Prompt := WSTRING#'project.decision.pressNotReached';
+    #Request.Options[1] := 'project.decision.confirmScrapAndReturn';
+    // Scrap is deliberate: no timeout and no default answer.
+    #Asked := "FRK_DecisionAsk"(Owner := #Seq.OwnerIndex, OwnerPath := STRING_TO_WSTRING(#SourcePath), Request := #Request, AlarmLog := #AlarmLog);
+    #Answer := 0;
+    IF #Asked THEN #Answer := "FRK_DecisionTake"(Owner := #Seq.OwnerIndex, AlarmLog := #AlarmLog); END_IF;
+    #Ready := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.pressFailureConfirmation', Ok := #Asked AND #Answer = 1);
+    #F_PressDemoConfirmScrap := #Ready;
+END_FUNCTION
+
+FUNCTION "F_PressDemoScrap" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Cycle : "ST_PressDemoCycle"; Core : "FRK_Core"; Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus"; Part : "ST_PartContext"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Written : Bool; END_VAR
+BEGIN
+    IF "FRK_SeqOnce"(Seq := #Seq, Enable := TRUE, Token := 215) THEN
+        #Written := "FRK_PartProcessed"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog,
+            Verdict := 2, Reason := #Cycle.FailureReason);
+        IF NOT #Written AND #Unit.CarrierIndex = 0 AND #Unit.Nok < UDINT#4294967295 THEN
+            #Unit.Nok := #Unit.Nok + 1;
+            #Unit.NokReason := #Cycle.FailureReason;
+        END_IF;
+        #Cycle.PartDispositioned := TRUE;
+        #Cycle.PartInMachine := FALSE;
+        #Cycle.CycleCompleted := FALSE;
+    END_IF;
+    #F_PressDemoScrap := #Core.Exec <> 3;
+END_FUNCTION
+
+FUNCTION "F_PressDemoDwell" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT TwoHandHeld : Bool; RequireTwoHandStart : Bool; PT : Time; Delta : Time; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; PressRam : "FB_CylinderCM"; END_VAR
+VAR_TEMP Held : Bool; END_VAR
+BEGIN
+    #Held := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.twoHandHeldDuringPress', Ok := #TwoHandHeld OR NOT #RequireTwoHandStart);
+    "F_CylinderForcePermit"(Target := #PressRam, Permit := #Held);
+    #F_PressDemoDwell := "FRK_SeqDelay"(Seq := #Seq, Permit := #Held, PT := #PT, Delta := #Delta);
+END_FUNCTION
+
+FUNCTION "F_PressDemoRecord" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Dwell : Time; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Core : "FRK_Core"; Status : "ST_ModuleStatus"; Part : "ST_PartContext"; END_VAR
+VAR_TEMP Recorded : Bool; END_VAR
+BEGIN
+    IF "FRK_SeqOnce"(Seq := #Seq, Enable := TRUE, Token := 230) THEN
+        #Recorded := "FRK_PartRecord"(Core := #Core, Status := #Status, Part := #Part,
+            RecordName := 'PressDwell', Value := DINT_TO_LREAL(TIME_TO_DINT(#Dwell)), Minimum := 0.0, Maximum := 30000.0,
+            Target := DINT_TO_LREAL(TIME_TO_DINT(#Dwell)), EngUnit := 'ms');
+    END_IF;
+    #F_PressDemoRecord := #Core.Exec <> 3;
+END_FUNCTION
+
+FUNCTION "F_PressDemoCycleEnd" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Cycle : "ST_PressDemoCycle"; Core : "FRK_Core"; Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus"; Part : "ST_PartContext"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Written : Bool; END_VAR
+BEGIN
+    IF "FRK_SeqOnce"(Seq := #Seq, Enable := TRUE, Token := 999) THEN
+        #Cycle.CycleCompleted := TRUE;
+        IF #Cycle.PartDispositioned THEN #Cycle.PartDispositioned := FALSE;
+        ELSE
+            #Written := "FRK_PartProcessed"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, Verdict := 1, Reason := 0);
+            IF NOT #Written AND #Unit.CarrierIndex = 0 AND #Unit.Good < UDINT#4294967295 THEN #Unit.Good := #Unit.Good + 1; END_IF;
+        END_IF;
+        #Cycle.PartInMachine := FALSE;
+        "FRK_SeqCycleEnd"(Seq := #Seq);
+    END_IF;
+    IF #Unit.StopReq THEN
+        "FRK_Complete"(Core := #Core, Status := #Status);
+        "FRK_SeqComplete"(Seq := #Seq);
+        #F_PressDemoCycleEnd := FALSE;
+    ELSE #F_PressDemoCycleEnd := #Core.Exec <> 3;
+    END_IF;
+END_FUNCTION

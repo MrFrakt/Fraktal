@@ -1,0 +1,90 @@
+﻿FUNCTION "FRK_SeqProfileStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Visit : UDInt;
+      StepName : String;
+      TimeClass : DInt;
+      Expected : Time;
+      NowMs : UDInt;
+      Stamp : LDT;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ProfileStep"(StepNo := #StepNo,
+	                          Visit := #Visit,
+	                          StepName := #StepName,
+	                          TimeClass := #TimeClass,
+	                          Expected := #Expected,
+	                          NowMs := #NowMs,
+	                          Stamp := #Stamp,
+	                          Book := "FRK_Profiles".P001.Book,
+	                          Steps := "FRK_Profiles".P001.Steps,
+	                          Stats := "FRK_Profiles".P001.Stats);
+	    5:
+	        "FRK_ProfileStep"(StepNo := #StepNo,
+	                          Visit := #Visit,
+	                          StepName := #StepName,
+	                          TimeClass := #TimeClass,
+	                          Expected := #Expected,
+	                          NowMs := #NowMs,
+	                          Stamp := #Stamp,
+	                          Book := "FRK_Profiles".P005.Book,
+	                          Steps := "FRK_Profiles".P005.Steps,
+	                          Stats := "FRK_Profiles".P005.Stats);
+	    9:
+	        "FRK_ProfileStep"(StepNo := #StepNo,
+	                          Visit := #Visit,
+	                          StepName := #StepName,
+	                          TimeClass := #TimeClass,
+	                          Expected := #Expected,
+	                          NowMs := #NowMs,
+	                          Stamp := #Stamp,
+	                          Book := "FRK_Profiles".P009.Book,
+	                          Steps := "FRK_Profiles".P009.Steps,
+	                          Stats := "FRK_Profiles".P009.Stats);
+	    13:
+	        "FRK_ProfileStep"(StepNo := #StepNo,
+	                          Visit := #Visit,
+	                          StepName := #StepName,
+	                          TimeClass := #TimeClass,
+	                          Expected := #Expected,
+	                          NowMs := #NowMs,
+	                          Stamp := #Stamp,
+	                          Book := "FRK_Profiles".P013.Book,
+	                          Steps := "FRK_Profiles".P013.Steps,
+	                          Stats := "FRK_Profiles".P013.Stats);
+	    17:
+	        "FRK_ProfileStep"(StepNo := #StepNo,
+	                          Visit := #Visit,
+	                          StepName := #StepName,
+	                          TimeClass := #TimeClass,
+	                          Expected := #Expected,
+	                          NowMs := #NowMs,
+	                          Stamp := #Stamp,
+	                          Book := "FRK_Profiles".P017.Book,
+	                          Steps := "FRK_Profiles".P017.Steps,
+	                          Stats := "FRK_Profiles".P017.Stats);
+	    21:
+	        "FRK_ProfileStep"(StepNo := #StepNo,
+	                          Visit := #Visit,
+	                          StepName := #StepName,
+	                          TimeClass := #TimeClass,
+	                          Expected := #Expected,
+	                          NowMs := #NowMs,
+	                          Stamp := #Stamp,
+	                          Book := "FRK_Profiles".P021.Book,
+	                          Steps := "FRK_Profiles".P021.Steps,
+	                          Stats := "FRK_Profiles".P021.Stats);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

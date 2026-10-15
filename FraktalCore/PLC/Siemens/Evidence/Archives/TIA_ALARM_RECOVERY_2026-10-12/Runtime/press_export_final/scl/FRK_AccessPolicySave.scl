@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_AccessPolicySave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Access.PolicySlot < 1 OR #Access.PolicySlot > 1 THEN
+	    RETURN;
+	END_IF;
+	IF #Scope = '' OR NOT "FRK_AccessPolicyShape"(Policy := #Access.Policy) THEN
+	    #Access.PolicyLost := TRUE;
+	    RETURN;
+	END_IF;
+	"FRK_AccessPolicies".Rows[#Access.PolicySlot].SchemaVersion := 1;
+	"FRK_AccessPolicies".Rows[#Access.PolicySlot].Initialized := TRUE;
+	"FRK_AccessPolicies".Rows[#Access.PolicySlot].Scope := #Scope;
+	"FRK_AccessPolicies".Rows[#Access.PolicySlot].Generation := "FRK_AccessNext"(Previous := "FRK_AccessPolicies".Rows[#Access.PolicySlot].Generation);
+	"FRK_AccessPolicies".Rows[#Access.PolicySlot].Policy := #Access.Policy;
+	"FRK_AccessPolicies".Rows[#Access.PolicySlot].Checksum := "FRK_AccessPolicyCrc"(Image := "FRK_AccessPolicies".Rows[#Access.PolicySlot]);
+	
+END_FUNCTION
+

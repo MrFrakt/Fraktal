@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_ViewWithdraw" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Cursors : Array[*] of "ST_SequenceCursor";
+      Book : "FRK_ViewBook";
+      Touched : Array[*] of Bool;
+      Current : "ST_StepRecord";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #Index := 0 TO UPPER_BOUND(ARR := #Cursors, DIM := 1) DO
+	    #Cursors[#Index] := "FRK_ViewScratch".Cursor;
+	    #Touched[#Index] := FALSE;
+	END_FOR;
+	#Current := "FRK_ViewScratch".Step;
+	#Book.CondIndex := 0;
+	#Book.PendingFound := FALSE;
+	
+END_FUNCTION
+

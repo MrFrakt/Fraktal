@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_HistoryEvent" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Shared Unit routing: typed generated edges carry these owning predicates.
+   VAR_INPUT 
+      Reason : DInt;
+      Description : WString;
+      SourcePath : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      History : Array[1..16] of "ST_Diagnostic";
+      Head : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Head < 0 OR #Head >= 16 THEN
+	    #Head := 0;
+	END_IF;
+	#Head := #Head + 1;
+	#History[#Head] := "FRK_UnitScratch".EmptyDiagnostic;
+	#History[#Head].ReasonCode := #Reason;
+	#History[#Head].Description := #Description;
+	#History[#Head].SourcePath := #SourcePath;
+	#History[#Head].Severity := 0;
+	#History[#Head].Category := 2;
+	#ResultCode := RD_SYS_T(OUT => #Stamp);
+	IF #ResultCode = 0 THEN
+	    #History[#Head].Since := DTL_TO_LDT(#Stamp);
+	END_IF;
+	
+END_FUNCTION
+

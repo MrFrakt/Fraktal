@@ -1,0 +1,21 @@
+{"t":"2026-10-11T05:03:41.6722169Z","event":"instance","ie3":0,"addresses":["169.254.212.49"],"state":"Stop","cpu":"CPU1500_Unspecified","name":"Fraktal","ie2":0,"ie1":0,"comm":"TCPIP"}
+{"t":"2026-10-11T05:03:59.7393924Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-11T05:03:59.7854223Z","event":"step","command":"open-project","args":"--path C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\Access_Runtime_20261011\\FrkS12\\FrkS12.ap20"}
+{"t":"2026-10-11T05:04:22.0460302Z","event":"project-opened","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\Access_Runtime_20261011\\FrkS12\\FrkS12.ap20"}
+{"t":"2026-10-11T05:04:22.0470578Z","event":"step","command":"compile","args":"--plc PLC_1"}
+{"t":"2026-10-11T05:04:37.3845560Z","event":"compile","state":"Success","errors":0,"warnings":0}
+{"t":"2026-10-11T05:04:37.3944753Z","event":"compile-message","depth":0,"state":"Information","path":"PLC_1","text":""}
+{"t":"2026-10-11T05:04:37.4003190Z","event":"compile-message","depth":1,"state":"Information","path":"Program blocks","text":""}
+{"t":"2026-10-11T05:04:37.4045233Z","event":"compile-message","depth":2,"state":"Information","path":null,"text":"No block was compiled. All blocks are up-to-date."}
+{"t":"2026-10-11T05:04:37.4102297Z","event":"compile-message","depth":0,"state":"Success","path":null,"text":"Compiling finished (errors: 0; warnings: 0)"}
+{"t":"2026-10-11T05:04:37.4133013Z","event":"step","command":"compile","args":"--plc PLC_1 --hw true"}
+{"t":"2026-10-11T05:04:37.8794304Z","event":"compile","state":"Success","errors":0,"warnings":0}
+{"t":"2026-10-11T05:04:37.8855152Z","event":"compile-message","depth":0,"state":"Information","path":"PLC_1","text":""}
+{"t":"2026-10-11T05:04:37.8906690Z","event":"compile-message","depth":1,"state":"Information","path":"Hardware configuration","text":""}
+{"t":"2026-10-11T05:04:37.8955327Z","event":"compile-message","depth":2,"state":"Information","path":null,"text":"Hardware was not compiled. The configuration is up-to-date."}
+{"t":"2026-10-11T05:04:37.8993962Z","event":"compile-message","depth":0,"state":"Success","path":null,"text":"Compiling finished (errors: 0; warnings: 0)"}
+{"t":"2026-10-11T05:04:37.9015676Z","event":"step","command":"download","args":"--plc PLC_1 --pc-interface Siemens PLCSIM Virtual Ethernet Adapter --pc-number 1 --target 1 X1 --confirm-target 169.254.212.49 --user-management keep"}
+{"t":"2026-10-11T05:04:43.6674857Z","event":"connection","legacy":false,"configured":false}
+{"t":"2026-10-11T05:04:43.8215066Z","event":"download-start","plc":"PLC_1","target":"1 X1","address":"169.254.212.49","options":"Hardware, Software"}
+{"t":"2026-10-11T05:04:45.7145894Z","event":"online-question","type":"TlsVerification","plc":"PLC_1","was":"NonVerified","answer":"NonVerified","verification":"certificate not matching"}
+{"t":"2026-10-11T05:04:48.0022879Z","event":"fatal","type":"Siemens.Engineering.EngineeringTargetInvocationException","message":"EngineeringTargetInvocationException: Error when calling method 'Download' of type 'Siemens.Engineering.Download.DownloadProvider'.\r\n\r\nAn error has occured during download: \r\n'Connect to module PLC_1 failed.' | An error has occured during download: \r\n'Connect to module PLC_1 failed.'","stack":"   at Siemens.Engineering.Private.Session.Siemens.Engineering.Private.IInstanceSession.InvokeFunc[T,TC](LifetimeContractHandle`1 lifetimeContractHandle, String name, IEnumerable`1 parameters, String fullName)\r\n   at Siemens.Engineering.Private.InternalInstanceAccess`2.InvokeFunc[T](String name, IEnumerable`1 parameters)\r\n   at Siemens.Engineering.Download.DownloadProvider.Download(IConfiguration configuration, DownloadConfigurationDelegate preDownloadConfigurationDelegate, DownloadConfigurationDelegate postDownloadConfigurationDelegate, DownloadOptions downloadOptions)\r\n   at Fraktal.Tia.Cli.Session.Download(Args a) in C:\\Projects\\Fraktal\\FraktalCore\\PLC\\Siemens\\tools\\TiaCli\\Program.cs:line 568\r\n   at Fraktal.Tia.Cli.Program.Run(String[] args) in C:\\Projects\\Fraktal\\FraktalCore\\PLC\\Siemens\\tools\\TiaCli\\Program.cs:line 140\r\n   at Fraktal.Tia.Cli.Program.Main(String[] args) in C:\\Projects\\Fraktal\\FraktalCore\\PLC\\Siemens\\tools\\TiaCli\\Program.cs:line 51"}

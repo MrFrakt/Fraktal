@@ -1,0 +1,9 @@
+open-project --path ${work}\FrkS12\FrkS12.ap20
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir ${gen}
+# S12 is a disposable test program; keep imports for focused compiler retries.
+save
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out ${export} --scl

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Fraktal/TIA engineering driver (Part IV §5.4). TIA Portal Openness V20 is a
+    .NET Framework 4.8 API; the SDK pulls the reference assemblies from NuGet, so
+    no Developer Pack is needed on the build host.
+
+    Siemens.Engineering.dll is referenced for compilation only (Private=false):
+    Siemens requires it to be loaded from the installed Portal at run time, which
+    Program.ResolveOpenness does from the registry, so the binary always matches
+    the installed TIA Portal and never a stale copy beside the exe.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Fraktal.Tia.Cli</AssemblyName>
+    <RootNamespace>Fraktal.Tia.Cli</RootNamespace>
+    <TiaPublicApi Condition="'$(TiaPublicApi)' == ''">C:\Program Files\Siemens\Automation\Portal V20\PublicAPI\V20</TiaPublicApi>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Siemens.Engineering">
+      <HintPath>$(TiaPublicApi)\Siemens.Engineering.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

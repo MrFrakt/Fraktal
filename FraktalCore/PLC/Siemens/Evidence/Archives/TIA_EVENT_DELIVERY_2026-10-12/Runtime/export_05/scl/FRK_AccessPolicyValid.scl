@@ -1,0 +1,22 @@
+﻿FUNCTION "FRK_AccessPolicyValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Image : "FRK_AccessPolicyImage";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AccessPolicyValid := FALSE;
+	IF NOT #Image.Initialized OR #Image.SchemaVersion <> 1 OR #Image.Scope = '' OR #Image.Generation = 0 OR NOT "FRK_AccessPolicyShape"(Policy := #Image.Policy) THEN
+	    RETURN;
+	END_IF;
+	#FRK_AccessPolicyValid := #Image.Checksum = "FRK_AccessPolicyCrc"(Image := #Image);
+	
+END_FUNCTION
+

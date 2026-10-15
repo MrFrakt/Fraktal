@@ -1,0 +1,45 @@
+// Device extensions only; the generated frame owns lifecycle and timing.
+@REGION:CommandStart@
+    #Device.Direction := #Core.Command;
+    #Device.Withdrawn := FALSE;
+    IF NOT #Device.Lease.Raised THEN
+        #Device.Lease.OwnerIndex := 0;
+        #Device.Lease.ChainIndex := 0;
+    END_IF;
+@REGION:Abort@
+    #Device.Direction := 0;
+@REGION:AbortInError@
+    #Device.Direction := 0;
+@REGION:Cyclic@
+    #Device.Extended := #Hal.FeedbackExtended AND NOT #Hal.FeedbackRetracted;
+    #Device.Retracted := #Hal.FeedbackRetracted AND NOT #Hal.FeedbackExtended;
+@REGION:dispatch@
+    CASE #Core.Command OF
+        @EXTEND@:
+            IF NOT #Hal.ExtendPermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.PermitDiagnostic);
+            ELSIF #Device.Extended THEN
+                #OutCmd.Direction := #Device.Direction;
+                "FRK_Complete"(Core := #Core, Status := #Status);
+            END_IF;
+        @RETRACT@:
+            IF NOT #Hal.RetractPermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.PermitDiagnostic);
+            ELSIF #Device.Retracted THEN
+                #OutCmd.Direction := #Device.Direction;
+                "FRK_Complete"(Core := #Core, Status := #Status);
+            END_IF;
+        ELSE
+            // The shared frame rejects unknown commands before dispatch.
+            #Device.Direction := 0;
+    END_CASE;
+@REGION:cyclic@
+    // Apply the SAME live permit to latched coils after completion as while BUSY.
+    #Hal.CoilExtend := #Device.Direction = @EXTEND@ AND #Hal.ExtendPermit
+        AND NOT #Device.Withdrawn AND #Core.Exec <> @E_ExecState.ERROR@ AND #Core.Exec <> @E_ExecState.ABORTED@;
+    #Hal.CoilRetract := #Device.Direction = @RETRACT@ AND #Hal.RetractPermit
+        AND NOT #Device.Withdrawn AND #Core.Exec <> @E_ExecState.ERROR@ AND #Core.Exec <> @E_ExecState.ABORTED@;
+    #OutImm.Extended := "FRK_State"(Idx := 1, Key := 'module.state.extended',
+        Ok := #Device.Extended);
+    #OutImm.Retracted := "FRK_State"(Idx := 2, Key := 'module.state.retracted',
+        Ok := #Device.Retracted);

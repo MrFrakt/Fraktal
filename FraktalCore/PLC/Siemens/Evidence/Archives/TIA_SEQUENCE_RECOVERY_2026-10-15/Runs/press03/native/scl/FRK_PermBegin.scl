@@ -1,0 +1,17 @@
+﻿FUNCTION "FRK_PermBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// One collection sweep and first FALSE condition, shared by ST and LAD.
+   VAR_IN_OUT 
+      Perm : "FRK_PermCtx";
+   END_VAR
+
+
+BEGIN
+	
+	#Perm.Permit := TRUE;
+	#Perm.Blocker := '';
+	#Perm.Count := 0;
+	
+END_FUNCTION
+

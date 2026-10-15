@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_ConfigLoss" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Scope : String;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex < 1 OR #RootIndex > 2 THEN
+	    RETURN;
+	END_IF;
+	"FRK_ConfigStore".Lost[#RootIndex] := TRUE;
+	"FRK_ConfigStore".Acknowledged[#RootIndex] := FALSE;
+	"FRK_ConfigStore".LostPath[#RootIndex] := #Scope;
+	
+END_FUNCTION
+

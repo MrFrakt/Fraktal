@@ -89,34 +89,21 @@ VAR_INPUT
     SourcePath : String;
 END_VAR
 VAR_IN_OUT
-    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
-    Head : Int;
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 VAR_TEMP
-    Stamp : DTL;
-    ResultCode : Int;
+    Description : WString[255];
 END_VAR
 BEGIN
-    IF #Head < 0 OR #Head >= @MAX_DIAG_RING@ THEN #Head := 0; END_IF;
-    #Head := #Head + 1;
-    #History[#Head].ReasonCode := #Reason;
-    #History[#Head].SourcePath := STRING_TO_WSTRING(#SourcePath);
     CASE #Reason OF
-        @E_Reason.EVENT_PART_RECEIVED@: #History[#Head].Description := WSTRING#'std.event.partReceived: ';
-        @E_Reason.EVENT_PART_PROCESSING_STARTED@: #History[#Head].Description := WSTRING#'std.event.partProcessingStarted: ';
-        @E_Reason.EVENT_PART_PROCESSED@: #History[#Head].Description := WSTRING#'std.event.partProcessed: ';
-        @E_Reason.EVENT_PART_PROCESSING_ABORTED@: #History[#Head].Description := WSTRING#'std.event.partAborted: ';
-        ELSE #History[#Head].Description := WSTRING#'';
+        @E_Reason.EVENT_PART_RECEIVED@: #Description := WSTRING#'std.event.partReceived: ';
+        @E_Reason.EVENT_PART_PROCESSING_STARTED@: #Description := WSTRING#'std.event.partProcessingStarted: ';
+        @E_Reason.EVENT_PART_PROCESSED@: #Description := WSTRING#'std.event.partProcessed: ';
+        @E_Reason.EVENT_PART_PROCESSING_ABORTED@: #Description := WSTRING#'std.event.partAborted: ';
+        ELSE #Description := WSTRING#'';
     END_CASE;
-    #History[#Head].Description := CONCAT(IN1 := #History[#Head].Description, IN2 := STRING_TO_WSTRING(#Uid));
-    #History[#Head].IoTag := '';
-    #History[#Head].IoAddress := '';
-    #History[#Head].Severity := @E_Severity.LOW@;
-    #History[#Head].Category := @E_Category.PROCESS@;
-    #History[#Head].TimeSynchronized := FALSE;
-    #History[#Head].Since := LDT#1970-01-01-00:00:00.000000000;
-    #ResultCode := RD_SYS_T(OUT => #Stamp);
-    IF #ResultCode = 0 THEN #History[#Head].Since := DTL_TO_LDT(#Stamp); END_IF;
+    #Description := CONCAT(IN1 := #Description, IN2 := STRING_TO_WSTRING(#Uid));
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := #Reason, Description := #Description, SourcePath := STRING_TO_WSTRING(#SourcePath));
 END_FUNCTION
 
 FUNCTION "FRK_PartReceived" : Bool
@@ -127,8 +114,7 @@ VAR_IN_OUT
     Unit : "FRK_Unit";
     Status : "ST_ModuleStatus";
     Part : "ST_PartContext";
-    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
-    Head : Int;
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 VAR_TEMP
     Index : DInt;
@@ -162,7 +148,7 @@ BEGIN
     FOR #ResultIndex := 1 TO @MAX_RESULTS@ DO #Part.Result.Records[#ResultIndex].Name := ''; END_FOR;
     FOR #ResultIndex := 1 TO @MAX_GENEALOGY@ DO #Part.Parents[#ResultIndex] := ''; END_FOR;
     "FRK_Carriers".Slots[#Index].Context := #Part;
-    "FRK_PartEvent"(History := #History, Head := #Head, Reason := @E_Reason.EVENT_PART_RECEIVED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_RECEIVED@, Uid := #Part.Uid, SourcePath := #Status.Name);
     #FRK_PartReceived := TRUE;
 END_FUNCTION
 
@@ -173,12 +159,11 @@ VAR_IN_OUT
     Unit : "FRK_Unit";
     Status : "ST_ModuleStatus";
     Part : "ST_PartContext";
-    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
-    Head : Int;
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 BEGIN
     IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN RETURN; END_IF;
-    "FRK_PartEvent"(History := #History, Head := #Head, Reason := @E_Reason.EVENT_PART_PROCESSING_STARTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSING_STARTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
 END_FUNCTION
 
 FUNCTION "FRK_PartProcessed" : Bool
@@ -193,8 +178,7 @@ VAR_IN_OUT
     Unit : "FRK_Unit";
     Status : "ST_ModuleStatus";
     Part : "ST_PartContext";
-    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
-    Head : Int;
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 VAR_TEMP
     Index : DInt;
@@ -236,7 +220,7 @@ BEGIN
         ELSE RETURN;
     END_CASE;
     // The provider result is written before publishing EVENT_PART_PROCESSED.
-    "FRK_PartEvent"(History := #History, Head := #Head, Reason := @E_Reason.EVENT_PART_PROCESSED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSED@, Uid := #Part.Uid, SourcePath := #Status.Name);
     #Part.Present := FALSE;
     #FRK_PartProcessed := TRUE;
 END_FUNCTION
@@ -249,14 +233,13 @@ VAR_IN_OUT
     Unit : "FRK_Unit";
     Status : "ST_ModuleStatus";
     Part : "ST_PartContext";
-    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
-    Head : Int;
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 BEGIN
     IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN RETURN; END_IF;
     #Part.Result.Verdict := @E_Verdict.NONE@;
     IF #Core.Exec = @E_ExecState.ERROR@ AND #Part.Result.ReasonCode = 0 THEN #Part.Result.ReasonCode := #Status.Diagnostic.ReasonCode; END_IF;
-    "FRK_PartEvent"(History := #History, Head := #Head, Reason := @E_Reason.EVENT_PART_PROCESSING_ABORTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSING_ABORTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
     #Part.Present := FALSE;
 END_FUNCTION
 
@@ -319,6 +302,8 @@ VAR_TEMP
     Gate : DInt;
     Desired : DInt;
     Query : Bool;
+    Level : DInt;
+    DecisionAccepted : Bool;
 END_VAR
 BEGIN
     #Response.Accepted := FALSE;
@@ -335,7 +320,9 @@ BEGIN
             #Gate := @E_GatedAction.MODE_CHANGE@; #Desired := #Request.IntValue;
             IF #Desired = -1 THEN #Desired := -2; END_IF;
         @E_HmiRequestKind.OPERATOR_RESET@: #Gate := @E_GatedAction.ALARM_RESET@;
+        @E_HmiRequestKind.DECISION_ANSWER@: #Gate := @E_GatedAction.START_STOP@;
         @E_HmiRequestKind.MANUAL_COMMAND@: #Gate := @E_GatedAction.MANUAL@;
+        @E_HmiRequestKind.SET_ACCESS_LEVEL@, @E_HmiRequestKind.SET_SESSION_TIMEOUT@: #Gate := @E_GatedAction.ACCESS_POLICY@;
         @E_HmiRequestKind.RELEASE_START@: #Gate := @E_GatedAction.START_STOP@; #Desired := 0; #Query := TRUE;
         @E_HmiRequestKind.RELEASE_MANUAL@: #Gate := @E_GatedAction.MANUAL@; #Query := TRUE;
         @E_HmiRequestKind.RELEASE_ACTION@: #Gate := #Request.IntValue; #Desired := -1; #Query := TRUE;
@@ -347,6 +334,10 @@ BEGIN
             #Response.Accepted := TRUE;
         ELSIF #Response.Report.Released THEN
             CASE #Request.Kind OF
+                @E_HmiRequestKind.DECISION_ANSWER@:
+                    #DecisionAccepted := "FRK_DecisionSubmit"(Owner := #Core.RegIndex, OwnerPath := STRING_TO_WSTRING(#Status.Name), Option := #Request.IntValue,
+                        Busy := #Core.Exec = @E_ExecState.BUSY@, Permit := #Unit.Permit, Report := #Response.Report);
+                    #Response.Accepted := #DecisionAccepted;
                 @E_HmiRequestKind.START@:
                     #Unit.StopReq := FALSE;
                     #Unit.RunReq := TRUE;
@@ -381,6 +372,25 @@ BEGIN
                     #Unit.FaultLatched := FALSE;
                     IF #Core.Exec = @E_ExecState.ERROR@ THEN #Core.Armed := TRUE; END_IF;
                     #Response.Accepted := TRUE;
+                @E_HmiRequestKind.SET_ACCESS_LEVEL@:
+                    #Level := -1;
+                    IF #Request.TextValue = WSTRING#'0' THEN #Level := @E_AccessLevel.NONE@;
+                    ELSIF #Request.TextValue = WSTRING#'1' THEN #Level := @E_AccessLevel.OPERATOR@;
+                    ELSIF #Request.TextValue = WSTRING#'2' THEN #Level := @E_AccessLevel.TECHNICIAN@;
+                    ELSIF #Request.TextValue = WSTRING#'3' THEN #Level := @E_AccessLevel.ENGINEER@;
+                    ELSIF #Request.TextValue = WSTRING#'4' THEN #Level := @E_AccessLevel.ADMIN@;
+                    END_IF;
+                    IF #Request.IntValue >= @E_GatedAction.DATA_READ@ AND #Request.IntValue <= @E_GatedAction.CONFIG_SET@ AND #Level >= 0 THEN
+                        IF #Request.IntValue <> @E_GatedAction.ACCESS_POLICY@ OR #Level <= #Access.CurrentLevel THEN
+                            #Access.Policy.Required[#Request.IntValue] := #Level;
+                            #Response.Accepted := TRUE;
+                        END_IF;
+                    END_IF;
+                @E_HmiRequestKind.SET_SESSION_TIMEOUT@:
+                    IF #Request.DurationMs <= 604800000 THEN
+                        #Access.Policy.SessionTimeout := DINT_TO_TIME(UDINT_TO_DINT(#Request.DurationMs));
+                        #Response.Accepted := TRUE;
+                    END_IF;
                 ELSE
                     // Manual acceptance is resolved by the generated typed route.
                     #Response.Accepted := FALSE;
@@ -389,13 +399,13 @@ BEGIN
     ELSE
         CASE #Request.Kind OF
             @E_HmiRequestKind.LOGIN@:
-                #Access.LoginFailed := TRUE;
-                #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
-            @E_HmiRequestKind.LOGOUT@:
-                #Access.CurrentLevel := @E_AccessLevel.NONE@;
-                #Access.CurrentUser := '';
-                #Access.LoginFailed := FALSE;
+                "FRK_AccessLogin"(Access := #Access, User := #Request.User, Secret := #Request.Secret, Sequence := #Request.Sequence);
+                // Consumption is acknowledged now; correlated result is asynchronous.
                 #Response.Accepted := TRUE;
+            @E_HmiRequestKind.LOGOUT@:
+                "FRK_AccessLogout"(Access := #Access);
+                #Response.Accepted := TRUE;
+@EVENT_DELIVERY_OPERATION@
             ELSE
                 #Response.Diagnostic := WSTRING#'std.error.unsupportedHmiRequest';
         END_CASE;
@@ -438,8 +448,9 @@ BEGIN
     #SequenceBefore := #Request.Sequence;
     IF #SequenceBefore = 0 OR #SequenceBefore = #Unit.SeenSequence THEN RETURN; END_IF;
     #Unit.Request := #Request;
-    IF #Request.Sequence <> #SequenceBefore THEN RETURN; END_IF;
+    IF #Request.Sequence <> #SequenceBefore THEN #Unit.Request.Secret := ''; RETURN; END_IF;
     #Request.Secret := '';
+    #Unit.RequestUser := #Access.CurrentUser;
     #Unit.SeenSequence := #SequenceBefore;
     #Unit.RequestPending := TRUE;
 END_FUNCTION
@@ -581,6 +592,7 @@ VAR_IN_OUT
     Response : "ST_HmiResponse";
     Status : "ST_ModuleStatus";
     Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
     History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
     Head : Int;
 END_VAR
@@ -588,7 +600,10 @@ BEGIN
     IF #Core.Exec = @E_ExecState.ERROR@ THEN
         IF NOT #Unit.EvReset THEN #Unit.FaultLatched := TRUE; END_IF;
         IF NOT #Unit.PrevError THEN
-            "FRK_PartAborted"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, History := #History, Head := #Head);
+            IF #Head < 0 OR #Head >= @MAX_DIAG_RING@ THEN #Head := 0; END_IF;
+            #Head := #Head + 1;
+            #History[#Head] := #Status.Diagnostic;
+            "FRK_PartAborted"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
         END_IF;
     END_IF;
     #Unit.PrevError := #Core.Exec = @E_ExecState.ERROR@;

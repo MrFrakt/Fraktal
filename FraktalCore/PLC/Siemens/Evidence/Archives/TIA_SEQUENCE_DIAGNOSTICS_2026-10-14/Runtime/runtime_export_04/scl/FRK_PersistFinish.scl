@@ -1,0 +1,16 @@
+﻿FUNCTION "FRK_PersistFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	
+	IF "FRK_PersistRuntime".Active < 1 OR "FRK_PersistRuntime".Active > 4 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistRuntime".Queue["FRK_PersistRuntime".Active].Result := "FRK_PersistRuntime".Result;
+	"FRK_PersistRuntime".Queue["FRK_PersistRuntime".Active].State := 3;
+	"FRK_PersistRuntime".Active := 0;
+	"FRK_PersistRuntime".Stage := 0;
+	
+END_FUNCTION
+

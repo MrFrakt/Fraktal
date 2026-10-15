@@ -1,0 +1,169 @@
+{"t":"2026-10-08T06:22:16.8408245Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-08T06:22:16.8565936Z","event":"step","command":"create-project","args":"--dir C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia --name FrkSpikeS2 --replace true"}
+{"t":"2026-10-08T06:22:27.0721045Z","event":"project-created","path":"C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T06:22:27.0721045Z","event":"step","command":"add-device","args":"--order OrderNumber:6ES7 214-1AG40-0XB0/V4.7 --name PLC_1 --station S71200_Bench"}
+{"t":"2026-10-08T06:22:40.3279957Z","event":"device-added","station":"S71200_Bench","order":"OrderNumber:6ES7 214-1AG40-0XB0/V4.7","plc":"PLC_1"}
+{"t":"2026-10-08T06:22:40.3279957Z","event":"step","command":"set-ip","args":"--plc PLC_1 --ip 192.168.0.10 --mask 255.255.255.0"}
+{"t":"2026-10-08T06:22:40.6819370Z","event":"ip-set","interface":"PROFINET interface_1","address":"192.168.0.10","mask":"255.255.255.0"}
+{"t":"2026-10-08T06:22:40.6819370Z","event":"step","command":"master-secret","args":"--plc PLC_1 --mode none"}
+{"t":"2026-10-08T06:22:43.8903186Z","event":"master-secret","was":"WithoutPassword","now":"None"}
+{"t":"2026-10-08T06:22:43.8903186Z","event":"step","command":"service-get","args":"--plc PLC_1 --service PlcAccessControlConfigurationProvider"}
+{"t":"2026-10-08T06:22:43.9667783Z","event":"service-property","service":"PlcAccessControlConfigurationProvider","object":"PlcAccessControlConfigurationProvider","prop":"PlcAccessControlConfiguration","value":"EnabledWithAccessControl","writable":true,"options":"Disabled|EnabledWithAccessControl|EnabledWithAccessControlViaAccessLevel|EnabledWithAccessControlAndCentralUser|EnabledWithAccessControlViaAccessLevelAndCentralUsers|EnabledWithAccessControlAndLocalWithCentralUsers|EnabledWithAccessControlViaAccessLevelAndLocalWithCentralUsers"}
+{"t":"2026-10-08T06:22:43.9822894Z","event":"service-property","service":"PlcAccessControlConfigurationProvider","object":"PlcAccessControlConfigurationProvider","prop":"UmcConnectionState","value":"VerifyConnectionUsingServerId","writable":true,"options":"VerifyConnectionUsingServerId|VerifyConnectionUsingCertificate"}
+{"t":"2026-10-08T06:22:43.9983474Z","event":"service-property","service":"PlcAccessControlConfigurationProvider","object":"PlcAccessControlConfigurationProvider","prop":"UmcServerAddress","value":"","writable":true,"options":null}
+{"t":"2026-10-08T06:22:44.0018097Z","event":"service-property","service":"PlcAccessControlConfigurationProvider","object":"PlcAccessControlConfigurationProvider","prop":"UmcServerId","value":"","writable":true,"options":null}
+{"t":"2026-10-08T06:22:44.0033139Z","event":"service-property","service":"PlcAccessControlConfigurationProvider","object":"PlcAccessControlConfigurationProvider","prop":"UmcTrustedCertificateIds","value":"","writable":true,"options":null}
+{"t":"2026-10-08T06:22:44.0033139Z","event":"service-property","service":"PlcAccessControlConfigurationProvider","object":"PlcAccessControlConfigurationProvider","prop":"OwnedBy","value":"Siemens.Engineering.HW.DeviceItemImpl","writable":false,"options":null}
+{"t":"2026-10-08T06:22:44.0033139Z","event":"service-property","service":"PlcAccessControlConfigurationProvider","object":"PlcAccessControlConfigurationProvider","prop":"Parent","value":"Siemens.Engineering.HW.DeviceItemImpl","writable":false,"options":null}
+{"t":"2026-10-08T06:22:44.0033139Z","event":"step","command":"service-set","args":"--plc PLC_1 --service PlcAccessControlConfigurationProvider --prop PlcAccessControlConfiguration --value Disabled"}
+{"t":"2026-10-08T06:22:44.0316803Z","event":"service-set","service":"PlcAccessControlConfigurationProvider","prop":"PlcAccessControlConfiguration","was":"EnabledWithAccessControl","now":"Disabled"}
+{"t":"2026-10-08T06:22:44.0316803Z","event":"step","command":"service-get","args":"--plc PLC_1 --service PlcAccessLevelProvider"}
+{"t":"2026-10-08T06:22:44.0551944Z","event":"step-exception","command":"service-get","message":"InvalidOperationException: PlcAccessLevelProvider is not offered by PLC_1"}
+{"t":"2026-10-08T06:22:44.0551944Z","event":"step-failed","command":"service-get","rc":10,"continue":true}
+{"t":"2026-10-08T06:22:44.0551944Z","event":"step","command":"service-set","args":"--plc PLC_1 --service PlcAccessLevelProvider --prop PlcProtectionAccessLevel --value FullAccess"}
+{"t":"2026-10-08T06:22:44.0662714Z","event":"step-exception","command":"service-set","message":"InvalidOperationException: PlcAccessLevelProvider is not offered by PLC_1"}
+{"t":"2026-10-08T06:22:44.0662714Z","event":"step-failed","command":"service-set","rc":10,"continue":true}
+{"t":"2026-10-08T06:22:44.0662714Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Projects\\Fraktal\\FraktalCore\\PLC\\Siemens\\Spikes\\S2_Shape --keep-on-error true"}
+{"t":"2026-10-08T06:22:46.6852853Z","event":"source-generated","file":"00_01_ST_Diagnostic.udt","sha256":"947ecc713354f2fbfdffbb324ba1aa5270eae352cbeea7631c227f6d4c3b8b18"}
+{"t":"2026-10-08T06:22:46.9146355Z","event":"source-generated","file":"00_02_ST_ModuleStatus.udt","sha256":"ad0447cff4b3f80a0e53308aa74617ff4af4569cc8cabd20db5d2168b4f1532e"}
+{"t":"2026-10-08T06:22:46.9368099Z","event":"source-generated","file":"00_03_FRK_Core.udt","sha256":"cf030fc5c0e3ceecbbab816e3b31d455e8c836d762e37156fc3c355137929a5d"}
+{"t":"2026-10-08T06:22:46.9678801Z","event":"source-generated","file":"00_04_FRK_RegistryRow.udt","sha256":"d66f219050f304ec144613f7cfac205fd549214970b8503106ae5e5f9b46a5ec"}
+{"t":"2026-10-08T06:22:46.9991899Z","event":"source-generated","file":"00_05_ST_StepRecord.udt","sha256":"31fb7a4251c235e199efa9b97e643c9771b48cf10afcdffda634ea9872d15d89"}
+{"t":"2026-10-08T06:22:47.0926677Z","event":"source-generated","file":"00_06_FRK_SeqCtx.udt","sha256":"a469f588877ff61c24066e6ef39ebad207d0c62c4290ba58691fa0f881e1d7ec"}
+{"t":"2026-10-08T06:22:47.1086185Z","event":"source-generated","file":"00_07_ST_HmiRequest.udt","sha256":"2d7b687652a3b2f2efd61e387c2c19ec3725c2399a624c9c0512c45d01d87583"}
+{"t":"2026-10-08T06:22:47.1452080Z","event":"source-generated","file":"00_08_ST_HmiResponse.udt","sha256":"52f74df3ec802100f4356ac4c0fbdfdd860fdabef6076b867ff9e11f91d06c7d"}
+{"t":"2026-10-08T06:22:47.1712221Z","event":"source-generated","file":"00_09_ST_SpkCylHal.udt","sha256":"2d8c1ccbdef5e30c5a482ee0a49ad31bada0b08ef9761cd4295e8d42ae1ac4d2"}
+{"t":"2026-10-08T06:22:47.1869034Z","event":"source-generated","file":"00_10_ST_SpkUnitHal.udt","sha256":"0d9466de2b7cd764722c1fcc6d653ffea88bbc1752728d27984ee8c388129a0e"}
+{"t":"2026-10-08T06:22:47.2179212Z","event":"source-generated","file":"00_11_ST_SpkCylinderParCfg.udt","sha256":"b7667dd0f2f8e9b46590a8865c92d6d8690b7dd9beab5a2a5698efcbd9c6890f"}
+{"t":"2026-10-08T06:22:47.2495104Z","event":"source-generated","file":"00_12_ST_SpkCylinderOutImm.udt","sha256":"2941e9c966f9ca2690b314ffdedc3fa85b130bfd3a2e0c68f8dcbe4cd359dc93"}
+{"t":"2026-10-08T06:22:47.2883328Z","event":"source-generated","file":"00_13_FRK_TestRow.udt","sha256":"84485ff9ca578e7bd47d7ee4eb6a1d33ebddcda0850d0016802d99451eb8fbbe"}
+{"t":"2026-10-08T06:22:47.3183806Z","event":"source-generated","file":"00_14_FRK_TestTable.udt","sha256":"78734aaa430e83ee9dd28914c02c32127042cf494724b3ca942447cc347d8b00"}
+{"t":"2026-10-08T06:22:48.0504812Z","event":"source-generated","file":"05_GlobalData.db","sha256":"144d362388f704a61fc94dd3bded870ca00540dab19b14652a033f8e999209c6"}
+{"t":"2026-10-08T06:22:50.0502749Z","event":"source-generated","file":"10_Lifecycle.scl","sha256":"83d48f8fc0651e0d18544b3adfdf8e833033f92a9ffd78c6740e47a50b0fe3ad"}
+{"t":"2026-10-08T06:22:50.1840703Z","event":"source-generated","file":"20_Sequence.scl","sha256":"1b4fe55cc50f5a040036f088cb9e8396475ce5ef431588907db0353b939f70c7"}
+{"t":"2026-10-08T06:22:51.0229181Z","event":"source-generated","file":"30_CylinderCM.scl","sha256":"adfa9c26f32775a6b215c23b2b8a47814158eb0e0d59cbfb8a1d67cde7e360a3"}
+{"t":"2026-10-08T06:22:51.0911820Z","event":"source-generated","file":"40_AutoSeq.scl","sha256":"e724e3398011070a455c20fe97a338de25aceb92b3ea0071e20761fc3f58181a"}
+{"t":"2026-10-08T06:22:51.1967738Z","event":"source-generated","file":"50_Unit.scl","sha256":"27c4e9364c0fd057a3e70e1c64524e52fc9041f260927808790c4c6f88c6f138"}
+{"t":"2026-10-08T06:22:51.5853013Z","event":"source-generated","file":"55_UnitInstance.db","sha256":"6962febbd05bdfcafcf614b95ed24dddc544e42659753bdeae8bb9789be1c50e"}
+{"t":"2026-10-08T06:22:51.7594005Z","event":"source-generated","file":"60_Harness.scl","sha256":"8dcbd41eb2e0319225bb7f89478ab4a02e3fcd0f78787643bebd494f302b8350"}
+{"t":"2026-10-08T06:22:52.2402389Z","event":"source-generated","file":"65_ResultServer.scl","sha256":"7ac00b168ca8fe88d0653e1a0de9f29c8c13c9bce74e55fea16c91484e9dac08"}
+{"t":"2026-10-08T06:22:52.2869223Z","event":"source-generated","file":"70_Main.scl","sha256":"4ccdb406eb29e4420defc356c6729f8998e016a2a8845b0df642420e3a41b4be"}
+{"t":"2026-10-08T06:22:52.3215863Z","event":"source-generated","file":"75_MainInstance.db","sha256":"29eeb1f14b870059af8eebd5b0f66ece7efb19ea28e4a766d91825ee48693030"}
+{"t":"2026-10-08T06:22:52.4423358Z","event":"source-generated","file":"80_OB1.scl","sha256":"7978285018d2afc7a2e34609dc5d103759cda2c3f2f3bbea3f2c434c48497d12"}
+{"t":"2026-10-08T06:22:52.4423358Z","event":"step","command":"compile","args":"--plc PLC_1"}
+{"t":"2026-10-08T06:22:55.9369818Z","event":"compile","state":"Success","errors":0,"warnings":0}
+{"t":"2026-10-08T06:22:55.9434803Z","event":"compile-message","depth":0,"state":"Success","path":"PLC_1","text":""}
+{"t":"2026-10-08T06:22:55.9464271Z","event":"compile-message","depth":1,"state":"Success","path":"PLC data types","text":""}
+{"t":"2026-10-08T06:22:55.9825087Z","event":"compile-message","depth":1,"state":"Success","path":"Program blocks","text":""}
+{"t":"2026-10-08T06:22:56.0325281Z","event":"compile-message","depth":0,"state":"Success","path":null,"text":"Compiling finished (errors: 0; warnings: 0)"}
+{"t":"2026-10-08T06:22:56.0342984Z","event":"step","command":"compile","args":"--plc PLC_1 --hw true"}
+{"t":"2026-10-08T06:22:58.0603788Z","event":"compile","state":"Success","errors":0,"warnings":0}
+{"t":"2026-10-08T06:22:58.0603788Z","event":"compile-message","depth":0,"state":"Success","path":"PLC_1","text":""}
+{"t":"2026-10-08T06:22:58.0603788Z","event":"compile-message","depth":1,"state":"Success","path":"Hardware configuration","text":""}
+{"t":"2026-10-08T06:22:58.0603788Z","event":"compile-message","depth":0,"state":"Success","path":null,"text":"Compiling finished (errors: 0; warnings: 0)"}
+{"t":"2026-10-08T06:22:58.0603788Z","event":"step","command":"list-blocks","args":"--plc PLC_1"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_Clock","number":1,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_Registry","number":2,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"SpkHal","number":3,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"SpkResults","number":4,"kind":"GlobalDB","language":"DB"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_ClockTick","number":1,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_SetIdentity","number":2,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_Fault","number":3,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_AdoptChild","number":4,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_Hold","number":5,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.0918271Z","event":"block","name":"FRK_Complete","number":6,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FRK_Begin","number":7,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FRK_End","number":8,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FRK_Seq_Step","number":9,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FRK_Seq_TryIssue","number":10,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FRK_Seq_Await","number":11,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FRK_Seq_Advance","number":12,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FB_SpkCylinderCM","number":1,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FB_SpkCylinderSim","number":2,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FB_SpkAutoSeq","number":3,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FB_SpkUnit","number":4,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"SpikeUnit","number":5,"kind":"InstanceDB","language":"DB"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FRK_TestRecord","number":13,"kind":"FC","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FB_SpkHarness","number":5,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FB_SpkResultServer","number":6,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1075202Z","event":"block","name":"FB_SpkMain","number":7,"kind":"FB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1230589Z","event":"block","name":"SpkMain","number":6,"kind":"InstanceDB","language":"DB"}
+{"t":"2026-10-08T06:22:58.1230589Z","event":"block","name":"Main","number":1,"kind":"OB","language":"SCL"}
+{"t":"2026-10-08T06:22:58.1230589Z","event":"step","command":"save","args":""}
+{"t":"2026-10-08T06:22:58.2620562Z","event":"saved","path":"C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T06:22:58.2620562Z","event":"step","command":"export","args":"--plc PLC_1 --out C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2_export --scl true"}
+{"t":"2026-10-08T06:22:58.6989484Z","event":"exported","name":"FRK_Clock","language":"DB","sha256":"29c70621fea4941e84b3da5e113c4056b61e9ac2d794834c3d562fdc023025fc"}
+{"t":"2026-10-08T06:22:58.7546830Z","event":"exported","name":"FRK_Registry","language":"DB","sha256":"2079e4e9de5e63e85fc77ac2dec73c6c515b79e49436f81af55df2647d91cccb"}
+{"t":"2026-10-08T06:22:58.7862611Z","event":"exported","name":"SpkHal","language":"DB","sha256":"48b6b39bf050666abd7434f011182a2fe1c3aa01c7523f0560681ba939304c30"}
+{"t":"2026-10-08T06:22:58.8025098Z","event":"exported","name":"SpkResults","language":"DB","sha256":"0ff29a7fdfea9cc248ea19917d914d619ea1add3d4d02e1bfab7e0c44599465a"}
+{"t":"2026-10-08T06:22:59.0200290Z","event":"exported","name":"FRK_ClockTick","language":"SCL","sha256":"0d0b31bc71780f0e092df9177d8f7e9fcf8ba253e6bfd6a31f19e7dc214f61e5"}
+{"t":"2026-10-08T06:22:59.0667693Z","event":"exported","name":"FRK_SetIdentity","language":"SCL","sha256":"e67f63f6fe09f53c095e996ab05051fdd0d3e2bd6304730a2ad35184530218f8"}
+{"t":"2026-10-08T06:22:59.0967146Z","event":"exported","name":"FRK_Fault","language":"SCL","sha256":"1ff1fe8b545656c5319692b2b4598de30bd80f45b18d43ee62ff349e8d7fe0fa"}
+{"t":"2026-10-08T06:22:59.1121499Z","event":"exported","name":"FRK_AdoptChild","language":"SCL","sha256":"e3dd6e1eb89b0ba8df3000e06d136538054836d21fd1f52bf88f54e0449293c2"}
+{"t":"2026-10-08T06:22:59.1530833Z","event":"exported","name":"FRK_Hold","language":"SCL","sha256":"c9ded55d27b2c4e48f55af924b88c692dd3622678f7b73770942da29154c5205"}
+{"t":"2026-10-08T06:22:59.1910326Z","event":"exported","name":"FRK_Complete","language":"SCL","sha256":"ae16d9e4b6a0088a6fdf7fe9e207ccbb526fb9172a2104d2b224fc62f7ca3a0a"}
+{"t":"2026-10-08T06:22:59.2339736Z","event":"exported","name":"FRK_Begin","language":"SCL","sha256":"f729cba8106c80f52968e9a2ebcb43bf1d127f4b475d868bd139568502011fe6"}
+{"t":"2026-10-08T06:22:59.2786938Z","event":"exported","name":"FRK_End","language":"SCL","sha256":"bd77cb1c80ce0ba5567a1bc973ff1835fab7f9170943e052711a1625f4edcc48"}
+{"t":"2026-10-08T06:22:59.2962937Z","event":"exported","name":"FRK_Seq_Step","language":"SCL","sha256":"0eccd694a9ef209a2e54f13efd7ec38fb07a995d1c1a9e0443cef54b1802ba84"}
+{"t":"2026-10-08T06:22:59.3247140Z","event":"exported","name":"FRK_Seq_TryIssue","language":"SCL","sha256":"4d38d319635f2faab6977f3e9481aa3046713a2ebce3dce58e60be77495c6061"}
+{"t":"2026-10-08T06:22:59.3336931Z","event":"exported","name":"FRK_Seq_Await","language":"SCL","sha256":"f5af3f51e13ab2b3a6a5e69888a843071c8b41a791904957a5fd3554ad91633c"}
+{"t":"2026-10-08T06:22:59.3650680Z","event":"exported","name":"FRK_Seq_Advance","language":"SCL","sha256":"2e5f161553936ee03de9b38e40fa979982e478e927245e9cd9eed723bb3dabaf"}
+{"t":"2026-10-08T06:22:59.4046132Z","event":"exported","name":"FB_SpkCylinderCM","language":"SCL","sha256":"21f6b335e7a04cb504feafa995a55ee179927e8a3a79aca8128b1623afc1e2c6"}
+{"t":"2026-10-08T06:22:59.4319018Z","event":"exported","name":"FB_SpkCylinderSim","language":"SCL","sha256":"510a570cc0179c3e98a98c9ec67d0d7bd4ead7ae54ce018a8c8daf35ca3c3ae5"}
+{"t":"2026-10-08T06:22:59.4723378Z","event":"exported","name":"FB_SpkAutoSeq","language":"SCL","sha256":"84e8ee131000fbb167ceee390a613e0c180ef5bf051542c101400b815855df97"}
+{"t":"2026-10-08T06:22:59.5099536Z","event":"exported","name":"FB_SpkUnit","language":"SCL","sha256":"d9fd0f084e9aef20ef1a00cba22462a80259c59d56cf8c18f4682ae3ec713886"}
+{"t":"2026-10-08T06:22:59.5412672Z","event":"exported","name":"SpikeUnit","language":"DB","sha256":"7703fd09b03484595c7a4a37621dd5f491ca7968b640bb83107c847bbe948321"}
+{"t":"2026-10-08T06:22:59.5721668Z","event":"exported","name":"FRK_TestRecord","language":"SCL","sha256":"26c76663edf55dcb07ad4ed6a208867d29860cb13aeadae5ce23016cb28b13f3"}
+{"t":"2026-10-08T06:22:59.6383747Z","event":"exported","name":"FB_SpkHarness","language":"SCL","sha256":"072bc63d6d4587958c20791d9c4840aadc8c81137e0dbfbca50263270181adac"}
+{"t":"2026-10-08T06:22:59.6665832Z","event":"exported","name":"FB_SpkResultServer","language":"SCL","sha256":"4984f00b9abc7145dcf3afdec4d02bd07125143e5496f2ca5cbe18c12b157371"}
+{"t":"2026-10-08T06:22:59.6979796Z","event":"exported","name":"FB_SpkMain","language":"SCL","sha256":"13176349a394cbc580b2f2850be08796b9cd2e3ac49089d45ce2ab86cbaa928a"}
+{"t":"2026-10-08T06:22:59.7400355Z","event":"exported","name":"SpkMain","language":"DB","sha256":"e2b8904ca39593a208bc9a8eacadd09953b88d511c86f8ffcc7856e7f487fb79"}
+{"t":"2026-10-08T06:22:59.7763237Z","event":"exported","name":"Main","language":"SCL","sha256":"c459541ff29dcb2a79124e9c908414486ac60edd05805f80a64509f66c5cb327"}
+{"t":"2026-10-08T06:23:00.1063335Z","event":"source-exported","name":"FRK_Clock","sha256":"5f7692c05ddef2af988fb9a10ab79bb4141e4bfc1e8d4df7d229cdffd8c3ce9a"}
+{"t":"2026-10-08T06:23:00.1824882Z","event":"source-exported","name":"FRK_Registry","sha256":"b6222222e4d143832c145dad3867b7bfa03a7cef92c79ab722bf07b818a05d5d"}
+{"t":"2026-10-08T06:23:00.1909830Z","event":"source-exported","name":"SpkHal","sha256":"354db4be047f6efd14d359d1127e8e435bc77fe6b2b0609dbd9885026bc8f898"}
+{"t":"2026-10-08T06:23:00.1978849Z","event":"source-exported","name":"SpkResults","sha256":"181905faa3a7abd64d2f42bfbc68bf338c1e503702c8324fc5bc91e4128bce25"}
+{"t":"2026-10-08T06:23:00.2463006Z","event":"source-exported","name":"FRK_ClockTick","sha256":"bd5b4f1a82f25f0391ad7bc0a95b9e0ef81cf52a09b5135a0221b23949ebfffe"}
+{"t":"2026-10-08T06:23:00.2589363Z","event":"source-exported","name":"FRK_SetIdentity","sha256":"ea50588856e4d4eed1429bd6f501131133b6e1a1ffb5a02ae63fcd16e1273695"}
+{"t":"2026-10-08T06:23:00.2690695Z","event":"source-exported","name":"FRK_Fault","sha256":"2d032ed08ef85261ad0c9eab74669d3c81414055106a69e82e13e9fc77793102"}
+{"t":"2026-10-08T06:23:00.2768342Z","event":"source-exported","name":"FRK_AdoptChild","sha256":"f2de77bf9c9c8e55be397e2e90767dc46c4b4655a2d257978017ffe6225f41c9"}
+{"t":"2026-10-08T06:23:00.3102818Z","event":"source-exported","name":"FRK_Hold","sha256":"53dabcdc8c2e4849925980791cc6cf762c09ee57c5d2feb3ec2881f0d56c9a52"}
+{"t":"2026-10-08T06:23:00.3197726Z","event":"source-exported","name":"FRK_Complete","sha256":"11f0ec97ae2bbebf9e0bae42b76feaa1a01efc5f188233d62cb6e60231a65b66"}
+{"t":"2026-10-08T06:23:00.3312324Z","event":"source-exported","name":"FRK_Begin","sha256":"4c42cfa00dc46fee39c7e912c2526a14540cc6053982e51ebcccd1b332828843"}
+{"t":"2026-10-08T06:23:00.3538392Z","event":"source-exported","name":"FRK_End","sha256":"191ef40a45e01111f17145e1dba73ac6a54fc429af7be8cd5dbc344813522793"}
+{"t":"2026-10-08T06:23:00.3676661Z","event":"source-exported","name":"FRK_Seq_Step","sha256":"f49dc16fdc5c836228cbb5234ee778c38fe7b6b8f57f7ae5eff89c016c239d43"}
+{"t":"2026-10-08T06:23:00.3753578Z","event":"source-exported","name":"FRK_Seq_TryIssue","sha256":"da32d88e145e8e2845e92da0d55680f1f53f05f0253aca003a12ac9542748aa6"}
+{"t":"2026-10-08T06:23:00.3836483Z","event":"source-exported","name":"FRK_Seq_Await","sha256":"6f14b0be21cb8e34b552e5a511b96010517d6c451b79b30bcebb3fa14b777385"}
+{"t":"2026-10-08T06:23:00.3921810Z","event":"source-exported","name":"FRK_Seq_Advance","sha256":"18f5da87cd649601c50a68cf339486df491c1143a3ef3e90eec9933abb23ef93"}
+{"t":"2026-10-08T06:23:00.4188850Z","event":"source-exported","name":"FB_SpkCylinderCM","sha256":"29bfbc03f43bb1244229c9d2b0a11cace17dc2117701382c2e5db34249795904"}
+{"t":"2026-10-08T06:23:00.4310098Z","event":"source-exported","name":"FB_SpkCylinderSim","sha256":"c0100ddbcf445e9e34d97aefaa20a71b80a9415060add521b81afeebfec2e820"}
+{"t":"2026-10-08T06:23:00.4429122Z","event":"source-exported","name":"FB_SpkAutoSeq","sha256":"5150b9fc9406e1b3cf9a05867b5d82b20b2c76a8f8f96149d89cb8e19f887493"}
+{"t":"2026-10-08T06:23:00.4592084Z","event":"source-exported","name":"FB_SpkUnit","sha256":"813f53d1c8be9e4034af1be18db1805a2de6b3cba5f9179430b9291232474d9a"}
+{"t":"2026-10-08T06:23:00.4662579Z","event":"source-exported","name":"SpikeUnit","sha256":"9298e939a77b51fb5e3a875e6044548691a691d7ae834341293effd795785152"}
+{"t":"2026-10-08T06:23:00.4808290Z","event":"source-exported","name":"FRK_TestRecord","sha256":"745c08ce1725b440953f820e1d00e80796e12b3c7be99c81cdd75717a7f81c25"}
+{"t":"2026-10-08T06:23:00.5101767Z","event":"source-exported","name":"FB_SpkHarness","sha256":"58eaed1aa4b0a092fd44d70d20a301132b7babb1cb02b78ad09d304e76c73e45"}
+{"t":"2026-10-08T06:23:00.5319667Z","event":"source-exported","name":"FB_SpkResultServer","sha256":"083a27fc7f385405dfb8dfdde1398d85b9e50141756b849896e69930f2b41eb7"}
+{"t":"2026-10-08T06:23:00.5422195Z","event":"source-exported","name":"FB_SpkMain","sha256":"19a628cad1d98ad25192cc6e38bc5c18c267671f22b591228aae1f700bc0a8b9"}
+{"t":"2026-10-08T06:23:00.5498707Z","event":"source-exported","name":"SpkMain","sha256":"d61720a7b0110e0d5fb6490608960d12e73098373930e8975cf7a39a343d6721"}
+{"t":"2026-10-08T06:23:00.5680201Z","event":"source-exported","name":"Main","sha256":"cea8e51c6bb9ef0e96818638972456f38f546cb98881431306c3d5a99b5d37f4"}
+{"t":"2026-10-08T06:23:00.5828420Z","event":"source-exported","name":"ST_Diagnostic","sha256":"0623aad3b5b5a89b4f725292f06c973761f235566368be495bc362c4cc747b81"}
+{"t":"2026-10-08T06:23:00.5902102Z","event":"source-exported","name":"ST_ModuleStatus","sha256":"1f94a8d981d80c3246ccc791e837189f90d8860671b7ba2f1581aee02e4cac2e"}
+{"t":"2026-10-08T06:23:00.6029192Z","event":"source-exported","name":"FRK_Core","sha256":"5dbfafb545d0943d8da8823d2c97f35e9205b04061e2d4fbdd574ed37cb3746e"}
+{"t":"2026-10-08T06:23:00.6094622Z","event":"source-exported","name":"FRK_RegistryRow","sha256":"0dd51abb1c736da53bcc706cc778c26ff3bf42516859a809b1f19d196b8df86e"}
+{"t":"2026-10-08T06:23:00.6205033Z","event":"source-exported","name":"ST_StepRecord","sha256":"041c6c7f49b0a417b4cf580d081d74a7e5cb44949132a27daaa21c3e45ee75b9"}
+{"t":"2026-10-08T06:23:00.6275393Z","event":"source-exported","name":"FRK_SeqCtx","sha256":"bb68a67e15b83958927af7228d57aa15aad2e36d0718324eb4d88bf342c5a4ce"}
+{"t":"2026-10-08T06:23:00.6323045Z","event":"source-exported","name":"ST_HmiRequest","sha256":"20ac776ff8a36635addfdd9189ec9e75bf86daadca01938709dd9e325bfd8251"}
+{"t":"2026-10-08T06:23:00.6384720Z","event":"source-exported","name":"ST_HmiResponse","sha256":"1d364a2fe19e0f87357a1ec6f3c18bcb84a88b8ca5850d954e473b716ec676a2"}
+{"t":"2026-10-08T06:23:00.6435014Z","event":"source-exported","name":"ST_SpkCylHal","sha256":"7fa9f13e0a6cd6092d534b5b4224876977e9d67a6a0f56427ee28997f52b06a3"}
+{"t":"2026-10-08T06:23:00.6482103Z","event":"source-exported","name":"ST_SpkUnitHal","sha256":"c08d782ded274fd603ad9beab81aeb456cf3fc4a225eaaff010f48c5163b3067"}
+{"t":"2026-10-08T06:23:00.6602293Z","event":"source-exported","name":"ST_SpkCylinderParCfg","sha256":"636aafa5283d88509440a046147f0e9c4de1f5a5458fe43e3f6aaac43b363550"}
+{"t":"2026-10-08T06:23:00.6713019Z","event":"source-exported","name":"ST_SpkCylinderOutImm","sha256":"0ed33469824feb4d69304a384737ac7b67d9b066929b3bf96204311f39cf3d4e"}
+{"t":"2026-10-08T06:23:00.6763410Z","event":"source-exported","name":"FRK_TestRow","sha256":"9052f28a3d50d5f6718f871a38928d7a7ddb30acd4bb86c587343548b130fca2"}
+{"t":"2026-10-08T06:23:00.6823714Z","event":"source-exported","name":"FRK_TestTable","sha256":"01387e7caf201f1a18b803c6a0dc2dc11383a48dad0ce87842493b57f5358fef"}
+{"t":"2026-10-08T06:23:00.6823714Z","event":"step","command":"interfaces","args":"--plc PLC_1 --scan true"}
+{"t":"2026-10-08T06:23:03.0616305Z","event":"pc-interface","mode":"PN/IE","name":"Intel(R) 82574L Gigabit Network Connection","number":1,"targets":"1 X1"}
+{"t":"2026-10-08T06:23:09.4876733Z","event":"pc-interface","mode":"PN/IE","name":"Siemens PLCSIM Virtual Ethernet Adapter","number":1,"targets":"1 X1"}
+{"t":"2026-10-08T06:23:15.8572808Z","event":"accessible-device","pc":"Siemens PLCSIM Virtual Ethernet Adapter","attributes":"Address=192.168.0.10; DeviceSeries=S7-1200; MACAddress=8C-F3-19-B8-3F-4D; Name=plc_1"}
+{"t":"2026-10-08T06:23:15.8653657Z","event":"pc-interface","mode":"PN/IE","name":"Intel(R) 82574L Gigabit Network Connection","number":2,"targets":"1 X1"}
+{"t":"2026-10-08T06:23:22.2116621Z","event":"accessible-device","pc":"Intel(R) 82574L Gigabit Network Connection","attributes":"Address=192.168.0.10; DeviceSeries=S7-1200; MACAddress=8C-F3-19-B8-3F-4D; Name=plc_1"}
+{"t":"2026-10-08T06:23:22.2116621Z","event":"plan-complete","steps":15,"tolerated-failures":2}

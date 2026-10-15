@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_DocApply_D014" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocApply_D014 := FALSE;
+	#Position := 24;
+	#NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D014Data, DEST_VARIABLE => "FRK_PersistImages".D014, POS := #Position);
+	IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[14].Result.Length) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D014.SchemaVersion <> 1 OR "FRK_PersistImages".D014.Scope <> 'StationB' THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D014.Ordinal <> 2 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D014.Payload.Info.Used THEN
+	    "FRK_SetRuntime".Work[2].Payload := "FRK_PersistImages".D014.Payload;
+	    IF NOT "FRK_SetShape"(RootIndex := 2, RootIdentity := 'StationB') THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	"FRK_SetStore".Sets[2, 2] := "FRK_PersistImages".D014.Payload;
+	"FRK_SetStore".SchemaVersion := 1;
+	#FRK_DocApply_D014 := TRUE;
+	
+END_FUNCTION
+

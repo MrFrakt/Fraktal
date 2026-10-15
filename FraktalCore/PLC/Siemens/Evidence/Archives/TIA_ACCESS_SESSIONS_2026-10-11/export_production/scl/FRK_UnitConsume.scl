@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_UnitConsume" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Supported : Array[0..6] of Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Policy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending THEN
+	    RETURN;
+	END_IF;
+	// The generated typed ownership walk serves the static manifest after children.
+	IF #Unit.Request.Kind = 23 THEN
+	    #Unit.Request.Secret := '';
+	    RETURN;
+	END_IF;
+	"FRK_UnitOperation"(Core := #Core,
+	                    Unit := #Unit,
+	                    Status := #Status,
+	                    Policy := #Policy,
+	                    Access := #Access,
+	                    Supported := #Supported,
+	                    Request := #Unit.Request,
+	                    Response := #Response,
+	                    Trusted := FALSE);
+	#Unit.Request.Secret := '';
+	
+END_FUNCTION
+

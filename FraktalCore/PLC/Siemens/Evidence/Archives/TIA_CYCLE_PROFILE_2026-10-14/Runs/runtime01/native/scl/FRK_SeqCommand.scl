@@ -1,0 +1,111 @@
+﻿FUNCTION "FRK_SeqCommand" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Value : DInt;
+      Label : String;
+      TargetIndex : DInt;
+      OwnFailure : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Lease : "ST_SequenceCommandLease";
+      Execute : Bool;
+      Command : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      WaitOk : Bool;
+      Summary : "FRK_DiagSummary";
+      WaitLabel : String[120];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SeqCommand := FALSE;
+	IF NOT #Seq.Running OR #Seq.Error OR #Seq.OwnerIndex <= 0 OR #Seq.ChainIndex <= 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_DiagRead"(Owner := #Seq.OwnerIndex, Target := #TargetIndex, Faults := TRUE, DescendantsOnly := FALSE, Summary := #Summary);
+	IF NOT #Summary.Valid THEN
+	    #Seq.Error := TRUE;
+	    #Seq.ErrorDiagnostic := "FRK_Diagnostics".Empty.Diagnostic;
+	    #Seq.ErrorDiagnostic.ReasonCode := 2011;
+	    #Seq.ErrorDiagnostic.Description := WSTRING#'std.error.hmiRequestRejected';
+	    #Seq.ErrorDiagnostic.SourcePath := STRING_TO_WSTRING("FRK_DiagName"(Index := #Seq.OwnerIndex));
+	    #Seq.ErrorDiagnostic.Severity := 1;
+	    #Seq.ErrorDiagnostic.Since := "FRK_Now"();
+	    "FRK_Rationalize"(Diag := #Seq.ErrorDiagnostic);
+	    "FRK_SeqViewFail"(Owner := #Seq.OwnerIndex,
+	                      StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+	                      Branch := #Seq.BranchIndex,
+	                      Diag := #Seq.ErrorDiagnostic);
+	    #Execute := FALSE;
+	    RETURN;
+	END_IF;
+	#WaitLabel := "FRK_DiagName"(Index := #TargetIndex);
+	#WaitLabel := CONCAT(IN1 := #WaitLabel, IN2 := '.');
+	#WaitLabel := CONCAT(IN1 := #WaitLabel, IN2 := #Label);
+	IF #Lease.Raised THEN
+	    IF #Lease.OwnerIndex <> #Seq.OwnerIndex OR #Lease.ChainIndex <> #Seq.ChainIndex OR #Lease.BranchIndex <> #Seq.BranchIndex
+	        OR #Lease.Step <> #Seq.Step OR #Command <> #Value THEN
+	        // Another chain owns this command; never borrow its Done result.
+	        #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := 'std.release.commandOwned', Ok := FALSE);
+	        RETURN;
+	    END_IF;
+	    "FRK_SeqViewWatch"(Owner := #Seq.OwnerIndex,
+	                       StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+	                       Branch := #Seq.BranchIndex,
+	                       Target := #TargetIndex,
+	                       Waiting := #Summary.State <> 2,
+	                       OwnFailure := #OwnFailure);
+	    IF #Summary.Fault THEN
+	        IF #OwnFailure THEN
+	            #Seq.CommandFailed := TRUE;
+	            #Seq.HandledDiagnostic := #Summary.Diagnostic;
+	        ELSE
+	            #Seq.Error := TRUE;
+	            #Seq.ErrorDiagnostic := #Summary.Diagnostic;
+	            "FRK_SeqViewNote"(Owner := #Seq.OwnerIndex,
+	                              StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+	                              Branch := #Seq.BranchIndex,
+	                              IsError := TRUE,
+	                              Key := WSTRING_TO_STRING(#Summary.Diagnostic.Description),
+	                              SourcePath := WSTRING_TO_STRING(#Summary.Diagnostic.SourcePath));
+	        END_IF;
+	        #Execute := FALSE;
+	    ELSIF #Summary.State = 2 THEN
+	        #FRK_SeqCommand := TRUE;
+	    ELSE
+	        #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #WaitLabel, Ok := FALSE);
+	    END_IF;
+	ELSIF #Summary.State = 0 AND NOT #Summary.Fault AND #Lease.ReleasedScan <> #Seq.Scan THEN
+	    #Lease.OwnerIndex := #Seq.OwnerIndex;
+	    #Lease.ChainIndex := #Seq.ChainIndex;
+	    #Lease.BranchIndex := #Seq.BranchIndex;
+	    #Lease.Step := #Seq.Step;
+	    #Lease.Raised := TRUE;
+	    #Seq.CommandIssued := TRUE;
+	    #Command := #Value;
+	    #Execute := TRUE;
+	    "FRK_SeqViewWatch"(Owner := #Seq.OwnerIndex,
+	                       StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+	                       Branch := #Seq.BranchIndex,
+	                       Target := #TargetIndex,
+	                       Waiting := TRUE,
+	                       OwnFailure := TRUE);
+	    #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #WaitLabel, Ok := FALSE);
+	ELSE
+	    "FRK_SeqViewWatch"(Owner := #Seq.OwnerIndex,
+	                       StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+	                       Branch := #Seq.BranchIndex,
+	                       Target := #TargetIndex,
+	                       Waiting := TRUE,
+	                       OwnFailure := TRUE);
+	    #WaitOk := "FRK_SeqAwait"(Seq := #Seq, Label := #WaitLabel, Ok := FALSE);
+	END_IF;
+	
+END_FUNCTION
+

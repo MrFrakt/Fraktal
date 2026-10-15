@@ -1,0 +1,18 @@
+﻿FUNCTION "FRK_SeqSubStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Child : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Child.Error THEN
+	    #Seq.Error := TRUE;
+	    #Seq.ErrorDiagnostic := #Child.ErrorDiagnostic;
+	END_IF;
+	
+END_FUNCTION
+

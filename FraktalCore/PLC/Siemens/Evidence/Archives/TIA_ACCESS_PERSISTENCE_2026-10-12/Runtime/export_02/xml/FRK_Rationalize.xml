@@ -1,0 +1,1804 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-12T05:00:26.8336551Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input" />
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="ReasonCode" Datatype="DInt" />
+          <Member Name="SourcePath" Datatype="WString[255]" />
+          <Member Name="Description" Datatype="WString[255]" />
+          <Member Name="IoTag" Datatype="String[80]" />
+          <Member Name="IoAddress" Datatype="String[80]" />
+          <Member Name="Severity" Datatype="DInt" />
+          <Member Name="Category" Datatype="DInt" />
+          <Member Name="Since" Datatype="LDT" />
+          <Member Name="TimeSynchronized" Datatype="Bool" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_Rationalize</Name>
+      <Namespace />
+      <Number>7</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="CASE" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Diag" UId="26" />
+      <Token Text="." UId="27" />
+      <Component Name="ReasonCode" UId="28" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="29" />
+  <Token Text="OF" UId="30" />
+  <NewLine Num="1" UId="31" />
+  <Blank Num="4" UId="32" />
+  <Access Scope="LiteralConstant" UId="33">
+    <Constant UId="34">
+      <ConstantValue UId="36">10</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="37" />
+  <NewLine Num="1" UId="38" />
+  <Blank Num="8" UId="39" />
+  <Access Scope="LocalVariable" UId="40">
+    <Symbol UId="41">
+      <Component Name="Diag" UId="42" />
+      <Token Text="." UId="43" />
+      <Component Name="Severity" UId="44" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="45" />
+  <Token Text=":=" UId="46" />
+  <Blank Num="1" UId="47" />
+  <Access Scope="LiteralConstant" UId="48">
+    <Constant UId="49">
+      <ConstantValue UId="51">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="52" />
+  <NewLine Num="1" UId="53" />
+  <Blank Num="8" UId="54" />
+  <Access Scope="LocalVariable" UId="55">
+    <Symbol UId="56">
+      <Component Name="Diag" UId="57" />
+      <Token Text="." UId="58" />
+      <Component Name="Category" UId="59" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="60" />
+  <Token Text=":=" UId="61" />
+  <Blank Num="1" UId="62" />
+  <Access Scope="LiteralConstant" UId="63">
+    <Constant UId="64">
+      <ConstantValue UId="66">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="67" />
+  <NewLine Num="1" UId="68" />
+  <Blank Num="4" UId="69" />
+  <Access Scope="LiteralConstant" UId="70">
+    <Constant UId="71">
+      <ConstantValue UId="73">11</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="74" />
+  <NewLine Num="1" UId="75" />
+  <Blank Num="8" UId="76" />
+  <Access Scope="LocalVariable" UId="77">
+    <Symbol UId="78">
+      <Component Name="Diag" UId="79" />
+      <Token Text="." UId="80" />
+      <Component Name="Severity" UId="81" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="82" />
+  <Token Text=":=" UId="83" />
+  <Blank Num="1" UId="84" />
+  <Access Scope="LiteralConstant" UId="85">
+    <Constant UId="86">
+      <ConstantValue UId="88">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="89" />
+  <NewLine Num="1" UId="90" />
+  <Blank Num="8" UId="91" />
+  <Access Scope="LocalVariable" UId="92">
+    <Symbol UId="93">
+      <Component Name="Diag" UId="94" />
+      <Token Text="." UId="95" />
+      <Component Name="Category" UId="96" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="97" />
+  <Token Text=":=" UId="98" />
+  <Blank Num="1" UId="99" />
+  <Access Scope="LiteralConstant" UId="100">
+    <Constant UId="101">
+      <ConstantValue UId="103">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="104" />
+  <NewLine Num="1" UId="105" />
+  <Blank Num="4" UId="106" />
+  <Access Scope="LiteralConstant" UId="107">
+    <Constant UId="108">
+      <ConstantValue UId="110">12</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="111" />
+  <NewLine Num="1" UId="112" />
+  <Blank Num="8" UId="113" />
+  <Access Scope="LocalVariable" UId="114">
+    <Symbol UId="115">
+      <Component Name="Diag" UId="116" />
+      <Token Text="." UId="117" />
+      <Component Name="Severity" UId="118" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="119" />
+  <Token Text=":=" UId="120" />
+  <Blank Num="1" UId="121" />
+  <Access Scope="LiteralConstant" UId="122">
+    <Constant UId="123">
+      <ConstantValue UId="125">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="126" />
+  <NewLine Num="1" UId="127" />
+  <Blank Num="8" UId="128" />
+  <Access Scope="LocalVariable" UId="129">
+    <Symbol UId="130">
+      <Component Name="Diag" UId="131" />
+      <Token Text="." UId="132" />
+      <Component Name="Category" UId="133" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="134" />
+  <Token Text=":=" UId="135" />
+  <Blank Num="1" UId="136" />
+  <Access Scope="LiteralConstant" UId="137">
+    <Constant UId="138">
+      <ConstantValue UId="140">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="141" />
+  <NewLine Num="1" UId="142" />
+  <Blank Num="4" UId="143" />
+  <Access Scope="LiteralConstant" UId="144">
+    <Constant UId="145">
+      <ConstantValue UId="147">13</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="148" />
+  <NewLine Num="1" UId="149" />
+  <Blank Num="8" UId="150" />
+  <Access Scope="LocalVariable" UId="151">
+    <Symbol UId="152">
+      <Component Name="Diag" UId="153" />
+      <Token Text="." UId="154" />
+      <Component Name="Severity" UId="155" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="156" />
+  <Token Text=":=" UId="157" />
+  <Blank Num="1" UId="158" />
+  <Access Scope="LiteralConstant" UId="159">
+    <Constant UId="160">
+      <ConstantValue UId="162">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="163" />
+  <NewLine Num="1" UId="164" />
+  <Blank Num="8" UId="165" />
+  <Access Scope="LocalVariable" UId="166">
+    <Symbol UId="167">
+      <Component Name="Diag" UId="168" />
+      <Token Text="." UId="169" />
+      <Component Name="Category" UId="170" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="171" />
+  <Token Text=":=" UId="172" />
+  <Blank Num="1" UId="173" />
+  <Access Scope="LiteralConstant" UId="174">
+    <Constant UId="175">
+      <ConstantValue UId="177">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="178" />
+  <NewLine Num="1" UId="179" />
+  <Blank Num="4" UId="180" />
+  <Access Scope="LiteralConstant" UId="181">
+    <Constant UId="182">
+      <ConstantValue UId="184">14</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="185" />
+  <NewLine Num="1" UId="186" />
+  <Blank Num="8" UId="187" />
+  <Access Scope="LocalVariable" UId="188">
+    <Symbol UId="189">
+      <Component Name="Diag" UId="190" />
+      <Token Text="." UId="191" />
+      <Component Name="Severity" UId="192" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="193" />
+  <Token Text=":=" UId="194" />
+  <Blank Num="1" UId="195" />
+  <Access Scope="LiteralConstant" UId="196">
+    <Constant UId="197">
+      <ConstantValue UId="199">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="200" />
+  <NewLine Num="1" UId="201" />
+  <Blank Num="8" UId="202" />
+  <Access Scope="LocalVariable" UId="203">
+    <Symbol UId="204">
+      <Component Name="Diag" UId="205" />
+      <Token Text="." UId="206" />
+      <Component Name="Category" UId="207" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="208" />
+  <Token Text=":=" UId="209" />
+  <Blank Num="1" UId="210" />
+  <Access Scope="LiteralConstant" UId="211">
+    <Constant UId="212">
+      <ConstantValue UId="214">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="215" />
+  <NewLine Num="1" UId="216" />
+  <Blank Num="4" UId="217" />
+  <Access Scope="LiteralConstant" UId="218">
+    <Constant UId="219">
+      <ConstantValue UId="221">15</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="222" />
+  <NewLine Num="1" UId="223" />
+  <Blank Num="8" UId="224" />
+  <Access Scope="LocalVariable" UId="225">
+    <Symbol UId="226">
+      <Component Name="Diag" UId="227" />
+      <Token Text="." UId="228" />
+      <Component Name="Severity" UId="229" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="230" />
+  <Token Text=":=" UId="231" />
+  <Blank Num="1" UId="232" />
+  <Access Scope="LiteralConstant" UId="233">
+    <Constant UId="234">
+      <ConstantValue UId="236">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="237" />
+  <NewLine Num="1" UId="238" />
+  <Blank Num="8" UId="239" />
+  <Access Scope="LocalVariable" UId="240">
+    <Symbol UId="241">
+      <Component Name="Diag" UId="242" />
+      <Token Text="." UId="243" />
+      <Component Name="Category" UId="244" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="245" />
+  <Token Text=":=" UId="246" />
+  <Blank Num="1" UId="247" />
+  <Access Scope="LiteralConstant" UId="248">
+    <Constant UId="249">
+      <ConstantValue UId="251">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="252" />
+  <NewLine Num="1" UId="253" />
+  <Blank Num="4" UId="254" />
+  <Access Scope="LiteralConstant" UId="255">
+    <Constant UId="256">
+      <ConstantValue UId="258">16</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="259" />
+  <NewLine Num="1" UId="260" />
+  <Blank Num="8" UId="261" />
+  <Access Scope="LocalVariable" UId="262">
+    <Symbol UId="263">
+      <Component Name="Diag" UId="264" />
+      <Token Text="." UId="265" />
+      <Component Name="Severity" UId="266" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="267" />
+  <Token Text=":=" UId="268" />
+  <Blank Num="1" UId="269" />
+  <Access Scope="LiteralConstant" UId="270">
+    <Constant UId="271">
+      <ConstantValue UId="273">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="274" />
+  <NewLine Num="1" UId="275" />
+  <Blank Num="8" UId="276" />
+  <Access Scope="LocalVariable" UId="277">
+    <Symbol UId="278">
+      <Component Name="Diag" UId="279" />
+      <Token Text="." UId="280" />
+      <Component Name="Category" UId="281" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="282" />
+  <Token Text=":=" UId="283" />
+  <Blank Num="1" UId="284" />
+  <Access Scope="LiteralConstant" UId="285">
+    <Constant UId="286">
+      <ConstantValue UId="288">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="289" />
+  <NewLine Num="1" UId="290" />
+  <Blank Num="4" UId="291" />
+  <Access Scope="LiteralConstant" UId="292">
+    <Constant UId="293">
+      <ConstantValue UId="295">17</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="296" />
+  <NewLine Num="1" UId="297" />
+  <Blank Num="8" UId="298" />
+  <Access Scope="LocalVariable" UId="299">
+    <Symbol UId="300">
+      <Component Name="Diag" UId="301" />
+      <Token Text="." UId="302" />
+      <Component Name="Severity" UId="303" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="304" />
+  <Token Text=":=" UId="305" />
+  <Blank Num="1" UId="306" />
+  <Access Scope="LiteralConstant" UId="307">
+    <Constant UId="308">
+      <ConstantValue UId="310">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="311" />
+  <NewLine Num="1" UId="312" />
+  <Blank Num="8" UId="313" />
+  <Access Scope="LocalVariable" UId="314">
+    <Symbol UId="315">
+      <Component Name="Diag" UId="316" />
+      <Token Text="." UId="317" />
+      <Component Name="Category" UId="318" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="319" />
+  <Token Text=":=" UId="320" />
+  <Blank Num="1" UId="321" />
+  <Access Scope="LiteralConstant" UId="322">
+    <Constant UId="323">
+      <ConstantValue UId="325">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="326" />
+  <NewLine Num="1" UId="327" />
+  <Blank Num="4" UId="328" />
+  <Access Scope="LiteralConstant" UId="329">
+    <Constant UId="330">
+      <ConstantValue UId="332">18</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="333" />
+  <NewLine Num="1" UId="334" />
+  <Blank Num="8" UId="335" />
+  <Access Scope="LocalVariable" UId="336">
+    <Symbol UId="337">
+      <Component Name="Diag" UId="338" />
+      <Token Text="." UId="339" />
+      <Component Name="Severity" UId="340" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="341" />
+  <Token Text=":=" UId="342" />
+  <Blank Num="1" UId="343" />
+  <Access Scope="LiteralConstant" UId="344">
+    <Constant UId="345">
+      <ConstantValue UId="347">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="348" />
+  <NewLine Num="1" UId="349" />
+  <Blank Num="8" UId="350" />
+  <Access Scope="LocalVariable" UId="351">
+    <Symbol UId="352">
+      <Component Name="Diag" UId="353" />
+      <Token Text="." UId="354" />
+      <Component Name="Category" UId="355" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="356" />
+  <Token Text=":=" UId="357" />
+  <Blank Num="1" UId="358" />
+  <Access Scope="LiteralConstant" UId="359">
+    <Constant UId="360">
+      <ConstantValue UId="362">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="363" />
+  <NewLine Num="1" UId="364" />
+  <Blank Num="4" UId="365" />
+  <Access Scope="LiteralConstant" UId="366">
+    <Constant UId="367">
+      <ConstantValue UId="369">19</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="370" />
+  <NewLine Num="1" UId="371" />
+  <Blank Num="8" UId="372" />
+  <Access Scope="LocalVariable" UId="373">
+    <Symbol UId="374">
+      <Component Name="Diag" UId="375" />
+      <Token Text="." UId="376" />
+      <Component Name="Severity" UId="377" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="378" />
+  <Token Text=":=" UId="379" />
+  <Blank Num="1" UId="380" />
+  <Access Scope="LiteralConstant" UId="381">
+    <Constant UId="382">
+      <ConstantValue UId="384">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="385" />
+  <NewLine Num="1" UId="386" />
+  <Blank Num="8" UId="387" />
+  <Access Scope="LocalVariable" UId="388">
+    <Symbol UId="389">
+      <Component Name="Diag" UId="390" />
+      <Token Text="." UId="391" />
+      <Component Name="Category" UId="392" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="393" />
+  <Token Text=":=" UId="394" />
+  <Blank Num="1" UId="395" />
+  <Access Scope="LiteralConstant" UId="396">
+    <Constant UId="397">
+      <ConstantValue UId="399">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="400" />
+  <NewLine Num="1" UId="401" />
+  <Blank Num="4" UId="402" />
+  <Access Scope="LiteralConstant" UId="403">
+    <Constant UId="404">
+      <ConstantValue UId="406">20</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="407" />
+  <NewLine Num="1" UId="408" />
+  <Blank Num="8" UId="409" />
+  <Access Scope="LocalVariable" UId="410">
+    <Symbol UId="411">
+      <Component Name="Diag" UId="412" />
+      <Token Text="." UId="413" />
+      <Component Name="Severity" UId="414" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="415" />
+  <Token Text=":=" UId="416" />
+  <Blank Num="1" UId="417" />
+  <Access Scope="LiteralConstant" UId="418">
+    <Constant UId="419">
+      <ConstantValue UId="421">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="422" />
+  <NewLine Num="1" UId="423" />
+  <Blank Num="8" UId="424" />
+  <Access Scope="LocalVariable" UId="425">
+    <Symbol UId="426">
+      <Component Name="Diag" UId="427" />
+      <Token Text="." UId="428" />
+      <Component Name="Category" UId="429" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="430" />
+  <Token Text=":=" UId="431" />
+  <Blank Num="1" UId="432" />
+  <Access Scope="LiteralConstant" UId="433">
+    <Constant UId="434">
+      <ConstantValue UId="436">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="437" />
+  <NewLine Num="1" UId="438" />
+  <Blank Num="4" UId="439" />
+  <Access Scope="LiteralConstant" UId="440">
+    <Constant UId="441">
+      <ConstantValue UId="443">21</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="444" />
+  <NewLine Num="1" UId="445" />
+  <Blank Num="8" UId="446" />
+  <Access Scope="LocalVariable" UId="447">
+    <Symbol UId="448">
+      <Component Name="Diag" UId="449" />
+      <Token Text="." UId="450" />
+      <Component Name="Severity" UId="451" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="452" />
+  <Token Text=":=" UId="453" />
+  <Blank Num="1" UId="454" />
+  <Access Scope="LiteralConstant" UId="455">
+    <Constant UId="456">
+      <ConstantValue UId="458">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="459" />
+  <NewLine Num="1" UId="460" />
+  <Blank Num="8" UId="461" />
+  <Access Scope="LocalVariable" UId="462">
+    <Symbol UId="463">
+      <Component Name="Diag" UId="464" />
+      <Token Text="." UId="465" />
+      <Component Name="Category" UId="466" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="467" />
+  <Token Text=":=" UId="468" />
+  <Blank Num="1" UId="469" />
+  <Access Scope="LiteralConstant" UId="470">
+    <Constant UId="471">
+      <ConstantValue UId="473">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="474" />
+  <NewLine Num="1" UId="475" />
+  <Blank Num="4" UId="476" />
+  <Access Scope="LiteralConstant" UId="477">
+    <Constant UId="478">
+      <ConstantValue UId="480">2001</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="481" />
+  <NewLine Num="1" UId="482" />
+  <Blank Num="8" UId="483" />
+  <Access Scope="LocalVariable" UId="484">
+    <Symbol UId="485">
+      <Component Name="Diag" UId="486" />
+      <Token Text="." UId="487" />
+      <Component Name="Severity" UId="488" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="489" />
+  <Token Text=":=" UId="490" />
+  <Blank Num="1" UId="491" />
+  <Access Scope="LiteralConstant" UId="492">
+    <Constant UId="493">
+      <ConstantValue UId="495">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="496" />
+  <NewLine Num="1" UId="497" />
+  <Blank Num="8" UId="498" />
+  <Access Scope="LocalVariable" UId="499">
+    <Symbol UId="500">
+      <Component Name="Diag" UId="501" />
+      <Token Text="." UId="502" />
+      <Component Name="Category" UId="503" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="504" />
+  <Token Text=":=" UId="505" />
+  <Blank Num="1" UId="506" />
+  <Access Scope="LiteralConstant" UId="507">
+    <Constant UId="508">
+      <ConstantValue UId="510">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="511" />
+  <NewLine Num="1" UId="512" />
+  <Blank Num="4" UId="513" />
+  <Access Scope="LiteralConstant" UId="514">
+    <Constant UId="515">
+      <ConstantValue UId="517">2002</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="518" />
+  <NewLine Num="1" UId="519" />
+  <Blank Num="8" UId="520" />
+  <Access Scope="LocalVariable" UId="521">
+    <Symbol UId="522">
+      <Component Name="Diag" UId="523" />
+      <Token Text="." UId="524" />
+      <Component Name="Severity" UId="525" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="526" />
+  <Token Text=":=" UId="527" />
+  <Blank Num="1" UId="528" />
+  <Access Scope="LiteralConstant" UId="529">
+    <Constant UId="530">
+      <ConstantValue UId="532">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="533" />
+  <NewLine Num="1" UId="534" />
+  <Blank Num="8" UId="535" />
+  <Access Scope="LocalVariable" UId="536">
+    <Symbol UId="537">
+      <Component Name="Diag" UId="538" />
+      <Token Text="." UId="539" />
+      <Component Name="Category" UId="540" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="541" />
+  <Token Text=":=" UId="542" />
+  <Blank Num="1" UId="543" />
+  <Access Scope="LiteralConstant" UId="544">
+    <Constant UId="545">
+      <ConstantValue UId="547">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="548" />
+  <NewLine Num="1" UId="549" />
+  <Blank Num="4" UId="550" />
+  <Access Scope="LiteralConstant" UId="551">
+    <Constant UId="552">
+      <ConstantValue UId="554">2003</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="555" />
+  <NewLine Num="1" UId="556" />
+  <Blank Num="8" UId="557" />
+  <Access Scope="LocalVariable" UId="558">
+    <Symbol UId="559">
+      <Component Name="Diag" UId="560" />
+      <Token Text="." UId="561" />
+      <Component Name="Severity" UId="562" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="563" />
+  <Token Text=":=" UId="564" />
+  <Blank Num="1" UId="565" />
+  <Access Scope="LiteralConstant" UId="566">
+    <Constant UId="567">
+      <ConstantValue UId="569">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="570" />
+  <NewLine Num="1" UId="571" />
+  <Blank Num="8" UId="572" />
+  <Access Scope="LocalVariable" UId="573">
+    <Symbol UId="574">
+      <Component Name="Diag" UId="575" />
+      <Token Text="." UId="576" />
+      <Component Name="Category" UId="577" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="578" />
+  <Token Text=":=" UId="579" />
+  <Blank Num="1" UId="580" />
+  <Access Scope="LiteralConstant" UId="581">
+    <Constant UId="582">
+      <ConstantValue UId="584">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="585" />
+  <NewLine Num="1" UId="586" />
+  <Blank Num="4" UId="587" />
+  <Access Scope="LiteralConstant" UId="588">
+    <Constant UId="589">
+      <ConstantValue UId="591">2004</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="592" />
+  <NewLine Num="1" UId="593" />
+  <Blank Num="8" UId="594" />
+  <Access Scope="LocalVariable" UId="595">
+    <Symbol UId="596">
+      <Component Name="Diag" UId="597" />
+      <Token Text="." UId="598" />
+      <Component Name="Severity" UId="599" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="600" />
+  <Token Text=":=" UId="601" />
+  <Blank Num="1" UId="602" />
+  <Access Scope="LiteralConstant" UId="603">
+    <Constant UId="604">
+      <ConstantValue UId="606">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="607" />
+  <NewLine Num="1" UId="608" />
+  <Blank Num="8" UId="609" />
+  <Access Scope="LocalVariable" UId="610">
+    <Symbol UId="611">
+      <Component Name="Diag" UId="612" />
+      <Token Text="." UId="613" />
+      <Component Name="Category" UId="614" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="615" />
+  <Token Text=":=" UId="616" />
+  <Blank Num="1" UId="617" />
+  <Access Scope="LiteralConstant" UId="618">
+    <Constant UId="619">
+      <ConstantValue UId="621">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="622" />
+  <NewLine Num="1" UId="623" />
+  <Blank Num="4" UId="624" />
+  <Access Scope="LiteralConstant" UId="625">
+    <Constant UId="626">
+      <ConstantValue UId="628">2005</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="629" />
+  <NewLine Num="1" UId="630" />
+  <Blank Num="8" UId="631" />
+  <Access Scope="LocalVariable" UId="632">
+    <Symbol UId="633">
+      <Component Name="Diag" UId="634" />
+      <Token Text="." UId="635" />
+      <Component Name="Severity" UId="636" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="637" />
+  <Token Text=":=" UId="638" />
+  <Blank Num="1" UId="639" />
+  <Access Scope="LiteralConstant" UId="640">
+    <Constant UId="641">
+      <ConstantValue UId="643">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="644" />
+  <NewLine Num="1" UId="645" />
+  <Blank Num="8" UId="646" />
+  <Access Scope="LocalVariable" UId="647">
+    <Symbol UId="648">
+      <Component Name="Diag" UId="649" />
+      <Token Text="." UId="650" />
+      <Component Name="Category" UId="651" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="652" />
+  <Token Text=":=" UId="653" />
+  <Blank Num="1" UId="654" />
+  <Access Scope="LiteralConstant" UId="655">
+    <Constant UId="656">
+      <ConstantValue UId="658">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="659" />
+  <NewLine Num="1" UId="660" />
+  <Blank Num="4" UId="661" />
+  <Access Scope="LiteralConstant" UId="662">
+    <Constant UId="663">
+      <ConstantValue UId="665">2006</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="666" />
+  <NewLine Num="1" UId="667" />
+  <Blank Num="8" UId="668" />
+  <Access Scope="LocalVariable" UId="669">
+    <Symbol UId="670">
+      <Component Name="Diag" UId="671" />
+      <Token Text="." UId="672" />
+      <Component Name="Severity" UId="673" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="674" />
+  <Token Text=":=" UId="675" />
+  <Blank Num="1" UId="676" />
+  <Access Scope="LiteralConstant" UId="677">
+    <Constant UId="678">
+      <ConstantValue UId="680">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="681" />
+  <NewLine Num="1" UId="682" />
+  <Blank Num="8" UId="683" />
+  <Access Scope="LocalVariable" UId="684">
+    <Symbol UId="685">
+      <Component Name="Diag" UId="686" />
+      <Token Text="." UId="687" />
+      <Component Name="Category" UId="688" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="689" />
+  <Token Text=":=" UId="690" />
+  <Blank Num="1" UId="691" />
+  <Access Scope="LiteralConstant" UId="692">
+    <Constant UId="693">
+      <ConstantValue UId="695">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="696" />
+  <NewLine Num="1" UId="697" />
+  <Blank Num="4" UId="698" />
+  <Access Scope="LiteralConstant" UId="699">
+    <Constant UId="700">
+      <ConstantValue UId="702">2007</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="703" />
+  <NewLine Num="1" UId="704" />
+  <Blank Num="8" UId="705" />
+  <Access Scope="LocalVariable" UId="706">
+    <Symbol UId="707">
+      <Component Name="Diag" UId="708" />
+      <Token Text="." UId="709" />
+      <Component Name="Severity" UId="710" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="711" />
+  <Token Text=":=" UId="712" />
+  <Blank Num="1" UId="713" />
+  <Access Scope="LiteralConstant" UId="714">
+    <Constant UId="715">
+      <ConstantValue UId="717">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="718" />
+  <NewLine Num="1" UId="719" />
+  <Blank Num="8" UId="720" />
+  <Access Scope="LocalVariable" UId="721">
+    <Symbol UId="722">
+      <Component Name="Diag" UId="723" />
+      <Token Text="." UId="724" />
+      <Component Name="Category" UId="725" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="726" />
+  <Token Text=":=" UId="727" />
+  <Blank Num="1" UId="728" />
+  <Access Scope="LiteralConstant" UId="729">
+    <Constant UId="730">
+      <ConstantValue UId="732">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="733" />
+  <NewLine Num="1" UId="734" />
+  <Blank Num="4" UId="735" />
+  <Access Scope="LiteralConstant" UId="736">
+    <Constant UId="737">
+      <ConstantValue UId="739">2008</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="740" />
+  <NewLine Num="1" UId="741" />
+  <Blank Num="8" UId="742" />
+  <Access Scope="LocalVariable" UId="743">
+    <Symbol UId="744">
+      <Component Name="Diag" UId="745" />
+      <Token Text="." UId="746" />
+      <Component Name="Severity" UId="747" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="748" />
+  <Token Text=":=" UId="749" />
+  <Blank Num="1" UId="750" />
+  <Access Scope="LiteralConstant" UId="751">
+    <Constant UId="752">
+      <ConstantValue UId="754">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="755" />
+  <NewLine Num="1" UId="756" />
+  <Blank Num="8" UId="757" />
+  <Access Scope="LocalVariable" UId="758">
+    <Symbol UId="759">
+      <Component Name="Diag" UId="760" />
+      <Token Text="." UId="761" />
+      <Component Name="Category" UId="762" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="763" />
+  <Token Text=":=" UId="764" />
+  <Blank Num="1" UId="765" />
+  <Access Scope="LiteralConstant" UId="766">
+    <Constant UId="767">
+      <ConstantValue UId="769">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="770" />
+  <NewLine Num="1" UId="771" />
+  <Blank Num="4" UId="772" />
+  <Access Scope="LiteralConstant" UId="773">
+    <Constant UId="774">
+      <ConstantValue UId="776">2010</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="777" />
+  <NewLine Num="1" UId="778" />
+  <Blank Num="8" UId="779" />
+  <Access Scope="LocalVariable" UId="780">
+    <Symbol UId="781">
+      <Component Name="Diag" UId="782" />
+      <Token Text="." UId="783" />
+      <Component Name="Severity" UId="784" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="785" />
+  <Token Text=":=" UId="786" />
+  <Blank Num="1" UId="787" />
+  <Access Scope="LiteralConstant" UId="788">
+    <Constant UId="789">
+      <ConstantValue UId="791">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="792" />
+  <NewLine Num="1" UId="793" />
+  <Blank Num="8" UId="794" />
+  <Access Scope="LocalVariable" UId="795">
+    <Symbol UId="796">
+      <Component Name="Diag" UId="797" />
+      <Token Text="." UId="798" />
+      <Component Name="Category" UId="799" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="800" />
+  <Token Text=":=" UId="801" />
+  <Blank Num="1" UId="802" />
+  <Access Scope="LiteralConstant" UId="803">
+    <Constant UId="804">
+      <ConstantValue UId="806">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="807" />
+  <NewLine Num="1" UId="808" />
+  <Blank Num="4" UId="809" />
+  <Access Scope="LiteralConstant" UId="810">
+    <Constant UId="811">
+      <ConstantValue UId="813">2011</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="814" />
+  <NewLine Num="1" UId="815" />
+  <Blank Num="8" UId="816" />
+  <Access Scope="LocalVariable" UId="817">
+    <Symbol UId="818">
+      <Component Name="Diag" UId="819" />
+      <Token Text="." UId="820" />
+      <Component Name="Severity" UId="821" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="822" />
+  <Token Text=":=" UId="823" />
+  <Blank Num="1" UId="824" />
+  <Access Scope="LiteralConstant" UId="825">
+    <Constant UId="826">
+      <ConstantValue UId="828">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="829" />
+  <NewLine Num="1" UId="830" />
+  <Blank Num="8" UId="831" />
+  <Access Scope="LocalVariable" UId="832">
+    <Symbol UId="833">
+      <Component Name="Diag" UId="834" />
+      <Token Text="." UId="835" />
+      <Component Name="Category" UId="836" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="837" />
+  <Token Text=":=" UId="838" />
+  <Blank Num="1" UId="839" />
+  <Access Scope="LiteralConstant" UId="840">
+    <Constant UId="841">
+      <ConstantValue UId="843">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="844" />
+  <NewLine Num="1" UId="845" />
+  <Blank Num="4" UId="846" />
+  <Access Scope="LiteralConstant" UId="847">
+    <Constant UId="848">
+      <ConstantValue UId="850">2012</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="851" />
+  <NewLine Num="1" UId="852" />
+  <Blank Num="8" UId="853" />
+  <Access Scope="LocalVariable" UId="854">
+    <Symbol UId="855">
+      <Component Name="Diag" UId="856" />
+      <Token Text="." UId="857" />
+      <Component Name="Severity" UId="858" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="859" />
+  <Token Text=":=" UId="860" />
+  <Blank Num="1" UId="861" />
+  <Access Scope="LiteralConstant" UId="862">
+    <Constant UId="863">
+      <ConstantValue UId="865">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="866" />
+  <NewLine Num="1" UId="867" />
+  <Blank Num="8" UId="868" />
+  <Access Scope="LocalVariable" UId="869">
+    <Symbol UId="870">
+      <Component Name="Diag" UId="871" />
+      <Token Text="." UId="872" />
+      <Component Name="Category" UId="873" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="874" />
+  <Token Text=":=" UId="875" />
+  <Blank Num="1" UId="876" />
+  <Access Scope="LiteralConstant" UId="877">
+    <Constant UId="878">
+      <ConstantValue UId="880">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="881" />
+  <NewLine Num="1" UId="882" />
+  <Blank Num="4" UId="883" />
+  <Access Scope="LiteralConstant" UId="884">
+    <Constant UId="885">
+      <ConstantValue UId="887">2020</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="888" />
+  <NewLine Num="1" UId="889" />
+  <Blank Num="8" UId="890" />
+  <Access Scope="LocalVariable" UId="891">
+    <Symbol UId="892">
+      <Component Name="Diag" UId="893" />
+      <Token Text="." UId="894" />
+      <Component Name="Severity" UId="895" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="896" />
+  <Token Text=":=" UId="897" />
+  <Blank Num="1" UId="898" />
+  <Access Scope="LiteralConstant" UId="899">
+    <Constant UId="900">
+      <ConstantValue UId="902">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="903" />
+  <NewLine Num="1" UId="904" />
+  <Blank Num="8" UId="905" />
+  <Access Scope="LocalVariable" UId="906">
+    <Symbol UId="907">
+      <Component Name="Diag" UId="908" />
+      <Token Text="." UId="909" />
+      <Component Name="Category" UId="910" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="911" />
+  <Token Text=":=" UId="912" />
+  <Blank Num="1" UId="913" />
+  <Access Scope="LiteralConstant" UId="914">
+    <Constant UId="915">
+      <ConstantValue UId="917">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="918" />
+  <NewLine Num="1" UId="919" />
+  <Blank Num="4" UId="920" />
+  <Access Scope="LiteralConstant" UId="921">
+    <Constant UId="922">
+      <ConstantValue UId="924">2021</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="925" />
+  <NewLine Num="1" UId="926" />
+  <Blank Num="8" UId="927" />
+  <Access Scope="LocalVariable" UId="928">
+    <Symbol UId="929">
+      <Component Name="Diag" UId="930" />
+      <Token Text="." UId="931" />
+      <Component Name="Severity" UId="932" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="933" />
+  <Token Text=":=" UId="934" />
+  <Blank Num="1" UId="935" />
+  <Access Scope="LiteralConstant" UId="936">
+    <Constant UId="937">
+      <ConstantValue UId="939">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="940" />
+  <NewLine Num="1" UId="941" />
+  <Blank Num="8" UId="942" />
+  <Access Scope="LocalVariable" UId="943">
+    <Symbol UId="944">
+      <Component Name="Diag" UId="945" />
+      <Token Text="." UId="946" />
+      <Component Name="Category" UId="947" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="948" />
+  <Token Text=":=" UId="949" />
+  <Blank Num="1" UId="950" />
+  <Access Scope="LiteralConstant" UId="951">
+    <Constant UId="952">
+      <ConstantValue UId="954">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="955" />
+  <NewLine Num="1" UId="956" />
+  <Blank Num="4" UId="957" />
+  <Access Scope="LiteralConstant" UId="958">
+    <Constant UId="959">
+      <ConstantValue UId="961">2022</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="962" />
+  <NewLine Num="1" UId="963" />
+  <Blank Num="8" UId="964" />
+  <Access Scope="LocalVariable" UId="965">
+    <Symbol UId="966">
+      <Component Name="Diag" UId="967" />
+      <Token Text="." UId="968" />
+      <Component Name="Severity" UId="969" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="970" />
+  <Token Text=":=" UId="971" />
+  <Blank Num="1" UId="972" />
+  <Access Scope="LiteralConstant" UId="973">
+    <Constant UId="974">
+      <ConstantValue UId="976">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="977" />
+  <NewLine Num="1" UId="978" />
+  <Blank Num="8" UId="979" />
+  <Access Scope="LocalVariable" UId="980">
+    <Symbol UId="981">
+      <Component Name="Diag" UId="982" />
+      <Token Text="." UId="983" />
+      <Component Name="Category" UId="984" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="985" />
+  <Token Text=":=" UId="986" />
+  <Blank Num="1" UId="987" />
+  <Access Scope="LiteralConstant" UId="988">
+    <Constant UId="989">
+      <ConstantValue UId="991">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="992" />
+  <NewLine Num="1" UId="993" />
+  <Blank Num="4" UId="994" />
+  <Access Scope="LiteralConstant" UId="995">
+    <Constant UId="996">
+      <ConstantValue UId="998">2023</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="999" />
+  <NewLine Num="1" UId="1000" />
+  <Blank Num="8" UId="1001" />
+  <Access Scope="LocalVariable" UId="1002">
+    <Symbol UId="1003">
+      <Component Name="Diag" UId="1004" />
+      <Token Text="." UId="1005" />
+      <Component Name="Severity" UId="1006" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1007" />
+  <Token Text=":=" UId="1008" />
+  <Blank Num="1" UId="1009" />
+  <Access Scope="LiteralConstant" UId="1010">
+    <Constant UId="1011">
+      <ConstantValue UId="1013">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1014" />
+  <NewLine Num="1" UId="1015" />
+  <Blank Num="8" UId="1016" />
+  <Access Scope="LocalVariable" UId="1017">
+    <Symbol UId="1018">
+      <Component Name="Diag" UId="1019" />
+      <Token Text="." UId="1020" />
+      <Component Name="Category" UId="1021" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1022" />
+  <Token Text=":=" UId="1023" />
+  <Blank Num="1" UId="1024" />
+  <Access Scope="LiteralConstant" UId="1025">
+    <Constant UId="1026">
+      <ConstantValue UId="1028">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1029" />
+  <NewLine Num="1" UId="1030" />
+  <Blank Num="4" UId="1031" />
+  <Access Scope="LiteralConstant" UId="1032">
+    <Constant UId="1033">
+      <ConstantValue UId="1035">2024</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1036" />
+  <NewLine Num="1" UId="1037" />
+  <Blank Num="8" UId="1038" />
+  <Access Scope="LocalVariable" UId="1039">
+    <Symbol UId="1040">
+      <Component Name="Diag" UId="1041" />
+      <Token Text="." UId="1042" />
+      <Component Name="Severity" UId="1043" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1044" />
+  <Token Text=":=" UId="1045" />
+  <Blank Num="1" UId="1046" />
+  <Access Scope="LiteralConstant" UId="1047">
+    <Constant UId="1048">
+      <ConstantValue UId="1050">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1051" />
+  <NewLine Num="1" UId="1052" />
+  <Blank Num="8" UId="1053" />
+  <Access Scope="LocalVariable" UId="1054">
+    <Symbol UId="1055">
+      <Component Name="Diag" UId="1056" />
+      <Token Text="." UId="1057" />
+      <Component Name="Category" UId="1058" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1059" />
+  <Token Text=":=" UId="1060" />
+  <Blank Num="1" UId="1061" />
+  <Access Scope="LiteralConstant" UId="1062">
+    <Constant UId="1063">
+      <ConstantValue UId="1065">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1066" />
+  <NewLine Num="1" UId="1067" />
+  <Blank Num="4" UId="1068" />
+  <Access Scope="LiteralConstant" UId="1069">
+    <Constant UId="1070">
+      <ConstantValue UId="1072">2025</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1073" />
+  <NewLine Num="1" UId="1074" />
+  <Blank Num="8" UId="1075" />
+  <Access Scope="LocalVariable" UId="1076">
+    <Symbol UId="1077">
+      <Component Name="Diag" UId="1078" />
+      <Token Text="." UId="1079" />
+      <Component Name="Severity" UId="1080" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1081" />
+  <Token Text=":=" UId="1082" />
+  <Blank Num="1" UId="1083" />
+  <Access Scope="LiteralConstant" UId="1084">
+    <Constant UId="1085">
+      <ConstantValue UId="1087">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1088" />
+  <NewLine Num="1" UId="1089" />
+  <Blank Num="8" UId="1090" />
+  <Access Scope="LocalVariable" UId="1091">
+    <Symbol UId="1092">
+      <Component Name="Diag" UId="1093" />
+      <Token Text="." UId="1094" />
+      <Component Name="Category" UId="1095" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1096" />
+  <Token Text=":=" UId="1097" />
+  <Blank Num="1" UId="1098" />
+  <Access Scope="LiteralConstant" UId="1099">
+    <Constant UId="1100">
+      <ConstantValue UId="1102">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1103" />
+  <NewLine Num="1" UId="1104" />
+  <Blank Num="4" UId="1105" />
+  <Access Scope="LiteralConstant" UId="1106">
+    <Constant UId="1107">
+      <ConstantValue UId="1109">2026</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1110" />
+  <NewLine Num="1" UId="1111" />
+  <Blank Num="8" UId="1112" />
+  <Access Scope="LocalVariable" UId="1113">
+    <Symbol UId="1114">
+      <Component Name="Diag" UId="1115" />
+      <Token Text="." UId="1116" />
+      <Component Name="Severity" UId="1117" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1118" />
+  <Token Text=":=" UId="1119" />
+  <Blank Num="1" UId="1120" />
+  <Access Scope="LiteralConstant" UId="1121">
+    <Constant UId="1122">
+      <ConstantValue UId="1124">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1125" />
+  <NewLine Num="1" UId="1126" />
+  <Blank Num="8" UId="1127" />
+  <Access Scope="LocalVariable" UId="1128">
+    <Symbol UId="1129">
+      <Component Name="Diag" UId="1130" />
+      <Token Text="." UId="1131" />
+      <Component Name="Category" UId="1132" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1133" />
+  <Token Text=":=" UId="1134" />
+  <Blank Num="1" UId="1135" />
+  <Access Scope="LiteralConstant" UId="1136">
+    <Constant UId="1137">
+      <ConstantValue UId="1139">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1140" />
+  <NewLine Num="1" UId="1141" />
+  <Blank Num="4" UId="1142" />
+  <Access Scope="LiteralConstant" UId="1143">
+    <Constant UId="1144">
+      <ConstantValue UId="1146">2027</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1147" />
+  <NewLine Num="1" UId="1148" />
+  <Blank Num="8" UId="1149" />
+  <Access Scope="LocalVariable" UId="1150">
+    <Symbol UId="1151">
+      <Component Name="Diag" UId="1152" />
+      <Token Text="." UId="1153" />
+      <Component Name="Severity" UId="1154" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1155" />
+  <Token Text=":=" UId="1156" />
+  <Blank Num="1" UId="1157" />
+  <Access Scope="LiteralConstant" UId="1158">
+    <Constant UId="1159">
+      <ConstantValue UId="1161">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1162" />
+  <NewLine Num="1" UId="1163" />
+  <Blank Num="8" UId="1164" />
+  <Access Scope="LocalVariable" UId="1165">
+    <Symbol UId="1166">
+      <Component Name="Diag" UId="1167" />
+      <Token Text="." UId="1168" />
+      <Component Name="Category" UId="1169" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1170" />
+  <Token Text=":=" UId="1171" />
+  <Blank Num="1" UId="1172" />
+  <Access Scope="LiteralConstant" UId="1173">
+    <Constant UId="1174">
+      <ConstantValue UId="1176">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1177" />
+  <NewLine Num="1" UId="1178" />
+  <Blank Num="4" UId="1179" />
+  <Access Scope="LiteralConstant" UId="1180">
+    <Constant UId="1181">
+      <ConstantValue UId="1183">2030</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1184" />
+  <NewLine Num="1" UId="1185" />
+  <Blank Num="8" UId="1186" />
+  <Access Scope="LocalVariable" UId="1187">
+    <Symbol UId="1188">
+      <Component Name="Diag" UId="1189" />
+      <Token Text="." UId="1190" />
+      <Component Name="Severity" UId="1191" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1192" />
+  <Token Text=":=" UId="1193" />
+  <Blank Num="1" UId="1194" />
+  <Access Scope="LiteralConstant" UId="1195">
+    <Constant UId="1196">
+      <ConstantValue UId="1198">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1199" />
+  <NewLine Num="1" UId="1200" />
+  <Blank Num="8" UId="1201" />
+  <Access Scope="LocalVariable" UId="1202">
+    <Symbol UId="1203">
+      <Component Name="Diag" UId="1204" />
+      <Token Text="." UId="1205" />
+      <Component Name="Category" UId="1206" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1207" />
+  <Token Text=":=" UId="1208" />
+  <Blank Num="1" UId="1209" />
+  <Access Scope="LiteralConstant" UId="1210">
+    <Constant UId="1211">
+      <ConstantValue UId="1213">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1214" />
+  <NewLine Num="1" UId="1215" />
+  <Blank Num="4" UId="1216" />
+  <Access Scope="LiteralConstant" UId="1217">
+    <Constant UId="1218">
+      <ConstantValue UId="1220">2040</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1221" />
+  <NewLine Num="1" UId="1222" />
+  <Blank Num="8" UId="1223" />
+  <Access Scope="LocalVariable" UId="1224">
+    <Symbol UId="1225">
+      <Component Name="Diag" UId="1226" />
+      <Token Text="." UId="1227" />
+      <Component Name="Severity" UId="1228" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1229" />
+  <Token Text=":=" UId="1230" />
+  <Blank Num="1" UId="1231" />
+  <Access Scope="LiteralConstant" UId="1232">
+    <Constant UId="1233">
+      <ConstantValue UId="1235">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1236" />
+  <NewLine Num="1" UId="1237" />
+  <Blank Num="8" UId="1238" />
+  <Access Scope="LocalVariable" UId="1239">
+    <Symbol UId="1240">
+      <Component Name="Diag" UId="1241" />
+      <Token Text="." UId="1242" />
+      <Component Name="Category" UId="1243" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1244" />
+  <Token Text=":=" UId="1245" />
+  <Blank Num="1" UId="1246" />
+  <Access Scope="LiteralConstant" UId="1247">
+    <Constant UId="1248">
+      <ConstantValue UId="1250">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1251" />
+  <NewLine Num="1" UId="1252" />
+  <Blank Num="4" UId="1253" />
+  <Access Scope="LiteralConstant" UId="1254">
+    <Constant UId="1255">
+      <ConstantValue UId="1257">2041</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1258" />
+  <NewLine Num="1" UId="1259" />
+  <Blank Num="8" UId="1260" />
+  <Access Scope="LocalVariable" UId="1261">
+    <Symbol UId="1262">
+      <Component Name="Diag" UId="1263" />
+      <Token Text="." UId="1264" />
+      <Component Name="Severity" UId="1265" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1266" />
+  <Token Text=":=" UId="1267" />
+  <Blank Num="1" UId="1268" />
+  <Access Scope="LiteralConstant" UId="1269">
+    <Constant UId="1270">
+      <ConstantValue UId="1272">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1273" />
+  <NewLine Num="1" UId="1274" />
+  <Blank Num="8" UId="1275" />
+  <Access Scope="LocalVariable" UId="1276">
+    <Symbol UId="1277">
+      <Component Name="Diag" UId="1278" />
+      <Token Text="." UId="1279" />
+      <Component Name="Category" UId="1280" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1281" />
+  <Token Text=":=" UId="1282" />
+  <Blank Num="1" UId="1283" />
+  <Access Scope="LiteralConstant" UId="1284">
+    <Constant UId="1285">
+      <ConstantValue UId="1287">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1288" />
+  <NewLine Num="1" UId="1289" />
+  <Blank Num="4" UId="1290" />
+  <Access Scope="LiteralConstant" UId="1291">
+    <Constant UId="1292">
+      <ConstantValue UId="1294">2042</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1295" />
+  <NewLine Num="1" UId="1296" />
+  <Blank Num="8" UId="1297" />
+  <Access Scope="LocalVariable" UId="1298">
+    <Symbol UId="1299">
+      <Component Name="Diag" UId="1300" />
+      <Token Text="." UId="1301" />
+      <Component Name="Severity" UId="1302" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1303" />
+  <Token Text=":=" UId="1304" />
+  <Blank Num="1" UId="1305" />
+  <Access Scope="LiteralConstant" UId="1306">
+    <Constant UId="1307">
+      <ConstantValue UId="1309">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1310" />
+  <NewLine Num="1" UId="1311" />
+  <Blank Num="8" UId="1312" />
+  <Access Scope="LocalVariable" UId="1313">
+    <Symbol UId="1314">
+      <Component Name="Diag" UId="1315" />
+      <Token Text="." UId="1316" />
+      <Component Name="Category" UId="1317" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1318" />
+  <Token Text=":=" UId="1319" />
+  <Blank Num="1" UId="1320" />
+  <Access Scope="LiteralConstant" UId="1321">
+    <Constant UId="1322">
+      <ConstantValue UId="1324">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1325" />
+  <NewLine Num="1" UId="1326" />
+  <Blank Num="4" UId="1327" />
+  <Access Scope="LiteralConstant" UId="1328">
+    <Constant UId="1329">
+      <ConstantValue UId="1331">2043</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1332" />
+  <NewLine Num="1" UId="1333" />
+  <Blank Num="8" UId="1334" />
+  <Access Scope="LocalVariable" UId="1335">
+    <Symbol UId="1336">
+      <Component Name="Diag" UId="1337" />
+      <Token Text="." UId="1338" />
+      <Component Name="Severity" UId="1339" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1340" />
+  <Token Text=":=" UId="1341" />
+  <Blank Num="1" UId="1342" />
+  <Access Scope="LiteralConstant" UId="1343">
+    <Constant UId="1344">
+      <ConstantValue UId="1346">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1347" />
+  <NewLine Num="1" UId="1348" />
+  <Blank Num="8" UId="1349" />
+  <Access Scope="LocalVariable" UId="1350">
+    <Symbol UId="1351">
+      <Component Name="Diag" UId="1352" />
+      <Token Text="." UId="1353" />
+      <Component Name="Category" UId="1354" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1355" />
+  <Token Text=":=" UId="1356" />
+  <Blank Num="1" UId="1357" />
+  <Access Scope="LiteralConstant" UId="1358">
+    <Constant UId="1359">
+      <ConstantValue UId="1361">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1362" />
+  <NewLine Num="1" UId="1363" />
+  <Blank Num="4" UId="1364" />
+  <Access Scope="LiteralConstant" UId="1365">
+    <Constant UId="1366">
+      <ConstantValue UId="1368">2901</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1369" />
+  <NewLine Num="1" UId="1370" />
+  <Blank Num="8" UId="1371" />
+  <Access Scope="LocalVariable" UId="1372">
+    <Symbol UId="1373">
+      <Component Name="Diag" UId="1374" />
+      <Token Text="." UId="1375" />
+      <Component Name="Severity" UId="1376" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1377" />
+  <Token Text=":=" UId="1378" />
+  <Blank Num="1" UId="1379" />
+  <Access Scope="LiteralConstant" UId="1380">
+    <Constant UId="1381">
+      <ConstantValue UId="1383">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1384" />
+  <NewLine Num="1" UId="1385" />
+  <Blank Num="8" UId="1386" />
+  <Access Scope="LocalVariable" UId="1387">
+    <Symbol UId="1388">
+      <Component Name="Diag" UId="1389" />
+      <Token Text="." UId="1390" />
+      <Component Name="Category" UId="1391" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1392" />
+  <Token Text=":=" UId="1393" />
+  <Blank Num="1" UId="1394" />
+  <Access Scope="LiteralConstant" UId="1395">
+    <Constant UId="1396">
+      <ConstantValue UId="1398">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1399" />
+  <NewLine Num="1" UId="1400" />
+  <Blank Num="4" UId="1401" />
+  <Token Text="ELSE" UId="1402" />
+  <NewLine Num="1" UId="1403" />
+  <Blank Num="8" UId="1404" />
+  <Token Text="RETURN" UId="1405" />
+  <Token Text=";" UId="1406" />
+  <NewLine Num="1" UId="1407" />
+  <Token Text="END_CASE" UId="1408" />
+  <Token Text=";" UId="1409" />
+  <NewLine Num="1" UId="1410" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

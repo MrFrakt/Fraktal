@@ -1,0 +1,19 @@
+﻿FUNCTION "FRK_SeqHandled" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      ChildCore : "FRK_Core";
+   END_VAR
+
+
+BEGIN
+	
+	// The owning step reports this occurrence through the closed AUTO_RESET
+	// path. Ordinary child faults retain their MANUAL_RESET capture.
+	IF #Seq.CommandFailed THEN
+	    #ChildCore.FaultHandled := TRUE;
+	END_IF;
+	
+END_FUNCTION
+

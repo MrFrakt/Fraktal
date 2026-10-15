@@ -1,0 +1,1514 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-14T19:09:52.0913612Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Owner" Datatype="DInt" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>F_TestSequenceView</Name>
+      <Namespace />
+      <Number>337</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="IF" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Owner" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="&lt;&gt;" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="GlobalVariable" UId="30">
+    <Symbol UId="31">
+      <Component Name="GDB_SequenceViewTest" UId="32">
+        <BooleanAttribute Name="HasQuotes" UId="33">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="34" />
+      <Component Name="Owner" UId="35" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="36" />
+  <Token Text="THEN" UId="37" />
+  <NewLine Num="1" UId="38" />
+  <Blank Num="4" UId="39" />
+  <Token Text="RETURN" UId="40" />
+  <Token Text=";" UId="41" />
+  <NewLine Num="1" UId="42" />
+  <Token Text="END_IF" UId="43" />
+  <Token Text=";" UId="44" />
+  <NewLine Num="1" UId="45" />
+  <Token Text="IF" UId="46" />
+  <Blank Num="1" UId="47" />
+  <Access Scope="GlobalVariable" UId="48">
+    <Symbol UId="49">
+      <Component Name="GDB_SequenceViewTest" UId="50">
+        <BooleanAttribute Name="HasQuotes" UId="51">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="52" />
+      <Component Name="UseHelper" UId="53" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="54" />
+  <Token Text="THEN" UId="55" />
+  <NewLine Num="1" UId="56" />
+  <Blank Num="4" UId="57" />
+  <Access Scope="Call" UId="58">
+    <CallInfo UId="59" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="61">
+        <Component Name="FRK_SeqBegin" UId="60" />
+      </Instance>
+      <Token Text="(" UId="62" />
+      <Parameter Name="Run" UId="63">
+        <Blank Num="1" UId="64" />
+        <Token Text=":=" UId="65" />
+        <Blank Num="1" UId="66" />
+        <Access Scope="GlobalVariable" UId="67">
+          <Symbol UId="68">
+            <Component Name="GDB_SequenceViewTest" UId="69">
+              <BooleanAttribute Name="HasQuotes" UId="70">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="71" />
+            <Component Name="Enabled" UId="72" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="73" />
+      <NewLine Num="1" UId="74" />
+      <Blank Num="19" UId="75" />
+      <Parameter Name="Reset" UId="76">
+        <Blank Num="1" UId="77" />
+        <Token Text=":=" UId="78" />
+        <Blank Num="1" UId="79" />
+        <Access Scope="GlobalVariable" UId="80">
+          <Symbol UId="81">
+            <Component Name="GDB_SequenceViewTest" UId="82">
+              <BooleanAttribute Name="HasQuotes" UId="83">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="84" />
+            <Component Name="HelperReset" UId="85" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="86" />
+      <NewLine Num="1" UId="87" />
+      <Blank Num="19" UId="88" />
+      <Parameter Name="OwnerIndex" UId="89">
+        <Blank Num="1" UId="90" />
+        <Token Text=":=" UId="91" />
+        <Blank Num="1" UId="92" />
+        <Access Scope="LocalVariable" UId="93">
+          <Symbol UId="94">
+            <Component Name="Owner" UId="95" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="96" />
+      <NewLine Num="1" UId="97" />
+      <Blank Num="19" UId="98" />
+      <Parameter Name="ChainIndex" UId="99">
+        <Blank Num="1" UId="100" />
+        <Token Text=":=" UId="101" />
+        <Blank Num="1" UId="102" />
+        <Access Scope="LiteralConstant" UId="103">
+          <Constant UId="104">
+            <ConstantValue UId="106">7</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="107" />
+      <NewLine Num="1" UId="108" />
+      <Blank Num="19" UId="109" />
+      <Parameter Name="BranchIndex" UId="110">
+        <Blank Num="1" UId="111" />
+        <Token Text=":=" UId="112" />
+        <Blank Num="1" UId="113" />
+        <Access Scope="GlobalVariable" UId="114">
+          <Symbol UId="115">
+            <Component Name="GDB_SequenceViewTest" UId="116">
+              <BooleanAttribute Name="HasQuotes" UId="117">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="118" />
+            <Component Name="Branch" UId="119" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="120" />
+      <NewLine Num="1" UId="121" />
+      <Blank Num="19" UId="122" />
+      <Parameter Name="ViewOffset" UId="123">
+        <Blank Num="1" UId="124" />
+        <Token Text=":=" UId="125" />
+        <Blank Num="1" UId="126" />
+        <Access Scope="GlobalVariable" UId="127">
+          <Symbol UId="128">
+            <Component Name="GDB_SequenceViewTest" UId="129">
+              <BooleanAttribute Name="HasQuotes" UId="130">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="131" />
+            <Component Name="HelperOffset" UId="132" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="133" />
+      <NewLine Num="1" UId="134" />
+      <Blank Num="19" UId="135" />
+      <Parameter Name="ViewDepth" UId="136">
+        <Blank Num="1" UId="137" />
+        <Token Text=":=" UId="138" />
+        <Blank Num="1" UId="139" />
+        <Access Scope="GlobalVariable" UId="140">
+          <Symbol UId="141">
+            <Component Name="GDB_SequenceViewTest" UId="142">
+              <BooleanAttribute Name="HasQuotes" UId="143">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="144" />
+            <Component Name="Depth" UId="145" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="146" />
+      <NewLine Num="1" UId="147" />
+      <Blank Num="19" UId="148" />
+      <Parameter Name="Delta" UId="149">
+        <Blank Num="1" UId="150" />
+        <Token Text=":=" UId="151" />
+        <Blank Num="1" UId="152" />
+        <Access Scope="TypedConstant" UId="153">
+          <Constant UId="154">
+            <ConstantValue UId="155">T#1ms</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="156" />
+      <NewLine Num="1" UId="157" />
+      <Blank Num="19" UId="158" />
+      <Parameter Name="Seq" UId="159">
+        <Blank Num="1" UId="160" />
+        <Token Text=":=" UId="161" />
+        <Blank Num="1" UId="162" />
+        <Access Scope="GlobalVariable" UId="163">
+          <Symbol UId="164">
+            <Component Name="GDB_SequenceHelperTest" UId="165">
+              <BooleanAttribute Name="HasQuotes" UId="166">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="167" />
+            <Component Name="Seq" UId="168" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="169" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="170" />
+  <NewLine Num="1" UId="171" />
+  <Blank Num="4" UId="172" />
+  <Access Scope="GlobalVariable" UId="173">
+    <Symbol UId="174">
+      <Component Name="GDB_SequenceViewTest" UId="175">
+        <BooleanAttribute Name="HasQuotes" UId="176">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="177" />
+      <Component Name="HelperReset" UId="178" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="179" />
+  <Token Text=":=" UId="180" />
+  <Blank Num="1" UId="181" />
+  <Access Scope="LiteralConstant" UId="182">
+    <Constant UId="183">
+      <ConstantValue UId="185">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="186" />
+  <NewLine Num="1" UId="187" />
+  <Blank Num="4" UId="188" />
+  <Token Text="IF" UId="189" />
+  <Blank Num="1" UId="190" />
+  <Access Scope="GlobalVariable" UId="191">
+    <Symbol UId="192">
+      <Component Name="GDB_SequenceViewTest" UId="193">
+        <BooleanAttribute Name="HasQuotes" UId="194">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="195" />
+      <Component Name="Enabled" UId="196" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="197" />
+  <Token Text="THEN" UId="198" />
+  <NewLine Num="1" UId="199" />
+  <Blank Num="8" UId="200" />
+  <Access Scope="Call" UId="201">
+    <CallInfo UId="202" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="204">
+        <Component Name="FRK_SeqStep" UId="203" />
+      </Instance>
+      <Token Text="(" UId="205" />
+      <Parameter Name="StepNo" UId="206">
+        <Blank Num="1" UId="207" />
+        <Token Text=":=" UId="208" />
+        <Blank Num="1" UId="209" />
+        <Access Scope="GlobalVariable" UId="210">
+          <Symbol UId="211">
+            <Component Name="GDB_SequenceViewTest" UId="212">
+              <BooleanAttribute Name="HasQuotes" UId="213">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="214" />
+            <Component Name="StepNo" UId="215" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="216" />
+      <NewLine Num="1" UId="217" />
+      <Blank Num="22" UId="218" />
+      <Parameter Name="StepName" UId="219">
+        <Blank Num="1" UId="220" />
+        <Token Text=":=" UId="221" />
+        <Blank Num="1" UId="222" />
+        <Access Scope="GlobalVariable" UId="223">
+          <Symbol UId="224">
+            <Component Name="GDB_SequenceViewTest" UId="225">
+              <BooleanAttribute Name="HasQuotes" UId="226">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="227" />
+            <Component Name="StepName" UId="228" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="229" />
+      <NewLine Num="1" UId="230" />
+      <Blank Num="22" UId="231" />
+      <Parameter Name="AwaitingLabel" UId="232">
+        <Blank Num="1" UId="233" />
+        <Token Text=":=" UId="234" />
+        <Blank Num="1" UId="235" />
+        <Access Scope="LiteralConstant" UId="236">
+          <Constant UId="237">
+            <ConstantValue UId="239">'test.helper.await'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="240" />
+      <NewLine Num="1" UId="241" />
+      <Blank Num="22" UId="242" />
+      <Parameter Name="AwaitsPath" UId="243">
+        <Blank Num="1" UId="244" />
+        <Token Text=":=" UId="245" />
+        <Blank Num="1" UId="246" />
+        <Access Scope="LiteralConstant" UId="247">
+          <Constant UId="248">
+            <ConstantValue UId="250">'StationA.Cell.Clamp'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="251" />
+      <NewLine Num="1" UId="252" />
+      <Blank Num="22" UId="253" />
+      <Parameter Name="TimeClass" UId="254">
+        <Blank Num="1" UId="255" />
+        <Token Text=":=" UId="256" />
+        <Blank Num="1" UId="257" />
+        <Access Scope="LiteralConstant" UId="258">
+          <Constant UId="259">
+            <ConstantValue UId="261">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="262" />
+      <NewLine Num="1" UId="263" />
+      <Blank Num="22" UId="264" />
+      <Parameter Name="ExpectedTime" UId="265">
+        <Blank Num="1" UId="266" />
+        <Token Text=":=" UId="267" />
+        <Blank Num="1" UId="268" />
+        <Access Scope="GlobalVariable" UId="269">
+          <Symbol UId="270">
+            <Component Name="GDB_SequenceViewTest" UId="271">
+              <BooleanAttribute Name="HasQuotes" UId="272">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="273" />
+            <Component Name="ExpectedTime" UId="274" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="275" />
+      <NewLine Num="1" UId="276" />
+      <Blank Num="22" UId="277" />
+      <Parameter Name="Seq" UId="278">
+        <Blank Num="1" UId="279" />
+        <Token Text=":=" UId="280" />
+        <Blank Num="1" UId="281" />
+        <Access Scope="GlobalVariable" UId="282">
+          <Symbol UId="283">
+            <Component Name="GDB_SequenceHelperTest" UId="284">
+              <BooleanAttribute Name="HasQuotes" UId="285">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="286" />
+            <Component Name="Seq" UId="287" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="288" />
+      <NewLine Num="1" UId="289" />
+      <Blank Num="22" UId="290" />
+      <Parameter Name="Row" UId="291">
+        <Blank Num="1" UId="292" />
+        <Token Text=":=" UId="293" />
+        <Blank Num="1" UId="294" />
+        <Access Scope="GlobalVariable" UId="295">
+          <Symbol UId="296">
+            <Component Name="GDB_SequenceHelperTest" UId="297">
+              <BooleanAttribute Name="HasQuotes" UId="298">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="299" />
+            <Component Name="Row" UId="300" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="301" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="302" />
+  <NewLine Num="1" UId="303" />
+  <Blank Num="8" UId="304" />
+  <Access Scope="GlobalVariable" UId="305">
+    <Symbol UId="306">
+      <Component Name="GDB_SequenceHelperTest" UId="307">
+        <BooleanAttribute Name="HasQuotes" UId="308">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="309" />
+      <Component Name="WaitOk" UId="310" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="311" />
+  <Token Text=":=" UId="312" />
+  <Blank Num="1" UId="313" />
+  <Access Scope="Call" UId="314">
+    <CallInfo UId="315" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="317">
+        <Component Name="FRK_SeqAwait" UId="316" />
+      </Instance>
+      <Token Text="(" UId="318" />
+      <Parameter Name="Label" UId="319">
+        <Blank Num="1" UId="320" />
+        <Token Text=":=" UId="321" />
+        <Blank Num="1" UId="322" />
+        <Access Scope="GlobalVariable" UId="323">
+          <Symbol UId="324">
+            <Component Name="GDB_SequenceViewTest" UId="325">
+              <BooleanAttribute Name="HasQuotes" UId="326">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="327" />
+            <Component Name="AwaitLabel" UId="328" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="329" />
+      <Blank Num="1" UId="330" />
+      <Parameter Name="Ok" UId="331">
+        <Blank Num="1" UId="332" />
+        <Token Text=":=" UId="333" />
+        <Blank Num="1" UId="334" />
+        <Access Scope="GlobalVariable" UId="335">
+          <Symbol UId="336">
+            <Component Name="GDB_SequenceViewTest" UId="337">
+              <BooleanAttribute Name="HasQuotes" UId="338">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="339" />
+            <Component Name="AwaitOk" UId="340" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="341" />
+      <Blank Num="1" UId="342" />
+      <Parameter Name="Seq" UId="343">
+        <Blank Num="1" UId="344" />
+        <Token Text=":=" UId="345" />
+        <Blank Num="1" UId="346" />
+        <Access Scope="GlobalVariable" UId="347">
+          <Symbol UId="348">
+            <Component Name="GDB_SequenceHelperTest" UId="349">
+              <BooleanAttribute Name="HasQuotes" UId="350">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="351" />
+            <Component Name="Seq" UId="352" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="354" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="355" />
+  <NewLine Num="1" UId="356" />
+  <Blank Num="8" UId="357" />
+  <Token Text="IF" UId="358" />
+  <Blank Num="1" UId="359" />
+  <Access Scope="GlobalVariable" UId="360">
+    <Symbol UId="361">
+      <Component Name="GDB_SequenceViewTest" UId="362">
+        <BooleanAttribute Name="HasQuotes" UId="363">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="364" />
+      <Component Name="Annotate" UId="365" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="366" />
+  <Token Text="THEN" UId="367" />
+  <NewLine Num="1" UId="368" />
+  <Blank Num="12" UId="369" />
+  <Access Scope="Call" UId="370">
+    <CallInfo UId="371" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="373">
+        <Component Name="FRK_SeqMessage" UId="372" />
+      </Instance>
+      <Token Text="(" UId="374" />
+      <Parameter Name="Diag" UId="375">
+        <Blank Num="1" UId="376" />
+        <Token Text=":=" UId="377" />
+        <Blank Num="1" UId="378" />
+        <Access Scope="GlobalVariable" UId="379">
+          <Symbol UId="380">
+            <Component Name="GDB_SequenceHelperTest" UId="381">
+              <BooleanAttribute Name="HasQuotes" UId="382">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="383" />
+            <Component Name="Diag" UId="384" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="385" />
+      <NewLine Num="1" UId="386" />
+      <Blank Num="29" UId="387" />
+      <Parameter Name="Seq" UId="388">
+        <Blank Num="1" UId="389" />
+        <Token Text=":=" UId="390" />
+        <Blank Num="1" UId="391" />
+        <Access Scope="GlobalVariable" UId="392">
+          <Symbol UId="393">
+            <Component Name="GDB_SequenceHelperTest" UId="394">
+              <BooleanAttribute Name="HasQuotes" UId="395">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="396" />
+            <Component Name="Seq" UId="397" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="398" />
+      <NewLine Num="1" UId="399" />
+      <Blank Num="29" UId="400" />
+      <Parameter Name="AlarmLog" UId="401">
+        <Blank Num="1" UId="402" />
+        <Token Text=":=" UId="403" />
+        <Blank Num="1" UId="404" />
+        <Access Scope="GlobalVariable" UId="405">
+          <Symbol UId="406">
+            <Component Name="StationA" UId="407">
+              <BooleanAttribute Name="HasQuotes" UId="408">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="409" />
+            <Component Name="AlarmLog" UId="410" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="411" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="412" />
+  <NewLine Num="1" UId="413" />
+  <Blank Num="8" UId="414" />
+  <Token Text="END_IF" UId="415" />
+  <Token Text=";" UId="416" />
+  <NewLine Num="1" UId="417" />
+  <Blank Num="4" UId="418" />
+  <Token Text="END_IF" UId="419" />
+  <Token Text=";" UId="420" />
+  <NewLine Num="1" UId="421" />
+  <Blank Num="4" UId="422" />
+  <Token Text="RETURN" UId="423" />
+  <Token Text=";" UId="424" />
+  <NewLine Num="1" UId="425" />
+  <Token Text="END_IF" UId="426" />
+  <Token Text=";" UId="427" />
+  <NewLine Num="1" UId="428" />
+  <Token Text="IF" UId="429" />
+  <Blank Num="1" UId="430" />
+  <Access Scope="GlobalVariable" UId="431">
+    <Symbol UId="432">
+      <Component Name="GDB_SequenceViewTest" UId="433">
+        <BooleanAttribute Name="HasQuotes" UId="434">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="435" />
+      <Component Name="Enabled" UId="436" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="437" />
+  <Token Text="THEN" UId="438" />
+  <NewLine Num="1" UId="439" />
+  <Blank Num="4" UId="440" />
+  <Access Scope="Call" UId="441">
+    <CallInfo UId="442" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="444">
+        <Component Name="FRK_SeqViewStep" UId="443" />
+      </Instance>
+      <Token Text="(" UId="445" />
+      <Parameter Name="Owner" UId="446">
+        <Blank Num="1" UId="447" />
+        <Token Text=":=" UId="448" />
+        <Blank Num="1" UId="449" />
+        <Access Scope="LocalVariable" UId="450">
+          <Symbol UId="451">
+            <Component Name="Owner" UId="452" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="453" />
+      <NewLine Num="1" UId="454" />
+      <Blank Num="22" UId="455" />
+      <Parameter Name="StepNo" UId="456">
+        <Blank Num="1" UId="457" />
+        <Token Text=":=" UId="458" />
+        <Blank Num="1" UId="459" />
+        <Access Scope="GlobalVariable" UId="460">
+          <Symbol UId="461">
+            <Component Name="GDB_SequenceViewTest" UId="462">
+              <BooleanAttribute Name="HasQuotes" UId="463">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="464" />
+            <Component Name="StepNo" UId="465" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="466" />
+      <NewLine Num="1" UId="467" />
+      <Blank Num="22" UId="468" />
+      <Parameter Name="Branch" UId="469">
+        <Blank Num="1" UId="470" />
+        <Token Text=":=" UId="471" />
+        <Blank Num="1" UId="472" />
+        <Access Scope="GlobalVariable" UId="473">
+          <Symbol UId="474">
+            <Component Name="GDB_SequenceViewTest" UId="475">
+              <BooleanAttribute Name="HasQuotes" UId="476">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="477" />
+            <Component Name="Branch" UId="478" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="479" />
+      <NewLine Num="1" UId="480" />
+      <Blank Num="22" UId="481" />
+      <Parameter Name="Depth" UId="482">
+        <Blank Num="1" UId="483" />
+        <Token Text=":=" UId="484" />
+        <Blank Num="1" UId="485" />
+        <Access Scope="GlobalVariable" UId="486">
+          <Symbol UId="487">
+            <Component Name="GDB_SequenceViewTest" UId="488">
+              <BooleanAttribute Name="HasQuotes" UId="489">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="490" />
+            <Component Name="Depth" UId="491" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="492" />
+      <NewLine Num="1" UId="493" />
+      <Blank Num="22" UId="494" />
+      <Parameter Name="Visit" UId="495">
+        <Blank Num="1" UId="496" />
+        <Token Text=":=" UId="497" />
+        <Blank Num="1" UId="498" />
+        <Access Scope="GlobalVariable" UId="499">
+          <Symbol UId="500">
+            <Component Name="GDB_SequenceViewTest" UId="501">
+              <BooleanAttribute Name="HasQuotes" UId="502">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="503" />
+            <Component Name="Visit" UId="504" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="505" />
+      <NewLine Num="1" UId="506" />
+      <Blank Num="22" UId="507" />
+      <Parameter Name="StepName" UId="508">
+        <Blank Num="1" UId="509" />
+        <Token Text=":=" UId="510" />
+        <Blank Num="1" UId="511" />
+        <Access Scope="GlobalVariable" UId="512">
+          <Symbol UId="513">
+            <Component Name="GDB_SequenceViewTest" UId="514">
+              <BooleanAttribute Name="HasQuotes" UId="515">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="516" />
+            <Component Name="StepName" UId="517" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="518" />
+      <NewLine Num="1" UId="519" />
+      <Blank Num="22" UId="520" />
+      <Parameter Name="AwaitingLabel" UId="521">
+        <Blank Num="1" UId="522" />
+        <Token Text=":=" UId="523" />
+        <Blank Num="1" UId="524" />
+        <Access Scope="LiteralConstant" UId="525">
+          <Constant UId="526">
+            <ConstantValue UId="528">'test.await'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="529" />
+      <NewLine Num="1" UId="530" />
+      <Blank Num="22" UId="531" />
+      <Parameter Name="AwaitsPath" UId="532">
+        <Blank Num="1" UId="533" />
+        <Token Text=":=" UId="534" />
+        <Blank Num="1" UId="535" />
+        <Access Scope="LiteralConstant" UId="536">
+          <Constant UId="537">
+            <ConstantValue UId="539">'StationA.Cell.Clamp'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="540" />
+      <NewLine Num="1" UId="541" />
+      <Blank Num="22" UId="542" />
+      <Parameter Name="TimeClass" UId="543">
+        <Blank Num="1" UId="544" />
+        <Token Text=":=" UId="545" />
+        <Blank Num="1" UId="546" />
+        <Access Scope="LiteralConstant" UId="547">
+          <Constant UId="548">
+            <ConstantValue UId="550">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="551" />
+      <NewLine Num="1" UId="552" />
+      <Blank Num="22" UId="553" />
+      <Parameter Name="ExpectedTime" UId="554">
+        <Blank Num="1" UId="555" />
+        <Token Text=":=" UId="556" />
+        <Blank Num="1" UId="557" />
+        <Access Scope="GlobalVariable" UId="558">
+          <Symbol UId="559">
+            <Component Name="GDB_SequenceViewTest" UId="560">
+              <BooleanAttribute Name="HasQuotes" UId="561">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="562" />
+            <Component Name="ExpectedTime" UId="563" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="564" />
+      <NewLine Num="1" UId="565" />
+      <Blank Num="22" UId="566" />
+      <Parameter Name="Elapsed" UId="567">
+        <Blank Num="1" UId="568" />
+        <Token Text=":=" UId="569" />
+        <Blank Num="1" UId="570" />
+        <Access Scope="GlobalVariable" UId="571">
+          <Symbol UId="572">
+            <Component Name="GDB_SequenceViewTest" UId="573">
+              <BooleanAttribute Name="HasQuotes" UId="574">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="575" />
+            <Component Name="Elapsed" UId="576" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="577" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="578" />
+  <NewLine Num="1" UId="579" />
+  <Blank Num="4" UId="580" />
+  <Token Text="IF" UId="581" />
+  <Blank Num="1" UId="582" />
+  <Access Scope="GlobalVariable" UId="583">
+    <Symbol UId="584">
+      <Component Name="GDB_SequenceViewTest" UId="585">
+        <BooleanAttribute Name="HasQuotes" UId="586">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="587" />
+      <Component Name="FastPulse" UId="588" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="589" />
+  <Token Text="THEN" UId="590" />
+  <NewLine Num="1" UId="591" />
+  <Blank Num="8" UId="592" />
+  <Access Scope="Call" UId="593">
+    <CallInfo UId="594" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="596">
+        <Component Name="FRK_SeqViewStep" UId="595" />
+      </Instance>
+      <Token Text="(" UId="597" />
+      <Parameter Name="Owner" UId="598">
+        <Blank Num="1" UId="599" />
+        <Token Text=":=" UId="600" />
+        <Blank Num="1" UId="601" />
+        <Access Scope="LocalVariable" UId="602">
+          <Symbol UId="603">
+            <Component Name="Owner" UId="604" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="605" />
+      <NewLine Num="1" UId="606" />
+      <Blank Num="26" UId="607" />
+      <Parameter Name="StepNo" UId="608">
+        <Blank Num="1" UId="609" />
+        <Token Text=":=" UId="610" />
+        <Blank Num="1" UId="611" />
+        <Access Scope="LiteralConstant" UId="612">
+          <Constant UId="613">
+            <ConstantValue UId="615">11</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="616" />
+      <NewLine Num="1" UId="617" />
+      <Blank Num="26" UId="618" />
+      <Parameter Name="Branch" UId="619">
+        <Blank Num="1" UId="620" />
+        <Token Text=":=" UId="621" />
+        <Blank Num="1" UId="622" />
+        <Access Scope="LiteralConstant" UId="623">
+          <Constant UId="624">
+            <ConstantValue UId="626">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="627" />
+      <NewLine Num="1" UId="628" />
+      <Blank Num="26" UId="629" />
+      <Parameter Name="Depth" UId="630">
+        <Blank Num="1" UId="631" />
+        <Token Text=":=" UId="632" />
+        <Blank Num="1" UId="633" />
+        <Access Scope="LiteralConstant" UId="634">
+          <Constant UId="635">
+            <ConstantValue UId="637">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="638" />
+      <NewLine Num="1" UId="639" />
+      <Blank Num="26" UId="640" />
+      <Parameter Name="Visit" UId="641">
+        <Blank Num="1" UId="642" />
+        <Token Text=":=" UId="643" />
+        <Blank Num="1" UId="644" />
+        <Access Scope="LiteralConstant" UId="645">
+          <Constant UId="646">
+            <ConstantValue UId="648">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="649" />
+      <NewLine Num="1" UId="650" />
+      <Blank Num="26" UId="651" />
+      <Parameter Name="StepName" UId="652">
+        <Blank Num="1" UId="653" />
+        <Token Text=":=" UId="654" />
+        <Blank Num="1" UId="655" />
+        <Access Scope="LiteralConstant" UId="656">
+          <Constant UId="657">
+            <ConstantValue UId="659">'test.fast'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="660" />
+      <NewLine Num="1" UId="661" />
+      <Blank Num="26" UId="662" />
+      <Parameter Name="AwaitingLabel" UId="663">
+        <Blank Num="1" UId="664" />
+        <Token Text=":=" UId="665" />
+        <Blank Num="1" UId="666" />
+        <Access Scope="LiteralConstant" UId="667">
+          <Constant UId="668">
+            <ConstantValue UId="670">''</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="671" />
+      <NewLine Num="1" UId="672" />
+      <Blank Num="26" UId="673" />
+      <Parameter Name="AwaitsPath" UId="674">
+        <Blank Num="1" UId="675" />
+        <Token Text=":=" UId="676" />
+        <Blank Num="1" UId="677" />
+        <Access Scope="LiteralConstant" UId="678">
+          <Constant UId="679">
+            <ConstantValue UId="681">''</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="682" />
+      <NewLine Num="1" UId="683" />
+      <Blank Num="26" UId="684" />
+      <Parameter Name="TimeClass" UId="685">
+        <Blank Num="1" UId="686" />
+        <Token Text=":=" UId="687" />
+        <Blank Num="1" UId="688" />
+        <Access Scope="LiteralConstant" UId="689">
+          <Constant UId="690">
+            <ConstantValue UId="692">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="693" />
+      <NewLine Num="1" UId="694" />
+      <Blank Num="26" UId="695" />
+      <Parameter Name="ExpectedTime" UId="696">
+        <Blank Num="1" UId="697" />
+        <Token Text=":=" UId="698" />
+        <Blank Num="1" UId="699" />
+        <Access Scope="TypedConstant" UId="700">
+          <Constant UId="701">
+            <ConstantValue UId="702">T#0ms</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="703" />
+      <NewLine Num="1" UId="704" />
+      <Blank Num="26" UId="705" />
+      <Parameter Name="Elapsed" UId="706">
+        <Blank Num="1" UId="707" />
+        <Token Text=":=" UId="708" />
+        <Blank Num="1" UId="709" />
+        <Access Scope="TypedConstant" UId="710">
+          <Constant UId="711">
+            <ConstantValue UId="712">T#2ms</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="713" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="714" />
+  <NewLine Num="1" UId="715" />
+  <Blank Num="8" UId="716" />
+  <Access Scope="GlobalVariable" UId="717">
+    <Symbol UId="718">
+      <Component Name="GDB_SequenceViewTest" UId="719">
+        <BooleanAttribute Name="HasQuotes" UId="720">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="721" />
+      <Component Name="FastPulse" UId="722" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="723" />
+  <Token Text=":=" UId="724" />
+  <Blank Num="1" UId="725" />
+  <Access Scope="LiteralConstant" UId="726">
+    <Constant UId="727">
+      <ConstantValue UId="729">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="730" />
+  <NewLine Num="1" UId="731" />
+  <Blank Num="4" UId="732" />
+  <Token Text="END_IF" UId="733" />
+  <Token Text=";" UId="734" />
+  <NewLine Num="1" UId="735" />
+  <Blank Num="4" UId="736" />
+  <Token Text="IF" UId="737" />
+  <Blank Num="1" UId="738" />
+  <Access Scope="GlobalVariable" UId="739">
+    <Symbol UId="740">
+      <Component Name="GDB_SequenceViewTest" UId="741">
+        <BooleanAttribute Name="HasQuotes" UId="742">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="743" />
+      <Component Name="Parent" UId="744" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="745" />
+  <Token Text="THEN" UId="746" />
+  <NewLine Num="1" UId="747" />
+  <Blank Num="8" UId="748" />
+  <Access Scope="Call" UId="749">
+    <CallInfo UId="750" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="752">
+        <Component Name="FRK_SeqViewStep" UId="751" />
+      </Instance>
+      <Token Text="(" UId="753" />
+      <Parameter Name="Owner" UId="754">
+        <Blank Num="1" UId="755" />
+        <Token Text=":=" UId="756" />
+        <Blank Num="1" UId="757" />
+        <Access Scope="LocalVariable" UId="758">
+          <Symbol UId="759">
+            <Component Name="Owner" UId="760" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="761" />
+      <NewLine Num="1" UId="762" />
+      <Blank Num="26" UId="763" />
+      <Parameter Name="StepNo" UId="764">
+        <Blank Num="1" UId="765" />
+        <Token Text=":=" UId="766" />
+        <Blank Num="1" UId="767" />
+        <Access Scope="LiteralConstant" UId="768">
+          <Constant UId="769">
+            <ConstantValue UId="771">20</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="772" />
+      <NewLine Num="1" UId="773" />
+      <Blank Num="26" UId="774" />
+      <Parameter Name="Branch" UId="775">
+        <Blank Num="1" UId="776" />
+        <Token Text=":=" UId="777" />
+        <Blank Num="1" UId="778" />
+        <Access Scope="GlobalVariable" UId="779">
+          <Symbol UId="780">
+            <Component Name="GDB_SequenceViewTest" UId="781">
+              <BooleanAttribute Name="HasQuotes" UId="782">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="783" />
+            <Component Name="Branch" UId="784" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="785" />
+      <NewLine Num="1" UId="786" />
+      <Blank Num="26" UId="787" />
+      <Parameter Name="Depth" UId="788">
+        <Blank Num="1" UId="789" />
+        <Token Text=":=" UId="790" />
+        <Blank Num="1" UId="791" />
+        <Access Scope="LiteralConstant" UId="792">
+          <Constant UId="793">
+            <ConstantValue UId="795">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="796" />
+      <NewLine Num="1" UId="797" />
+      <Blank Num="26" UId="798" />
+      <Parameter Name="Visit" UId="799">
+        <Blank Num="1" UId="800" />
+        <Token Text=":=" UId="801" />
+        <Blank Num="1" UId="802" />
+        <Access Scope="LiteralConstant" UId="803">
+          <Constant UId="804">
+            <ConstantValue UId="806">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="807" />
+      <NewLine Num="1" UId="808" />
+      <Blank Num="26" UId="809" />
+      <Parameter Name="StepName" UId="810">
+        <Blank Num="1" UId="811" />
+        <Token Text=":=" UId="812" />
+        <Blank Num="1" UId="813" />
+        <Access Scope="LiteralConstant" UId="814">
+          <Constant UId="815">
+            <ConstantValue UId="817">'test.parent'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="818" />
+      <NewLine Num="1" UId="819" />
+      <Blank Num="26" UId="820" />
+      <Parameter Name="AwaitingLabel" UId="821">
+        <Blank Num="1" UId="822" />
+        <Token Text=":=" UId="823" />
+        <Blank Num="1" UId="824" />
+        <Access Scope="LiteralConstant" UId="825">
+          <Constant UId="826">
+            <ConstantValue UId="828">''</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="829" />
+      <NewLine Num="1" UId="830" />
+      <Blank Num="26" UId="831" />
+      <Parameter Name="AwaitsPath" UId="832">
+        <Blank Num="1" UId="833" />
+        <Token Text=":=" UId="834" />
+        <Blank Num="1" UId="835" />
+        <Access Scope="LiteralConstant" UId="836">
+          <Constant UId="837">
+            <ConstantValue UId="839">''</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="840" />
+      <NewLine Num="1" UId="841" />
+      <Blank Num="26" UId="842" />
+      <Parameter Name="TimeClass" UId="843">
+        <Blank Num="1" UId="844" />
+        <Token Text=":=" UId="845" />
+        <Blank Num="1" UId="846" />
+        <Access Scope="LiteralConstant" UId="847">
+          <Constant UId="848">
+            <ConstantValue UId="850">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="851" />
+      <NewLine Num="1" UId="852" />
+      <Blank Num="26" UId="853" />
+      <Parameter Name="ExpectedTime" UId="854">
+        <Blank Num="1" UId="855" />
+        <Token Text=":=" UId="856" />
+        <Blank Num="1" UId="857" />
+        <Access Scope="TypedConstant" UId="858">
+          <Constant UId="859">
+            <ConstantValue UId="860">T#0ms</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="861" />
+      <NewLine Num="1" UId="862" />
+      <Blank Num="26" UId="863" />
+      <Parameter Name="Elapsed" UId="864">
+        <Blank Num="1" UId="865" />
+        <Token Text=":=" UId="866" />
+        <Blank Num="1" UId="867" />
+        <Access Scope="TypedConstant" UId="868">
+          <Constant UId="869">
+            <ConstantValue UId="870">T#0ms</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="871" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="872" />
+  <NewLine Num="1" UId="873" />
+  <Blank Num="4" UId="874" />
+  <Token Text="END_IF" UId="875" />
+  <Token Text=";" UId="876" />
+  <NewLine Num="1" UId="877" />
+  <Blank Num="4" UId="878" />
+  <Token Text="IF" UId="879" />
+  <Blank Num="1" UId="880" />
+  <Access Scope="GlobalVariable" UId="881">
+    <Symbol UId="882">
+      <Component Name="GDB_SequenceViewTest" UId="883">
+        <BooleanAttribute Name="HasQuotes" UId="884">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="885" />
+      <Component Name="AwaitEnabled" UId="886" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="887" />
+  <Token Text="THEN" UId="888" />
+  <NewLine Num="1" UId="889" />
+  <Blank Num="8" UId="890" />
+  <Access Scope="Call" UId="891">
+    <CallInfo UId="892" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="894">
+        <Component Name="FRK_SeqViewAwait" UId="893" />
+      </Instance>
+      <Token Text="(" UId="895" />
+      <Parameter Name="Owner" UId="896">
+        <Blank Num="1" UId="897" />
+        <Token Text=":=" UId="898" />
+        <Blank Num="1" UId="899" />
+        <Access Scope="LocalVariable" UId="900">
+          <Symbol UId="901">
+            <Component Name="Owner" UId="902" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="903" />
+      <NewLine Num="1" UId="904" />
+      <Blank Num="27" UId="905" />
+      <Parameter Name="StepNo" UId="906">
+        <Blank Num="1" UId="907" />
+        <Token Text=":=" UId="908" />
+        <Blank Num="1" UId="909" />
+        <Access Scope="GlobalVariable" UId="910">
+          <Symbol UId="911">
+            <Component Name="GDB_SequenceViewTest" UId="912">
+              <BooleanAttribute Name="HasQuotes" UId="913">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="914" />
+            <Component Name="StepNo" UId="915" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="916" />
+      <NewLine Num="1" UId="917" />
+      <Blank Num="27" UId="918" />
+      <Parameter Name="Branch" UId="919">
+        <Blank Num="1" UId="920" />
+        <Token Text=":=" UId="921" />
+        <Blank Num="1" UId="922" />
+        <Access Scope="GlobalVariable" UId="923">
+          <Symbol UId="924">
+            <Component Name="GDB_SequenceViewTest" UId="925">
+              <BooleanAttribute Name="HasQuotes" UId="926">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="927" />
+            <Component Name="Branch" UId="928" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="929" />
+      <NewLine Num="1" UId="930" />
+      <Blank Num="27" UId="931" />
+      <Parameter Name="Label" UId="932">
+        <Blank Num="1" UId="933" />
+        <Token Text=":=" UId="934" />
+        <Blank Num="1" UId="935" />
+        <Access Scope="GlobalVariable" UId="936">
+          <Symbol UId="937">
+            <Component Name="GDB_SequenceViewTest" UId="938">
+              <BooleanAttribute Name="HasQuotes" UId="939">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="940" />
+            <Component Name="AwaitLabel" UId="941" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="942" />
+      <NewLine Num="1" UId="943" />
+      <Blank Num="27" UId="944" />
+      <Parameter Name="Ok" UId="945">
+        <Blank Num="1" UId="946" />
+        <Token Text=":=" UId="947" />
+        <Blank Num="1" UId="948" />
+        <Access Scope="GlobalVariable" UId="949">
+          <Symbol UId="950">
+            <Component Name="GDB_SequenceViewTest" UId="951">
+              <BooleanAttribute Name="HasQuotes" UId="952">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="953" />
+            <Component Name="AwaitOk" UId="954" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="955" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="956" />
+  <NewLine Num="1" UId="957" />
+  <Blank Num="4" UId="958" />
+  <Token Text="END_IF" UId="959" />
+  <Token Text=";" UId="960" />
+  <NewLine Num="1" UId="961" />
+  <Blank Num="4" UId="962" />
+  <Token Text="IF" UId="963" />
+  <Blank Num="1" UId="964" />
+  <Access Scope="GlobalVariable" UId="965">
+    <Symbol UId="966">
+      <Component Name="GDB_SequenceViewTest" UId="967">
+        <BooleanAttribute Name="HasQuotes" UId="968">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="969" />
+      <Component Name="Annotate" UId="970" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="971" />
+  <Token Text="THEN" UId="972" />
+  <NewLine Num="1" UId="973" />
+  <Blank Num="8" UId="974" />
+  <Access Scope="Call" UId="975">
+    <CallInfo UId="976" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="978">
+        <Component Name="FRK_SeqViewNote" UId="977" />
+      </Instance>
+      <Token Text="(" UId="979" />
+      <Parameter Name="Owner" UId="980">
+        <Blank Num="1" UId="981" />
+        <Token Text=":=" UId="982" />
+        <Blank Num="1" UId="983" />
+        <Access Scope="LocalVariable" UId="984">
+          <Symbol UId="985">
+            <Component Name="Owner" UId="986" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="987" />
+      <NewLine Num="1" UId="988" />
+      <Blank Num="26" UId="989" />
+      <Parameter Name="StepNo" UId="990">
+        <Blank Num="1" UId="991" />
+        <Token Text=":=" UId="992" />
+        <Blank Num="1" UId="993" />
+        <Access Scope="GlobalVariable" UId="994">
+          <Symbol UId="995">
+            <Component Name="GDB_SequenceViewTest" UId="996">
+              <BooleanAttribute Name="HasQuotes" UId="997">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="998" />
+            <Component Name="StepNo" UId="999" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1000" />
+      <NewLine Num="1" UId="1001" />
+      <Blank Num="26" UId="1002" />
+      <Parameter Name="Branch" UId="1003">
+        <Blank Num="1" UId="1004" />
+        <Token Text=":=" UId="1005" />
+        <Blank Num="1" UId="1006" />
+        <Access Scope="GlobalVariable" UId="1007">
+          <Symbol UId="1008">
+            <Component Name="GDB_SequenceViewTest" UId="1009">
+              <BooleanAttribute Name="HasQuotes" UId="1010">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1011" />
+            <Component Name="Branch" UId="1012" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1013" />
+      <NewLine Num="1" UId="1014" />
+      <Blank Num="26" UId="1015" />
+      <Parameter Name="IsError" UId="1016">
+        <Blank Num="1" UId="1017" />
+        <Token Text=":=" UId="1018" />
+        <Blank Num="1" UId="1019" />
+        <Access Scope="GlobalVariable" UId="1020">
+          <Symbol UId="1021">
+            <Component Name="GDB_SequenceViewTest" UId="1022">
+              <BooleanAttribute Name="HasQuotes" UId="1023">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1024" />
+            <Component Name="IsError" UId="1025" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1026" />
+      <NewLine Num="1" UId="1027" />
+      <Blank Num="26" UId="1028" />
+      <Parameter Name="Key" UId="1029">
+        <Blank Num="1" UId="1030" />
+        <Token Text=":=" UId="1031" />
+        <Blank Num="1" UId="1032" />
+        <Access Scope="GlobalVariable" UId="1033">
+          <Symbol UId="1034">
+            <Component Name="GDB_SequenceViewTest" UId="1035">
+              <BooleanAttribute Name="HasQuotes" UId="1036">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1037" />
+            <Component Name="Key" UId="1038" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1039" />
+      <NewLine Num="1" UId="1040" />
+      <Blank Num="26" UId="1041" />
+      <Parameter Name="SourcePath" UId="1042">
+        <Blank Num="1" UId="1043" />
+        <Token Text=":=" UId="1044" />
+        <Blank Num="1" UId="1045" />
+        <Access Scope="GlobalVariable" UId="1046">
+          <Symbol UId="1047">
+            <Component Name="GDB_SequenceViewTest" UId="1048">
+              <BooleanAttribute Name="HasQuotes" UId="1049">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1050" />
+            <Component Name="SourcePath" UId="1051" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1052" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1053" />
+  <NewLine Num="1" UId="1054" />
+  <Blank Num="4" UId="1055" />
+  <Token Text="END_IF" UId="1056" />
+  <Token Text=";" UId="1057" />
+  <NewLine Num="1" UId="1058" />
+  <Token Text="END_IF" UId="1059" />
+  <Token Text=";" UId="1060" />
+  <NewLine Num="1" UId="1061" />
+  <Token Text="IF" UId="1062" />
+  <Blank Num="1" UId="1063" />
+  <Access Scope="LocalVariable" UId="1064">
+    <Symbol UId="1065">
+      <Component Name="Owner" UId="1066" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1067" />
+  <Token Text="=" UId="1068" />
+  <Blank Num="1" UId="1069" />
+  <Access Scope="GlobalVariable" UId="1070">
+    <Symbol UId="1071">
+      <Component Name="StationA" UId="1072">
+        <BooleanAttribute Name="HasQuotes" UId="1073">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1074" />
+      <Component Name="Core" UId="1075" />
+      <Token Text="." UId="1076" />
+      <Component Name="RegIndex" UId="1077" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1078" />
+  <Token Text="THEN" UId="1079" />
+  <NewLine Num="1" UId="1080" />
+  <Blank Num="4" UId="1081" />
+  <Access Scope="GlobalVariable" UId="1082">
+    <Symbol UId="1083">
+      <Component Name="GDB_SequenceViewTest" UId="1084">
+        <BooleanAttribute Name="HasQuotes" UId="1085">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1086" />
+      <Component Name="Overflow" UId="1087" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1088" />
+  <Token Text=":=" UId="1089" />
+  <Blank Num="1" UId="1090" />
+  <Access Scope="GlobalVariable" UId="1091">
+    <Symbol UId="1092">
+      <Component Name="FRK_Views" UId="1093">
+        <BooleanAttribute Name="HasQuotes" UId="1094">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1095" />
+      <Component Name="V001" UId="1096" />
+      <Token Text="." UId="1097" />
+      <Component Name="Book" UId="1098" />
+      <Token Text="." UId="1099" />
+      <Component Name="Overflow" UId="1100" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1101" />
+  <NewLine Num="1" UId="1102" />
+  <Token Text="END_IF" UId="1103" />
+  <Token Text=";" UId="1104" />
+  <NewLine Num="1" UId="1105" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

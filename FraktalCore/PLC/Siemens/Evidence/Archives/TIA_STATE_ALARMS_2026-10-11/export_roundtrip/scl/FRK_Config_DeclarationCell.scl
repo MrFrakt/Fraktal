@@ -1,0 +1,37 @@
+﻿FUNCTION "FRK_Config_DeclarationCell" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ReadLevel : DInt;
+      Readable : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_DeclarationCell";
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_ConfigCatalog"(Scope := #Module.Status.Name,
+	                    Catalog := #Module.Catalog,
+	                    Count := #Module.CatalogCount,
+	                    ReadLevel := #ReadLevel,
+	                    Readable := #Readable,
+	                    Cursor := #Cursor,
+	                    Page := #Page);
+	"FRK_Config_DeclarationCylinder"(Module := #Module.Clamp,
+	                                 ReadLevel := #ReadLevel,
+	                                 Readable := #Readable,
+	                                 Cursor := #Cursor,
+	                                 Page := #Page);
+	"FRK_Config_DeclarationCylinder"(Module := #Module.Gate,
+	                                 ReadLevel := #ReadLevel,
+	                                 Readable := #Readable,
+	                                 Cursor := #Cursor,
+	                                 Page := #Page);
+	
+END_FUNCTION
+

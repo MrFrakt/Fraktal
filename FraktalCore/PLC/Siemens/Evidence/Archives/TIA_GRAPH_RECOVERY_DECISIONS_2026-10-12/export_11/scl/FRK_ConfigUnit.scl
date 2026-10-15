@@ -1,0 +1,71 @@
+﻿FUNCTION "FRK_ConfigUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Policy : Array[0..6] of "ST_ModePolicy";
+      ModelCount : Int;
+      ReadLevel : DInt;
+      Readable : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      IndexText : String[8];
+      Prefix : String[254];
+      Item : String[254];
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_ConfigAppend"(Scope := #Scope,
+	                   Item := 'CatalogCount',
+	                   ValueText := WSTRING#'0',
+	                   ValueType := 0,
+	                   ReadLevel := #ReadLevel,
+	                   Readable := #Readable,
+	                   Cursor := #Cursor,
+	                   Page := #Page);
+	"FRK_ConfigAppend"(Scope := #Scope,
+	                   Item := 'AvailableModelCount',
+	                   ValueText := INT_TO_WSTRING(#ModelCount),
+	                   ValueType := 0,
+	                   ReadLevel := #ReadLevel,
+	                   Readable := #Readable,
+	                   Cursor := #Cursor,
+	                   Page := #Page);
+	FOR #Index := 0 TO 6 DO
+	    #IndexText := INT_TO_STRING(#Index);
+	    IF #IndexText[1] = '+' THEN
+	        #IndexText := DELETE(IN := #IndexText, L := 1, P := 1);
+	    END_IF;
+	    #Prefix := CONCAT(IN1 := 'ModePolicy/ModePolicy[', IN2 := #IndexText);
+	    #Prefix := CONCAT(IN1 := #Prefix, IN2 := ']/');
+	    #Item := CONCAT(IN1 := #Prefix, IN2 := 'Shield');
+	    "FRK_ConfigAppend"(Scope := #Scope,
+	                       Item := #Item,
+	                       ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Policy[#Index].Shield)),
+	                       ValueType := 0,
+	                       ReadLevel := #ReadLevel,
+	                       Readable := #Readable,
+	                       Cursor := #Cursor,
+	                       Page := #Page);
+	    #Item := CONCAT(IN1 := #Prefix, IN2 := 'Style');
+	    "FRK_ConfigAppend"(Scope := #Scope,
+	                       Item := #Item,
+	                       ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Policy[#Index].Style)),
+	                       ValueType := 0,
+	                       ReadLevel := #ReadLevel,
+	                       Readable := #Readable,
+	                       Cursor := #Cursor,
+	                       Page := #Page);
+	END_FOR;
+	
+END_FUNCTION
+

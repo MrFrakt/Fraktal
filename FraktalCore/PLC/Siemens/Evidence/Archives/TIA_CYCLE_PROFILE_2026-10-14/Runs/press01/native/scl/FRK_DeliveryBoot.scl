@@ -1,0 +1,95 @@
+﻿FUNCTION "FRK_DeliveryBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Startup : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Index : Int;
+      Position : Int;
+      Previous : UDInt;
+      Valid : Bool;
+      AnchorOk : Bool;
+      Ev : "ST_AlarmEvent";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	#Slot := "FRK_DeliveryIndex"(Scope := #Scope);
+	#AlarmLog.DeliverySlot := #Slot;
+	IF #Slot < 1 OR #Slot > 1 THEN
+	    RETURN;
+	END_IF;
+	"FRK_EventDeliveryRuntime".PublishedRevision[#Slot] := 0;
+	"FRK_EventDeliveryView".Rows[#Slot].SchemaVersion := 0;
+	IF NOT "FRK_EventDeliveryStore".Commissioned[#Slot]
+	    AND "FRK_EventDeliveryStore".Anchors[#Slot].SchemaVersion = 0
+	    AND "FRK_EventDeliveryStore".Anchors[#Slot].Epoch = 0
+	    AND "FRK_EventDeliveryStore".Anchors[#Slot].Scope = ''
+	    AND "FRK_EventDeliveryStore".Anchors[#Slot].StreamId = ''
+	    AND "FRK_EventDeliveryStore".Anchors[#Slot].Checksum = DWORD#0
+	    AND "FRK_EventDeliveryStore".Images[#Slot].SchemaVersion = 0
+	    AND "FRK_EventDeliveryStore".Images[#Slot].Revision = 0
+	    AND "FRK_EventDeliveryStore".Images[#Slot].Checksum = DWORD#0 THEN
+	    "FRK_EventDeliveryStore".Anchors[#Slot].SchemaVersion := 1;
+	    "FRK_EventDeliveryStore".Anchors[#Slot].Scope := #Scope;
+	    "FRK_EventDeliveryStore".Anchors[#Slot].StreamId := '6c62c9b6-57d9-41b5-b689-e0540f642b31';
+	    "FRK_EventDeliveryStore".Anchors[#Slot].Epoch := 1;
+	    "FRK_EventDeliveryStore".Anchors[#Slot].Checksum := "FRK_DeliveryAnchorCrc"(Slot := #Slot);
+	    "FRK_EventDeliveryRuntime".AnchorValid[#Slot] := TRUE;
+	    "FRK_DeliveryInitialize"(Slot := #Slot,
+	                             Discarded := FALSE);
+	    RETURN;
+	END_IF;
+	#AnchorOk := "FRK_EventDeliveryStore".Commissioned[#Slot]
+	AND "FRK_EventDeliveryStore".Anchors[#Slot].SchemaVersion = 1
+	AND "FRK_EventDeliveryStore".Anchors[#Slot].Scope = #Scope
+	AND "FRK_EventDeliveryStore".Anchors[#Slot].StreamId = '6c62c9b6-57d9-41b5-b689-e0540f642b31'
+	AND "FRK_EventDeliveryStore".Anchors[#Slot].Epoch > 0;
+	IF #AnchorOk THEN
+	    #AnchorOk := "FRK_EventDeliveryStore".Anchors[#Slot].Checksum = "FRK_DeliveryAnchorCrc"(Slot := #Slot);
+	END_IF;
+	"FRK_EventDeliveryRuntime".AnchorValid[#Slot] := #AnchorOk;
+	#Valid := #AnchorOk AND "FRK_EventDeliveryStore".Images[#Slot].SchemaVersion = 1
+	AND "FRK_EventDeliveryStore".Images[#Slot].Epoch = "FRK_EventDeliveryStore".Anchors[#Slot].Epoch
+	AND "FRK_EventDeliveryStore".Images[#Slot].Revision > 0
+	AND "FRK_EventDeliveryStore".Images[#Slot].Head >= 1 AND "FRK_EventDeliveryStore".Images[#Slot].Head <= 32
+	AND "FRK_EventDeliveryStore".Images[#Slot].Count >= 0 AND "FRK_EventDeliveryStore".Images[#Slot].Count <= 32;
+	IF #Valid THEN
+	    #Valid := "FRK_EventDeliveryStore".Images[#Slot].Checksum = "FRK_DeliveryHeaderCrc"(Slot := #Slot);
+	END_IF;
+	#Previous := 0;
+	IF #Valid THEN
+	    FOR #Index := 0 TO "FRK_EventDeliveryStore".Images[#Slot].Count - 1 DO
+	        #Position := (("FRK_EventDeliveryStore".Images[#Slot].Head - 1 + #Index) MOD 32) + 1;
+	        #Ev := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Ev;
+	        #Valid := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence > #Previous
+	        AND "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence <= "FRK_EventDeliveryStore".Images[#Slot].NextSequence
+	        AND "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Checksum = "FRK_DeliveryRowCrc"(Sequence := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence, Ev := #Ev)
+	        AND (#Ev.State = 1 OR #Ev.State = 0)
+	        AND #Ev.ResetClass >= 0 AND #Ev.ResetClass <= 1
+	        AND #Ev.Severity >= 0 AND #Ev.Severity <= 2
+	        AND #Ev.Category >= 0 AND #Ev.Category <= 2
+	        AND #Ev.Description <> WSTRING#'' AND #Ev.SourcePath <> WSTRING#'' AND #Ev.Duration >= T#0ms;
+	        IF NOT #Valid THEN
+	            EXIT;
+	        END_IF;
+	        #Previous := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence;
+	    END_FOR;
+	END_IF;
+	"FRK_EventDeliveryRuntime".Valid[#Slot] := #Valid;
+	"FRK_DeliveryPublish"(Slot := #Slot);
+	
+END_FUNCTION
+

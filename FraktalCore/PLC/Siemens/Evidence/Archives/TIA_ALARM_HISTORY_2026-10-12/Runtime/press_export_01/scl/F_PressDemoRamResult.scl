@@ -1,0 +1,28 @@
+﻿FUNCTION "F_PressDemoRamResult" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Reached : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Cycle : "ST_PressDemoCycle";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_SeqSelect"(Seq := #Seq,
+	                AdvanceOk := #Reached,
+	                Jump1Ok := #Seq.CommandFailed);
+	IF #Seq.RetVal = 2 THEN
+	    #Cycle.FailureReason := #Seq.HandledDiagnostic.ReasonCode;
+	    "FRK_SeqMessage"(Seq := #Seq,
+	                     AlarmLog := #AlarmLog,
+	                     Diag := #Seq.HandledDiagnostic);
+	END_IF;
+	
+END_FUNCTION
+

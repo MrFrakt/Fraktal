@@ -34,7 +34,7 @@ belongs below.
 | [`Reports/`](Reports/) | Audits, status, plans and one-off analyses: objectives audit and its review, the automation/AI review, the implementation roadmap, the ADS migration, and the press-bench records. | Describes what **is** or what was **decided**, never what **shall** be. |
 | [`Evidence/`](Evidence/) | Dated TwinCAT runtime evidence — logs, JUnit, SHA-256s. | Append-only. Never edit a past record to match the present. |
 | [`AllenBradley/`](AllenBradley/) | The Fraktal/AB working set: port plan, implementation plan, handover prompts, engineering runbooks, the frozen contracts, and `Evidence/` for the R- and S-gate spikes. | Part III itself stays at the root; everything used to *produce* it lives here. |
-| [`Siemens/`](Siemens/) | The Fraktal/TIA working set: the port plan and `Evidence/` for the R- and S-gate spikes. | Part IV itself stays at the root; everything used to *produce* it lives here. |
+| [`Siemens/`](Siemens/README.md) | The Fraktal/TIA port plan and dated evidence reports; Markdown only. | Part IV stays at the root. Code, tools and immutable raw evidence live in `FraktalCore/PLC/Siemens/`. |
 
 Two conventions worth knowing before you edit anything here:
 

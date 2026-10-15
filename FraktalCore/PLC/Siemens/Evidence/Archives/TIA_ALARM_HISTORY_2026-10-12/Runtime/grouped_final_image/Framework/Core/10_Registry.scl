@@ -1,0 +1,86 @@
+// Generated registry services v0.1; compact rows contain no operator strings.
+FUNCTION "FRK_SetIdentity" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    InstancePath : WString;
+    ModuleType : DInt;
+    TypeId : DInt;
+    Capabilities : DWord;
+    ParentIndex : DInt;
+    TypeKey : String;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+VAR_TEMP
+    Identity : String[254];
+    QuotePos : Int;
+    RowIndex : DInt;
+END_VAR
+BEGIN
+    #Core.Named := TRUE;
+    #Core.RegIndex := 0;
+    IF "FRK_Registry".Fault OR "FRK_Registry".Count < 0 OR "FRK_Registry".Count > 32
+        OR #ParentIndex < 0 OR #ParentIndex > "FRK_Registry".Count OR #ParentIndex > 32 THEN
+        "FRK_Registry".Fault := TRUE;
+        RETURN;
+    END_IF;
+    IF #ParentIndex > 0 THEN
+        IF NOT "FRK_Registry".Rows[#ParentIndex].Valid THEN
+            "FRK_Registry".Fault := TRUE;
+            RETURN;
+        END_IF;
+    END_IF;
+    IF LEN(#InstancePath) > 254 THEN
+        "FRK_Registry".Fault := TRUE;
+        RETURN;
+    END_IF;
+    #Identity := WSTRING_TO_STRING(#InstancePath);
+    #QuotePos := FIND(IN1 := #Identity, IN2 := '"');
+    WHILE #QuotePos > 0 DO
+        #Identity := DELETE(IN := #Identity, L := 1, P := #QuotePos);
+        #QuotePos := FIND(IN1 := #Identity, IN2 := '"');
+    END_WHILE;
+    IF LEN(#Identity) > 80 OR LEN(#Identity) = 0 OR "FRK_Registry".Count >= 32 THEN
+        "FRK_Registry".Fault := TRUE;
+        RETURN;
+    END_IF;
+    "FRK_Registry".Count := "FRK_Registry".Count + 1;
+    #RowIndex := "FRK_Registry".Count;
+    #Core.RegIndex := #RowIndex;
+    #Core.ParentIndex := #ParentIndex;
+    #Core.ModuleType := #ModuleType;
+    #Status.Name := #Identity;
+    #Status.TypeKey := #TypeKey;
+    #Status.ModuleType := #ModuleType;
+    #Status.TileEnable := TRUE;
+    "FRK_Registry".Rows[#RowIndex].Valid := TRUE;
+    "FRK_Registry".Rows[#RowIndex].Parent := #ParentIndex;
+    "FRK_Registry".Rows[#RowIndex].ModuleType := #ModuleType;
+    "FRK_Registry".Rows[#RowIndex].TypeId := #TypeId;
+    "FRK_Registry".Rows[#RowIndex].Capabilities := #Capabilities;
+END_FUNCTION
+
+FUNCTION "FRK_SyncRegistry" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Index : DInt;
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    // Nested checks precede array access; do not depend on short-circuit AND.
+    IF #Index < 1 OR #Index > "FRK_Registry".Count OR #Index > 32 THEN
+        "FRK_Registry".Fault := TRUE;
+        RETURN;
+    END_IF;
+    IF NOT "FRK_Registry".Rows[#Index].Valid THEN
+        "FRK_Registry".Fault := TRUE;
+        RETURN;
+    END_IF;
+    "FRK_Registry".Rows[#Index].Exec := #Status.State;
+    "FRK_Registry".Rows[#Index].ReasonCode := #Status.Diagnostic.ReasonCode;
+    "FRK_Registry".Rows[#Index].Severity := #Status.Diagnostic.Severity;
+END_FUNCTION

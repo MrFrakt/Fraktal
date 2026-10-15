@@ -1,0 +1,82 @@
+﻿FUNCTION "FRK_DecisionSubmit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      OwnerPath : WString;
+      Option : DInt;
+      Busy : Bool;
+      Permit : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Report : "ST_ReleaseReport";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      SourcePath : WString[255];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DecisionSubmit := FALSE;
+	#Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+	#SourcePath := #OwnerPath;
+	IF NOT #Busy OR #Slot = 0 THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.release.noActiveDecision',
+	                        Reason := 0,
+	                        Path := #SourcePath,
+	                        Kind := 4);
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].RootIndex <> #Owner THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.release.noActiveDecision',
+	                        Reason := 0,
+	                        Path := #SourcePath,
+	                        Kind := 4);
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'' OR "FRK_Decisions".Slots[#Slot].Answer <> 0 THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.release.noActiveDecision',
+	                        Reason := 0,
+	                        Path := #SourcePath,
+	                        Kind := 4);
+	    RETURN;
+	END_IF;
+	IF #Option < 1 OR #Option > 6 THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.release.invalidDecisionOption',
+	                        Reason := 2008,
+	                        Path := #SourcePath,
+	                        Kind := 4);
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Request.Options[#Option] = '' THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.release.invalidDecisionOption',
+	                        Reason := 2008,
+	                        Path := #SourcePath,
+	                        Kind := 4);
+	    RETURN;
+	END_IF;
+	IF NOT #Permit THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.release.decisionInterlock',
+	                        Reason := 2002,
+	                        Path := #SourcePath,
+	                        Kind := 3);
+	    RETURN;
+	END_IF;
+	IF NOT #Report.Released THEN
+	    RETURN;
+	END_IF;
+	"FRK_Decisions".Slots[#Slot].Answer := DINT_TO_INT(#Option);
+	#FRK_DecisionSubmit := TRUE;
+	
+END_FUNCTION
+

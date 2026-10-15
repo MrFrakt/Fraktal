@@ -1,0 +1,8 @@
+# CONTROLLER-CHANGING, bench only. Identify before invocation; preserve users/certificates.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+import-sources --plc PLC_1 --dir ${src} --only 50_
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out ${export}
+download --plc PLC_1 --pc-interface "Intel(R) 82574L Gigabit Network Connection" --pc-number 2 --target "1 X1" --confirm-target 192.168.0.10 --user-management keep

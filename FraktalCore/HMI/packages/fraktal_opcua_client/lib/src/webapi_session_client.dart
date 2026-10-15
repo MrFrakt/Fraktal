@@ -52,6 +52,8 @@ class WebApiSessionClient
   final Map<String, Map<String, Object?>> _slowCache = {};
   DateTime? _slowReadAt;
   bool _slowForced = true;
+  final Map<String, _HistoryArray> _historyArrays = {};
+  bool _pathsDirty = true;
 
   WebApiSessionClient._(
     this._transport, {
@@ -169,6 +171,8 @@ class WebApiSessionClient
   // -------------------------------------------------------------- discovery
 
   Future<void> _discover() async {
+    final previousPaths = _leafByPath.keys.toSet();
+    _historyArrays.clear();
     final roots = _roots.isNotEmpty ? _roots : await _findRoots();
     final leaves = <WebApiLeaf>[];
     var truncated = false;
@@ -194,7 +198,20 @@ class WebApiSessionClient
             if (name is! String || name.isEmpty) continue;
             final datatype = '${child['datatype'] ?? ''}';
             final structured = child['has_children'] == true;
-            for (final segment in _segmentsFor(name, child['array_dimensions'])) {
+            var dimensions = child['array_dimensions'];
+            if (name == 'History' && chunk[k].segments.last == 'Profiler' &&
+                dimensions is List && dimensions.length == 1 && dimensions.single is Map) {
+              final dimension = dimensions.single as Map;
+              final start = (dimension['start_index'] as num?)?.toInt();
+              final capacity = (dimension['count'] as num?)?.toInt();
+              if (start == 1 && capacity != null && capacity > 0) {
+                final counter = chunk[k].child('LastCycle').child('CycleNo');
+                final extent = _historyExtent(await _call('PlcProgram.Read', {'var': counter.webVar}), capacity);
+                _historyArrays[counter.snapshotPath] = _HistoryArray(counter, capacity, extent);
+                dimensions = [{'start_index': start, 'count': extent}];
+              }
+            }
+            for (final segment in _segmentsFor(name, dimensions)) {
               final node = chunk[k].child(segment);
               if (structured) {
                 next.add(node);
@@ -214,6 +231,12 @@ class WebApiSessionClient
     _leaves = List.unmodifiable(leaves);
     _leafByPath = {for (final leaf in leaves) leaf.path: leaf};
     _truncated = truncated;
+    _pathsDirty = true;
+    if (previousPaths.isNotEmpty) {
+      // Newly occupied rows stay excluded until the consuming repository has
+      // received the changed paths and applied its view-specific read plan.
+      _excluded = {..._excluded, ..._leafByPath.keys.where((path) => !previousPaths.contains(path))};
+    }
     _slowCache.clear();
     _slowForced = true;
   }
@@ -284,6 +307,24 @@ class WebApiSessionClient
 
   @override
   Future<Map<String, Object?>> snapshot() async {
+    if (_historyArrays.isNotEmpty) {
+      final arrays = _historyArrays.values.toList();
+      final replies = <_Reply>[];
+      for (var i = 0; i < arrays.length; i += _batchSize) {
+        final chunk = arrays.skip(i).take(_batchSize);
+        replies.addAll(await _batch([
+          for (final array in chunk) _Request('PlcProgram.Read', {'var': array.counter.webVar}),
+        ]));
+      }
+      var changed = false;
+      for (var i = 0; i < arrays.length; i++) {
+        if (replies[i].error != null) {
+          throw OpcUaRemoteException(replies[i].describe('PlcProgram.Read ${arrays[i].counter.webVar}'));
+        }
+        changed |= _historyExtent(replies[i].result, arrays[i].capacity) != arrays[i].extent;
+      }
+      if (changed) await _discover();
+    }
     final now = _now();
     final slowDue = _slowForced ||
         _slowReadAt == null ||
@@ -312,14 +353,24 @@ class WebApiSessionClient
       dataValues[leaf.path] = dataValue;
       if (dataValue['status'] == 0) values[leaf.path] = dataValue['value'];
     }
+    final paths = _pathsDirty ? [for (final leaf in _leaves) leaf.path] : const <String>[];
+    _pathsDirty = false;
     return {
       'protocol': 'fraktal.opcua.snapshot.v1',
       'nodeCount': _leaves.length,
       'truncated': _truncated,
+      'paths': paths,
       'namespaces': const <String>[],
       'values': values,
       'dataValues': dataValues,
     };
+  }
+
+  static int _historyExtent(Object? cycleNo, int capacity) {
+    if (cycleNo is! int || cycleNo < 0 || cycleNo > 0xffffffff) {
+      throw const OpcUaTransportException('Profiler.LastCycle.CycleNo is not a valid UDInt.');
+    }
+    return cycleNo < capacity ? cycleNo : capacity;
   }
 
   @override
@@ -513,6 +564,13 @@ final class _Node {
             ? '"$segment"'
             : '"${segment.substring(0, bracket)}"${segment.substring(bracket)}';
       }).join('.');
+}
+
+final class _HistoryArray {
+  final _Node counter;
+  final int capacity;
+  final int extent;
+  const _HistoryArray(this.counter, this.capacity, this.extent);
 }
 
 final class _Request {

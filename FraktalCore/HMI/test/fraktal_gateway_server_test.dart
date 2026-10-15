@@ -25,6 +25,19 @@ void main() {
         headers: {'origin': origin},
       );
 
+  test('path discovery does not acquire unrequested station values', () async {
+    client = _DiscoveryOpcUaClient()
+      ..snapshotError = StateError('full station read is not ready');
+    server =
+        FraktalGatewayServer(client, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final gatewayClient = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gatewayClient.close);
+    expect(await gatewayClient.discoverPaths(), ['PLC1/MAIN/Unit/Status/Name']);
+    expect(client.snapshotCalls, 0);
+  });
+
   test('snapshot reply preserves the native snapshot document', () async {
     client.document = {
       'protocol': 'fraktal.opcua.snapshot.v1',
@@ -1017,6 +1030,12 @@ String _batchRequest(int id, int sequence, int kind) => jsonEncode({
         ],
       },
     });
+
+class _DiscoveryOpcUaClient extends _FakeOpcUaClient
+    implements OpcUaPathDiscoveryClient {
+  @override
+  Future<List<String>> discoverPaths() async => ['PLC1/MAIN/Unit/Status/Name'];
+}
 
 class _FakeOpcUaClient
     implements

@@ -1,0 +1,34 @@
+﻿FUNCTION "FRK_AlarmRecoveryClosePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      EventSlot : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.RecoverySlot;
+	IF #Slot < 1 OR #Slot > 1 OR #EventSlot < 1 OR #EventSlot > 16 THEN
+	    RETURN;
+	END_IF;
+	IF #AlarmLog.Active[#EventSlot].ResetClass <> 1 THEN
+	    RETURN;
+	END_IF;
+	"FRK_AlarmRecovery".Rows[#Slot].PendingSlot := #EventSlot;
+	"FRK_AlarmRecovery".Rows[#Slot].PendingClosed := #AlarmLog.Active[#EventSlot];
+	"FRK_AlarmRecovery".Rows[#Slot].PendingCrc := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Active[#EventSlot]);
+	"FRK_AlarmRecovery".Rows[#Slot].PendingHead := (#AlarmLog.RingHead MOD 64) + 1;
+	"FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := "FRK_AccessNext"(Previous := "FRK_AlarmHistory".Rows[#AlarmLog.HistorySlot].Generation);
+	"FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+	
+END_FUNCTION
+

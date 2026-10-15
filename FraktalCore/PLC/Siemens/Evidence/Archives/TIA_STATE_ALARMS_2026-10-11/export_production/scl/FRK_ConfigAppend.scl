@@ -1,0 +1,42 @@
+﻿FUNCTION "FRK_ConfigAppend" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Item : String;
+      ValueText : WString;
+      ValueType : DInt;
+      ReadLevel : DInt;
+      Readable : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #Cursor.Position - #Cursor.First;
+	#Cursor.Position := #Cursor.Position + 1;
+	IF #Slot < 0 OR #Slot >= 16 THEN
+	    RETURN;
+	END_IF;
+	#Slot := #Slot + 1;
+	#Page.Entries[#Slot].Scope := STRING_TO_WSTRING(#Scope);
+	#Page.Entries[#Slot].Item := STRING_TO_WSTRING(#Item);
+	#Page.Entries[#Slot].ValueType := #ValueType;
+	#Page.Entries[#Slot].ReadLevel := #ReadLevel;
+	#Page.Entries[#Slot].Readable := #Readable;
+	IF #Readable THEN
+	    #Page.Entries[#Slot].ValueText := #ValueText;
+	END_IF;
+	#Page.EntryCount := DINT_TO_INT(#Slot);
+	
+END_FUNCTION
+

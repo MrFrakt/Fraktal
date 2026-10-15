@@ -1,0 +1,37 @@
+﻿FUNCTION "FRK_DeliveryInitialize" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+      Discarded : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 1 THEN
+	    RETURN;
+	END_IF;
+	"FRK_EventDeliveryStore".Images[#Slot].SchemaVersion := 1;
+	"FRK_EventDeliveryStore".Images[#Slot].Epoch := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch;
+	"FRK_EventDeliveryStore".Images[#Slot].Revision := 0;
+	"FRK_EventDeliveryStore".Images[#Slot].NextSequence := 0;
+	"FRK_EventDeliveryStore".Images[#Slot].Head := 1;
+	"FRK_EventDeliveryStore".Images[#Slot].Count := 0;
+	"FRK_EventDeliveryStore".Images[#Slot].Overflow := #Discarded;
+	"FRK_EventDeliveryStore".Images[#Slot].Dropped := 0;
+	FOR #Index := 1 TO 32 DO
+	    "FRK_EventDeliveryStore".Images[#Slot].Entries[#Index].Sequence := 0;
+	    "FRK_EventDeliveryStore".Images[#Slot].Entries[#Index].Checksum := DWORD#0;
+	    "FRK_EventDeliveryStore".Images[#Slot].Entries[#Index].Ev := "FRK_UnitScratch".EmptyEvent;
+	END_FOR;
+	"FRK_EventDeliveryRuntime".Valid[#Slot] := TRUE;
+	"FRK_DeliverySave"(Slot := #Slot);
+	"FRK_EventDeliveryStore".Commissioned[#Slot] := TRUE;
+	
+END_FUNCTION
+

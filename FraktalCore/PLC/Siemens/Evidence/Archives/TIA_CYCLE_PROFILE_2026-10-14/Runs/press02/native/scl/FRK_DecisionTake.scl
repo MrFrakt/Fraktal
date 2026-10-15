@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_DecisionTake" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DecisionTake := 0;
+	#Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+	IF #Slot = 0 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Owner <> #Owner THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Answer = 0 THEN
+	    RETURN;
+	END_IF;
+	#FRK_DecisionTake := "FRK_Decisions".Slots[#Slot].Answer;
+	IF NOT "FRK_Decisions".Slots[#Slot].ResolutionLogged THEN
+	    "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                        Key := WSTRING#'std.audit.decisionOperatorResolved',
+	                        SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath,
+	                        Option := #FRK_DecisionTake);
+	END_IF;
+	"FRK_DecisionClear"(Slot := "FRK_Decisions".Slots[#Slot]);
+	
+END_FUNCTION
+

@@ -1,0 +1,59 @@
+﻿FUNCTION "F_PressDemoAwaitCycle" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Project policy only. Lifecycle, ownership, waits, messages and once-per-visit
+// bookkeeping stay in Core; GRAPH actions and the ST/LD twins call these FCs.
+   VAR_INPUT 
+      PartPresent : Bool;
+      PartQuality : Bool;
+      AirPressureOk : Bool;
+      RequireTwoHandStart : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Cycle : "ST_PressDemoCycle";
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      PartReady : Bool;
+      AirReady : Bool;
+      StartReady : Bool;
+      Received : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#F_PressDemoAwaitCycle := FALSE;
+	#Cycle.CycleCompleted := FALSE;
+	IF #Unit.StopReq THEN
+	    "FRK_Complete"(Core := #Core,
+	                   Status := #Status);
+	    "FRK_SeqComplete"(Seq := #Seq);
+	    RETURN;
+	END_IF;
+	#PartReady := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.partPresent', Ok := #PartPresent AND #PartQuality);
+	#AirReady := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.airPressureOk', Ok := #AirPressureOk);
+	#StartReady := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.twoHandStart', Ok := #Seq.StartLatched OR NOT #RequireTwoHandStart);
+	IF NOT (#PartReady AND #AirReady AND #StartReady) THEN
+	    RETURN;
+	END_IF;
+	IF NOT #Cycle.PartInMachine THEN
+	    #Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+	    IF #Core.Exec = 3 THEN
+	        #Seq.Error := TRUE;
+	        #Seq.ErrorDiagnostic := #Status.Diagnostic;
+	        RETURN;
+	    END_IF;
+	    #Cycle.PartInMachine := TRUE;
+	END_IF;
+	#F_PressDemoAwaitCycle := TRUE;
+	
+END_FUNCTION
+

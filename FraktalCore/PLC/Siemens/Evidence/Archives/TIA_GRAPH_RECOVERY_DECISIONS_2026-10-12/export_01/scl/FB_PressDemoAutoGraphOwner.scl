@@ -1,0 +1,119 @@
+﻿FUNCTION_BLOCK "FB_PressDemoAutoGraphOwner"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Run : Bool;
+      Reset : Bool;
+      OwnerIndex : DInt;
+      Delta : Time;
+      PartPresent : Bool;
+      AirPressureOk : Bool;
+      TwoHandHeld : Bool;
+      StartPulse : Bool;
+      TransferSettleTime : Time;
+      PressSettleTime : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+      Chart : "FB_SFC_PressDemoAuto";
+   END_VAR
+
+   VAR 
+      Seq { ExternalWritable := 'False'} : "FRK_SequenceCtx";
+      Row1 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row2 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row3 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row4 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row5 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row6 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row7 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row8 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row9 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row10 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row11 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row12 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row13 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      At0 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At100 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At110 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At130 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At150 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At170 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At180 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At200 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At220 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At240 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At250 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At260 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At999 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready3 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready5 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Advance { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_SeqBegin"(Run := #Run,
+	               Reset := #Reset,
+	               OwnerIndex := #OwnerIndex,
+	               ChainIndex := 1,
+	               BranchIndex := 0,
+	               Delta := #Delta,
+	               Seq := #Seq);
+	"FRK_SeqStart"(Seq := #Seq,
+	               StartPulse := #StartPulse);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PressRam);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #Door);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PartSlide);
+	#Chart(Run := #Run,
+	       Reset := #Reset,
+	       OwnerIndex := #OwnerIndex,
+	       Delta := #Delta,
+	       PartPresent := #PartPresent,
+	       AirPressureOk := #AirPressureOk,
+	       TwoHandHeld := #TwoHandHeld,
+	       StartPulse := #StartPulse,
+	       TransferSettleTime := #TransferSettleTime,
+	       PressSettleTime := #PressSettleTime,
+	       PressRam := #PressRam,
+	       Door := #Door,
+	       PartSlide := #PartSlide,
+	       Seq := #Seq,
+	       Row1 := #Row1,
+	       Row2 := #Row2,
+	       Row3 := #Row3,
+	       Row4 := #Row4,
+	       Row5 := #Row5,
+	       Row6 := #Row6,
+	       Row7 := #Row7,
+	       Row8 := #Row8,
+	       Row9 := #Row9,
+	       Row10 := #Row10,
+	       Row11 := #Row11,
+	       Row12 := #Row12,
+	       Row13 := #Row13,
+	       Ready1 := #Ready1,
+	       Ready2 := #Ready2,
+	       Ready3 := #Ready3,
+	       Ready4 := #Ready4,
+	       Ready5 := #Ready5,
+	       INIT_SQ := #Seq.Restart);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PressRam);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #Door);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PartSlide);
+	
+END_FUNCTION_BLOCK
+

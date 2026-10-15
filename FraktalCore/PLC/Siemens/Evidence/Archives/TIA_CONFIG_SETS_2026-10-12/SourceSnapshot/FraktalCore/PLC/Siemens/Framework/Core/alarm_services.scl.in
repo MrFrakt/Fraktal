@@ -1,0 +1,303 @@
+// Core 8.3: one owning active list / closed ring, with optional event callback.
+FUNCTION "FRK_AlarmNotify" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+@EVENT_SINK@
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRefresh" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #AlarmLog.NActive := 0;
+    #AlarmLog.Blocking := FALSE;
+    FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Active[#Index].State <> @E_AlarmState.CLOSED@ THEN
+            #AlarmLog.NActive := #AlarmLog.NActive + 1;
+            IF #AlarmLog.Active[#Index].ResetClass = @E_ResetClass.MANUAL_RESET@ THEN #AlarmLog.Blocking := TRUE; END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+        #AlarmLog.Touched[#Index] := FALSE;
+        IF #Startup THEN
+            #AlarmLog.Active[#Index] := "FRK_UnitScratch".EmptyEvent;
+            #AlarmLog.Automatic[#Index] := FALSE;
+            #AlarmLog.ComeMs[#Index] := 0;
+        END_IF;
+    END_FOR;
+    IF #Startup THEN
+        FOR #Index := 1 TO @MAX_ALARM_RING@ DO #AlarmLog.Ring[#Index] := "FRK_UnitScratch".EmptyEvent; END_FOR;
+        #AlarmLog.RingHead := 0;
+        #AlarmLog.RingUsed := 0;
+        #AlarmLog.Truncated := FALSE;
+    END_IF;
+    "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRaise" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Diag : "ST_Diagnostic";
+    ResetClass : DInt;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Stamp : DTL;
+    ResultCode : Int;
+    Rational : "ST_Diagnostic";
+END_VAR
+BEGIN
+    #FRK_AlarmRaise := 0;
+    IF #ResetClass < @E_ResetClass.AUTO_RESET@ OR #ResetClass > @E_ResetClass.MANUAL_RESET@
+        OR #Diag.Severity < @E_Severity.LOW@ OR #Diag.Severity > @E_Severity.HIGH@
+        OR #Diag.Category < @E_Category.PROCESS@ OR #Diag.Category > @E_Category.SYSTEM@
+        OR #Diag.SourcePath = WSTRING#'' OR #Diag.Description = WSTRING#'' THEN RETURN; END_IF;
+    FOR #Slot := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Active[#Slot].State = @E_AlarmState.CLOSED@ THEN
+            #Rational := #Diag;
+            "FRK_Rationalize"(Diag := #Rational);
+            #AlarmLog.Active[#Slot] := "FRK_UnitScratch".EmptyEvent;
+            #AlarmLog.Active[#Slot].ReasonCode := #Rational.ReasonCode;
+            #AlarmLog.Active[#Slot].Description := #Rational.Description;
+            #AlarmLog.Active[#Slot].SourcePath := #Rational.SourcePath;
+            #AlarmLog.Active[#Slot].IoTag := #Rational.IoTag;
+            #AlarmLog.Active[#Slot].IoAddress := #Rational.IoAddress;
+            #AlarmLog.Active[#Slot].Severity := #Rational.Severity;
+            #AlarmLog.Active[#Slot].Category := #Rational.Category;
+            #AlarmLog.Active[#Slot].ResetClass := #ResetClass;
+            #AlarmLog.Active[#Slot].State := @E_AlarmState.ACTIVE@;
+            #AlarmLog.ComeMs[#Slot] := "FRK_Clock".NowMs;
+            #AlarmLog.Automatic[#Slot] := FALSE;
+            #AlarmLog.Touched[#Slot] := FALSE;
+            #ResultCode := RD_SYS_T(OUT => #Stamp);
+            IF #ResultCode = 0 THEN #AlarmLog.Active[#Slot].ComeAt := DTL_TO_LDT(#Stamp); END_IF;
+            // The UTC source has no proven synchronization witness yet.
+            #AlarmLog.Active[#Slot].ComeTimeSynchronized := FALSE;
+            "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+            "FRK_AlarmNotify"(AlarmLog := #AlarmLog, Ev := #AlarmLog.Active[#Slot]);
+            #FRK_AlarmRaise := #Slot;
+            RETURN;
+        END_IF;
+    END_FOR;
+    #AlarmLog.Truncated := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmClose" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > @MAX_ALARM_ACTIVE@ THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#Slot].State = @E_AlarmState.CLOSED@ THEN RETURN; END_IF;
+    #AlarmLog.Active[#Slot].State := @E_AlarmState.CLOSED@;
+    IF #AlarmLog.RingHead < 0 OR #AlarmLog.RingHead > @MAX_ALARM_RING@ THEN #AlarmLog.RingHead := 0; END_IF;
+    #AlarmLog.RingHead := (#AlarmLog.RingHead MOD @MAX_ALARM_RING@) + 1;
+    IF #AlarmLog.RingUsed >= @MAX_ALARM_RING@ THEN #AlarmLog.Truncated := TRUE;
+    ELSE #AlarmLog.RingUsed := #AlarmLog.RingUsed + 1; END_IF;
+    #AlarmLog.Ring[#AlarmLog.RingHead] := #AlarmLog.Active[#Slot];
+    #AlarmLog.Automatic[#Slot] := FALSE;
+    "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+    "FRK_AlarmNotify"(AlarmLog := #AlarmLog, Ev := #AlarmLog.Ring[#AlarmLog.RingHead]);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmGone" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Span : UDInt;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmGone := FALSE;
+    IF #Slot < 1 OR #Slot > @MAX_ALARM_ACTIVE@ THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#Slot].State <> @E_AlarmState.ACTIVE@ THEN RETURN; END_IF;
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN #AlarmLog.Active[#Slot].GoneAt := DTL_TO_LDT(#Stamp); END_IF;
+    #AlarmLog.Active[#Slot].GoneTimeSynchronized := FALSE;
+    #Span := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ComeMs[#Slot]);
+    IF #Span > 2147483647 THEN #Span := 2147483647; END_IF;
+    #AlarmLog.Active[#Slot].Duration := DINT_TO_TIME(UDINT_TO_DINT(#Span));
+    IF #AlarmLog.Active[#Slot].ResetClass = @E_ResetClass.AUTO_RESET@ THEN
+        "FRK_AlarmClose"(AlarmLog := #AlarmLog, Slot := #Slot);
+    ELSE
+        #AlarmLog.Active[#Slot].State := @E_AlarmState.WAIT_RESET@;
+        #AlarmLog.Automatic[#Slot] := FALSE;
+    END_IF;
+    #FRK_AlarmGone := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmOperatorReset" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Gone : Bool;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    FOR #Slot := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Active[#Slot].State <> @E_AlarmState.CLOSED@ AND #AlarmLog.Active[#Slot].ResetClass = @E_ResetClass.MANUAL_RESET@ THEN
+            IF #AlarmLog.Active[#Slot].State = @E_AlarmState.ACTIVE@ THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+            #ResultCode := RD_SYS_T(OUT => #Stamp);
+            IF #ResultCode = 0 THEN #AlarmLog.Active[#Slot].ResetAt := DTL_TO_LDT(#Stamp); END_IF;
+            #AlarmLog.Active[#Slot].ResetTimeSynchronized := FALSE;
+            "FRK_AlarmClose"(AlarmLog := #AlarmLog, Slot := #Slot);
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmMessage" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Reason : DInt;
+    Description : WString;
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Slot : Int;
+    Gone : Bool;
+END_VAR
+BEGIN
+    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+    #Diag.ReasonCode := #Reason;
+    #Diag.Description := #Description;
+    #Diag.SourcePath := #SourcePath;
+    #Diag.Severity := @E_Severity.LOW@;
+    #Diag.Category := @E_Category.SYSTEM@;
+    #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
+    IF #Slot > 0 THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmCapture" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #Core.FaultSlot;
+    IF #Slot < 1 OR #Slot > @MAX_ALARM_ACTIVE@ THEN #Slot := 0;
+    ELSIF NOT #AlarmLog.Automatic[#Slot] OR #AlarmLog.Active[#Slot].State <> @E_AlarmState.ACTIVE@
+        OR #AlarmLog.Active[#Slot].SourcePath <> #Status.Diagnostic.SourcePath
+        OR #AlarmLog.Active[#Slot].ReasonCode <> #Status.Diagnostic.ReasonCode
+        OR #AlarmLog.Active[#Slot].Description <> #Status.Diagnostic.Description THEN #Slot := 0; END_IF;
+    IF #Core.Exec = @E_ExecState.ERROR@ AND NOT #Core.FaultHandled THEN
+        IF #Slot = 0 THEN
+            // Adopted first-outs share one active occurrence within this log.
+            FOR #Slot := 1 TO @MAX_ALARM_ACTIVE@ DO
+                IF #AlarmLog.Automatic[#Slot] AND #AlarmLog.Active[#Slot].State = @E_AlarmState.ACTIVE@
+                    AND #AlarmLog.Active[#Slot].SourcePath = #Status.Diagnostic.SourcePath
+                    AND #AlarmLog.Active[#Slot].ReasonCode = #Status.Diagnostic.ReasonCode
+                    AND #AlarmLog.Active[#Slot].Description = #Status.Diagnostic.Description THEN EXIT; END_IF;
+            END_FOR;
+            IF #Slot > @MAX_ALARM_ACTIVE@ THEN #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Status.Diagnostic, ResetClass := @E_ResetClass.MANUAL_RESET@); END_IF;
+        END_IF;
+        IF #Slot > 0 THEN #AlarmLog.Automatic[#Slot] := TRUE; #AlarmLog.Touched[#Slot] := TRUE; END_IF;
+        #Core.FaultSlot := #Slot;
+    ELSE
+        #Core.FaultSlot := 0;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Gone : Bool;
+END_VAR
+BEGIN
+    FOR #Slot := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Automatic[#Slot] AND NOT #AlarmLog.Touched[#Slot] THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmTreeBlocking" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Ancestor : DInt;
+    Depth : DInt;
+END_VAR
+BEGIN
+    #FRK_AlarmTreeBlocking := TRUE;
+    IF "FRK_Registry".Fault OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > @CAPACITY@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO "FRK_Registry".Count DO
+        IF "FRK_Registry".Rows[#Index].AlarmBlocking THEN
+            #Ancestor := #Index;
+            FOR #Depth := 1 TO @CAPACITY@ DO
+                IF #Ancestor = #Owner THEN RETURN; END_IF;
+                IF #Ancestor = 0 THEN EXIT; END_IF;
+                IF #Ancestor < 1 OR #Ancestor > "FRK_Registry".Count THEN RETURN; END_IF;
+                #Ancestor := "FRK_Registry".Rows[#Ancestor].Parent;
+            END_FOR;
+            IF #Depth > @CAPACITY@ AND #Ancestor <> 0 THEN RETURN; END_IF;
+        END_IF;
+    END_FOR;
+    #FRK_AlarmTreeBlocking := FALSE;
+END_FUNCTION

@@ -1,0 +1,47 @@
+﻿FUNCTION "FRK_Route_DeclarationUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_DeclarationUnit";
+      Hal : "ST_DeclarationUnitHal";
+      Report : "ST_ReleaseReport";
+   END_VAR
+
+   VAR_TEMP 
+      RouteMatched : Bool;
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_Route_DeclarationUnit := FALSE;
+	IF NOT "FRK_PathOwned"(OwnerPath := #Module.Status.Name, TargetPath := #Request.TargetPath) THEN
+	    RETURN;
+	END_IF;
+	"FRK_Release_DeclarationUnit"(Unit := #Module.Unit,
+	                              Hal := #Hal);
+	"FRK_ManualCommon"(Core := #Module.Core,
+	                   Unit := #Module.Unit,
+	                   Status := #Module.Status,
+	                   Report := #Report);
+	IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.error.unsupportedHmiRequest',
+	                        Reason := 2008,
+	                        Path := STRING_TO_WSTRING(#Module.Status.Name),
+	                        Kind := 4);
+	    #FRK_Route_DeclarationUnit := TRUE;
+	    RETURN;
+	END_IF;
+	#RouteMatched := "FRK_Route_DeclarationCell"(Module := #Module.Cell, Hal := #Hal.Cell, Request := #Request, Report := #Report);
+	#FRK_Route_DeclarationUnit := #FRK_Route_DeclarationUnit OR #RouteMatched;
+	#RouteMatched := "FRK_Route_SatelliteUnit"(Module := #Module.Satellite, Hal := #Hal.Satellite, Request := #Request, Report := #Report);
+	#FRK_Route_DeclarationUnit := #FRK_Route_DeclarationUnit OR #RouteMatched;
+	
+END_FUNCTION
+

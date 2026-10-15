@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_DocApply_D017" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocApply_D017 := FALSE;
+	#Position := 24;
+	#NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D017Data, DEST_VARIABLE => "FRK_PersistImages".D017, POS := #Position);
+	IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[17].Result.Length) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D017.SchemaVersion <> 1 OR "FRK_PersistImages".D017.Scope <> 'users' THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D017.Generation = 0 OR NOT "FRK_AccessUsersShapeData"(Count := "FRK_PersistImages".D017.Count, Rows := "FRK_PersistImages".D017.Rows) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D017.Checksum <> "FRK_AccessUsersCrcData"(SchemaVersion := "FRK_PersistImages".D017.SchemaVersion, Generation := "FRK_PersistImages".D017.Generation, Count := "FRK_PersistImages".D017.Count, Rows := "FRK_PersistImages".D017.Rows) THEN
+	    RETURN;
+	END_IF;
+	"FRK_LocalUsers".Generation := "FRK_PersistImages".D017.Generation;
+	"FRK_LocalUsers".Count := "FRK_PersistImages".D017.Count;
+	"FRK_LocalUsers".Rows := "FRK_PersistImages".D017.Rows;
+	"FRK_LocalUsers".Checksum := "FRK_PersistImages".D017.Checksum;
+	"FRK_LocalUsers".SchemaVersion := 1;
+	"FRK_AccessStorage".UsersCommissioned := TRUE;
+	#FRK_DocApply_D017 := TRUE;
+	
+END_FUNCTION
+

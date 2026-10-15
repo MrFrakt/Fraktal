@@ -1,0 +1,11 @@
+# CONTROLLER-CHANGING: bench only; preceding s7_probe.py ident is mandatory.
+# Build/download in one Openness session; keeps station certificates and users.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir ${src}
+set-block-number --plc PLC_1 --name S11SclCycle --number 124
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out ${export}
+download --plc PLC_1 --pc-interface "Intel(R) 82574L Gigabit Network Connection" --pc-number 2 --target "1 X1" --confirm-target 192.168.0.10 --user-management keep

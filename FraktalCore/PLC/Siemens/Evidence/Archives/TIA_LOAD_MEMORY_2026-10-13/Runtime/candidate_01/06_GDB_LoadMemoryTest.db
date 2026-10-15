@@ -1,0 +1,27 @@
+DATA_BLOCK "GDB_LoadMemoryTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    Kind : Int;
+    Seed : Byte;
+    Sequence : UDInt;
+    AckSequence {ExternalWritable := 'False'} : UDInt;
+    Accepted {ExternalWritable := 'False'} : Bool;
+    Busy {ExternalWritable := 'False'} : Bool;
+    NativeStatus {ExternalWritable := 'False'} : Word;
+    BusyScans {ExternalWritable := 'False'} : UDInt;
+    FirstByte {ExternalWritable := 'False'} : Byte;
+    LastByte {ExternalWritable := 'False'} : Byte;
+    ReadCrc {ExternalWritable := 'False'} : DWord;
+    BankAWorkByte {ExternalWritable := 'False'} : Byte;
+    BankBWorkByte {ExternalWritable := 'False'} : Byte;
+    PendingKind {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+    RequestPulse {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    SeenSequence {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+END_VAR
+VAR RETAIN
+    StartupCount {ExternalWritable := 'False'} : UDInt;
+END_VAR
+BEGIN
+END_DATA_BLOCK

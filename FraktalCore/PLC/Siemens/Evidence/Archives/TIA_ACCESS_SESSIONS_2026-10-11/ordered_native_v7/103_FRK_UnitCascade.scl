@@ -1,0 +1,77 @@
+﻿FUNCTION "FRK_UnitCascade" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ParentUnit : "FRK_Unit";
+      Supported : Array[0..6] of Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Policy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      History : Array[1..16] of "ST_Diagnostic";
+      Head : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Request : "ST_HmiRequest";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #ParentUnit.CascadePending THEN
+	    RETURN;
+	END_IF;
+	IF #ParentUnit.CascadeKind = 6 OR #ParentUnit.CascadeKind = 9 THEN
+	    #Unit.FollowStart := FALSE;
+	    #Request.Kind := #ParentUnit.CascadeKind;
+	    "FRK_UnitOperation"(Core := #Core,
+	                        Unit := #Unit,
+	                        Status := #Status,
+	                        Policy := #Policy,
+	                        Access := #Access,
+	                        Supported := #Supported,
+	                        Request := #Request,
+	                        Response := "FRK_UnitScratch".Response,
+	                        Trusted := TRUE);
+	    RETURN;
+	END_IF;
+	#Request.Kind := 3;
+	#Request.IntValue := #ParentUnit.CascadeMode;
+	"FRK_UnitOperation"(Core := #Core,
+	                    Unit := #Unit,
+	                    Status := #Status,
+	                    Policy := #Policy,
+	                    Access := #Access,
+	                    Supported := #Supported,
+	                    Request := #Request,
+	                    Response := "FRK_UnitScratch".Response,
+	                    Trusted := TRUE);
+	IF NOT "FRK_UnitScratch".Response.Accepted THEN
+	    #Unit.FollowStart := FALSE;
+	    #Request.Kind := 6;
+	    "FRK_UnitOperation"(Core := #Core,
+	                        Unit := #Unit,
+	                        Status := #Status,
+	                        Policy := #Policy,
+	                        Access := #Access,
+	                        Supported := #Supported,
+	                        Request := #Request,
+	                        Response := "FRK_UnitScratch".Response,
+	                        Trusted := TRUE);
+	    // Core names this event but has no assigned E_Reason ordinal yet.
+	    "FRK_HistoryEvent"(History := #History,
+	                       Head := #Head,
+	                       Reason := 2008,
+	                       Description := WSTRING#'std.event.childModeUnsupported',
+	                       SourcePath := STRING_TO_WSTRING(#Status.Name));
+	ELSE
+	    #Unit.FollowStart := #ParentUnit.CascadeKind = 5;
+	END_IF;
+	
+END_FUNCTION
+

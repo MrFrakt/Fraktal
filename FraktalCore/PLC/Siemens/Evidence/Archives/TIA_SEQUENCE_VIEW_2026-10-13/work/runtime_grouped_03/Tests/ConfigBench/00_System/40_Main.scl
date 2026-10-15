@@ -1,0 +1,12 @@
+ORGANIZATION_BLOCK "Main"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Initial_Call : Bool;
+    Remanence : Bool;
+END_VAR
+BEGIN
+    "F_ConfigBenchPrepare"(Startup := #Initial_Call);
+    "GDB_FraktalMain"(Startup := #Initial_Call);
+    "F_ConfigBenchObserve"(Startup := #Initial_Call);
+END_ORGANIZATION_BLOCK

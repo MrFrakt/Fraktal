@@ -1,0 +1,111 @@
+﻿FUNCTION "F_AlarmPersistenceBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := "FRK_AlarmHistoryIndex"(Scope := "GDB_AlarmPersistTest".Scope);
+	"GDB_AlarmPersistTest".Slot := #Slot;
+	IF #Slot < 1 THEN
+	    RETURN;
+	END_IF;
+	"GDB_AlarmPersistTest".Generation := "FRK_AlarmHistory".Rows[#Slot].Generation;
+	"GDB_AlarmPersistTest".Checksum := "FRK_AlarmHistory".Rows[#Slot].Checksum;
+	"GDB_AlarmPersistTest".Used := "FRK_AlarmHistory".Rows[#Slot].RingUsed;
+	"GDB_AlarmPersistTest".Applied := "GDB_AlarmPersistTest".Operation <> 0;
+	CASE "GDB_AlarmPersistTest".Operation OF
+	    1, 2:
+	        IF "GDB_AlarmPersistTest".Scope = 'StationA' THEN
+	            IF "GDB_AlarmPersistTest".Operation = 1 THEN
+	                "FRK_AlarmMessage"(Reason := "GDB_AlarmPersistTest".Reason,
+	                                   Description := "GDB_AlarmPersistTest".Text,
+	                                   SourcePath := WSTRING#'StationA',
+	                                   AlarmLog := "StationA".AlarmLog);
+	            ELSE
+	                "FRK_AlarmBegin"(Startup := TRUE,
+	                                 AlarmLog := "StationA".AlarmLog);
+	            END_IF;
+	        END_IF;
+	        IF "GDB_AlarmPersistTest".Scope = 'StationA.Satellite' THEN
+	            IF "GDB_AlarmPersistTest".Operation = 1 THEN
+	                "FRK_AlarmMessage"(Reason := "GDB_AlarmPersistTest".Reason,
+	                                   Description := "GDB_AlarmPersistTest".Text,
+	                                   SourcePath := WSTRING#'StationA.Satellite',
+	                                   AlarmLog := "StationA".Satellite.AlarmLog);
+	            ELSE
+	                "FRK_AlarmBegin"(Startup := TRUE,
+	                                 AlarmLog := "StationA".Satellite.AlarmLog);
+	            END_IF;
+	        END_IF;
+	        IF "GDB_AlarmPersistTest".Scope = 'StationA.Satellite.Inner' THEN
+	            IF "GDB_AlarmPersistTest".Operation = 1 THEN
+	                "FRK_AlarmMessage"(Reason := "GDB_AlarmPersistTest".Reason,
+	                                   Description := "GDB_AlarmPersistTest".Text,
+	                                   SourcePath := WSTRING#'StationA.Satellite.Inner',
+	                                   AlarmLog := "StationA".Satellite.Inner.AlarmLog);
+	            ELSE
+	                "FRK_AlarmBegin"(Startup := TRUE,
+	                                 AlarmLog := "StationA".Satellite.Inner.AlarmLog);
+	            END_IF;
+	        END_IF;
+	        IF "GDB_AlarmPersistTest".Scope = 'StationB' THEN
+	            IF "GDB_AlarmPersistTest".Operation = 1 THEN
+	                "FRK_AlarmMessage"(Reason := "GDB_AlarmPersistTest".Reason,
+	                                   Description := "GDB_AlarmPersistTest".Text,
+	                                   SourcePath := WSTRING#'StationB',
+	                                   AlarmLog := "StationB".AlarmLog);
+	            ELSE
+	                "FRK_AlarmBegin"(Startup := TRUE,
+	                                 AlarmLog := "StationB".AlarmLog);
+	            END_IF;
+	        END_IF;
+	        IF "GDB_AlarmPersistTest".Scope = 'StationB.Satellite' THEN
+	            IF "GDB_AlarmPersistTest".Operation = 1 THEN
+	                "FRK_AlarmMessage"(Reason := "GDB_AlarmPersistTest".Reason,
+	                                   Description := "GDB_AlarmPersistTest".Text,
+	                                   SourcePath := WSTRING#'StationB.Satellite',
+	                                   AlarmLog := "StationB".Satellite.AlarmLog);
+	            ELSE
+	                "FRK_AlarmBegin"(Startup := TRUE,
+	                                 AlarmLog := "StationB".Satellite.AlarmLog);
+	            END_IF;
+	        END_IF;
+	        IF "GDB_AlarmPersistTest".Scope = 'StationB.Satellite.Inner' THEN
+	            IF "GDB_AlarmPersistTest".Operation = 1 THEN
+	                "FRK_AlarmMessage"(Reason := "GDB_AlarmPersistTest".Reason,
+	                                   Description := "GDB_AlarmPersistTest".Text,
+	                                   SourcePath := WSTRING#'StationB.Satellite.Inner',
+	                                   AlarmLog := "StationB".Satellite.Inner.AlarmLog);
+	            ELSE
+	                "FRK_AlarmBegin"(Startup := TRUE,
+	                                 AlarmLog := "StationB".Satellite.Inner.AlarmLog);
+	            END_IF;
+	        END_IF;
+	    10:
+	        "FRK_AlarmHistory".Rows[#Slot].SchemaVersion := 2;
+	    11:
+	        "FRK_AlarmHistory".Rows[#Slot].RingHead := 65;
+	    12:
+	        "FRK_AlarmHistory".Rows[#Slot].Checksum := "FRK_AlarmHistory".Rows[#Slot].Checksum XOR DWORD#1;
+	    13:
+	        "FRK_AlarmHistory".Rows[#Slot].Scope := 'foreign';
+	    14:
+	        "FRK_AlarmHistory".Rows[#Slot].Ring[1].Description := WSTRING#'corrupted';
+	    15:
+	        "FRK_AlarmHistory".Rows[#Slot].Ring[1].Duration := T#-1ms;
+	    16:
+	        "FRK_AlarmHistory".Rows[#Slot].SchemaVersion := 0;
+	        "FRK_AlarmHistory".Rows[#Slot].Generation := 0;
+	        "FRK_AlarmHistory".Rows[#Slot].Scope := '';
+	        "FRK_AlarmHistory".Rows[#Slot].Checksum := DWORD#0;
+	    17:
+	        "FRK_AlarmHistory".Rows[#Slot].RingUsed := -1;
+	END_CASE;
+	"GDB_AlarmPersistTest".Operation := 0;
+	
+END_FUNCTION
+

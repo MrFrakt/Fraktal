@@ -1,0 +1,20 @@
+DATA_BLOCK "GDB_PersistenceTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    Operation : Int;
+    Slot : Int;
+    Bank : Int;
+    Offset : Int;
+    ByteValue : Byte;
+    Unavailable : Bool;
+    Applied {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    NativeStatus {ExternalWritable := 'False'} : Word;
+    Step {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+    Busy {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Pulse {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+BEGIN
+END_DATA_BLOCK

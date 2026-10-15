@@ -1,0 +1,66 @@
+﻿FUNCTION "FRK_AccessPolicyBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+      Root : Bool;
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      FreeSlot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	#Access.PolicySlot := 0;
+	#Access.PolicyLost := FALSE;
+	#Access.PolicyLossAlarm := 0;
+	#Access.UserLossAlarm := 0;
+	IF NOT #Root THEN
+	    RETURN;
+	END_IF;
+	#FreeSlot := 0;
+	FOR #Index := 1 TO 2 DO
+	    IF "FRK_AccessPolicies".Rows[#Index].Scope = #Scope THEN
+	        IF #Access.PolicySlot <> 0 THEN
+	            #Access.PolicyLost := TRUE;
+	        ELSE
+	            #Access.PolicySlot := #Index;
+	        END_IF;
+	    ELSIF #FreeSlot = 0 AND NOT "FRK_AccessPolicies".Rows[#Index].Initialized AND "FRK_AccessPolicies".Rows[#Index].Scope = '' AND "FRK_AccessPolicies".Rows[#Index].SchemaVersion = 0 AND "FRK_AccessPolicies".Rows[#Index].Generation = 0 AND "FRK_AccessPolicies".Rows[#Index].Checksum = DWORD#0 THEN
+	        #FreeSlot := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Access.PolicySlot > 0 THEN
+	    IF NOT #Access.PolicyLost AND "FRK_AccessPolicyValid"(Image := "FRK_AccessPolicies".Rows[#Access.PolicySlot]) THEN
+	        #Access.Policy := "FRK_AccessPolicies".Rows[#Access.PolicySlot].Policy;
+	    ELSE
+	        #Access.PolicyLost := TRUE;
+	    END_IF;
+	ELSIF #FreeSlot > 0 THEN
+	    #Access.PolicySlot := #FreeSlot;
+	    "FRK_AccessPolicySave"(Access := #Access,
+	                           Scope := #Scope);
+	ELSE
+	    #Access.PolicyLost := TRUE;
+	END_IF;
+	IF #Access.PolicyLost THEN
+	    // Do not silently reopen actions after losing commissioned policy.
+	    #Access.Policy := "FRK_AccessStorage".EmptyPolicy;
+	    FOR #Index := 0 TO 11 DO
+	        #Access.Policy.Required[#Index] := 4;
+	    END_FOR;
+	END_IF;
+	
+END_FUNCTION
+

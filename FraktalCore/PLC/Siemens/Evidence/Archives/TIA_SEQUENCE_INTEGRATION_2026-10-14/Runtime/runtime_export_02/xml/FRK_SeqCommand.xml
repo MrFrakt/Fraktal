@@ -1,0 +1,1122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-14T04:03:13.080634Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Value" Datatype="DInt" Accessibility="Public" />
+    <Member Name="Label" Datatype="String" Accessibility="Public" />
+    <Member Name="Ready" Datatype="Bool" Accessibility="Public" />
+    <Member Name="Done" Datatype="Bool" Accessibility="Public" />
+    <Member Name="Error" Datatype="Bool" Accessibility="Public" />
+    <Member Name="OwnFailure" Datatype="Bool" Accessibility="Public" />
+    <Member Name="Diagnostic" Datatype="&quot;ST_Diagnostic&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="ReasonCode" Datatype="DInt" />
+          <Member Name="SourcePath" Datatype="WString[255]" />
+          <Member Name="Description" Datatype="WString[255]" />
+          <Member Name="IoTag" Datatype="String[80]" />
+          <Member Name="IoAddress" Datatype="String[80]" />
+          <Member Name="Severity" Datatype="DInt" />
+          <Member Name="Category" Datatype="DInt" />
+          <Member Name="Since" Datatype="LDT" />
+          <Member Name="TimeSynchronized" Datatype="Bool" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Seq" Datatype="&quot;FRK_SequenceCtx&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="RunPrevious" Datatype="Bool" />
+          <Member Name="Running" Datatype="Bool" />
+          <Member Name="Restart" Datatype="Bool" />
+          <Member Name="Done" Datatype="Bool" />
+          <Member Name="Error" Datatype="Bool" />
+          <Member Name="Pending" Datatype="Bool" />
+          <Member Name="StartLatched" Datatype="Bool" />
+          <Member Name="OwnerIndex" Datatype="DInt" />
+          <Member Name="ChainIndex" Datatype="DInt" />
+          <Member Name="Step" Datatype="DInt" />
+          <Member Name="ScanStep" Datatype="DInt" />
+          <Member Name="RecordedStep" Datatype="DInt" />
+          <Member Name="RetVal" Datatype="DInt" />
+          <Member Name="Scan" Datatype="UDInt" />
+          <Member Name="Visit" Datatype="UDInt" />
+          <Member Name="Elapsed" Datatype="Time" />
+          <Member Name="DelayElapsed" Datatype="Time" />
+          <Member Name="StepName" Datatype="String[120]" />
+          <Member Name="Awaiting" Datatype="String[120]" />
+          <Member Name="ErrorDiagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="ReasonCode" Datatype="DInt" />
+                <Member Name="SourcePath" Datatype="WString[255]" />
+                <Member Name="Description" Datatype="WString[255]" />
+                <Member Name="IoTag" Datatype="String[80]" />
+                <Member Name="IoAddress" Datatype="String[80]" />
+                <Member Name="Severity" Datatype="DInt" />
+                <Member Name="Category" Datatype="DInt" />
+                <Member Name="Since" Datatype="LDT" />
+                <Member Name="TimeSynchronized" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="BranchIndex" Datatype="DInt" />
+          <Member Name="ViewOffset" Datatype="DInt" />
+          <Member Name="ViewDepth" Datatype="Int" />
+          <Member Name="NoTimeGuard" Datatype="Time" />
+          <Member Name="CommandFailed" Datatype="Bool" />
+          <Member Name="CommandIssued" Datatype="Bool" />
+          <Member Name="Warned" Datatype="Bool" />
+          <Member Name="HandledDiagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="ReasonCode" Datatype="DInt" />
+                <Member Name="SourcePath" Datatype="WString[255]" />
+                <Member Name="Description" Datatype="WString[255]" />
+                <Member Name="IoTag" Datatype="String[80]" />
+                <Member Name="IoAddress" Datatype="String[80]" />
+                <Member Name="Severity" Datatype="DInt" />
+                <Member Name="Category" Datatype="DInt" />
+                <Member Name="Since" Datatype="LDT" />
+                <Member Name="TimeSynchronized" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="EventVisit" Datatype="UDInt" />
+          <Member Name="EventToken" Datatype="DInt" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Lease" Datatype="&quot;ST_SequenceCommandLease&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="OwnerIndex" Datatype="DInt" />
+          <Member Name="ChainIndex" Datatype="DInt" />
+          <Member Name="BranchIndex" Datatype="DInt" />
+          <Member Name="Step" Datatype="DInt" />
+          <Member Name="Raised" Datatype="Bool" />
+          <Member Name="AbortIssued" Datatype="Bool" />
+          <Member Name="ReleasedScan" Datatype="UDInt" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Execute" Datatype="Bool" Accessibility="Public" />
+    <Member Name="Command" Datatype="DInt" Accessibility="Public" />
+  </Section>
+  <Section Name="Temp">
+    <Member Name="WaitOk" Datatype="Bool" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Bool" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_SeqCommand</Name>
+      <Namespace />
+      <Number>227</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="FRK_SeqCommand" UId="24" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="25" />
+  <Token Text=":=" UId="26" />
+  <Blank Num="1" UId="27" />
+  <Access Scope="LiteralConstant" UId="28">
+    <Constant UId="29">
+      <ConstantValue UId="31">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="32" />
+  <NewLine Num="1" UId="33" />
+  <Token Text="IF" UId="34" />
+  <Blank Num="1" UId="35" />
+  <Token Text="NOT" UId="36" />
+  <Blank Num="1" UId="37" />
+  <Access Scope="LocalVariable" UId="38">
+    <Symbol UId="39">
+      <Component Name="Seq" UId="40" />
+      <Token Text="." UId="41" />
+      <Component Name="Running" UId="42" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="43" />
+  <Token Text="OR" UId="44" />
+  <Blank Num="1" UId="45" />
+  <Access Scope="LocalVariable" UId="46">
+    <Symbol UId="47">
+      <Component Name="Seq" UId="48" />
+      <Token Text="." UId="49" />
+      <Component Name="Error" UId="50" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="51" />
+  <Token Text="OR" UId="52" />
+  <Blank Num="1" UId="53" />
+  <Access Scope="LocalVariable" UId="54">
+    <Symbol UId="55">
+      <Component Name="Seq" UId="56" />
+      <Token Text="." UId="57" />
+      <Component Name="OwnerIndex" UId="58" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="59" />
+  <Token Text="&lt;=" UId="60" />
+  <Blank Num="1" UId="61" />
+  <Access Scope="LiteralConstant" UId="62">
+    <Constant UId="63">
+      <ConstantValue UId="65">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="66" />
+  <Token Text="OR" UId="67" />
+  <Blank Num="1" UId="68" />
+  <Access Scope="LocalVariable" UId="69">
+    <Symbol UId="70">
+      <Component Name="Seq" UId="71" />
+      <Token Text="." UId="72" />
+      <Component Name="ChainIndex" UId="73" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="74" />
+  <Token Text="&lt;=" UId="75" />
+  <Blank Num="1" UId="76" />
+  <Access Scope="LiteralConstant" UId="77">
+    <Constant UId="78">
+      <ConstantValue UId="80">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="81" />
+  <Token Text="THEN" UId="82" />
+  <NewLine Num="1" UId="83" />
+  <Blank Num="4" UId="84" />
+  <Token Text="RETURN" UId="85" />
+  <Token Text=";" UId="86" />
+  <NewLine Num="1" UId="87" />
+  <Token Text="END_IF" UId="88" />
+  <Token Text=";" UId="89" />
+  <NewLine Num="1" UId="90" />
+  <Token Text="IF" UId="91" />
+  <Blank Num="1" UId="92" />
+  <Access Scope="LocalVariable" UId="93">
+    <Symbol UId="94">
+      <Component Name="Lease" UId="95" />
+      <Token Text="." UId="96" />
+      <Component Name="Raised" UId="97" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="98" />
+  <Token Text="THEN" UId="99" />
+  <NewLine Num="1" UId="100" />
+  <Blank Num="4" UId="101" />
+  <Token Text="IF" UId="102" />
+  <Blank Num="1" UId="103" />
+  <Access Scope="LocalVariable" UId="104">
+    <Symbol UId="105">
+      <Component Name="Lease" UId="106" />
+      <Token Text="." UId="107" />
+      <Component Name="OwnerIndex" UId="108" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="109" />
+  <Token Text="&lt;&gt;" UId="110" />
+  <Blank Num="1" UId="111" />
+  <Access Scope="LocalVariable" UId="112">
+    <Symbol UId="113">
+      <Component Name="Seq" UId="114" />
+      <Token Text="." UId="115" />
+      <Component Name="OwnerIndex" UId="116" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="117" />
+  <Token Text="OR" UId="118" />
+  <Blank Num="1" UId="119" />
+  <Access Scope="LocalVariable" UId="120">
+    <Symbol UId="121">
+      <Component Name="Lease" UId="122" />
+      <Token Text="." UId="123" />
+      <Component Name="ChainIndex" UId="124" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="125" />
+  <Token Text="&lt;&gt;" UId="126" />
+  <Blank Num="1" UId="127" />
+  <Access Scope="LocalVariable" UId="128">
+    <Symbol UId="129">
+      <Component Name="Seq" UId="130" />
+      <Token Text="." UId="131" />
+      <Component Name="ChainIndex" UId="132" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="133" />
+  <Token Text="OR" UId="134" />
+  <Blank Num="1" UId="135" />
+  <Access Scope="LocalVariable" UId="136">
+    <Symbol UId="137">
+      <Component Name="Lease" UId="138" />
+      <Token Text="." UId="139" />
+      <Component Name="BranchIndex" UId="140" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="141" />
+  <Token Text="&lt;&gt;" UId="142" />
+  <Blank Num="1" UId="143" />
+  <Access Scope="LocalVariable" UId="144">
+    <Symbol UId="145">
+      <Component Name="Seq" UId="146" />
+      <Token Text="." UId="147" />
+      <Component Name="BranchIndex" UId="148" />
+    </Symbol>
+  </Access>
+  <NewLine Num="1" UId="149" />
+  <Blank Num="8" UId="150" />
+  <Token Text="OR" UId="151" />
+  <Blank Num="1" UId="152" />
+  <Access Scope="LocalVariable" UId="153">
+    <Symbol UId="154">
+      <Component Name="Lease" UId="155" />
+      <Token Text="." UId="156" />
+      <Component Name="Step" UId="157" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="158" />
+  <Token Text="&lt;&gt;" UId="159" />
+  <Blank Num="1" UId="160" />
+  <Access Scope="LocalVariable" UId="161">
+    <Symbol UId="162">
+      <Component Name="Seq" UId="163" />
+      <Token Text="." UId="164" />
+      <Component Name="Step" UId="165" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="166" />
+  <Token Text="OR" UId="167" />
+  <Blank Num="1" UId="168" />
+  <Access Scope="LocalVariable" UId="169">
+    <Symbol UId="170">
+      <Component Name="Command" UId="171" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="172" />
+  <Token Text="&lt;&gt;" UId="173" />
+  <Blank Num="1" UId="174" />
+  <Access Scope="LocalVariable" UId="175">
+    <Symbol UId="176">
+      <Component Name="Value" UId="177" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="178" />
+  <Token Text="THEN" UId="179" />
+  <NewLine Num="1" UId="180" />
+  <Blank Num="8" UId="181" />
+  <LineComment Inserted="false" NoClosingBracket="false" UId="182">
+    <Text UId="183"> Another chain owns this command; never borrow its Done result.</Text>
+  </LineComment>
+  <NewLine Num="1" UId="184" />
+  <Blank Num="8" UId="185" />
+  <Access Scope="LocalVariable" UId="186">
+    <Symbol UId="187">
+      <Component Name="WaitOk" UId="188" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="189" />
+  <Token Text=":=" UId="190" />
+  <Blank Num="1" UId="191" />
+  <Access Scope="Call" UId="192">
+    <CallInfo UId="193" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="195">
+        <Component Name="FRK_SeqAwait" UId="194" />
+      </Instance>
+      <Token Text="(" UId="196" />
+      <Parameter Name="Seq" UId="197">
+        <Blank Num="1" UId="198" />
+        <Token Text=":=" UId="199" />
+        <Blank Num="1" UId="200" />
+        <Access Scope="LocalVariable" UId="201">
+          <Symbol UId="202">
+            <Component Name="Seq" UId="203" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="204" />
+      <Blank Num="1" UId="205" />
+      <Parameter Name="Label" UId="206">
+        <Blank Num="1" UId="207" />
+        <Token Text=":=" UId="208" />
+        <Blank Num="1" UId="209" />
+        <Access Scope="LiteralConstant" UId="210">
+          <Constant UId="211">
+            <ConstantValue UId="213">'std.release.commandOwned'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="214" />
+      <Blank Num="1" UId="215" />
+      <Parameter Name="Ok" UId="216">
+        <Blank Num="1" UId="217" />
+        <Token Text=":=" UId="218" />
+        <Blank Num="1" UId="219" />
+        <Access Scope="LiteralConstant" UId="220">
+          <Constant UId="221">
+            <ConstantValue UId="223">FALSE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="225" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="226" />
+  <NewLine Num="1" UId="227" />
+  <Blank Num="8" UId="228" />
+  <Token Text="RETURN" UId="229" />
+  <Token Text=";" UId="230" />
+  <NewLine Num="1" UId="231" />
+  <Blank Num="4" UId="232" />
+  <Token Text="END_IF" UId="233" />
+  <Token Text=";" UId="234" />
+  <NewLine Num="1" UId="235" />
+  <Blank Num="4" UId="236" />
+  <Token Text="IF" UId="237" />
+  <Blank Num="1" UId="238" />
+  <Access Scope="LocalVariable" UId="239">
+    <Symbol UId="240">
+      <Component Name="Done" UId="241" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="242" />
+  <Token Text="THEN" UId="243" />
+  <NewLine Num="1" UId="244" />
+  <Blank Num="8" UId="245" />
+  <Access Scope="LocalVariable" UId="246">
+    <Symbol UId="247">
+      <Component Name="FRK_SeqCommand" UId="248" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="249" />
+  <Token Text=":=" UId="250" />
+  <Blank Num="1" UId="251" />
+  <Access Scope="LiteralConstant" UId="252">
+    <Constant UId="253">
+      <ConstantValue UId="255">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="256" />
+  <NewLine Num="1" UId="257" />
+  <Blank Num="4" UId="258" />
+  <Token Text="ELSIF" UId="259" />
+  <Blank Num="1" UId="260" />
+  <Access Scope="LocalVariable" UId="261">
+    <Symbol UId="262">
+      <Component Name="Error" UId="263" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="264" />
+  <Token Text="THEN" UId="265" />
+  <NewLine Num="1" UId="266" />
+  <Blank Num="8" UId="267" />
+  <Token Text="IF" UId="268" />
+  <Blank Num="1" UId="269" />
+  <Access Scope="LocalVariable" UId="270">
+    <Symbol UId="271">
+      <Component Name="OwnFailure" UId="272" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="273" />
+  <Token Text="THEN" UId="274" />
+  <NewLine Num="1" UId="275" />
+  <Blank Num="12" UId="276" />
+  <Access Scope="LocalVariable" UId="277">
+    <Symbol UId="278">
+      <Component Name="Seq" UId="279" />
+      <Token Text="." UId="280" />
+      <Component Name="CommandFailed" UId="281" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="282" />
+  <Token Text=":=" UId="283" />
+  <Blank Num="1" UId="284" />
+  <Access Scope="LiteralConstant" UId="285">
+    <Constant UId="286">
+      <ConstantValue UId="288">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="289" />
+  <NewLine Num="1" UId="290" />
+  <Blank Num="12" UId="291" />
+  <Access Scope="LocalVariable" UId="292">
+    <Symbol UId="293">
+      <Component Name="Seq" UId="294" />
+      <Token Text="." UId="295" />
+      <Component Name="HandledDiagnostic" UId="296" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="297" />
+  <Token Text=":=" UId="298" />
+  <Blank Num="1" UId="299" />
+  <Access Scope="LocalVariable" UId="300">
+    <Symbol UId="301">
+      <Component Name="Diagnostic" UId="302" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="303" />
+  <NewLine Num="1" UId="304" />
+  <Blank Num="8" UId="305" />
+  <Token Text="ELSE" UId="306" />
+  <NewLine Num="1" UId="307" />
+  <Blank Num="12" UId="308" />
+  <Access Scope="LocalVariable" UId="309">
+    <Symbol UId="310">
+      <Component Name="Seq" UId="311" />
+      <Token Text="." UId="312" />
+      <Component Name="Error" UId="313" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="314" />
+  <Token Text=":=" UId="315" />
+  <Blank Num="1" UId="316" />
+  <Access Scope="LiteralConstant" UId="317">
+    <Constant UId="318">
+      <ConstantValue UId="320">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="321" />
+  <NewLine Num="1" UId="322" />
+  <Blank Num="12" UId="323" />
+  <Access Scope="LocalVariable" UId="324">
+    <Symbol UId="325">
+      <Component Name="Seq" UId="326" />
+      <Token Text="." UId="327" />
+      <Component Name="ErrorDiagnostic" UId="328" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="329" />
+  <Token Text=":=" UId="330" />
+  <Blank Num="1" UId="331" />
+  <Access Scope="LocalVariable" UId="332">
+    <Symbol UId="333">
+      <Component Name="Diagnostic" UId="334" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="335" />
+  <NewLine Num="1" UId="336" />
+  <Blank Num="12" UId="337" />
+  <Access Scope="Call" UId="338">
+    <CallInfo UId="339" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="341">
+        <Component Name="FRK_SeqViewNote" UId="340" />
+      </Instance>
+      <Token Text="(" UId="342" />
+      <Parameter Name="Owner" UId="343">
+        <Blank Num="1" UId="344" />
+        <Token Text=":=" UId="345" />
+        <Blank Num="1" UId="346" />
+        <Access Scope="LocalVariable" UId="347">
+          <Symbol UId="348">
+            <Component Name="Seq" UId="349" />
+            <Token Text="." UId="350" />
+            <Component Name="OwnerIndex" UId="351" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="352" />
+      <NewLine Num="1" UId="353" />
+      <Blank Num="30" UId="354" />
+      <Parameter Name="StepNo" UId="355">
+        <Blank Num="1" UId="356" />
+        <Token Text=":=" UId="357" />
+        <Blank Num="1" UId="358" />
+        <Access Scope="LocalVariable" UId="359">
+          <Symbol UId="360">
+            <Component Name="Seq" UId="361" />
+            <Token Text="." UId="362" />
+            <Component Name="RecordedStep" UId="363" />
+          </Symbol>
+        </Access>
+        <Blank Num="1" UId="364" />
+        <Token Text="+" UId="365" />
+        <Blank Num="1" UId="366" />
+        <Access Scope="LocalVariable" UId="367">
+          <Symbol UId="368">
+            <Component Name="Seq" UId="369" />
+            <Token Text="." UId="370" />
+            <Component Name="ViewOffset" UId="371" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="372" />
+      <NewLine Num="1" UId="373" />
+      <Blank Num="30" UId="374" />
+      <Parameter Name="Branch" UId="375">
+        <Blank Num="1" UId="376" />
+        <Token Text=":=" UId="377" />
+        <Blank Num="1" UId="378" />
+        <Access Scope="LocalVariable" UId="379">
+          <Symbol UId="380">
+            <Component Name="Seq" UId="381" />
+            <Token Text="." UId="382" />
+            <Component Name="BranchIndex" UId="383" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="384" />
+      <NewLine Num="1" UId="385" />
+      <Blank Num="30" UId="386" />
+      <Parameter Name="IsError" UId="387">
+        <Blank Num="1" UId="388" />
+        <Token Text=":=" UId="389" />
+        <Blank Num="1" UId="390" />
+        <Access Scope="LiteralConstant" UId="391">
+          <Constant UId="392">
+            <ConstantValue UId="394">TRUE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="395" />
+      <NewLine Num="1" UId="396" />
+      <Blank Num="30" UId="397" />
+      <Parameter Name="Key" UId="398">
+        <Blank Num="1" UId="399" />
+        <Token Text=":=" UId="400" />
+        <Blank Num="1" UId="401" />
+        <Access Scope="Call" UId="402">
+          <Instruction Name="WSTRING_TO_STRING" UId="403">
+            <Token Text="(" UId="404" />
+            <NamelessParameter UId="405">
+              <Access Scope="LocalVariable" UId="406">
+                <Symbol UId="407">
+                  <Component Name="Diagnostic" UId="408" />
+                  <Token Text="." UId="409" />
+                  <Component Name="Description" UId="410" />
+                </Symbol>
+              </Access>
+            </NamelessParameter>
+            <Token Text=")" UId="412" />
+          </Instruction>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="413" />
+      <NewLine Num="1" UId="414" />
+      <Blank Num="30" UId="415" />
+      <Parameter Name="SourcePath" UId="416">
+        <Blank Num="1" UId="417" />
+        <Token Text=":=" UId="418" />
+        <Blank Num="1" UId="419" />
+        <Access Scope="Call" UId="420">
+          <Instruction Name="WSTRING_TO_STRING" UId="421">
+            <Token Text="(" UId="422" />
+            <NamelessParameter UId="423">
+              <Access Scope="LocalVariable" UId="424">
+                <Symbol UId="425">
+                  <Component Name="Diagnostic" UId="426" />
+                  <Token Text="." UId="427" />
+                  <Component Name="SourcePath" UId="428" />
+                </Symbol>
+              </Access>
+            </NamelessParameter>
+            <Token Text=")" UId="430" />
+          </Instruction>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="431" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="432" />
+  <NewLine Num="1" UId="433" />
+  <Blank Num="8" UId="434" />
+  <Token Text="END_IF" UId="435" />
+  <Token Text=";" UId="436" />
+  <NewLine Num="1" UId="437" />
+  <Blank Num="8" UId="438" />
+  <Access Scope="LocalVariable" UId="439">
+    <Symbol UId="440">
+      <Component Name="Execute" UId="441" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="442" />
+  <Token Text=":=" UId="443" />
+  <Blank Num="1" UId="444" />
+  <Access Scope="LiteralConstant" UId="445">
+    <Constant UId="446">
+      <ConstantValue UId="448">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="449" />
+  <NewLine Num="1" UId="450" />
+  <Blank Num="4" UId="451" />
+  <Token Text="ELSE" UId="452" />
+  <NewLine Num="1" UId="453" />
+  <Blank Num="8" UId="454" />
+  <Access Scope="LocalVariable" UId="455">
+    <Symbol UId="456">
+      <Component Name="WaitOk" UId="457" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="458" />
+  <Token Text=":=" UId="459" />
+  <Blank Num="1" UId="460" />
+  <Access Scope="Call" UId="461">
+    <CallInfo UId="462" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="464">
+        <Component Name="FRK_SeqAwait" UId="463" />
+      </Instance>
+      <Token Text="(" UId="465" />
+      <Parameter Name="Seq" UId="466">
+        <Blank Num="1" UId="467" />
+        <Token Text=":=" UId="468" />
+        <Blank Num="1" UId="469" />
+        <Access Scope="LocalVariable" UId="470">
+          <Symbol UId="471">
+            <Component Name="Seq" UId="472" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="473" />
+      <Blank Num="1" UId="474" />
+      <Parameter Name="Label" UId="475">
+        <Blank Num="1" UId="476" />
+        <Token Text=":=" UId="477" />
+        <Blank Num="1" UId="478" />
+        <Access Scope="LocalVariable" UId="479">
+          <Symbol UId="480">
+            <Component Name="Label" UId="481" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="482" />
+      <Blank Num="1" UId="483" />
+      <Parameter Name="Ok" UId="484">
+        <Blank Num="1" UId="485" />
+        <Token Text=":=" UId="486" />
+        <Blank Num="1" UId="487" />
+        <Access Scope="LiteralConstant" UId="488">
+          <Constant UId="489">
+            <ConstantValue UId="491">FALSE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="493" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="494" />
+  <NewLine Num="1" UId="495" />
+  <Blank Num="4" UId="496" />
+  <Token Text="END_IF" UId="497" />
+  <Token Text=";" UId="498" />
+  <NewLine Num="1" UId="499" />
+  <Token Text="ELSIF" UId="500" />
+  <Blank Num="1" UId="501" />
+  <Access Scope="LocalVariable" UId="502">
+    <Symbol UId="503">
+      <Component Name="Ready" UId="504" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="505" />
+  <Token Text="AND" UId="506" />
+  <Blank Num="1" UId="507" />
+  <Access Scope="LocalVariable" UId="508">
+    <Symbol UId="509">
+      <Component Name="Lease" UId="510" />
+      <Token Text="." UId="511" />
+      <Component Name="ReleasedScan" UId="512" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="513" />
+  <Token Text="&lt;&gt;" UId="514" />
+  <Blank Num="1" UId="515" />
+  <Access Scope="LocalVariable" UId="516">
+    <Symbol UId="517">
+      <Component Name="Seq" UId="518" />
+      <Token Text="." UId="519" />
+      <Component Name="Scan" UId="520" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="521" />
+  <Token Text="THEN" UId="522" />
+  <NewLine Num="1" UId="523" />
+  <Blank Num="4" UId="524" />
+  <Access Scope="LocalVariable" UId="525">
+    <Symbol UId="526">
+      <Component Name="Lease" UId="527" />
+      <Token Text="." UId="528" />
+      <Component Name="OwnerIndex" UId="529" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="530" />
+  <Token Text=":=" UId="531" />
+  <Blank Num="1" UId="532" />
+  <Access Scope="LocalVariable" UId="533">
+    <Symbol UId="534">
+      <Component Name="Seq" UId="535" />
+      <Token Text="." UId="536" />
+      <Component Name="OwnerIndex" UId="537" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="538" />
+  <NewLine Num="1" UId="539" />
+  <Blank Num="4" UId="540" />
+  <Access Scope="LocalVariable" UId="541">
+    <Symbol UId="542">
+      <Component Name="Lease" UId="543" />
+      <Token Text="." UId="544" />
+      <Component Name="ChainIndex" UId="545" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="546" />
+  <Token Text=":=" UId="547" />
+  <Blank Num="1" UId="548" />
+  <Access Scope="LocalVariable" UId="549">
+    <Symbol UId="550">
+      <Component Name="Seq" UId="551" />
+      <Token Text="." UId="552" />
+      <Component Name="ChainIndex" UId="553" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="554" />
+  <NewLine Num="1" UId="555" />
+  <Blank Num="4" UId="556" />
+  <Access Scope="LocalVariable" UId="557">
+    <Symbol UId="558">
+      <Component Name="Lease" UId="559" />
+      <Token Text="." UId="560" />
+      <Component Name="BranchIndex" UId="561" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="562" />
+  <Token Text=":=" UId="563" />
+  <Blank Num="1" UId="564" />
+  <Access Scope="LocalVariable" UId="565">
+    <Symbol UId="566">
+      <Component Name="Seq" UId="567" />
+      <Token Text="." UId="568" />
+      <Component Name="BranchIndex" UId="569" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="570" />
+  <NewLine Num="1" UId="571" />
+  <Blank Num="4" UId="572" />
+  <Access Scope="LocalVariable" UId="573">
+    <Symbol UId="574">
+      <Component Name="Lease" UId="575" />
+      <Token Text="." UId="576" />
+      <Component Name="Step" UId="577" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="578" />
+  <Token Text=":=" UId="579" />
+  <Blank Num="1" UId="580" />
+  <Access Scope="LocalVariable" UId="581">
+    <Symbol UId="582">
+      <Component Name="Seq" UId="583" />
+      <Token Text="." UId="584" />
+      <Component Name="Step" UId="585" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="586" />
+  <NewLine Num="1" UId="587" />
+  <Blank Num="4" UId="588" />
+  <Access Scope="LocalVariable" UId="589">
+    <Symbol UId="590">
+      <Component Name="Lease" UId="591" />
+      <Token Text="." UId="592" />
+      <Component Name="Raised" UId="593" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="594" />
+  <Token Text=":=" UId="595" />
+  <Blank Num="1" UId="596" />
+  <Access Scope="LiteralConstant" UId="597">
+    <Constant UId="598">
+      <ConstantValue UId="600">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="601" />
+  <NewLine Num="1" UId="602" />
+  <Blank Num="4" UId="603" />
+  <Access Scope="LocalVariable" UId="604">
+    <Symbol UId="605">
+      <Component Name="Seq" UId="606" />
+      <Token Text="." UId="607" />
+      <Component Name="CommandIssued" UId="608" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="609" />
+  <Token Text=":=" UId="610" />
+  <Blank Num="1" UId="611" />
+  <Access Scope="LiteralConstant" UId="612">
+    <Constant UId="613">
+      <ConstantValue UId="615">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="616" />
+  <NewLine Num="1" UId="617" />
+  <Blank Num="4" UId="618" />
+  <Access Scope="LocalVariable" UId="619">
+    <Symbol UId="620">
+      <Component Name="Command" UId="621" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="622" />
+  <Token Text=":=" UId="623" />
+  <Blank Num="1" UId="624" />
+  <Access Scope="LocalVariable" UId="625">
+    <Symbol UId="626">
+      <Component Name="Value" UId="627" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="628" />
+  <NewLine Num="1" UId="629" />
+  <Blank Num="4" UId="630" />
+  <Access Scope="LocalVariable" UId="631">
+    <Symbol UId="632">
+      <Component Name="Execute" UId="633" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="634" />
+  <Token Text=":=" UId="635" />
+  <Blank Num="1" UId="636" />
+  <Access Scope="LiteralConstant" UId="637">
+    <Constant UId="638">
+      <ConstantValue UId="640">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="641" />
+  <NewLine Num="1" UId="642" />
+  <Blank Num="4" UId="643" />
+  <Access Scope="LocalVariable" UId="644">
+    <Symbol UId="645">
+      <Component Name="WaitOk" UId="646" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="647" />
+  <Token Text=":=" UId="648" />
+  <Blank Num="1" UId="649" />
+  <Access Scope="Call" UId="650">
+    <CallInfo UId="651" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="653">
+        <Component Name="FRK_SeqAwait" UId="652" />
+      </Instance>
+      <Token Text="(" UId="654" />
+      <Parameter Name="Seq" UId="655">
+        <Blank Num="1" UId="656" />
+        <Token Text=":=" UId="657" />
+        <Blank Num="1" UId="658" />
+        <Access Scope="LocalVariable" UId="659">
+          <Symbol UId="660">
+            <Component Name="Seq" UId="661" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="662" />
+      <Blank Num="1" UId="663" />
+      <Parameter Name="Label" UId="664">
+        <Blank Num="1" UId="665" />
+        <Token Text=":=" UId="666" />
+        <Blank Num="1" UId="667" />
+        <Access Scope="LocalVariable" UId="668">
+          <Symbol UId="669">
+            <Component Name="Label" UId="670" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="671" />
+      <Blank Num="1" UId="672" />
+      <Parameter Name="Ok" UId="673">
+        <Blank Num="1" UId="674" />
+        <Token Text=":=" UId="675" />
+        <Blank Num="1" UId="676" />
+        <Access Scope="LiteralConstant" UId="677">
+          <Constant UId="678">
+            <ConstantValue UId="680">FALSE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="682" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="683" />
+  <NewLine Num="1" UId="684" />
+  <Token Text="ELSE" UId="685" />
+  <NewLine Num="1" UId="686" />
+  <Blank Num="4" UId="687" />
+  <Access Scope="LocalVariable" UId="688">
+    <Symbol UId="689">
+      <Component Name="WaitOk" UId="690" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="691" />
+  <Token Text=":=" UId="692" />
+  <Blank Num="1" UId="693" />
+  <Access Scope="Call" UId="694">
+    <CallInfo UId="695" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="697">
+        <Component Name="FRK_SeqAwait" UId="696" />
+      </Instance>
+      <Token Text="(" UId="698" />
+      <Parameter Name="Seq" UId="699">
+        <Blank Num="1" UId="700" />
+        <Token Text=":=" UId="701" />
+        <Blank Num="1" UId="702" />
+        <Access Scope="LocalVariable" UId="703">
+          <Symbol UId="704">
+            <Component Name="Seq" UId="705" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="706" />
+      <Blank Num="1" UId="707" />
+      <Parameter Name="Label" UId="708">
+        <Blank Num="1" UId="709" />
+        <Token Text=":=" UId="710" />
+        <Blank Num="1" UId="711" />
+        <Access Scope="LocalVariable" UId="712">
+          <Symbol UId="713">
+            <Component Name="Label" UId="714" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="715" />
+      <Blank Num="1" UId="716" />
+      <Parameter Name="Ok" UId="717">
+        <Blank Num="1" UId="718" />
+        <Token Text=":=" UId="719" />
+        <Blank Num="1" UId="720" />
+        <Access Scope="LiteralConstant" UId="721">
+          <Constant UId="722">
+            <ConstantValue UId="724">FALSE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="726" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="727" />
+  <NewLine Num="1" UId="728" />
+  <Token Text="END_IF" UId="729" />
+  <Token Text=";" UId="730" />
+  <NewLine Num="1" UId="731" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

@@ -1,0 +1,33 @@
+﻿DATA_BLOCK "GDB_SequenceDiagnosticTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      Owner : DInt;
+      Enabled : Bool;
+      ResetPulse : Bool;
+      Scenario : Int;
+      StepNo : DInt;
+      Branch : DInt;
+      Guard : Time;
+      Elapsed : Time;
+      ConditionOne : Bool;
+      ConditionTwo : Bool;
+      CommandValue : DInt;
+      Permit : Bool;
+      Finish : Bool;
+      Diagnostic : "ST_Diagnostic";
+      LaterDiagnostic : "ST_Diagnostic";
+      InvalidTarget : DInt;
+      Seq { ExternalWritable := 'False'} : "FRK_SequenceCtx";
+      Row { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Completed { ExternalWritable := 'False'} : Bool;
+      LeaseOne { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SequenceCommandLease";
+      LeaseTwo { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SequenceCommandLease";
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+

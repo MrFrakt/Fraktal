@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_CfgSetWalk_CylinderCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Phase : Int;
+      Access : "FRK_Access";
+      Ready : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_CylinderCM";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Stored : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgSetWalk_CylinderCM := FALSE;
+	#FRK_CfgSetWalk_CylinderCM := TRUE;
+	
+END_FUNCTION
+

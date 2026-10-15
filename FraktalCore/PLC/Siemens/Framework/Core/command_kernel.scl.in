@@ -37,6 +37,16 @@ BEGIN
     #FRK_Elapsed := ULINT_TO_UDINT(#Wide);
 END_FUNCTION
 
+FUNCTION "FRK_Now" : LDT
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP Stamp : DTL; ResultCode : Int; END_VAR
+BEGIN
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN #FRK_Now := DTL_TO_LDT(#Stamp);
+    ELSE #FRK_Now := LDT#1970-01-01-00:00:00.000000000; END_IF;
+END_FUNCTION
+
 FUNCTION "FRK_ClearDiag" : Void
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
@@ -79,10 +89,6 @@ END_VAR
 VAR_IN_OUT
     Status : "ST_ModuleStatus";
 END_VAR
-VAR_TEMP
-    Stamp : DTL;
-    ResultCode : Int;
-END_VAR
 BEGIN
     #Status.Diagnostic.ReasonCode := #ReasonCode;
     #Status.Diagnostic.SourcePath := STRING_TO_WSTRING(#Status.Name);
@@ -91,12 +97,7 @@ BEGIN
     #Status.Diagnostic.IoAddress := '';
     #Status.Diagnostic.Severity := #Severity;
     #Status.Diagnostic.Category := @E_Category.PROCESS@;
-    #ResultCode := RD_SYS_T(OUT => #Stamp);
-    IF #ResultCode = 0 THEN
-        #Status.Diagnostic.Since := DTL_TO_LDT(#Stamp);
-    ELSE
-        #Status.Diagnostic.Since := LDT#1970-01-01-00:00:00.000000000;
-    END_IF;
+    #Status.Diagnostic.Since := "FRK_Now"();
     // UTC source alone is not proof of synchronization; quality stays false.
     #Status.Diagnostic.TimeSynchronized := FALSE;
 END_FUNCTION
@@ -266,6 +267,7 @@ BEGIN
     #Core.EvAbortInError := FALSE;
     #Core.HoldReq := FALSE;
     #Core.DiagTouched := FALSE;
+@FAULT_HANDLED_RESET@
     #Core.HookResult := 0;
     IF NOT #Execute AND (#Core.Armed OR #Core.ReleasePending) AND (#Core.Exec = @E_ExecState.DONE@ OR #Core.Exec = @E_ExecState.ERROR@ OR #Core.Exec = @E_ExecState.ABORTED@) THEN
         #Core.Exec := @E_ExecState.READY@;
@@ -319,6 +321,25 @@ BEGIN
     #Core.AbortPrev := #ErrorAbort;
 END_FUNCTION
 
+FUNCTION "FRK_TimingUpdate" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT DurationMs : UDInt; END_VAR
+VAR_IN_OUT Row : "ST_TimingRow"; END_VAR
+VAR_TEMP BoundedMs : UDInt; Duration : Time; AverageMs : LInt; END_VAR
+BEGIN
+    #BoundedMs := #DurationMs;
+    IF #BoundedMs > UDINT#2147483647 THEN #BoundedMs := UDINT#2147483647; END_IF;
+    #Duration := DINT_TO_TIME(UDINT_TO_DINT(#BoundedMs));
+    IF #Row.Count < UDINT#4294967295 THEN #Row.Count := #Row.Count + 1; END_IF;
+    #Row.Last := #Duration;
+    IF #Row.Count = 1 OR #Duration < #Row.Minimum THEN #Row.Minimum := #Duration; END_IF;
+    IF #Duration > #Row.Maximum THEN #Row.Maximum := #Duration; END_IF;
+    #AverageMs := DINT_TO_LINT(TIME_TO_DINT(#Row.Avg));
+    #AverageMs := #AverageMs + (UDINT_TO_LINT(#BoundedMs) - #AverageMs) / UDINT_TO_LINT(#Row.Count);
+    #Row.Avg := DINT_TO_TIME(LINT_TO_DINT(#AverageMs));
+END_FUNCTION
+
 FUNCTION "FRK_RecordTiming" : Void
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
@@ -329,7 +350,6 @@ VAR_TEMP
     Index : DInt;
     Slot : DInt;
     DurationMs : UDInt;
-    AverageMs : LInt;
 END_VAR
 BEGIN
     #DurationMs := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Core.StartMs);
@@ -352,19 +372,7 @@ BEGIN
     ELSE
         #Core.Timing.Rows[#Slot].Id := #Core.Command;
         #Core.Timing.Rows[#Slot].Label := #Core.CommandLabel;
-        IF #Core.Timing.Rows[#Slot].Count < UDINT#4294967295 THEN
-            #Core.Timing.Rows[#Slot].Count := #Core.Timing.Rows[#Slot].Count + 1;
-        END_IF;
-        #Core.Timing.Rows[#Slot].Last := #Core.Timing.LastCmdTime;
-        IF #Core.Timing.Rows[#Slot].Count = 1 OR #Core.Timing.LastCmdTime < #Core.Timing.Rows[#Slot].Minimum THEN
-            #Core.Timing.Rows[#Slot].Minimum := #Core.Timing.LastCmdTime;
-        END_IF;
-        IF #Core.Timing.LastCmdTime > #Core.Timing.Rows[#Slot].Maximum THEN
-            #Core.Timing.Rows[#Slot].Maximum := #Core.Timing.LastCmdTime;
-        END_IF;
-        #AverageMs := DINT_TO_LINT(TIME_TO_DINT(#Core.Timing.Rows[#Slot].Avg));
-        #AverageMs := #AverageMs + (UDINT_TO_LINT(#DurationMs) - #AverageMs) / UDINT_TO_LINT(#Core.Timing.Rows[#Slot].Count);
-        #Core.Timing.Rows[#Slot].Avg := DINT_TO_TIME(LINT_TO_DINT(#AverageMs));
+        "FRK_TimingUpdate"(DurationMs := #DurationMs, Row := #Core.Timing.Rows[#Slot]);
     END_IF;
     #Core.TimingOpen := FALSE;
 END_FUNCTION

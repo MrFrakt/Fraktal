@@ -1,0 +1,316 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-13T07:25:00.4119321Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input" />
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Policy" Datatype="&quot;ST_AccessPolicy&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Required" Datatype="Array[0..11] of DInt" />
+          <Member Name="SessionTimeout" Datatype="Time" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp">
+    <Member Name="Index" Datatype="Int" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Bool" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_AccessPolicyShape</Name>
+      <Namespace />
+      <Number>90</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="FRK_AccessPolicyShape" UId="24" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="25" />
+  <Token Text=":=" UId="26" />
+  <Blank Num="1" UId="27" />
+  <Access Scope="LiteralConstant" UId="28">
+    <Constant UId="29">
+      <ConstantValue UId="31">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="32" />
+  <NewLine Num="1" UId="33" />
+  <Token Text="IF" UId="34" />
+  <Blank Num="1" UId="35" />
+  <Access Scope="LocalVariable" UId="36">
+    <Symbol UId="37">
+      <Component Name="Policy" UId="38" />
+      <Token Text="." UId="39" />
+      <Component Name="SessionTimeout" UId="40" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="41" />
+  <Token Text="&lt;" UId="42" />
+  <Blank Num="1" UId="43" />
+  <Access Scope="TypedConstant" UId="44">
+    <Constant UId="45">
+      <ConstantValue UId="46">T#0ms</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="47" />
+  <Token Text="OR" UId="48" />
+  <Blank Num="1" UId="49" />
+  <Access Scope="LocalVariable" UId="50">
+    <Symbol UId="51">
+      <Component Name="Policy" UId="52" />
+      <Token Text="." UId="53" />
+      <Component Name="SessionTimeout" UId="54" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="55" />
+  <Token Text="&gt;" UId="56" />
+  <Blank Num="1" UId="57" />
+  <Access Scope="TypedConstant" UId="58">
+    <Constant UId="59">
+      <ConstantValue UId="60">T#604800000ms</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="61" />
+  <Token Text="THEN" UId="62" />
+  <NewLine Num="1" UId="63" />
+  <Blank Num="4" UId="64" />
+  <Token Text="RETURN" UId="65" />
+  <Token Text=";" UId="66" />
+  <NewLine Num="1" UId="67" />
+  <Token Text="END_IF" UId="68" />
+  <Token Text=";" UId="69" />
+  <NewLine Num="1" UId="70" />
+  <Token Text="FOR" UId="71" />
+  <Blank Num="1" UId="72" />
+  <Access Scope="LocalVariable" UId="73">
+    <Symbol UId="74">
+      <Component Name="Index" UId="75" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="76" />
+  <Token Text=":=" UId="77" />
+  <Blank Num="1" UId="78" />
+  <Access Scope="LiteralConstant" UId="79">
+    <Constant UId="80">
+      <ConstantValue UId="82">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="83" />
+  <Token Text="TO" UId="84" />
+  <Blank Num="1" UId="85" />
+  <Access Scope="LiteralConstant" UId="86">
+    <Constant UId="87">
+      <ConstantValue UId="89">11</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="90" />
+  <Token Text="DO" UId="91" />
+  <NewLine Num="1" UId="92" />
+  <Blank Num="4" UId="93" />
+  <Token Text="IF" UId="94" />
+  <Blank Num="1" UId="95" />
+  <Access Scope="LocalVariable" UId="96">
+    <Symbol UId="97">
+      <Component Name="Policy" UId="98" />
+      <Token Text="." UId="99" />
+      <Component Name="Required" UId="100">
+        <Token Text="[" UId="101" />
+        <Access Scope="LocalVariable" UId="102">
+          <Symbol UId="103">
+            <Component Name="Index" UId="104" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="105" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="106" />
+  <Token Text="&lt;" UId="107" />
+  <Blank Num="1" UId="108" />
+  <Access Scope="LiteralConstant" UId="109">
+    <Constant UId="110">
+      <ConstantValue UId="112">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="113" />
+  <Token Text="OR" UId="114" />
+  <Blank Num="1" UId="115" />
+  <Access Scope="LocalVariable" UId="116">
+    <Symbol UId="117">
+      <Component Name="Policy" UId="118" />
+      <Token Text="." UId="119" />
+      <Component Name="Required" UId="120">
+        <Token Text="[" UId="121" />
+        <Access Scope="LocalVariable" UId="122">
+          <Symbol UId="123">
+            <Component Name="Index" UId="124" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="125" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="126" />
+  <Token Text="&gt;" UId="127" />
+  <Blank Num="1" UId="128" />
+  <Access Scope="LiteralConstant" UId="129">
+    <Constant UId="130">
+      <ConstantValue UId="132">4</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="133" />
+  <Token Text="THEN" UId="134" />
+  <NewLine Num="1" UId="135" />
+  <Blank Num="8" UId="136" />
+  <Token Text="RETURN" UId="137" />
+  <Token Text=";" UId="138" />
+  <NewLine Num="1" UId="139" />
+  <Blank Num="4" UId="140" />
+  <Token Text="END_IF" UId="141" />
+  <Token Text=";" UId="142" />
+  <NewLine Num="1" UId="143" />
+  <Token Text="END_FOR" UId="144" />
+  <Token Text=";" UId="145" />
+  <NewLine Num="1" UId="146" />
+  <Access Scope="LocalVariable" UId="147">
+    <Symbol UId="148">
+      <Component Name="FRK_AccessPolicyShape" UId="149" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="150" />
+  <Token Text=":=" UId="151" />
+  <Blank Num="1" UId="152" />
+  <Access Scope="LiteralConstant" UId="153">
+    <Constant UId="154">
+      <ConstantValue UId="156">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="157" />
+  <NewLine Num="1" UId="158" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_DeliveryHeaderCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DeliveryHeaderCrc := DWORD#0;
+	IF #Slot < 1 OR #Slot > 3 THEN
+	    RETURN;
+	END_IF;
+	#Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].SchemaVersion));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_EventDeliveryStore".Images[#Slot].Epoch);
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_EventDeliveryStore".Images[#Slot].Revision);
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_EventDeliveryStore".Images[#Slot].NextSequence);
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].Head));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].Count));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].Overflow));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_EventDeliveryStore".Images[#Slot].Dropped);
+	#FRK_DeliveryHeaderCrc := NOT #Work;
+	
+END_FUNCTION
+

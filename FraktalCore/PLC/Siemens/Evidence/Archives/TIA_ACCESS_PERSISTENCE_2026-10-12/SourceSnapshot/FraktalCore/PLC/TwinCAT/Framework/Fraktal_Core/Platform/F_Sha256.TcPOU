@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_Sha256" Id="{cd0f2c50-de5f-4e85-96b3-10b7cedaa283}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §7.7(c)/§14 - SHA-256 (FIPS 180-4) over Size bytes at pData, in plain ST so
+// it needs no crypto library and runs on every TwinCAT the binding supports. Used to
+// keep local PINs as salted hashes; it is not a general cryptographic service.
+// FALSE = no data pointer (Digest is then zero).
+FUNCTION F_Sha256 : BOOL
+VAR_INPUT
+    pData : POINTER TO BYTE;
+    Size  : UDINT;
+END_VAR
+VAR_IN_OUT
+    Digest : ARRAY[0..31] OF BYTE;
+END_VAR
+VAR
+    h      : ARRAY[0..7] OF DWORD;
+    w      : ARRAY[0..63] OF DWORD;
+    blk    : ARRAY[0..63] OF BYTE;
+    padded : UDINT;
+    pos    : UDINT;
+    b      : UDINT;
+    i      : UDINT;
+    bitLen : ULINT;
+    a, bb, c, d, e, f, g, hh : DWORD;
+    s0, s1, t1, t2 : DWORD;
+END_VAR
+VAR CONSTANT
+    K : ARRAY[0..63] OF DWORD := [
+        16#428A2F98, 16#71374491, 16#B5C0FBCF, 16#E9B5DBA5, 16#3956C25B, 16#59F111F1, 16#923F82A4, 16#AB1C5ED5,
+        16#D807AA98, 16#12835B01, 16#243185BE, 16#550C7DC3, 16#72BE5D74, 16#80DEB1FE, 16#9BDC06A7, 16#C19BF174,
+        16#E49B69C1, 16#EFBE4786, 16#0FC19DC6, 16#240CA1CC, 16#2DE92C6F, 16#4A7484AA, 16#5CB0A9DC, 16#76F988DA,
+        16#983E5152, 16#A831C66D, 16#B00327C8, 16#BF597FC7, 16#C6E00BF3, 16#D5A79147, 16#06CA6351, 16#14292967,
+        16#27B70A85, 16#2E1B2138, 16#4D2C6DFC, 16#53380D13, 16#650A7354, 16#766A0ABB, 16#81C2C92E, 16#92722C85,
+        16#A2BFE8A1, 16#A81A664B, 16#C24B8B70, 16#C76C51A3, 16#D192E819, 16#D6990624, 16#F40E3585, 16#106AA070,
+        16#19A4C116, 16#1E376C08, 16#2748774C, 16#34B0BCB5, 16#391C0CB3, 16#4ED8AA4A, 16#5B9CCA4F, 16#682E6FF3,
+        16#748F82EE, 16#78A5636F, 16#84C87814, 16#8CC70208, 16#90BEFFFA, 16#A4506CEB, 16#BEF9A3F7, 16#C67178F2];
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_Sha256 := FALSE;
+FOR i := 0 TO 31 DO
+    Digest[i] := 0;
+END_FOR
+IF pData = 0 THEN
+    RETURN;
+END_IF
+h[0] := 16#6A09E667; h[1] := 16#BB67AE85; h[2] := 16#3C6EF372; h[3] := 16#A54FF53A;
+h[4] := 16#510E527F; h[5] := 16#9B05688C; h[6] := 16#1F83D9AB; h[7] := 16#5BE0CD19;
+// The message, one 16#80 byte, zeros, then its length in bits (64-bit big-endian),
+// padded to whole 64-byte blocks.
+padded := ((Size + 9 + 63) / 64) * 64;
+bitLen := UDINT_TO_ULINT(Size) * 8;
+b := 0;
+WHILE b < padded DO
+    FOR i := 0 TO 63 DO
+        pos := b + i;
+        IF pos < Size THEN
+            blk[i] := pData[pos];
+        ELSIF pos = Size THEN
+            blk[i] := 16#80;
+        ELSIF pos >= padded - 8 THEN
+            blk[i] := ULINT_TO_BYTE(SHR(bitLen, 8 * (padded - 1 - pos)) AND 16#FF);
+        ELSE
+            blk[i] := 0;
+        END_IF
+    END_FOR
+    FOR i := 0 TO 15 DO
+        w[i] := SHL(BYTE_TO_DWORD(blk[4 * i]), 24) OR SHL(BYTE_TO_DWORD(blk[4 * i + 1]), 16)
+             OR SHL(BYTE_TO_DWORD(blk[4 * i + 2]), 8) OR BYTE_TO_DWORD(blk[4 * i + 3]);
+    END_FOR
+    FOR i := 16 TO 63 DO
+        s0 := ROR(w[i - 15], 7) XOR ROR(w[i - 15], 18) XOR SHR(w[i - 15], 3);
+        s1 := ROR(w[i - 2], 17) XOR ROR(w[i - 2], 19) XOR SHR(w[i - 2], 10);
+        w[i] := w[i - 16] + s0 + w[i - 7] + s1;
+    END_FOR
+    a := h[0]; bb := h[1]; c := h[2]; d := h[3];
+    e := h[4]; f := h[5]; g := h[6]; hh := h[7];
+    FOR i := 0 TO 63 DO
+        s1 := ROR(e, 6) XOR ROR(e, 11) XOR ROR(e, 25);
+        t1 := hh + s1 + ((e AND f) XOR ((NOT e) AND g)) + K[i] + w[i];
+        s0 := ROR(a, 2) XOR ROR(a, 13) XOR ROR(a, 22);
+        t2 := s0 + ((a AND bb) XOR (a AND c) XOR (bb AND c));
+        hh := g; g := f; f := e;
+        e := d + t1;
+        d := c; c := bb; bb := a;
+        a := t1 + t2;
+    END_FOR
+    h[0] := h[0] + a; h[1] := h[1] + bb; h[2] := h[2] + c; h[3] := h[3] + d;
+    h[4] := h[4] + e; h[5] := h[5] + f; h[6] := h[6] + g; h[7] := h[7] + hh;
+    b := b + 64;
+END_WHILE
+FOR i := 0 TO 7 DO
+    Digest[4 * i]     := DWORD_TO_BYTE(SHR(h[i], 24));
+    Digest[4 * i + 1] := DWORD_TO_BYTE(SHR(h[i], 16));
+    Digest[4 * i + 2] := DWORD_TO_BYTE(SHR(h[i], 8));
+    Digest[4 * i + 3] := DWORD_TO_BYTE(h[i]);
+END_FOR
+F_Sha256 := TRUE;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

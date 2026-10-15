@@ -1,0 +1,12 @@
+ORGANIZATION_BLOCK "Main"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Initial_Call : Bool;
+    Remanence : Bool;
+END_VAR
+BEGIN
+    "F_PressDemoReadInputs"();
+    "GDB_FraktalMain"(Startup := #Initial_Call);
+    "F_PressDemoWriteOutputs"();
+END_ORGANIZATION_BLOCK

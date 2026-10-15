@@ -1,0 +1,66 @@
+// Generated frame v0.8; change the declaration, then regenerate.
+FUNCTION_BLOCK "FB_DeclarationCylinder"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Execute {ExternalWritable := 'False'} : Bool;
+    Abort {ExternalWritable := 'False'} : Bool;
+    Command {ExternalWritable := 'False'} : DInt;
+    ParCfg {ExternalWritable := 'False'} : "ST_DeclarationParCfg";
+    ParCmd {ExternalWritable := 'False'} : "ST_DeclarationParCmd";
+    ParentIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR_OUTPUT
+    Busy {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    Error {ExternalWritable := 'False'} : Bool;
+    Aborted {ExternalWritable := 'False'} : Bool;
+    Held {ExternalWritable := 'False'} : Bool;
+    ErrorID {ExternalWritable := 'False'} : DWord;
+    Timing {ExternalWritable := 'False'} : "ST_ModuleTiming";
+    OutCmd {ExternalWritable := 'False'} : "ST_DeclarationOutCmd";
+    OutImm {ExternalWritable := 'False'} : "ST_DeclarationOutImm";
+END_VAR
+VAR_IN_OUT
+    Hal : "ST_DeclarationLeafHal";
+END_VAR
+VAR
+    Status {ExternalWritable := 'False'} : "ST_ModuleStatus";
+    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+    LatchedParCmd {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DeclarationParCmd";
+END_VAR
+VAR_TEMP
+    InstancePath : WString[254];
+END_VAR
+VAR CONSTANT
+    EXEC_READY : DInt := 0;
+    MODULE_CM : DInt := 3;
+END_VAR
+BEGIN
+    // ---- GENERATED: setup
+    IF #Startup OR NOT #Core.Named THEN
+        #InstancePath := GetInstancePath(SIZE := 0);
+        "FRK_SetIdentity"(Core := #Core, Status := #Status, InstancePath := #InstancePath,
+            ModuleType := 3, TypeId := 3, Capabilities := DWORD#16#00000000, ParentIndex := #ParentIndex, TypeKey := 'Fraktal.Declaration.Cylinder');
+    END_IF;
+    IF NOT (#Core.Initialized AND #Core.Exec = #EXEC_READY AND NOT #Execute AND NOT #Abort AND NOT #Core.ExecPrev AND NOT #Core.AbortPrev AND #Core.HoldReason = 0 AND NOT #Core.EvInit AND NOT #Core.ReleasePending) THEN
+    // ---- GENERATED: begin
+    "FRK_Begin"(Core := #Core, Status := #Status, Execute := #Execute, Abort := #Abort, Command := #Command);
+    IF #Core.EvInit THEN
+    // ---- AUTHORED: Init
+    "FRK_FrameProbeInit"(Index := #Core.RegIndex);
+    // ---- GENERATED: reaction end
+    END_IF;
+    IF #Core.EvCommandStart THEN
+        #LatchedParCmd := #ParCmd;
+    END_IF;
+    "FRK_RouteAbort"(Core := #Core, Abort := #Abort);
+    "FRK_End"(Core := #Core, Status := #Status,
+        Busy => #Busy, Done => #Done, Error => #Error, Aborted => #Aborted, Held => #Held, ErrorID => #ErrorID, Timing => #Timing);
+    END_IF;
+    // ---- AUTHORED: unconditional cyclic/derived data
+    "FRK_FrameProbeCyclic"(Index := #Core.RegIndex);
+    #OutImm.Sample := #Hal.Sample;
+    // ---- GENERATED: frame end
+END_FUNCTION_BLOCK

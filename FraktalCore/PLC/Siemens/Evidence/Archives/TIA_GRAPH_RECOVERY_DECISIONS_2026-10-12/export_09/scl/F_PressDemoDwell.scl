@@ -1,0 +1,29 @@
+﻿FUNCTION "F_PressDemoDwell" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      TwoHandHeld : Bool;
+      RequireTwoHandStart : Bool;
+      PT : Time;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      PressRam : "FB_CylinderCM";
+   END_VAR
+
+   VAR_TEMP 
+      Held : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Held := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.twoHandHeldDuringPress', Ok := #TwoHandHeld OR NOT #RequireTwoHandStart);
+	"F_CylinderForcePermit"(Target := #PressRam,
+	                        Permit := #Held);
+	#F_PressDemoDwell := "FRK_SeqDelay"(Seq := #Seq, Permit := #Held, PT := #PT, Delta := #Delta);
+	
+END_FUNCTION
+

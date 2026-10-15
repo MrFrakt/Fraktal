@@ -1,0 +1,57 @@
+﻿FUNCTION "FRK_DecisionRoot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core 6.11: one authoritative decision slot per registered root.
+   VAR_INPUT 
+      Owner : DInt;
+      Create : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      RootIndex : DInt;
+      Depth : DInt;
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DecisionRoot := 0;
+	IF "FRK_Registry".Fault OR "FRK_Registry".Count < 1 OR "FRK_Registry".Count > 32 THEN
+	    RETURN;
+	END_IF;
+	#RootIndex := #Owner;
+	FOR #Depth := 1 TO 32 DO
+	    IF #RootIndex < 1 OR #RootIndex > "FRK_Registry".Count THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_Registry".Rows[#RootIndex].Valid THEN
+	        RETURN;
+	    END_IF;
+	    IF "FRK_Registry".Rows[#RootIndex].Parent = 0 THEN
+	        EXIT;
+	    END_IF;
+	    #RootIndex := "FRK_Registry".Rows[#RootIndex].Parent;
+	END_FOR;
+	IF "FRK_Registry".Rows[#RootIndex].Parent <> 0 THEN
+	    RETURN;
+	END_IF;
+	FOR #Slot := 1 TO 2 DO
+	    IF "FRK_Decisions".Slots[#Slot].RootIndex = #RootIndex THEN
+	        #FRK_DecisionRoot := #Slot;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	IF NOT #Create THEN
+	    RETURN;
+	END_IF;
+	FOR #Slot := 1 TO 2 DO
+	    IF "FRK_Decisions".Slots[#Slot].RootIndex = 0 THEN
+	        "FRK_Decisions".Slots[#Slot].RootIndex := #RootIndex;
+	        #FRK_DecisionRoot := #Slot;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

@@ -1,0 +1,15 @@
+﻿FUNCTION "FRK_AccessLogout" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_AccessCancel"(Access := #Access);
+	"FRK_AccessDropSession"(Access := #Access);
+	
+END_FUNCTION
+

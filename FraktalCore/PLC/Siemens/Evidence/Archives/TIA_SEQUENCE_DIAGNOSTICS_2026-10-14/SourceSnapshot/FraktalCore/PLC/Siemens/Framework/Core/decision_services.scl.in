@@ -1,0 +1,235 @@
+// Core 6.11: one authoritative decision slot per registered root.
+FUNCTION "FRK_DecisionRoot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Create : Bool; END_VAR
+VAR_TEMP RootIndex : DInt; Depth : DInt; Slot : Int; END_VAR
+BEGIN
+    #FRK_DecisionRoot := 0;
+    IF "FRK_Registry".Fault OR "FRK_Registry".Count < 1 OR "FRK_Registry".Count > @CAPACITY@ THEN RETURN; END_IF;
+    #RootIndex := #Owner;
+    FOR #Depth := 1 TO @CAPACITY@ DO
+        IF #RootIndex < 1 OR #RootIndex > "FRK_Registry".Count THEN RETURN; END_IF;
+        IF NOT "FRK_Registry".Rows[#RootIndex].Valid THEN RETURN; END_IF;
+        IF "FRK_Registry".Rows[#RootIndex].Parent = 0 THEN EXIT; END_IF;
+        #RootIndex := "FRK_Registry".Rows[#RootIndex].Parent;
+    END_FOR;
+    IF "FRK_Registry".Rows[#RootIndex].Parent <> 0 THEN RETURN; END_IF;
+    FOR #Slot := 1 TO @ROOT_COUNT@ DO
+        IF "FRK_Decisions".Slots[#Slot].RootIndex = #RootIndex THEN
+            #FRK_DecisionRoot := #Slot;
+            RETURN;
+        END_IF;
+    END_FOR;
+    IF NOT #Create THEN RETURN; END_IF;
+    FOR #Slot := 1 TO @ROOT_COUNT@ DO
+        IF "FRK_Decisions".Slots[#Slot].RootIndex = 0 THEN
+            "FRK_Decisions".Slots[#Slot].RootIndex := #RootIndex;
+            #FRK_DecisionRoot := #Slot;
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionAudit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Key : WString; SourcePath : WString; Option : Int; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Diag : "ST_Diagnostic"; Slot : Int; Gone : Bool; END_VAR
+BEGIN
+    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+    #Diag.Description := #Key;
+    IF #Option <> 0 THEN
+        #Diag.Description := CONCAT(IN1 := #Diag.Description, IN2 := WSTRING#' option=');
+        #Diag.Description := CONCAT(IN1 := #Diag.Description, IN2 := STRING_TO_WSTRING(INT_TO_STRING(#Option)));
+    END_IF;
+    #Diag.SourcePath := #SourcePath;
+    #Diag.Severity := @E_Severity.LOW@;
+    #Diag.Category := @E_Category.PROCESS@;
+    #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
+    IF #Slot > 0 THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Slot : "FRK_DecisionSlot"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #Slot.Request.Prompt := WSTRING#'';
+    #Slot.Request.SourcePath := WSTRING#'';
+    #Slot.Request.Default := 0;
+    #Slot.Request.Timeout := T#0ms;
+    FOR #Index := 1 TO @MAX_OPTIONS@ DO #Slot.Request.Options[#Index] := ''; END_FOR;
+    #Slot.Answer := 0;
+    #Slot.Owner := 0;
+    #Slot.OverlapLogged := FALSE;
+    #Slot.ResolutionLogged := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionAsk" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; OwnerPath : WString; Request : "ST_DecisionRequest"; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Candidate : "ST_DecisionRequest"; Slot : Int; Index : Int; SameRequest : Bool; HasOption : Bool; END_VAR
+BEGIN
+    #FRK_DecisionAsk := FALSE;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := TRUE);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    #Candidate := #Request;
+    IF #Candidate.SourcePath = WSTRING#'' THEN
+        #Candidate.SourcePath := #OwnerPath;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Prompt <> WSTRING#'' THEN
+        #SameRequest := "FRK_Decisions".Slots[#Slot].Owner = #Owner
+            AND "FRK_Decisions".Slots[#Slot].Request.Prompt = #Candidate.Prompt
+            AND "FRK_Decisions".Slots[#Slot].Request.SourcePath = #Candidate.SourcePath
+            AND "FRK_Decisions".Slots[#Slot].Request.Default = #Candidate.Default
+            AND "FRK_Decisions".Slots[#Slot].Request.Timeout = #Candidate.Timeout;
+        FOR #Index := 1 TO @MAX_OPTIONS@ DO
+            #SameRequest := #SameRequest AND "FRK_Decisions".Slots[#Slot].Request.Options[#Index] = #Candidate.Options[#Index];
+        END_FOR;
+        IF #SameRequest THEN #FRK_DecisionAsk := TRUE; RETURN; END_IF;
+        IF NOT "FRK_Decisions".Slots[#Slot].OverlapLogged THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionOverlapRejected', SourcePath := #Candidate.SourcePath, Option := 0);
+            "FRK_Decisions".Slots[#Slot].OverlapLogged := TRUE;
+        END_IF;
+        RETURN;
+    END_IF;
+    #HasOption := FALSE;
+    FOR #Index := 1 TO @MAX_OPTIONS@ DO #HasOption := #HasOption OR #Candidate.Options[#Index] <> ''; END_FOR;
+    IF #Candidate.Prompt = WSTRING#'' OR #Candidate.Timeout < T#0ms OR NOT #HasOption
+        OR #Candidate.SourcePath <> #OwnerPath OR #OwnerPath = WSTRING#'' THEN
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionInvalidRejected', SourcePath := #Candidate.SourcePath, Option := #Candidate.Default);
+        RETURN;
+    END_IF;
+    IF #Candidate.Timeout > T#0ms OR #Candidate.Default <> 0 THEN
+        IF #Candidate.Default < 1 OR #Candidate.Default > @MAX_OPTIONS@ THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionInvalidRejected', SourcePath := #Candidate.SourcePath, Option := #Candidate.Default);
+            RETURN;
+        END_IF;
+        IF #Candidate.Options[#Candidate.Default] = '' THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionInvalidRejected', SourcePath := #Candidate.SourcePath, Option := #Candidate.Default);
+            RETURN;
+        END_IF;
+    END_IF;
+    "FRK_Decisions".Slots[#Slot].Request := #Candidate;
+    "FRK_Decisions".Slots[#Slot].Owner := #Owner;
+    "FRK_Decisions".Slots[#Slot].AskedAt := "FRK_Clock".NowMs;
+    "FRK_Decisions".Slots[#Slot].Answer := 0;
+    "FRK_Decisions".Slots[#Slot].ResolutionLogged := FALSE;
+    "FRK_Decisions".Slots[#Slot].OverlapLogged := FALSE;
+    "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionRequested', SourcePath := #Candidate.SourcePath, Option := 0);
+    #FRK_DecisionAsk := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionSubmit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; OwnerPath : WString; Option : DInt; Busy : Bool; Permit : Bool; END_VAR
+VAR_IN_OUT Report : "ST_ReleaseReport"; END_VAR
+VAR_TEMP Slot : Int; SourcePath : WString[255]; END_VAR
+BEGIN
+    #FRK_DecisionSubmit := FALSE;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    #SourcePath := #OwnerPath;
+    IF NOT #Busy OR #Slot = 0 THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noActiveDecision', Reason := 0, Path := #SourcePath, Kind := @E_ReleaseKind.OTHER@);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].RootIndex <> #Owner THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noActiveDecision', Reason := 0, Path := #SourcePath, Kind := @E_ReleaseKind.OTHER@);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'' OR "FRK_Decisions".Slots[#Slot].Answer <> 0 THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noActiveDecision', Reason := 0, Path := #SourcePath, Kind := @E_ReleaseKind.OTHER@);
+        RETURN;
+    END_IF;
+    IF #Option < 1 OR #Option > @MAX_OPTIONS@ THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.invalidDecisionOption', Reason := @E_Reason.UNSUPPORTED_COMMAND@, Path := #SourcePath, Kind := @E_ReleaseKind.OTHER@);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Options[#Option] = '' THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.invalidDecisionOption', Reason := @E_Reason.UNSUPPORTED_COMMAND@, Path := #SourcePath, Kind := @E_ReleaseKind.OTHER@);
+        RETURN;
+    END_IF;
+    IF NOT #Permit THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.decisionInterlock', Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := #SourcePath, Kind := @E_ReleaseKind.INTERLOCK@);
+        RETURN;
+    END_IF;
+    IF NOT #Report.Released THEN RETURN; END_IF;
+    "FRK_Decisions".Slots[#Slot].Answer := DINT_TO_INT(#Option);
+    #FRK_DecisionSubmit := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionCyclic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Busy : Bool; Reset : Bool; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; Elapsed : UDInt; END_VAR
+BEGIN
+    IF #Owner < 1 OR #Owner > "FRK_Registry".Count THEN RETURN; END_IF;
+    // Only the root resolves/withdraws its slot; an idle nested Unit cannot
+    // cancel a root's running decision.
+    IF "FRK_Registry".Rows[#Owner].Parent <> 0 THEN RETURN; END_IF;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'' THEN RETURN; END_IF;
+    IF #Reset OR NOT #Busy THEN
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionWithdrawn', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := 0);
+        "FRK_DecisionClear"(Slot := "FRK_Decisions".Slots[#Slot]);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Answer <> 0 THEN
+        IF NOT "FRK_Decisions".Slots[#Slot].ResolutionLogged THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionOperatorResolved', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := "FRK_Decisions".Slots[#Slot].Answer);
+            "FRK_Decisions".Slots[#Slot].ResolutionLogged := TRUE;
+        END_IF;
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Timeout <= T#0ms THEN RETURN; END_IF;
+    #Elapsed := "FRK_Clock".NowMs - "FRK_Decisions".Slots[#Slot].AskedAt;
+    IF #Elapsed >= DINT_TO_UDINT(TIME_TO_DINT("FRK_Decisions".Slots[#Slot].Request.Timeout)) THEN
+        "FRK_Decisions".Slots[#Slot].Answer := "FRK_Decisions".Slots[#Slot].Request.Default;
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionTimeoutResolved', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := "FRK_Decisions".Slots[#Slot].Answer);
+        "FRK_Decisions".Slots[#Slot].ResolutionLogged := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionTake" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; END_VAR
+BEGIN
+    #FRK_DecisionTake := 0;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Owner <> #Owner THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Answer = 0 THEN RETURN; END_IF;
+    #FRK_DecisionTake := "FRK_Decisions".Slots[#Slot].Answer;
+    IF NOT "FRK_Decisions".Slots[#Slot].ResolutionLogged THEN
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionOperatorResolved', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := #FRK_DecisionTake);
+    END_IF;
+    "FRK_DecisionClear"(Slot := "FRK_Decisions".Slots[#Slot]);
+END_FUNCTION
+
+FUNCTION "FRK_DecisionPublish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; END_VAR
+VAR_IN_OUT Decision : "ST_DecisionRequest"; DecisionAnswer : Int; END_VAR
+VAR_TEMP Slot : Int; END_VAR
+BEGIN
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    #Decision := "FRK_Decisions".EmptyRequest;
+    #DecisionAnswer := 0;
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].RootIndex <> #Owner THEN RETURN; END_IF;
+    #Decision := "FRK_Decisions".Slots[#Slot].Request;
+    #DecisionAnswer := "FRK_Decisions".Slots[#Slot].Answer;
+END_FUNCTION

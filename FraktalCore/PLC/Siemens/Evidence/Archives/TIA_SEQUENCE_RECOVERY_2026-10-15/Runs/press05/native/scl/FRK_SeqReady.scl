@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_SeqReady" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Ok1 : Bool;
+      Ok2 : Bool;
+      Ok3 : Bool;
+      Ok4 : Bool;
+      Ok5 : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_SeqSelect"(Seq := #Seq,
+	                AdvanceOk := #Ok1 AND #Ok2 AND #Ok3 AND #Ok4 AND #Ok5,
+	                Jump1Ok := FALSE);
+	
+END_FUNCTION
+

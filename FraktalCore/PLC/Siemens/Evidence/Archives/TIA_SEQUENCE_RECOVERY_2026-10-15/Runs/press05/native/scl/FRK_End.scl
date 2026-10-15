@@ -1,0 +1,79 @@
+﻿FUNCTION "FRK_End" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_OUTPUT 
+      Busy : Bool;
+      Done : Bool;
+      Error : Bool;
+      Aborted : Bool;
+      Held : Bool;
+      ErrorID : DWord;
+      Timing : "ST_ModuleTiming";
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP 
+      ActiveWide : ULInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Core.Exec = 1 THEN
+	    IF #Core.Held AND NOT #Core.HoldReq AND NOT #Core.DiagTouched THEN
+	        "FRK_ClearDiag"(Status := #Status);
+	    END_IF;
+	    // HELD suspends progress timeout. Wall-clock command duration includes it.
+	    IF NOT #Core.Held AND NOT #Core.HoldReq THEN
+	        #ActiveWide := UDINT_TO_ULINT(#Core.ActiveMs) + UDINT_TO_ULINT(#Core.DeltaMs);
+	        IF #ActiveWide > ULINT#2147483647 THEN
+	            #ActiveWide := ULINT#2147483647;
+	        END_IF;
+	        #Core.ActiveMs := ULINT_TO_UDINT(#ActiveWide);
+	        IF #Core.TimeoutMs > 0 AND #Core.ActiveMs >= #Core.TimeoutMs THEN
+	            IF #Status.Diagnostic.ReasonCode = 0 THEN
+	                "FRK_Fault"(Core := #Core,
+	                            Status := #Status,
+	                            ReasonCode := 2001,
+	                            Description := WSTRING#'fraktal.command.timeout');
+	            ELSE
+	                #Status.Diagnostic.Severity := 1;
+	                "FRK_Rationalize"(Diag := #Status.Diagnostic);
+	                #Core.Exec := 3;
+	                #Core.Step := 0;
+	                #Core.Dispatch := FALSE;
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	#Core.Held := #Core.HoldReq AND #Core.Exec = 1;
+	IF NOT #Core.Held THEN
+	    #Core.HoldReason := 0;
+	END_IF;
+	IF #Core.TimingOpen AND #Core.Exec <> 1 THEN
+	    "FRK_RecordTiming"(Core := #Core);
+	END_IF;
+	#Busy := #Core.Exec = 1;
+	#Done := #Core.Exec = 2;
+	#Error := #Core.Exec = 3;
+	#Aborted := #Core.Exec = 4;
+	#Held := #Core.Held;
+	#ErrorID := DINT_TO_DWORD(#Status.Diagnostic.ReasonCode);
+	#Timing := #Core.Timing;
+	#Status.State := #Core.Exec;
+	#Status.FaultActive := #Core.Exec = 3;
+	#Core.HoldReq := FALSE;
+	#Core.EvInit := FALSE;
+	#Core.EvCommandStart := FALSE;
+	#Core.EvAbort := FALSE;
+	#Core.EvAbortInError := FALSE;
+	#Core.ReleasePending := FALSE;
+	"FRK_SyncRegistry"(Index := #Core.RegIndex,
+	                   Status := #Status);
+	
+END_FUNCTION
+

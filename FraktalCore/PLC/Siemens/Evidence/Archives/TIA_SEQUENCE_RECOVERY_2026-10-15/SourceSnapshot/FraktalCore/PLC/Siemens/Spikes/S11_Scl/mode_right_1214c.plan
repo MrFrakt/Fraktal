@@ -1,0 +1,10 @@
+# S11 BENCH ONLY: temporarily add WebChangeOperatingMode to fraktal-diag's
+# existing role, then run again with mode_right= to restore WebAllowDiagnostics.
+# The gateway user and anonymous web rights are unchanged. --keep-password
+# avoids UMAC's refusal to set an already-used password. Requires the candidate
+# driver; update keeps existing online passwords.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+umac-user --plc PLC_1 --name fraktal-diag --keep-password --role FraktalDiagnostics --rights WebAllowDiagnostics${mode_right}
+compile --plc PLC_1 --hw
+save
+download --plc PLC_1 --pc-interface "${pc}" --pc-number 2 --target "1 X1" --confirm-target 192.168.0.10 --user-management update

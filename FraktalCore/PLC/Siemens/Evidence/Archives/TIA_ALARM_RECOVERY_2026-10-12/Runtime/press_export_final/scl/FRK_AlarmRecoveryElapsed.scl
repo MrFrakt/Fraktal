@@ -1,0 +1,32 @@
+﻿FUNCTION "FRK_AlarmRecoveryElapsed" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      EventSlot : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Span : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmRecoveryElapsed := 0;
+	IF #EventSlot < 1 OR #EventSlot > 16 THEN
+	    RETURN;
+	END_IF;
+	#Span := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ComeMs[#EventSlot]);
+	IF #Span > 2147483647 - #AlarmLog.ElapsedBefore[#EventSlot] THEN
+	    #Span := 2147483647;
+	ELSE
+	    #Span := #Span + #AlarmLog.ElapsedBefore[#EventSlot];
+	END_IF;
+	#FRK_AlarmRecoveryElapsed := #Span;
+	
+END_FUNCTION
+

@@ -1,0 +1,9 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Load_Memory_Only_Runtime_20261013\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Load_Memory_20261013\only_02" --only "GDB_LoadBankA.db" --group "Tests/Persistence/00_System"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Load_Memory_20261013\only_02" --only "GDB_LoadBankB.db" --group "Tests/Persistence/00_System"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Load_Memory_20261013\only_02" --only "39f_LoadMemoryBench.scl" --group "Tests/Persistence/00_System"
+compile --plc PLC_1
+block-attribute --plc PLC_1 --name GDB_LoadBankA --filter memory
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Load_Memory_20261013\export_only_02" --scl true
+save
+${download}

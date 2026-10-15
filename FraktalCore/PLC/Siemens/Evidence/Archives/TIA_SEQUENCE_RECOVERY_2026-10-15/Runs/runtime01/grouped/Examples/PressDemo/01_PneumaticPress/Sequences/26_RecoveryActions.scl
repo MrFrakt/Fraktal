@@ -1,0 +1,33 @@
+FUNCTION "F_RecoveryStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT StepNo : DInt; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Target : "FB_DeclarationCylinder";
+    Core : "FRK_Core"; Status : "ST_ModuleStatus"; END_VAR
+VAR_TEMP EventNow : Bool; END_VAR
+BEGIN
+    "FRK_SeqStep"(Seq := #Seq, Row := "GDB_RecoveryWork".Row, StepNo := #StepNo,
+        StepName := 'test.recovery', AwaitingLabel := 'test.recovery.command', AwaitsPath := #Target.Status.Name,
+        TimeClass := 0, ExpectedTime := T#0ms);
+    CASE #StepNo OF
+        0:
+            "GDB_RecoveryTest".EntryCount := "GDB_RecoveryTest".EntryCount + 1;
+            "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := TRUE, Jump1Ok := FALSE);
+        42:
+            #EventNow := "FRK_SeqOnce"(Seq := #Seq, Enable := TRUE, Token := 42);
+            IF #EventNow THEN "GDB_RecoveryTest".EventCount := "GDB_RecoveryTest".EventCount + 1; END_IF;
+            "GDB_RecoveryWork".Ready := "FRK_SeqCommand"(Seq := #Seq, Lease := "GDB_RecoveryWork".Lease,
+                Execute := #Target.Execute, Command := #Target.Command, Value := 2, Label := 'RECOVERY',
+                TargetIndex := #Target.Core.RegIndex, OwnFailure := FALSE);
+            IF #Seq.CommandIssued THEN "GDB_RecoveryTest".IssueCount := "GDB_RecoveryTest".IssueCount + 1; END_IF;
+            #EventNow := "FRK_SeqDelay"(Seq := #Seq, Permit := TRUE, PT := T#1h, Delta := T#1ms);
+            IF "GDB_RecoveryWork".Fault THEN
+                "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 10041,
+                    Description := WSTRING#'test.recovery.fault');
+                "FRK_SeqOwnerStatus"(Seq := #Seq, Core := #Core, Status := #Status);
+            END_IF;
+            "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := "GDB_RecoveryWork".Ready, Jump1Ok := FALSE);
+        99:
+            "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := FALSE, Jump1Ok := FALSE);
+    END_CASE;
+END_FUNCTION

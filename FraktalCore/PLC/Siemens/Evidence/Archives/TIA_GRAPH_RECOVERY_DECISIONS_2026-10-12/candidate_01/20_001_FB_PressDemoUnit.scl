@@ -1,0 +1,230 @@
+// Generated frame v0.8; change the declaration, then regenerate.
+FUNCTION_BLOCK "FB_PressDemoUnit"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Execute {ExternalWritable := 'False'} : Bool;
+    Abort {ExternalWritable := 'False'} : Bool;
+    Command {ExternalWritable := 'False'} : DInt;
+    ParCfg {ExternalWritable := 'False'} : "ST_PressDemoParCfg";
+    ParCmd {ExternalWritable := 'False'} : "ST_PressDemoParCmd";
+    ParentIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR_OUTPUT
+    Busy {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    Error {ExternalWritable := 'False'} : Bool;
+    Aborted {ExternalWritable := 'False'} : Bool;
+    Held {ExternalWritable := 'False'} : Bool;
+    ErrorID {ExternalWritable := 'False'} : DWord;
+    Timing {ExternalWritable := 'False'} : "ST_ModuleTiming";
+    OutCmd {ExternalWritable := 'False'} : "ST_PressDemoOutCmd";
+    OutImm {ExternalWritable := 'False'} : "ST_PressDemoOutImm";
+END_VAR
+VAR_IN_OUT
+    Hal : "ST_PressDemoUnitHal";
+END_VAR
+VAR
+    Status {ExternalWritable := 'False'} : "ST_ModuleStatus";
+    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+    LatchedParCmd {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_PressDemoParCmd";
+    Unit {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Unit";
+    HmiRequest : "ST_HmiRequest";
+    ModePolicy {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..6] of "ST_ModePolicy";
+    Access {ExternalWritable := 'False'} : "FRK_Access";
+    HmiResponse {ExternalWritable := 'False'} : "ST_HmiResponse";
+    ConfigRev {ExternalWritable := 'False'} : UDInt;
+    ConfigCursor {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_ConfigCursor";
+    Part {ExternalWritable := 'False'} : "ST_PartContext";
+    Decision {ExternalWritable := 'False'} : "ST_DecisionRequest";
+    DecisionAnswer {ExternalWritable := 'False'} : Int;
+    History {ExternalWritable := 'False'} : Array[1..16] of "ST_Diagnostic";
+    HistoryHead {ExternalWritable := 'False'} : Int;
+    AlarmLog {ExternalWritable := 'False'} : "FRK_AlarmLog";
+    ModeActivePublished {ExternalWritable := 'False'} : DInt;
+    RunningPublished {ExternalWritable := 'False'} : Bool;
+    StopPendingPublished {ExternalWritable := 'False'} : Bool;
+    SupportedModesPublished {ExternalWritable := 'False'} : Array[0..6] of Bool;
+    GoodCount {ExternalWritable := 'False'} : UDInt;
+    NokCount {ExternalWritable := 'False'} : UDInt;
+    ReworkCount {ExternalWritable := 'False'} : UDInt;
+    NokReason {ExternalWritable := 'False'} : DInt;
+    PressRam {ExternalWritable := 'False'} : "FB_CylinderCM";
+    Door {ExternalWritable := 'False'} : "FB_CylinderCM";
+    PartSlide {ExternalWritable := 'False'} : "FB_CylinderCM";
+END_VAR
+VAR_TEMP
+    InstancePath : WString[254];
+    RouteMatched : Bool;
+    ManualMatched : Bool;
+END_VAR
+VAR CONSTANT
+    EXEC_READY : DInt := 0;
+    MODULE_TIER : DInt := 1;
+END_VAR
+BEGIN
+    // ---- GENERATED: setup
+    IF #Startup OR NOT #Core.Named THEN
+        #InstancePath := GetInstancePath(SIZE := 0);
+        "FRK_SetIdentity"(Core := #Core, Status := #Status, InstancePath := #InstancePath,
+            ModuleType := 1, TypeId := 1, Capabilities := DWORD#16#00000000, ParentIndex := #ParentIndex, TypeKey := 'project.pressDemo');
+    END_IF;
+    IF #Startup OR #ConfigRev = 0 THEN #ConfigRev := "FRK_ConfigRevision"(Previous := #ConfigRev); END_IF;
+    #SupportedModesPublished[0] := TRUE;
+    #SupportedModesPublished[1] := TRUE;
+    #SupportedModesPublished[2] := TRUE;
+    #SupportedModesPublished[3] := FALSE;
+    #SupportedModesPublished[4] := FALSE;
+    #SupportedModesPublished[5] := FALSE;
+    #SupportedModesPublished[6] := FALSE;
+    "FRK_UnitPrepare"(Core := #Core, Unit := #Unit, Policy := #ModePolicy, Request := #HmiRequest, Response := #HmiResponse, Startup := #Startup, InitialMode := 1);
+    "FRK_AlarmBegin"(AlarmLog := #AlarmLog, Startup := #Startup);
+    "FRK_AccessCyclic"(Access := #Access, Startup := #Startup, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog, Revision := #ConfigRev);
+    "FRK_UnitMailbox"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Request := #HmiRequest, Response := #HmiResponse, Supported := #SupportedModesPublished);
+    // ---- GENERATED: begin
+    "FRK_Begin"(Core := #Core, Status := #Status, Execute := #Unit.RunReq, Abort := (#Abort OR #Unit.AbortReq), Command := 1);
+    IF #Core.EvCommandStart THEN
+        #LatchedParCmd := #ParCmd;
+        CASE #Core.Command OF
+            1: "FRK_UnitRunStart"(Core := #Core, Status := #Status, Timeout := #ParCfg.Timeout, Label := 'Run');
+            ELSE "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := '');
+        END_CASE;
+    END_IF;
+    IF #Core.RegIndex > 0 THEN "FRK_Registry".Rows[#Core.RegIndex].AlarmBlocking := #AlarmLog.Blocking; END_IF;
+    #Unit.AlarmBlocking := "FRK_AlarmTreeBlocking"(Owner := #Core.RegIndex);
+    "FRK_UnitConsume"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Response := #HmiResponse, Supported := #SupportedModesPublished);
+    "FRK_UnitMode"(Core := #Core, Unit := #Unit);
+    "FRK_UnitModeResolve"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Timeout := #ParCfg.Timeout);
+    "FRK_DecisionCyclic"(Owner := #Core.RegIndex, Busy := #Core.Exec = 1, Reset := #Startup OR #Unit.EvReset OR #Core.EvModeChanged, AlarmLog := #AlarmLog);
+    "FRK_UnitFollow"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Supported := #SupportedModesPublished);
+    IF #Unit.RequestPending AND (#Unit.Request.Kind = 11 OR #Unit.Request.Kind = 16) THEN
+        #ManualMatched := FALSE;
+        #RouteMatched := "FRK_Route_CylinderCM"(Module := #PressRam, Hal := #Hal.PressRam, Request := #Unit.Request, Report := #HmiResponse.Report);
+        #ManualMatched := #ManualMatched OR #RouteMatched;
+        #RouteMatched := "FRK_Route_CylinderCM"(Module := #Door, Hal := #Hal.Door, Request := #Unit.Request, Report := #HmiResponse.Report);
+        #ManualMatched := #ManualMatched OR #RouteMatched;
+        #RouteMatched := "FRK_Route_CylinderCM"(Module := #PartSlide, Hal := #Hal.PartSlide, Request := #Unit.Request, Report := #HmiResponse.Report);
+        #ManualMatched := #ManualMatched OR #RouteMatched;
+        IF NOT #ManualMatched THEN
+            "FRK_ReleaseReason"(Report := #HmiResponse.Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := 2008, Path := #Unit.Request.TargetPath, Kind := 4);
+        END_IF;
+        #HmiResponse.Accepted := #Unit.Request.Kind = 16 OR #HmiResponse.Report.Released;
+        IF #Unit.Request.Kind = 11 THEN
+            IF #HmiResponse.Accepted THEN #HmiResponse.Diagnostic := WSTRING#'std.audit.manualCommandAccepted'; ELSE #HmiResponse.Diagnostic := WSTRING#'std.audit.manualCommandRejected'; END_IF;
+        END_IF;
+    END_IF;
+    IF #Unit.EvReset THEN "FRK_AlarmOperatorReset"(AlarmLog := #AlarmLog); END_IF;
+    IF #Core.ReleasePending OR #Unit.ReleaseChildren THEN
+        "FRK_ReleaseCommand"(Core := #PressRam.Core, Execute := #PressRam.Execute);
+        "FRK_ReleaseCommand"(Core := #Door.Core, Execute := #Door.Execute);
+        "FRK_ReleaseCommand"(Core := #PartSlide.Core, Execute := #PartSlide.Execute);
+    END_IF;
+    // ---- GENERATED: child call
+    #PressRam(ParentIndex := #Core.RegIndex, Startup := #Startup, Hal := #Hal.PressRam);
+    "FRK_ManualFinish"(Core := #PressRam.Core, Execute := #PressRam.Execute, ManualOwned := #PressRam.ManualOwned);
+    // ---- GENERATED: child call
+    #Door(ParentIndex := #Core.RegIndex, Startup := #Startup, Hal := #Hal.Door);
+    "FRK_ManualFinish"(Core := #Door.Core, Execute := #Door.Execute, ManualOwned := #Door.ManualOwned);
+    // ---- GENERATED: child call
+    #PartSlide(ParentIndex := #Core.RegIndex, Startup := #Startup, Hal := #Hal.PartSlide);
+    "FRK_ManualFinish"(Core := #PartSlide.Core, Execute := #PartSlide.Execute, ManualOwned := #PartSlide.ManualOwned);
+    #Unit.CascadePending := FALSE;
+    IF #Unit.RequestPending AND #Unit.Request.Kind = 23 THEN
+        #HmiResponse.Accepted := FALSE;
+        #HmiResponse.Report.Count := 0;
+        #HmiResponse.Report.Released := TRUE;
+        #HmiResponse.Diagnostic := WSTRING#'';
+        "FRK_ConfigBegin"(Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage, PageIndex := #Unit.Request.IntValue, Revision := #ConfigRev);
+        IF #Unit.Request.DurationMs <> 0 THEN
+            #HmiResponse.Diagnostic := WSTRING#'std.error.modelNotAvailable';
+        ELSIF #Unit.Request.IntValue < 0 OR #Unit.Request.IntValue > 32767 THEN
+            #HmiResponse.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+        ELSE
+            "FRK_ConfigUnit"(Scope := #Status.Name, Policy := #ModePolicy, ModelCount := 0, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            "FRK_Config_CylinderCM"(Module := #PressRam, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            "FRK_Config_CylinderCM"(Module := #Door, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            "FRK_Config_CylinderCM"(Module := #PartSlide, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            "FRK_ConfigFinish"(Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            #HmiResponse.Accepted := TRUE;
+        END_IF;
+    END_IF;
+    "FRK_RouteAbort"(Core := #Core, Abort := (#Abort OR #Unit.AbortReq));
+    IF #Core.EvAbort THEN
+        "FRK_PartAborted"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+    END_IF;
+    "FRK_End"(Core := #Core, Status := #Status,
+        Busy => #Busy, Done => #Done, Error => #Error, Aborted => #Aborted, Held => #Held, ErrorID => #ErrorID, Timing => #Timing);
+    "FRK_DecisionCyclic"(Owner := #Core.RegIndex, Busy := #Core.Exec = 1, Reset := #Startup OR #Unit.EvReset OR #Core.EvModeChanged, AlarmLog := #AlarmLog);
+    "FRK_DecisionPublish"(Owner := #Core.RegIndex, Decision := #Decision, DecisionAnswer := #DecisionAnswer);
+    IF NOT #Unit.EvReset THEN
+        "FRK_AlarmCapture"(AlarmLog := #AlarmLog, Core := #Core, Status := #Status);
+        "FRK_Capture_CylinderCM"(Module := #PressRam, AlarmLog := #AlarmLog);
+        "FRK_Capture_CylinderCM"(Module := #Door, AlarmLog := #AlarmLog);
+        "FRK_Capture_CylinderCM"(Module := #PartSlide, AlarmLog := #AlarmLog);
+        "FRK_AlarmEnd"(AlarmLog := #AlarmLog);
+    END_IF;
+    IF #Core.RegIndex > 0 THEN "FRK_Registry".Rows[#Core.RegIndex].AlarmBlocking := #AlarmLog.Blocking; END_IF;
+    #Unit.AlarmBlocking := "FRK_AlarmTreeBlocking"(Owner := #Core.RegIndex);
+    "FRK_AccessFinish"(Access := #Access, Unit := #Unit, Response := #HmiResponse, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog, Revision := #ConfigRev);
+    "FRK_UnitFinish"(Core := #Core, Unit := #Unit, Response := #HmiResponse, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, History := #History, Head := #HistoryHead);
+    #ModeActivePublished := #Unit.Mode;
+    #RunningPublished := #Core.Exec = 1;
+    #StopPendingPublished := #Unit.StopReq AND #Core.Exec = 1;
+    #GoodCount := #Unit.Good;
+    #NokCount := #Unit.Nok;
+    #ReworkCount := #Unit.Rework;
+    #NokReason := #Unit.NokReason;
+    // ---- AUTHORED: unconditional cyclic/derived data
+// No cyclic extension declared.
+    // ---- GENERATED: frame end
+END_FUNCTION_BLOCK
+FUNCTION "FRK_Route_PressDemoUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+END_VAR
+VAR_IN_OUT
+    Module : "FB_PressDemoUnit";
+    Hal : "ST_PressDemoUnitHal";
+    Report : "ST_ReleaseReport";
+END_VAR
+VAR_TEMP
+    RouteMatched : Bool;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_Route_PressDemoUnit := FALSE;
+    IF NOT "FRK_PathOwned"(OwnerPath := #Module.Status.Name, TargetPath := #Request.TargetPath) THEN RETURN; END_IF;
+    "FRK_ManualCommon"(Core := #Module.Core, Unit := #Module.Unit, Status := #Module.Status, Report := #Report);
+    IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := 2008, Path := STRING_TO_WSTRING(#Module.Status.Name), Kind := 4);
+        #FRK_Route_PressDemoUnit := TRUE;
+        RETURN;
+    END_IF;
+    #RouteMatched := "FRK_Route_CylinderCM"(Module := #Module.PressRam, Hal := #Hal.PressRam, Request := #Request, Report := #Report);
+    #FRK_Route_PressDemoUnit := #FRK_Route_PressDemoUnit OR #RouteMatched;
+    #RouteMatched := "FRK_Route_CylinderCM"(Module := #Module.Door, Hal := #Hal.Door, Request := #Request, Report := #Report);
+    #FRK_Route_PressDemoUnit := #FRK_Route_PressDemoUnit OR #RouteMatched;
+    #RouteMatched := "FRK_Route_CylinderCM"(Module := #Module.PartSlide, Hal := #Hal.PartSlide, Request := #Request, Report := #Report);
+    #FRK_Route_PressDemoUnit := #FRK_Route_PressDemoUnit OR #RouteMatched;
+END_FUNCTION
+FUNCTION "FRK_Config_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_PressDemoUnit";
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+BEGIN
+    "FRK_ConfigUnit"(Scope := #Module.Status.Name, Policy := #Module.ModePolicy, ModelCount := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_Config_CylinderCM"(Module := #Module.PressRam, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_Config_CylinderCM"(Module := #Module.Door, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_Config_CylinderCM"(Module := #Module.PartSlide, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+END_FUNCTION

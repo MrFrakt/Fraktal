@@ -1,0 +1,29 @@
+TYPE "FRK_Core"
+VERSION : 0.1
+   STRUCT
+      Named : Bool;                // identity derived and registered
+      Initialized : Bool;          // OnInit has fired
+      ExecPrev : Bool;
+      AbortPrev : Bool;
+      Exec : DInt;                 // E_ExecState
+      Command : DInt;              // latched on the accepted Execute edge
+      Step : DInt;                 // device-logic step (dispatch region only)
+      Dispatch : Bool;             // TRUE: the device-logic region runs this scan
+      EvInit : Bool;               // one-shot hook events (Part IV s.3.14)
+      EvCommandStart : Bool;
+      EvAbort : Bool;
+      EvAbortInError : Bool;
+      CompleteReq : Bool;          // requests resolved by FRK_End
+      FaultReq : Bool;
+      HoldReq : Bool;              // re-asserted every scan the hold condition stands
+      Held : Bool;
+      HoldReason : DInt;           // reason published while HELD; cleared on release
+      StartMs : UDInt;             // FRK_Clock at command start
+      TimeoutMs : UDInt;           // 0 = no command timeout
+      LastCmdMs : UDInt;
+      ModuleType : DInt;
+      RegIndex : Int;              // FRK_Registry row, 0 = none
+      ParentIndex : Int;
+   END_STRUCT;
+
+END_TYPE

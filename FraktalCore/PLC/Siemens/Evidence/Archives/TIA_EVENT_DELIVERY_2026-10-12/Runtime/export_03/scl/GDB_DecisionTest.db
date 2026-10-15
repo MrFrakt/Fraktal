@@ -1,0 +1,29 @@
+﻿DATA_BLOCK "GDB_DecisionTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+// Deterministic service integration checks, independent of physical press I/O.
+   VAR 
+      Done : Bool;
+      Passed : Int;
+      Total : Int;
+      Checks : Array[1..28] of Bool;
+      EmptyHmiRequest : "ST_HmiRequest";
+      EmptyHmiResponse : "ST_HmiResponse";
+      EmptyReport : "ST_ReleaseReport";
+      WorkRequest { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DecisionRequest";
+      WorkPublished { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DecisionRequest";
+      WorkReport { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_ReleaseReport";
+      WorkTestCore { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+      WorkTestUnit { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Unit";
+      WorkTestAccess { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Access";
+      WorkHmiRequest { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_HmiRequest";
+      WorkHmiResponse { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_HmiResponse";
+      Log { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+

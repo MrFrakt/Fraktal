@@ -102,7 +102,8 @@ class _FakeCpu implements WebApiTransport {
         _Leaf leaf => {'name': name, 'datatype': leaf.type},
         _Array array => {
             'name': name,
-            'datatype': array.element.type,
+            'datatype': array.element is _Leaf ? (array.element as _Leaf).type : 'struct',
+            'has_children': array.element is Map,
             'array_dimensions': [
               {'start_index': array.start, 'count': array.count}
             ],
@@ -154,7 +155,7 @@ class _Leaf {
 class _Array {
   final int start;
   final int count;
-  final _Leaf element;
+  final Object element;
   _Array(this.start, this.count, this.element);
 }
 
@@ -168,6 +169,49 @@ Future<WebApiSessionClient> _connect(_FakeCpu cpu, {int batchSize = 4, DateTime 
     );
 
 void main() {
+  test('profile discovery follows occupied history and emits growth and shrink', () async {
+    final cpu = _FakeCpu();
+    final cycles = _Leaf('udint', 0);
+    (cpu.dbs['Unit'] as Map<String, Object>)['Profiler'] = {
+      'LastCycle': {'CycleNo': cycles},
+      'History': _Array(1, 4, {'CycleNo': _Leaf('udint', 1), 'Total': _Leaf('time', 10)}),
+    };
+    final client = await _connect(cpu);
+    addTearDown(client.close);
+    expect((await client.discoverPaths()).where((p) => p.contains('/History[')), isEmpty);
+    cycles.value = 2;
+    var doc = await client.snapshot();
+    expect((doc['paths'] as List).where((p) => '$p'.contains('/History[')), hasLength(4));
+    expect((doc['values'] as Map).keys.where((p) => '$p'.contains('/History[')), isEmpty,
+        reason: 'new rows await an explicit consuming read plan');
+    await client.setExcludedPaths([]);
+    doc = await client.snapshot();
+    expect((doc['values'] as Map)['PLC1/Unit/Profiler/History[2]/Total'], 10);
+    expect(doc['paths'], isEmpty);
+    cycles.value = 65;
+    doc = await client.snapshot();
+    expect((doc['paths'] as List).where((p) => '$p'.contains('/History[')), hasLength(8));
+    cycles.value = 66;
+    expect((await client.snapshot())['paths'], isEmpty, reason: 'ring wrap keeps the same occupied extent');
+    cycles.value = 0;
+    doc = await client.snapshot();
+    expect((doc['paths'] as List).where((p) => '$p'.contains('/History[')), isEmpty);
+    expect((doc['values'] as Map).keys.where((p) => '$p'.contains('/History[')), isEmpty);
+  });
+
+  test('invalid profile count fails closed and unrelated histories keep their bounds', () async {
+    final cpu = _FakeCpu();
+    final unit = cpu.dbs['Unit'] as Map<String, Object>;
+    unit['History'] = _Array(0, 2, _Leaf('int', 7));
+    var client = await _connect(cpu);
+    expect(await client.discoverPaths(), containsAll(['PLC1/Unit/History[0]', 'PLC1/Unit/History[1]']));
+    await client.close();
+    unit['Profiler'] = {
+      'LastCycle': {'CycleNo': _Leaf('udint', -1)},
+      'History': _Array(1, 4, {'Total': _Leaf('time', 10)}),
+    };
+    await expectLater(_connect(cpu), throwsA(isA<OpcUaTransportException>()));
+  });
   test('discovers roots by Status, expands structures and arrays to quoted leaves', () async {
     final cpu = _FakeCpu();
     final client = await _connect(cpu);

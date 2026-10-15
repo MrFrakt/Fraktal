@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_EngUnit" Id="{33c20af3-926a-409e-ba6b-0909c1ff4d34}">
+    <Declaration><![CDATA[// Core §3.10.2 - the engineering unit of a configuration value, as a CODE.
+// A unit is a vocabulary entry like any other text the operator reads: the PLC
+// publishes the code and the HMI owns the symbol, translated with everything
+// else (std.unit.<name>). NONE = 0 = the value has no unit, and the HMI then
+// shows none. Ordinals are the HMI contract (lib/domain/types.dart EngUnit,
+// lint rule E1) - append only.
+{attribute 'qualified_only'}
+TYPE E_EngUnit :
+(
+    NONE                          := 0,
+    MILLISECOND                   := 1,
+    SECOND                        := 2,
+    MINUTE                        := 3,
+    HOUR                          := 4,
+    MICROMETER                    := 5,
+    MILLIMETER                    := 6,
+    METER                         := 7,
+    DEGREE                        := 8,
+    MILLIMETER_PER_SECOND         := 9,
+    METER_PER_MINUTE              := 10,
+    DEGREE_PER_SECOND             := 11,
+    MILLIMETER_PER_SECOND_SQUARED := 12,
+    BAR                           := 13,
+    KILOPASCAL                    := 14,
+    NEWTON                        := 15,
+    KILONEWTON                    := 16,
+    NEWTON_METER                  := 17,
+    GRAM                          := 18,
+    KILOGRAM                      := 19,
+    DEGREE_CELSIUS                := 20,
+    PERCENT                       := 21,
+    REVOLUTION_PER_MINUTE         := 22,
+    HERTZ                         := 23,
+    VOLT                          := 24,
+    AMPERE                        := 25,
+    WATT                          := 26,
+    KILOWATT                      := 27,
+    LITER                         := 28,
+    LITER_PER_MINUTE              := 29,
+    PIECE                         := 30,
+    PIECE_PER_MINUTE              := 31,
+    PIECE_PER_HOUR                := 32
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

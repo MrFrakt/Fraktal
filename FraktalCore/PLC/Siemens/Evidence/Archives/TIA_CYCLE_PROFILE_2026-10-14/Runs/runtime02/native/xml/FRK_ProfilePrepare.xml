@@ -1,0 +1,331 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-14T20:01:37.0919938Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Run" Datatype="Bool" Accessibility="Public" />
+    <Member Name="Withdraw" Datatype="Bool" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Book" Datatype="&quot;FRK_ProfileBook&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Collecting" Datatype="Bool" />
+          <Member Name="Running" Datatype="Bool" />
+          <Member Name="HasOpen" Datatype="Bool" />
+          <Member Name="Invalid" Datatype="Bool" />
+          <Member Name="CompleteRequested" Datatype="Bool" />
+          <Member Name="StartMs" Datatype="UDInt" />
+          <Member Name="OpenMs" Datatype="UDInt" />
+          <Member Name="OpenNo" Datatype="Int" />
+          <Member Name="OpenVisit" Datatype="UDInt" />
+          <Member Name="OpenName" Datatype="String[120]" />
+          <Member Name="OpenClass" Datatype="DInt" />
+          <Member Name="OpenExpected" Datatype="Time" />
+          <Member Name="OpenStamp" Datatype="LDT" />
+          <Member Name="CompletedNo" Datatype="Int" />
+          <Member Name="CompletedVisit" Datatype="UDInt" />
+          <Member Name="NSteps" Datatype="Int" />
+          <Member Name="Truncated" Datatype="Bool" />
+          <Member Name="LastNSteps" Datatype="Int" />
+          <Member Name="LastTruncated" Datatype="Bool" />
+          <Member Name="StatsTruncated" Datatype="Bool" />
+          <Member Name="Head" Datatype="Int" />
+          <Member Name="LastCycleTime" Datatype="Time" />
+          <Member Name="MinCycleTime" Datatype="Time" />
+          <Member Name="Current" Datatype="&quot;ST_CycleSummary&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="CycleNo" Datatype="UDInt" />
+                <Member Name="Started" Datatype="LDT" />
+                <Member Name="StartedTimeSynchronized" Datatype="Bool" />
+                <Member Name="Total" Datatype="Time" />
+                <Member Name="WorkTime" Datatype="Time" />
+                <Member Name="WaitTime" Datatype="Time" />
+                <Member Name="ByClass" Datatype="Array[0..4] of Time" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="Last" Datatype="&quot;ST_CycleSummary&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="CycleNo" Datatype="UDInt" />
+                <Member Name="Started" Datatype="LDT" />
+                <Member Name="StartedTimeSynchronized" Datatype="Bool" />
+                <Member Name="Total" Datatype="Time" />
+                <Member Name="WorkTime" Datatype="Time" />
+                <Member Name="WaitTime" Datatype="Time" />
+                <Member Name="ByClass" Datatype="Array[0..4] of Time" />
+              </Section>
+            </Sections>
+          </Member>
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_ProfilePrepare</Name>
+      <Namespace />
+      <Number>267</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text> Core 8.11.4: bounded main-line timing, fed from existing step records.</Text>
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="Book" UId="24" />
+      <Token Text="." UId="25" />
+      <Component Name="Collecting" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text=":=" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="LocalVariable" UId="30">
+    <Symbol UId="31">
+      <Component Name="Run" UId="32" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="33" />
+  <Token Text="AND" UId="34" />
+  <Blank Num="1" UId="35" />
+  <Token Text="NOT" UId="36" />
+  <Blank Num="1" UId="37" />
+  <Access Scope="LocalVariable" UId="38">
+    <Symbol UId="39">
+      <Component Name="Withdraw" UId="40" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="41" />
+  <NewLine Num="1" UId="42" />
+  <Token Text="IF" UId="43" />
+  <Blank Num="1" UId="44" />
+  <Token Text="NOT" UId="45" />
+  <Blank Num="1" UId="46" />
+  <Access Scope="LocalVariable" UId="47">
+    <Symbol UId="48">
+      <Component Name="Book" UId="49" />
+      <Token Text="." UId="50" />
+      <Component Name="Collecting" UId="51" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="52" />
+  <Token Text="THEN" UId="53" />
+  <NewLine Num="1" UId="54" />
+  <Blank Num="4" UId="55" />
+  <Access Scope="LocalVariable" UId="56">
+    <Symbol UId="57">
+      <Component Name="Book" UId="58" />
+      <Token Text="." UId="59" />
+      <Component Name="Running" UId="60" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="61" />
+  <Token Text=":=" UId="62" />
+  <Blank Num="1" UId="63" />
+  <Access Scope="LiteralConstant" UId="64">
+    <Constant UId="65">
+      <ConstantValue UId="67">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="68" />
+  <NewLine Num="1" UId="69" />
+  <Blank Num="4" UId="70" />
+  <Access Scope="LocalVariable" UId="71">
+    <Symbol UId="72">
+      <Component Name="Book" UId="73" />
+      <Token Text="." UId="74" />
+      <Component Name="HasOpen" UId="75" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="76" />
+  <Token Text=":=" UId="77" />
+  <Blank Num="1" UId="78" />
+  <Access Scope="LiteralConstant" UId="79">
+    <Constant UId="80">
+      <ConstantValue UId="82">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="83" />
+  <NewLine Num="1" UId="84" />
+  <Blank Num="4" UId="85" />
+  <Access Scope="LocalVariable" UId="86">
+    <Symbol UId="87">
+      <Component Name="Book" UId="88" />
+      <Token Text="." UId="89" />
+      <Component Name="CompletedVisit" UId="90" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="91" />
+  <Token Text=":=" UId="92" />
+  <Blank Num="1" UId="93" />
+  <Access Scope="LiteralConstant" UId="94">
+    <Constant UId="95">
+      <ConstantValue UId="97">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="98" />
+  <NewLine Num="1" UId="99" />
+  <Blank Num="4" UId="100" />
+  <Access Scope="LocalVariable" UId="101">
+    <Symbol UId="102">
+      <Component Name="Book" UId="103" />
+      <Token Text="." UId="104" />
+      <Component Name="NSteps" UId="105" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="106" />
+  <Token Text=":=" UId="107" />
+  <Blank Num="1" UId="108" />
+  <Access Scope="LiteralConstant" UId="109">
+    <Constant UId="110">
+      <ConstantValue UId="112">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="113" />
+  <NewLine Num="1" UId="114" />
+  <Blank Num="4" UId="115" />
+  <Access Scope="LocalVariable" UId="116">
+    <Symbol UId="117">
+      <Component Name="Book" UId="118" />
+      <Token Text="." UId="119" />
+      <Component Name="CompleteRequested" UId="120" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="121" />
+  <Token Text=":=" UId="122" />
+  <Blank Num="1" UId="123" />
+  <Access Scope="LiteralConstant" UId="124">
+    <Constant UId="125">
+      <ConstantValue UId="127">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="128" />
+  <NewLine Num="1" UId="129" />
+  <Token Text="END_IF" UId="130" />
+  <Token Text=";" UId="131" />
+  <NewLine Num="1" UId="132" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

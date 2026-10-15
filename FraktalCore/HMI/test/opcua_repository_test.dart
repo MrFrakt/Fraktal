@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/data/opcua_repository.dart';
@@ -6,6 +7,64 @@ import 'package:fraktal_hmi/data/opcua_session_client.dart';
 import 'package:fraktal_hmi/domain/types.dart';
 
 void main() {
+  test('startup reads a large station with closed history views excluded',
+      () async {
+    final client = _DiscoveryBeforeReadClient();
+    final repository = await OpcUaRepository.connectWithClient(client,
+        refreshInterval: const Duration(days: 1));
+    addTearDown(repository.dispose);
+    expect(await repository.forest().first, hasLength(1));
+    expect(client.fullTreeAcquired, isFalse);
+  });
+  test('an interrupted export never sends its remaining lines', () async {
+    final client = _BlockingSetClient(32);
+    final repository = await OpcUaRepository.connectWithClient(client,
+        refreshInterval: const Duration(days: 1));
+    final document = repository.exportConfigSet('PneumaticPress', 'saved');
+    await client.firstCommitted.future;
+    repository.dispose();
+    client.releaseFirst.complete();
+    expect(await document, isNull);
+    expect(client.requests, hasLength(1));
+  });
+  test('a config query waits for the complete set export', () async {
+    final client = _BlockingSetClient(32);
+    final repository = await OpcUaRepository.connectWithClient(client,
+        refreshInterval: const Duration(days: 1));
+    addTearDown(repository.dispose);
+    final document = repository.exportConfigSet('PneumaticPress', 'saved');
+    await client.firstCommitted.future;
+    final query = repository.queryModelConfig('PneumaticPress', 0);
+    client.releaseFirst.complete();
+    expect(await document, 'header\nrecord');
+    await query;
+    expect(client.requests.map((request) => request['Kind']), [32, 32, 23]);
+  });
+
+  test('a config query waits for every import line and piece', () async {
+    final client = _BlockingSetClient(33);
+    final repository = await OpcUaRepository.connectWithClient(client,
+        refreshInterval: const Duration(days: 1));
+    addTearDown(repository.dispose);
+    final record = jsonEncode({
+      'scope': 'PneumaticPress',
+      'key': List.filled(140, 'k').join(),
+      'rev': 1,
+      'kind': 1,
+      'type': 1,
+      'value': List.filled(80, 'v').join(),
+    });
+    final document =
+        repository.importConfigSet('PneumaticPress', '{}\n$record');
+    await client.firstCommitted.future;
+    final query = repository.queryModelConfig('PneumaticPress', 0);
+    client.releaseFirst.complete();
+    expect(await document, isTrue);
+    await query;
+    expect(client.requests.map((request) => request['Kind']), [33, 33, 33, 23]);
+    expect(client.requests[1]['IntValue'], 1);
+    expect(client.requests[2]['BoolValue'], isTrue);
+  });
   test('current export uses one fresh token per complete document', () async {
     final client = _ExportClient();
     final repository = await OpcUaRepository.connectWithClient(client,
@@ -539,6 +598,29 @@ class _OnDemandFieldbusClient
 
   @override
   Future<void> close() async {}
+}
+
+class _DiscoveryBeforeReadClient extends _OnDemandFieldbusClient
+    implements OpcUaPathDiscoveryClient {
+  static const bulk = 'PLC1/MAIN/PneumaticPress/SequenceSteps';
+  bool fullTreeAcquired = false;
+
+  @override
+  Future<List<String>> discoverPaths() async => [
+        'PLC1/MAIN/PneumaticPress/Status/Name',
+        'PLC1/MAIN/PneumaticPress/Status/State',
+        for (var i = 1; i <= 10000; i++) '$bulk/SequenceSteps[$i]/Visited',
+      ];
+
+  @override
+  Future<Map<String, Object?>> snapshot() async {
+    fullTreeAcquired =
+        !excludedPaths.contains('$bulk/SequenceSteps[1]/Visited') ||
+            !excludedPaths.contains('$bulk/SequenceSteps[10000]/Visited');
+    if (fullTreeAcquired) throw StateError('startup full-tree acquisition');
+    final document = await super.snapshot();
+    return {...document, 'paths': await discoverPaths()};
+  }
 }
 
 /// Publishes a root Unit with the §3.10.2 obscured publication (no Catalog,
@@ -1107,6 +1189,25 @@ class _ReleaseClient implements OpcUaSessionClient {
 
   @override
   Future<void> close() async {}
+}
+
+class _BlockingSetClient extends _ExportClient {
+  final int kind;
+  final firstCommitted = Completer<void>();
+  final releaseFirst = Completer<void>();
+  _BlockingSetClient(this.kind);
+
+  @override
+  Future<bool> write(String path, OpcUaWriteType type, Object value) async {
+    final ok = await super.write(path, type, value);
+    if (path.endsWith('/Sequence') &&
+        requests.length == 1 &&
+        pending['Kind'] == kind) {
+      firstCommitted.complete();
+      await releaseFirst.future;
+    }
+    return ok;
+  }
 }
 
 class _ExportClient extends _ReleaseClient implements OpcUaBulkReadClient {

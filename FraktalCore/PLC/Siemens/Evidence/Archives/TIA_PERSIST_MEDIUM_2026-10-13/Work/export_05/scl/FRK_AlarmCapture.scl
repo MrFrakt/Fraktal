@@ -1,0 +1,56 @@
+﻿FUNCTION "FRK_AlarmCapture" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #Core.FaultSlot;
+	IF #Slot < 1 OR #Slot > 16 THEN
+	    #Slot := 0;
+	ELSIF NOT #AlarmLog.Automatic[#Slot] OR #AlarmLog.Active[#Slot].State <> 1
+	    OR #AlarmLog.Active[#Slot].SourcePath <> #Status.Diagnostic.SourcePath
+	    OR #AlarmLog.Active[#Slot].ReasonCode <> #Status.Diagnostic.ReasonCode
+	    OR #AlarmLog.Active[#Slot].Description <> #Status.Diagnostic.Description THEN
+	    #Slot := 0;
+	END_IF;
+	IF #Core.Exec = 3 AND NOT #Core.FaultHandled THEN
+	    IF #Slot = 0 THEN
+	        // Adopted first-outs share one active occurrence within this log.
+	        FOR #Slot := 1 TO 16 DO
+	            IF #AlarmLog.Automatic[#Slot] AND #AlarmLog.Active[#Slot].State = 1
+	                AND #AlarmLog.Active[#Slot].SourcePath = #Status.Diagnostic.SourcePath
+	                AND #AlarmLog.Active[#Slot].ReasonCode = #Status.Diagnostic.ReasonCode
+	                AND #AlarmLog.Active[#Slot].Description = #Status.Diagnostic.Description THEN
+	                EXIT;
+	            END_IF;
+	        END_FOR;
+	        IF #Slot > 16 THEN
+	            #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Status.Diagnostic, ResetClass := 1);
+	        END_IF;
+	    END_IF;
+	    IF #Slot > 0 THEN
+	        IF NOT #AlarmLog.Automatic[#Slot] THEN
+	            #AlarmLog.Automatic[#Slot] := TRUE; "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog,
+	                                                                         EventSlot := #Slot);
+	        END_IF;
+	        #AlarmLog.Recovering[#Slot] := FALSE;
+	        #AlarmLog.Automatic[#Slot] := TRUE;
+	        #AlarmLog.Touched[#Slot] := TRUE;
+	    END_IF;
+	    #Core.FaultSlot := #Slot;
+	ELSE
+	    #Core.FaultSlot := 0;
+	END_IF;
+	
+END_FUNCTION
+

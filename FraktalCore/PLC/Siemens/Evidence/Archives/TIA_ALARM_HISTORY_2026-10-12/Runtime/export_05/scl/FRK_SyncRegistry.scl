@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_SyncRegistry" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Index : DInt;
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	// Nested checks precede array access; do not depend on short-circuit AND.
+	IF #Index < 1 OR #Index > "FRK_Registry".Count OR #Index > 32 THEN
+	    "FRK_Registry".Fault := TRUE;
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_Registry".Rows[#Index].Valid THEN
+	    "FRK_Registry".Fault := TRUE;
+	    RETURN;
+	END_IF;
+	"FRK_Registry".Rows[#Index].Exec := #Status.State;
+	"FRK_Registry".Rows[#Index].ReasonCode := #Status.Diagnostic.ReasonCode;
+	"FRK_Registry".Rows[#Index].Severity := #Status.Diagnostic.Severity;
+	
+END_FUNCTION
+

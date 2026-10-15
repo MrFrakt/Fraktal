@@ -1,0 +1,43 @@
+﻿FUNCTION "FRK_SetResult" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+      Response : "ST_HmiResponse";
+      Persist : "ST_ConfigPersistStatus";
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Diag : "ST_Diagnostic";
+      Slot : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Request.Kind <> 29 THEN
+	    RETURN;
+	END_IF;
+	#Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	#Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+	IF #Response.Accepted THEN
+	    #Diag.ReasonCode := 2043;
+	    #Diag.Description := WSTRING#'std.event.configSetApplied';
+	ELSE
+	    #Diag.ReasonCode := 2042;
+	    #Diag.Description := WSTRING#'std.error.configSetRejected';
+	    #Diag.SourcePath := STRING_TO_WSTRING(#Persist.LastRejectScope);
+	END_IF;
+	#Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	IF #Slot > 0 THEN
+	    #Ok := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot);
+	END_IF;
+	
+END_FUNCTION
+

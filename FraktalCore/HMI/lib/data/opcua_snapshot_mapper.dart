@@ -4,6 +4,7 @@ import '../domain/fieldbus.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../localization/reason_catalog.g.dart';
+import 'opcua_browse_paths.dart';
 
 class OpcUaProjection {
   final List<ModuleNode> forest;
@@ -90,8 +91,8 @@ class OpcUaSnapshotMapper {
     // values/dataValues so a path present in both is projected once.
     final candidatePaths = <String>{...values.keys, ...dataValues.keys};
     // O(1) "has children" index for the indexed-array probes (see
-    // _buildParentPaths): built once per snapshot, reused by every module.
-    final parentPaths = _buildParentPaths(values.keys);
+    // buildBrowseParentPaths): built once per snapshot, reused by every module.
+    final parentPaths = buildBrowseParentPaths(values.keys);
 
     final browseByModule = <String, String>{};
     ModuleNode project(_ModuleCandidate candidate) {
@@ -957,7 +958,21 @@ class OpcUaSnapshotMapper {
         controlPower: controlPower,
         systemHealth: systemHealth,
         signalTower: signalTower,
-        config: configByModulePath[path] ?? const [],
+        config: [
+          for (final field in configByModulePath[path] ?? const <CfgField>[])
+            // A binding may publish the current value alongside the manifest.
+            // Use that reading without waiting for a whole metadata refetch;
+            // the manifest still owns visibility, permissions and validation.
+            if (values['$base/${field.name}'] case final Object measured
+                when field.readable &&
+                    (measured is String ||
+                        measured is num ||
+                        measured is bool) &&
+                    field.accepts('$measured'))
+              field.withValue('$measured')
+            else
+              field,
+        ],
         nameplate: nameplate,
         oee: oee,
         shift: shift,
@@ -1253,30 +1268,6 @@ Duration _duration(Object? value) =>
 
 T _enumAt<T>(List<T> values, int index, T fallback) =>
     index >= 0 && index < values.length ? values[index] : fallback;
-
-/// Set of every ancestor path that has at least one child, so
-/// "does any key start with `<p>/`?" becomes an O(1) lookup instead of a full
-/// scan of the value map.
-///
-/// This is the single biggest cost in mapping a large tree: [_arrayElement] and
-/// [_indexedPrefix] each probed 4 candidate prefixes with
-/// `values.keys.any(startsWith)`, and they are called once per enum value per
-/// module. On a 15k-symbol tree that was ~12M string comparisons per refresh
-/// (~1.1s), which blocked the UI isolate and every command's ack poll behind it.
-Set<String> _buildParentPaths(Iterable<String> keys) {
-  final parents = <String>{};
-  for (final key in keys) {
-    var cut = key.lastIndexOf('/');
-    // Register every ancestor, stopping early once a branch is already known
-    // (its ancestors were added when it was first seen).
-    while (cut > 0) {
-      final parent = key.substring(0, cut);
-      if (!parents.add(parent)) break;
-      cut = parent.lastIndexOf('/');
-    }
-  }
-  return parents;
-}
 
 Object? _arrayElement(
     Map<String, Object?> values, String base, int zeroBasedIndex,

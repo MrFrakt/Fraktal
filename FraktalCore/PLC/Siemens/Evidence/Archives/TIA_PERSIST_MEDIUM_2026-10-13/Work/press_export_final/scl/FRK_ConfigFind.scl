@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_ConfigFind" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Key : String;
+      ModelCode : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigFind := 0;
+	FOR #Index := 1 TO 3 DO
+	    IF "FRK_ConfigStore".Rows[#Index].Used
+	        AND "FRK_ConfigStore".Rows[#Index].Record.Scope = #Scope
+	        AND "FRK_ConfigStore".Rows[#Index].Record.WriteKey = #Key
+	        AND "FRK_ConfigStore".Rows[#Index].ModelCode = #ModelCode THEN
+	        #FRK_ConfigFind := #Index;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

@@ -5,6 +5,10 @@ $ErrorActionPreference = 'Stop'
 $asm = [Reflection.Assembly]::LoadFrom('C:\Program Files (x86)\Common Files\Siemens\PLCSIMADV\API\5.0\Siemens.Simatic.Simulation.Runtime.Api.x64.dll')
 $manager = $asm.GetType('Siemens.Simatic.Simulation.Runtime.SimulationRuntimeManager')
 $instanceName = 'FrkS12'
+if ($env:FRAKTAL_TIA_SIM_INSTANCE) {
+  if ($env:FRAKTAL_TIA_SIM_INSTANCE -notin @('FrkS12','Fraktal')) { throw 'Unapproved simulator name' }
+  $instanceName = $env:FRAKTAL_TIA_SIM_INSTANCE
+}
 $address = '169.254.212.49'
 function Emit($kind,$data) { ([ordered]@{t=[datetime]::UtcNow.ToString('o');event=$kind}+$data) | ConvertTo-Json -Compress }
 function Find-Instance {

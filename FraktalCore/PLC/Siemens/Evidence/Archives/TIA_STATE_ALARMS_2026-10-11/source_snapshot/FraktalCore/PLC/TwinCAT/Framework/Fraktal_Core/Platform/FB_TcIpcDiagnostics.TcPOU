@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_TcIpcDiagnostics" Id="{04c9f4e9-c372-44b9-88ab-919620f31e64}" SpecialFunc="None">
+    <Declaration><![CDATA[// TC3 §8.12 - controller and IPC measurements from the Beckhoff Device Manager
+// (MDP) through Tc3_IPCDiag, on a Beckhoff IPC or CX running Windows. Every metric
+// is AVAILABLE only while a read of it succeeded within FRESH_FOR: a target without
+// the Device Manager, or without a given MDP module (a fanless IPC has no Fan
+// module, a disk without flash wear data has no such list), reports that metric
+// unavailable - never a healthy default. One read at a time, round robin, after a
+// start-up delay, because Beckhoff advises against querying MDP during boot.
+FUNCTION_BLOCK FB_TcIpcDiagnostics
+VAR_OUTPUT
+    Registered          : BOOL;     // the Device Manager answered its module list
+    ControllerAvailable : BOOL;     // CPU load AND available program memory are fresh
+    CpuLoadPct          : LREAL;    // CPU_Usage
+    MemoryAvailableMb   : UDINT;    // Memory_ProgramMemoryAvailable / 2^20
+    IpcAvailable        : BOOL;     // CPU temperature is fresh
+    IpcTemperatureC     : LREAL;    // hottest CPU_Temp reading
+    FanAvailable        : BOOL;     // fan speeds are fresh
+    FanHealthy          : BOOL;     // every reported fan turns
+    StorageAvailable    : BOOL;     // flash wear data is fresh
+    StorageHealthPct    : LREAL;    // worst drive: min(erase cycles left, spare blocks left)
+    LastError           : DINT;     // HRESULT of the last failed MDP access (0 = none)
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _register : Tc3_IPCDiag.FB_IPCDiag_Register;
+    {attribute 'OPC.UA.DA' := '0'}
+    _read : Tc3_IPCDiag.FB_IPCDiag_ReadParameter;
+    _phase : INT;
+    _metric : INT;                  // 0..METRICS-1, round robin
+    _failures : INT;                // consecutive failed reads
+    _wait : TON;
+    _seen : ARRAY[0..5] OF BOOL;    // the metric was read and accepted
+    _seenAt : ARRAY[0..5] OF TIME;  // monotonic time of that read
+    _eraseLeft : LREAL;
+    _spareLeft : LREAL;
+END_VAR
+VAR CONSTANT
+    METRICS        : INT := 6;
+    START_DELAY    : TIME := T#20S;
+    REGISTER_RETRY : TIME := T#30S;
+    READ_SPACING   : TIME := T#2S;
+    FRESH_FOR      : TIME := T#40S;     // longer than three full rounds
+    MDP_TIMEOUT    : TIME := T#5S;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Cyclic" Id="{b2e06d82-ce52-442e-bf63-4aa8426f6571}">
+      <Declaration><![CDATA[METHOD Cyclic : BOOL
+VAR
+    monoNow : TIME;
+    ok : BOOL;
+    count : INT;
+    values : ARRAY[1..8] OF LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[monoNow := TIME();
+CASE _phase OF
+    0:
+        _wait(IN := TRUE, PT := START_DELAY);
+        IF _wait.Q THEN
+            _wait(IN := FALSE, PT := START_DELAY);
+            _phase := 10;
+        END_IF
+    10:
+        _register(bExecute := FALSE, tTimeout := MDP_TIMEOUT, sNetId := '');
+        _register(bExecute := TRUE, tTimeout := MDP_TIMEOUT, sNetId := '');
+        _phase := 11;
+    11:
+        _register(bExecute := FALSE, tTimeout := MDP_TIMEOUT, sNetId := '');
+        IF NOT _register.bBusy THEN
+            Registered := NOT _register.bError;
+            IF _register.bError THEN
+                LastError := _register.hrErrorCode;
+                _phase := 12;
+            ELSE
+                _failures := 0;
+                _phase := 20;
+            END_IF
+        END_IF
+    12:
+        _wait(IN := TRUE, PT := REGISTER_RETRY);
+        IF _wait.Q THEN
+            _wait(IN := FALSE, PT := REGISTER_RETRY);
+            _phase := 10;
+        END_IF
+    20:
+        _read(bExecute := FALSE, eParameterKey := _M_Key(Metric := _metric),
+            nModuleIdx := 0, tTimeout := MDP_TIMEOUT, sNetId := '', fbRegister := _register);
+        _read(bExecute := TRUE, eParameterKey := _M_Key(Metric := _metric),
+            nModuleIdx := 0, tTimeout := MDP_TIMEOUT, sNetId := '', fbRegister := _register);
+        _phase := 21;
+    21:
+        _read(bExecute := FALSE, eParameterKey := _M_Key(Metric := _metric),
+            nModuleIdx := 0, tTimeout := MDP_TIMEOUT, sNetId := '', fbRegister := _register);
+        IF NOT _read.bBusy THEN
+            count := 0;
+            ok := NOT _read.bError;
+            IF ok THEN
+                count := _M_Copy(Metric := _metric, Values := values);
+                ok := count > 0;
+            ELSE
+                LastError := _read.hrErrorCode;
+            END_IF
+            IF M_ApplyReading(Metric := _metric, Ok := ok, Values := values,
+                Count := count, MonoNow := monoNow) THEN
+                _failures := 0;
+            ELSE
+                _failures := _failures + 1;
+            END_IF
+            _metric := (_metric + 1) MOD METRICS;
+            IF _failures >= METRICS THEN
+                // Nothing answered for a whole round: the Device Manager may have
+                // restarted, so its module list is rebuilt before reading again.
+                Registered := FALSE;
+                _phase := 12;
+            ELSE
+                _phase := 22;
+            END_IF
+        END_IF
+    22:
+        _wait(IN := TRUE, PT := READ_SPACING);
+        IF _wait.Q THEN
+            _wait(IN := FALSE, PT := READ_SPACING);
+            _phase := 20;
+        END_IF
+ELSE
+    _phase := 0;
+END_CASE
+_M_Publish(MonoNow := monoNow);     // freshness expires even while a read hangs
+Cyclic := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyReading" Id="{bd08e1be-5bba-44ed-b35b-ee75a0f6c30a}">
+      <Declaration><![CDATA[// Record one metric's outcome; Cyclic uses it for every MDP read, and it is the
+// seam a fixture drives. Values holds Count readings in the MDP parameter's own
+// unit: one for scalars, one per fan or drive for the lists. A reading outside the
+// parameter's physical range is refused like a failed read. Metric: 0 CPU usage %,
+// 1 program memory available (bytes), 2 CPU temperature (degC), 3 fan speed (rpm),
+// 4 flash erase cycles left %, 5 flash spare blocks left %.
+METHOD M_ApplyReading : BOOL
+VAR_INPUT
+    Metric  : INT;
+    Ok      : BOOL;
+    Values  : ARRAY[1..8] OF LREAL;
+    Count   : INT;
+    MonoNow : TIME;
+END_VAR
+VAR
+    i : INT;
+    n : INT;
+    valid : BOOL;
+    worst : LREAL;
+    turning : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyReading := FALSE;
+IF (Metric < 0) OR (Metric >= METRICS) THEN
+    RETURN;
+END_IF
+n := LIMIT(0, Count, 8);
+valid := Ok AND (n > 0);
+IF valid THEN
+    CASE Metric OF
+        0:
+            valid := (Values[1] >= 0.0) AND (Values[1] <= 100.0);
+            IF valid THEN
+                CpuLoadPct := Values[1];
+            END_IF
+        1:
+            valid := Values[1] >= 0.0;
+            IF valid THEN
+                MemoryAvailableMb := LREAL_TO_UDINT(MIN(Values[1] / 1048576.0, 4294967295.0));
+            END_IF
+        2:
+            worst := Values[1];
+            FOR i := 1 TO n DO
+                valid := valid AND (Values[i] >= -60.0) AND (Values[i] <= 200.0);
+                worst := MAX(worst, Values[i]);
+            END_FOR
+            IF valid THEN
+                IpcTemperatureC := worst;
+            END_IF
+        3:
+            turning := TRUE;
+            FOR i := 1 TO n DO
+                valid := valid AND (Values[i] >= 0.0);
+                turning := turning AND (Values[i] > 0.0);
+            END_FOR
+            IF valid THEN
+                FanHealthy := turning;
+            END_IF
+        4, 5:
+            worst := Values[1];
+            FOR i := 1 TO n DO
+                valid := valid AND (Values[i] >= 0.0) AND (Values[i] <= 100.0);
+                worst := MIN(worst, Values[i]);
+            END_FOR
+            IF valid AND (Metric = 4) THEN
+                _eraseLeft := worst;
+            ELSIF valid THEN
+                _spareLeft := worst;
+            END_IF
+    ELSE
+        valid := FALSE;
+    END_CASE
+END_IF
+IF valid THEN
+    _seen[Metric] := TRUE;
+    _seenAt[Metric] := MonoNow;
+END_IF
+_M_Publish(MonoNow := MonoNow);
+M_ApplyReading := valid;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Publish" Id="{75a8fbd8-2af7-4e2b-bbe7-fca061015147}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Publish
+VAR_INPUT
+    MonoNow : TIME;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[ControllerAvailable := _M_Fresh(Metric := 0, MonoNow := MonoNow)
+    AND _M_Fresh(Metric := 1, MonoNow := MonoNow);
+IpcAvailable := _M_Fresh(Metric := 2, MonoNow := MonoNow);
+FanAvailable := _M_Fresh(Metric := 3, MonoNow := MonoNow);
+StorageAvailable := _M_Fresh(Metric := 4, MonoNow := MonoNow)
+    AND _M_Fresh(Metric := 5, MonoNow := MonoNow);
+StorageHealthPct := MIN(_eraseLeft, _spareLeft);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Fresh" Id="{158e35e4-20d5-47a3-9246-5800d87e1030}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Fresh : BOOL
+VAR_INPUT
+    Metric  : INT;
+    MonoNow : TIME;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Fresh := FALSE;
+IF (Metric >= 0) AND (Metric < METRICS) THEN
+    _M_Fresh := _seen[Metric] AND (MonoNow - _seenAt[Metric] <= FRESH_FOR);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Key" Id="{6f944634-7376-4110-877e-ffa8dee94444}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Key : Tc3_IPCDiag.E_IPCDiag_ParameterKey
+VAR_INPUT
+    Metric : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[CASE Metric OF
+    0:
+        _M_Key := Tc3_IPCDiag.E_IPCDiag_ParameterKey.CPU_Usage;
+    1:
+        _M_Key := Tc3_IPCDiag.E_IPCDiag_ParameterKey.Memory_ProgramMemoryAvailable;
+    2:
+        _M_Key := Tc3_IPCDiag.E_IPCDiag_ParameterKey.CPU_Temp;
+    3:
+        _M_Key := Tc3_IPCDiag.E_IPCDiag_ParameterKey.Fan_Speed;
+    4:
+        _M_Key := Tc3_IPCDiag.E_IPCDiag_ParameterKey.MassStg_DriveList_EraseCyclesLeft;
+    5:
+        _M_Key := Tc3_IPCDiag.E_IPCDiag_ParameterKey.MassStg_DriveList_SpareBlocksLeft;
+ELSE
+    _M_Key := Tc3_IPCDiag.E_IPCDiag_ParameterKey.CPU_Usage;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Copy" Id="{479e344c-f498-477d-97d9-c67f6b7659c9}">
+      <Declaration><![CDATA[// Copy the completed read into LREALs, in the parameter's documented MDP type:
+// CPU_Usage UINT, Memory_ProgramMemoryAvailable ULINT, the rest INT (possibly one
+// value per module instance or list entry). Returns how many values were copied.
+METHOD PRIVATE _M_Copy : INT
+VAR_INPUT
+    Metric : INT;
+END_VAR
+VAR_IN_OUT
+    Values : ARRAY[1..8] OF LREAL;
+END_VAR
+VAR
+    hr : DINT;
+    usage : UINT;
+    memory : ULINT;
+    readings : ARRAY[1..8] OF INT;
+    n : INT;
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Copy := 0;
+CASE Metric OF
+    0:
+        hr := _read.GetParameter(pBuffer := ADR(usage), nBufferSize := SIZEOF(usage));
+        IF hr = 0 THEN
+            Values[1] := UINT_TO_LREAL(usage);
+            _M_Copy := 1;
+        END_IF
+    1:
+        hr := _read.GetParameter(pBuffer := ADR(memory), nBufferSize := SIZEOF(memory));
+        IF hr = 0 THEN
+            Values[1] := ULINT_TO_LREAL(memory);
+            _M_Copy := 1;
+        END_IF
+    2, 3, 4, 5:
+        hr := _read.GetParameter(pBuffer := ADR(readings), nBufferSize := SIZEOF(readings));
+        IF hr = 0 THEN
+            n := LIMIT(0, USINT_TO_INT(_read.nReadParameterValues), 8);
+            FOR i := 1 TO n DO
+                Values[i] := INT_TO_LREAL(readings[i]);
+            END_FOR
+            _M_Copy := n;
+        END_IF
+ELSE
+    hr := -1;
+END_CASE
+IF hr <> 0 THEN
+    LastError := hr;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

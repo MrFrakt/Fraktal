@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_UnitRunStart" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Timeout : Time;
+      Label : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_Start"(Core := #Core,
+	            Status := #Status,
+	            Supported := TRUE,
+	            Timeout := #Timeout,
+	            Label := #Label);
+	// A continuous run ends at Stop. Bounded commands/steps own progress timeouts.
+	#Core.TimeoutMs := 0;
+	
+END_FUNCTION
+

@@ -1,0 +1,69 @@
+﻿FUNCTION "FRK_CfgRecipe_DeclarationUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ModelCode : String;
+      Phase : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Status : "ST_ModuleStatus";
+      ParCfg : "ST_DeclarationParCfg";
+      ConfigStaged : Bool;
+      ConfigStageParCfg : "ST_DeclarationParCfg";
+      ConfigDefaultParCfg : "ST_DeclarationParCfg";
+      Cell : "FB_DeclarationCell";
+      Satellite : "FB_SatelliteUnit";
+      RejectScope : String;
+      RejectKey : String;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgRecipe_DeclarationUnit := TRUE;
+	IF #Phase = 1 THEN
+	    #ConfigStaged := FALSE;
+	    #ConfigStageParCfg := #ConfigDefaultParCfg;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 1);
+	    #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := #ModelCode);
+	    IF NOT #Ok THEN
+	        #RejectScope := #Status.Name;
+	        #RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	        #FRK_CfgRecipe_DeclarationUnit := FALSE;
+	        RETURN;
+	    END_IF;
+	    #ConfigStageParCfg.Timeout := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 2);
+	    #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := #ModelCode);
+	    IF NOT #Ok THEN
+	        #RejectScope := #Status.Name;
+	        #RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	        #FRK_CfgRecipe_DeclarationUnit := FALSE;
+	        RETURN;
+	    END_IF;
+	    #ConfigStageParCfg.Preset := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    #ConfigStaged := TRUE;
+	ELSIF #Phase = 2 THEN
+	    #ParCfg := #ConfigStageParCfg;
+	    #ConfigStaged := FALSE;
+	ELSE
+	    #ConfigStaged := FALSE;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_DeclarationCell"(Module := #Cell, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_DeclarationUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_SatelliteUnit"(Module := #Satellite, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_DeclarationUnit := FALSE;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

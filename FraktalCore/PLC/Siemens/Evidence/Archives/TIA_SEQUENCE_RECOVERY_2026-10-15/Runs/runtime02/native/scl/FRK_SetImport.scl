@@ -1,0 +1,70 @@
+﻿FUNCTION "FRK_SetImport" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Request : "ST_HmiRequest";
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetImport := FALSE;
+	IF #Request.IntValue <> 0 AND #Request.IntValue <> 1 THEN
+	    RETURN;
+	END_IF;
+	IF #Request.NameValue <> '' OR #Request.TargetPath <> WSTRING#'' OR #Request.DurationMs <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonPut"(Text := #Request.TextValue, Line := "FRK_SetRuntime".Work[#RootIndex].Piece);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF #Request.IntValue = 1 THEN
+	    #FRK_SetImport := NOT #Request.BoolValue;
+	    RETURN;
+	END_IF;
+	"FRK_SetRuntime".Work[#RootIndex].Line := "FRK_SetRuntime".Work[#RootIndex].Piece;
+	"FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+	#Ok := "FRK_JsonParse"(Line := "FRK_SetRuntime".Work[#RootIndex].Line, Fields := "FRK_SetRuntime".Work[#RootIndex].Fields, Count := "FRK_SetRuntime".Work[#RootIndex].FieldCount);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_SetRuntime".Work[#RootIndex].Importing THEN
+	    #Ok := "FRK_JsonReadHeader"(Count := "FRK_SetRuntime".Work[#RootIndex].FieldCount,
+	                                Fields := "FRK_SetRuntime".Work[#RootIndex].Fields,
+	                                Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Info);
+	    IF NOT #Ok OR #Request.BoolValue THEN
+	        RETURN;
+	    END_IF;
+	    "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Used := TRUE;
+	    "FRK_SetRuntime".Work[#RootIndex].Received := 0;
+	    "FRK_SetRuntime".Work[#RootIndex].Importing := TRUE;
+	ELSE
+	    #Index := "FRK_SetRuntime".Work[#RootIndex].Received + 1;
+	    IF #Index > 24 OR #Index > "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN
+	        RETURN;
+	    END_IF;
+	    #Ok := "FRK_JsonReadRecord"(Count := "FRK_SetRuntime".Work[#RootIndex].FieldCount,
+	                                Fields := "FRK_SetRuntime".Work[#RootIndex].Fields,
+	                                Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index]);
+	    IF NOT #Ok THEN
+	        RETURN;
+	    END_IF;
+	    "FRK_SetRuntime".Work[#RootIndex].Received := #Index;
+	END_IF;
+	IF #Request.BoolValue THEN
+	    "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+	    IF "FRK_SetRuntime".Work[#RootIndex].Received <> "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	#FRK_SetImport := TRUE;
+	
+END_FUNCTION
+

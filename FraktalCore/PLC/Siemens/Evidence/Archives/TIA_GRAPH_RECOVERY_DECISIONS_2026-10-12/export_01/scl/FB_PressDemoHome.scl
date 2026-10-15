@@ -1,0 +1,106 @@
+﻿FUNCTION_BLOCK "FB_PressDemoHome"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Run : Bool;
+      Reset : Bool;
+      OwnerIndex : DInt;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+   END_VAR
+
+   VAR 
+      Seq { ExternalWritable := 'False'} : "FRK_SequenceCtx";
+      Row1 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row2 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row3 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row4 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      At0 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At900 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At910 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At999 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready3 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready5 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Advance { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_SeqBegin"(Run := #Run,
+	               Reset := #Reset,
+	               OwnerIndex := #OwnerIndex,
+	               ChainIndex := 2,
+	               BranchIndex := 0,
+	               Delta := #Delta,
+	               Seq := #Seq);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PressRam);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #Door);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PartSlide);
+	CASE #Seq.ScanStep OF
+	    0:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(StepNo := 0,
+	                          StepName := 'project.step.pressHomeInitialize',
+	                          Seq := #Seq,
+	                          Row := #Row1);
+	            "FRK_SeqAdvance"(Seq := #Seq,
+	                             Ok := TRUE,
+	                             OnAdvance := 900);
+	        END_IF;
+	    900:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(StepNo := 900,
+	                          StepName := 'project.step.pressHomeRam',
+	                          Seq := #Seq,
+	                          Row := #Row2);
+	            #Ready1 := "F_CylinderRetract"(Seq := #Seq, Target := #PressRam);
+	            "FRK_SeqAdvance"(Seq := #Seq,
+	                             Ok := #Ready1,
+	                             OnAdvance := 910);
+	        END_IF;
+	    910:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(StepNo := 910,
+	                          StepName := 'project.step.pressHomeDoorAndSlide',
+	                          Seq := #Seq,
+	                          Row := #Row3);
+	            #Ready1 := "F_CylinderRetract"(Seq := #Seq, Target := #Door);
+	            #Ready2 := "F_CylinderRetract"(Seq := #Seq, Target := #PartSlide);
+	            "FRK_SeqAdvance"(Seq := #Seq,
+	                             Ok := #Ready1 AND #Ready2,
+	                             OnAdvance := 999);
+	        END_IF;
+	    999:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(StepNo := 999,
+	                          StepName := 'project.step.pressHomeComplete',
+	                          Seq := #Seq,
+	                          Row := #Row4);
+	            "FRK_SeqComplete"(Seq := #Seq);
+	        END_IF;
+	    ELSE
+	        #Seq.Error := TRUE;
+	        #Seq.ErrorDiagnostic.ReasonCode := 10001;
+	        #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';
+	END_CASE;
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PressRam);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #Door);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PartSlide);
+	
+END_FUNCTION_BLOCK
+

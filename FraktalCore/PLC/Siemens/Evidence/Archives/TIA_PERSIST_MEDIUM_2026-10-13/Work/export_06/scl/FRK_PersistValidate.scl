@@ -1,0 +1,79 @@
+﻿FUNCTION "FRK_PersistValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ExpectedKey : DWord;
+   END_VAR
+
+   VAR_IN_OUT 
+      Bytes : Array[*] of Byte;
+      Check : "FRK_PersistCheck";
+   END_VAR
+
+   VAR_TEMP 
+      Budget : Int;
+      Offset : Int;
+      Upper : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PersistValidate := FALSE;
+	#Upper := DINT_TO_INT(UPPER_BOUND(ARR := #Bytes, DIM := 1));
+	IF #Check.Cursor = -1 THEN
+	    #Check.Valid := FALSE;
+	    #Check.Empty := TRUE;
+	    #Check.Generation := 0;
+	    #Check.Length := 0;
+	    #Check.Cursor := 0;
+	    #Check.Crc := DWORD#16#FFFFFFFF;
+	    #Check.ZeroMode := "FRK_PersistNumber"(Offset := 0, Bytes := #Bytes) = DWORD#0;
+	    IF NOT #Check.ZeroMode THEN
+	        #Check.Empty := FALSE;
+	        IF "FRK_PersistNumber"(Offset := 0, Bytes := #Bytes) <> DWORD#826559046
+	            OR "FRK_PersistNumber"(Offset := 4, Bytes := #Bytes) <> DWORD#1
+	            OR "FRK_PersistNumber"(Offset := 16, Bytes := #Bytes) <> #ExpectedKey THEN
+	            #FRK_PersistValidate := TRUE;
+	            RETURN;
+	        END_IF;
+	        #Check.Generation := DWORD_TO_UDINT("FRK_PersistNumber"(Offset := 8, Bytes := #Bytes));
+	        #Check.Length := DWORD_TO_UDINT("FRK_PersistNumber"(Offset := 12, Bytes := #Bytes));
+	        IF #Check.Generation = 0 OR #Check.Length > INT_TO_UDINT(#Upper + 1 - 24) THEN
+	            #FRK_PersistValidate := TRUE;
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	#Budget := 0;
+	IF #Check.ZeroMode THEN
+	    WHILE #Check.Cursor <= #Upper AND #Budget < 512 DO
+	        IF #Bytes[#Check.Cursor] <> BYTE#0 THEN
+	            #Check.Empty := FALSE;
+	            #FRK_PersistValidate := TRUE;
+	            RETURN;
+	        END_IF;
+	        #Check.Cursor := #Check.Cursor + 1;
+	        #Budget := #Budget + 1;
+	    END_WHILE;
+	    #FRK_PersistValidate := #Check.Cursor > #Upper;
+	ELSE
+	    WHILE #Check.Cursor < 20 + UDINT_TO_DINT(#Check.Length) AND #Budget < 512 DO
+	        IF #Check.Cursor < 20 THEN
+	            #Offset := DINT_TO_INT(#Check.Cursor);
+	        ELSE
+	            #Offset := DINT_TO_INT(#Check.Cursor + 24 - 20);
+	        END_IF;
+	        #Check.Crc := "FRK_CrcByte"(Previous := #Check.Crc, Value := #Bytes[#Offset]);
+	        #Check.Cursor := #Check.Cursor + 1;
+	        #Budget := #Budget + 1;
+	    END_WHILE;
+	    IF #Check.Cursor >= 20 + UDINT_TO_DINT(#Check.Length) THEN
+	        #Check.Crc := NOT #Check.Crc;
+	        #Check.Valid := #Check.Crc = "FRK_PersistNumber"(Offset := 20, Bytes := #Bytes);
+	        #FRK_PersistValidate := TRUE;
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

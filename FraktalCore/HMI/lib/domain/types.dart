@@ -705,6 +705,25 @@ class CfgField {
   bool get hasWriteCapability =>
       writable && writeKey.isNotEmpty && writeRevision > 0;
 
+  /// Replace a measured value while preserving the PLC's declared capability.
+  CfgField withValue(String measured) => CfgField(name, kind, type, measured,
+      unit: unit,
+      labelKey: labelKey,
+      writeKey: writeKey,
+      writeRevision: writeRevision,
+      writable: writable,
+      requiresReady: requiresReady,
+      minimum: minimum,
+      maximum: maximum,
+      enumDomain: enumDomain,
+      unitCode: unitCode,
+      enumLabelKey: enumLabelKey,
+      classId: classId,
+      readLevel: readLevel,
+      writeLevel: writeLevel,
+      readable: readable,
+      modelScoped: modelScoped);
+
   /// Presentation only: the PLC re-checks every write against the same level.
   bool canReadIn(AccessSession session) => readable &&
       (readLevel == null

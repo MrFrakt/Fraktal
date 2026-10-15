@@ -11,6 +11,9 @@ TOKEN = re.compile(r"//[^\n]*|\(\*.*?\*\)|\s+|'(?:\$.|[^'])*'|\"[^\"]*\"|[A-Za-z
 def canonical(source):
     # TIA adds this native DTL library annotation when generating a source.
     source = re.sub(r"\{\s*InstructionName\s*:=\s*'DTL';\s*LibVersion\s*:=\s*'1\.0'\s*\}", "", source)
+    # On private DTL members the same exact native annotation shares braces
+    # with publication attributes. Remove only the vendor prefix, retain flags.
+    source = re.sub(r"(\{\s*)InstructionName\s*:=\s*'DTL';\s*LibVersion\s*:=\s*'1\.0';\s*", r"\1", source)
     source = re.sub(r'^TITLE\s*=\s*"Main Program Sweep \(Cycle\)"\s*$', '', source, flags=re.M)
     if re.match(r'\s*ORGANIZATION_BLOCK\b', source):
         source = re.sub(r'VAR_INPUT\s+Initial_Call\s*:\s*Bool;\s+Remanence\s*:\s*Bool;\s+END_VAR', '', source, flags=re.I)

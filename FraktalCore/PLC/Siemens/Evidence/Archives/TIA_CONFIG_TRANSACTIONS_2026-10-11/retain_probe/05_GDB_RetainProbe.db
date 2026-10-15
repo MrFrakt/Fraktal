@@ -1,0 +1,15 @@
+DATA_BLOCK "GDB_RetainProbe"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR RETAIN
+    Saved { ExternalWritable := 'False' } : DInt;
+    Hidden { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : DInt;
+END_VAR
+VAR
+    WritePulse : Bool;
+    Proposed : DInt;
+    Live { ExternalWritable := 'False' } : DInt;
+END_VAR
+BEGIN
+END_DATA_BLOCK

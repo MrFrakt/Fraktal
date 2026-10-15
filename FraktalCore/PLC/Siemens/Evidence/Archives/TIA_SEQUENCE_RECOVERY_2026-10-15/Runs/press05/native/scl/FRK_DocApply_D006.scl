@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_DocApply_D006" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocApply_D006 := FALSE;
+	#Position := 24;
+	#NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D006Data, DEST_VARIABLE => "FRK_PersistImages".D006, POS := #Position);
+	IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[6].Result.Length) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D006.SchemaVersion <> 1 OR "FRK_PersistImages".D006.Scope <> 'PressDemo' THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D006.Ordinal <> 4 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D006.Payload.Info.Used THEN
+	    "FRK_SetRuntime".Work[1].Payload := "FRK_PersistImages".D006.Payload;
+	    IF NOT "FRK_SetShape"(RootIndex := 1, RootIdentity := 'PressDemo') THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	"FRK_SetStore".Sets[1, 4] := "FRK_PersistImages".D006.Payload;
+	"FRK_SetStore".SchemaVersion := 1;
+	#FRK_DocApply_D006 := TRUE;
+	
+END_FUNCTION
+

@@ -1,0 +1,13 @@
+﻿root: [{"name": "FRK_Clock", "has_children": true, "db_number": 1, "datatype": "datablock"}, {"name": "FRK_Registry", "has_children": true, "db_number": 2, "datatype": "datablock"}, {"name": "SpkHal", "has_children": true, "db_number": 3, "datatype": "datablock"}, {"name": "SpkResults", "has_children": true, "db_number": 4, "datatype": "datablock"}, {"name": "SpikeUnit", "has_children": true, "db_number": 5, "datatype": "datablock"}, {"name": "SpkMain", "has_children": true, "db_number": 6, "datatype": "datablock"}]
+read "SpikeUnit"."Status"."State" -> 0
+read "SpikeUnit"."Status"."Name" -> "SpikeUnit"
+read "SpikeUnit".Status.Name -> "SpikeUnit"
+read "SpikeUnit"."CylA"."Status"."Diagnostic"."Since"."YEAR" -> 2012
+browse FRK_Registry -> [{"name": "Count", "db_number": 2, "datatype": "int"}, {"name": "Overflow", "db_number": 2, "datatype": "bool"}, {"name": "Rows", "has_children": true, "db_number": 2, "datatype": "struct", "array_dimensions": [{"start_index": 0, "count": 16}]}]
+browse FRK_Clock -> [{"name": "NowMs", "db_number": 1, "datatype": "udint"}, {"name": "AccMs", "db_number": 1, "datatype": "lreal"}, {"name": "Mem", "db_number": 1, "datatype": "lreal"}, {"name": "FirstScan", "db_number": 1, "datatype": "bool"}, {"name": "Scans", "db_number": 1, "datatype": "udint"}, {"name": "CycleMs", "db_number": 1, "datatype": "real"}, {"name": "MaxCycleMs", "db_number": 1, "datatype": "real"}]
+browse SpkHal -> [{"name": "Unit", "has_children": true, "db_number": 3, "datatype": "struct"}, {"name": "BlockA", "db_number": 3, "datatype": "bool"}, {"name": "BlockB", "db_number": 3, "datatype": "bool"}]
+browse SpkResults -> [{"name": "T", "address": "P#DB4.DBX0.0", "has_children": true, "db_number": 4, "datatype": "struct"}]
+browse SpkMain -> []
+read "FRK_Registry".Rows[0].ParentIndex -> error 200
+read "FRK_Registry"."Rows"[0]."ParentIndex" -> error 200
+read "FRK_Registry".Rows[1] -> error 204

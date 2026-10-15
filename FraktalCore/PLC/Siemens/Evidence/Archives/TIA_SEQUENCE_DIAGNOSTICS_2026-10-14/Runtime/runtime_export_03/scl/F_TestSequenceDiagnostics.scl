@@ -1,0 +1,118 @@
+﻿FUNCTION "F_TestSequenceDiagnostics" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Run : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Target : "FB_DeclarationCylinder";
+      Alternate : "FB_DeclarationCylinder";
+      Container : "FB_DeclarationCell";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      ReadyOne : Bool;
+      ReadyTwo : Bool;
+      TargetIndex : DInt;
+      SelectedPath : String[80];
+   END_VAR
+
+
+BEGIN
+	
+	IF #Owner <> "GDB_SequenceDiagnosticTest".Owner THEN
+	    RETURN;
+	END_IF;
+	"FRK_SeqBegin"(Run := #Run AND "GDB_SequenceDiagnosticTest".Enabled,
+	               Reset := "GDB_SequenceDiagnosticTest".ResetPulse,
+	               OwnerIndex := #Owner,
+	               ChainIndex := 8,
+	               BranchIndex := "GDB_SequenceDiagnosticTest".Branch,
+	               ViewOffset := 0,
+	               ViewDepth := 0,
+	               Delta := T#1ms,
+	               Seq := "GDB_SequenceDiagnosticTest".Seq);
+	"GDB_SequenceDiagnosticTest".ResetPulse := FALSE;
+	"FRK_SeqLease"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	               Lease := "GDB_SequenceDiagnosticTest".LeaseOne,
+	               Execute := #Target.Execute);
+	"FRK_SeqLease"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	               Lease := "GDB_SequenceDiagnosticTest".LeaseTwo,
+	               Execute := #Alternate.Execute);
+	IF NOT "GDB_SequenceDiagnosticTest".Seq.Running THEN
+	    RETURN;
+	END_IF;
+	"GDB_SequenceDiagnosticTest".Seq.Step := "GDB_SequenceDiagnosticTest".StepNo;
+	"GDB_SequenceDiagnosticTest".Seq.Elapsed := "GDB_SequenceDiagnosticTest".Elapsed;
+	#SelectedPath := #Target.Status.Name;
+	IF "GDB_SequenceDiagnosticTest".Scenario = 2 THEN
+	    #SelectedPath := #Container.Status.Name;
+	END_IF;
+	"FRK_SeqStep"(StepNo := "GDB_SequenceDiagnosticTest".StepNo,
+	              StepName := 'test.diagnostic.step',
+	              AwaitingLabel := 'test.await',
+	              AwaitsPath := #SelectedPath,
+	              TimeClass := 0,
+	              ExpectedTime := "GDB_SequenceDiagnosticTest".Guard,
+	              Seq := "GDB_SequenceDiagnosticTest".Seq,
+	              Row := "GDB_SequenceDiagnosticTest".Row);
+	#ReadyOne := FALSE;
+	#ReadyTwo := TRUE;
+	CASE "GDB_SequenceDiagnosticTest".Scenario OF
+	    0:
+	        #ReadyOne := "FRK_SeqAwait"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	                                    Label := 'test.condition.first', Ok := "GDB_SequenceDiagnosticTest".ConditionOne);
+	        #ReadyTwo := "FRK_SeqAwait"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	                                    Label := 'test.condition.second', Ok := "GDB_SequenceDiagnosticTest".ConditionTwo);
+	    1, 3:
+	        #TargetIndex := #Target.Core.RegIndex;
+	        IF "GDB_SequenceDiagnosticTest".InvalidTarget <> 0 THEN
+	            #TargetIndex := "GDB_SequenceDiagnosticTest".InvalidTarget;
+	        END_IF;
+	        #ReadyOne := "FRK_SeqCommand"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	                                      Lease := "GDB_SequenceDiagnosticTest".LeaseOne, Execute := #Target.Execute,
+	                                      Command := #Target.Command, Value := "GDB_SequenceDiagnosticTest".CommandValue,
+	                                      Label := 'TEST', TargetIndex := #TargetIndex, OwnFailure := "GDB_SequenceDiagnosticTest".Scenario = 3);
+	        IF "GDB_SequenceDiagnosticTest".Scenario = 3 THEN
+	            "FRK_SeqHandled"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	                             ChildCore := #Target.Core);
+	            IF "GDB_SequenceDiagnosticTest".Seq.CommandFailed THEN
+	                "FRK_SeqMessage"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	                                 Diag := "GDB_SequenceDiagnosticTest".Seq.HandledDiagnostic,
+	                                 AlarmLog := #AlarmLog);
+	            END_IF;
+	        END_IF;
+	    2:
+	        // The Unit awaits the EM, not this leaf. The test drives the leaf
+	        // command through the normal CM kernel to prove recursive rollup.
+	        #Container.Execute := TRUE;
+	        #Container.Command := 2;
+	        #Target.Execute := TRUE;
+	        #Target.Command := "GDB_SequenceDiagnosticTest".CommandValue;
+	        "FRK_SeqViewWatch"(Owner := #Owner,
+	                           StepNo := "GDB_SequenceDiagnosticTest".Seq.RecordedStep,
+	                           Branch := "GDB_SequenceDiagnosticTest".Branch,
+	                           Target := #Container.Core.RegIndex,
+	                           Waiting := TRUE,
+	                           OwnFailure := FALSE);
+	        #ReadyOne := "FRK_SeqAwait"(Seq := "GDB_SequenceDiagnosticTest".Seq, Label := 'test.container', Ok := FALSE);
+	    4:
+	        #ReadyOne := "FRK_SeqCommand"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	                                      Lease := "GDB_SequenceDiagnosticTest".LeaseOne, Execute := #Target.Execute, Command := #Target.Command,
+	                                      Value := 2, Label := 'FIRST', TargetIndex := #Target.Core.RegIndex, OwnFailure := FALSE);
+	        #ReadyTwo := "FRK_SeqCommand"(Seq := "GDB_SequenceDiagnosticTest".Seq,
+	                                      Lease := "GDB_SequenceDiagnosticTest".LeaseTwo, Execute := #Alternate.Execute, Command := #Alternate.Command,
+	                                      Value := 2, Label := 'SECOND', TargetIndex := #Alternate.Core.RegIndex, OwnFailure := FALSE);
+	    ELSE
+	        "FRK_SeqViewFail"(Owner := #Owner,
+	                          StepNo := "GDB_SequenceDiagnosticTest".Seq.RecordedStep,
+	                          Branch := "GDB_SequenceDiagnosticTest".Branch,
+	                          Diag := "FRK_UnitScratch".EmptyDiagnostic);
+	END_CASE;
+	"GDB_SequenceDiagnosticTest".Completed := #ReadyOne AND #ReadyTwo;
+	
+END_FUNCTION
+

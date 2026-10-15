@@ -1,0 +1,67 @@
+﻿FUNCTION "FRK_ProfileComplete" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      NowMs : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Book : "FRK_ProfileBook";
+      Steps : Array[*] of "ST_StepTiming";
+      LastSteps : Array[*] of "ST_StepTiming";
+      Stats : Array[*] of "ST_TimingRow";
+      History : Array[*] of "ST_CycleSummary";
+   END_VAR
+
+   VAR_TEMP 
+      DurationMs : UDInt;
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Book.Collecting OR NOT #Book.Running OR NOT #Book.HasOpen THEN
+	    RETURN;
+	END_IF;
+	#Book.CompletedNo := #Book.OpenNo;
+	#Book.CompletedVisit := #Book.OpenVisit;
+	"FRK_ProfileClose"(NowMs := #NowMs,
+	                   Book := #Book,
+	                   Steps := #Steps,
+	                   Stats := #Stats);
+	#Book.Running := FALSE;
+	IF #Book.Invalid THEN
+	    RETURN;
+	END_IF;
+	#DurationMs := "FRK_Elapsed"(NewMs := #NowMs, OldMs := #Book.StartMs);
+	IF #DurationMs > UDINT#2147483647 THEN
+	    #DurationMs := UDINT#2147483647;
+	    #Book.Truncated := TRUE;
+	END_IF;
+	#Book.Current.Total := DINT_TO_TIME(UDINT_TO_DINT(#DurationMs));
+	#Book.Current.WorkTime := #Book.Current.ByClass[0];
+	#Book.Current.WaitTime := #Book.Current.Total - #Book.Current.WorkTime;
+	IF #Book.Last.CycleNo < UDINT#4294967295 THEN
+	    #Book.Current.CycleNo := #Book.Last.CycleNo + 1;
+	ELSE
+	    #Book.Current.CycleNo := UDINT#4294967295;
+	END_IF;
+	#Book.Last := #Book.Current;
+	#Book.LastNSteps := #Book.NSteps;
+	#Book.LastTruncated := #Book.Truncated;
+	FOR #Index := 1 TO UPPER_BOUND(ARR := #LastSteps, DIM := 1) DO
+	    #LastSteps[#Index] := #Steps[#Index];
+	END_FOR;
+	#Book.LastCycleTime := #Book.Last.Total;
+	IF #Book.Last.CycleNo = 1 OR #Book.Last.Total < #Book.MinCycleTime THEN
+	    #Book.MinCycleTime := #Book.Last.Total;
+	END_IF;
+	IF #Book.Head < 0 OR #Book.Head >= UPPER_BOUND(ARR := #History, DIM := 1) THEN
+	    #Book.Head := 0;
+	END_IF;
+	#Book.Head := #Book.Head + 1;
+	#History[#Book.Head] := #Book.Last;
+	
+END_FUNCTION
+

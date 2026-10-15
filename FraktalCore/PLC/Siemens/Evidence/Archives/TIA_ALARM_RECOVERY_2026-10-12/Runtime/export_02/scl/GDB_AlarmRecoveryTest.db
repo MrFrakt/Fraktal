@@ -1,0 +1,30 @@
+﻿DATA_BLOCK "GDB_AlarmRecoveryTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      Operation : Int;
+      Scope : String[80];
+      EventSlot : Int;
+      Reason : DInt;
+      ResetClass : DInt;
+      Text : WString[255];
+      Automatic : Bool;
+      ReturnSlot { ExternalWritable := 'False'} : Int;
+      Generation { ExternalWritable := 'False'} : UDInt;
+      Elapsed { ExternalWritable := 'False'} : UDInt;
+      CauseSlot { ExternalWritable := 'False'} : Int;
+      DamageApplied { ExternalWritable := 'False'} : Bool;
+      StartupBlocked { ExternalWritable := 'False'} : Bool;
+      Diag { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_Diagnostic";
+   END_VAR
+   VAR RETAIN
+      Damage : Int;
+      StickyCause : Bool;
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+

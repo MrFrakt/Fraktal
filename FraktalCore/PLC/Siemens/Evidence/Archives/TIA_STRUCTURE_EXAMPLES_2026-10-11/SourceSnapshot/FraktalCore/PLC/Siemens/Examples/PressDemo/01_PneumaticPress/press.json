@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "invalid_step_reason": 10001,
+  "roles": ["PressRam", "Door", "PartSlide"],
+  "chains": [
+    {
+      "name": "PressDemoAuto",
+      "chain_index": 1,
+      "loop": true,
+      "steps": [
+        {"no": 0, "label": "project.step.pressAutoInitialize", "next": 100},
+        {"no": 100, "label": "project.step.pressAwaitTwoHand", "wait": ["PartPresent", "AirPressureOk", "StartLatched"], "next": 110},
+        {"no": 110, "label": "project.step.pressRamUp", "commands": [["PressRam", "RETRACT"]], "next": 130},
+        {"no": 130, "label": "project.step.pressDoorOpen", "commands": [["Door", "RETRACT"]], "next": 150},
+        {"no": 150, "label": "project.step.pressSlideInside", "commands": [["PartSlide", "EXTEND"]], "next": 170},
+        {"no": 170, "label": "project.step.pressTransferSettle", "delay": "TransferSettleTime", "next": 180},
+        {"no": 180, "label": "project.step.pressDoorClose", "commands": [["Door", "EXTEND"]], "next": 200},
+        {"no": 200, "label": "project.step.pressStroke", "commands": [["PressRam", "EXTEND"]], "next": 220},
+        {"no": 220, "label": "project.step.pressDwell", "delay": "PressSettleTime", "hold_force": "PressRam", "wait": ["TwoHandHeld"], "next": 240},
+        {"no": 240, "label": "project.step.pressReturnRam", "commands": [["PressRam", "RETRACT"]], "next": 250},
+        {"no": 250, "label": "project.step.pressReturnDoor", "commands": [["Door", "RETRACT"]], "next": 260},
+        {"no": 260, "label": "project.step.pressReturnSlide", "commands": [["PartSlide", "RETRACT"]], "next": 999},
+        {"no": 999, "label": "project.step.pressAutoComplete", "cycle_end": true, "next": 100}
+      ]
+    },
+    {
+      "name": "PressDemoHome",
+      "chain_index": 2,
+      "loop": false,
+      "steps": [
+        {"no": 0, "label": "project.step.pressHomeInitialize", "next": 900},
+        {"no": 900, "label": "project.step.pressHomeRam", "commands": [["PressRam", "RETRACT"]], "next": 910},
+        {"no": 910, "label": "project.step.pressHomeDoorAndSlide", "commands": [["Door", "RETRACT"], ["PartSlide", "RETRACT"]], "next": 999},
+        {"no": 999, "label": "project.step.pressHomeComplete", "complete": true}
+      ]
+    }
+  ],
+  "release": [
+    {"name": "ModeStartAirPressureOk", "all": ["AirPressureOk"]},
+    {"name": "RamGuardClosed", "all": ["DoorClosed"]},
+    {"name": "RamSlideInside", "all": ["SlideInside"]},
+    {"name": "RamDevicesHealthy", "all": ["RamHealthy", "DoorHealthy", "SlideHealthy"]},
+    {"name": "RamAirPressureOk", "all": ["AirPressureOk"]},
+    {"name": "RamTwoHandHeld", "all": ["TwoHandHeld"]}
+  ]
+}

@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_AlarmRecoveryScope" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmRecoveryScope := '';
+	CASE #Slot OF
+	    1:
+	        #FRK_AlarmRecoveryScope := 'StationA';
+	    2:
+	        #FRK_AlarmRecoveryScope := 'StationA.Satellite';
+	END_CASE;
+	
+END_FUNCTION
+

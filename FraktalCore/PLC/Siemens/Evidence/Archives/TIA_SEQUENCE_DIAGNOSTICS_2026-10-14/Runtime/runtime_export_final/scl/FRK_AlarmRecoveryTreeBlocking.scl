@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_AlarmRecoveryTreeBlocking" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Expected : String[80];
+      Prefix : String[80];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmRecoveryTreeBlocking := FALSE;
+	#Prefix := CONCAT(IN1 := #Scope, IN2 := '.');
+	FOR #Slot := 1 TO 2 DO
+	    #Expected := "FRK_AlarmRecoveryScope"(Slot := #Slot);
+	    IF #Expected = #Scope OR LEFT(IN := #Expected, L := LEN(#Prefix)) = #Prefix THEN
+	        IF NOT "FRK_AlarmRecoveryRuntime".Ready[#Slot] OR "FRK_AlarmRecoveryRuntime".Blocked[#Slot] THEN
+	            #FRK_AlarmRecoveryTreeBlocking := TRUE;
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

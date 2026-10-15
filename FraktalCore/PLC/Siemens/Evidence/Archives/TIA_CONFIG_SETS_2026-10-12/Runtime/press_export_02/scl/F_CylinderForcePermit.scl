@@ -1,0 +1,19 @@
+﻿FUNCTION "F_CylinderForcePermit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Permit : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Target : "FB_CylinderCM";
+   END_VAR
+
+
+BEGIN
+	
+	// The CM applies its own live extension permit as well, even after Done.
+	#Target.Device.Withdrawn := NOT #Permit;
+	
+END_FUNCTION
+

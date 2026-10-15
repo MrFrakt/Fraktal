@@ -1,0 +1,50 @@
+﻿FUNCTION "FRK_SetShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      RootIdentity : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Other : Int;
+      ModelIndex : Int;
+      KnownModel : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetShape := FALSE;
+	IF NOT "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Used OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RootIdentity <> #RootIdentity
+	    OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetSchema <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ConfigRev = 0
+	    OR LEN("FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName) = 0
+	    OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount < 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount > 3 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 0 THEN
+	    #KnownModel := FALSE;
+	    IF NOT #KnownModel THEN
+	        RETURN;
+	    END_IF;
+	ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
+	    "FRK_SetRuntime".Work[#RootIndex].RejectScope := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope;
+	    "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey;
+	    IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Kind <> "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind THEN
+	        RETURN;
+	    END_IF;
+	    FOR #Other := 1 TO #Index - 1 DO
+	        IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Other].Scope = "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope
+	            AND "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Other].WriteKey = "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey THEN
+	            RETURN;
+	        END_IF;
+	    END_FOR;
+	END_FOR;
+	#FRK_SetShape := TRUE;
+	
+END_FUNCTION
+

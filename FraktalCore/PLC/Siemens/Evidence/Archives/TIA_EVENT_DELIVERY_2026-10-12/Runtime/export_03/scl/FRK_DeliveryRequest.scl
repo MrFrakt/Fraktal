@@ -1,0 +1,83 @@
+﻿FUNCTION "FRK_DeliveryRequest" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootScope : String;
+      Request : "ST_HmiRequest";
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Head : Int;
+      Token : String[160];
+      Prefix : String[254];
+      Target : String[80];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DeliveryRequest := FALSE;
+	// Receipts are data mutations, with a non-lowerable deployment minimum.
+	IF #Access.CurrentLevel < 3 OR #Access.CurrentLevel < #Access.Policy.Required[1] THEN
+	    RETURN;
+	END_IF;
+	IF LEN(#Request.TargetPath) > 80 THEN
+	    RETURN;
+	END_IF;
+	#Target := WSTRING_TO_STRING(#Request.TargetPath);
+	IF STRING_TO_WSTRING(#Target) <> #Request.TargetPath THEN
+	    RETURN;
+	END_IF;
+	#Prefix := CONCAT(IN1 := #RootScope, IN2 := '.');
+	IF #Target <> #RootScope AND LEFT(IN := #Target, L := LEN(#Prefix)) <> #Prefix THEN
+	    RETURN;
+	END_IF;
+	#Slot := "FRK_DeliveryIndex"(Scope := #Target);
+	IF #Slot < 1 OR #Slot > 3 THEN
+	    RETURN;
+	END_IF;
+	CASE #Request.Kind OF
+	    10001:
+	        IF NOT "FRK_EventDeliveryRuntime".Valid[#Slot] OR #Request.BoolValue THEN
+	            RETURN;
+	        END_IF;
+	        IF "FRK_EventDeliveryStore".Images[#Slot].Count <= 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Head := "FRK_EventDeliveryStore".Images[#Slot].Head;
+	        IF #Head < 1 OR #Head > 8 THEN
+	            RETURN;
+	        END_IF;
+	        #Token := "FRK_DeliveryToken"(Slot := #Slot, Sequence := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Sequence);
+	        IF #Request.NameValue <> #Token OR #Request.DurationMs <> DWORD_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Checksum) THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Sequence := 0;
+	        "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Checksum := DWORD#0;
+	        "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Ev := "FRK_UnitScratch".EmptyEvent;
+	        "FRK_EventDeliveryStore".Images[#Slot].Head := (#Head MOD 8) + 1;
+	        "FRK_EventDeliveryStore".Images[#Slot].Count := "FRK_EventDeliveryStore".Images[#Slot].Count - 1;
+	        "FRK_DeliverySave"(Slot := #Slot);
+	        #FRK_DeliveryRequest := TRUE;
+	    10002:
+	        IF "FRK_EventDeliveryRuntime".Valid[#Slot] OR NOT "FRK_EventDeliveryRuntime".AnchorValid[#Slot] OR NOT #Request.BoolValue THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.TextValue <> WSTRING#'78f23c0b-7bce-4521-96d5-3f5ee7e3f4ce' OR #Request.NameValue <> UDINT_TO_STRING("FRK_EventDeliveryStore".Anchors[#Slot].Epoch)
+	            OR "FRK_EventDeliveryStore".Anchors[#Slot].Epoch = UDINT#4294967295 THEN
+	            RETURN;
+	        END_IF;
+	        // Advance the independently checked identity before discarding data.
+	        "FRK_EventDeliveryStore".Anchors[#Slot].Epoch := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch + 1;
+	        "FRK_EventDeliveryStore".Anchors[#Slot].Checksum := "FRK_DeliveryAnchorCrc"(Slot := #Slot);
+	        "FRK_DeliveryInitialize"(Slot := #Slot,
+	                                 Discarded := TRUE);
+	        #FRK_DeliveryRequest := TRUE;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

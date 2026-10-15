@@ -1,0 +1,16 @@
+FUNCTION "F_TestSequenceQuiesce" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    CountBefore : Int;
+    VisitedBefore : Bool;
+END_VAR
+BEGIN
+    IF NOT "GDB_SequenceQuiesceTest".Enabled THEN RETURN; END_IF;
+    "GDB_SequenceQuiesceTest".BeforeActive := "StationA".ActiveSteps[0].RowIdx > 0;
+    #CountBefore := "StationA".SequenceStepCount; #VisitedBefore := "StationA".SequenceSteps[1].Visited;
+    "FRK_Quiesce_DeclarationUnit"(Module := "StationA", Hal := "GDB_FraktalHal".Data.StationA);
+    "GDB_SequenceQuiesceTest".AfterActive := "StationA".ActiveSteps[0].RowIdx > 0;
+    "GDB_SequenceQuiesceTest".CurrentCleared := "StationA".CurrentStep.StepName = '';
+    "GDB_SequenceQuiesceTest".HistorySurvived := #VisitedBefore AND "StationA".SequenceSteps[1].Visited AND #CountBefore = "StationA".SequenceStepCount;
+END_FUNCTION

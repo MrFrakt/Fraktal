@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_DeliveryScope" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DeliveryScope := '';
+	CASE #Slot OF
+	    1:
+	        #FRK_DeliveryScope := 'StationA';
+	    2:
+	        #FRK_DeliveryScope := 'StationA.Satellite';
+	    3:
+	        #FRK_DeliveryScope := 'StationB';
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

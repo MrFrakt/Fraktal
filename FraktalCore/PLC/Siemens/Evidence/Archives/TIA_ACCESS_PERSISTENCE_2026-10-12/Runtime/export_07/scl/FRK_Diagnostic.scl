@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_Diagnostic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ReasonCode : DInt;
+      Description : WString;
+      Severity : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP 
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Status.Diagnostic.ReasonCode := #ReasonCode;
+	#Status.Diagnostic.SourcePath := STRING_TO_WSTRING(#Status.Name);
+	#Status.Diagnostic.Description := #Description;
+	#Status.Diagnostic.IoTag := '';
+	#Status.Diagnostic.IoAddress := '';
+	#Status.Diagnostic.Severity := #Severity;
+	#Status.Diagnostic.Category := 0;
+	#ResultCode := RD_SYS_T(OUT => #Stamp);
+	IF #ResultCode = 0 THEN
+	    #Status.Diagnostic.Since := DTL_TO_LDT(#Stamp);
+	ELSE
+	    #Status.Diagnostic.Since := LDT#1970-01-01-00:00:00.000000000;
+	END_IF;
+	// UTC source alone is not proof of synchronization; quality stays false.
+	#Status.Diagnostic.TimeSynchronized := FALSE;
+	
+END_FUNCTION
+

@@ -14,6 +14,7 @@
 library;
 
 import '../domain/types.dart';
+import 'opcua_browse_paths.dart';
 
 /// Reserved scope for the fieldbus topology (not a module identity).
 const String kManifestFieldbusScope = '#Fieldbus';
@@ -211,8 +212,10 @@ Map<String, Object?> synthesizeManifestValues(
   Iterable<ConfigManifestEntry> entries, {
   required Map<String, String> browseBaseByModulePath,
   required String? topologyBase,
+  Iterable<String> discoveredPaths = const [],
 }) {
   final values = <String, Object?>{};
+  final parents = buildBrowseParentPaths(discoveredPaths);
   for (final entry in entries) {
     if (entry.item.isEmpty) continue;
     final String? base = entry.scope == kManifestFieldbusScope
@@ -224,10 +227,10 @@ Map<String, Object?> synthesizeManifestValues(
     // when the PLC did not say (an older build, where every entry is TEXT).
     // Deriving the type from the name was the primary rule once and it silently
     // stringified every flow-chart step number — see _integerItemLeaves.
-    final declared = entry.valueType >= 0 &&
-            entry.valueType < CfgType.values.length
-        ? CfgType.values[entry.valueType]
-        : CfgType.text;
+    final declared =
+        entry.valueType >= 0 && entry.valueType < CfgType.values.length
+            ? CfgType.values[entry.valueType]
+            : CfgType.text;
     // CfgType.time is the PLC's DURATION (renamed: TIME is reserved in ST); it
     // travels as a millisecond count, so it is numeric here too.
     final numeric = declared == CfgType.number ||
@@ -235,7 +238,7 @@ Map<String, Object?> synthesizeManifestValues(
         (declared == CfgType.text && _integerItemLeaves.contains(leaf));
     final boolean = declared == CfgType.boolean ||
         (declared == CfgType.text && _booleanItemLeaves.contains(leaf));
-    values['$base/${entry.item}'] = numeric
+    values[resolveManifestBrowsePath(base, entry.item, parents)] = numeric
         ? (int.tryParse(entry.valueText) ?? 0)
         : boolean
             ? entry.canonicalValueText.trim().toUpperCase() == 'TRUE'

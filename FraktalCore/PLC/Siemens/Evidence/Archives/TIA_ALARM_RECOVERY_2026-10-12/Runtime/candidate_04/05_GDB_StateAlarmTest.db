@@ -1,0 +1,31 @@
+DATA_BLOCK "GDB_StateAlarmTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    ClearLog : Bool;
+    RaisePulse : Bool;
+    GonePulse : Bool;
+    FillPulse : Bool;
+    CauseLive : Bool;
+    PublishState : Bool;
+    StateValue : Bool;
+    Position : DInt;
+    StateIndex : Int;
+    ResetClass : DInt;
+    FillCount : Int;
+    Diag : "ST_Diagnostic";
+    Slot {ExternalWritable := 'False'} : Int;
+    GoneAccepted {ExternalWritable := 'False'} : Bool;
+    SinkCome {ExternalWritable := 'False'} : UDInt;
+    SinkClose {ExternalWritable := 'False'} : UDInt;
+    SinkLast {ExternalWritable := 'False'} : "ST_AlarmEvent";
+    NativeFaultSlot {ExternalWritable := 'False'} : Int;
+    StandaloneCount {ExternalWritable := 'False'} : Int;
+    StandaloneReturn {ExternalWritable := 'False'} : Bool;
+    StandaloneFlags {ExternalWritable := 'False'} : Array[1..12] of "ST_StateFlag";
+    CauseSlot {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+    Touched {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of Bool;
+END_VAR
+BEGIN
+END_DATA_BLOCK

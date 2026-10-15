@@ -1,0 +1,1587 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-14T23:44:04.5978538Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Owner" Datatype="DInt" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Target" Datatype="&quot;FB_DeclarationCylinder&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="Input">
+          <Member Name="Execute" Datatype="Bool" />
+          <Member Name="Abort" Datatype="Bool" />
+          <Member Name="Command" Datatype="DInt" />
+          <Member Name="ParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Value" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ParentIndex" Datatype="DInt" />
+          <Member Name="Startup" Datatype="Bool" />
+          <Member Name="BoundPath" Datatype="WString[254]" />
+        </Section>
+        <Section Name="Output">
+          <Member Name="Busy" Datatype="Bool" />
+          <Member Name="Done" Datatype="Bool" />
+          <Member Name="Error" Datatype="Bool" />
+          <Member Name="Aborted" Datatype="Bool" />
+          <Member Name="Held" Datatype="Bool" />
+          <Member Name="ErrorID" Datatype="DWord" />
+          <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="LastCmdTime" Datatype="Time" />
+                <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Id" Datatype="DInt" />
+                      <Member Name="Label" Datatype="String[120]" />
+                      <Member Name="TimeClass" Datatype="DInt" />
+                      <Member Name="Count" Datatype="UDInt" />
+                      <Member Name="Last" Datatype="Time" />
+                      <Member Name="Minimum" Datatype="Time" />
+                      <Member Name="Maximum" Datatype="Time" />
+                      <Member Name="Avg" Datatype="Time" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Truncated" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="OutCmd" Datatype="&quot;ST_DeclarationOutCmd&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Result" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+        </Section>
+        <Section Name="InOut">
+          <Member Name="Hal" Datatype="&quot;ST_DeclarationLeafHal&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Sample" Datatype="DInt" />
+                <Member Name="Permit" Datatype="Bool" />
+                <Member Name="Finish" Datatype="Bool" />
+                <Member Name="BackgroundFault" Datatype="Bool" />
+                <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="ReasonCode" Datatype="DInt" />
+                      <Member Name="SourcePath" Datatype="WString[255]" />
+                      <Member Name="Description" Datatype="WString[255]" />
+                      <Member Name="IoTag" Datatype="String[80]" />
+                      <Member Name="IoAddress" Datatype="String[80]" />
+                      <Member Name="Severity" Datatype="DInt" />
+                      <Member Name="Category" Datatype="DInt" />
+                      <Member Name="Since" Datatype="LDT" />
+                      <Member Name="TimeSynchronized" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="LaterDiag" Datatype="&quot;ST_Diagnostic&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="ReasonCode" Datatype="DInt" />
+                      <Member Name="SourcePath" Datatype="WString[255]" />
+                      <Member Name="Description" Datatype="WString[255]" />
+                      <Member Name="IoTag" Datatype="String[80]" />
+                      <Member Name="IoAddress" Datatype="String[80]" />
+                      <Member Name="Severity" Datatype="DInt" />
+                      <Member Name="Category" Datatype="DInt" />
+                      <Member Name="Since" Datatype="LDT" />
+                      <Member Name="TimeSynchronized" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ExitHold" Datatype="Bool" />
+                <Member Name="Verdict" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+        </Section>
+        <Section Name="Static">
+          <Member Name="OutImm" Datatype="&quot;ST_DeclarationOutImm&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Sample" Datatype="DInt" />
+                <Member Name="InitCount" Datatype="DInt" />
+                <Member Name="StartCount" Datatype="DInt" />
+                <Member Name="CyclicCount" Datatype="DInt" />
+                <Member Name="AbortCount" Datatype="DInt" />
+                <Member Name="ErrorAbortCount" Datatype="DInt" />
+                <Member Name="DispatchCount" Datatype="DInt" />
+                <Member Name="SeenValue" Datatype="DInt" />
+                <Member Name="Ordered" Datatype="Bool" />
+                <Member Name="Output" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="Status" Datatype="&quot;ST_ModuleStatus&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Name" Datatype="String[80]" />
+                <Member Name="DisplayNameKey" Datatype="String[160]" />
+                <Member Name="DescriptionKey" Datatype="String[160]" />
+                <Member Name="TypeKey" Datatype="String[160]" />
+                <Member Name="ModuleType" Datatype="DInt" />
+                <Member Name="State" Datatype="DInt" />
+                <Member Name="FaultActive" Datatype="Bool" />
+                <Member Name="Diagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="ReasonCode" Datatype="DInt" />
+                      <Member Name="SourcePath" Datatype="WString[255]" />
+                      <Member Name="Description" Datatype="WString[255]" />
+                      <Member Name="IoTag" Datatype="String[80]" />
+                      <Member Name="IoAddress" Datatype="String[80]" />
+                      <Member Name="Severity" Datatype="DInt" />
+                      <Member Name="Category" Datatype="DInt" />
+                      <Member Name="Since" Datatype="LDT" />
+                      <Member Name="TimeSynchronized" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="TileEnable" Datatype="Bool" />
+                <Member Name="ControlDomainId" Datatype="String[80]" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="Core" Datatype="&quot;FRK_Core&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Named" Datatype="Bool" />
+                <Member Name="Initialized" Datatype="Bool" />
+                <Member Name="RegIndex" Datatype="DInt" />
+                <Member Name="ParentIndex" Datatype="DInt" />
+                <Member Name="ModuleType" Datatype="DInt" />
+                <Member Name="Exec" Datatype="DInt" />
+                <Member Name="ExecPrev" Datatype="Bool" />
+                <Member Name="AbortPrev" Datatype="Bool" />
+                <Member Name="Armed" Datatype="Bool" />
+                <Member Name="Command" Datatype="DInt" />
+                <Member Name="CommandLabel" Datatype="String[120]" />
+                <Member Name="Dispatch" Datatype="Bool" />
+                <Member Name="EvInit" Datatype="Bool" />
+                <Member Name="EvCommandStart" Datatype="Bool" />
+                <Member Name="ReleasePending" Datatype="Bool" />
+                <Member Name="EvAbort" Datatype="Bool" />
+                <Member Name="EvAbortInError" Datatype="Bool" />
+                <Member Name="EvModeExit" Datatype="Bool" />
+                <Member Name="EvModeChanged" Datatype="Bool" />
+                <Member Name="Step" Datatype="DInt" />
+                <Member Name="HookResult" Datatype="DInt" />
+                <Member Name="Held" Datatype="Bool" />
+                <Member Name="HoldReq" Datatype="Bool" />
+                <Member Name="HoldReason" Datatype="DInt" />
+                <Member Name="DiagTouched" Datatype="Bool" />
+                <Member Name="TimingOpen" Datatype="Bool" />
+                <Member Name="StartMs" Datatype="UDInt" />
+                <Member Name="LastNowMs" Datatype="UDInt" />
+                <Member Name="DeltaMs" Datatype="UDInt" />
+                <Member Name="ActiveMs" Datatype="UDInt" />
+                <Member Name="TimeoutMs" Datatype="UDInt" />
+                <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="LastCmdTime" Datatype="Time" />
+                      <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="Id" Datatype="DInt" />
+                            <Member Name="Label" Datatype="String[120]" />
+                            <Member Name="TimeClass" Datatype="DInt" />
+                            <Member Name="Count" Datatype="UDInt" />
+                            <Member Name="Last" Datatype="Time" />
+                            <Member Name="Minimum" Datatype="Time" />
+                            <Member Name="Maximum" Datatype="Time" />
+                            <Member Name="Avg" Datatype="Time" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="Truncated" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="FaultSlot" Datatype="Int" />
+                <Member Name="FaultHandled" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="SchemaVersion" Datatype="UInt" />
+                <Member Name="Timeout" Datatype="Time" />
+                <Member Name="Preset" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="LatchedParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Value" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="Device" Datatype="&quot;ST_DeclarationOutImm&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Sample" Datatype="DInt" />
+                <Member Name="InitCount" Datatype="DInt" />
+                <Member Name="StartCount" Datatype="DInt" />
+                <Member Name="CyclicCount" Datatype="DInt" />
+                <Member Name="AbortCount" Datatype="DInt" />
+                <Member Name="ErrorAbortCount" Datatype="DInt" />
+                <Member Name="DispatchCount" Datatype="DInt" />
+                <Member Name="SeenValue" Datatype="DInt" />
+                <Member Name="Ordered" Datatype="Bool" />
+                <Member Name="Output" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ConfigStageParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="SchemaVersion" Datatype="UInt" />
+                <Member Name="Timeout" Datatype="Time" />
+                <Member Name="Preset" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ConfigDefaultParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="SchemaVersion" Datatype="UInt" />
+                <Member Name="Timeout" Datatype="Time" />
+                <Member Name="Preset" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ConfigStaged" Datatype="Bool" />
+          <Member Name="Catalog" Datatype="Array[1..12] of &quot;ST_CommandInfo&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Value" Datatype="DInt" />
+                <Member Name="Label" Datatype="String[120]" />
+                <Member Name="Style" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="CatalogCount" Datatype="Int" />
+          <Member Name="ManConditions" Datatype="Array[1..16] of &quot;FRK_ManualConditionRow&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Used" Datatype="Bool" />
+                <Member Name="Value" Datatype="DInt" />
+                <Member Name="Ok" Datatype="Bool" />
+                <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="ReasonCode" Datatype="DInt" />
+                      <Member Name="SourcePath" Datatype="WString[255]" />
+                      <Member Name="Description" Datatype="WString[255]" />
+                      <Member Name="IoTag" Datatype="String[80]" />
+                      <Member Name="IoAddress" Datatype="String[80]" />
+                      <Member Name="Severity" Datatype="DInt" />
+                      <Member Name="Category" Datatype="DInt" />
+                      <Member Name="Since" Datatype="LDT" />
+                      <Member Name="TimeSynchronized" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Bypassable" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ManualOwned" Datatype="Bool" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Core" Datatype="&quot;FRK_Core&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Named" Datatype="Bool" />
+          <Member Name="Initialized" Datatype="Bool" />
+          <Member Name="RegIndex" Datatype="DInt" />
+          <Member Name="ParentIndex" Datatype="DInt" />
+          <Member Name="ModuleType" Datatype="DInt" />
+          <Member Name="Exec" Datatype="DInt" />
+          <Member Name="ExecPrev" Datatype="Bool" />
+          <Member Name="AbortPrev" Datatype="Bool" />
+          <Member Name="Armed" Datatype="Bool" />
+          <Member Name="Command" Datatype="DInt" />
+          <Member Name="CommandLabel" Datatype="String[120]" />
+          <Member Name="Dispatch" Datatype="Bool" />
+          <Member Name="EvInit" Datatype="Bool" />
+          <Member Name="EvCommandStart" Datatype="Bool" />
+          <Member Name="ReleasePending" Datatype="Bool" />
+          <Member Name="EvAbort" Datatype="Bool" />
+          <Member Name="EvAbortInError" Datatype="Bool" />
+          <Member Name="EvModeExit" Datatype="Bool" />
+          <Member Name="EvModeChanged" Datatype="Bool" />
+          <Member Name="Step" Datatype="DInt" />
+          <Member Name="HookResult" Datatype="DInt" />
+          <Member Name="Held" Datatype="Bool" />
+          <Member Name="HoldReq" Datatype="Bool" />
+          <Member Name="HoldReason" Datatype="DInt" />
+          <Member Name="DiagTouched" Datatype="Bool" />
+          <Member Name="TimingOpen" Datatype="Bool" />
+          <Member Name="StartMs" Datatype="UDInt" />
+          <Member Name="LastNowMs" Datatype="UDInt" />
+          <Member Name="DeltaMs" Datatype="UDInt" />
+          <Member Name="ActiveMs" Datatype="UDInt" />
+          <Member Name="TimeoutMs" Datatype="UDInt" />
+          <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="LastCmdTime" Datatype="Time" />
+                <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Id" Datatype="DInt" />
+                      <Member Name="Label" Datatype="String[120]" />
+                      <Member Name="TimeClass" Datatype="DInt" />
+                      <Member Name="Count" Datatype="UDInt" />
+                      <Member Name="Last" Datatype="Time" />
+                      <Member Name="Minimum" Datatype="Time" />
+                      <Member Name="Maximum" Datatype="Time" />
+                      <Member Name="Avg" Datatype="Time" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Truncated" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="FaultSlot" Datatype="Int" />
+          <Member Name="FaultHandled" Datatype="Bool" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Status" Datatype="&quot;ST_ModuleStatus&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Name" Datatype="String[80]" />
+          <Member Name="DisplayNameKey" Datatype="String[160]" />
+          <Member Name="DescriptionKey" Datatype="String[160]" />
+          <Member Name="TypeKey" Datatype="String[160]" />
+          <Member Name="ModuleType" Datatype="DInt" />
+          <Member Name="State" Datatype="DInt" />
+          <Member Name="FaultActive" Datatype="Bool" />
+          <Member Name="Diagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="ReasonCode" Datatype="DInt" />
+                <Member Name="SourcePath" Datatype="WString[255]" />
+                <Member Name="Description" Datatype="WString[255]" />
+                <Member Name="IoTag" Datatype="String[80]" />
+                <Member Name="IoAddress" Datatype="String[80]" />
+                <Member Name="Severity" Datatype="DInt" />
+                <Member Name="Category" Datatype="DInt" />
+                <Member Name="Since" Datatype="LDT" />
+                <Member Name="TimeSynchronized" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="TileEnable" Datatype="Bool" />
+          <Member Name="ControlDomainId" Datatype="String[80]" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>F_TestRecovery</Name>
+      <Namespace />
+      <Number>360</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="IF" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Owner" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="&lt;&gt;" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="LiteralConstant" UId="30">
+    <Constant UId="31">
+      <ConstantValue UId="33">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="34" />
+  <Token Text="THEN" UId="35" />
+  <NewLine Num="1" UId="36" />
+  <Blank Num="4" UId="37" />
+  <Token Text="RETURN" UId="38" />
+  <Token Text=";" UId="39" />
+  <NewLine Num="1" UId="40" />
+  <Token Text="END_IF" UId="41" />
+  <Token Text=";" UId="42" />
+  <NewLine Num="1" UId="43" />
+  <Token Text="IF" UId="44" />
+  <Blank Num="1" UId="45" />
+  <Access Scope="GlobalVariable" UId="46">
+    <Symbol UId="47">
+      <Component Name="GDB_RecoveryTest" UId="48">
+        <BooleanAttribute Name="HasQuotes" UId="49">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="50" />
+      <Component Name="RequestSeq" UId="51" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="52" />
+  <Token Text="&lt;&gt;" UId="53" />
+  <Blank Num="1" UId="54" />
+  <Access Scope="GlobalVariable" UId="55">
+    <Symbol UId="56">
+      <Component Name="GDB_RecoveryTest" UId="57">
+        <BooleanAttribute Name="HasQuotes" UId="58">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="59" />
+      <Component Name="AckSeq" UId="60" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="61" />
+  <Token Text="THEN" UId="62" />
+  <NewLine Num="1" UId="63" />
+  <Blank Num="4" UId="64" />
+  <Access Scope="GlobalVariable" UId="65">
+    <Symbol UId="66">
+      <Component Name="GDB_RecoveryWork" UId="67">
+        <BooleanAttribute Name="HasQuotes" UId="68">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="69" />
+      <Component Name="Enabled" UId="70" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="71" />
+  <Token Text=":=" UId="72" />
+  <Blank Num="1" UId="73" />
+  <Access Scope="GlobalVariable" UId="74">
+    <Symbol UId="75">
+      <Component Name="GDB_RecoveryTest" UId="76">
+        <BooleanAttribute Name="HasQuotes" UId="77">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="78" />
+      <Component Name="Enabled" UId="79" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="80" />
+  <NewLine Num="1" UId="81" />
+  <Blank Num="4" UId="82" />
+  <Access Scope="GlobalVariable" UId="83">
+    <Symbol UId="84">
+      <Component Name="GDB_RecoveryWork" UId="85">
+        <BooleanAttribute Name="HasQuotes" UId="86">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="87" />
+      <Component Name="RestartOnStart" UId="88" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="89" />
+  <Token Text=":=" UId="90" />
+  <Blank Num="1" UId="91" />
+  <Access Scope="GlobalVariable" UId="92">
+    <Symbol UId="93">
+      <Component Name="GDB_RecoveryTest" UId="94">
+        <BooleanAttribute Name="HasQuotes" UId="95">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="96" />
+      <Component Name="RestartOnStart" UId="97" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="98" />
+  <NewLine Num="1" UId="99" />
+  <Blank Num="4" UId="100" />
+  <Access Scope="GlobalVariable" UId="101">
+    <Symbol UId="102">
+      <Component Name="GDB_RecoveryWork" UId="103">
+        <BooleanAttribute Name="HasQuotes" UId="104">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="105" />
+      <Component Name="Fault" UId="106" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="107" />
+  <Token Text=":=" UId="108" />
+  <Blank Num="1" UId="109" />
+  <Access Scope="GlobalVariable" UId="110">
+    <Symbol UId="111">
+      <Component Name="GDB_RecoveryTest" UId="112">
+        <BooleanAttribute Name="HasQuotes" UId="113">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="114" />
+      <Component Name="Fault" UId="115" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="116" />
+  <NewLine Num="1" UId="117" />
+  <Blank Num="4" UId="118" />
+  <Access Scope="GlobalVariable" UId="119">
+    <Symbol UId="120">
+      <Component Name="GDB_RecoveryWork" UId="121">
+        <BooleanAttribute Name="HasQuotes" UId="122">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="123" />
+      <Component Name="Finish" UId="124" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="125" />
+  <Token Text=":=" UId="126" />
+  <Blank Num="1" UId="127" />
+  <Access Scope="GlobalVariable" UId="128">
+    <Symbol UId="129">
+      <Component Name="GDB_RecoveryTest" UId="130">
+        <BooleanAttribute Name="HasQuotes" UId="131">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="132" />
+      <Component Name="Finish" UId="133" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="134" />
+  <NewLine Num="1" UId="135" />
+  <Blank Num="4" UId="136" />
+  <Access Scope="GlobalVariable" UId="137">
+    <Symbol UId="138">
+      <Component Name="GDB_RecoveryWork" UId="139">
+        <BooleanAttribute Name="HasQuotes" UId="140">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="141" />
+      <Component Name="Permit" UId="142" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="143" />
+  <Token Text=":=" UId="144" />
+  <Blank Num="1" UId="145" />
+  <Access Scope="GlobalVariable" UId="146">
+    <Symbol UId="147">
+      <Component Name="GDB_RecoveryTest" UId="148">
+        <BooleanAttribute Name="HasQuotes" UId="149">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="150" />
+      <Component Name="Permit" UId="151" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="152" />
+  <NewLine Num="1" UId="153" />
+  <Blank Num="4" UId="154" />
+  <Access Scope="GlobalVariable" UId="155">
+    <Symbol UId="156">
+      <Component Name="GDB_RecoveryWork" UId="157">
+        <BooleanAttribute Name="HasQuotes" UId="158">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="159" />
+      <Component Name="LateTimeout" UId="160" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="161" />
+  <Token Text=":=" UId="162" />
+  <Blank Num="1" UId="163" />
+  <Access Scope="GlobalVariable" UId="164">
+    <Symbol UId="165">
+      <Component Name="GDB_RecoveryTest" UId="166">
+        <BooleanAttribute Name="HasQuotes" UId="167">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="168" />
+      <Component Name="LateTimeout" UId="169" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="170" />
+  <NewLine Num="1" UId="171" />
+  <Blank Num="4" UId="172" />
+  <Access Scope="GlobalVariable" UId="173">
+    <Symbol UId="174">
+      <Component Name="GDB_RecoveryWork" UId="175">
+        <BooleanAttribute Name="HasQuotes" UId="176">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="177" />
+      <Component Name="AbortPLC" UId="178" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="179" />
+  <Token Text=":=" UId="180" />
+  <Blank Num="1" UId="181" />
+  <Access Scope="GlobalVariable" UId="182">
+    <Symbol UId="183">
+      <Component Name="GDB_RecoveryTest" UId="184">
+        <BooleanAttribute Name="HasQuotes" UId="185">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="186" />
+      <Component Name="AbortPLC" UId="187" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="188" />
+  <NewLine Num="1" UId="189" />
+  <Blank Num="4" UId="190" />
+  <Access Scope="GlobalVariable" UId="191">
+    <Symbol UId="192">
+      <Component Name="GDB_RecoveryTest" UId="193">
+        <BooleanAttribute Name="HasQuotes" UId="194">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="195" />
+      <Component Name="AckSeq" UId="196" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="197" />
+  <Token Text=":=" UId="198" />
+  <Blank Num="1" UId="199" />
+  <Access Scope="GlobalVariable" UId="200">
+    <Symbol UId="201">
+      <Component Name="GDB_RecoveryTest" UId="202">
+        <BooleanAttribute Name="HasQuotes" UId="203">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="204" />
+      <Component Name="RequestSeq" UId="205" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="206" />
+  <NewLine Num="1" UId="207" />
+  <Token Text="END_IF" UId="208" />
+  <Token Text=";" UId="209" />
+  <NewLine Num="1" UId="210" />
+  <Access Scope="Call" UId="211">
+    <CallInfo UId="212" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="214">
+        <Component Name="FRK_SeqGraphBegin" UId="213" />
+      </Instance>
+      <Token Text="(" UId="215" />
+      <Parameter Name="Run" UId="216">
+        <Blank Num="1" UId="217" />
+        <Token Text=":=" UId="218" />
+        <Blank Num="1" UId="219" />
+        <Access Scope="LocalVariable" UId="220">
+          <Symbol UId="221">
+            <Component Name="Core" UId="222" />
+            <Token Text="." UId="223" />
+            <Component Name="Exec" UId="224" />
+          </Symbol>
+        </Access>
+        <Blank Num="1" UId="225" />
+        <Token Text="=" UId="226" />
+        <Blank Num="1" UId="227" />
+        <Access Scope="LiteralConstant" UId="228">
+          <Constant UId="229">
+            <ConstantValue UId="231">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Blank Num="1" UId="232" />
+        <Token Text="AND" UId="233" />
+        <Blank Num="1" UId="234" />
+        <Access Scope="GlobalVariable" UId="235">
+          <Symbol UId="236">
+            <Component Name="GDB_RecoveryWork" UId="237">
+              <BooleanAttribute Name="HasQuotes" UId="238">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="239" />
+            <Component Name="Enabled" UId="240" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="241" />
+      <NewLine Num="1" UId="242" />
+      <Blank Num="20" UId="243" />
+      <Parameter Name="Reset" UId="244">
+        <Blank Num="1" UId="245" />
+        <Token Text=":=" UId="246" />
+        <Blank Num="1" UId="247" />
+        <Access Scope="LocalVariable" UId="248">
+          <Symbol UId="249">
+            <Component Name="Core" UId="250" />
+            <Token Text="." UId="251" />
+            <Component Name="EvCommandStart" UId="252" />
+          </Symbol>
+        </Access>
+        <Blank Num="1" UId="253" />
+        <Token Text="AND" UId="254" />
+        <Blank Num="1" UId="255" />
+        <Access Scope="GlobalVariable" UId="256">
+          <Symbol UId="257">
+            <Component Name="GDB_RecoveryWork" UId="258">
+              <BooleanAttribute Name="HasQuotes" UId="259">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="260" />
+            <Component Name="RestartOnStart" UId="261" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="262" />
+      <NewLine Num="1" UId="263" />
+      <Blank Num="20" UId="264" />
+      <Parameter Name="OwnerIndex" UId="265">
+        <Blank Num="1" UId="266" />
+        <Token Text=":=" UId="267" />
+        <Blank Num="1" UId="268" />
+        <Access Scope="LocalVariable" UId="269">
+          <Symbol UId="270">
+            <Component Name="Owner" UId="271" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="272" />
+      <NewLine Num="1" UId="273" />
+      <Blank Num="20" UId="274" />
+      <Parameter Name="ChainIndex" UId="275">
+        <Blank Num="1" UId="276" />
+        <Token Text=":=" UId="277" />
+        <Blank Num="1" UId="278" />
+        <Access Scope="LiteralConstant" UId="279">
+          <Constant UId="280">
+            <ConstantValue UId="282">10</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="283" />
+      <NewLine Num="1" UId="284" />
+      <Blank Num="20" UId="285" />
+      <Parameter Name="BranchIndex" UId="286">
+        <Blank Num="1" UId="287" />
+        <Token Text=":=" UId="288" />
+        <Blank Num="1" UId="289" />
+        <Access Scope="LiteralConstant" UId="290">
+          <Constant UId="291">
+            <ConstantValue UId="293">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="294" />
+      <NewLine Num="1" UId="295" />
+      <Blank Num="20" UId="296" />
+      <Parameter Name="ViewOffset" UId="297">
+        <Blank Num="1" UId="298" />
+        <Token Text=":=" UId="299" />
+        <Blank Num="1" UId="300" />
+        <Access Scope="LiteralConstant" UId="301">
+          <Constant UId="302">
+            <ConstantValue UId="304">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="305" />
+      <NewLine Num="1" UId="306" />
+      <Blank Num="20" UId="307" />
+      <Parameter Name="ViewDepth" UId="308">
+        <Blank Num="1" UId="309" />
+        <Token Text=":=" UId="310" />
+        <Blank Num="1" UId="311" />
+        <Access Scope="LiteralConstant" UId="312">
+          <Constant UId="313">
+            <ConstantValue UId="315">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="316" />
+      <NewLine Num="1" UId="317" />
+      <Blank Num="20" UId="318" />
+      <Parameter Name="Delta" UId="319">
+        <Blank Num="1" UId="320" />
+        <Token Text=":=" UId="321" />
+        <Blank Num="1" UId="322" />
+        <Access Scope="TypedConstant" UId="323">
+          <Constant UId="324">
+            <ConstantValue UId="325">T#1ms</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="326" />
+      <NewLine Num="1" UId="327" />
+      <Blank Num="20" UId="328" />
+      <Parameter Name="Seq" UId="329">
+        <Blank Num="1" UId="330" />
+        <Token Text=":=" UId="331" />
+        <Blank Num="1" UId="332" />
+        <Access Scope="GlobalVariable" UId="333">
+          <Symbol UId="334">
+            <Component Name="GDB_RecoveryWork" UId="335">
+              <BooleanAttribute Name="HasQuotes" UId="336">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="337" />
+            <Component Name="Seq" UId="338" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="339" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="340" />
+  <NewLine Num="1" UId="341" />
+  <Access Scope="Call" UId="342">
+    <CallInfo UId="343" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="345">
+        <Component Name="FRK_SeqLease" UId="344" />
+      </Instance>
+      <Token Text="(" UId="346" />
+      <Parameter Name="Seq" UId="347">
+        <Blank Num="1" UId="348" />
+        <Token Text=":=" UId="349" />
+        <Blank Num="1" UId="350" />
+        <Access Scope="GlobalVariable" UId="351">
+          <Symbol UId="352">
+            <Component Name="GDB_RecoveryWork" UId="353">
+              <BooleanAttribute Name="HasQuotes" UId="354">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="355" />
+            <Component Name="Seq" UId="356" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="357" />
+      <NewLine Num="1" UId="358" />
+      <Blank Num="15" UId="359" />
+      <Parameter Name="Lease" UId="360">
+        <Blank Num="1" UId="361" />
+        <Token Text=":=" UId="362" />
+        <Blank Num="1" UId="363" />
+        <Access Scope="GlobalVariable" UId="364">
+          <Symbol UId="365">
+            <Component Name="GDB_RecoveryWork" UId="366">
+              <BooleanAttribute Name="HasQuotes" UId="367">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="368" />
+            <Component Name="Lease" UId="369" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="370" />
+      <NewLine Num="1" UId="371" />
+      <Blank Num="15" UId="372" />
+      <Parameter Name="Execute" UId="373">
+        <Blank Num="1" UId="374" />
+        <Token Text=":=" UId="375" />
+        <Blank Num="1" UId="376" />
+        <Access Scope="LocalVariable" UId="377">
+          <Symbol UId="378">
+            <Component Name="Target" UId="379" />
+            <Token Text="." UId="380" />
+            <Component Name="Execute" UId="381" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="382" />
+      <NewLine Num="1" UId="383" />
+      <Blank Num="15" UId="384" />
+      <Parameter Name="Abort" UId="385">
+        <Blank Num="1" UId="386" />
+        <Token Text=":=" UId="387" />
+        <Blank Num="1" UId="388" />
+        <Access Scope="LocalVariable" UId="389">
+          <Symbol UId="390">
+            <Component Name="Target" UId="391" />
+            <Token Text="." UId="392" />
+            <Component Name="Abort" UId="393" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="394" />
+      <NewLine Num="1" UId="395" />
+      <Blank Num="15" UId="396" />
+      <Parameter Name="TargetIndex" UId="397">
+        <Blank Num="1" UId="398" />
+        <Token Text=":=" UId="399" />
+        <Blank Num="1" UId="400" />
+        <Access Scope="LocalVariable" UId="401">
+          <Symbol UId="402">
+            <Component Name="Target" UId="403" />
+            <Token Text="." UId="404" />
+            <Component Name="Core" UId="405" />
+            <Token Text="." UId="406" />
+            <Component Name="RegIndex" UId="407" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="408" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="409" />
+  <NewLine Num="1" UId="410" />
+  <Token Text="IF" UId="411" />
+  <Blank Num="1" UId="412" />
+  <Token Text="NOT" UId="413" />
+  <Blank Num="1" UId="414" />
+  <Access Scope="GlobalVariable" UId="415">
+    <Symbol UId="416">
+      <Component Name="GDB_RecoveryWork" UId="417">
+        <BooleanAttribute Name="HasQuotes" UId="418">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="419" />
+      <Component Name="Seq" UId="420" />
+      <Token Text="." UId="421" />
+      <Component Name="Frozen" UId="422" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="423" />
+  <Token Text="OR" UId="424" />
+  <Blank Num="1" UId="425" />
+  <Access Scope="GlobalVariable" UId="426">
+    <Symbol UId="427">
+      <Component Name="GDB_RecoveryWork" UId="428">
+        <BooleanAttribute Name="HasQuotes" UId="429">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="430" />
+      <Component Name="Seq" UId="431" />
+      <Token Text="." UId="432" />
+      <Component Name="RestartPending" UId="433" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="434" />
+  <Token Text="THEN" UId="435" />
+  <NewLine Num="1" UId="436" />
+  <Blank Num="4" UId="437" />
+  <Access Scope="Call" UId="438">
+    <CallInfo UId="439" BlockType="FB" Name="FB_GRAPH_RecoveryTest">
+      <Instance Scope="GlobalVariable" UId="440">
+        <Component Name="GDB_GRAPH_RecoveryTest" UId="441">
+          <BooleanAttribute Name="HasQuotes" UId="442">true</BooleanAttribute>
+        </Component>
+      </Instance>
+      <Token Text="(" UId="443" />
+      <Parameter Name="Seq" UId="444">
+        <Blank Num="1" UId="445" />
+        <Token Text=":=" UId="446" />
+        <Blank Num="1" UId="447" />
+        <Access Scope="GlobalVariable" UId="448">
+          <Symbol UId="449">
+            <Component Name="GDB_RecoveryWork" UId="450">
+              <BooleanAttribute Name="HasQuotes" UId="451">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="452" />
+            <Component Name="Seq" UId="453" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="454" />
+      <NewLine Num="1" UId="455" />
+      <Blank Num="29" UId="456" />
+      <Parameter Name="Target" UId="457">
+        <Blank Num="1" UId="458" />
+        <Token Text=":=" UId="459" />
+        <Blank Num="1" UId="460" />
+        <Access Scope="LocalVariable" UId="461">
+          <Symbol UId="462">
+            <Component Name="Target" UId="463" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="464" />
+      <NewLine Num="1" UId="465" />
+      <Blank Num="29" UId="466" />
+      <Parameter Name="Core" UId="467">
+        <Blank Num="1" UId="468" />
+        <Token Text=":=" UId="469" />
+        <Blank Num="1" UId="470" />
+        <Access Scope="LocalVariable" UId="471">
+          <Symbol UId="472">
+            <Component Name="Core" UId="473" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="474" />
+      <NewLine Num="1" UId="475" />
+      <Blank Num="29" UId="476" />
+      <Parameter Name="Status" UId="477">
+        <Blank Num="1" UId="478" />
+        <Token Text=":=" UId="479" />
+        <Blank Num="1" UId="480" />
+        <Access Scope="LocalVariable" UId="481">
+          <Symbol UId="482">
+            <Component Name="Status" UId="483" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="484" />
+      <NewLine Num="1" UId="485" />
+      <Blank Num="29" UId="486" />
+      <Parameter Name="INIT_SQ" UId="487">
+        <Blank Num="1" UId="488" />
+        <Token Text=":=" UId="489" />
+        <Blank Num="1" UId="490" />
+        <Access Scope="GlobalVariable" UId="491">
+          <Symbol UId="492">
+            <Component Name="GDB_RecoveryWork" UId="493">
+              <BooleanAttribute Name="HasQuotes" UId="494">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="495" />
+            <Component Name="Seq" UId="496" />
+            <Token Text="." UId="497" />
+            <Component Name="Restart" UId="498" />
+          </Symbol>
+        </Access>
+        <Blank Num="1" UId="499" />
+        <Token Text="AND" UId="500" />
+        <Blank Num="1" UId="501" />
+        <Access Scope="GlobalVariable" UId="502">
+          <Symbol UId="503">
+            <Component Name="GDB_RecoveryWork" UId="504">
+              <BooleanAttribute Name="HasQuotes" UId="505">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="506" />
+            <Component Name="Seq" UId="507" />
+            <Token Text="." UId="508" />
+            <Component Name="Running" UId="509" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="510" />
+      <NewLine Num="1" UId="511" />
+      <Blank Num="29" UId="512" />
+      <Parameter Name="OFF_SQ" UId="513">
+        <Blank Num="1" UId="514" />
+        <Token Text=":=" UId="515" />
+        <Blank Num="1" UId="516" />
+        <Token Text="NOT" UId="517" />
+        <Blank Num="1" UId="518" />
+        <Access Scope="GlobalVariable" UId="519">
+          <Symbol UId="520">
+            <Component Name="GDB_RecoveryWork" UId="521">
+              <BooleanAttribute Name="HasQuotes" UId="522">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="523" />
+            <Component Name="Seq" UId="524" />
+            <Token Text="." UId="525" />
+            <Component Name="Running" UId="526" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="546" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="547" />
+  <NewLine Num="1" UId="548" />
+  <Token Text="END_IF" UId="549" />
+  <Token Text=";" UId="550" />
+  <NewLine Num="1" UId="551" />
+  <Access Scope="Call" UId="552">
+    <CallInfo UId="553" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="555">
+        <Component Name="FRK_SeqOwnerStatus" UId="554" />
+      </Instance>
+      <Token Text="(" UId="556" />
+      <Parameter Name="Seq" UId="557">
+        <Blank Num="1" UId="558" />
+        <Token Text=":=" UId="559" />
+        <Blank Num="1" UId="560" />
+        <Access Scope="GlobalVariable" UId="561">
+          <Symbol UId="562">
+            <Component Name="GDB_RecoveryWork" UId="563">
+              <BooleanAttribute Name="HasQuotes" UId="564">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="565" />
+            <Component Name="Seq" UId="566" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="567" />
+      <NewLine Num="1" UId="568" />
+      <Blank Num="21" UId="569" />
+      <Parameter Name="Core" UId="570">
+        <Blank Num="1" UId="571" />
+        <Token Text=":=" UId="572" />
+        <Blank Num="1" UId="573" />
+        <Access Scope="LocalVariable" UId="574">
+          <Symbol UId="575">
+            <Component Name="Core" UId="576" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="577" />
+      <NewLine Num="1" UId="578" />
+      <Blank Num="21" UId="579" />
+      <Parameter Name="Status" UId="580">
+        <Blank Num="1" UId="581" />
+        <Token Text=":=" UId="582" />
+        <Blank Num="1" UId="583" />
+        <Access Scope="LocalVariable" UId="584">
+          <Symbol UId="585">
+            <Component Name="Status" UId="586" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="587" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="588" />
+  <NewLine Num="1" UId="589" />
+  <Access Scope="Call" UId="590">
+    <CallInfo UId="591" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="593">
+        <Component Name="FRK_SeqLease" UId="592" />
+      </Instance>
+      <Token Text="(" UId="594" />
+      <Parameter Name="Seq" UId="595">
+        <Blank Num="1" UId="596" />
+        <Token Text=":=" UId="597" />
+        <Blank Num="1" UId="598" />
+        <Access Scope="GlobalVariable" UId="599">
+          <Symbol UId="600">
+            <Component Name="GDB_RecoveryWork" UId="601">
+              <BooleanAttribute Name="HasQuotes" UId="602">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="603" />
+            <Component Name="Seq" UId="604" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="605" />
+      <NewLine Num="1" UId="606" />
+      <Blank Num="15" UId="607" />
+      <Parameter Name="Lease" UId="608">
+        <Blank Num="1" UId="609" />
+        <Token Text=":=" UId="610" />
+        <Blank Num="1" UId="611" />
+        <Access Scope="GlobalVariable" UId="612">
+          <Symbol UId="613">
+            <Component Name="GDB_RecoveryWork" UId="614">
+              <BooleanAttribute Name="HasQuotes" UId="615">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="616" />
+            <Component Name="Lease" UId="617" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="618" />
+      <NewLine Num="1" UId="619" />
+      <Blank Num="15" UId="620" />
+      <Parameter Name="Execute" UId="621">
+        <Blank Num="1" UId="622" />
+        <Token Text=":=" UId="623" />
+        <Blank Num="1" UId="624" />
+        <Access Scope="LocalVariable" UId="625">
+          <Symbol UId="626">
+            <Component Name="Target" UId="627" />
+            <Token Text="." UId="628" />
+            <Component Name="Execute" UId="629" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="630" />
+      <NewLine Num="1" UId="631" />
+      <Blank Num="15" UId="632" />
+      <Parameter Name="Abort" UId="633">
+        <Blank Num="1" UId="634" />
+        <Token Text=":=" UId="635" />
+        <Blank Num="1" UId="636" />
+        <Access Scope="LocalVariable" UId="637">
+          <Symbol UId="638">
+            <Component Name="Target" UId="639" />
+            <Token Text="." UId="640" />
+            <Component Name="Abort" UId="641" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="642" />
+      <NewLine Num="1" UId="643" />
+      <Blank Num="15" UId="644" />
+      <Parameter Name="TargetIndex" UId="645">
+        <Blank Num="1" UId="646" />
+        <Token Text=":=" UId="647" />
+        <Blank Num="1" UId="648" />
+        <Access Scope="LocalVariable" UId="649">
+          <Symbol UId="650">
+            <Component Name="Target" UId="651" />
+            <Token Text="." UId="652" />
+            <Component Name="Core" UId="653" />
+            <Token Text="." UId="654" />
+            <Component Name="RegIndex" UId="655" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="656" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="657" />
+  <NewLine Num="1" UId="658" />
+  <Token Text="IF" UId="659" />
+  <Blank Num="1" UId="660" />
+  <Token Text="NOT" UId="661" />
+  <Blank Num="1" UId="662" />
+  <Access Scope="LocalVariable" UId="663">
+    <Symbol UId="664">
+      <Component Name="Target" UId="665" />
+      <Token Text="." UId="666" />
+      <Component Name="Execute" UId="667" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="668" />
+  <Token Text="THEN" UId="669" />
+  <NewLine Num="1" UId="670" />
+  <Blank Num="4" UId="671" />
+  <Access Scope="GlobalVariable" UId="672">
+    <Symbol UId="673">
+      <Component Name="GDB_RecoveryTest" UId="674">
+        <BooleanAttribute Name="HasQuotes" UId="675">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="676" />
+      <Component Name="LowScans" UId="677" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="678" />
+  <Token Text=":=" UId="679" />
+  <Blank Num="1" UId="680" />
+  <Access Scope="GlobalVariable" UId="681">
+    <Symbol UId="682">
+      <Component Name="GDB_RecoveryTest" UId="683">
+        <BooleanAttribute Name="HasQuotes" UId="684">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="685" />
+      <Component Name="LowScans" UId="686" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="687" />
+  <Token Text="+" UId="688" />
+  <Blank Num="1" UId="689" />
+  <Access Scope="LiteralConstant" UId="690">
+    <Constant UId="691">
+      <ConstantValue UId="693">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="694" />
+  <NewLine Num="1" UId="695" />
+  <Token Text="END_IF" UId="696" />
+  <Token Text=";" UId="697" />
+  <NewLine Num="1" UId="698" />
+  <Access Scope="GlobalVariable" UId="699">
+    <Symbol UId="700">
+      <Component Name="GDB_RecoveryTest" UId="701">
+        <BooleanAttribute Name="HasQuotes" UId="702">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="703" />
+      <Component Name="Seq" UId="704" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="705" />
+  <Token Text=":=" UId="706" />
+  <Blank Num="1" UId="707" />
+  <Access Scope="GlobalVariable" UId="708">
+    <Symbol UId="709">
+      <Component Name="GDB_RecoveryWork" UId="710">
+        <BooleanAttribute Name="HasQuotes" UId="711">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="712" />
+      <Component Name="Seq" UId="713" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="714" />
+  <NewLine Num="1" UId="715" />
+  <Access Scope="GlobalVariable" UId="716">
+    <Symbol UId="717">
+      <Component Name="GDB_RecoveryTest" UId="718">
+        <BooleanAttribute Name="HasQuotes" UId="719">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="720" />
+      <Component Name="Running" UId="721" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="722" />
+  <Token Text=":=" UId="723" />
+  <Blank Num="1" UId="724" />
+  <Access Scope="GlobalVariable" UId="725">
+    <Symbol UId="726">
+      <Component Name="GDB_RecoveryWork" UId="727">
+        <BooleanAttribute Name="HasQuotes" UId="728">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="729" />
+      <Component Name="Seq" UId="730" />
+      <Token Text="." UId="731" />
+      <Component Name="Running" UId="732" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="733" />
+  <NewLine Num="1" UId="734" />
+  <Access Scope="GlobalVariable" UId="735">
+    <Symbol UId="736">
+      <Component Name="GDB_RecoveryTest" UId="737">
+        <BooleanAttribute Name="HasQuotes" UId="738">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="739" />
+      <Component Name="Delay" UId="740" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="741" />
+  <Token Text=":=" UId="742" />
+  <Blank Num="1" UId="743" />
+  <Access Scope="GlobalVariable" UId="744">
+    <Symbol UId="745">
+      <Component Name="GDB_RecoveryWork" UId="746">
+        <BooleanAttribute Name="HasQuotes" UId="747">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="748" />
+      <Component Name="Seq" UId="749" />
+      <Token Text="." UId="750" />
+      <Component Name="DelayElapsed" UId="751" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="752" />
+  <NewLine Num="1" UId="753" />
+  <Access Scope="GlobalVariable" UId="754">
+    <Symbol UId="755">
+      <Component Name="GDB_RecoveryTest" UId="756">
+        <BooleanAttribute Name="HasQuotes" UId="757">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="758" />
+      <Component Name="Frozen" UId="759" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="760" />
+  <Token Text=":=" UId="761" />
+  <Blank Num="1" UId="762" />
+  <Access Scope="GlobalVariable" UId="763">
+    <Symbol UId="764">
+      <Component Name="GDB_RecoveryWork" UId="765">
+        <BooleanAttribute Name="HasQuotes" UId="766">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="767" />
+      <Component Name="Seq" UId="768" />
+      <Token Text="." UId="769" />
+      <Component Name="Frozen" UId="770" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="771" />
+  <NewLine Num="1" UId="772" />
+  <Access Scope="GlobalVariable" UId="773">
+    <Symbol UId="774">
+      <Component Name="GDB_RecoveryTest" UId="775">
+        <BooleanAttribute Name="HasQuotes" UId="776">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="777" />
+      <Component Name="ResumePending" UId="778" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="779" />
+  <Token Text=":=" UId="780" />
+  <Blank Num="1" UId="781" />
+  <Access Scope="GlobalVariable" UId="782">
+    <Symbol UId="783">
+      <Component Name="GDB_RecoveryWork" UId="784">
+        <BooleanAttribute Name="HasQuotes" UId="785">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="786" />
+      <Component Name="Seq" UId="787" />
+      <Token Text="." UId="788" />
+      <Component Name="ResumePending" UId="789" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="790" />
+  <NewLine Num="1" UId="791" />
+  <Token Text="IF" UId="792" />
+  <Blank Num="1" UId="793" />
+  <Access Scope="GlobalVariable" UId="794">
+    <Symbol UId="795">
+      <Component Name="GDB_RecoveryWork" UId="796">
+        <BooleanAttribute Name="HasQuotes" UId="797">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="798" />
+      <Component Name="LateTimeout" UId="799" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="800" />
+  <Token Text="AND" UId="801" />
+  <Blank Num="1" UId="802" />
+  <Access Scope="LocalVariable" UId="803">
+    <Symbol UId="804">
+      <Component Name="Core" UId="805" />
+      <Token Text="." UId="806" />
+      <Component Name="Exec" UId="807" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="808" />
+  <Token Text="=" UId="809" />
+  <Blank Num="1" UId="810" />
+  <Access Scope="LiteralConstant" UId="811">
+    <Constant UId="812">
+      <ConstantValue UId="814">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="815" />
+  <Token Text="THEN" UId="816" />
+  <NewLine Num="1" UId="817" />
+  <Blank Num="4" UId="818" />
+  <Access Scope="LocalVariable" UId="819">
+    <Symbol UId="820">
+      <Component Name="Core" UId="821" />
+      <Token Text="." UId="822" />
+      <Component Name="TimeoutMs" UId="823" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="824" />
+  <Token Text=":=" UId="825" />
+  <Blank Num="1" UId="826" />
+  <Access Scope="LiteralConstant" UId="827">
+    <Constant UId="828">
+      <ConstantValue UId="830">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="831" />
+  <NewLine Num="1" UId="832" />
+  <Blank Num="4" UId="833" />
+  <Access Scope="LocalVariable" UId="834">
+    <Symbol UId="835">
+      <Component Name="Core" UId="836" />
+      <Token Text="." UId="837" />
+      <Component Name="ActiveMs" UId="838" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="839" />
+  <Token Text=":=" UId="840" />
+  <Blank Num="1" UId="841" />
+  <Access Scope="LiteralConstant" UId="842">
+    <Constant UId="843">
+      <ConstantValue UId="845">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="846" />
+  <NewLine Num="1" UId="847" />
+  <Blank Num="4" UId="848" />
+  <Access Scope="GlobalVariable" UId="849">
+    <Symbol UId="850">
+      <Component Name="GDB_RecoveryWork" UId="851">
+        <BooleanAttribute Name="HasQuotes" UId="852">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="853" />
+      <Component Name="LateTimeout" UId="854" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="855" />
+  <Token Text=":=" UId="856" />
+  <Blank Num="1" UId="857" />
+  <Access Scope="LiteralConstant" UId="858">
+    <Constant UId="859">
+      <ConstantValue UId="861">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="862" />
+  <NewLine Num="1" UId="863" />
+  <Token Text="END_IF" UId="864" />
+  <Token Text=";" UId="865" />
+  <NewLine Num="1" UId="866" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

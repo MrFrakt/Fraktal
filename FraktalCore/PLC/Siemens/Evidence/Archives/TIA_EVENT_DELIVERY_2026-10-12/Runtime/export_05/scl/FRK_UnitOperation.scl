@@ -1,0 +1,201 @@
+﻿FUNCTION "FRK_UnitOperation" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Supported : Array[0..6] of Bool;
+      Request : "ST_HmiRequest";
+      Trusted : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Policy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+   END_VAR
+
+   VAR_TEMP 
+      Gate : DInt;
+      Desired : DInt;
+      Query : Bool;
+      Level : DInt;
+      DecisionAccepted : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Response.Accepted := FALSE;
+	#Response.Diagnostic := WSTRING#'';
+	#Response.Report.Count := 0;
+	#Response.Report.Released := TRUE;
+	#Gate := -1;
+	#Desired := -1;
+	#Query := FALSE;
+	CASE #Request.Kind OF
+	    5:
+	        #Gate := 5;
+	        #Desired := 0;
+	    6:
+	        #Gate := 5;
+	        #Desired := 1;
+	    3:
+	        #Gate := 4;
+	        #Desired := #Request.IntValue;
+	        IF #Desired = -1 THEN
+	            #Desired := -2;
+	        END_IF;
+	    9:
+	        #Gate := 7;
+	    10:
+	        #Gate := 5;
+	    11:
+	        #Gate := 2;
+	    24, 25:
+	        #Gate := 8;
+	    15:
+	        #Gate := 5;
+	        #Desired := 0;
+	        #Query := TRUE;
+	    16:
+	        #Gate := 2;
+	        #Query := TRUE;
+	    17:
+	        #Gate := #Request.IntValue;
+	        #Desired := -1;
+	        #Query := TRUE;
+	    ELSE
+	        #Gate := -1;
+	END_CASE;
+	IF #Gate <> -1 OR #Request.Kind = 17 THEN
+	    "FRK_UnitRelease"(Core := #Core,
+	                      Unit := #Unit,
+	                      Status := #Status,
+	                      Policy := #Policy,
+	                      Access := #Access,
+	                      Supported := #Supported,
+	                      Report := #Response.Report,
+	                      Gate := #Gate,
+	                      Desired := #Desired,
+	                      Trusted := #Trusted);
+	    IF #Query THEN
+	        #Response.Accepted := TRUE;
+	    ELSIF #Response.Report.Released THEN
+	        CASE #Request.Kind OF
+	            10:
+	                #DecisionAccepted := "FRK_DecisionSubmit"(Owner := #Core.RegIndex, OwnerPath := STRING_TO_WSTRING(#Status.Name), Option := #Request.IntValue,
+	                                                          Busy := #Core.Exec = 1, Permit := #Unit.Permit, Report := #Response.Report);
+	                #Response.Accepted := #DecisionAccepted;
+	            5:
+	                #Unit.StopReq := FALSE;
+	                #Unit.RunReq := TRUE;
+	                #Response.Accepted := TRUE;
+	            6:
+	                #Unit.StopReq := #Core.Exec = 1;
+	                IF NOT #Unit.StopReq THEN
+	                    #Unit.RunReq := FALSE;
+	                END_IF;
+	                #Unit.FollowStart := FALSE;
+	                #Response.Accepted := TRUE;
+	            3:
+	                IF #Desired <> #Unit.Mode THEN
+	                    #Unit.ExitFirst := TRUE;
+	                    #Unit.ModeSince := "FRK_Clock".NowMs;
+	                    #Unit.RequestedMode := #Desired;
+	                    #Unit.ModePending := TRUE;
+	                    IF #Unit.Mode = 1 THEN
+	                        #Unit.ReleaseChildren := TRUE;
+	                        #Unit.Clearing := TRUE;
+	                    END_IF;
+	                END_IF;
+	                #Response.Accepted := TRUE;
+	            9:
+	                #Unit.EvReset := TRUE;
+	                #Unit.ModePending := FALSE;
+	                #Unit.ExitFirst := FALSE;
+	                #Unit.RunReq := FALSE;
+	                #Unit.AbortReq := #Core.Exec = 1;
+	                #Unit.StopReq := FALSE;
+	                #Unit.FollowStart := FALSE;
+	                #Unit.ReleaseChildren := TRUE;
+	                #Unit.Clearing := TRUE;
+	                #Unit.FaultLatched := FALSE;
+	                IF #Core.Exec = 3 THEN
+	                    #Core.Armed := TRUE;
+	                END_IF;
+	                #Response.Accepted := TRUE;
+	            24:
+	                #Level := -1;
+	                IF #Request.TextValue = WSTRING#'0' THEN
+	                    #Level := 0;
+	                ELSIF #Request.TextValue = WSTRING#'1' THEN
+	                    #Level := 1;
+	                ELSIF #Request.TextValue = WSTRING#'2' THEN
+	                    #Level := 2;
+	                ELSIF #Request.TextValue = WSTRING#'3' THEN
+	                    #Level := 3;
+	                ELSIF #Request.TextValue = WSTRING#'4' THEN
+	                    #Level := 4;
+	                END_IF;
+	                IF #Request.IntValue >= 0 AND #Request.IntValue <= 11 AND #Level >= 0 THEN
+	                    IF #Request.IntValue <> 8 OR #Level <= #Access.CurrentLevel THEN
+	                        #Access.Policy.Required[#Request.IntValue] := #Level;
+	                        #Response.Accepted := TRUE;
+	                    END_IF;
+	                END_IF;
+	            25:
+	                IF #Request.DurationMs <= 604800000 THEN
+	                    #Access.Policy.SessionTimeout := DINT_TO_TIME(UDINT_TO_DINT(#Request.DurationMs));
+	                    #Response.Accepted := TRUE;
+	                END_IF;
+	            ELSE
+	                // Manual acceptance is resolved by the generated typed route.
+	                #Response.Accepted := FALSE;
+	        END_CASE;
+	    END_IF;
+	ELSE
+	    CASE #Request.Kind OF
+	        1:
+	            "FRK_AccessLogin"(Access := #Access,
+	                              User := #Request.User,
+	                              Secret := #Request.Secret,
+	                              Sequence := #Request.Sequence);
+	            // Consumption is acknowledged now; correlated result is asynchronous.
+	            #Response.Accepted := TRUE;
+	        2:
+	            "FRK_AccessLogout"(Access := #Access);
+	            #Response.Accepted := TRUE;
+	        10001, 10002:
+	            #Response.Accepted := "FRK_DeliveryRequest"(RootScope := #Status.Name, Request := #Request, Access := #Access);
+	            
+	        ELSE
+	            #Response.Diagnostic := WSTRING#'std.error.unsupportedHmiRequest';
+	    END_CASE;
+	END_IF;
+	IF #Response.Accepted AND NOT #Query THEN
+	    IF #Request.Kind = 5 OR #Request.Kind = 6 OR #Request.Kind = 3 OR #Request.Kind = 9 THEN
+	        #Unit.CascadePending := TRUE;
+	        #Unit.CascadeKind := #Request.Kind;
+	        #Unit.CascadeMode := #Unit.Mode;
+	        IF #Request.Kind = 3 THEN
+	            #Unit.CascadeMode := #Desired;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF NOT #Response.Accepted AND #Request.Kind <> 11 THEN
+	    IF #Response.Diagnostic = WSTRING#'' THEN
+	        #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+	    END_IF;
+	    IF #Response.Report.Released THEN
+	        "FRK_ReleaseReason"(Report := #Response.Report,
+	                            Description := #Response.Diagnostic,
+	                            Reason := 2002,
+	                            Path := STRING_TO_WSTRING(#Status.Name),
+	                            Kind := 4);
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

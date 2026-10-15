@@ -90,6 +90,9 @@ class ModuleType:
     unit_modes: tuple[str, ...] = ()
     unit_initial: str = ""
     unit_run: int = 0
+    station_config: str = ""
+    config: tuple[dict, ...] = ()
+    sequence_view: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -109,6 +112,17 @@ class Declaration:
     instances: tuple[Instance, ...]
     core: CoreFacts
     records: tuple[tuple[str, str], ...] = ()
+    event_sink: str = ""
+    model_config: tuple[str, ...] = ()
+    initial_model: str = ""
+    config_set_capacity: int = 0
+    alarm_history_scopes: tuple[str, ...] = ()
+    alarm_recovery_scopes: tuple[str, ...] = ()
+    alarm_delivery_scopes: tuple[str, ...] = ()
+    alarm_delivery_capacity: int = 0
+    alarm_delivery_stream: str = ''
+    persistence_min_write_ms: int = 0
+    persistence_queue_capacity: int = 0
 
     def inventory(self):
         types = {item.name: item for item in self.types}
@@ -169,7 +183,7 @@ def member(value, location):
 
 def validate(value, core=None):
     core = core or CoreFacts.read()
-    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records",), "declaration")
+    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records", "event_sink", "model_config", "config_sets", "alarm_history", "alarm_recovery", "alarm_delivery", "persistence"), "declaration")
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise DeclarationError("T-GEN", "schema_version", "only declaration version1 is supported")
     if value["target_family"] != "S7-1500":
@@ -186,10 +200,15 @@ def validate(value, core=None):
                                 "unit", "modepolicy", "access", "part", "history", "historyhead",
                                 "modeactivepublished", "runningpublished", "stoppendingpublished",
                                 "supportedmodespublished", "goodcount", "nokcount", "reworkcount", "nokreason",
-                                "manualowned", "manconditions", "routematched", "manualmatched", "configcursor"}
+                                "manualowned", "manconditions", "routematched", "manualmatched", "configcursor", "statetouched",
+                                "stationcfg", "configstageparcfg", "configstagestationcfg", "configdefaultparcfg", "configdefaultstationcfg",
+                                "configstaged", "configpersist", "modelid", "availablemodelcount", "availablemodels", "configrootindex", "configsets", "configsetcount", "configsetdocument", "configsetdocumentline", "configsetdocumentlines"}
+    frame_members |= {n.casefold() for n in ('SequenceViewEnabled', 'SequenceStepCount', 'SequenceAnnotationCount',
+        'Profiler', 'Starved', 'Blocked', 'CurrentStep', 'CurrentStepElapsed', 'CurrentStepTimedOut', 'SequenceSteps', 'ActiveSteps',
+        'SequenceAnnotations', 'SequenceStepDef', 'SequenceViewBook', 'SequenceViewTouched', 'SequenceViewDepths', 'SequenceViewVisits')}
     for index, data in enumerate(items(value["types"], "types")):
         location = f"types[{index}]"
-        object_fields(data, ("name", "tier", "children"), ("type_key", "contract", "hal", "capabilities", "logic", "commands", "timeout", "storage", "unit"), location)
+        object_fields(data, ("name", "tier", "children"), ("type_key", "contract", "hal", "capabilities", "logic", "commands", "timeout", "storage", "unit", "station_config", "config", "sequence_view"), location)
         name = identifier(data["name"], location + ".name", block=True)
         tier = data["tier"]
         if not isinstance(tier, str) or tier not in core.tiers:
@@ -226,10 +245,10 @@ def validate(value, core=None):
         if type(capabilities) is not int or not 0 <= capabilities <= 4294967295:
             raise DeclarationError("T-GEN", location, "capabilities must fit DWord")
         logic = data.get("logic", {})
-        object_fields(logic, (), ("cyclic", "Cyclic", "dispatch", "Init", "CommandStart", "Abort", "AbortInError", "ModeExit", "ModeChanged", "OperatorReset", "ManRelease", "Release"), location + ".logic")
+        object_fields(logic, (), ("cyclic", "Cyclic", "dispatch", "Init", "CommandStart", "Abort", "AbortInError", "ModeExit", "ModeChanged", "OperatorReset", "ManRelease", "Release", "Sequences"), location + ".logic")
         if tier == 'UNIT' and 'ManRelease' in logic:
             raise DeclarationError('T-TIER', location, 'function-specific manual release belongs to CM/EM commands')
-        if tier != "UNIT" and any(n in logic for n in ('ModeExit', 'ModeChanged', 'OperatorReset', 'Release')):
+        if tier != "UNIT" and any(n in logic for n in ('ModeExit', 'ModeChanged', 'OperatorReset', 'Release', 'Sequences')):
             raise DeclarationError("T-TIER", location, "mode reactions belong to Units")
         for region, body in logic.items():
             if not isinstance(body, str) or not body.isascii():
@@ -273,7 +292,28 @@ def validate(value, core=None):
             initial, run = unit['initial'], unit['run_command']
             if initial not in modes or type(run) is not int or run not in {n for n,label in commands}:
                 raise DeclarationError('T-GEN', location, 'Unit initial mode/run command must be declared')
-        types.append(ModuleType(name, tier, key, children, tuple(contract.items()), hal, capabilities, tuple(logic.items()), tuple(commands), timeout, storage, modes, initial, run))
+        station_config = data.get('station_config', '')
+        if station_config:
+            identifier(station_config, location + '.station_config')
+            if not station_config.startswith('ST_'):
+                raise DeclarationError('T-GEN', location, 'station config must name an ST_ record')
+        elif not isinstance(station_config, str):
+            raise DeclarationError('T-GEN', location, 'station config must name a record')
+        config = tuple(items(data.get('config', []), location + '.config'))
+        from fraktal_tia_config import validate_definition
+        validate_definition(config, location)
+        view = data.get('sequence_view', {})
+        object_fields(view, (), ('capacity', 'branches', 'annotations'), location + '.sequence_view')
+        view_sizes = ()
+        if view:
+            object_fields(view, ('capacity', 'branches', 'annotations'), (), location + '.sequence_view')
+            from fraktal_tia_binding import Catalog
+            bounds = Catalog.read().capacities
+            limits = (bounds['MAX_SEQUENCE_STEPS'], bounds['MAX_PARALLEL_BRANCHES'], bounds['MAX_SEQUENCE_ANNOTATIONS'])
+            view_sizes = tuple(view[n] for n in ('capacity', 'branches', 'annotations'))
+            if not modes or any(type(n) is not int or not (0 if i == 1 else 1) <= n <= limits[i] for i, n in enumerate(view_sizes)):
+                raise DeclarationError('T-GEN', location, 'sequence view requires a Unit profile and bounded Core capacities')
+        types.append(ModuleType(name, tier, key, children, tuple(contract.items()), hal, capabilities, tuple(logic.items()), tuple(commands), timeout, storage, modes, initial, run, station_config, config, view_sizes))
     unique_named(types, "types")
     lookup = {item.name.casefold(): item for item in types}
 
@@ -330,7 +370,74 @@ def validate(value, core=None):
         names.add(name.casefold())
         if not isinstance(text, str) or not text.isascii():
             raise DeclarationError("T-ASCII", name, "record declaration must be ASCII")
-    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()))
+    event_sink = value.get('event_sink','')
+    if event_sink:
+        identifier(event_sink,'event_sink')
+        if not event_sink.startswith('F_') or event_sink.casefold() in names | set(lookup) | {r.name.casefold() for r in roots}:
+            raise DeclarationError('T-COLLIDE','event_sink','sink must name a separate F_ function with Ev : ST_AlarmEvent input')
+    elif not isinstance(event_sink,str):
+        raise DeclarationError('T-GEN','event_sink','sink must be a function name')
+    model_config = value.get('model_config', {})
+    object_fields(model_config, (), ('models', 'initial'), 'model_config')
+    models, initial_model = (), ''
+    if model_config:
+        object_fields(model_config, ('models', 'initial'), (), 'model_config')
+        models = tuple(items(model_config['models'], 'model_config.models'))
+        from fraktal_tia_config import width
+        from fraktal_tia_binding import Catalog
+        model_width = width(Catalog.read(), 'ST_ModelId', 'ModelCode')
+        if not models or any(not isinstance(m, str) or not m.isascii() or not 1 <= len(m) <= model_width or any(ord(c) < 32 for c in m) for m in models) or len(set(models)) != len(models):
+            raise DeclarationError('T-GEN', 'model_config', 'model codes must be unique bounded ASCII strings')
+        initial_model = model_config['initial']
+        if initial_model not in models:
+            raise DeclarationError('T-GEN', 'model_config', 'initial model must be in the catalog')
+    sets = value.get('config_sets', {})
+    object_fields(sets, (), ('capacity',), 'config_sets')
+    set_capacity = sets.get('capacity', 0)
+    from fraktal_tia_binding import Catalog
+    if type(set_capacity) is not int or not 0 <= set_capacity <= Catalog.read().capacities['MAX_CONFIG_SETS']:
+        raise DeclarationError('T-WIDTH', 'config_sets', 'capacity must fit the Core named-set bound')
+    history=value.get('alarm_history', {})
+    object_fields(history, (), ('scopes',), 'alarm_history')
+    scopes=history.get('scopes', [])
+    units={i.path for i in instances if lookup[i.type_name.casefold()].unit_modes}
+    if not isinstance(scopes,list) or any(not isinstance(n,str) or n not in units for n in scopes) or len(set(scopes)) != len(scopes):
+        raise DeclarationError('T-GEN','alarm_history','scopes must name distinct deployed Units')
+    recovery=value.get('alarm_recovery', {})
+    object_fields(recovery, (), ('scopes',), 'alarm_recovery')
+    recovery_scopes=recovery.get('scopes', [])
+    if not isinstance(recovery_scopes,list) or any(not isinstance(n,str) or n not in scopes for n in recovery_scopes) or len(set(recovery_scopes)) != len(recovery_scopes):
+        raise DeclarationError('T-GEN','alarm_recovery','scopes must name distinct history-selected Units')
+    delivery=value.get('alarm_delivery', {})
+    object_fields(delivery, (), ('scopes','capacity','stream_id'), 'alarm_delivery')
+    delivery_scopes=delivery.get('scopes', [])
+    delivery_capacity=delivery.get('capacity', 0)
+    stream=delivery.get('stream_id', '')
+    if delivery:
+        object_fields(delivery, ('scopes','capacity','stream_id'), (), 'alarm_delivery')
+        if not isinstance(delivery_scopes,list) or not delivery_scopes or any(not isinstance(n,str) or n not in scopes for n in delivery_scopes) or len(set(delivery_scopes)) != len(delivery_scopes):
+            raise DeclarationError('T-GEN','alarm_delivery','scopes must name distinct history-selected Units')
+        if type(delivery_capacity) is not int or not 1 <= delivery_capacity <= Catalog.read().capacities['MAX_ALARM_RING']:
+            raise DeclarationError('T-WIDTH','alarm_delivery','capacity must fit the Core ring bound')
+        import uuid
+        try:
+            if str(uuid.UUID(stream)) != stream: raise ValueError('noncanonical UUID')
+        except (ValueError,TypeError,AttributeError):
+            raise DeclarationError('T-GEN','alarm_delivery','stream_id must be a canonical deployment UUID')
+    persistence=value.get('persistence', {})
+    object_fields(persistence, (), ('medium','minimum_write_ms','queue_capacity'), 'persistence')
+    minimum_write_ms=0; queue_capacity=0
+    if persistence:
+        object_fields(persistence, ('medium','minimum_write_ms'), ('queue_capacity',), 'persistence')
+        minimum_write_ms=persistence['minimum_write_ms']
+        queue_capacity=persistence.get('queue_capacity',Catalog.read().capacities['MAX_PERSIST_QUEUE'])
+        if persistence['medium'] != 'LOAD_DB' or type(minimum_write_ms) is not int or not 1000 <= minimum_write_ms <= 86400000:
+            raise DeclarationError('T-GEN','persistence','LOAD_DB requires a bounded write interval of at least 1000 ms')
+        if type(queue_capacity) is not int or not 1 <= queue_capacity <= Catalog.read().capacities['MAX_PERSIST_QUEUE']:
+            raise DeclarationError('T-WIDTH','persistence','queue capacity exceeds the Core bound')
+        if not all(lookup[r.type_name.casefold()].unit_modes for r in roots) or not any(t.config for t in types):
+            raise DeclarationError('T-GEN','persistence','LOAD_DB requires runtime Units with registered config')
+    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity)
 
 
 def unique_json_object(pairs):

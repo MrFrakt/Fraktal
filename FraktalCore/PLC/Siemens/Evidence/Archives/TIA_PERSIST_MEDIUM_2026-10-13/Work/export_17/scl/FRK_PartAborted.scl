@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_PartAborted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN
+	    RETURN;
+	END_IF;
+	#Part.Result.Verdict := 0;
+	IF #Core.Exec = 3 AND #Part.Result.ReasonCode = 0 THEN
+	    #Part.Result.ReasonCode := #Status.Diagnostic.ReasonCode;
+	END_IF;
+	"FRK_PartEvent"(AlarmLog := #AlarmLog,
+	                Reason := 2027,
+	                Uid := #Part.Uid,
+	                SourcePath := #Status.Name);
+	#Part.Present := FALSE;
+	
+END_FUNCTION
+

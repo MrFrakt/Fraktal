@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_AlarmHistoryHeaderSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.HistorySlot;
+	IF #Slot < 1 OR #Slot > 3 THEN
+	    RETURN;
+	END_IF;
+	"FRK_AlarmHistory".Rows[#Slot].SchemaVersion := 1;
+	"FRK_AlarmHistory".Rows[#Slot].Generation := "FRK_AccessNext"(Previous := "FRK_AlarmHistory".Rows[#Slot].Generation);
+	"FRK_AlarmHistory".Rows[#Slot].RingHead := #AlarmLog.RingHead;
+	"FRK_AlarmHistory".Rows[#Slot].RingUsed := #AlarmLog.RingUsed;
+	"FRK_AlarmHistory".Rows[#Slot].Truncated := #AlarmLog.Truncated;
+	"FRK_AlarmHistory".Rows[#Slot].Checksum := "FRK_AlarmHistoryHeaderCrc"(Slot := #Slot);
+	"FRK_AlarmHistory".Commissioned[#Slot] := TRUE;
+	
+END_FUNCTION
+

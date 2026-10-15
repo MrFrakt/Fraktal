@@ -1,0 +1,36 @@
+﻿FUNCTION "FRK_AccessPolicyCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Image : "FRK_AccessPolicyImage";
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+      Index : Int;
+      Size : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Work := "FRK_AccessCrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+	IF #Image.Initialized THEN
+	    #Work := "FRK_AccessCrcByte"(Previous := #Work, Value := BYTE#1);
+	ELSE
+	    #Work := "FRK_AccessCrcByte"(Previous := #Work, Value := BYTE#0);
+	END_IF;
+	#Work := "FRK_AccessCrcNumber"(Previous := #Work, Value := #Image.Generation);
+	#Size := LEN(#Image.Scope);
+	#Work := "FRK_AccessCrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+	FOR #Index := 1 TO #Size DO
+	    #Work := "FRK_AccessCrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Image.Scope[#Index]));
+	END_FOR;
+	FOR #Index := 0 TO 11 DO
+	    #Work := "FRK_AccessCrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Policy.Required[#Index]));
+	END_FOR;
+	#Work := "FRK_AccessCrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(TIME_TO_DINT(#Image.Policy.SessionTimeout)));
+	#FRK_AccessPolicyCrc := NOT #Work;
+	
+END_FUNCTION
+

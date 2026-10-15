@@ -1,0 +1,48 @@
+﻿FUNCTION "FRK_AlarmGone" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Span : UDInt;
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmGone := FALSE;
+	IF #Slot < 1 OR #Slot > 16 THEN
+	    RETURN;
+	END_IF;
+	IF #AlarmLog.Active[#Slot].State <> 1 THEN
+	    RETURN;
+	END_IF;
+	#ResultCode := RD_SYS_T(OUT => #Stamp);
+	IF #ResultCode = 0 THEN
+	    #AlarmLog.Active[#Slot].GoneAt := DTL_TO_LDT(#Stamp);
+	END_IF;
+	#AlarmLog.Active[#Slot].GoneTimeSynchronized := FALSE;
+	#Span := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ComeMs[#Slot]);
+	IF #Span > 2147483647 THEN
+	    #Span := 2147483647;
+	END_IF;
+	#AlarmLog.Active[#Slot].Duration := DINT_TO_TIME(UDINT_TO_DINT(#Span));
+	IF #AlarmLog.Active[#Slot].ResetClass = 0 THEN
+	    "FRK_AlarmClose"(AlarmLog := #AlarmLog,
+	                     Slot := #Slot);
+	ELSE
+	    #AlarmLog.Active[#Slot].State := 2;
+	    #AlarmLog.Automatic[#Slot] := FALSE;
+	END_IF;
+	#FRK_AlarmGone := TRUE;
+	
+END_FUNCTION
+

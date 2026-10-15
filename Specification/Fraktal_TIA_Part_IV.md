@@ -110,12 +110,15 @@ native desktop build directly where the OPC UA projection is licensed (Core §3.
 > per-request overhead on an S7-1200, and the web server's session and request
 > budgets — all measured by S1W.
 
-**Ladder is not a Fraktal/TIA rendition.** Core §5.5/§6.8 permit LD; this binding
-does not provide it. Sequences are SCL or S7-GRAPH, permissives and release
-conditions are SCL. The decision is the project owner's (2026-10-08), it keeps
-one less language under review (Core §5.5 "smallest language set"), and it
-avoids the generated-ladder failure class Part II and Part III record
-(constant-FALSE gates and absent boxes that compile clean).
+**Optional Ladder examples.** The owner extended the earlier SCL/GRAPH scope on
+2026-10-11 to include ST, LD and GRAPH examples. On 2026-10-12 the owner
+requested wiring GRAPH sequences and ST permissives into the demo; ST/LD twins
+remain optional examples and physical testing awaits the bench. Shared framework
+behavior remains SCL. LD
+sequence/release examples use the same declared actions and conditions as ST;
+their native SimaticML shall be generated and read back. Compiler acceptance
+alone does not prove contacts, call pins or transitions exist correctly.
+See [the press examples](../FraktalCore/PLC/Siemens/Examples/PressDemo/README.md).
 
 ### TIA §1.1 Controller families and profiles
 
@@ -467,7 +470,8 @@ State machines and ordinals port unchanged. Execution rules:
 A multi-step sequence is a **separate function block** called by its owner's
 lifecycle-only adapter, with the same `FRK_Sequence` contract (`Seq : "FRK_SeqCtx"`:
 step token, shared `RetVal`, step-scoped latches, step record) whichever language
-renders it. Two renditions are bound:
+renders it. SCL and GRAPH remain the measured runtime forms; the owner-requested
+unwired LD examples add a third rendering:
 
 1. **SCL (reference form, both families).** The Core §6.8 skeleton:
    `CASE #Seq.Step OF` where each branch owns its step's real behaviour —
@@ -488,8 +492,22 @@ renders it. Two renditions are bound:
      operands into the `TrCoil`. A condition a service needs is passed as an
      operand (`FRK_Seq_AwaitPending(..., Done := #CylA.Done, ...)` names a child only
      while it is pending). The chart is the only progression owner. `RetVal` and
-     `FRK_Seq_Advance` belong to the SCL form; one declaration renders both, so the
-     exit condition is still written once (O9).
+     `FRK_Seq_Advance` belonged to the S11 SCL prototype. In the current typed
+     example services, RetVal is shared: actions select ADVANCE/JUMP1, native
+     transitions compare it, and only SCL/LD call FRK_SeqRoute to commit an exit.
+     One declaration renders those exits (O9).
+   - **Native scan boundary and fault recovery.** The current typed adapter uses
+     `FRK_SeqGraphBegin`: GRAPH evaluates transitions before the new step actions,
+     so the preceding active scan's result survives that evaluation. The mandatory
+     `FRK_SeqStep` clears it before the current action decides. Fault, restart and
+     recovery rearm boundaries discard the result. While faulted the owner continues
+     shared command-release services and withholds the chart call, retaining the
+     failed step. Leaving ERROR rearms step-scoped command/delay/event state and
+     clears row errors; an accepted Start then follows the application's explicit
+     resume-or-restart policy (Core §6.9(d)). The generated Unit frame owns these
+     boundaries, including late kernel faults and restore quiescence, without an
+     application scheduling call. The wired press chooses whole-chain restart on
+     each accepted Start. See the [selected native recovery qualification](Siemens/Evidence/TIA_SEQUENCE_RECOVERY_2026-10-15.md).
    - GRAPH switches step and runs the new step's actions **in the same call**,
      together with the old step's `S0`. A child issued by a step is therefore
      raised one scan after entry: `S1 #Seq.Issued := FALSE`,
@@ -497,7 +515,7 @@ renders it. Two renditions are bound:
      `S0 #<child>.Execute := FALSE`. Without the delay, a child commanded by two
      consecutive steps would never see the Execute drop that Core §6.1 needs. Cost:
      one scan per issuing step compared with SCL.
-   - The Core restart edges (first scan, fresh Start policy, both abort paths) drive
+   - The Core restart edges (first scan, mode change, fresh Start policy, both abort paths) drive
      **`INIT_SQ`**. On that call the chart runs the active step's `S0` (dropping its
      child commands), returns to the initial step and runs that step's actions.
    - A GRAPH FB **cannot be a multi-instance** (refused with or without GRAPH alarm
@@ -539,6 +557,17 @@ child, the command and the wait, and no alias is stored or published.
 Settled for S7-1200 V4.7 SCL by S2 and for GRAPH FBs on S7-1500 V3.0 by S11, where
 InOut FB-instance members are read and written in actions and transitions. The call
 cost is measured in S3.
+
+**Encapsulated device actions.** New examples call the reusable module's typed
+semantic functions, such as `F_CylinderExtend`/`F_CylinderRetract`, instead of
+assigning child `Execute`, `Abort`, command ordinals or private state. The module
+API and shared sequence services own issue ownership, completion/fault adoption,
+release and the Execute-low boundary. Generated sequence frames own Begin/End
+assembly. LD captures its dispatch step once per scan so rung order cannot
+re-enter a later step after a forward transition. The process definition is the
+authority for each carried rendition; no per-language lifecycle copy is allowed
+(Core O1/O4/O9). Wiring into the complete Unit/diagnostic/sequence-view contract
+remains an integration gate; the examples are not a full Core conformance claim.
 
 The framework services that are methods on `FB_SequenceBase` in Part II become
 **FCs taking `Seq` as `InOut`**: `FRK_Seq_Step`, `FRK_Seq_Await`, `FRK_Seq_Gate`,
@@ -1018,8 +1047,9 @@ line — the run is its own evidence record.
 
 ### TIA §5.5–§5.6 Language and defensive coding
 *Binds Core §5.5, §5.6.* Framework: SCL only. Application sequences: SCL or
-S7-GRAPH (S7-1500). Permissives, release and alarm conditions: SCL. LAD/FBD are not
-Fraktal/TIA renditions (TIA §1). Defensive rules are Core §5.6 unchanged; the IEC
+S7-GRAPH (S7-1500), plus the optional unwired LD examples of TIA §1/§3.5.
+Permissives/release examples carry ST and LD; shared collection/diagnostic behavior
+stays in SCL. Defensive rules are Core §5.6 unchanged; the IEC
 check option and T-CASE make implicit conversions and missing `ELSE` compile- or
 gate-time failures.
 
@@ -1390,7 +1420,35 @@ NONE; authentication is not established.117 blocks/41 interfaces round-trip0/0;
 production114/41 compiles0/0. Authentication/full audit, alarm/state/recipe/retention,
 complete action/frontier releases and sequence/GRAPH remain open; this is not
 complete Core conformance.
-S1, S6, S10, S14, S16 not started.
+
+The subsequent [access/session slice](Siemens/Evidence/TIA_ACCESS_SESSIONS_2026-10-11.md)
+passes122 native access checks and120 current routing regressions. Generator0.6
+owns private Core-compatible salted hashes, correlated asynchronous login, root
+sessions/idle expiry and gated policy edits. The native HMI uses an actual operator
+login and its normal OPERATOR display policy.129 blocks/42 interfaces round-trip0/0;
+production125/42 compiles0/0. User/policy persistence and the full MESSAGE/alarm
+model remain PROVISIONAL; the existing trace is not full audit conformance.
+
+The subsequent [state/alarm slice](Siemens/Evidence/TIA_STATE_ALARMS_2026-10-11.md)
+passes96 native state/event checks,23 nearest-Unit/ancestor-reset checks and122
+authentication regressions. Generator0.7 publishes unconditional derived states
+only on consuming types and Core-sized active/closed event logs on Units. Native
+148/45 round-trip and production142/45 compile0/0; the authenticated generic HMI
+renders the fault and resets it. Access/Part occurrences now use AUTO_RESET events;
+History remains diagnostic fault history. Shelving, runtime project metadata,
+durable sinks, retention, full diagnostic selection and sequence integration
+remain PROVISIONAL. This does not close full Core alarm/audit conformance.
+
+The subsequent [config transaction slice](Siemens/Evidence/TIA_CONFIG_TRANSACTIONS_2026-10-11.md)
+passes120 native config checks,122 access and96 state/alarm regressions. Generator0.8
+owns editable station config/model config, keyed local-retain records and atomic
+local-model prepare/commit/abort.190 authored blocks/52 interfaces round-trip0/0;
+production183/52 compiles0/0. A separate7-check probe proves public/private retention
+across STOP/RUN and simulator power cycle. This is partial S16 evidence; named
+sets, file/load-DB media, user/policy/alarm retention and download loss boundaries
+remain PROVISIONAL. The optional line config runtime is still open.
+
+S1, S6, S10, S14 not started; S16 has the limited local-retain evidence above.
 
 ---
 
@@ -1433,7 +1491,7 @@ and verify without any trust decision (TIA §2.5, §5.4).
 
 - **Power control and the §9.8 safety/control-power profile** (owner scope decision;
   no F-CPU on the bench).
-- **Ladder renditions** of any sequence or condition (TIA §1).
+- **Complete runtime integration of the optional Ladder examples** (TIA §1/§3.5).
 - **S7-GRAPH on S7-1200** (not supported by the platform).
 - On S7-1200, until S3/S16 measure otherwise: the Line profile (Core §3.8e, §8.5.2),
   parameter sets beyond a declared small capacity, card-file persistence, the
@@ -1471,7 +1529,7 @@ evidence record on a named controller is the authority for what this binding
 | §3.10 self-description | Web API (default) / OPC UA (optional), root instance DB, attributes, mailbox | §3.10 | S1W, S7, S9 |
 | §3.11 wiring | composition FB, first-scan setup | §3.11 | S2 |
 | §3.14 extensions | `Core.Ev` flags, deferred ModeExit | §3.14 | S2 |
-| §5.5/§6.8 languages | SCL + S7-GRAPH (1500), no LD | §3.5 | S11 |
+| §5.5/§6.8 languages | SCL + S7-GRAPH (1500), optional unwired LD examples | §3.5 | S11; example compile/readback gate |
 | §5.7 testing | `FRK_Test*` + host runner + harvest | §5.7 | S5 |
 | §7.5 gates | user constants, generated engineering image | §7 | S12 |
 | §8.11/§8.12 timing, health | `FRK_Clock` from `RUNTIME`, declared exclusions | §8 | S12, S3 |
@@ -1480,3 +1538,218 @@ evidence record on a named controller is the authority for what this binding
 | §11 connectivity | gateway `WebApiSessionClient`; S7 OPC UA server optional | §11 | S1W, S8 (S1) |
 
 *End of Fraktal/TIA — Part IV (draft). Core: `Fraktal_Core_Part_I.md`.*
+
+### Measured extension, 2026-10-12: wired GRAPH/ST demo and decisions
+
+Generator0.9 supplies FB_GRAPH_PressDemoAuto/Home and ST permissives in the owning
+Unit. AUTO has the TC3 chart's nineteen steps, two recovery choices, backward
+jumps and separate concurrent contexts. Native alternative/simultaneous branches
+and comparison wiring are read back after compilation. ST/LD preserve the sixteen
+main process steps; three GRAPH-only rows express the demonstration fork/join.
+The intended N200 failure condition is JUMP1; the archived TC3 chart currently
+serializes ADVANCE there. The TC3 source is preserved.
+
+Core6.11 decisions use a private pool sized by actual roots, readonly root mirrors,
+full-value idempotence, a single raising owner, offered defaults, and automatic
+withdrawal driven by the generated Unit frame. Only the root mailbox may answer;
+START_STOP access and the live Unit permit are checked. Nested modules have no
+separate decision string allocation. This bounded prototype does not claim the
+complete Core3.13 frontier, every option-specific policy or durable audit retention.
+
+The wired demo is compiled offline. Physical I/O mapping and process acceptance
+are pending. The separate two-root simulator bench qualifies the decision service
+and existing state/config/access behavior. Current evidence is
+[GRAPH recovery and decisions](Siemens/Evidence/TIA_GRAPH_RECOVERY_DECISIONS_2026-10-12.md).
+
+
+### Measured extension, 2026-10-12: named station/model config sets
+
+Generator 0.10 accepts an optional config_sets capacity bounded by Core
+MAX_CONFIG_SETS. The LOCAL_RETAIN adapter allocates catalogs, record storage and
+private import/export work per deployed root, sized by consumed capabilities and
+Core MAX_SET_RECORDS. Typed walks reuse the same capability definitions and scalar
+parser as ordinary config writes. Complete station/model loads validate and stage
+before publishing; model loads also use the shared CHANGEOVER release and publish
+ModelId after commit. Unknown, missing, duplicate, stale, foreign or invalid
+records refuse the complete load with LastRejectScope/Key. Applied/refused loads
+raise Core configuration events rather than adopting untrusted input as a device
+fault. Children schedule no set services or publish separate set catalogs.
+
+The existing generic HMI request kinds implement save/list/load/delete and JSON
+lines export/import. Published answers are readonly and fetched on demand. The
+Core JSON codec supplies the line bound; imports join bounded mailbox pieces and
+strictly validate object shape and every field before replacing a saved set.
+Restart, session generation and intervening requests discard transfer state.
+The binding declares its CPU timestamps unsynchronized. Current-value export,
+runtime model creation, line config sets and file/database media are unavailable.
+
+Native simulator qualification and the compiled offline press application are
+recorded in [config-set evidence](Siemens/Evidence/TIA_CONFIG_SETS_2026-10-12.md).
+The press declaration opts into four station config slots and retains its wired
+GRAPH/ST composition. Physical process qualification and full-download retention
+boundaries remain separate gates.
+
+### Measured extension, 2026-10-12: private access retention
+
+Generator 0.11 adds a reference-1500 LOCAL_RETAIN prototype for the salted local
+user table and per-root access policy. This is the currently qualified adapter;
+the load-memory document binding described above remains an S16 implementation
+gate. Every table member and work buffer is excluded from the external symbol
+surface. Native export confirms Retain on the stored records and NonRetain on
+root sessions; live probes verify private reads and direct policy writes refuse.
+Core salted hash/work-factor authorities and the public ST_AccessPolicy contract
+are unchanged. Binding-local schema/CRC images encode fields canonically rather
+than copying optimized-DB padding or the TwinCAT access-image layout.
+
+Restore validates each complete root policy and the complete provider table.
+Corrupt, duplicate, out-of-range or checksum-invalid users make the provider
+unavailable; commissioned images with cleared headers are not reseeded. A damaged
+policy never restores the open default: it restricts the affected root to ADMIN
+and blocks Start until explicit ENGINEER acknowledgement, preserving that fallback
+for later gated edits. Loss uses the existing alarm and ConfigPersist surfaces.
+Accepted action-threshold and timeout edits are retained before acknowledgement.
+Trusted hashed registration changes the provider generation; managers revoke old
+sessions and fail a pending attempt from the prior table. Sessions, transported
+secrets, recipe documents and saved sets contain no retained credential grants.
+
+The two-root simulator qualification preserves owner registration, virtual
+adapter mappings and the keeper through STOP/RUN and power cycles. The wired press
+is separately compiled offline. Other media/providers, data-class policy forms,
+full-download/changed-layout retention and durable alarm storage are not established
+by [this evidence](Siemens/Evidence/TIA_ACCESS_PERSISTENCE_2026-10-12.md).
+
+### Measured extension, 2026-10-12: optional closed-event history
+
+Generator 0.12 adds a reference-1500 LOCAL_RETAIN profile selected by canonical
+Unit scopes in the composition declaration. Only selected Units allocate private
+Core-sized closed-ring images. The owning generated frame restores before new
+mailbox/access events and the shared close path retains records before callbacks;
+projects schedule no extra service. Canonical encoding derives all ST_AlarmEvent
+fields and shares Core-derived CRC primitives with the access consumer.
+
+Restore validates the complete image before publication. Schema, identity, cursor,
+event-shape and checksum failure discard the whole affected history and persist
+Truncated as incomplete-history indication. Peer histories remain independent.
+Ring order, overflow, Unicode, timestamps, qualities and monotonic closed-event
+durations survive the qualified simulator restarts; restored events do not replay
+sink callbacks. This profile deliberately stores closed events only. Active and
+WAIT_RESET alarm/control state retain the existing volatile startup behavior;
+active-latch recovery, external historian delivery, other media and full-download
+or changed-layout loss boundaries are not established by this slice. See
+[the dated history evidence](Siemens/Evidence/TIA_ALARM_HISTORY_2026-10-12.md).
+
+### Measured extension, 2026-10-12: selected manual-reset alarm recovery
+
+Generator 0.13 accepts alarm_recovery.scopes as a subset of selected closed-history
+Units. Private LOCAL_RETAIN active images preserve ACTIVE and WAIT_RESET manual
+latches; commands, step/control state, outputs and sessions remain volatile. The
+composition prepares conservative descendant readiness before any root runs, and
+owning frames restore before mailbox command acceptance. Captured faults reconcile
+against fresh module status; a gone fault waits for deliberate reset. A live explicit
+owner can reclaim its restored occurrence once without a duplicate come callback.
+
+Complete schema/identity/header/event/timing/journal validation precedes publication.
+Invalid active state fails closed with a HIGH/SYSTEM MANUAL_RESET loss occurrence;
+one gated operator reset closes its retained latch without clearing a live condition.
+The binding-owned prototype extension reason is 11001, declared/rationalized in
+Framework/Core/alarm_recovery.json, independently of released Core enum layout.
+The existing readonly alarm surface and localized description expose the cause.
+
+Duration sums controller-running observations across restart and excludes an
+unobserved outage; WAIT_RESET freezes duration. No saved monotonic epoch or
+unsynchronized wall-clock subtraction is restored. A private close journal commits
+an authorized closed occurrence once across the qualified before/after-history
+interruption points; recovery does not replay sink callbacks. File/card/external
+media, durable sink acknowledgement, arbitrary physical torn-write/power-loss and
+full-download/changed-layout behavior remain separate gates. See
+[dated recovery evidence](Siemens/Evidence/TIA_ALARM_RECOVERY_2026-10-12.md).
+
+
+### Measured extension, 2026-10-12: selected event delivery
+
+Generator 0.14 supplies an optional retained FIFO sink adapter for explicitly
+selected history-consuming Units. Only selected consumers allocate private images
+and independently validated identity anchors; readonly snapshots expose one head
+per consumer. Shared alarm services capture come and close records, with close
+capture preceding the recovery journal/history append. Projects add no scheduling
+call. A bounded queue preserves old records on overflow and declares discarded
+new records. Corrupt storage is rejected whole and annunciated in the standard
+alarm log; explicit engineering discard advances a valid identity epoch, while
+an invalid anchor cannot be reset into reused IDs.
+
+Internal operation identities ACK_EVENT_DELIVERY and DISCARD_LOST_EVENT_DELIVERY are
+binding-owned additions declared in Framework/Core/event_delivery.json. They use
+a dedicated adapter-owned metadata commit mailbox without changing released Core/HMI enums or
+record layout. Receipt authority is at least ENGINEER and the configured DATA_WRITE
+level; only an exact scoped head token/checksum is accepted. Receipt audits remain
+local and are excluded from their own outbox to prevent a feedback loop. Automated
+receipts do not refresh an operator session's idle timer.
+
+The full-table restart gate also exposed an interrupted active-alarm elapsed/CRC
+checkpoint. Private recovery image schema 2 writes an inactive timing bank and
+publishes its selector last; startup validates the committed pair. Schema 1 is
+rejected as a changed layout. Twelve consecutive STOP/RUN cycles restored all
+sixteen manual events. This correction does not establish changed-layout or
+full-download retention.
+
+The reference SQLite adapter validates complete Core records, commits before
+receipt, deduplicates the stable token, and refuses conflicting durable records.
+A reconnect reads the current head rather than replaying an old request sequence.
+It currently consumes the existing root session; independent service authentication
+and unattended deployment remain PROVISIONAL. Bounded delivery, simulated restart
+and the qualified close interruptions do not establish arbitrary physical torn
+writes, changed-layout/full-download boundaries or unlimited historian retention.
+See [dated evidence](Siemens/Evidence/TIA_EVENT_DELIVERY_2026-10-12.md).
+
+### Measured S16 mechanism, 2026-10-13: load-memory byte transfers
+
+Native READ_DBL/WRIT_DBL pass on the reference simulated CPU1516 with TIA V20
+and PLCSIM Advanced V7. Optimized Byte arrays transfer across asynchronous calls;
+the source stays stable while BUSY, and completion precedes acknowledgement.
+Ordinary banks keep independent current/load values. UNLINKED banks retain
+Optimized layout and exist only in load memory, verified through native exports,
+properties and runtime reads. Both banks survive STOP/RUN and simulated power
+cycles with exact complete-buffer CRCs. Private payload reads and readonly
+diagnostic writes are refused through the Web API.
+
+This closes the measured instruction leg of S16 at this scope. The keyed document
+medium, tickets, two-slot generations/content validation, bounded flash writes
+and consumer restore/durability integration remain PROVISIONAL. Config, saved
+sets, users and policy keep the qualified LOCAL_RETAIN profiles. Physical flash
+endurance, arbitrary torn writes and full-download/changed-layout preservation
+remain separate gates. See [S16 evidence](Siemens/Evidence/TIA_LOAD_MEMORY_2026-10-13.md).
+
+
+### Measured document adapter, 2026-10-13: generator 0.15
+
+The optional LOAD_DB declaration now connects registered station/model configuration, named-set slots, root policy and the shared private user table to consumed-size keyed documents. The unselected profile retains its existing implementation and allocates no medium. The released Core enum/layout is unchanged: controller-local retention remains its published store category, with readonly adapter metadata identifying LOAD_DB. This is the draft Siemens binding's adapter classification, not an added Core ordinal.
+
+Two optimized UNLINKED banks per key carry a versioned header, generation, key CRC, length and document CRC. Retained two-bank confirmation anchors detect newest-copy loss. A bounded FIFO and per-document buffer leases serialize asynchronous READ_DBL/WRIT_DBL operations; consumer polling advances one stage per scan and bounds CRC work. The declared global minimum write interval also applies after startup. Successful live writes precede durability; native read-back validation and anchor commit precede clearing Pending. Named-set apply uses the same configuration dirty hook.
+
+Typed consumers validate whole candidates before applying them, with configuration destinations reserved first. Users are validated before installation. Unreadable boot keeps a restore barrier and retries while device abort/cyclic hooks withdraw commands, sessions and outputs. Content/anchor rejection invokes the existing owning fallback and repair policy; users fail closed, policies restrict access, and config replacement requires ENGINEER acknowledgement. Historical RestoreLost plus RestoreAcknowledged retains the existing contract meaning.
+
+The reference fixture and separate wired press compile warning-clean. Native corruption, retry, privacy, STOP/RUN and simulated power evidence is recorded in [the document-medium report](Siemens/Evidence/TIA_PERSIST_MEDIUM_2026-10-13.md). This measurement does not qualify physical flash endurance, arbitrary torn writes, full-download/changed-layout preservation, card/external adapters, S7-1200 fit or physical press behavior.
+
+### Measured sequence view, 2026-10-13: generator 0.16
+
+Selected Units now publish the unchanged Core 3.13 definitions/cursors/history/annotation contract. Definitions travel through the config manifest; shared sequence helpers record visits and notes, and owning frames supply scan/mode boundaries and readonly mirrors. A private consumed-size pool removes the native GRAPH/root-FB compile dependency cycle. The press sub-chain uses one declared display-number offset to avoid main/parallel row collisions. Released Core enums/layout are unchanged.
+
+The native synthetic fixture passes 122 checks and the separate wired press compiles warning-clean with matching GRAPH/LAD readback. Native HMI hydration/rendering, full diagnostic walks/profiling and combined LOAD_DB boot publication remain later gates. See [dated scope/evidence](Siemens/Evidence/TIA_SEQUENCE_VIEW_2026-10-13.md).
+
+### Measured sequence diagnostics, 2026-10-14: generator 0.18
+
+Selected sequence Units now use private consumed-module snapshots and a scoped
+first-out walk. Owning frames capture after cyclic work and withdraw during
+quiescence. Shared command helpers resolve target identity, default guards use
+the longest awaited timeout, and main-line expiry publishes LOW Pending without
+faulting. HELD disarms generic stalls; unhandled faults preserve the originating
+diagnostic and mark the responsible row. Handled failures retain their recovery
+branch. Generic leases abort released busy commands. Core layouts/ordinals are
+unchanged; applications add no scheduling call.
+
+Native diagnostic/restore/view gates and the separate wired press compile/readback
+are recorded in [the diagnostic report](Siemens/Evidence/TIA_SEQUENCE_DIAGNOSTICS_2026-10-14.md).
+Profiling, complete sequence freeze/resume policy, remaining provider/line config
+and module/deployment scope remain open. Cold VM loss of the test-user document
+was detected fail-closed and repaired through trusted bench provisioning; it
+does not qualify abrupt-loss retention.

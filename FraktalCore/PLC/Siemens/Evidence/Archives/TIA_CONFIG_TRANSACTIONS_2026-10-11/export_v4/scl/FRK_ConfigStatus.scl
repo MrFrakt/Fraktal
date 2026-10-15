@@ -1,0 +1,46 @@
+﻿FUNCTION "FRK_ConfigStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Persist : "ST_ConfigPersistStatus";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Diag : "ST_Diagnostic";
+      Accepted : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex < 1 OR #RootIndex > 2 THEN
+	    RETURN;
+	END_IF;
+	#Persist.Pending := FALSE;
+	#Persist.Failed := "FRK_ConfigRuntime".Failed[#RootIndex];
+	#Persist.StoreKind := 0;
+	// Named set operations are not wired by the live retained-value provider.
+	#Persist.StorePresent := FALSE;
+	#Persist.RestoreLost := "FRK_ConfigStore".Lost[#RootIndex];
+	#Persist.RestoreAcknowledged := "FRK_ConfigStore".Acknowledged[#RootIndex];
+	#Persist.LostPath := "FRK_ConfigStore".LostPath[#RootIndex];
+	IF #Persist.RestoreLost AND NOT #Persist.RestoreAcknowledged THEN
+	    IF "FRK_ConfigRuntime".LossSlot[#RootIndex] = 0 THEN
+	        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	        #Diag.ReasonCode := 2040;
+	        #Diag.Description := WSTRING#'std.error.configRestoreLost';
+	        #Diag.SourcePath := STRING_TO_WSTRING(#Persist.LostPath);
+	        "FRK_ConfigRuntime".LossSlot[#RootIndex] := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	    END_IF;
+	ELSIF "FRK_ConfigRuntime".LossSlot[#RootIndex] > 0 THEN
+	    #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := "FRK_ConfigRuntime".LossSlot[#RootIndex]);
+	    "FRK_ConfigRuntime".LossSlot[#RootIndex] := 0;
+	END_IF;
+	
+END_FUNCTION
+

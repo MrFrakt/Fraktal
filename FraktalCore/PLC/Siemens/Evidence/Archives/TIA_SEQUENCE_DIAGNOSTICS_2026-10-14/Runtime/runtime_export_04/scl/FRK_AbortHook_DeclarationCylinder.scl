@@ -1,0 +1,14 @@
+﻿FUNCTION "FRK_AbortHook_DeclarationCylinder" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Device : "ST_DeclarationOutImm";
+   END_VAR
+
+
+BEGIN
+	
+	#Device.AbortCount := #Device.AbortCount + 1;
+	
+END_FUNCTION
+

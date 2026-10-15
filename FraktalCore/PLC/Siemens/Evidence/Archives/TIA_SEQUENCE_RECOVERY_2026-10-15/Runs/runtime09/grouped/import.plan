@@ -1,0 +1,7 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Sequence_Recovery_Runtime_20261014\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Recovery_20261014\runtime09\grouped\Framework\Core" --only "16_SequenceServices.scl" --group "Framework/Core"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Recovery_20261014\runtime09\grouped\Tests\SequenceRecovery" --only "28_RecoveryOwner.scl" --group "Tests/SequenceRecovery"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Recovery_20261014\runtime09\grouped\Tests\ConfigBench\00_System" --only "38_ConfigBenchRoutines.scl" --group "Tests/ConfigBench/00_System"
+compile --plc PLC_1
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Sequence_Recovery_20261014\runtime09\native" --scl true
+save

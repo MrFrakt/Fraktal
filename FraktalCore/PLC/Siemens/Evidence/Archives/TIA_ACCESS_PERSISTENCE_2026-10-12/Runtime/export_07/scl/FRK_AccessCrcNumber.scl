@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_AccessCrcNumber" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Previous : DWord;
+      Value : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Work : DWord;
+   END_VAR
+
+
+BEGIN
+	
+	#Work := #Previous;
+	FOR #Index := 0 TO 3 DO
+	    #Work := "FRK_AccessCrcByte"(Previous := #Work, Value := DWORD_TO_BYTE(SHR(IN := UDINT_TO_DWORD(#Value), N := INT_TO_UINT(#Index * 8))));
+	END_FOR;
+	#FRK_AccessCrcNumber := #Work;
+	
+END_FUNCTION
+

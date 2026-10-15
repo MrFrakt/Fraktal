@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_LineRole" Id="{5961075f-800e-4f4c-976e-270e21280fa7}">
+    <Declaration><![CDATA[// Core §3.8e - which copy of a line's data this controller holds.
+{attribute 'qualified_only'}
+TYPE E_LineRole :
+(
+    NONE   := 0,   // not set up
+    OWNER  := 1,   // the one authoritative, editable copy
+    MIRROR := 2    // a read-only copy applied whole from the owner
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

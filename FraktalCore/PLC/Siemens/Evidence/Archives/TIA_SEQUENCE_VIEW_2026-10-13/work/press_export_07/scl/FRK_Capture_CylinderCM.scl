@@ -1,0 +1,17 @@
+﻿FUNCTION "FRK_Capture_CylinderCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Module : "FB_CylinderCM";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_AlarmCapture"(AlarmLog := #AlarmLog,
+	                   Core := #Module.Core,
+	                   Status := #Module.Status);
+	
+END_FUNCTION
+

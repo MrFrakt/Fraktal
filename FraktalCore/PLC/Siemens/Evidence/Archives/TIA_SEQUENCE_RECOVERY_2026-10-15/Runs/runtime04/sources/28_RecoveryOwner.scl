@@ -1,0 +1,40 @@
+FUNCTION "F_TestRecovery" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; END_VAR
+VAR_IN_OUT Target : "FB_DeclarationCylinder"; Core : "FRK_Core"; Status : "ST_ModuleStatus"; END_VAR
+BEGIN
+    IF #Owner <> 1 THEN RETURN; END_IF;
+    IF "GDB_RecoveryTest".RequestSeq <> "GDB_RecoveryTest".AckSeq THEN
+        "GDB_RecoveryWork".Enabled := "GDB_RecoveryTest".Enabled;
+        "GDB_RecoveryWork".RestartOnStart := "GDB_RecoveryTest".RestartOnStart;
+        "GDB_RecoveryWork".Fault := "GDB_RecoveryTest".Fault;
+        "GDB_RecoveryWork".Finish := "GDB_RecoveryTest".Finish;
+        "GDB_RecoveryWork".Permit := "GDB_RecoveryTest".Permit;
+        "GDB_RecoveryWork".LateTimeout := "GDB_RecoveryTest".LateTimeout;
+        "GDB_RecoveryTest".AckSeq := "GDB_RecoveryTest".RequestSeq;
+    END_IF;
+    "FRK_SeqBegin"(Run := #Core.Exec = 1 AND "GDB_RecoveryWork".Enabled,
+        Reset := #Core.EvCommandStart AND "GDB_RecoveryWork".RestartOnStart,
+        OwnerIndex := #Owner, ChainIndex := 10, BranchIndex := 0, ViewOffset := 0, ViewDepth := 0,
+        Delta := T#1ms, Seq := "GDB_RecoveryWork".Seq);
+    "FRK_SeqLease"(Seq := "GDB_RecoveryWork".Seq, Lease := "GDB_RecoveryWork".Lease,
+        Execute := #Target.Execute, Abort := #Target.Abort, TargetIndex := #Target.Core.RegIndex);
+    IF NOT "GDB_RecoveryWork".Seq.Frozen THEN
+        "GDB_GRAPH_RecoveryTest"(Seq := "GDB_RecoveryWork".Seq, Target := #Target, Core := #Core, Status := #Status,
+            INIT_SQ := "GDB_RecoveryWork".Seq.Restart, OFF_SQ := NOT "GDB_RecoveryWork".Seq.Running);
+    END_IF;
+    "FRK_SeqOwnerStatus"(Seq := "GDB_RecoveryWork".Seq, Core := #Core, Status := #Status);
+    "FRK_SeqLease"(Seq := "GDB_RecoveryWork".Seq, Lease := "GDB_RecoveryWork".Lease,
+        Execute := #Target.Execute, Abort := #Target.Abort, TargetIndex := #Target.Core.RegIndex);
+    IF NOT #Target.Execute THEN "GDB_RecoveryTest".LowScans := "GDB_RecoveryTest".LowScans + 1; END_IF;
+    "GDB_RecoveryTest".Seq := "GDB_RecoveryWork".Seq;
+    "GDB_RecoveryTest".Running := "GDB_RecoveryWork".Seq.Running;
+    "GDB_RecoveryTest".Delay := "GDB_RecoveryWork".Seq.DelayElapsed;
+    "GDB_RecoveryTest".Frozen := "GDB_RecoveryWork".Seq.Frozen;
+    "GDB_RecoveryTest".ResumePending := "GDB_RecoveryWork".Seq.ResumePending;
+    IF "GDB_RecoveryWork".LateTimeout AND #Core.Exec = 1 THEN
+        #Core.TimeoutMs := 1; #Core.ActiveMs := 1;
+        "GDB_RecoveryWork".LateTimeout := FALSE;
+    END_IF;
+END_FUNCTION

@@ -1,0 +1,18 @@
+﻿FUNCTION "FRK_ConfigFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+
+BEGIN
+	
+	#Page.PageCount := DINT_TO_INT((#Cursor.Position + 16 - 1) / 16);
+	IF #Page.PageCount < 1 THEN
+	    #Page.PageCount := 1;
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,33 @@
+﻿FUNCTION "F_DeliveryBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	
+	IF "GDB_DeliveryTest".Operation = 0 THEN
+	    RETURN;
+	END_IF;
+	IF "GDB_DeliveryTest".UnicodeMode THEN
+	    "GDB_DeliveryTest".Text := WSTRING#'test.--';
+	    "GDB_DeliveryTest".Text[6] := UINT_TO_WCHAR(20013);
+	    "GDB_DeliveryTest".Text[7] := UINT_TO_WCHAR(25991);
+	END_IF;
+	"GDB_DeliveryTest".Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	"GDB_DeliveryTest".Diag.ReasonCode := "GDB_DeliveryTest".Reason;
+	"GDB_DeliveryTest".Diag.Description := "GDB_DeliveryTest".Text;
+	"GDB_DeliveryTest".Diag.SourcePath := STRING_TO_WSTRING("GDB_DeliveryTest".Scope);
+	"GDB_DeliveryTest".Diag.Severity := 2;
+	"GDB_DeliveryTest".Diag.Category := 0;
+	IF "GDB_DeliveryTest".Scope = 'StationA' THEN
+	    "F_DeliveryStimulus"(AlarmLog := "StationA".AlarmLog);
+	END_IF;
+	IF "GDB_DeliveryTest".Scope = 'StationA.Satellite' THEN
+	    "F_DeliveryStimulus"(AlarmLog := "StationA".Satellite.AlarmLog);
+	END_IF;
+	IF "GDB_DeliveryTest".Scope = 'StationB' THEN
+	    "F_DeliveryStimulus"(AlarmLog := "StationB".AlarmLog);
+	END_IF;
+	"GDB_DeliveryTest".Operation := 0;
+	
+END_FUNCTION
+

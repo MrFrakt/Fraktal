@@ -1,0 +1,398 @@
+﻿FUNCTION "F_ConfigBenchPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      StartupStamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+      SlotIndex : Int;
+      Taken : Int;
+      Accepted : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	"F_AlarmRecoveryDamage"(Startup := #Startup);
+	IF #Startup THEN
+	    "StationA".Access.Policy.Required[11] := 3;
+	    "StationB".Access.Policy.Required[11] := 3;
+	END_IF;
+	IF #Startup THEN
+	    IF NOT "FRK_AccessStorage".UsersCommissioned AND "FRK_LocalUsers".SchemaVersion = 0 AND "FRK_LocalUsers".Generation = 0 AND "FRK_LocalUsers".Checksum = DWORD#0 THEN
+	        "F_AccessBenchProvision"();
+	    END_IF;
+	    "StationA".Access.Policy.Required[2] := 1;
+	    "StationA".Access.Policy.Required[4] := 1;
+	    "StationA".Access.Policy.Required[5] := 1;
+	    "StationA".Access.Policy.Required[8] := 4;
+	    "StationA".Access.Policy.SessionTimeout := T#0ms;
+	    "StationB".Access.Policy.Required[2] := 1;
+	    "StationB".Access.Policy.Required[4] := 1;
+	    "StationB".Access.Policy.Required[5] := 1;
+	    "StationB".Access.Policy.Required[8] := 4;
+	    "StationB".Access.Policy.SessionTimeout := T#0ms;
+	    "GDB_AccessTest".HashData[0] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[1] := BYTE#16#01;
+	    "GDB_AccessTest".HashData[2] := BYTE#16#02;
+	    "GDB_AccessTest".HashData[3] := BYTE#16#03;
+	    "GDB_AccessTest".HashData[4] := BYTE#16#04;
+	    "GDB_AccessTest".HashData[5] := BYTE#16#05;
+	    "GDB_AccessTest".HashData[6] := BYTE#16#06;
+	    "GDB_AccessTest".HashData[7] := BYTE#16#07;
+	    "GDB_AccessTest".HashData[8] := BYTE#16#08;
+	    "GDB_AccessTest".HashData[9] := BYTE#16#09;
+	    "GDB_AccessTest".HashData[10] := BYTE#16#0A;
+	    "GDB_AccessTest".HashData[11] := BYTE#16#0B;
+	    "GDB_AccessTest".HashData[12] := BYTE#16#0C;
+	    "GDB_AccessTest".HashData[13] := BYTE#16#0D;
+	    "GDB_AccessTest".HashData[14] := BYTE#16#0E;
+	    "GDB_AccessTest".HashData[15] := BYTE#16#0F;
+	    "GDB_AccessTest".HashData[16] := BYTE#16#10;
+	    "GDB_AccessTest".HashData[17] := BYTE#16#11;
+	    "GDB_AccessTest".HashData[18] := BYTE#16#12;
+	    "GDB_AccessTest".HashData[19] := BYTE#16#13;
+	    "GDB_AccessTest".HashData[20] := BYTE#16#14;
+	    "GDB_AccessTest".HashData[21] := BYTE#16#15;
+	    "GDB_AccessTest".HashData[22] := BYTE#16#16;
+	    "GDB_AccessTest".HashData[23] := BYTE#16#17;
+	    "GDB_AccessTest".HashData[24] := BYTE#16#18;
+	    "GDB_AccessTest".HashData[25] := BYTE#16#19;
+	    "GDB_AccessTest".HashData[26] := BYTE#16#1A;
+	    "GDB_AccessTest".HashData[27] := BYTE#16#1B;
+	    "GDB_AccessTest".HashData[28] := BYTE#16#1C;
+	    "GDB_AccessTest".HashData[29] := BYTE#16#1D;
+	    "GDB_AccessTest".HashData[30] := BYTE#16#1E;
+	    "GDB_AccessTest".HashData[31] := BYTE#16#1F;
+	    "GDB_AccessTest".HashData[32] := BYTE#16#20;
+	    "GDB_AccessTest".HashData[33] := BYTE#16#21;
+	    "GDB_AccessTest".HashData[34] := BYTE#16#22;
+	    "GDB_AccessTest".HashData[35] := BYTE#16#23;
+	    "GDB_AccessTest".HashData[36] := BYTE#16#24;
+	    "GDB_AccessTest".HashData[37] := BYTE#16#25;
+	    "GDB_AccessTest".HashData[38] := BYTE#16#26;
+	    "GDB_AccessTest".HashData[39] := BYTE#16#27;
+	    "GDB_AccessTest".HashData[40] := BYTE#16#28;
+	    "GDB_AccessTest".HashData[41] := BYTE#16#29;
+	    "GDB_AccessTest".HashData[42] := BYTE#16#2A;
+	    "GDB_AccessTest".HashData[43] := BYTE#16#2B;
+	    "GDB_AccessTest".HashData[44] := BYTE#16#2C;
+	    "GDB_AccessTest".HashData[45] := BYTE#16#2D;
+	    "GDB_AccessTest".HashData[46] := BYTE#16#2E;
+	    "GDB_AccessTest".HashData[47] := BYTE#16#2F;
+	    "GDB_AccessTest".HashOk := "FRK_Sha256Pin"(Data := "GDB_AccessTest".HashData, Size := 0, Digest := "GDB_AccessTest".Hash0);
+	    "GDB_AccessTest".HashData[0] := BYTE#16#61;
+	    "GDB_AccessTest".HashData[1] := BYTE#16#62;
+	    "GDB_AccessTest".HashData[2] := BYTE#16#63;
+	    "GDB_AccessTest".HashData[3] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[4] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[5] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[6] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[7] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[8] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[9] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[10] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[11] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[12] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[13] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[14] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[15] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[16] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[17] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[18] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[19] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[20] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[21] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[22] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[23] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[24] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[25] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[26] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[27] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[28] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[29] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[30] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[31] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[32] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[33] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[34] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[35] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[36] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[37] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[38] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[39] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[40] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[41] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[42] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[43] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[44] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[45] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[46] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[47] := BYTE#16#00;
+	    "GDB_AccessTest".HashOk := "FRK_Sha256Pin"(Data := "GDB_AccessTest".HashData, Size := 3, Digest := "GDB_AccessTest".Hash1);
+	    "GDB_AccessTest".HashData[0] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[1] := BYTE#16#01;
+	    "GDB_AccessTest".HashData[2] := BYTE#16#02;
+	    "GDB_AccessTest".HashData[3] := BYTE#16#03;
+	    "GDB_AccessTest".HashData[4] := BYTE#16#04;
+	    "GDB_AccessTest".HashData[5] := BYTE#16#05;
+	    "GDB_AccessTest".HashData[6] := BYTE#16#06;
+	    "GDB_AccessTest".HashData[7] := BYTE#16#07;
+	    "GDB_AccessTest".HashData[8] := BYTE#16#08;
+	    "GDB_AccessTest".HashData[9] := BYTE#16#09;
+	    "GDB_AccessTest".HashData[10] := BYTE#16#0A;
+	    "GDB_AccessTest".HashData[11] := BYTE#16#0B;
+	    "GDB_AccessTest".HashData[12] := BYTE#16#0C;
+	    "GDB_AccessTest".HashData[13] := BYTE#16#0D;
+	    "GDB_AccessTest".HashData[14] := BYTE#16#0E;
+	    "GDB_AccessTest".HashData[15] := BYTE#16#0F;
+	    "GDB_AccessTest".HashData[16] := BYTE#16#10;
+	    "GDB_AccessTest".HashData[17] := BYTE#16#11;
+	    "GDB_AccessTest".HashData[18] := BYTE#16#12;
+	    "GDB_AccessTest".HashData[19] := BYTE#16#13;
+	    "GDB_AccessTest".HashData[20] := BYTE#16#14;
+	    "GDB_AccessTest".HashData[21] := BYTE#16#15;
+	    "GDB_AccessTest".HashData[22] := BYTE#16#16;
+	    "GDB_AccessTest".HashData[23] := BYTE#16#17;
+	    "GDB_AccessTest".HashData[24] := BYTE#16#18;
+	    "GDB_AccessTest".HashData[25] := BYTE#16#19;
+	    "GDB_AccessTest".HashData[26] := BYTE#16#1A;
+	    "GDB_AccessTest".HashData[27] := BYTE#16#1B;
+	    "GDB_AccessTest".HashData[28] := BYTE#16#1C;
+	    "GDB_AccessTest".HashData[29] := BYTE#16#1D;
+	    "GDB_AccessTest".HashData[30] := BYTE#16#1E;
+	    "GDB_AccessTest".HashData[31] := BYTE#16#1F;
+	    "GDB_AccessTest".HashData[32] := BYTE#16#20;
+	    "GDB_AccessTest".HashData[33] := BYTE#16#21;
+	    "GDB_AccessTest".HashData[34] := BYTE#16#22;
+	    "GDB_AccessTest".HashData[35] := BYTE#16#23;
+	    "GDB_AccessTest".HashData[36] := BYTE#16#24;
+	    "GDB_AccessTest".HashData[37] := BYTE#16#25;
+	    "GDB_AccessTest".HashData[38] := BYTE#16#26;
+	    "GDB_AccessTest".HashData[39] := BYTE#16#27;
+	    "GDB_AccessTest".HashData[40] := BYTE#16#28;
+	    "GDB_AccessTest".HashData[41] := BYTE#16#29;
+	    "GDB_AccessTest".HashData[42] := BYTE#16#2A;
+	    "GDB_AccessTest".HashData[43] := BYTE#16#2B;
+	    "GDB_AccessTest".HashData[44] := BYTE#16#2C;
+	    "GDB_AccessTest".HashData[45] := BYTE#16#2D;
+	    "GDB_AccessTest".HashData[46] := BYTE#16#2E;
+	    "GDB_AccessTest".HashData[47] := BYTE#16#2F;
+	    "GDB_AccessTest".HashOk := "FRK_Sha256Pin"(Data := "GDB_AccessTest".HashData, Size := 32, Digest := "GDB_AccessTest".Hash2);
+	    "GDB_AccessTest".HashData[0] := BYTE#16#00;
+	    "GDB_AccessTest".HashData[1] := BYTE#16#01;
+	    "GDB_AccessTest".HashData[2] := BYTE#16#02;
+	    "GDB_AccessTest".HashData[3] := BYTE#16#03;
+	    "GDB_AccessTest".HashData[4] := BYTE#16#04;
+	    "GDB_AccessTest".HashData[5] := BYTE#16#05;
+	    "GDB_AccessTest".HashData[6] := BYTE#16#06;
+	    "GDB_AccessTest".HashData[7] := BYTE#16#07;
+	    "GDB_AccessTest".HashData[8] := BYTE#16#08;
+	    "GDB_AccessTest".HashData[9] := BYTE#16#09;
+	    "GDB_AccessTest".HashData[10] := BYTE#16#0A;
+	    "GDB_AccessTest".HashData[11] := BYTE#16#0B;
+	    "GDB_AccessTest".HashData[12] := BYTE#16#0C;
+	    "GDB_AccessTest".HashData[13] := BYTE#16#0D;
+	    "GDB_AccessTest".HashData[14] := BYTE#16#0E;
+	    "GDB_AccessTest".HashData[15] := BYTE#16#0F;
+	    "GDB_AccessTest".HashData[16] := BYTE#16#10;
+	    "GDB_AccessTest".HashData[17] := BYTE#16#11;
+	    "GDB_AccessTest".HashData[18] := BYTE#16#12;
+	    "GDB_AccessTest".HashData[19] := BYTE#16#13;
+	    "GDB_AccessTest".HashData[20] := BYTE#16#14;
+	    "GDB_AccessTest".HashData[21] := BYTE#16#15;
+	    "GDB_AccessTest".HashData[22] := BYTE#16#16;
+	    "GDB_AccessTest".HashData[23] := BYTE#16#17;
+	    "GDB_AccessTest".HashData[24] := BYTE#16#18;
+	    "GDB_AccessTest".HashData[25] := BYTE#16#19;
+	    "GDB_AccessTest".HashData[26] := BYTE#16#1A;
+	    "GDB_AccessTest".HashData[27] := BYTE#16#1B;
+	    "GDB_AccessTest".HashData[28] := BYTE#16#1C;
+	    "GDB_AccessTest".HashData[29] := BYTE#16#1D;
+	    "GDB_AccessTest".HashData[30] := BYTE#16#1E;
+	    "GDB_AccessTest".HashData[31] := BYTE#16#1F;
+	    "GDB_AccessTest".HashData[32] := BYTE#16#20;
+	    "GDB_AccessTest".HashData[33] := BYTE#16#21;
+	    "GDB_AccessTest".HashData[34] := BYTE#16#22;
+	    "GDB_AccessTest".HashData[35] := BYTE#16#23;
+	    "GDB_AccessTest".HashData[36] := BYTE#16#24;
+	    "GDB_AccessTest".HashData[37] := BYTE#16#25;
+	    "GDB_AccessTest".HashData[38] := BYTE#16#26;
+	    "GDB_AccessTest".HashData[39] := BYTE#16#27;
+	    "GDB_AccessTest".HashData[40] := BYTE#16#28;
+	    "GDB_AccessTest".HashData[41] := BYTE#16#29;
+	    "GDB_AccessTest".HashData[42] := BYTE#16#2A;
+	    "GDB_AccessTest".HashData[43] := BYTE#16#2B;
+	    "GDB_AccessTest".HashData[44] := BYTE#16#2C;
+	    "GDB_AccessTest".HashData[45] := BYTE#16#2D;
+	    "GDB_AccessTest".HashData[46] := BYTE#16#2E;
+	    "GDB_AccessTest".HashData[47] := BYTE#16#2F;
+	    "GDB_AccessTest".HashOk := "FRK_Sha256Pin"(Data := "GDB_AccessTest".HashData, Size := 48, Digest := "GDB_AccessTest".Hash3);
+	    "GDB_RoutingTest".PermitOne := TRUE;
+	    "GDB_RoutingTest".PermitTwo := TRUE;
+	    "GDB_RoutingTest".RootManualPermit := TRUE;
+	    "GDB_RoutingTest".NestedFinish := FALSE;
+	    "GDB_RoutingTest".InnerFinish := FALSE;
+	    "GDB_RoutingTest".NestedAccessLock := FALSE;
+	    #ResultCode := RD_SYS_T(OUT => #StartupStamp);
+	    IF #ResultCode = 0 THEN
+	        "GDB_UnitTest".BootStamp := DTL_TO_LDT(#StartupStamp);
+	    END_IF;
+	    "GDB_UnitTest".Restarts := "GDB_UnitTest".Restarts + 1;
+	    "GDB_UnitTest".FinishCycle := FALSE;
+	    "GDB_UnitTest".Permit := TRUE;
+	    "GDB_UnitTest".FaultRoot := FALSE;
+	    "GDB_UnitTest".ExitHold := FALSE;
+	    "GDB_UnitTest".IssueChild := FALSE;
+	    "GDB_UnitTest".LockStart := FALSE;
+	    "GDB_UnitTest".ChildCommand := 2;
+	    "GDB_UnitTest".Verdict := 1;
+	    "GDB_UnitTest".Reason := 2003;
+	    "GDB_UnitTest".CarrierControl := 0;
+	    "FRK_UnitSetLocalCarrier"(Unit := "StationA".Unit,
+	                              Index := 1);
+	END_IF;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.Finish := "GDB_UnitTest".FinishCycle;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.Permit := "GDB_UnitTest".Permit;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.ExitHold := "GDB_UnitTest".ExitHold;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.BackgroundFault := "GDB_UnitTest".FaultRoot;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.Verdict := "GDB_UnitTest".Verdict;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.Diag.ReasonCode := "GDB_UnitTest".Reason;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.Diag.Description := WSTRING#'test.start.permit';
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.Diag.SourcePath := WSTRING#'StationA.Cell.Clamp';
+	IF "GDB_UnitTest".IssueChild THEN
+	    "StationA".Cell.Clamp.Command := "GDB_UnitTest".ChildCommand;
+	    "StationA".Cell.Clamp.Execute := TRUE;
+	    "GDB_UnitTest".IssueChild := FALSE;
+	END_IF;
+	CASE "GDB_UnitTest".CarrierControl OF
+	    1:
+	        "FRK_UnitSetLocalCarrier"(Unit := "StationA".Unit,
+	                                  Index := 1);
+	    2:
+	        "FRK_Carriers".Slots[1].Enabled := FALSE;
+	    3:
+	        "FRK_Carriers".Slots[1].Context.Uid := 'other';
+	    ELSE
+	        "GDB_UnitTest".CarrierControl := 0;
+	END_CASE;
+	"GDB_UnitTest".CarrierControl := 0;
+	"GDB_FraktalHal".Data.StationA.Cell.Gate.Permit := "GDB_RoutingTest".PermitOne;
+	IF "GDB_RoutingTest".PermitTwo THEN
+	    "GDB_FraktalHal".Data.StationA.Cell.Gate.Sample := 0;
+	ELSE
+	    "GDB_FraktalHal".Data.StationA.Cell.Gate.Sample := 1;
+	END_IF;
+	"GDB_FraktalHal".Data.StationA.Cell.Gate.Diag.ReasonCode := 2002;
+	"GDB_FraktalHal".Data.StationA.Cell.Gate.Diag.Description := WSTRING#'test.manual.first';
+	"GDB_FraktalHal".Data.StationA.Cell.Gate.LaterDiag.ReasonCode := 2003;
+	"GDB_FraktalHal".Data.StationA.Cell.Gate.LaterDiag.Description := WSTRING#'test.manual.second';
+	"GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Permit := "GDB_RoutingTest".RootManualPermit;
+	"GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Diag.SourcePath := WSTRING#'StationA.Satellite.Cell.Clamp';
+	"GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Diag.Description := WSTRING#'test.nested.permit';
+	"GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Diag.ReasonCode := 2002;
+	"GDB_FraktalHal".Data.StationA.Satellite.Inner.Cell.Clamp.Permit := TRUE;
+	"GDB_FraktalHal".Data.StationA.Satellite.Cell.Clamp.Finish := "GDB_RoutingTest".NestedFinish;
+	"GDB_FraktalHal".Data.StationA.Satellite.Inner.Cell.Clamp.Finish := "GDB_RoutingTest".InnerFinish;
+	IF "GDB_RoutingTest".NestedAccessLock THEN
+	    "StationA".Satellite.Access.Policy.Required[5] := 4;
+	ELSE
+	    "StationA".Satellite.Access.Policy.Required[5] := 0;
+	END_IF;
+	IF "GDB_RoutingTest".LocalPulse THEN
+	    "GDB_RoutingTest".LocalRequest.Kind := "GDB_RoutingTest".LocalKind;
+	    "GDB_RoutingTest".LocalRequest.IntValue := "GDB_RoutingTest".LocalValue;
+	    "FRK_UnitOperation"(Core := "StationA".Satellite.Core,
+	                        Unit := "StationA".Satellite.Unit,
+	                        Status := "StationA".Satellite.Status,
+	                        Policy := "StationA".Satellite.ModePolicy,
+	                        Access := "StationA".Satellite.Access,
+	                        Supported := "StationA".Satellite.SupportedModesPublished,
+	                        Request := "GDB_RoutingTest".LocalRequest,
+	                        Response := "FRK_UnitScratch".Response,
+	                        Trusted := FALSE);
+	    "GDB_RoutingTest".LocalAccepted := "FRK_UnitScratch".Response.Accepted;
+	    "GDB_RoutingTest".LocalFirstKind := -1;
+	    IF "FRK_UnitScratch".Response.Report.Count > 0 THEN
+	        "GDB_RoutingTest".LocalFirstKind := "FRK_UnitScratch".Response.Report.Reasons[1].Kind;
+	    END_IF;
+	    "GDB_RoutingTest".LocalPulse := FALSE;
+	END_IF;
+	"StationA".Access.ProviderEnabled := NOT "GDB_AccessTest".ProviderOff;
+	"StationB".Access.ProviderEnabled := NOT "GDB_AccessTest".ProviderOff;
+	"StationA".AlarmLog.SinkEnabled := TRUE;
+	"StationB".AlarmLog.SinkEnabled := TRUE;
+	"GDB_FraktalHal".Data.StationA.Cell.Clamp.Sample := "GDB_StateAlarmTest".Position;
+	IF "GDB_StateAlarmTest".ClearLog THEN
+	    "FRK_AlarmBegin"(AlarmLog := "StationA".AlarmLog,
+	                     Startup := TRUE);
+	    "GDB_StateAlarmTest".SinkCome := 0;
+	    "GDB_StateAlarmTest".SinkClose := 0;
+	    "GDB_StateAlarmTest".ClearLog := FALSE;
+	END_IF;
+	IF "GDB_StateAlarmTest".RaisePulse THEN
+	    "GDB_StateAlarmTest".Slot := "FRK_AlarmRaise"(AlarmLog := "StationA".AlarmLog, Diag := "GDB_StateAlarmTest".Diag, ResetClass := "GDB_StateAlarmTest".ResetClass);
+	    "GDB_StateAlarmTest".RaisePulse := FALSE;
+	END_IF;
+	IF "GDB_StateAlarmTest".GonePulse THEN
+	    "GDB_StateAlarmTest".GoneAccepted := "FRK_AlarmGone"(AlarmLog := "StationA".AlarmLog, Slot := "GDB_StateAlarmTest".Slot);
+	    "GDB_StateAlarmTest".GonePulse := FALSE;
+	END_IF;
+	IF "GDB_StateAlarmTest".FillPulse THEN
+	    FOR #SlotIndex := 1 TO "GDB_StateAlarmTest".FillCount DO
+	        #Taken := "FRK_AlarmRaise"(AlarmLog := "StationA".AlarmLog, Diag := "GDB_StateAlarmTest".Diag, ResetClass := "GDB_StateAlarmTest".ResetClass);
+	        IF "GDB_StateAlarmTest".ResetClass = 0 THEN
+	            #Accepted := "FRK_AlarmGone"(AlarmLog := "StationA".AlarmLog, Slot := #Taken);
+	        END_IF;
+	    END_FOR;
+	    "GDB_StateAlarmTest".FillPulse := FALSE;
+	END_IF;
+	IF "GDB_StateAlarmTest".CauseLive THEN
+	    IF "GDB_StateAlarmTest".CauseSlot = 0 THEN
+	        "GDB_StateAlarmTest".CauseSlot := "FRK_AlarmRaise"(AlarmLog := "StationA".AlarmLog, Diag := "GDB_StateAlarmTest".Diag, ResetClass := 1);
+	    ELSIF "StationA".AlarmLog.Active["GDB_StateAlarmTest".CauseSlot].State = 0 THEN
+	        "GDB_StateAlarmTest".CauseSlot := "FRK_AlarmRaise"(AlarmLog := "StationA".AlarmLog, Diag := "GDB_StateAlarmTest".Diag, ResetClass := 1);
+	    END_IF;
+	ELSIF "GDB_StateAlarmTest".CauseSlot > 0 THEN
+	    #Accepted := "FRK_AlarmGone"(AlarmLog := "StationA".AlarmLog, Slot := "GDB_StateAlarmTest".CauseSlot);
+	    "GDB_StateAlarmTest".CauseSlot := 0;
+	END_IF;
+	"FRK_StateSweep"(Flags := "GDB_StateAlarmTest".StandaloneFlags,
+	                 Count := "GDB_StateAlarmTest".StandaloneCount,
+	                 Touched := "GDB_StateAlarmTest".Touched,
+	                 Startup := #Startup);
+	IF "GDB_StateAlarmTest".PublishState THEN
+	    "GDB_StateAlarmTest".StandaloneReturn := "FRK_State"(Idx := "GDB_StateAlarmTest".StateIndex, Key := 'project.state.atHome', Ok := "GDB_StateAlarmTest".StateValue, Flags := "GDB_StateAlarmTest".StandaloneFlags, Count := "GDB_StateAlarmTest".StandaloneCount, Touched := "GDB_StateAlarmTest".Touched);
+	END_IF;
+	"FRK_ConfigRuntime".Unavailable := "GDB_ConfigTest".Unavailable;
+	IF "GDB_ConfigTest".BlockRestore THEN
+	    "StationA".ConfigPersist.RestorePolicy := 1;
+	ELSE
+	    "StationA".ConfigPersist.RestorePolicy := 0;
+	END_IF;
+	IF "GDB_ConfigTest".CorruptPulse THEN
+	    "GDB_ConfigTest".CorruptSlot := "FRK_ConfigFind"(Scope := "GDB_ConfigTest".CorruptScope, Key := "GDB_ConfigTest".CorruptKey, ModelCode := "GDB_ConfigTest".CorruptModel);
+	    IF "GDB_ConfigTest".CorruptSlot > 0 THEN
+	        "FRK_ConfigStore".Rows["GDB_ConfigTest".CorruptSlot].SchemaVersion := "GDB_ConfigTest".CorruptSchema;
+	        "FRK_ConfigStore".Rows["GDB_ConfigTest".CorruptSlot].Record.ValueText := "GDB_ConfigTest".CorruptText;
+	    END_IF;
+	    "GDB_ConfigTest".CorruptPulse := FALSE;
+	END_IF;
+	"StationA".Cell.Clamp.ParCfg.Timeout := T#30s;
+	"StationA".Cell.Gate.ParCfg.Timeout := T#45s;
+	IF "GDB_SequenceDiagnosticTest".Enabled THEN
+	    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Diag := "GDB_SequenceDiagnosticTest".Diagnostic;
+	    "GDB_FraktalHal".Data.StationA.Cell.Clamp.LaterDiag := "GDB_SequenceDiagnosticTest".LaterDiagnostic;
+	    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Permit := "GDB_SequenceDiagnosticTest".Permit;
+	    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Finish := "GDB_SequenceDiagnosticTest".Finish;
+	END_IF;
+	IF "GDB_RecoveryWork".Enabled THEN
+	    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Permit := "GDB_RecoveryWork".Permit;
+	    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Finish := "GDB_RecoveryWork".Finish;
+	END_IF;
+	
+END_FUNCTION
+

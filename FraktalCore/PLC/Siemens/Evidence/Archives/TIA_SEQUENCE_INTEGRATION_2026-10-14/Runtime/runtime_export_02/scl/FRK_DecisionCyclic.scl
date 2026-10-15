@@ -1,0 +1,69 @@
+﻿FUNCTION "FRK_DecisionCyclic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Busy : Bool;
+      Reset : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Elapsed : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Owner < 1 OR #Owner > "FRK_Registry".Count THEN
+	    RETURN;
+	END_IF;
+	// Only the root resolves/withdraws its slot; an idle nested Unit cannot
+	// cancel a root's running decision.
+	IF "FRK_Registry".Rows[#Owner].Parent <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+	IF #Slot = 0 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'' THEN
+	    RETURN;
+	END_IF;
+	IF #Reset OR NOT #Busy THEN
+	    "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                        Key := WSTRING#'std.audit.decisionWithdrawn',
+	                        SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath,
+	                        Option := 0);
+	    "FRK_DecisionClear"(Slot := "FRK_Decisions".Slots[#Slot]);
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Answer <> 0 THEN
+	    IF NOT "FRK_Decisions".Slots[#Slot].ResolutionLogged THEN
+	        "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                            Key := WSTRING#'std.audit.decisionOperatorResolved',
+	                            SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath,
+	                            Option := "FRK_Decisions".Slots[#Slot].Answer);
+	        "FRK_Decisions".Slots[#Slot].ResolutionLogged := TRUE;
+	    END_IF;
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Request.Timeout <= T#0ms THEN
+	    RETURN;
+	END_IF;
+	#Elapsed := "FRK_Clock".NowMs - "FRK_Decisions".Slots[#Slot].AskedAt;
+	IF #Elapsed >= DINT_TO_UDINT(TIME_TO_DINT("FRK_Decisions".Slots[#Slot].Request.Timeout)) THEN
+	    "FRK_Decisions".Slots[#Slot].Answer := "FRK_Decisions".Slots[#Slot].Request.Default;
+	    "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                        Key := WSTRING#'std.audit.decisionTimeoutResolved',
+	                        SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath,
+	                        Option := "FRK_Decisions".Slots[#Slot].Answer);
+	    "FRK_Decisions".Slots[#Slot].ResolutionLogged := TRUE;
+	END_IF;
+	
+END_FUNCTION
+

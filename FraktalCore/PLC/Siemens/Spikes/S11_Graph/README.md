@@ -3,7 +3,7 @@
 Part IV §3.5 / §12 S11: the S2 AUTO chain as an S7-GRAPH FB, **generated** from a
 declaration, run on S7-PLCSIM Advanced. Its step trace must match the SCL
 rendition's (`../S2_Shape/40_AutoSeq.scl`). Result 2026-10-09: 19/19, see
-[`TIA_S11_GRAPH_PLCSIM_2026-10-09.md`](../../../../../Specification/Siemens/Evidence/TIA_S11_GRAPH_PLCSIM_2026-10-09.md).
+[`TIA_S11_GRAPH_PLCSIM_2026-10-09.md`](../../../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S11_GRAPH_PLCSIM_2026-10-09.md).
 
 Continuation: [`TIA_S11_SEMANTICS_2026-10-09.md`](../../../../../Specification/Siemens/Evidence/TIA_S11_SEMANTICS_2026-10-09.md)
 records 28/28 after download and a direct STOP→RUN. `Semantics/make_charts.py`

@@ -1,0 +1,19 @@
+﻿FUNCTION "FRK_AlarmNotify" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core 8.3: one owning active list / closed ring, with optional event callback.
+   VAR_INPUT 
+      Ev : "ST_AlarmEvent";
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	RETURN; // No event sink supplied by the composition declaration.
+	
+END_FUNCTION
+

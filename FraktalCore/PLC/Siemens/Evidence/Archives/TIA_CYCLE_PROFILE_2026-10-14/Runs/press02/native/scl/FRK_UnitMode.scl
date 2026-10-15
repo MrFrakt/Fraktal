@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_UnitMode" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Unit.ModePending THEN
+	    IF #Core.Exec = 1 THEN
+	        #Core.EvModeExit := TRUE;
+	        #Core.HookResult := 0;
+	    ELSIF #Core.Exec = 0 AND NOT #Unit.Clearing THEN
+	        #Unit.Mode := #Unit.RequestedMode;
+	        #Unit.ModePending := FALSE;
+	        #Unit.ExitFirst := FALSE;
+	        #Core.EvModeChanged := TRUE;
+	    ELSE
+	        #Unit.RunReq := FALSE;
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_DiagBelow" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Index : DInt;
+      Owner : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Parent : DInt;
+      Depth : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DiagBelow := FALSE;
+	IF "FRK_Registry".Fault OR #Index < 1 OR #Index > "FRK_Registry".Count
+	    OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > 32 THEN
+	    RETURN;
+	END_IF;
+	#Parent := #Index;
+	FOR #Depth := 1 TO 32 DO
+	    IF #Parent = #Owner THEN
+	        #FRK_DiagBelow := TRUE;
+	        RETURN;
+	    END_IF;
+	    IF #Parent < 1 OR #Parent > "FRK_Registry".Count THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_Registry".Rows[#Parent].Valid THEN
+	        RETURN;
+	    END_IF;
+	    #Parent := "FRK_Registry".Rows[#Parent].Parent;
+	END_FOR;
+	
+END_FUNCTION
+

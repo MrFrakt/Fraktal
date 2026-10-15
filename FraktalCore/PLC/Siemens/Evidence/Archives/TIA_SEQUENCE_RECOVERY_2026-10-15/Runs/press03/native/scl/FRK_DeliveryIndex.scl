@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_DeliveryIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Optional Core 8.3 sink adapter. FIFO ownership is private; delivery receipts
+// use the existing root commit mailbox and never modify alarm/control state.
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DeliveryIndex := 0;
+	IF #Scope = 'PressDemo' THEN
+	    #FRK_DeliveryIndex := 1;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

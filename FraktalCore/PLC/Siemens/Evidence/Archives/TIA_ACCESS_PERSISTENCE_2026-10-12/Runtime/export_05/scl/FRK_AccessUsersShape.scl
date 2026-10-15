@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_AccessUsersShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Slot : Int;
+      Other : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AccessUsersShape := FALSE;
+	IF "FRK_LocalUsers".Count < 0 OR "FRK_LocalUsers".Count > 16 THEN
+	    RETURN;
+	END_IF;
+	FOR #Slot := 1 TO DINT_TO_INT("FRK_LocalUsers".Count) DO
+	    IF "FRK_LocalUsers".Rows[#Slot].User = '' OR "FRK_LocalUsers".Rows[#Slot].Level < 1 OR "FRK_LocalUsers".Rows[#Slot].Level > 4 THEN
+	        RETURN;
+	    END_IF;
+	    FOR #Other := 1 TO #Slot - 1 DO
+	        IF "FRK_LocalUsers".Rows[#Slot].User = "FRK_LocalUsers".Rows[#Other].User THEN
+	            RETURN;
+	        END_IF;
+	    END_FOR;
+	END_FOR;
+	#FRK_AccessUsersShape := TRUE;
+	
+END_FUNCTION
+

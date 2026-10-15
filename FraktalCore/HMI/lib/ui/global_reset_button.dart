@@ -22,9 +22,9 @@ import 'app_theme.dart';
 /// TRUE when this root has something a reset could actually clear: a blocking
 /// manual-reset event on its log, or a latched fault anywhere in its subtree.
 bool rootNeedsReset(ModuleNode root) {
-  if (root.blocking) return true;
-  bool faulted(ModuleNode n) => n.faultActive || n.children.any(faulted);
-  return faulted(root);
+  bool latched(ModuleNode n) =>
+      n.blocking || n.faultActive || n.children.any(latched);
+  return latched(root);
 }
 
 /// A circled-checkmark app-bar action. Armed (error-tinted, with a count badge)

@@ -1,0 +1,22 @@
+﻿FUNCTION "F_PressDemoReset" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Project policy only. Lifecycle, ownership, waits, messages and once-per-visit
+// bookkeeping stay in Core; GRAPH actions and the ST/LD twins call these FCs.
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Cycle : "ST_PressDemoCycle";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Seq.Restart THEN
+	    #Cycle.PartInMachine := FALSE;
+	    #Cycle.PartDispositioned := FALSE;
+	    #Cycle.CycleCompleted := FALSE;
+	    #Cycle.FailureReason := 0;
+	END_IF;
+	
+END_FUNCTION
+

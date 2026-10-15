@@ -1,0 +1,63 @@
+// Deliberate engineering-only stimuli. Never generated into a station.
+FUNCTION "F_AccessPersistenceBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Accepted : Bool;
+    Crc : DWord;
+    Vector : String[9];
+END_VAR
+BEGIN
+    IF #Startup THEN
+        "GDB_AccessPersistTest".StartupCount := "GDB_AccessPersistTest".StartupCount + 1;
+        #Vector := '123456789'; #Crc := DWORD#16#FFFFFFFF;
+        FOR #Index := 1 TO 9 DO #Crc := "FRK_AccessCrcByte"(Previous := #Crc, Value := CHAR_TO_BYTE(#Vector[#Index])); END_FOR;
+        "GDB_AccessPersistTest".CrcWitness := NOT #Crc;
+    END_IF;
+    IF "GDB_AccessPersistTest".RotateOnLogin AND "StationA".Access.LoginBusy THEN
+        "GDB_AccessPersistTest".Operation := 1;
+        "GDB_AccessPersistTest".RotateOnLogin := FALSE;
+    END_IF;
+    IF "GDB_AccessPersistTest".Operation <> 0 THEN
+        "GDB_AccessPersistTest".Applied := FALSE;
+        "GDB_AccessPersistTest".PolicySlot := 0;
+        FOR #Index := 1 TO 2 DO
+            IF "FRK_AccessPolicies".Rows[#Index].Scope = "GDB_AccessPersistTest".Root THEN "GDB_AccessPersistTest".PolicySlot := #Index; END_IF;
+        END_FOR;
+        CASE "GDB_AccessPersistTest".Operation OF
+            1: // Real trusted registration: edit the operator role, preserving its salted hash.
+                "GDB_AccessPersistTest".Record := "FRK_LocalUsers".Rows[1];
+                "GDB_AccessPersistTest".Record.Level := "GDB_AccessPersistTest".Value;
+                "GDB_AccessPersistTest".Applied := "FRK_AccessRegisterHash"(Record := "GDB_AccessPersistTest".Record);
+            2: "FRK_LocalUsers".SchemaVersion := DINT_TO_UINT("GDB_AccessPersistTest".Value);
+                "GDB_AccessPersistTest".Applied := TRUE;
+            3: "FRK_LocalUsers".Count := "GDB_AccessPersistTest".Value;
+                "GDB_AccessPersistTest".Applied := TRUE;
+            4: "FRK_LocalUsers".Rows[1].Level := "GDB_AccessPersistTest".Value;
+                "GDB_AccessPersistTest".Applied := TRUE;
+            5: "FRK_LocalUsers".Rows[1].User := "FRK_LocalUsers".Rows[2].User;
+                "GDB_AccessPersistTest".Applied := TRUE;
+            6: "FRK_LocalUsers".Rows[1].PinHash[31] := "FRK_LocalUsers".Rows[1].PinHash[31] XOR BYTE#1;
+                "GDB_AccessPersistTest".Applied := TRUE;
+            7: "F_AccessBenchProvision"();
+                "GDB_AccessPersistTest".Applied := "FRK_AccessUsersCommit"();
+            10, 11, 12:
+                IF "GDB_AccessPersistTest".PolicySlot > 0 THEN
+                    CASE "GDB_AccessPersistTest".Operation OF
+                        10: "FRK_AccessPolicies".Rows["GDB_AccessPersistTest".PolicySlot].SchemaVersion := DINT_TO_UINT("GDB_AccessPersistTest".Value);
+                        11: "FRK_AccessPolicies".Rows["GDB_AccessPersistTest".PolicySlot].Policy.Required["GDB_AccessPersistTest".Gate] := "GDB_AccessPersistTest".Value;
+                        12: "FRK_AccessPolicies".Rows["GDB_AccessPersistTest".PolicySlot].Checksum := "FRK_AccessPolicies".Rows["GDB_AccessPersistTest".PolicySlot].Checksum XOR DWORD#1;
+                    END_CASE;
+                    "GDB_AccessPersistTest".Applied := TRUE;
+                END_IF;
+        END_CASE;
+        "GDB_AccessPersistTest".Operation := 0;
+    END_IF;
+    "GDB_AccessPersistTest".UsersReady := "FRK_AccessStorage".UsersReady;
+    "GDB_AccessPersistTest".UsersLost := "FRK_AccessStorage".UsersLost;
+    "GDB_AccessPersistTest".UserGeneration := "FRK_LocalUsers".Generation;
+END_FUNCTION

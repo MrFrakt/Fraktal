@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_AlarmRefresh" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#AlarmLog.NActive := 0;
+	#AlarmLog.Blocking := FALSE;
+	FOR #Index := 1 TO 16 DO
+	    IF #AlarmLog.Active[#Index].State <> 0 THEN
+	        #AlarmLog.NActive := #AlarmLog.NActive + 1;
+	        IF #AlarmLog.Active[#Index].ResetClass = 1 THEN
+	            #AlarmLog.Blocking := TRUE;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

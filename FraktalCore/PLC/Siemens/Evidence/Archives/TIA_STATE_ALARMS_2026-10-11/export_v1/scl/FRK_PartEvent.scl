@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_PartEvent" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Reason : DInt;
+      Uid : String;
+      SourcePath : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Description : WString[255];
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Reason OF
+	    2024:
+	        #Description := WSTRING#'std.event.partReceived: ';
+	    2025:
+	        #Description := WSTRING#'std.event.partProcessingStarted: ';
+	    2026:
+	        #Description := WSTRING#'std.event.partProcessed: ';
+	    2027:
+	        #Description := WSTRING#'std.event.partAborted: ';
+	    ELSE
+	        #Description := WSTRING#'';
+	END_CASE;
+	#Description := CONCAT(IN1 := #Description, IN2 := STRING_TO_WSTRING(#Uid));
+	"FRK_AlarmMessage"(AlarmLog := #AlarmLog,
+	                   Reason := #Reason,
+	                   Description := #Description,
+	                   SourcePath := STRING_TO_WSTRING(#SourcePath));
+	
+END_FUNCTION
+

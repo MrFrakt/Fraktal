@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_JsonSkip" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Line : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Pos : Int;
+   END_VAR
+
+
+BEGIN
+	
+	WHILE #Pos <= LEN(#Line) DO
+	    IF #Line[#Pos] <> WCHAR#' ' AND #Line[#Pos] <> WCHAR#'$0009' AND #Line[#Pos] <> WCHAR#'$000A' AND #Line[#Pos] <> WCHAR#'$000D' THEN
+	        RETURN;
+	    END_IF;
+	    #Pos := #Pos + 1;
+	END_WHILE;
+	
+END_FUNCTION
+

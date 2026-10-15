@@ -1,0 +1,36 @@
+﻿FUNCTION "FRK_AlarmRecoveryClaim" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Diag : "ST_Diagnostic";
+      ResetClass : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmRecoveryClaim := 0;
+	IF #ResetClass <> 1 THEN
+	    RETURN;
+	END_IF;
+	FOR #Slot := 1 TO 16 DO
+	    IF #AlarmLog.Recovering[#Slot] AND #AlarmLog.Active[#Slot].State = 1
+	        AND #AlarmLog.Active[#Slot].ReasonCode = #Diag.ReasonCode
+	        AND #AlarmLog.Active[#Slot].Description = #Diag.Description
+	        AND #AlarmLog.Active[#Slot].SourcePath = #Diag.SourcePath THEN
+	        #AlarmLog.Recovering[#Slot] := FALSE;
+	        #FRK_AlarmRecoveryClaim := #Slot;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

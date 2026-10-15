@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_TcWindowsTime" Id="{514af813-3fc5-4747-80d9-72fe8f64e119}" SpecialFunc="None">
+    <Declaration><![CDATA[// Read-only target-local Windows Time quality. Never sets a clock or a peer.
+FUNCTION_BLOCK FB_TcWindowsTime
+VAR_OUTPUT
+    Quality : ST_TimeQuality;
+    ErrorID : UDINT;
+END_VAR
+VAR
+    _open : Tc2_System.FB_FileOpen;
+    _read : Tc2_System.FB_FileRead;
+    _close : Tc2_System.FB_FileClose;
+    _sample : ST_TcWindowsClockSampleV1;
+    _phase : INT;
+    _handle : UINT;
+    _lastRead : TIME;
+    _readStarted : BOOL;
+    _lastSequence : UDINT;
+    _lastObserved : DT;
+    _lastChange : TIME;
+    _seen : BOOL;
+    // Last file-service error (0 = the last read was complete). A record that does
+    // not validate is explained by it: a missing observer is 'not found', not
+    // 'invalid data'.
+    _ioError : UDINT;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="M_ApplySample" Id="{f6b20142-a245-44ec-995f-08ae1a738a1e}">
+      <Declaration><![CDATA[// Also supports a target-owned structured provider without file I/O.
+METHOD M_ApplySample : BOOL
+VAR_INPUT
+    Sample : ST_TcWindowsClockSampleV1;
+    WallNow : DT;
+    MonoNow : TIME;
+    MaximumSampleAge : TIME;
+    MaximumSyncAgeSeconds : UDINT;
+    MaximumOffsetUs : DINT;
+END_VAR
+VAR
+    wallSeconds, sampleSeconds, syncSeconds : UDINT;
+    maxAgeSeconds : UDINT;
+    ageSeconds : DINT;          // F_Now minus the record's OS observation time
+    clockAgrees : BOOL;
+    pSource : POINTER TO BYTE;
+    valid : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplySample := FALSE;
+// Flags first and always; the measurements only from an accepted record below,
+// so a rejected or stale record never publishes its bytes as a measurement.
+Quality.Available := FALSE;
+Quality.Synchronized := FALSE;
+Quality.Source := 'WINDOWS/W32TIME';
+ErrorID := Sample.ServiceError;
+pSource := ADR(Sample.Source);
+valid := (Sample.Magic = DWORD#16#434B5246) AND (Sample.SchemaVersion = 1)
+    AND (Sample.ByteCount = SIZEOF(Sample))
+    AND (Sample.Crc = F_TcWindowsClockCrc(Sample := Sample))
+    AND (Sample.Flags <= DWORD#3) AND (pSource[32] = 0)
+    AND (Sample.ReservedBytes[0] = 0) AND (Sample.ReservedBytes[1] = 0)
+    AND (Sample.ReservedBytes[2] = 0)
+    AND (MaximumSampleAge >= T#1S) AND (MaximumOffsetUs >= 0)
+    AND (MaximumSyncAgeSeconds > 0);
+IF NOT valid THEN
+    ErrorID := 13; // Windows ERROR_INVALID_DATA; never a healthy parse failure.
+    RETURN;
+END_IF
+wallSeconds := DT_TO_DWORD(WallNow);
+sampleSeconds := DT_TO_DWORD(Sample.ObservedAt);
+syncSeconds := DT_TO_DWORD(Sample.LastSyncAt);
+maxAgeSeconds := TIME_TO_UDINT(MaximumSampleAge) / 1000;
+// The record carries the OS clock; F_Now is the TwinCAT clock that stamps every
+// event. Their difference is the record's age plus any disagreement of the two
+// clocks - a usermode runtime that misses ticks falls minutes behind the OS clock
+// (IMPLEMENTATION_NOTES §162). Freshness therefore rests on the record CHANGING
+// (below); this bound only rejects a record older than the sample age: a previous
+// boot's file, a stopped observer, or a TwinCAT clock running ahead.
+ageSeconds := UDINT_TO_DINT(wallSeconds) - UDINT_TO_DINT(sampleSeconds);
+IF (sampleSeconds = 0) OR (ageSeconds > UDINT_TO_DINT(maxAgeSeconds)) THEN
+    ErrorID := 1460; // stale observation
+    RETURN;
+END_IF
+IF NOT _seen OR (Sample.Sequence <> _lastSequence)
+    OR (Sample.ObservedAt <> _lastObserved) THEN
+    _lastSequence := Sample.Sequence;
+    _lastObserved := Sample.ObservedAt;
+    _lastChange := MonoNow;
+    _seen := TRUE;
+END_IF
+IF MonoNow - _lastChange > MaximumSampleAge THEN
+    ErrorID := 1460;
+    RETURN;
+END_IF
+Quality.Source := Sample.Source;
+Quality.ObservedAt := Sample.ObservedAt;
+Quality.LastSyncAt := Sample.LastSyncAt;
+Quality.OffsetUs := Sample.OffsetUs;
+Quality.Available := (Sample.ServiceError = 0) AND ((Sample.Flags AND DWORD#1) <> 0);
+// A TwinCAT clock behind the OS clock by more than the sample age stamps events
+// with the wrong time, however well the OS clock itself is disciplined. The sync
+// age is judged on the record's own (OS) time base.
+clockAgrees := ageSeconds >= -UDINT_TO_DINT(maxAgeSeconds);
+Quality.Synchronized := Quality.Available AND clockAgrees
+    AND ((Sample.Flags AND DWORD#2) <> 0)
+    AND (syncSeconds > 0) AND (syncSeconds <= sampleSeconds)
+    AND (Sample.SyncAgeSeconds <= MaximumSyncAgeSeconds)
+    AND (sampleSeconds - syncSeconds <= MaximumSyncAgeSeconds)
+    AND (Sample.OffsetUs <= MaximumOffsetUs)
+    AND (Sample.OffsetUs >= -MaximumOffsetUs);
+IF Quality.Available AND NOT clockAgrees THEN
+    ErrorID := 1398; // Windows ERROR_TIME_SKEW: the PLC clock disagrees with the OS clock
+END_IF
+M_ApplySample := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="Cyclic" Id="{b7ab5155-5252-48e1-a764-688e2da9494c}">
+      <Declaration><![CDATA[METHOD Cyclic : BOOL
+VAR_INPUT
+    FilePath : STRING(255);
+    PollInterval : TIME;
+    MaximumSampleAge : TIME;
+    MaximumSyncAgeSeconds : UDINT;
+    MaximumOffsetUs : DINT;
+END_VAR
+VAR
+    monoNow : TIME;
+    applied : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[monoNow := TIME();
+// Cached observations are revalidated EVERY scan, not only when a file changes.
+applied := M_ApplySample(Sample := _sample, WallNow := F_Now(), MonoNow := monoNow,
+    MaximumSampleAge := MaximumSampleAge,
+    MaximumSyncAgeSeconds := MaximumSyncAgeSeconds, MaximumOffsetUs := MaximumOffsetUs);
+CASE _phase OF
+    0:
+        IF (FilePath <> '') AND (PollInterval >= T#1S)
+            AND (NOT _readStarted OR (monoNow - _lastRead >= PollInterval)) THEN
+            _open(sNetId := '', sPathName := FilePath,
+                nMode := Tc2_System.FOPEN_MODEREAD OR Tc2_System.FOPEN_MODEBINARY,
+                ePath := Tc2_System.PATH_GENERIC, bExecute := TRUE, tTimeout := T#2S);
+            _lastRead := monoNow;
+            _readStarted := TRUE;
+            _phase := 1;
+        END_IF
+    1:
+        _open(bExecute := FALSE);
+        IF NOT _open.bBusy THEN
+            IF _open.bError THEN
+                Quality.Available := FALSE;
+                Quality.Synchronized := FALSE;
+                ErrorID := _open.nErrId;
+                _ioError := _open.nErrId;
+                _phase := 0;
+            ELSE
+                _handle := _open.hFile;
+                _phase := 2;
+            END_IF
+        END_IF
+    2:
+        _read(sNetId := '', hFile := _handle, pReadBuff := ADR(_sample),
+            cbReadLen := SIZEOF(_sample), bExecute := TRUE, tTimeout := T#2S);
+        _phase := 3;
+    3:
+        _read(bExecute := FALSE);
+        IF NOT _read.bBusy THEN
+            IF _read.bError OR (_read.cbRead <> SIZEOF(_sample)) THEN
+                _sample.Magic := DWORD#0;
+                ErrorID := _read.nErrId;
+                _ioError := SEL(_read.bError, 38, _read.nErrId); // 38: short record (EOF)
+            ELSE
+                _ioError := 0;
+            END_IF
+            _phase := 4;
+        END_IF
+    4:
+        _close(sNetId := '', hFile := _handle, bExecute := TRUE, tTimeout := T#2S);
+        _phase := 5;
+    5:
+        _close(bExecute := FALSE);
+        IF NOT _close.bBusy THEN
+            IF _close.bError THEN
+                _sample.Magic := DWORD#0;
+                ErrorID := _close.nErrId;
+                _ioError := _close.nErrId;
+            END_IF
+            IF NOT _close.bError OR (_close.nErrId = 16#703) THEN
+                _handle := 0;
+                _phase := 0;
+            ELSE
+                _phase := 4; // retry; never leak a possibly still-open handle
+            END_IF
+        END_IF
+ELSE
+    _sample.Magic := DWORD#0;
+    _phase := 4; // close any acquired handle, never abandon it
+END_CASE
+IF NOT applied AND (_ioError <> 0) THEN
+    ErrorID := _ioError;
+END_IF
+Cyclic := applied;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,55 @@
+﻿FUNCTION "FRK_Begin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Execute : Bool;
+      Abort : Bool;
+      Command : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	#Core.EvInit := NOT #Core.Initialized;
+	#Core.Initialized := TRUE;
+	#Core.EvCommandStart := FALSE;
+	#Core.EvAbort := FALSE;
+	#Core.EvAbortInError := FALSE;
+	#Core.HoldReq := FALSE;
+	#Core.DiagTouched := FALSE;
+	#Core.FaultHandled := FALSE;
+	#Core.HookResult := 0;
+	IF NOT #Execute AND (#Core.Armed OR #Core.ReleasePending) AND (#Core.Exec = 2 OR #Core.Exec = 3 OR #Core.Exec = 4) THEN
+	    #Core.Exec := 0;
+	    #Core.Armed := FALSE;
+	    #Core.HoldReason := 0;
+	    "FRK_ClearDiag"(Status := #Status);
+	END_IF;
+	IF #Execute AND NOT #Core.ExecPrev AND (#Core.Exec = 0 OR (#Core.Exec = 3 AND NOT #Core.Armed)) THEN
+	    #Core.Exec := 1;
+	    #Core.Armed := TRUE;
+	    #Core.Command := #Command;
+	    #Core.Step := 10;
+	    #Core.StartMs := "FRK_Clock".NowMs;
+	    #Core.LastNowMs := "FRK_Clock".NowMs;
+	    #Core.ActiveMs := 0;
+	    #Core.TimeoutMs := 0;
+	    #Core.CommandLabel := '';
+	    #Core.TimingOpen := TRUE;
+	    #Core.Held := FALSE;
+	    #Core.HoldReason := 0;
+	    "FRK_ClearDiag"(Status := #Status);
+	    #Core.EvCommandStart := TRUE;
+	END_IF;
+	#Core.DeltaMs := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Core.LastNowMs);
+	#Core.LastNowMs := "FRK_Clock".NowMs;
+	#Core.ExecPrev := #Execute;
+	#Core.Dispatch := #Core.Exec = 1;
+	
+END_FUNCTION
+

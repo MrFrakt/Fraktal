@@ -75,12 +75,12 @@ This standard is grounded in publicly available standards, not a proprietary lin
 - **Module-type versioning.** Released types follow semantic versioning: **major** = any change to the contract surface (commands, handshake members, `ParCfg` schema, reason codes, `SourcePath` semantics — anything a consumer or a stored recipe can observe); **minor** = additive members/commands with defaults preserving old behaviour; **patch** = internal fixes with no observable change. A major bump **shall** ship the §3.8 recipe migration for its `SchemaVersion` step, and consumers pin versions per §2.2/§5.4 — so "reusable library" is a compatibility promise, not a hope.
 - **Binding-qualified projections.** Core behavior-profile conformance is transport-independent. A claim for a transport or companion-model projection (for example `Fraktal/TC3 + PackML/OPC UA`) is additionally qualified by the selected binding and may be made only when that binding maps and verifies the projection. Absence of an optional projection does not invalidate base Fraktal Core conformance.
 
-- **Optional Line profile.** Line data (§3.8e) and shifts (§8.5.2) form the **Line**
+- **Optional Line profile.** Line config (§3.8e) and shifts (§8.5.2) form the **Line**
   behaviour profile, claimed per binding like Robot (§10.6): `Fraktal Core + Fraktal/TC3 +
   Line`. They describe a line of stations sharing one owner, which a single-station cell
   does not have, so base Fraktal Core conformance does not require them. A binding that
   claims the profile binds both clauses whole; one that does not claim it **shall not**
-  publish partial line data or shift statistics, and clients **shall** treat their absence
+  publish partial line config or shift statistics, and clients **shall** treat their absence
   as "no line" rather than as a fault.
 
 ### 1.6 Definitions & abbreviations
@@ -272,7 +272,7 @@ from a reusable base, compose reusable sequence helpers, or own the complete imp
 
 #### 3.4.1 Mode-switch policy while a sequence runs
 
-Whether an operator may leave the *current* mode while its sequence is running is **per-mode policy**, held as station configuration (§3.8a) — not hardcoded — so a deployment tunes each mode's protection. Two orthogonal axes describe every case:
+Whether an operator may leave the *current* mode while its sequence is running is **per-mode policy**, held as station config (§3.8a) — not hardcoded — so a deployment tunes each mode's protection. Two orthogonal axes describe every case:
 - **Shield** (`E_ModeSwitchShield`): `INTERRUPTIBLE` (switch proceeds), `CONFIRM` (the HMI **shall** prompt before switching), or `BLOCKED_WHILE_RUNNING` (`SetMode` returns `FALSE` while `BUSY`; the operator must Stop first).
 - **Style** (`E_ModeSwitchStyle`): `GRACEFUL` (request Stop, let the cycle finish at its stop point, then switch — reuses `_stopReq`/§8.11.1 and `OnModeExit` §3.14.4) or `IMMEDIATE` (cancel now via `OnAbort`, then switch).
 
@@ -326,7 +326,7 @@ A `FB_Unit` (and, where useful, an `FB_EquipmentModule`) **may** expose a typed 
 - **shall** carry, for any measured value, its limit/target and a fixed engineering unit (units are not made variable at runtime);
 - **shall** load top-down through the module tree during `CHANGEOVER`.
 
-**Two kinds of persistent data, one placement rule (§3.8a).** The standard distinguishes **model/recipe data** (varies per model — servo target positions, speeds, tolerances; resolved by `ModelId` at changeover) from **station configuration** (varies per deployment, not per model — the MES IP/port, a scanner's baud, a scale's calibration, a fixed endpoint). Both are **persistent editable data**, and both follow the same rule: *each value lives in the module that needs it.* A servo's positions belong to the axis Control Module — or, at the programmer's discretion, to the EM of an XYZ gantry that owns the three axes; the MES endpoint belongs to the host-interface module; a scanner's config to the scanner CM. There is **no** central config blob. Concretely, a module holds its persistent values in its own `ParCfg` (model data, versioned per §3.8) and/or its own `StationCfg` (deployment data), both `PERSISTENT`. Read publication and write authority are distinct: an editable value **shall** be registered as an explicit typed write capability in the §3.10.2 manifest and changed only through the acknowledged root mailbox. Browsability or `DATA_WRITE` access alone never makes a value writable. Station config is **not** keyed by `ModelId` (it does not change at changeover) and **shall not** be bundled into a model recipe; a module that needs both simply declares both structures.
+**Two kinds of persistent data, one placement rule (§3.8a).** The standard distinguishes **model/recipe data** (varies per model — servo target positions, speeds, tolerances; resolved by `ModelId` at changeover) from **station config** (varies per deployment, not per model — the MES IP/port, a scanner's baud, a scale's calibration, a fixed endpoint). Both are **persistent editable data**, and both follow the same rule: *each value lives in the module that needs it.* A servo's positions belong to the axis Control Module — or, at the programmer's discretion, to the EM of an XYZ gantry that owns the three axes; the MES endpoint belongs to the host-interface module; a scanner's config to the scanner CM. There is **no** central config blob. Concretely, a module holds its persistent values in its own `ParCfg` (model config, versioned per §3.8) and/or its own `StationCfg` (deployment data), both `PERSISTENT`. Read publication and write authority are distinct: an editable value **shall** be registered as an explicit typed write capability in the §3.10.2 manifest and changed only through the acknowledged root mailbox. Browsability or `DATA_WRITE` access alone never makes a value writable. Station config is **not** keyed by `ModelId` (it does not change at changeover) and **shall not** be bundled into a model recipe; a module that needs both simply declares both structures.
 
 **Source is pluggable.** Recipe/type data **shall not** be assumed to be local. The source is selected per deployment via `E_RecipeSource` and supplied through one logical provider capability, so the same module works whether data is held in the PLC or fetched at runtime:
 
@@ -353,7 +353,7 @@ unbounded provider may leave the catalog empty; in that case the HMI may accept 
 if the PLC/provider validates it transactionally. The catalog is selection metadata—not a duplicate
 recipe store—and the active `ParCfg` remains the authoritative resolved recipe.
 
-**Every offered model is editable.** A root's own model data **may** be read and edited
+**Every offered model is editable.** A root's own model config **may** be read and edited
 for any model its catalog lists, without a changeover. The root registers the record it
 resolves at changeover as its **model region** (address, size, `RecipeKey`, provider);
 every `PAR_CFG` capability stored inside that region is published with
@@ -374,7 +374,7 @@ the active model. A query for any index but 0 answers with that model's model-sc
 values only: the rest of the manifest belongs to the running station and is served by
 index 0, and a client reading one model's recipe shall not have to walk it.
 
-**Atomic changeover.** `SetModel` first calls `PrepareRecipe(Model)` recursively. Validation, migration, provider I/O, and every fallible operation occur only in this phase. Any rejection calls `AbortRecipe()` and leaves every active `ParCfg` and the root identity unchanged. After every participant accepts, `CommitRecipe()` is an infallible, bounded in-memory publication at the scan boundary; it performs no validation or I/O. The root publishes the new `ModelId` only after commit. Station configuration is outside this transaction.
+**Atomic changeover.** `SetModel` first calls `PrepareRecipe(Model)` recursively. Validation, migration, provider I/O, and every fallible operation occur only in this phase. Any rejection calls `AbortRecipe()` and leaves every active `ParCfg` and the root identity unchanged. After every participant accepts, `CommitRecipe()` is an infallible, bounded in-memory publication at the scan boundary; it performs no validation or I/O. The root publishes the new `ModelId` only after commit. Station config is outside this transaction.
 
 #### 3.8b Persistence lifecycle and parameter sets
 
@@ -569,10 +569,10 @@ or raising it on the preset. Real stations need both at once.
 **(a) Data class — the access axis.** A root Unit **may** declare **data classes**: named,
 project-owned groups of editable values, each with its own required read level and write
 level (`E_AccessLevel`). `ConfigKind` (§3.10.2) remains the *lifecycle* axis — what the value
-is (model data, station data, line data) and which parameter set carries it; the data class
+is (model config, station config, line config) and which parameter set carries it; the data class
 is the *access* axis — who may see and change it. The two are orthogonal: a "public station
 data" class holds `STATION_CFG` values, travels in station sets exactly like the rest of the
-station data, and differs only in who may edit it.
+station config, and differs only in who may edit it.
 
 A class is declared at the root with a stable `ClassId`, a label key and **default** read and
 write levels. Every root carries three built-in classes, one per `ConfigKind`, whose levels
@@ -581,7 +581,7 @@ class behaves exactly as it did before this section existed. Declaring a class i
 the policy keeps the gated actions of §7.7 unchanged.
 
 **(b) Class levels are policy.** A class's read and write levels are held in the root's access
-policy (§7.7(b)) beside the gated-action thresholds — persistent station configuration,
+policy (§7.7(b)) beside the gated-action thresholds — persistent station config,
 editable through the same audited, `ACCESS_POLICY`-gated path, and subject to the same
 self-lockout rule. The declared levels are defaults, not constants: a deployment may raise or
 lower a class without a download, as it may any other threshold.
@@ -619,15 +619,15 @@ it would reveal. Saving and deleting reveal nothing outside the PLC and remain g
 (manifest entry), §3.10.2a (collections), §7.7 (levels, policy, `ACCESS_POLICY`), §8.3 (audit),
 §14 (defense in depth).*
 
-#### 3.8e Line data — one owner, mirrored
+#### 3.8e Line config — one owner, mirrored
 
 *Optional behaviour profile **Line** (§1.5): §3.8e and §8.5.2 together.*
 
-Station data describes one station and model data one product. A third kind describes the
+Station config describes one station and model config one product. A third kind describes the
 **line** the station belongs to and is shared by every station on it: the shift calendar
 (§8.5.2), a line-wide takt, the line's identity for a host system. Held per station, such data
 drifts the first time one station is edited and its neighbour is not; held nowhere, it is
-re-entered on every HMI. Line data is therefore its own `ConfigKind`, `LINE_CFG`, with exactly
+re-entered on every HMI. Line config is therefore its own `ConfigKind`, `LINE_CFG`, with exactly
 one authoritative copy.
 
 **(a) A line is orthogonal to the Unit forest.** Like the control domain (§9.8), a line is not a
@@ -635,7 +635,7 @@ Unit and has no parent: it is a named arrangement (`LineId`) that zero or more r
 reference, on one controller or across several. A root Unit references at most one line. No
 super-root is created to hold it, and the line is never registered as any Unit's child: it is
 declared beside the roots, as a control domain is. Each referencing root **presents** the line's
-values as its own line data — in its §3.10.2 manifest, under its own scope — and routes their writes,
+values as its own line config — in its §3.10.2 manifest, under its own scope — and routes their writes,
 captures, set records and access checks to the line through its own mailbox, so a line value is
 edited, audited and access-classed like any other without the line entering the module tree. To keep
 the two key spaces apart, a `LINE_CFG` value's `WriteKey` **shall** begin `line.` and no other value's
@@ -659,20 +659,20 @@ deployment choice; the source, like a store, is untrusted input (§14).
 
 **(d) A mirror keeps running, and says how current it is.** A mirror persists its last applied
 revision (§3.8b rules apply unchanged), so a controller restarted while the owner is
-unreachable runs on the line data it last had rather than on defaults. It publishes
+unreachable runs on the line config it last had rather than on defaults. It publishes
 `LineRole` (`OWNER`/`MIRROR`), `LineRevision`, the owner's identity, the time of the last
 successful update, and `Stale` once no update has succeeded within the declared window. Stale
-line data is annunciated as a LOW/SYSTEM `AUTO_RESET` event and **never blocks** production on
+line config is annunciated as a LOW/SYSTEM `AUTO_RESET` event and **never blocks** production on
 its own: a shift boundary computed from a calendar one revision old is a reporting error, not a
-hazard. A deployment for which line data is safety- or quality-relevant declares that through
+hazard. A deployment for which line config is safety- or quality-relevant declares that through
 its own release conditions (§7.2.1), visibly and per condition.
 
-**(e) Line data is not a set operation on a mirror.** Station and model sets (§3.8b) never
+**(e) Line config is not a set operation on a mirror.** Station and model sets (§3.8b) never
 carry `LINE_CFG` records. A line set may be saved, loaded and deleted **on the owner** only; a
 mirror refuses every line-set operation with a reason naming the owner.
 
 *Cross-references: §3.8a/§3.8b (kinds, persistence, sets), §3.8d (classes), §3.10.2 (manifest),
-§8.5.2 (shifts — the first line data), §9.8 (control domain — the same orthogonal pattern),
+§8.5.2 (shifts — the first line config), §9.8 (control domain — the same orthogonal pattern),
 §14 (untrusted sources).*
 
 ### 3.9 Feature selectability
@@ -1982,7 +1982,7 @@ Access level is the **who** dimension of release, ANDed with the **machine** dim
 
 **(a) Levels & actions.** Ordinal levels `E_AccessLevel` (`NONE`=0 < `OPERATOR` < `TECHNICIAN` < `ENGINEER` < `ADMIN`) and an enumerated set of **gated actions** `E_GatedAction`: `DATA_READ`, `DATA_WRITE` (ParCfg/StationCfg edits, §3.8a), `MANUAL` (manual movements), `CHANGEOVER` (`SetModel`, §3.1b), `MODE_CHANGE` (§3.4), `START_STOP`, `ALARM_HISTORY` (read, §8.3), `ALARM_RESET` (§8.3(b)), `ACCESS_POLICY` (editing this policy itself), append-only `ALARM_SHELVE` (shelve/unshelve annunciation, §8.10), `POWER_CONTROL` (Control On/Off and power-group requests, §9.8), and `CONFIG_SET` (saving, loading or importing a whole parameter set, §3.8b). Ordinals are transport contract; new actions shall be appended, never inserted.
 
-**(b) Per-station policy, PLC-authoritative and editable.** Each root Unit carries an **access policy** — a required level per gated action — held as persistent **station configuration** (§3.8a: deployment data, editable, never in a recipe). Any threshold set to `NONE` means that action needs no login; a station may therefore be **fully open** (every threshold `NONE`) or locked down per action — the deployment's deliberate choice. **Shipped default is fully open** (`NONE` everywhere): access control is never a silent lock-in (O1/O6), and the §14 commissioning checklist **shall** include provisioning an access provider and reviewing the policy. A generic HMI may edit the root's published policy, but each edit is routed through the root request mailbox and rechecked against `ACCESS_POLICY`; the policy editor is not a second authority. To prevent retained self-lockout, raising the `ACCESS_POLICY` threshold above the active session level **shall be rejected**. The policy also holds the read and write level of every declared **data class** (§3.8d), edited through the same path; the built-in classes use the `DATA_READ`/`DATA_WRITE` thresholds. Per-function granularity for manual movements: `MANUAL` is the default threshold, and an individual manual function **may** declare its own higher required level in its `OnManRelease` definition (§7.6) — so "jog axis" and "open guard bypass" can differ.
+**(b) Per-station policy, PLC-authoritative and editable.** Each root Unit carries an **access policy** — a required level per gated action — held as persistent **station config** (§3.8a: deployment data, editable, never in a recipe). Any threshold set to `NONE` means that action needs no login; a station may therefore be **fully open** (every threshold `NONE`) or locked down per action — the deployment's deliberate choice. **Shipped default is fully open** (`NONE` everywhere): access control is never a silent lock-in (O1/O6), and the §14 commissioning checklist **shall** include provisioning an access provider and reviewing the policy. A generic HMI may edit the root's published policy, but each edit is routed through the root request mailbox and rechecked against `ACCESS_POLICY`; the policy editor is not a second authority. To prevent retained self-lockout, raising the `ACCESS_POLICY` threshold above the active session level **shall be rejected**. The policy also holds the read and write level of every declared **data class** (§3.8d), edited through the same path; the built-in classes use the `DATA_READ`/`DATA_WRITE` thresholds. Per-function granularity for manual movements: `MANUAL` is the default threshold, and an individual manual function **may** declare its own higher required level in its `OnManRelease` definition (§7.6) — so "jog axis" and "open guard bypass" can differ.
 
 **(c) Sessions & enforcement.** A per-root **access manager** holds the active level/user, authenticates through an injected **`I_AccessProvider`** — with a shipped local default (`FB_LocalAccessProvider`, persistent user table) mirroring §3.8's provider pattern — and auto-logs-out after a configurable idle timeout (`T#0S` = never). Idle time is measured since successful login or the last **accepted authenticated operator mutation**; background reads, manifest fetches, and release-report polling shall not keep an abandoned session alive. Login/logout is **data-driven** (request members in the exposed namespace, §3.10(a′)); the secret member is cleared immediately after each attempt. A provider **shall not** retain a secret it can read back: the local default keeps a per-registration salt and an iterated SHA-256 of salt and PIN, never the PIN, and its table is excluded from every published or symbol surface (ADS, OPC UA). A composition root that takes PINs from retained commissioning data **shall** clear each one once it is registered. A transport/mailbox acknowledgement only proves that the attempt was consumed; clients **shall** determine authentication success from the resulting published `CurrentUser`, `CurrentLevel`, and `LoginFailed` state. A failed attempt shall receive explicit localized HMI feedback without revealing whether the user or secret was incorrect. Enforcement is **in the PLC** at every gated entry point (`SetMode`, `SetModel`, `Start`/`Stop`, `OperatorReset`, manual commands, decisions, power control, alarm shelving, force, and ParCfg/StationCfg writes): the HMI greys controls from the published level *and* the PLC re-checks — the client is never trusted (§14 defense in depth). Denied attempts, logins, logouts, and accepted privileged remote mutations **shall** be logged as `MESSAGE` events (§8.3), including the action identity and active user but never a secret. Thresholds are configured on the **root** the HMI addresses; framework-internal calls (the §3.7 cascade, step chains) are trusted — they only execute downstream of an already-authorized entry.
 
@@ -2070,7 +2070,7 @@ writes its own scheduler, the reset lands whenever that scheduler happens to run
 figures for the shift that just ended are gone the moment it does. A shift is a fact about the
 line, and closing one is framework work.
 
-**(a) The calendar is line data.** A line (§3.8e) carries a bounded shift calendar of at most
+**(a) The calendar is line config.** A line (§3.8e) carries a bounded shift calendar of at most
 `MAX_SHIFTS` entries, each an ordinary `LINE_CFG` write capability: its start as minutes after
 local midnight, or `-1` when the shift is not used, plus one offset from UTC for the whole
 line (the synchronized clock of §2.7 is UTC; daylight saving is set, never guessed). A shift
@@ -2158,10 +2158,10 @@ unverified and shall not create a negative-duration record or rewrite history.
 
 **(e) HMI (§3.13).** A Unit renders its current shift, the elapsed and remaining time, and the
 `ShiftHistory` ring as a table with the same exception-based colouring as the OEE facet. A
-generic HMI needs no station code: the calendar is edited as line data (§3.8e), and the history
+generic HMI needs no station code: the calendar is edited as line config (§3.8e), and the history
 is a fixed framework type.
 
-*Cross-references: §2.7 (synchronized clock), §3.8e (line data), §8.3 (audit, `I_EventSink`),
+*Cross-references: §2.7 (synchronized clock), §3.8e (line config), §8.3 (audit, `I_EventSink`),
 §8.5.1 (OEE), §8.11.2 (counts), §3.13 (rendering).*
 
 ### 8.6 Safety & System alarms

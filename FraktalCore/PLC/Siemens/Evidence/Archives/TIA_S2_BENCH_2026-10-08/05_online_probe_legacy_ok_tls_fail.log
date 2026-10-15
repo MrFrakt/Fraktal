@@ -1,0 +1,16 @@
+{"t":"2026-10-08T06:16:29.4963437Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-08T06:16:29.5015033Z","event":"step","command":"open-project","args":"--path C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T06:16:37.5459343Z","event":"project-opened","path":"C:\\Users\\Siemens\\AppData\\Local\\Temp\\claude\\c--Projects-Fraktal\\557e92d1-b71c-4c7c-8e05-907ccca6dc19\\scratchpad\\tia\\FrkSpikeS2\\FrkSpikeS2.ap20"}
+{"t":"2026-10-08T06:16:37.5459343Z","event":"step","command":"service-get","args":"--plc PLC_1 --service OnlineProvider --path Configuration"}
+{"t":"2026-10-08T06:16:39.3760325Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"Modes","value":"Siemens.Engineering.Connection.ConfigurationModeComposition","writable":false,"options":null}
+{"t":"2026-10-08T06:16:39.3780309Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"Parent","value":"Siemens.Engineering.Online.OnlineProvider","writable":false,"options":null}
+{"t":"2026-10-08T06:16:39.3828083Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"EnableLegacyCommunication","value":false,"writable":true,"options":null}
+{"t":"2026-10-08T06:16:42.2400411Z","event":"service-property","service":"OnlineProvider","object":"ConnectionConfiguration","prop":"IsConfigured","value":true,"writable":false,"options":null}
+{"t":"2026-10-08T06:16:42.2400411Z","event":"step","command":"online-state","args":"--plc PLC_1 --pc-interface Intel(R) 82574L Gigabit Network Connection --pc-number 2 --target 1 X1 --legacy true"}
+{"t":"2026-10-08T06:16:42.2981066Z","event":"connection","legacy":true,"configured":true}
+{"t":"2026-10-08T06:16:46.7208731Z","event":"online","state":"Online"}
+{"t":"2026-10-08T06:16:47.4546109Z","event":"step","command":"online-state","args":"--plc PLC_1 --pc-interface Intel(R) 82574L Gigabit Network Connection --pc-number 2 --target 1 X1 --legacy false"}
+{"t":"2026-10-08T06:16:47.5149419Z","event":"connection","legacy":false,"configured":true}
+{"t":"2026-10-08T06:17:04.3161855Z","event":"step-exception","command":"online-state","message":"EngineeringTargetInvocationException: Error when calling method 'GoOnline' of type 'Siemens.Engineering.Online.OnlineProvider'.\r\n\r\nChanging to online mode failed. | Changing to online mode failed."}
+{"t":"2026-10-08T06:17:04.3161855Z","event":"step-failed","command":"online-state","rc":10,"continue":true}
+{"t":"2026-10-08T06:17:04.3161855Z","event":"plan-complete","steps":4,"tolerated-failures":1}

@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_SeqDelay" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Permit : Bool;
+      PT : Time;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Permit AND #Delta > T#0ms THEN
+	    #Seq.DelayElapsed := #Seq.DelayElapsed + #Delta;
+	END_IF;
+	#FRK_SeqDelay := #Permit AND #Seq.DelayElapsed >= #PT;
+	
+END_FUNCTION
+

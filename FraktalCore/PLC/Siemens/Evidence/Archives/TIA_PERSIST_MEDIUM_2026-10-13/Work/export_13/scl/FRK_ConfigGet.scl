@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_ConfigGet" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      ModelCode : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigGet := FALSE;
+	#Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
+	IF #Index = 0 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_ConfigStore".Rows[#Index].SchemaVersion <> "FRK_ConfigScratch".Schema
+	    OR "FRK_ConfigStore".Rows[#Index].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision
+	    OR "FRK_ConfigStore".Rows[#Index].Record.Kind <> "FRK_ConfigScratch".Entry.ConfigKind
+	    OR "FRK_ConfigStore".Rows[#Index].Record.ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN
+	    RETURN;
+	END_IF;
+	#FRK_ConfigGet := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText),
+	                                     Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum, Maximum := "FRK_ConfigScratch".Maximum,
+	                                     MaxLength := "FRK_ConfigScratch".MaxLength, Value := "FRK_ConfigScratch".Value);
+	"FRK_ConfigScratch".Entry.ValueText := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText);
+	
+END_FUNCTION
+

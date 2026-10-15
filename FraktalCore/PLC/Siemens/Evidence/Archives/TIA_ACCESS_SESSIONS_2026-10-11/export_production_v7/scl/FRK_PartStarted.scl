@@ -1,0 +1,25 @@
+﻿FUNCTION "FRK_PartStarted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      History : Array[1..16] of "ST_Diagnostic";
+      Head : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN
+	    RETURN;
+	END_IF;
+	"FRK_PartEvent"(History := #History,
+	                Head := #Head,
+	                Reason := 2025,
+	                Uid := #Part.Uid,
+	                SourcePath := #Status.Name);
+	
+END_FUNCTION
+

@@ -1,0 +1,3724 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-12T20:41:26.1821398Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input" />
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp">
+    <Member Name="Slot" Datatype="Int" />
+    <Member Name="EventSlot" Datatype="Int" />
+    <Member Name="Gone" Datatype="Bool" />
+    <Member Name="Code" Datatype="Int" />
+    <Member Name="NestedSlot" Datatype="Int" />
+    <Member Name="NeedRaise" Datatype="Bool" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>F_AlarmRecoveryBench</Name>
+      <Namespace />
+      <Number>193</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="Slot" UId="24" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="25" />
+  <Token Text=":=" UId="26" />
+  <Blank Num="1" UId="27" />
+  <Access Scope="Call" UId="28">
+    <CallInfo UId="29" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="31">
+        <Component Name="FRK_AlarmRecoveryIndex" UId="30" />
+      </Instance>
+      <Token Text="(" UId="32" />
+      <Parameter Name="Scope" UId="33">
+        <Blank Num="1" UId="34" />
+        <Token Text=":=" UId="35" />
+        <Blank Num="1" UId="36" />
+        <Access Scope="GlobalVariable" UId="37">
+          <Symbol UId="38">
+            <Component Name="GDB_AlarmRecoveryTest" UId="39">
+              <BooleanAttribute Name="HasQuotes" UId="40">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="41" />
+            <Component Name="Scope" UId="42" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="44" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="45" />
+  <NewLine Num="1" UId="46" />
+  <Access Scope="LocalVariable" UId="47">
+    <Symbol UId="48">
+      <Component Name="EventSlot" UId="49" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="50" />
+  <Token Text=":=" UId="51" />
+  <Blank Num="1" UId="52" />
+  <Access Scope="GlobalVariable" UId="53">
+    <Symbol UId="54">
+      <Component Name="GDB_AlarmRecoveryTest" UId="55">
+        <BooleanAttribute Name="HasQuotes" UId="56">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="57" />
+      <Component Name="EventSlot" UId="58" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="59" />
+  <NewLine Num="1" UId="60" />
+  <Token Text="IF" UId="61" />
+  <Blank Num="1" UId="62" />
+  <Access Scope="LocalVariable" UId="63">
+    <Symbol UId="64">
+      <Component Name="EventSlot" UId="65" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="66" />
+  <Token Text="&lt;" UId="67" />
+  <Blank Num="1" UId="68" />
+  <Access Scope="LiteralConstant" UId="69">
+    <Constant UId="70">
+      <ConstantValue UId="72">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="73" />
+  <Token Text="OR" UId="74" />
+  <Blank Num="1" UId="75" />
+  <Access Scope="LocalVariable" UId="76">
+    <Symbol UId="77">
+      <Component Name="EventSlot" UId="78" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="79" />
+  <Token Text="&gt;" UId="80" />
+  <Blank Num="1" UId="81" />
+  <Access Scope="LiteralConstant" UId="82">
+    <Constant UId="83">
+      <ConstantValue UId="85">16</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="86" />
+  <Token Text="THEN" UId="87" />
+  <NewLine Num="1" UId="88" />
+  <Blank Num="4" UId="89" />
+  <Access Scope="LocalVariable" UId="90">
+    <Symbol UId="91">
+      <Component Name="EventSlot" UId="92" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="93" />
+  <Token Text=":=" UId="94" />
+  <Blank Num="1" UId="95" />
+  <Access Scope="LiteralConstant" UId="96">
+    <Constant UId="97">
+      <ConstantValue UId="99">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="100" />
+  <NewLine Num="1" UId="101" />
+  <Token Text="END_IF" UId="102" />
+  <Token Text=";" UId="103" />
+  <NewLine Num="1" UId="104" />
+  <Token Text="IF" UId="105" />
+  <Blank Num="1" UId="106" />
+  <Access Scope="LocalVariable" UId="107">
+    <Symbol UId="108">
+      <Component Name="Slot" UId="109" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="110" />
+  <Token Text="&gt;" UId="111" />
+  <Blank Num="1" UId="112" />
+  <Access Scope="LiteralConstant" UId="113">
+    <Constant UId="114">
+      <ConstantValue UId="116">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="117" />
+  <Token Text="THEN" UId="118" />
+  <NewLine Num="1" UId="119" />
+  <Blank Num="4" UId="120" />
+  <Access Scope="GlobalVariable" UId="121">
+    <Symbol UId="122">
+      <Component Name="GDB_AlarmRecoveryTest" UId="123">
+        <BooleanAttribute Name="HasQuotes" UId="124">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="125" />
+      <Component Name="Generation" UId="126" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="127" />
+  <Token Text=":=" UId="128" />
+  <Blank Num="1" UId="129" />
+  <Access Scope="GlobalVariable" UId="130">
+    <Symbol UId="131">
+      <Component Name="FRK_AlarmRecovery" UId="132">
+        <BooleanAttribute Name="HasQuotes" UId="133">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="134" />
+      <Component Name="Rows" UId="135">
+        <Token Text="[" UId="136" />
+        <Access Scope="LocalVariable" UId="137">
+          <Symbol UId="138">
+            <Component Name="Slot" UId="139" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="140" />
+      </Component>
+      <Token Text="." UId="141" />
+      <Component Name="Generation" UId="142" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="143" />
+  <NewLine Num="1" UId="144" />
+  <Blank Num="4" UId="145" />
+  <Access Scope="GlobalVariable" UId="146">
+    <Symbol UId="147">
+      <Component Name="GDB_AlarmRecoveryTest" UId="148">
+        <BooleanAttribute Name="HasQuotes" UId="149">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="150" />
+      <Component Name="Elapsed" UId="151" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="152" />
+  <Token Text=":=" UId="153" />
+  <Blank Num="1" UId="154" />
+  <Access Scope="GlobalVariable" UId="155">
+    <Symbol UId="156">
+      <Component Name="FRK_AlarmRecovery" UId="157">
+        <BooleanAttribute Name="HasQuotes" UId="158">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="159" />
+      <Component Name="Rows" UId="160">
+        <Token Text="[" UId="161" />
+        <Access Scope="LocalVariable" UId="162">
+          <Symbol UId="163">
+            <Component Name="Slot" UId="164" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="165" />
+      </Component>
+      <Token Text="." UId="166" />
+      <Component Name="Elapsed" UId="167">
+        <Token Text="[" UId="168" />
+        <Access Scope="LocalVariable" UId="169">
+          <Symbol UId="170">
+            <Component Name="EventSlot" UId="171" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="172" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="173" />
+  <NewLine Num="1" UId="174" />
+  <Token Text="END_IF" UId="175" />
+  <Token Text=";" UId="176" />
+  <NewLine Num="1" UId="177" />
+  <Access Scope="LocalVariable" UId="178">
+    <Symbol UId="179">
+      <Component Name="Code" UId="180" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="181" />
+  <Token Text=":=" UId="182" />
+  <Blank Num="1" UId="183" />
+  <Access Scope="GlobalVariable" UId="184">
+    <Symbol UId="185">
+      <Component Name="GDB_AlarmRecoveryTest" UId="186">
+        <BooleanAttribute Name="HasQuotes" UId="187">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="188" />
+      <Component Name="Operation" UId="189" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="190" />
+  <NewLine Num="1" UId="191" />
+  <Access Scope="LocalVariable" UId="192">
+    <Symbol UId="193">
+      <Component Name="NestedSlot" UId="194" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="195" />
+  <Token Text=":=" UId="196" />
+  <Blank Num="1" UId="197" />
+  <Access Scope="Call" UId="198">
+    <CallInfo UId="199" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="201">
+        <Component Name="FRK_AlarmRecoveryIndex" UId="200" />
+      </Instance>
+      <Token Text="(" UId="202" />
+      <Parameter Name="Scope" UId="203">
+        <Blank Num="1" UId="204" />
+        <Token Text=":=" UId="205" />
+        <Blank Num="1" UId="206" />
+        <Access Scope="LiteralConstant" UId="207">
+          <Constant UId="208">
+            <ConstantValue UId="210">'StationA.Satellite'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="212" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="213" />
+  <NewLine Num="1" UId="214" />
+  <Token Text="IF" UId="215" />
+  <Blank Num="1" UId="216" />
+  <Access Scope="LocalVariable" UId="217">
+    <Symbol UId="218">
+      <Component Name="NestedSlot" UId="219" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="220" />
+  <Token Text="&gt;" UId="221" />
+  <Blank Num="1" UId="222" />
+  <Access Scope="LiteralConstant" UId="223">
+    <Constant UId="224">
+      <ConstantValue UId="226">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="227" />
+  <Token Text="THEN" UId="228" />
+  <NewLine Num="1" UId="229" />
+  <Blank Num="4" UId="230" />
+  <Token Text="IF" UId="231" />
+  <Blank Num="1" UId="232" />
+  <Access Scope="LocalVariable" UId="233">
+    <Symbol UId="234">
+      <Component Name="Code" UId="235" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="236" />
+  <Token Text="=" UId="237" />
+  <Blank Num="1" UId="238" />
+  <Access Scope="LiteralConstant" UId="239">
+    <Constant UId="240">
+      <ConstantValue UId="242">6</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="243" />
+  <Token Text="THEN" UId="244" />
+  <NewLine Num="1" UId="245" />
+  <Blank Num="8" UId="246" />
+  <Access Scope="GlobalVariable" UId="247">
+    <Symbol UId="248">
+      <Component Name="FRK_AlarmRecoveryRuntime" UId="249">
+        <BooleanAttribute Name="HasQuotes" UId="250">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="251" />
+      <Component Name="Ready" UId="252">
+        <Token Text="[" UId="253" />
+        <Access Scope="LocalVariable" UId="254">
+          <Symbol UId="255">
+            <Component Name="NestedSlot" UId="256" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="257" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="258" />
+  <Token Text=":=" UId="259" />
+  <Blank Num="1" UId="260" />
+  <Access Scope="LiteralConstant" UId="261">
+    <Constant UId="262">
+      <ConstantValue UId="264">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="265" />
+  <NewLine Num="1" UId="266" />
+  <Blank Num="4" UId="267" />
+  <Token Text="ELSIF" UId="268" />
+  <Blank Num="1" UId="269" />
+  <Access Scope="LocalVariable" UId="270">
+    <Symbol UId="271">
+      <Component Name="Code" UId="272" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="273" />
+  <Token Text="=" UId="274" />
+  <Blank Num="1" UId="275" />
+  <Access Scope="LiteralConstant" UId="276">
+    <Constant UId="277">
+      <ConstantValue UId="279">7</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="280" />
+  <Token Text="THEN" UId="281" />
+  <NewLine Num="1" UId="282" />
+  <Blank Num="8" UId="283" />
+  <Access Scope="GlobalVariable" UId="284">
+    <Symbol UId="285">
+      <Component Name="FRK_AlarmRecoveryRuntime" UId="286">
+        <BooleanAttribute Name="HasQuotes" UId="287">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="288" />
+      <Component Name="Ready" UId="289">
+        <Token Text="[" UId="290" />
+        <Access Scope="LocalVariable" UId="291">
+          <Symbol UId="292">
+            <Component Name="NestedSlot" UId="293" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="294" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="295" />
+  <Token Text=":=" UId="296" />
+  <Blank Num="1" UId="297" />
+  <Access Scope="LiteralConstant" UId="298">
+    <Constant UId="299">
+      <ConstantValue UId="301">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="302" />
+  <NewLine Num="1" UId="303" />
+  <Blank Num="4" UId="304" />
+  <Token Text="END_IF" UId="305" />
+  <Token Text=";" UId="306" />
+  <NewLine Num="1" UId="307" />
+  <Blank Num="4" UId="308" />
+  <Access Scope="GlobalVariable" UId="309">
+    <Symbol UId="310">
+      <Component Name="GDB_AlarmRecoveryTest" UId="311">
+        <BooleanAttribute Name="HasQuotes" UId="312">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="313" />
+      <Component Name="StartupBlocked" UId="314" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="315" />
+  <Token Text=":=" UId="316" />
+  <Blank Num="1" UId="317" />
+  <Access Scope="Call" UId="318">
+    <CallInfo UId="319" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="321">
+        <Component Name="FRK_AlarmRecoveryTreeBlocking" UId="320" />
+      </Instance>
+      <Token Text="(" UId="322" />
+      <Parameter Name="Scope" UId="323">
+        <Blank Num="1" UId="324" />
+        <Token Text=":=" UId="325" />
+        <Blank Num="1" UId="326" />
+        <Access Scope="LiteralConstant" UId="327">
+          <Constant UId="328">
+            <ConstantValue UId="330">'StationA'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="332" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="333" />
+  <NewLine Num="1" UId="334" />
+  <Token Text="END_IF" UId="335" />
+  <Token Text=";" UId="336" />
+  <NewLine Num="1" UId="337" />
+  <Access Scope="GlobalVariable" UId="338">
+    <Symbol UId="339">
+      <Component Name="GDB_AlarmRecoveryTest" UId="340">
+        <BooleanAttribute Name="HasQuotes" UId="341">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="342" />
+      <Component Name="Diag" UId="343" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="344" />
+  <Token Text=":=" UId="345" />
+  <Blank Num="1" UId="346" />
+  <Access Scope="GlobalVariable" UId="347">
+    <Symbol UId="348">
+      <Component Name="FRK_UnitScratch" UId="349">
+        <BooleanAttribute Name="HasQuotes" UId="350">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="351" />
+      <Component Name="EmptyDiagnostic" UId="352" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="353" />
+  <NewLine Num="1" UId="354" />
+  <Access Scope="GlobalVariable" UId="355">
+    <Symbol UId="356">
+      <Component Name="GDB_AlarmRecoveryTest" UId="357">
+        <BooleanAttribute Name="HasQuotes" UId="358">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="359" />
+      <Component Name="Diag" UId="360" />
+      <Token Text="." UId="361" />
+      <Component Name="ReasonCode" UId="362" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="363" />
+  <Token Text=":=" UId="364" />
+  <Blank Num="1" UId="365" />
+  <Access Scope="GlobalVariable" UId="366">
+    <Symbol UId="367">
+      <Component Name="GDB_AlarmRecoveryTest" UId="368">
+        <BooleanAttribute Name="HasQuotes" UId="369">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="370" />
+      <Component Name="Reason" UId="371" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="372" />
+  <NewLine Num="1" UId="373" />
+  <Access Scope="GlobalVariable" UId="374">
+    <Symbol UId="375">
+      <Component Name="GDB_AlarmRecoveryTest" UId="376">
+        <BooleanAttribute Name="HasQuotes" UId="377">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="378" />
+      <Component Name="Diag" UId="379" />
+      <Token Text="." UId="380" />
+      <Component Name="Description" UId="381" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="382" />
+  <Token Text=":=" UId="383" />
+  <Blank Num="1" UId="384" />
+  <Access Scope="GlobalVariable" UId="385">
+    <Symbol UId="386">
+      <Component Name="GDB_AlarmRecoveryTest" UId="387">
+        <BooleanAttribute Name="HasQuotes" UId="388">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="389" />
+      <Component Name="Text" UId="390" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="391" />
+  <NewLine Num="1" UId="392" />
+  <Access Scope="GlobalVariable" UId="393">
+    <Symbol UId="394">
+      <Component Name="GDB_AlarmRecoveryTest" UId="395">
+        <BooleanAttribute Name="HasQuotes" UId="396">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="397" />
+      <Component Name="Diag" UId="398" />
+      <Token Text="." UId="399" />
+      <Component Name="SourcePath" UId="400" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="401" />
+  <Token Text=":=" UId="402" />
+  <Blank Num="1" UId="403" />
+  <Access Scope="Call" UId="404">
+    <Instruction Name="STRING_TO_WSTRING" UId="405">
+      <Token Text="(" UId="406" />
+      <NamelessParameter UId="407">
+        <Access Scope="GlobalVariable" UId="408">
+          <Symbol UId="409">
+            <Component Name="GDB_AlarmRecoveryTest" UId="410">
+              <BooleanAttribute Name="HasQuotes" UId="411">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="412" />
+            <Component Name="Scope" UId="413" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="415" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="416" />
+  <NewLine Num="1" UId="417" />
+  <Access Scope="GlobalVariable" UId="418">
+    <Symbol UId="419">
+      <Component Name="GDB_AlarmRecoveryTest" UId="420">
+        <BooleanAttribute Name="HasQuotes" UId="421">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="422" />
+      <Component Name="Diag" UId="423" />
+      <Token Text="." UId="424" />
+      <Component Name="Severity" UId="425" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="426" />
+  <Token Text=":=" UId="427" />
+  <Blank Num="1" UId="428" />
+  <Access Scope="LiteralConstant" UId="429">
+    <Constant UId="430">
+      <ConstantValue UId="432">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="433" />
+  <NewLine Num="1" UId="434" />
+  <Access Scope="GlobalVariable" UId="435">
+    <Symbol UId="436">
+      <Component Name="GDB_AlarmRecoveryTest" UId="437">
+        <BooleanAttribute Name="HasQuotes" UId="438">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="439" />
+      <Component Name="Diag" UId="440" />
+      <Token Text="." UId="441" />
+      <Component Name="Category" UId="442" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="443" />
+  <Token Text=":=" UId="444" />
+  <Blank Num="1" UId="445" />
+  <Access Scope="LiteralConstant" UId="446">
+    <Constant UId="447">
+      <ConstantValue UId="449">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="450" />
+  <NewLine Num="1" UId="451" />
+  <Token Text="IF" UId="452" />
+  <Blank Num="1" UId="453" />
+  <Access Scope="GlobalVariable" UId="454">
+    <Symbol UId="455">
+      <Component Name="GDB_AlarmRecoveryTest" UId="456">
+        <BooleanAttribute Name="HasQuotes" UId="457">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="458" />
+      <Component Name="Scope" UId="459" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="460" />
+  <Token Text="=" UId="461" />
+  <Blank Num="1" UId="462" />
+  <Access Scope="LiteralConstant" UId="463">
+    <Constant UId="464">
+      <ConstantValue UId="466">'StationA'</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="467" />
+  <Token Text="THEN" UId="468" />
+  <NewLine Num="1" UId="469" />
+  <Blank Num="4" UId="470" />
+  <Token Text="CASE" UId="471" />
+  <Blank Num="1" UId="472" />
+  <Access Scope="LocalVariable" UId="473">
+    <Symbol UId="474">
+      <Component Name="Code" UId="475" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="476" />
+  <Token Text="OF" UId="477" />
+  <NewLine Num="1" UId="478" />
+  <Blank Num="8" UId="479" />
+  <Access Scope="LiteralConstant" UId="480">
+    <Constant UId="481">
+      <ConstantValue UId="483">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="484" />
+  <NewLine Num="1" UId="485" />
+  <Blank Num="12" UId="486" />
+  <Access Scope="GlobalVariable" UId="487">
+    <Symbol UId="488">
+      <Component Name="GDB_AlarmRecoveryTest" UId="489">
+        <BooleanAttribute Name="HasQuotes" UId="490">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="491" />
+      <Component Name="ReturnSlot" UId="492" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="493" />
+  <Token Text=":=" UId="494" />
+  <Blank Num="1" UId="495" />
+  <Access Scope="Call" UId="496">
+    <CallInfo UId="497" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="499">
+        <Component Name="FRK_AlarmRaise" UId="498" />
+      </Instance>
+      <Token Text="(" UId="500" />
+      <Parameter Name="AlarmLog" UId="501">
+        <Blank Num="1" UId="502" />
+        <Token Text=":=" UId="503" />
+        <Blank Num="1" UId="504" />
+        <Access Scope="GlobalVariable" UId="505">
+          <Symbol UId="506">
+            <Component Name="StationA" UId="507">
+              <BooleanAttribute Name="HasQuotes" UId="508">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="509" />
+            <Component Name="AlarmLog" UId="510" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="511" />
+      <Blank Num="1" UId="512" />
+      <Parameter Name="Diag" UId="513">
+        <Blank Num="1" UId="514" />
+        <Token Text=":=" UId="515" />
+        <Blank Num="1" UId="516" />
+        <Access Scope="GlobalVariable" UId="517">
+          <Symbol UId="518">
+            <Component Name="GDB_AlarmRecoveryTest" UId="519">
+              <BooleanAttribute Name="HasQuotes" UId="520">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="521" />
+            <Component Name="Diag" UId="522" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="523" />
+      <Blank Num="1" UId="524" />
+      <Parameter Name="ResetClass" UId="525">
+        <Blank Num="1" UId="526" />
+        <Token Text=":=" UId="527" />
+        <Blank Num="1" UId="528" />
+        <Access Scope="GlobalVariable" UId="529">
+          <Symbol UId="530">
+            <Component Name="GDB_AlarmRecoveryTest" UId="531">
+              <BooleanAttribute Name="HasQuotes" UId="532">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="533" />
+            <Component Name="ResetClass" UId="534" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="536" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="537" />
+  <NewLine Num="1" UId="538" />
+  <Blank Num="12" UId="539" />
+  <Token Text="IF" UId="540" />
+  <Blank Num="1" UId="541" />
+  <Access Scope="GlobalVariable" UId="542">
+    <Symbol UId="543">
+      <Component Name="GDB_AlarmRecoveryTest" UId="544">
+        <BooleanAttribute Name="HasQuotes" UId="545">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="546" />
+      <Component Name="Automatic" UId="547" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="548" />
+  <Token Text="AND" UId="549" />
+  <Blank Num="1" UId="550" />
+  <Access Scope="GlobalVariable" UId="551">
+    <Symbol UId="552">
+      <Component Name="GDB_AlarmRecoveryTest" UId="553">
+        <BooleanAttribute Name="HasQuotes" UId="554">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="555" />
+      <Component Name="ReturnSlot" UId="556" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="557" />
+  <Token Text="&gt;" UId="558" />
+  <Blank Num="1" UId="559" />
+  <Access Scope="LiteralConstant" UId="560">
+    <Constant UId="561">
+      <ConstantValue UId="563">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="564" />
+  <Token Text="THEN" UId="565" />
+  <NewLine Num="1" UId="566" />
+  <Blank Num="16" UId="567" />
+  <Access Scope="GlobalVariable" UId="568">
+    <Symbol UId="569">
+      <Component Name="StationA" UId="570">
+        <BooleanAttribute Name="HasQuotes" UId="571">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="572" />
+      <Component Name="AlarmLog" UId="573" />
+      <Token Text="." UId="574" />
+      <Component Name="Automatic" UId="575">
+        <Token Text="[" UId="576" />
+        <Access Scope="GlobalVariable" UId="577">
+          <Symbol UId="578">
+            <Component Name="GDB_AlarmRecoveryTest" UId="579">
+              <BooleanAttribute Name="HasQuotes" UId="580">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="581" />
+            <Component Name="ReturnSlot" UId="582" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="583" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="584" />
+  <Token Text=":=" UId="585" />
+  <Blank Num="1" UId="586" />
+  <Access Scope="LiteralConstant" UId="587">
+    <Constant UId="588">
+      <ConstantValue UId="590">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="591" />
+  <NewLine Num="1" UId="592" />
+  <Blank Num="16" UId="593" />
+  <Access Scope="Call" UId="594">
+    <CallInfo UId="595" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="597">
+        <Component Name="FRK_AlarmRecoveryStore" UId="596" />
+      </Instance>
+      <Token Text="(" UId="598" />
+      <Parameter Name="AlarmLog" UId="599">
+        <Blank Num="1" UId="600" />
+        <Token Text=":=" UId="601" />
+        <Blank Num="1" UId="602" />
+        <Access Scope="GlobalVariable" UId="603">
+          <Symbol UId="604">
+            <Component Name="StationA" UId="605">
+              <BooleanAttribute Name="HasQuotes" UId="606">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="607" />
+            <Component Name="AlarmLog" UId="608" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="609" />
+      <NewLine Num="1" UId="610" />
+      <Blank Num="41" UId="611" />
+      <Parameter Name="EventSlot" UId="612">
+        <Blank Num="1" UId="613" />
+        <Token Text=":=" UId="614" />
+        <Blank Num="1" UId="615" />
+        <Access Scope="GlobalVariable" UId="616">
+          <Symbol UId="617">
+            <Component Name="GDB_AlarmRecoveryTest" UId="618">
+              <BooleanAttribute Name="HasQuotes" UId="619">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="620" />
+            <Component Name="ReturnSlot" UId="621" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="622" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="623" />
+  <NewLine Num="1" UId="624" />
+  <Blank Num="12" UId="625" />
+  <Token Text="END_IF" UId="626" />
+  <Token Text=";" UId="627" />
+  <NewLine Num="1" UId="628" />
+  <Blank Num="8" UId="629" />
+  <Access Scope="LiteralConstant" UId="630">
+    <Constant UId="631">
+      <ConstantValue UId="633">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="634" />
+  <NewLine Num="1" UId="635" />
+  <Blank Num="12" UId="636" />
+  <Access Scope="LocalVariable" UId="637">
+    <Symbol UId="638">
+      <Component Name="Gone" UId="639" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="640" />
+  <Token Text=":=" UId="641" />
+  <Blank Num="1" UId="642" />
+  <Access Scope="Call" UId="643">
+    <CallInfo UId="644" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="646">
+        <Component Name="FRK_AlarmGone" UId="645" />
+      </Instance>
+      <Token Text="(" UId="647" />
+      <Parameter Name="AlarmLog" UId="648">
+        <Blank Num="1" UId="649" />
+        <Token Text=":=" UId="650" />
+        <Blank Num="1" UId="651" />
+        <Access Scope="GlobalVariable" UId="652">
+          <Symbol UId="653">
+            <Component Name="StationA" UId="654">
+              <BooleanAttribute Name="HasQuotes" UId="655">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="656" />
+            <Component Name="AlarmLog" UId="657" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="658" />
+      <Blank Num="1" UId="659" />
+      <Parameter Name="Slot" UId="660">
+        <Blank Num="1" UId="661" />
+        <Token Text=":=" UId="662" />
+        <Blank Num="1" UId="663" />
+        <Access Scope="LocalVariable" UId="664">
+          <Symbol UId="665">
+            <Component Name="EventSlot" UId="666" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="668" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="669" />
+  <NewLine Num="1" UId="670" />
+  <Blank Num="8" UId="671" />
+  <Access Scope="LiteralConstant" UId="672">
+    <Constant UId="673">
+      <ConstantValue UId="675">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="676" />
+  <NewLine Num="1" UId="677" />
+  <Blank Num="12" UId="678" />
+  <Access Scope="Call" UId="679">
+    <CallInfo UId="680" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="682">
+        <Component Name="FRK_AlarmBegin" UId="681" />
+      </Instance>
+      <Token Text="(" UId="683" />
+      <Parameter Name="AlarmLog" UId="684">
+        <Blank Num="1" UId="685" />
+        <Token Text=":=" UId="686" />
+        <Blank Num="1" UId="687" />
+        <Access Scope="GlobalVariable" UId="688">
+          <Symbol UId="689">
+            <Component Name="StationA" UId="690">
+              <BooleanAttribute Name="HasQuotes" UId="691">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="692" />
+            <Component Name="AlarmLog" UId="693" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="694" />
+      <NewLine Num="1" UId="695" />
+      <Blank Num="29" UId="696" />
+      <Parameter Name="Startup" UId="697">
+        <Blank Num="1" UId="698" />
+        <Token Text=":=" UId="699" />
+        <Blank Num="1" UId="700" />
+        <Access Scope="LiteralConstant" UId="701">
+          <Constant UId="702">
+            <ConstantValue UId="704">TRUE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="705" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="706" />
+  <NewLine Num="1" UId="707" />
+  <Blank Num="8" UId="708" />
+  <Access Scope="LiteralConstant" UId="709">
+    <Constant UId="710">
+      <ConstantValue UId="712">4</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="713" />
+  <NewLine Num="1" UId="714" />
+  <Blank Num="12" UId="715" />
+  <Access Scope="Call" UId="716">
+    <CallInfo UId="717" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="719">
+        <Component Name="FRK_AlarmOperatorReset" UId="718" />
+      </Instance>
+      <Token Text="(" UId="720" />
+      <Parameter Name="AlarmLog" UId="721">
+        <Blank Num="1" UId="722" />
+        <Token Text=":=" UId="723" />
+        <Blank Num="1" UId="724" />
+        <Access Scope="GlobalVariable" UId="725">
+          <Symbol UId="726">
+            <Component Name="StationA" UId="727">
+              <BooleanAttribute Name="HasQuotes" UId="728">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="729" />
+            <Component Name="AlarmLog" UId="730" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="731" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="732" />
+  <NewLine Num="1" UId="733" />
+  <Blank Num="8" UId="734" />
+  <Access Scope="LiteralConstant" UId="735">
+    <Constant UId="736">
+      <ConstantValue UId="738">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="739" />
+  <NewLine Num="1" UId="740" />
+  <Blank Num="12" UId="741" />
+  <Access Scope="GlobalVariable" UId="742">
+    <Symbol UId="743">
+      <Component Name="GDB_AlarmRecoveryTest" UId="744">
+        <BooleanAttribute Name="HasQuotes" UId="745">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="746" />
+      <Component Name="ReturnSlot" UId="747" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="748" />
+  <Token Text=":=" UId="749" />
+  <Blank Num="1" UId="750" />
+  <Access Scope="Call" UId="751">
+    <CallInfo UId="752" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="754">
+        <Component Name="FRK_AlarmRaise" UId="753" />
+      </Instance>
+      <Token Text="(" UId="755" />
+      <Parameter Name="AlarmLog" UId="756">
+        <Blank Num="1" UId="757" />
+        <Token Text=":=" UId="758" />
+        <Blank Num="1" UId="759" />
+        <Access Scope="GlobalVariable" UId="760">
+          <Symbol UId="761">
+            <Component Name="StationA" UId="762">
+              <BooleanAttribute Name="HasQuotes" UId="763">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="764" />
+            <Component Name="AlarmLog" UId="765" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="766" />
+      <Blank Num="1" UId="767" />
+      <Parameter Name="Diag" UId="768">
+        <Blank Num="1" UId="769" />
+        <Token Text=":=" UId="770" />
+        <Blank Num="1" UId="771" />
+        <Access Scope="GlobalVariable" UId="772">
+          <Symbol UId="773">
+            <Component Name="GDB_AlarmRecoveryTest" UId="774">
+              <BooleanAttribute Name="HasQuotes" UId="775">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="776" />
+            <Component Name="Diag" UId="777" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="778" />
+      <Blank Num="1" UId="779" />
+      <Parameter Name="ResetClass" UId="780">
+        <Blank Num="1" UId="781" />
+        <Token Text=":=" UId="782" />
+        <Blank Num="1" UId="783" />
+        <Access Scope="GlobalVariable" UId="784">
+          <Symbol UId="785">
+            <Component Name="GDB_AlarmRecoveryTest" UId="786">
+              <BooleanAttribute Name="HasQuotes" UId="787">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="788" />
+            <Component Name="ResetClass" UId="789" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="791" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="792" />
+  <NewLine Num="1" UId="793" />
+  <Blank Num="8" UId="794" />
+  <Access Scope="LiteralConstant" UId="795">
+    <Constant UId="796">
+      <ConstantValue UId="798">40</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text="," UId="799" />
+  <Blank Num="1" UId="800" />
+  <Access Scope="LiteralConstant" UId="801">
+    <Constant UId="802">
+      <ConstantValue UId="804">41</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="805" />
+  <NewLine Num="1" UId="806" />
+  <Blank Num="12" UId="807" />
+  <Access Scope="LocalVariable" UId="808">
+    <Symbol UId="809">
+      <Component Name="Gone" UId="810" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="811" />
+  <Token Text=":=" UId="812" />
+  <Blank Num="1" UId="813" />
+  <Access Scope="Call" UId="814">
+    <CallInfo UId="815" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="817">
+        <Component Name="FRK_AlarmGone" UId="816" />
+      </Instance>
+      <Token Text="(" UId="818" />
+      <Parameter Name="AlarmLog" UId="819">
+        <Blank Num="1" UId="820" />
+        <Token Text=":=" UId="821" />
+        <Blank Num="1" UId="822" />
+        <Access Scope="GlobalVariable" UId="823">
+          <Symbol UId="824">
+            <Component Name="StationA" UId="825">
+              <BooleanAttribute Name="HasQuotes" UId="826">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="827" />
+            <Component Name="AlarmLog" UId="828" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="829" />
+      <Blank Num="1" UId="830" />
+      <Parameter Name="Slot" UId="831">
+        <Blank Num="1" UId="832" />
+        <Token Text=":=" UId="833" />
+        <Blank Num="1" UId="834" />
+        <Access Scope="LocalVariable" UId="835">
+          <Symbol UId="836">
+            <Component Name="EventSlot" UId="837" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="839" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="840" />
+  <NewLine Num="1" UId="841" />
+  <Blank Num="12" UId="842" />
+  <Access Scope="LocalVariable" UId="843">
+    <Symbol UId="844">
+      <Component Name="Code" UId="845" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="846" />
+  <Token Text=":=" UId="847" />
+  <Blank Num="1" UId="848" />
+  <Access Scope="Call" UId="849">
+    <Instruction Name="RD_SYS_T" UId="850">
+      <Token Text="(" UId="851" />
+      <Parameter Name="OUT" UId="852">
+        <Blank Num="1" UId="853" />
+        <Token Text="=&gt;" UId="854" />
+        <Blank Num="1" UId="855" />
+        <Access Scope="GlobalVariable" UId="856">
+          <Symbol UId="857">
+            <Component Name="GDB_RecoveryStamp" UId="858">
+              <BooleanAttribute Name="HasQuotes" UId="859">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="860" />
+            <Component Name="Data" UId="861" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="863" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="864" />
+  <NewLine Num="1" UId="865" />
+  <Blank Num="12" UId="866" />
+  <Access Scope="GlobalVariable" UId="867">
+    <Symbol UId="868">
+      <Component Name="StationA" UId="869">
+        <BooleanAttribute Name="HasQuotes" UId="870">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="871" />
+      <Component Name="AlarmLog" UId="872" />
+      <Token Text="." UId="873" />
+      <Component Name="Active" UId="874">
+        <Token Text="[" UId="875" />
+        <Access Scope="LocalVariable" UId="876">
+          <Symbol UId="877">
+            <Component Name="EventSlot" UId="878" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="879" />
+      </Component>
+      <Token Text="." UId="880" />
+      <Component Name="ResetAt" UId="881" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="882" />
+  <Token Text=":=" UId="883" />
+  <Blank Num="1" UId="884" />
+  <Access Scope="Call" UId="885">
+    <Instruction Name="DTL_TO_LDT" UId="886">
+      <Token Text="(" UId="887" />
+      <NamelessParameter UId="888">
+        <Access Scope="GlobalVariable" UId="889">
+          <Symbol UId="890">
+            <Component Name="GDB_RecoveryStamp" UId="891">
+              <BooleanAttribute Name="HasQuotes" UId="892">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="893" />
+            <Component Name="Data" UId="894" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="896" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="897" />
+  <NewLine Num="1" UId="898" />
+  <Blank Num="12" UId="899" />
+  <Access Scope="GlobalVariable" UId="900">
+    <Symbol UId="901">
+      <Component Name="StationA" UId="902">
+        <BooleanAttribute Name="HasQuotes" UId="903">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="904" />
+      <Component Name="AlarmLog" UId="905" />
+      <Token Text="." UId="906" />
+      <Component Name="Active" UId="907">
+        <Token Text="[" UId="908" />
+        <Access Scope="LocalVariable" UId="909">
+          <Symbol UId="910">
+            <Component Name="EventSlot" UId="911" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="912" />
+      </Component>
+      <Token Text="." UId="913" />
+      <Component Name="State" UId="914" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="915" />
+  <Token Text=":=" UId="916" />
+  <Blank Num="1" UId="917" />
+  <Access Scope="LiteralConstant" UId="918">
+    <Constant UId="919">
+      <ConstantValue UId="921">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="922" />
+  <NewLine Num="1" UId="923" />
+  <Blank Num="12" UId="924" />
+  <Access Scope="Call" UId="925">
+    <CallInfo UId="926" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="928">
+        <Component Name="FRK_AlarmRecoveryClosePrepare" UId="927" />
+      </Instance>
+      <Token Text="(" UId="929" />
+      <Parameter Name="AlarmLog" UId="930">
+        <Blank Num="1" UId="931" />
+        <Token Text=":=" UId="932" />
+        <Blank Num="1" UId="933" />
+        <Access Scope="GlobalVariable" UId="934">
+          <Symbol UId="935">
+            <Component Name="StationA" UId="936">
+              <BooleanAttribute Name="HasQuotes" UId="937">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="938" />
+            <Component Name="AlarmLog" UId="939" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="940" />
+      <NewLine Num="1" UId="941" />
+      <Blank Num="44" UId="942" />
+      <Parameter Name="EventSlot" UId="943">
+        <Blank Num="1" UId="944" />
+        <Token Text=":=" UId="945" />
+        <Blank Num="1" UId="946" />
+        <Access Scope="LocalVariable" UId="947">
+          <Symbol UId="948">
+            <Component Name="EventSlot" UId="949" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="950" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="951" />
+  <NewLine Num="1" UId="952" />
+  <Blank Num="12" UId="953" />
+  <Token Text="IF" UId="954" />
+  <Blank Num="1" UId="955" />
+  <Access Scope="GlobalVariable" UId="956">
+    <Symbol UId="957">
+      <Component Name="GDB_AlarmRecoveryTest" UId="958">
+        <BooleanAttribute Name="HasQuotes" UId="959">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="960" />
+      <Component Name="Operation" UId="961" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="962" />
+  <Token Text="=" UId="963" />
+  <Blank Num="1" UId="964" />
+  <Access Scope="LiteralConstant" UId="965">
+    <Constant UId="966">
+      <ConstantValue UId="968">41</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="969" />
+  <Token Text="THEN" UId="970" />
+  <NewLine Num="1" UId="971" />
+  <Blank Num="16" UId="972" />
+  <Access Scope="GlobalVariable" UId="973">
+    <Symbol UId="974">
+      <Component Name="StationA" UId="975">
+        <BooleanAttribute Name="HasQuotes" UId="976">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="977" />
+      <Component Name="AlarmLog" UId="978" />
+      <Token Text="." UId="979" />
+      <Component Name="RingHead" UId="980" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="981" />
+  <Token Text=":=" UId="982" />
+  <Blank Num="1" UId="983" />
+  <Token Text="(" UId="984" />
+  <Access Scope="GlobalVariable" UId="985">
+    <Symbol UId="986">
+      <Component Name="StationA" UId="987">
+        <BooleanAttribute Name="HasQuotes" UId="988">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="989" />
+      <Component Name="AlarmLog" UId="990" />
+      <Token Text="." UId="991" />
+      <Component Name="RingHead" UId="992" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="993" />
+  <Token Text="MOD" UId="994" />
+  <Blank Num="1" UId="995" />
+  <Access Scope="LiteralConstant" UId="996">
+    <Constant UId="997">
+      <ConstantValue UId="999">64</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=")" UId="1000" />
+  <Blank Num="1" UId="1001" />
+  <Token Text="+" UId="1002" />
+  <Blank Num="1" UId="1003" />
+  <Access Scope="LiteralConstant" UId="1004">
+    <Constant UId="1005">
+      <ConstantValue UId="1007">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1008" />
+  <NewLine Num="1" UId="1009" />
+  <Blank Num="16" UId="1010" />
+  <Token Text="IF" UId="1011" />
+  <Blank Num="1" UId="1012" />
+  <Access Scope="GlobalVariable" UId="1013">
+    <Symbol UId="1014">
+      <Component Name="StationA" UId="1015">
+        <BooleanAttribute Name="HasQuotes" UId="1016">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1017" />
+      <Component Name="AlarmLog" UId="1018" />
+      <Token Text="." UId="1019" />
+      <Component Name="RingUsed" UId="1020" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1021" />
+  <Token Text="&lt;" UId="1022" />
+  <Blank Num="1" UId="1023" />
+  <Access Scope="LiteralConstant" UId="1024">
+    <Constant UId="1025">
+      <ConstantValue UId="1027">64</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1028" />
+  <Token Text="THEN" UId="1029" />
+  <NewLine Num="1" UId="1030" />
+  <Blank Num="20" UId="1031" />
+  <Access Scope="GlobalVariable" UId="1032">
+    <Symbol UId="1033">
+      <Component Name="StationA" UId="1034">
+        <BooleanAttribute Name="HasQuotes" UId="1035">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1036" />
+      <Component Name="AlarmLog" UId="1037" />
+      <Token Text="." UId="1038" />
+      <Component Name="RingUsed" UId="1039" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1040" />
+  <Token Text=":=" UId="1041" />
+  <Blank Num="1" UId="1042" />
+  <Access Scope="GlobalVariable" UId="1043">
+    <Symbol UId="1044">
+      <Component Name="StationA" UId="1045">
+        <BooleanAttribute Name="HasQuotes" UId="1046">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1047" />
+      <Component Name="AlarmLog" UId="1048" />
+      <Token Text="." UId="1049" />
+      <Component Name="RingUsed" UId="1050" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1051" />
+  <Token Text="+" UId="1052" />
+  <Blank Num="1" UId="1053" />
+  <Access Scope="LiteralConstant" UId="1054">
+    <Constant UId="1055">
+      <ConstantValue UId="1057">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1058" />
+  <NewLine Num="1" UId="1059" />
+  <Blank Num="16" UId="1060" />
+  <Token Text="END_IF" UId="1061" />
+  <Token Text=";" UId="1062" />
+  <NewLine Num="1" UId="1063" />
+  <Blank Num="16" UId="1064" />
+  <Access Scope="GlobalVariable" UId="1065">
+    <Symbol UId="1066">
+      <Component Name="StationA" UId="1067">
+        <BooleanAttribute Name="HasQuotes" UId="1068">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1069" />
+      <Component Name="AlarmLog" UId="1070" />
+      <Token Text="." UId="1071" />
+      <Component Name="Ring" UId="1072">
+        <Token Text="[" UId="1073" />
+        <Access Scope="GlobalVariable" UId="1074">
+          <Symbol UId="1075">
+            <Component Name="StationA" UId="1076">
+              <BooleanAttribute Name="HasQuotes" UId="1077">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1078" />
+            <Component Name="AlarmLog" UId="1079" />
+            <Token Text="." UId="1080" />
+            <Component Name="RingHead" UId="1081" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1082" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1083" />
+  <Token Text=":=" UId="1084" />
+  <Blank Num="1" UId="1085" />
+  <Access Scope="GlobalVariable" UId="1086">
+    <Symbol UId="1087">
+      <Component Name="StationA" UId="1088">
+        <BooleanAttribute Name="HasQuotes" UId="1089">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1090" />
+      <Component Name="AlarmLog" UId="1091" />
+      <Token Text="." UId="1092" />
+      <Component Name="Active" UId="1093">
+        <Token Text="[" UId="1094" />
+        <Access Scope="LocalVariable" UId="1095">
+          <Symbol UId="1096">
+            <Component Name="EventSlot" UId="1097" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1098" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1099" />
+  <NewLine Num="1" UId="1100" />
+  <Blank Num="16" UId="1101" />
+  <Access Scope="Call" UId="1102">
+    <CallInfo UId="1103" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1105">
+        <Component Name="FRK_AlarmHistoryAppend" UId="1104" />
+      </Instance>
+      <Token Text="(" UId="1106" />
+      <Parameter Name="AlarmLog" UId="1107">
+        <Blank Num="1" UId="1108" />
+        <Token Text=":=" UId="1109" />
+        <Blank Num="1" UId="1110" />
+        <Access Scope="GlobalVariable" UId="1111">
+          <Symbol UId="1112">
+            <Component Name="StationA" UId="1113">
+              <BooleanAttribute Name="HasQuotes" UId="1114">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1115" />
+            <Component Name="AlarmLog" UId="1116" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1117" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1118" />
+  <NewLine Num="1" UId="1119" />
+  <Blank Num="12" UId="1120" />
+  <Token Text="END_IF" UId="1121" />
+  <Token Text=";" UId="1122" />
+  <NewLine Num="1" UId="1123" />
+  <Blank Num="4" UId="1124" />
+  <Token Text="END_CASE" UId="1125" />
+  <Token Text=";" UId="1126" />
+  <NewLine Num="1" UId="1127" />
+  <Token Text="END_IF" UId="1128" />
+  <Token Text=";" UId="1129" />
+  <NewLine Num="1" UId="1130" />
+  <Token Text="IF" UId="1131" />
+  <Blank Num="1" UId="1132" />
+  <Access Scope="GlobalVariable" UId="1133">
+    <Symbol UId="1134">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1135">
+        <BooleanAttribute Name="HasQuotes" UId="1136">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1137" />
+      <Component Name="Scope" UId="1138" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1139" />
+  <Token Text="=" UId="1140" />
+  <Blank Num="1" UId="1141" />
+  <Access Scope="LiteralConstant" UId="1142">
+    <Constant UId="1143">
+      <ConstantValue UId="1145">'StationA.Satellite'</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1146" />
+  <Token Text="THEN" UId="1147" />
+  <NewLine Num="1" UId="1148" />
+  <Blank Num="4" UId="1149" />
+  <Token Text="CASE" UId="1150" />
+  <Blank Num="1" UId="1151" />
+  <Access Scope="LocalVariable" UId="1152">
+    <Symbol UId="1153">
+      <Component Name="Code" UId="1154" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1155" />
+  <Token Text="OF" UId="1156" />
+  <NewLine Num="1" UId="1157" />
+  <Blank Num="8" UId="1158" />
+  <Access Scope="LiteralConstant" UId="1159">
+    <Constant UId="1160">
+      <ConstantValue UId="1162">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1163" />
+  <NewLine Num="1" UId="1164" />
+  <Blank Num="12" UId="1165" />
+  <Access Scope="GlobalVariable" UId="1166">
+    <Symbol UId="1167">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1168">
+        <BooleanAttribute Name="HasQuotes" UId="1169">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1170" />
+      <Component Name="ReturnSlot" UId="1171" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1172" />
+  <Token Text=":=" UId="1173" />
+  <Blank Num="1" UId="1174" />
+  <Access Scope="Call" UId="1175">
+    <CallInfo UId="1176" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1178">
+        <Component Name="FRK_AlarmRaise" UId="1177" />
+      </Instance>
+      <Token Text="(" UId="1179" />
+      <Parameter Name="AlarmLog" UId="1180">
+        <Blank Num="1" UId="1181" />
+        <Token Text=":=" UId="1182" />
+        <Blank Num="1" UId="1183" />
+        <Access Scope="GlobalVariable" UId="1184">
+          <Symbol UId="1185">
+            <Component Name="StationA" UId="1186">
+              <BooleanAttribute Name="HasQuotes" UId="1187">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1188" />
+            <Component Name="Satellite" UId="1189" />
+            <Token Text="." UId="1190" />
+            <Component Name="AlarmLog" UId="1191" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1192" />
+      <Blank Num="1" UId="1193" />
+      <Parameter Name="Diag" UId="1194">
+        <Blank Num="1" UId="1195" />
+        <Token Text=":=" UId="1196" />
+        <Blank Num="1" UId="1197" />
+        <Access Scope="GlobalVariable" UId="1198">
+          <Symbol UId="1199">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1200">
+              <BooleanAttribute Name="HasQuotes" UId="1201">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1202" />
+            <Component Name="Diag" UId="1203" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1204" />
+      <Blank Num="1" UId="1205" />
+      <Parameter Name="ResetClass" UId="1206">
+        <Blank Num="1" UId="1207" />
+        <Token Text=":=" UId="1208" />
+        <Blank Num="1" UId="1209" />
+        <Access Scope="GlobalVariable" UId="1210">
+          <Symbol UId="1211">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1212">
+              <BooleanAttribute Name="HasQuotes" UId="1213">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1214" />
+            <Component Name="ResetClass" UId="1215" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1217" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1218" />
+  <NewLine Num="1" UId="1219" />
+  <Blank Num="12" UId="1220" />
+  <Token Text="IF" UId="1221" />
+  <Blank Num="1" UId="1222" />
+  <Access Scope="GlobalVariable" UId="1223">
+    <Symbol UId="1224">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1225">
+        <BooleanAttribute Name="HasQuotes" UId="1226">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1227" />
+      <Component Name="Automatic" UId="1228" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1229" />
+  <Token Text="AND" UId="1230" />
+  <Blank Num="1" UId="1231" />
+  <Access Scope="GlobalVariable" UId="1232">
+    <Symbol UId="1233">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1234">
+        <BooleanAttribute Name="HasQuotes" UId="1235">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1236" />
+      <Component Name="ReturnSlot" UId="1237" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1238" />
+  <Token Text="&gt;" UId="1239" />
+  <Blank Num="1" UId="1240" />
+  <Access Scope="LiteralConstant" UId="1241">
+    <Constant UId="1242">
+      <ConstantValue UId="1244">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1245" />
+  <Token Text="THEN" UId="1246" />
+  <NewLine Num="1" UId="1247" />
+  <Blank Num="16" UId="1248" />
+  <Access Scope="GlobalVariable" UId="1249">
+    <Symbol UId="1250">
+      <Component Name="StationA" UId="1251">
+        <BooleanAttribute Name="HasQuotes" UId="1252">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1253" />
+      <Component Name="Satellite" UId="1254" />
+      <Token Text="." UId="1255" />
+      <Component Name="AlarmLog" UId="1256" />
+      <Token Text="." UId="1257" />
+      <Component Name="Automatic" UId="1258">
+        <Token Text="[" UId="1259" />
+        <Access Scope="GlobalVariable" UId="1260">
+          <Symbol UId="1261">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1262">
+              <BooleanAttribute Name="HasQuotes" UId="1263">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1264" />
+            <Component Name="ReturnSlot" UId="1265" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1266" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1267" />
+  <Token Text=":=" UId="1268" />
+  <Blank Num="1" UId="1269" />
+  <Access Scope="LiteralConstant" UId="1270">
+    <Constant UId="1271">
+      <ConstantValue UId="1273">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1274" />
+  <NewLine Num="1" UId="1275" />
+  <Blank Num="16" UId="1276" />
+  <Access Scope="Call" UId="1277">
+    <CallInfo UId="1278" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1280">
+        <Component Name="FRK_AlarmRecoveryStore" UId="1279" />
+      </Instance>
+      <Token Text="(" UId="1281" />
+      <Parameter Name="AlarmLog" UId="1282">
+        <Blank Num="1" UId="1283" />
+        <Token Text=":=" UId="1284" />
+        <Blank Num="1" UId="1285" />
+        <Access Scope="GlobalVariable" UId="1286">
+          <Symbol UId="1287">
+            <Component Name="StationA" UId="1288">
+              <BooleanAttribute Name="HasQuotes" UId="1289">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1290" />
+            <Component Name="Satellite" UId="1291" />
+            <Token Text="." UId="1292" />
+            <Component Name="AlarmLog" UId="1293" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1294" />
+      <NewLine Num="1" UId="1295" />
+      <Blank Num="41" UId="1296" />
+      <Parameter Name="EventSlot" UId="1297">
+        <Blank Num="1" UId="1298" />
+        <Token Text=":=" UId="1299" />
+        <Blank Num="1" UId="1300" />
+        <Access Scope="GlobalVariable" UId="1301">
+          <Symbol UId="1302">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1303">
+              <BooleanAttribute Name="HasQuotes" UId="1304">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1305" />
+            <Component Name="ReturnSlot" UId="1306" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1307" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1308" />
+  <NewLine Num="1" UId="1309" />
+  <Blank Num="12" UId="1310" />
+  <Token Text="END_IF" UId="1311" />
+  <Token Text=";" UId="1312" />
+  <NewLine Num="1" UId="1313" />
+  <Blank Num="8" UId="1314" />
+  <Access Scope="LiteralConstant" UId="1315">
+    <Constant UId="1316">
+      <ConstantValue UId="1318">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1319" />
+  <NewLine Num="1" UId="1320" />
+  <Blank Num="12" UId="1321" />
+  <Access Scope="LocalVariable" UId="1322">
+    <Symbol UId="1323">
+      <Component Name="Gone" UId="1324" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1325" />
+  <Token Text=":=" UId="1326" />
+  <Blank Num="1" UId="1327" />
+  <Access Scope="Call" UId="1328">
+    <CallInfo UId="1329" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1331">
+        <Component Name="FRK_AlarmGone" UId="1330" />
+      </Instance>
+      <Token Text="(" UId="1332" />
+      <Parameter Name="AlarmLog" UId="1333">
+        <Blank Num="1" UId="1334" />
+        <Token Text=":=" UId="1335" />
+        <Blank Num="1" UId="1336" />
+        <Access Scope="GlobalVariable" UId="1337">
+          <Symbol UId="1338">
+            <Component Name="StationA" UId="1339">
+              <BooleanAttribute Name="HasQuotes" UId="1340">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1341" />
+            <Component Name="Satellite" UId="1342" />
+            <Token Text="." UId="1343" />
+            <Component Name="AlarmLog" UId="1344" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1345" />
+      <Blank Num="1" UId="1346" />
+      <Parameter Name="Slot" UId="1347">
+        <Blank Num="1" UId="1348" />
+        <Token Text=":=" UId="1349" />
+        <Blank Num="1" UId="1350" />
+        <Access Scope="LocalVariable" UId="1351">
+          <Symbol UId="1352">
+            <Component Name="EventSlot" UId="1353" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1355" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1356" />
+  <NewLine Num="1" UId="1357" />
+  <Blank Num="8" UId="1358" />
+  <Access Scope="LiteralConstant" UId="1359">
+    <Constant UId="1360">
+      <ConstantValue UId="1362">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1363" />
+  <NewLine Num="1" UId="1364" />
+  <Blank Num="12" UId="1365" />
+  <Access Scope="Call" UId="1366">
+    <CallInfo UId="1367" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1369">
+        <Component Name="FRK_AlarmBegin" UId="1368" />
+      </Instance>
+      <Token Text="(" UId="1370" />
+      <Parameter Name="AlarmLog" UId="1371">
+        <Blank Num="1" UId="1372" />
+        <Token Text=":=" UId="1373" />
+        <Blank Num="1" UId="1374" />
+        <Access Scope="GlobalVariable" UId="1375">
+          <Symbol UId="1376">
+            <Component Name="StationA" UId="1377">
+              <BooleanAttribute Name="HasQuotes" UId="1378">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1379" />
+            <Component Name="Satellite" UId="1380" />
+            <Token Text="." UId="1381" />
+            <Component Name="AlarmLog" UId="1382" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1383" />
+      <NewLine Num="1" UId="1384" />
+      <Blank Num="29" UId="1385" />
+      <Parameter Name="Startup" UId="1386">
+        <Blank Num="1" UId="1387" />
+        <Token Text=":=" UId="1388" />
+        <Blank Num="1" UId="1389" />
+        <Access Scope="LiteralConstant" UId="1390">
+          <Constant UId="1391">
+            <ConstantValue UId="1393">TRUE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1394" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1395" />
+  <NewLine Num="1" UId="1396" />
+  <Blank Num="8" UId="1397" />
+  <Access Scope="LiteralConstant" UId="1398">
+    <Constant UId="1399">
+      <ConstantValue UId="1401">4</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1402" />
+  <NewLine Num="1" UId="1403" />
+  <Blank Num="12" UId="1404" />
+  <Access Scope="Call" UId="1405">
+    <CallInfo UId="1406" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1408">
+        <Component Name="FRK_AlarmOperatorReset" UId="1407" />
+      </Instance>
+      <Token Text="(" UId="1409" />
+      <Parameter Name="AlarmLog" UId="1410">
+        <Blank Num="1" UId="1411" />
+        <Token Text=":=" UId="1412" />
+        <Blank Num="1" UId="1413" />
+        <Access Scope="GlobalVariable" UId="1414">
+          <Symbol UId="1415">
+            <Component Name="StationA" UId="1416">
+              <BooleanAttribute Name="HasQuotes" UId="1417">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1418" />
+            <Component Name="Satellite" UId="1419" />
+            <Token Text="." UId="1420" />
+            <Component Name="AlarmLog" UId="1421" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1422" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1423" />
+  <NewLine Num="1" UId="1424" />
+  <Blank Num="8" UId="1425" />
+  <Access Scope="LiteralConstant" UId="1426">
+    <Constant UId="1427">
+      <ConstantValue UId="1429">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1430" />
+  <NewLine Num="1" UId="1431" />
+  <Blank Num="12" UId="1432" />
+  <Access Scope="GlobalVariable" UId="1433">
+    <Symbol UId="1434">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1435">
+        <BooleanAttribute Name="HasQuotes" UId="1436">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1437" />
+      <Component Name="ReturnSlot" UId="1438" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1439" />
+  <Token Text=":=" UId="1440" />
+  <Blank Num="1" UId="1441" />
+  <Access Scope="Call" UId="1442">
+    <CallInfo UId="1443" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1445">
+        <Component Name="FRK_AlarmRaise" UId="1444" />
+      </Instance>
+      <Token Text="(" UId="1446" />
+      <Parameter Name="AlarmLog" UId="1447">
+        <Blank Num="1" UId="1448" />
+        <Token Text=":=" UId="1449" />
+        <Blank Num="1" UId="1450" />
+        <Access Scope="GlobalVariable" UId="1451">
+          <Symbol UId="1452">
+            <Component Name="StationA" UId="1453">
+              <BooleanAttribute Name="HasQuotes" UId="1454">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1455" />
+            <Component Name="Satellite" UId="1456" />
+            <Token Text="." UId="1457" />
+            <Component Name="AlarmLog" UId="1458" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1459" />
+      <Blank Num="1" UId="1460" />
+      <Parameter Name="Diag" UId="1461">
+        <Blank Num="1" UId="1462" />
+        <Token Text=":=" UId="1463" />
+        <Blank Num="1" UId="1464" />
+        <Access Scope="GlobalVariable" UId="1465">
+          <Symbol UId="1466">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1467">
+              <BooleanAttribute Name="HasQuotes" UId="1468">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1469" />
+            <Component Name="Diag" UId="1470" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1471" />
+      <Blank Num="1" UId="1472" />
+      <Parameter Name="ResetClass" UId="1473">
+        <Blank Num="1" UId="1474" />
+        <Token Text=":=" UId="1475" />
+        <Blank Num="1" UId="1476" />
+        <Access Scope="GlobalVariable" UId="1477">
+          <Symbol UId="1478">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1479">
+              <BooleanAttribute Name="HasQuotes" UId="1480">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1481" />
+            <Component Name="ResetClass" UId="1482" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1484" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1485" />
+  <NewLine Num="1" UId="1486" />
+  <Blank Num="8" UId="1487" />
+  <Access Scope="LiteralConstant" UId="1488">
+    <Constant UId="1489">
+      <ConstantValue UId="1491">40</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text="," UId="1492" />
+  <Blank Num="1" UId="1493" />
+  <Access Scope="LiteralConstant" UId="1494">
+    <Constant UId="1495">
+      <ConstantValue UId="1497">41</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1498" />
+  <NewLine Num="1" UId="1499" />
+  <Blank Num="12" UId="1500" />
+  <Access Scope="LocalVariable" UId="1501">
+    <Symbol UId="1502">
+      <Component Name="Gone" UId="1503" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1504" />
+  <Token Text=":=" UId="1505" />
+  <Blank Num="1" UId="1506" />
+  <Access Scope="Call" UId="1507">
+    <CallInfo UId="1508" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1510">
+        <Component Name="FRK_AlarmGone" UId="1509" />
+      </Instance>
+      <Token Text="(" UId="1511" />
+      <Parameter Name="AlarmLog" UId="1512">
+        <Blank Num="1" UId="1513" />
+        <Token Text=":=" UId="1514" />
+        <Blank Num="1" UId="1515" />
+        <Access Scope="GlobalVariable" UId="1516">
+          <Symbol UId="1517">
+            <Component Name="StationA" UId="1518">
+              <BooleanAttribute Name="HasQuotes" UId="1519">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1520" />
+            <Component Name="Satellite" UId="1521" />
+            <Token Text="." UId="1522" />
+            <Component Name="AlarmLog" UId="1523" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1524" />
+      <Blank Num="1" UId="1525" />
+      <Parameter Name="Slot" UId="1526">
+        <Blank Num="1" UId="1527" />
+        <Token Text=":=" UId="1528" />
+        <Blank Num="1" UId="1529" />
+        <Access Scope="LocalVariable" UId="1530">
+          <Symbol UId="1531">
+            <Component Name="EventSlot" UId="1532" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1534" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1535" />
+  <NewLine Num="1" UId="1536" />
+  <Blank Num="12" UId="1537" />
+  <Access Scope="LocalVariable" UId="1538">
+    <Symbol UId="1539">
+      <Component Name="Code" UId="1540" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1541" />
+  <Token Text=":=" UId="1542" />
+  <Blank Num="1" UId="1543" />
+  <Access Scope="Call" UId="1544">
+    <Instruction Name="RD_SYS_T" UId="1545">
+      <Token Text="(" UId="1546" />
+      <Parameter Name="OUT" UId="1547">
+        <Blank Num="1" UId="1548" />
+        <Token Text="=&gt;" UId="1549" />
+        <Blank Num="1" UId="1550" />
+        <Access Scope="GlobalVariable" UId="1551">
+          <Symbol UId="1552">
+            <Component Name="GDB_RecoveryStamp" UId="1553">
+              <BooleanAttribute Name="HasQuotes" UId="1554">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1555" />
+            <Component Name="Data" UId="1556" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1558" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="1559" />
+  <NewLine Num="1" UId="1560" />
+  <Blank Num="12" UId="1561" />
+  <Access Scope="GlobalVariable" UId="1562">
+    <Symbol UId="1563">
+      <Component Name="StationA" UId="1564">
+        <BooleanAttribute Name="HasQuotes" UId="1565">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1566" />
+      <Component Name="Satellite" UId="1567" />
+      <Token Text="." UId="1568" />
+      <Component Name="AlarmLog" UId="1569" />
+      <Token Text="." UId="1570" />
+      <Component Name="Active" UId="1571">
+        <Token Text="[" UId="1572" />
+        <Access Scope="LocalVariable" UId="1573">
+          <Symbol UId="1574">
+            <Component Name="EventSlot" UId="1575" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1576" />
+      </Component>
+      <Token Text="." UId="1577" />
+      <Component Name="ResetAt" UId="1578" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1579" />
+  <Token Text=":=" UId="1580" />
+  <Blank Num="1" UId="1581" />
+  <Access Scope="Call" UId="1582">
+    <Instruction Name="DTL_TO_LDT" UId="1583">
+      <Token Text="(" UId="1584" />
+      <NamelessParameter UId="1585">
+        <Access Scope="GlobalVariable" UId="1586">
+          <Symbol UId="1587">
+            <Component Name="GDB_RecoveryStamp" UId="1588">
+              <BooleanAttribute Name="HasQuotes" UId="1589">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1590" />
+            <Component Name="Data" UId="1591" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="1593" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="1594" />
+  <NewLine Num="1" UId="1595" />
+  <Blank Num="12" UId="1596" />
+  <Access Scope="GlobalVariable" UId="1597">
+    <Symbol UId="1598">
+      <Component Name="StationA" UId="1599">
+        <BooleanAttribute Name="HasQuotes" UId="1600">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1601" />
+      <Component Name="Satellite" UId="1602" />
+      <Token Text="." UId="1603" />
+      <Component Name="AlarmLog" UId="1604" />
+      <Token Text="." UId="1605" />
+      <Component Name="Active" UId="1606">
+        <Token Text="[" UId="1607" />
+        <Access Scope="LocalVariable" UId="1608">
+          <Symbol UId="1609">
+            <Component Name="EventSlot" UId="1610" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1611" />
+      </Component>
+      <Token Text="." UId="1612" />
+      <Component Name="State" UId="1613" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1614" />
+  <Token Text=":=" UId="1615" />
+  <Blank Num="1" UId="1616" />
+  <Access Scope="LiteralConstant" UId="1617">
+    <Constant UId="1618">
+      <ConstantValue UId="1620">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1621" />
+  <NewLine Num="1" UId="1622" />
+  <Blank Num="12" UId="1623" />
+  <Access Scope="Call" UId="1624">
+    <CallInfo UId="1625" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1627">
+        <Component Name="FRK_AlarmRecoveryClosePrepare" UId="1626" />
+      </Instance>
+      <Token Text="(" UId="1628" />
+      <Parameter Name="AlarmLog" UId="1629">
+        <Blank Num="1" UId="1630" />
+        <Token Text=":=" UId="1631" />
+        <Blank Num="1" UId="1632" />
+        <Access Scope="GlobalVariable" UId="1633">
+          <Symbol UId="1634">
+            <Component Name="StationA" UId="1635">
+              <BooleanAttribute Name="HasQuotes" UId="1636">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1637" />
+            <Component Name="Satellite" UId="1638" />
+            <Token Text="." UId="1639" />
+            <Component Name="AlarmLog" UId="1640" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1641" />
+      <NewLine Num="1" UId="1642" />
+      <Blank Num="44" UId="1643" />
+      <Parameter Name="EventSlot" UId="1644">
+        <Blank Num="1" UId="1645" />
+        <Token Text=":=" UId="1646" />
+        <Blank Num="1" UId="1647" />
+        <Access Scope="LocalVariable" UId="1648">
+          <Symbol UId="1649">
+            <Component Name="EventSlot" UId="1650" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1651" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1652" />
+  <NewLine Num="1" UId="1653" />
+  <Blank Num="12" UId="1654" />
+  <Token Text="IF" UId="1655" />
+  <Blank Num="1" UId="1656" />
+  <Access Scope="GlobalVariable" UId="1657">
+    <Symbol UId="1658">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1659">
+        <BooleanAttribute Name="HasQuotes" UId="1660">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1661" />
+      <Component Name="Operation" UId="1662" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1663" />
+  <Token Text="=" UId="1664" />
+  <Blank Num="1" UId="1665" />
+  <Access Scope="LiteralConstant" UId="1666">
+    <Constant UId="1667">
+      <ConstantValue UId="1669">41</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1670" />
+  <Token Text="THEN" UId="1671" />
+  <NewLine Num="1" UId="1672" />
+  <Blank Num="16" UId="1673" />
+  <Access Scope="GlobalVariable" UId="1674">
+    <Symbol UId="1675">
+      <Component Name="StationA" UId="1676">
+        <BooleanAttribute Name="HasQuotes" UId="1677">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1678" />
+      <Component Name="Satellite" UId="1679" />
+      <Token Text="." UId="1680" />
+      <Component Name="AlarmLog" UId="1681" />
+      <Token Text="." UId="1682" />
+      <Component Name="RingHead" UId="1683" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1684" />
+  <Token Text=":=" UId="1685" />
+  <Blank Num="1" UId="1686" />
+  <Token Text="(" UId="1687" />
+  <Access Scope="GlobalVariable" UId="1688">
+    <Symbol UId="1689">
+      <Component Name="StationA" UId="1690">
+        <BooleanAttribute Name="HasQuotes" UId="1691">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1692" />
+      <Component Name="Satellite" UId="1693" />
+      <Token Text="." UId="1694" />
+      <Component Name="AlarmLog" UId="1695" />
+      <Token Text="." UId="1696" />
+      <Component Name="RingHead" UId="1697" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1698" />
+  <Token Text="MOD" UId="1699" />
+  <Blank Num="1" UId="1700" />
+  <Access Scope="LiteralConstant" UId="1701">
+    <Constant UId="1702">
+      <ConstantValue UId="1704">64</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=")" UId="1705" />
+  <Blank Num="1" UId="1706" />
+  <Token Text="+" UId="1707" />
+  <Blank Num="1" UId="1708" />
+  <Access Scope="LiteralConstant" UId="1709">
+    <Constant UId="1710">
+      <ConstantValue UId="1712">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1713" />
+  <NewLine Num="1" UId="1714" />
+  <Blank Num="16" UId="1715" />
+  <Token Text="IF" UId="1716" />
+  <Blank Num="1" UId="1717" />
+  <Access Scope="GlobalVariable" UId="1718">
+    <Symbol UId="1719">
+      <Component Name="StationA" UId="1720">
+        <BooleanAttribute Name="HasQuotes" UId="1721">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1722" />
+      <Component Name="Satellite" UId="1723" />
+      <Token Text="." UId="1724" />
+      <Component Name="AlarmLog" UId="1725" />
+      <Token Text="." UId="1726" />
+      <Component Name="RingUsed" UId="1727" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1728" />
+  <Token Text="&lt;" UId="1729" />
+  <Blank Num="1" UId="1730" />
+  <Access Scope="LiteralConstant" UId="1731">
+    <Constant UId="1732">
+      <ConstantValue UId="1734">64</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1735" />
+  <Token Text="THEN" UId="1736" />
+  <NewLine Num="1" UId="1737" />
+  <Blank Num="20" UId="1738" />
+  <Access Scope="GlobalVariable" UId="1739">
+    <Symbol UId="1740">
+      <Component Name="StationA" UId="1741">
+        <BooleanAttribute Name="HasQuotes" UId="1742">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1743" />
+      <Component Name="Satellite" UId="1744" />
+      <Token Text="." UId="1745" />
+      <Component Name="AlarmLog" UId="1746" />
+      <Token Text="." UId="1747" />
+      <Component Name="RingUsed" UId="1748" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1749" />
+  <Token Text=":=" UId="1750" />
+  <Blank Num="1" UId="1751" />
+  <Access Scope="GlobalVariable" UId="1752">
+    <Symbol UId="1753">
+      <Component Name="StationA" UId="1754">
+        <BooleanAttribute Name="HasQuotes" UId="1755">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1756" />
+      <Component Name="Satellite" UId="1757" />
+      <Token Text="." UId="1758" />
+      <Component Name="AlarmLog" UId="1759" />
+      <Token Text="." UId="1760" />
+      <Component Name="RingUsed" UId="1761" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1762" />
+  <Token Text="+" UId="1763" />
+  <Blank Num="1" UId="1764" />
+  <Access Scope="LiteralConstant" UId="1765">
+    <Constant UId="1766">
+      <ConstantValue UId="1768">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1769" />
+  <NewLine Num="1" UId="1770" />
+  <Blank Num="16" UId="1771" />
+  <Token Text="END_IF" UId="1772" />
+  <Token Text=";" UId="1773" />
+  <NewLine Num="1" UId="1774" />
+  <Blank Num="16" UId="1775" />
+  <Access Scope="GlobalVariable" UId="1776">
+    <Symbol UId="1777">
+      <Component Name="StationA" UId="1778">
+        <BooleanAttribute Name="HasQuotes" UId="1779">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1780" />
+      <Component Name="Satellite" UId="1781" />
+      <Token Text="." UId="1782" />
+      <Component Name="AlarmLog" UId="1783" />
+      <Token Text="." UId="1784" />
+      <Component Name="Ring" UId="1785">
+        <Token Text="[" UId="1786" />
+        <Access Scope="GlobalVariable" UId="1787">
+          <Symbol UId="1788">
+            <Component Name="StationA" UId="1789">
+              <BooleanAttribute Name="HasQuotes" UId="1790">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1791" />
+            <Component Name="Satellite" UId="1792" />
+            <Token Text="." UId="1793" />
+            <Component Name="AlarmLog" UId="1794" />
+            <Token Text="." UId="1795" />
+            <Component Name="RingHead" UId="1796" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1797" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1798" />
+  <Token Text=":=" UId="1799" />
+  <Blank Num="1" UId="1800" />
+  <Access Scope="GlobalVariable" UId="1801">
+    <Symbol UId="1802">
+      <Component Name="StationA" UId="1803">
+        <BooleanAttribute Name="HasQuotes" UId="1804">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1805" />
+      <Component Name="Satellite" UId="1806" />
+      <Token Text="." UId="1807" />
+      <Component Name="AlarmLog" UId="1808" />
+      <Token Text="." UId="1809" />
+      <Component Name="Active" UId="1810">
+        <Token Text="[" UId="1811" />
+        <Access Scope="LocalVariable" UId="1812">
+          <Symbol UId="1813">
+            <Component Name="EventSlot" UId="1814" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1815" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1816" />
+  <NewLine Num="1" UId="1817" />
+  <Blank Num="16" UId="1818" />
+  <Access Scope="Call" UId="1819">
+    <CallInfo UId="1820" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1822">
+        <Component Name="FRK_AlarmHistoryAppend" UId="1821" />
+      </Instance>
+      <Token Text="(" UId="1823" />
+      <Parameter Name="AlarmLog" UId="1824">
+        <Blank Num="1" UId="1825" />
+        <Token Text=":=" UId="1826" />
+        <Blank Num="1" UId="1827" />
+        <Access Scope="GlobalVariable" UId="1828">
+          <Symbol UId="1829">
+            <Component Name="StationA" UId="1830">
+              <BooleanAttribute Name="HasQuotes" UId="1831">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1832" />
+            <Component Name="Satellite" UId="1833" />
+            <Token Text="." UId="1834" />
+            <Component Name="AlarmLog" UId="1835" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1836" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1837" />
+  <NewLine Num="1" UId="1838" />
+  <Blank Num="12" UId="1839" />
+  <Token Text="END_IF" UId="1840" />
+  <Token Text=";" UId="1841" />
+  <NewLine Num="1" UId="1842" />
+  <Blank Num="4" UId="1843" />
+  <Token Text="END_CASE" UId="1844" />
+  <Token Text=";" UId="1845" />
+  <NewLine Num="1" UId="1846" />
+  <Token Text="END_IF" UId="1847" />
+  <Token Text=";" UId="1848" />
+  <NewLine Num="1" UId="1849" />
+  <Token Text="IF" UId="1850" />
+  <Blank Num="1" UId="1851" />
+  <Access Scope="GlobalVariable" UId="1852">
+    <Symbol UId="1853">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1854">
+        <BooleanAttribute Name="HasQuotes" UId="1855">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1856" />
+      <Component Name="Scope" UId="1857" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1858" />
+  <Token Text="=" UId="1859" />
+  <Blank Num="1" UId="1860" />
+  <Access Scope="LiteralConstant" UId="1861">
+    <Constant UId="1862">
+      <ConstantValue UId="1864">'StationB'</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1865" />
+  <Token Text="THEN" UId="1866" />
+  <NewLine Num="1" UId="1867" />
+  <Blank Num="4" UId="1868" />
+  <Token Text="CASE" UId="1869" />
+  <Blank Num="1" UId="1870" />
+  <Access Scope="LocalVariable" UId="1871">
+    <Symbol UId="1872">
+      <Component Name="Code" UId="1873" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1874" />
+  <Token Text="OF" UId="1875" />
+  <NewLine Num="1" UId="1876" />
+  <Blank Num="8" UId="1877" />
+  <Access Scope="LiteralConstant" UId="1878">
+    <Constant UId="1879">
+      <ConstantValue UId="1881">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1882" />
+  <NewLine Num="1" UId="1883" />
+  <Blank Num="12" UId="1884" />
+  <Access Scope="GlobalVariable" UId="1885">
+    <Symbol UId="1886">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1887">
+        <BooleanAttribute Name="HasQuotes" UId="1888">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1889" />
+      <Component Name="ReturnSlot" UId="1890" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1891" />
+  <Token Text=":=" UId="1892" />
+  <Blank Num="1" UId="1893" />
+  <Access Scope="Call" UId="1894">
+    <CallInfo UId="1895" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1897">
+        <Component Name="FRK_AlarmRaise" UId="1896" />
+      </Instance>
+      <Token Text="(" UId="1898" />
+      <Parameter Name="AlarmLog" UId="1899">
+        <Blank Num="1" UId="1900" />
+        <Token Text=":=" UId="1901" />
+        <Blank Num="1" UId="1902" />
+        <Access Scope="GlobalVariable" UId="1903">
+          <Symbol UId="1904">
+            <Component Name="StationB" UId="1905">
+              <BooleanAttribute Name="HasQuotes" UId="1906">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1907" />
+            <Component Name="AlarmLog" UId="1908" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1909" />
+      <Blank Num="1" UId="1910" />
+      <Parameter Name="Diag" UId="1911">
+        <Blank Num="1" UId="1912" />
+        <Token Text=":=" UId="1913" />
+        <Blank Num="1" UId="1914" />
+        <Access Scope="GlobalVariable" UId="1915">
+          <Symbol UId="1916">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1917">
+              <BooleanAttribute Name="HasQuotes" UId="1918">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1919" />
+            <Component Name="Diag" UId="1920" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1921" />
+      <Blank Num="1" UId="1922" />
+      <Parameter Name="ResetClass" UId="1923">
+        <Blank Num="1" UId="1924" />
+        <Token Text=":=" UId="1925" />
+        <Blank Num="1" UId="1926" />
+        <Access Scope="GlobalVariable" UId="1927">
+          <Symbol UId="1928">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1929">
+              <BooleanAttribute Name="HasQuotes" UId="1930">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1931" />
+            <Component Name="ResetClass" UId="1932" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1934" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1935" />
+  <NewLine Num="1" UId="1936" />
+  <Blank Num="12" UId="1937" />
+  <Token Text="IF" UId="1938" />
+  <Blank Num="1" UId="1939" />
+  <Access Scope="GlobalVariable" UId="1940">
+    <Symbol UId="1941">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1942">
+        <BooleanAttribute Name="HasQuotes" UId="1943">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1944" />
+      <Component Name="Automatic" UId="1945" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1946" />
+  <Token Text="AND" UId="1947" />
+  <Blank Num="1" UId="1948" />
+  <Access Scope="GlobalVariable" UId="1949">
+    <Symbol UId="1950">
+      <Component Name="GDB_AlarmRecoveryTest" UId="1951">
+        <BooleanAttribute Name="HasQuotes" UId="1952">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1953" />
+      <Component Name="ReturnSlot" UId="1954" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1955" />
+  <Token Text="&gt;" UId="1956" />
+  <Blank Num="1" UId="1957" />
+  <Access Scope="LiteralConstant" UId="1958">
+    <Constant UId="1959">
+      <ConstantValue UId="1961">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1962" />
+  <Token Text="THEN" UId="1963" />
+  <NewLine Num="1" UId="1964" />
+  <Blank Num="16" UId="1965" />
+  <Access Scope="GlobalVariable" UId="1966">
+    <Symbol UId="1967">
+      <Component Name="StationB" UId="1968">
+        <BooleanAttribute Name="HasQuotes" UId="1969">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1970" />
+      <Component Name="AlarmLog" UId="1971" />
+      <Token Text="." UId="1972" />
+      <Component Name="Automatic" UId="1973">
+        <Token Text="[" UId="1974" />
+        <Access Scope="GlobalVariable" UId="1975">
+          <Symbol UId="1976">
+            <Component Name="GDB_AlarmRecoveryTest" UId="1977">
+              <BooleanAttribute Name="HasQuotes" UId="1978">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1979" />
+            <Component Name="ReturnSlot" UId="1980" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1981" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1982" />
+  <Token Text=":=" UId="1983" />
+  <Blank Num="1" UId="1984" />
+  <Access Scope="LiteralConstant" UId="1985">
+    <Constant UId="1986">
+      <ConstantValue UId="1988">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1989" />
+  <NewLine Num="1" UId="1990" />
+  <Blank Num="16" UId="1991" />
+  <Access Scope="Call" UId="1992">
+    <CallInfo UId="1993" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1995">
+        <Component Name="FRK_AlarmRecoveryStore" UId="1994" />
+      </Instance>
+      <Token Text="(" UId="1996" />
+      <Parameter Name="AlarmLog" UId="1997">
+        <Blank Num="1" UId="1998" />
+        <Token Text=":=" UId="1999" />
+        <Blank Num="1" UId="2000" />
+        <Access Scope="GlobalVariable" UId="2001">
+          <Symbol UId="2002">
+            <Component Name="StationB" UId="2003">
+              <BooleanAttribute Name="HasQuotes" UId="2004">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2005" />
+            <Component Name="AlarmLog" UId="2006" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2007" />
+      <NewLine Num="1" UId="2008" />
+      <Blank Num="41" UId="2009" />
+      <Parameter Name="EventSlot" UId="2010">
+        <Blank Num="1" UId="2011" />
+        <Token Text=":=" UId="2012" />
+        <Blank Num="1" UId="2013" />
+        <Access Scope="GlobalVariable" UId="2014">
+          <Symbol UId="2015">
+            <Component Name="GDB_AlarmRecoveryTest" UId="2016">
+              <BooleanAttribute Name="HasQuotes" UId="2017">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2018" />
+            <Component Name="ReturnSlot" UId="2019" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2020" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2021" />
+  <NewLine Num="1" UId="2022" />
+  <Blank Num="12" UId="2023" />
+  <Token Text="END_IF" UId="2024" />
+  <Token Text=";" UId="2025" />
+  <NewLine Num="1" UId="2026" />
+  <Blank Num="8" UId="2027" />
+  <Access Scope="LiteralConstant" UId="2028">
+    <Constant UId="2029">
+      <ConstantValue UId="2031">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="2032" />
+  <NewLine Num="1" UId="2033" />
+  <Blank Num="12" UId="2034" />
+  <Access Scope="LocalVariable" UId="2035">
+    <Symbol UId="2036">
+      <Component Name="Gone" UId="2037" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2038" />
+  <Token Text=":=" UId="2039" />
+  <Blank Num="1" UId="2040" />
+  <Access Scope="Call" UId="2041">
+    <CallInfo UId="2042" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2044">
+        <Component Name="FRK_AlarmGone" UId="2043" />
+      </Instance>
+      <Token Text="(" UId="2045" />
+      <Parameter Name="AlarmLog" UId="2046">
+        <Blank Num="1" UId="2047" />
+        <Token Text=":=" UId="2048" />
+        <Blank Num="1" UId="2049" />
+        <Access Scope="GlobalVariable" UId="2050">
+          <Symbol UId="2051">
+            <Component Name="StationB" UId="2052">
+              <BooleanAttribute Name="HasQuotes" UId="2053">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2054" />
+            <Component Name="AlarmLog" UId="2055" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2056" />
+      <Blank Num="1" UId="2057" />
+      <Parameter Name="Slot" UId="2058">
+        <Blank Num="1" UId="2059" />
+        <Token Text=":=" UId="2060" />
+        <Blank Num="1" UId="2061" />
+        <Access Scope="LocalVariable" UId="2062">
+          <Symbol UId="2063">
+            <Component Name="EventSlot" UId="2064" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2066" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2067" />
+  <NewLine Num="1" UId="2068" />
+  <Blank Num="8" UId="2069" />
+  <Access Scope="LiteralConstant" UId="2070">
+    <Constant UId="2071">
+      <ConstantValue UId="2073">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="2074" />
+  <NewLine Num="1" UId="2075" />
+  <Blank Num="12" UId="2076" />
+  <Access Scope="Call" UId="2077">
+    <CallInfo UId="2078" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2080">
+        <Component Name="FRK_AlarmBegin" UId="2079" />
+      </Instance>
+      <Token Text="(" UId="2081" />
+      <Parameter Name="AlarmLog" UId="2082">
+        <Blank Num="1" UId="2083" />
+        <Token Text=":=" UId="2084" />
+        <Blank Num="1" UId="2085" />
+        <Access Scope="GlobalVariable" UId="2086">
+          <Symbol UId="2087">
+            <Component Name="StationB" UId="2088">
+              <BooleanAttribute Name="HasQuotes" UId="2089">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2090" />
+            <Component Name="AlarmLog" UId="2091" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2092" />
+      <NewLine Num="1" UId="2093" />
+      <Blank Num="29" UId="2094" />
+      <Parameter Name="Startup" UId="2095">
+        <Blank Num="1" UId="2096" />
+        <Token Text=":=" UId="2097" />
+        <Blank Num="1" UId="2098" />
+        <Access Scope="LiteralConstant" UId="2099">
+          <Constant UId="2100">
+            <ConstantValue UId="2102">TRUE</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2103" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2104" />
+  <NewLine Num="1" UId="2105" />
+  <Blank Num="8" UId="2106" />
+  <Access Scope="LiteralConstant" UId="2107">
+    <Constant UId="2108">
+      <ConstantValue UId="2110">4</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="2111" />
+  <NewLine Num="1" UId="2112" />
+  <Blank Num="12" UId="2113" />
+  <Access Scope="Call" UId="2114">
+    <CallInfo UId="2115" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2117">
+        <Component Name="FRK_AlarmOperatorReset" UId="2116" />
+      </Instance>
+      <Token Text="(" UId="2118" />
+      <Parameter Name="AlarmLog" UId="2119">
+        <Blank Num="1" UId="2120" />
+        <Token Text=":=" UId="2121" />
+        <Blank Num="1" UId="2122" />
+        <Access Scope="GlobalVariable" UId="2123">
+          <Symbol UId="2124">
+            <Component Name="StationB" UId="2125">
+              <BooleanAttribute Name="HasQuotes" UId="2126">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2127" />
+            <Component Name="AlarmLog" UId="2128" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2129" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2130" />
+  <NewLine Num="1" UId="2131" />
+  <Blank Num="8" UId="2132" />
+  <Access Scope="LiteralConstant" UId="2133">
+    <Constant UId="2134">
+      <ConstantValue UId="2136">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="2137" />
+  <NewLine Num="1" UId="2138" />
+  <Blank Num="12" UId="2139" />
+  <Access Scope="GlobalVariable" UId="2140">
+    <Symbol UId="2141">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2142">
+        <BooleanAttribute Name="HasQuotes" UId="2143">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2144" />
+      <Component Name="ReturnSlot" UId="2145" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2146" />
+  <Token Text=":=" UId="2147" />
+  <Blank Num="1" UId="2148" />
+  <Access Scope="Call" UId="2149">
+    <CallInfo UId="2150" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2152">
+        <Component Name="FRK_AlarmRaise" UId="2151" />
+      </Instance>
+      <Token Text="(" UId="2153" />
+      <Parameter Name="AlarmLog" UId="2154">
+        <Blank Num="1" UId="2155" />
+        <Token Text=":=" UId="2156" />
+        <Blank Num="1" UId="2157" />
+        <Access Scope="GlobalVariable" UId="2158">
+          <Symbol UId="2159">
+            <Component Name="StationB" UId="2160">
+              <BooleanAttribute Name="HasQuotes" UId="2161">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2162" />
+            <Component Name="AlarmLog" UId="2163" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2164" />
+      <Blank Num="1" UId="2165" />
+      <Parameter Name="Diag" UId="2166">
+        <Blank Num="1" UId="2167" />
+        <Token Text=":=" UId="2168" />
+        <Blank Num="1" UId="2169" />
+        <Access Scope="GlobalVariable" UId="2170">
+          <Symbol UId="2171">
+            <Component Name="GDB_AlarmRecoveryTest" UId="2172">
+              <BooleanAttribute Name="HasQuotes" UId="2173">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2174" />
+            <Component Name="Diag" UId="2175" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2176" />
+      <Blank Num="1" UId="2177" />
+      <Parameter Name="ResetClass" UId="2178">
+        <Blank Num="1" UId="2179" />
+        <Token Text=":=" UId="2180" />
+        <Blank Num="1" UId="2181" />
+        <Access Scope="GlobalVariable" UId="2182">
+          <Symbol UId="2183">
+            <Component Name="GDB_AlarmRecoveryTest" UId="2184">
+              <BooleanAttribute Name="HasQuotes" UId="2185">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2186" />
+            <Component Name="ResetClass" UId="2187" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2189" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2190" />
+  <NewLine Num="1" UId="2191" />
+  <Blank Num="8" UId="2192" />
+  <Access Scope="LiteralConstant" UId="2193">
+    <Constant UId="2194">
+      <ConstantValue UId="2196">40</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text="," UId="2197" />
+  <Blank Num="1" UId="2198" />
+  <Access Scope="LiteralConstant" UId="2199">
+    <Constant UId="2200">
+      <ConstantValue UId="2202">41</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="2203" />
+  <NewLine Num="1" UId="2204" />
+  <Blank Num="12" UId="2205" />
+  <Access Scope="LocalVariable" UId="2206">
+    <Symbol UId="2207">
+      <Component Name="Gone" UId="2208" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2209" />
+  <Token Text=":=" UId="2210" />
+  <Blank Num="1" UId="2211" />
+  <Access Scope="Call" UId="2212">
+    <CallInfo UId="2213" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2215">
+        <Component Name="FRK_AlarmGone" UId="2214" />
+      </Instance>
+      <Token Text="(" UId="2216" />
+      <Parameter Name="AlarmLog" UId="2217">
+        <Blank Num="1" UId="2218" />
+        <Token Text=":=" UId="2219" />
+        <Blank Num="1" UId="2220" />
+        <Access Scope="GlobalVariable" UId="2221">
+          <Symbol UId="2222">
+            <Component Name="StationB" UId="2223">
+              <BooleanAttribute Name="HasQuotes" UId="2224">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2225" />
+            <Component Name="AlarmLog" UId="2226" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2227" />
+      <Blank Num="1" UId="2228" />
+      <Parameter Name="Slot" UId="2229">
+        <Blank Num="1" UId="2230" />
+        <Token Text=":=" UId="2231" />
+        <Blank Num="1" UId="2232" />
+        <Access Scope="LocalVariable" UId="2233">
+          <Symbol UId="2234">
+            <Component Name="EventSlot" UId="2235" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2237" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2238" />
+  <NewLine Num="1" UId="2239" />
+  <Blank Num="12" UId="2240" />
+  <Access Scope="LocalVariable" UId="2241">
+    <Symbol UId="2242">
+      <Component Name="Code" UId="2243" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2244" />
+  <Token Text=":=" UId="2245" />
+  <Blank Num="1" UId="2246" />
+  <Access Scope="Call" UId="2247">
+    <Instruction Name="RD_SYS_T" UId="2248">
+      <Token Text="(" UId="2249" />
+      <Parameter Name="OUT" UId="2250">
+        <Blank Num="1" UId="2251" />
+        <Token Text="=&gt;" UId="2252" />
+        <Blank Num="1" UId="2253" />
+        <Access Scope="GlobalVariable" UId="2254">
+          <Symbol UId="2255">
+            <Component Name="GDB_RecoveryStamp" UId="2256">
+              <BooleanAttribute Name="HasQuotes" UId="2257">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2258" />
+            <Component Name="Data" UId="2259" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2261" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="2262" />
+  <NewLine Num="1" UId="2263" />
+  <Blank Num="12" UId="2264" />
+  <Access Scope="GlobalVariable" UId="2265">
+    <Symbol UId="2266">
+      <Component Name="StationB" UId="2267">
+        <BooleanAttribute Name="HasQuotes" UId="2268">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2269" />
+      <Component Name="AlarmLog" UId="2270" />
+      <Token Text="." UId="2271" />
+      <Component Name="Active" UId="2272">
+        <Token Text="[" UId="2273" />
+        <Access Scope="LocalVariable" UId="2274">
+          <Symbol UId="2275">
+            <Component Name="EventSlot" UId="2276" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="2277" />
+      </Component>
+      <Token Text="." UId="2278" />
+      <Component Name="ResetAt" UId="2279" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2280" />
+  <Token Text=":=" UId="2281" />
+  <Blank Num="1" UId="2282" />
+  <Access Scope="Call" UId="2283">
+    <Instruction Name="DTL_TO_LDT" UId="2284">
+      <Token Text="(" UId="2285" />
+      <NamelessParameter UId="2286">
+        <Access Scope="GlobalVariable" UId="2287">
+          <Symbol UId="2288">
+            <Component Name="GDB_RecoveryStamp" UId="2289">
+              <BooleanAttribute Name="HasQuotes" UId="2290">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2291" />
+            <Component Name="Data" UId="2292" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="2294" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="2295" />
+  <NewLine Num="1" UId="2296" />
+  <Blank Num="12" UId="2297" />
+  <Access Scope="GlobalVariable" UId="2298">
+    <Symbol UId="2299">
+      <Component Name="StationB" UId="2300">
+        <BooleanAttribute Name="HasQuotes" UId="2301">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2302" />
+      <Component Name="AlarmLog" UId="2303" />
+      <Token Text="." UId="2304" />
+      <Component Name="Active" UId="2305">
+        <Token Text="[" UId="2306" />
+        <Access Scope="LocalVariable" UId="2307">
+          <Symbol UId="2308">
+            <Component Name="EventSlot" UId="2309" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="2310" />
+      </Component>
+      <Token Text="." UId="2311" />
+      <Component Name="State" UId="2312" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2313" />
+  <Token Text=":=" UId="2314" />
+  <Blank Num="1" UId="2315" />
+  <Access Scope="LiteralConstant" UId="2316">
+    <Constant UId="2317">
+      <ConstantValue UId="2319">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2320" />
+  <NewLine Num="1" UId="2321" />
+  <Blank Num="12" UId="2322" />
+  <Access Scope="Call" UId="2323">
+    <CallInfo UId="2324" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2326">
+        <Component Name="FRK_AlarmRecoveryClosePrepare" UId="2325" />
+      </Instance>
+      <Token Text="(" UId="2327" />
+      <Parameter Name="AlarmLog" UId="2328">
+        <Blank Num="1" UId="2329" />
+        <Token Text=":=" UId="2330" />
+        <Blank Num="1" UId="2331" />
+        <Access Scope="GlobalVariable" UId="2332">
+          <Symbol UId="2333">
+            <Component Name="StationB" UId="2334">
+              <BooleanAttribute Name="HasQuotes" UId="2335">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2336" />
+            <Component Name="AlarmLog" UId="2337" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2338" />
+      <NewLine Num="1" UId="2339" />
+      <Blank Num="44" UId="2340" />
+      <Parameter Name="EventSlot" UId="2341">
+        <Blank Num="1" UId="2342" />
+        <Token Text=":=" UId="2343" />
+        <Blank Num="1" UId="2344" />
+        <Access Scope="LocalVariable" UId="2345">
+          <Symbol UId="2346">
+            <Component Name="EventSlot" UId="2347" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2348" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2349" />
+  <NewLine Num="1" UId="2350" />
+  <Blank Num="12" UId="2351" />
+  <Token Text="IF" UId="2352" />
+  <Blank Num="1" UId="2353" />
+  <Access Scope="GlobalVariable" UId="2354">
+    <Symbol UId="2355">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2356">
+        <BooleanAttribute Name="HasQuotes" UId="2357">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2358" />
+      <Component Name="Operation" UId="2359" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2360" />
+  <Token Text="=" UId="2361" />
+  <Blank Num="1" UId="2362" />
+  <Access Scope="LiteralConstant" UId="2363">
+    <Constant UId="2364">
+      <ConstantValue UId="2366">41</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="2367" />
+  <Token Text="THEN" UId="2368" />
+  <NewLine Num="1" UId="2369" />
+  <Blank Num="16" UId="2370" />
+  <Access Scope="GlobalVariable" UId="2371">
+    <Symbol UId="2372">
+      <Component Name="StationB" UId="2373">
+        <BooleanAttribute Name="HasQuotes" UId="2374">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2375" />
+      <Component Name="AlarmLog" UId="2376" />
+      <Token Text="." UId="2377" />
+      <Component Name="RingHead" UId="2378" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2379" />
+  <Token Text=":=" UId="2380" />
+  <Blank Num="1" UId="2381" />
+  <Token Text="(" UId="2382" />
+  <Access Scope="GlobalVariable" UId="2383">
+    <Symbol UId="2384">
+      <Component Name="StationB" UId="2385">
+        <BooleanAttribute Name="HasQuotes" UId="2386">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2387" />
+      <Component Name="AlarmLog" UId="2388" />
+      <Token Text="." UId="2389" />
+      <Component Name="RingHead" UId="2390" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2391" />
+  <Token Text="MOD" UId="2392" />
+  <Blank Num="1" UId="2393" />
+  <Access Scope="LiteralConstant" UId="2394">
+    <Constant UId="2395">
+      <ConstantValue UId="2397">64</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=")" UId="2398" />
+  <Blank Num="1" UId="2399" />
+  <Token Text="+" UId="2400" />
+  <Blank Num="1" UId="2401" />
+  <Access Scope="LiteralConstant" UId="2402">
+    <Constant UId="2403">
+      <ConstantValue UId="2405">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2406" />
+  <NewLine Num="1" UId="2407" />
+  <Blank Num="16" UId="2408" />
+  <Token Text="IF" UId="2409" />
+  <Blank Num="1" UId="2410" />
+  <Access Scope="GlobalVariable" UId="2411">
+    <Symbol UId="2412">
+      <Component Name="StationB" UId="2413">
+        <BooleanAttribute Name="HasQuotes" UId="2414">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2415" />
+      <Component Name="AlarmLog" UId="2416" />
+      <Token Text="." UId="2417" />
+      <Component Name="RingUsed" UId="2418" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2419" />
+  <Token Text="&lt;" UId="2420" />
+  <Blank Num="1" UId="2421" />
+  <Access Scope="LiteralConstant" UId="2422">
+    <Constant UId="2423">
+      <ConstantValue UId="2425">64</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="2426" />
+  <Token Text="THEN" UId="2427" />
+  <NewLine Num="1" UId="2428" />
+  <Blank Num="20" UId="2429" />
+  <Access Scope="GlobalVariable" UId="2430">
+    <Symbol UId="2431">
+      <Component Name="StationB" UId="2432">
+        <BooleanAttribute Name="HasQuotes" UId="2433">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2434" />
+      <Component Name="AlarmLog" UId="2435" />
+      <Token Text="." UId="2436" />
+      <Component Name="RingUsed" UId="2437" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2438" />
+  <Token Text=":=" UId="2439" />
+  <Blank Num="1" UId="2440" />
+  <Access Scope="GlobalVariable" UId="2441">
+    <Symbol UId="2442">
+      <Component Name="StationB" UId="2443">
+        <BooleanAttribute Name="HasQuotes" UId="2444">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2445" />
+      <Component Name="AlarmLog" UId="2446" />
+      <Token Text="." UId="2447" />
+      <Component Name="RingUsed" UId="2448" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2449" />
+  <Token Text="+" UId="2450" />
+  <Blank Num="1" UId="2451" />
+  <Access Scope="LiteralConstant" UId="2452">
+    <Constant UId="2453">
+      <ConstantValue UId="2455">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2456" />
+  <NewLine Num="1" UId="2457" />
+  <Blank Num="16" UId="2458" />
+  <Token Text="END_IF" UId="2459" />
+  <Token Text=";" UId="2460" />
+  <NewLine Num="1" UId="2461" />
+  <Blank Num="16" UId="2462" />
+  <Access Scope="GlobalVariable" UId="2463">
+    <Symbol UId="2464">
+      <Component Name="StationB" UId="2465">
+        <BooleanAttribute Name="HasQuotes" UId="2466">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2467" />
+      <Component Name="AlarmLog" UId="2468" />
+      <Token Text="." UId="2469" />
+      <Component Name="Ring" UId="2470">
+        <Token Text="[" UId="2471" />
+        <Access Scope="GlobalVariable" UId="2472">
+          <Symbol UId="2473">
+            <Component Name="StationB" UId="2474">
+              <BooleanAttribute Name="HasQuotes" UId="2475">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2476" />
+            <Component Name="AlarmLog" UId="2477" />
+            <Token Text="." UId="2478" />
+            <Component Name="RingHead" UId="2479" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="2480" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2481" />
+  <Token Text=":=" UId="2482" />
+  <Blank Num="1" UId="2483" />
+  <Access Scope="GlobalVariable" UId="2484">
+    <Symbol UId="2485">
+      <Component Name="StationB" UId="2486">
+        <BooleanAttribute Name="HasQuotes" UId="2487">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2488" />
+      <Component Name="AlarmLog" UId="2489" />
+      <Token Text="." UId="2490" />
+      <Component Name="Active" UId="2491">
+        <Token Text="[" UId="2492" />
+        <Access Scope="LocalVariable" UId="2493">
+          <Symbol UId="2494">
+            <Component Name="EventSlot" UId="2495" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="2496" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="2497" />
+  <NewLine Num="1" UId="2498" />
+  <Blank Num="16" UId="2499" />
+  <Access Scope="Call" UId="2500">
+    <CallInfo UId="2501" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2503">
+        <Component Name="FRK_AlarmHistoryAppend" UId="2502" />
+      </Instance>
+      <Token Text="(" UId="2504" />
+      <Parameter Name="AlarmLog" UId="2505">
+        <Blank Num="1" UId="2506" />
+        <Token Text=":=" UId="2507" />
+        <Blank Num="1" UId="2508" />
+        <Access Scope="GlobalVariable" UId="2509">
+          <Symbol UId="2510">
+            <Component Name="StationB" UId="2511">
+              <BooleanAttribute Name="HasQuotes" UId="2512">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2513" />
+            <Component Name="AlarmLog" UId="2514" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2515" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2516" />
+  <NewLine Num="1" UId="2517" />
+  <Blank Num="12" UId="2518" />
+  <Token Text="END_IF" UId="2519" />
+  <Token Text=";" UId="2520" />
+  <NewLine Num="1" UId="2521" />
+  <Blank Num="4" UId="2522" />
+  <Token Text="END_CASE" UId="2523" />
+  <Token Text=";" UId="2524" />
+  <NewLine Num="1" UId="2525" />
+  <Token Text="END_IF" UId="2526" />
+  <Token Text=";" UId="2527" />
+  <NewLine Num="1" UId="2528" />
+  <Token Text="IF" UId="2529" />
+  <Blank Num="1" UId="2530" />
+  <Access Scope="GlobalVariable" UId="2531">
+    <Symbol UId="2532">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2533">
+        <BooleanAttribute Name="HasQuotes" UId="2534">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2535" />
+      <Component Name="StickyCause" UId="2536" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2537" />
+  <Token Text="THEN" UId="2538" />
+  <NewLine Num="1" UId="2539" />
+  <Blank Num="4" UId="2540" />
+  <Access Scope="LocalVariable" UId="2541">
+    <Symbol UId="2542">
+      <Component Name="NeedRaise" UId="2543" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2544" />
+  <Token Text=":=" UId="2545" />
+  <Blank Num="1" UId="2546" />
+  <Access Scope="GlobalVariable" UId="2547">
+    <Symbol UId="2548">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2549">
+        <BooleanAttribute Name="HasQuotes" UId="2550">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2551" />
+      <Component Name="CauseSlot" UId="2552" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2553" />
+  <Token Text="&lt;" UId="2554" />
+  <Blank Num="1" UId="2555" />
+  <Access Scope="LiteralConstant" UId="2556">
+    <Constant UId="2557">
+      <ConstantValue UId="2559">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="2560" />
+  <Token Text="OR" UId="2561" />
+  <Blank Num="1" UId="2562" />
+  <Access Scope="GlobalVariable" UId="2563">
+    <Symbol UId="2564">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2565">
+        <BooleanAttribute Name="HasQuotes" UId="2566">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2567" />
+      <Component Name="CauseSlot" UId="2568" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2569" />
+  <Token Text="&gt;" UId="2570" />
+  <Blank Num="1" UId="2571" />
+  <Access Scope="LiteralConstant" UId="2572">
+    <Constant UId="2573">
+      <ConstantValue UId="2575">16</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2576" />
+  <NewLine Num="1" UId="2577" />
+  <Blank Num="4" UId="2578" />
+  <Token Text="IF" UId="2579" />
+  <Blank Num="1" UId="2580" />
+  <Token Text="NOT" UId="2581" />
+  <Blank Num="1" UId="2582" />
+  <Access Scope="LocalVariable" UId="2583">
+    <Symbol UId="2584">
+      <Component Name="NeedRaise" UId="2585" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2586" />
+  <Token Text="THEN" UId="2587" />
+  <NewLine Num="1" UId="2588" />
+  <Blank Num="8" UId="2589" />
+  <Access Scope="LocalVariable" UId="2590">
+    <Symbol UId="2591">
+      <Component Name="NeedRaise" UId="2592" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2593" />
+  <Token Text=":=" UId="2594" />
+  <Blank Num="1" UId="2595" />
+  <Access Scope="GlobalVariable" UId="2596">
+    <Symbol UId="2597">
+      <Component Name="StationA" UId="2598">
+        <BooleanAttribute Name="HasQuotes" UId="2599">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2600" />
+      <Component Name="AlarmLog" UId="2601" />
+      <Token Text="." UId="2602" />
+      <Component Name="Active" UId="2603">
+        <Token Text="[" UId="2604" />
+        <Access Scope="GlobalVariable" UId="2605">
+          <Symbol UId="2606">
+            <Component Name="GDB_AlarmRecoveryTest" UId="2607">
+              <BooleanAttribute Name="HasQuotes" UId="2608">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2609" />
+            <Component Name="CauseSlot" UId="2610" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="2611" />
+      </Component>
+      <Token Text="." UId="2612" />
+      <Component Name="State" UId="2613" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2614" />
+  <Token Text="=" UId="2615" />
+  <Blank Num="1" UId="2616" />
+  <Access Scope="LiteralConstant" UId="2617">
+    <Constant UId="2618">
+      <ConstantValue UId="2620">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2621" />
+  <NewLine Num="1" UId="2622" />
+  <Blank Num="4" UId="2623" />
+  <Token Text="END_IF" UId="2624" />
+  <Token Text=";" UId="2625" />
+  <NewLine Num="1" UId="2626" />
+  <Blank Num="4" UId="2627" />
+  <Token Text="IF" UId="2628" />
+  <Blank Num="1" UId="2629" />
+  <Access Scope="LocalVariable" UId="2630">
+    <Symbol UId="2631">
+      <Component Name="NeedRaise" UId="2632" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2633" />
+  <Token Text="THEN" UId="2634" />
+  <NewLine Num="1" UId="2635" />
+  <Blank Num="8" UId="2636" />
+  <Access Scope="GlobalVariable" UId="2637">
+    <Symbol UId="2638">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2639">
+        <BooleanAttribute Name="HasQuotes" UId="2640">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2641" />
+      <Component Name="Diag" UId="2642" />
+      <Token Text="." UId="2643" />
+      <Component Name="ReasonCode" UId="2644" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2645" />
+  <Token Text=":=" UId="2646" />
+  <Blank Num="1" UId="2647" />
+  <Access Scope="LiteralConstant" UId="2648">
+    <Constant UId="2649">
+      <ConstantValue UId="2651">15200</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2652" />
+  <NewLine Num="1" UId="2653" />
+  <Blank Num="8" UId="2654" />
+  <Access Scope="GlobalVariable" UId="2655">
+    <Symbol UId="2656">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2657">
+        <BooleanAttribute Name="HasQuotes" UId="2658">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2659" />
+      <Component Name="Diag" UId="2660" />
+      <Token Text="." UId="2661" />
+      <Component Name="Description" UId="2662" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2663" />
+  <Token Text=":=" UId="2664" />
+  <Blank Num="1" UId="2665" />
+  <Access Scope="TypedConstant" UId="2666">
+    <Constant UId="2667">
+      <ConstantValue UId="2668">WSTRING#'test.alarm.stickyCause'</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2669" />
+  <NewLine Num="1" UId="2670" />
+  <Blank Num="8" UId="2671" />
+  <Access Scope="GlobalVariable" UId="2672">
+    <Symbol UId="2673">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2674">
+        <BooleanAttribute Name="HasQuotes" UId="2675">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2676" />
+      <Component Name="Diag" UId="2677" />
+      <Token Text="." UId="2678" />
+      <Component Name="SourcePath" UId="2679" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2680" />
+  <Token Text=":=" UId="2681" />
+  <Blank Num="1" UId="2682" />
+  <Access Scope="TypedConstant" UId="2683">
+    <Constant UId="2684">
+      <ConstantValue UId="2685">WSTRING#'StationA'</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2686" />
+  <NewLine Num="1" UId="2687" />
+  <Blank Num="8" UId="2688" />
+  <Access Scope="GlobalVariable" UId="2689">
+    <Symbol UId="2690">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2691">
+        <BooleanAttribute Name="HasQuotes" UId="2692">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2693" />
+      <Component Name="CauseSlot" UId="2694" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2695" />
+  <Token Text=":=" UId="2696" />
+  <Blank Num="1" UId="2697" />
+  <Access Scope="Call" UId="2698">
+    <CallInfo UId="2699" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2701">
+        <Component Name="FRK_AlarmRaise" UId="2700" />
+      </Instance>
+      <Token Text="(" UId="2702" />
+      <Parameter Name="AlarmLog" UId="2703">
+        <Blank Num="1" UId="2704" />
+        <Token Text=":=" UId="2705" />
+        <Blank Num="1" UId="2706" />
+        <Access Scope="GlobalVariable" UId="2707">
+          <Symbol UId="2708">
+            <Component Name="StationA" UId="2709">
+              <BooleanAttribute Name="HasQuotes" UId="2710">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2711" />
+            <Component Name="AlarmLog" UId="2712" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2713" />
+      <Blank Num="1" UId="2714" />
+      <Parameter Name="Diag" UId="2715">
+        <Blank Num="1" UId="2716" />
+        <Token Text=":=" UId="2717" />
+        <Blank Num="1" UId="2718" />
+        <Access Scope="GlobalVariable" UId="2719">
+          <Symbol UId="2720">
+            <Component Name="GDB_AlarmRecoveryTest" UId="2721">
+              <BooleanAttribute Name="HasQuotes" UId="2722">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2723" />
+            <Component Name="Diag" UId="2724" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2725" />
+      <Blank Num="1" UId="2726" />
+      <Parameter Name="ResetClass" UId="2727">
+        <Blank Num="1" UId="2728" />
+        <Token Text=":=" UId="2729" />
+        <Blank Num="1" UId="2730" />
+        <Access Scope="LiteralConstant" UId="2731">
+          <Constant UId="2732">
+            <ConstantValue UId="2734">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2736" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2737" />
+  <NewLine Num="1" UId="2738" />
+  <Blank Num="4" UId="2739" />
+  <Token Text="END_IF" UId="2740" />
+  <Token Text=";" UId="2741" />
+  <NewLine Num="1" UId="2742" />
+  <Token Text="ELSIF" UId="2743" />
+  <Blank Num="1" UId="2744" />
+  <Access Scope="GlobalVariable" UId="2745">
+    <Symbol UId="2746">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2747">
+        <BooleanAttribute Name="HasQuotes" UId="2748">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2749" />
+      <Component Name="CauseSlot" UId="2750" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2751" />
+  <Token Text="&gt;" UId="2752" />
+  <Blank Num="1" UId="2753" />
+  <Access Scope="LiteralConstant" UId="2754">
+    <Constant UId="2755">
+      <ConstantValue UId="2757">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="2758" />
+  <Token Text="THEN" UId="2759" />
+  <NewLine Num="1" UId="2760" />
+  <Blank Num="4" UId="2761" />
+  <Access Scope="LocalVariable" UId="2762">
+    <Symbol UId="2763">
+      <Component Name="Gone" UId="2764" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2765" />
+  <Token Text=":=" UId="2766" />
+  <Blank Num="1" UId="2767" />
+  <Access Scope="Call" UId="2768">
+    <CallInfo UId="2769" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2771">
+        <Component Name="FRK_AlarmGone" UId="2770" />
+      </Instance>
+      <Token Text="(" UId="2772" />
+      <Parameter Name="AlarmLog" UId="2773">
+        <Blank Num="1" UId="2774" />
+        <Token Text=":=" UId="2775" />
+        <Blank Num="1" UId="2776" />
+        <Access Scope="GlobalVariable" UId="2777">
+          <Symbol UId="2778">
+            <Component Name="StationA" UId="2779">
+              <BooleanAttribute Name="HasQuotes" UId="2780">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2781" />
+            <Component Name="AlarmLog" UId="2782" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2783" />
+      <Blank Num="1" UId="2784" />
+      <Parameter Name="Slot" UId="2785">
+        <Blank Num="1" UId="2786" />
+        <Token Text=":=" UId="2787" />
+        <Blank Num="1" UId="2788" />
+        <Access Scope="GlobalVariable" UId="2789">
+          <Symbol UId="2790">
+            <Component Name="GDB_AlarmRecoveryTest" UId="2791">
+              <BooleanAttribute Name="HasQuotes" UId="2792">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="2793" />
+            <Component Name="CauseSlot" UId="2794" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2796" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2797" />
+  <NewLine Num="1" UId="2798" />
+  <Blank Num="4" UId="2799" />
+  <Access Scope="GlobalVariable" UId="2800">
+    <Symbol UId="2801">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2802">
+        <BooleanAttribute Name="HasQuotes" UId="2803">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2804" />
+      <Component Name="CauseSlot" UId="2805" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2806" />
+  <Token Text=":=" UId="2807" />
+  <Blank Num="1" UId="2808" />
+  <Access Scope="LiteralConstant" UId="2809">
+    <Constant UId="2810">
+      <ConstantValue UId="2812">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2813" />
+  <NewLine Num="1" UId="2814" />
+  <Token Text="END_IF" UId="2815" />
+  <Token Text=";" UId="2816" />
+  <NewLine Num="1" UId="2817" />
+  <Access Scope="GlobalVariable" UId="2818">
+    <Symbol UId="2819">
+      <Component Name="GDB_AlarmRecoveryTest" UId="2820">
+        <BooleanAttribute Name="HasQuotes" UId="2821">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="2822" />
+      <Component Name="Operation" UId="2823" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2824" />
+  <Token Text=":=" UId="2825" />
+  <Blank Num="1" UId="2826" />
+  <Access Scope="LiteralConstant" UId="2827">
+    <Constant UId="2828">
+      <ConstantValue UId="2830">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2831" />
+  <NewLine Num="1" UId="2832" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

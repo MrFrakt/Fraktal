@@ -1,0 +1,20 @@
+case  1 PASS expected=2 actual=2  T1 CylA EXTEND completes
+case  2 PASS expected=0 actual=0  T1 idle after Execute drop
+case  3 PASS expected=4 actual=4  T4 abort mid-move: Aborted, coils off
+case  4 PASS expected=0 actual=0  T4 no self-resume
+case  5 PASS expected=2001 actual=2001  T2 feedback withheld -> ErrorID 2001
+case  6 PASS expected=0 actual=14  T2 SourcePath = SpikeUnit.CylB
+case  7 PASS expected=0 actual=0  Execute drop clears ERROR and first-out
+case  8 PASS expected=2003 actual=2003  T3 interlock open -> HELD: busy, coils off, 2003 at LOW
+case 17 PASS expected=2 actual=2  T3 interlock restored -> resumes to DONE
+case  9 PASS expected=14 actual=14  identity from GetInstancePath
+case 10 PASS expected=3 actual=3  registry rows and parentage
+case 11 PASS expected=0 actual=0  mailbox SET_MODE AUTO acknowledged
+case 12 PASS expected=1 actual=1  mailbox START -> Unit BUSY
+case 13 PASS expected=6 actual=6  S11 chain trace 0,100,110,120,100,110
+case 14 PASS expected=0 actual=0  STOP -> Unit READY, child commands released
+case 15 PASS expected=2001 actual=2001  T6 Unit adopts CylA first-out verbatim
+case 16 PASS expected=0 actual=0  OPERATOR_RESET -> Unit and CylA READY
+done=True passed=17 failed=0 rows=17
+
+[exited with code 0]

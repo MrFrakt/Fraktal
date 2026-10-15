@@ -1,0 +1,22 @@
+﻿FUNCTION "FRK_SeqViewWithdraw" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewWithdraw"(Cursors := "FRK_Views".V001.Cursors,
+	                           Book := "FRK_Views".V001.Book,
+	                           Touched := "FRK_Views".V001.Touched,
+	                           Current := "FRK_Views".V001.Current);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

@@ -1,33 +1,4 @@
 // Shared Unit routing: typed generated edges carry these owning predicates.
-FUNCTION "FRK_HistoryEvent" : Void
-{ S7_Optimized_Access := 'TRUE' }
-VERSION : 0.1
-VAR_INPUT
-    Reason : DInt;
-    Description : WString;
-    SourcePath : WString;
-END_VAR
-VAR_IN_OUT
-    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
-    Head : Int;
-END_VAR
-VAR_TEMP
-    Stamp : DTL;
-    ResultCode : Int;
-END_VAR
-BEGIN
-    IF #Head < 0 OR #Head >= @MAX_DIAG_RING@ THEN #Head := 0; END_IF;
-    #Head := #Head + 1;
-    #History[#Head] := "FRK_UnitScratch".EmptyDiagnostic;
-    #History[#Head].ReasonCode := #Reason;
-    #History[#Head].Description := #Description;
-    #History[#Head].SourcePath := #SourcePath;
-    #History[#Head].Severity := @E_Severity.LOW@;
-    #History[#Head].Category := @E_Category.SYSTEM@;
-    #ResultCode := RD_SYS_T(OUT => #Stamp);
-    IF #ResultCode = 0 THEN #History[#Head].Since := DTL_TO_LDT(#Stamp); END_IF;
-END_FUNCTION
-
 FUNCTION "FRK_PathOwned" : Bool
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
@@ -68,7 +39,11 @@ BEGIN
     #Report.Count := 0;
     #Report.Released := TRUE;
     IF #Gate <> @E_GatedAction.START_STOP@ AND #Gate <> @E_GatedAction.MODE_CHANGE@
-        AND #Gate <> @E_GatedAction.ALARM_RESET@ AND #Gate <> @E_GatedAction.MANUAL@ THEN
+        AND #Gate <> @E_GatedAction.ALARM_RESET@ AND #Gate <> @E_GatedAction.MANUAL@
+        AND #Gate <> @E_GatedAction.ACCESS_POLICY@
+        AND NOT (#Unit.ConfigEnabled AND #Gate = @E_GatedAction.DATA_WRITE@)
+        AND NOT (#Unit.ConfigSetsEnabled AND #Gate = @E_GatedAction.CONFIG_SET@)
+        AND NOT (#Unit.ModelEnabled AND #Gate = @E_GatedAction.CHANGEOVER@) THEN
         "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := @E_Reason.UNSUPPORTED_COMMAND@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
         RETURN;
     END_IF;
@@ -78,6 +53,16 @@ BEGIN
         END_IF;
     END_IF;
     CASE #Gate OF
+        @E_GatedAction.CHANGEOVER@:
+            IF #Core.Exec <> @E_ExecState.READY@ OR #Unit.ModePending OR #Unit.Clearing OR NOT "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+            END_IF;
+            IF #Unit.AlarmBlocking THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualReset', Reason := @E_Reason.NONE@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.ALARM@);
+            END_IF;
+            IF NOT #Unit.Permit THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := @E_ReleaseKind.INTERLOCK@);
+            END_IF;
         @E_GatedAction.START_STOP@:
             // Desired=0 is Start, Desired=1 is Stop. Generic action query is Stop.
             IF #Desired = 0 THEN
@@ -86,6 +71,12 @@ BEGIN
                 END_IF;
                 IF #Core.Exec <> @E_ExecState.READY@ OR #Unit.RunReq OR #Unit.Clearing OR #Unit.FaultLatched THEN
                     "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+                END_IF;
+                IF #Unit.AlarmBlocking THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualReset', Reason := @E_Reason.NONE@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.ALARM@);
+                END_IF;
+                IF #Unit.ConfigBlocked THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.configRestoreUnacknowledged', Reason := @E_Reason.CONFIG_RESTORE_LOST@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.ALARM@);
                 END_IF;
                 IF NOT #Unit.Permit THEN
                     "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := @E_ReleaseKind.INTERLOCK@);
@@ -109,7 +100,7 @@ BEGIN
             END_IF;
         @E_GatedAction.ALARM_RESET@:
             // The complete alarm model is separate; this gate owns the current latch.
-            IF NOT #Unit.FaultLatched AND #Core.Exec = @E_ExecState.READY@ AND NOT #Unit.Clearing AND NOT #Unit.ModePending AND NOT #Unit.FollowStart THEN
+            IF NOT #Unit.FaultLatched AND NOT #Unit.AlarmBlocking AND #Core.Exec = @E_ExecState.READY@ AND NOT #Unit.Clearing AND NOT #Unit.ModePending AND NOT #Unit.FollowStart THEN
                 IF "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
                     "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noBlockingAlarm', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
                 END_IF;
@@ -138,6 +129,9 @@ BEGIN
     END_IF;
     IF #Core.Exec <> @E_ExecState.READY@ OR #Unit.Clearing OR #Unit.FaultLatched THEN
         "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := @E_Reason.DEVICE_NOT_READY@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+    END_IF;
+    IF #Unit.AlarmBlocking THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualReset', Reason := @E_Reason.NONE@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.ALARM@);
     END_IF;
     IF NOT #Unit.Permit THEN
         "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := @E_ReleaseKind.INTERLOCK@);
@@ -247,8 +241,7 @@ VAR_IN_OUT
     Status : "ST_ModuleStatus";
     Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
     Access : "FRK_Access";
-    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
-    Head : Int;
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 VAR_TEMP
     Request : "ST_HmiRequest";
@@ -269,7 +262,7 @@ BEGIN
         #Request.Kind := @E_HmiRequestKind.STOP@;
         "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
         // Core names this event but has no assigned E_Reason ordinal yet.
-        "FRK_HistoryEvent"(History := #History, Head := #Head, Reason := @E_Reason.UNSUPPORTED_COMMAND@, Description := WSTRING#'std.event.childModeUnsupported', SourcePath := STRING_TO_WSTRING(#Status.Name));
+        "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := @E_Reason.UNSUPPORTED_COMMAND@, Description := WSTRING#'std.event.childModeUnsupported', SourcePath := STRING_TO_WSTRING(#Status.Name));
     ELSE
         #Unit.FollowStart := #ParentUnit.CascadeKind = @E_HmiRequestKind.START@;
     END_IF;

@@ -25,9 +25,9 @@ def declaration():
     root['commands']=[{'id':1,'label':'Run'}]
     root['storage']='ST_UnitProbeDevice';root['contract']['OutImm']='ST_UnitProbeImm'
     root['logic']={
-        'CommandStart':'''    #Device.Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, History := #History, Head := #HistoryHead);
+        'CommandStart':'''    #Device.Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
     IF #Device.Received THEN
-        "FRK_PartStarted"(Unit := #Unit, Status := #Status, Part := #Part, History := #History, Head := #HistoryHead);
+        "FRK_PartStarted"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
     END_IF;''',
         'Release':'    "FRK_UnitSetPermit"(Unit := #Unit, Ok := #Hal.Cell.Clamp.Permit, Diag := #Hal.Cell.Clamp.Diag);',
         'Cyclic':'''    IF #Hal.Cell.Clamp.BackgroundFault THEN
@@ -42,16 +42,16 @@ def declaration():
         IF #Unit.CarrierIndex = 0 THEN
             #Device.Processed := TRUE;
         ELSE
-            #Device.Processed := "FRK_PartProcessed"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, History := #History, Head := #HistoryHead, Verdict := #Hal.Cell.Clamp.Verdict, Reason := #Hal.Cell.Clamp.Diag.ReasonCode);
+            #Device.Processed := "FRK_PartProcessed"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, Verdict := #Hal.Cell.Clamp.Verdict, Reason := #Hal.Cell.Clamp.Diag.ReasonCode);
         END_IF;
         IF #Device.Processed THEN
             #Device.Cycles := #Device.Cycles + 1;
             IF #Unit.StopReq THEN
                 "FRK_Complete"(Core := #Core, Status := #Status);
             ELSE
-                #Device.Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, History := #History, Head := #HistoryHead);
+                #Device.Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
                 IF #Device.Received THEN
-                    "FRK_PartStarted"(Unit := #Unit, Status := #Status, Part := #Part, History := #History, Head := #HistoryHead);
+                    "FRK_PartStarted"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
                 END_IF;
             END_IF;
         END_IF;
@@ -141,15 +141,15 @@ BEGIN
     "GDB_UnitTest".CarrierSerial := "FRK_Carriers".Slots[1].Serial;
     "GDB_UnitTest".WrittenUid := "FRK_Carriers".Slots[1].Written.Uid;
     "GDB_UnitTest".WrittenVerdict := "FRK_Carriers".Slots[1].Written.Result.Verdict;
-    IF "StationA".HistoryHead > 0 AND "StationA".HistoryHead <= @HISTORY@ THEN
-        "GDB_UnitTest".LastEvent := "StationA".History["StationA".HistoryHead].ReasonCode;
+    IF "StationA".AlarmLog.RingHead > 0 AND "StationA".AlarmLog.RingHead <= @HISTORY@ THEN
+        "GDB_UnitTest".LastEvent := "StationA".AlarmLog.Ring["StationA".AlarmLog.RingHead].ReasonCode;
     END_IF;
     "GDB_UnitTest".SecretCleared := "StationA".HmiRequest.Secret = '';
     "GDB_UnitTest".SnapshotSecretCleared := "StationA".Unit.Request.Secret = '';
 END_ORGANIZATION_BLOCK
 '''
     from fraktal_tia_binding import Catalog
-    (out/'40_Main.scl').write_bytes(main.replace('@HISTORY@',str(Catalog.read().capacities['MAX_DIAG_RING'])).encode('ascii'))
+    (out/'40_Main.scl').write_bytes(main.replace('@HISTORY@',str(Catalog.read().capacities['MAX_ALARM_RING'])).encode('ascii'))
 
 
 if __name__=='__main__':

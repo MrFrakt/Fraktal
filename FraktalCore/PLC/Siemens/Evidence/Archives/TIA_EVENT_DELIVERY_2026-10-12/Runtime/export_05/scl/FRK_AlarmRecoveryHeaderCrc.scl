@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_AlarmRecoveryHeaderCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+      Index : Int;
+      Size : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmRecoveryHeaderCrc := DWORD#0;
+	IF #Slot < 1 OR #Slot > 2 THEN
+	    RETURN;
+	END_IF;
+	#Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].SchemaVersion));
+	#Size := LEN("FRK_AlarmRecovery".Rows[#Slot].Scope);
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+	FOR #Index := 1 TO #Size DO
+	    #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_AlarmRecovery".Rows[#Slot].Scope[#Index]));
+	END_FOR;
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmRecovery".Rows[#Slot].Generation);
+	FOR #Index := 1 TO 16 DO
+	    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]));
+	    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index]));
+	END_FOR;
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingSlot));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingCrc));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingHead));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration);
+	#FRK_AlarmRecoveryHeaderCrc := NOT #Work;
+	
+END_FUNCTION
+

@@ -9,8 +9,8 @@ ROUTING = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ROUTING)
 
 
-def prepare(out, frames):
-    ROUTING.prepare(out, frames)
+def prepare(out, frames, declaration=None):
+    ROUTING.prepare(out, frames, declaration)
     import fraktal_tia_generate as GEN
     (out/'05_GDB_ManifestTest.db').write_bytes(GEN.db('GDB_ManifestTest', ['ReadLock : Bool;']).encode('ascii'))
     path = out/'40_Main.scl'

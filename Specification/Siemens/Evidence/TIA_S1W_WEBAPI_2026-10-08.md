@@ -4,7 +4,7 @@
 project owner on 2026-10-08 (Part IV §1 transport decision): the S7 Web API,
 enabled headlessly on the bench station project, downloaded, and measured from a
 host client; and three download-and-restart runs of the ASCII-converted S2 fixture.
-Raw material is in [`TIA_S1W_WEBAPI_2026-10-08/`](TIA_S1W_WEBAPI_2026-10-08/)
+Raw material is in [`../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S1W_WEBAPI_2026-10-08/`](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S1W_WEBAPI_2026-10-08)
 (numbered in the order things happened, failures included).
 
 | Item | Value |

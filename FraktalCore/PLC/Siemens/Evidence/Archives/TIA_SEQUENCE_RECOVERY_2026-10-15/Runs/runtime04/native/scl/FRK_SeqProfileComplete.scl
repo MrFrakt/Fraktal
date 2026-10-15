@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_SeqProfileComplete" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ProfileRequest"(Book := "FRK_Profiles".P001.Book);
+	    5:
+	        "FRK_ProfileRequest"(Book := "FRK_Profiles".P005.Book);
+	    9:
+	        "FRK_ProfileRequest"(Book := "FRK_Profiles".P009.Book);
+	    13:
+	        "FRK_ProfileRequest"(Book := "FRK_Profiles".P013.Book);
+	    17:
+	        "FRK_ProfileRequest"(Book := "FRK_Profiles".P017.Book);
+	    21:
+	        "FRK_ProfileRequest"(Book := "FRK_Profiles".P021.Book);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

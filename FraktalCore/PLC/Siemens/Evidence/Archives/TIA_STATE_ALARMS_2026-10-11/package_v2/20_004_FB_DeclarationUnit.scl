@@ -1,0 +1,285 @@
+FUNCTION "FRK_Release_DeclarationUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Unit : "FRK_Unit";
+    Hal : "ST_DeclarationUnitHal";
+END_VAR
+BEGIN
+    "FRK_UnitSetPermit"(Unit := #Unit, Ok := #Hal.Cell.Clamp.Permit, Diag := #Hal.Cell.Clamp.Diag);
+END_FUNCTION
+// Generated frame v0.7; change the declaration, then regenerate.
+FUNCTION_BLOCK "FB_DeclarationUnit"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Execute {ExternalWritable := 'False'} : Bool;
+    Abort {ExternalWritable := 'False'} : Bool;
+    Command {ExternalWritable := 'False'} : DInt;
+    ParCfg {ExternalWritable := 'False'} : "ST_DeclarationParCfg";
+    ParCmd {ExternalWritable := 'False'} : "ST_DeclarationParCmd";
+    ParentIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR_OUTPUT
+    Busy {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    Error {ExternalWritable := 'False'} : Bool;
+    Aborted {ExternalWritable := 'False'} : Bool;
+    Held {ExternalWritable := 'False'} : Bool;
+    ErrorID {ExternalWritable := 'False'} : DWord;
+    Timing {ExternalWritable := 'False'} : "ST_ModuleTiming";
+    OutCmd {ExternalWritable := 'False'} : "ST_DeclarationOutCmd";
+    OutImm {ExternalWritable := 'False'} : "ST_UnitProbeImm";
+END_VAR
+VAR_IN_OUT
+    Hal : "ST_DeclarationUnitHal";
+END_VAR
+VAR
+    Status {ExternalWritable := 'False'} : "ST_ModuleStatus";
+    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+    LatchedParCmd {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DeclarationParCmd";
+    StateFlags {ExternalWritable := 'False'} : Array[1..12] of "ST_StateFlag";
+    StateFlagCount {ExternalWritable := 'False'} : Int;
+    StateTouched {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of Bool;
+    Device {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_UnitProbeDevice";
+    Unit {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Unit";
+    HmiRequest : "ST_HmiRequest";
+    ModePolicy {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..6] of "ST_ModePolicy";
+    Access {ExternalWritable := 'False'} : "FRK_Access";
+    HmiResponse {ExternalWritable := 'False'} : "ST_HmiResponse";
+    ConfigRev {ExternalWritable := 'False'} : UDInt;
+    ConfigCursor {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_ConfigCursor";
+    Part {ExternalWritable := 'False'} : "ST_PartContext";
+    History {ExternalWritable := 'False'} : Array[1..16] of "ST_Diagnostic";
+    HistoryHead {ExternalWritable := 'False'} : Int;
+    AlarmLog {ExternalWritable := 'False'} : "FRK_AlarmLog";
+    ModeActivePublished {ExternalWritable := 'False'} : DInt;
+    RunningPublished {ExternalWritable := 'False'} : Bool;
+    StopPendingPublished {ExternalWritable := 'False'} : Bool;
+    SupportedModesPublished {ExternalWritable := 'False'} : Array[0..6] of Bool;
+    GoodCount {ExternalWritable := 'False'} : UDInt;
+    NokCount {ExternalWritable := 'False'} : UDInt;
+    ReworkCount {ExternalWritable := 'False'} : UDInt;
+    NokReason {ExternalWritable := 'False'} : DInt;
+    Cell {ExternalWritable := 'False'} : "FB_DeclarationCell";
+    Satellite {ExternalWritable := 'False'} : "FB_SatelliteUnit";
+END_VAR
+VAR_TEMP
+    InstancePath : WString[254];
+    RouteMatched : Bool;
+    ManualMatched : Bool;
+END_VAR
+VAR CONSTANT
+    EXEC_READY : DInt := 0;
+    MODULE_TIER : DInt := 1;
+END_VAR
+BEGIN
+    // ---- GENERATED: setup
+    IF #Startup OR NOT #Core.Named THEN
+        #InstancePath := GetInstancePath(SIZE := 0);
+        "FRK_SetIdentity"(Core := #Core, Status := #Status, InstancePath := #InstancePath,
+            ModuleType := 1, TypeId := 1, Capabilities := DWORD#16#00000000, ParentIndex := #ParentIndex, TypeKey := 'Fraktal.Declaration.Unit');
+    END_IF;
+    "FRK_StateSweep"(Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched, Startup := #Startup);
+    IF #Startup OR #ConfigRev = 0 THEN #ConfigRev := "FRK_ConfigRevision"(Previous := #ConfigRev); END_IF;
+    #SupportedModesPublished[0] := TRUE;
+    #SupportedModesPublished[1] := TRUE;
+    #SupportedModesPublished[2] := TRUE;
+    #SupportedModesPublished[3] := TRUE;
+    #SupportedModesPublished[4] := FALSE;
+    #SupportedModesPublished[5] := FALSE;
+    #SupportedModesPublished[6] := FALSE;
+    "FRK_UnitPrepare"(Core := #Core, Unit := #Unit, Policy := #ModePolicy, Request := #HmiRequest, Response := #HmiResponse, Startup := #Startup, InitialMode := 1);
+    "FRK_AlarmBegin"(AlarmLog := #AlarmLog, Startup := #Startup);
+    "FRK_AccessCyclic"(Access := #Access, Startup := #Startup, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog, Revision := #ConfigRev);
+    "FRK_UnitMailbox"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Request := #HmiRequest, Response := #HmiResponse, Supported := #SupportedModesPublished);
+    // ---- GENERATED: begin
+    "FRK_Begin"(Core := #Core, Status := #Status, Execute := #Unit.RunReq, Abort := (#Abort OR #Unit.AbortReq), Command := 1);
+    IF #Core.EvCommandStart THEN
+        #LatchedParCmd := #ParCmd;
+        CASE #Core.Command OF
+            1: "FRK_UnitRunStart"(Core := #Core, Status := #Status, Timeout := #ParCfg.Timeout, Label := 'Run');
+            ELSE "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := '');
+        END_CASE;
+    END_IF;
+    IF #Core.EvCommandStart THEN
+    // ---- AUTHORED: CommandStart
+    #Device.Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+    IF #Device.Received THEN
+        "FRK_PartStarted"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+    END_IF;
+    // ---- GENERATED: reaction end
+    END_IF;
+    // ---- AUTHORED: cyclic management
+    IF #Hal.Cell.Clamp.BackgroundFault THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2901, Description := WSTRING#'test.unit.condition');
+    END_IF;
+    // ---- GENERATED: end management
+    "FRK_Release_DeclarationUnit"(Unit := #Unit, Hal := #Hal);
+    IF #Core.RegIndex > 0 THEN "FRK_Registry".Rows[#Core.RegIndex].AlarmBlocking := #AlarmLog.Blocking; END_IF;
+    #Unit.AlarmBlocking := "FRK_AlarmTreeBlocking"(Owner := #Core.RegIndex);
+    "FRK_UnitConsume"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Response := #HmiResponse, Supported := #SupportedModesPublished);
+    "FRK_UnitMode"(Core := #Core, Unit := #Unit);
+    IF #Core.EvModeExit THEN
+    // ---- AUTHORED: ModeExit
+    #Device.ExitCalls := #Device.ExitCalls + 1;
+    IF #Hal.Cell.Clamp.ExitHold THEN #Core.HookResult := 1; ELSE #Core.HookResult := 0; END_IF;
+    // ---- GENERATED: reaction end
+    END_IF;
+    "FRK_UnitModeResolve"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Timeout := #ParCfg.Timeout);
+    IF #Core.EvModeChanged THEN
+    // ---- AUTHORED: ModeChanged
+    #Device.Changes := #Device.Changes + 1;
+    // ---- GENERATED: reaction end
+    END_IF;
+    "FRK_UnitFollow"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Supported := #SupportedModesPublished);
+    IF #Unit.RequestPending AND (#Unit.Request.Kind = 11 OR #Unit.Request.Kind = 16) THEN
+        #ManualMatched := FALSE;
+        #RouteMatched := "FRK_Route_DeclarationCell"(Module := #Cell, Hal := #Hal.Cell, Request := #Unit.Request, Report := #HmiResponse.Report);
+        #ManualMatched := #ManualMatched OR #RouteMatched;
+        #RouteMatched := "FRK_Route_SatelliteUnit"(Module := #Satellite, Hal := #Hal.Satellite, Request := #Unit.Request, Report := #HmiResponse.Report);
+        #ManualMatched := #ManualMatched OR #RouteMatched;
+        IF NOT #ManualMatched THEN
+            "FRK_ReleaseReason"(Report := #HmiResponse.Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := 2008, Path := #Unit.Request.TargetPath, Kind := 4);
+        END_IF;
+        #HmiResponse.Accepted := #Unit.Request.Kind = 16 OR #HmiResponse.Report.Released;
+        IF #Unit.Request.Kind = 11 THEN
+            IF #HmiResponse.Accepted THEN #HmiResponse.Diagnostic := WSTRING#'std.audit.manualCommandAccepted'; ELSE #HmiResponse.Diagnostic := WSTRING#'std.audit.manualCommandRejected'; END_IF;
+        END_IF;
+    END_IF;
+    IF #Unit.EvReset THEN "FRK_AlarmOperatorReset"(AlarmLog := #AlarmLog); END_IF;
+    IF #Unit.EvReset THEN
+    // ---- AUTHORED: OperatorReset
+    #Device.Resets := #Device.Resets + 1;
+    // ---- GENERATED: reset reaction end
+    END_IF;
+    IF #Core.ReleasePending OR #Unit.ReleaseChildren THEN
+        "FRK_ReleaseCommand"(Core := #Cell.Core, Execute := #Cell.Execute);
+        "FRK_ReleaseCommand"(Core := #Satellite.Core, Execute := #Satellite.Execute);
+    END_IF;
+    // ---- GENERATED: child call
+    #Cell(ParentIndex := #Core.RegIndex, Startup := #Startup, Hal := #Hal.Cell);
+    "FRK_ManualFinish"(Core := #Cell.Core, Execute := #Cell.Execute, ManualOwned := #Cell.ManualOwned);
+    "FRK_UnitCascade"(ParentUnit := #Unit, Core := #Satellite.Core, Unit := #Satellite.Unit, Status := #Satellite.Status, Policy := #Satellite.ModePolicy, Access := #Satellite.Access, Supported := #Satellite.SupportedModesPublished, AlarmLog := #AlarmLog);
+    // ---- GENERATED: child call
+    #Satellite(ParentIndex := #Core.RegIndex, Startup := #Startup, Hal := #Hal.Satellite);
+    IF NOT #Unit.EvReset THEN
+        "FRK_AlarmCapture"(AlarmLog := #AlarmLog, Core := #Core, Status := #Status);
+        "FRK_Capture_DeclarationCell"(Module := #Cell, AlarmLog := #AlarmLog);
+        "FRK_AlarmEnd"(AlarmLog := #AlarmLog);
+    END_IF;
+    IF #Core.RegIndex > 0 THEN "FRK_Registry".Rows[#Core.RegIndex].AlarmBlocking := #AlarmLog.Blocking; END_IF;
+    #Unit.AlarmBlocking := "FRK_AlarmTreeBlocking"(Owner := #Core.RegIndex);
+    #Unit.CascadePending := FALSE;
+    IF #Unit.RequestPending AND #Unit.Request.Kind = 23 THEN
+        #HmiResponse.Accepted := FALSE;
+        #HmiResponse.Report.Count := 0;
+        #HmiResponse.Report.Released := TRUE;
+        #HmiResponse.Diagnostic := WSTRING#'';
+        "FRK_ConfigBegin"(Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage, PageIndex := #Unit.Request.IntValue, Revision := #ConfigRev);
+        IF #Unit.Request.DurationMs <> 0 THEN
+            #HmiResponse.Diagnostic := WSTRING#'std.error.modelNotAvailable';
+        ELSIF #Unit.Request.IntValue < 0 OR #Unit.Request.IntValue > 32767 THEN
+            #HmiResponse.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+        ELSE
+            "FRK_ConfigUnit"(Scope := #Status.Name, Policy := #ModePolicy, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            "FRK_Config_DeclarationCell"(Module := #Cell, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            "FRK_Config_SatelliteUnit"(Module := #Satellite, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            "FRK_ConfigFinish"(Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);
+            #HmiResponse.Accepted := TRUE;
+        END_IF;
+    END_IF;
+    "FRK_RouteAbort"(Core := #Core, Abort := (#Abort OR #Unit.AbortReq));
+    IF #Core.EvAbort THEN
+        "FRK_PartAborted"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+    END_IF;
+    IF #Core.Dispatch AND #Core.RegIndex > 0 AND NOT "FRK_Registry".Fault THEN
+    // ---- AUTHORED: dispatch
+    IF #Hal.Cell.Clamp.Finish THEN
+        #Device.Processed := FALSE;
+        IF #Unit.CarrierIndex = 0 THEN
+            #Device.Processed := TRUE;
+        ELSE
+            #Device.Processed := "FRK_PartProcessed"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, Verdict := #Hal.Cell.Clamp.Verdict, Reason := #Hal.Cell.Clamp.Diag.ReasonCode);
+        END_IF;
+        IF #Device.Processed THEN
+            #Device.Cycles := #Device.Cycles + 1;
+            IF #Unit.StopReq THEN
+                "FRK_Complete"(Core := #Core, Status := #Status);
+            ELSE
+                #Device.Received := "FRK_PartReceived"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+                IF #Device.Received THEN
+                    "FRK_PartStarted"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+                END_IF;
+            END_IF;
+        END_IF;
+    END_IF;
+    // ---- GENERATED: end dispatch
+    END_IF;
+    "FRK_End"(Core := #Core, Status := #Status,
+        Busy => #Busy, Done => #Done, Error => #Error, Aborted => #Aborted, Held => #Held, ErrorID => #ErrorID, Timing => #Timing);
+    "FRK_AccessFinish"(Access := #Access, Unit := #Unit, Response := #HmiResponse, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog, Revision := #ConfigRev);
+    "FRK_UnitFinish"(Core := #Core, Unit := #Unit, Response := #HmiResponse, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, History := #History, Head := #HistoryHead);
+    #ModeActivePublished := #Unit.Mode;
+    #RunningPublished := #Core.Exec = 1;
+    #StopPendingPublished := #Unit.StopReq AND #Core.Exec = 1;
+    #GoodCount := #Unit.Good;
+    #NokCount := #Unit.Nok;
+    #ReworkCount := #Unit.Rework;
+    #NokReason := #Unit.NokReason;
+    // ---- AUTHORED: unconditional cyclic/derived data
+    #OutImm.Cycles := #Device.Cycles;
+    #OutImm.ExitCalls := #Device.ExitCalls;
+    #OutImm.Changes := #Device.Changes;
+    #OutImm.Resets := #Device.Resets;
+    #OutImm.AtHome := "FRK_State"(Idx := 1, Key := 'project.state.atHome', Ok := #Hal.Cell.Clamp.Sample = 0, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+    // ---- GENERATED: frame end
+END_FUNCTION_BLOCK
+FUNCTION "FRK_Route_DeclarationUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+END_VAR
+VAR_IN_OUT
+    Module : "FB_DeclarationUnit";
+    Hal : "ST_DeclarationUnitHal";
+    Report : "ST_ReleaseReport";
+END_VAR
+VAR_TEMP
+    RouteMatched : Bool;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_Route_DeclarationUnit := FALSE;
+    IF NOT "FRK_PathOwned"(OwnerPath := #Module.Status.Name, TargetPath := #Request.TargetPath) THEN RETURN; END_IF;
+    "FRK_Release_DeclarationUnit"(Unit := #Module.Unit, Hal := #Hal);
+    "FRK_ManualCommon"(Core := #Module.Core, Unit := #Module.Unit, Status := #Module.Status, Report := #Report);
+    IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := 2008, Path := STRING_TO_WSTRING(#Module.Status.Name), Kind := 4);
+        #FRK_Route_DeclarationUnit := TRUE;
+        RETURN;
+    END_IF;
+    #RouteMatched := "FRK_Route_DeclarationCell"(Module := #Module.Cell, Hal := #Hal.Cell, Request := #Request, Report := #Report);
+    #FRK_Route_DeclarationUnit := #FRK_Route_DeclarationUnit OR #RouteMatched;
+    #RouteMatched := "FRK_Route_SatelliteUnit"(Module := #Module.Satellite, Hal := #Hal.Satellite, Request := #Request, Report := #Report);
+    #FRK_Route_DeclarationUnit := #FRK_Route_DeclarationUnit OR #RouteMatched;
+END_FUNCTION
+FUNCTION "FRK_Config_DeclarationUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_DeclarationUnit";
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+BEGIN
+    "FRK_ConfigUnit"(Scope := #Module.Status.Name, Policy := #Module.ModePolicy, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_Config_DeclarationCell"(Module := #Module.Cell, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_Config_SatelliteUnit"(Module := #Module.Satellite, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+END_FUNCTION

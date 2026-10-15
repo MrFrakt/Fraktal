@@ -1,0 +1,102 @@
+// The typed device API owns handshake access; sequence authors call actions.
+FUNCTION "F_CylinderExtend" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_CylinderCM";
+END_VAR
+BEGIN
+    #F_CylinderExtend := "FRK_SeqCommand"(Seq := #Seq, Lease := #Target.Device.Lease,
+        Execute := #Target.Execute, Command := #Target.Command,
+        Value := 1, Label := 'Cylinder.EXTEND', Ready := #Target.Status.State = 0,
+        Done := #Target.Done, Error := #Target.Error, OwnFailure := FALSE, Diagnostic := #Target.Status.Diagnostic);
+END_FUNCTION
+
+// The step deliberately owns a failure branch. The shared command service
+// still verifies ownership; the original child first-out is retained verbatim.
+FUNCTION "F_CylinderExtendHandled" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; Target : "FB_CylinderCM"; END_VAR
+BEGIN
+    #F_CylinderExtendHandled := "FRK_SeqCommand"(Seq := #Seq, Lease := #Target.Device.Lease,
+        Execute := #Target.Execute, Command := #Target.Command, Value := 1,
+        Label := 'Cylinder.EXTEND', Ready := #Target.Status.State = 0,
+        Done := #Target.Done, Error := #Target.Error, OwnFailure := TRUE, Diagnostic := #Target.Status.Diagnostic);
+END_FUNCTION
+
+FUNCTION "F_CylinderRetract" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_CylinderCM";
+END_VAR
+BEGIN
+    #F_CylinderRetract := "FRK_SeqCommand"(Seq := #Seq, Lease := #Target.Device.Lease,
+        Execute := #Target.Execute, Command := #Target.Command,
+        Value := 2, Label := 'Cylinder.RETRACT', Ready := #Target.Status.State = 0,
+        Done := #Target.Done, Error := #Target.Error, OwnFailure := FALSE, Diagnostic := #Target.Status.Diagnostic);
+END_FUNCTION
+
+FUNCTION "F_CylinderSequenceLease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_CylinderCM";
+END_VAR
+BEGIN
+    IF #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+        AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex
+        AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex
+        AND #Seq.OwnerIndex > 0 AND #Seq.ChainIndex > 0
+        AND (NOT #Seq.Running OR #Seq.Error OR #Seq.Restart) THEN
+        #Target.Device.Withdrawn := TRUE;
+    END_IF;
+    IF #Target.Device.Lease.AbortIssued AND #Target.Device.Lease.ReleasedScan <> #Seq.Scan THEN
+        #Target.Abort := FALSE;
+        #Target.Device.Lease.AbortIssued := FALSE;
+    END_IF;
+    IF #Target.Device.Lease.Raised AND #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+        AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex
+        AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex
+        AND (NOT #Seq.Running OR #Seq.Error OR #Seq.Restart) THEN
+        #Target.Abort := #Target.Busy;
+        #Target.Device.Lease.AbortIssued := #Target.Busy;
+    END_IF;
+    "FRK_SeqLease"(Seq := #Seq, Lease := #Target.Device.Lease, Execute := #Target.Execute);
+END_FUNCTION
+
+FUNCTION "F_CylinderRelease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_CylinderCM";
+END_VAR
+BEGIN
+    IF #Target.Device.Lease.Raised AND #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+        AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex THEN
+        #Target.Abort := #Target.Busy;
+        #Target.Device.Lease.AbortIssued := #Target.Busy;
+        #Target.Execute := FALSE;
+        #Target.Device.Lease.Raised := FALSE;
+        #Target.Device.Lease.ReleasedScan := #Seq.Scan;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "F_CylinderForcePermit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Permit : Bool;
+END_VAR
+VAR_IN_OUT
+    Target : "FB_CylinderCM";
+END_VAR
+BEGIN
+    // The CM applies its own live extension permit as well, even after Done.
+    #Target.Device.Withdrawn := NOT #Permit;
+END_FUNCTION

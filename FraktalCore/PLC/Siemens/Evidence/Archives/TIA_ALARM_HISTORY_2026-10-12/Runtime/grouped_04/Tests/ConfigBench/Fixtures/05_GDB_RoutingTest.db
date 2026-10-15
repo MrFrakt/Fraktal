@@ -1,0 +1,23 @@
+DATA_BLOCK "GDB_RoutingTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    PermitOne : Bool;
+    PermitTwo : Bool;
+    NestedFinish : Bool;
+    InnerFinish : Bool;
+    NestedAccessLock : Bool;
+    RootManualPermit : Bool;
+    ManualAccessLock : Bool;
+    LocalPulse : Bool;
+    LocalKind : DInt;
+    LocalValue : DInt;
+    LocalAccepted {ExternalWritable := 'False'} : Bool;
+    LocalFirstKind {ExternalWritable := 'False'} : DInt;
+    LocalRequest {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_HmiRequest";
+    ManExecute {ExternalWritable := 'False'} : Bool;
+    ManStarts {ExternalWritable := 'False'} : DInt;
+END_VAR
+BEGIN
+END_DATA_BLOCK

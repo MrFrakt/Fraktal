@@ -1,0 +1,7 @@
+# Simulated CPU only. Already approved driver; no executable rebuild.
+open-project --path ${work}\FrkS11\FrkS11.ap20
+import-sources --plc PLC_1 --dir ${gen}\code_delta
+compile --plc PLC_1
+save
+export --plc PLC_1 --out ${export}
+download --plc PLC_1 --pc-interface PLCSIM --pc-number 1 --target "1 X1" --confirm-target 192.168.252.1 --changes-only --user-management keep

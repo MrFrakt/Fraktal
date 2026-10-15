@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_LineStatus" Id="{4c5cc055-47cd-4746-bc21-02988a630133}">
+    <Declaration><![CDATA[// Core §3.8e(d) - what a copy of line data says about itself.
+TYPE ST_LineStatus :
+STRUCT
+    LineId      : STRING(40);
+    Role        : E_LineRole;
+    Owner       : STRING(80);   // identity of the copy this one came from
+    Revision    : UDINT;        // revision held here
+    LastUpdate  : DT;           // mirror: last successful update (§2.7 clock)
+    TimeSynchronized : BOOL;    // quality of LastUpdate
+    Stale       : BOOL;         // mirror: no successful update within the declared window
+    SourceError : DINT;         // 0 ok; 1 wrong line; 2 not applicable whole; else source error
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

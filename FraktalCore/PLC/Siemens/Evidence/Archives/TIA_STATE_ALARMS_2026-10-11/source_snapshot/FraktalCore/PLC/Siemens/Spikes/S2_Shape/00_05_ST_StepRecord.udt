@@ -1,0 +1,12 @@
+TYPE "ST_StepRecord"
+VERSION : 0.1
+   STRUCT
+      StepNo : DInt;
+      StepName : String[48];       // localization key
+      AwaitingLabel : String[48];
+      AwaitIdx : Int;              // direct child awaited by this step (generated index), 0 = none
+      TimeClass : DInt;
+      ExpectedTimeMs : UDInt;
+   END_STRUCT;
+
+END_TYPE

@@ -1,0 +1,204 @@
+// Core 8.11.4: bounded main-line timing, fed from existing step records.
+FUNCTION "FRK_ProfilePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Run : Bool; Withdraw : Bool; END_VAR
+VAR_IN_OUT Book : "FRK_ProfileBook"; END_VAR
+BEGIN
+    #Book.Collecting := #Run AND NOT #Withdraw;
+    IF NOT #Book.Collecting THEN
+        #Book.Running := FALSE; #Book.HasOpen := FALSE;
+        #Book.CompletedVisit := 0; #Book.NSteps := 0;
+        #Book.CompleteRequested := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ProfileRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Book : "FRK_ProfileBook"; END_VAR
+BEGIN
+    IF #Book.Collecting AND #Book.Running AND #Book.HasOpen THEN #Book.CompleteRequested := TRUE; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ProfileEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT StepNo : DInt; Expected : Time; NowMs : UDInt; END_VAR
+VAR_IN_OUT Book : "FRK_ProfileBook"; Steps : Array[*] of "ST_StepTiming";
+    LastSteps : Array[*] of "ST_StepTiming"; Stats : Array[*] of "ST_TimingRow";
+    History : Array[*] of "ST_CycleSummary";
+END_VAR
+BEGIN
+    IF #Book.HasOpen AND #Book.OpenNo = #StepNo THEN #Book.OpenExpected := #Expected; END_IF;
+    IF #Book.CompleteRequested THEN
+        #Book.CompleteRequested := FALSE;
+        "FRK_ProfileComplete"(NowMs := #NowMs, Book := #Book, Steps := #Steps,
+            LastSteps := #LastSteps, Stats := #Stats, History := #History);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ProfileClose" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT NowMs : UDInt; END_VAR
+VAR_IN_OUT Book : "FRK_ProfileBook";
+    Steps : Array[*] of "ST_StepTiming"; Stats : Array[*] of "ST_TimingRow";
+END_VAR
+VAR_TEMP DurationMs : UDInt; Duration : Time; Index : Int; Slot : Int; Wide : LInt; END_VAR
+BEGIN
+    IF NOT #Book.HasOpen THEN RETURN; END_IF;
+    #DurationMs := "FRK_Elapsed"(NewMs := #NowMs, OldMs := #Book.OpenMs);
+    IF #DurationMs > UDINT#2147483647 THEN #DurationMs := UDINT#2147483647; #Book.Truncated := TRUE; END_IF;
+    #Duration := DINT_TO_TIME(UDINT_TO_DINT(#DurationMs));
+    IF #Book.NSteps < UPPER_BOUND(ARR := #Steps, DIM := 1) THEN
+        #Book.NSteps := #Book.NSteps + 1;
+        #Steps[#Book.NSteps].StepNo := #Book.OpenNo;
+        #Steps[#Book.NSteps].StepName := #Book.OpenName;
+        #Steps[#Book.NSteps].TimeClass := #Book.OpenClass;
+        #Steps[#Book.NSteps].Started := #Book.OpenStamp;
+        #Steps[#Book.NSteps].StartedTimeSynchronized := FALSE;
+        #Steps[#Book.NSteps].Duration := #Duration;
+        #Steps[#Book.NSteps].Expected := #Book.OpenExpected;
+    ELSE #Book.Truncated := TRUE;
+    END_IF;
+    #Wide := DINT_TO_LINT(TIME_TO_DINT(#Book.Current.ByClass[#Book.OpenClass])) + UDINT_TO_LINT(#DurationMs);
+    IF #Wide > LINT#2147483647 THEN #Wide := LINT#2147483647; #Book.Truncated := TRUE; END_IF;
+    #Book.Current.ByClass[#Book.OpenClass] := DINT_TO_TIME(LINT_TO_DINT(#Wide));
+    #Slot := 0;
+    FOR #Index := 1 TO UPPER_BOUND(ARR := #Stats, DIM := 1) DO
+        IF #Stats[#Index].Count > 0 AND #Stats[#Index].Id = #Book.OpenNo THEN #Slot := #Index; EXIT;
+        ELSIF #Slot = 0 AND #Stats[#Index].Count = 0 THEN #Slot := #Index;
+        END_IF;
+    END_FOR;
+    IF #Slot = 0 THEN #Book.StatsTruncated := TRUE;
+    ELSE
+        #Stats[#Slot].Id := #Book.OpenNo; #Stats[#Slot].Label := #Book.OpenName;
+        #Stats[#Slot].TimeClass := #Book.OpenClass;
+        "FRK_TimingUpdate"(DurationMs := #DurationMs, Row := #Stats[#Slot]);
+    END_IF;
+    #Book.HasOpen := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_ProfileStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT StepNo : DInt; Visit : UDInt; StepName : String; TimeClass : DInt;
+    Expected : Time; NowMs : UDInt; Stamp : LDT;
+END_VAR
+VAR_IN_OUT Book : "FRK_ProfileBook";
+    Steps : Array[*] of "ST_StepTiming"; Stats : Array[*] of "ST_TimingRow";
+END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    IF NOT #Book.Collecting THEN RETURN; END_IF;
+    IF #StepNo < 0 OR #StepNo > 32767 OR #TimeClass < 0 OR #TimeClass > 4 OR #Expected < T#0ms THEN
+        #Book.Invalid := TRUE; #Book.StatsTruncated := TRUE; RETURN;
+    END_IF;
+    IF #Book.CompletedVisit = #Visit AND #Book.CompletedNo = #StepNo THEN RETURN; END_IF;
+    IF #Book.Running AND #Book.HasOpen AND #Book.OpenNo = #StepNo AND #Book.OpenVisit = #Visit THEN
+        #Book.OpenClass := #TimeClass; #Book.OpenExpected := #Expected; RETURN;
+    END_IF;
+    IF NOT #Book.Running THEN
+        #Book.Running := TRUE; #Book.Invalid := FALSE; #Book.StartMs := #NowMs;
+        #Book.Current := "FRK_ProfileScratch".Summary;
+        #Book.Current.Started := #Stamp; #Book.Current.StartedTimeSynchronized := FALSE;
+        #Book.NSteps := 0; #Book.Truncated := FALSE;
+        FOR #Index := 1 TO UPPER_BOUND(ARR := #Steps, DIM := 1) DO #Steps[#Index] := "FRK_ProfileScratch".Step; END_FOR;
+    ELSE "FRK_ProfileClose"(NowMs := #NowMs, Book := #Book, Steps := #Steps, Stats := #Stats);
+    END_IF;
+    #Book.HasOpen := TRUE; #Book.OpenNo := DINT_TO_INT(#StepNo); #Book.OpenVisit := #Visit;
+    #Book.OpenName := #StepName; #Book.OpenClass := #TimeClass;
+    #Book.OpenExpected := #Expected; #Book.OpenMs := #NowMs; #Book.OpenStamp := #Stamp;
+END_FUNCTION
+
+FUNCTION "FRK_ProfileComplete" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT NowMs : UDInt; END_VAR
+VAR_IN_OUT Book : "FRK_ProfileBook"; Steps : Array[*] of "ST_StepTiming";
+    LastSteps : Array[*] of "ST_StepTiming"; Stats : Array[*] of "ST_TimingRow";
+    History : Array[*] of "ST_CycleSummary";
+END_VAR
+VAR_TEMP DurationMs : UDInt; Index : Int; END_VAR
+BEGIN
+    IF NOT #Book.Collecting OR NOT #Book.Running OR NOT #Book.HasOpen THEN RETURN; END_IF;
+    #Book.CompletedNo := #Book.OpenNo; #Book.CompletedVisit := #Book.OpenVisit;
+    "FRK_ProfileClose"(NowMs := #NowMs, Book := #Book, Steps := #Steps, Stats := #Stats);
+    #Book.Running := FALSE;
+    IF #Book.Invalid THEN RETURN; END_IF;
+    #DurationMs := "FRK_Elapsed"(NewMs := #NowMs, OldMs := #Book.StartMs);
+    IF #DurationMs > UDINT#2147483647 THEN #DurationMs := UDINT#2147483647; #Book.Truncated := TRUE; END_IF;
+    #Book.Current.Total := DINT_TO_TIME(UDINT_TO_DINT(#DurationMs));
+    #Book.Current.WorkTime := #Book.Current.ByClass[0];
+    #Book.Current.WaitTime := #Book.Current.Total - #Book.Current.WorkTime;
+    IF #Book.Last.CycleNo < UDINT#4294967295 THEN #Book.Current.CycleNo := #Book.Last.CycleNo + 1;
+    ELSE #Book.Current.CycleNo := UDINT#4294967295;
+    END_IF;
+    #Book.Last := #Book.Current; #Book.LastNSteps := #Book.NSteps; #Book.LastTruncated := #Book.Truncated;
+    FOR #Index := 1 TO UPPER_BOUND(ARR := #LastSteps, DIM := 1) DO #LastSteps[#Index] := #Steps[#Index]; END_FOR;
+    #Book.LastCycleTime := #Book.Last.Total;
+    IF #Book.Last.CycleNo = 1 OR #Book.Last.Total < #Book.MinCycleTime THEN #Book.MinCycleTime := #Book.Last.Total; END_IF;
+    IF #Book.Head < 0 OR #Book.Head >= UPPER_BOUND(ARR := #History, DIM := 1) THEN #Book.Head := 0; END_IF;
+    #Book.Head := #Book.Head + 1; #History[#Book.Head] := #Book.Last;
+END_FUNCTION
+FUNCTION "FRK_SeqProfilePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    Run : Bool;
+    Withdraw : Bool;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ProfilePrepare"(Run := #Run, Withdraw := #Withdraw, Book := "FRK_Profiles".P001.Book);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_SeqProfileStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Visit : UDInt;
+    StepName : String;
+    TimeClass : DInt;
+    Expected : Time;
+    NowMs : UDInt;
+    Stamp : LDT;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ProfileStep"(StepNo := #StepNo, Visit := #Visit, StepName := #StepName, TimeClass := #TimeClass, Expected := #Expected, NowMs := #NowMs, Stamp := #Stamp, Book := "FRK_Profiles".P001.Book, Steps := "FRK_Profiles".P001.Steps, Stats := "FRK_Profiles".P001.Stats);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_SeqProfileComplete" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ProfileRequest"(Book := "FRK_Profiles".P001.Book);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_SeqProfileEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Expected : Time;
+    NowMs : UDInt;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ProfileEnd"(StepNo := #StepNo, Expected := #Expected, NowMs := #NowMs, Book := "FRK_Profiles".P001.Book, Steps := "FRK_Profiles".P001.Steps, LastSteps := "FRK_Profiles".P001.LastSteps, Stats := "FRK_Profiles".P001.Stats, History := "FRK_Profiles".P001.History);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION

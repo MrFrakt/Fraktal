@@ -45,8 +45,7 @@ void main() {
         }
       }
 
-      final collapsed =
-          math.max(64.0, UiMetrics.of(scale).touchTarget + 16);
+      final collapsed = math.max(64.0, UiMetrics.of(scale).touchTarget + 16);
       await toggleAndCheck();
       expect(
         tester
@@ -94,7 +93,7 @@ void main() {
     expect(controller.index, greaterThan(0));
     expect(controller.animation!.value, controller.index.toDouble());
     await tester.pump();
-    expect(find.text('Station configuration'), findsWidgets);
+    expect(find.text('Station config'), findsWidgets);
     expect(tester.takeException(), isNull);
     app.dispose();
   });

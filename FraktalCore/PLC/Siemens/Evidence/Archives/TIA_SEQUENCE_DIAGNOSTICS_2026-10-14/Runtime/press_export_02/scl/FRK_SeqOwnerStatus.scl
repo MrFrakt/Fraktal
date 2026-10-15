@@ -1,0 +1,31 @@
+﻿FUNCTION "FRK_SeqOwnerStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Core.Exec = 3 THEN
+	    #Seq.Error := TRUE;
+	    #Seq.ErrorDiagnostic := #Status.Diagnostic;
+	ELSIF #Seq.Error THEN
+	    "FRK_AdoptFault"(Core := #Core,
+	                     Status := #Status,
+	                     Diag := #Seq.ErrorDiagnostic);
+	END_IF;
+	IF #Seq.Error AND #Seq.RecordedStep >= 0 THEN
+	    "FRK_SeqViewNote"(Owner := #Seq.OwnerIndex,
+	                      StepNo := #Seq.RecordedStep + #Seq.ViewOffset,
+	                      Branch := #Seq.BranchIndex,
+	                      IsError := TRUE,
+	                      Key := WSTRING_TO_STRING(#Seq.ErrorDiagnostic.Description),
+	                      SourcePath := WSTRING_TO_STRING(#Seq.ErrorDiagnostic.SourcePath));
+	END_IF;
+	
+END_FUNCTION
+

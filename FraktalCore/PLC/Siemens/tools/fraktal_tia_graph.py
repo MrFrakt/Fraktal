@@ -74,6 +74,11 @@ def action_xml(text: str, event: str = "", qualifier: str = "N") -> str:
 
 def step_actions(step: dict) -> list[str]:
     """The Core step behaviour as GRAPH actions (pattern in the module doc)."""
+    if 'actions' in step:
+        # Typed shared services supplied by the newer sequence example writer.
+        # The original S11 issue pattern stays byte-identical.
+        return [action_xml(row['text'], row.get('event', ''), row.get('qualifier', 'N'))
+                for row in step['actions']]
     issue = step.get("issue", [])
     out = []
     if issue:
@@ -96,6 +101,9 @@ def step_actions(step: dict) -> list[str]:
 
 
 def operand_xml(uid: int, operand: str) -> str:
+    if re.fullmatch(r'-?\d+',operand):
+        return ('            <Access Scope="LiteralConstant" UId="%d"><Constant>'
+                '<ConstantType>DInt</ConstantType><ConstantValue>%s</ConstantValue></Constant></Access>\n')%(uid,operand)
     if operand.upper() in ("TRUE", "FALSE"):
         return ('            <Access Scope="LiteralConstant" UId="%d">\n              <Constant>\n'
                 '                <ConstantType>Bool</ConstantType>\n'
@@ -112,6 +120,24 @@ def transition_xml(number: int, condition: list[str]) -> str:
     """FBD, no power rail: the operands through an AND box into the TrCoil."""
     if not condition:
         raise ValueError("transition %d has no condition (TIA refuses it)" % number)
+    if isinstance(condition,dict):
+        # Equality boxes follow TIA's exported SrcType/pre/in1/in2 form.
+        comparisons=condition.get('all',[condition])
+        parts=[];wires=[];outputs=[];uid=21;previous='<Powerrail />'
+        for comparison in comparisons:
+            left,right=comparison['eq'];a,b,box=uid,uid+1,uid+2;uid+=3
+            parts += [operand_xml(a,left),operand_xml(b,str(right)),
+                '            <Part Name="Eq" UId="%d"><TemplateValue Name="SrcType" Type="Type">DInt</TemplateValue></Part>\n'%box]
+            wires += [(uid,previous,'<NameCon UId="%d" Name="pre" />'%box),
+                      (uid+1,'<IdentCon UId="%d" />'%a,'<NameCon UId="%d" Name="in1" />'%box),
+                      (uid+2,'<IdentCon UId="%d" />'%b,'<NameCon UId="%d" Name="in2" />'%box)]
+            uid+=3;outputs.append(box);previous='<NameCon UId="%d" Name="out" />'%box
+        output=outputs[-1]
+        coil=uid;uid+=1;parts.append('            <Part Name="TrCoil" UId="%d" />\n'%coil)
+        wires.append((uid,'<NameCon UId="%d" Name="out" />'%output,'<NameCon UId="%d" Name="in" />'%coil))
+        wire_xml=''.join('            <Wire UId="%d">%s%s</Wire>\n'%row for row in wires)
+        return ('      <Transition IsMissing="false" Name="T%d" Number="%d" ProgrammingLanguage="LAD">\n'
+                '        <FlgNet><Parts>\n%s          </Parts><Wires>\n%s          </Wires></FlgNet>\n      </Transition>\n')%(number,number,''.join(parts),wire_xml)
     parts, wires, uid = [], [], 21
     ops = []
     for op in condition:
@@ -178,6 +204,7 @@ def generate(chain: dict, reference: str) -> str:
         step_xml.append('      <Step Number="%d" Init="%s" Name="N%03d"%s>\n        <Actions>\n%s'
                         '          <Action />\n        </Actions>\n%s      </Step>\n'
                         % (i, "true" if i == 1 else "false", s["no"], attrs, "".join(step_actions(s)), networks))
+        if "topology" in chain:continue
         trans_xml.append(transition_xml(i, s["when"]))
         if s["next"] not in graph_no:
             raise ValueError("step %d advances to undeclared step %d" % (s["no"], s["next"]))
@@ -187,12 +214,39 @@ def generate(chain: dict, reference: str) -> str:
         conns.append(connection_xml('<TransitionRef Number="%d" />' % i, '<StepRef Number="%d" />' % target,
                                     "Direct" if target == i + 1 else "Jump"))
 
+    branches = '    <Branches />\n'
+    if 'topology' in chain:
+        topology=chain['topology'];trans_xml=[];conns=[]
+        branch_ids={row['number']:row for row in topology['branches']}
+        if len(branch_ids)!=len(topology['branches']):raise ValueError('duplicate GRAPH branch number')
+        if any(r['type'] not in ('AltBegin','AltEnd','SimBegin','SimEnd') or r['cardinality']<2 for r in topology['branches']):
+            raise ValueError('invalid GRAPH branch type or cardinality')
+        branches='    <Branches>\n'+''.join('      <Branch Number="%d" Type="%s" Cardinality="%d" />\n' %
+            (r['number'],r['type'],r['cardinality']) for r in topology['branches'])+'    </Branches>\n'
+        transition_ids={r['number'] for r in topology['transitions']}
+        if len(transition_ids)!=len(topology['transitions']) or any(n<1 or n>999 for n in transition_ids):
+            raise ValueError('GRAPH transition numbers must be unique in 1..999')
+        for row in topology['transitions']:trans_xml.append(transition_xml(row['number'],row['when']))
+        def reference(node):
+            kind,number,*port=node
+            if kind=='step':return '<StepRef Number="%d" />'%graph_no[number]
+            if kind=='transition':
+                if number not in transition_ids:raise ValueError('unknown GRAPH transition')
+                return '<TransitionRef Number="%d" />'%number
+            if kind=='branch':
+                if number not in branch_ids or len(port)!=2 or port[0] not in ('In','Out'):raise ValueError('invalid GRAPH branch port')
+                if not 0<=port[1]<branch_ids[number]['cardinality']:raise ValueError('GRAPH branch port out of range')
+                return '<BranchRef Number="%d" %s="%d" />'%(number,*port)
+            raise ValueError('unknown GRAPH reference kind')
+        for row in topology['connections']:
+            conns.append(connection_xml(reference(row['from']),reference(row['to']),row.get('link','Direct')))
     out = once(ref, r"    <Steps>\n.*?    </Connections>\n",
                lambda m: "    <Steps>\n" + "".join(step_xml) + "    </Steps>\n    <Transitions>\n" + "".join(trans_xml)
-               + "    </Transitions>\n    <Branches />\n    <Connections>\n" + "".join(conns) + "    </Connections>\n", re.S)
+               + "    </Transitions>\n"+branches+"    <Connections>\n" + "".join(conns) + "    </Connections>\n", re.S)
 
     # interface: the chain's InOut parameters in; the template's own statics and temps out
-    inout = "".join('    <Member Name="%s" Datatype="&quot;%s&quot;" Accessibility="Public" />\n' % (n, t)
+    inout = "".join('    <Member Name="%s" Datatype="%s" Accessibility="Public" />\n' %
+                    (n, t if t in ('BOOL', 'TIME', 'DINT') else '&quot;%s&quot;' % t)
                     for n, t in chain["inout"])
     out = once(out, r'\n  <Section Name="InOut" />\n', lambda m: '\n  <Section Name="InOut">\n' + inout + "  </Section>\n")
     static = re.search(r'\n  <Section Name="Static">\n(.*?)\n  </Section>\n', out, re.S)
@@ -249,6 +303,9 @@ def dump(xml_text: str) -> dict:
             operands.append("#" + ".".join(comps) if comps else const[0])
         boxes = [p.get("Name") for p in t.iter() if _local(p.tag) == "Part" and p.get("Name") != "TrCoil"]
         conditions[t.get("Number")] = {"language": t.get("ProgrammingLanguage"), "operands": operands, "boxes": boxes}
+        if branches_in_sequence(seq):
+            network=next(n for n in t.iter() if _local(n.tag)=='FlgNet')
+            conditions[t.get("Number")]['wiring']=_transition_wiring(network)
     source, edges = {}, []
     links = [(c.find("g:NodeFrom/*", NS), c.find("g:NodeTo/*", NS), c.find("g:LinkType", NS).text)
              for c in seq.findall("g:Connections/g:Connection", NS)]
@@ -263,7 +320,50 @@ def dump(xml_text: str) -> dict:
     edges.sort(key=lambda e: (str(e["from"]), str(e["to"])))
     attrs = root.find("SW.Blocks.FB/AttributeList")
     settings = {name: attrs.findtext(name) for name in ("AcknowledgeErrorsRequired", "SkipSteps")}
-    return {"settings": settings, "steps": steps, "edges": edges}
+    result={"settings": settings, "steps": steps, "edges": edges}
+    branches=seq.findall('g:Branches/g:Branch',NS)
+    if branches:
+        def reference(node):
+            kind=_local(node.tag);number=node.get('Number')
+            return {'kind':kind,'number':by_number[number] if kind=='StepRef' else int(number),
+                    **{k:int(v) for k,v in node.attrib.items() if k!='Number'}}
+        result['branches']=[dict(n.attrib) for n in branches]
+        result['connections']=sorted([{'from':reference(a),'to':reference(b),'link':link} for a,b,link in links],
+                                     key=lambda row:json.dumps(row,sort_keys=True))
+    return result
+
+
+def branches_in_sequence(seq):
+    return bool(seq.findall('g:Branches/g:Branch',NS))
+
+
+def _transition_wiring(network):
+    """Keep typed comparison pins and wires, ignoring native serialization IDs."""
+    parts=next(n for n in network if _local(n.tag)=='Parts')
+    wires=next(n for n in network if _local(n.tag)=='Wires')
+    labels={};counts={}
+    for part in parts:
+        uid=part.get('UId');kind=_local(part.tag)
+        if kind=='Access':
+            comps=[n.get('Name') for n in part.iter() if _local(n.tag)=='Component']
+            values=[n.text for n in part.iter() if _local(n.tag)=='ConstantValue']
+            types=[n.text.lower() for n in part.iter() if _local(n.tag)=='ConstantType']
+            labels[uid]=('operand','#'+'.'.join(comps) if comps else values[0],*types)
+        elif kind=='Part':
+            name=part.get('Name');counts[name]=counts.get(name,0)+1
+            attributes=tuple(sorted((n.get('Name'),(n.text or '').lower()) for n in part if _local(n.tag)=='TemplateValue'))
+            labels[uid]=(name,counts[name],attributes)
+        else:raise ValueError('Unsupported GRAPH transition node '+kind)
+    edges=[]
+    for wire in wires:
+        endpoints=[]
+        for pin in wire:
+            if _local(pin.tag)=='Powerrail':endpoints.append(('powerrail',))
+            else:
+                if pin.get('UId') not in labels:raise ValueError('GRAPH wire points to an absent node')
+                endpoints.append((*labels[pin.get('UId')],pin.get('Name','')))
+        edges.append(sorted(endpoints,key=repr))
+    return sorted(edges,key=repr)
 
 
 def _network_dump(network: ET.Element) -> dict:

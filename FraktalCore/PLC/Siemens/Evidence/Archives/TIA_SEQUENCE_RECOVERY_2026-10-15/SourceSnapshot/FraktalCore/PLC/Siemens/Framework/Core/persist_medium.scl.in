@@ -1,0 +1,273 @@
+// Binding-owned byte medium. Consumers own content validation and authority.
+FUNCTION "FRK_PersistNumber" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Offset : Int;
+END_VAR
+VAR_IN_OUT
+    Bytes : Array[*] of Byte;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_PersistNumber := DWORD#0;
+    IF #Offset < 0 OR #Offset > UPPER_BOUND(ARR := #Bytes, DIM := 1) - 3 THEN RETURN; END_IF;
+    FOR #Index := 0 TO 3 DO
+        #FRK_PersistNumber := #FRK_PersistNumber OR SHL(IN := BYTE_TO_DWORD(#Bytes[#Offset + #Index]), N := INT_TO_UINT(#Index * 8));
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_PersistPutNumber" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Offset : Int;
+    Value : DWord;
+END_VAR
+VAR_IN_OUT
+    Bytes : Array[*] of Byte;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    IF #Offset < 0 OR #Offset > UPPER_BOUND(ARR := #Bytes, DIM := 1) - 3 THEN RETURN; END_IF;
+    FOR #Index := 0 TO 3 DO #Bytes[#Offset + #Index] := DWORD_TO_BYTE(SHR(IN := #Value, N := INT_TO_UINT(#Index * 8))); END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_PersistKeyCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Key : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Work : DWord;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := INT_TO_UDINT(LEN(#Key)));
+    FOR #Index := 1 TO LEN(#Key) DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Key[#Index])); END_FOR;
+    #FRK_PersistKeyCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_PersistAnchorCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Image : "FRK_PersistAnchor";
+END_VAR
+VAR_TEMP
+    Work : DWord;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(#Image.KeyCrc));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Image.Generation);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(#Image.DocumentCrc));
+    #FRK_PersistAnchorCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_PersistAnchorValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    #FRK_PersistAnchorValid := FALSE;
+    IF #Slot < 1 OR #Slot > @DOCUMENT_COUNT@ THEN RETURN; END_IF;
+    #FRK_PersistAnchorValid := "FRK_PersistAnchors".Commissioned[#Slot]
+        AND "FRK_PersistAnchors".Rows[#Slot].SchemaVersion = 1
+        AND "FRK_PersistAnchors".Rows[#Slot].KeyCrc = "FRK_PersistRuntime".KeyCrc[#Slot]
+        AND "FRK_PersistAnchors".Rows[#Slot].Checksum = "FRK_PersistAnchorCrc"(Image := "FRK_PersistAnchors".Rows[#Slot]);
+END_FUNCTION
+
+FUNCTION "FRK_PersistRepair" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    // Trusted consumer seam; never a remote command or authorization authority.
+    IF #Slot < 1 OR #Slot > @DOCUMENT_COUNT@ THEN RETURN; END_IF;
+    IF NOT "FRK_PersistAnchorValid"(Slot := #Slot) THEN
+        "FRK_PersistAnchors".Rows[#Slot].SchemaVersion := 1;
+        "FRK_PersistAnchors".Rows[#Slot].KeyCrc := "FRK_PersistRuntime".KeyCrc[#Slot];
+        "FRK_PersistAnchors".Rows[#Slot].Generation := 0;
+        "FRK_PersistAnchors".Rows[#Slot].DocumentCrc := DWORD#0;
+        "FRK_PersistAnchors".Rows[#Slot].Checksum := "FRK_PersistAnchorCrc"(Image := "FRK_PersistAnchors".Rows[#Slot]);
+        "FRK_PersistAnchors".Commissioned[#Slot] := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_PersistStart" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    WriteDocument : Bool;
+    Length : DInt;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_PersistStart := 0;
+    IF #Slot < 1 OR #Slot > @DOCUMENT_COUNT@ THEN RETURN; END_IF;
+    IF #Length < 0 OR #Length > "FRK_PersistRuntime".Capacity[#Slot] OR "FRK_PersistRuntime".Leased[#Slot] THEN RETURN; END_IF;
+    IF "FRK_PersistRuntime".LastTicket = UDINT#4294967295 THEN RETURN; END_IF;
+    FOR #Index := 1 TO @QUEUE_CAPACITY@ DO
+        IF "FRK_PersistRuntime".Queue[#Index].State = 0 THEN
+            "FRK_PersistRuntime".LastTicket := "FRK_PersistRuntime".LastTicket + 1;
+            "FRK_PersistRuntime".Queue[#Index].Ticket := "FRK_PersistRuntime".LastTicket;
+            "FRK_PersistRuntime".Queue[#Index].Slot := #Slot;
+            "FRK_PersistRuntime".Queue[#Index].WriteDocument := #WriteDocument;
+            "FRK_PersistRuntime".Queue[#Index].Length := #Length;
+            "FRK_PersistRuntime".Queue[#Index].State := 1;
+            "FRK_PersistRuntime".Leased[#Slot] := TRUE;
+            #FRK_PersistStart := "FRK_PersistRuntime".LastTicket;
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_PersistFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    IF "FRK_PersistRuntime".Active < 1 OR "FRK_PersistRuntime".Active > @QUEUE_CAPACITY@ THEN RETURN; END_IF;
+    "FRK_PersistRuntime".Queue["FRK_PersistRuntime".Active].Result := "FRK_PersistRuntime".Result;
+    "FRK_PersistRuntime".Queue["FRK_PersistRuntime".Active].State := 3;
+    "FRK_PersistRuntime".Active := 0;
+    "FRK_PersistRuntime".Stage := 0;
+END_FUNCTION
+
+FUNCTION "FRK_PersistValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ExpectedKey : DWord;
+END_VAR
+VAR_IN_OUT
+    Bytes : Array[*] of Byte;
+    Check : "FRK_PersistCheck";
+END_VAR
+VAR_TEMP
+    Budget : Int;
+    Offset : Int;
+    Upper : Int;
+END_VAR
+BEGIN
+    #FRK_PersistValidate := FALSE;
+    #Upper := DINT_TO_INT(UPPER_BOUND(ARR := #Bytes, DIM := 1));
+    IF #Check.Cursor = -1 THEN
+        #Check.Valid := FALSE; #Check.Empty := TRUE; #Check.Generation := 0; #Check.Length := 0;
+        #Check.Cursor := 0; #Check.Crc := DWORD#16#FFFFFFFF;
+        #Check.ZeroMode := "FRK_PersistNumber"(Offset := 0, Bytes := #Bytes) = DWORD#0;
+        IF NOT #Check.ZeroMode THEN
+            #Check.Empty := FALSE;
+            IF "FRK_PersistNumber"(Offset := 0, Bytes := #Bytes) <> DWORD#@MAGIC@
+                OR "FRK_PersistNumber"(Offset := 4, Bytes := #Bytes) <> DWORD#1
+                OR "FRK_PersistNumber"(Offset := 16, Bytes := #Bytes) <> #ExpectedKey THEN #FRK_PersistValidate := TRUE; RETURN; END_IF;
+            #Check.Generation := DWORD_TO_UDINT("FRK_PersistNumber"(Offset := 8, Bytes := #Bytes));
+            #Check.Length := DWORD_TO_UDINT("FRK_PersistNumber"(Offset := 12, Bytes := #Bytes));
+            IF #Check.Generation = 0 OR #Check.Length > INT_TO_UDINT(#Upper + 1 - @HEADER_BYTES@) THEN #FRK_PersistValidate := TRUE; RETURN; END_IF;
+        END_IF;
+    END_IF;
+    #Budget := 0;
+    IF #Check.ZeroMode THEN
+        WHILE #Check.Cursor <= #Upper AND #Budget < @CRC_BUDGET@ DO
+            IF #Bytes[#Check.Cursor] <> BYTE#0 THEN #Check.Empty := FALSE; #FRK_PersistValidate := TRUE; RETURN; END_IF;
+            #Check.Cursor := #Check.Cursor + 1; #Budget := #Budget + 1;
+        END_WHILE;
+        #FRK_PersistValidate := #Check.Cursor > #Upper;
+    ELSE
+        WHILE #Check.Cursor < 20 + UDINT_TO_DINT(#Check.Length) AND #Budget < @CRC_BUDGET@ DO
+            IF #Check.Cursor < 20 THEN #Offset := DINT_TO_INT(#Check.Cursor); ELSE #Offset := DINT_TO_INT(#Check.Cursor + @HEADER_BYTES@ - 20); END_IF;
+            #Check.Crc := "FRK_CrcByte"(Previous := #Check.Crc, Value := #Bytes[#Offset]);
+            #Check.Cursor := #Check.Cursor + 1; #Budget := #Budget + 1;
+        END_WHILE;
+        IF #Check.Cursor >= 20 + UDINT_TO_DINT(#Check.Length) THEN
+            #Check.Crc := NOT #Check.Crc;
+            #Check.Valid := #Check.Crc = "FRK_PersistNumber"(Offset := 20, Bytes := #Bytes);
+            #FRK_PersistValidate := TRUE;
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_PersistInspect" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    BytesA : Array[*] of Byte;
+    BytesB : Array[*] of Byte;
+    Payload : Array[*] of Byte;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Slot : Int;
+    Chosen : Int;
+    Generation : UDInt;
+    Length : UDInt;
+    DocumentCrc : DWord;
+    Lost : Bool;
+END_VAR
+BEGIN
+    #Slot := "FRK_PersistRuntime".Slot;
+    #Chosen := 0; #Generation := 0; #Length := 0; #DocumentCrc := DWORD#0;
+    IF "FRK_PersistRuntime".CheckA.Valid THEN
+        #Chosen := 1; #Generation := "FRK_PersistRuntime".CheckA.Generation;
+        #Length := "FRK_PersistRuntime".CheckA.Length; #DocumentCrc := "FRK_PersistRuntime".CheckA.Crc;
+    END_IF;
+    IF "FRK_PersistRuntime".CheckB.Valid AND (#Chosen = 0 OR "FRK_PersistRuntime".CheckB.Generation > #Generation) THEN
+        #Chosen := 2; #Generation := "FRK_PersistRuntime".CheckB.Generation;
+        #Length := "FRK_PersistRuntime".CheckB.Length; #DocumentCrc := "FRK_PersistRuntime".CheckB.Crc;
+    END_IF;
+    #Lost := #Generation < "FRK_PersistAnchors".Rows[#Slot].Generation;
+    IF "FRK_PersistRuntime".CheckA.Valid AND "FRK_PersistRuntime".CheckB.Valid
+        AND "FRK_PersistRuntime".CheckA.Generation = "FRK_PersistRuntime".CheckB.Generation
+        AND "FRK_PersistRuntime".CheckA.Crc <> "FRK_PersistRuntime".CheckB.Crc THEN #Chosen := 0; #Lost := TRUE; END_IF;
+    IF #Chosen = 0 AND (NOT "FRK_PersistRuntime".CheckA.Empty OR NOT "FRK_PersistRuntime".CheckB.Empty) THEN #Lost := TRUE; END_IF;
+    IF #Generation = "FRK_PersistAnchors".Rows[#Slot].Generation AND #Generation > 0
+        AND #DocumentCrc <> "FRK_PersistAnchors".Rows[#Slot].DocumentCrc THEN #Chosen := 0; #Lost := TRUE; END_IF;
+    IF NOT "FRK_PersistAnchorValid"(Slot := #Slot) THEN
+        "FRK_PersistRuntime".Result.Lost := TRUE;
+        IF "FRK_PersistRuntime".Queue["FRK_PersistRuntime".Active].WriteDocument THEN
+            "FRK_PersistRuntime".Result.ErrorId := @ERROR_ANCHOR_INVALID@;
+        ELSE "FRK_PersistRuntime".Result.Ok := TRUE; END_IF;
+        "FRK_PersistFinish"(); RETURN;
+    END_IF;
+    IF NOT "FRK_PersistRuntime".Queue["FRK_PersistRuntime".Active].WriteDocument THEN
+        "FRK_PersistRuntime".Result.Ok := TRUE;
+        "FRK_PersistRuntime".Result.Lost := #Lost;
+        "FRK_PersistRuntime".Result.Found := #Chosen <> 0 AND #Length > 0;
+        "FRK_PersistRuntime".Result.Length := #Length;
+        IF #Chosen = 0 THEN "FRK_PersistRuntime".Result.Length := 0; END_IF;
+        IF #Chosen <> 0 THEN
+            FOR #Index := 0 TO UDINT_TO_DINT(#Length) - 1 DO
+                IF #Chosen = 1 THEN #Payload[@HEADER_BYTES@ + #Index] := #BytesA[@HEADER_BYTES@ + #Index];
+                ELSE #Payload[@HEADER_BYTES@ + #Index] := #BytesB[@HEADER_BYTES@ + #Index]; END_IF;
+            END_FOR;
+        END_IF;
+        "FRK_PersistFinish"(); RETURN;
+    END_IF;
+    #Generation := MAX(IN1 := #Generation, IN2 := "FRK_PersistAnchors".Rows[#Slot].Generation);
+    IF #Generation = UDINT#4294967295 THEN
+        "FRK_PersistRuntime".Result.ErrorId := @ERROR_GENERATION_EXHAUSTED@;
+        "FRK_PersistFinish"(); RETURN;
+    END_IF;
+    "FRK_PersistRuntime".Generation := #Generation + 1;
+    "FRK_PersistRuntime".Chosen := 2;
+    IF #Chosen = 2 THEN "FRK_PersistRuntime".Chosen := 1; END_IF;
+    "FRK_PersistPutNumber"(Bytes := #Payload, Offset := 0, Value := DWORD#@MAGIC@);
+    "FRK_PersistPutNumber"(Bytes := #Payload, Offset := 4, Value := DWORD#1);
+    "FRK_PersistPutNumber"(Bytes := #Payload, Offset := 8, Value := UDINT_TO_DWORD("FRK_PersistRuntime".Generation));
+    "FRK_PersistPutNumber"(Bytes := #Payload, Offset := 12, Value := DINT_TO_DWORD("FRK_PersistRuntime".Queue["FRK_PersistRuntime".Active].Length));
+    "FRK_PersistPutNumber"(Bytes := #Payload, Offset := 16, Value := "FRK_PersistRuntime".KeyCrc[#Slot]);
+    "FRK_PersistRuntime".CheckWrite.Cursor := -1;
+    "FRK_PersistRuntime".Stage := 6;
+END_FUNCTION

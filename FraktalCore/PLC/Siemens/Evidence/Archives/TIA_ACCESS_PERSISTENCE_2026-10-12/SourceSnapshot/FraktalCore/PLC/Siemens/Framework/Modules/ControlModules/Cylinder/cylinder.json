@@ -1,0 +1,34 @@
+{
+  "name": "FB_CylinderCM",
+  "tier": "CONTROL_MODULE",
+  "type_key": "fraktal.module.cylinder",
+  "commands": [
+    {
+      "id": 1,
+      "label": "EXTEND",
+      "api": "F_CylinderExtend"
+    },
+    {
+      "id": 2,
+      "label": "RETRACT",
+      "api": "F_CylinderRetract"
+    }
+  ],
+  "records": {
+    "ST_CylinderParCfg": "STRUCT SchemaVersion : UINT := 1; Timeout : TIME := T#8s; END_STRUCT",
+    "ST_CylinderParCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_CylinderOutCmd": "STRUCT Direction : DINT; END_STRUCT",
+    "ST_CylinderOutImm": "STRUCT Extended : BOOL; Retracted : BOOL; END_STRUCT",
+    "ST_CylinderHal": "STRUCT FeedbackExtended : BOOL; FeedbackRetracted : BOOL; ExtendPermit : BOOL; RetractPermit : BOOL; PermitDiagnostic : ST_Diagnostic; RetractDiagnostic : ST_Diagnostic; CoilExtend : BOOL; CoilRetract : BOOL; END_STRUCT",
+    "ST_CylinderDevice": "STRUCT Direction : DINT; Withdrawn : BOOL; Extended : BOOL; Retracted : BOOL; Lease : ST_SequenceCommandLease; END_STRUCT"
+  },
+  "contract": {
+    "ParCfg": "ST_CylinderParCfg",
+    "ParCmd": "ST_CylinderParCmd",
+    "OutCmd": "ST_CylinderOutCmd",
+    "OutImm": "ST_CylinderOutImm"
+  },
+  "hal": "ST_CylinderHal",
+  "timeout": "Timeout",
+  "storage": "ST_CylinderDevice"
+}

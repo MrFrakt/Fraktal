@@ -1,0 +1,27 @@
+﻿FUNCTION_BLOCK "FB_FraktalMain"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Startup THEN
+	    "FRK_Registry".Count := 0;
+	    "FRK_Registry".Fault := FALSE;
+	END_IF;
+	"FRK_ClockTick"();
+	"FRK_AccessStoreBoot"(Startup := #Startup);
+	"FRK_ConfigBoot"(Startup := #Startup);
+	"FRK_SetBoot"(Startup := #Startup);
+	"StationA"(ParentIndex := 0,
+	           Startup := #Startup,
+	           Hal := "GDB_FraktalHal".Data.StationA);
+	"StationB"(ParentIndex := 0,
+	           Startup := #Startup,
+	           Hal := "GDB_FraktalHal".Data.StationB);
+	
+END_FUNCTION_BLOCK
+

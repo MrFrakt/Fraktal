@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_ConfigModelCode" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      ModelIndex : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigModelCode := '';
+	IF #RootIndex < 1 OR #RootIndex > 1 THEN
+	    RETURN;
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    #FRK_ConfigModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex];
+	    RETURN;
+	END_IF;
+	CASE #ModelIndex OF
+	    1:
+	        #FRK_ConfigModelCode := '';
+	END_CASE;
+	
+END_FUNCTION
+

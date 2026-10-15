@@ -1,0 +1,226 @@
+// Deterministic service integration checks, independent of physical press I/O.
+DATA_BLOCK "GDB_DecisionTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    Done : Bool; Passed : Int; Total : Int;
+    Checks : Array[1..@CASE_COUNT@] of Bool;
+    EmptyHmiRequest : "ST_HmiRequest";
+    EmptyHmiResponse : "ST_HmiResponse";
+    EmptyReport : "ST_ReleaseReport";
+    WorkRequest { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "ST_DecisionRequest";
+    WorkPublished { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "ST_DecisionRequest";
+    WorkReport { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "ST_ReleaseReport";
+    WorkTestCore { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "FRK_Core";
+    WorkTestUnit { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "FRK_Unit";
+    WorkTestAccess { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "FRK_Access";
+    WorkHmiRequest { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "ST_HmiRequest";
+    WorkHmiResponse { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "ST_HmiResponse";
+    Log { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : "FRK_AlarmLog";
+END_VAR
+BEGIN
+END_DATA_BLOCK
+FUNCTION "F_DecisionBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Root : DInt; Peer : DInt; Nested : DInt; Slot : Int; CaseNo : Int;
+    RootPath : WString[255]; PeerPath : WString[255]; NestedPath : WString[255];
+    A : Bool; B : Bool; C : Bool; Ok : Bool; Answer : Int; Head : Int;
+END_VAR
+BEGIN
+    IF "GDB_DecisionTest".Done OR "FRK_Registry".Fault THEN RETURN; END_IF;
+    #Root := "StationA".Core.RegIndex; #Peer := "StationB".Core.RegIndex; #Nested := "StationA".Satellite.Core.RegIndex;
+    IF #Root <= 0 OR #Peer <= 0 OR #Nested <= 0 THEN RETURN; END_IF;
+    #RootPath := STRING_TO_WSTRING("StationA".Status.Name);
+    #PeerPath := STRING_TO_WSTRING("StationB".Status.Name);
+    #NestedPath := STRING_TO_WSTRING("StationA".Satellite.Status.Name);
+    #Slot := "FRK_DecisionRoot"(Owner := #Root, Create := TRUE);
+    "GDB_DecisionTest".Total := @CASE_COUNT@;
+    FOR #CaseNo := 1 TO @CASE_COUNT@ DO
+        "FRK_DecisionCyclic"(Owner := #Root, Busy := FALSE, Reset := TRUE, AlarmLog := "GDB_DecisionTest".Log);
+        "FRK_DecisionCyclic"(Owner := #Peer, Busy := FALSE, Reset := TRUE, AlarmLog := "GDB_DecisionTest".Log);
+        "GDB_DecisionTest".WorkRequest := "FRK_Decisions".EmptyRequest;
+        "GDB_DecisionTest".WorkRequest.Prompt := WSTRING#'test.decision.prompt';
+        "GDB_DecisionTest".WorkRequest.Options[1] := 'test.decision.optionOne'; "GDB_DecisionTest".WorkRequest.Options[2] := 'test.decision.optionTwo';
+        "GDB_DecisionTest".WorkHmiRequest := "GDB_DecisionTest".EmptyHmiRequest;
+        "GDB_DecisionTest".WorkHmiResponse := "GDB_DecisionTest".EmptyHmiResponse;
+        "GDB_DecisionTest".WorkReport := "GDB_DecisionTest".EmptyReport;
+        "GDB_DecisionTest".WorkPublished := "FRK_Decisions".EmptyRequest;
+        "GDB_DecisionTest".WorkReport.Count := 0; "GDB_DecisionTest".WorkReport.Released := TRUE; #Ok := FALSE;
+        CASE #CaseNo OF
+            1: // invalid_owner
+                #A := "FRK_DecisionAsk"(Owner := 0, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := NOT #A;
+            2: // root_publication
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionPublish"(Owner := #Root, Decision := "GDB_DecisionTest".WorkPublished, DecisionAnswer := #Answer);
+                #Ok := #A AND "GDB_DecisionTest".WorkPublished.Prompt = "GDB_DecisionTest".WorkRequest.Prompt AND "GDB_DecisionTest".WorkPublished.SourcePath = #RootPath AND #Answer = 0;
+            3: // idempotent_no_flood
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Head := "GDB_DecisionTest".Log.RingHead;
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #Head = "GDB_DecisionTest".Log.RingHead;
+            4: // overlap_preserves_first
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkRequest.Prompt := WSTRING#'test.decision.different';
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Head := "GDB_DecisionTest".Log.RingHead;
+                #B := #A;
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionPublish"(Owner := #Root, Decision := "GDB_DecisionTest".WorkPublished, DecisionAnswer := #Answer);
+                #Ok := NOT #B AND NOT #A AND "GDB_DecisionTest".WorkPublished.Prompt = WSTRING#'test.decision.prompt' AND #Head = "GDB_DecisionTest".Log.RingHead;
+            5: // nested_request_root_mirror
+                #A := "FRK_DecisionAsk"(Owner := #Nested, OwnerPath := #NestedPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionPublish"(Owner := #Root, Decision := "GDB_DecisionTest".WorkPublished, DecisionAnswer := #Answer);
+                #B := "GDB_DecisionTest".WorkPublished.SourcePath = #NestedPath;
+                "FRK_DecisionPublish"(Owner := #Nested, Decision := "GDB_DecisionTest".WorkPublished, DecisionAnswer := #Answer);
+                #Ok := #A AND #B AND "GDB_DecisionTest".WorkPublished.Prompt = WSTRING#'';
+            6: // peer_roots_independent
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkRequest.Prompt := WSTRING#'test.decision.peer';
+                #B := "FRK_DecisionAsk"(Owner := #Peer, OwnerPath := #PeerPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionPublish"(Owner := #Root, Decision := "GDB_DecisionTest".WorkPublished, DecisionAnswer := #Answer);
+                #Ok := #A AND #B AND "GDB_DecisionTest".WorkPublished.Prompt = WSTRING#'test.decision.prompt';
+                "FRK_DecisionPublish"(Owner := #Peer, Decision := "GDB_DecisionTest".WorkPublished, DecisionAnswer := #Answer);
+                #Ok := #Ok AND "GDB_DecisionTest".WorkPublished.Prompt = WSTRING#'test.decision.peer';
+            7: // zero_timeout_indefinite
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_Decisions".Slots[#Slot].AskedAt := "FRK_Clock".NowMs - 5000;
+                "FRK_DecisionCyclic"(Owner := #Root, Busy := TRUE, Reset := FALSE, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionPublish"(Owner := #Root, Decision := "GDB_DecisionTest".WorkPublished, DecisionAnswer := #Answer);
+                #Ok := #A AND #Answer = 0 AND "GDB_DecisionTest".WorkPublished.Prompt <> WSTRING#'';
+            8: // finite_timeout_default
+                "GDB_DecisionTest".WorkRequest.Timeout := T#2ms; "GDB_DecisionTest".WorkRequest.Default := 2;
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_Decisions".Slots[#Slot].AskedAt := "FRK_Clock".NowMs - 5;
+                "FRK_DecisionCyclic"(Owner := #Root, Busy := TRUE, Reset := FALSE, AlarmLog := "GDB_DecisionTest".Log);
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #Answer = 2;
+            9: // finite_requires_default
+                "GDB_DecisionTest".WorkRequest.Timeout := T#2ms;
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := NOT #A;
+            10: // default_must_be_offered
+                "GDB_DecisionTest".WorkRequest.Default := 3;
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := NOT #A;
+            11: // negative_timeout_rejected
+                "GDB_DecisionTest".WorkRequest.Timeout := T#-1ms;
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := NOT #A;
+            12: // option_zero_rejected
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 0, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Ok := #A AND NOT #B AND NOT "GDB_DecisionTest".WorkReport.Released;
+            13: // unoffered_option_rejected
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 3, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Ok := #A AND NOT #B AND NOT "GDB_DecisionTest".WorkReport.Released;
+            14: // answer_consumed_once
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 1, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #B AND #Answer = 1;
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #Ok AND #Answer = 0;
+            15: // duplicate_answer_rejected
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 1, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #C := #B;
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 2, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #C AND NOT #B AND #Answer = 1;
+            16: // interlock_denies_answer
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 1, Busy := TRUE, Permit := FALSE, Report := "GDB_DecisionTest".WorkReport);
+                #Ok := #A AND NOT #B AND NOT "GDB_DecisionTest".WorkReport.Released AND "FRK_Decisions".Slots[#Slot].Answer = 0;
+            17: // release_denial_preserved
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := FALSE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 1, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Ok := #A AND NOT #B AND "FRK_Decisions".Slots[#Slot].Answer = 0;
+            18: // reset_withdraws
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionCyclic"(Owner := #Root, Busy := TRUE, Reset := TRUE, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'';
+            19: // idle_fault_abort_withdraws
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionCyclic"(Owner := #Root, Busy := FALSE, Reset := FALSE, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'';
+            20: // nested_idle_cannot_cancel
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionCyclic"(Owner := #Nested, Busy := FALSE, Reset := TRUE, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND "FRK_Decisions".Slots[#Slot].Request.Prompt <> WSTRING#'';
+            21: // operator_wins_timeout_scan
+                "GDB_DecisionTest".WorkRequest.Timeout := T#2ms; "GDB_DecisionTest".WorkRequest.Default := 2;
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_Decisions".Slots[#Slot].AskedAt := "FRK_Clock".NowMs - 5;
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 1, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                "FRK_DecisionCyclic"(Owner := #Root, Busy := TRUE, Reset := FALSE, AlarmLog := "GDB_DecisionTest".Log);
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #B AND #Answer = 1;
+            22: // nested_mailbox_cannot_answer
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Nested, OwnerPath := #NestedPath, Option := 1, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Ok := #A AND NOT #B AND "FRK_Decisions".Slots[#Slot].Answer = 0;
+            23: // audit_is_closed_nonblocking
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 1, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #B AND #Answer = 1 AND NOT "GDB_DecisionTest".Log.Blocking AND "GDB_DecisionTest".Log.NActive = 0;
+            24: // unit_access_gate
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkTestCore := "StationA".Core; "GDB_DecisionTest".WorkTestCore.Exec := @E_ExecState.BUSY@;
+                "GDB_DecisionTest".WorkTestUnit := "StationA".Unit; "GDB_DecisionTest".WorkTestUnit.Permit := TRUE;
+                "GDB_DecisionTest".WorkTestAccess := "StationA".Access; "GDB_DecisionTest".WorkTestAccess.CurrentLevel := @E_AccessLevel.NONE@;
+                "GDB_DecisionTest".WorkTestAccess.Policy.Required[@E_GatedAction.START_STOP@] := @E_AccessLevel.OPERATOR@;
+                "GDB_DecisionTest".WorkHmiRequest.Kind := @E_HmiRequestKind.DECISION_ANSWER@; "GDB_DecisionTest".WorkHmiRequest.IntValue := 1;
+                "FRK_UnitOperation"(Core := "GDB_DecisionTest".WorkTestCore, Unit := "GDB_DecisionTest".WorkTestUnit, Status := "StationA".Status, Policy := "StationA".ModePolicy, Access := "GDB_DecisionTest".WorkTestAccess, Response := "GDB_DecisionTest".WorkHmiResponse, Supported := "StationA".SupportedModesPublished, Request := "GDB_DecisionTest".WorkHmiRequest, Trusted := FALSE);
+                #C := NOT "GDB_DecisionTest".WorkHmiResponse.Accepted AND NOT "GDB_DecisionTest".WorkHmiResponse.Report.Released AND "FRK_Decisions".Slots[#Slot].Answer = 0;
+                "GDB_DecisionTest".WorkTestAccess.CurrentLevel := @E_AccessLevel.OPERATOR@;
+                "FRK_UnitOperation"(Core := "GDB_DecisionTest".WorkTestCore, Unit := "GDB_DecisionTest".WorkTestUnit, Status := "StationA".Status, Policy := "StationA".ModePolicy, Access := "GDB_DecisionTest".WorkTestAccess, Response := "GDB_DecisionTest".WorkHmiResponse, Supported := "StationA".SupportedModesPublished, Request := "GDB_DecisionTest".WorkHmiRequest, Trusted := FALSE);
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #C AND "GDB_DecisionTest".WorkHmiResponse.Accepted AND #Answer = 1;
+            25: // unit_idle_rejects_answer
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkTestCore := "StationA".Core; "GDB_DecisionTest".WorkTestCore.Exec := @E_ExecState.READY@;
+                "GDB_DecisionTest".WorkTestUnit := "StationA".Unit; "GDB_DecisionTest".WorkTestUnit.Permit := TRUE;
+                "GDB_DecisionTest".WorkTestAccess := "StationA".Access; "GDB_DecisionTest".WorkTestAccess.CurrentLevel := @E_AccessLevel.ADMIN@;
+                "GDB_DecisionTest".WorkHmiRequest.Kind := @E_HmiRequestKind.DECISION_ANSWER@; "GDB_DecisionTest".WorkHmiRequest.IntValue := 1;
+                "FRK_UnitOperation"(Core := "GDB_DecisionTest".WorkTestCore, Unit := "GDB_DecisionTest".WorkTestUnit, Status := "StationA".Status, Policy := "StationA".ModePolicy, Access := "GDB_DecisionTest".WorkTestAccess, Response := "GDB_DecisionTest".WorkHmiResponse, Supported := "StationA".SupportedModesPublished, Request := "GDB_DecisionTest".WorkHmiRequest, Trusted := FALSE);
+                #Ok := #A AND NOT "GDB_DecisionTest".WorkHmiResponse.Accepted AND "FRK_Decisions".Slots[#Slot].Answer = 0;
+            26: // forged_source_rejected
+                "GDB_DecisionTest".WorkRequest.SourcePath := WSTRING#'OtherRoot';
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := NOT #A;
+            27: // only_raiser_consumes
+                #A := "FRK_DecisionAsk"(Owner := #Root, OwnerPath := #RootPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "GDB_DecisionTest".WorkReport.Released := TRUE;
+                #B := "FRK_DecisionSubmit"(Owner := #Root, OwnerPath := #RootPath, Option := 1, Busy := TRUE, Permit := TRUE, Report := "GDB_DecisionTest".WorkReport);
+                #Answer := "FRK_DecisionTake"(Owner := #Nested, AlarmLog := "GDB_DecisionTest".Log);
+                #C := #Answer = 0;
+                #Answer := "FRK_DecisionTake"(Owner := #Root, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND #B AND #C AND #Answer = 1;
+            28: // root_withdraws_nested_request
+                #A := "FRK_DecisionAsk"(Owner := #Nested, OwnerPath := #NestedPath, Request := "GDB_DecisionTest".WorkRequest, AlarmLog := "GDB_DecisionTest".Log);
+                "FRK_DecisionCyclic"(Owner := #Root, Busy := FALSE, Reset := FALSE, AlarmLog := "GDB_DecisionTest".Log);
+                #Ok := #A AND "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'';
+        END_CASE;
+        "GDB_DecisionTest".Checks[#CaseNo] := #Ok;
+        IF #Ok THEN "GDB_DecisionTest".Passed := "GDB_DecisionTest".Passed + 1; END_IF;
+    END_FOR;
+    "FRK_DecisionCyclic"(Owner := #Root, Busy := FALSE, Reset := TRUE, AlarmLog := "GDB_DecisionTest".Log);
+    "FRK_DecisionCyclic"(Owner := #Peer, Busy := FALSE, Reset := TRUE, AlarmLog := "GDB_DecisionTest".Log);
+    "GDB_DecisionTest".Done := TRUE;
+END_FUNCTION

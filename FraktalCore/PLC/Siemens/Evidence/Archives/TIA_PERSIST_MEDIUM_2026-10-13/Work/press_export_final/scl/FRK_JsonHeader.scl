@@ -1,0 +1,75 @@
+﻿FUNCTION "FRK_JsonHeader" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Data : "ST_ConfigSetInfo";
+   END_VAR
+
+   VAR_IN_OUT 
+      Line : WString;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+      Flag : WString[1];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_JsonHeader := FALSE;
+	#Line := WSTRING#'{';
+	#Ok := "FRK_JsonAdd"(Key := 'set', Value := STRING_TO_WSTRING(#Data.SetName), Quoted := TRUE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'root', Value := STRING_TO_WSTRING(#Data.RootIdentity), Quoted := TRUE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'schema', Value := UINT_TO_WSTRING(#Data.SetSchema), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'configRev', Value := UDINT_TO_WSTRING(#Data.ConfigRev), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'kind', Value := DINT_TO_WSTRING(#Data.Kind), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'model', Value := STRING_TO_WSTRING(#Data.ModelCode), Quoted := TRUE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'records', Value := DINT_TO_WSTRING(#Data.RecordCount), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'created', Value := ULINT_TO_WSTRING(LDT_TO_ULINT(#Data.CreatedAt) / ULINT#1000000000), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	IF #Data.TimeSynchronized THEN
+	    #Flag := WSTRING#'1';
+	ELSE
+	    #Flag := WSTRING#'0';
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'clock', Value := #Flag, Quoted := FALSE, LastField := TRUE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#FRK_JsonHeader := TRUE;
+	
+END_FUNCTION
+

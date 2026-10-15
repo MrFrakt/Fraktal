@@ -1,0 +1,65 @@
+﻿FUNCTION "FRK_AccessLogin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      User : String;
+      Secret : String;
+      Sequence : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_TEMP 
+      Data : Array[0..47] of Byte;
+      Index : DInt;
+      Slot : DInt;
+      Size : Int;
+      HashOk : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_AccessCancel"(Access := #Access);
+	#Access.LoginFailed := FALSE;
+	#Access.LoginSequence := #Sequence;
+	#Access.LoginSince := "FRK_Clock".NowMs;
+	#Access.LoginTimeoutMs := 6000;
+	#Access.CandidateUser := #User;
+	// Unknown users execute the same bounded work with a dummy salt/digest.
+	IF #Access.ProviderEnabled AND "FRK_LocalUsers".Count >= 0 AND "FRK_LocalUsers".Count <= 16 THEN
+	    FOR #Slot := 1 TO "FRK_LocalUsers".Count DO
+	        IF #User <> '' AND "FRK_LocalUsers".Rows[#Slot].User = #User THEN
+	            IF "FRK_LocalUsers".Rows[#Slot].Level >= 1 AND "FRK_LocalUsers".Rows[#Slot].Level <= 4 THEN
+	                #Access.CandidateLevel := "FRK_LocalUsers".Rows[#Slot].Level;
+	                #Access.Salt := "FRK_LocalUsers".Rows[#Slot].Salt;
+	                #Access.Expected := "FRK_LocalUsers".Rows[#Slot].PinHash;
+	            END_IF;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	FOR #Index := 0 TO 47 DO
+	    #Data[#Index] := 0;
+	END_FOR;
+	FOR #Index := 0 TO 15 DO
+	    #Data[#Index] := #Access.Salt[#Index];
+	END_FOR;
+	#Size := LEN(#Secret);
+	IF #Size > 32 THEN
+	    #Size := 0;
+	    #Access.CandidateLevel := 0;
+	END_IF;
+	FOR #Index := 1 TO #Size DO
+	    #Data[15 + #Index] := CHAR_TO_BYTE(#Secret[#Index]);
+	END_FOR;
+	#HashOk := "FRK_Sha256Pin"(Data := #Data, Size := 16 + INT_TO_DINT(#Size), Digest := #Access.Digest);
+	FOR #Index := 0 TO 47 DO
+	    #Data[#Index] := 0;
+	END_FOR;
+	#Access.LoginBusy := #HashOk;
+	
+END_FUNCTION
+

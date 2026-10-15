@@ -1,0 +1,81 @@
+﻿FUNCTION "FRK_SeqViewAwait" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Branch : DInt;
+      Label : String;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V001.Defs,
+	                        Cursors := "FRK_Views".V001.Cursors,
+	                        Count := "FRK_Views".V001.Count,
+	                        Current := "FRK_Views".V001.Current,
+	                        Book := "FRK_Views".V001.Book);
+	    5:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V005.Defs,
+	                        Cursors := "FRK_Views".V005.Cursors,
+	                        Count := "FRK_Views".V005.Count,
+	                        Current := "FRK_Views".V005.Current,
+	                        Book := "FRK_Views".V005.Book);
+	    9:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V009.Defs,
+	                        Cursors := "FRK_Views".V009.Cursors,
+	                        Count := "FRK_Views".V009.Count,
+	                        Current := "FRK_Views".V009.Current,
+	                        Book := "FRK_Views".V009.Book);
+	    13:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V013.Defs,
+	                        Cursors := "FRK_Views".V013.Cursors,
+	                        Count := "FRK_Views".V013.Count,
+	                        Current := "FRK_Views".V013.Current,
+	                        Book := "FRK_Views".V013.Book);
+	    17:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V017.Defs,
+	                        Cursors := "FRK_Views".V017.Cursors,
+	                        Count := "FRK_Views".V017.Count,
+	                        Current := "FRK_Views".V017.Current,
+	                        Book := "FRK_Views".V017.Book);
+	    21:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V021.Defs,
+	                        Cursors := "FRK_Views".V021.Cursors,
+	                        Count := "FRK_Views".V021.Count,
+	                        Current := "FRK_Views".V021.Current,
+	                        Book := "FRK_Views".V021.Book);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

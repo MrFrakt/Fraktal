@@ -1,0 +1,32 @@
+﻿FUNCTION "F_DeliveryStimulus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Gone : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	CASE "GDB_DeliveryTest".Operation OF
+	    1:
+	        "FRK_AlarmMessage"(AlarmLog := #AlarmLog,
+	                           Reason := "GDB_DeliveryTest".Reason,
+	                           Description := "GDB_DeliveryTest".Text,
+	                           SourcePath := STRING_TO_WSTRING("GDB_DeliveryTest".Scope));
+	    2:
+	        #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := "GDB_DeliveryTest".Diag, ResetClass := 1);
+	        "GDB_DeliveryTest".EventSlot := #Slot;
+	    3:
+	        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := "GDB_DeliveryTest".EventSlot);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

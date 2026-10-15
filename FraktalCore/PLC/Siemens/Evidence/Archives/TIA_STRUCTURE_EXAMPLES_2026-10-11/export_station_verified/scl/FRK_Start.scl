@@ -1,0 +1,34 @@
+﻿FUNCTION "FRK_Start" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Supported : Bool;
+      Timeout : Time;
+      Label : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	#Core.CommandLabel := #Label;
+	IF NOT #Supported THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2008,
+	                Description := WSTRING#'fraktal.command.unsupported');
+	ELSIF #Timeout <= T#0ms THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2004,
+	                Description := WSTRING#'fraktal.command.timeout.invalid');
+	ELSE
+	    #Core.TimeoutMs := DINT_TO_UDINT(TIME_TO_DINT(#Timeout));
+	END_IF;
+	
+END_FUNCTION
+

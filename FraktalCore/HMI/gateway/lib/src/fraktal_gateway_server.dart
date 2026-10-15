@@ -514,6 +514,13 @@ class FraktalGatewayServer {
   Future<void> _ensureDiscovery() async {
     if (_discoveredPaths.isNotEmpty) return;
     await _tierTail;
+    final discovery = _client;
+    if (discovery is OpcUaPathDiscoveryClient) {
+      _rememberDiscovery({
+        'paths': await discovery.discoverPaths(),
+      });
+      if (_discoveredPaths.isNotEmpty) return;
+    }
     final snapshot = await _client.snapshot();
     validateCompleteOpcUaSnapshot(snapshot);
     _rememberDiscovery(snapshot);

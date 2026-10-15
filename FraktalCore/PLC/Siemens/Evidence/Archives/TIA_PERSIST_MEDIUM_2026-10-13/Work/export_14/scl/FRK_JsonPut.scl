@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_JsonPut" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Append complete text or refuse. Explicit destination width and length check
+// protect long WSTRING lines against truncation in the Siemens string runtime.
+   VAR_INPUT 
+      Text : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Line : WString;
+   END_VAR
+
+   VAR_TEMP 
+      Expected : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_JsonPut := FALSE;
+	#Expected := LEN(#Line) + LEN(#Text);
+	IF #Expected > 480 THEN
+	    RETURN;
+	END_IF;
+	#Line := CONCAT(IN1 := #Line, IN2 := #Text);
+	#FRK_JsonPut := LEN(#Line) = #Expected;
+	
+END_FUNCTION
+

@@ -46,9 +46,10 @@ FraktalCore/
 │   │   │                                Examples/ - run BOTH)
 │   │   └── scaffold/FB_TemplateCM/       copy-template (not compiled; born RED)
 │   ├── Allen-Bradley/            Fraktal/AB binding; current claims in its guide
-│   └── Siemens/                  Fraktal/TIA binding — Phase 0 only: Openness driver,
-│                                 bench probe, spike fixtures (TIA V20; SFC/GRAPH + SCL,
-│                                 no LD; bench = S7-1200 1214C, not the S7-1500 reference)
+│   └── Siemens/                  Fraktal/TIA draft runtime and engineering tools,
+│                                 Framework/Core + Modules, Tests, Spikes and wired
+│                                 GRAPH/ST press with optional ST/LD examples (TIA V20; simulated S7-1500).
+│                                 Evidence payloads live here; specification holds reports.
 └── HMI/               Generic operator HMI (Flutter). lib/{data,domain,state,ui}.
 ```
 

@@ -1,0 +1,139 @@
+// Fraktal/TIA Phase 0 fixture S11 - runs the GENERATED S7-GRAPH rendition of the
+// S2 AUTO chain (FB_SpkAutoGraph, from chain_auto.json) on the same two cylinder
+// CMs, after the S2 harness has finished, and records in its table:
+//   18 S11 GRAPH chain trace 0,100,110,120,100,110 (the SCL chain's, case 13)
+//   19 S11 restart edge mid-run (INIT_SQ while N110 commands CylB): 0,100,110 again
+// ExecBAfterInit records whether INIT_SQ itself ran N110's S0 action (CylB.Execute
+// dropped by the chart) - the restart happens only once CylB.Execute is high.
+// TIA refuses a GRAPH FB as a multi-instance ("not supported as a multiple
+// instance", with or without GRAPH alarm handling), so the chart runs on its own
+// single-instance DB "S11Graph", handed to the owner adapter as a parameter
+// instance (FB_SpkGraphOwner). Its program-cycle OB runs after Main, so the order
+// is the Unit adapter's: children (inside "SpikeUnit"), then the chain - a command
+// is seen by the child on the next scan (Part IV s.6). Log keeps the first 64
+// chain scans of the first run, Log2 the first 16 after the restart edge:
+//   StepNo*100 + CylA.Execute*8 + CylA.Done*4 + CylB.Execute*2 + CylB.Done.
+
+FUNCTION_BLOCK "FB_SpkGraphRig"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR
+      State : Int;
+      T0 : UDInt;
+      InitSq : Bool;               // GRAPH INIT_SQ: the restart edge (Core s.6.8)
+      Scans : DInt;                // chain calls in the current run
+      ScansToSix : DInt;           // first run: chain calls until six steps were recorded
+      MsToSix : UDInt;
+      TraceOk : Bool;
+      RestartOk : Bool;
+      ExecBBeforeInit : Bool;      // measured: CylB.Execute just before the INIT_SQ call
+      ExecBAfterInit : Bool;       // measured: CylB.Execute right after the INIT_SQ call
+      StepAfterInit : DInt;        // measured: the step record right after the INIT_SQ call
+      Seq : "FRK_SeqCtx";
+      Owner : "FB_SpkGraphOwner";
+      Log : Array[0..63] of DInt;
+      Log2 : Array[0..15] of DInt;
+   END_VAR
+
+   VAR_TEMP
+      el : UDInt;
+      code : DInt;
+   END_VAR
+
+
+BEGIN
+	#el := "FRK_Clock".NowMs - #T0;
+
+	CASE #State OF
+	    0:  // after the S2 harness: reopen its table for the S11 rows
+	        IF "SpkResults".T.Done THEN
+	            "SpkResults".T.Done := FALSE;
+	            #Seq.Step := 0;
+	            #Seq.RetVal := 0;
+	            #Seq.Issued := FALSE;
+	            #Seq.LastRecorded := -1;
+	            #Seq.TraceCount := 0;
+	            #InitSq := TRUE;
+	            #Scans := 0;
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 10;
+	        END_IF;
+
+	    10: // run the chart until six steps are recorded
+	        IF #Seq.TraceCount >= 6 OR #el > 8000 THEN
+	            #ScansToSix := #Scans;
+	            #MsToSix := #el;
+	            #TraceOk := #Seq.TraceCount >= 6
+	                AND #Seq.Trace[0] = 0 AND #Seq.Trace[1] = 100
+	                AND #Seq.Trace[2] = 110 AND #Seq.Trace[3] = 120
+	                AND #Seq.Trace[4] = 100 AND #Seq.Trace[5] = 110;
+	            "FRK_TestRecord"(CaseId := 18, Pass := #TraceOk, Expected := 6, Actual := #Seq.TraceCount);
+	            #T0 := "FRK_Clock".NowMs;
+	            #State := 12;
+	        END_IF;
+
+	    12: // keep running until N110 has raised CylB.Execute
+	        IF "SpikeUnit".CylB.Execute OR #el > 1000 THEN
+	            #State := 15;
+	        END_IF;
+
+	    15: // restart edge while the chart is in N110 with CylB commanded
+	        #ExecBBeforeInit := "SpikeUnit".CylB.Execute;
+	        #Seq.LastRecorded := -1;
+	        #Seq.TraceCount := 0;
+	        #InitSq := TRUE;
+	        #Scans := 0;
+	        #T0 := "FRK_Clock".NowMs;
+	        #State := 16;
+
+	    16:
+	        IF #Seq.TraceCount >= 3 OR #el > 8000 THEN
+	            #RestartOk := #Seq.TraceCount >= 3
+	                AND #Seq.Trace[0] = 0 AND #Seq.Trace[1] = 100 AND #Seq.Trace[2] = 110;
+	            "FRK_TestRecord"(CaseId := 19, Pass := #RestartOk, Expected := 3, Actual := #Seq.TraceCount);
+	            "SpikeUnit".CylA.Execute := FALSE;    // release what the chart issued
+	            "SpikeUnit".CylB.Execute := FALSE;
+	            #State := 20;
+	        END_IF;
+
+	    20:
+	        "SpkResults".T.Done := TRUE;
+	        #State := 99;
+
+	    99:
+	        ;
+
+	    ELSE
+	        #State := 99;
+	END_CASE;
+
+	// the adapter: the chart is called only while it runs, like the Unit's dispatch
+	IF #State = 10 OR #State = 12 OR #State = 16 THEN
+	    #Owner(Restart := #InitSq, Chart := "S11Graph", Seq := #Seq,
+	           CylA := "SpikeUnit".CylA, CylB := "SpikeUnit".CylB);
+	    IF #InitSq AND #State = 16 THEN
+	        #ExecBAfterInit := "SpikeUnit".CylB.Execute;
+	        #StepAfterInit := #Seq.Record.StepNo;
+	    END_IF;
+	    #InitSq := FALSE;
+	    #code := #Seq.Record.StepNo * 100;
+	    IF "SpikeUnit".CylA.Execute THEN
+	        #code := #code + 8;
+	    END_IF;
+	    IF "SpikeUnit".CylA.Done THEN
+	        #code := #code + 4;
+	    END_IF;
+	    IF "SpikeUnit".CylB.Execute THEN
+	        #code := #code + 2;
+	    END_IF;
+	    IF "SpikeUnit".CylB.Done THEN
+	        #code := #code + 1;
+	    END_IF;
+	    IF #State = 10 AND #Scans >= 0 AND #Scans <= 63 THEN
+	        #Log[#Scans] := #code;
+	    ELSIF #State = 16 AND #Scans >= 0 AND #Scans <= 15 THEN
+	        #Log2[#Scans] := #code;
+	    END_IF;
+	    #Scans := #Scans + 1;
+	END_IF;
+END_FUNCTION_BLOCK

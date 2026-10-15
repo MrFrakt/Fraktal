@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_UnitSetLocalCarrier" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Index : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+   END_VAR
+
+
+BEGIN
+	
+	#Unit.CarrierIndex := 0;
+	IF #Index < 1 OR #Index > 4 THEN
+	    RETURN;
+	END_IF;
+	"FRK_Carriers".Slots[#Index].Enabled := TRUE;
+	"FRK_Carriers".Slots[#Index].Kind := 2;
+	#Unit.CarrierIndex := #Index;
+	
+END_FUNCTION
+

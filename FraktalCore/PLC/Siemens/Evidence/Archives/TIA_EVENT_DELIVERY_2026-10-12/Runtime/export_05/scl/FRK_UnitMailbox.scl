@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_UnitMailbox" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Supported : Array[0..6] of Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Policy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      Request : "ST_HmiRequest";
+      Response : "ST_HmiResponse";
+   END_VAR
+
+   VAR_TEMP 
+      SequenceBefore : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#SequenceBefore := #Request.Sequence;
+	IF #SequenceBefore = 0 OR #SequenceBefore = #Unit.SeenSequence THEN
+	    RETURN;
+	END_IF;
+	#Unit.Request := #Request;
+	IF #Request.Sequence <> #SequenceBefore THEN
+	    #Unit.Request.Secret := '';
+	    RETURN;
+	END_IF;
+	#Request.Secret := '';
+	#Unit.RequestUser := #Access.CurrentUser;
+	#Unit.SeenSequence := #SequenceBefore;
+	#Unit.RequestPending := TRUE;
+	
+END_FUNCTION
+

@@ -1,0 +1,41 @@
+// S3 scale fixture (Part IV s.12): 10 idle cylinder CMs called every scan (named form),
+// as most modules of a press are idle. Measures work memory and cycle time per CM.
+FUNCTION_BLOCK "FB_SpkScale"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR
+      Cyl01 : "FB_SpkCylinderCM";
+      Hal01 : "ST_SpkCylHal";
+      Cyl02 : "FB_SpkCylinderCM";
+      Hal02 : "ST_SpkCylHal";
+      Cyl03 : "FB_SpkCylinderCM";
+      Hal03 : "ST_SpkCylHal";
+      Cyl04 : "FB_SpkCylinderCM";
+      Hal04 : "ST_SpkCylHal";
+      Cyl05 : "FB_SpkCylinderCM";
+      Hal05 : "ST_SpkCylHal";
+      Cyl06 : "FB_SpkCylinderCM";
+      Hal06 : "ST_SpkCylHal";
+      Cyl07 : "FB_SpkCylinderCM";
+      Hal07 : "ST_SpkCylHal";
+      Cyl08 : "FB_SpkCylinderCM";
+      Hal08 : "ST_SpkCylHal";
+      Cyl09 : "FB_SpkCylinderCM";
+      Hal09 : "ST_SpkCylHal";
+      Cyl10 : "FB_SpkCylinderCM";
+      Hal10 : "ST_SpkCylHal";
+   END_VAR
+
+
+BEGIN
+	#Cyl01(Hal := #Hal01);
+	#Cyl02(Hal := #Hal02);
+	#Cyl03(Hal := #Hal03);
+	#Cyl04(Hal := #Hal04);
+	#Cyl05(Hal := #Hal05);
+	#Cyl06(Hal := #Hal06);
+	#Cyl07(Hal := #Hal07);
+	#Cyl08(Hal := #Hal08);
+	#Cyl09(Hal := #Hal09);
+	#Cyl10(Hal := #Hal10);
+END_FUNCTION_BLOCK

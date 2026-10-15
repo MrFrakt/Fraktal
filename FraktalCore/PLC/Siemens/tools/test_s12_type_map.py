@@ -30,6 +30,12 @@ RUN = module("run_plan")
 
 
 class TypeMapTests(unittest.TestCase):
+    def test_private_dtl_annotation_keeps_publication_flags_significant(self):
+        original="Data {ExternalAccessible := 'False'; ExternalWritable := 'False'} : DTL;"
+        native="Data {InstructionName := 'DTL'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalWritable := 'False'} : DTL;"
+        self.assertEqual(VERIFY.canonical(original),VERIFY.canonical(native))
+        self.assertNotEqual(VERIFY.canonical(original),VERIFY.canonical(native.replace("ExternalWritable := 'False'","ExternalWritable := 'True'")))
+        self.assertNotEqual(VERIFY.canonical(original),VERIFY.canonical(native.replace("LibVersion := '1.0'","LibVersion := '2.0'")))
     def test_comment_format_does_not_change_code(self):
         self.assertEqual(VERIFY.canonical('x := 1; // note\n'), VERIFY.canonical('X:=1;(* note *)'))
         self.assertNotEqual(VERIFY.canonical('X:=1;'), VERIFY.canonical('X:=2;'))

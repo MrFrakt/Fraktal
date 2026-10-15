@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_SeqSelect" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      AdvanceOk : Bool;
+      Jump1Ok : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	#Seq.RetVal := 0;
+	IF NOT #Seq.Running OR #Seq.Error THEN
+	    RETURN;
+	END_IF;
+	IF #AdvanceOk THEN
+	    #Seq.RetVal := 1;
+	ELSIF #Jump1Ok THEN
+	    #Seq.RetVal := 2;
+	END_IF;
+	
+END_FUNCTION
+

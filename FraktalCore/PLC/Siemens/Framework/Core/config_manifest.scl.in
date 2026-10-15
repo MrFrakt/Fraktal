@@ -141,6 +141,7 @@ VERSION : 0.1
 VAR_INPUT
     Scope : String;
     Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    ModelCount : Int;
     ReadLevel : DInt;
     Readable : Bool;
 END_VAR
@@ -156,7 +157,7 @@ VAR_TEMP
 END_VAR
 BEGIN
     "FRK_ConfigAppend"(Scope := #Scope, Item := 'CatalogCount', ValueText := WSTRING#'0', ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
-    "FRK_ConfigAppend"(Scope := #Scope, Item := 'AvailableModelCount', ValueText := WSTRING#'0', ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'AvailableModelCount', ValueText := INT_TO_WSTRING(#ModelCount), ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
     FOR #Index := 0 TO @MODE_LAST@ DO
         #IndexText := INT_TO_STRING(#Index);
         IF #IndexText[1] = '+' THEN #IndexText := DELETE(IN := #IndexText, L := 1, P := 1); END_IF;

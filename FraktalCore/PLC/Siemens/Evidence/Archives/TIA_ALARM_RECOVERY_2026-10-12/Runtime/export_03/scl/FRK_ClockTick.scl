@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_ClockTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Shared command kernel v0.1. Core 2.2 / 6.1 / 3.14 / 8.11.
+// Generated enum/rationalization values come from Core authorities.
+   VAR_TEMP 
+      DeltaS : LReal;
+   END_VAR
+
+
+BEGIN
+	
+	#DeltaS := RUNTIME("FRK_Clock".Mem);
+	IF #DeltaS < 0.0 OR #DeltaS > 60.0 THEN
+	    #DeltaS := 0.0;
+	END_IF;
+	"FRK_Clock".AccMs := "FRK_Clock".AccMs + #DeltaS * 1000.0;
+	IF "FRK_Clock".AccMs >= 4294967296.0 THEN
+	    "FRK_Clock".AccMs := "FRK_Clock".AccMs - 4294967296.0;
+	END_IF;
+	"FRK_Clock".NowMs := TRUNC_UDINT("FRK_Clock".AccMs);
+	
+END_FUNCTION
+

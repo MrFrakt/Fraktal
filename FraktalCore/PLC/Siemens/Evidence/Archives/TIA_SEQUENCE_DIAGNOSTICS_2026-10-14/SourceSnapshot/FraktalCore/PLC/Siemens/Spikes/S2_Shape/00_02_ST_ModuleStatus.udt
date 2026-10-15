@@ -1,0 +1,16 @@
+TYPE "ST_ModuleStatus"
+VERSION : 0.1
+   STRUCT
+      "Name" : String[80];         // quoted: NAME is a source-header keyword; unquoted, the member is silently dropped
+      DisplayNameKey : String[64];
+      DescriptionKey : String[64];
+      TypeKey : String[64];
+      ModuleType : DInt;           // E_ModuleType UNIT=1 EM=2 CM=3
+      State : DInt;                // E_ExecState READY=0 BUSY=1 DONE=2 ERROR=3 ABORTED=4
+      FaultActive : Bool;
+      Diagnostic : "ST_Diagnostic";
+      TileEnable : Bool := TRUE;
+      ControlDomainId : String[24];
+   END_STRUCT;
+
+END_TYPE

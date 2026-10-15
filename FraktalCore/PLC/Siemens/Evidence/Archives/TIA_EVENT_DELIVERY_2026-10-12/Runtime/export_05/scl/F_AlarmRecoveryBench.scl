@@ -1,0 +1,170 @@
+﻿FUNCTION "F_AlarmRecoveryBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Slot : Int;
+      EventSlot : Int;
+      Gone : Bool;
+      Code : Int;
+      NestedSlot : Int;
+      NeedRaise : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := "FRK_AlarmRecoveryIndex"(Scope := "GDB_AlarmRecoveryTest".Scope);
+	#EventSlot := "GDB_AlarmRecoveryTest".EventSlot;
+	IF #EventSlot < 1 OR #EventSlot > 16 THEN
+	    #EventSlot := 1;
+	END_IF;
+	IF #Slot > 0 THEN
+	    "GDB_AlarmRecoveryTest".Generation := "FRK_AlarmRecovery".Rows[#Slot].Generation;
+	    "GDB_AlarmRecoveryTest".Elapsed := "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot];
+	END_IF;
+	#Code := "GDB_AlarmRecoveryTest".Operation;
+	#NestedSlot := "FRK_AlarmRecoveryIndex"(Scope := 'StationA.Satellite');
+	IF #NestedSlot > 0 THEN
+	    IF #Code = 6 THEN
+	        "FRK_AlarmRecoveryRuntime".Ready[#NestedSlot] := FALSE;
+	    ELSIF #Code = 7 THEN
+	        "FRK_AlarmRecoveryRuntime".Ready[#NestedSlot] := TRUE;
+	    END_IF;
+	    "GDB_AlarmRecoveryTest".StartupBlocked := "FRK_AlarmRecoveryTreeBlocking"(Scope := 'StationA');
+	END_IF;
+	"GDB_AlarmRecoveryTest".Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	"GDB_AlarmRecoveryTest".Diag.ReasonCode := "GDB_AlarmRecoveryTest".Reason;
+	"GDB_AlarmRecoveryTest".Diag.Description := "GDB_AlarmRecoveryTest".Text;
+	"GDB_AlarmRecoveryTest".Diag.SourcePath := STRING_TO_WSTRING("GDB_AlarmRecoveryTest".Scope);
+	"GDB_AlarmRecoveryTest".Diag.Severity := 2;
+	"GDB_AlarmRecoveryTest".Diag.Category := 0;
+	IF "GDB_AlarmRecoveryTest".Scope = 'StationA' THEN
+	    CASE #Code OF
+	        1:
+	            "GDB_AlarmRecoveryTest".ReturnSlot := "FRK_AlarmRaise"(AlarmLog := "StationA".AlarmLog, Diag := "GDB_AlarmRecoveryTest".Diag, ResetClass := "GDB_AlarmRecoveryTest".ResetClass);
+	            IF "GDB_AlarmRecoveryTest".Automatic AND "GDB_AlarmRecoveryTest".ReturnSlot > 0 THEN
+	                "StationA".AlarmLog.Automatic["GDB_AlarmRecoveryTest".ReturnSlot] := TRUE;
+	                "FRK_AlarmRecoveryStore"(AlarmLog := "StationA".AlarmLog,
+	                                         EventSlot := "GDB_AlarmRecoveryTest".ReturnSlot);
+	            END_IF;
+	        2:
+	            #Gone := "FRK_AlarmGone"(AlarmLog := "StationA".AlarmLog, Slot := #EventSlot);
+	        3:
+	            "FRK_AlarmBegin"(AlarmLog := "StationA".AlarmLog,
+	                             Startup := TRUE);
+	        4:
+	            "FRK_AlarmOperatorReset"(AlarmLog := "StationA".AlarmLog);
+	        5:
+	            "GDB_AlarmRecoveryTest".ReturnSlot := "FRK_AlarmRaise"(AlarmLog := "StationA".AlarmLog, Diag := "GDB_AlarmRecoveryTest".Diag, ResetClass := "GDB_AlarmRecoveryTest".ResetClass);
+	        40, 41:
+	            #Gone := "FRK_AlarmGone"(AlarmLog := "StationA".AlarmLog, Slot := #EventSlot);
+	            #Code := RD_SYS_T(OUT => "GDB_RecoveryStamp".Data);
+	            "StationA".AlarmLog.Active[#EventSlot].ResetAt := DTL_TO_LDT("GDB_RecoveryStamp".Data);
+	            "StationA".AlarmLog.Active[#EventSlot].State := 0;
+	            "FRK_DeliveryCapture"(AlarmLog := "StationA".AlarmLog,
+	                                  Ev := "StationA".AlarmLog.Active[#EventSlot]);
+	            "FRK_AlarmRecoveryClosePrepare"(AlarmLog := "StationA".AlarmLog,
+	                                            EventSlot := #EventSlot);
+	            IF "GDB_AlarmRecoveryTest".Operation = 41 THEN
+	                "StationA".AlarmLog.RingHead := ("StationA".AlarmLog.RingHead MOD 64) + 1;
+	                IF "StationA".AlarmLog.RingUsed < 64 THEN
+	                    "StationA".AlarmLog.RingUsed := "StationA".AlarmLog.RingUsed + 1;
+	                END_IF;
+	                "StationA".AlarmLog.Ring["StationA".AlarmLog.RingHead] := "StationA".AlarmLog.Active[#EventSlot];
+	                "FRK_AlarmHistoryAppend"(AlarmLog := "StationA".AlarmLog);
+	            END_IF;
+	    END_CASE;
+	END_IF;
+	IF "GDB_AlarmRecoveryTest".Scope = 'StationA.Satellite' THEN
+	    CASE #Code OF
+	        1:
+	            "GDB_AlarmRecoveryTest".ReturnSlot := "FRK_AlarmRaise"(AlarmLog := "StationA".Satellite.AlarmLog, Diag := "GDB_AlarmRecoveryTest".Diag, ResetClass := "GDB_AlarmRecoveryTest".ResetClass);
+	            IF "GDB_AlarmRecoveryTest".Automatic AND "GDB_AlarmRecoveryTest".ReturnSlot > 0 THEN
+	                "StationA".Satellite.AlarmLog.Automatic["GDB_AlarmRecoveryTest".ReturnSlot] := TRUE;
+	                "FRK_AlarmRecoveryStore"(AlarmLog := "StationA".Satellite.AlarmLog,
+	                                         EventSlot := "GDB_AlarmRecoveryTest".ReturnSlot);
+	            END_IF;
+	        2:
+	            #Gone := "FRK_AlarmGone"(AlarmLog := "StationA".Satellite.AlarmLog, Slot := #EventSlot);
+	        3:
+	            "FRK_AlarmBegin"(AlarmLog := "StationA".Satellite.AlarmLog,
+	                             Startup := TRUE);
+	        4:
+	            "FRK_AlarmOperatorReset"(AlarmLog := "StationA".Satellite.AlarmLog);
+	        5:
+	            "GDB_AlarmRecoveryTest".ReturnSlot := "FRK_AlarmRaise"(AlarmLog := "StationA".Satellite.AlarmLog, Diag := "GDB_AlarmRecoveryTest".Diag, ResetClass := "GDB_AlarmRecoveryTest".ResetClass);
+	        40, 41:
+	            #Gone := "FRK_AlarmGone"(AlarmLog := "StationA".Satellite.AlarmLog, Slot := #EventSlot);
+	            #Code := RD_SYS_T(OUT => "GDB_RecoveryStamp".Data);
+	            "StationA".Satellite.AlarmLog.Active[#EventSlot].ResetAt := DTL_TO_LDT("GDB_RecoveryStamp".Data);
+	            "StationA".Satellite.AlarmLog.Active[#EventSlot].State := 0;
+	            "FRK_DeliveryCapture"(AlarmLog := "StationA".Satellite.AlarmLog,
+	                                  Ev := "StationA".Satellite.AlarmLog.Active[#EventSlot]);
+	            "FRK_AlarmRecoveryClosePrepare"(AlarmLog := "StationA".Satellite.AlarmLog,
+	                                            EventSlot := #EventSlot);
+	            IF "GDB_AlarmRecoveryTest".Operation = 41 THEN
+	                "StationA".Satellite.AlarmLog.RingHead := ("StationA".Satellite.AlarmLog.RingHead MOD 64) + 1;
+	                IF "StationA".Satellite.AlarmLog.RingUsed < 64 THEN
+	                    "StationA".Satellite.AlarmLog.RingUsed := "StationA".Satellite.AlarmLog.RingUsed + 1;
+	                END_IF;
+	                "StationA".Satellite.AlarmLog.Ring["StationA".Satellite.AlarmLog.RingHead] := "StationA".Satellite.AlarmLog.Active[#EventSlot];
+	                "FRK_AlarmHistoryAppend"(AlarmLog := "StationA".Satellite.AlarmLog);
+	            END_IF;
+	    END_CASE;
+	END_IF;
+	IF "GDB_AlarmRecoveryTest".Scope = 'StationB' THEN
+	    CASE #Code OF
+	        1:
+	            "GDB_AlarmRecoveryTest".ReturnSlot := "FRK_AlarmRaise"(AlarmLog := "StationB".AlarmLog, Diag := "GDB_AlarmRecoveryTest".Diag, ResetClass := "GDB_AlarmRecoveryTest".ResetClass);
+	            IF "GDB_AlarmRecoveryTest".Automatic AND "GDB_AlarmRecoveryTest".ReturnSlot > 0 THEN
+	                "StationB".AlarmLog.Automatic["GDB_AlarmRecoveryTest".ReturnSlot] := TRUE;
+	                "FRK_AlarmRecoveryStore"(AlarmLog := "StationB".AlarmLog,
+	                                         EventSlot := "GDB_AlarmRecoveryTest".ReturnSlot);
+	            END_IF;
+	        2:
+	            #Gone := "FRK_AlarmGone"(AlarmLog := "StationB".AlarmLog, Slot := #EventSlot);
+	        3:
+	            "FRK_AlarmBegin"(AlarmLog := "StationB".AlarmLog,
+	                             Startup := TRUE);
+	        4:
+	            "FRK_AlarmOperatorReset"(AlarmLog := "StationB".AlarmLog);
+	        5:
+	            "GDB_AlarmRecoveryTest".ReturnSlot := "FRK_AlarmRaise"(AlarmLog := "StationB".AlarmLog, Diag := "GDB_AlarmRecoveryTest".Diag, ResetClass := "GDB_AlarmRecoveryTest".ResetClass);
+	        40, 41:
+	            #Gone := "FRK_AlarmGone"(AlarmLog := "StationB".AlarmLog, Slot := #EventSlot);
+	            #Code := RD_SYS_T(OUT => "GDB_RecoveryStamp".Data);
+	            "StationB".AlarmLog.Active[#EventSlot].ResetAt := DTL_TO_LDT("GDB_RecoveryStamp".Data);
+	            "StationB".AlarmLog.Active[#EventSlot].State := 0;
+	            "FRK_DeliveryCapture"(AlarmLog := "StationB".AlarmLog,
+	                                  Ev := "StationB".AlarmLog.Active[#EventSlot]);
+	            "FRK_AlarmRecoveryClosePrepare"(AlarmLog := "StationB".AlarmLog,
+	                                            EventSlot := #EventSlot);
+	            IF "GDB_AlarmRecoveryTest".Operation = 41 THEN
+	                "StationB".AlarmLog.RingHead := ("StationB".AlarmLog.RingHead MOD 64) + 1;
+	                IF "StationB".AlarmLog.RingUsed < 64 THEN
+	                    "StationB".AlarmLog.RingUsed := "StationB".AlarmLog.RingUsed + 1;
+	                END_IF;
+	                "StationB".AlarmLog.Ring["StationB".AlarmLog.RingHead] := "StationB".AlarmLog.Active[#EventSlot];
+	                "FRK_AlarmHistoryAppend"(AlarmLog := "StationB".AlarmLog);
+	            END_IF;
+	    END_CASE;
+	END_IF;
+	IF "GDB_AlarmRecoveryTest".StickyCause THEN
+	    #NeedRaise := "GDB_AlarmRecoveryTest".CauseSlot < 1 OR "GDB_AlarmRecoveryTest".CauseSlot > 16;
+	    IF NOT #NeedRaise THEN
+	        #NeedRaise := "StationA".AlarmLog.Active["GDB_AlarmRecoveryTest".CauseSlot].State = 0;
+	    END_IF;
+	    IF #NeedRaise THEN
+	        "GDB_AlarmRecoveryTest".Diag.ReasonCode := 15200;
+	        "GDB_AlarmRecoveryTest".Diag.Description := WSTRING#'test.alarm.stickyCause';
+	        "GDB_AlarmRecoveryTest".Diag.SourcePath := WSTRING#'StationA';
+	        "GDB_AlarmRecoveryTest".CauseSlot := "FRK_AlarmRaise"(AlarmLog := "StationA".AlarmLog, Diag := "GDB_AlarmRecoveryTest".Diag, ResetClass := 1);
+	    END_IF;
+	ELSIF "GDB_AlarmRecoveryTest".CauseSlot > 0 THEN
+	    #Gone := "FRK_AlarmGone"(AlarmLog := "StationA".AlarmLog, Slot := "GDB_AlarmRecoveryTest".CauseSlot);
+	    "GDB_AlarmRecoveryTest".CauseSlot := 0;
+	END_IF;
+	"GDB_AlarmRecoveryTest".Operation := 0;
+	
+END_FUNCTION
+

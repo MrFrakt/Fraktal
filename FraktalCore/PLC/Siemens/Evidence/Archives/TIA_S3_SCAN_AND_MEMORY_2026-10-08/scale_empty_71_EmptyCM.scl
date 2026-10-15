@@ -1,0 +1,51 @@
+// S3: FB_SpkCylinderCM's interface and data with an empty body.
+FUNCTION_BLOCK "FB_SpkEmptyCM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Execute { ExternalWritable := 'False'} : Bool;
+      Abort { ExternalWritable := 'False'} : Bool;
+      Command { ExternalWritable := 'False'} : DInt;          // 1 EXTEND, 2 RETRACT
+      IntlkOk { ExternalWritable := 'False'} : Bool := TRUE;  // owner-supplied interlock (Core s.7.2)
+      ParCfg { ExternalWritable := 'False'} : "ST_SpkCylinderParCfg";
+      ParentIndex { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+   END_VAR
+
+   VAR_OUTPUT
+      Busy { ExternalWritable := 'False'} : Bool;
+      Done { ExternalWritable := 'False'} : Bool;
+      Error { ExternalWritable := 'False'} : Bool;
+      Aborted { ExternalWritable := 'False'} : Bool;
+      ErrorID { ExternalWritable := 'False'} : DWord;
+      OutImm { ExternalWritable := 'False'} : "ST_SpkCylinderOutImm";
+   END_VAR
+
+   VAR_IN_OUT
+      Hal : "ST_SpkCylHal";
+   END_VAR
+
+   VAR
+      Status { ExternalWritable := 'False'} : "ST_ModuleStatus";   // static, not an output: the lifecycle reads it back,
+                                                                // and reading an FB output draws 'might not be initialized'
+      Core { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+   END_VAR
+
+   VAR_TEMP
+      instancePath : WString;
+   END_VAR
+
+   VAR CONSTANT
+      MODULE_CM : DInt := 3;
+      CMD_EXTEND : DInt := 1;
+      CMD_RETRACT : DInt := 2;
+      MAX_COMMAND : DInt := 2;
+      R_INTERLOCK_DROPPED : DInt := 2003;
+      R_UNSUPPORTED_COMMAND : DInt := 2008;
+      SEV_MED : DInt := 1;
+      CAT_PROCESS : DInt := 0;
+   END_VAR
+
+
+BEGIN
+	;
+END_FUNCTION_BLOCK

@@ -1,0 +1,14 @@
+FUNCTION "F_TestEventSink" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+BEGIN
+    "GDB_StateAlarmTest".SinkLast := #Ev;
+    IF #Ev.State = 0 THEN
+        "GDB_StateAlarmTest".SinkClose := "GDB_StateAlarmTest".SinkClose + 1;
+    ELSE
+        "GDB_StateAlarmTest".SinkCome := "GDB_StateAlarmTest".SinkCome + 1;
+    END_IF;
+END_FUNCTION

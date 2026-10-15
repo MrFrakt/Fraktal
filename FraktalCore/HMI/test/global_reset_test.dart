@@ -9,6 +9,9 @@ import 'package:fraktal_hmi/data/scoped_plc_repository.dart';
 import 'package:fraktal_hmi/data/sim_repository.dart';
 import 'package:fraktal_hmi/main.dart';
 import 'package:fraktal_hmi/state/app_state.dart';
+import 'package:fraktal_hmi/domain/module_node.dart';
+import 'package:fraktal_hmi/domain/types.dart';
+import 'package:fraktal_hmi/ui/global_reset_button.dart';
 
 class _RecordingRepository extends SimRepository {
   final List<String> resets = [];
@@ -21,6 +24,15 @@ class _RecordingRepository extends SimRepository {
 }
 
 void main() {
+  test('a nested waiting alarm arms its root reset after the fault clears', () {
+    const child = ModuleNode(
+        path: 'Root.Cell', name: 'Cell', type: ModuleType.unit, blocking: true);
+    const root = ModuleNode(
+        path: 'Root', name: 'Root', type: ModuleType.unit, children: [child]);
+    expect(root.faultActive, isFalse);
+    expect(root.blocking, isFalse);
+    expect(rootNeedsReset(root), isTrue);
+  });
   testWidgets('one press resets every root shown on this HMI', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;

@@ -1,0 +1,15 @@
+TYPE "ST_Diagnostic"
+VERSION : 0.1
+   STRUCT
+      ReasonCode : DInt;           // E_Reason
+      SourcePath : String[96];     // qualified identity of the first-out source (Core s.4.8)
+      Description : String[96];    // localization key, never prose
+      IoTag : String[32];
+      IoAddress : String[32];
+      Severity : DInt;             // E_Severity LOW=0 MED=1 HIGH=2
+      Category : DInt;             // E_Category PROCESS=0 SAFETY=1 SYSTEM=2
+      Since : DTL;                 // S12 decides the OPC UA encoding
+      TimeSynchronized : Bool;
+   END_STRUCT;
+
+END_TYPE

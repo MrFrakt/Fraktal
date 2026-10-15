@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_CyclicHook_DeclarationUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Device : "ST_UnitProbeDevice";
+      Hal : "ST_DeclarationUnitHal";
+      Held : Bool;
+      OutImm : "ST_UnitProbeImm";
+      ParCfg : "ST_DeclarationParCfg";
+      StateFlagCount : Int;
+      StateFlags : Array[1..12] of "ST_StateFlag";
+      StateTouched : Array[1..12] of Bool;
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	#OutImm.Cycles := #Device.Cycles;
+	#OutImm.ExitCalls := #Device.ExitCalls;
+	#OutImm.Changes := #Device.Changes;
+	#OutImm.Resets := #Device.Resets;
+	#OutImm.AtHome := "FRK_State"(Idx := 1, Key := 'project.state.atHome', Ok := #Hal.Cell.Clamp.Sample = 0, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+	"FRK_DiagSync"(Index := #Core.RegIndex,
+	               Withdraw := FALSE,
+	               Status := #Status,
+	               Held := #Held,
+	               Timeout := #ParCfg.Timeout,
+	               ActiveTimeoutMs := #Core.TimeoutMs);
+	
+END_FUNCTION
+

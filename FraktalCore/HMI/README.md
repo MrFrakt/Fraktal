@@ -9,6 +9,14 @@ The Like a Bosch theme uses circular white arrows (input down, output up), green
 and light red active fills, and gray inactive fills. Its multicolor top strip
 remains. Visible cards demand only their channels and ancestor bus health.
 
+Path-capable transports apply read tiers before the first station sample, so
+closed history views do not cause a full-tree startup read. Manifest metadata
+uses discovered array row paths when the transport publishes a compact array
+form. The sequence chart therefore joins static titles/numbers, live cursors,
+and on-demand history/notes across TwinCAT and Siemens publication forms.
+The [native TIA integration](../../Specification/Siemens/Evidence/TIA_SEQUENCE_INTEGRATION_2026-10-14.md)
+uses the same repository and chart without station-specific UI code.
+
 ## Platforms
 One codebase for **Windows, Linux, Android, Web**. Platform folders for
 **windows** and **web** are generated; add the others as needed:

@@ -3,7 +3,7 @@
 **Scope:** the Phase 0 fixture `FraktalCore/PLC/Siemens/Spikes/S2_Shape` built,
 compiled, downloaded and self-tested on the physical bench CPU through TIA Portal
 Openness, headless, from this repository. Append-only: later results go in a new
-record. Raw artifacts: [`TIA_S2_BENCH_2026-10-08/`](TIA_S2_BENCH_2026-10-08/).
+record. Raw artifacts: [`../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S2_BENCH_2026-10-08/`](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S2_BENCH_2026-10-08).
 
 **Verdicts (at this record's scope — S7-1200 bench only):**
 

@@ -1,0 +1,848 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-14T19:09:52.282346Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Owner" Datatype="DInt" Accessibility="Public" />
+    <Member Name="Run" Datatype="Bool" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>F_TestProfileIntegration</Name>
+      <Namespace />
+      <Number>341</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="IF" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Owner" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="=" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="LiteralConstant" UId="30">
+    <Constant UId="31">
+      <ConstantValue UId="33">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="34" />
+  <Token Text="AND" UId="35" />
+  <Blank Num="1" UId="36" />
+  <Access Scope="GlobalVariable" UId="37">
+    <Symbol UId="38">
+      <Component Name="GDB_ProfileIntegration" UId="39">
+        <BooleanAttribute Name="HasQuotes" UId="40">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="41" />
+      <Component Name="RequestSeq" UId="42" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="43" />
+  <Token Text="&lt;&gt;" UId="44" />
+  <Blank Num="1" UId="45" />
+  <Access Scope="GlobalVariable" UId="46">
+    <Symbol UId="47">
+      <Component Name="GDB_ProfileIntegration" UId="48">
+        <BooleanAttribute Name="HasQuotes" UId="49">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="50" />
+      <Component Name="AckSeq" UId="51" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="52" />
+  <Token Text="THEN" UId="53" />
+  <NewLine Num="1" UId="54" />
+  <Blank Num="4" UId="55" />
+  <Access Scope="GlobalVariable" UId="56">
+    <Symbol UId="57">
+      <Component Name="GDB_ProfileIntegrationWork" UId="58">
+        <BooleanAttribute Name="HasQuotes" UId="59">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="60" />
+      <Component Name="Owner" UId="61" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="62" />
+  <Token Text=":=" UId="63" />
+  <Blank Num="1" UId="64" />
+  <Access Scope="GlobalVariable" UId="65">
+    <Symbol UId="66">
+      <Component Name="GDB_ProfileIntegration" UId="67">
+        <BooleanAttribute Name="HasQuotes" UId="68">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="69" />
+      <Component Name="Owner" UId="70" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="71" />
+  <NewLine Num="1" UId="72" />
+  <Blank Num="4" UId="73" />
+  <Access Scope="GlobalVariable" UId="74">
+    <Symbol UId="75">
+      <Component Name="GDB_ProfileIntegrationWork" UId="76">
+        <BooleanAttribute Name="HasQuotes" UId="77">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="78" />
+      <Component Name="Enabled" UId="79" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="80" />
+  <Token Text=":=" UId="81" />
+  <Blank Num="1" UId="82" />
+  <Access Scope="GlobalVariable" UId="83">
+    <Symbol UId="84">
+      <Component Name="GDB_ProfileIntegration" UId="85">
+        <BooleanAttribute Name="HasQuotes" UId="86">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="87" />
+      <Component Name="Enabled" UId="88" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="89" />
+  <NewLine Num="1" UId="90" />
+  <Blank Num="4" UId="91" />
+  <Access Scope="GlobalVariable" UId="92">
+    <Symbol UId="93">
+      <Component Name="GDB_ProfileIntegrationWork" UId="94">
+        <BooleanAttribute Name="HasQuotes" UId="95">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="96" />
+      <Component Name="StepNo" UId="97" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="98" />
+  <Token Text=":=" UId="99" />
+  <Blank Num="1" UId="100" />
+  <Access Scope="GlobalVariable" UId="101">
+    <Symbol UId="102">
+      <Component Name="GDB_ProfileIntegration" UId="103">
+        <BooleanAttribute Name="HasQuotes" UId="104">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="105" />
+      <Component Name="StepNo" UId="106" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="107" />
+  <NewLine Num="1" UId="108" />
+  <Blank Num="4" UId="109" />
+  <Access Scope="GlobalVariable" UId="110">
+    <Symbol UId="111">
+      <Component Name="GDB_ProfileIntegrationWork" UId="112">
+        <BooleanAttribute Name="HasQuotes" UId="113">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="114" />
+      <Component Name="Branch" UId="115" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="116" />
+  <Token Text=":=" UId="117" />
+  <Blank Num="1" UId="118" />
+  <Access Scope="GlobalVariable" UId="119">
+    <Symbol UId="120">
+      <Component Name="GDB_ProfileIntegration" UId="121">
+        <BooleanAttribute Name="HasQuotes" UId="122">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="123" />
+      <Component Name="Branch" UId="124" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="125" />
+  <NewLine Num="1" UId="126" />
+  <Blank Num="4" UId="127" />
+  <Access Scope="GlobalVariable" UId="128">
+    <Symbol UId="129">
+      <Component Name="GDB_ProfileIntegrationWork" UId="130">
+        <BooleanAttribute Name="HasQuotes" UId="131">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="132" />
+      <Component Name="TimeClass" UId="133" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="134" />
+  <Token Text=":=" UId="135" />
+  <Blank Num="1" UId="136" />
+  <Access Scope="GlobalVariable" UId="137">
+    <Symbol UId="138">
+      <Component Name="GDB_ProfileIntegration" UId="139">
+        <BooleanAttribute Name="HasQuotes" UId="140">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="141" />
+      <Component Name="TimeClass" UId="142" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="143" />
+  <NewLine Num="1" UId="144" />
+  <Blank Num="4" UId="145" />
+  <Access Scope="GlobalVariable" UId="146">
+    <Symbol UId="147">
+      <Component Name="GDB_ProfileIntegrationWork" UId="148">
+        <BooleanAttribute Name="HasQuotes" UId="149">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="150" />
+      <Component Name="Expected" UId="151" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="152" />
+  <Token Text=":=" UId="153" />
+  <Blank Num="1" UId="154" />
+  <Access Scope="GlobalVariable" UId="155">
+    <Symbol UId="156">
+      <Component Name="GDB_ProfileIntegration" UId="157">
+        <BooleanAttribute Name="HasQuotes" UId="158">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="159" />
+      <Component Name="Expected" UId="160" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="161" />
+  <NewLine Num="1" UId="162" />
+  <Blank Num="4" UId="163" />
+  <Access Scope="GlobalVariable" UId="164">
+    <Symbol UId="165">
+      <Component Name="GDB_ProfileIntegrationWork" UId="166">
+        <BooleanAttribute Name="HasQuotes" UId="167">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="168" />
+      <Component Name="Finish" UId="169" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="170" />
+  <Token Text=":=" UId="171" />
+  <Blank Num="1" UId="172" />
+  <Access Scope="GlobalVariable" UId="173">
+    <Symbol UId="174">
+      <Component Name="GDB_ProfileIntegration" UId="175">
+        <BooleanAttribute Name="HasQuotes" UId="176">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="177" />
+      <Component Name="Finish" UId="178" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="179" />
+  <NewLine Num="1" UId="180" />
+  <Blank Num="4" UId="181" />
+  <Access Scope="GlobalVariable" UId="182">
+    <Symbol UId="183">
+      <Component Name="GDB_ProfileIntegrationWork" UId="184">
+        <BooleanAttribute Name="HasQuotes" UId="185">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="186" />
+      <Component Name="ResetPulse" UId="187" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="188" />
+  <Token Text=":=" UId="189" />
+  <Blank Num="1" UId="190" />
+  <Token Text="NOT" UId="191" />
+  <Blank Num="1" UId="192" />
+  <Access Scope="GlobalVariable" UId="193">
+    <Symbol UId="194">
+      <Component Name="GDB_ProfileIntegrationWork" UId="195">
+        <BooleanAttribute Name="HasQuotes" UId="196">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="197" />
+      <Component Name="Seq" UId="198" />
+      <Token Text="." UId="199" />
+      <Component Name="Running" UId="200" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="201" />
+  <NewLine Num="1" UId="202" />
+  <Blank Num="4" UId="203" />
+  <Access Scope="GlobalVariable" UId="204">
+    <Symbol UId="205">
+      <Component Name="GDB_ProfileIntegration" UId="206">
+        <BooleanAttribute Name="HasQuotes" UId="207">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="208" />
+      <Component Name="AckSeq" UId="209" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="210" />
+  <Token Text=":=" UId="211" />
+  <Blank Num="1" UId="212" />
+  <Access Scope="GlobalVariable" UId="213">
+    <Symbol UId="214">
+      <Component Name="GDB_ProfileIntegration" UId="215">
+        <BooleanAttribute Name="HasQuotes" UId="216">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="217" />
+      <Component Name="RequestSeq" UId="218" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="219" />
+  <NewLine Num="1" UId="220" />
+  <Token Text="END_IF" UId="221" />
+  <Token Text=";" UId="222" />
+  <NewLine Num="1" UId="223" />
+  <Token Text="IF" UId="224" />
+  <Blank Num="1" UId="225" />
+  <Access Scope="LocalVariable" UId="226">
+    <Symbol UId="227">
+      <Component Name="Owner" UId="228" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="229" />
+  <Token Text="&lt;&gt;" UId="230" />
+  <Blank Num="1" UId="231" />
+  <Access Scope="GlobalVariable" UId="232">
+    <Symbol UId="233">
+      <Component Name="GDB_ProfileIntegrationWork" UId="234">
+        <BooleanAttribute Name="HasQuotes" UId="235">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="236" />
+      <Component Name="Owner" UId="237" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="238" />
+  <Token Text="THEN" UId="239" />
+  <NewLine Num="1" UId="240" />
+  <Blank Num="4" UId="241" />
+  <Token Text="RETURN" UId="242" />
+  <Token Text=";" UId="243" />
+  <NewLine Num="1" UId="244" />
+  <Token Text="END_IF" UId="245" />
+  <Token Text=";" UId="246" />
+  <NewLine Num="1" UId="247" />
+  <Access Scope="Call" UId="248">
+    <CallInfo UId="249" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="251">
+        <Component Name="FRK_SeqBegin" UId="250" />
+      </Instance>
+      <Token Text="(" UId="252" />
+      <Parameter Name="Run" UId="253">
+        <Blank Num="1" UId="254" />
+        <Token Text=":=" UId="255" />
+        <Blank Num="1" UId="256" />
+        <Access Scope="LocalVariable" UId="257">
+          <Symbol UId="258">
+            <Component Name="Run" UId="259" />
+          </Symbol>
+        </Access>
+        <Blank Num="1" UId="260" />
+        <Token Text="AND" UId="261" />
+        <Blank Num="1" UId="262" />
+        <Access Scope="GlobalVariable" UId="263">
+          <Symbol UId="264">
+            <Component Name="GDB_ProfileIntegrationWork" UId="265">
+              <BooleanAttribute Name="HasQuotes" UId="266">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="267" />
+            <Component Name="Enabled" UId="268" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="269" />
+      <NewLine Num="1" UId="270" />
+      <Blank Num="15" UId="271" />
+      <Parameter Name="Reset" UId="272">
+        <Blank Num="1" UId="273" />
+        <Token Text=":=" UId="274" />
+        <Blank Num="1" UId="275" />
+        <Access Scope="GlobalVariable" UId="276">
+          <Symbol UId="277">
+            <Component Name="GDB_ProfileIntegrationWork" UId="278">
+              <BooleanAttribute Name="HasQuotes" UId="279">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="280" />
+            <Component Name="ResetPulse" UId="281" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="282" />
+      <NewLine Num="1" UId="283" />
+      <Blank Num="15" UId="284" />
+      <Parameter Name="OwnerIndex" UId="285">
+        <Blank Num="1" UId="286" />
+        <Token Text=":=" UId="287" />
+        <Blank Num="1" UId="288" />
+        <Access Scope="LocalVariable" UId="289">
+          <Symbol UId="290">
+            <Component Name="Owner" UId="291" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="292" />
+      <NewLine Num="1" UId="293" />
+      <Blank Num="15" UId="294" />
+      <Parameter Name="ChainIndex" UId="295">
+        <Blank Num="1" UId="296" />
+        <Token Text=":=" UId="297" />
+        <Blank Num="1" UId="298" />
+        <Access Scope="LiteralConstant" UId="299">
+          <Constant UId="300">
+            <ConstantValue UId="302">9</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="303" />
+      <NewLine Num="1" UId="304" />
+      <Blank Num="15" UId="305" />
+      <Parameter Name="BranchIndex" UId="306">
+        <Blank Num="1" UId="307" />
+        <Token Text=":=" UId="308" />
+        <Blank Num="1" UId="309" />
+        <Access Scope="GlobalVariable" UId="310">
+          <Symbol UId="311">
+            <Component Name="GDB_ProfileIntegrationWork" UId="312">
+              <BooleanAttribute Name="HasQuotes" UId="313">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="314" />
+            <Component Name="Branch" UId="315" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="316" />
+      <NewLine Num="1" UId="317" />
+      <Blank Num="15" UId="318" />
+      <Parameter Name="ViewOffset" UId="319">
+        <Blank Num="1" UId="320" />
+        <Token Text=":=" UId="321" />
+        <Blank Num="1" UId="322" />
+        <Access Scope="LiteralConstant" UId="323">
+          <Constant UId="324">
+            <ConstantValue UId="326">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="327" />
+      <NewLine Num="1" UId="328" />
+      <Blank Num="15" UId="329" />
+      <Parameter Name="ViewDepth" UId="330">
+        <Blank Num="1" UId="331" />
+        <Token Text=":=" UId="332" />
+        <Blank Num="1" UId="333" />
+        <Access Scope="LiteralConstant" UId="334">
+          <Constant UId="335">
+            <ConstantValue UId="337">0</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="338" />
+      <NewLine Num="1" UId="339" />
+      <Blank Num="15" UId="340" />
+      <Parameter Name="Delta" UId="341">
+        <Blank Num="1" UId="342" />
+        <Token Text=":=" UId="343" />
+        <Blank Num="1" UId="344" />
+        <Access Scope="TypedConstant" UId="345">
+          <Constant UId="346">
+            <ConstantValue UId="347">T#1ms</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="348" />
+      <NewLine Num="1" UId="349" />
+      <Blank Num="15" UId="350" />
+      <Parameter Name="Seq" UId="351">
+        <Blank Num="1" UId="352" />
+        <Token Text=":=" UId="353" />
+        <Blank Num="1" UId="354" />
+        <Access Scope="GlobalVariable" UId="355">
+          <Symbol UId="356">
+            <Component Name="GDB_ProfileIntegrationWork" UId="357">
+              <BooleanAttribute Name="HasQuotes" UId="358">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="359" />
+            <Component Name="Seq" UId="360" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="361" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="362" />
+  <NewLine Num="1" UId="363" />
+  <Access Scope="GlobalVariable" UId="364">
+    <Symbol UId="365">
+      <Component Name="GDB_ProfileIntegrationWork" UId="366">
+        <BooleanAttribute Name="HasQuotes" UId="367">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="368" />
+      <Component Name="ResetPulse" UId="369" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="370" />
+  <Token Text=":=" UId="371" />
+  <Blank Num="1" UId="372" />
+  <Access Scope="LiteralConstant" UId="373">
+    <Constant UId="374">
+      <ConstantValue UId="376">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="377" />
+  <NewLine Num="1" UId="378" />
+  <Token Text="IF" UId="379" />
+  <Blank Num="1" UId="380" />
+  <Token Text="NOT" UId="381" />
+  <Blank Num="1" UId="382" />
+  <Access Scope="GlobalVariable" UId="383">
+    <Symbol UId="384">
+      <Component Name="GDB_ProfileIntegrationWork" UId="385">
+        <BooleanAttribute Name="HasQuotes" UId="386">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="387" />
+      <Component Name="Seq" UId="388" />
+      <Token Text="." UId="389" />
+      <Component Name="Running" UId="390" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="391" />
+  <Token Text="THEN" UId="392" />
+  <NewLine Num="1" UId="393" />
+  <Blank Num="4" UId="394" />
+  <Token Text="RETURN" UId="395" />
+  <Token Text=";" UId="396" />
+  <NewLine Num="1" UId="397" />
+  <Token Text="END_IF" UId="398" />
+  <Token Text=";" UId="399" />
+  <NewLine Num="1" UId="400" />
+  <Access Scope="GlobalVariable" UId="401">
+    <Symbol UId="402">
+      <Component Name="GDB_ProfileIntegrationWork" UId="403">
+        <BooleanAttribute Name="HasQuotes" UId="404">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="405" />
+      <Component Name="Seq" UId="406" />
+      <Token Text="." UId="407" />
+      <Component Name="Step" UId="408" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="409" />
+  <Token Text=":=" UId="410" />
+  <Blank Num="1" UId="411" />
+  <Access Scope="GlobalVariable" UId="412">
+    <Symbol UId="413">
+      <Component Name="GDB_ProfileIntegrationWork" UId="414">
+        <BooleanAttribute Name="HasQuotes" UId="415">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="416" />
+      <Component Name="StepNo" UId="417" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="418" />
+  <NewLine Num="1" UId="419" />
+  <Access Scope="Call" UId="420">
+    <CallInfo UId="421" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="423">
+        <Component Name="FRK_SeqStep" UId="422" />
+      </Instance>
+      <Token Text="(" UId="424" />
+      <Parameter Name="StepNo" UId="425">
+        <Blank Num="1" UId="426" />
+        <Token Text=":=" UId="427" />
+        <Blank Num="1" UId="428" />
+        <Access Scope="GlobalVariable" UId="429">
+          <Symbol UId="430">
+            <Component Name="GDB_ProfileIntegrationWork" UId="431">
+              <BooleanAttribute Name="HasQuotes" UId="432">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="433" />
+            <Component Name="StepNo" UId="434" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="435" />
+      <NewLine Num="1" UId="436" />
+      <Blank Num="14" UId="437" />
+      <Parameter Name="StepName" UId="438">
+        <Blank Num="1" UId="439" />
+        <Token Text=":=" UId="440" />
+        <Blank Num="1" UId="441" />
+        <Access Scope="LiteralConstant" UId="442">
+          <Constant UId="443">
+            <ConstantValue UId="445">'test.profile.integration'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="446" />
+      <NewLine Num="1" UId="447" />
+      <Blank Num="14" UId="448" />
+      <Parameter Name="AwaitingLabel" UId="449">
+        <Blank Num="1" UId="450" />
+        <Token Text=":=" UId="451" />
+        <Blank Num="1" UId="452" />
+        <Access Scope="LiteralConstant" UId="453">
+          <Constant UId="454">
+            <ConstantValue UId="456">''</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="457" />
+      <NewLine Num="1" UId="458" />
+      <Blank Num="14" UId="459" />
+      <Parameter Name="AwaitsPath" UId="460">
+        <Blank Num="1" UId="461" />
+        <Token Text=":=" UId="462" />
+        <Blank Num="1" UId="463" />
+        <Access Scope="LiteralConstant" UId="464">
+          <Constant UId="465">
+            <ConstantValue UId="467">''</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="468" />
+      <NewLine Num="1" UId="469" />
+      <Blank Num="14" UId="470" />
+      <Parameter Name="TimeClass" UId="471">
+        <Blank Num="1" UId="472" />
+        <Token Text=":=" UId="473" />
+        <Blank Num="1" UId="474" />
+        <Access Scope="GlobalVariable" UId="475">
+          <Symbol UId="476">
+            <Component Name="GDB_ProfileIntegrationWork" UId="477">
+              <BooleanAttribute Name="HasQuotes" UId="478">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="479" />
+            <Component Name="TimeClass" UId="480" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="481" />
+      <NewLine Num="1" UId="482" />
+      <Blank Num="14" UId="483" />
+      <Parameter Name="ExpectedTime" UId="484">
+        <Blank Num="1" UId="485" />
+        <Token Text=":=" UId="486" />
+        <Blank Num="1" UId="487" />
+        <Access Scope="GlobalVariable" UId="488">
+          <Symbol UId="489">
+            <Component Name="GDB_ProfileIntegrationWork" UId="490">
+              <BooleanAttribute Name="HasQuotes" UId="491">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="492" />
+            <Component Name="Expected" UId="493" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="494" />
+      <NewLine Num="1" UId="495" />
+      <Blank Num="14" UId="496" />
+      <Parameter Name="Seq" UId="497">
+        <Blank Num="1" UId="498" />
+        <Token Text=":=" UId="499" />
+        <Blank Num="1" UId="500" />
+        <Access Scope="GlobalVariable" UId="501">
+          <Symbol UId="502">
+            <Component Name="GDB_ProfileIntegrationWork" UId="503">
+              <BooleanAttribute Name="HasQuotes" UId="504">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="505" />
+            <Component Name="Seq" UId="506" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="507" />
+      <NewLine Num="1" UId="508" />
+      <Blank Num="14" UId="509" />
+      <Parameter Name="Row" UId="510">
+        <Blank Num="1" UId="511" />
+        <Token Text=":=" UId="512" />
+        <Blank Num="1" UId="513" />
+        <Access Scope="GlobalVariable" UId="514">
+          <Symbol UId="515">
+            <Component Name="GDB_ProfileIntegrationWork" UId="516">
+              <BooleanAttribute Name="HasQuotes" UId="517">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="518" />
+            <Component Name="Row" UId="519" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="520" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="521" />
+  <NewLine Num="1" UId="522" />
+  <Token Text="IF" UId="523" />
+  <Blank Num="1" UId="524" />
+  <Access Scope="GlobalVariable" UId="525">
+    <Symbol UId="526">
+      <Component Name="GDB_ProfileIntegrationWork" UId="527">
+        <BooleanAttribute Name="HasQuotes" UId="528">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="529" />
+      <Component Name="Finish" UId="530" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="531" />
+  <Token Text="THEN" UId="532" />
+  <NewLine Num="1" UId="533" />
+  <Blank Num="4" UId="534" />
+  <Access Scope="Call" UId="535">
+    <CallInfo UId="536" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="538">
+        <Component Name="FRK_SeqCycleEnd" UId="537" />
+      </Instance>
+      <Token Text="(" UId="539" />
+      <Parameter Name="Seq" UId="540">
+        <Blank Num="1" UId="541" />
+        <Token Text=":=" UId="542" />
+        <Blank Num="1" UId="543" />
+        <Access Scope="GlobalVariable" UId="544">
+          <Symbol UId="545">
+            <Component Name="GDB_ProfileIntegrationWork" UId="546">
+              <BooleanAttribute Name="HasQuotes" UId="547">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="548" />
+            <Component Name="Seq" UId="549" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="550" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="551" />
+  <NewLine Num="1" UId="552" />
+  <Blank Num="4" UId="553" />
+  <Access Scope="GlobalVariable" UId="554">
+    <Symbol UId="555">
+      <Component Name="GDB_ProfileIntegrationWork" UId="556">
+        <BooleanAttribute Name="HasQuotes" UId="557">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="558" />
+      <Component Name="Finish" UId="559" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="560" />
+  <Token Text=":=" UId="561" />
+  <Blank Num="1" UId="562" />
+  <Access Scope="LiteralConstant" UId="563">
+    <Constant UId="564">
+      <ConstantValue UId="566">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="567" />
+  <NewLine Num="1" UId="568" />
+  <Token Text="END_IF" UId="569" />
+  <Token Text=";" UId="570" />
+  <NewLine Num="1" UId="571" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

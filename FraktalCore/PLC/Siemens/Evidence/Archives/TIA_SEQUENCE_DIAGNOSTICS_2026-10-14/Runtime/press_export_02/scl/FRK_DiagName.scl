@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_DiagName" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Index : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DiagName := '';
+	CASE #Index OF
+	    1:
+	        #FRK_DiagName := 'PressDemo';
+	    2:
+	        #FRK_DiagName := 'PressDemo.PressRam';
+	    3:
+	        #FRK_DiagName := 'PressDemo.Door';
+	    4:
+	        #FRK_DiagName := 'PressDemo.PartSlide';
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

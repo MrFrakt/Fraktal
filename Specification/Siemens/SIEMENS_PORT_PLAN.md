@@ -17,7 +17,7 @@ gates with the feature they protect — and differs where Siemens differs.
 | # | Decision | Owner / source | Consequence |
 |---|---|---|---|
 | D1 | Engineering system is **TIA Portal V20** (STEP 7 Professional) driven through **Openness V20** | project owner, 2026-10-08 | one pinned toolchain; V17–V19 installs on the workstation are ignored |
-| D2 | Sequences in **SFC (S7-GRAPH) + ST (SCL)**, permissives and release conditions in **SCL**; **no Ladder** renditions (unlike the AB port) | project owner, 2026-10-08 | Part IV §1, §3.5, §7; no LD generator, no LD gate |
+| D2 | Sequences in **SFC (S7-GRAPH) + ST (SCL)**; optional **LD examples**; GRAPH sequences and ST release wired in the press demo | project owner, 2026-10-08; examples added by explicit directive 2026-10-11 | Part IV §1, §3.5, §7; generate and read back every native chart/rung; owner requested demo wiring on 2026-10-12; physical testing pending |
 | D3 | Press bench ported **without power control** | project owner, 2026-10-08 | `FB_PowerGroupCM`, control domain, Control On circuit and the §9.8 profile are out of the initial claim |
 | D4 | **No paid runtime licence on the default path:** self-description through the CPU's licence-free **Web API** (JSON-RPC over HTTPS) into the Fraktal gateway, as TC3 uses ADS and AB uses CIP; the embedded OPC UA server is an optional, licensed projection. PROFINET IO, PUT/GET, S7CommPlus and Modbus rejected (Part IV §1) | project owner, 2026-10-08 (replaces "embedded OPC UA") | one new gateway session client (`WebApiSessionClient`); the Web HMI is unchanged; the native desktop HMI reaches a TIA station only where OPC UA is licensed; polling replaces subscriptions |
 | D5 | **Generated composition** (`FRK_Begin`/`FRK_End` frame) instead of inheritance | Core §2.2 (R0), Part IV §3.1 | generator + lint are first-class deliverables, as on AB |
@@ -101,7 +101,7 @@ the **gates**.
 | TcUnit + TcUnit-Runner | — | `FRK_Test*` SCL framework + `fraktal_tia_test.py` harvest + JUnit | §5.7 |
 | XAE `CheckAllObjects` | — | Openness compile through `Fraktal.Tia.Cli` | §5.4 |
 | `FRAKTAL_ENGINEERING` compiler define | — | generated constant table; engineering image is a separate generated artifact | §7 |
-| TwinCAT SFC/LD XML archives | — | S7-GRAPH SimaticML (published XSD); no LD | §2.5, §3.5 |
+| TwinCAT SFC/LD XML archives | — | Generated S7-GRAPH and optional LAD examples, with native export readback | §2.5, §3.5 |
 
 \* counts from `ALLEN_BRADLEY_PORT_PLAN.md` §2 (measured on the TC3 tree).
 
@@ -320,8 +320,8 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 | `MAIN` | OB1 `Main` → `FB_PressMain` (composition FB) | scan order; no raw channels |
 | `FB_PressDemoUnit` (`PneumaticPress`) | instance DB `PneumaticPress` of `FB_PressUnit` | children: `PressRam`, `Door`, `PartSlide` (cylinder), `TwoHand`, `PartPresentSensor`, `AirPressureMonitor`, `PartFeed` (axis) — **`PneumaticPower` removed** |
 | `Sequences/FB_PressDemoHome`, `…Changeover`, `…Auto`, `…LoadPosition` | SCL chains (both families) | same step numbers and names as TC3; parameter instances for the children |
-| `FB_SFC_PressDemoAuto` | **S7-GRAPH** `FB_PressAutoGraph` (S7-1500) | generated from the same graph; rendition gate vs. SCL |
-| `FB_LD_PressDemoAuto`, `Release/FB_LD_PressDemoRelease` | — | **not ported (D2)** |
+| `FB_SFC_PressDemoAuto` | **S7-GRAPH** `FB_GRAPH_PressDemoAuto` (S7-1500) | generated from the same graph; rendition gate vs. SCL |
+| `FB_LD_PressDemoAuto`, `Release/FB_LD_PressDemoRelease` | — | optional examples; uninstantiated (owner extension to D2) |
 | `Release/FB_PressDemoRelease`, `FB_PressDemoReleaseState`, `ST_PressDemoReleaseConditions` | SCL, under `01_PneumaticPress/Release` | the Unit's release report remains the one execution predicate |
 | `Recipes/FB_PressRecipeCatalog` | SCL | |
 | `Io/FB_PressIoCatalog`, `GVL_PressFieldbus` | SCL + `PressFieldbus` DB | PROFINET topology instead of EtherCAT |
@@ -583,3 +583,267 @@ on the 1214C ([evidence](Evidence/TIA_S1W_WEBAPI_2026-10-08.md)).
    T-TIER/T-IO/T-WIDTH/T-GEN pending the generator). Original scope: `tia_lint.py` with T-FRAME, T-CYCLIC, T-EXT, T-ASCII,
    T-KEYWORD, T-COLLIDE, T-OWNIO, T-TYPEFILE over `Spikes/`, wired into
    `.githooks/pre-commit` beside `plc_lint`.
+
+
+## Access/session continuation (2026-10-11)
+
+Generator0.6 passes122 native access checks,120 current routing regressions and
+the authenticated generic HMI button gate.129/42 native round-trip and production
+125/42 compile0/0. Current image/project: Access_Runtime_20261011/FrkS12/FrkS12.ap20;
+owner-created Fraktal instance preserved RUN on the isolated virtual network.
+Next: state/diagnostic and full MESSAGE/alarm/audit services, then configuration,
+recipes/user-policy retention, full sequences/GRAPH, modules and press without power.
+Local table CRUD/provider substitution and concurrent mailbox writers remain open.
+See [access/session evidence](Evidence/TIA_ACCESS_SESSIONS_2026-10-11.md).
+Twelve newer referenced evidence reports and the old18 checksum manifests are
+absent in this checkout; the new report records the availability gap precisely.
+
+## Derived state and alarm/event continuation (2026-10-11)
+
+Generator0.7 passes96 native state/alarm assertions,23 nested ownership/reset
+assertions and122 authentication regressions. The routing-only candidate passes120.
+Native148 blocks/45 interfaces round-trip0/0; production142/45 compiles0/0. The
+authenticated generic HMI renders the captured fault and clears it through reset;
+570 HMI tests/1skip,128 tools and33 consistency tests pass. Current owner Fraktal
+image is Alarm_Runtime_20261011/FrkS12/FrkS12.ap20, preserved registered/RUN.
+The reference remains simulated S7-1500 with full Core capacities and no150KB cap.
+The physical1214C and approved driver were untouched.
+
+Next: configuration/recipe transactions and persistence, including user/policy
+and alarm retention. Shelving, runtime project metadata, durable sink adapter,
+complete awaited-diagnostic/frontier/action release services and concurrent writers
+remain open before complete Core conformance. Full SCL/generated GRAPH sequences,
+modules and the press without power follow those services. The optional callback
+seam and nonretained rings do not close S6/S16. See the
+[state/alarm evidence](Evidence/TIA_STATE_ALARMS_2026-10-11.md).
+
+## Station/model config continuation (2026-10-11)
+
+Generator0.8 passes120 native config checks,23 blocking-restore checks,122 access
+and96 state/alarm regressions. The live authenticated editor writes21, verifies
+the PLC and inactive-model isolation, and restores10.571 HMI tests/8 opt-in skips,
+135 tools and35 consistency tests pass;
+190/52 native reimport and production183/52 compile0/0. The local-retain probe
+passes7 checks including private exclusion and simulator power-cycle retention.
+The HMI/spec category names are consistently station config, line config and
+model config. Current owner Fraktal image is Config_Runtime_20261011/FrkS12/FrkS12.ap20,
+kept RUN with its keeper; physical1214C/approved driver untouched.
+The provider is keyed by owner/write key/model and stages model changes before
+commit; station config restore is independent of model config. See
+[config evidence](Evidence/TIA_CONFIG_TRANSACTIONS_2026-10-11.md).
+
+Next: named station/model config sets and import/export, other persistence media,
+user/policy/alarm retention, optional line config replication and remaining config
+forms (float/enum/array/capture/custom classes). Complete diagnostics/releases,
+shelving/durable sinks, full SCL/generated GRAPH sequences/modules/press without
+power remain open. The current local-retain result is partial S16, not full Core
+config conformance or a physical retention/download-loss guarantee.
+
+## Progress, 2026-10-12: recovery demo and root decisions
+
+The owner's latest directive wires GRAPH AUTO/HOME and ST permissives at the
+Unit; optional ST/LD twins remain uninstantiated. Main is a calling routine and a
+single hardware-driver FB owns logical I/O. Native AUTO carries nineteen TC3 chart
+steps, including cancellation, deliberate scrap confirmation and parallel join.
+The four-step load-position routine is reused. Core ownership includes branch
+identity, and handled failures withdraw outputs while preserving their first-out.
+
+Generator0.9 adds root decisions and an unconditional sequence hook. The isolated
+two-root decision/config bench qualifies service behavior without a physical press.
+The full four-table sequence frontier, durable alarm storage, named config sets,
+broader provider media and remaining reusable module families are still open.
+The next config slice is named config sets/import-export, using the existing
+validate/stage/commit and access handlers rather than project-specific mutation.
+See [the dated evidence](Evidence/TIA_GRAPH_RECOVERY_DECISIONS_2026-10-12.md).
+
+
+## Progress, 2026-10-12: named config sets and JSON exchange
+
+Generator 0.10 adds optional bounded LOCAL_RETAIN station/model config sets through
+the existing typed config owners. The two-root simulator bench qualifies complete
+recursive loads, rejection atomicity, per-root isolation, long JSON lines, access,
+privacy and retention; the wired press application compiles a station-only store.
+Current owner project is Config_Sets_Runtime_20261012/FrkS12/FrkS12.ap20. The separate
+press project is Config_Sets_Press_Offline_20261012/FrkS12/FrkS12.ap20, compiled offline.
+See [the dated set report](Evidence/TIA_CONFIG_SETS_2026-10-12.md).
+
+Next: user/policy and alarm retention, project-selected file/database persistence,
+optional line config replication, runtime model creation/current-value export and
+remaining config forms. Full four-table sequence/frontier conformance and physical
+press commissioning remain open. Earlier dated progress statements describe their
+original images and are not updated to claim later capabilities.
+
+## Progress, 2026-10-12: private users and root access policy
+
+Generator 0.11 services a private LOCAL_RETAIN local user table and consumed-size
+root policy images from the existing framework scan. User records contain salted
+Core-compatible hashes; complete validation precedes restore. Cleared headers of
+commissioned images are treated as loss. Failed provider restore grants no login;
+failed policy restore uses ADMIN thresholds and blocks Start until explicit
+ENGINEER acknowledgement. Acknowledgement persists the restrictive fallback.
+Accepted policy and idle-timeout edits commit before mailbox acknowledgement.
+A provider generation change invalidates old sessions and pending authentication.
+Sessions and secrets are never retained or copied into config sets.
+
+Current simulator project is Access_Persistence_Runtime_20261012/FrkS12/FrkS12.ap20.
+The separately compiled wired GRAPH/ST press is Access_Persistence_Press_Offline_20261012.
+See [the dated report](Evidence/TIA_ACCESS_PERSISTENCE_2026-10-12.md).
+Next: durable alarm lifecycle/history, project-selected load-memory/card-file and
+external media, broader provider dispatch, and remaining sequence/config scope.
+Physical press acceptance remains with the owner when a bench is available.
+
+## Progress, 2026-10-12: selected Unit closed-event history
+
+Generator 0.12 adds opt-in LOCAL_RETAIN closed rings keyed by actual Unit scopes.
+Shared services own complete validation, restore, append and overflow/loss state;
+private images allocate only for selected consumers. Native qualification covers
+two roots and one nested Unit, full Unicode rings, corruption rejection, isolation,
+privacy and restart behavior. The wired press opts in PressDemo and compiles offline.
+Current projects are Alarm_Persistence_Runtime_20261012 and
+Alarm_Persistence_Press_Offline_20261012. See [the report](Evidence/TIA_ALARM_HISTORY_2026-10-12.md).
+
+Next: active manual-reset alarm recovery across restart, durable sink delivery and
+project-selected file/card/external media, then remaining sequence/frontier/config
+scope. The closed-history result does not close the complete alarm lifecycle or
+full-download/changed-layout retention gates. Physical press acceptance remains
+with the owner when a bench is available.
+
+## Progress, 2026-10-12: manual-reset recovery at selected Units
+
+Generator 0.13 retains ACTIVE/WAIT_RESET manual latches at selected history consumers.
+Shared startup, descendant readiness, first-out reconciliation, elapsed checkpoints
+and close journaling keep recovery outside project wiring. Commands/outputs and
+sessions restart inactive. Corrupted active images require a deliberate reset;
+closed history and peers remain independent. Current projects are
+Alarm_Recovery_Runtime_20261012 and Alarm_Recovery_Press_Offline_20261012. See
+[the report](Evidence/TIA_ALARM_RECOVERY_2026-10-12.md).
+
+Next: durable sink acknowledgement/delivery and project-selected file/card/external
+media, then remaining four-table sequence/frontier and config/provider scope.
+Physical press acceptance, abrupt-loss commissioning and changed-layout/full-download
+retention are not closed by simulator recovery qualification.
+
+
+## Progress, 2026-10-12: selected event delivery and SQLite adapter
+
+Generator 0.14 adds consumed-size retained event queues with private identity
+anchors, bounded readonly snapshots and gated metadata receipts. The SQLite adapter
+validates full Core records, commits before receipts and deduplicates stable IDs.
+Framework ownership keeps capture, restore, validation and annunciation out of
+project code. The two root/nested simulator fixture qualifies delivery independently
+of a physical press. The wired press opts in its root and compiles offline.
+Current projects: Event_Delivery_Runtime_20261012 and
+Event_Delivery_Press_Offline_20261012. See [delivery report](Evidence/TIA_EVENT_DELIVERY_2026-10-12.md).
+
+This is a binding-owned prototype extension; Core request enum/layout is unchanged.
+The collector consumes an existing ENGINEER-or-higher root session and does not
+change or keep that session alive. Independent service authentication/unattended
+hosting remains adapter work. Next: project-selected configuration/access media,
+then remaining sequence frontier, config/provider/module scope. Arbitrary physical
+loss and changed-layout/full-download retention still need commissioning evidence.
+
+## Progress, 2026-10-13: S16 native load-memory instruction gate
+
+READ_DBL/WRIT_DBL qualify with two optimized ordinary banks and two optimized
+UNLINKED banks on the reference simulated S7-1500. Native compilation/readback,
+complete-buffer checksums, independent RAM/load values, slot isolation, STOP/RUN,
+simulated power and privacy all pass. Framework native exports remain identical;
+only the test observation routine acquires the new fixture call. Current test
+project is Load_Memory_Only_Runtime_20261013/FrkS12/FrkS12.ap20. The prior event
+delivery project and compiled wired GRAPH/ST press remain available. See
+[the S16 report](Evidence/TIA_LOAD_MEMORY_2026-10-13.md).
+
+Next, integrate a project-selected LOAD_DB medium through the existing generated
+consumer paths. The acceptance order is bounded ticket/poll dispatch and private
+byte buffers; keyed documents with generation/schema/CRC and two-slot selection;
+confirmed-loss versus unreadable-storage handling; then config/set/user/policy
+restore and durable completion. Preserve the existing typed validation/staging,
+Start/write/login restore gates, session revocation and confidential user-table
+boundary. Consumers drive polling, so application code adds no cyclic scheduling
+call. Bound flash write rate, and prove failure/retry plus newest-copy selection
+in either slot before switching a deployed consumer. Existing LOCAL_RETAIN
+profiles remain the current consumer implementations.
+
+
+## Progress, 2026-10-13: shared controller document medium
+
+Generator 0.15 implements the selected LOAD_DB consumer path through the existing composition/frame and mailbox services. Station config, every offered model, named sets, users and root policy share the keyed queue and read-back durability boundary. Boot waits for restoration while quiescing control state through owning hooks; failures retain precise domain fallback and acknowledgement/repair behavior. The test fixture has 17 documents; the wired press has seven. Both projects retain the Fraktal TIA group structure, and press MAIN remains three calls. See [native qualification](Evidence/TIA_PERSIST_MEDIUM_2026-10-13.md).
+
+Next work continues the remaining Core/Unit contracts: complete published sequence frontier/annotations and diagnostic walks, the provider and line-config facets, then module/HAL expansion and deployment acceptance. Physical process testing remains with the owner when a bench is available. CARD_FILE/external media and destructive-loss/download qualification remain separate S16 gates; the generic medium does not close those by inference.
+
+## Progress, 2026-10-13: shared sequence view
+
+Generator 0.16 publishes Core 3.13 tables for selected Units through frame-owned readonly mirrors of consumed-size private work. Native synthetic qualification passes 122 checks, runtime compile 0/0, and the separate 168-source wired press passes both stages 0/0 and GRAPH/LAD readback. Current projects are Sequence_View_Runtime_20261013 (LOCAL_RETAIN config test profile) and Sequence_View_Press_Offline_20261013 (view plus LOAD_DB). See [report](Evidence/TIA_SEQUENCE_VIEW_2026-10-13.md).
+
+Next: native generic-HMI hydration/rendering of these tables and combined LOAD_DB restore-barrier publication; then complete diagnostic walks/stall reporting/profiling, provider and line config, module/HAL expansion and deployment acceptance. This does not rerun the prior 903 persistence regressions or establish physical press/loss guarantees. [Fresh-chat handover](Reports/TIA_IMPLEMENTATION_HANDOVER_2026-10-13.md) names the current owner, files, exact tools and remaining gates.
+
+## Progress, 2026-10-14: combined restore and native chart
+
+Generator 0.17 closes the combined LOAD_DB restore-barrier publication and native
+generic-HMI sequence-chart gates. The owning quiesce withdraws cursors/current
+work while keeping running-state history; cold startup clears the volatile chart.
+37 medium/restore checks and 120 view outcomes pass. The generic chart renders
+static definitions, cursor/guard, deferred fast history and warning/source links.
+Startup tiering and compact/nested array-path joins were corrected at their
+shared HMI owners. HMI577/9 skips, tools184, consistency35, native runtime/press
+0/0 and GRAPH/LAD readback pass. See [report](Evidence/TIA_SEQUENCE_INTEGRATION_2026-10-14.md).
+
+Current projects are Sequence_Integration_Runtime_20261014 (selected LOAD_DB)
+and Sequence_Integration_Press_Offline_20261014. Existing persisted Fraktal was
+restored after the VM restart; keeper5380 is current, historical12728 is unrelated.
+Next: complete awaited diagnostic walks/stall reporting/profiling, provider and
+line config, module/HAL expansion and deployment acceptance. Physical process
+testing remains with the owner; broader persistence-loss gates remain separate.
+
+## Progress, 2026-10-14: shared sequence diagnostics
+
+Generator 0.18 adds private consumed-module snapshots, scoped awaited first-out
+walks, named LOW Pending, longest-awaited timeout guards and HELD propagation.
+EMs adopt child failures; Units adopt awaited failures so handled recovery branches
+keep control. Released busy commands receive an owned Abort pulse through the
+generic lease. Snapshot capture belongs to the generated frame boundary, outside
+the extracted application cyclic hook. Released Core layouts/ordinals and MAIN3
+remain unchanged. See [qualification](Evidence/TIA_SEQUENCE_DIAGNOSTICS_2026-10-14.md).
+
+Current projects are Sequence_Diagnostics_Runtime_20261014 (selected LOAD_DB) and
+Sequence_Diagnostics_Press_Offline_20261014. The existing Fraktal owner and approved
+driver are preserved. Next: profiling and complete sequence freeze/resume policy,
+provider/line config, module/HAL expansion and deployment acceptance. Physical
+process and broader persistence-loss gates remain separate.
+
+## Progress, 2026-10-14: selected cycle profiling
+
+Generator0.19 adds main-line cycle waterfalls, shared timing-row statistics,
+work/wait class totals, rolling minimum and the cycle ring. The owning frame
+uses existing step/cycle boundaries and resolves completion after the command
+kernel. Incomplete collection is withdrawn at mode/fault/abort/restore boundaries;
+projects add no Main call. Web API discovery follows occupied history slots and
+publishes changes so the existing HMI read plan can gate new rows.
+
+Current projects are Cycle_Profile_Runtime_20261014 (selected LOAD_DB) and
+Cycle_Profile_Press_Offline_20261014. The preserved Fraktal owner and unchanged
+approved driver remain in use. See [qualification](Evidence/TIA_CYCLE_PROFILE_2026-10-14.md).
+Next: complete sequence freeze/resume policy, baseline/degradation and gated
+statistics/OEE reset, provider/line config, module/HAL expansion and deployment
+acceptance. Physical process and broader persistence-loss gates remain separate.
+
+## Progress, 2026-10-15: selected sequence recovery
+
+Generator0.20 adds consumed-owner lifecycle epochs to the existing Unit frame.
+Faults retain the raising step and release command leases. Leaving ERROR clears
+row errors and rearms command/delay/event state; an accepted Start follows the
+application's resume-or-restart choice. The press explicitly restarts. Boot,
+mode, both abort paths and restore quiescence discard retained work.
+
+Native GRAPH evaluates transitions before its new step actions. The shared
+adapter preserves the preceding active result through that boundary, discards
+it at fault/rearm/restart, and clears it before each current action. Forced
+restart releases INIT_SQ during idle and pulses it only while running. Inactive
+step/delay helpers cannot publish a row or progress a timer. MAIN gains no call.
+
+Current projects are Sequence_Recovery_Runtime_20261014 and the separate wired
+Sequence_Recovery_Press_Offline_20261015. The Fraktal owner, storage, pins and
+unchanged approved driver remain preserved. See [qualification](Evidence/TIA_SEQUENCE_RECOVERY_2026-10-15.md).
+Next: baseline/degradation and gated statistics/OEE reset, configuration-provider
+and line-config integration, module/HAL expansion and deployment acceptance.
+Physical press and broader loss/conformance gates remain separate.

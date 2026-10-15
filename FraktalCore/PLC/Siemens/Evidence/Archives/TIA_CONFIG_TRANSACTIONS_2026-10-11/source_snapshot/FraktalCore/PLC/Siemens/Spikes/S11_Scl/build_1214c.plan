@@ -1,0 +1,10 @@
+# Keep the station project and its certificates. S2 plus the S11 SCL observations.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir ${s2}
+import-sources --plc PLC_1 --dir ${s11scl}
+set-block-number --plc PLC_1 --name S11SclCycle --number 124
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out ${export}

@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_ViewClearErrors" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Rows : Array[*] of "ST_SequenceStep";
+      Notes : Array[*] of "ST_SequenceAnnotation";
+      Count : Int;
+      NoteCount : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #Index := 1 TO #Count DO
+	    #Rows[#Index].ErrorActive := FALSE;
+	END_FOR;
+	"FRK_ViewClearNotes"(RowIdx := 0,
+	                     IsError := TRUE,
+	                     Notes := #Notes,
+	                     NoteCount := #NoteCount);
+	
+END_FUNCTION
+

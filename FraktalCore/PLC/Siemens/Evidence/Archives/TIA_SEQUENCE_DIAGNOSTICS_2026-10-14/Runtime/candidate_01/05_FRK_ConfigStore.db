@@ -1,0 +1,14 @@
+DATA_BLOCK "FRK_ConfigStore"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR RETAIN
+    SchemaVersion {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UInt;
+    Rows {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..114] of "FRK_ConfigSlot";
+    ActiveModels {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..2] of String[64];
+    Lost {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..2] of Bool;
+    Acknowledged {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..2] of Bool;
+    LostPath {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..2] of String[80];
+END_VAR
+BEGIN
+END_DATA_BLOCK

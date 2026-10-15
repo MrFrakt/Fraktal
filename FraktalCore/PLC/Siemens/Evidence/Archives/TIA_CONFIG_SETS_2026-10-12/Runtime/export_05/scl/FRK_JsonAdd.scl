@@ -1,0 +1,74 @@
+﻿FUNCTION "FRK_JsonAdd" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Key : String;
+      Value : WString;
+      Quoted : Bool;
+      LastField : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Line : WString;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Ch : WChar;
+      Piece : WString[2];
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_JsonAdd := FALSE;
+	#Ok := "FRK_JsonPut"(Text := CONCAT(IN1 := WSTRING#'"', IN2 := STRING_TO_WSTRING(#Key), IN3 := WSTRING#'":'), Line := #Line);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF #Quoted THEN
+	    #Ok := "FRK_JsonPut"(Text := WSTRING#'"', Line := #Line);
+	    IF NOT #Ok THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	FOR #Index := 1 TO LEN(#Value) DO
+	    #Ch := #Value[#Index];
+	    #Piece := WSTRING#' ';
+	    #Piece[1] := #Ch;
+	    IF #Quoted THEN
+	        IF #Ch = WCHAR#'"' THEN
+	            #Piece := WSTRING#'\"';
+	        ELSIF #Ch = WCHAR#'\' THEN
+	            #Piece := WSTRING#'\\';
+	        ELSIF #Ch = WCHAR#'$000A' THEN
+	            #Piece := WSTRING#'\n';
+	        ELSIF #Ch = WCHAR#'$000D' THEN
+	            #Piece := WSTRING#'\r';
+	        ELSIF #Ch = WCHAR#'$0009' THEN
+	            #Piece := WSTRING#'\t';
+	        ELSIF #Ch < WCHAR#'$0020' THEN
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	    #Ok := "FRK_JsonPut"(Text := #Piece, Line := #Line);
+	    IF NOT #Ok THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	IF #Quoted THEN
+	    #Ok := "FRK_JsonPut"(Text := WSTRING#'"', Line := #Line);
+	    IF NOT #Ok THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	IF #LastField THEN
+	    #Piece := WSTRING#'}';
+	ELSE
+	    #Piece := WSTRING#',';
+	END_IF;
+	#FRK_JsonAdd := "FRK_JsonPut"(Text := #Piece, Line := #Line);
+	
+END_FUNCTION
+

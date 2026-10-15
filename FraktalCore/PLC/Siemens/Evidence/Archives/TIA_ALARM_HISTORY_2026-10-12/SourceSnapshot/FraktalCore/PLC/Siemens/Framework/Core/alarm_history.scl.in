@@ -1,0 +1,194 @@
+// Reference-1500 LOCAL_RETAIN: closed history only, keyed by actual Unit scope.
+// No active alarms, commands, sessions or monotonic clocks are restored.
+FUNCTION "FRK_AlarmHistoryIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_AlarmHistoryIndex := 0;
+@UNIT_INDEX@
+END_FUNCTION
+
+FUNCTION "FRK_AlarmEventCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+    Code : Word;
+    Wide : LWord;
+END_VAR
+BEGIN
+    #Work := DWORD#16#FFFFFFFF;
+@EVENT_CRC_FIELDS@
+    #FRK_AlarmEventCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryHeaderCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmHistoryHeaderCrc := DWORD#0;
+    IF #Slot < 1 OR #Slot > @UNIT_COUNT@ THEN RETURN; END_IF;
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].SchemaVersion));
+    #Size := LEN("FRK_AlarmHistory".Rows[#Slot].Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_AlarmHistory".Rows[#Slot].Scope[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmHistory".Rows[#Slot].Generation);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].RingHead));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].RingUsed));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].Truncated));
+    FOR #Index := 1 TO @MAX_ALARM_RING@ DO
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].EventCrc[#Index]));
+    END_FOR;
+    #FRK_AlarmHistoryHeaderCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryHeaderSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.HistorySlot;
+    IF #Slot < 1 OR #Slot > @UNIT_COUNT@ THEN RETURN; END_IF;
+    "FRK_AlarmHistory".Rows[#Slot].SchemaVersion := 1;
+    "FRK_AlarmHistory".Rows[#Slot].Generation := "FRK_AccessNext"(Previous := "FRK_AlarmHistory".Rows[#Slot].Generation);
+    "FRK_AlarmHistory".Rows[#Slot].RingHead := #AlarmLog.RingHead;
+    "FRK_AlarmHistory".Rows[#Slot].RingUsed := #AlarmLog.RingUsed;
+    "FRK_AlarmHistory".Rows[#Slot].Truncated := #AlarmLog.Truncated;
+    "FRK_AlarmHistory".Rows[#Slot].Checksum := "FRK_AlarmHistoryHeaderCrc"(Slot := #Slot);
+    "FRK_AlarmHistory".Commissioned[#Slot] := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.HistorySlot;
+    IF #Slot < 1 OR #Slot > @UNIT_COUNT@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO @MAX_ALARM_RING@ DO
+        "FRK_AlarmHistory".Rows[#Slot].Ring[#Index] := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmHistory".Rows[#Slot].EventCrc[#Index] := DWORD#0;
+    END_FOR;
+    "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryAppend" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Head : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.HistorySlot;
+    #Head := #AlarmLog.RingHead;
+    IF #Slot < 1 OR #Slot > @UNIT_COUNT@ OR #Head < 1 OR #Head > @MAX_ALARM_RING@ THEN RETURN; END_IF;
+    "FRK_AlarmHistory".Rows[#Slot].Ring[#Head] := #AlarmLog.Ring[#Head];
+    "FRK_AlarmHistory".Rows[#Slot].EventCrc[#Head] := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Ring[#Head]);
+    "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Used : Int;
+    Head : Int;
+    Valid : Bool;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Slot := "FRK_AlarmHistoryIndex"(Scope := #Scope);
+    #AlarmLog.HistorySlot := #Slot;
+    IF #Slot < 1 OR #Slot > @UNIT_COUNT@ THEN RETURN; END_IF;
+    IF NOT "FRK_AlarmHistory".Commissioned[#Slot]
+        AND "FRK_AlarmHistory".Rows[#Slot].SchemaVersion = 0
+        AND "FRK_AlarmHistory".Rows[#Slot].Generation = 0
+        AND "FRK_AlarmHistory".Rows[#Slot].Scope = ''
+        AND "FRK_AlarmHistory".Rows[#Slot].Checksum = DWORD#0 THEN
+        "FRK_AlarmHistory".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmHistoryClear"(AlarmLog := #AlarmLog);
+        RETURN;
+    END_IF;
+    #Used := "FRK_AlarmHistory".Rows[#Slot].RingUsed;
+    #Head := "FRK_AlarmHistory".Rows[#Slot].RingHead;
+    #Valid := "FRK_AlarmHistory".Rows[#Slot].SchemaVersion = 1
+        AND "FRK_AlarmHistory".Rows[#Slot].Scope = #Scope
+        AND "FRK_AlarmHistory".Rows[#Slot].Generation <> 0
+        AND #Used >= 0 AND #Used <= @MAX_ALARM_RING@
+        AND #Head >= 0 AND #Head <= @MAX_ALARM_RING@
+        AND ((#Used = 0 AND #Head = 0) OR (#Used > 0 AND #Head > 0))
+        AND (#Used = @MAX_ALARM_RING@ OR #Head = #Used);
+    IF #Valid THEN #Valid := "FRK_AlarmHistory".Rows[#Slot].Checksum = "FRK_AlarmHistoryHeaderCrc"(Slot := #Slot); END_IF;
+    IF #Valid THEN
+        FOR #Index := 1 TO #Used DO
+            IF "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].State <> @E_AlarmState.CLOSED@
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].ResetClass < @E_ResetClass.AUTO_RESET@
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].ResetClass > @E_ResetClass.MANUAL_RESET@
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Severity < @E_Severity.LOW@
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Severity > @E_Severity.HIGH@
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Category < @E_Category.PROCESS@
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Category > @E_Category.SYSTEM@
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].SourcePath = WSTRING#''
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Description = WSTRING#''
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Duration < T#0ms
+                OR "FRK_AlarmHistory".Rows[#Slot].EventCrc[#Index] <> "FRK_AlarmEventCrc"(Ev := "FRK_AlarmHistory".Rows[#Slot].Ring[#Index]) THEN
+                #Valid := FALSE;
+                EXIT;
+            END_IF;
+        END_FOR;
+    END_IF;
+    IF #Valid THEN
+        FOR #Index := 1 TO #Used DO #AlarmLog.Ring[#Index] := "FRK_AlarmHistory".Rows[#Slot].Ring[#Index]; END_FOR;
+        #AlarmLog.RingHead := #Head;
+        #AlarmLog.RingUsed := #Used;
+        #AlarmLog.Truncated := "FRK_AlarmHistory".Rows[#Slot].Truncated;
+    ELSE
+        // Reject the whole image. The same public loss marker covers overflow
+        // and rejected history; do not present a partial, apparently complete log.
+        #AlarmLog.Truncated := TRUE;
+        "FRK_AlarmHistory".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmHistoryClear"(AlarmLog := #AlarmLog);
+    END_IF;
+END_FUNCTION

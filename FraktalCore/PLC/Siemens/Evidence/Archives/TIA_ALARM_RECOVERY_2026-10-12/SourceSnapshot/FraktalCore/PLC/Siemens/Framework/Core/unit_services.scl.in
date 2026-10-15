@@ -1,0 +1,620 @@
+// Shared Unit services v0.1: operation authority, mailbox, modes and local carrier.
+FUNCTION "FRK_UnitPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    InitialMode : DInt;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Request : "ST_HmiRequest";
+    Response : "ST_HmiResponse";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+END_VAR
+BEGIN
+    #Core.EvModeExit := FALSE;
+    #Core.EvModeChanged := FALSE;
+    IF NOT #Unit.Initialized THEN
+        #Unit.Initialized := TRUE;
+        #Unit.Permit := TRUE;
+        FOR #Index := 0 TO @MODE_COUNT@-1 DO
+            #Policy[#Index].Shield := @E_ModeSwitchShield.CONFIRM@;
+            #Policy[#Index].Style := @E_ModeSwitchStyle.IMMEDIATE@;
+        END_FOR;
+        #Policy[@E_Mode.AUTO@].Style := @E_ModeSwitchStyle.GRACEFUL@;
+        #Policy[@E_Mode.HOME@].Shield := @E_ModeSwitchShield.INTERRUPTIBLE@;
+        #Policy[@E_Mode.MANUAL@].Shield := @E_ModeSwitchShield.INTERRUPTIBLE@;
+        #Policy[@E_Mode.CHANGEOVER@].Shield := @E_ModeSwitchShield.BLOCKED_WHILE_RUNNING@;
+        #Policy[@E_Mode.CALIBRATION@].Shield := @E_ModeSwitchShield.BLOCKED_WHILE_RUNNING@;
+        #Unit.Mode := #InitialMode;
+    END_IF;
+    IF #Startup THEN
+        #Unit.EvReset := FALSE;
+        #Unit.Mode := #InitialMode;
+        #Unit.RunReq := FALSE;
+        #Unit.AbortReq := #Core.Exec = @E_ExecState.BUSY@;
+        #Unit.StopReq := FALSE;
+        #Unit.ModePending := FALSE;
+        #Unit.FollowStart := FALSE;
+        #Unit.CascadePending := FALSE;
+        #Unit.ReleaseChildren := TRUE;
+        #Unit.Clearing := TRUE;
+        // Consume the restart boundary without executing a transported request.
+        #Unit.SeenSequence := #Request.Sequence;
+        #Unit.RequestPending := FALSE;
+        #Request.Secret := '';
+        #Response.Accepted := FALSE;
+        #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+        #Response.AckSequence := #Unit.SeenSequence;
+    END_IF;
+    IF #Core.ReleasePending THEN
+        #Unit.FollowStart := FALSE;
+        // An incoming parent mode/reset operation is already queued for this scan.
+        // Preserve its cascade while cancelling the old command.
+        #Unit.RunReq := FALSE;
+        #Unit.AbortReq := TRUE;
+        #Unit.ReleaseChildren := TRUE;
+        #Unit.Clearing := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitSetLocalCarrier" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Index : DInt;
+END_VAR
+VAR_IN_OUT
+    Unit : "FRK_Unit";
+END_VAR
+BEGIN
+    #Unit.CarrierIndex := 0;
+    IF #Index < 1 OR #Index > @CAPACITY@ THEN RETURN; END_IF;
+    "FRK_Carriers".Slots[#Index].Enabled := TRUE;
+    "FRK_Carriers".Slots[#Index].Kind := @E_CarrierKind.BY_POSITION@;
+    #Unit.CarrierIndex := #Index;
+END_FUNCTION
+
+FUNCTION "FRK_PartEvent" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Reason : DInt;
+    Uid : String;
+    SourcePath : String;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Description : WString[255];
+END_VAR
+BEGIN
+    CASE #Reason OF
+        @E_Reason.EVENT_PART_RECEIVED@: #Description := WSTRING#'std.event.partReceived: ';
+        @E_Reason.EVENT_PART_PROCESSING_STARTED@: #Description := WSTRING#'std.event.partProcessingStarted: ';
+        @E_Reason.EVENT_PART_PROCESSED@: #Description := WSTRING#'std.event.partProcessed: ';
+        @E_Reason.EVENT_PART_PROCESSING_ABORTED@: #Description := WSTRING#'std.event.partAborted: ';
+        ELSE #Description := WSTRING#'';
+    END_CASE;
+    #Description := CONCAT(IN1 := #Description, IN2 := STRING_TO_WSTRING(#Uid));
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := #Reason, Description := #Description, SourcePath := STRING_TO_WSTRING(#SourcePath));
+END_FUNCTION
+
+FUNCTION "FRK_PartReceived" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Uid : String[64];
+    ResultIndex : DInt;
+END_VAR
+BEGIN
+    #FRK_PartReceived := FALSE;
+    #Index := #Unit.CarrierIndex;
+    IF #Index = 0 THEN RETURN; END_IF;
+    IF #Index < 1 OR #Index > @CAPACITY@ THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.CARRIER_READ_FAILED@, Description := WSTRING#'std.error.partCarrierReadFailed');
+        RETURN;
+    END_IF;
+    IF NOT "FRK_Carriers".Slots[#Index].Enabled OR "FRK_Carriers".Slots[#Index].Kind <> @E_CarrierKind.BY_POSITION@ OR "FRK_Carriers".Slots[#Index].Serial = UDINT#4294967295 THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.CARRIER_READ_FAILED@, Description := WSTRING#'std.error.partCarrierReadFailed');
+        RETURN;
+    END_IF;
+    "FRK_Carriers".Slots[#Index].Serial := "FRK_Carriers".Slots[#Index].Serial + 1;
+    #Uid := CONCAT(IN1 := 'FRK-', IN2 := DINT_TO_STRING(#Index));
+    #Uid := CONCAT(IN1 := #Uid, IN2 := '-');
+    #Uid := CONCAT(IN1 := #Uid, IN2 := UDINT_TO_STRING("FRK_Carriers".Slots[#Index].Serial));
+    #Part.Uid := #Uid;
+    #Part.Present := TRUE;
+    #Part.CarrierKind := @E_CarrierKind.BY_POSITION@;
+    #Part.Result.Verdict := @E_Verdict.NONE@;
+    #Part.Result.ReasonCode := 0;
+    #Part.Result.StationPath := STRING_TO_WSTRING(#Status.Name);
+    #Part.Result.Stamp := LDT#1970-01-01-00:00:00.000000000;
+    #Part.Result.TimeSynchronized := FALSE;
+    FOR #ResultIndex := 1 TO @MAX_RESULTS@ DO #Part.Result.Records[#ResultIndex].Name := ''; END_FOR;
+    FOR #ResultIndex := 1 TO @MAX_GENEALOGY@ DO #Part.Parents[#ResultIndex] := ''; END_FOR;
+    "FRK_Carriers".Slots[#Index].Context := #Part;
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_RECEIVED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    #FRK_PartReceived := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_PartStarted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN RETURN; END_IF;
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSING_STARTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+END_FUNCTION
+
+FUNCTION "FRK_PartProcessed" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Verdict : DInt;
+    Reason : DInt;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    #FRK_PartProcessed := FALSE;
+    #Index := #Unit.CarrierIndex;
+    IF #Index = 0 OR NOT #Part.Present THEN RETURN; END_IF;
+    IF #Verdict < @E_Verdict.OK@ OR #Verdict > @E_Verdict.REWORK@ OR (#Verdict = @E_Verdict.NOK@ AND #Reason = 0) THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.RESULT_RECORD_REJECTED@, Description := WSTRING#'std.error.nokReasonRequired');
+        RETURN;
+    END_IF;
+    IF #Index < 1 OR #Index > @CAPACITY@ THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.CARRIER_WRITE_FAILED@, Description := WSTRING#'std.error.partCarrierWriteFailed');
+        RETURN;
+    END_IF;
+    IF NOT "FRK_Carriers".Slots[#Index].Enabled THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.CARRIER_WRITE_FAILED@, Description := WSTRING#'std.error.partCarrierWriteFailed');
+        RETURN;
+    END_IF;
+    IF #Part.Uid <> "FRK_Carriers".Slots[#Index].Context.Uid THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.PART_ID_MISMATCH@, Description := WSTRING#'std.error.partCarrierReadFailed');
+        RETURN;
+    END_IF;
+    #Part.Result.Verdict := #Verdict;
+    #Part.Result.ReasonCode := #Reason;
+    #Part.Result.StationPath := STRING_TO_WSTRING(#Status.Name);
+    #Part.Result.TimeSynchronized := FALSE;
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN #Part.Result.Stamp := DTL_TO_LDT(#Stamp); END_IF;
+    "FRK_Carriers".Slots[#Index].Written := #Part;
+    IF "FRK_Carriers".Slots[#Index].Writes < UDINT#4294967295 THEN "FRK_Carriers".Slots[#Index].Writes := "FRK_Carriers".Slots[#Index].Writes + 1; END_IF;
+    CASE #Verdict OF
+        @E_Verdict.OK@: IF #Unit.Good < UDINT#4294967295 THEN #Unit.Good := #Unit.Good + 1; END_IF;
+        @E_Verdict.NOK@: IF #Unit.Nok < UDINT#4294967295 THEN #Unit.Nok := #Unit.Nok + 1; END_IF; #Unit.NokReason := #Reason;
+        @E_Verdict.REWORK@: IF #Unit.Rework < UDINT#4294967295 THEN #Unit.Rework := #Unit.Rework + 1; END_IF;
+        ELSE RETURN;
+    END_CASE;
+    // The provider result is written before publishing EVENT_PART_PROCESSED.
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    #Part.Present := FALSE;
+    #FRK_PartProcessed := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_PartAborted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN RETURN; END_IF;
+    #Part.Result.Verdict := @E_Verdict.NONE@;
+    IF #Core.Exec = @E_ExecState.ERROR@ AND #Part.Result.ReasonCode = 0 THEN #Part.Result.ReasonCode := #Status.Diagnostic.ReasonCode; END_IF;
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSING_ABORTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    #Part.Present := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_UnitSetPermit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ok : Bool;
+    Diag : "ST_Diagnostic";
+END_VAR
+VAR_IN_OUT
+    Unit : "FRK_Unit";
+END_VAR
+BEGIN
+    #Unit.Permit := #Ok;
+    #Unit.PermitDiag := #Diag;
+END_FUNCTION
+
+FUNCTION "FRK_ReleaseReason" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Description : WString;
+    Reason : DInt;
+    Path : WString;
+    Kind : DInt;
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+END_VAR
+BEGIN
+    #Report.Released := FALSE;
+    IF #Report.Count < @MAX_RELEASE_REASONS@ THEN
+        #Report.Count := #Report.Count + 1;
+        #Report.Reasons[#Report.Count].Description := #Description;
+        #Report.Reasons[#Report.Count].ReasonCode := #Reason;
+        #Report.Reasons[#Report.Count].SourcePath := #Path;
+        #Report.Reasons[#Report.Count].Kind := #Kind;
+        #Report.Reasons[#Report.Count].Bypassable := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitOperation" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..@MODE_LAST@] of Bool;
+    Request : "ST_HmiRequest";
+    Trusted : Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Response : "ST_HmiResponse";
+END_VAR
+VAR_TEMP
+    Gate : DInt;
+    Desired : DInt;
+    Query : Bool;
+    Level : DInt;
+    DecisionAccepted : Bool;
+END_VAR
+BEGIN
+    #Response.Accepted := FALSE;
+    #Response.Diagnostic := WSTRING#'';
+    #Response.Report.Count := 0;
+    #Response.Report.Released := TRUE;
+    #Gate := -1;
+    #Desired := -1;
+    #Query := FALSE;
+    CASE #Request.Kind OF
+        @E_HmiRequestKind.START@: #Gate := @E_GatedAction.START_STOP@; #Desired := 0;
+        @E_HmiRequestKind.STOP@: #Gate := @E_GatedAction.START_STOP@; #Desired := 1;
+        @E_HmiRequestKind.SET_MODE@:
+            #Gate := @E_GatedAction.MODE_CHANGE@; #Desired := #Request.IntValue;
+            IF #Desired = -1 THEN #Desired := -2; END_IF;
+        @E_HmiRequestKind.OPERATOR_RESET@: #Gate := @E_GatedAction.ALARM_RESET@;
+        @E_HmiRequestKind.DECISION_ANSWER@: #Gate := @E_GatedAction.START_STOP@;
+        @E_HmiRequestKind.MANUAL_COMMAND@: #Gate := @E_GatedAction.MANUAL@;
+        @E_HmiRequestKind.SET_ACCESS_LEVEL@, @E_HmiRequestKind.SET_SESSION_TIMEOUT@: #Gate := @E_GatedAction.ACCESS_POLICY@;
+        @E_HmiRequestKind.RELEASE_START@: #Gate := @E_GatedAction.START_STOP@; #Desired := 0; #Query := TRUE;
+        @E_HmiRequestKind.RELEASE_MANUAL@: #Gate := @E_GatedAction.MANUAL@; #Query := TRUE;
+        @E_HmiRequestKind.RELEASE_ACTION@: #Gate := #Request.IntValue; #Desired := -1; #Query := TRUE;
+        ELSE #Gate := -1;
+    END_CASE;
+    IF #Gate <> -1 OR #Request.Kind = @E_HmiRequestKind.RELEASE_ACTION@ THEN
+        "FRK_UnitRelease"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Report := #Response.Report, Gate := #Gate, Desired := #Desired, Trusted := #Trusted);
+        IF #Query THEN
+            #Response.Accepted := TRUE;
+        ELSIF #Response.Report.Released THEN
+            CASE #Request.Kind OF
+                @E_HmiRequestKind.DECISION_ANSWER@:
+                    #DecisionAccepted := "FRK_DecisionSubmit"(Owner := #Core.RegIndex, OwnerPath := STRING_TO_WSTRING(#Status.Name), Option := #Request.IntValue,
+                        Busy := #Core.Exec = @E_ExecState.BUSY@, Permit := #Unit.Permit, Report := #Response.Report);
+                    #Response.Accepted := #DecisionAccepted;
+                @E_HmiRequestKind.START@:
+                    #Unit.StopReq := FALSE;
+                    #Unit.RunReq := TRUE;
+                    #Response.Accepted := TRUE;
+                @E_HmiRequestKind.STOP@:
+                    #Unit.StopReq := #Core.Exec = @E_ExecState.BUSY@;
+                    IF NOT #Unit.StopReq THEN #Unit.RunReq := FALSE; END_IF;
+                    #Unit.FollowStart := FALSE;
+                    #Response.Accepted := TRUE;
+                @E_HmiRequestKind.SET_MODE@:
+                    IF #Desired <> #Unit.Mode THEN
+                        #Unit.ExitFirst := TRUE;
+                        #Unit.ModeSince := "FRK_Clock".NowMs;
+                        #Unit.RequestedMode := #Desired;
+                        #Unit.ModePending := TRUE;
+                        IF #Unit.Mode = @E_Mode.MANUAL@ THEN
+                            #Unit.ReleaseChildren := TRUE;
+                            #Unit.Clearing := TRUE;
+                        END_IF;
+                    END_IF;
+                    #Response.Accepted := TRUE;
+                @E_HmiRequestKind.OPERATOR_RESET@:
+                    #Unit.EvReset := TRUE;
+                    #Unit.ModePending := FALSE;
+                    #Unit.ExitFirst := FALSE;
+                    #Unit.RunReq := FALSE;
+                    #Unit.AbortReq := #Core.Exec = @E_ExecState.BUSY@;
+                    #Unit.StopReq := FALSE;
+                    #Unit.FollowStart := FALSE;
+                    #Unit.ReleaseChildren := TRUE;
+                    #Unit.Clearing := TRUE;
+                    #Unit.FaultLatched := FALSE;
+                    IF #Core.Exec = @E_ExecState.ERROR@ THEN #Core.Armed := TRUE; END_IF;
+                    #Response.Accepted := TRUE;
+                @E_HmiRequestKind.SET_ACCESS_LEVEL@:
+                    #Level := -1;
+                    IF #Request.TextValue = WSTRING#'0' THEN #Level := @E_AccessLevel.NONE@;
+                    ELSIF #Request.TextValue = WSTRING#'1' THEN #Level := @E_AccessLevel.OPERATOR@;
+                    ELSIF #Request.TextValue = WSTRING#'2' THEN #Level := @E_AccessLevel.TECHNICIAN@;
+                    ELSIF #Request.TextValue = WSTRING#'3' THEN #Level := @E_AccessLevel.ENGINEER@;
+                    ELSIF #Request.TextValue = WSTRING#'4' THEN #Level := @E_AccessLevel.ADMIN@;
+                    END_IF;
+                    IF #Request.IntValue >= @E_GatedAction.DATA_READ@ AND #Request.IntValue <= @E_GatedAction.CONFIG_SET@ AND #Level >= 0 THEN
+                        IF #Request.IntValue <> @E_GatedAction.ACCESS_POLICY@ OR #Level <= #Access.CurrentLevel THEN
+                            #Access.Policy.Required[#Request.IntValue] := #Level;
+                            #Response.Accepted := TRUE;
+                        END_IF;
+                    END_IF;
+                @E_HmiRequestKind.SET_SESSION_TIMEOUT@:
+                    IF #Request.DurationMs <= 604800000 THEN
+                        #Access.Policy.SessionTimeout := DINT_TO_TIME(UDINT_TO_DINT(#Request.DurationMs));
+                        #Response.Accepted := TRUE;
+                    END_IF;
+                ELSE
+                    // Manual acceptance is resolved by the generated typed route.
+                    #Response.Accepted := FALSE;
+            END_CASE;
+        END_IF;
+    ELSE
+        CASE #Request.Kind OF
+            @E_HmiRequestKind.LOGIN@:
+                "FRK_AccessLogin"(Access := #Access, User := #Request.User, Secret := #Request.Secret, Sequence := #Request.Sequence);
+                // Consumption is acknowledged now; correlated result is asynchronous.
+                #Response.Accepted := TRUE;
+            @E_HmiRequestKind.LOGOUT@:
+                "FRK_AccessLogout"(Access := #Access);
+                #Response.Accepted := TRUE;
+            ELSE
+                #Response.Diagnostic := WSTRING#'std.error.unsupportedHmiRequest';
+        END_CASE;
+    END_IF;
+    IF #Response.Accepted AND NOT #Query THEN
+        IF #Request.Kind = @E_HmiRequestKind.START@ OR #Request.Kind = @E_HmiRequestKind.STOP@ OR #Request.Kind = @E_HmiRequestKind.SET_MODE@ OR #Request.Kind = @E_HmiRequestKind.OPERATOR_RESET@ THEN
+            #Unit.CascadePending := TRUE;
+            #Unit.CascadeKind := #Request.Kind;
+            #Unit.CascadeMode := #Unit.Mode;
+            IF #Request.Kind = @E_HmiRequestKind.SET_MODE@ THEN #Unit.CascadeMode := #Desired; END_IF;
+        END_IF;
+    END_IF;
+    IF NOT #Response.Accepted AND #Request.Kind <> @E_HmiRequestKind.MANUAL_COMMAND@ THEN
+        IF #Response.Diagnostic = WSTRING#'' THEN #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected'; END_IF;
+        IF #Response.Report.Released THEN
+            "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Status.Name), Kind := @E_ReleaseKind.OTHER@);
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitMailbox" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..@MODE_LAST@] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Request : "ST_HmiRequest";
+    Response : "ST_HmiResponse";
+END_VAR
+VAR_TEMP
+    SequenceBefore : UDInt;
+END_VAR
+BEGIN
+    #SequenceBefore := #Request.Sequence;
+    IF #SequenceBefore = 0 OR #SequenceBefore = #Unit.SeenSequence THEN RETURN; END_IF;
+    #Unit.Request := #Request;
+    IF #Request.Sequence <> #SequenceBefore THEN #Unit.Request.Secret := ''; RETURN; END_IF;
+    #Request.Secret := '';
+    #Unit.RequestUser := #Access.CurrentUser;
+    #Unit.SeenSequence := #SequenceBefore;
+    #Unit.RequestPending := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_UnitConsume" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..@MODE_LAST@] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Response : "ST_HmiResponse";
+END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending THEN RETURN; END_IF;
+    // The generated typed ownership walk serves the static manifest after children.
+    IF #Unit.Request.Kind = @E_HmiRequestKind.QUERY_CONFIG@ THEN
+        #Unit.Request.Secret := '';
+        RETURN;
+    END_IF;
+    "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Unit.Request, Response := #Response, Trusted := FALSE);
+    #Unit.Request.Secret := '';
+END_FUNCTION
+
+FUNCTION "FRK_UnitMode" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+END_VAR
+BEGIN
+    IF #Unit.ModePending THEN
+        IF #Core.Exec = @E_ExecState.BUSY@ THEN
+            #Core.EvModeExit := TRUE;
+            #Core.HookResult := 0;
+        ELSIF #Core.Exec = @E_ExecState.READY@ AND NOT #Unit.Clearing THEN
+            #Unit.Mode := #Unit.RequestedMode;
+            #Unit.ModePending := FALSE;
+            #Unit.ExitFirst := FALSE;
+            #Core.EvModeChanged := TRUE;
+        ELSE
+            #Unit.RunReq := FALSE;
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitModeResolve" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    Timeout : Time;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Unit.ModePending THEN
+        IF #Timeout <= T#0ms OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Unit.ModeSince) >= DINT_TO_UDINT(TIME_TO_DINT(#Timeout)) THEN
+            "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := @E_Reason.TIMEOUT@, Description := WSTRING#'std.error.hmiRequestRejected');
+            #Unit.ModePending := FALSE;
+            #Unit.FollowStart := FALSE;
+            #Unit.ReleaseChildren := TRUE;
+            #Unit.Clearing := TRUE;
+        ELSIF #Core.EvModeExit THEN
+            #Unit.ExitFirst := FALSE;
+            IF #Policy[#Unit.Mode].Style = @E_ModeSwitchStyle.GRACEFUL@ THEN
+                #Unit.StopReq := TRUE;
+            ELSIF #Core.HookResult <= 0 THEN
+                #Unit.AbortReq := TRUE;
+                #Unit.ReleaseChildren := TRUE;
+                #Unit.Clearing := TRUE;
+            END_IF;
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitRunStart" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Timeout : Time;
+    Label : String;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    "FRK_Start"(Core := #Core, Status := #Status, Supported := TRUE, Timeout := #Timeout, Label := #Label);
+    // A continuous run ends at Stop. Bounded commands/steps own progress timeouts.
+    #Core.TimeoutMs := 0;
+END_FUNCTION
+
+FUNCTION "FRK_DescendantsReady" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    OwnerIndex : DInt;
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Parent : DInt;
+    Depth : DInt;
+END_VAR
+BEGIN
+    #FRK_DescendantsReady := FALSE;
+    IF "FRK_Registry".Fault OR #OwnerIndex < 1 OR #OwnerIndex > "FRK_Registry".Count OR "FRK_Registry".Count > @CAPACITY@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO "FRK_Registry".Count DO
+        #Parent := "FRK_Registry".Rows[#Index].Parent;
+        FOR #Depth := 1 TO @CAPACITY@ DO
+            IF #Parent = #OwnerIndex THEN
+                IF "FRK_Registry".Rows[#Index].Exec <> @E_ExecState.READY@ THEN RETURN; END_IF;
+                EXIT;
+            END_IF;
+            IF #Parent = 0 THEN EXIT; END_IF;
+            IF #Parent < 1 OR #Parent > "FRK_Registry".Count THEN RETURN; END_IF;
+            #Parent := "FRK_Registry".Rows[#Parent].Parent;
+        END_FOR;
+        IF #Depth > @CAPACITY@ AND #Parent <> 0 THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_DescendantsReady := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_UnitFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Response : "ST_HmiResponse";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+    History : Array[1..@MAX_DIAG_RING@] of "ST_Diagnostic";
+    Head : Int;
+END_VAR
+BEGIN
+    IF #Core.Exec = @E_ExecState.ERROR@ THEN
+        IF NOT #Unit.EvReset THEN #Unit.FaultLatched := TRUE; END_IF;
+        IF NOT #Unit.PrevError THEN
+            IF #Head < 0 OR #Head >= @MAX_DIAG_RING@ THEN #Head := 0; END_IF;
+            #Head := #Head + 1;
+            #History[#Head] := #Status.Diagnostic;
+            "FRK_PartAborted"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+        END_IF;
+    END_IF;
+    #Unit.PrevError := #Core.Exec = @E_ExecState.ERROR@;
+    IF #Core.Exec = @E_ExecState.DONE@ OR #Core.Exec = @E_ExecState.ABORTED@ THEN #Unit.RunReq := FALSE; END_IF;
+    IF #Unit.Clearing AND #Core.Exec = @E_ExecState.READY@ THEN
+        IF "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN #Unit.Clearing := FALSE; END_IF;
+    END_IF;
+    #Unit.AbortReq := FALSE;
+    #Unit.ReleaseChildren := FALSE;
+    #Unit.EvReset := FALSE;
+    IF #Unit.RequestPending THEN
+        #Response.AckSequence := #Unit.SeenSequence;
+        #Unit.RequestPending := FALSE;
+    END_IF;
+END_FUNCTION

@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_AccessAudit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      What : WString;
+      Who : String;
+      SourcePath : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Description : WString[480];
+   END_VAR
+
+
+BEGIN
+	
+	#Description := CONCAT(IN1 := #What, IN2 := WSTRING#': ');
+	#Description := CONCAT(IN1 := #Description, IN2 := STRING_TO_WSTRING(#Who));
+	"FRK_AlarmMessage"(AlarmLog := #AlarmLog,
+	                   Reason := 0,
+	                   Description := #Description,
+	                   SourcePath := #SourcePath);
+	
+END_FUNCTION
+

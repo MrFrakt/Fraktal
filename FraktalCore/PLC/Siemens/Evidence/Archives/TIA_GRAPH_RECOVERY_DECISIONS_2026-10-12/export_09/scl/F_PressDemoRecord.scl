@@ -1,0 +1,30 @@
+﻿FUNCTION "F_PressDemoRecord" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Dwell : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+   END_VAR
+
+   VAR_TEMP 
+      Recorded : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF "FRK_SeqOnce"(Seq := #Seq, Enable := TRUE, Token := 230) THEN
+	    #Recorded := "FRK_PartRecord"(Core := #Core, Status := #Status, Part := #Part,
+	                                  RecordName := 'PressDwell', Value := DINT_TO_LREAL(TIME_TO_DINT(#Dwell)), Minimum := 0.0, Maximum := 30000.0,
+	                                  Target := DINT_TO_LREAL(TIME_TO_DINT(#Dwell)), EngUnit := 'ms');
+	END_IF;
+	#F_PressDemoRecord := #Core.Exec <> 3;
+	
+END_FUNCTION
+

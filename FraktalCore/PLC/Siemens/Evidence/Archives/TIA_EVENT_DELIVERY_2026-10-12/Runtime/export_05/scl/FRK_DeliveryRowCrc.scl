@@ -1,0 +1,15 @@
+﻿FUNCTION "FRK_DeliveryRowCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Sequence : UDInt;
+      Ev : "ST_AlarmEvent";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DeliveryRowCrc := "FRK_CrcNumber"(Previous := "FRK_AlarmEventCrc"(Ev := #Ev), Value := #Sequence);
+	
+END_FUNCTION
+

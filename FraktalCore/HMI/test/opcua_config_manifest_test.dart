@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/data/opcua_config_manifest.dart';
 import 'package:fraktal_hmi/domain/types.dart';
+import 'package:fraktal_hmi/data/opcua_snapshot_mapper.dart';
 
 void main() {
   const bases = {
@@ -16,7 +17,8 @@ void main() {
       ('TRUE', 'TRUE', true),
       ('FALSE', 'FALSE', false),
     ]) {
-      final entry = ConfigManifestEntry('PneumaticPress', 'Config/Flag', sample.$1,
+      final entry = ConfigManifestEntry(
+          'PneumaticPress', 'Config/Flag', sample.$1,
           writeKey: 'flag',
           writeRevision: 1,
           configKind: CfgKind.stationCfg.index,
@@ -25,11 +27,13 @@ void main() {
       final field = configFieldsFromManifest([entry])['PneumaticPress']!.single;
       expect(field.value, sample.$2);
       expect(field.accepts(field.value), isTrue);
-      expect(field.accepts('1'), isFalse); // Read normalization is not a write rule.
+      expect(field.accepts('1'),
+          isFalse); // Read normalization is not a write rule.
       expect(
           synthesizeManifestValues([entry],
-                  browseBaseByModulePath: bases, topologyBase: topologyBase)[
-              'PLC1/MAIN/PneumaticPress/Config/Flag'],
+              browseBaseByModulePath: bases,
+              topologyBase:
+                  topologyBase)['PLC1/MAIN/PneumaticPress/Config/Flag'],
           sample.$3);
     }
     expect(
@@ -241,17 +245,24 @@ void main() {
             configKind: 1,
             valueType: 0,
             writable: true),
-      ])['Press']!.single;
+      ])['Press']!
+          .single;
       expect(field.writeLevel, isNull,
           reason: 'absent must be unknown, never NONE');
-      const locked = AccessSession(
-          level: AccessLevel.operator,
-          required: [
-            AccessLevel.none, AccessLevel.engineer, AccessLevel.none,
-            AccessLevel.none, AccessLevel.none, AccessLevel.none,
-            AccessLevel.none, AccessLevel.none, AccessLevel.none,
-            AccessLevel.none, AccessLevel.none, AccessLevel.none,
-          ]);
+      const locked = AccessSession(level: AccessLevel.operator, required: [
+        AccessLevel.none,
+        AccessLevel.engineer,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+        AccessLevel.none,
+      ]);
       expect(field.canWriteIn(locked), isFalse);
     });
 
@@ -266,7 +277,8 @@ void main() {
             readLevel: 4,
             writeLevel: 4,
             readable: false),
-      ])['Press']!.single;
+      ])['Press']!
+          .single;
       expect(field.readable, isFalse);
       expect(field.value, isEmpty);
       expect(field.canReadIn(engineerSession), isFalse);
@@ -282,7 +294,8 @@ void main() {
             writable: false,
             readLevel: 0,
             writeLevel: 3),
-      ])['Press.Line']!.single;
+      ])['Press.Line']!
+          .single;
       expect(field.kind, CfgKind.lineCfg);
       expect(field.value, '360');
       expect(field.hasWriteCapability, isFalse);
@@ -290,6 +303,58 @@ void main() {
   });
 
   group('§3.13 flow-chart rows arrive as NUMBERS, not strings', () {
+    test('manifest definitions join live history in both array path forms', () {
+      const base = 'PLC1/StationA';
+      for (final row in [
+        '$base/SequenceSteps[1]',
+        '$base/SequenceSteps/SequenceSteps[1]',
+      ]) {
+        final live = <String, Object?>{
+          '$base/Status/Name': 'StationA',
+          '$base/Status/ModuleType': ModuleType.unit.index,
+          '$base/Status/State': ExecState.ready.index,
+          '$base/SequenceViewEnabled': true,
+          '$base/SequenceStepCount': 1,
+          '$row/Visited': true,
+          '$row/LastDuration': 2,
+          '$row/WarningActive': true,
+          '$base/ActiveSteps[0]/RowIdx': 1,
+          '$base/ActiveSteps[0]/Elapsed': 75,
+          '$base/ActiveSteps[0]/TimedOut': true,
+        };
+        final metadata = synthesizeManifestValues(const [
+          ConfigManifestEntry(
+              'StationA', 'SequenceSteps/SequenceSteps[1]/StepNo', '42',
+              valueType: 0),
+          ConfigManifestEntry('StationA',
+              'SequenceSteps/SequenceSteps[1]/StepName', 'test.main'),
+          ConfigManifestEntry(
+              'StationA', 'SequenceSteps/SequenceSteps[1]/ExpectedTime', '50',
+              valueType: 0),
+        ], browseBaseByModulePath: const {
+          'StationA': base
+        }, topologyBase: null, discoveredPaths: live.keys);
+        final node = OpcUaSnapshotMapper()
+            .map({
+              'protocol': 'fraktal.opcua.snapshot.v1',
+              'nodeCount': live.length,
+              'truncated': false,
+              'values': {...metadata, ...live},
+            })
+            .forest
+            .single;
+        final step = node.sequenceSteps.single;
+        expect(step.stepNo, 42);
+        expect(step.stepName, 'test.main');
+        expect(step.active, isTrue);
+        expect(step.visited, isTrue);
+        expect(step.warningActive, isTrue);
+        expect(step.lastDuration.inMilliseconds, 2);
+        expect(step.expected.inMilliseconds, 50);
+        expect(step.elapsed.inMilliseconds, 75);
+        expect(step.timedOut, isTrue);
+      }
+    });
     // Regression: the whole sequence flow chart rendered "N0" on every row with
     // an empty drill-down. The static half of each row is served through the
     // manifest, and the typing rule was a hand-maintained list of leaf NAMES
@@ -322,13 +387,14 @@ void main() {
           ConfigManifestEntry(
               'PneumaticPress', 'SequenceSteps/SequenceSteps[1]/Branch', '0',
               valueType: 0),
-          ConfigManifestEntry('PneumaticPress',
-              'SequenceSteps/SequenceSteps[1]/TimeClass', '3',
+          ConfigManifestEntry(
+              'PneumaticPress', 'SequenceSteps/SequenceSteps[1]/TimeClass', '3',
               valueType: 0),
           ConfigManifestEntry('PneumaticPress',
               'SequenceSteps/SequenceSteps[1]/ExpectedTime', '2500',
               valueType: 0),
-          ConfigManifestEntry('PneumaticPress',
+          ConfigManifestEntry(
+              'PneumaticPress',
               'SequenceSteps/SequenceSteps[1]/StepName',
               'project.step.pressAwaitTwoHand'),
         ],

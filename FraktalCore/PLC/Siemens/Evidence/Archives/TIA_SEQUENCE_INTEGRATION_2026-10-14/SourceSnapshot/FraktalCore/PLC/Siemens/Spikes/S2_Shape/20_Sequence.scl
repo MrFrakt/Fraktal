@@ -1,0 +1,111 @@
+// Fraktal/TIA Phase 0 fixture S2 - sequence services (Part IV s.3.5). The TC3
+// FB_SequenceBase methods become FCs taking the chain's context InOut; the
+// same calls serve the SCL CASE form and (on S7-1500) S7-GRAPH actions.
+
+FUNCTION "FRK_Seq_Step" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      StepNo : DInt;
+      StepName : String;
+   END_VAR
+
+   VAR_IN_OUT
+      Seq : "FRK_SeqCtx";
+   END_VAR
+
+
+BEGIN
+	// Core s.6.5 step record, published every active scan.
+	IF #Seq.Record.StepNo <> #StepNo OR #Seq.LastRecorded <> #StepNo THEN
+	    #Seq.StepStartMs := "FRK_Clock".NowMs;
+	    #Seq.Record.AwaitIdx := 0;
+	    #Seq.Record.AwaitingLabel := '';
+	    // S11 evidence: the order of steps actually visited.
+	    IF #Seq.TraceCount < 16 THEN
+	        #Seq.Trace[#Seq.TraceCount] := #StepNo;
+	        #Seq.TraceCount := #Seq.TraceCount + 1;
+	    END_IF;
+	    #Seq.LastRecorded := #StepNo;
+	END_IF;
+	#Seq.Record.StepNo := #StepNo;
+	#Seq.Record.StepName := #StepName;
+END_FUNCTION
+
+FUNCTION "FRK_Seq_TryIssue" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT
+      Seq : "FRK_SeqCtx";
+   END_VAR
+
+
+BEGIN
+	// One-shot issue latch, re-armed only on step change (Core s.6.8).
+	#FRK_Seq_TryIssue := NOT #Seq.Issued;
+	#Seq.Issued := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_Seq_Await" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      ChildIdx : Int;              // generated index of a direct child of the owner
+      Label : String;
+   END_VAR
+
+   VAR_IN_OUT
+      Seq : "FRK_SeqCtx";
+   END_VAR
+
+
+BEGIN
+	// Names the awaited child: the owner's frame adopts that child's fault
+	// verbatim (Core s.6.9, s.8.2) and the stall walk reads it.
+	#Seq.Record.AwaitIdx := #ChildIdx;
+	#Seq.Record.AwaitingLabel := #Label;
+END_FUNCTION
+
+FUNCTION "FRK_Seq_Advance" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      OnAdvance : DInt;
+      OnJump1 : DInt;              // -1 = this step has no first jump
+   END_VAR
+
+   VAR_IN_OUT
+      Seq : "FRK_SeqCtx";
+   END_VAR
+
+   VAR_TEMP
+      target : DInt;
+   END_VAR
+
+   VAR CONSTANT
+      R_NONE : DInt := 0;
+      R_ADVANCE : DInt := 1;
+      R_JUMP1 : DInt := 2;
+   END_VAR
+
+
+BEGIN
+	// The ST transition: commits the declared exit and clears step-scoped latches.
+	#target := -1;
+	CASE #Seq.RetVal OF
+	    1:  // ADVANCE
+	        #target := #OnAdvance;
+	    2:  // JUMP1
+	        #target := #OnJump1;
+	    0:  // NONE: stay
+	        ;
+	    ELSE
+	        // JUMP2/3 are not declared by this fixture's steps: stay, never default.
+	        ;
+	END_CASE;
+	IF #target >= 0 THEN
+	    #Seq.Step := #target;
+	    #Seq.Issued := FALSE;
+	END_IF;
+	#Seq.RetVal := #R_NONE;
+END_FUNCTION

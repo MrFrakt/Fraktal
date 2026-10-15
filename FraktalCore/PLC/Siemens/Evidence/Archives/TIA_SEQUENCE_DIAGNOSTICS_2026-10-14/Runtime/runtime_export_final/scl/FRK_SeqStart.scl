@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_SeqStart" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      StartPulse : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Seq.Running THEN
+	    #Seq.StartLatched := #Seq.StartLatched OR #StartPulse;
+	END_IF;
+	
+END_FUNCTION
+

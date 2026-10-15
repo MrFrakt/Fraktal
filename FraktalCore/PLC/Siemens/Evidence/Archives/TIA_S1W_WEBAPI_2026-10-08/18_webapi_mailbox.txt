@@ -1,0 +1,14 @@
+﻿# SET_MODE MANUAL (expect accepted)
+kind=3 int=1 sequence=1006 acknowledged in 146 ms accepted=True diagnostic=''
+exit=0
+error: PlcProgram.Read -> 201 Invalid address
+# START while MANUAL (expect refused std.release.notAuto)
+kind=5 int=0 sequence=1007 acknowledged in 140 ms accepted=False diagnostic='std.release.notAuto'
+exit=1
+# unsupported kind 99 (expect refused std.mailbox.unsupportedKind)
+kind=99 int=0 sequence=1008 acknowledged in 140 ms accepted=False diagnostic='std.mailbox.unsupportedKind'
+exit=1
+# SET_MODE AUTO (expect accepted)
+kind=3 int=0 sequence=1009 acknowledged in 143 ms accepted=True diagnostic=''
+exit=0
+error: PlcProgram.Read -> 201 Invalid address

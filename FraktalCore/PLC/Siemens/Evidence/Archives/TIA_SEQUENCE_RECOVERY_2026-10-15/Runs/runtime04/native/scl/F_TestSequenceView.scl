@@ -1,0 +1,103 @@
+﻿FUNCTION "F_TestSequenceView" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Owner <> "GDB_SequenceViewTest".Owner THEN
+	    RETURN;
+	END_IF;
+	IF "GDB_SequenceViewTest".UseHelper THEN
+	    "FRK_SeqBegin"(Run := "GDB_SequenceViewTest".Enabled,
+	                   Reset := "GDB_SequenceViewTest".HelperReset,
+	                   OwnerIndex := #Owner,
+	                   ChainIndex := 7,
+	                   BranchIndex := "GDB_SequenceViewTest".Branch,
+	                   ViewOffset := "GDB_SequenceViewTest".HelperOffset,
+	                   ViewDepth := "GDB_SequenceViewTest".Depth,
+	                   Delta := T#1ms,
+	                   Seq := "GDB_SequenceHelperTest".Seq);
+	    "GDB_SequenceViewTest".HelperReset := FALSE;
+	    IF "GDB_SequenceViewTest".Enabled THEN
+	        "FRK_SeqStep"(StepNo := "GDB_SequenceViewTest".StepNo,
+	                      StepName := "GDB_SequenceViewTest".StepName,
+	                      AwaitingLabel := 'test.helper.await',
+	                      AwaitsPath := 'StationA.Cell.Clamp',
+	                      TimeClass := 0,
+	                      ExpectedTime := "GDB_SequenceViewTest".ExpectedTime,
+	                      Seq := "GDB_SequenceHelperTest".Seq,
+	                      Row := "GDB_SequenceHelperTest".Row);
+	        "GDB_SequenceHelperTest".WaitOk := "FRK_SeqAwait"(Label := "GDB_SequenceViewTest".AwaitLabel, Ok := "GDB_SequenceViewTest".AwaitOk, Seq := "GDB_SequenceHelperTest".Seq);
+	        IF "GDB_SequenceViewTest".Annotate THEN
+	            "FRK_SeqMessage"(Diag := "GDB_SequenceHelperTest".Diag,
+	                             Seq := "GDB_SequenceHelperTest".Seq,
+	                             AlarmLog := "StationA".AlarmLog);
+	        END_IF;
+	    END_IF;
+	    RETURN;
+	END_IF;
+	IF "GDB_SequenceViewTest".Enabled THEN
+	    "FRK_SeqViewStep"(Owner := #Owner,
+	                      StepNo := "GDB_SequenceViewTest".StepNo,
+	                      Branch := "GDB_SequenceViewTest".Branch,
+	                      Depth := "GDB_SequenceViewTest".Depth,
+	                      Visit := "GDB_SequenceViewTest".Visit,
+	                      StepName := "GDB_SequenceViewTest".StepName,
+	                      AwaitingLabel := 'test.await',
+	                      AwaitsPath := 'StationA.Cell.Clamp',
+	                      TimeClass := 0,
+	                      ExpectedTime := "GDB_SequenceViewTest".ExpectedTime,
+	                      Elapsed := "GDB_SequenceViewTest".Elapsed);
+	    IF "GDB_SequenceViewTest".FastPulse THEN
+	        "FRK_SeqViewStep"(Owner := #Owner,
+	                          StepNo := 11,
+	                          Branch := 0,
+	                          Depth := 0,
+	                          Visit := 1,
+	                          StepName := 'test.fast',
+	                          AwaitingLabel := '',
+	                          AwaitsPath := '',
+	                          TimeClass := 0,
+	                          ExpectedTime := T#0ms,
+	                          Elapsed := T#2ms);
+	        "GDB_SequenceViewTest".FastPulse := FALSE;
+	    END_IF;
+	    IF "GDB_SequenceViewTest".Parent THEN
+	        "FRK_SeqViewStep"(Owner := #Owner,
+	                          StepNo := 20,
+	                          Branch := "GDB_SequenceViewTest".Branch,
+	                          Depth := 0,
+	                          Visit := 1,
+	                          StepName := 'test.parent',
+	                          AwaitingLabel := '',
+	                          AwaitsPath := '',
+	                          TimeClass := 0,
+	                          ExpectedTime := T#0ms,
+	                          Elapsed := T#0ms);
+	    END_IF;
+	    IF "GDB_SequenceViewTest".AwaitEnabled THEN
+	        "FRK_SeqViewAwait"(Owner := #Owner,
+	                           StepNo := "GDB_SequenceViewTest".StepNo,
+	                           Branch := "GDB_SequenceViewTest".Branch,
+	                           Label := "GDB_SequenceViewTest".AwaitLabel,
+	                           Ok := "GDB_SequenceViewTest".AwaitOk);
+	    END_IF;
+	    IF "GDB_SequenceViewTest".Annotate THEN
+	        "FRK_SeqViewNote"(Owner := #Owner,
+	                          StepNo := "GDB_SequenceViewTest".StepNo,
+	                          Branch := "GDB_SequenceViewTest".Branch,
+	                          IsError := "GDB_SequenceViewTest".IsError,
+	                          Key := "GDB_SequenceViewTest".Key,
+	                          SourcePath := "GDB_SequenceViewTest".SourcePath);
+	    END_IF;
+	END_IF;
+	IF #Owner = "StationA".Core.RegIndex THEN
+	    "GDB_SequenceViewTest".Overflow := "FRK_Views".V001.Book.Overflow;
+	END_IF;
+	
+END_FUNCTION
+

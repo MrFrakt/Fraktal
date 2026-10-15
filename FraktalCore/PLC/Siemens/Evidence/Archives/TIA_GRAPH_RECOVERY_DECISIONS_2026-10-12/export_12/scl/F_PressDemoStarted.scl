@@ -1,0 +1,23 @@
+﻿FUNCTION "F_PressDemoStarted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF "FRK_SeqOnce"(Seq := #Seq, Enable := #Seq.CommandIssued, Token := 150) THEN
+	    "FRK_PartStarted"(Unit := #Unit,
+	                      Status := #Status,
+	                      Part := #Part,
+	                      AlarmLog := #AlarmLog);
+	END_IF;
+	
+END_FUNCTION
+

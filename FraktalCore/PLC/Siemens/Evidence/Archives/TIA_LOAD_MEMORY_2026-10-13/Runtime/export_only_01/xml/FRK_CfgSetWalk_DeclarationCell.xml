@@ -1,0 +1,3749 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-13T01:47:17.6946028Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="RootIndex" Datatype="Int" Accessibility="Public" />
+    <Member Name="Phase" Datatype="Int" Accessibility="Public" />
+    <Member Name="Access" Datatype="&quot;FRK_Access&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="CurrentLevel" Datatype="DInt" />
+          <Member Name="CurrentUser" Datatype="String[32]" />
+          <Member Name="LoginFailed" Datatype="Bool" />
+          <Member Name="Policy" Datatype="&quot;ST_AccessPolicy&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Required" Datatype="Array[0..11] of DInt" />
+                <Member Name="SessionTimeout" Datatype="Time" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="SessionGeneration" Datatype="UDInt" />
+          <Member Name="LoginBusy" Datatype="Bool" />
+          <Member Name="LoginResultSequence" Datatype="UDInt" />
+          <Member Name="LoginTimeoutMs" Datatype="UDInt" />
+          <Member Name="PolicySlot" Datatype="Int" />
+          <Member Name="PolicyLost" Datatype="Bool" />
+          <Member Name="PolicyLossAlarm" Datatype="Int" />
+          <Member Name="UserLossAlarm" Datatype="Int" />
+          <Member Name="ProviderGeneration" Datatype="UDInt" />
+          <Member Name="CandidateGeneration" Datatype="UDInt" />
+          <Member Name="ProviderEnabled" Datatype="Bool" />
+          <Member Name="LastActivity" Datatype="UDInt" />
+          <Member Name="LoginSince" Datatype="UDInt" />
+          <Member Name="LoginSequence" Datatype="UDInt" />
+          <Member Name="CandidateUser" Datatype="String[32]" />
+          <Member Name="CandidateLevel" Datatype="DInt" />
+          <Member Name="Round" Datatype="DInt" />
+          <Member Name="Salt" Datatype="Array[0..15] of Byte" />
+          <Member Name="Digest" Datatype="Array[0..31] of Byte" />
+          <Member Name="Expected" Datatype="Array[0..31] of Byte" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Ready" Datatype="Bool" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Module" Datatype="&quot;FB_DeclarationCell&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="Input">
+          <Member Name="Execute" Datatype="Bool" />
+          <Member Name="Abort" Datatype="Bool" />
+          <Member Name="Command" Datatype="DInt" />
+          <Member Name="ParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Value" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ParentIndex" Datatype="DInt" />
+          <Member Name="Startup" Datatype="Bool" />
+        </Section>
+        <Section Name="Output">
+          <Member Name="Busy" Datatype="Bool" />
+          <Member Name="Done" Datatype="Bool" />
+          <Member Name="Error" Datatype="Bool" />
+          <Member Name="Aborted" Datatype="Bool" />
+          <Member Name="Held" Datatype="Bool" />
+          <Member Name="ErrorID" Datatype="DWord" />
+          <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="LastCmdTime" Datatype="Time" />
+                <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Id" Datatype="DInt" />
+                      <Member Name="Label" Datatype="String[120]" />
+                      <Member Name="TimeClass" Datatype="DInt" />
+                      <Member Name="Count" Datatype="UDInt" />
+                      <Member Name="Last" Datatype="Time" />
+                      <Member Name="Minimum" Datatype="Time" />
+                      <Member Name="Maximum" Datatype="Time" />
+                      <Member Name="Avg" Datatype="Time" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Truncated" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="OutCmd" Datatype="&quot;ST_DeclarationOutCmd&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Result" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="OutImm" Datatype="&quot;ST_DeclarationOutImm&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Sample" Datatype="DInt" />
+                <Member Name="InitCount" Datatype="DInt" />
+                <Member Name="StartCount" Datatype="DInt" />
+                <Member Name="CyclicCount" Datatype="DInt" />
+                <Member Name="AbortCount" Datatype="DInt" />
+                <Member Name="ErrorAbortCount" Datatype="DInt" />
+                <Member Name="DispatchCount" Datatype="DInt" />
+                <Member Name="SeenValue" Datatype="DInt" />
+                <Member Name="Ordered" Datatype="Bool" />
+                <Member Name="Output" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+        </Section>
+        <Section Name="InOut">
+          <Member Name="Hal" Datatype="&quot;ST_DeclarationCellHal&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Clamp" Datatype="&quot;ST_DeclarationLeafHal&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="Permit" Datatype="Bool" />
+                      <Member Name="Finish" Datatype="Bool" />
+                      <Member Name="BackgroundFault" Datatype="Bool" />
+                      <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="LaterDiag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="ExitHold" Datatype="Bool" />
+                      <Member Name="Verdict" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Gate" Datatype="&quot;ST_DeclarationLeafHal&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="Permit" Datatype="Bool" />
+                      <Member Name="Finish" Datatype="Bool" />
+                      <Member Name="BackgroundFault" Datatype="Bool" />
+                      <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="LaterDiag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="ExitHold" Datatype="Bool" />
+                      <Member Name="Verdict" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+              </Section>
+            </Sections>
+          </Member>
+        </Section>
+        <Section Name="Static">
+          <Member Name="Status" Datatype="&quot;ST_ModuleStatus&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Name" Datatype="String[80]" />
+                <Member Name="DisplayNameKey" Datatype="String[160]" />
+                <Member Name="DescriptionKey" Datatype="String[160]" />
+                <Member Name="TypeKey" Datatype="String[160]" />
+                <Member Name="ModuleType" Datatype="DInt" />
+                <Member Name="State" Datatype="DInt" />
+                <Member Name="FaultActive" Datatype="Bool" />
+                <Member Name="Diagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="ReasonCode" Datatype="DInt" />
+                      <Member Name="SourcePath" Datatype="WString[255]" />
+                      <Member Name="Description" Datatype="WString[255]" />
+                      <Member Name="IoTag" Datatype="String[80]" />
+                      <Member Name="IoAddress" Datatype="String[80]" />
+                      <Member Name="Severity" Datatype="DInt" />
+                      <Member Name="Category" Datatype="DInt" />
+                      <Member Name="Since" Datatype="LDT" />
+                      <Member Name="TimeSynchronized" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="TileEnable" Datatype="Bool" />
+                <Member Name="ControlDomainId" Datatype="String[80]" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="Core" Datatype="&quot;FRK_Core&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Named" Datatype="Bool" />
+                <Member Name="Initialized" Datatype="Bool" />
+                <Member Name="RegIndex" Datatype="DInt" />
+                <Member Name="ParentIndex" Datatype="DInt" />
+                <Member Name="ModuleType" Datatype="DInt" />
+                <Member Name="Exec" Datatype="DInt" />
+                <Member Name="ExecPrev" Datatype="Bool" />
+                <Member Name="AbortPrev" Datatype="Bool" />
+                <Member Name="Armed" Datatype="Bool" />
+                <Member Name="Command" Datatype="DInt" />
+                <Member Name="CommandLabel" Datatype="String[120]" />
+                <Member Name="Dispatch" Datatype="Bool" />
+                <Member Name="EvInit" Datatype="Bool" />
+                <Member Name="EvCommandStart" Datatype="Bool" />
+                <Member Name="ReleasePending" Datatype="Bool" />
+                <Member Name="EvAbort" Datatype="Bool" />
+                <Member Name="EvAbortInError" Datatype="Bool" />
+                <Member Name="EvModeExit" Datatype="Bool" />
+                <Member Name="EvModeChanged" Datatype="Bool" />
+                <Member Name="Step" Datatype="DInt" />
+                <Member Name="HookResult" Datatype="DInt" />
+                <Member Name="Held" Datatype="Bool" />
+                <Member Name="HoldReq" Datatype="Bool" />
+                <Member Name="HoldReason" Datatype="DInt" />
+                <Member Name="DiagTouched" Datatype="Bool" />
+                <Member Name="TimingOpen" Datatype="Bool" />
+                <Member Name="StartMs" Datatype="UDInt" />
+                <Member Name="LastNowMs" Datatype="UDInt" />
+                <Member Name="DeltaMs" Datatype="UDInt" />
+                <Member Name="ActiveMs" Datatype="UDInt" />
+                <Member Name="TimeoutMs" Datatype="UDInt" />
+                <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="LastCmdTime" Datatype="Time" />
+                      <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="Id" Datatype="DInt" />
+                            <Member Name="Label" Datatype="String[120]" />
+                            <Member Name="TimeClass" Datatype="DInt" />
+                            <Member Name="Count" Datatype="UDInt" />
+                            <Member Name="Last" Datatype="Time" />
+                            <Member Name="Minimum" Datatype="Time" />
+                            <Member Name="Maximum" Datatype="Time" />
+                            <Member Name="Avg" Datatype="Time" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="Truncated" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="FaultSlot" Datatype="Int" />
+                <Member Name="FaultHandled" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="SchemaVersion" Datatype="UInt" />
+                <Member Name="Timeout" Datatype="Time" />
+                <Member Name="Preset" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="LatchedParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Value" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="Device" Datatype="&quot;ST_DeclarationOutImm&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Sample" Datatype="DInt" />
+                <Member Name="InitCount" Datatype="DInt" />
+                <Member Name="StartCount" Datatype="DInt" />
+                <Member Name="CyclicCount" Datatype="DInt" />
+                <Member Name="AbortCount" Datatype="DInt" />
+                <Member Name="ErrorAbortCount" Datatype="DInt" />
+                <Member Name="DispatchCount" Datatype="DInt" />
+                <Member Name="SeenValue" Datatype="DInt" />
+                <Member Name="Ordered" Datatype="Bool" />
+                <Member Name="Output" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ConfigStageParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="SchemaVersion" Datatype="UInt" />
+                <Member Name="Timeout" Datatype="Time" />
+                <Member Name="Preset" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ConfigDefaultParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="SchemaVersion" Datatype="UInt" />
+                <Member Name="Timeout" Datatype="Time" />
+                <Member Name="Preset" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ConfigStaged" Datatype="Bool" />
+          <Member Name="Catalog" Datatype="Array[1..12] of &quot;ST_CommandInfo&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Value" Datatype="DInt" />
+                <Member Name="Label" Datatype="String[120]" />
+                <Member Name="Style" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="CatalogCount" Datatype="Int" />
+          <Member Name="ManConditions" Datatype="Array[1..16] of &quot;FRK_ManualConditionRow&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Used" Datatype="Bool" />
+                <Member Name="Value" Datatype="DInt" />
+                <Member Name="Ok" Datatype="Bool" />
+                <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="ReasonCode" Datatype="DInt" />
+                      <Member Name="SourcePath" Datatype="WString[255]" />
+                      <Member Name="Description" Datatype="WString[255]" />
+                      <Member Name="IoTag" Datatype="String[80]" />
+                      <Member Name="IoAddress" Datatype="String[80]" />
+                      <Member Name="Severity" Datatype="DInt" />
+                      <Member Name="Category" Datatype="DInt" />
+                      <Member Name="Since" Datatype="LDT" />
+                      <Member Name="TimeSynchronized" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Bypassable" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="ManualOwned" Datatype="Bool" />
+          <Member Name="Clamp" Datatype="&quot;FB_DeclarationCylinder&quot;">
+            <Sections>
+              <Section Name="Input">
+                <Member Name="Execute" Datatype="Bool" />
+                <Member Name="Abort" Datatype="Bool" />
+                <Member Name="Command" Datatype="DInt" />
+                <Member Name="ParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Value" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ParentIndex" Datatype="DInt" />
+                <Member Name="Startup" Datatype="Bool" />
+              </Section>
+              <Section Name="Output">
+                <Member Name="Busy" Datatype="Bool" />
+                <Member Name="Done" Datatype="Bool" />
+                <Member Name="Error" Datatype="Bool" />
+                <Member Name="Aborted" Datatype="Bool" />
+                <Member Name="Held" Datatype="Bool" />
+                <Member Name="ErrorID" Datatype="DWord" />
+                <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="LastCmdTime" Datatype="Time" />
+                      <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="Id" Datatype="DInt" />
+                            <Member Name="Label" Datatype="String[120]" />
+                            <Member Name="TimeClass" Datatype="DInt" />
+                            <Member Name="Count" Datatype="UDInt" />
+                            <Member Name="Last" Datatype="Time" />
+                            <Member Name="Minimum" Datatype="Time" />
+                            <Member Name="Maximum" Datatype="Time" />
+                            <Member Name="Avg" Datatype="Time" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="Truncated" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="OutCmd" Datatype="&quot;ST_DeclarationOutCmd&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Result" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="OutImm" Datatype="&quot;ST_DeclarationOutImm&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="InitCount" Datatype="DInt" />
+                      <Member Name="StartCount" Datatype="DInt" />
+                      <Member Name="CyclicCount" Datatype="DInt" />
+                      <Member Name="AbortCount" Datatype="DInt" />
+                      <Member Name="ErrorAbortCount" Datatype="DInt" />
+                      <Member Name="DispatchCount" Datatype="DInt" />
+                      <Member Name="SeenValue" Datatype="DInt" />
+                      <Member Name="Ordered" Datatype="Bool" />
+                      <Member Name="Output" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+              </Section>
+              <Section Name="InOut">
+                <Member Name="Hal" Datatype="&quot;ST_DeclarationLeafHal&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="Permit" Datatype="Bool" />
+                      <Member Name="Finish" Datatype="Bool" />
+                      <Member Name="BackgroundFault" Datatype="Bool" />
+                      <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="LaterDiag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="ExitHold" Datatype="Bool" />
+                      <Member Name="Verdict" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+              </Section>
+              <Section Name="Static">
+                <Member Name="Status" Datatype="&quot;ST_ModuleStatus&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Name" Datatype="String[80]" />
+                      <Member Name="DisplayNameKey" Datatype="String[160]" />
+                      <Member Name="DescriptionKey" Datatype="String[160]" />
+                      <Member Name="TypeKey" Datatype="String[160]" />
+                      <Member Name="ModuleType" Datatype="DInt" />
+                      <Member Name="State" Datatype="DInt" />
+                      <Member Name="FaultActive" Datatype="Bool" />
+                      <Member Name="Diagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="TileEnable" Datatype="Bool" />
+                      <Member Name="ControlDomainId" Datatype="String[80]" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Core" Datatype="&quot;FRK_Core&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Named" Datatype="Bool" />
+                      <Member Name="Initialized" Datatype="Bool" />
+                      <Member Name="RegIndex" Datatype="DInt" />
+                      <Member Name="ParentIndex" Datatype="DInt" />
+                      <Member Name="ModuleType" Datatype="DInt" />
+                      <Member Name="Exec" Datatype="DInt" />
+                      <Member Name="ExecPrev" Datatype="Bool" />
+                      <Member Name="AbortPrev" Datatype="Bool" />
+                      <Member Name="Armed" Datatype="Bool" />
+                      <Member Name="Command" Datatype="DInt" />
+                      <Member Name="CommandLabel" Datatype="String[120]" />
+                      <Member Name="Dispatch" Datatype="Bool" />
+                      <Member Name="EvInit" Datatype="Bool" />
+                      <Member Name="EvCommandStart" Datatype="Bool" />
+                      <Member Name="ReleasePending" Datatype="Bool" />
+                      <Member Name="EvAbort" Datatype="Bool" />
+                      <Member Name="EvAbortInError" Datatype="Bool" />
+                      <Member Name="EvModeExit" Datatype="Bool" />
+                      <Member Name="EvModeChanged" Datatype="Bool" />
+                      <Member Name="Step" Datatype="DInt" />
+                      <Member Name="HookResult" Datatype="DInt" />
+                      <Member Name="Held" Datatype="Bool" />
+                      <Member Name="HoldReq" Datatype="Bool" />
+                      <Member Name="HoldReason" Datatype="DInt" />
+                      <Member Name="DiagTouched" Datatype="Bool" />
+                      <Member Name="TimingOpen" Datatype="Bool" />
+                      <Member Name="StartMs" Datatype="UDInt" />
+                      <Member Name="LastNowMs" Datatype="UDInt" />
+                      <Member Name="DeltaMs" Datatype="UDInt" />
+                      <Member Name="ActiveMs" Datatype="UDInt" />
+                      <Member Name="TimeoutMs" Datatype="UDInt" />
+                      <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="LastCmdTime" Datatype="Time" />
+                            <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                              <Sections>
+                                <Section Name="None">
+                                  <Member Name="Id" Datatype="DInt" />
+                                  <Member Name="Label" Datatype="String[120]" />
+                                  <Member Name="TimeClass" Datatype="DInt" />
+                                  <Member Name="Count" Datatype="UDInt" />
+                                  <Member Name="Last" Datatype="Time" />
+                                  <Member Name="Minimum" Datatype="Time" />
+                                  <Member Name="Maximum" Datatype="Time" />
+                                  <Member Name="Avg" Datatype="Time" />
+                                </Section>
+                              </Sections>
+                            </Member>
+                            <Member Name="Truncated" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="FaultSlot" Datatype="Int" />
+                      <Member Name="FaultHandled" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="SchemaVersion" Datatype="UInt" />
+                      <Member Name="Timeout" Datatype="Time" />
+                      <Member Name="Preset" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="LatchedParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Value" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Device" Datatype="&quot;ST_DeclarationOutImm&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="InitCount" Datatype="DInt" />
+                      <Member Name="StartCount" Datatype="DInt" />
+                      <Member Name="CyclicCount" Datatype="DInt" />
+                      <Member Name="AbortCount" Datatype="DInt" />
+                      <Member Name="ErrorAbortCount" Datatype="DInt" />
+                      <Member Name="DispatchCount" Datatype="DInt" />
+                      <Member Name="SeenValue" Datatype="DInt" />
+                      <Member Name="Ordered" Datatype="Bool" />
+                      <Member Name="Output" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ConfigStageParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="SchemaVersion" Datatype="UInt" />
+                      <Member Name="Timeout" Datatype="Time" />
+                      <Member Name="Preset" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ConfigDefaultParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="SchemaVersion" Datatype="UInt" />
+                      <Member Name="Timeout" Datatype="Time" />
+                      <Member Name="Preset" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ConfigStaged" Datatype="Bool" />
+                <Member Name="Catalog" Datatype="Array[1..12] of &quot;ST_CommandInfo&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Value" Datatype="DInt" />
+                      <Member Name="Label" Datatype="String[120]" />
+                      <Member Name="Style" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="CatalogCount" Datatype="Int" />
+                <Member Name="ManConditions" Datatype="Array[1..16] of &quot;FRK_ManualConditionRow&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Used" Datatype="Bool" />
+                      <Member Name="Value" Datatype="DInt" />
+                      <Member Name="Ok" Datatype="Bool" />
+                      <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="Bypassable" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ManualOwned" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="Gate" Datatype="&quot;FB_DeclarationCylinder&quot;">
+            <Sections>
+              <Section Name="Input">
+                <Member Name="Execute" Datatype="Bool" />
+                <Member Name="Abort" Datatype="Bool" />
+                <Member Name="Command" Datatype="DInt" />
+                <Member Name="ParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Value" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ParentIndex" Datatype="DInt" />
+                <Member Name="Startup" Datatype="Bool" />
+              </Section>
+              <Section Name="Output">
+                <Member Name="Busy" Datatype="Bool" />
+                <Member Name="Done" Datatype="Bool" />
+                <Member Name="Error" Datatype="Bool" />
+                <Member Name="Aborted" Datatype="Bool" />
+                <Member Name="Held" Datatype="Bool" />
+                <Member Name="ErrorID" Datatype="DWord" />
+                <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="LastCmdTime" Datatype="Time" />
+                      <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="Id" Datatype="DInt" />
+                            <Member Name="Label" Datatype="String[120]" />
+                            <Member Name="TimeClass" Datatype="DInt" />
+                            <Member Name="Count" Datatype="UDInt" />
+                            <Member Name="Last" Datatype="Time" />
+                            <Member Name="Minimum" Datatype="Time" />
+                            <Member Name="Maximum" Datatype="Time" />
+                            <Member Name="Avg" Datatype="Time" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="Truncated" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="OutCmd" Datatype="&quot;ST_DeclarationOutCmd&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Result" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="OutImm" Datatype="&quot;ST_DeclarationOutImm&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="InitCount" Datatype="DInt" />
+                      <Member Name="StartCount" Datatype="DInt" />
+                      <Member Name="CyclicCount" Datatype="DInt" />
+                      <Member Name="AbortCount" Datatype="DInt" />
+                      <Member Name="ErrorAbortCount" Datatype="DInt" />
+                      <Member Name="DispatchCount" Datatype="DInt" />
+                      <Member Name="SeenValue" Datatype="DInt" />
+                      <Member Name="Ordered" Datatype="Bool" />
+                      <Member Name="Output" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+              </Section>
+              <Section Name="InOut">
+                <Member Name="Hal" Datatype="&quot;ST_DeclarationLeafHal&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="Permit" Datatype="Bool" />
+                      <Member Name="Finish" Datatype="Bool" />
+                      <Member Name="BackgroundFault" Datatype="Bool" />
+                      <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="LaterDiag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="ExitHold" Datatype="Bool" />
+                      <Member Name="Verdict" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+              </Section>
+              <Section Name="Static">
+                <Member Name="Status" Datatype="&quot;ST_ModuleStatus&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Name" Datatype="String[80]" />
+                      <Member Name="DisplayNameKey" Datatype="String[160]" />
+                      <Member Name="DescriptionKey" Datatype="String[160]" />
+                      <Member Name="TypeKey" Datatype="String[160]" />
+                      <Member Name="ModuleType" Datatype="DInt" />
+                      <Member Name="State" Datatype="DInt" />
+                      <Member Name="FaultActive" Datatype="Bool" />
+                      <Member Name="Diagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="TileEnable" Datatype="Bool" />
+                      <Member Name="ControlDomainId" Datatype="String[80]" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Core" Datatype="&quot;FRK_Core&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Named" Datatype="Bool" />
+                      <Member Name="Initialized" Datatype="Bool" />
+                      <Member Name="RegIndex" Datatype="DInt" />
+                      <Member Name="ParentIndex" Datatype="DInt" />
+                      <Member Name="ModuleType" Datatype="DInt" />
+                      <Member Name="Exec" Datatype="DInt" />
+                      <Member Name="ExecPrev" Datatype="Bool" />
+                      <Member Name="AbortPrev" Datatype="Bool" />
+                      <Member Name="Armed" Datatype="Bool" />
+                      <Member Name="Command" Datatype="DInt" />
+                      <Member Name="CommandLabel" Datatype="String[120]" />
+                      <Member Name="Dispatch" Datatype="Bool" />
+                      <Member Name="EvInit" Datatype="Bool" />
+                      <Member Name="EvCommandStart" Datatype="Bool" />
+                      <Member Name="ReleasePending" Datatype="Bool" />
+                      <Member Name="EvAbort" Datatype="Bool" />
+                      <Member Name="EvAbortInError" Datatype="Bool" />
+                      <Member Name="EvModeExit" Datatype="Bool" />
+                      <Member Name="EvModeChanged" Datatype="Bool" />
+                      <Member Name="Step" Datatype="DInt" />
+                      <Member Name="HookResult" Datatype="DInt" />
+                      <Member Name="Held" Datatype="Bool" />
+                      <Member Name="HoldReq" Datatype="Bool" />
+                      <Member Name="HoldReason" Datatype="DInt" />
+                      <Member Name="DiagTouched" Datatype="Bool" />
+                      <Member Name="TimingOpen" Datatype="Bool" />
+                      <Member Name="StartMs" Datatype="UDInt" />
+                      <Member Name="LastNowMs" Datatype="UDInt" />
+                      <Member Name="DeltaMs" Datatype="UDInt" />
+                      <Member Name="ActiveMs" Datatype="UDInt" />
+                      <Member Name="TimeoutMs" Datatype="UDInt" />
+                      <Member Name="Timing" Datatype="&quot;ST_ModuleTiming&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="LastCmdTime" Datatype="Time" />
+                            <Member Name="Rows" Datatype="Array[1..8] of &quot;ST_TimingRow&quot;">
+                              <Sections>
+                                <Section Name="None">
+                                  <Member Name="Id" Datatype="DInt" />
+                                  <Member Name="Label" Datatype="String[120]" />
+                                  <Member Name="TimeClass" Datatype="DInt" />
+                                  <Member Name="Count" Datatype="UDInt" />
+                                  <Member Name="Last" Datatype="Time" />
+                                  <Member Name="Minimum" Datatype="Time" />
+                                  <Member Name="Maximum" Datatype="Time" />
+                                  <Member Name="Avg" Datatype="Time" />
+                                </Section>
+                              </Sections>
+                            </Member>
+                            <Member Name="Truncated" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="FaultSlot" Datatype="Int" />
+                      <Member Name="FaultHandled" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="SchemaVersion" Datatype="UInt" />
+                      <Member Name="Timeout" Datatype="Time" />
+                      <Member Name="Preset" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="LatchedParCmd" Datatype="&quot;ST_DeclarationParCmd&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Value" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="Device" Datatype="&quot;ST_DeclarationOutImm&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Sample" Datatype="DInt" />
+                      <Member Name="InitCount" Datatype="DInt" />
+                      <Member Name="StartCount" Datatype="DInt" />
+                      <Member Name="CyclicCount" Datatype="DInt" />
+                      <Member Name="AbortCount" Datatype="DInt" />
+                      <Member Name="ErrorAbortCount" Datatype="DInt" />
+                      <Member Name="DispatchCount" Datatype="DInt" />
+                      <Member Name="SeenValue" Datatype="DInt" />
+                      <Member Name="Ordered" Datatype="Bool" />
+                      <Member Name="Output" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ConfigStageParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="SchemaVersion" Datatype="UInt" />
+                      <Member Name="Timeout" Datatype="Time" />
+                      <Member Name="Preset" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ConfigDefaultParCfg" Datatype="&quot;ST_DeclarationParCfg&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="SchemaVersion" Datatype="UInt" />
+                      <Member Name="Timeout" Datatype="Time" />
+                      <Member Name="Preset" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ConfigStaged" Datatype="Bool" />
+                <Member Name="Catalog" Datatype="Array[1..12] of &quot;ST_CommandInfo&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Value" Datatype="DInt" />
+                      <Member Name="Label" Datatype="String[120]" />
+                      <Member Name="Style" Datatype="DInt" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="CatalogCount" Datatype="Int" />
+                <Member Name="ManConditions" Datatype="Array[1..16] of &quot;FRK_ManualConditionRow&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Used" Datatype="Bool" />
+                      <Member Name="Value" Datatype="DInt" />
+                      <Member Name="Ok" Datatype="Bool" />
+                      <Member Name="Diag" Datatype="&quot;ST_Diagnostic&quot;">
+                        <Sections>
+                          <Section Name="None">
+                            <Member Name="ReasonCode" Datatype="DInt" />
+                            <Member Name="SourcePath" Datatype="WString[255]" />
+                            <Member Name="Description" Datatype="WString[255]" />
+                            <Member Name="IoTag" Datatype="String[80]" />
+                            <Member Name="IoAddress" Datatype="String[80]" />
+                            <Member Name="Severity" Datatype="DInt" />
+                            <Member Name="Category" Datatype="DInt" />
+                            <Member Name="Since" Datatype="LDT" />
+                            <Member Name="TimeSynchronized" Datatype="Bool" />
+                          </Section>
+                        </Sections>
+                      </Member>
+                      <Member Name="Bypassable" Datatype="Bool" />
+                    </Section>
+                  </Sections>
+                </Member>
+                <Member Name="ManualOwned" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp">
+    <Member Name="Slot" Datatype="Int" />
+    <Member Name="Stored" Datatype="Int" />
+    <Member Name="Ok" Datatype="Bool" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Bool" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_CfgSetWalk_DeclarationCell</Name>
+      <Namespace />
+      <Number>177</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="FRK_CfgSetWalk_DeclarationCell" UId="24" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="25" />
+  <Token Text=":=" UId="26" />
+  <Blank Num="1" UId="27" />
+  <Access Scope="LiteralConstant" UId="28">
+    <Constant UId="29">
+      <ConstantValue UId="31">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="32" />
+  <NewLine Num="1" UId="33" />
+  <Token Text="IF" UId="34" />
+  <Blank Num="1" UId="35" />
+  <Access Scope="LocalVariable" UId="36">
+    <Symbol UId="37">
+      <Component Name="Phase" UId="38" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="39" />
+  <Token Text="=" UId="40" />
+  <Blank Num="1" UId="41" />
+  <Access Scope="LiteralConstant" UId="42">
+    <Constant UId="43">
+      <ConstantValue UId="45">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="46" />
+  <Token Text="THEN" UId="47" />
+  <NewLine Num="1" UId="48" />
+  <Blank Num="4" UId="49" />
+  <Access Scope="LocalVariable" UId="50">
+    <Symbol UId="51">
+      <Component Name="Module" UId="52" />
+      <Token Text="." UId="53" />
+      <Component Name="ConfigStageParCfg" UId="54" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="55" />
+  <Token Text=":=" UId="56" />
+  <Blank Num="1" UId="57" />
+  <Access Scope="LocalVariable" UId="58">
+    <Symbol UId="59">
+      <Component Name="Module" UId="60" />
+      <Token Text="." UId="61" />
+      <Component Name="ParCfg" UId="62" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="63" />
+  <NewLine Num="1" UId="64" />
+  <Token Text="END_IF" UId="65" />
+  <Token Text=";" UId="66" />
+  <NewLine Num="1" UId="67" />
+  <Token Text="IF" UId="68" />
+  <Blank Num="1" UId="69" />
+  <Access Scope="GlobalVariable" UId="70">
+    <Symbol UId="71">
+      <Component Name="FRK_SetRuntime" UId="72">
+        <BooleanAttribute Name="HasQuotes" UId="73">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="74" />
+      <Component Name="Work" UId="75">
+        <Token Text="[" UId="76" />
+        <Access Scope="LocalVariable" UId="77">
+          <Symbol UId="78">
+            <Component Name="RootIndex" UId="79" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="80" />
+      </Component>
+      <Token Text="." UId="81" />
+      <Component Name="Payload" UId="82" />
+      <Token Text="." UId="83" />
+      <Component Name="Info" UId="84" />
+      <Token Text="." UId="85" />
+      <Component Name="Kind" UId="86" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="87" />
+  <Token Text="=" UId="88" />
+  <Blank Num="1" UId="89" />
+  <Access Scope="LiteralConstant" UId="90">
+    <Constant UId="91">
+      <ConstantValue UId="93">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="94" />
+  <Token Text="THEN" UId="95" />
+  <NewLine Num="1" UId="96" />
+  <Blank Num="4" UId="97" />
+  <Access Scope="Call" UId="98">
+    <CallInfo UId="99" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="101">
+        <Component Name="FRK_CfgDef_DeclarationCell" UId="100" />
+      </Instance>
+      <Token Text="(" UId="102" />
+      <Parameter Name="FieldIndex" UId="103">
+        <Blank Num="1" UId="104" />
+        <Token Text=":=" UId="105" />
+        <Blank Num="1" UId="106" />
+        <Access Scope="LiteralConstant" UId="107">
+          <Constant UId="108">
+            <ConstantValue UId="110">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="111" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="112" />
+  <NewLine Num="1" UId="113" />
+  <Blank Num="4" UId="114" />
+  <Access Scope="GlobalVariable" UId="115">
+    <Symbol UId="116">
+      <Component Name="FRK_SetRuntime" UId="117">
+        <BooleanAttribute Name="HasQuotes" UId="118">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="119" />
+      <Component Name="Work" UId="120">
+        <Token Text="[" UId="121" />
+        <Access Scope="LocalVariable" UId="122">
+          <Symbol UId="123">
+            <Component Name="RootIndex" UId="124" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="125" />
+      </Component>
+      <Token Text="." UId="126" />
+      <Component Name="RejectScope" UId="127" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="128" />
+  <Token Text=":=" UId="129" />
+  <Blank Num="1" UId="130" />
+  <Access Scope="LocalVariable" UId="131">
+    <Symbol UId="132">
+      <Component Name="Module" UId="133" />
+      <Token Text="." UId="134" />
+      <Component Name="Status" UId="135" />
+      <Token Text="." UId="136" />
+      <Component Name="Name" UId="137" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="138" />
+  <NewLine Num="1" UId="139" />
+  <Blank Num="4" UId="140" />
+  <Access Scope="GlobalVariable" UId="141">
+    <Symbol UId="142">
+      <Component Name="FRK_SetRuntime" UId="143">
+        <BooleanAttribute Name="HasQuotes" UId="144">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="145" />
+      <Component Name="Work" UId="146">
+        <Token Text="[" UId="147" />
+        <Access Scope="LocalVariable" UId="148">
+          <Symbol UId="149">
+            <Component Name="RootIndex" UId="150" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="151" />
+      </Component>
+      <Token Text="." UId="152" />
+      <Component Name="RejectKey" UId="153" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="154" />
+  <Token Text=":=" UId="155" />
+  <Blank Num="1" UId="156" />
+  <Access Scope="GlobalVariable" UId="157">
+    <Symbol UId="158">
+      <Component Name="FRK_ConfigScratch" UId="159">
+        <BooleanAttribute Name="HasQuotes" UId="160">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="161" />
+      <Component Name="Entry" UId="162" />
+      <Token Text="." UId="163" />
+      <Component Name="WriteKey" UId="164" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="165" />
+  <NewLine Num="1" UId="166" />
+  <Blank Num="4" UId="167" />
+  <Token Text="IF" UId="168" />
+  <Blank Num="1" UId="169" />
+  <Access Scope="LocalVariable" UId="170">
+    <Symbol UId="171">
+      <Component Name="Phase" UId="172" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="173" />
+  <Token Text="=" UId="174" />
+  <Blank Num="1" UId="175" />
+  <Access Scope="LiteralConstant" UId="176">
+    <Constant UId="177">
+      <ConstantValue UId="179">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="180" />
+  <Token Text="THEN" UId="181" />
+  <NewLine Num="1" UId="182" />
+  <Blank Num="8" UId="183" />
+  <Token Text="IF" UId="184" />
+  <Blank Num="1" UId="185" />
+  <Access Scope="LocalVariable" UId="186">
+    <Symbol UId="187">
+      <Component Name="Access" UId="188" />
+      <Token Text="." UId="189" />
+      <Component Name="CurrentLevel" UId="190" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="191" />
+  <Token Text="&lt;" UId="192" />
+  <Blank Num="1" UId="193" />
+  <Access Scope="Call" UId="194">
+    <Instruction Name="MAX" UId="195">
+      <Token Text="(" UId="196" />
+      <Parameter Name="IN1" UId="197">
+        <Blank Num="1" UId="198" />
+        <Token Text=":=" UId="199" />
+        <Blank Num="1" UId="200" />
+        <Access Scope="LocalVariable" UId="201">
+          <Symbol UId="202">
+            <Component Name="Access" UId="203" />
+            <Token Text="." UId="204" />
+            <Component Name="Policy" UId="205" />
+            <Token Text="." UId="206" />
+            <Component Name="Required" UId="207">
+              <Token Text="[" UId="208" />
+              <Access Scope="LiteralConstant" UId="209">
+                <Constant UId="210">
+                  <ConstantValue UId="212">0</ConstantValue>
+                </Constant>
+              </Access>
+              <Token Text="]" UId="213" />
+            </Component>
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="214" />
+      <Blank Num="1" UId="215" />
+      <Parameter Name="IN2" UId="216">
+        <Blank Num="1" UId="217" />
+        <Token Text=":=" UId="218" />
+        <Blank Num="1" UId="219" />
+        <Access Scope="GlobalVariable" UId="220">
+          <Symbol UId="221">
+            <Component Name="FRK_ConfigScratch" UId="222">
+              <BooleanAttribute Name="HasQuotes" UId="223">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="224" />
+            <Component Name="MinRead" UId="225" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="227" />
+    </Instruction>
+  </Access>
+  <Blank Num="1" UId="228" />
+  <Token Text="THEN" UId="229" />
+  <NewLine Num="1" UId="230" />
+  <Blank Num="12" UId="231" />
+  <Token Text="RETURN" UId="232" />
+  <Token Text=";" UId="233" />
+  <NewLine Num="1" UId="234" />
+  <Blank Num="8" UId="235" />
+  <Token Text="END_IF" UId="236" />
+  <Token Text=";" UId="237" />
+  <NewLine Num="1" UId="238" />
+  <Blank Num="8" UId="239" />
+  <Access Scope="LocalVariable" UId="240">
+    <Symbol UId="241">
+      <Component Name="Ok" UId="242" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="243" />
+  <Token Text=":=" UId="244" />
+  <Blank Num="1" UId="245" />
+  <Access Scope="Call" UId="246">
+    <CallInfo UId="247" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="249">
+        <Component Name="FRK_ConfigGet" UId="248" />
+      </Instance>
+      <Token Text="(" UId="250" />
+      <Parameter Name="Scope" UId="251">
+        <Blank Num="1" UId="252" />
+        <Token Text=":=" UId="253" />
+        <Blank Num="1" UId="254" />
+        <Access Scope="LocalVariable" UId="255">
+          <Symbol UId="256">
+            <Component Name="Module" UId="257" />
+            <Token Text="." UId="258" />
+            <Component Name="Status" UId="259" />
+            <Token Text="." UId="260" />
+            <Component Name="Name" UId="261" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="262" />
+      <Blank Num="1" UId="263" />
+      <Parameter Name="ModelCode" UId="264">
+        <Blank Num="1" UId="265" />
+        <Token Text=":=" UId="266" />
+        <Blank Num="1" UId="267" />
+        <Access Scope="GlobalVariable" UId="268">
+          <Symbol UId="269">
+            <Component Name="FRK_SetRuntime" UId="270">
+              <BooleanAttribute Name="HasQuotes" UId="271">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="272" />
+            <Component Name="Work" UId="273">
+              <Token Text="[" UId="274" />
+              <Access Scope="LocalVariable" UId="275">
+                <Symbol UId="276">
+                  <Component Name="RootIndex" UId="277" />
+                </Symbol>
+              </Access>
+              <Token Text="]" UId="278" />
+            </Component>
+            <Token Text="." UId="279" />
+            <Component Name="Payload" UId="280" />
+            <Token Text="." UId="281" />
+            <Component Name="Info" UId="282" />
+            <Token Text="." UId="283" />
+            <Component Name="ModelCode" UId="284" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="286" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="287" />
+  <NewLine Num="1" UId="288" />
+  <Blank Num="8" UId="289" />
+  <Token Text="IF" UId="290" />
+  <Blank Num="1" UId="291" />
+  <Token Text="NOT" UId="292" />
+  <Blank Num="1" UId="293" />
+  <Access Scope="LocalVariable" UId="294">
+    <Symbol UId="295">
+      <Component Name="Ok" UId="296" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="297" />
+  <Token Text="OR" UId="298" />
+  <Blank Num="1" UId="299" />
+  <Access Scope="GlobalVariable" UId="300">
+    <Symbol UId="301">
+      <Component Name="FRK_SetRuntime" UId="302">
+        <BooleanAttribute Name="HasQuotes" UId="303">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="304" />
+      <Component Name="Work" UId="305">
+        <Token Text="[" UId="306" />
+        <Access Scope="LocalVariable" UId="307">
+          <Symbol UId="308">
+            <Component Name="RootIndex" UId="309" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="310" />
+      </Component>
+      <Token Text="." UId="311" />
+      <Component Name="Payload" UId="312" />
+      <Token Text="." UId="313" />
+      <Component Name="Info" UId="314" />
+      <Token Text="." UId="315" />
+      <Component Name="RecordCount" UId="316" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="317" />
+  <Token Text="&gt;=" UId="318" />
+  <Blank Num="1" UId="319" />
+  <Access Scope="LiteralConstant" UId="320">
+    <Constant UId="321">
+      <ConstantValue UId="323">24</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="324" />
+  <Token Text="THEN" UId="325" />
+  <NewLine Num="1" UId="326" />
+  <Blank Num="12" UId="327" />
+  <Token Text="RETURN" UId="328" />
+  <Token Text=";" UId="329" />
+  <NewLine Num="1" UId="330" />
+  <Blank Num="8" UId="331" />
+  <Token Text="END_IF" UId="332" />
+  <Token Text=";" UId="333" />
+  <NewLine Num="1" UId="334" />
+  <Blank Num="8" UId="335" />
+  <Access Scope="LocalVariable" UId="336">
+    <Symbol UId="337">
+      <Component Name="Slot" UId="338" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="339" />
+  <Token Text=":=" UId="340" />
+  <Blank Num="1" UId="341" />
+  <Access Scope="GlobalVariable" UId="342">
+    <Symbol UId="343">
+      <Component Name="FRK_SetRuntime" UId="344">
+        <BooleanAttribute Name="HasQuotes" UId="345">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="346" />
+      <Component Name="Work" UId="347">
+        <Token Text="[" UId="348" />
+        <Access Scope="LocalVariable" UId="349">
+          <Symbol UId="350">
+            <Component Name="RootIndex" UId="351" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="352" />
+      </Component>
+      <Token Text="." UId="353" />
+      <Component Name="Payload" UId="354" />
+      <Token Text="." UId="355" />
+      <Component Name="Info" UId="356" />
+      <Token Text="." UId="357" />
+      <Component Name="RecordCount" UId="358" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="359" />
+  <Token Text="+" UId="360" />
+  <Blank Num="1" UId="361" />
+  <Access Scope="LiteralConstant" UId="362">
+    <Constant UId="363">
+      <ConstantValue UId="365">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="366" />
+  <NewLine Num="1" UId="367" />
+  <Blank Num="8" UId="368" />
+  <Access Scope="GlobalVariable" UId="369">
+    <Symbol UId="370">
+      <Component Name="FRK_SetRuntime" UId="371">
+        <BooleanAttribute Name="HasQuotes" UId="372">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="373" />
+      <Component Name="Work" UId="374">
+        <Token Text="[" UId="375" />
+        <Access Scope="LocalVariable" UId="376">
+          <Symbol UId="377">
+            <Component Name="RootIndex" UId="378" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="379" />
+      </Component>
+      <Token Text="." UId="380" />
+      <Component Name="Payload" UId="381" />
+      <Token Text="." UId="382" />
+      <Component Name="Records" UId="383">
+        <Token Text="[" UId="384" />
+        <Access Scope="LocalVariable" UId="385">
+          <Symbol UId="386">
+            <Component Name="Slot" UId="387" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="388" />
+      </Component>
+      <Token Text="." UId="389" />
+      <Component Name="Scope" UId="390" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="391" />
+  <Token Text=":=" UId="392" />
+  <Blank Num="1" UId="393" />
+  <Access Scope="LocalVariable" UId="394">
+    <Symbol UId="395">
+      <Component Name="Module" UId="396" />
+      <Token Text="." UId="397" />
+      <Component Name="Status" UId="398" />
+      <Token Text="." UId="399" />
+      <Component Name="Name" UId="400" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="401" />
+  <NewLine Num="1" UId="402" />
+  <Blank Num="8" UId="403" />
+  <Access Scope="GlobalVariable" UId="404">
+    <Symbol UId="405">
+      <Component Name="FRK_SetRuntime" UId="406">
+        <BooleanAttribute Name="HasQuotes" UId="407">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="408" />
+      <Component Name="Work" UId="409">
+        <Token Text="[" UId="410" />
+        <Access Scope="LocalVariable" UId="411">
+          <Symbol UId="412">
+            <Component Name="RootIndex" UId="413" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="414" />
+      </Component>
+      <Token Text="." UId="415" />
+      <Component Name="Payload" UId="416" />
+      <Token Text="." UId="417" />
+      <Component Name="Records" UId="418">
+        <Token Text="[" UId="419" />
+        <Access Scope="LocalVariable" UId="420">
+          <Symbol UId="421">
+            <Component Name="Slot" UId="422" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="423" />
+      </Component>
+      <Token Text="." UId="424" />
+      <Component Name="WriteKey" UId="425" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="426" />
+  <Token Text=":=" UId="427" />
+  <Blank Num="1" UId="428" />
+  <Access Scope="GlobalVariable" UId="429">
+    <Symbol UId="430">
+      <Component Name="FRK_ConfigScratch" UId="431">
+        <BooleanAttribute Name="HasQuotes" UId="432">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="433" />
+      <Component Name="Entry" UId="434" />
+      <Token Text="." UId="435" />
+      <Component Name="WriteKey" UId="436" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="437" />
+  <NewLine Num="1" UId="438" />
+  <Blank Num="8" UId="439" />
+  <Access Scope="GlobalVariable" UId="440">
+    <Symbol UId="441">
+      <Component Name="FRK_SetRuntime" UId="442">
+        <BooleanAttribute Name="HasQuotes" UId="443">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="444" />
+      <Component Name="Work" UId="445">
+        <Token Text="[" UId="446" />
+        <Access Scope="LocalVariable" UId="447">
+          <Symbol UId="448">
+            <Component Name="RootIndex" UId="449" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="450" />
+      </Component>
+      <Token Text="." UId="451" />
+      <Component Name="Payload" UId="452" />
+      <Token Text="." UId="453" />
+      <Component Name="Records" UId="454">
+        <Token Text="[" UId="455" />
+        <Access Scope="LocalVariable" UId="456">
+          <Symbol UId="457">
+            <Component Name="Slot" UId="458" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="459" />
+      </Component>
+      <Token Text="." UId="460" />
+      <Component Name="Revision" UId="461" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="462" />
+  <Token Text=":=" UId="463" />
+  <Blank Num="1" UId="464" />
+  <Access Scope="GlobalVariable" UId="465">
+    <Symbol UId="466">
+      <Component Name="FRK_ConfigScratch" UId="467">
+        <BooleanAttribute Name="HasQuotes" UId="468">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="469" />
+      <Component Name="Entry" UId="470" />
+      <Token Text="." UId="471" />
+      <Component Name="WriteRevision" UId="472" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="473" />
+  <NewLine Num="1" UId="474" />
+  <Blank Num="8" UId="475" />
+  <Access Scope="GlobalVariable" UId="476">
+    <Symbol UId="477">
+      <Component Name="FRK_SetRuntime" UId="478">
+        <BooleanAttribute Name="HasQuotes" UId="479">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="480" />
+      <Component Name="Work" UId="481">
+        <Token Text="[" UId="482" />
+        <Access Scope="LocalVariable" UId="483">
+          <Symbol UId="484">
+            <Component Name="RootIndex" UId="485" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="486" />
+      </Component>
+      <Token Text="." UId="487" />
+      <Component Name="Payload" UId="488" />
+      <Token Text="." UId="489" />
+      <Component Name="Records" UId="490">
+        <Token Text="[" UId="491" />
+        <Access Scope="LocalVariable" UId="492">
+          <Symbol UId="493">
+            <Component Name="Slot" UId="494" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="495" />
+      </Component>
+      <Token Text="." UId="496" />
+      <Component Name="Kind" UId="497" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="498" />
+  <Token Text=":=" UId="499" />
+  <Blank Num="1" UId="500" />
+  <Access Scope="GlobalVariable" UId="501">
+    <Symbol UId="502">
+      <Component Name="FRK_ConfigScratch" UId="503">
+        <BooleanAttribute Name="HasQuotes" UId="504">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="505" />
+      <Component Name="Entry" UId="506" />
+      <Token Text="." UId="507" />
+      <Component Name="ConfigKind" UId="508" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="509" />
+  <NewLine Num="1" UId="510" />
+  <Blank Num="8" UId="511" />
+  <Access Scope="GlobalVariable" UId="512">
+    <Symbol UId="513">
+      <Component Name="FRK_SetRuntime" UId="514">
+        <BooleanAttribute Name="HasQuotes" UId="515">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="516" />
+      <Component Name="Work" UId="517">
+        <Token Text="[" UId="518" />
+        <Access Scope="LocalVariable" UId="519">
+          <Symbol UId="520">
+            <Component Name="RootIndex" UId="521" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="522" />
+      </Component>
+      <Token Text="." UId="523" />
+      <Component Name="Payload" UId="524" />
+      <Token Text="." UId="525" />
+      <Component Name="Records" UId="526">
+        <Token Text="[" UId="527" />
+        <Access Scope="LocalVariable" UId="528">
+          <Symbol UId="529">
+            <Component Name="Slot" UId="530" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="531" />
+      </Component>
+      <Token Text="." UId="532" />
+      <Component Name="ValueType" UId="533" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="534" />
+  <Token Text=":=" UId="535" />
+  <Blank Num="1" UId="536" />
+  <Access Scope="GlobalVariable" UId="537">
+    <Symbol UId="538">
+      <Component Name="FRK_ConfigScratch" UId="539">
+        <BooleanAttribute Name="HasQuotes" UId="540">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="541" />
+      <Component Name="Entry" UId="542" />
+      <Token Text="." UId="543" />
+      <Component Name="ValueType" UId="544" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="545" />
+  <NewLine Num="1" UId="546" />
+  <Blank Num="8" UId="547" />
+  <Access Scope="GlobalVariable" UId="548">
+    <Symbol UId="549">
+      <Component Name="FRK_SetRuntime" UId="550">
+        <BooleanAttribute Name="HasQuotes" UId="551">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="552" />
+      <Component Name="Work" UId="553">
+        <Token Text="[" UId="554" />
+        <Access Scope="LocalVariable" UId="555">
+          <Symbol UId="556">
+            <Component Name="RootIndex" UId="557" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="558" />
+      </Component>
+      <Token Text="." UId="559" />
+      <Component Name="Payload" UId="560" />
+      <Token Text="." UId="561" />
+      <Component Name="Records" UId="562">
+        <Token Text="[" UId="563" />
+        <Access Scope="LocalVariable" UId="564">
+          <Symbol UId="565">
+            <Component Name="Slot" UId="566" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="567" />
+      </Component>
+      <Token Text="." UId="568" />
+      <Component Name="ValueText" UId="569" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="570" />
+  <Token Text=":=" UId="571" />
+  <Blank Num="1" UId="572" />
+  <Access Scope="Call" UId="573">
+    <Instruction Name="WSTRING_TO_STRING" UId="574">
+      <Token Text="(" UId="575" />
+      <NamelessParameter UId="576">
+        <Access Scope="GlobalVariable" UId="577">
+          <Symbol UId="578">
+            <Component Name="FRK_ConfigScratch" UId="579">
+              <BooleanAttribute Name="HasQuotes" UId="580">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="581" />
+            <Component Name="Entry" UId="582" />
+            <Token Text="." UId="583" />
+            <Component Name="ValueText" UId="584" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="586" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="587" />
+  <NewLine Num="1" UId="588" />
+  <Blank Num="8" UId="589" />
+  <Access Scope="GlobalVariable" UId="590">
+    <Symbol UId="591">
+      <Component Name="FRK_SetRuntime" UId="592">
+        <BooleanAttribute Name="HasQuotes" UId="593">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="594" />
+      <Component Name="Work" UId="595">
+        <Token Text="[" UId="596" />
+        <Access Scope="LocalVariable" UId="597">
+          <Symbol UId="598">
+            <Component Name="RootIndex" UId="599" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="600" />
+      </Component>
+      <Token Text="." UId="601" />
+      <Component Name="Payload" UId="602" />
+      <Token Text="." UId="603" />
+      <Component Name="Info" UId="604" />
+      <Token Text="." UId="605" />
+      <Component Name="RecordCount" UId="606" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="607" />
+  <Token Text=":=" UId="608" />
+  <Blank Num="1" UId="609" />
+  <Access Scope="LocalVariable" UId="610">
+    <Symbol UId="611">
+      <Component Name="Slot" UId="612" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="613" />
+  <NewLine Num="1" UId="614" />
+  <Blank Num="4" UId="615" />
+  <Token Text="ELSIF" UId="616" />
+  <Blank Num="1" UId="617" />
+  <Access Scope="LocalVariable" UId="618">
+    <Symbol UId="619">
+      <Component Name="Phase" UId="620" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="621" />
+  <Token Text="=" UId="622" />
+  <Blank Num="1" UId="623" />
+  <Access Scope="LiteralConstant" UId="624">
+    <Constant UId="625">
+      <ConstantValue UId="627">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="628" />
+  <Token Text="THEN" UId="629" />
+  <NewLine Num="1" UId="630" />
+  <Blank Num="8" UId="631" />
+  <Access Scope="LocalVariable" UId="632">
+    <Symbol UId="633">
+      <Component Name="Slot" UId="634" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="635" />
+  <Token Text=":=" UId="636" />
+  <Blank Num="1" UId="637" />
+  <Access Scope="Call" UId="638">
+    <CallInfo UId="639" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="641">
+        <Component Name="FRK_SetRecord" UId="640" />
+      </Instance>
+      <Token Text="(" UId="642" />
+      <Parameter Name="RootIndex" UId="643">
+        <Blank Num="1" UId="644" />
+        <Token Text=":=" UId="645" />
+        <Blank Num="1" UId="646" />
+        <Access Scope="LocalVariable" UId="647">
+          <Symbol UId="648">
+            <Component Name="RootIndex" UId="649" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="650" />
+      <Blank Num="1" UId="651" />
+      <Parameter Name="Scope" UId="652">
+        <Blank Num="1" UId="653" />
+        <Token Text=":=" UId="654" />
+        <Blank Num="1" UId="655" />
+        <Access Scope="LocalVariable" UId="656">
+          <Symbol UId="657">
+            <Component Name="Module" UId="658" />
+            <Token Text="." UId="659" />
+            <Component Name="Status" UId="660" />
+            <Token Text="." UId="661" />
+            <Component Name="Name" UId="662" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="663" />
+      <Blank Num="1" UId="664" />
+      <Parameter Name="WriteKey" UId="665">
+        <Blank Num="1" UId="666" />
+        <Token Text=":=" UId="667" />
+        <Blank Num="1" UId="668" />
+        <Access Scope="GlobalVariable" UId="669">
+          <Symbol UId="670">
+            <Component Name="FRK_ConfigScratch" UId="671">
+              <BooleanAttribute Name="HasQuotes" UId="672">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="673" />
+            <Component Name="Entry" UId="674" />
+            <Token Text="." UId="675" />
+            <Component Name="WriteKey" UId="676" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="678" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="679" />
+  <NewLine Num="1" UId="680" />
+  <Blank Num="8" UId="681" />
+  <Access Scope="LocalVariable" UId="682">
+    <Symbol UId="683">
+      <Component Name="Stored" UId="684" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="685" />
+  <Token Text=":=" UId="686" />
+  <Blank Num="1" UId="687" />
+  <Access Scope="Call" UId="688">
+    <CallInfo UId="689" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="691">
+        <Component Name="FRK_ConfigFind" UId="690" />
+      </Instance>
+      <Token Text="(" UId="692" />
+      <Parameter Name="Scope" UId="693">
+        <Blank Num="1" UId="694" />
+        <Token Text=":=" UId="695" />
+        <Blank Num="1" UId="696" />
+        <Access Scope="LocalVariable" UId="697">
+          <Symbol UId="698">
+            <Component Name="Module" UId="699" />
+            <Token Text="." UId="700" />
+            <Component Name="Status" UId="701" />
+            <Token Text="." UId="702" />
+            <Component Name="Name" UId="703" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="704" />
+      <Blank Num="1" UId="705" />
+      <Parameter Name="Key" UId="706">
+        <Blank Num="1" UId="707" />
+        <Token Text=":=" UId="708" />
+        <Blank Num="1" UId="709" />
+        <Access Scope="GlobalVariable" UId="710">
+          <Symbol UId="711">
+            <Component Name="FRK_ConfigScratch" UId="712">
+              <BooleanAttribute Name="HasQuotes" UId="713">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="714" />
+            <Component Name="Entry" UId="715" />
+            <Token Text="." UId="716" />
+            <Component Name="WriteKey" UId="717" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="718" />
+      <Blank Num="1" UId="719" />
+      <Parameter Name="ModelCode" UId="720">
+        <Blank Num="1" UId="721" />
+        <Token Text=":=" UId="722" />
+        <Blank Num="1" UId="723" />
+        <Access Scope="GlobalVariable" UId="724">
+          <Symbol UId="725">
+            <Component Name="FRK_SetRuntime" UId="726">
+              <BooleanAttribute Name="HasQuotes" UId="727">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="728" />
+            <Component Name="Work" UId="729">
+              <Token Text="[" UId="730" />
+              <Access Scope="LocalVariable" UId="731">
+                <Symbol UId="732">
+                  <Component Name="RootIndex" UId="733" />
+                </Symbol>
+              </Access>
+              <Token Text="]" UId="734" />
+            </Component>
+            <Token Text="." UId="735" />
+            <Component Name="Payload" UId="736" />
+            <Token Text="." UId="737" />
+            <Component Name="Info" UId="738" />
+            <Token Text="." UId="739" />
+            <Component Name="ModelCode" UId="740" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="742" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="743" />
+  <NewLine Num="1" UId="744" />
+  <Blank Num="8" UId="745" />
+  <Access Scope="GlobalVariable" UId="746">
+    <Symbol UId="747">
+      <Component Name="FRK_ConfigStore" UId="748">
+        <BooleanAttribute Name="HasQuotes" UId="749">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="750" />
+      <Component Name="Rows" UId="751">
+        <Token Text="[" UId="752" />
+        <Access Scope="LocalVariable" UId="753">
+          <Symbol UId="754">
+            <Component Name="Stored" UId="755" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="756" />
+      </Component>
+      <Token Text="." UId="757" />
+      <Component Name="Record" UId="758" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="759" />
+  <Token Text=":=" UId="760" />
+  <Blank Num="1" UId="761" />
+  <Access Scope="GlobalVariable" UId="762">
+    <Symbol UId="763">
+      <Component Name="FRK_SetRuntime" UId="764">
+        <BooleanAttribute Name="HasQuotes" UId="765">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="766" />
+      <Component Name="Work" UId="767">
+        <Token Text="[" UId="768" />
+        <Access Scope="LocalVariable" UId="769">
+          <Symbol UId="770">
+            <Component Name="RootIndex" UId="771" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="772" />
+      </Component>
+      <Token Text="." UId="773" />
+      <Component Name="Payload" UId="774" />
+      <Token Text="." UId="775" />
+      <Component Name="Records" UId="776">
+        <Token Text="[" UId="777" />
+        <Access Scope="LocalVariable" UId="778">
+          <Symbol UId="779">
+            <Component Name="Slot" UId="780" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="781" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="782" />
+  <NewLine Num="1" UId="783" />
+  <Blank Num="8" UId="784" />
+  <Access Scope="GlobalVariable" UId="785">
+    <Symbol UId="786">
+      <Component Name="FRK_ConfigStore" UId="787">
+        <BooleanAttribute Name="HasQuotes" UId="788">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="789" />
+      <Component Name="Rows" UId="790">
+        <Token Text="[" UId="791" />
+        <Access Scope="LocalVariable" UId="792">
+          <Symbol UId="793">
+            <Component Name="Stored" UId="794" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="795" />
+      </Component>
+      <Token Text="." UId="796" />
+      <Component Name="SchemaVersion" UId="797" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="798" />
+  <Token Text=":=" UId="799" />
+  <Blank Num="1" UId="800" />
+  <Access Scope="GlobalVariable" UId="801">
+    <Symbol UId="802">
+      <Component Name="FRK_ConfigScratch" UId="803">
+        <BooleanAttribute Name="HasQuotes" UId="804">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="805" />
+      <Component Name="Schema" UId="806" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="807" />
+  <NewLine Num="1" UId="808" />
+  <Blank Num="4" UId="809" />
+  <Token Text="ELSE" UId="810" />
+  <NewLine Num="1" UId="811" />
+  <Blank Num="8" UId="812" />
+  <Access Scope="LocalVariable" UId="813">
+    <Symbol UId="814">
+      <Component Name="Slot" UId="815" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="816" />
+  <Token Text=":=" UId="817" />
+  <Blank Num="1" UId="818" />
+  <Access Scope="Call" UId="819">
+    <CallInfo UId="820" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="822">
+        <Component Name="FRK_SetCheck" UId="821" />
+      </Instance>
+      <Token Text="(" UId="823" />
+      <Parameter Name="RootIndex" UId="824">
+        <Blank Num="1" UId="825" />
+        <Token Text=":=" UId="826" />
+        <Blank Num="1" UId="827" />
+        <Access Scope="LocalVariable" UId="828">
+          <Symbol UId="829">
+            <Component Name="RootIndex" UId="830" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="831" />
+      <Blank Num="1" UId="832" />
+      <Parameter Name="Scope" UId="833">
+        <Blank Num="1" UId="834" />
+        <Token Text=":=" UId="835" />
+        <Blank Num="1" UId="836" />
+        <Access Scope="LocalVariable" UId="837">
+          <Symbol UId="838">
+            <Component Name="Module" UId="839" />
+            <Token Text="." UId="840" />
+            <Component Name="Status" UId="841" />
+            <Token Text="." UId="842" />
+            <Component Name="Name" UId="843" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="844" />
+      <Blank Num="1" UId="845" />
+      <Parameter Name="Access" UId="846">
+        <Blank Num="1" UId="847" />
+        <Token Text=":=" UId="848" />
+        <Blank Num="1" UId="849" />
+        <Access Scope="LocalVariable" UId="850">
+          <Symbol UId="851">
+            <Component Name="Access" UId="852" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="853" />
+      <Blank Num="1" UId="854" />
+      <Parameter Name="Ready" UId="855">
+        <Blank Num="1" UId="856" />
+        <Token Text=":=" UId="857" />
+        <Blank Num="1" UId="858" />
+        <Access Scope="LocalVariable" UId="859">
+          <Symbol UId="860">
+            <Component Name="Ready" UId="861" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="862" />
+      <Blank Num="1" UId="863" />
+      <Parameter Name="WriteAccess" UId="864">
+        <Blank Num="1" UId="865" />
+        <Token Text=":=" UId="866" />
+        <Blank Num="1" UId="867" />
+        <Access Scope="LocalVariable" UId="868">
+          <Symbol UId="869">
+            <Component Name="Phase" UId="870" />
+          </Symbol>
+        </Access>
+        <Blank Num="1" UId="871" />
+        <Token Text="&lt;&gt;" UId="872" />
+        <Blank Num="1" UId="873" />
+        <Access Scope="LiteralConstant" UId="874">
+          <Constant UId="875">
+            <ConstantValue UId="877">3</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="879" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="880" />
+  <NewLine Num="1" UId="881" />
+  <Blank Num="8" UId="882" />
+  <Token Text="IF" UId="883" />
+  <Blank Num="1" UId="884" />
+  <Access Scope="LocalVariable" UId="885">
+    <Symbol UId="886">
+      <Component Name="Slot" UId="887" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="888" />
+  <Token Text="=" UId="889" />
+  <Blank Num="1" UId="890" />
+  <Access Scope="LiteralConstant" UId="891">
+    <Constant UId="892">
+      <ConstantValue UId="894">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="895" />
+  <Token Text="THEN" UId="896" />
+  <NewLine Num="1" UId="897" />
+  <Blank Num="12" UId="898" />
+  <Token Text="RETURN" UId="899" />
+  <Token Text=";" UId="900" />
+  <NewLine Num="1" UId="901" />
+  <Blank Num="8" UId="902" />
+  <Token Text="END_IF" UId="903" />
+  <Token Text=";" UId="904" />
+  <NewLine Num="1" UId="905" />
+  <Blank Num="8" UId="906" />
+  <Token Text="IF" UId="907" />
+  <Blank Num="1" UId="908" />
+  <Access Scope="LocalVariable" UId="909">
+    <Symbol UId="910">
+      <Component Name="Phase" UId="911" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="912" />
+  <Token Text="=" UId="913" />
+  <Blank Num="1" UId="914" />
+  <Access Scope="LiteralConstant" UId="915">
+    <Constant UId="916">
+      <ConstantValue UId="918">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="919" />
+  <Token Text="THEN" UId="920" />
+  <NewLine Num="1" UId="921" />
+  <Blank Num="12" UId="922" />
+  <Access Scope="LocalVariable" UId="923">
+    <Symbol UId="924">
+      <Component Name="Module" UId="925" />
+      <Token Text="." UId="926" />
+      <Component Name="ConfigStageParCfg" UId="927" />
+      <Token Text="." UId="928" />
+      <Component Name="Timeout" UId="929" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="930" />
+  <Token Text=":=" UId="931" />
+  <Blank Num="1" UId="932" />
+  <Access Scope="Call" UId="933">
+    <Instruction Name="DINT_TO_TIME" UId="934">
+      <Token Text="(" UId="935" />
+      <NamelessParameter UId="936">
+        <Access Scope="Call" UId="937">
+          <Instruction Name="LINT_TO_DINT" UId="938">
+            <Token Text="(" UId="939" />
+            <NamelessParameter UId="940">
+              <Access Scope="GlobalVariable" UId="941">
+                <Symbol UId="942">
+                  <Component Name="FRK_ConfigScratch" UId="943">
+                    <BooleanAttribute Name="HasQuotes" UId="944">true</BooleanAttribute>
+                  </Component>
+                  <Token Text="." UId="945" />
+                  <Component Name="Value" UId="946" />
+                  <Token Text="." UId="947" />
+                  <Component Name="Number" UId="948" />
+                </Symbol>
+              </Access>
+            </NamelessParameter>
+            <Token Text=")" UId="950" />
+          </Instruction>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="952" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="953" />
+  <NewLine Num="1" UId="954" />
+  <Blank Num="8" UId="955" />
+  <Token Text="END_IF" UId="956" />
+  <Token Text=";" UId="957" />
+  <NewLine Num="1" UId="958" />
+  <Blank Num="4" UId="959" />
+  <Token Text="END_IF" UId="960" />
+  <Token Text=";" UId="961" />
+  <NewLine Num="1" UId="962" />
+  <Token Text="END_IF" UId="963" />
+  <Token Text=";" UId="964" />
+  <NewLine Num="1" UId="965" />
+  <Token Text="IF" UId="966" />
+  <Blank Num="1" UId="967" />
+  <Access Scope="GlobalVariable" UId="968">
+    <Symbol UId="969">
+      <Component Name="FRK_SetRuntime" UId="970">
+        <BooleanAttribute Name="HasQuotes" UId="971">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="972" />
+      <Component Name="Work" UId="973">
+        <Token Text="[" UId="974" />
+        <Access Scope="LocalVariable" UId="975">
+          <Symbol UId="976">
+            <Component Name="RootIndex" UId="977" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="978" />
+      </Component>
+      <Token Text="." UId="979" />
+      <Component Name="Payload" UId="980" />
+      <Token Text="." UId="981" />
+      <Component Name="Info" UId="982" />
+      <Token Text="." UId="983" />
+      <Component Name="Kind" UId="984" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="985" />
+  <Token Text="=" UId="986" />
+  <Blank Num="1" UId="987" />
+  <Access Scope="LiteralConstant" UId="988">
+    <Constant UId="989">
+      <ConstantValue UId="991">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="992" />
+  <Token Text="THEN" UId="993" />
+  <NewLine Num="1" UId="994" />
+  <Blank Num="4" UId="995" />
+  <Access Scope="Call" UId="996">
+    <CallInfo UId="997" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="999">
+        <Component Name="FRK_CfgDef_DeclarationCell" UId="998" />
+      </Instance>
+      <Token Text="(" UId="1000" />
+      <Parameter Name="FieldIndex" UId="1001">
+        <Blank Num="1" UId="1002" />
+        <Token Text=":=" UId="1003" />
+        <Blank Num="1" UId="1004" />
+        <Access Scope="LiteralConstant" UId="1005">
+          <Constant UId="1006">
+            <ConstantValue UId="1008">2</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1009" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1010" />
+  <NewLine Num="1" UId="1011" />
+  <Blank Num="4" UId="1012" />
+  <Access Scope="GlobalVariable" UId="1013">
+    <Symbol UId="1014">
+      <Component Name="FRK_SetRuntime" UId="1015">
+        <BooleanAttribute Name="HasQuotes" UId="1016">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1017" />
+      <Component Name="Work" UId="1018">
+        <Token Text="[" UId="1019" />
+        <Access Scope="LocalVariable" UId="1020">
+          <Symbol UId="1021">
+            <Component Name="RootIndex" UId="1022" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1023" />
+      </Component>
+      <Token Text="." UId="1024" />
+      <Component Name="RejectScope" UId="1025" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1026" />
+  <Token Text=":=" UId="1027" />
+  <Blank Num="1" UId="1028" />
+  <Access Scope="LocalVariable" UId="1029">
+    <Symbol UId="1030">
+      <Component Name="Module" UId="1031" />
+      <Token Text="." UId="1032" />
+      <Component Name="Status" UId="1033" />
+      <Token Text="." UId="1034" />
+      <Component Name="Name" UId="1035" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1036" />
+  <NewLine Num="1" UId="1037" />
+  <Blank Num="4" UId="1038" />
+  <Access Scope="GlobalVariable" UId="1039">
+    <Symbol UId="1040">
+      <Component Name="FRK_SetRuntime" UId="1041">
+        <BooleanAttribute Name="HasQuotes" UId="1042">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1043" />
+      <Component Name="Work" UId="1044">
+        <Token Text="[" UId="1045" />
+        <Access Scope="LocalVariable" UId="1046">
+          <Symbol UId="1047">
+            <Component Name="RootIndex" UId="1048" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1049" />
+      </Component>
+      <Token Text="." UId="1050" />
+      <Component Name="RejectKey" UId="1051" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1052" />
+  <Token Text=":=" UId="1053" />
+  <Blank Num="1" UId="1054" />
+  <Access Scope="GlobalVariable" UId="1055">
+    <Symbol UId="1056">
+      <Component Name="FRK_ConfigScratch" UId="1057">
+        <BooleanAttribute Name="HasQuotes" UId="1058">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1059" />
+      <Component Name="Entry" UId="1060" />
+      <Token Text="." UId="1061" />
+      <Component Name="WriteKey" UId="1062" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1063" />
+  <NewLine Num="1" UId="1064" />
+  <Blank Num="4" UId="1065" />
+  <Token Text="IF" UId="1066" />
+  <Blank Num="1" UId="1067" />
+  <Access Scope="LocalVariable" UId="1068">
+    <Symbol UId="1069">
+      <Component Name="Phase" UId="1070" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1071" />
+  <Token Text="=" UId="1072" />
+  <Blank Num="1" UId="1073" />
+  <Access Scope="LiteralConstant" UId="1074">
+    <Constant UId="1075">
+      <ConstantValue UId="1077">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1078" />
+  <Token Text="THEN" UId="1079" />
+  <NewLine Num="1" UId="1080" />
+  <Blank Num="8" UId="1081" />
+  <Token Text="IF" UId="1082" />
+  <Blank Num="1" UId="1083" />
+  <Access Scope="LocalVariable" UId="1084">
+    <Symbol UId="1085">
+      <Component Name="Access" UId="1086" />
+      <Token Text="." UId="1087" />
+      <Component Name="CurrentLevel" UId="1088" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1089" />
+  <Token Text="&lt;" UId="1090" />
+  <Blank Num="1" UId="1091" />
+  <Access Scope="Call" UId="1092">
+    <Instruction Name="MAX" UId="1093">
+      <Token Text="(" UId="1094" />
+      <Parameter Name="IN1" UId="1095">
+        <Blank Num="1" UId="1096" />
+        <Token Text=":=" UId="1097" />
+        <Blank Num="1" UId="1098" />
+        <Access Scope="LocalVariable" UId="1099">
+          <Symbol UId="1100">
+            <Component Name="Access" UId="1101" />
+            <Token Text="." UId="1102" />
+            <Component Name="Policy" UId="1103" />
+            <Token Text="." UId="1104" />
+            <Component Name="Required" UId="1105">
+              <Token Text="[" UId="1106" />
+              <Access Scope="LiteralConstant" UId="1107">
+                <Constant UId="1108">
+                  <ConstantValue UId="1110">0</ConstantValue>
+                </Constant>
+              </Access>
+              <Token Text="]" UId="1111" />
+            </Component>
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1112" />
+      <Blank Num="1" UId="1113" />
+      <Parameter Name="IN2" UId="1114">
+        <Blank Num="1" UId="1115" />
+        <Token Text=":=" UId="1116" />
+        <Blank Num="1" UId="1117" />
+        <Access Scope="GlobalVariable" UId="1118">
+          <Symbol UId="1119">
+            <Component Name="FRK_ConfigScratch" UId="1120">
+              <BooleanAttribute Name="HasQuotes" UId="1121">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1122" />
+            <Component Name="MinRead" UId="1123" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1125" />
+    </Instruction>
+  </Access>
+  <Blank Num="1" UId="1126" />
+  <Token Text="THEN" UId="1127" />
+  <NewLine Num="1" UId="1128" />
+  <Blank Num="12" UId="1129" />
+  <Token Text="RETURN" UId="1130" />
+  <Token Text=";" UId="1131" />
+  <NewLine Num="1" UId="1132" />
+  <Blank Num="8" UId="1133" />
+  <Token Text="END_IF" UId="1134" />
+  <Token Text=";" UId="1135" />
+  <NewLine Num="1" UId="1136" />
+  <Blank Num="8" UId="1137" />
+  <Access Scope="LocalVariable" UId="1138">
+    <Symbol UId="1139">
+      <Component Name="Ok" UId="1140" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1141" />
+  <Token Text=":=" UId="1142" />
+  <Blank Num="1" UId="1143" />
+  <Access Scope="Call" UId="1144">
+    <CallInfo UId="1145" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1147">
+        <Component Name="FRK_ConfigGet" UId="1146" />
+      </Instance>
+      <Token Text="(" UId="1148" />
+      <Parameter Name="Scope" UId="1149">
+        <Blank Num="1" UId="1150" />
+        <Token Text=":=" UId="1151" />
+        <Blank Num="1" UId="1152" />
+        <Access Scope="LocalVariable" UId="1153">
+          <Symbol UId="1154">
+            <Component Name="Module" UId="1155" />
+            <Token Text="." UId="1156" />
+            <Component Name="Status" UId="1157" />
+            <Token Text="." UId="1158" />
+            <Component Name="Name" UId="1159" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1160" />
+      <Blank Num="1" UId="1161" />
+      <Parameter Name="ModelCode" UId="1162">
+        <Blank Num="1" UId="1163" />
+        <Token Text=":=" UId="1164" />
+        <Blank Num="1" UId="1165" />
+        <Access Scope="GlobalVariable" UId="1166">
+          <Symbol UId="1167">
+            <Component Name="FRK_SetRuntime" UId="1168">
+              <BooleanAttribute Name="HasQuotes" UId="1169">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1170" />
+            <Component Name="Work" UId="1171">
+              <Token Text="[" UId="1172" />
+              <Access Scope="LocalVariable" UId="1173">
+                <Symbol UId="1174">
+                  <Component Name="RootIndex" UId="1175" />
+                </Symbol>
+              </Access>
+              <Token Text="]" UId="1176" />
+            </Component>
+            <Token Text="." UId="1177" />
+            <Component Name="Payload" UId="1178" />
+            <Token Text="." UId="1179" />
+            <Component Name="Info" UId="1180" />
+            <Token Text="." UId="1181" />
+            <Component Name="ModelCode" UId="1182" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1184" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1185" />
+  <NewLine Num="1" UId="1186" />
+  <Blank Num="8" UId="1187" />
+  <Token Text="IF" UId="1188" />
+  <Blank Num="1" UId="1189" />
+  <Token Text="NOT" UId="1190" />
+  <Blank Num="1" UId="1191" />
+  <Access Scope="LocalVariable" UId="1192">
+    <Symbol UId="1193">
+      <Component Name="Ok" UId="1194" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1195" />
+  <Token Text="OR" UId="1196" />
+  <Blank Num="1" UId="1197" />
+  <Access Scope="GlobalVariable" UId="1198">
+    <Symbol UId="1199">
+      <Component Name="FRK_SetRuntime" UId="1200">
+        <BooleanAttribute Name="HasQuotes" UId="1201">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1202" />
+      <Component Name="Work" UId="1203">
+        <Token Text="[" UId="1204" />
+        <Access Scope="LocalVariable" UId="1205">
+          <Symbol UId="1206">
+            <Component Name="RootIndex" UId="1207" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1208" />
+      </Component>
+      <Token Text="." UId="1209" />
+      <Component Name="Payload" UId="1210" />
+      <Token Text="." UId="1211" />
+      <Component Name="Info" UId="1212" />
+      <Token Text="." UId="1213" />
+      <Component Name="RecordCount" UId="1214" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1215" />
+  <Token Text="&gt;=" UId="1216" />
+  <Blank Num="1" UId="1217" />
+  <Access Scope="LiteralConstant" UId="1218">
+    <Constant UId="1219">
+      <ConstantValue UId="1221">24</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1222" />
+  <Token Text="THEN" UId="1223" />
+  <NewLine Num="1" UId="1224" />
+  <Blank Num="12" UId="1225" />
+  <Token Text="RETURN" UId="1226" />
+  <Token Text=";" UId="1227" />
+  <NewLine Num="1" UId="1228" />
+  <Blank Num="8" UId="1229" />
+  <Token Text="END_IF" UId="1230" />
+  <Token Text=";" UId="1231" />
+  <NewLine Num="1" UId="1232" />
+  <Blank Num="8" UId="1233" />
+  <Access Scope="LocalVariable" UId="1234">
+    <Symbol UId="1235">
+      <Component Name="Slot" UId="1236" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1237" />
+  <Token Text=":=" UId="1238" />
+  <Blank Num="1" UId="1239" />
+  <Access Scope="GlobalVariable" UId="1240">
+    <Symbol UId="1241">
+      <Component Name="FRK_SetRuntime" UId="1242">
+        <BooleanAttribute Name="HasQuotes" UId="1243">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1244" />
+      <Component Name="Work" UId="1245">
+        <Token Text="[" UId="1246" />
+        <Access Scope="LocalVariable" UId="1247">
+          <Symbol UId="1248">
+            <Component Name="RootIndex" UId="1249" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1250" />
+      </Component>
+      <Token Text="." UId="1251" />
+      <Component Name="Payload" UId="1252" />
+      <Token Text="." UId="1253" />
+      <Component Name="Info" UId="1254" />
+      <Token Text="." UId="1255" />
+      <Component Name="RecordCount" UId="1256" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1257" />
+  <Token Text="+" UId="1258" />
+  <Blank Num="1" UId="1259" />
+  <Access Scope="LiteralConstant" UId="1260">
+    <Constant UId="1261">
+      <ConstantValue UId="1263">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1264" />
+  <NewLine Num="1" UId="1265" />
+  <Blank Num="8" UId="1266" />
+  <Access Scope="GlobalVariable" UId="1267">
+    <Symbol UId="1268">
+      <Component Name="FRK_SetRuntime" UId="1269">
+        <BooleanAttribute Name="HasQuotes" UId="1270">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1271" />
+      <Component Name="Work" UId="1272">
+        <Token Text="[" UId="1273" />
+        <Access Scope="LocalVariable" UId="1274">
+          <Symbol UId="1275">
+            <Component Name="RootIndex" UId="1276" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1277" />
+      </Component>
+      <Token Text="." UId="1278" />
+      <Component Name="Payload" UId="1279" />
+      <Token Text="." UId="1280" />
+      <Component Name="Records" UId="1281">
+        <Token Text="[" UId="1282" />
+        <Access Scope="LocalVariable" UId="1283">
+          <Symbol UId="1284">
+            <Component Name="Slot" UId="1285" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1286" />
+      </Component>
+      <Token Text="." UId="1287" />
+      <Component Name="Scope" UId="1288" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1289" />
+  <Token Text=":=" UId="1290" />
+  <Blank Num="1" UId="1291" />
+  <Access Scope="LocalVariable" UId="1292">
+    <Symbol UId="1293">
+      <Component Name="Module" UId="1294" />
+      <Token Text="." UId="1295" />
+      <Component Name="Status" UId="1296" />
+      <Token Text="." UId="1297" />
+      <Component Name="Name" UId="1298" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1299" />
+  <NewLine Num="1" UId="1300" />
+  <Blank Num="8" UId="1301" />
+  <Access Scope="GlobalVariable" UId="1302">
+    <Symbol UId="1303">
+      <Component Name="FRK_SetRuntime" UId="1304">
+        <BooleanAttribute Name="HasQuotes" UId="1305">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1306" />
+      <Component Name="Work" UId="1307">
+        <Token Text="[" UId="1308" />
+        <Access Scope="LocalVariable" UId="1309">
+          <Symbol UId="1310">
+            <Component Name="RootIndex" UId="1311" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1312" />
+      </Component>
+      <Token Text="." UId="1313" />
+      <Component Name="Payload" UId="1314" />
+      <Token Text="." UId="1315" />
+      <Component Name="Records" UId="1316">
+        <Token Text="[" UId="1317" />
+        <Access Scope="LocalVariable" UId="1318">
+          <Symbol UId="1319">
+            <Component Name="Slot" UId="1320" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1321" />
+      </Component>
+      <Token Text="." UId="1322" />
+      <Component Name="WriteKey" UId="1323" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1324" />
+  <Token Text=":=" UId="1325" />
+  <Blank Num="1" UId="1326" />
+  <Access Scope="GlobalVariable" UId="1327">
+    <Symbol UId="1328">
+      <Component Name="FRK_ConfigScratch" UId="1329">
+        <BooleanAttribute Name="HasQuotes" UId="1330">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1331" />
+      <Component Name="Entry" UId="1332" />
+      <Token Text="." UId="1333" />
+      <Component Name="WriteKey" UId="1334" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1335" />
+  <NewLine Num="1" UId="1336" />
+  <Blank Num="8" UId="1337" />
+  <Access Scope="GlobalVariable" UId="1338">
+    <Symbol UId="1339">
+      <Component Name="FRK_SetRuntime" UId="1340">
+        <BooleanAttribute Name="HasQuotes" UId="1341">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1342" />
+      <Component Name="Work" UId="1343">
+        <Token Text="[" UId="1344" />
+        <Access Scope="LocalVariable" UId="1345">
+          <Symbol UId="1346">
+            <Component Name="RootIndex" UId="1347" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1348" />
+      </Component>
+      <Token Text="." UId="1349" />
+      <Component Name="Payload" UId="1350" />
+      <Token Text="." UId="1351" />
+      <Component Name="Records" UId="1352">
+        <Token Text="[" UId="1353" />
+        <Access Scope="LocalVariable" UId="1354">
+          <Symbol UId="1355">
+            <Component Name="Slot" UId="1356" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1357" />
+      </Component>
+      <Token Text="." UId="1358" />
+      <Component Name="Revision" UId="1359" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1360" />
+  <Token Text=":=" UId="1361" />
+  <Blank Num="1" UId="1362" />
+  <Access Scope="GlobalVariable" UId="1363">
+    <Symbol UId="1364">
+      <Component Name="FRK_ConfigScratch" UId="1365">
+        <BooleanAttribute Name="HasQuotes" UId="1366">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1367" />
+      <Component Name="Entry" UId="1368" />
+      <Token Text="." UId="1369" />
+      <Component Name="WriteRevision" UId="1370" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1371" />
+  <NewLine Num="1" UId="1372" />
+  <Blank Num="8" UId="1373" />
+  <Access Scope="GlobalVariable" UId="1374">
+    <Symbol UId="1375">
+      <Component Name="FRK_SetRuntime" UId="1376">
+        <BooleanAttribute Name="HasQuotes" UId="1377">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1378" />
+      <Component Name="Work" UId="1379">
+        <Token Text="[" UId="1380" />
+        <Access Scope="LocalVariable" UId="1381">
+          <Symbol UId="1382">
+            <Component Name="RootIndex" UId="1383" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1384" />
+      </Component>
+      <Token Text="." UId="1385" />
+      <Component Name="Payload" UId="1386" />
+      <Token Text="." UId="1387" />
+      <Component Name="Records" UId="1388">
+        <Token Text="[" UId="1389" />
+        <Access Scope="LocalVariable" UId="1390">
+          <Symbol UId="1391">
+            <Component Name="Slot" UId="1392" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1393" />
+      </Component>
+      <Token Text="." UId="1394" />
+      <Component Name="Kind" UId="1395" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1396" />
+  <Token Text=":=" UId="1397" />
+  <Blank Num="1" UId="1398" />
+  <Access Scope="GlobalVariable" UId="1399">
+    <Symbol UId="1400">
+      <Component Name="FRK_ConfigScratch" UId="1401">
+        <BooleanAttribute Name="HasQuotes" UId="1402">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1403" />
+      <Component Name="Entry" UId="1404" />
+      <Token Text="." UId="1405" />
+      <Component Name="ConfigKind" UId="1406" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1407" />
+  <NewLine Num="1" UId="1408" />
+  <Blank Num="8" UId="1409" />
+  <Access Scope="GlobalVariable" UId="1410">
+    <Symbol UId="1411">
+      <Component Name="FRK_SetRuntime" UId="1412">
+        <BooleanAttribute Name="HasQuotes" UId="1413">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1414" />
+      <Component Name="Work" UId="1415">
+        <Token Text="[" UId="1416" />
+        <Access Scope="LocalVariable" UId="1417">
+          <Symbol UId="1418">
+            <Component Name="RootIndex" UId="1419" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1420" />
+      </Component>
+      <Token Text="." UId="1421" />
+      <Component Name="Payload" UId="1422" />
+      <Token Text="." UId="1423" />
+      <Component Name="Records" UId="1424">
+        <Token Text="[" UId="1425" />
+        <Access Scope="LocalVariable" UId="1426">
+          <Symbol UId="1427">
+            <Component Name="Slot" UId="1428" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1429" />
+      </Component>
+      <Token Text="." UId="1430" />
+      <Component Name="ValueType" UId="1431" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1432" />
+  <Token Text=":=" UId="1433" />
+  <Blank Num="1" UId="1434" />
+  <Access Scope="GlobalVariable" UId="1435">
+    <Symbol UId="1436">
+      <Component Name="FRK_ConfigScratch" UId="1437">
+        <BooleanAttribute Name="HasQuotes" UId="1438">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1439" />
+      <Component Name="Entry" UId="1440" />
+      <Token Text="." UId="1441" />
+      <Component Name="ValueType" UId="1442" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1443" />
+  <NewLine Num="1" UId="1444" />
+  <Blank Num="8" UId="1445" />
+  <Access Scope="GlobalVariable" UId="1446">
+    <Symbol UId="1447">
+      <Component Name="FRK_SetRuntime" UId="1448">
+        <BooleanAttribute Name="HasQuotes" UId="1449">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1450" />
+      <Component Name="Work" UId="1451">
+        <Token Text="[" UId="1452" />
+        <Access Scope="LocalVariable" UId="1453">
+          <Symbol UId="1454">
+            <Component Name="RootIndex" UId="1455" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1456" />
+      </Component>
+      <Token Text="." UId="1457" />
+      <Component Name="Payload" UId="1458" />
+      <Token Text="." UId="1459" />
+      <Component Name="Records" UId="1460">
+        <Token Text="[" UId="1461" />
+        <Access Scope="LocalVariable" UId="1462">
+          <Symbol UId="1463">
+            <Component Name="Slot" UId="1464" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1465" />
+      </Component>
+      <Token Text="." UId="1466" />
+      <Component Name="ValueText" UId="1467" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1468" />
+  <Token Text=":=" UId="1469" />
+  <Blank Num="1" UId="1470" />
+  <Access Scope="Call" UId="1471">
+    <Instruction Name="WSTRING_TO_STRING" UId="1472">
+      <Token Text="(" UId="1473" />
+      <NamelessParameter UId="1474">
+        <Access Scope="GlobalVariable" UId="1475">
+          <Symbol UId="1476">
+            <Component Name="FRK_ConfigScratch" UId="1477">
+              <BooleanAttribute Name="HasQuotes" UId="1478">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1479" />
+            <Component Name="Entry" UId="1480" />
+            <Token Text="." UId="1481" />
+            <Component Name="ValueText" UId="1482" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="1484" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="1485" />
+  <NewLine Num="1" UId="1486" />
+  <Blank Num="8" UId="1487" />
+  <Access Scope="GlobalVariable" UId="1488">
+    <Symbol UId="1489">
+      <Component Name="FRK_SetRuntime" UId="1490">
+        <BooleanAttribute Name="HasQuotes" UId="1491">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1492" />
+      <Component Name="Work" UId="1493">
+        <Token Text="[" UId="1494" />
+        <Access Scope="LocalVariable" UId="1495">
+          <Symbol UId="1496">
+            <Component Name="RootIndex" UId="1497" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1498" />
+      </Component>
+      <Token Text="." UId="1499" />
+      <Component Name="Payload" UId="1500" />
+      <Token Text="." UId="1501" />
+      <Component Name="Info" UId="1502" />
+      <Token Text="." UId="1503" />
+      <Component Name="RecordCount" UId="1504" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1505" />
+  <Token Text=":=" UId="1506" />
+  <Blank Num="1" UId="1507" />
+  <Access Scope="LocalVariable" UId="1508">
+    <Symbol UId="1509">
+      <Component Name="Slot" UId="1510" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1511" />
+  <NewLine Num="1" UId="1512" />
+  <Blank Num="4" UId="1513" />
+  <Token Text="ELSIF" UId="1514" />
+  <Blank Num="1" UId="1515" />
+  <Access Scope="LocalVariable" UId="1516">
+    <Symbol UId="1517">
+      <Component Name="Phase" UId="1518" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1519" />
+  <Token Text="=" UId="1520" />
+  <Blank Num="1" UId="1521" />
+  <Access Scope="LiteralConstant" UId="1522">
+    <Constant UId="1523">
+      <ConstantValue UId="1525">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1526" />
+  <Token Text="THEN" UId="1527" />
+  <NewLine Num="1" UId="1528" />
+  <Blank Num="8" UId="1529" />
+  <Access Scope="LocalVariable" UId="1530">
+    <Symbol UId="1531">
+      <Component Name="Slot" UId="1532" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1533" />
+  <Token Text=":=" UId="1534" />
+  <Blank Num="1" UId="1535" />
+  <Access Scope="Call" UId="1536">
+    <CallInfo UId="1537" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1539">
+        <Component Name="FRK_SetRecord" UId="1538" />
+      </Instance>
+      <Token Text="(" UId="1540" />
+      <Parameter Name="RootIndex" UId="1541">
+        <Blank Num="1" UId="1542" />
+        <Token Text=":=" UId="1543" />
+        <Blank Num="1" UId="1544" />
+        <Access Scope="LocalVariable" UId="1545">
+          <Symbol UId="1546">
+            <Component Name="RootIndex" UId="1547" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1548" />
+      <Blank Num="1" UId="1549" />
+      <Parameter Name="Scope" UId="1550">
+        <Blank Num="1" UId="1551" />
+        <Token Text=":=" UId="1552" />
+        <Blank Num="1" UId="1553" />
+        <Access Scope="LocalVariable" UId="1554">
+          <Symbol UId="1555">
+            <Component Name="Module" UId="1556" />
+            <Token Text="." UId="1557" />
+            <Component Name="Status" UId="1558" />
+            <Token Text="." UId="1559" />
+            <Component Name="Name" UId="1560" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1561" />
+      <Blank Num="1" UId="1562" />
+      <Parameter Name="WriteKey" UId="1563">
+        <Blank Num="1" UId="1564" />
+        <Token Text=":=" UId="1565" />
+        <Blank Num="1" UId="1566" />
+        <Access Scope="GlobalVariable" UId="1567">
+          <Symbol UId="1568">
+            <Component Name="FRK_ConfigScratch" UId="1569">
+              <BooleanAttribute Name="HasQuotes" UId="1570">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1571" />
+            <Component Name="Entry" UId="1572" />
+            <Token Text="." UId="1573" />
+            <Component Name="WriteKey" UId="1574" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1576" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1577" />
+  <NewLine Num="1" UId="1578" />
+  <Blank Num="8" UId="1579" />
+  <Access Scope="LocalVariable" UId="1580">
+    <Symbol UId="1581">
+      <Component Name="Stored" UId="1582" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1583" />
+  <Token Text=":=" UId="1584" />
+  <Blank Num="1" UId="1585" />
+  <Access Scope="Call" UId="1586">
+    <CallInfo UId="1587" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1589">
+        <Component Name="FRK_ConfigFind" UId="1588" />
+      </Instance>
+      <Token Text="(" UId="1590" />
+      <Parameter Name="Scope" UId="1591">
+        <Blank Num="1" UId="1592" />
+        <Token Text=":=" UId="1593" />
+        <Blank Num="1" UId="1594" />
+        <Access Scope="LocalVariable" UId="1595">
+          <Symbol UId="1596">
+            <Component Name="Module" UId="1597" />
+            <Token Text="." UId="1598" />
+            <Component Name="Status" UId="1599" />
+            <Token Text="." UId="1600" />
+            <Component Name="Name" UId="1601" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1602" />
+      <Blank Num="1" UId="1603" />
+      <Parameter Name="Key" UId="1604">
+        <Blank Num="1" UId="1605" />
+        <Token Text=":=" UId="1606" />
+        <Blank Num="1" UId="1607" />
+        <Access Scope="GlobalVariable" UId="1608">
+          <Symbol UId="1609">
+            <Component Name="FRK_ConfigScratch" UId="1610">
+              <BooleanAttribute Name="HasQuotes" UId="1611">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1612" />
+            <Component Name="Entry" UId="1613" />
+            <Token Text="." UId="1614" />
+            <Component Name="WriteKey" UId="1615" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1616" />
+      <Blank Num="1" UId="1617" />
+      <Parameter Name="ModelCode" UId="1618">
+        <Blank Num="1" UId="1619" />
+        <Token Text=":=" UId="1620" />
+        <Blank Num="1" UId="1621" />
+        <Access Scope="GlobalVariable" UId="1622">
+          <Symbol UId="1623">
+            <Component Name="FRK_SetRuntime" UId="1624">
+              <BooleanAttribute Name="HasQuotes" UId="1625">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1626" />
+            <Component Name="Work" UId="1627">
+              <Token Text="[" UId="1628" />
+              <Access Scope="LocalVariable" UId="1629">
+                <Symbol UId="1630">
+                  <Component Name="RootIndex" UId="1631" />
+                </Symbol>
+              </Access>
+              <Token Text="]" UId="1632" />
+            </Component>
+            <Token Text="." UId="1633" />
+            <Component Name="Payload" UId="1634" />
+            <Token Text="." UId="1635" />
+            <Component Name="Info" UId="1636" />
+            <Token Text="." UId="1637" />
+            <Component Name="ModelCode" UId="1638" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1640" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1641" />
+  <NewLine Num="1" UId="1642" />
+  <Blank Num="8" UId="1643" />
+  <Access Scope="GlobalVariable" UId="1644">
+    <Symbol UId="1645">
+      <Component Name="FRK_ConfigStore" UId="1646">
+        <BooleanAttribute Name="HasQuotes" UId="1647">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1648" />
+      <Component Name="Rows" UId="1649">
+        <Token Text="[" UId="1650" />
+        <Access Scope="LocalVariable" UId="1651">
+          <Symbol UId="1652">
+            <Component Name="Stored" UId="1653" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1654" />
+      </Component>
+      <Token Text="." UId="1655" />
+      <Component Name="Record" UId="1656" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1657" />
+  <Token Text=":=" UId="1658" />
+  <Blank Num="1" UId="1659" />
+  <Access Scope="GlobalVariable" UId="1660">
+    <Symbol UId="1661">
+      <Component Name="FRK_SetRuntime" UId="1662">
+        <BooleanAttribute Name="HasQuotes" UId="1663">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1664" />
+      <Component Name="Work" UId="1665">
+        <Token Text="[" UId="1666" />
+        <Access Scope="LocalVariable" UId="1667">
+          <Symbol UId="1668">
+            <Component Name="RootIndex" UId="1669" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1670" />
+      </Component>
+      <Token Text="." UId="1671" />
+      <Component Name="Payload" UId="1672" />
+      <Token Text="." UId="1673" />
+      <Component Name="Records" UId="1674">
+        <Token Text="[" UId="1675" />
+        <Access Scope="LocalVariable" UId="1676">
+          <Symbol UId="1677">
+            <Component Name="Slot" UId="1678" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1679" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1680" />
+  <NewLine Num="1" UId="1681" />
+  <Blank Num="8" UId="1682" />
+  <Access Scope="GlobalVariable" UId="1683">
+    <Symbol UId="1684">
+      <Component Name="FRK_ConfigStore" UId="1685">
+        <BooleanAttribute Name="HasQuotes" UId="1686">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1687" />
+      <Component Name="Rows" UId="1688">
+        <Token Text="[" UId="1689" />
+        <Access Scope="LocalVariable" UId="1690">
+          <Symbol UId="1691">
+            <Component Name="Stored" UId="1692" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1693" />
+      </Component>
+      <Token Text="." UId="1694" />
+      <Component Name="SchemaVersion" UId="1695" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1696" />
+  <Token Text=":=" UId="1697" />
+  <Blank Num="1" UId="1698" />
+  <Access Scope="GlobalVariable" UId="1699">
+    <Symbol UId="1700">
+      <Component Name="FRK_ConfigScratch" UId="1701">
+        <BooleanAttribute Name="HasQuotes" UId="1702">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1703" />
+      <Component Name="Schema" UId="1704" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1705" />
+  <NewLine Num="1" UId="1706" />
+  <Blank Num="4" UId="1707" />
+  <Token Text="ELSE" UId="1708" />
+  <NewLine Num="1" UId="1709" />
+  <Blank Num="8" UId="1710" />
+  <Access Scope="LocalVariable" UId="1711">
+    <Symbol UId="1712">
+      <Component Name="Slot" UId="1713" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1714" />
+  <Token Text=":=" UId="1715" />
+  <Blank Num="1" UId="1716" />
+  <Access Scope="Call" UId="1717">
+    <CallInfo UId="1718" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1720">
+        <Component Name="FRK_SetCheck" UId="1719" />
+      </Instance>
+      <Token Text="(" UId="1721" />
+      <Parameter Name="RootIndex" UId="1722">
+        <Blank Num="1" UId="1723" />
+        <Token Text=":=" UId="1724" />
+        <Blank Num="1" UId="1725" />
+        <Access Scope="LocalVariable" UId="1726">
+          <Symbol UId="1727">
+            <Component Name="RootIndex" UId="1728" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1729" />
+      <Blank Num="1" UId="1730" />
+      <Parameter Name="Scope" UId="1731">
+        <Blank Num="1" UId="1732" />
+        <Token Text=":=" UId="1733" />
+        <Blank Num="1" UId="1734" />
+        <Access Scope="LocalVariable" UId="1735">
+          <Symbol UId="1736">
+            <Component Name="Module" UId="1737" />
+            <Token Text="." UId="1738" />
+            <Component Name="Status" UId="1739" />
+            <Token Text="." UId="1740" />
+            <Component Name="Name" UId="1741" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1742" />
+      <Blank Num="1" UId="1743" />
+      <Parameter Name="Access" UId="1744">
+        <Blank Num="1" UId="1745" />
+        <Token Text=":=" UId="1746" />
+        <Blank Num="1" UId="1747" />
+        <Access Scope="LocalVariable" UId="1748">
+          <Symbol UId="1749">
+            <Component Name="Access" UId="1750" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1751" />
+      <Blank Num="1" UId="1752" />
+      <Parameter Name="Ready" UId="1753">
+        <Blank Num="1" UId="1754" />
+        <Token Text=":=" UId="1755" />
+        <Blank Num="1" UId="1756" />
+        <Access Scope="LocalVariable" UId="1757">
+          <Symbol UId="1758">
+            <Component Name="Ready" UId="1759" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1760" />
+      <Blank Num="1" UId="1761" />
+      <Parameter Name="WriteAccess" UId="1762">
+        <Blank Num="1" UId="1763" />
+        <Token Text=":=" UId="1764" />
+        <Blank Num="1" UId="1765" />
+        <Access Scope="LocalVariable" UId="1766">
+          <Symbol UId="1767">
+            <Component Name="Phase" UId="1768" />
+          </Symbol>
+        </Access>
+        <Blank Num="1" UId="1769" />
+        <Token Text="&lt;&gt;" UId="1770" />
+        <Blank Num="1" UId="1771" />
+        <Access Scope="LiteralConstant" UId="1772">
+          <Constant UId="1773">
+            <ConstantValue UId="1775">3</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1777" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1778" />
+  <NewLine Num="1" UId="1779" />
+  <Blank Num="8" UId="1780" />
+  <Token Text="IF" UId="1781" />
+  <Blank Num="1" UId="1782" />
+  <Access Scope="LocalVariable" UId="1783">
+    <Symbol UId="1784">
+      <Component Name="Slot" UId="1785" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1786" />
+  <Token Text="=" UId="1787" />
+  <Blank Num="1" UId="1788" />
+  <Access Scope="LiteralConstant" UId="1789">
+    <Constant UId="1790">
+      <ConstantValue UId="1792">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1793" />
+  <Token Text="THEN" UId="1794" />
+  <NewLine Num="1" UId="1795" />
+  <Blank Num="12" UId="1796" />
+  <Token Text="RETURN" UId="1797" />
+  <Token Text=";" UId="1798" />
+  <NewLine Num="1" UId="1799" />
+  <Blank Num="8" UId="1800" />
+  <Token Text="END_IF" UId="1801" />
+  <Token Text=";" UId="1802" />
+  <NewLine Num="1" UId="1803" />
+  <Blank Num="8" UId="1804" />
+  <Token Text="IF" UId="1805" />
+  <Blank Num="1" UId="1806" />
+  <Access Scope="LocalVariable" UId="1807">
+    <Symbol UId="1808">
+      <Component Name="Phase" UId="1809" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1810" />
+  <Token Text="=" UId="1811" />
+  <Blank Num="1" UId="1812" />
+  <Access Scope="LiteralConstant" UId="1813">
+    <Constant UId="1814">
+      <ConstantValue UId="1816">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1817" />
+  <Token Text="THEN" UId="1818" />
+  <NewLine Num="1" UId="1819" />
+  <Blank Num="12" UId="1820" />
+  <Access Scope="LocalVariable" UId="1821">
+    <Symbol UId="1822">
+      <Component Name="Module" UId="1823" />
+      <Token Text="." UId="1824" />
+      <Component Name="ConfigStageParCfg" UId="1825" />
+      <Token Text="." UId="1826" />
+      <Component Name="Preset" UId="1827" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1828" />
+  <Token Text=":=" UId="1829" />
+  <Blank Num="1" UId="1830" />
+  <Access Scope="Call" UId="1831">
+    <Instruction Name="LINT_TO_DINT" UId="1832">
+      <Token Text="(" UId="1833" />
+      <NamelessParameter UId="1834">
+        <Access Scope="GlobalVariable" UId="1835">
+          <Symbol UId="1836">
+            <Component Name="FRK_ConfigScratch" UId="1837">
+              <BooleanAttribute Name="HasQuotes" UId="1838">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1839" />
+            <Component Name="Value" UId="1840" />
+            <Token Text="." UId="1841" />
+            <Component Name="Number" UId="1842" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="1844" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="1845" />
+  <NewLine Num="1" UId="1846" />
+  <Blank Num="8" UId="1847" />
+  <Token Text="END_IF" UId="1848" />
+  <Token Text=";" UId="1849" />
+  <NewLine Num="1" UId="1850" />
+  <Blank Num="4" UId="1851" />
+  <Token Text="END_IF" UId="1852" />
+  <Token Text=";" UId="1853" />
+  <NewLine Num="1" UId="1854" />
+  <Token Text="END_IF" UId="1855" />
+  <Token Text=";" UId="1856" />
+  <NewLine Num="1" UId="1857" />
+  <Token Text="IF" UId="1858" />
+  <Blank Num="1" UId="1859" />
+  <Access Scope="LocalVariable" UId="1860">
+    <Symbol UId="1861">
+      <Component Name="Phase" UId="1862" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1863" />
+  <Token Text="=" UId="1864" />
+  <Blank Num="1" UId="1865" />
+  <Access Scope="LiteralConstant" UId="1866">
+    <Constant UId="1867">
+      <ConstantValue UId="1869">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1870" />
+  <Token Text="AND" UId="1871" />
+  <Blank Num="1" UId="1872" />
+  <Access Scope="GlobalVariable" UId="1873">
+    <Symbol UId="1874">
+      <Component Name="FRK_SetRuntime" UId="1875">
+        <BooleanAttribute Name="HasQuotes" UId="1876">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1877" />
+      <Component Name="Work" UId="1878">
+        <Token Text="[" UId="1879" />
+        <Access Scope="LocalVariable" UId="1880">
+          <Symbol UId="1881">
+            <Component Name="RootIndex" UId="1882" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="1883" />
+      </Component>
+      <Token Text="." UId="1884" />
+      <Component Name="Payload" UId="1885" />
+      <Token Text="." UId="1886" />
+      <Component Name="Info" UId="1887" />
+      <Token Text="." UId="1888" />
+      <Component Name="Kind" UId="1889" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1890" />
+  <Token Text="=" UId="1891" />
+  <Blank Num="1" UId="1892" />
+  <Access Scope="LiteralConstant" UId="1893">
+    <Constant UId="1894">
+      <ConstantValue UId="1896">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="1897" />
+  <Token Text="THEN" UId="1898" />
+  <NewLine Num="1" UId="1899" />
+  <Blank Num="4" UId="1900" />
+  <Access Scope="LocalVariable" UId="1901">
+    <Symbol UId="1902">
+      <Component Name="Module" UId="1903" />
+      <Token Text="." UId="1904" />
+      <Component Name="ParCfg" UId="1905" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1906" />
+  <Token Text=":=" UId="1907" />
+  <Blank Num="1" UId="1908" />
+  <Access Scope="LocalVariable" UId="1909">
+    <Symbol UId="1910">
+      <Component Name="Module" UId="1911" />
+      <Token Text="." UId="1912" />
+      <Component Name="ConfigStageParCfg" UId="1913" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1914" />
+  <NewLine Num="1" UId="1915" />
+  <Token Text="END_IF" UId="1916" />
+  <Token Text=";" UId="1917" />
+  <NewLine Num="1" UId="1918" />
+  <Access Scope="LocalVariable" UId="1919">
+    <Symbol UId="1920">
+      <Component Name="Ok" UId="1921" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1922" />
+  <Token Text=":=" UId="1923" />
+  <Blank Num="1" UId="1924" />
+  <Access Scope="Call" UId="1925">
+    <CallInfo UId="1926" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1928">
+        <Component Name="FRK_CfgSetWalk_DeclarationCylinder" UId="1927" />
+      </Instance>
+      <Token Text="(" UId="1929" />
+      <Parameter Name="Module" UId="1930">
+        <Blank Num="1" UId="1931" />
+        <Token Text=":=" UId="1932" />
+        <Blank Num="1" UId="1933" />
+        <Access Scope="LocalVariable" UId="1934">
+          <Symbol UId="1935">
+            <Component Name="Module" UId="1936" />
+            <Token Text="." UId="1937" />
+            <Component Name="Clamp" UId="1938" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1939" />
+      <Blank Num="1" UId="1940" />
+      <Parameter Name="RootIndex" UId="1941">
+        <Blank Num="1" UId="1942" />
+        <Token Text=":=" UId="1943" />
+        <Blank Num="1" UId="1944" />
+        <Access Scope="LocalVariable" UId="1945">
+          <Symbol UId="1946">
+            <Component Name="RootIndex" UId="1947" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1948" />
+      <Blank Num="1" UId="1949" />
+      <Parameter Name="Phase" UId="1950">
+        <Blank Num="1" UId="1951" />
+        <Token Text=":=" UId="1952" />
+        <Blank Num="1" UId="1953" />
+        <Access Scope="LocalVariable" UId="1954">
+          <Symbol UId="1955">
+            <Component Name="Phase" UId="1956" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1957" />
+      <Blank Num="1" UId="1958" />
+      <Parameter Name="Access" UId="1959">
+        <Blank Num="1" UId="1960" />
+        <Token Text=":=" UId="1961" />
+        <Blank Num="1" UId="1962" />
+        <Access Scope="LocalVariable" UId="1963">
+          <Symbol UId="1964">
+            <Component Name="Access" UId="1965" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1966" />
+      <Blank Num="1" UId="1967" />
+      <Parameter Name="Ready" UId="1968">
+        <Blank Num="1" UId="1969" />
+        <Token Text=":=" UId="1970" />
+        <Blank Num="1" UId="1971" />
+        <Access Scope="LocalVariable" UId="1972">
+          <Symbol UId="1973">
+            <Component Name="Ready" UId="1974" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1976" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1977" />
+  <NewLine Num="1" UId="1978" />
+  <Token Text="IF" UId="1979" />
+  <Blank Num="1" UId="1980" />
+  <Token Text="NOT" UId="1981" />
+  <Blank Num="1" UId="1982" />
+  <Access Scope="LocalVariable" UId="1983">
+    <Symbol UId="1984">
+      <Component Name="Ok" UId="1985" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1986" />
+  <Token Text="THEN" UId="1987" />
+  <NewLine Num="1" UId="1988" />
+  <Blank Num="4" UId="1989" />
+  <Token Text="RETURN" UId="1990" />
+  <Token Text=";" UId="1991" />
+  <NewLine Num="1" UId="1992" />
+  <Token Text="END_IF" UId="1993" />
+  <Token Text=";" UId="1994" />
+  <NewLine Num="1" UId="1995" />
+  <Access Scope="LocalVariable" UId="1996">
+    <Symbol UId="1997">
+      <Component Name="Ok" UId="1998" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1999" />
+  <Token Text=":=" UId="2000" />
+  <Blank Num="1" UId="2001" />
+  <Access Scope="Call" UId="2002">
+    <CallInfo UId="2003" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="2005">
+        <Component Name="FRK_CfgSetWalk_DeclarationCylinder" UId="2004" />
+      </Instance>
+      <Token Text="(" UId="2006" />
+      <Parameter Name="Module" UId="2007">
+        <Blank Num="1" UId="2008" />
+        <Token Text=":=" UId="2009" />
+        <Blank Num="1" UId="2010" />
+        <Access Scope="LocalVariable" UId="2011">
+          <Symbol UId="2012">
+            <Component Name="Module" UId="2013" />
+            <Token Text="." UId="2014" />
+            <Component Name="Gate" UId="2015" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2016" />
+      <Blank Num="1" UId="2017" />
+      <Parameter Name="RootIndex" UId="2018">
+        <Blank Num="1" UId="2019" />
+        <Token Text=":=" UId="2020" />
+        <Blank Num="1" UId="2021" />
+        <Access Scope="LocalVariable" UId="2022">
+          <Symbol UId="2023">
+            <Component Name="RootIndex" UId="2024" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2025" />
+      <Blank Num="1" UId="2026" />
+      <Parameter Name="Phase" UId="2027">
+        <Blank Num="1" UId="2028" />
+        <Token Text=":=" UId="2029" />
+        <Blank Num="1" UId="2030" />
+        <Access Scope="LocalVariable" UId="2031">
+          <Symbol UId="2032">
+            <Component Name="Phase" UId="2033" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2034" />
+      <Blank Num="1" UId="2035" />
+      <Parameter Name="Access" UId="2036">
+        <Blank Num="1" UId="2037" />
+        <Token Text=":=" UId="2038" />
+        <Blank Num="1" UId="2039" />
+        <Access Scope="LocalVariable" UId="2040">
+          <Symbol UId="2041">
+            <Component Name="Access" UId="2042" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="2043" />
+      <Blank Num="1" UId="2044" />
+      <Parameter Name="Ready" UId="2045">
+        <Blank Num="1" UId="2046" />
+        <Token Text=":=" UId="2047" />
+        <Blank Num="1" UId="2048" />
+        <Access Scope="LocalVariable" UId="2049">
+          <Symbol UId="2050">
+            <Component Name="Ready" UId="2051" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="2053" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="2054" />
+  <NewLine Num="1" UId="2055" />
+  <Token Text="IF" UId="2056" />
+  <Blank Num="1" UId="2057" />
+  <Token Text="NOT" UId="2058" />
+  <Blank Num="1" UId="2059" />
+  <Access Scope="LocalVariable" UId="2060">
+    <Symbol UId="2061">
+      <Component Name="Ok" UId="2062" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2063" />
+  <Token Text="THEN" UId="2064" />
+  <NewLine Num="1" UId="2065" />
+  <Blank Num="4" UId="2066" />
+  <Token Text="RETURN" UId="2067" />
+  <Token Text=";" UId="2068" />
+  <NewLine Num="1" UId="2069" />
+  <Token Text="END_IF" UId="2070" />
+  <Token Text=";" UId="2071" />
+  <NewLine Num="1" UId="2072" />
+  <Access Scope="LocalVariable" UId="2073">
+    <Symbol UId="2074">
+      <Component Name="FRK_CfgSetWalk_DeclarationCell" UId="2075" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="2076" />
+  <Token Text=":=" UId="2077" />
+  <Blank Num="1" UId="2078" />
+  <Access Scope="LiteralConstant" UId="2079">
+    <Constant UId="2080">
+      <ConstantValue UId="2082">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="2083" />
+  <NewLine Num="1" UId="2084" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

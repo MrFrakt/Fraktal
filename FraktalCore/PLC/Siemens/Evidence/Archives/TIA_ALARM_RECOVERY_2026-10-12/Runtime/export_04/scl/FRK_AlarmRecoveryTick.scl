@@ -1,0 +1,32 @@
+﻿FUNCTION "FRK_AlarmRecoveryTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Index : Int;
+      Span : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.RecoverySlot;
+	IF #Slot < 1 OR #Slot > 2 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 16 DO
+	    IF #AlarmLog.Active[#Index].State = 1 AND #AlarmLog.Active[#Index].ResetClass = 1 THEN
+	        #Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #Index);
+	        IF "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] <> #Span THEN
+	            "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] := #Span;
+	            "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#Index] := "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #Index, Value := #Span, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]);
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

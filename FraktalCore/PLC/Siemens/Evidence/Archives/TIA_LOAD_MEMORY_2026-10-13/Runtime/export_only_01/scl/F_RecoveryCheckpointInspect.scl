@@ -1,0 +1,66 @@
+﻿FUNCTION "F_RecoveryCheckpointInspect" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Test-only corruption before restore and real alarm callback stimulus after scan.
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Index : Int;
+      SavedElapsed : UDInt;
+      SavedCrc : DWord;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	"GDB_DeliveryTest".RecoveryCheck := 0;
+	#Slot := "FRK_AlarmRecoveryIndex"(Scope := 'StationA');
+	IF #Slot < 1 OR #Slot > 2 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion <> 2 THEN
+	    "GDB_DeliveryTest".RecoveryCheck := 1;
+	    RETURN;
+	END_IF;
+	IF "FRK_AlarmRecovery".Rows[#Slot].Scope <> 'StationA' THEN
+	    "GDB_DeliveryTest".RecoveryCheck := 2;
+	    RETURN;
+	END_IF;
+	IF "FRK_AlarmRecovery".Rows[#Slot].Checksum <> "FRK_AlarmRecoveryHeaderCrc"(Slot := #Slot) THEN
+	    "GDB_DeliveryTest".RecoveryCheck := 3;
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 16 DO
+	    IF "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State <> 0 THEN
+	        "GDB_DeliveryTest".RecoveryIndex := #Index;
+	        "FRK_AlarmRecoveryCheckpointRead"(Slot := #Slot,
+	                                          EventSlot := #Index,
+	                                          Elapsed => #SavedElapsed,
+	                                          Checksum => #SavedCrc);
+	        IF NOT "FRK_AlarmRecoveryEventValid"(Ev := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index]) THEN
+	            "GDB_DeliveryTest".RecoveryCheck := 4;
+	            RETURN;
+	        END_IF;
+	        IF "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index] <> "FRK_AlarmEventCrc"(Ev := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index]) THEN
+	            "GDB_DeliveryTest".RecoveryCheck := 5;
+	            RETURN;
+	        END_IF;
+	        IF #SavedElapsed > 2147483647 THEN
+	            "GDB_DeliveryTest".RecoveryCheck := 6;
+	            RETURN;
+	        END_IF;
+	        IF #SavedCrc <> "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #Index, Value := #SavedElapsed, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]) THEN
+	            "GDB_DeliveryTest".RecoveryCheck := 7;
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

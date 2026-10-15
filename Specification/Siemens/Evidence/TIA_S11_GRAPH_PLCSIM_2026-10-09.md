@@ -5,7 +5,7 @@ declaration (never drawn or hand-written), compiled by TIA V20, downloaded to an
 S7-PLCSIM Advanced S7-1500 and run against the same two cylinder CMs as the SCL
 chain. It walks the SCL chain's step trace, and the restart edge works mid-run.
 It also records what GRAPH accepts from a generator and what it refuses. Raw material:
-[`TIA_S11_GRAPH_PLCSIM_2026-10-09/`](TIA_S11_GRAPH_PLCSIM_2026-10-09/)
+[`../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S11_GRAPH_PLCSIM_2026-10-09/`](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S11_GRAPH_PLCSIM_2026-10-09)
 (numbered in order, failures included).
 
 | Item | Value |

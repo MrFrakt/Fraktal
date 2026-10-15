@@ -1,0 +1,17 @@
+ORGANIZATION_BLOCK "Main"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Initial_Call : Bool;
+    Remanence : Bool;
+END_VAR
+BEGIN
+    // The fixture owns simulated inputs; no raw I/O or physical outputs.
+    "GDB_FraktalHal".Data.StationA.Cell.Clamp.Sample := 42;
+    "GDB_FraktalHal".Data.StationA.Cell.Gate.Sample := 43;
+    "GDB_FraktalHal".Data.StationB.Cell.Clamp.Sample := 84;
+    "GDB_FraktalHal".Data.StationB.Cell.Gate.Sample := 85;
+    "GDB_FraktalMain"(Startup := #Initial_Call);
+    "GDB_FrameProbe".Scans := "GDB_FrameProbe".Scans + 1;
+    "FRK_FrameProbeVerify"();
+END_ORGANIZATION_BLOCK

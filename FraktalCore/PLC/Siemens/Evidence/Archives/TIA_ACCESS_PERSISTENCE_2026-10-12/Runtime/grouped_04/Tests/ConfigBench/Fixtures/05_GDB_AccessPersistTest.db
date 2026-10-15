@@ -1,0 +1,24 @@
+DATA_BLOCK "GDB_AccessPersistTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    Operation : Int;
+    Value : DInt;
+    Gate : Int;
+    RotateOnLogin : Bool;
+    Root : String[32];
+    Applied {ExternalWritable := 'False'} : Bool;
+    UsersReady {ExternalWritable := 'False'} : Bool;
+    UsersLost {ExternalWritable := 'False'} : Bool;
+    UserGeneration {ExternalWritable := 'False'} : UDInt;
+    StartupCount {ExternalWritable := 'False'} : UDInt;
+    CrcWitness {ExternalWritable := 'False'} : DWord;
+    Record {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_UserRecord";
+    PolicySlot {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+END_VAR
+VAR RETAIN
+    ProvisionCount {ExternalWritable := 'False'} : UDInt;
+END_VAR
+BEGIN
+END_DATA_BLOCK

@@ -1,0 +1,59 @@
+﻿FUNCTION "FRK_Route_DeclarationCylinder" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_DeclarationCylinder";
+      Hal : "ST_DeclarationLeafHal";
+      Report : "ST_ReleaseReport";
+   END_VAR
+
+   VAR_TEMP 
+      RouteMatched : Bool;
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_Route_DeclarationCylinder := FALSE;
+	IF NOT "FRK_PathOwned"(OwnerPath := #Module.Status.Name, TargetPath := #Request.TargetPath) THEN
+	    RETURN;
+	END_IF;
+	IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) THEN
+	    FOR #Index := 1 TO 16 DO
+	        #Module.ManConditions[#Index].Used := FALSE;
+	    END_FOR;
+	    // ---- AUTHORED: OnManRelease
+	    "FRK_ManualCondition"(Conditions := #Module.ManConditions,
+	                          Slot := 1,
+	                          Value := 2,
+	                          Ok := #Hal.Permit,
+	                          Diag := #Hal.Diag,
+	                          Bypassable := FALSE);
+	    "FRK_ManualCondition"(Conditions := #Module.ManConditions,
+	                          Slot := 2,
+	                          Value := 2,
+	                          Ok := #Hal.Sample = 0,
+	                          Diag := #Hal.LaterDiag,
+	                          Bypassable := FALSE);
+	    // ---- GENERATED: manual release end
+	    "FRK_ManualApply"(Core := #Module.Core,
+	                      Status := #Module.Status,
+	                      Request := #Request,
+	                      Commands := #Module.Catalog,
+	                      Count := #Module.CatalogCount,
+	                      Conditions := #Module.ManConditions,
+	                      Report := #Report,
+	                      Execute := #Module.Execute,
+	                      Command := #Module.Command,
+	                      ManualOwned := #Module.ManualOwned);
+	    #FRK_Route_DeclarationCylinder := TRUE;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

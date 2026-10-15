@@ -1,0 +1,44 @@
+﻿FUNCTION "FRK_AlarmTreeBlocking" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Ancestor : DInt;
+      Depth : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmTreeBlocking := TRUE;
+	IF "FRK_Registry".Fault OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > 32 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO "FRK_Registry".Count DO
+	    IF "FRK_Registry".Rows[#Index].AlarmBlocking THEN
+	        #Ancestor := #Index;
+	        FOR #Depth := 1 TO 32 DO
+	            IF #Ancestor = #Owner THEN
+	                RETURN;
+	            END_IF;
+	            IF #Ancestor = 0 THEN
+	                EXIT;
+	            END_IF;
+	            IF #Ancestor < 1 OR #Ancestor > "FRK_Registry".Count THEN
+	                RETURN;
+	            END_IF;
+	            #Ancestor := "FRK_Registry".Rows[#Ancestor].Parent;
+	        END_FOR;
+	        IF #Depth > 32 AND #Ancestor <> 0 THEN
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	#FRK_AlarmTreeBlocking := FALSE;
+	
+END_FUNCTION
+

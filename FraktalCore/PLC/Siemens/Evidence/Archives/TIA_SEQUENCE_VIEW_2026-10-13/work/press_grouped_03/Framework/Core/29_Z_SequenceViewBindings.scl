@@ -1,0 +1,57 @@
+FUNCTION "FRK_SeqViewStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    Depth : Int;
+    Visit : UDInt;
+    StepName : String;
+    AwaitingLabel : String;
+    AwaitsPath : String;
+    TimeClass : DInt;
+    ExpectedTime : Time;
+    Elapsed : Time;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "PressDemo".SequenceStepDef, Rows := "PressDemo".SequenceSteps, Cursors := "PressDemo".ActiveSteps, Notes := "PressDemo".SequenceAnnotations, Count := "PressDemo".SequenceStepCount, NoteCount := "PressDemo".SequenceAnnotationCount, Current := "PressDemo".CurrentStep, Book := "PressDemo".SequenceViewBook, Touched := "PressDemo".SequenceViewTouched, Depths := "PressDemo".SequenceViewDepths, Visits := "PressDemo".SequenceViewVisits);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewAwait" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    Label : String;
+    Ok : Bool;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "PressDemo".SequenceStepDef, Cursors := "PressDemo".ActiveSteps, Count := "PressDemo".SequenceStepCount, Current := "PressDemo".CurrentStep, Book := "PressDemo".SequenceViewBook);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewNote" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    IsError : Bool;
+    Key : String;
+    SourcePath : String;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "PressDemo".SequenceStepDef, Rows := "PressDemo".SequenceSteps, Notes := "PressDemo".SequenceAnnotations, Count := "PressDemo".SequenceStepCount, NoteCount := "PressDemo".SequenceAnnotationCount);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION

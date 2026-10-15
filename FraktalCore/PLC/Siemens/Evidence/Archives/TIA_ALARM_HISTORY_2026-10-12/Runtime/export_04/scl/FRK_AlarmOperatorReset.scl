@@ -1,0 +1,34 @@
+﻿FUNCTION "FRK_AlarmOperatorReset" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Gone : Bool;
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #Slot := 1 TO 16 DO
+	    IF #AlarmLog.Active[#Slot].State <> 0 AND #AlarmLog.Active[#Slot].ResetClass = 1 THEN
+	        IF #AlarmLog.Active[#Slot].State = 1 THEN
+	            #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot);
+	        END_IF;
+	        #ResultCode := RD_SYS_T(OUT => #Stamp);
+	        IF #ResultCode = 0 THEN
+	            #AlarmLog.Active[#Slot].ResetAt := DTL_TO_LDT(#Stamp);
+	        END_IF;
+	        #AlarmLog.Active[#Slot].ResetTimeSynchronized := FALSE;
+	        "FRK_AlarmClose"(AlarmLog := #AlarmLog,
+	                         Slot := #Slot);
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

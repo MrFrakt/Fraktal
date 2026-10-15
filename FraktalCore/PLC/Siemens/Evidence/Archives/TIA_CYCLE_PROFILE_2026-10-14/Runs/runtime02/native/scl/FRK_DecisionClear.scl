@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_DecisionClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Slot : "FRK_DecisionSlot";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot.Request.Prompt := WSTRING#'';
+	#Slot.Request.SourcePath := WSTRING#'';
+	#Slot.Request.Default := 0;
+	#Slot.Request.Timeout := T#0ms;
+	FOR #Index := 1 TO 6 DO
+	    #Slot.Request.Options[#Index] := '';
+	END_FOR;
+	#Slot.Answer := 0;
+	#Slot.Owner := 0;
+	#Slot.OverlapLogged := FALSE;
+	#Slot.ResolutionLogged := FALSE;
+	
+END_FUNCTION
+

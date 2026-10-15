@@ -1,0 +1,22 @@
+﻿FUNCTION "FRK_PersistAnchorCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Image : "FRK_PersistAnchor";
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+   END_VAR
+
+
+BEGIN
+	
+	#Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(#Image.KeyCrc));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := #Image.Generation);
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(#Image.DocumentCrc));
+	#FRK_PersistAnchorCrc := NOT #Work;
+	
+END_FUNCTION
+

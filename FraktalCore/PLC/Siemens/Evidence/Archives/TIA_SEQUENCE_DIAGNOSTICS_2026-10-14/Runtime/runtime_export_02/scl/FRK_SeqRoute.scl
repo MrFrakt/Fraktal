@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_SeqRoute" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      OnAdvance : DInt;
+      OnJump1 : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Seq.Running OR #Seq.Error THEN
+	    RETURN;
+	END_IF;
+	CASE #Seq.RetVal OF
+	    1:
+	        IF #OnAdvance >= 0 THEN
+	            #Seq.Step := #OnAdvance;
+	        END_IF;
+	    2:
+	        IF #OnJump1 >= 0 THEN
+	            #Seq.Step := #OnJump1;
+	        END_IF;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_DiagSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// One private sample per deployed module consumed by a selected sequence Unit.
+// Typed owning frames derive these from the authoritative module contract.
+   VAR_INPUT 
+      Index : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DiagSlot := 0;
+	CASE #Index OF
+	    1:
+	        #FRK_DiagSlot := 1;
+	    2:
+	        #FRK_DiagSlot := 2;
+	    3:
+	        #FRK_DiagSlot := 3;
+	    4:
+	        #FRK_DiagSlot := 4;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

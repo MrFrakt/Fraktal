@@ -1,0 +1,47 @@
+﻿FUNCTION "FRK_SeqViewWithdraw" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewWithdraw"(Cursors := "FRK_Views".V001.Cursors,
+	                           Book := "FRK_Views".V001.Book,
+	                           Touched := "FRK_Views".V001.Touched,
+	                           Current := "FRK_Views".V001.Current);
+	    5:
+	        "FRK_ViewWithdraw"(Cursors := "FRK_Views".V005.Cursors,
+	                           Book := "FRK_Views".V005.Book,
+	                           Touched := "FRK_Views".V005.Touched,
+	                           Current := "FRK_Views".V005.Current);
+	    9:
+	        "FRK_ViewWithdraw"(Cursors := "FRK_Views".V009.Cursors,
+	                           Book := "FRK_Views".V009.Book,
+	                           Touched := "FRK_Views".V009.Touched,
+	                           Current := "FRK_Views".V009.Current);
+	    13:
+	        "FRK_ViewWithdraw"(Cursors := "FRK_Views".V013.Cursors,
+	                           Book := "FRK_Views".V013.Book,
+	                           Touched := "FRK_Views".V013.Touched,
+	                           Current := "FRK_Views".V013.Current);
+	    17:
+	        "FRK_ViewWithdraw"(Cursors := "FRK_Views".V017.Cursors,
+	                           Book := "FRK_Views".V017.Book,
+	                           Touched := "FRK_Views".V017.Touched,
+	                           Current := "FRK_Views".V017.Current);
+	    21:
+	        "FRK_ViewWithdraw"(Cursors := "FRK_Views".V021.Cursors,
+	                           Book := "FRK_Views".V021.Book,
+	                           Touched := "FRK_Views".V021.Touched,
+	                           Current := "FRK_Views".V021.Current);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

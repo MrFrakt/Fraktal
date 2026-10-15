@@ -1,0 +1,47 @@
+﻿FUNCTION "FRK_SeqBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Shared sequence services. The examples generator binds Core enum constants.
+   VAR_INPUT 
+      Run : Bool;
+      Reset : Bool;
+      OwnerIndex : DInt;
+      ChainIndex : DInt;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	#Seq.Scan := #Seq.Scan + 1;
+	#Seq.Restart := #Reset OR (#Run AND NOT #Seq.RunPrevious);
+	#Seq.RunPrevious := #Run;
+	#Seq.OwnerIndex := #OwnerIndex;
+	#Seq.ChainIndex := #ChainIndex;
+	#Seq.RetVal := 0;
+	#Seq.Pending := FALSE;
+	#Seq.Awaiting := '';
+	IF NOT #Run OR #Seq.Restart THEN
+	    #Seq.Step := 0;
+	    #Seq.RecordedStep := -1;
+	    #Seq.Visit := #Seq.Visit + 1;
+	    #Seq.Done := FALSE;
+	    #Seq.Error := FALSE;
+	    #Seq.StartLatched := FALSE;
+	    #Seq.Elapsed := T#0ms;
+	    #Seq.DelayElapsed := T#0ms;
+	    #Seq.ErrorDiagnostic.ReasonCode := 0;
+	END_IF;
+	#Seq.Running := #Run AND NOT #Seq.Done AND NOT #Seq.Error
+	AND #OwnerIndex > 0 AND #ChainIndex > 0;
+	#Seq.ScanStep := #Seq.Step;
+	IF #Seq.Running AND #Delta > T#0ms THEN
+	    #Seq.Elapsed := #Seq.Elapsed + #Delta;
+	END_IF;
+	
+END_FUNCTION
+

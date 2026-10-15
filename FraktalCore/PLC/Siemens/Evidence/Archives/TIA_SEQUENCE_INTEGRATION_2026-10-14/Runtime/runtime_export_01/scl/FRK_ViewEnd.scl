@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_ViewEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Cursors : Array[*] of "ST_SequenceCursor";
+      Book : "FRK_ViewBook";
+      Touched : Array[*] of Bool;
+      Current : "ST_StepRecord";
+      Revision : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #Index := 0 TO UPPER_BOUND(ARR := #Cursors, DIM := 1) DO
+	    IF NOT #Touched[#Index] THEN
+	        #Cursors[#Index] := "FRK_ViewScratch".Cursor;
+	    END_IF;
+	END_FOR;
+	IF #Cursors[0].RowIdx = 0 THEN
+	    #Current := "FRK_ViewScratch".Step;
+	END_IF;
+	IF #Book.Dirty AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Book.ChangedMs) >= 1000 THEN
+	    #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	    #Book.Dirty := FALSE;
+	END_IF;
+	
+END_FUNCTION
+

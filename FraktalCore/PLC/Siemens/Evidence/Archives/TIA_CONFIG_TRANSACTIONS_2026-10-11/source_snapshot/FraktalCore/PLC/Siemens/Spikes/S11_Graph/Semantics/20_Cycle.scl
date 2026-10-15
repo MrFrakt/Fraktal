@@ -1,0 +1,101 @@
+// OB124: runs after Main (OB1) and the original GRAPH rig (OB123).
+// Sample before changing the test inputs; each observation survives host polling.
+ORGANIZATION_BLOCK "S11SemanticsCycle"
+TITLE = "S11 supervision and restart observations"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Initial_Call : Bool;
+      Remanence : Bool;
+   END_VAR
+   VAR_TEMP
+      elapsed : UDInt;
+   END_VAR
+BEGIN
+    IF #Initial_Call THEN
+        "S11Semantics".InitialCallSeen := TRUE;
+        "S11Semantics".StartupRc := RD_SYS_T(OUT => "S11Semantics".InitialCallAt);
+        "S11Semantics".State := 0;
+        "S11Semantics".FirstSeqStep := -1;
+    END_IF;
+    #elapsed := "FRK_Clock".NowMs - "S11Semantics".T0;
+    CASE "S11Semantics".State OF
+        0:
+            IF "S11Rig".State = 99 AND "SpkResults".T.Done THEN
+                "SpkResults".T.Done := FALSE;
+                "S11Semantics".SeqEmpty.LastRecorded := -1;
+                "S11Semantics".SeqAck.LastRecorded := -1;
+                "S11Semantics".SeqAuto.LastRecorded := -1;
+                "S11Semantics".SeqSkip.LastRecorded := -1;
+                "S11Semantics".Probe.Go := FALSE;
+                "S11Semantics".Probe.Fault := FALSE;
+                "S11Semantics".InitSq := TRUE;
+                "S11Semantics".Ack := FALSE;
+                "S11Semantics".T0 := "FRK_Clock".NowMs;
+                "S11Semantics".State := 10;
+            END_IF;
+        10:
+            IF #elapsed >= 250 THEN
+                "S11Semantics".EmptyBeyondMax := NOT "S11Semantics".ErrEmpty
+                    AND "S11Semantics".SeqEmpty.Record.StepNo = 0;
+                "S11Semantics".Probe.Fault := TRUE;
+                "S11Semantics".State := 20;
+            END_IF;
+        20:
+            IF #elapsed >= 500 THEN
+                "S11Semantics".SupervisionDetected := "S11Semantics".ErrAck AND "S11Semantics".ErrAuto;
+                "S11Semantics".Probe.Fault := FALSE;
+                "S11Semantics".Probe.Go := TRUE;
+                "S11Semantics".State := 30;
+            END_IF;
+        30:
+            IF #elapsed >= 750 THEN
+                "S11Semantics".EmptyStepBeforeAck := "S11Semantics".SeqEmpty.Record.StepNo;
+                "S11Semantics".AckStepBeforeAck := "S11Semantics".SeqAck.Record.StepNo;
+                "S11Semantics".AutoStepBeforeAck := "S11Semantics".SeqAuto.Record.StepNo;
+                "S11Semantics".SkipStepBeforeAck := "S11Semantics".SeqSkip.Record.StepNo;
+                "S11Semantics".AckBlocks := "S11Semantics".AckStepBeforeAck = 0;
+                "S11Semantics".NoAckAdvances := "S11Semantics".AutoStepBeforeAck = 300;
+                "S11Semantics".SkipOmitsSteps := "S11Semantics".SeqSkip.TraceCount = 2
+                    AND "S11Semantics".SeqSkip.Trace[0] = 0 AND "S11Semantics".SeqSkip.Trace[1] = 300
+                    AND "S11Semantics".SeqAuto.TraceCount = 4
+                    AND "S11Semantics".SeqAuto.Trace[1] = 100 AND "S11Semantics".SeqAuto.Trace[2] = 200;
+                "S11Semantics".Ack := TRUE;
+                "S11Semantics".State := 40;
+            END_IF;
+        40:
+            "S11Semantics".Ack := FALSE;
+            IF #elapsed >= 1000 THEN
+                "S11Semantics".AckStepAfterAck := "S11Semantics".SeqAck.Record.StepNo;
+                "S11Semantics".AckReleases := "S11Semantics".AckStepAfterAck = 300;
+                "FRK_TestRecord"(CaseId := 20, Pass := "S11Semantics".EmptyBeyondMax, Expected := 0, Actual := BOOL_TO_DINT("S11Semantics".ErrEmpty));
+                "FRK_TestRecord"(CaseId := 21, Pass := "S11Semantics".SupervisionDetected, Expected := 1, Actual := BOOL_TO_DINT("S11Semantics".SupervisionDetected));
+                "FRK_TestRecord"(CaseId := 22, Pass := "S11Semantics".AckBlocks, Expected := 0, Actual := "S11Semantics".AckStepBeforeAck);
+                "FRK_TestRecord"(CaseId := 23, Pass := "S11Semantics".AckReleases, Expected := 300, Actual := "S11Semantics".AckStepAfterAck);
+                "FRK_TestRecord"(CaseId := 24, Pass := "S11Semantics".NoAckAdvances, Expected := 300, Actual := "S11Semantics".AutoStepBeforeAck);
+                "FRK_TestRecord"(CaseId := 25, Pass := "S11Semantics".SkipOmitsSteps, Expected := 2, Actual := "S11Semantics".SeqSkip.TraceCount);
+                "FRK_TestRecord"(CaseId := 26, Pass := "S11Semantics".StartupSeen AND "S11Semantics".InitialCallSeen AND "S11Semantics".FirstSeqStep = 0, Expected := 0, Actual := "S11Semantics".FirstSeqStep);
+                "SpkResults".T.Done := TRUE;
+                "S11Semantics".State := 99;
+            END_IF;
+        99:
+            ;
+        ELSE
+            "S11Semantics".State := 99;
+    END_CASE;
+    IF "S11Semantics".State >= 10 AND "S11Semantics".State <= 40 THEN
+        "S11Empty"(INIT_SQ := "S11Semantics".InitSq, Seq := "S11Semantics".SeqEmpty,
+                   Probe := "S11Semantics".Probe, ERR_FLT => "S11Semantics".ErrEmpty);
+        "S11Ack"(INIT_SQ := "S11Semantics".InitSq, ACK_EF := "S11Semantics".Ack,
+                 Seq := "S11Semantics".SeqAck, Probe := "S11Semantics".Probe, ERR_FLT => "S11Semantics".ErrAck);
+        "S11Auto"(INIT_SQ := "S11Semantics".InitSq, Seq := "S11Semantics".SeqAuto,
+                  Probe := "S11Semantics".Probe, ERR_FLT => "S11Semantics".ErrAuto);
+        "S11Skip"(INIT_SQ := "S11Semantics".InitSq, Seq := "S11Semantics".SeqSkip,
+                  Probe := "S11Semantics".Probe, ERR_FLT => "S11Semantics".ErrSkip);
+        IF "S11Semantics".FirstSeqStep = -1 THEN
+            "S11Semantics".FirstSeqStep := "S11Semantics".SeqEmpty.Record.StepNo;
+        END_IF;
+        "S11Semantics".InitSq := FALSE;
+        "S11Semantics".Calls := "S11Semantics".Calls + 1;
+    END_IF;
+END_ORGANIZATION_BLOCK

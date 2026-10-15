@@ -36,12 +36,21 @@ class ConfigEditor extends StatefulWidget {
 
   /// Title, what makes the kind different, and an icon.
   static const kindGroups = {
-    CfgKind.parCfg: ('std.config.group.model', 'std.config.group.model.note',
-        Icons.inventory_2_outlined),
-    CfgKind.stationCfg: ('std.config.group.station',
-        'std.config.group.station.note', Icons.precision_manufacturing_outlined),
-    CfgKind.lineCfg: ('std.config.group.line', 'std.config.group.line.note',
-        Icons.linear_scale),
+    CfgKind.parCfg: (
+      'std.config.group.model',
+      'std.config.group.model.note',
+      Icons.inventory_2_outlined
+    ),
+    CfgKind.stationCfg: (
+      'std.config.group.station',
+      'std.config.group.station.note',
+      Icons.precision_manufacturing_outlined
+    ),
+    CfgKind.lineCfg: (
+      'std.config.group.line',
+      'std.config.group.line.note',
+      Icons.linear_scale
+    ),
   };
 
   @override
@@ -60,8 +69,8 @@ class _ConfigEditorState extends State<ConfigEditor> {
 
   ModuleNode get _node => widget.node;
 
-  /// Other models are offered for the root's OWN model data only: a child
-  /// module's model data follows the running model (Core §3.8a), and a
+  /// Other models are offered for the root's OWN model config only: a child
+  /// module's model config follows the running model (Core §3.8a), and a
   /// controller that marks nothing model-scoped serves the running model alone.
   bool get _offersModels =>
       widget.kind == CfgKind.parCfg &&
@@ -137,11 +146,17 @@ class _ConfigEditorState extends State<ConfigEditor> {
                 icon: const Icon(Icons.inventory_2_outlined),
                 onPressed: () => showConfigSetsDialog(context, app, root.path),
               ),
-            if (root != null && root.exportCurrentConfigEnabled && s.permits(GatedAction.configSet))
-              IconButton(tooltip: context.tr('Export current values'),
+            if (root != null &&
+                root.exportCurrentConfigEnabled &&
+                s.permits(GatedAction.configSet))
+              IconButton(
+                  tooltip: context.tr('Export current values'),
                   icon: const Icon(Icons.ios_share_outlined),
-                  onPressed: () => showParameterSetExport(context, 'current-${widget.kind.name}',
-                      app.repo.exportCurrentConfig(root.path, widget.kind, modelIndex: _model))),
+                  onPressed: () => showParameterSetExport(
+                      context,
+                      'current-${widget.kind.name}',
+                      app.repo.exportCurrentConfig(root.path, widget.kind,
+                          modelIndex: _model))),
             if (!anyEditable)
               const Chip(
                   avatar: Icon(Icons.lock_outline, size: 16),
@@ -172,7 +187,7 @@ class _ConfigEditorState extends State<ConfigEditor> {
     );
   }
 
-  /// Which model's record the card holds. Model data belongs to ONE model:
+  /// Which model's record the card holds. Model config belongs to ONE model:
   /// saying which keeps an edit from being mistaken for a change to every
   /// recipe, and naming the running one keeps it from being mistaken for
   /// another's.
@@ -203,9 +218,8 @@ class _ConfigEditorState extends State<ConfigEditor> {
             items: [
               DropdownMenuItem(
                   value: 0,
-                  child: Text(running.isEmpty
-                      ? runningTag
-                      : '$running ($runningTag)')),
+                  child: Text(
+                      running.isEmpty ? runningTag : '$running ($runningTag)')),
               for (var i = 0; i < models.length; i++)
                 // The running model is already entry 0: one record, one row.
                 if (models[i] != running)
@@ -218,11 +232,14 @@ class _ConfigEditorState extends State<ConfigEditor> {
         ),
         if (_node.modelCapacity > 0) ...[
           const SizedBox(width: kInlineItemGap),
-          OutlinedButton.icon(icon: const Icon(Icons.add), label: const LText('New model'),
+          OutlinedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const LText('New model'),
               onPressed: _node.availableModels.length < _node.modelCapacity &&
-                  widget.app.session.permits(GatedAction.configSet) &&
-                  widget.app.session.permits(GatedAction.dataWrite)
-                  ? () => showModelCreationDialog(context, widget.app, _node, sourceModel: _model)
+                      widget.app.session.permits(GatedAction.configSet) &&
+                      widget.app.session.permits(GatedAction.dataWrite)
+                  ? () => showModelCreationDialog(context, widget.app, _node,
+                      sourceModel: _model)
                   : null),
         ],
       ]),
@@ -275,12 +292,11 @@ class _ConfigEditorState extends State<ConfigEditor> {
       );
     }
     final levelOk = f.canWriteIn(s);
-    final fieldCanWrite = f.hasWriteCapability &&
-        levelOk &&
-        (!f.requiresReady || rootReady);
+    final fieldCanWrite =
+        f.hasWriteCapability && levelOk && (!f.requiresReady || rootReady);
     final String? helper;
     if (!f.writable) {
-      helper = context.tr('Mirrored line data - edit it at the line owner');
+      helper = context.tr('Mirrored line config - edit it at the line owner');
     } else if (!levelOk) {
       helper = f.writeLevel == null
           ? context.tr('Requires DATA_WRITE')
@@ -405,9 +421,11 @@ class _ConfigRowState extends State<_ConfigRow> {
       final mask = int.tryParse(_edited) ?? 0;
       input = InputDecorator(
         decoration: decoration.copyWith(border: InputBorder.none),
-        child: WeekdaySelector(mask: mask, enabled: widget.canWrite,
-          keyPrefix: 'cfg-weekday-${f.writeKey}',
-          onChanged: (value) => setState(() => _edited = '$value')),
+        child: WeekdaySelector(
+            mask: mask,
+            enabled: widget.canWrite,
+            keyPrefix: 'cfg-weekday-${f.writeKey}',
+            onChanged: (value) => setState(() => _edited = '$value')),
       );
     } else if (f.isFlag) {
       input = InputDecorator(
@@ -505,24 +523,24 @@ class _HistoryBrowserState extends State<HistoryBrowser> {
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Wrap(
-            spacing: kInlineItemGap,
-            runSpacing: kInlineItemGap,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-            const Icon(Icons.history),
-            LText('Event history',
-                style: Theme.of(context).textTheme.titleMedium),
-            for (final k in Severity.values)
-              PresetChip(
-                child: FilterChip(
-                  chipAnimationStyle: kFilterChipAnimationStyle,
-                  label: LText(k.name),
-                  selected: !_hidden.contains(k),
-                  onSelected: (v) =>
-                      setState(() => v ? _hidden.remove(k) : _hidden.add(k)),
-                ),
-              ),
-          ]),
+              spacing: kInlineItemGap,
+              runSpacing: kInlineItemGap,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const Icon(Icons.history),
+                LText('Event history',
+                    style: Theme.of(context).textTheme.titleMedium),
+                for (final k in Severity.values)
+                  PresetChip(
+                    child: FilterChip(
+                      chipAnimationStyle: kFilterChipAnimationStyle,
+                      label: LText(k.name),
+                      selected: !_hidden.contains(k),
+                      onSelected: (v) => setState(
+                          () => v ? _hidden.remove(k) : _hidden.add(k)),
+                    ),
+                  ),
+              ]),
           const SizedBox(height: 8),
           if (events.isEmpty)
             const ListTile(dense: true, title: LText('No matching events'))
@@ -578,10 +596,7 @@ class DecisionPrompt extends StatelessWidget {
           const SizedBox(height: 6),
           LText(d.prompt),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: kInlineItemGap,
-            runSpacing: kInlineItemGap,
-            children: [
+          Wrap(spacing: kInlineItemGap, runSpacing: kInlineItemGap, children: [
             for (var i = 0; i < d.options.length; i++)
               FilledButton.tonal(
                 onPressed: () async {

@@ -1,0 +1,54 @@
+﻿FUNCTION "F_TestProfileIntegration" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Run : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Owner = 1 AND "GDB_ProfileIntegration".RequestSeq <> "GDB_ProfileIntegration".AckSeq THEN
+	    "GDB_ProfileIntegrationWork".Owner := "GDB_ProfileIntegration".Owner;
+	    "GDB_ProfileIntegrationWork".Enabled := "GDB_ProfileIntegration".Enabled;
+	    "GDB_ProfileIntegrationWork".StepNo := "GDB_ProfileIntegration".StepNo;
+	    "GDB_ProfileIntegrationWork".Branch := "GDB_ProfileIntegration".Branch;
+	    "GDB_ProfileIntegrationWork".TimeClass := "GDB_ProfileIntegration".TimeClass;
+	    "GDB_ProfileIntegrationWork".Expected := "GDB_ProfileIntegration".Expected;
+	    "GDB_ProfileIntegrationWork".Finish := "GDB_ProfileIntegration".Finish;
+	    "GDB_ProfileIntegrationWork".ResetPulse := NOT "GDB_ProfileIntegrationWork".Seq.Running;
+	    "GDB_ProfileIntegration".AckSeq := "GDB_ProfileIntegration".RequestSeq;
+	END_IF;
+	IF #Owner <> "GDB_ProfileIntegrationWork".Owner THEN
+	    RETURN;
+	END_IF;
+	"FRK_SeqBegin"(Run := #Run AND "GDB_ProfileIntegrationWork".Enabled,
+	               Reset := "GDB_ProfileIntegrationWork".ResetPulse,
+	               OwnerIndex := #Owner,
+	               ChainIndex := 9,
+	               BranchIndex := "GDB_ProfileIntegrationWork".Branch,
+	               ViewOffset := 0,
+	               ViewDepth := 0,
+	               Delta := T#1ms,
+	               Seq := "GDB_ProfileIntegrationWork".Seq);
+	"GDB_ProfileIntegrationWork".ResetPulse := FALSE;
+	IF NOT "GDB_ProfileIntegrationWork".Seq.Running THEN
+	    RETURN;
+	END_IF;
+	"GDB_ProfileIntegrationWork".Seq.Step := "GDB_ProfileIntegrationWork".StepNo;
+	"FRK_SeqStep"(StepNo := "GDB_ProfileIntegrationWork".StepNo,
+	              StepName := 'test.profile.integration',
+	              AwaitingLabel := '',
+	              AwaitsPath := '',
+	              TimeClass := "GDB_ProfileIntegrationWork".TimeClass,
+	              ExpectedTime := "GDB_ProfileIntegrationWork".Expected,
+	              Seq := "GDB_ProfileIntegrationWork".Seq,
+	              Row := "GDB_ProfileIntegrationWork".Row);
+	IF "GDB_ProfileIntegrationWork".Finish THEN
+	    "FRK_SeqCycleEnd"(Seq := "GDB_ProfileIntegrationWork".Seq);
+	    "GDB_ProfileIntegrationWork".Finish := FALSE;
+	END_IF;
+	
+END_FUNCTION
+

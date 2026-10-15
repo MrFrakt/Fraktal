@@ -142,6 +142,7 @@ class OpcUaRepository implements PlcRepository {
   String _namespaceUris = '';
   String _aliasSignature = '';
   Future<void> _requestQueue = Future<void>.value();
+  int _mailboxGeneration = 0;
 
   OpcUaRepository._(this._client, this._mapper, this.refreshInterval);
 
@@ -163,6 +164,16 @@ class OpcUaRepository implements PlcRepository {
     final repository =
         OpcUaRepository._(client, OpcUaSnapshotMapper(), refreshInterval);
     try {
+      // Apply view gating before the first acquisition. Reading the complete
+      // discovered tree just to establish tiers can time out a large station
+      // and expose history before its consuming view opens.
+      if (client is OpcUaPathDiscoveryClient &&
+          client is OpcUaTieredReadClient) {
+        repository._discoveredPaths =
+            await client.discoverPaths();
+        repository._maybeUpdatePathTiers();
+        await repository._tierUpdate;
+      }
       await repository._refresh(propagateFailure: true);
       if (repository._projection.forest.isEmpty) {
         final keys = repository._values.keys.take(8).join(', ');
@@ -192,12 +203,14 @@ class OpcUaRepository implements PlcRepository {
 
   void _startPolling() {
     final period = _freshness?.pollPeriod ?? refreshInterval;
-    if (_disposed || (_pollPeriod == period && (_timer?.isActive ?? false))) return;
+    if (_disposed || (_pollPeriod == period && (_timer?.isActive ?? false)))
+      return;
     _timer?.cancel();
     _pollPeriod = period;
     if (_freshness != null) {
       final elapsed = _refreshStarted == null
-          ? Duration.zero : _clock.elapsed - _refreshStarted!;
+          ? Duration.zero
+          : _clock.elapsed - _refreshStarted!;
       final remaining = period - elapsed;
       _timer = Timer(remaining > Duration.zero ? remaining : Duration.zero, () {
         _timer = null;
@@ -259,12 +272,12 @@ class OpcUaRepository implements PlcRepository {
       if (_freshness != null && freshness == null) {
         throw const FormatException('Freshness budget disappeared.');
       }
-      final transitAge = freshness?.transitAllowance(
-          document, _clock.elapsed - started) ?? Duration.zero;
+      final transitAge =
+          freshness?.transitAllowance(document, _clock.elapsed - started) ??
+              Duration.zero;
       final receivedAge = freshness == null
           ? Duration.zero
-          : OpcUaFreshnessBudget.age(document['sampleAgeMs']) +
-              transitAge;
+          : OpcUaFreshnessBudget.age(document['sampleAgeMs']) + transitAge;
       final receivedTick = _clock.elapsed;
       if (freshness != null) {
         document = freshness.ageDocument(document, transitAge);
@@ -469,12 +482,11 @@ class OpcUaRepository implements PlcRepository {
 
   void _publishPathTiers() {
     final baseSlow = List<String>.of(_tierSlowPaths);
-    final demanded = _streamsDetail
-        ? _requestedOnDemandPaths().toSet()
-        : const <String>{};
+    final demanded =
+        _streamsDetail ? _requestedOnDemandPaths().toSet() : const <String>{};
     final slow = {...baseSlow, ...demanded};
-    final excluded = _tierExcludedPaths
-        .where((path) => !demanded.contains(path)).toSet();
+    final excluded =
+        _tierExcludedPaths.where((path) => !demanded.contains(path)).toSet();
     // Serialize updates and remove the previous promotion first. No interim
     // request may contain the same path in both slow and excluded sets.
     _tierUpdate = _tierUpdate.then((_) async {
@@ -483,7 +495,8 @@ class OpcUaRepository implements PlcRepository {
       await _client.setExcludedPaths(excluded);
       await _client.setSlowPaths(slow);
     }).catchError((Object error) {
-      debugPrint('[Fraktal/Connection] stage=opcua-read-tiers-failed error=$error');
+      debugPrint(
+          '[Fraktal/Connection] stage=opcua-read-tiers-failed error=$error');
     });
   }
 
@@ -517,8 +530,8 @@ class OpcUaRepository implements PlcRepository {
         (_moduleIoPath != null && _moduleIoChannels.isNotEmpty);
     if (_fieldbusScanRequested == active) return;
     _fieldbusScanRequested = active;
-    _fieldbusGateUpdate = _fieldbusGateUpdate
-        .then((_) => _setFieldbusScanRequested(active));
+    _fieldbusGateUpdate =
+        _fieldbusGateUpdate.then((_) => _setFieldbusScanRequested(active));
   }
 
   void _updateModuleIoPaths(Map<String, Object?> source) {
@@ -541,13 +554,14 @@ class OpcUaRepository implements PlcRepository {
       final parents = <String, int>{};
       for (final entry in source.entries) {
         if (!entry.key.contains('/Topology/') ||
-            !entry.key.endsWith('/ParentIdx') || entry.value is! num) continue;
+            !entry.key.endsWith('/ParentIdx') ||
+            entry.value is! num) continue;
         final base = entry.key.substring(0, entry.key.lastIndexOf('/'));
         final index = RegExp(r'(?:\[|/)(\d+)\]?$').firstMatch(base);
         if (index == null) continue;
         final topology = base.substring(0, base.indexOf('/Topology/') + 9);
-        nodeByIndex.putIfAbsent(topology, () => {})[
-            int.parse(index.group(1)!)] = base;
+        nodeByIndex.putIfAbsent(
+            topology, () => {})[int.parse(index.group(1)!)] = base;
         parents[base] = (entry.value as num).toInt();
       }
       for (final leaf in nodes.toList()) {
@@ -556,10 +570,11 @@ class OpcUaRepository implements PlcRepository {
         while (visited.add(current)) {
           final parent = parents[current] ?? 0;
           if (parent == 0) break;
-          final topology = current.substring(
-              0, current.indexOf('/Topology/') + 9);
+          final topology =
+              current.substring(0, current.indexOf('/Topology/') + 9);
           final indexed = nodeByIndex[topology];
-          final ancestor = indexed?[indexed.containsKey(0) ? parent - 1 : parent];
+          final ancestor =
+              indexed?[indexed.containsKey(0) ? parent - 1 : parent];
           if (ancestor == null) break;
           nodes.add(ancestor);
           current = ancestor;
@@ -579,8 +594,8 @@ class OpcUaRepository implements PlcRepository {
     if (_moduleIoChannels.any((base) => path.startsWith('$base/'))) {
       return !path.endsWith('/Forceable'); // this surface is read-only
     }
-    if (_moduleIoNodes.any((base) =>
-        path == '$base/State' || path == '$base/LinkOk')) return true;
+    if (_moduleIoNodes.any(
+        (base) => path == '$base/State' || path == '$base/LinkOk')) return true;
     return path.endsWith('/Topology/MappingValid') ||
         path.endsWith('/Topology/MappingDiagnostic');
   }
@@ -663,8 +678,8 @@ class OpcUaRepository implements PlcRepository {
                     .any(_onDemandContainersByScope[scope]!.contains))
               path,
         if (_moduleIoPath != null)
-          for (final path in
-              _onDemandByScope[OpcUaFieldTier.fieldbusScope] ?? const <String>[])
+          for (final path in _onDemandByScope[OpcUaFieldTier.fieldbusScope] ??
+              const <String>[])
             if (_moduleIoConsumes(path)) path,
       }.toList(growable: false);
 
@@ -759,16 +774,23 @@ class OpcUaRepository implements PlcRepository {
             final source = (envelope['dataValues'] as Map)[path];
             final age = source is Map ? source['ageMs'] : null;
             final quality = source is Map ? source['status'] : null;
-            if (age is! num || !age.isFinite || age < 0 ||
-                quality is! int || quality < 0 || quality > 0xffffffff) {
+            if (age is! num ||
+                !age.isFinite ||
+                age < 0 ||
+                quality is! int ||
+                quality < 0 ||
+                quality > 0xffffffff) {
               status = 0x80000000;
             } else {
               sourceAge = Duration(microseconds: (age * 1000).ceil());
               status = values[path] == null ? 0x80320000 : quality;
             }
           }
-          _onDemandSamples[path] = (value: values[path],
-              started: started - sourceAge, status: status);
+          _onDemandSamples[path] = (
+            value: values[path],
+            started: started - sourceAge,
+            status: status
+          );
         }
       }
       completed = true;
@@ -785,8 +807,8 @@ class OpcUaRepository implements PlcRepository {
         final remaining =
             _freshness!.slowPeriod - (_clock.elapsed - sweepStarted);
         _onDemandContinuation?.cancel();
-        _onDemandContinuation = Timer(
-            remaining > Duration.zero ? remaining : Duration.zero, () {
+        _onDemandContinuation =
+            Timer(remaining > Duration.zero ? remaining : Duration.zero, () {
           _onDemandContinuation = null;
           unawaited(_readBudgetedOnDemand());
         });
@@ -1007,6 +1029,7 @@ class OpcUaRepository implements PlcRepository {
       entries,
       browseBaseByModulePath: _projection.browsePathByModulePath,
       topologyBase: topologyBase,
+      discoveredPaths: _discoveredPaths,
     );
     _manifestConfigByModule = configFieldsFromManifest(entries);
     _manifestRevSignature = revSignature;
@@ -1016,6 +1039,7 @@ class OpcUaRepository implements PlcRepository {
   }
 
   void _setLink(LinkState value) {
+    if (_link != value) _mailboxGeneration++;
     if (_link == value) return;
     _link = value;
     // A refresh is async, so dispose() can close the controllers while one is
@@ -1064,8 +1088,8 @@ class OpcUaRepository implements PlcRepository {
     final limit =
         _sampleAge < budget.fastGood ? budget.fastGood : budget.fastExpiry;
     final remainingUs = (limit - _sampleAge).inMicroseconds;
-    _freshnessTimer = Timer(Duration(milliseconds: (remainingUs + 999) ~/ 1000),
-        _checkFreshness);
+    _freshnessTimer = Timer(
+        Duration(milliseconds: (remainingUs + 999) ~/ 1000), _checkFreshness);
   }
 
   @override
@@ -1136,19 +1160,12 @@ class OpcUaRepository implements PlcRepository {
     int intValue = 0,
     bool boolValue = false,
     int durationMs = 0,
+    bool serialized = true,
     Duration ackTimeout = const Duration(seconds: 2),
     void Function(int)? onSequenceReserved,
     void Function(Map<String, Object?>)? onResponseValues,
   }) {
-    // Operator commands mark the repository interactive so the periodic refresh
-    // yields the worker; the background manifest fetch (queryConfig) is already
-    // gated by _manifestFetchInFlight and must not double-count here.
-    final interactive = kind != _HmiRequestKind.queryConfig || durationMs != 0;
-    if (interactive) _interactiveInFlight++;
-    final result = Completer<bool>();
-    _requestQueue = _requestQueue.then((_) async {
-      try {
-        result.complete(await _performRequest(
+    Future<bool> perform() => _performRequest(
           unitPath,
           kind,
           targetPath: targetPath,
@@ -1162,7 +1179,19 @@ class OpcUaRepository implements PlcRepository {
           ackTimeout: ackTimeout,
           onSequenceReserved: onSequenceReserved,
           onResponseValues: onResponseValues,
-        ));
+        );
+    if (!serialized) return perform();
+    return _queueMailbox(perform,
+        interactive: kind != _HmiRequestKind.queryConfig || durationMs != 0);
+  }
+
+  Future<T> _queueMailbox<T>(Future<T> Function() operation,
+      {required bool interactive}) {
+    if (interactive) _interactiveInFlight++;
+    final result = Completer<T>();
+    _requestQueue = _requestQueue.then((_) async {
+      try {
+        result.complete(await operation());
       } on Object catch (error, stackTrace) {
         result.completeError(error, stackTrace);
       } finally {
@@ -1171,8 +1200,6 @@ class OpcUaRepository implements PlcRepository {
             _interactiveInFlight == 0 &&
             _link == LinkState.live &&
             _client is OpcUaBulkReadClient) {
-          // Show the PLC's actual result promptly after the command. The timer
-          // yields while interactive; resume with one shared refresh now.
           _refresh();
         }
       }
@@ -1756,7 +1783,16 @@ class OpcUaRepository implements PlcRepository {
   static final _exportRandom = Random.secure();
 
   Future<String?> _export(String rootPath, String name,
-      {CfgKind? kind, int modelIndex = 0}) async {
+      {CfgKind? kind, int modelIndex = 0}) {
+    final generation = _mailboxGeneration;
+    return _queueMailbox(
+        () => _exportDocument(rootPath, name,
+            kind: kind, modelIndex: modelIndex, generation: generation),
+        interactive: true);
+  }
+
+  Future<String?> _exportDocument(String rootPath, String name,
+      {CfgKind? kind, int modelIndex = 0, required int generation}) async {
     final base = _browseBase(rootPath);
     if (base == null) return null;
     final token = kind == null
@@ -1770,12 +1806,16 @@ class OpcUaRepository implements PlcRepository {
     final lines = <String>[];
     var total = 0;
     for (var line = 0; line <= total; line++) {
+      if (_disposed ||
+          generation != _mailboxGeneration ||
+          _link != LinkState.live) return null;
       final current = kind != null && line == 0;
       if (!await _request(
           rootPath,
           current
               ? _HmiRequestKind.exportCurrentConfig
               : _HmiRequestKind.exportConfigSet,
+          serialized: false,
           textValue: name,
           nameValue: token,
           intValue: current ? kind.index : line,
@@ -1794,7 +1834,15 @@ class OpcUaRepository implements PlcRepository {
   }
 
   @override
-  Future<bool> importConfigSet(String rootPath, String document) async {
+  Future<bool> importConfigSet(String rootPath, String document) {
+    final generation = _mailboxGeneration;
+    return _queueMailbox(
+        () => _importConfigSetDocument(rootPath, document, generation),
+        interactive: true);
+  }
+
+  Future<bool> _importConfigSetDocument(
+      String rootPath, String document, int generation) async {
     final lines = document
         .split('\n')
         .map((line) => line.trim())
@@ -1807,8 +1855,12 @@ class OpcUaRepository implements PlcRepository {
     for (var i = 0; i < lines.length; i++) {
       final pieces = configSetLinePieces(lines[i]);
       for (var p = 0; p < pieces.length; p++) {
+        if (_disposed ||
+            generation != _mailboxGeneration ||
+            _link != LinkState.live) return false;
         final last = p == pieces.length - 1;
         if (!await _request(rootPath, _HmiRequestKind.importConfigSet,
+            serialized: false,
             textValue: pieces[p],
             intValue: last ? 0 : 1,
             boolValue: last && i == lines.length - 1)) {

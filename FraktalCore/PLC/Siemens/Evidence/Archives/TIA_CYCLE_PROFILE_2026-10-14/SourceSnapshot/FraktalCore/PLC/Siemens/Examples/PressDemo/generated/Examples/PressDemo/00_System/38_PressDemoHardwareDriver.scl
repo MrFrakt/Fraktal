@@ -1,0 +1,78 @@
+// Demo logical I/O boundary. Bind these symbols to the commissioned hardware
+// driver when a bench is available; feedback is never synthesized here.
+DATA_BLOCK "GDB_PressDemoIO"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    PartPresent : Bool;
+    PartQuality : Bool;
+    AirPressureOk : Bool;
+    TwoHandHeld : Bool;
+    StartPulse : Bool;
+    RamExtended : Bool;
+    RamRetracted : Bool;
+    DoorClosed : Bool;
+    DoorOpen : Bool;
+    SlideInside : Bool;
+    SlideOutside : Bool;
+    RamExtend : Bool;
+    RamRetract : Bool;
+    DoorClose : Bool;
+    DoorRelease : Bool;
+    SlideExtend : Bool;
+    SlideRetract : Bool;
+END_VAR
+BEGIN
+END_DATA_BLOCK
+
+FUNCTION_BLOCK "FB_PressDemoHardwareDriver"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ReadInputs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False' } : Bool;
+END_VAR
+BEGIN
+    IF #ReadInputs THEN
+        "GDB_FraktalHal".Data.PressDemo.Process.PartPresent := "GDB_PressDemoIO".PartPresent;
+        "GDB_FraktalHal".Data.PressDemo.Process.PartQuality := "GDB_PressDemoIO".PartQuality;
+        "GDB_FraktalHal".Data.PressDemo.Process.AirPressureOk := "GDB_PressDemoIO".AirPressureOk;
+        "GDB_FraktalHal".Data.PressDemo.Process.TwoHandHeld := "GDB_PressDemoIO".TwoHandHeld;
+        "GDB_FraktalHal".Data.PressDemo.Process.StartPulse := "GDB_PressDemoIO".StartPulse;
+        "GDB_FraktalHal".Data.PressDemo.PressRam.FeedbackExtended := "GDB_PressDemoIO".RamExtended;
+        "GDB_FraktalHal".Data.PressDemo.PressRam.FeedbackRetracted := "GDB_PressDemoIO".RamRetracted;
+        "GDB_FraktalHal".Data.PressDemo.Door.FeedbackExtended := "GDB_PressDemoIO".DoorClosed;
+        "GDB_FraktalHal".Data.PressDemo.Door.FeedbackRetracted := "GDB_PressDemoIO".DoorOpen;
+        "GDB_FraktalHal".Data.PressDemo.PartSlide.FeedbackExtended := "GDB_PressDemoIO".SlideInside;
+        "GDB_FraktalHal".Data.PressDemo.PartSlide.FeedbackRetracted := "GDB_PressDemoIO".SlideOutside;
+    ELSE
+        "GDB_PressDemoIO".RamExtend := "GDB_FraktalHal".Data.PressDemo.PressRam.CoilExtend;
+        "GDB_PressDemoIO".RamRetract := "GDB_FraktalHal".Data.PressDemo.PressRam.CoilRetract;
+        "GDB_PressDemoIO".DoorClose := "GDB_FraktalHal".Data.PressDemo.Door.CoilExtend;
+        "GDB_PressDemoIO".DoorRelease := "GDB_FraktalHal".Data.PressDemo.Door.CoilRetract;
+        "GDB_PressDemoIO".SlideExtend := "GDB_FraktalHal".Data.PressDemo.PartSlide.CoilExtend;
+        "GDB_PressDemoIO".SlideRetract := "GDB_FraktalHal".Data.PressDemo.PartSlide.CoilRetract;
+    END_IF;
+END_FUNCTION_BLOCK
+
+DATA_BLOCK "GDB_PressDemoHardwareDriver"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_PressDemoHardwareDriver"
+BEGIN
+END_DATA_BLOCK
+
+FUNCTION "F_PressDemoReadInputs" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    "GDB_PressDemoHardwareDriver"(ReadInputs := TRUE);
+END_FUNCTION
+
+FUNCTION "F_PressDemoWriteOutputs" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    "GDB_PressDemoHardwareDriver"(ReadInputs := FALSE);
+END_FUNCTION

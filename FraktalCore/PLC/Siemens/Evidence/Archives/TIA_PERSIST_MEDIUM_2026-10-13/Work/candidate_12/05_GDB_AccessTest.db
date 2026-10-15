@@ -1,0 +1,20 @@
+DATA_BLOCK "GDB_AccessTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    ProviderOff : Bool;
+    CancelOnLogin : Bool;
+    SupersedeOnLogin : Bool;
+    InterruptedBusy {ExternalWritable := 'False'} : Bool;
+    SupersededSequence {ExternalWritable := 'False'} : UDInt;
+    InterruptRequest {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_HmiRequest";
+    HashData {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..47] of Byte;
+    Hash0 {ExternalWritable := 'False'} : Array[0..31] of Byte;
+    Hash1 {ExternalWritable := 'False'} : Array[0..31] of Byte;
+    Hash2 {ExternalWritable := 'False'} : Array[0..31] of Byte;
+    Hash3 {ExternalWritable := 'False'} : Array[0..31] of Byte;
+    HashOk {ExternalWritable := 'False'} : Bool;
+END_VAR
+BEGIN
+END_DATA_BLOCK

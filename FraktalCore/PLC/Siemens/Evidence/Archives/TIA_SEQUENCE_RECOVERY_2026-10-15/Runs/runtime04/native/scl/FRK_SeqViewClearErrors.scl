@@ -1,0 +1,47 @@
+﻿FUNCTION "FRK_SeqViewClearErrors" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V001.Rows,
+	                              Notes := "FRK_Views".V001.Notes,
+	                              Count := "FRK_Views".V001.Count,
+	                              NoteCount := "FRK_Views".V001.NoteCount);
+	    5:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V005.Rows,
+	                              Notes := "FRK_Views".V005.Notes,
+	                              Count := "FRK_Views".V005.Count,
+	                              NoteCount := "FRK_Views".V005.NoteCount);
+	    9:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V009.Rows,
+	                              Notes := "FRK_Views".V009.Notes,
+	                              Count := "FRK_Views".V009.Count,
+	                              NoteCount := "FRK_Views".V009.NoteCount);
+	    13:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V013.Rows,
+	                              Notes := "FRK_Views".V013.Notes,
+	                              Count := "FRK_Views".V013.Count,
+	                              NoteCount := "FRK_Views".V013.NoteCount);
+	    17:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V017.Rows,
+	                              Notes := "FRK_Views".V017.Notes,
+	                              Count := "FRK_Views".V017.Count,
+	                              NoteCount := "FRK_Views".V017.NoteCount);
+	    21:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V021.Rows,
+	                              Notes := "FRK_Views".V021.Notes,
+	                              Count := "FRK_Views".V021.Count,
+	                              NoteCount := "FRK_Views".V021.NoteCount);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

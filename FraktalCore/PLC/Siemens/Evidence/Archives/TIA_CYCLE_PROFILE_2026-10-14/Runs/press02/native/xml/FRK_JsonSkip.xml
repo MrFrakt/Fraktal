@@ -1,0 +1,302 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-14T20:06:30.2467079Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Line" Datatype="WString" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Pos" Datatype="Int" Accessibility="Public" />
+  </Section>
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_JsonSkip</Name>
+      <Namespace />
+      <Number>165</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="WHILE" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Pos" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="&lt;=" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="Call" UId="30">
+    <Instruction Name="LEN" UId="31">
+      <Token Text="(" UId="32" />
+      <NamelessParameter UId="33">
+        <Access Scope="LocalVariable" UId="34">
+          <Symbol UId="35">
+            <Component Name="Line" UId="36" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="38" />
+    </Instruction>
+  </Access>
+  <Blank Num="1" UId="39" />
+  <Token Text="DO" UId="40" />
+  <NewLine Num="1" UId="41" />
+  <Blank Num="4" UId="42" />
+  <Token Text="IF" UId="43" />
+  <Blank Num="1" UId="44" />
+  <Access Scope="LocalVariable" UId="45">
+    <Symbol UId="46">
+      <Component Name="Line" UId="47">
+        <Token Text="[" UId="48" />
+        <Access Scope="LocalVariable" UId="49">
+          <Symbol UId="50">
+            <Component Name="Pos" UId="51" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="52" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="53" />
+  <Token Text="&lt;&gt;" UId="54" />
+  <Blank Num="1" UId="55" />
+  <Access Scope="TypedConstant" UId="56">
+    <Constant UId="57">
+      <ConstantValue UId="58">WCHAR#' '</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="59" />
+  <Token Text="AND" UId="60" />
+  <Blank Num="1" UId="61" />
+  <Access Scope="LocalVariable" UId="62">
+    <Symbol UId="63">
+      <Component Name="Line" UId="64">
+        <Token Text="[" UId="65" />
+        <Access Scope="LocalVariable" UId="66">
+          <Symbol UId="67">
+            <Component Name="Pos" UId="68" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="69" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="70" />
+  <Token Text="&lt;&gt;" UId="71" />
+  <Blank Num="1" UId="72" />
+  <Access Scope="TypedConstant" UId="73">
+    <Constant UId="74">
+      <ConstantValue UId="75">WCHAR#'$0009'</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="76" />
+  <Token Text="AND" UId="77" />
+  <Blank Num="1" UId="78" />
+  <Access Scope="LocalVariable" UId="79">
+    <Symbol UId="80">
+      <Component Name="Line" UId="81">
+        <Token Text="[" UId="82" />
+        <Access Scope="LocalVariable" UId="83">
+          <Symbol UId="84">
+            <Component Name="Pos" UId="85" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="86" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="87" />
+  <Token Text="&lt;&gt;" UId="88" />
+  <Blank Num="1" UId="89" />
+  <Access Scope="TypedConstant" UId="90">
+    <Constant UId="91">
+      <ConstantValue UId="92">WCHAR#'$000A'</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="93" />
+  <Token Text="AND" UId="94" />
+  <Blank Num="1" UId="95" />
+  <Access Scope="LocalVariable" UId="96">
+    <Symbol UId="97">
+      <Component Name="Line" UId="98">
+        <Token Text="[" UId="99" />
+        <Access Scope="LocalVariable" UId="100">
+          <Symbol UId="101">
+            <Component Name="Pos" UId="102" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="103" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="104" />
+  <Token Text="&lt;&gt;" UId="105" />
+  <Blank Num="1" UId="106" />
+  <Access Scope="TypedConstant" UId="107">
+    <Constant UId="108">
+      <ConstantValue UId="109">WCHAR#'$000D'</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="110" />
+  <Token Text="THEN" UId="111" />
+  <NewLine Num="1" UId="112" />
+  <Blank Num="8" UId="113" />
+  <Token Text="RETURN" UId="114" />
+  <Token Text=";" UId="115" />
+  <NewLine Num="1" UId="116" />
+  <Blank Num="4" UId="117" />
+  <Token Text="END_IF" UId="118" />
+  <Token Text=";" UId="119" />
+  <NewLine Num="1" UId="120" />
+  <Blank Num="4" UId="121" />
+  <Access Scope="LocalVariable" UId="122">
+    <Symbol UId="123">
+      <Component Name="Pos" UId="124" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="125" />
+  <Token Text=":=" UId="126" />
+  <Blank Num="1" UId="127" />
+  <Access Scope="LocalVariable" UId="128">
+    <Symbol UId="129">
+      <Component Name="Pos" UId="130" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="131" />
+  <Token Text="+" UId="132" />
+  <Blank Num="1" UId="133" />
+  <Access Scope="LiteralConstant" UId="134">
+    <Constant UId="135">
+      <ConstantValue UId="137">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="138" />
+  <NewLine Num="1" UId="139" />
+  <Token Text="END_WHILE" UId="140" />
+  <Token Text=";" UId="141" />
+  <NewLine Num="1" UId="142" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

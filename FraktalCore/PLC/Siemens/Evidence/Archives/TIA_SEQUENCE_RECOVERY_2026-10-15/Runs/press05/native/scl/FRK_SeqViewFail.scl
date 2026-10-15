@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_SeqViewFail" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Branch : DInt;
+      Diag : "ST_Diagnostic";
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewFail"(StepNo := #StepNo,
+	                       Branch := #Branch,
+	                       Diag := #Diag,
+	                       Defs := "FRK_Views".V001.Defs,
+	                       Rows := "FRK_Views".V001.Rows,
+	                       Notes := "FRK_Views".V001.Notes,
+	                       Count := "FRK_Views".V001.Count,
+	                       NoteCount := "FRK_Views".V001.NoteCount,
+	                       Book := "FRK_Views".V001.Book);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

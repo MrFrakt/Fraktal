@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SystemHealthParCfg" Id="{9b45dede-30cc-4c98-833c-010d0f7dcf06}">
+    <Declaration><![CDATA[// Core §8.12 — station-selected health thresholds. SchemaVersion is first
+// because this record follows the same migrate-or-fault rule as every ParCfg.
+TYPE ST_SystemHealthParCfg :
+STRUCT
+    SchemaVersion        : UINT := 1;
+    MaxTaskCycleUs       : UDINT := 100000;
+    MaxTaskJitterUs      : UDINT := 10000;
+    MaxCpuLoadPct        : LREAL := 90.0;
+    MinMemoryAvailableMb : UDINT := 128;
+    MaxIpcTemperatureC   : LREAL := 80.0;
+    MinStorageHealthPct  : LREAL := 10.0;
+    MaxLostFrames        : UDINT := 0;
+    MaxSlaveErrors       : UDINT := 0;
+    MaxTimeOffsetUs      : DINT := 1000;
+    RequireFieldbus      : BOOL;
+    RequireDcSync        : BOOL;
+    RequireTimeSync      : BOOL := TRUE;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

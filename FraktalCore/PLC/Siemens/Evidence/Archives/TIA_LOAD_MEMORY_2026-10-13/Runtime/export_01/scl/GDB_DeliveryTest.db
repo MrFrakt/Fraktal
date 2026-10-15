@@ -1,0 +1,25 @@
+﻿DATA_BLOCK "GDB_DeliveryTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      Operation : Int;
+      Text : WString[255];
+      Reason : DInt;
+      UnicodeMode : Bool;
+      Applied { ExternalWritable := 'False'} : Bool;
+      EventSlot { ExternalWritable := 'False'} : Int;
+      RecoveryCheck { ExternalWritable := 'False'} : Int;
+      RecoveryIndex { ExternalWritable := 'False'} : Int;
+      Diag { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_Diagnostic";
+   END_VAR
+   VAR RETAIN
+      Scope : String[80];
+      Damage : Int;
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+

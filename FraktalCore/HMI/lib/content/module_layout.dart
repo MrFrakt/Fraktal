@@ -76,8 +76,8 @@ enum ModuleTabKind {
 
 /// One card a card tab can show. Persisted by name; new kinds go last.
 enum ModuleCardKind {
-  diagnostic,       // the live first-out line, its I/O tag and clock quality
-  decision,         // §6.11 operator decision prompt
+  diagnostic, // the live first-out line, its I/O tag and clock quality
+  decision, // §6.11 operator decision prompt
   currentStep,
   link,
   packML,
@@ -90,9 +90,9 @@ enum ModuleCardKind {
   shift,
   oee,
   manualCommands,
-  unitControls,     // reset banner, mode/model chips, state flags, Start/Stop
-  counters,         // good / NOK / rework / cycle time
-  cycleAnalysis,    // cycle trend, Gantt, step Pareto, command timing
+  unitControls, // reset banner, mode/model chips, state flags, Start/Stop
+  counters, // good / NOK / rework / cycle time
+  cycleAnalysis, // cycle trend, Gantt, step Pareto, command timing
   activeEvents,
   history,
   description,
@@ -180,7 +180,7 @@ class ModuleCardPlacement {
       };
 
   /// Names a stored layout may use that this build replaced: one
-  /// 'configuration' card held model, station and line data together.
+  /// 'configuration' card held model, station and line config together.
   static const _replaced = {
     'configuration': [
       ModuleCardKind.modelData,
@@ -262,8 +262,8 @@ class ModuleTileProfile {
           slot.kind == ModuleControlKind.shape && slot.bindingsAreValid);
 
   /// The reads one tile makes; the overview renders every station at once.
-  int get boundReads => [...metrics, ...badges]
-      .fold(0, (sum, slot) => sum + slot.boundReads);
+  int get boundReads =>
+      [...metrics, ...badges].fold(0, (sum, slot) => sum + slot.boundReads);
 
   Map<String, Object?> toJson() => {
         'metrics': [for (final slot in metrics) slot.toJson()],
@@ -1650,7 +1650,8 @@ class ModuleTabDefinition {
         if (tabIcon != null) 'tabIcon': tabIcon!.name,
         // Recorded in the export (§7.4): a class claimed silently would be.
         if (declaredClass != null) 'viewClass': declaredClass!.name,
-        if (cards.isNotEmpty) 'cards': [for (final card in cards) card.toJson()],
+        if (cards.isNotEmpty)
+          'cards': [for (final card in cards) card.toJson()],
         if (columns > 0) 'columns': columns,
         if (isDefault) 'isDefault': true,
         if (layerConditions.isNotEmpty)

@@ -1,0 +1,71 @@
+﻿FUNCTION "FRK_DeliveryMailbox" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootScope : String;
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      SequenceBefore : UDInt;
+      Receipt : "FRK_DeliveryReceipt";
+      Request : "ST_HmiRequest";
+      Accepted : Bool;
+      What : WString[160];
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := "FRK_DeliveryRootIndex"(RootScope := #RootScope);
+	IF #Slot < 1 OR #Slot > 2 THEN
+	    RETURN;
+	END_IF;
+	"FRK_EventDeliveryReceipt".Roots[#Slot] := #RootScope;
+	#SequenceBefore := "FRK_EventDeliveryReceipt".Request[#Slot].Sequence;
+	IF #SequenceBefore = 0 OR #SequenceBefore = "FRK_EventDeliveryRuntime".SeenReceipt[#Slot] THEN
+	    RETURN;
+	END_IF;
+	#Receipt := "FRK_EventDeliveryReceipt".Request[#Slot];
+	IF #SequenceBefore <> "FRK_EventDeliveryReceipt".Request[#Slot].Sequence THEN
+	    RETURN;
+	END_IF;
+	#Request.TargetPath := STRING_TO_WSTRING(#Receipt.TargetPath);
+	#Request.NameValue := #Receipt.Token;
+	#Request.DurationMs := #Receipt.Checksum;
+	#Request.Kind := 10001;
+	#Request.BoolValue := #Receipt.DiscardLost;
+	IF #Receipt.DiscardLost THEN
+	    #Request.Kind := 10002;
+	    #Request.NameValue := "FRK_DeliveryNumber"(Value := #Receipt.Epoch);
+	    #Request.TextValue := STRING_TO_WSTRING(#Receipt.StreamId);
+	END_IF;
+	#Accepted := FALSE;
+	IF #Receipt.SchemaVersion = 1 THEN
+	    #Accepted := "FRK_DeliveryRequest"(RootScope := #RootScope,
+	                                       Request := #Request,
+	                                       Access := #Access);
+	END_IF;
+	"FRK_EventDeliveryRuntime".SeenReceipt[#Slot] := #SequenceBefore;
+	// Audit metadata receipts locally, without creating work to acknowledge the
+	// acknowledgement. The operator session's idle time is not refreshed.
+	#What := WSTRING#'std.audit.accessDenied';
+	IF #Accepted THEN
+	    #What := WSTRING#'std.audit.operatorAction';
+	END_IF;
+	#What := CONCAT(IN1 := #What, IN2 := WSTRING#' eventDelivery=');
+	#What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Request.Kind));
+	#AlarmLog.DeliveryMuted := TRUE;
+	"FRK_AccessAudit"(AlarmLog := #AlarmLog, What := #What, Who := #Access.CurrentUser, SourcePath := STRING_TO_WSTRING(#RootScope));
+	#AlarmLog.DeliveryMuted := FALSE;
+	"FRK_EventDeliveryReceipt".Response[#Slot].SchemaVersion := 1;
+	"FRK_EventDeliveryReceipt".Response[#Slot].Accepted := #Accepted;
+	"FRK_EventDeliveryReceipt".Response[#Slot].AckSequence := #SequenceBefore;
+	
+END_FUNCTION
+

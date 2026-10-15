@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_AccessPolicyShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Policy : "ST_AccessPolicy";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AccessPolicyShape := FALSE;
+	IF #Policy.SessionTimeout < T#0ms OR #Policy.SessionTimeout > T#604800000ms THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 0 TO 11 DO
+	    IF #Policy.Required[#Index] < 0 OR #Policy.Required[#Index] > 4 THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_AccessPolicyShape := TRUE;
+	
+END_FUNCTION
+

@@ -1,0 +1,83 @@
+// Test-only native instruction gate. No application config or credential image.
+FUNCTION "F_LoadMemoryBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    NativeResult : Int;
+    Crc : DWord;
+    Sequence : UDInt;
+    Kind : Int;
+    Seed : Byte;
+END_VAR
+BEGIN
+    IF #Startup THEN
+        "GDB_LoadMemoryTest".StartupCount := "GDB_LoadMemoryTest".StartupCount + 1;
+        "GDB_LoadMemoryTest".PendingKind := 0;
+        "GDB_LoadMemoryTest".Busy := FALSE;
+        "GDB_LoadMemoryTest".RequestPulse := FALSE;
+        "GDB_LoadMemoryTest".SeenSequence := "GDB_LoadMemoryTest".Sequence;
+    END_IF;
+    IF NOT "GDB_LoadMemoryTest".Busy AND "GDB_LoadMemoryTest".Sequence <> "GDB_LoadMemoryTest".SeenSequence THEN
+        #Sequence := "GDB_LoadMemoryTest".Sequence;
+        #Kind := "GDB_LoadMemoryTest".Kind;
+        #Seed := "GDB_LoadMemoryTest".Seed;
+        IF #Sequence <> "GDB_LoadMemoryTest".Sequence THEN RETURN; END_IF;
+        "GDB_LoadMemoryTest".SeenSequence := #Sequence;
+        "GDB_LoadMemoryTest".Accepted := FALSE;
+        "GDB_LoadMemoryTest".NativeStatus := WORD#0;
+        "GDB_LoadMemoryTest".BusyScans := 0;
+        CASE #Kind OF
+            1, 2, 5, 6:
+                IF #Kind = 2 OR #Kind = 5 THEN
+                    FOR #Index := 0 TO 63 DO
+                        "GDB_LoadSource".Payload[#Index] := INT_TO_BYTE((BYTE_TO_INT(#Seed) + #Index) MOD 256);
+                    END_FOR;
+                END_IF;
+                "GDB_LoadMemoryTest".PendingKind := #Kind;
+                "GDB_LoadMemoryTest".RequestPulse := TRUE;
+                "GDB_LoadMemoryTest".Busy := TRUE;
+            3:
+                "GDB_LoadMemoryTest".NativeStatus := WORD#16#FFFF;
+            4:
+                FOR #Index := 0 TO 63 DO "GDB_LoadRead".Payload[#Index] := #Seed; END_FOR;
+                "GDB_LoadMemoryTest".Accepted := TRUE;
+            ELSE
+                "GDB_LoadMemoryTest".NativeStatus := WORD#16#FFFF;
+        END_CASE;
+        IF NOT "GDB_LoadMemoryTest".Busy THEN "GDB_LoadMemoryTest".AckSequence := #Sequence; END_IF;
+    END_IF;
+    IF "GDB_LoadMemoryTest".PendingKind <> 0 THEN
+        "GDB_LoadMemoryTest".BusyScans := "GDB_LoadMemoryTest".BusyScans + 1;
+        CASE "GDB_LoadMemoryTest".PendingKind OF
+            1:
+                #NativeResult := READ_DBL(REQ := "GDB_LoadMemoryTest".RequestPulse, SRCBLK := "GDB_LoadBankA".Payload, BUSY => "GDB_LoadMemoryTest".Busy, DSTBLK => "GDB_LoadRead".Payload);
+            2:
+                #NativeResult := WRIT_DBL(REQ := "GDB_LoadMemoryTest".RequestPulse, SRCBLK := "GDB_LoadSource".Payload, BUSY => "GDB_LoadMemoryTest".Busy, DSTBLK => "GDB_LoadBankA".Payload);
+            5:
+                #NativeResult := WRIT_DBL(REQ := "GDB_LoadMemoryTest".RequestPulse, SRCBLK := "GDB_LoadSource".Payload, BUSY => "GDB_LoadMemoryTest".Busy, DSTBLK => "GDB_LoadBankB".Payload);
+            6:
+                #NativeResult := READ_DBL(REQ := "GDB_LoadMemoryTest".RequestPulse, SRCBLK := "GDB_LoadBankB".Payload, BUSY => "GDB_LoadMemoryTest".Busy, DSTBLK => "GDB_LoadRead".Payload);
+            ELSE
+                #NativeResult := -1;
+                "GDB_LoadMemoryTest".Busy := FALSE;
+        END_CASE;
+        "GDB_LoadMemoryTest".NativeStatus := INT_TO_WORD(#NativeResult);
+        "GDB_LoadMemoryTest".RequestPulse := FALSE;
+        IF NOT "GDB_LoadMemoryTest".Busy THEN
+            "GDB_LoadMemoryTest".Accepted := #NativeResult = 0;
+            "GDB_LoadMemoryTest".AckSequence := "GDB_LoadMemoryTest".SeenSequence;
+            "GDB_LoadMemoryTest".PendingKind := 0;
+        END_IF;
+    END_IF;
+    "GDB_LoadMemoryTest".FirstByte := "GDB_LoadRead".Payload[0];
+    "GDB_LoadMemoryTest".LastByte := "GDB_LoadRead".Payload[63];
+    #Crc := DWORD#16#FFFFFFFF;
+    FOR #Index := 0 TO 63 DO
+        #Crc := "FRK_CrcByte"(Previous := #Crc, Value := "GDB_LoadRead".Payload[#Index]);
+    END_FOR;
+    "GDB_LoadMemoryTest".ReadCrc := NOT #Crc;
+END_FUNCTION

@@ -29,7 +29,10 @@ class GuardedTransport implements WebApiTransport {
       if (status.exitCode != 0)
         throw StateError('simulator status unavailable');
       final row = jsonDecode((status.stdout as String).trim()) as Map;
-      if (row['name'] != 'FrkS12' ||
+      final expectedName =
+          Platform.environment['FRAKTAL_TIA_SIM_INSTANCE'] ?? 'FrkS12';
+      if (!['FrkS12', 'Fraktal'].contains(expectedName) ||
+          row['name'] != expectedName ||
           row['cpu'] != 'CPU1516' ||
           row['comm'] != 'TCPIP' ||
           !(row['addresses'] as List).contains('169.254.212.49') ||

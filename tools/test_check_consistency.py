@@ -330,6 +330,33 @@ class ReadSurfaceTests(unittest.TestCase):
         self.assertEqual(modules, set())
         self.assertEqual(unresolved, ["$mystery/Thing"])
 
+    def test_optional_config_read_is_resolved_to_its_manifest_authority(self):
+        modules, _, unresolved = _mapper_surface("""
+            for (final field in configByModulePath[path] ?? const <CfgField>[])
+              // Published capability, with a manifest fallback.
+              if (values['$base/${field.name}'] case final Object measured
+                  when field.readable && field.accepts('$measured'))
+                field.withValue('$measured')
+              else field,
+        """)
+        self.assertEqual(unresolved, [])
+        self.assertEqual(modules, {
+            'HmiResponse/ConfigPage/Entries[*]/Scope',
+            'HmiResponse/ConfigPage/Entries[*]/Item',
+            'HmiResponse/ConfigPage/Entries[*]/ValueText',
+        })
+
+    def test_arbitrary_dynamic_field_read_remains_unresolved(self):
+        for source in (
+            "values['$base/${field.name}']",
+            """for (final field in arbitrary[path] ?? const <CfgField>[])
+                 if (values['$base/${field.name}'] case final Object measured
+                     when field.readable) field.withValue('$measured')""",
+        ):
+            modules, _, unresolved = _mapper_surface(source)
+            self.assertEqual(modules, set())
+            self.assertEqual(unresolved, ['${field.name}'])
+
     def test_the_fieldbus_root_is_kept_apart_from_module_suffixes(self):
         source = """
           final prefix = _indexedPrefix(values, '$topology/Nodes', i);

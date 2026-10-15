@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_SetRecord" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Scope : String;
+      WriteKey : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetRecord := 0;
+	FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
+	    IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope = #Scope AND "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey = #WriteKey THEN
+	        #FRK_SetRecord := #Index;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

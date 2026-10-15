@@ -1,0 +1,107 @@
+FUNCTION "FRK_Quiesce_DeclarationCylinder" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_DeclarationCylinder";
+    Hal : "ST_DeclarationLeafHal";
+END_VAR
+VAR_TEMP
+    WasBusy : Bool;
+END_VAR
+BEGIN
+    #Module.Execute := FALSE; #Module.Abort := FALSE;
+    #WasBusy := #Module.Core.Exec = 1;
+    "FRK_RouteAbort"(Abort := TRUE, Core := #Module.Core);
+    IF #WasBusy THEN "FRK_AbortHook_DeclarationCylinder"(Device := #Module.Device); END_IF;
+    IF #Module.Core.RegIndex > 0 THEN
+        "FRK_End"(Core := #Module.Core, Status := #Module.Status, Busy => #Module.Busy, Done => #Module.Done, Error => #Module.Error, Aborted => #Module.Aborted, Held => #Module.Held, ErrorID => #Module.ErrorID, Timing => #Module.Timing);
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_Quiesce_DeclarationCell" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_DeclarationCell";
+    Hal : "ST_DeclarationCellHal";
+END_VAR
+VAR_TEMP
+    WasBusy : Bool;
+END_VAR
+BEGIN
+    #Module.Execute := FALSE; #Module.Abort := FALSE;
+    #WasBusy := #Module.Core.Exec = 1;
+    "FRK_RouteAbort"(Abort := TRUE, Core := #Module.Core);
+    IF #Module.Core.RegIndex > 0 THEN
+        "FRK_End"(Core := #Module.Core, Status := #Module.Status, Busy => #Module.Busy, Done => #Module.Done, Error => #Module.Error, Aborted => #Module.Aborted, Held => #Module.Held, ErrorID => #Module.ErrorID, Timing => #Module.Timing);
+    END_IF;
+    "FRK_Quiesce_DeclarationCylinder"(Module := #Module.Clamp, Hal := #Hal.Clamp);
+    "FRK_Quiesce_DeclarationCylinder"(Module := #Module.Gate, Hal := #Hal.Gate);
+END_FUNCTION
+FUNCTION "FRK_Quiesce_InnerUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_InnerUnit";
+    Hal : "ST_InnerUnitHal";
+END_VAR
+VAR_TEMP
+    WasBusy : Bool;
+END_VAR
+BEGIN
+    #Module.Execute := FALSE; #Module.Abort := FALSE;
+    #WasBusy := #Module.Core.Exec = 1;
+    "FRK_RouteAbort"(Abort := TRUE, Core := #Module.Core);
+    IF #Module.Core.RegIndex > 0 THEN
+        "FRK_End"(Core := #Module.Core, Status := #Module.Status, Busy => #Module.Busy, Done => #Module.Done, Error => #Module.Error, Aborted => #Module.Aborted, Held => #Module.Held, ErrorID => #Module.ErrorID, Timing => #Module.Timing);
+    END_IF;
+    "FRK_AccessDropSession"(Access := #Module.Access);
+    "FRK_AccessCancel"(Access := #Module.Access);
+    #Module.RunningPublished := FALSE;
+    "FRK_Quiesce_DeclarationCell"(Module := #Module.Cell, Hal := #Hal.Cell);
+END_FUNCTION
+FUNCTION "FRK_Quiesce_SatelliteUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_SatelliteUnit";
+    Hal : "ST_SatelliteUnitHal";
+END_VAR
+VAR_TEMP
+    WasBusy : Bool;
+END_VAR
+BEGIN
+    #Module.Execute := FALSE; #Module.Abort := FALSE;
+    #WasBusy := #Module.Core.Exec = 1;
+    "FRK_RouteAbort"(Abort := TRUE, Core := #Module.Core);
+    IF #Module.Core.RegIndex > 0 THEN
+        "FRK_End"(Core := #Module.Core, Status := #Module.Status, Busy => #Module.Busy, Done => #Module.Done, Error => #Module.Error, Aborted => #Module.Aborted, Held => #Module.Held, ErrorID => #Module.ErrorID, Timing => #Module.Timing);
+    END_IF;
+    "FRK_AccessDropSession"(Access := #Module.Access);
+    "FRK_AccessCancel"(Access := #Module.Access);
+    #Module.RunningPublished := FALSE;
+    "FRK_Quiesce_DeclarationCell"(Module := #Module.Cell, Hal := #Hal.Cell);
+    "FRK_Quiesce_InnerUnit"(Module := #Module.Inner, Hal := #Hal.Inner);
+END_FUNCTION
+FUNCTION "FRK_Quiesce_DeclarationUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_DeclarationUnit";
+    Hal : "ST_DeclarationUnitHal";
+END_VAR
+VAR_TEMP
+    WasBusy : Bool;
+END_VAR
+BEGIN
+    #Module.Execute := FALSE; #Module.Abort := FALSE;
+    #WasBusy := #Module.Core.Exec = 1;
+    "FRK_RouteAbort"(Abort := TRUE, Core := #Module.Core);
+    IF #Module.Core.RegIndex > 0 THEN
+        "FRK_End"(Core := #Module.Core, Status := #Module.Status, Busy => #Module.Busy, Done => #Module.Done, Error => #Module.Error, Aborted => #Module.Aborted, Held => #Module.Held, ErrorID => #Module.ErrorID, Timing => #Module.Timing);
+    END_IF;
+    "FRK_AccessDropSession"(Access := #Module.Access);
+    "FRK_AccessCancel"(Access := #Module.Access);
+    #Module.RunningPublished := FALSE;
+    "FRK_Quiesce_DeclarationCell"(Module := #Module.Cell, Hal := #Hal.Cell);
+    "FRK_Quiesce_SatelliteUnit"(Module := #Module.Satellite, Hal := #Hal.Satellite);
+END_FUNCTION

@@ -1,0 +1,8 @@
+open-project --path ${project}
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir ${generated}
+save
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out ${export} --scl

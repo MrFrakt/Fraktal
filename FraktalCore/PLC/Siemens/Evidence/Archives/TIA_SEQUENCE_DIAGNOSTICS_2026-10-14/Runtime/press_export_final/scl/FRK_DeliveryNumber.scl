@@ -1,0 +1,22 @@
+﻿FUNCTION "FRK_DeliveryNumber" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Value : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Text : String[12];
+   END_VAR
+
+
+BEGIN
+	
+	#Text := UDINT_TO_STRING(#Value);
+	IF LEFT(IN := #Text, L := 1) = '+' THEN
+	    #Text := RIGHT(IN := #Text, L := LEN(#Text) - 1);
+	END_IF;
+	#FRK_DeliveryNumber := #Text;
+	
+END_FUNCTION
+

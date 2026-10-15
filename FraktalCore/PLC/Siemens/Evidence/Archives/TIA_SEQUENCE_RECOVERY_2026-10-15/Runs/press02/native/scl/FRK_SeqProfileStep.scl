@@ -1,0 +1,35 @@
+﻿FUNCTION "FRK_SeqProfileStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Visit : UDInt;
+      StepName : String;
+      TimeClass : DInt;
+      Expected : Time;
+      NowMs : UDInt;
+      Stamp : LDT;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ProfileStep"(StepNo := #StepNo,
+	                          Visit := #Visit,
+	                          StepName := #StepName,
+	                          TimeClass := #TimeClass,
+	                          Expected := #Expected,
+	                          NowMs := #NowMs,
+	                          Stamp := #Stamp,
+	                          Book := "FRK_Profiles".P001.Book,
+	                          Steps := "FRK_Profiles".P001.Steps,
+	                          Stats := "FRK_Profiles".P001.Stats);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

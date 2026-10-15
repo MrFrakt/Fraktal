@@ -44,7 +44,9 @@ LIFECYCLE = {"exec", "execprev", "abortprev", "initialized", "evinit", "evcomman
 CONTRACT = {"status", "hmirequest", "hmiresponse", "parcfg", "parcmd", "outcmd", "outimm",
             "currentstep", "mode", "access", "part", "history", "historyhead", "goodcount",
             "nokcount", "reworkcount", "nokreason", "modeactivepublished", "runningpublished",
-            "stoppendingpublished", "supportedmodespublished", "catalog", "catalogcount", "configrev"}
+            "stoppendingpublished", "supportedmodespublished", "catalog", "catalogcount", "configrev",
+            "alarmlog", "stateflags", "stateflagcount", "decision", "decisionanswer", "stationcfg", "configpersist", "modelid",
+            "availablemodelcount", "availablemodels", "profiler", "starved", "blocked"}.union({"configsets", "configsetcount", "configsetdocument", "configsetdocumentline", "configsetdocumentlines"})
 
 
 @dataclass
@@ -212,6 +214,8 @@ def check_keyword_and_collide(path: pathlib.Path, block: Block) -> list[Finding]
 
 
 def check_ext(path: pathlib.Path, block: Block, fb_names: set[str]) -> list[Finding]:
+    from fraktal_tia_sequence_view import published_types
+    published = CONTRACT | {n.casefold() for n in published_types(1, 0, 1)}
     out = []
     for d in block.decls:
         writable = re.search(r"ExternalWritable\s*:=\s*'True'", d.attrs, re.I)
@@ -221,7 +225,7 @@ def check_ext(path: pathlib.Path, block: Block, fb_names: set[str]) -> list[Find
             continue
         is_fb = d.type_text.strip('"') in fb_names
         hidden = re.search(r"ExternalAccessible\s*:=\s*'False'", d.attrs, re.I)
-        if not is_fb and d.name.lower() not in CONTRACT and not hidden:
+        if not is_fb and d.name.lower() not in published and not hidden:
             out.append(Finding(path, d.line, "T-EXT", "private static %s must be ExternalAccessible := 'False'" % d.name))
     return out
 
@@ -404,18 +408,22 @@ def lint(paths: list[pathlib.Path]) -> list[Finding]:
         import json
         try:
             value = json.loads(manifest.read_text(encoding="ascii"))
+            if value.get("kind") == "fraktal.tia.press.examples.v1":
+                from fraktal_tia_examples import verify as verify_examples
+                verify_examples(manifest.parent)
+                continue
             if value.get("kind") != "fraktal.tia.generated.frames.v1":
                 continue
             from fraktal_tia_generate import verify
             verify(manifest.parent)
-        except (ValueError, OSError, KeyError) as error:
+        except (ValueError, OSError, KeyError, AssertionError) as error:
             findings.append(Finding(manifest, 1, getattr(error, "rule", "T-GEN"), str(error)))
     return findings
 
 
 def main(argv: list[str]) -> int:
     root = pathlib.Path(__file__).resolve().parents[1]
-    paths = [pathlib.Path(a) for a in argv if not a.startswith("--")] or [root / "Spikes", root / "Tests/Generator/generated"]
+    paths = [pathlib.Path(a) for a in argv if not a.startswith("--")] or [root / "Spikes", root / "Tests/Generator/generated", root / "Examples/PressDemo/generated"]
     findings = lint(paths)
     for f in findings:
         print(f)

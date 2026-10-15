@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "target_family": "S7-1500",
+  "registry_capacity": 16,
+  "types": [
+    {
+      "name": "FB_DeclarationUnit",
+      "tier": "UNIT",
+      "type_key": "Fraktal.Declaration.Unit",
+      "children": [
+        {
+          "name": "Cell",
+          "type": "FB_DeclarationCell"
+        }
+      ],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_DeclarationOutImm"
+      },
+      "logic": {
+        "Init": "    \"FRK_FrameProbeInit\"(Index := #Core.RegIndex);",
+        "cyclic": "    \"FRK_FrameProbeCyclic\"(Index := #Core.RegIndex);"
+      }
+    },
+    {
+      "name": "FB_DeclarationCell",
+      "tier": "EQUIPMENT_MODULE",
+      "type_key": "Fraktal.Declaration.Cell",
+      "children": [
+        {
+          "name": "Clamp",
+          "type": "FB_DeclarationCylinder"
+        },
+        {
+          "name": "Gate",
+          "type": "FB_DeclarationCylinder"
+        }
+      ],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_DeclarationOutImm"
+      },
+      "logic": {
+        "Init": "    \"FRK_FrameProbeInit\"(Index := #Core.RegIndex);",
+        "cyclic": "    \"FRK_FrameProbeCyclic\"(Index := #Core.RegIndex);"
+      }
+    },
+    {
+      "name": "FB_DeclarationCylinder",
+      "tier": "CONTROL_MODULE",
+      "type_key": "Fraktal.Declaration.Cylinder",
+      "children": [],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_DeclarationOutImm"
+      },
+      "logic": {
+        "Init": "    \"FRK_FrameProbeInit\"(Index := #Core.RegIndex);",
+        "cyclic": "    \"FRK_FrameProbeCyclic\"(Index := #Core.RegIndex);\n    #OutImm.Sample := #Hal.Sample;"
+      },
+      "hal": "ST_DeclarationLeafHal"
+    }
+  ],
+  "roots": [
+    {
+      "name": "StationA",
+      "type": "FB_DeclarationUnit"
+    },
+    {
+      "name": "StationB",
+      "type": "FB_DeclarationUnit"
+    }
+  ],
+  "records": {
+    "ST_DeclarationParCfg": "STRUCT SchemaVersion : UINT := 1; END_STRUCT",
+    "ST_DeclarationParCmd": "STRUCT Value : DINT; END_STRUCT",
+    "ST_DeclarationOutCmd": "STRUCT Result : DINT; END_STRUCT",
+    "ST_DeclarationOutImm": "STRUCT Sample : DINT; END_STRUCT",
+    "ST_DeclarationLeafHal": "STRUCT Sample : DINT; END_STRUCT"
+  }
+}

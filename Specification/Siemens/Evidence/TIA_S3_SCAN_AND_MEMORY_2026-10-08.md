@@ -2,7 +2,7 @@
 
 **What this records.** The first S3 (scale & memory) numbers on the physical CPU, and
 one frame-design change they forced: the **quiescent fast path** for idle modules.
-Raw material: [`TIA_S3_SCAN_AND_MEMORY_2026-10-08/`](TIA_S3_SCAN_AND_MEMORY_2026-10-08/)
+Raw material: [`../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S3_SCAN_AND_MEMORY_2026-10-08/`](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S3_SCAN_AND_MEMORY_2026-10-08)
 (numbered in order, failures included).
 
 | Item | Value |

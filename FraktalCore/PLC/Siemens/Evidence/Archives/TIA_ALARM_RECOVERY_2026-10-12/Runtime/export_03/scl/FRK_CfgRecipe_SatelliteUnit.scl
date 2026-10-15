@@ -1,0 +1,63 @@
+﻿FUNCTION "FRK_CfgRecipe_SatelliteUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ModelCode : String;
+      Phase : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_SatelliteUnit";
+      RejectScope : String;
+      RejectKey : String;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgRecipe_SatelliteUnit := TRUE;
+	IF #Phase = 1 THEN
+	    #Module.ConfigStaged := FALSE;
+	    #Module.ConfigStageParCfg := #Module.ConfigDefaultParCfg;
+	    "FRK_CfgDef_SatelliteUnit"(FieldIndex := 1);
+	    #Ok := "FRK_ConfigGet"(Scope := #Module.Status.Name, ModelCode := #ModelCode);
+	    IF NOT #Ok THEN
+	        #RejectScope := #Module.Status.Name;
+	        #RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	        #FRK_CfgRecipe_SatelliteUnit := FALSE;
+	        RETURN;
+	    END_IF;
+	    #Module.ConfigStageParCfg.Timeout := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	    "FRK_CfgDef_SatelliteUnit"(FieldIndex := 2);
+	    #Ok := "FRK_ConfigGet"(Scope := #Module.Status.Name, ModelCode := #ModelCode);
+	    IF NOT #Ok THEN
+	        #RejectScope := #Module.Status.Name;
+	        #RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	        #FRK_CfgRecipe_SatelliteUnit := FALSE;
+	        RETURN;
+	    END_IF;
+	    #Module.ConfigStageParCfg.Preset := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    #Module.ConfigStaged := TRUE;
+	ELSIF #Phase = 2 THEN
+	    #Module.ParCfg := #Module.ConfigStageParCfg;
+	    #Module.ConfigStaged := FALSE;
+	ELSE
+	    #Module.ConfigStaged := FALSE;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_DeclarationCell"(Module := #Module.Cell, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_SatelliteUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_InnerUnit"(Module := #Module.Inner, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_SatelliteUnit := FALSE;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,21 @@
+﻿TYPE "FRK_AlarmLog"
+VERSION : 0.1
+   STRUCT
+      Active : Array[1..16] of "ST_AlarmEvent";
+      NActive : Int;
+      Ring : Array[1..64] of "ST_AlarmEvent";
+      RingHead : Int;
+      Blocking : Bool;
+      Truncated : Bool;
+      ComeMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of UDInt;
+      Automatic { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of Bool;
+      Touched { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of Bool;
+      RingUsed { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      HistorySlot { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      RecoverySlot { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      ElapsedBefore { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of UDInt;
+      Recovering { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of Bool;
+   END_STRUCT;
+
+END_TYPE
+

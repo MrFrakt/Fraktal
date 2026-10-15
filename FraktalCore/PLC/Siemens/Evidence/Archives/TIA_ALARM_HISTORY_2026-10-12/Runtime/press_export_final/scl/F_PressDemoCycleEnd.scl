@@ -1,0 +1,44 @@
+﻿FUNCTION "F_PressDemoCycleEnd" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Cycle : "ST_PressDemoCycle";
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Written : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF "FRK_SeqOnce"(Seq := #Seq, Enable := TRUE, Token := #Seq.Step) THEN
+	    #Cycle.CycleCompleted := TRUE;
+	    IF #Cycle.PartDispositioned THEN
+	        #Cycle.PartDispositioned := FALSE;
+	    ELSE
+	        #Written := "FRK_PartProcessed"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, Verdict := 1, Reason := 0);
+	        IF NOT #Written AND #Unit.CarrierIndex = 0 AND #Unit.Good < UDINT#4294967295 THEN
+	            #Unit.Good := #Unit.Good + 1;
+	        END_IF;
+	    END_IF;
+	    #Cycle.PartInMachine := FALSE;
+	    "FRK_SeqCycleEnd"(Seq := #Seq);
+	END_IF;
+	IF #Unit.StopReq THEN
+	    "FRK_Complete"(Core := #Core,
+	                   Status := #Status);
+	    "FRK_SeqComplete"(Seq := #Seq);
+	    #F_PressDemoCycleEnd := FALSE;
+	ELSE
+	    #F_PressDemoCycleEnd := #Core.Exec <> 3;
+	END_IF;
+	
+END_FUNCTION
+

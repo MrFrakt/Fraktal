@@ -1,0 +1,55 @@
+﻿FUNCTION "FRK_JsonRecord" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Data : "ST_ConfigRecord";
+   END_VAR
+
+   VAR_IN_OUT 
+      Line : WString;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+      Flag : WString[1];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_JsonRecord := FALSE;
+	#Line := WSTRING#'{';
+	#Ok := "FRK_JsonAdd"(Key := 'scope', Value := STRING_TO_WSTRING(#Data.Scope), Quoted := TRUE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'key', Value := STRING_TO_WSTRING(#Data.WriteKey), Quoted := TRUE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'rev', Value := UDINT_TO_WSTRING(#Data.Revision), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'kind', Value := DINT_TO_WSTRING(#Data.Kind), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'type', Value := DINT_TO_WSTRING(#Data.ValueType), Quoted := FALSE, LastField := FALSE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_JsonAdd"(Key := 'value', Value := STRING_TO_WSTRING(#Data.ValueText), Quoted := TRUE, LastField := TRUE, Line := #Line);
+	IF NOT #Ok THEN
+	    #Line := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#FRK_JsonRecord := TRUE;
+	
+END_FUNCTION
+

@@ -1,0 +1,12 @@
+// Invalid index only in the isolated, authorized test image.
+FUNCTION "FC_S11SclLocalError" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Idx : Int;
+   END_VAR
+BEGIN
+    "S11Scl".ValueRead := "S11Scl".Samples[#Idx];
+    "S11Scl".LocalCode := GET_ERR_ID();
+    "S11Scl".AfterError := TRUE;
+END_FUNCTION

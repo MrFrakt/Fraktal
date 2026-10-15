@@ -1,0 +1,21 @@
+﻿FUNCTION "FRK_CyclicHook_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Door : "FB_CylinderCM";
+      OutImm : "ST_PressDemoOutImm";
+      PartSlide : "FB_CylinderCM";
+      PressRam : "FB_CylinderCM";
+      StateFlagCount : Int;
+      StateFlags : Array[1..12] of "ST_StateFlag";
+      StateTouched : Array[1..12] of Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#OutImm.Homed := "FRK_State"(Idx := 1, Key := 'project.state.pressAtLoadPosition',
+	                             Ok := #PressRam.OutImm.Retracted AND #Door.OutImm.Retracted AND #PartSlide.OutImm.Retracted, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+	
+END_FUNCTION
+

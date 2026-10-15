@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_AlarmRecoveryIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Binding-local opt-in recovery of manual-reset latches. Commands remain volatile.
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmRecoveryIndex := 0;
+	IF #Scope = 'StationA' THEN
+	    #FRK_AlarmRecoveryIndex := 1;
+	    RETURN;
+	END_IF;
+	IF #Scope = 'StationA.Satellite' THEN
+	    #FRK_AlarmRecoveryIndex := 2;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

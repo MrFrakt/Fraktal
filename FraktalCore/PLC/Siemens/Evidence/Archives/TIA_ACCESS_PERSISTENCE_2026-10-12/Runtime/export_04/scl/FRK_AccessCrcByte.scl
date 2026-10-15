@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_AccessCrcByte" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Reference-1500 LOCAL_RETAIN adapter. No sessions or plaintext credentials.
+// CRC-32 arithmetic comes from Core F_Crc32; encoding is binding-local, versioned.
+   VAR_INPUT 
+      Previous : DWord;
+      Value : Byte;
+   END_VAR
+
+   VAR_TEMP 
+      BitIndex : Int;
+      Work : DWord;
+   END_VAR
+
+
+BEGIN
+	
+	#Work := #Previous XOR BYTE_TO_DWORD(#Value);
+	FOR #BitIndex := 0 TO 7 DO
+	    IF (#Work AND DWORD#1) <> 0 THEN
+	        #Work := SHR(IN := #Work, N := 1) XOR DWORD#16#EDB88320;
+	    ELSE
+	        #Work := SHR(IN := #Work, N := 1);
+	    END_IF;
+	END_FOR;
+	#FRK_AccessCrcByte := #Work;
+	
+END_FUNCTION
+

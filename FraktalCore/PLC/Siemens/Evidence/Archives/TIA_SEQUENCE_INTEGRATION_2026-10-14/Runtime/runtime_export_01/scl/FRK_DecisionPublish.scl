@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_DecisionPublish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Decision : "ST_DecisionRequest";
+      DecisionAnswer : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+	#Decision := "FRK_Decisions".EmptyRequest;
+	#DecisionAnswer := 0;
+	IF #Slot = 0 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].RootIndex <> #Owner THEN
+	    RETURN;
+	END_IF;
+	#Decision := "FRK_Decisions".Slots[#Slot].Request;
+	#DecisionAnswer := "FRK_Decisions".Slots[#Slot].Answer;
+	
+END_FUNCTION
+

@@ -8,6 +8,53 @@ driver, bench tooling, spike fixtures, declaration/frame generator and a shared
 [command-kernel prototype](Framework/Core/README.md).
 Do not describe it as a conforming implementation.
 
+Current continuation: generator 0.20 adds shared sequence freeze/recovery to
+the selected LOAD_DB/view/diagnostic/profile runtime. The synthetic runtime is
+`%LOCALAPPDATA%\Fraktal\TiaStations\Sequence_Recovery_Runtime_20261014\FrkS12\FrkS12.ap20`;
+the separate wired press is `Sequence_Recovery_Press_Offline_20261015` under
+the same station directory. Earlier image names below describe dated gates.
+See [the recovery fixture](Tests/SequenceRecovery/README.md),
+[the recovery report](../../../Specification/Siemens/Evidence/TIA_SEQUENCE_RECOVERY_2026-10-15.md),
+[the profiling fixture](Tests/CycleProfile/README.md),
+[the profiling report](../../../Specification/Siemens/Evidence/TIA_CYCLE_PROFILE_2026-10-14.md)
+and [the diagnostic report](../../../Specification/Siemens/Evidence/TIA_SEQUENCE_DIAGNOSTICS_2026-10-14.md)
+and [the earlier integration/error report](../../../Specification/Siemens/Evidence/TIA_SEQUENCE_INTEGRATION_2026-10-14.md).
+
+Fault recovery retains the failed step and rearms its command, delay and event
+state. A deliberate Start resumes or restarts according to project policy; the
+press restarts. Shared GRAPH adapters preserve the native transition boundary
+and reset pulse, release child commands while frozen and suppress inactive step
+publication. MAIN retains three calls. Provider/line config, baseline/reset/OEE,
+module/HAL expansion and deployment/physical acceptance remain separate gates.
+
+The owner retired 33 obsolete October11–13 AppData test-project copies on
+2026-10-14, recovering 3.16 GB of physical disk space. Current projects,
+baseline, credentials, simulator storage and sealed evidence remain preserved.
+Older local project names below identify historical runs; their sealed sources
+and native exports remain in Evidence/Archives.
+
+VS Code selects [Fraktal.TIA.sln](Fraktal.TIA.sln) for this Siemens workspace.
+Historical evidence snapshots are excluded from Dart analysis/project discovery.
+The separate Allen-Bradley offline probe still requires the installed Rockwell
+SDK; selecting the Siemens solution avoids restoring that unrelated project.
+Reload the editor window after changing these workspace settings.
+
+The implementation now has `Framework/Core`, `Framework/Modules`,
+[wired GRAPH/ST press demo and optional ST/LD examples](Examples/PressDemo/README.md), `Tests`, `Spikes`,
+`tools` and [immutable evidence payloads](Evidence/README.md). The
+[Siemens specification working set](../../../Specification/Siemens/README.md)
+contains documents only. The relocation verifier preserves historical hashes.
+
+The press demo now wires GRAPH AUTO/HOME and ST permissives in the owning Unit.
+Main remains three calls. AUTO includes TC3 recovery choices, backwards jumps and
+the native parallel join; ST/LD twins remain uninstantiated examples. The isolated
+wired project is `%LOCALAPPDATA%\Fraktal\TiaStations\Config_Sets_Press_Offline_20261012\FrkS12\FrkS12.ap20`.
+The Fraktal simulator runs the separate config-set/decision bench.
+Generator0.9 adds bounded root decisions; its native checks and config/state/access
+regressions are recorded in
+[the current evidence](../../../Specification/Siemens/Evidence/TIA_GRAPH_RECOVERY_DECISIONS_2026-10-12.md).
+Physical press qualification and full sequence frontier conformance remain open.
+
 S12/S4 on simulated1516 V3.0 now compile the complete Core-derived type layout
 and pass269-source canonical reimport. After the owner installed Advanced7,
 native symbolic Web API reads work on the preserved image. The reference
@@ -54,12 +101,40 @@ The current saved image is TiaStations/Manifest_Runtime_20261011/FrkS12/FrkS12.a
 This GUI gate uses an explicit test-only display policy at NONE; authentication,
 full alarm/release/retention services and sequence/GRAPH integration remain open.
 
+The [access/session bench](Tests/Access/README.md) now passes122 native checks
+and120 routing regressions with generator0.6. Salted local hashes, asynchronous
+login/session enforcement and gated policy edits compile0/0. The HMI authenticates
+an operator and commands the rendered button under its normal OPERATOR display
+policy.129 blocks/42 interfaces round-trip; production125/42 compiles0/0.
+User/policy persistence and full MESSAGE/alarm audit remain open. Current image:
+TiaStations/Access_Runtime_20261011/FrkS12/FrkS12.ap20, owner instance Fraktal.
+See [evidence](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_ACCESS_SESSIONS_2026-10-11.md).
+
+The [state/alarm bench](Tests/StateAlarm/README.md) adds generator0.7 derived
+states, nearest-Unit fault capture, AUTO_RESET/MANUAL_RESET active/closed events,
+recursive blocking/reset and an optional event callback. Native96/96 plus23/23
+nested ownership checks and122/122 authentication regressions pass. The real HMI
+renders the fault and clears it through the reset button.148 blocks/45 interfaces
+round-trip0/0; production142/45 compiles0/0. Current owner Fraktal image:
+TiaStations/Alarm_Runtime_20261011/FrkS12/FrkS12.ap20. Shelving, durable sinks,
+retention, full diagnostics/releases and sequence/GRAPH integration remain open.
+See [evidence](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_STATE_ALARMS_2026-10-11.md).
+
+The [config transaction bench](Tests/Config/README.md) adds generator0.8 editable
+station config/model config, a local-retain provider and atomic model changes.
+Native120 config checks,122 authentication and96 state/alarm regressions pass;
+190 authored blocks/52 interfaces round-trip0/0, production183/52 compiles0/0.
+The HMI/spec names now consistently read Station config, Line config and Model
+config. Current Fraktal image: Config_Runtime_20261011/FrkS12/FrkS12.ap20.
+Named sets, line config replication, other media and remaining Core services are
+open. See [evidence](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_CONFIG_TRANSACTIONS_2026-10-11.md).
+
 What *is* proven (2026-10-08, [evidence](../../../Specification/Siemens/Evidence/TIA_S2_S15_FIRST_BENCH_RUN_2026-10-08.md)):
 the S2 fixture builds headless through Openness, compiles 0 errors / 0 warnings
 (software and hardware), downloads to the physical CPU 1214C, and its 17 self-test
 assertions pass on three consecutive download-and-restart runs.
 
-And since 2026-10-08 evening ([evidence](../../../Specification/Siemens/Evidence/TIA_S1W_WEBAPI_2026-10-08.md)):
+And since 2026-10-08 evening ([evidence](../../../FraktalCore/PLC/Siemens/Evidence/Archives/TIA_S1W_WEBAPI_2026-10-08.md)):
 the ASCII sources pass 17/17 on three more runs, and the CPU's licence-free **Web
 API** is on — HTTPS with a pinned project certificate, one UMAC user `fraktal` with
 read/write-process-data rights only. `tia_webapi.py` browses the spike Unit (126
@@ -108,13 +183,14 @@ the **unchanged Web HMI** served by that gateway discovered, rendered and comman
 (Start/Stop) the spike Unit on 2026-10-08 (S7 PASS, spike scope; evidence §10).
 
 Decisions that shape this tree: TIA Portal V20 only; sequences in **S7-GRAPH
-(SFC) + SCL (ST)**, permissives in SCL, **no Ladder**; the press bench is ported
+(SFC) + SCL (ST)**, with **unwired LD examples** and ST/LD release examples added
+by the owner on 2026-10-11; the press bench is ported
 **without power control**; self-description through the CPU's licence-free **Web
 API** (JSON-RPC over HTTPS) into the Fraktal gateway, the embedded OPC UA server only
 as an optional licensed projection (Part IV §1). S7-1500 is the reference family;
 the S7-1200 is a constrained family.
 
-**Current implementation target:** the simulated S7-1500 (`FrkS11`, CPU1516-3
+**Current implementation target:** the simulated S7-1500 (`Fraktal`, CPU1516-3
 V3.0, PLCSIM Advanced 7.0), with full Core/modules/press scope, SCL and generated
 GRAPH. The physical 1214C's 150 KB budget and compact S3 candidates apply to its
 secondary compatibility profile. They do not gate or reduce the S7-1500 work.
@@ -241,7 +317,9 @@ deliberate, logged trust decision: add `--trust-plc PLC_1` to one `download`.
   by its `Status` child). `Status` and the root `HmiRequest` are published statics;
   outputs are written, never read, by their own block. Private state carries
   `ExternalAccessible/ExternalVisible/ExternalWritable := 'False'`; only `HmiRequest`
-  is `ExternalWritable`.
+  is `ExternalWritable` for operator commands. The optional sink adapter exposes
+  its metadata-only `FRK_EventDeliveryReceipt.Request` separately; status/replies
+  and all implementation storage remain protected.
 - Every module FB calls `FRK_Begin` first and `FRK_End` last, inside a generated
   quiescent guard (Part IV §3.14): an initialised, READY module with Execute/Abort low
   and nothing pending skips the lifecycle (≈ 0.20 → 0.053 ms per idle CM on the
@@ -254,3 +332,58 @@ deliberate, logged trust decision: add `--trust-plc PLC_1` to one `download`.
   typed string. A member named `Name` is declared quoted (`"Name"`).
 - An open interlock during a command is **HELD** (busy, outputs off, reason at LOW,
   self-resume), as in the TC3 reference — never a fault.
+
+
+Generator 0.10 adds [named station/model config sets](Tests/ConfigSets/README.md),
+with PLC-owned save/list/load/delete and JSON-lines export/import through the
+existing generic HMI. Typed owner handlers validate the entire set before a
+recursive commit; catalogs and transfer work are allocated per deployed root.
+The press demo opts into four station config slots and remains compiled offline.
+The current owner image is Config_Sets_Runtime_20261012/FrkS12/FrkS12.ap20. See
+[the current set evidence](../../../Specification/Siemens/Evidence/TIA_CONFIG_SETS_2026-10-12.md).
+File/database media, line config and user/policy/alarm retention remain subsequent
+work. This continuation does not release a conforming runtime library.
+
+Generator 0.11 adds [user and access-policy retention](Tests/AccessPersistence/README.md)
+with whole-image validation and volatile sessions. The current owner image is
+Access_Persistence_Runtime_20261012/FrkS12/FrkS12.ap20; the wired press remains offline
+in Access_Persistence_Press_Offline_20261012/FrkS12/FrkS12.ap20. See
+[the current retention evidence](../../../Specification/Siemens/Evidence/TIA_ACCESS_PERSISTENCE_2026-10-12.md).
+Alarm retention, other persistence media and broader provider forms remain open.
+
+Generator 0.12 adds optional [closed-event history retention](Tests/AlarmPersistence/README.md)
+for explicitly selected Unit scopes. Shared Core services own validation, restore
+and append. The current owner image is Alarm_Persistence_Runtime_20261012/FrkS12/FrkS12.ap20;
+the separate wired press is Alarm_Persistence_Press_Offline_20261012, compiled offline.
+See [history evidence](../../../Specification/Siemens/Evidence/TIA_ALARM_HISTORY_2026-10-12.md).
+Active-alarm restart policy, external durable sinks and other persistence media
+remain later gates.
+
+Generator 0.13 adds optional [manual-reset alarm recovery](Tests/AlarmRecovery/README.md)
+for a subset of history-selected Units. Shared services preserve ACTIVE/WAIT_RESET
+latches, reconcile fresh faults, fence descendant startup and complete interrupted
+closes. Commands, outputs and sessions stay volatile. Current projects are
+Alarm_Recovery_Runtime_20261012 and Alarm_Recovery_Press_Offline_20261012; the press
+remains compiled offline. See [recovery evidence](../../../Specification/Siemens/Evidence/TIA_ALARM_RECOVERY_2026-10-12.md).
+
+
+Generator 0.14 adds optional [retained event delivery](Tests/EventDelivery/README.md)
+for selected Units, with framework-owned FIFO capture and a SQLite collector that
+commits before sending a gated metadata receipt. Current simulator project is
+Event_Delivery_Runtime_20261012; the wired press compiles offline in
+Event_Delivery_Press_Offline_20261012. Independent service authentication, other
+persistence media and physical loss commissioning remain open. See
+[delivery evidence](../../../Specification/Siemens/Evidence/TIA_EVENT_DELIVERY_2026-10-12.md).
+
+The [S16 persistence spike](Spikes/S16_Persistence/README.md) qualifies asynchronous
+load-memory reads/writes, independent RAM/load values, optimized UNLINKED banks,
+restart and private access boundaries. Current diagnostic runtime is
+Load_Memory_Only_Runtime_20261013; its framework matches the event-delivery image.
+Config, named sets, users and policy continue using LOCAL_RETAIN while the shared
+keyed document adapter is integrated. The separately compiled press is unchanged.
+See [S16 evidence](../../../Specification/Siemens/Evidence/TIA_LOAD_MEMORY_2026-10-13.md).
+
+
+Generator 0.15 adds the selected [shared LOAD_DB document medium](Tests/Persistence/README.md). Station config, all offered model config, named sets, private users and root policy restore through the generated composition barrier. Confirmed load-memory documents replace cached values; native read-back precedes durability. Current runtime is Persist_Medium_Runtime_20261013 and the separate offline GRAPH/ST press is Persist_Medium_Press_Offline_20261013. MAIN remains three calls in the press, and optional ST/LAD examples remain unwired. See [the consumer evidence](../../../Specification/Siemens/Evidence/TIA_PERSIST_MEDIUM_2026-10-13.md). The original S16 diagnostic projects above are preserved.
+
+Generator 0.16 adds the optional [shared sequence view](Tests/SequenceView/README.md): Core definitions served by the manifest, per-leg cursors, PLC-owned history and sparse annotations. The owning frame controls scan/mode boundaries; projects add no scheduling call. Current runtime is Sequence_View_Runtime_20261013 (synthetic events, LOCAL_RETAIN config); the separate Sequence_View_Press_Offline_20261013 compiles the view with LOAD_DB. Native 122 checks and press readback pass; native HMI table rendering and combined boot qualification remain work. See [evidence](../../../Specification/Siemens/Evidence/TIA_SEQUENCE_VIEW_2026-10-13.md).

@@ -1,0 +1,81 @@
+// Fraktal/TIA Phase 0 fixture S2 - the AUTO chain in the SCL reference form
+// (Core s.6.8, Part IV s.3.5). Children arrive as PARAMETER INSTANCES: the step
+// branch names the child, the command and the wait; no alias is stored.
+
+FUNCTION_BLOCK "FB_SpkAutoSeq"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT
+      Seq : "FRK_SeqCtx";
+      CylA : "FB_SpkCylinderCM";
+      CylB : "FB_SpkCylinderCM";
+   END_VAR
+
+   VAR CONSTANT
+      ADVANCE : DInt := 1;
+      CMD_EXTEND : DInt := 1;
+      CMD_RETRACT : DInt := 2;
+      CHILD_CYLA : Int := 1;       // generated direct-child indices of the owner
+      CHILD_CYLB : Int := 2;
+   END_VAR
+
+
+BEGIN
+	CASE #Seq.Step OF
+	    0:  // N000 - start
+	        "FRK_Seq_Step"(StepNo := 0, StepName := 'spike.step.start', Seq := #Seq);
+	        #Seq.RetVal := #ADVANCE;
+	        "FRK_Seq_Advance"(OnAdvance := 100, OnJump1 := -1, Seq := #Seq);
+
+	    100: // N100 - extend A
+	        "FRK_Seq_Step"(StepNo := 100, StepName := 'spike.step.extendA', Seq := #Seq);
+	        IF "FRK_Seq_TryIssue"(Seq := #Seq) THEN
+	            #CylA.Command := #CMD_EXTEND;
+	            #CylA.Execute := TRUE;
+	        END_IF;
+	        "FRK_Seq_Await"(ChildIdx := #CHILD_CYLA, Label := 'CylA.EXTEND', Seq := #Seq);
+	        IF #CylA.Done THEN
+	            #CylA.Execute := FALSE;
+	            #Seq.RetVal := #ADVANCE;
+	        END_IF;
+	        "FRK_Seq_Advance"(OnAdvance := 110, OnJump1 := -1, Seq := #Seq);
+
+	    110: // N110 - extend B
+	        "FRK_Seq_Step"(StepNo := 110, StepName := 'spike.step.extendB', Seq := #Seq);
+	        IF "FRK_Seq_TryIssue"(Seq := #Seq) THEN
+	            #CylB.Command := #CMD_EXTEND;
+	            #CylB.Execute := TRUE;
+	        END_IF;
+	        "FRK_Seq_Await"(ChildIdx := #CHILD_CYLB, Label := 'CylB.EXTEND', Seq := #Seq);
+	        IF #CylB.Done THEN
+	            #CylB.Execute := FALSE;
+	            #Seq.RetVal := #ADVANCE;
+	        END_IF;
+	        "FRK_Seq_Advance"(OnAdvance := 120, OnJump1 := -1, Seq := #Seq);
+
+	    120: // N120 - retract both
+	        "FRK_Seq_Step"(StepNo := 120, StepName := 'spike.step.retractBoth', Seq := #Seq);
+	        IF "FRK_Seq_TryIssue"(Seq := #Seq) THEN
+	            #CylA.Command := #CMD_RETRACT;
+	            #CylA.Execute := TRUE;
+	            #CylB.Command := #CMD_RETRACT;
+	            #CylB.Execute := TRUE;
+	        END_IF;
+	        IF NOT #CylA.Done THEN
+	            "FRK_Seq_Await"(ChildIdx := #CHILD_CYLA, Label := 'CylA.RETRACT', Seq := #Seq);
+	        ELSE
+	            "FRK_Seq_Await"(ChildIdx := #CHILD_CYLB, Label := 'CylB.RETRACT', Seq := #Seq);
+	        END_IF;
+	        IF #CylA.Done AND #CylB.Done THEN
+	            #CylA.Execute := FALSE;
+	            #CylB.Execute := FALSE;
+	            #Seq.RetVal := #ADVANCE;
+	        END_IF;
+	        "FRK_Seq_Advance"(OnAdvance := 100, OnJump1 := -1, Seq := #Seq);
+
+	    ELSE
+	        // Unknown step: record it and stay, never a silent default (Core s.5.6);
+	        // the owner's stall diagnosis names it.
+	        "FRK_Seq_Step"(StepNo := #Seq.Step, StepName := 'std.step.unknown', Seq := #Seq);
+	END_CASE;
+END_FUNCTION_BLOCK

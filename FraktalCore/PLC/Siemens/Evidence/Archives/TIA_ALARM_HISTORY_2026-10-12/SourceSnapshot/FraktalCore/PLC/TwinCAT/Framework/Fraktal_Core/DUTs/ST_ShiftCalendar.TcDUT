@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ShiftCalendar" Id="{aa78fd3f-0068-4152-b0f7-99fded4a10c6}">
+    <Declaration><![CDATA[// Core §8.5.2(a) - a line's shift calendar. Line data (§3.8e): edited once at the
+// owner, mirrored whole. Compact on purpose - five registered values - so a line
+// module keeps room for the project's own line data. A shift is named by its index
+// ('Shift 1'), which the front end localizes; no operator text lives here.
+TYPE ST_ShiftCalendar :
+STRUCT
+    UtcOffsetMin : DINT;   // local = UTC + offset. Set it; daylight saving is not guessed.
+    StartMin     : ARRAY[1..PL_Fraktal.MAX_SHIFTS] OF DINT := [PL_Fraktal.MAX_SHIFTS(-1)];
+                           // minutes after local midnight, -1 = shift not used
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

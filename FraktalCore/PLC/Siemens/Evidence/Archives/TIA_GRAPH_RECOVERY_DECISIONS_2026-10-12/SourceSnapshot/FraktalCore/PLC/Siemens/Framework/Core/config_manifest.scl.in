@@ -1,0 +1,171 @@
+// Core 3.10.2: deterministic typed walk, one bounded response window.
+// Static facets carry no write capability. Every reused slot is cleared.
+FUNCTION "FRK_ConfigRevision" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Previous : UDInt;
+END_VAR
+VAR_TEMP
+    Stamp : DTL;
+    ResultCode : Int;
+    Generation : ULInt;
+END_VAR
+BEGIN
+    #FRK_ConfigRevision := #Previous + 1;
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN
+        #Generation := LDT_TO_ULINT(DTL_TO_LDT(#Stamp)) / ULINT#1000000;
+        #FRK_ConfigRevision := ULINT_TO_UDINT(#Generation MOD ULINT#4294967296);
+    END_IF;
+    IF #FRK_ConfigRevision = #Previous THEN #FRK_ConfigRevision := #Previous + 1; END_IF;
+    IF #FRK_ConfigRevision = 0 THEN #FRK_ConfigRevision := 1; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    PageIndex : DInt;
+    Revision : UDInt;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #Cursor.Position := 0;
+    #Cursor.First := 0;
+    #Page.Revision := #Revision;
+    #Page.PageIndex := 0;
+    IF #PageIndex >= 0 AND #PageIndex <= 32767 THEN
+        #Cursor.First := #PageIndex * @MAX_CONFIG_PAGE@;
+        #Page.PageIndex := DINT_TO_INT(#PageIndex);
+    END_IF;
+    #Page.PageCount := 1;
+    #Page.EntryCount := 0;
+    "FRK_UnitScratch".EmptyConfigEntry.ValueType := @E_ConfigValueType.TEXT@;
+    "FRK_UnitScratch".EmptyConfigEntry.Readable := TRUE;
+    FOR #Index := 1 TO @MAX_CONFIG_PAGE@ DO
+        #Page.Entries[#Index] := "FRK_UnitScratch".EmptyConfigEntry;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigAppend" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Item : String;
+    ValueText : WString;
+    ValueType : DInt;
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Slot : DInt;
+END_VAR
+BEGIN
+    #Slot := #Cursor.Position - #Cursor.First;
+    #Cursor.Position := #Cursor.Position + 1;
+    IF #Slot < 0 OR #Slot >= @MAX_CONFIG_PAGE@ THEN RETURN; END_IF;
+    #Slot := #Slot + 1;
+    #Page.Entries[#Slot].Scope := STRING_TO_WSTRING(#Scope);
+    #Page.Entries[#Slot].Item := STRING_TO_WSTRING(#Item);
+    #Page.Entries[#Slot].ValueType := #ValueType;
+    #Page.Entries[#Slot].ReadLevel := #ReadLevel;
+    #Page.Entries[#Slot].Readable := #Readable;
+    IF #Readable THEN #Page.Entries[#Slot].ValueText := #ValueText; END_IF;
+    #Page.EntryCount := DINT_TO_INT(#Slot);
+END_FUNCTION
+
+FUNCTION "FRK_ConfigFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+BEGIN
+    #Page.PageCount := DINT_TO_INT((#Cursor.Position + @MAX_CONFIG_PAGE@ - 1) / @MAX_CONFIG_PAGE@);
+    IF #Page.PageCount < 1 THEN #Page.PageCount := 1; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigCatalog" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Count : Int;
+    Catalog : Array[1..@MAX_CMD_CATALOG@] of "ST_CommandInfo";
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    IndexText : String[8];
+    Prefix : String[254];
+    Item : String[254];
+END_VAR
+BEGIN
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'CatalogCount', ValueText := STRING_TO_WSTRING(INT_TO_STRING(#Count)), ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    FOR #Index := 1 TO #Count DO
+        IF #Index > @MAX_CMD_CATALOG@ THEN EXIT; END_IF;
+        #IndexText := INT_TO_STRING(#Index);
+        IF #IndexText[1] = '+' THEN #IndexText := DELETE(IN := #IndexText, L := 1, P := 1); END_IF;
+        #Prefix := CONCAT(IN1 := 'Catalog/Catalog[', IN2 := #IndexText);
+        #Prefix := CONCAT(IN1 := #Prefix, IN2 := ']/');
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Value');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Catalog[#Index].Value)), ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Label');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(#Catalog[#Index].Label), ValueType := @E_ConfigValueType.TEXT@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Style');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Catalog[#Index].Style)), ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Policy : Array[0..@MODE_LAST@] of "ST_ModePolicy";
+    ModelCount : Int;
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    IndexText : String[8];
+    Prefix : String[254];
+    Item : String[254];
+END_VAR
+BEGIN
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'CatalogCount', ValueText := WSTRING#'0', ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'AvailableModelCount', ValueText := INT_TO_WSTRING(#ModelCount), ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    FOR #Index := 0 TO @MODE_LAST@ DO
+        #IndexText := INT_TO_STRING(#Index);
+        IF #IndexText[1] = '+' THEN #IndexText := DELETE(IN := #IndexText, L := 1, P := 1); END_IF;
+        #Prefix := CONCAT(IN1 := 'ModePolicy/ModePolicy[', IN2 := #IndexText);
+        #Prefix := CONCAT(IN1 := #Prefix, IN2 := ']/');
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Shield');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Policy[#Index].Shield)), ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Style');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Policy[#Index].Style)), ValueType := @E_ConfigValueType.NUMBER@, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    END_FOR;
+END_FUNCTION

@@ -1,0 +1,20 @@
+﻿FUNCTION "F_PressDemoReadInputs" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	
+	"GDB_FraktalHal".Data.PressDemo.Process.PartPresent := "GDB_PressDemoIO".PartPresent;
+	"GDB_FraktalHal".Data.PressDemo.Process.PartQuality := "GDB_PressDemoIO".PartQuality;
+	"GDB_FraktalHal".Data.PressDemo.Process.AirPressureOk := "GDB_PressDemoIO".AirPressureOk;
+	"GDB_FraktalHal".Data.PressDemo.Process.TwoHandHeld := "GDB_PressDemoIO".TwoHandHeld;
+	"GDB_FraktalHal".Data.PressDemo.Process.StartPulse := "GDB_PressDemoIO".StartPulse;
+	"GDB_FraktalHal".Data.PressDemo.PressRam.FeedbackExtended := "GDB_PressDemoIO".RamExtended;
+	"GDB_FraktalHal".Data.PressDemo.PressRam.FeedbackRetracted := "GDB_PressDemoIO".RamRetracted;
+	"GDB_FraktalHal".Data.PressDemo.Door.FeedbackExtended := "GDB_PressDemoIO".DoorClosed;
+	"GDB_FraktalHal".Data.PressDemo.Door.FeedbackRetracted := "GDB_PressDemoIO".DoorOpen;
+	"GDB_FraktalHal".Data.PressDemo.PartSlide.FeedbackExtended := "GDB_PressDemoIO".SlideInside;
+	"GDB_FraktalHal".Data.PressDemo.PartSlide.FeedbackRetracted := "GDB_PressDemoIO".SlideOutside;
+	
+END_FUNCTION
+

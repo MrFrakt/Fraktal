@@ -1,0 +1,43 @@
+﻿FUNCTION "FRK_SeqLease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      TargetIndex : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Lease : "ST_SequenceCommandLease";
+      Execute : Bool;
+      Abort : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Lease.OwnerIndex = #Seq.OwnerIndex AND #Lease.ChainIndex = #Seq.ChainIndex AND #Lease.BranchIndex = #Seq.BranchIndex
+	    AND #Lease.AbortIssued AND #Lease.ReleasedScan <> #Seq.Scan THEN
+	    #Abort := FALSE;
+	    #Lease.AbortIssued := FALSE;
+	END_IF;
+	IF #Lease.Raised AND #Lease.OwnerIndex > 0 AND #Lease.ChainIndex > 0
+	    AND #Lease.OwnerIndex = #Seq.OwnerIndex AND #Lease.ChainIndex = #Seq.ChainIndex
+	    AND #Lease.BranchIndex = #Seq.BranchIndex THEN
+	    IF NOT #Seq.Running OR #Seq.Error OR #Seq.Restart OR #Lease.Step <> #Seq.Step THEN
+	        #Slot := "FRK_DiagSlot"(Index := #TargetIndex);
+	        IF #Slot > 0 THEN
+	            #Abort := "FRK_Diagnostics".Samples[#Slot].Valid AND "FRK_Diagnostics".Samples[#Slot].State = 1;
+	            #Lease.AbortIssued := #Abort;
+	        END_IF;
+	        #Execute := FALSE;
+	        #Lease.Raised := FALSE;
+	        #Lease.ReleasedScan := #Seq.Scan;
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

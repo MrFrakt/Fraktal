@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_ManualCondition" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+      Value : DInt;
+      Ok : Bool;
+      Diag : "ST_Diagnostic";
+      Bypassable : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Conditions : Array[1..16] of "FRK_ManualConditionRow";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 16 THEN
+	    RETURN;
+	END_IF;
+	#Conditions[#Slot].Used := TRUE;
+	#Conditions[#Slot].Value := #Value;
+	#Conditions[#Slot].Ok := #Ok;
+	#Conditions[#Slot].Diag := #Diag;
+	#Conditions[#Slot].Bypassable := #Bypassable;
+	
+END_FUNCTION
+

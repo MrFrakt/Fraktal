@@ -1,0 +1,164 @@
+﻿FUNCTION "FRK_PersistTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Pick : Int;
+      Index : Int;
+      Slot : Int;
+      Operation : Int;
+      Done : Bool;
+      Check : "FRK_PersistCheck";
+   END_VAR
+
+
+BEGIN
+	
+	IF "FRK_PersistRuntime".LastScan = "FRK_PersistRuntime".Scan THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistRuntime".LastScan := "FRK_PersistRuntime".Scan;
+	IF "FRK_PersistRuntime".Active = 0 THEN
+	    #Pick := 0;
+	    FOR #Index := 1 TO 4 DO
+	        IF "FRK_PersistRuntime".Queue[#Index].State = 1 THEN
+	            IF #Pick = 0 THEN
+	                #Pick := #Index;
+	            ELSIF "FRK_PersistRuntime".Queue[#Index].Ticket < "FRK_PersistRuntime".Queue[#Pick].Ticket THEN
+	                #Pick := #Index;
+	            END_IF;
+	        END_IF;
+	    END_FOR;
+	    IF #Pick = 0 THEN
+	        RETURN;
+	    END_IF;
+	    "FRK_PersistRuntime".Active := #Pick;
+	    "FRK_PersistRuntime".Slot := "FRK_PersistRuntime".Queue[#Pick].Slot;
+	    "FRK_PersistRuntime".Queue[#Pick].State := 2;
+	    "FRK_PersistRuntime".Result := "FRK_PersistRuntime".EmptyResult;
+	    "FRK_PersistRuntime".Stage := 1;
+	    "FRK_PersistRuntime".NativeReq := TRUE;
+	    "FRK_PersistRuntime".CheckA.Cursor := -1;
+	    "FRK_PersistRuntime".CheckB.Cursor := -1;
+	END_IF;
+	IF "FRK_PersistRuntime".Unavailable THEN
+	    "FRK_PersistRuntime".Result.ErrorId := UDINT#32963;
+	    "FRK_PersistFinish"();
+	    RETURN;
+	END_IF;
+	CASE "FRK_PersistRuntime".Stage OF
+	    1, 2, 8, 9:
+	        #Operation := "FRK_PersistRuntime".Stage;
+	        IF #Operation = 8 THEN
+	            #Operation := "FRK_PersistRuntime".Chosen + 2;
+	        ELSIF #Operation = 9 THEN
+	            #Operation := "FRK_PersistRuntime".Chosen;
+	        END_IF;
+	        "FRK_PersistIo"(Operation := #Operation);
+	        "FRK_PersistRuntime".NativeReq := FALSE;
+	        IF "FRK_PersistRuntime".NativeBusy THEN
+	            RETURN;
+	        END_IF;
+	        IF "FRK_PersistRuntime".NativeResult <> 0 THEN
+	            "FRK_PersistRuntime".Result.ErrorId := WORD_TO_UDINT(INT_TO_WORD("FRK_PersistRuntime".NativeResult));
+	            "FRK_PersistFinish"();
+	            RETURN;
+	        END_IF;
+	        CASE "FRK_PersistRuntime".Stage OF
+	            1:
+	                "FRK_PersistRuntime".Stage := 2;
+	            2:
+	                "FRK_PersistRuntime".Stage := 3;
+	            8:
+	                "FRK_PersistRuntime".Stage := 9;
+	            9:
+	                "FRK_PersistRuntime".Stage := 10;
+	                IF "FRK_PersistRuntime".Chosen = 1 THEN
+	                    "FRK_PersistRuntime".CheckA.Cursor := -1;
+	                ELSE
+	                    "FRK_PersistRuntime".CheckB.Cursor := -1;
+	                END_IF;
+	            ELSE
+	                RETURN;
+	        END_CASE;
+	        "FRK_PersistRuntime".NativeReq := TRUE;
+	    3:
+	        IF "FRK_PersistCheckA"() THEN
+	            "FRK_PersistRuntime".Stage := 4;
+	        END_IF;
+	    4:
+	        IF "FRK_PersistCheckB"() THEN
+	            "FRK_PersistRuntime".Stage := 5;
+	        END_IF;
+	    5:
+	        "FRK_PersistInspectSlot"();
+	    6:
+	        IF "FRK_PersistCheckWrite"() THEN
+	            CASE "FRK_PersistRuntime".Slot OF
+	                1:
+	                    "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D001Data,
+	                                           Offset := 20,
+	                                           Value := "FRK_PersistRuntime".CheckWrite.Crc);
+	                2:
+	                    "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D002Data,
+	                                           Offset := 20,
+	                                           Value := "FRK_PersistRuntime".CheckWrite.Crc);
+	                3:
+	                    "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D003Data,
+	                                           Offset := 20,
+	                                           Value := "FRK_PersistRuntime".CheckWrite.Crc);
+	                4:
+	                    "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D004Data,
+	                                           Offset := 20,
+	                                           Value := "FRK_PersistRuntime".CheckWrite.Crc);
+	                5:
+	                    "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D005Data,
+	                                           Offset := 20,
+	                                           Value := "FRK_PersistRuntime".CheckWrite.Crc);
+	                6:
+	                    "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D006Data,
+	                                           Offset := 20,
+	                                           Value := "FRK_PersistRuntime".CheckWrite.Crc);
+	                7:
+	                    "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D007Data,
+	                                           Offset := 20,
+	                                           Value := "FRK_PersistRuntime".CheckWrite.Crc);
+	                ELSE
+	                    RETURN;
+	            END_CASE;
+	            "FRK_PersistRuntime".Stage := 7;
+	        END_IF;
+	    7:
+	        IF NOT "FRK_PersistRuntime".HadWrite OR "FRK_Elapsed"(OldMs := "FRK_PersistRuntime".LastWriteMs, NewMs := "FRK_Clock".NowMs) >= 1000 THEN
+	            "FRK_PersistRuntime".HadWrite := TRUE;
+	            "FRK_PersistRuntime".LastWriteMs := "FRK_Clock".NowMs;
+	            "FRK_PersistRuntime".Stage := 8;
+	            "FRK_PersistRuntime".NativeReq := TRUE;
+	        END_IF;
+	    10:
+	        IF "FRK_PersistRuntime".Chosen = 1 THEN
+	            #Done := "FRK_PersistCheckA"();
+	            #Check := "FRK_PersistRuntime".CheckA;
+	        ELSE
+	            #Done := "FRK_PersistCheckB"();
+	            #Check := "FRK_PersistRuntime".CheckB;
+	        END_IF;
+	        IF #Done THEN
+	            IF #Check.Valid AND #Check.Generation = "FRK_PersistRuntime".Generation AND #Check.Crc = "FRK_PersistRuntime".CheckWrite.Crc THEN
+	                #Slot := "FRK_PersistRuntime".Slot;
+	                "FRK_PersistRuntime".Anchor[#Slot].Generation := #Check.Generation;
+	                "FRK_PersistRuntime".Anchor[#Slot].DocumentCrc := #Check.Crc;
+	                "FRK_PersistRuntime".Anchor[#Slot].Checksum := "FRK_PersistAnchorCrc"(Image := "FRK_PersistRuntime".Anchor[#Slot]);
+	                "FRK_PersistCommitAnchor"(Slot := #Slot);
+	                "FRK_PersistRuntime".Result.Ok := TRUE;
+	            ELSE
+	                "FRK_PersistRuntime".Result.ErrorId := 4;
+	            END_IF;
+	            "FRK_PersistFinish"();
+	        END_IF;
+	    ELSE
+	        "FRK_PersistRuntime".Result.ErrorId := 1;
+	        "FRK_PersistFinish"();
+	END_CASE;
+	
+END_FUNCTION
+

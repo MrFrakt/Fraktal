@@ -1,0 +1,41 @@
+﻿FUNCTION "FRK_TimingUpdate" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      DurationMs : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Row : "ST_TimingRow";
+   END_VAR
+
+   VAR_TEMP 
+      BoundedMs : UDInt;
+      Duration : Time;
+      AverageMs : LInt;
+   END_VAR
+
+
+BEGIN
+	
+	#BoundedMs := #DurationMs;
+	IF #BoundedMs > UDINT#2147483647 THEN
+	    #BoundedMs := UDINT#2147483647;
+	END_IF;
+	#Duration := DINT_TO_TIME(UDINT_TO_DINT(#BoundedMs));
+	IF #Row.Count < UDINT#4294967295 THEN
+	    #Row.Count := #Row.Count + 1;
+	END_IF;
+	#Row.Last := #Duration;
+	IF #Row.Count = 1 OR #Duration < #Row.Minimum THEN
+	    #Row.Minimum := #Duration;
+	END_IF;
+	IF #Duration > #Row.Maximum THEN
+	    #Row.Maximum := #Duration;
+	END_IF;
+	#AverageMs := DINT_TO_LINT(TIME_TO_DINT(#Row.Avg));
+	#AverageMs := #AverageMs + (UDINT_TO_LINT(#BoundedMs) - #AverageMs) / UDINT_TO_LINT(#Row.Count);
+	#Row.Avg := DINT_TO_TIME(LINT_TO_DINT(#AverageMs));
+	
+END_FUNCTION
+

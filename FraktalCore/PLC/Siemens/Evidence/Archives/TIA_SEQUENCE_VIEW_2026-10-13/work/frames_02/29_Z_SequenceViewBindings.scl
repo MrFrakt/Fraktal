@@ -1,0 +1,72 @@
+FUNCTION "FRK_SeqViewStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    Depth : Int;
+    Visit : UDInt;
+    StepName : String;
+    AwaitingLabel : String;
+    AwaitsPath : String;
+    TimeClass : DInt;
+    ExpectedTime : Time;
+    Elapsed : Time;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "StationA".SequenceStepDef, Rows := "StationA".SequenceSteps, Cursors := "StationA".ActiveSteps, Notes := "StationA".SequenceAnnotations, Count := "StationA".SequenceStepCount, NoteCount := "StationA".SequenceAnnotationCount, Current := "StationA".CurrentStep, Book := "StationA".SequenceViewBook, Touched := "StationA".SequenceViewTouched, Depths := "StationA".SequenceViewDepths, Visits := "StationA".SequenceViewVisits);
+        5: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "StationA".Satellite.SequenceStepDef, Rows := "StationA".Satellite.SequenceSteps, Cursors := "StationA".Satellite.ActiveSteps, Notes := "StationA".Satellite.SequenceAnnotations, Count := "StationA".Satellite.SequenceStepCount, NoteCount := "StationA".Satellite.SequenceAnnotationCount, Current := "StationA".Satellite.CurrentStep, Book := "StationA".Satellite.SequenceViewBook, Touched := "StationA".Satellite.SequenceViewTouched, Depths := "StationA".Satellite.SequenceViewDepths, Visits := "StationA".Satellite.SequenceViewVisits);
+        9: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "StationA".Satellite.Inner.SequenceStepDef, Rows := "StationA".Satellite.Inner.SequenceSteps, Cursors := "StationA".Satellite.Inner.ActiveSteps, Notes := "StationA".Satellite.Inner.SequenceAnnotations, Count := "StationA".Satellite.Inner.SequenceStepCount, NoteCount := "StationA".Satellite.Inner.SequenceAnnotationCount, Current := "StationA".Satellite.Inner.CurrentStep, Book := "StationA".Satellite.Inner.SequenceViewBook, Touched := "StationA".Satellite.Inner.SequenceViewTouched, Depths := "StationA".Satellite.Inner.SequenceViewDepths, Visits := "StationA".Satellite.Inner.SequenceViewVisits);
+        13: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "StationB".SequenceStepDef, Rows := "StationB".SequenceSteps, Cursors := "StationB".ActiveSteps, Notes := "StationB".SequenceAnnotations, Count := "StationB".SequenceStepCount, NoteCount := "StationB".SequenceAnnotationCount, Current := "StationB".CurrentStep, Book := "StationB".SequenceViewBook, Touched := "StationB".SequenceViewTouched, Depths := "StationB".SequenceViewDepths, Visits := "StationB".SequenceViewVisits);
+        17: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "StationB".Satellite.SequenceStepDef, Rows := "StationB".Satellite.SequenceSteps, Cursors := "StationB".Satellite.ActiveSteps, Notes := "StationB".Satellite.SequenceAnnotations, Count := "StationB".Satellite.SequenceStepCount, NoteCount := "StationB".Satellite.SequenceAnnotationCount, Current := "StationB".Satellite.CurrentStep, Book := "StationB".Satellite.SequenceViewBook, Touched := "StationB".Satellite.SequenceViewTouched, Depths := "StationB".Satellite.SequenceViewDepths, Visits := "StationB".Satellite.SequenceViewVisits);
+        21: "FRK_ViewRecord"(StepNo := #StepNo, Branch := #Branch, Depth := #Depth, Visit := #Visit, StepName := #StepName, AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass, ExpectedTime := #ExpectedTime, Elapsed := #Elapsed, Defs := "StationB".Satellite.Inner.SequenceStepDef, Rows := "StationB".Satellite.Inner.SequenceSteps, Cursors := "StationB".Satellite.Inner.ActiveSteps, Notes := "StationB".Satellite.Inner.SequenceAnnotations, Count := "StationB".Satellite.Inner.SequenceStepCount, NoteCount := "StationB".Satellite.Inner.SequenceAnnotationCount, Current := "StationB".Satellite.Inner.CurrentStep, Book := "StationB".Satellite.Inner.SequenceViewBook, Touched := "StationB".Satellite.Inner.SequenceViewTouched, Depths := "StationB".Satellite.Inner.SequenceViewDepths, Visits := "StationB".Satellite.Inner.SequenceViewVisits);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewAwait" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    Label : String;
+    Ok : Bool;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "StationA".SequenceStepDef, Cursors := "StationA".ActiveSteps, Count := "StationA".SequenceStepCount, Current := "StationA".CurrentStep, Book := "StationA".SequenceViewBook);
+        5: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "StationA".Satellite.SequenceStepDef, Cursors := "StationA".Satellite.ActiveSteps, Count := "StationA".Satellite.SequenceStepCount, Current := "StationA".Satellite.CurrentStep, Book := "StationA".Satellite.SequenceViewBook);
+        9: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "StationA".Satellite.Inner.SequenceStepDef, Cursors := "StationA".Satellite.Inner.ActiveSteps, Count := "StationA".Satellite.Inner.SequenceStepCount, Current := "StationA".Satellite.Inner.CurrentStep, Book := "StationA".Satellite.Inner.SequenceViewBook);
+        13: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "StationB".SequenceStepDef, Cursors := "StationB".ActiveSteps, Count := "StationB".SequenceStepCount, Current := "StationB".CurrentStep, Book := "StationB".SequenceViewBook);
+        17: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "StationB".Satellite.SequenceStepDef, Cursors := "StationB".Satellite.ActiveSteps, Count := "StationB".Satellite.SequenceStepCount, Current := "StationB".Satellite.CurrentStep, Book := "StationB".Satellite.SequenceViewBook);
+        21: "FRK_ViewAwait"(StepNo := #StepNo, Branch := #Branch, Label := #Label, Ok := #Ok, Defs := "StationB".Satellite.Inner.SequenceStepDef, Cursors := "StationB".Satellite.Inner.ActiveSteps, Count := "StationB".Satellite.Inner.SequenceStepCount, Current := "StationB".Satellite.Inner.CurrentStep, Book := "StationB".Satellite.Inner.SequenceViewBook);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_SeqViewNote" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    StepNo : DInt;
+    Branch : DInt;
+    IsError : Bool;
+    Key : String;
+    SourcePath : String;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "StationA".SequenceStepDef, Rows := "StationA".SequenceSteps, Notes := "StationA".SequenceAnnotations, Count := "StationA".SequenceStepCount, NoteCount := "StationA".SequenceAnnotationCount);
+        5: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "StationA".Satellite.SequenceStepDef, Rows := "StationA".Satellite.SequenceSteps, Notes := "StationA".Satellite.SequenceAnnotations, Count := "StationA".Satellite.SequenceStepCount, NoteCount := "StationA".Satellite.SequenceAnnotationCount);
+        9: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "StationA".Satellite.Inner.SequenceStepDef, Rows := "StationA".Satellite.Inner.SequenceSteps, Notes := "StationA".Satellite.Inner.SequenceAnnotations, Count := "StationA".Satellite.Inner.SequenceStepCount, NoteCount := "StationA".Satellite.Inner.SequenceAnnotationCount);
+        13: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "StationB".SequenceStepDef, Rows := "StationB".SequenceSteps, Notes := "StationB".SequenceAnnotations, Count := "StationB".SequenceStepCount, NoteCount := "StationB".SequenceAnnotationCount);
+        17: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "StationB".Satellite.SequenceStepDef, Rows := "StationB".Satellite.SequenceSteps, Notes := "StationB".Satellite.SequenceAnnotations, Count := "StationB".Satellite.SequenceStepCount, NoteCount := "StationB".Satellite.SequenceAnnotationCount);
+        21: "FRK_ViewNote"(StepNo := #StepNo, Branch := #Branch, IsError := #IsError, Key := #Key, SourcePath := #SourcePath, Defs := "StationB".Satellite.Inner.SequenceStepDef, Rows := "StationB".Satellite.Inner.SequenceSteps, Notes := "StationB".Satellite.Inner.SequenceAnnotations, Count := "StationB".Satellite.Inner.SequenceStepCount, NoteCount := "StationB".Satellite.Inner.SequenceAnnotationCount);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION

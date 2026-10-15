@@ -1,0 +1,437 @@
+{
+  "schema_version": 1,
+  "target_family": "S7-1500",
+  "registry_capacity": 32,
+  "types": [
+    {
+      "name": "FB_DeclarationUnit",
+      "tier": "UNIT",
+      "type_key": "Fraktal.Declaration.Unit",
+      "children": [
+        {
+          "name": "Cell",
+          "type": "FB_DeclarationCell"
+        },
+        {
+          "name": "Satellite",
+          "type": "FB_SatelliteUnit"
+        }
+      ],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_UnitProbeImm"
+      },
+      "logic": {
+        "CommandStart": "    #Device.Received := \"FRK_PartReceived\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n    IF #Device.Received THEN\n        \"FRK_PartStarted\"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n    END_IF;",
+        "Release": "    \"FRK_UnitSetPermit\"(Unit := #Unit, Ok := #Hal.Cell.Clamp.Permit, Diag := #Hal.Cell.Clamp.Diag);",
+        "Cyclic": "    IF #Hal.Cell.Clamp.BackgroundFault THEN\n        \"FRK_Fault\"(Core := #Core, Status := #Status, ReasonCode := 2901, Description := WSTRING#'test.unit.condition');\n    END_IF;",
+        "ModeExit": "    #Device.ExitCalls := #Device.ExitCalls + 1;\n    IF #Hal.Cell.Clamp.ExitHold THEN #Core.HookResult := 1; ELSE #Core.HookResult := 0; END_IF;",
+        "ModeChanged": "    #Device.Changes := #Device.Changes + 1;",
+        "OperatorReset": "    #Device.Resets := #Device.Resets + 1;",
+        "dispatch": "    IF #Hal.Cell.Clamp.Finish THEN\n        #Device.Processed := FALSE;\n        IF #Unit.CarrierIndex = 0 THEN\n            #Device.Processed := TRUE;\n        ELSE\n            #Device.Processed := \"FRK_PartProcessed\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, Verdict := #Hal.Cell.Clamp.Verdict, Reason := #Hal.Cell.Clamp.Diag.ReasonCode);\n        END_IF;\n        IF #Device.Processed THEN\n            #Device.Cycles := #Device.Cycles + 1;\n            IF #Unit.StopReq THEN\n                \"FRK_Complete\"(Core := #Core, Status := #Status);\n            ELSE\n                #Device.Received := \"FRK_PartReceived\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n                IF #Device.Received THEN\n                    \"FRK_PartStarted\"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n                END_IF;\n            END_IF;\n        END_IF;\n    END_IF;",
+        "cyclic": "    #OutImm.Cycles := #Device.Cycles;\n    #OutImm.ExitCalls := #Device.ExitCalls;\n    #OutImm.Changes := #Device.Changes;\n    #OutImm.Resets := #Device.Resets;\n    #OutImm.AtHome := \"FRK_State\"(Idx := 1, Key := 'project.state.atHome', Ok := #Hal.Cell.Clamp.Sample = 0);"
+      },
+      "commands": [
+        {
+          "id": 1,
+          "label": "Run"
+        }
+      ],
+      "timeout": "Timeout",
+      "storage": "ST_UnitProbeDevice",
+      "unit": {
+        "modes": [
+          "AUTO",
+          "MANUAL",
+          "HOME",
+          "CHANGEOVER"
+        ],
+        "initial": "MANUAL",
+        "run_command": 1
+      },
+      "config": [
+        {
+          "member": "ParCfg.Timeout",
+          "key": "timeout",
+          "revision": 1,
+          "label": "test.config.timeout",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        {
+          "member": "ParCfg.Preset",
+          "key": "preset",
+          "revision": 2,
+          "label": "test.config.preset",
+          "minimum": 0,
+          "maximum": 1000,
+          "min_write": 1
+        },
+        {
+          "member": "StationCfg.SiteLabel",
+          "key": "siteLabel",
+          "revision": 1,
+          "label": "test.config.siteLabel",
+          "requires_ready": false,
+          "min_write": 1
+        },
+        {
+          "member": "StationCfg.Enabled",
+          "key": "enabled",
+          "revision": 1,
+          "label": "test.config.enabled",
+          "requires_ready": false
+        }
+      ],
+      "station_config": "ST_UnitProbeStationCfg"
+    },
+    {
+      "name": "FB_DeclarationCell",
+      "tier": "EQUIPMENT_MODULE",
+      "type_key": "Fraktal.Declaration.Cell",
+      "children": [
+        {
+          "name": "Clamp",
+          "type": "FB_DeclarationCylinder"
+        },
+        {
+          "name": "Gate",
+          "type": "FB_DeclarationCylinder"
+        }
+      ],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_DeclarationOutImm"
+      },
+      "logic": {
+        "Init": "    #Device.InitCount := #Device.InitCount + 1;",
+        "CommandStart": "    #Device.StartCount := #Device.StartCount + 1;\n    #Device.Ordered := #Device.InitCount = 1;",
+        "cyclic": "    #Device.Sample := #Device.Sample + 1;\n    #OutImm := #Device;"
+      },
+      "commands": [
+        {
+          "id": 1,
+          "label": "Finish"
+        },
+        {
+          "id": 2,
+          "label": "Wait"
+        },
+        {
+          "id": 3,
+          "label": "Hold"
+        },
+        {
+          "id": 4,
+          "label": "Fault"
+        },
+        {
+          "id": 5,
+          "label": "Pending"
+        },
+        {
+          "id": 6,
+          "label": "Instant"
+        },
+        {
+          "id": 7,
+          "label": "Adopt"
+        }
+      ],
+      "timeout": "Timeout",
+      "storage": "ST_DeclarationOutImm",
+      "config": [
+        {
+          "member": "ParCfg.Timeout",
+          "key": "timeout",
+          "revision": 1,
+          "label": "test.config.timeout",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        {
+          "member": "ParCfg.Preset",
+          "key": "preset",
+          "revision": 2,
+          "label": "test.config.preset",
+          "minimum": 0,
+          "maximum": 1000,
+          "min_write": 1
+        }
+      ]
+    },
+    {
+      "name": "FB_DeclarationCylinder",
+      "tier": "CONTROL_MODULE",
+      "type_key": "Fraktal.Declaration.Cylinder",
+      "children": [],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_DeclarationOutImm"
+      },
+      "logic": {
+        "Init": "    #Device.InitCount := #Device.InitCount + 1;",
+        "CommandStart": "    #Device.StartCount := #Device.StartCount + 1;\n    #Device.Ordered := #Device.InitCount = 1;",
+        "cyclic": "    #Device.Sample := #Hal.Sample;\n    #Device.Output := #Core.Exec = 1 AND NOT #Core.Held AND #Hal.Permit;\n    #OutImm := #Device;",
+        "Cyclic": "    #Device.CyclicCount := #Device.CyclicCount + 1;\n    IF #Hal.BackgroundFault THEN\n        \"FRK_Fault\"(Core := #Core, Status := #Status, ReasonCode := 2901, Description := WSTRING#'test.background');\n    END_IF;",
+        "Abort": "    #Device.AbortCount := #Device.AbortCount + 1;",
+        "AbortInError": "    #Device.ErrorAbortCount := #Device.ErrorAbortCount + 1;",
+        "dispatch": "    #Device.DispatchCount := #Device.DispatchCount + 1;\n    #Device.SeenValue := #LatchedParCmd.Value;\n    CASE #Core.Command OF\n        1: IF #Hal.Finish THEN\n               #OutCmd.Result := #LatchedParCmd.Value;\n               \"FRK_Complete\"(Core := #Core, Status := #Status);\n           END_IF;\n        2: #Device.SeenValue := #LatchedParCmd.Value;\n        3: IF NOT #Hal.Permit THEN\n               \"FRK_Hold\"(Core := #Core, Status := #Status, ReasonCode := 2003, Description := WSTRING#'test.permit');\n           ELSIF #Hal.Finish THEN\n               \"FRK_Complete\"(Core := #Core, Status := #Status);\n           END_IF;\n        4: \"FRK_Fault\"(Core := #Core, Status := #Status, ReasonCode := 2901, Description := WSTRING#'test.first');\n           \"FRK_Fault\"(Core := #Core, Status := #Status, ReasonCode := 2001, Description := WSTRING#'test.second');\n        5: \"FRK_Pending\"(Core := #Core, Status := #Status, Diag := #Hal.Diag);\n           \"FRK_Pending\"(Core := #Core, Status := #Status, Diag := #Hal.LaterDiag);\n        6: \"FRK_Complete\"(Core := #Core, Status := #Status);\n        7: \"FRK_AdoptFault\"(Core := #Core, Status := #Status, Diag := #Hal.Diag);\n        ELSE \"FRK_Fault\"(Core := #Core, Status := #Status, ReasonCode := 2008, Description := WSTRING#'std.error.unsupportedHmiRequest');\n    END_CASE;",
+        "ManRelease": "    \"FRK_ManualCondition\"(Conditions := #ManConditions, Slot := 1, Value := 2, Ok := #Hal.Permit, Diag := #Hal.Diag, Bypassable := FALSE);\n    \"FRK_ManualCondition\"(Conditions := #ManConditions, Slot := 2, Value := 2, Ok := #Hal.Sample = 0, Diag := #Hal.LaterDiag, Bypassable := FALSE);"
+      },
+      "hal": "ST_DeclarationLeafHal",
+      "commands": [
+        {
+          "id": 1,
+          "label": "Finish"
+        },
+        {
+          "id": 2,
+          "label": "Wait"
+        },
+        {
+          "id": 3,
+          "label": "Hold"
+        },
+        {
+          "id": 4,
+          "label": "Fault"
+        },
+        {
+          "id": 5,
+          "label": "Pending"
+        },
+        {
+          "id": 6,
+          "label": "Instant"
+        },
+        {
+          "id": 7,
+          "label": "Adopt"
+        }
+      ],
+      "timeout": "Timeout",
+      "storage": "ST_DeclarationOutImm",
+      "config": [
+        {
+          "member": "ParCfg.Timeout",
+          "key": "timeout",
+          "revision": 1,
+          "label": "test.config.timeout",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        {
+          "member": "ParCfg.Preset",
+          "key": "preset",
+          "revision": 2,
+          "label": "test.config.preset",
+          "minimum": 0,
+          "maximum": 1000,
+          "min_write": 1
+        }
+      ]
+    },
+    {
+      "name": "FB_SatelliteUnit",
+      "tier": "UNIT",
+      "type_key": "Fraktal.Test.Satellite",
+      "children": [
+        {
+          "name": "Cell",
+          "type": "FB_DeclarationCell"
+        },
+        {
+          "name": "Inner",
+          "type": "FB_InnerUnit"
+        }
+      ],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_UnitProbeImm"
+      },
+      "logic": {
+        "CommandStart": "    #Device.Received := \"FRK_PartReceived\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n    IF #Device.Received THEN\n        \"FRK_PartStarted\"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n    END_IF;",
+        "Release": "    \"FRK_UnitSetPermit\"(Unit := #Unit, Ok := #Hal.Cell.Clamp.Permit, Diag := #Hal.Cell.Clamp.Diag);",
+        "Cyclic": "    IF #Hal.Cell.Clamp.BackgroundFault THEN\n        \"FRK_Fault\"(Core := #Core, Status := #Status, ReasonCode := 2901, Description := WSTRING#'test.unit.condition');\n    END_IF;",
+        "ModeExit": "    #Device.ExitCalls := #Device.ExitCalls + 1;\n    IF #Hal.Cell.Clamp.ExitHold THEN #Core.HookResult := 1; ELSE #Core.HookResult := 0; END_IF;",
+        "ModeChanged": "    #Device.Changes := #Device.Changes + 1;",
+        "OperatorReset": "    #Device.Resets := #Device.Resets + 1;",
+        "dispatch": "    IF #Hal.Cell.Clamp.Finish THEN\n        #Device.Processed := FALSE;\n        IF #Unit.CarrierIndex = 0 THEN\n            #Device.Processed := TRUE;\n        ELSE\n            #Device.Processed := \"FRK_PartProcessed\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, Verdict := #Hal.Cell.Clamp.Verdict, Reason := #Hal.Cell.Clamp.Diag.ReasonCode);\n        END_IF;\n        IF #Device.Processed THEN\n            #Device.Cycles := #Device.Cycles + 1;\n            IF #Unit.StopReq THEN\n                \"FRK_Complete\"(Core := #Core, Status := #Status);\n            ELSE\n                #Device.Received := \"FRK_PartReceived\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n                IF #Device.Received THEN\n                    \"FRK_PartStarted\"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n                END_IF;\n            END_IF;\n        END_IF;\n    END_IF;",
+        "cyclic": "    #OutImm.Cycles := #Device.Cycles;\n    #OutImm.ExitCalls := #Device.ExitCalls;\n    #OutImm.Changes := #Device.Changes;\n    #OutImm.Resets := #Device.Resets;\n    #OutImm.AtHome := \"FRK_State\"(Idx := 1, Key := 'project.state.atHome', Ok := #Hal.Cell.Clamp.Sample = 0);"
+      },
+      "commands": [
+        {
+          "id": 1,
+          "label": "Run"
+        }
+      ],
+      "timeout": "Timeout",
+      "storage": "ST_UnitProbeDevice",
+      "unit": {
+        "modes": [
+          "AUTO",
+          "MANUAL",
+          "HOME"
+        ],
+        "initial": "MANUAL",
+        "run_command": 1
+      },
+      "config": [
+        {
+          "member": "ParCfg.Timeout",
+          "key": "timeout",
+          "revision": 1,
+          "label": "test.config.timeout",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        {
+          "member": "ParCfg.Preset",
+          "key": "preset",
+          "revision": 2,
+          "label": "test.config.preset",
+          "minimum": 0,
+          "maximum": 1000,
+          "min_write": 1
+        },
+        {
+          "member": "StationCfg.SiteLabel",
+          "key": "siteLabel",
+          "revision": 1,
+          "label": "test.config.siteLabel",
+          "requires_ready": false,
+          "min_write": 1
+        },
+        {
+          "member": "StationCfg.Enabled",
+          "key": "enabled",
+          "revision": 1,
+          "label": "test.config.enabled",
+          "requires_ready": false
+        }
+      ],
+      "station_config": "ST_UnitProbeStationCfg"
+    },
+    {
+      "name": "FB_InnerUnit",
+      "tier": "UNIT",
+      "type_key": "Fraktal.Test.Inner",
+      "children": [
+        {
+          "name": "Cell",
+          "type": "FB_DeclarationCell"
+        }
+      ],
+      "contract": {
+        "ParCfg": "ST_DeclarationParCfg",
+        "ParCmd": "ST_DeclarationParCmd",
+        "OutCmd": "ST_DeclarationOutCmd",
+        "OutImm": "ST_UnitProbeImm"
+      },
+      "logic": {
+        "CommandStart": "    #Device.Received := \"FRK_PartReceived\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n    IF #Device.Received THEN\n        \"FRK_PartStarted\"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n    END_IF;",
+        "Release": "    \"FRK_UnitSetPermit\"(Unit := #Unit, Ok := #Hal.Cell.Clamp.Permit, Diag := #Hal.Cell.Clamp.Diag);",
+        "Cyclic": "    IF #Hal.Cell.Clamp.BackgroundFault THEN\n        \"FRK_Fault\"(Core := #Core, Status := #Status, ReasonCode := 2901, Description := WSTRING#'test.unit.condition');\n    END_IF;",
+        "ModeExit": "    #Device.ExitCalls := #Device.ExitCalls + 1;\n    IF #Hal.Cell.Clamp.ExitHold THEN #Core.HookResult := 1; ELSE #Core.HookResult := 0; END_IF;",
+        "ModeChanged": "    #Device.Changes := #Device.Changes + 1;",
+        "OperatorReset": "    #Device.Resets := #Device.Resets + 1;",
+        "dispatch": "    IF #Hal.Cell.Clamp.Finish THEN\n        #Device.Processed := FALSE;\n        IF #Unit.CarrierIndex = 0 THEN\n            #Device.Processed := TRUE;\n        ELSE\n            #Device.Processed := \"FRK_PartProcessed\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, Verdict := #Hal.Cell.Clamp.Verdict, Reason := #Hal.Cell.Clamp.Diag.ReasonCode);\n        END_IF;\n        IF #Device.Processed THEN\n            #Device.Cycles := #Device.Cycles + 1;\n            IF #Unit.StopReq THEN\n                \"FRK_Complete\"(Core := #Core, Status := #Status);\n            ELSE\n                #Device.Received := \"FRK_PartReceived\"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n                IF #Device.Received THEN\n                    \"FRK_PartStarted\"(Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);\n                END_IF;\n            END_IF;\n        END_IF;\n    END_IF;",
+        "cyclic": "    #OutImm.Cycles := #Device.Cycles;\n    #OutImm.ExitCalls := #Device.ExitCalls;\n    #OutImm.Changes := #Device.Changes;\n    #OutImm.Resets := #Device.Resets;\n    #OutImm.AtHome := \"FRK_State\"(Idx := 1, Key := 'project.state.atHome', Ok := #Hal.Cell.Clamp.Sample = 0);"
+      },
+      "commands": [
+        {
+          "id": 1,
+          "label": "Run"
+        }
+      ],
+      "timeout": "Timeout",
+      "storage": "ST_UnitProbeDevice",
+      "unit": {
+        "modes": [
+          "AUTO",
+          "MANUAL",
+          "HOME"
+        ],
+        "initial": "MANUAL",
+        "run_command": 1
+      },
+      "config": [
+        {
+          "member": "ParCfg.Timeout",
+          "key": "timeout",
+          "revision": 1,
+          "label": "test.config.timeout",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        {
+          "member": "ParCfg.Preset",
+          "key": "preset",
+          "revision": 2,
+          "label": "test.config.preset",
+          "minimum": 0,
+          "maximum": 1000,
+          "min_write": 1
+        },
+        {
+          "member": "StationCfg.SiteLabel",
+          "key": "siteLabel",
+          "revision": 1,
+          "label": "test.config.siteLabel",
+          "requires_ready": false,
+          "min_write": 1
+        },
+        {
+          "member": "StationCfg.Enabled",
+          "key": "enabled",
+          "revision": 1,
+          "label": "test.config.enabled",
+          "requires_ready": false
+        }
+      ],
+      "station_config": "ST_UnitProbeStationCfg"
+    }
+  ],
+  "roots": [
+    {
+      "name": "StationA",
+      "type": "FB_DeclarationUnit"
+    },
+    {
+      "name": "StationB",
+      "type": "FB_DeclarationUnit"
+    }
+  ],
+  "records": {
+    "ST_DeclarationParCfg": "STRUCT SchemaVersion : UINT := 4; Timeout : TIME := T#8s; Preset : DINT := 10; END_STRUCT",
+    "ST_DeclarationParCmd": "STRUCT Value : DINT; END_STRUCT",
+    "ST_DeclarationOutCmd": "STRUCT Result : DINT; END_STRUCT",
+    "ST_DeclarationOutImm": "STRUCT\nSample : DINT; InitCount : DINT; StartCount : DINT; CyclicCount : DINT;\nAbortCount : DINT; ErrorAbortCount : DINT; DispatchCount : DINT;\nSeenValue : DINT; Ordered : BOOL; Output : BOOL; END_STRUCT",
+    "ST_DeclarationLeafHal": "STRUCT\nSample : DINT; Permit : BOOL := TRUE; Finish : BOOL; BackgroundFault : BOOL;\nDiag : ST_Diagnostic; LaterDiag : ST_Diagnostic; ExitHold : BOOL; Verdict : DINT := 1; END_STRUCT",
+    "ST_UnitProbeDevice": "STRUCT Cycles : UDINT; ExitCalls : UDINT; Changes : UDINT; Resets : UDINT; Received : BOOL; Processed : BOOL; END_STRUCT",
+    "ST_UnitProbeImm": "STRUCT Cycles : UDINT; ExitCalls : UDINT; Changes : UDINT; Resets : UDINT; AtHome : BOOL; END_STRUCT",
+    "ST_UnitProbeStationCfg": "STRUCT SchemaVersion : UINT := 1; SiteLabel : STRING(80) := 'bench'; Enabled : BOOL := TRUE; END_STRUCT"
+  },
+  "event_sink": "F_TestEventSink",
+  "model_config": {
+    "models": [
+      "MODEL_A",
+      "MODEL_B"
+    ],
+    "initial": "MODEL_A"
+  },
+  "persistence": {
+    "medium": "LOAD_DB",
+    "minimum_write_ms": 1000,
+    "queue_capacity": 4
+  }
+}

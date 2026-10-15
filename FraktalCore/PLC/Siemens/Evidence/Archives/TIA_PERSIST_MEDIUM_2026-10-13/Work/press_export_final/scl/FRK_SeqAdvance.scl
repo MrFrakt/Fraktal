@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_SeqAdvance" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Ok : Bool;
+      OnAdvance : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_SeqSelect"(Seq := #Seq, AdvanceOk := #Ok, Jump1Ok := FALSE);
+	"FRK_SeqRoute"(Seq := #Seq, OnAdvance := #OnAdvance, OnJump1 := -1);
+	
+END_FUNCTION
+

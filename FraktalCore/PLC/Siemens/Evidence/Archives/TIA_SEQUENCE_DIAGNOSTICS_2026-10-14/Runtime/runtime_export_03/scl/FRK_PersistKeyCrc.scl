@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_PersistKeyCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Key : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Work : DWord;
+   END_VAR
+
+
+BEGIN
+	
+	#Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := INT_TO_UDINT(LEN(#Key)));
+	FOR #Index := 1 TO LEN(#Key) DO
+	    #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Key[#Index]));
+	END_FOR;
+	#FRK_PersistKeyCrc := NOT #Work;
+	
+END_FUNCTION
+

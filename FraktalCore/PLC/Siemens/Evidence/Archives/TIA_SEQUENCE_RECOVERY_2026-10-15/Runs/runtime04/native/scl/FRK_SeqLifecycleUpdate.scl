@@ -1,0 +1,61 @@
+﻿FUNCTION "FRK_SeqLifecycleUpdate" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Exec : DInt;
+      Restart : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        IF "FRK_SequenceOwners".O001.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O001);
+	    5:
+	        IF "FRK_SequenceOwners".O005.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O005);
+	    9:
+	        IF "FRK_SequenceOwners".O009.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O009);
+	    13:
+	        IF "FRK_SequenceOwners".O013.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O013);
+	    17:
+	        IF "FRK_SequenceOwners".O017.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O017);
+	    21:
+	        IF "FRK_SequenceOwners".O021.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O021);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

@@ -1,0 +1,340 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-12T15:46:48.0107722Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input" />
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Status" Datatype="&quot;ST_ModuleStatus&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Name" Datatype="String[80]" />
+          <Member Name="DisplayNameKey" Datatype="String[160]" />
+          <Member Name="DescriptionKey" Datatype="String[160]" />
+          <Member Name="TypeKey" Datatype="String[160]" />
+          <Member Name="ModuleType" Datatype="DInt" />
+          <Member Name="State" Datatype="DInt" />
+          <Member Name="FaultActive" Datatype="Bool" />
+          <Member Name="Diagnostic" Datatype="&quot;ST_Diagnostic&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="ReasonCode" Datatype="DInt" />
+                <Member Name="SourcePath" Datatype="WString[255]" />
+                <Member Name="Description" Datatype="WString[255]" />
+                <Member Name="IoTag" Datatype="String[80]" />
+                <Member Name="IoAddress" Datatype="String[80]" />
+                <Member Name="Severity" Datatype="DInt" />
+                <Member Name="Category" Datatype="DInt" />
+                <Member Name="Since" Datatype="LDT" />
+                <Member Name="TimeSynchronized" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="TileEnable" Datatype="Bool" />
+          <Member Name="ControlDomainId" Datatype="String[80]" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_ClearDiag</Name>
+      <Namespace />
+      <Number>6</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="Status" UId="24" />
+      <Token Text="." UId="25" />
+      <Component Name="Diagnostic" UId="26" />
+      <Token Text="." UId="27" />
+      <Component Name="ReasonCode" UId="28" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="29" />
+  <Token Text=":=" UId="30" />
+  <Blank Num="1" UId="31" />
+  <Access Scope="LiteralConstant" UId="32">
+    <Constant UId="33">
+      <ConstantValue UId="35">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="36" />
+  <NewLine Num="1" UId="37" />
+  <Access Scope="LocalVariable" UId="38">
+    <Symbol UId="39">
+      <Component Name="Status" UId="40" />
+      <Token Text="." UId="41" />
+      <Component Name="Diagnostic" UId="42" />
+      <Token Text="." UId="43" />
+      <Component Name="SourcePath" UId="44" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="45" />
+  <Token Text=":=" UId="46" />
+  <Blank Num="1" UId="47" />
+  <Access Scope="TypedConstant" UId="48">
+    <Constant UId="49">
+      <ConstantValue UId="50">WSTRING#''</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="51" />
+  <NewLine Num="1" UId="52" />
+  <Access Scope="LocalVariable" UId="53">
+    <Symbol UId="54">
+      <Component Name="Status" UId="55" />
+      <Token Text="." UId="56" />
+      <Component Name="Diagnostic" UId="57" />
+      <Token Text="." UId="58" />
+      <Component Name="Description" UId="59" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="60" />
+  <Token Text=":=" UId="61" />
+  <Blank Num="1" UId="62" />
+  <Access Scope="TypedConstant" UId="63">
+    <Constant UId="64">
+      <ConstantValue UId="65">WSTRING#''</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="66" />
+  <NewLine Num="1" UId="67" />
+  <Access Scope="LocalVariable" UId="68">
+    <Symbol UId="69">
+      <Component Name="Status" UId="70" />
+      <Token Text="." UId="71" />
+      <Component Name="Diagnostic" UId="72" />
+      <Token Text="." UId="73" />
+      <Component Name="IoTag" UId="74" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="75" />
+  <Token Text=":=" UId="76" />
+  <Blank Num="1" UId="77" />
+  <Access Scope="LiteralConstant" UId="78">
+    <Constant UId="79">
+      <ConstantValue UId="81">''</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="82" />
+  <NewLine Num="1" UId="83" />
+  <Access Scope="LocalVariable" UId="84">
+    <Symbol UId="85">
+      <Component Name="Status" UId="86" />
+      <Token Text="." UId="87" />
+      <Component Name="Diagnostic" UId="88" />
+      <Token Text="." UId="89" />
+      <Component Name="IoAddress" UId="90" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="91" />
+  <Token Text=":=" UId="92" />
+  <Blank Num="1" UId="93" />
+  <Access Scope="LiteralConstant" UId="94">
+    <Constant UId="95">
+      <ConstantValue UId="97">''</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="98" />
+  <NewLine Num="1" UId="99" />
+  <Access Scope="LocalVariable" UId="100">
+    <Symbol UId="101">
+      <Component Name="Status" UId="102" />
+      <Token Text="." UId="103" />
+      <Component Name="Diagnostic" UId="104" />
+      <Token Text="." UId="105" />
+      <Component Name="Severity" UId="106" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="107" />
+  <Token Text=":=" UId="108" />
+  <Blank Num="1" UId="109" />
+  <Access Scope="LiteralConstant" UId="110">
+    <Constant UId="111">
+      <ConstantValue UId="113">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="114" />
+  <NewLine Num="1" UId="115" />
+  <Access Scope="LocalVariable" UId="116">
+    <Symbol UId="117">
+      <Component Name="Status" UId="118" />
+      <Token Text="." UId="119" />
+      <Component Name="Diagnostic" UId="120" />
+      <Token Text="." UId="121" />
+      <Component Name="Category" UId="122" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="123" />
+  <Token Text=":=" UId="124" />
+  <Blank Num="1" UId="125" />
+  <Access Scope="LiteralConstant" UId="126">
+    <Constant UId="127">
+      <ConstantValue UId="129">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="130" />
+  <NewLine Num="1" UId="131" />
+  <Access Scope="LocalVariable" UId="132">
+    <Symbol UId="133">
+      <Component Name="Status" UId="134" />
+      <Token Text="." UId="135" />
+      <Component Name="Diagnostic" UId="136" />
+      <Token Text="." UId="137" />
+      <Component Name="Since" UId="138" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="139" />
+  <Token Text=":=" UId="140" />
+  <Blank Num="1" UId="141" />
+  <Access Scope="TypedConstant" UId="142">
+    <Constant UId="143">
+      <ConstantValue UId="144">LDT#1970-01-01-00:00:00.000000000</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="145" />
+  <NewLine Num="1" UId="146" />
+  <Access Scope="LocalVariable" UId="147">
+    <Symbol UId="148">
+      <Component Name="Status" UId="149" />
+      <Token Text="." UId="150" />
+      <Component Name="Diagnostic" UId="151" />
+      <Token Text="." UId="152" />
+      <Component Name="TimeSynchronized" UId="153" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="154" />
+  <Token Text=":=" UId="155" />
+  <Blank Num="1" UId="156" />
+  <Access Scope="LiteralConstant" UId="157">
+    <Constant UId="158">
+      <ConstantValue UId="160">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="161" />
+  <NewLine Num="1" UId="162" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

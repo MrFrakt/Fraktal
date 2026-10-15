@@ -25,8 +25,8 @@ def declaration():
     return value
 
 
-def prepare(out,frames):
-    UNIT.test_package(out,frames,declaration())
+def prepare(out,frames,value=None):
+    UNIT.test_package(out,frames,declaration() if value is None else value)
     import fraktal_tia_generate as GEN
     from fraktal_tia_binding import READONLY
     (out/'05_GDB_RoutingTest.db').write_bytes(GEN.db('GDB_RoutingTest',[

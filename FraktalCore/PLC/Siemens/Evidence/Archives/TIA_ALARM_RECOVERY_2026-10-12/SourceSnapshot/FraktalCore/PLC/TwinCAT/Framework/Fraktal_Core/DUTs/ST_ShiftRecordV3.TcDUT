@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ShiftRecordV3" Id="{76501814-a4fd-4aa0-b100-da2dd4f40519}">
+    <Declaration><![CDATA[// Core §8.5.2(b) - one closed shift, exactly as its figures stood at the boundary.
+TYPE ST_ShiftRecordV3 :
+STRUCT
+    SchemaVersion : UINT := 3;
+    ProductionTarget : UDINT;
+    ShiftIndex       : INT;     // 1..MAX_SHIFTS
+    StartAt          : DT;      // §2.7 clock (UTC)
+    EndAt            : DT;
+    TimeSynchronized : BOOL;    // FALSE if either boundary was crossed on an unsynchronized clock
+    ManualReset      : BOOL;    // counts or OEE were reset by hand during this shift
+    GoodCount        : UDINT;
+    NokCount         : UDINT;
+    ReworkCount      : UDINT;
+    RunMs            : UDINT;
+    DownMs           : UDINT;
+    IdleMs           : UDINT;
+    Availability     : REAL;    AvailValid : BOOL;
+    Performance      : REAL;    PerfValid  : BOOL;
+    Quality          : REAL;    QualValid  : BOOL;
+    Oee              : REAL;    OeeValid   : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

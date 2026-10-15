@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_DeliveryScope" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DeliveryScope := '';
+	CASE #Slot OF
+	    1:
+	        #FRK_DeliveryScope := 'PressDemo';
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

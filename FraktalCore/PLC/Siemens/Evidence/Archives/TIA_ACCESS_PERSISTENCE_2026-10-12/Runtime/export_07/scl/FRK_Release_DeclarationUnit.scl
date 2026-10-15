@@ -1,0 +1,17 @@
+﻿FUNCTION "FRK_Release_DeclarationUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+      Hal : "ST_DeclarationUnitHal";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_UnitSetPermit"(Unit := #Unit,
+	                    Ok := #Hal.Cell.Clamp.Permit,
+	                    Diag := #Hal.Cell.Clamp.Diag);
+	
+END_FUNCTION
+

@@ -1,0 +1,130 @@
+﻿FUNCTION "FRK_JsonReadRecord" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Count : Int;
+      Fields : Array[1..9] of "FRK_JsonField";
+   END_VAR
+
+   VAR_IN_OUT 
+      Data : "ST_ConfigRecord";
+   END_VAR
+
+   VAR_TEMP 
+      Candidate : "ST_ConfigRecord";
+      Index : Int;
+      Found : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_JsonReadRecord := FALSE;
+	IF #Count <> 6 THEN
+	    RETURN;
+	END_IF;
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'scope' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> TRUE THEN
+	    RETURN;
+	END_IF;
+	IF LEN(#Fields[#Found].Text) > 80 OR STRING_TO_WSTRING(WSTRING_TO_STRING(#Fields[#Found].Text)) <> #Fields[#Found].Text THEN
+	    RETURN;
+	END_IF;
+	#Candidate.Scope := WSTRING_TO_STRING(#Fields[#Found].Text);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'key' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> TRUE THEN
+	    RETURN;
+	END_IF;
+	IF LEN(#Fields[#Found].Text) > 160 OR STRING_TO_WSTRING(WSTRING_TO_STRING(#Fields[#Found].Text)) <> #Fields[#Found].Text THEN
+	    RETURN;
+	END_IF;
+	#Candidate.WriteKey := WSTRING_TO_STRING(#Fields[#Found].Text);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'rev' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 4294967295.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.Revision := LINT_TO_UDINT("FRK_ConfigScratch".Value.Number);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'kind' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.Kind := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'type' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 3.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.ValueType := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'value' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> TRUE THEN
+	    RETURN;
+	END_IF;
+	IF LEN(#Fields[#Found].Text) > 80 OR STRING_TO_WSTRING(WSTRING_TO_STRING(#Fields[#Found].Text)) <> #Fields[#Found].Text THEN
+	    RETURN;
+	END_IF;
+	#Candidate.ValueText := WSTRING_TO_STRING(#Fields[#Found].Text);
+	#Data := #Candidate;
+	#FRK_JsonReadRecord := TRUE;
+	
+END_FUNCTION
+

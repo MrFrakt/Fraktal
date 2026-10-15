@@ -1,0 +1,100 @@
+﻿FUNCTION "FRK_CfgOperation_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      ModePolicy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      Unit : "FRK_Unit";
+      HmiResponse : "ST_HmiResponse";
+      ConfigPersist : "ST_ConfigPersistStatus";
+      ConfigCursor : "FRK_ConfigCursor";
+      ConfigRev : UDInt;
+      ModelId : "ST_ModelId";
+      AvailableModelCount : Int;
+      StationCfg : "ST_PressDemoStationCfg";
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+   END_VAR
+
+   VAR_TEMP 
+      RootIndex : Int;
+      Request : "ST_HmiRequest";
+      Ready : Bool;
+      Matched : Bool;
+      Ok : Bool;
+      Desired : String[64];
+      Scope : String[80];
+      Key : String[160];
+   END_VAR
+
+
+BEGIN
+	
+	#RootIndex := "FRK_ConfigRoot"(RegIndex := #Core.RegIndex);
+	IF #Core.ParentIndex <> 0 OR #RootIndex = 0 THEN
+	    RETURN;
+	END_IF;
+	#ModelId.ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex];
+	IF NOT #Unit.RequestPending THEN
+	    RETURN;
+	END_IF;
+	#Request := #Unit.Request;
+	#Ready := #Core.Exec = 0 AND NOT #Unit.ModePending AND NOT #Unit.Clearing AND "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex);
+	CASE #Request.Kind OF
+	    23:
+	        "FRK_ConfigBegin"(Cursor := #ConfigCursor,
+	                          Page := #HmiResponse.ConfigPage,
+	                          PageIndex := #Request.IntValue,
+	                          Revision := #ConfigRev);
+	        #HmiResponse.Accepted := FALSE;
+	        #HmiResponse.Diagnostic := WSTRING#'std.error.modelNotAvailable';
+	        IF #Request.DurationMs <= 0 AND #Request.IntValue >= 0 AND #Request.IntValue <= 32767 THEN
+	            "FRK_Config_PressDemoUnit"(Status := #Status,
+	                                       ModePolicy := #ModePolicy,
+	                                       AvailableModelCount := #AvailableModelCount,
+	                                       StationCfg := #StationCfg,
+	                                       PressRam := #PressRam,
+	                                       Door := #Door,
+	                                       PartSlide := #PartSlide,
+	                                       Access := #Access,
+	                                       RootIndex := #RootIndex,
+	                                       ModelIndex := #Request.DurationMs,
+	                                       Cursor := #ConfigCursor,
+	                                       Page := #HmiResponse.ConfigPage);
+	            "FRK_ConfigFinish"(Cursor := #ConfigCursor,
+	                               Page := #HmiResponse.ConfigPage);
+	            #HmiResponse.Accepted := TRUE;
+	            #HmiResponse.Diagnostic := WSTRING#'';
+	        END_IF;
+	    19:
+	        #HmiResponse.Accepted := FALSE;
+	        #HmiResponse.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+	        #ConfigPersist.LastRejectScope := #Status.Name;
+	        #ConfigPersist.LastRejectKey := #Request.NameValue;
+	        IF #Request.DurationMs <= 0 THEN
+	            #Matched := FALSE;
+	            #HmiResponse.Accepted := "FRK_CfgWrite_PressDemoUnit"(Core := #Core, Status := #Status, StationCfg := #StationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, Access := #Access, Request := #Request, RootIndex := #RootIndex, RootReady := #Ready, Matched := #Matched);
+	        END_IF;
+	        IF #HmiResponse.Accepted THEN
+	            #ConfigRev := "FRK_ConfigRevision"(Previous := #ConfigRev);
+	            #HmiResponse.Diagnostic := WSTRING#'';
+	            #ConfigPersist.LastRejectScope := '';
+	            #ConfigPersist.LastRejectKey := '';
+	        END_IF;
+	    31:
+	        #HmiResponse.Accepted := #Access.CurrentLevel >= 3;
+	        IF #HmiResponse.Accepted THEN
+	            "FRK_ConfigStore".Acknowledged[#RootIndex] := TRUE;
+	            "FRK_PersistAckRoot"(RootIndex := #RootIndex);
+	        ELSE
+	            #HmiResponse.Diagnostic := WSTRING#'std.error.configRestoreAckRefused';
+	        END_IF;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

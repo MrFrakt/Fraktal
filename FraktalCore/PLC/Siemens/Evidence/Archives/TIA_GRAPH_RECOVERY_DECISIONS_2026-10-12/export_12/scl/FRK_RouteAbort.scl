@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_RouteAbort" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Abort : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+   END_VAR
+
+   VAR_TEMP 
+      ErrorAbort : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF (#Abort OR #Core.ReleasePending) AND #Core.Exec = 1 THEN
+	    #Core.Exec := 4;
+	    #Core.Step := 0;
+	    #Core.Dispatch := FALSE;
+	    #Core.EvAbort := TRUE;
+	END_IF;
+	#ErrorAbort := (#Abort OR #Core.ReleasePending) AND #Core.Exec = 3;
+	#Core.EvAbortInError := #ErrorAbort AND NOT #Core.AbortPrev;
+	#Core.AbortPrev := #ErrorAbort;
+	
+END_FUNCTION
+

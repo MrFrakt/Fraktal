@@ -1,0 +1,34 @@
+﻿DATA_BLOCK "GDB_UnitTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      FinishCycle : Bool;
+      Permit : Bool;
+      FaultRoot : Bool;
+      ExitHold : Bool;
+      LockStart : Bool;
+      IssueChild : Bool;
+      ChildCommand : DInt;
+      Verdict : DInt;
+      Reason : DInt;
+      CarrierControl : DInt;
+      Scans { ExternalWritable := 'False'} : UDInt;
+      Restarts { ExternalWritable := 'False'} : UDInt;
+      ChildExecute { ExternalWritable := 'False'} : Bool;
+      ChildState { ExternalWritable := 'False'} : DInt;
+      CarrierWrites { ExternalWritable := 'False'} : UDInt;
+      CarrierSerial { ExternalWritable := 'False'} : UDInt;
+      WrittenUid { ExternalWritable := 'False'} : String[64];
+      WrittenVerdict { ExternalWritable := 'False'} : DInt;
+      LastEvent { ExternalWritable := 'False'} : DInt;
+      SecretCleared { ExternalWritable := 'False'} : Bool;
+      SnapshotSecretCleared { ExternalWritable := 'False'} : Bool;
+      BootStamp { ExternalWritable := 'False'} : LDT;
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+

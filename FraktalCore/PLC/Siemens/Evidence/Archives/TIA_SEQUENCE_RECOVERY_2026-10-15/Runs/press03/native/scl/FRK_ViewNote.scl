@@ -1,0 +1,67 @@
+﻿FUNCTION "FRK_ViewNote" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      StepNo : DInt;
+      Branch : DInt;
+      IsError : Bool;
+      Key : String;
+      SourcePath : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Defs : Array[*] of "ST_SequenceStepDef";
+      Rows : Array[*] of "ST_SequenceStep";
+      Notes : Array[*] of "ST_SequenceAnnotation";
+      Count : Int;
+      NoteCount : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      RowIdx : Int;
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#RowIdx := 0;
+	#Slot := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Defs[#Index].StepNo = #StepNo AND #Defs[#Index].Branch = #Branch THEN
+	        #RowIdx := #Index;
+	        EXIT;
+	    END_IF;
+	END_FOR;
+	IF #RowIdx = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #IsError THEN
+	    #Rows[#RowIdx].ErrorActive := TRUE;
+	ELSE
+	    #Rows[#RowIdx].WarningActive := TRUE;
+	END_IF;
+	FOR #Index := 1 TO #NoteCount DO
+	    IF #Notes[#Index].RowIdx = #RowIdx AND #Notes[#Index].IsError = #IsError THEN
+	        #Slot := #Index;
+	        EXIT;
+	    END_IF;
+	    IF #Slot = 0 AND #Notes[#Index].RowIdx = 0 THEN
+	        #Slot := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Slot = 0 THEN
+	    IF #NoteCount >= UPPER_BOUND(ARR := #Notes, DIM := 1) THEN
+	        RETURN;
+	    END_IF;
+	    #NoteCount := #NoteCount + 1;
+	    #Slot := #NoteCount;
+	END_IF;
+	#Notes[#Slot].RowIdx := #RowIdx;
+	#Notes[#Slot].IsError := #IsError;
+	#Notes[#Slot].Key := #Key;
+	#Notes[#Slot].SourcePath := #SourcePath;
+	
+END_FUNCTION
+

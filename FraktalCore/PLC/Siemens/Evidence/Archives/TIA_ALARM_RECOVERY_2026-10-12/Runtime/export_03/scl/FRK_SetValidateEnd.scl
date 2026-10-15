@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_SetValidateEnd" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetValidateEnd := FALSE;
+	FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
+	    IF NOT "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] THEN
+	        "FRK_SetRuntime".Work[#RootIndex].RejectScope := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope;
+	        "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_SetValidateEnd := "FRK_SetRuntime".Work[#RootIndex].Matched = "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount;
+	
+END_FUNCTION
+

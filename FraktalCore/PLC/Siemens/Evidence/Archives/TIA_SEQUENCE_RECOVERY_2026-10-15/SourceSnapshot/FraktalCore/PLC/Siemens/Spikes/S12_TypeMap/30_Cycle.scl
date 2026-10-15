@@ -1,0 +1,66 @@
+ORGANIZATION_BLOCK "Main"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Initial_Call : Bool;
+      Remanence : Bool;
+   END_VAR
+   VAR_TEMP
+      elapsedSec : LReal;
+      arrayIndex : DInt;
+   END_VAR
+BEGIN
+    #elapsedSec := RUNTIME("S12Probe".RuntimeMem);
+    IF "S12Probe".Scans > 0 THEN
+        IF #elapsedSec >= 0.0 AND #elapsedSec < 60.0 THEN
+            "S12Probe".MonoSec := "S12Probe".MonoSec + #elapsedSec;
+            IF #elapsedSec > "S12Probe".MaxDeltaSec THEN
+                "S12Probe".MaxDeltaSec := #elapsedSec;
+            END_IF;
+        ELSE
+            "S12Probe".BadDelta := "S12Probe".BadDelta + 1;
+        END_IF;
+    END_IF;
+    "S12Probe".Scans := "S12Probe".Scans + 1;
+    IF NOT "S12Probe".Initialized THEN
+        "S12Probe".BoolTrue := TRUE;
+        "S12Probe".BoolFalse := FALSE;
+        "S12Probe".IntMin := INT#-32768;
+        "S12Probe".IntMax := INT#32767;
+        "S12Probe".DIntMin := DINT#-2147483648;
+        "S12Probe".DIntMax := DINT#2147483647;
+        "S12Probe".UIntMax := UINT#65535;
+        "S12Probe".UDIntMax := UDINT#4294967295;
+        "S12Probe".RealValue := REAL#1.25;
+        "S12Probe".LRealValue := LREAL#1.23456789012345;
+        "S12Probe".TimeValue := T#1S234MS;
+        "S12Probe".NegativeTime := T#-2S345MS;
+        "S12Probe".LongMin := LINT#-9223372036854775808;
+        "S12Probe".LongMax := LINT#9223372036854775807;
+        "S12Probe".UnsignedMax := ULINT#18446744073709551615;
+        "S12Probe".BeyondJsonExact := ULINT#9007199254740993;
+        "S12Probe".StampDtl := DTL#2024-02-29-23:59:58.123456789;
+        "S12Probe".StampLdt := LDT#2024-02-29-23:59:58.123456789;
+        "S12Probe".StampDt := DT#2024-02-29-23:59:58;
+        "S12Probe".EscapedText := 'A B C';
+        "S12Probe".EscapedText[2] := BYTE_TO_CHAR(BYTE#16#27);
+        "S12Probe".EscapedText[4] := BYTE_TO_CHAR(BYTE#16#22);
+        "S12Probe".UnicodeText := WSTRING#'AB';
+        "S12Probe".UnicodeText[1] := WORD_TO_WCHAR(WORD#16#03A9);
+        "S12Probe".UnicodeText[2] := WORD_TO_WCHAR(WORD#16#4E2D);
+        FOR #arrayIndex := -2 TO 2 DO
+            "S12Probe".LowerArray[#arrayIndex] := #arrayIndex * 100 + 7;
+        END_FOR;
+        "FC_S12LongStrings"();
+        "S12Probe".Text254Length := LEN("S12Probe".Text254);
+        "S12Probe".Text255Length := LEN("S12Probe".Text255);
+        "S12Probe".Text480Length := LEN("S12Probe".Text480);
+        "S12Probe".WideConcat := CONCAT(IN1 := "S12Probe".Text255, IN2 := WSTRING#'!');
+        "S12Probe".WideTail := MID(IN := "S12Probe".Text480, L := 3, P := 478);
+        "S12Probe".EnumWitness := "FC_S12EnumConstants"();
+        "S12Probe".ClockRc := RD_SYS_T(OUT => "S12Probe".ClockStart);
+        "S12Probe".Initialized := TRUE;
+    END_IF;
+    "FC_S12FillNext"();
+    "S12Probe".ClockRc := RD_SYS_T(OUT => "S12Probe".ClockNow);
+END_ORGANIZATION_BLOCK

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_EngUnitSymbol" Id="{41b82d8c-4948-4f24-b0a5-22c0b03e5f36}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.10.2 - the ASCII symbol for a unit code, published as the entry's
+// legacy Unit text so a client that predates UnitCode still shows a unit. It is
+// DERIVED from the code, never a second source: the code is the contract, and a
+// current HMI shows its own translated symbol (std.unit.<name>) instead.
+FUNCTION F_EngUnitSymbol : STRING(16)
+VAR_INPUT
+    Unit : E_EngUnit;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[CASE Unit OF
+    E_EngUnit.NONE:                          F_EngUnitSymbol := '';
+    E_EngUnit.MILLISECOND:                   F_EngUnitSymbol := 'ms';
+    E_EngUnit.SECOND:                        F_EngUnitSymbol := 's';
+    E_EngUnit.MINUTE:                        F_EngUnitSymbol := 'min';
+    E_EngUnit.HOUR:                          F_EngUnitSymbol := 'h';
+    E_EngUnit.MICROMETER:                    F_EngUnitSymbol := 'um';
+    E_EngUnit.MILLIMETER:                    F_EngUnitSymbol := 'mm';
+    E_EngUnit.METER:                         F_EngUnitSymbol := 'm';
+    E_EngUnit.DEGREE:                        F_EngUnitSymbol := 'deg';
+    E_EngUnit.MILLIMETER_PER_SECOND:         F_EngUnitSymbol := 'mm/s';
+    E_EngUnit.METER_PER_MINUTE:              F_EngUnitSymbol := 'm/min';
+    E_EngUnit.DEGREE_PER_SECOND:             F_EngUnitSymbol := 'deg/s';
+    E_EngUnit.MILLIMETER_PER_SECOND_SQUARED: F_EngUnitSymbol := 'mm/s2';
+    E_EngUnit.BAR:                           F_EngUnitSymbol := 'bar';
+    E_EngUnit.KILOPASCAL:                    F_EngUnitSymbol := 'kPa';
+    E_EngUnit.NEWTON:                        F_EngUnitSymbol := 'N';
+    E_EngUnit.KILONEWTON:                    F_EngUnitSymbol := 'kN';
+    E_EngUnit.NEWTON_METER:                  F_EngUnitSymbol := 'Nm';
+    E_EngUnit.GRAM:                          F_EngUnitSymbol := 'g';
+    E_EngUnit.KILOGRAM:                      F_EngUnitSymbol := 'kg';
+    E_EngUnit.DEGREE_CELSIUS:                F_EngUnitSymbol := 'degC';
+    E_EngUnit.PERCENT:                       F_EngUnitSymbol := '%';
+    E_EngUnit.REVOLUTION_PER_MINUTE:         F_EngUnitSymbol := 'rpm';
+    E_EngUnit.HERTZ:                         F_EngUnitSymbol := 'Hz';
+    E_EngUnit.VOLT:                          F_EngUnitSymbol := 'V';
+    E_EngUnit.AMPERE:                        F_EngUnitSymbol := 'A';
+    E_EngUnit.WATT:                          F_EngUnitSymbol := 'W';
+    E_EngUnit.KILOWATT:                      F_EngUnitSymbol := 'kW';
+    E_EngUnit.LITER:                         F_EngUnitSymbol := 'l';
+    E_EngUnit.LITER_PER_MINUTE:              F_EngUnitSymbol := 'l/min';
+    E_EngUnit.PIECE:                         F_EngUnitSymbol := 'pcs';
+    E_EngUnit.PIECE_PER_MINUTE:              F_EngUnitSymbol := 'pcs/min';
+    E_EngUnit.PIECE_PER_HOUR:                F_EngUnitSymbol := 'pcs/h';
+ELSE
+    F_EngUnitSymbol := '';                   // an unknown code shows no unit
+END_CASE]]></ST></Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_AccessUsersCommit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	
+	#FRK_AccessUsersCommit := "FRK_AccessUsersShape"();
+	IF NOT #FRK_AccessUsersCommit THEN
+	    RETURN;
+	END_IF;
+	"FRK_LocalUsers".SchemaVersion := 1;
+	"FRK_LocalUsers".Generation := "FRK_AccessNext"(Previous := "FRK_LocalUsers".Generation);
+	"FRK_LocalUsers".Checksum := "FRK_AccessUsersCrc"();
+	"FRK_AccessStorage".UsersCommissioned := TRUE;
+	"FRK_AccessStorage".UsersReady := TRUE;
+	"FRK_AccessStorage".UsersLost := FALSE;
+	IF "FRK_PersistConsumers".Ready THEN
+	    "FRK_PersistConsumers".Rows[7].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 7);
+	    "FRK_PersistUsersDirty"();
+	END_IF;
+	
+END_FUNCTION
+

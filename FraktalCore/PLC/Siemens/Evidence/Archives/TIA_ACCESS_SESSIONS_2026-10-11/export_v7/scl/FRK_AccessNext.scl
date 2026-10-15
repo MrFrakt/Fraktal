@@ -1,0 +1,18 @@
+﻿FUNCTION "FRK_AccessNext" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Previous : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Previous = UDINT#4294967295 THEN
+	    #FRK_AccessNext := 1;
+	ELSE
+	    #FRK_AccessNext := #Previous + 1;
+	END_IF;
+	
+END_FUNCTION
+

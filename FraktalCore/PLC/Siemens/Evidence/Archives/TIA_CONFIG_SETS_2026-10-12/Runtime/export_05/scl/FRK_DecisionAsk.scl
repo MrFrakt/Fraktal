@@ -1,0 +1,97 @@
+﻿FUNCTION "FRK_DecisionAsk" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      OwnerPath : WString;
+      Request : "ST_DecisionRequest";
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Candidate : "ST_DecisionRequest";
+      Slot : Int;
+      Index : Int;
+      SameRequest : Bool;
+      HasOption : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DecisionAsk := FALSE;
+	#Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := TRUE);
+	IF #Slot = 0 THEN
+	    RETURN;
+	END_IF;
+	#Candidate := #Request;
+	IF #Candidate.SourcePath = WSTRING#'' THEN
+	    #Candidate.SourcePath := #OwnerPath;
+	END_IF;
+	IF "FRK_Decisions".Slots[#Slot].Request.Prompt <> WSTRING#'' THEN
+	    #SameRequest := "FRK_Decisions".Slots[#Slot].Owner = #Owner
+	    AND "FRK_Decisions".Slots[#Slot].Request.Prompt = #Candidate.Prompt
+	    AND "FRK_Decisions".Slots[#Slot].Request.SourcePath = #Candidate.SourcePath
+	    AND "FRK_Decisions".Slots[#Slot].Request.Default = #Candidate.Default
+	    AND "FRK_Decisions".Slots[#Slot].Request.Timeout = #Candidate.Timeout;
+	    FOR #Index := 1 TO 6 DO
+	        #SameRequest := #SameRequest AND "FRK_Decisions".Slots[#Slot].Request.Options[#Index] = #Candidate.Options[#Index];
+	    END_FOR;
+	    IF #SameRequest THEN
+	        #FRK_DecisionAsk := TRUE;
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_Decisions".Slots[#Slot].OverlapLogged THEN
+	        "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                            Key := WSTRING#'std.audit.decisionOverlapRejected',
+	                            SourcePath := #Candidate.SourcePath,
+	                            Option := 0);
+	        "FRK_Decisions".Slots[#Slot].OverlapLogged := TRUE;
+	    END_IF;
+	    RETURN;
+	END_IF;
+	#HasOption := FALSE;
+	FOR #Index := 1 TO 6 DO
+	    #HasOption := #HasOption OR #Candidate.Options[#Index] <> '';
+	END_FOR;
+	IF #Candidate.Prompt = WSTRING#'' OR #Candidate.Timeout < T#0ms OR NOT #HasOption
+	    OR #Candidate.SourcePath <> #OwnerPath OR #OwnerPath = WSTRING#'' THEN
+	    "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                        Key := WSTRING#'std.audit.decisionInvalidRejected',
+	                        SourcePath := #Candidate.SourcePath,
+	                        Option := #Candidate.Default);
+	    RETURN;
+	END_IF;
+	IF #Candidate.Timeout > T#0ms OR #Candidate.Default <> 0 THEN
+	    IF #Candidate.Default < 1 OR #Candidate.Default > 6 THEN
+	        "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                            Key := WSTRING#'std.audit.decisionInvalidRejected',
+	                            SourcePath := #Candidate.SourcePath,
+	                            Option := #Candidate.Default);
+	        RETURN;
+	    END_IF;
+	    IF #Candidate.Options[#Candidate.Default] = '' THEN
+	        "FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                            Key := WSTRING#'std.audit.decisionInvalidRejected',
+	                            SourcePath := #Candidate.SourcePath,
+	                            Option := #Candidate.Default);
+	        RETURN;
+	    END_IF;
+	END_IF;
+	"FRK_Decisions".Slots[#Slot].Request := #Candidate;
+	"FRK_Decisions".Slots[#Slot].Owner := #Owner;
+	"FRK_Decisions".Slots[#Slot].AskedAt := "FRK_Clock".NowMs;
+	"FRK_Decisions".Slots[#Slot].Answer := 0;
+	"FRK_Decisions".Slots[#Slot].ResolutionLogged := FALSE;
+	"FRK_Decisions".Slots[#Slot].OverlapLogged := FALSE;
+	"FRK_DecisionAudit"(AlarmLog := #AlarmLog,
+	                    Key := WSTRING#'std.audit.decisionRequested',
+	                    SourcePath := #Candidate.SourcePath,
+	                    Option := 0);
+	#FRK_DecisionAsk := TRUE;
+	
+END_FUNCTION
+

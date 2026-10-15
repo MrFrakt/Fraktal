@@ -1,0 +1,25 @@
+﻿FUNCTION "FRK_AlarmRecoveryTimeCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+      EventSlot : Int;
+      Value : UDInt;
+      EventCrc : DWord;
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+   END_VAR
+
+
+BEGIN
+	
+	#Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := INT_TO_UDINT(#Slot));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#EventSlot));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(#EventCrc));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := #Value);
+	#FRK_AlarmRecoveryTimeCrc := NOT #Work;
+	
+END_FUNCTION
+

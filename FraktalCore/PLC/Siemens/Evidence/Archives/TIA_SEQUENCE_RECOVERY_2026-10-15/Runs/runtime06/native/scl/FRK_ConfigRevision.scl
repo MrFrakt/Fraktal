@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_ConfigRevision" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core 3.10.2: deterministic typed walk, one bounded response window.
+// Static facets carry no write capability. Every reused slot is cleared.
+   VAR_INPUT 
+      Previous : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+      Generation : ULInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigRevision := #Previous + 1;
+	#ResultCode := RD_SYS_T(OUT => #Stamp);
+	IF #ResultCode = 0 THEN
+	    #Generation := LDT_TO_ULINT(DTL_TO_LDT(#Stamp)) / ULINT#1000000;
+	    #FRK_ConfigRevision := ULINT_TO_UDINT(#Generation MOD ULINT#4294967296);
+	END_IF;
+	IF #FRK_ConfigRevision = #Previous THEN
+	    #FRK_ConfigRevision := #Previous + 1;
+	END_IF;
+	IF #FRK_ConfigRevision = 0 THEN
+	    #FRK_ConfigRevision := 1;
+	END_IF;
+	
+END_FUNCTION
+

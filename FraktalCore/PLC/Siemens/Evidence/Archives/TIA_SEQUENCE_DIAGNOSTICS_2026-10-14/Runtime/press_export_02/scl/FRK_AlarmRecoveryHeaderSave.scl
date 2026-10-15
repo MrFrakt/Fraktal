@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_AlarmRecoveryHeaderSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 1 THEN
+	    RETURN;
+	END_IF;
+	"FRK_AlarmRecovery".Rows[#Slot].SchemaVersion := 2;
+	"FRK_AlarmRecovery".Rows[#Slot].Generation := "FRK_AccessNext"(Previous := "FRK_AlarmRecovery".Rows[#Slot].Generation);
+	"FRK_AlarmRecovery".Rows[#Slot].Checksum := "FRK_AlarmRecoveryHeaderCrc"(Slot := #Slot);
+	"FRK_AlarmRecovery".Commissioned[#Slot] := TRUE;
+	
+END_FUNCTION
+

@@ -1,0 +1,31 @@
+﻿FUNCTION "FRK_Fault" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ReasonCode : DInt;
+      Description : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Core.Exec = 3 THEN
+	    RETURN;
+	END_IF;
+	"FRK_Diagnostic"(Status := #Status,
+	                 ReasonCode := #ReasonCode,
+	                 Description := #Description,
+	                 Severity := 1);
+	"FRK_Rationalize"(Diag := #Status.Diagnostic);
+	#Core.Exec := 3;
+	#Core.Step := 0;
+	#Core.Dispatch := FALSE;
+	#Core.DiagTouched := TRUE;
+	
+END_FUNCTION
+
