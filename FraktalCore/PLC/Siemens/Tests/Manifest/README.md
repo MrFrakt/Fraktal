@@ -23,7 +23,8 @@ run_gateway.dart uses the production gateway and Web API client. Its test-only
 transport checks the approved FrkS12 or Fraktal name selected by
 FRAKTAL_TIA_SIM_INSTANCE, CPU1516/TCPIP169.254.212.49 and zero physical mappings
 before every native write. Run with the gateway package configuration and the
-existing DPAPI wrapper; credentials never enter arguments. Arguments are the
+existing DPAPI wrapper (this folder's pubspec resolves the same packages for the
+analyzer); credentials never enter arguments. Arguments are the
 captured certificate DER, simulator.ps1 path and a stop-file path. It listens on
 loopback8107 and exits when the stop file appears.
 

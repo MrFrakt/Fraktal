@@ -15,7 +15,7 @@ class GuardedTransport implements WebApiTransport {
   Future<Object?> post(Object payload, {String? token}) async {
     final requests = (payload is List ? payload : [payload]).cast<Map>();
     if (requests.any(
-      (request) => (request as Map)['method'] == 'PlcProgram.Write',
+      (request) => request['method'] == 'PlcProgram.Write',
     )) {
       final status = await Process.run('powershell.exe', [
         '-NoProfile',
@@ -45,7 +45,7 @@ class GuardedTransport implements WebApiTransport {
           'status': row,
           'targets': [
             for (final request in requests)
-              if ((request as Map)['method'] == 'PlcProgram.Write')
+              if (request['method'] == 'PlcProgram.Write')
                 (request['params'] as Map)['var'],
           ],
         }),
