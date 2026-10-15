@@ -6,7 +6,7 @@ that TC3 has these capabilities or that the AB port is complete. Copy the fenced
 prompt into a fresh coding-agent chat opened at the repository root on the
 licensed TwinCAT workstation. Linked history is evidence; the specification is
 the authority. The project distribution now uses AGPL-3.0-only; see
-[LICENSING.md](../../LICENSING.md), preserving historical MIT and third-party rights.
+[LICENSING.md](../../LICENSING.md), preserving third-party rights.
 
 ```text
 Execute the AB-to-TC3 transfer described here. Audit what TC3 already does, then
@@ -418,7 +418,7 @@ GATES / DELIVERY
    native write based on this handoff alone.
 7. Append dated evidence.md/json, update implementation notes/claims/guides and
    report implemented/offline/native/browser/retention states separately. Preserve
-   press69 Verify failure, press70 acceptance boundaries and old MIT history. Commit with
+   press69 Verify failure, press70 acceptance boundaries and old history. Commit with
    Co-Authored-By: Codex <noreply@openai.com>. Do not push unless requested.
 ```
 

@@ -67,7 +67,7 @@ Stated plainly, because the concept above invites the comparison:
   generates *bodies* — ladder rungs and chart steps from a declaration, module
   scaffolds — and mechanically checks the rest. It does not synthesise a station.
 - **It is not a runtime you buy.** It is a standard, a reference implementation,
-  and the gates that keep the two honest, under the MIT licence.
+  and the gates that keep the two honest, under AGPL-3.0-only.
 
 The full objective set (**O1–O10**, in priority order) is in
 [`Specification/Fraktal_Core_Part_I.md` §1.1](Specification/Fraktal_Core_Part_I.md) —
@@ -294,6 +294,5 @@ reachable `opc.tcp://` server. See [`FraktalCore/HMI/README.md`](FraktalCore/HMI
 Fraktal's current project distribution is licensed under the
 [GNU Affero General Public License, version 3 only](LICENSE)
 (`AGPL-3.0-only`). See [LICENSING.md](LICENSING.md) for the transition,
-source-distribution obligations and third-party exclusions. Previously released
-MIT versions retain their MIT permissions; Git history is preserved.
+source-distribution obligations and third-party exclusions.
 The current source of record is the `MrFrakt/Fraktal` monorepo.

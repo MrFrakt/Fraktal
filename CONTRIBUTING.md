@@ -19,4 +19,4 @@ copyright or grant a separate proprietary relicensing right.
 Commits should state the change, its purpose and the applicable validation.
 Controller-changing actions still require current authorization and exact target
 checks. Evidence remains append-only. See [LICENSING.md](LICENSING.md) for
-historical MIT permissions and distribution obligations.
+distribution obligations.

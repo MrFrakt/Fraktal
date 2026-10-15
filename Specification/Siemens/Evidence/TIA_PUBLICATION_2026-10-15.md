@@ -3,7 +3,7 @@
 The owner requested commit and push to main after validation. The publication
 includes the Siemens port, shared HMI support, specification/reference updates,
 workspace selection and dated engineering evidence through generator0.20.
-The unrelated deletion of LICENSES/MIT-legacy.txt is left outside this commit.
+An unrelated working-tree deletion is left outside this commit.
 
 The October14 cycle-profile archive contains a local SiemensAgent knowledge
 database before-image with unrelated engineering-project tables. That one file

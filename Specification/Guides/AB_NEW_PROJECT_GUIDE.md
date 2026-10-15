@@ -672,7 +672,7 @@ needed binding work from improvements already shared by the HMI.
 
 ## 9. Licensing a station built from Fraktal
 
-Current distribution is AGPL-3.0-only; older MIT grants remain. Read
+Current distribution is AGPL-3.0-only. Read
 [LICENSING.md](../../LICENSING.md) before distributing derived PLC/HMI/gateway
 work. Preserve notices and provide exact Corresponding Source as required;
 modified network programs need section 13's source offer. Ordinary parameter

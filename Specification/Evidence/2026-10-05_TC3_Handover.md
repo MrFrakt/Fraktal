@@ -97,5 +97,5 @@ physical safety/I/O, mirror transport and upgrade/power retention are separate
 evidence scopes and no pass is claimed for them here.
 
 The requested fresh public AGPL repository replacement has **not** been executed.
-It follows the handover, as requested. Historical MIT grants and third-party
+It follows the handover, as requested. Third-party
 notices must be preserved even when old commits cease to be publicly reachable.
