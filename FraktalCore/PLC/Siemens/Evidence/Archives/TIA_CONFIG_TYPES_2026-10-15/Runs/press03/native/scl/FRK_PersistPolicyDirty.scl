@@ -1,0 +1,16 @@
+﻿FUNCTION "FRK_PersistPolicyDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex = 1 THEN
+	    "FRK_PersistDirty"(Slot := 2);
+	END_IF;
+	
+END_FUNCTION
+

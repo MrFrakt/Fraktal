@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_SeqOnce" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Enable : Bool;
+      Token : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SeqOnce := #Enable AND #Seq.Running AND NOT #Seq.Error
+	AND (#Seq.EventVisit <> #Seq.Visit OR #Seq.EventToken <> #Token);
+	IF #FRK_SeqOnce THEN
+	    #Seq.EventVisit := #Seq.Visit;
+	    #Seq.EventToken := #Token;
+	END_IF;
+	
+END_FUNCTION
+

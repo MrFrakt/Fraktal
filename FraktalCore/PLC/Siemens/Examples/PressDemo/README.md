@@ -1,13 +1,18 @@
 # Siemens press demo
 
-The current generator 0.20 package has 184 grouped sources and selects the
+The current generator0.21 package has185 grouped sources and selects the
 [shared LOAD_DB medium](../../Tests/Persistence/README.md) for station config,
 four named-set slots, private users and root policy (seven documents). Its
 warning-clean offline project is
-`Sequence_Recovery_Press_Offline_20261015/FrkS12/FrkS12.ap20` under the local TIA
+`Config_Types_Press_Offline_20261015/FrkS12/FrkS12.ap20` under the local TIA
 station directory. MAIN still has three calls. The dated profile notes below
-describe earlier packages; [current evidence](../../../../../Specification/Siemens/Evidence/TIA_SEQUENCE_RECOVERY_2026-10-15.md)
+describe earlier packages; [current evidence](../../../../../Specification/Siemens/Evidence/TIA_CONFIG_TYPES_2026-10-15.md)
 supersedes their current-image references.
+
+The existing generic HMI can export current station config without consuming a
+named-set slot. Shared typed configuration supports REAL/LREAL, bounded smaller
+integers, Core enum choices and explicitly registered array elements. The press
+keeps its existing record schemas and shared GRAPH recovery behavior.
 
 The shared frame records AUTO cycle timing through existing step/cycle markers.
 The last completed waterfall, statistics and class totals are readonly; HOME and

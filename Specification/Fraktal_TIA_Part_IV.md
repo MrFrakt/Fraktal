@@ -1753,3 +1753,29 @@ Profiling, complete sequence freeze/resume policy, remaining provider/line confi
 and module/deployment scope remain open. Cold VM loss of the test-user document
 was detected fail-closed and repaired through trusted bench provisioning; it
 does not qualify abrupt-loss retention.
+
+### Measured extension, 2026-10-15: typed configuration and current exports
+
+Generator0.21 resolves native REAL/LREAL, bounded smaller integers, Core enums
+and explicit constant-index array elements from owning declarations. The same
+typed validator protects live writes, restore, recipe prepare and imported sets;
+model-region completeness includes every array element. Core enum domains use
+the existing manifest choice metadata. Released Core records/ordinals and the
+saved-document wire format are unchanged.
+
+Current station/model exports use EXPORT_CURRENT_CONFIG and existing ordered
+EXPORT_CONFIG_SET continuations. A complete immutable snapshot reuses consumed
+workspace without allocating a saved slot, including when the store is full.
+Session generation, client token, document name and exact next line bind the
+cursor; refusal/intervening operations invalidate it, and every line rechecks
+read authorization. The generic HMI consumes the existing feature/protocol.
+MAIN gains no call. See [qualification](Siemens/Evidence/TIA_CONFIG_TYPES_2026-10-15.md)
+for native, source/readback, HMI and remaining provider/Line/deployment scope.
+
+The measured numeric codec uses bounded integer rationals and direct nearest/even
+binary rounding. Decimal output has17 significant digits and an exact reverse
+check; integer scratch stays in FC TEMP storage. Subnormal values are refused
+as underflow under the S7-1500 arithmetic profile. The REAL Web API leaf carries
+seven significant decimal digits on this bench; typed configuration text is the
+precision witness used by the generic editor/export contract. Native comparisons
+and source limits are recorded in the qualification above.

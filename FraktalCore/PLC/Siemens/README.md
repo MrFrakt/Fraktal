@@ -8,11 +8,15 @@ driver, bench tooling, spike fixtures, declaration/frame generator and a shared
 [command-kernel prototype](Framework/Core/README.md).
 Do not describe it as a conforming implementation.
 
-Current continuation: generator 0.20 adds shared sequence freeze/recovery to
-the selected LOAD_DB/view/diagnostic/profile runtime. The synthetic runtime is
-`%LOCALAPPDATA%\Fraktal\TiaStations\Sequence_Recovery_Runtime_20261014\FrkS12\FrkS12.ap20`;
-the separate wired press is `Sequence_Recovery_Press_Offline_20261015` under
-the same station directory. Earlier image names below describe dated gates.
+Current continuation: generator0.21 adds typed configuration and complete
+current-value exports through the existing provider, mailbox and generic HMI.
+The selected two-root LOAD_DB runtime is
+`%LOCALAPPDATA%\Fraktal\TiaStations\Config_Types_Runtime_20261015\FrkS12\FrkS12.ap20`;
+the separate wired press is `Config_Types_Press_Offline_20261015` under
+the same station directory. See [the typed configuration fixture](Tests/ConfigTypes/README.md)
+and [qualification](../../../Specification/Siemens/Evidence/TIA_CONFIG_TYPES_2026-10-15.md).
+Earlier image names below describe dated gates. Shared recovery was qualified by
+generator0.20 with the selected LOAD_DB/view/diagnostic/profile runtime.
 See [the recovery fixture](Tests/SequenceRecovery/README.md),
 [the recovery report](../../../Specification/Siemens/Evidence/TIA_SEQUENCE_RECOVERY_2026-10-15.md),
 [the profiling fixture](Tests/CycleProfile/README.md),
@@ -26,6 +30,13 @@ press restarts. Shared GRAPH adapters preserve the native transition boundary
 and reset pulse, release child commands while frozen and suppress inactive step
 publication. MAIN retains three calls. Provider/line config, baseline/reset/OEE,
 module/HAL expansion and deployment/physical acceptance remain separate gates.
+
+After a VM restart, first inspect the registered instances. If the saved Fraktal
+CPU is unregistered, use [Resume-TiaSimOwner.ps1](tools/Resume-TiaSimOwner.ps1)
+in a hidden persistent PowerShell process. It requires the existing storage,
+isolated adapter and expected identity, and refuses unexpected instances. Keep
+its keeper alive. Verify the pinned Web API certificate before writes; preserve
+the saved image rather than starting a new blank CPU with another name.
 
 The owner retired 33 obsolete October11–13 AppData test-project copies on
 2026-10-14, recovering 3.16 GB of physical disk space. Current projects,

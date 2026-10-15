@@ -1,0 +1,12 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Config_Types_Runtime_20261015\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\grouped\Framework\Core" --only "14_ConfigServices.scl" --group "Framework/Core"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\grouped\Tests\ConfigBench\Modules" --only "20_000_FB_DeclarationCylinder.scl" --group "Tests/ConfigBench/Modules"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\grouped\Tests\ConfigBench\Modules" --only "20_001_FB_DeclarationCell.scl" --group "Tests/ConfigBench/Modules"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\grouped\Tests\ConfigBench\Modules" --only "20_002_FB_InnerUnit.scl" --group "Tests/ConfigBench/Modules"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\grouped\Tests\ConfigBench\Modules" --only "20_003_FB_SatelliteUnit.scl" --group "Tests/ConfigBench/Modules"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\grouped\Tests\ConfigBench\Modules" --only "20_004_FB_DeclarationUnit.scl" --group "Tests/ConfigBench/Modules"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\grouped\Tests\ConfigBench\00_System" --only "38_ConfigBenchRoutines.scl" --group "Tests/ConfigBench/00_System"
+compile --plc PLC_1
+list-groups --plc PLC_1
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\runtime07\native" --scl true
+save

@@ -1,11 +1,20 @@
 """Reference-1500 value types derived from Core and application declarations."""
 from dataclasses import dataclass, field
+from decimal import Decimal
 import hashlib
+import math
 from pathlib import Path
 import re
+import struct
 import xml.etree.ElementTree as ET
 
 from fraktal_tia_types import bound, enum_values, plain, struct_members
+
+# The reference S7-1500 arithmetic profile flushes subnormal values to zero.
+# Keep initializer admission and editable configuration on the same native bounds.
+FLOAT_FORMATS = {'REAL': (24, -126, 127), 'LREAL': (53, -1022, 1023)}
+FLOAT_LIMITS = {name: (math.ldexp(1.0, low), math.ldexp(2-2**(1-precision), high))
+                for name, (precision, low, high) in FLOAT_FORMATS.items()}
 
 REPO = Path(__file__).resolve().parents[4]
 CORE = REPO / "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core"
@@ -122,6 +131,17 @@ class Catalog:
                         if not enum or enum[1] not in self.enums[scalar]:
                             raise ValueError("unsupported enum initializer: " + initial)
                         initial = str(self.enums[scalar][enum[1]])
+                    elif scalar.upper() in ('REAL', 'LREAL'):
+                        if not re.fullmatch(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?', initial):
+                            raise ValueError('unsupported numeric initializer: ' + initial)
+                        minimum_normal, limit = FLOAT_LIMITS[scalar.upper()]
+                        if not math.isfinite(float(initial)) or abs(float(initial)) > limit:
+                            raise ValueError('numeric initializer exceeds native storage: ' + initial)
+                        converted = float(initial)
+                        if scalar.upper() == 'REAL':
+                            converted = struct.unpack('f', struct.pack('f', converted))[0]
+                        if (converted == 0 and Decimal(initial) != 0) or (converted != 0 and abs(converted) < minimum_normal):
+                            raise ValueError('numeric initializer underflows native storage: ' + initial)
                     elif not re.fullmatch(r"TRUE|FALSE|-?\d+|T#[\dA-Z]+|'(?:\$.|[^'])*'", initial, re.I):
                         raise ValueError("unsupported initializer: " + initial)
                 fields.append({"member": member["name"], "core_type": original,

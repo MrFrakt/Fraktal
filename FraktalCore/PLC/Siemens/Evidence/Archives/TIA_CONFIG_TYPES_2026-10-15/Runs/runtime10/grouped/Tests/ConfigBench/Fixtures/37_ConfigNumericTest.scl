@@ -1,0 +1,52 @@
+// Native conversion witness, consumed only by the typed configuration bench.
+DATA_BLOCK "GDB_ConfigNumericTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR
+    Requested : Bool;
+    InputText : WString[80];
+    InputValue { ExternalWritable := 'False' } : LReal;
+    InputValid { ExternalWritable := 'False' } : Bool;
+    Texts { ExternalWritable := 'False' } : Array[1..6] of WString[80];
+    Values { ExternalWritable := 'False' } : Array[1..6] of LReal;
+    Valid { ExternalWritable := 'False' } : Array[1..6] of Bool;
+END_VAR
+BEGIN
+END_DATA_BLOCK
+
+FUNCTION "F_ConfigNumericTest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Index : Int;
+    Position : UInt;
+    Format : Word;
+    Precision : USInt;
+    Converted : Bool;
+    Decoded : "FRK_ConfigValue";
+END_VAR
+BEGIN
+    IF NOT "GDB_ConfigNumericTest".Requested THEN RETURN; END_IF;
+    "GDB_ConfigNumericTest".InputValid := "FRK_ConfigDecode"(
+        Text := "GDB_ConfigNumericTest".InputText, Storage := 6,
+        Minimum := LREAL#-1.7976931348623157E+308, Maximum := LREAL#1.7976931348623157E+308,
+        MaxLength := 0, Value := #Decoded);
+    "GDB_ConfigNumericTest".InputValue := #Decoded.Decimal;
+    FOR #Index := 1 TO 6 DO
+        #Position := 1;
+        IF #Index <= 3 THEN #Format := WORD#16#0002; #Precision := INT_TO_USINT(15 + #Index);
+        ELSE #Format := WORD#16#0000; #Precision := INT_TO_USINT(12 + #Index); END_IF;
+        "GDB_ConfigNumericTest".Texts[#Index] := WSTRING#'';
+        VAL_STRG(IN := "GDB_ConfigNumericTest".InputValue, SIZE := USINT#0,
+            PREC := #Precision, FORMAT := #Format, P := #Position,
+            OUT => "GDB_ConfigNumericTest".Texts[#Index], ENO => #Converted);
+        "GDB_ConfigNumericTest".Valid[#Index] := #Converted;
+        IF #Converted THEN
+            #Position := 1;
+            STRG_VAL(IN := "GDB_ConfigNumericTest".Texts[#Index], FORMAT := #Format,
+                P := #Position, OUT => "GDB_ConfigNumericTest".Values[#Index], ENO => #Converted);
+            "GDB_ConfigNumericTest".Valid[#Index] := #Converted;
+        END_IF;
+    END_FOR;
+    "GDB_ConfigNumericTest".Requested := FALSE;
+END_FUNCTION

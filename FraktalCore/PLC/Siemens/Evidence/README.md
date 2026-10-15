@@ -50,3 +50,9 @@ Latest sequence diagnostics: [report](../../../../Specification/Siemens/Evidence
 and separate TIA_SEQUENCE_DIAGNOSTICS_2026-10-14 archive. Failed attempts and the
 VM-restart/test-user repair are preserved alongside native compile/readback and
 synthetic first-out/stall/HELD results.
+
+Latest typed configuration/current-export qualification: [report](../../../../Specification/Siemens/Evidence/TIA_CONFIG_TYPES_2026-10-15.md)
+and separate TIA_CONFIG_TYPES_2026-10-15 archive. It binds exact numeric witnesses,
+typed/current and saved-set regressions, live generic HMI, final privacy/durability
+checks and warning-clean runtime/offline press readback. Prior archives remain
+unchanged; native projects and the private knowledge backup remain local.

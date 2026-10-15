@@ -13,7 +13,7 @@ from fraktal_tia_binding import Catalog, PRIVATE, READONLY, REPO, literal, type_
 import fraktal_tia_declaration as DECL
 
 HERE = Path(__file__).resolve().parent
-VERSION = "0.20"
+VERSION = "0.21"
 KIND = "fraktal.tia.generated.frames.v1"
 ROLES = ("ParCfg", "ParCmd", "OutCmd", "OutImm")
 RESERVED_BLOCKS = {"frk_core", "frk_registry", "frk_registryrow", "frk_setidentity",
@@ -302,8 +302,9 @@ def build(model, shared_runtime=False):
         import fraktal_tia_runtime
         runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
         if config:
-            from fraktal_tia_config import TEMPLATE as config_template
-            runtime_metadata['authority_inputs'][config_template.relative_to(REPO).as_posix()] = hashlib.sha256(config_template.read_bytes()).hexdigest()
+            from fraktal_tia_config import TEMPLATE as config_template, DECIMAL_TEMPLATE
+            for config_source in (config_template, DECIMAL_TEMPLATE):
+                runtime_metadata['authority_inputs'][config_source.relative_to(REPO).as_posix()] = hashlib.sha256(config_source.read_bytes()).hexdigest()
             if config.sets:
                 from fraktal_tia_config_sets import TEMPLATE as set_template, LINE_AUTHORITY
                 runtime_metadata['authority_inputs'][set_template.relative_to(REPO).as_posix()] = hashlib.sha256(set_template.read_bytes()).hexdigest()

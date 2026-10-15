@@ -84,8 +84,7 @@ BEGIN
     IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Revision <> "FRK_ConfigScratch".Entry.WriteRevision
         OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Kind <> "FRK_ConfigScratch".Entry.ConfigKind
         OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
-    #Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueText), Storage := "FRK_ConfigScratch".Storage,
-        Minimum := "FRK_ConfigScratch".Minimum, Maximum := "FRK_ConfigScratch".Maximum, MaxLength := "FRK_ConfigScratch".MaxLength, Value := "FRK_ConfigScratch".Value);
+    #Ok := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING("FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueText));
     IF NOT #Ok THEN RETURN; END_IF;
     // Existing keyed slots are reserved before commit: commit cannot allocate.
     IF #WriteAccess AND "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) = 0 THEN RETURN; END_IF;
@@ -445,4 +444,24 @@ BEGIN
     END_IF;
     #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
     IF #Slot > 0 THEN #Ok := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+END_FUNCTION
+// A current-value document is bound to the existing session and this token.
+FUNCTION "FRK_ExportTokenValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Token : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ExportTokenValid := FALSE;
+    IF LEN(#Token) <> 32 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 32 DO
+        IF NOT ((#Token[#Index] >= CHAR#'0' AND #Token[#Index] <= CHAR#'9')
+            OR (#Token[#Index] >= CHAR#'a' AND #Token[#Index] <= CHAR#'f')
+            OR (#Token[#Index] >= CHAR#'A' AND #Token[#Index] <= CHAR#'F')) THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ExportTokenValid := TRUE;
 END_FUNCTION

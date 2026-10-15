@@ -188,3 +188,21 @@ restarts. Native GRAPH preserves the preceding result through transition
 evaluation and clears it at the current step action. Boot/mode/abort/restore
 boundaries force chart restart. HELD retains its existing automatic permit
 recovery. No project recovery scheduling call or released Core layout is added.
+
+Generator0.21 extends [typed configuration](../../Tests/ConfigTypes/README.md)
+with REAL/LREAL, SINT/USINT/UINT, Core enums and explicit constant-index array
+elements. One validator serves writes, restore, recipe prepare and set import.
+The enum domain is derived from Core and published through existing manifest
+metadata. Enum text uses those exact choices. REAL/LREAL text uses bounded
+integer rational conversion and nearest/even rounding, with exact round-trip
+validation after grammar checks. Integer workspace stays in private TEMP data;
+its size derives from the Core value width and the codec exponent bound.
+Current station/model config exports reuse the consumed set workspace
+without saving a slot. A session/token/ordered-line cursor invalidates on every
+refusal or intervening operation and rechecks complete read permissions.
+MAIN gains no call; released Core records and ordinals are unchanged.
+
+The S7-1500 numeric profile admits zero and normal finite values. Denormalized
+values are interpreted as zero by the target arithmetic, so nonzero subnormal
+initializers/edits are refused as underflow. See [Siemens V20 floating-point
+ranges](https://docs.tia.siemens.cloud/r/en-us/v20/data-types/floating-point-numbers/invalid-floating-point-numbers).

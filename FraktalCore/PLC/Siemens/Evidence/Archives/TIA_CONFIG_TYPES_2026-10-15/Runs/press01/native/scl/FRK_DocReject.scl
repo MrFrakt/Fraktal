@@ -1,0 +1,63 @@
+﻿FUNCTION "FRK_DocReject" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Stored : Int;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Slot OF
+	    1:
+	        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'requireTwoHandStart', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'transferSettleTime', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'pressSettleTime', ModelCode := '');
+	        IF #Stored > 0 THEN
+	            "FRK_ConfigStore".Rows[#Stored].Used := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'PressDemo');
+	    2:
+	        "FRK_AccessPolicies".Rows[1].Scope := 'PressDemo';
+	        "FRK_AccessPolicies".Rows[1].SchemaVersion := 0;
+	        "FRK_AccessPolicies".Rows[1].Initialized := TRUE;
+	    3:
+	        "FRK_SetStore".Sets[1, 1].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'PressDemo');
+	    4:
+	        "FRK_SetStore".Sets[1, 2].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'PressDemo');
+	    5:
+	        "FRK_SetStore".Sets[1, 3].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'PressDemo');
+	    6:
+	        "FRK_SetStore".Sets[1, 4].Info.Used := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'PressDemo');
+	    7:
+	        "FRK_LocalUsers".SchemaVersion := 0;
+	        "FRK_LocalUsers".Generation := 0;
+	        "FRK_LocalUsers".Checksum := DWORD#0;
+	        "FRK_AccessStorage".UsersCommissioned := TRUE;
+	        "FRK_AccessStorage".UsersReady := FALSE;
+	        "FRK_AccessStorage".UsersLost := TRUE;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

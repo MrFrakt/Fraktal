@@ -1,0 +1,62 @@
+﻿FUNCTION "FRK_Config_DeclarationCylinder" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Access : "FRK_Access";
+      RootIndex : Int;
+      ModelIndex : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_DeclarationCylinder";
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #ModelIndex = 0 THEN
+	    "FRK_ConfigCatalog"(Scope := #Module.Status.Name,
+	                        Catalog := #Module.Catalog,
+	                        Count := #Module.CatalogCount,
+	                        ReadLevel := #Access.Policy.Required[0],
+	                        Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                        Cursor := #Cursor,
+	                        Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 1);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Module.Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
+	    "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := FALSE;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#Module.ParCfg.Timeout));
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 2);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Module.Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
+	    "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := FALSE;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Module.ParCfg.Preset);
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	
+END_FUNCTION
+

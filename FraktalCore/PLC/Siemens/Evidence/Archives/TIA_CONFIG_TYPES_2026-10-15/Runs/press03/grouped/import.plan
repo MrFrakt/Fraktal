@@ -1,0 +1,15 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Config_Types_Press_Offline_20261015\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Framework\Core" --only "14_ConfigServices.scl" --group "Framework/Core"
+import-xml --plc PLC_1 --file "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Examples\PressDemo\01_PneumaticPress\Sequences\26_FB_LD_PressDemoAuto.xml" --group "Examples/PressDemo/01_PneumaticPress/Sequences"
+import-xml --plc PLC_1 --file "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Examples\PressDemo\01_PneumaticPress\Sequences\26_FB_LD_PressDemoHome.xml" --group "Examples/PressDemo/01_PneumaticPress/Sequences"
+import-xml --plc PLC_1 --file "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Examples\PressDemo\01_PneumaticPress\Sequences\26_FB_LD_PressDemoLoadPosition.xml" --group "Examples/PressDemo/01_PneumaticPress/Sequences"
+import-xml --plc PLC_1 --file "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Examples\PressDemo\01_PneumaticPress\Release\26_FB_LD_PressDemoRelease.xml" --group "Examples/PressDemo/01_PneumaticPress/Release"
+import-xml --plc PLC_1 --file "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Examples\PressDemo\01_PneumaticPress\Sequences\27_FB_GRAPH_PressDemoAuto.xml" --group "Examples/PressDemo/01_PneumaticPress/Sequences"
+import-xml --plc PLC_1 --file "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Examples\PressDemo\01_PneumaticPress\Sequences\27_FB_GRAPH_PressDemoHome.xml" --group "Examples/PressDemo/01_PneumaticPress/Sequences"
+compile --plc PLC_1
+save
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\grouped\Examples\PressDemo\01_PneumaticPress" --only "29_FB_PressDemoUnit.scl" --group "Examples/PressDemo/01_PneumaticPress"
+compile --plc PLC_1
+list-groups --plc PLC_1
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Config_Types_20261015\press03\native" --scl true
+save

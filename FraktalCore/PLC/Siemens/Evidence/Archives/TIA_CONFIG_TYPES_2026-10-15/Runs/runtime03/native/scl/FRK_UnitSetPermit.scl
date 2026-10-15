@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_UnitSetPermit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Ok : Bool;
+      Diag : "ST_Diagnostic";
+   END_VAR
+
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+   END_VAR
+
+
+BEGIN
+	
+	#Unit.Permit := #Ok;
+	#Unit.PermitDiag := #Diag;
+	
+END_FUNCTION
+

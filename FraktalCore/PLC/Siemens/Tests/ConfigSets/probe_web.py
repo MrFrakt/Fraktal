@@ -1,5 +1,4 @@
 """Native mailbox acceptance for retained keyed sets and JSON-lines exchange."""
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -12,12 +11,12 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / 'tools'))
 from tia_webapi import WebApi, leaf_var
 from fraktal_tia_binding import Catalog
-spec = importlib.util.spec_from_file_location('unit_guard', HERE.parent / 'Unit/probe_web.py')
-UNIT = importlib.util.module_from_spec(spec); spec.loader.exec_module(UNIT)
+from tia_mailbox import Mailbox
+from tia_target_guard import guard
 
 
 def probe(out):
-    c = Catalog.read(); kinds = c.enums['E_HmiRequestKind']; checks = []; complete = False
+    c = Catalog.read(); checks = []; complete = False
     pin = Path(os.environ['LOCALAPPDATA']) / 'Fraktal/TiaStations/FrkS12.webapi.pin'
     api = WebApi('169.254.212.49', pin, False)
     with out.open('x', encoding='ascii', newline='\n') as stream:
@@ -32,21 +31,14 @@ def probe(out):
         def write(values):
             replies = api.bulk([('PlcProgram.Write', {'var': leaf_var(p.split('.')), 'value': v}) for p,v in values.items()])
             if any(error for value,error in replies): raise AssertionError('native write refused')
-        def wait(predicate):
-            deadline = time.monotonic()+8
+        def wait(predicate, seconds=8):
+            deadline = time.monotonic()+seconds
             while time.monotonic() < deadline:
                 if predicate(): return
                 time.sleep(.02)
             raise AssertionError('mailbox/session timeout')
         def request(kind, root='StationA', **fields):
-            emit(dict(event='mutation-guard', status=UNIT.guard(), kind=kind, root=root))
-            seq = (int(read(root+'.HmiRequest.Sequence'))+1)&0xffffffff or 1
-            values = dict(Kind=kinds[kind], TargetPath='', NameValue='', TextValue='', IntValue=0, BoolValue=False, DurationMs=0, User='', Secret='')
-            values.update(fields)
-            write({root+'.HmiRequest.'+k:v for k,v in values.items()})
-            write({root+'.HmiRequest.Sequence':seq})
-            wait(lambda: read(root+'.HmiResponse.AckSequence') == seq)
-            return read(root+'.HmiResponse.Accepted')
+            return Mailbox(api, guard, emit).request(kind, root, **fields)
         def login(root='StationA', user='admin'):
             check(root+' '+user+' login consumed', request('LOGIN',root,User=user,Secret=os.environ['FRAKTAL_TIA_'+user.upper()+'_PIN']))
             wait(lambda: not read(root+'.Access.LoginBusy'))
@@ -56,6 +48,25 @@ def probe(out):
         def listing(root='StationA'):
             assert request('LIST_CONFIG_SETS',root)
             return [read(root+'.ConfigSets[%d].SetName'%i) for i in range(1,read(root+'.ConfigSetCount')+1)]
+        def station_requires_ready():
+            page = 0
+            while True:
+                assert request('QUERY_CONFIG', IntValue=page)
+                base = 'StationA.HmiResponse.ConfigPage'
+                for slot in range(1, read(base+'.EntryCount')+1):
+                    entry = base+'.Entries[%d]'%slot
+                    if read(entry+'.ConfigKind') == c.enums['E_ConfigKind']['STATION_CFG'] and read(entry+'.Writable') and read(entry+'.RequiresReady'):
+                        return True
+                page += 1
+                if page >= read(base+'.PageCount'): return False
+        def restore_ready():
+            # LOCAL_RETAIN has no document-medium status DB. LOAD_DB restores
+            # asynchronously and withholds the operator mailbox until complete.
+            value, error = api.bulk([('PlcProgram.Read', {'var':leaf_var(['FRK_PersistStatus','Restoring'])})])[0]
+            if error:
+                if error['code'] == 200: return True
+                raise AssertionError('restore status unavailable')
+            return not value and all(not read(root+'.ConfigPersist.Pending') and not read(root+'.ConfigPersist.Failed') for root in ('StationA','StationB'))
         def export(name,root='StationA'):
             lines=[]; count=0; index=0
             while index <= count:
@@ -76,7 +87,7 @@ def probe(out):
         def copy(document,name):
             value=json.loads(json.dumps(document));value[0]['set']=name;return value
         try:
-            api.login('fraktal');emit(dict(event='connection',status=UNIT.guard(),pin=api.fingerprint))
+            api.login('fraktal');emit(dict(event='connection',status=guard(),pin=api.fingerprint))
             check('named-set provider advertised',read('StationA.ConfigPersist.StorePresent'))
             check('peer provider advertised',read('StationB.ConfigPersist.StorePresent'))
             # Declare the bench's CONFIG_SET gate through the same authenticated
@@ -117,7 +128,7 @@ def probe(out):
                 assert request('SAVE_CONFIG_SET',TextValue='station',IntValue=1)
                 assert edit('StationA','siteLabel','unchanged on failure',1)
                 revision=read('StationA.ConfigRev')
-                emit(dict(event='mutation-guard',status=UNIT.guard(),targets=['GDB_ConfigSetTest']))
+                emit(dict(event='mutation-guard',status=guard(),targets=['GDB_ConfigSetTest']))
                 write({'GDB_ConfigSetTest.SetName':'station','GDB_ConfigSetTest.Field':field,
                        'GDB_ConfigSetTest.Text':'invalid-boolean','GDB_ConfigSetTest.Corrupt':True})
                 wait(lambda: not read('GDB_ConfigSetTest.Corrupt'))
@@ -185,14 +196,23 @@ def probe(out):
             check('long escaped value intact',roundtrip[1]['value'],longdoc[1]['value'])
             check('exported line exceeds one request',max(len(json.dumps(r,separators=(',',':'))) for r in roundtrip)>255)
             check('delete long set',request('DELETE_CONFIG_SET',TextValue='L'*80))
+            station_ready = station_requires_ready()
+            busy_timeout = read('StationA.ParCfg.Timeout')
+            # The guarded host performs several round trips while BUSY. Give
+            # this fixture phase a declared budget, then restore the old value.
+            assert edit('StationA','timeout','60000',1)
             assert request('SET_MODE',IntValue=c.enums['E_Mode']['AUTO']);assert request('START')
             wait(lambda: read('StationA.RunningPublished'))
             check('model load refuses BUSY',request('LOAD_CONFIG_SET',TextValue='model'),False)
-            check('station non-ready fields may load BUSY',request('LOAD_CONFIG_SET',TextValue='station'))
+            before_busy_load = read('StationA.StationCfg.SiteLabel')
+            check('whole station load honors declared READY requirements',request('LOAD_CONFIG_SET',TextValue='station'),not station_ready)
+            if station_ready:
+                check('BUSY rejection leaves live station value intact',read('StationA.StationCfg.SiteLabel'),before_busy_load)
             check('save remains allowed BUSY',request('SAVE_CONFIG_SET',TextValue='busy',IntValue=1))
             check('list remains allowed BUSY',len(listing()),4)
             assert request('OPERATOR_RESET');wait(lambda: not read('StationA.RunningPublished'))
-            emit(dict(event='mutation-guard',status=UNIT.guard(),targets=['GDB_ConfigTest.Unavailable']))
+            assert edit('StationA','timeout',str(busy_timeout),1)
+            emit(dict(event='mutation-guard',status=guard(),targets=['GDB_ConfigTest.Unavailable']))
             write({'GDB_ConfigTest.Unavailable':True})
             check('unavailable store refuses save',request('SAVE_CONFIG_SET',TextValue='station',IntValue=1),False)
             check('failure exposed',read('StationA.ConfigPersist.Failed'))
@@ -206,12 +226,16 @@ def probe(out):
                     value,error=api.bulk([('PlcProgram.Write',{'var':leaf_var(leaf.split('.')),'value':'forbidden'})])[0]
                     check('published set state read-only '+leaf,error['code'],205)
             # STOP/RUN cold-start path preserves named sets without unregistering.
-            expected=listing();api.conn.close()
+            expected=listing()
+            wait(lambda: all(not read(root+'.ConfigPersist.Pending') and not read(root+'.ConfigPersist.Failed') for root in ('StationA','StationB')), seconds=60)
+            api.conn.close()
             for action in ('halt','run'):
-                emit(dict(event='mode-guard',action=action,status=UNIT.guard()))
+                emit(dict(event='mode-guard',action=action,status=guard()))
                 result=subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(HERE.parents[1]/'Spikes/S12_TypeMap/simulator.ps1'),'-Action',action],capture_output=True)
                 emit(dict(event='mode-result',action=action,exit_code=result.returncode));assert result.returncode==0
-            api=WebApi('169.254.212.49',pin,False);api.login('fraktal');login()
+            api=WebApi('169.254.212.49',pin,False);api.login('fraktal')
+            wait(restore_ready, seconds=60)
+            login()
             login('StationB')
             check('named sets survive cold start',listing(),expected)
             check('retained set loads after restart',request('LOAD_CONFIG_SET',TextValue='model'))
@@ -221,7 +245,7 @@ def probe(out):
             for name in listing('StationB'):assert request('DELETE_CONFIG_SET','StationB',TextValue=name)
             assert edit('StationA','siteLabel','bench',1);assert edit('StationA.Satellite','siteLabel','bench',1)
             complete = True
-            emit(dict(event='complete',checks=len(checks),failed=sum(not ok for _,ok in checks),status=UNIT.guard()))
+            emit(dict(event='complete',checks=len(checks),failed=sum(not ok for _,ok in checks),status=guard()))
         finally:
             api.conn.close()
             suite=ET.Element('testsuite',name='Fraktal.TIA.ConfigSets',tests=str(len(checks)),failures=str(sum(not ok for _,ok in checks)),errors='0' if complete else '1')

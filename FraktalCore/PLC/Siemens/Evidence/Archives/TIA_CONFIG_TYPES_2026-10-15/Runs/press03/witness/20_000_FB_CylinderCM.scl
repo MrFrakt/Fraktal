@@ -1,0 +1,299 @@
+FUNCTION "FRK_CyclicHook_CylinderCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Device : "ST_CylinderDevice";
+    Hal : "ST_CylinderHal";
+    OutImm : "ST_CylinderOutImm";
+    StateFlagCount : Int;
+    StateFlags : Array[1..12] of "ST_StateFlag";
+    StateTouched : Array[1..12] of Bool;
+END_VAR
+BEGIN
+    // Apply the SAME live permit to latched coils after completion as while BUSY.
+    #Hal.CoilExtend := #Device.Direction = 1 AND #Hal.ExtendPermit
+        AND NOT #Device.Withdrawn AND #Core.Exec <> 3 AND #Core.Exec <> 4;
+    #Hal.CoilRetract := #Device.Direction = 2 AND #Hal.RetractPermit
+        AND NOT #Device.Withdrawn AND #Core.Exec <> 3 AND #Core.Exec <> 4;
+    #OutImm.Extended := "FRK_State"(Idx := 1, Key := 'module.state.extended',
+        Ok := #Device.Extended, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+    #OutImm.Retracted := "FRK_State"(Idx := 2, Key := 'module.state.retracted',
+        Ok := #Device.Retracted, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+END_FUNCTION
+FUNCTION "FRK_AbortHook_CylinderCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Device : "ST_CylinderDevice";
+END_VAR
+BEGIN
+    #Device.Direction := 0;
+END_FUNCTION
+// Generated frame v0.21; change the declaration, then regenerate.
+FUNCTION_BLOCK "FB_CylinderCM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Execute {ExternalWritable := 'False'} : Bool;
+    Abort {ExternalWritable := 'False'} : Bool;
+    Command {ExternalWritable := 'False'} : DInt;
+    ParCfg {ExternalWritable := 'False'} : "ST_CylinderParCfg";
+    ParCmd {ExternalWritable := 'False'} : "ST_CylinderParCmd";
+    ParentIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    BoundPath {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : WString[254];
+END_VAR
+VAR_OUTPUT
+    Busy {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    Error {ExternalWritable := 'False'} : Bool;
+    Aborted {ExternalWritable := 'False'} : Bool;
+    Held {ExternalWritable := 'False'} : Bool;
+    ErrorID {ExternalWritable := 'False'} : DWord;
+    Timing {ExternalWritable := 'False'} : "ST_ModuleTiming";
+    OutCmd {ExternalWritable := 'False'} : "ST_CylinderOutCmd";
+END_VAR
+VAR_IN_OUT
+    Hal : "ST_CylinderHal";
+END_VAR
+VAR
+    OutImm {ExternalWritable := 'False'} : "ST_CylinderOutImm";
+    Status {ExternalWritable := 'False'} : "ST_ModuleStatus";
+    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+    LatchedParCmd {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_CylinderParCmd";
+    StateFlags {ExternalWritable := 'False'} : Array[1..12] of "ST_StateFlag";
+    StateFlagCount {ExternalWritable := 'False'} : Int;
+    StateTouched {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of Bool;
+    Device {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_CylinderDevice";
+    Catalog {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of "ST_CommandInfo";
+    CatalogCount {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+    ManConditions {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of "FRK_ManualConditionRow";
+    ManualOwned {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR_TEMP
+    InstancePath : WString[254];
+END_VAR
+VAR CONSTANT
+    EXEC_READY : DInt := 0;
+    MODULE_TIER : DInt := 3;
+END_VAR
+BEGIN
+    // ---- GENERATED: setup
+    IF #Startup OR NOT #Core.Named THEN
+        #InstancePath := #BoundPath;
+        "FRK_SetIdentity"(Core := #Core, Status := #Status, InstancePath := #InstancePath,
+            ModuleType := 3, TypeId := 2, Capabilities := DWORD#16#00000000, ParentIndex := #ParentIndex, TypeKey := 'fraktal.module.cylinder');
+        #CatalogCount := 2;
+        #Catalog[1].Value := 1;
+        #Catalog[1].Label := 'EXTEND';
+        #Catalog[1].Style := 0;
+        #Catalog[2].Value := 2;
+        #Catalog[2].Label := 'RETRACT';
+        #Catalog[2].Style := 0;
+    END_IF;
+    "FRK_StateSweep"(Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched, Startup := #Startup);
+    // ---- GENERATED: begin
+    "FRK_Begin"(Core := #Core, Status := #Status, Execute := #Execute, Abort := #Abort, Command := #Command);
+    IF #Core.EvCommandStart THEN
+        #LatchedParCmd := #ParCmd;
+        CASE #Core.Command OF
+            1: "FRK_Start"(Core := #Core, Status := #Status, Supported := TRUE, Timeout := #ParCfg.Timeout, Label := 'EXTEND');
+            2: "FRK_Start"(Core := #Core, Status := #Status, Supported := TRUE, Timeout := #ParCfg.Timeout, Label := 'RETRACT');
+            ELSE "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := '');
+        END_CASE;
+    END_IF;
+    IF #Core.EvCommandStart THEN
+    // ---- AUTHORED: CommandStart
+    #Device.Direction := #Core.Command;
+    #Device.Withdrawn := FALSE;
+    IF NOT #Device.Lease.Raised THEN
+        #Device.Lease.OwnerIndex := 0;
+        #Device.Lease.ChainIndex := 0;
+        #Device.Lease.BranchIndex := 0;
+    END_IF;
+
+    // ---- GENERATED: reaction end
+    END_IF;
+    // ---- AUTHORED: cyclic management
+    #Device.Extended := #Hal.FeedbackExtended AND NOT #Hal.FeedbackRetracted;
+    #Device.Retracted := #Hal.FeedbackRetracted AND NOT #Hal.FeedbackExtended;
+
+    // ---- GENERATED: end management
+    "FRK_RouteAbort"(Core := #Core, Abort := #Abort);
+    IF #Core.EvAbort THEN
+    // ---- AUTHORED: Abort
+    "FRK_AbortHook_CylinderCM"(Device := #Device);
+    // ---- GENERATED: reaction end
+    END_IF;
+    IF #Core.EvAbortInError THEN
+    // ---- AUTHORED: AbortInError
+    #Device.Direction := 0;
+
+    // ---- GENERATED: reaction end
+    END_IF;
+    IF #Core.Dispatch AND #Core.RegIndex > 0 AND NOT "FRK_Registry".Fault THEN
+    // ---- AUTHORED: dispatch
+    CASE #Core.Command OF
+        1:
+            IF NOT #Hal.ExtendPermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.PermitDiagnostic);
+            ELSIF #Device.Extended THEN
+                #OutCmd.Direction := #Device.Direction;
+                "FRK_Complete"(Core := #Core, Status := #Status);
+            END_IF;
+        2:
+            IF NOT #Hal.RetractPermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.RetractDiagnostic);
+            ELSIF #Device.Retracted THEN
+                #OutCmd.Direction := #Device.Direction;
+                "FRK_Complete"(Core := #Core, Status := #Status);
+            END_IF;
+        ELSE
+            // The shared frame rejects unknown commands before dispatch.
+            #Device.Direction := 0;
+    END_CASE;
+
+    // ---- GENERATED: end dispatch
+    END_IF;
+    "FRK_End"(Core := #Core, Status := #Status,
+        Busy => #Busy, Done => #Done, Error => #Error, Aborted => #Aborted, Held => #Held, ErrorID => #ErrorID, Timing => #Timing);
+    // ---- AUTHORED: unconditional cyclic/derived data
+    "FRK_CyclicHook_CylinderCM"(Core := #Core, Device := #Device, Hal := #Hal, OutImm := #OutImm, StateFlagCount := #StateFlagCount, StateFlags := #StateFlags, StateTouched := #StateTouched);
+    // ---- GENERATED: diagnostic snapshot
+    "FRK_DiagSync"(Index := #Core.RegIndex, Withdraw := FALSE,
+        Status := #Status, Held := #Core.Held,
+        Timeout := #ParCfg.Timeout, ActiveTimeoutMs := #Core.TimeoutMs);
+    // ---- GENERATED: frame end
+END_FUNCTION_BLOCK
+FUNCTION "FRK_Route_CylinderCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+END_VAR
+VAR_IN_OUT
+    Module : "FB_CylinderCM";
+    Hal : "ST_CylinderHal";
+    Report : "ST_ReleaseReport";
+END_VAR
+VAR_TEMP
+    RouteMatched : Bool;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_Route_CylinderCM := FALSE;
+    IF NOT "FRK_PathOwned"(OwnerPath := #Module.Status.Name, TargetPath := #Request.TargetPath) THEN RETURN; END_IF;
+    IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) THEN
+        FOR #Index := 1 TO 16 DO #Module.ManConditions[#Index].Used := FALSE; END_FOR;
+        // ---- AUTHORED: OnManRelease
+    "FRK_ManualCondition"(Conditions := #Module.ManConditions, Slot := 1, Value := 1, Ok := #Hal.ExtendPermit, Diag := #Hal.PermitDiagnostic, Bypassable := FALSE);
+    "FRK_ManualCondition"(Conditions := #Module.ManConditions, Slot := 2, Value := 2, Ok := #Hal.RetractPermit, Diag := #Hal.RetractDiagnostic, Bypassable := FALSE);
+
+        // ---- GENERATED: manual release end
+        "FRK_ManualApply"(Core := #Module.Core, Status := #Module.Status, Request := #Request, Commands := #Module.Catalog, Count := #Module.CatalogCount, Conditions := #Module.ManConditions, Report := #Report, Execute := #Module.Execute, Command := #Module.Command, ManualOwned := #Module.ManualOwned);
+        #FRK_Route_CylinderCM := TRUE;
+        RETURN;
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_CfgDef_CylinderCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    FieldIndex : Int;
+END_VAR
+BEGIN
+    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;
+END_FUNCTION
+FUNCTION "FRK_Config_CylinderCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Access : "FRK_Access";
+    RootIndex : Int;
+    ModelIndex : UDInt;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_CylinderCM";
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+END_VAR
+BEGIN
+    IF #ModelIndex = 0 THEN
+        "FRK_ConfigCatalog"(Scope := #Module.Status.Name, Catalog := #Module.Catalog, Count := #Module.CatalogCount, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_CfgWrite_CylinderCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Access : "FRK_Access";
+    RootIndex : Int;
+    RootReady : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_CylinderCM";
+    Matched : Bool;
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+    Level : DInt;
+    Code : String[64];
+    Inactive : Bool;
+END_VAR
+BEGIN
+    #FRK_CfgWrite_CylinderCM := FALSE;
+END_FUNCTION
+FUNCTION "FRK_CfgRecipe_CylinderCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ModelCode : String;
+    Phase : Int;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_CylinderCM";
+    RejectScope : String;
+    RejectKey : String;
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_CfgRecipe_CylinderCM := TRUE;
+END_FUNCTION
+FUNCTION "FRK_CfgSetWalk_CylinderCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Phase : Int;
+    Access : "FRK_Access";
+    Ready : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_CylinderCM";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Stored : Int;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_CfgSetWalk_CylinderCM := FALSE;
+    #FRK_CfgSetWalk_CylinderCM := TRUE;
+END_FUNCTION
+FUNCTION "FRK_Capture_CylinderCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_CylinderCM";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    "FRK_AlarmCapture"(AlarmLog := #AlarmLog, Core := #Module.Core, Status := #Module.Status);
+END_FUNCTION

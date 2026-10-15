@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_Diagnostic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ReasonCode : DInt;
+      Description : WString;
+      Severity : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+
+BEGIN
+	
+	#Status.Diagnostic.ReasonCode := #ReasonCode;
+	#Status.Diagnostic.SourcePath := STRING_TO_WSTRING(#Status.Name);
+	#Status.Diagnostic.Description := #Description;
+	#Status.Diagnostic.IoTag := '';
+	#Status.Diagnostic.IoAddress := '';
+	#Status.Diagnostic.Severity := #Severity;
+	#Status.Diagnostic.Category := 0;
+	#Status.Diagnostic.Since := "FRK_Now"();
+	// UTC source alone is not proof of synchronization; quality stays false.
+	#Status.Diagnostic.TimeSynchronized := FALSE;
+	
+END_FUNCTION
+

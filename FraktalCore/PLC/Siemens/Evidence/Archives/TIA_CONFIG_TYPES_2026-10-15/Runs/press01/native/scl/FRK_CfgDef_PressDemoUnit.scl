@@ -1,0 +1,82 @@
+﻿FUNCTION "FRK_CfgDef_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      FieldIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;
+	"FRK_ConfigScratch".EnumCount := 0;
+	CASE #FieldIndex OF
+	    1:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'requireTwoHandStart';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/RequireTwoHandStart';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 1;
+	        "FRK_ConfigScratch".Entry.ValueType := 2;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+	        "FRK_ConfigScratch".Entry.Minimum := 0.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 1.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'project.config.requireTwoHandStart';
+	        "FRK_ConfigScratch".Storage := 1;
+	        "FRK_ConfigScratch".Schema := 1;
+	        "FRK_ConfigScratch".Minimum := 0.0;
+	        "FRK_ConfigScratch".Maximum := 1.0;
+	        "FRK_ConfigScratch".MaxLength := 0;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 0;
+	        "FRK_ConfigScratch".EnumCount := 0;
+	    2:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'transferSettleTime';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/TransferSettleTime';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 1;
+	        "FRK_ConfigScratch".Entry.ValueType := 3;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+	        "FRK_ConfigScratch".Entry.Minimum := 0.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 30000.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'project.config.transferSettleTime';
+	        "FRK_ConfigScratch".Storage := 7;
+	        "FRK_ConfigScratch".Schema := 1;
+	        "FRK_ConfigScratch".Minimum := 0.0;
+	        "FRK_ConfigScratch".Maximum := 30000.0;
+	        "FRK_ConfigScratch".MaxLength := 0;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 0;
+	        "FRK_ConfigScratch".EnumCount := 0;
+	    3:
+	        "FRK_ConfigScratch".Entry.WriteKey := 'pressSettleTime';
+	        "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+	        "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/PressSettleTime';
+	        "FRK_ConfigScratch".Entry.ConfigKind := 1;
+	        "FRK_ConfigScratch".Entry.ValueType := 3;
+	        "FRK_ConfigScratch".Entry.Writable := TRUE;
+	        "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+	        "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+	        "FRK_ConfigScratch".Entry.Minimum := 0.0;
+	        "FRK_ConfigScratch".Entry.Maximum := 30000.0;
+	        "FRK_ConfigScratch".Entry.LabelKey := 'project.config.pressSettleTime';
+	        "FRK_ConfigScratch".Storage := 7;
+	        "FRK_ConfigScratch".Schema := 1;
+	        "FRK_ConfigScratch".Minimum := 0.0;
+	        "FRK_ConfigScratch".Maximum := 30000.0;
+	        "FRK_ConfigScratch".MaxLength := 0;
+	        "FRK_ConfigScratch".MinRead := 0;
+	        "FRK_ConfigScratch".MinWrite := 0;
+	        "FRK_ConfigScratch".EnumCount := 0;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

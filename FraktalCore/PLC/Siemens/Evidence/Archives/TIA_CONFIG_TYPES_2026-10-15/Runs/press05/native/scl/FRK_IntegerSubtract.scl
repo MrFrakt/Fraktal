@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_IntegerSubtract" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      LeftValue : "FRK_ConfigInteger";
+      RightValue : "FRK_ConfigInteger";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Borrow : DInt;
+      Difference : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	// Caller establishes LeftValue >= RightValue.
+	#Borrow := 0;
+	FOR #Index := 0 TO #LeftValue.Used - 1 DO
+	    #Difference := UDINT_TO_DINT(#LeftValue.Limbs[#Index]) - #Borrow;
+	    IF #Index < #RightValue.Used THEN
+	        #Difference := #Difference - UDINT_TO_DINT(#RightValue.Limbs[#Index]);
+	    END_IF;
+	    #Borrow := 0;
+	    IF #Difference < 0 THEN
+	        #Difference := #Difference + 65536;
+	        #Borrow := 1;
+	    END_IF;
+	    #LeftValue.Limbs[#Index] := DINT_TO_UDINT(#Difference);
+	END_FOR;
+	WHILE #LeftValue.Used > 0 DO
+	    IF #LeftValue.Limbs[#LeftValue.Used - 1] <> 0 THEN
+	        EXIT;
+	    END_IF;
+	    #LeftValue.Used := #LeftValue.Used - 1;
+	END_WHILE;
+	
+END_FUNCTION
+

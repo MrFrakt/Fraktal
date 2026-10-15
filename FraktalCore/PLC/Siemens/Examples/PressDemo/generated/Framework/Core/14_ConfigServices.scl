@@ -1,3 +1,389 @@
+// Bounded exact decimal/binary conversion. Integer limbs are base 65536.
+// No native decimal conversion: measured VAL_STRG/STRG_VAL lose IEEE values.
+FUNCTION "FRK_IntegerSet" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Value : ULInt;
+END_VAR
+VAR_IN_OUT
+    Number : "FRK_ConfigInteger";
+END_VAR
+VAR_TEMP
+    Remaining : ULInt;
+END_VAR
+BEGIN
+    #Number.Used := 0; #Remaining := #Value;
+    WHILE #Remaining > ULINT#0 DO
+        #Number.Limbs[#Number.Used] := ULINT_TO_UDINT(#Remaining MOD ULINT#65536);
+        #Number.Used := #Number.Used + 1; #Remaining := #Remaining / ULINT#65536;
+    END_WHILE;
+END_FUNCTION
+
+FUNCTION "FRK_IntegerMul" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Factor : UDInt;
+    Addend : UDInt;
+END_VAR
+VAR_IN_OUT
+    Number : "FRK_ConfigInteger";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Carry : ULInt;
+    Product : ULInt;
+END_VAR
+BEGIN
+    #FRK_IntegerMul := FALSE; #Carry := UDINT_TO_ULINT(#Addend);
+    FOR #Index := 0 TO #Number.Used - 1 DO
+        #Product := UDINT_TO_ULINT(#Number.Limbs[#Index]) * UDINT_TO_ULINT(#Factor) + #Carry;
+        #Number.Limbs[#Index] := ULINT_TO_UDINT(#Product MOD ULINT#65536);
+        #Carry := #Product / ULINT#65536;
+    END_FOR;
+    WHILE #Carry > ULINT#0 DO
+        IF #Number.Used >= 102 THEN RETURN; END_IF;
+        #Number.Limbs[#Number.Used] := ULINT_TO_UDINT(#Carry MOD ULINT#65536);
+        #Number.Used := #Number.Used + 1; #Carry := #Carry / ULINT#65536;
+    END_WHILE;
+    #FRK_IntegerMul := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_IntegerShift" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Bits : Int;
+END_VAR
+VAR_IN_OUT
+    Number : "FRK_ConfigInteger";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Words : Int;
+    Remainder : Int;
+END_VAR
+BEGIN
+    #FRK_IntegerShift := FALSE;
+    IF #Bits < 0 THEN RETURN; END_IF;
+    IF #Number.Used = 0 THEN #FRK_IntegerShift := TRUE; RETURN; END_IF;
+    #Words := #Bits / 16; #Remainder := #Bits MOD 16;
+    IF #Number.Used + #Words > 102 THEN RETURN; END_IF;
+    FOR #Index := #Number.Used - 1 TO 0 BY -1 DO
+        #Number.Limbs[#Index + #Words] := #Number.Limbs[#Index];
+    END_FOR;
+    FOR #Index := 0 TO #Words - 1 DO #Number.Limbs[#Index] := 0; END_FOR;
+    #Number.Used := #Number.Used + #Words;
+    #FRK_IntegerShift := "FRK_IntegerMul"(Number := #Number,
+        Factor := SHL(IN := UDINT#1, N := INT_TO_USINT(#Remainder)), Addend := 0);
+END_FUNCTION
+
+FUNCTION "FRK_IntegerCompare" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    LeftValue : "FRK_ConfigInteger";
+    RightValue : "FRK_ConfigInteger";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_IntegerCompare := 0;
+    IF #LeftValue.Used > #RightValue.Used THEN #FRK_IntegerCompare := 1; RETURN; END_IF;
+    IF #LeftValue.Used < #RightValue.Used THEN #FRK_IntegerCompare := -1; RETURN; END_IF;
+    FOR #Index := #LeftValue.Used - 1 TO 0 BY -1 DO
+        IF #LeftValue.Limbs[#Index] > #RightValue.Limbs[#Index] THEN #FRK_IntegerCompare := 1; RETURN; END_IF;
+        IF #LeftValue.Limbs[#Index] < #RightValue.Limbs[#Index] THEN #FRK_IntegerCompare := -1; RETURN; END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_IntegerSubtract" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    LeftValue : "FRK_ConfigInteger";
+    RightValue : "FRK_ConfigInteger";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Borrow : DInt;
+    Difference : DInt;
+END_VAR
+BEGIN
+    // Caller establishes LeftValue >= RightValue.
+    #Borrow := 0;
+    FOR #Index := 0 TO #LeftValue.Used - 1 DO
+        #Difference := UDINT_TO_DINT(#LeftValue.Limbs[#Index]) - #Borrow;
+        IF #Index < #RightValue.Used THEN #Difference := #Difference - UDINT_TO_DINT(#RightValue.Limbs[#Index]); END_IF;
+        #Borrow := 0;
+        IF #Difference < 0 THEN #Difference := #Difference + 65536; #Borrow := 1; END_IF;
+        #LeftValue.Limbs[#Index] := DINT_TO_UDINT(#Difference);
+    END_FOR;
+    WHILE #LeftValue.Used > 0 DO
+        IF #LeftValue.Limbs[#LeftValue.Used - 1] <> 0 THEN EXIT; END_IF;
+        #LeftValue.Used := #LeftValue.Used - 1;
+    END_WHILE;
+END_FUNCTION
+
+FUNCTION "FRK_IntegerBits" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Number : "FRK_ConfigInteger";
+END_VAR
+VAR_TEMP
+    TopWord : UDInt;
+END_VAR
+BEGIN
+    #FRK_IntegerBits := 0;
+    IF #Number.Used = 0 THEN RETURN; END_IF;
+    #FRK_IntegerBits := (#Number.Used - 1) * 16;
+    #TopWord := #Number.Limbs[#Number.Used - 1];
+    WHILE #TopWord > 0 DO
+        #FRK_IntegerBits := #FRK_IntegerBits + 1; #TopWord := #TopWord / UDINT#2;
+    END_WHILE;
+END_FUNCTION
+
+FUNCTION "FRK_DecimalDecode" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Text : WString;
+    SinglePrecision : Bool;
+END_VAR
+VAR_IN_OUT
+    Value : LReal;
+END_VAR
+VAR_TEMP
+    Numerator : "FRK_ConfigInteger";
+    Denominator : "FRK_ConfigInteger";
+    Index : Int;
+    Width : Int;
+    Digits : Int;
+    Fraction : Int;
+    Exponent : Int;
+    Scale : Int;
+    BinaryExponent : Int;
+    MinimumExponent : Int;
+    MaximumExponent : Int;
+    Precision : Int;
+    SignificantBits : Int;
+    Comparison : Int;
+    Significand : ULInt;
+    Negative : Bool;
+    ExponentNegative : Bool;
+    PointSeen : Bool;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_DecimalDecode := FALSE;
+    #Width := LEN(#Text);
+    IF #Width = 0 OR #Width > 80 THEN RETURN; END_IF;
+    #Index := 1; #Negative := FALSE;
+    IF #Text[#Index] = WCHAR#'-' THEN #Negative := TRUE; #Index := 2;
+    ELSIF #Text[#Index] = WCHAR#'+' THEN #Index := 2; END_IF;
+    "FRK_IntegerSet"(Number := #Numerator, Value := ULINT#0);
+    "FRK_IntegerSet"(Number := #Denominator, Value := ULINT#1);
+    #Digits := 0; #Fraction := 0; #PointSeen := FALSE;
+    WHILE #Index <= #Width DO
+        IF #Text[#Index] = WCHAR#'e' OR #Text[#Index] = WCHAR#'E' THEN EXIT; END_IF;
+        IF #Text[#Index] = WCHAR#'.' THEN
+            IF #PointSeen THEN RETURN; END_IF;
+            #PointSeen := TRUE;
+        ELSE
+            IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN RETURN; END_IF;
+            #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 10,
+                Addend := UINT_TO_UDINT(WCHAR_TO_UINT(#Text[#Index]) - UINT#48));
+            IF NOT #Ok THEN RETURN; END_IF;
+            #Digits := #Digits + 1;
+            IF #PointSeen THEN #Fraction := #Fraction + 1; END_IF;
+        END_IF;
+        #Index := #Index + 1;
+    END_WHILE;
+    IF #Digits = 0 THEN RETURN; END_IF;
+    #Exponent := 0; #ExponentNegative := FALSE;
+    IF #Index <= #Width THEN
+        #Index := #Index + 1;
+        IF #Index > #Width THEN RETURN; END_IF;
+        IF #Text[#Index] = WCHAR#'-' THEN #ExponentNegative := TRUE; #Index := #Index + 1;
+        ELSIF #Text[#Index] = WCHAR#'+' THEN #Index := #Index + 1; END_IF;
+        IF #Index > #Width THEN RETURN; END_IF;
+        WHILE #Index <= #Width DO
+            IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN RETURN; END_IF;
+            #Exponent := #Exponent * 10 + UINT_TO_INT(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+            IF #Exponent > 400 THEN RETURN; END_IF;
+            #Index := #Index + 1;
+        END_WHILE;
+    END_IF;
+    IF #Numerator.Used = 0 THEN #Value := 0.0; #FRK_DecimalDecode := TRUE; RETURN; END_IF;
+    IF #ExponentNegative THEN #Exponent := -#Exponent; END_IF;
+    #Scale := #Exponent - #Fraction;
+    WHILE #Scale > 0 DO
+        #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 10, Addend := 0);
+        IF NOT #Ok THEN RETURN; END_IF;
+        #Scale := #Scale - 1;
+    END_WHILE;
+    WHILE #Scale < 0 DO
+        #Ok := "FRK_IntegerMul"(Number := #Denominator, Factor := 10, Addend := 0);
+        IF NOT #Ok THEN RETURN; END_IF;
+        #Scale := #Scale + 1;
+    END_WHILE;
+    #Precision := 53; #MinimumExponent := -1022; #MaximumExponent := 1023;
+    IF #SinglePrecision THEN #Precision := 24; #MinimumExponent := -126; #MaximumExponent := 127; END_IF;
+    #BinaryExponent := "FRK_IntegerBits"(Number := #Numerator) - "FRK_IntegerBits"(Number := #Denominator);
+    IF #BinaryExponent > #MaximumExponent + 1 OR #BinaryExponent < #MinimumExponent - #Precision THEN RETURN; END_IF;
+    IF #BinaryExponent >= 0 THEN #Ok := "FRK_IntegerShift"(Number := #Denominator, Bits := #BinaryExponent);
+    ELSE #Ok := "FRK_IntegerShift"(Number := #Numerator, Bits := -#BinaryExponent); END_IF;
+    IF NOT #Ok THEN RETURN; END_IF;
+    IF "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator) < 0 THEN
+        #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 2, Addend := 0);
+        #BinaryExponent := #BinaryExponent - 1;
+    END_IF;
+    IF #BinaryExponent > #MaximumExponent THEN RETURN; END_IF;
+    #SignificantBits := #Precision + MIN(IN1 := 0, IN2 := #BinaryExponent - #MinimumExponent);
+    IF #SignificantBits < 0 THEN RETURN; END_IF;
+    IF #SignificantBits = 0 THEN
+        // Strictly above half the smallest subnormal rounds to that value.
+        IF "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator) = 0 THEN RETURN; END_IF;
+        #Significand := ULINT#1; #Scale := #MinimumExponent - #Precision + 1;
+    ELSE
+        #Significand := ULINT#1;
+        "FRK_IntegerSubtract"(LeftValue := #Numerator, RightValue := #Denominator);
+        FOR #Index := 1 TO #SignificantBits - 1 DO
+            #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 2, Addend := 0);
+            IF NOT #Ok THEN RETURN; END_IF;
+            #Significand := #Significand * ULINT#2;
+            IF "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator) >= 0 THEN
+                "FRK_IntegerSubtract"(LeftValue := #Numerator, RightValue := #Denominator);
+                #Significand := #Significand + ULINT#1;
+            END_IF;
+        END_FOR;
+        #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 2, Addend := 0);
+        IF NOT #Ok THEN RETURN; END_IF;
+        #Comparison := "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator);
+        IF #Comparison > 0 OR (#Comparison = 0 AND #Significand MOD ULINT#2 = ULINT#1) THEN #Significand := #Significand + ULINT#1; END_IF;
+        IF #BinaryExponent = #MaximumExponent AND #Significand = SHL(IN := ULINT#1, N := INT_TO_USINT(#Precision)) THEN RETURN; END_IF;
+        #Scale := #BinaryExponent - #SignificantBits + 1;
+    END_IF;
+    #Value := ULINT_TO_LREAL(#Significand);
+    WHILE #Scale > 0 DO #Value := #Value * 2.0; #Scale := #Scale - 1; END_WHILE;
+    WHILE #Scale < 0 DO #Value := #Value / 2.0; #Scale := #Scale + 1; END_WHILE;
+    IF #Value = 0.0 THEN RETURN; END_IF;
+    IF #Negative THEN #Value := -#Value; END_IF;
+    #FRK_DecimalDecode := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_DecimalFormat" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Number : LReal;
+END_VAR
+VAR_TEMP
+    Numerator : "FRK_ConfigInteger";
+    Denominator : "FRK_ConfigInteger";
+    TwiceRemainder : "FRK_ConfigInteger";
+    Normalized : LReal;
+    Significand : ULInt;
+    BinaryExponent : Int;
+    DecimalExponent : Int;
+    Index : Int;
+    Comparison : Int;
+    Ok : Bool;
+    Digits : Array[1..17] of Int;
+    Text : WString[80];
+    ExponentText : WString[8];
+END_VAR
+BEGIN
+    #FRK_DecimalFormat := WSTRING#'';
+    IF #Number <> #Number OR (#Number <> 0.0 AND #Number / 2.0 = #Number) THEN RETURN; END_IF;
+    IF #Number = 0.0 THEN #FRK_DecimalFormat := WSTRING#'0'; RETURN; END_IF;
+    #Normalized := ABS(#Number); #BinaryExponent := 0;
+    WHILE #Normalized >= 2.0 DO #Normalized := #Normalized / 2.0; #BinaryExponent := #BinaryExponent + 1; END_WHILE;
+    WHILE #Normalized < 1.0 DO #Normalized := #Normalized * 2.0; #BinaryExponent := #BinaryExponent - 1; END_WHILE;
+    // Extract binary digits with exact powers of two. Avoid a large decimal
+    // floating literal or a floating-to-integer conversion of the significand.
+    #Significand := ULINT#1; #Normalized := #Normalized - 1.0;
+    FOR #Index := 1 TO 52 DO
+        #Normalized := #Normalized * 2.0; #Significand := #Significand * ULINT#2;
+        IF #Normalized >= 1.0 THEN
+            #Normalized := #Normalized - 1.0; #Significand := #Significand + ULINT#1;
+        END_IF;
+    END_FOR;
+    "FRK_IntegerSet"(Number := #Numerator, Value := #Significand);
+    "FRK_IntegerSet"(Number := #Denominator, Value := ULINT#1);
+    #BinaryExponent := #BinaryExponent - 52;
+    IF #BinaryExponent >= 0 THEN #Ok := "FRK_IntegerShift"(Number := #Numerator, Bits := #BinaryExponent);
+    ELSE #Ok := "FRK_IntegerShift"(Number := #Denominator, Bits := -#BinaryExponent); END_IF;
+    IF NOT #Ok THEN RETURN; END_IF;
+    #DecimalExponent := 0;
+    WHILE "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator) < 0 DO
+        #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 10, Addend := 0);
+        IF NOT #Ok THEN RETURN; END_IF;
+        #DecimalExponent := #DecimalExponent - 1;
+    END_WHILE;
+    #TwiceRemainder := #Denominator;
+    #Ok := "FRK_IntegerMul"(Number := #TwiceRemainder, Factor := 10, Addend := 0);
+    WHILE "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #TwiceRemainder) >= 0 DO
+        #Denominator := #TwiceRemainder; #DecimalExponent := #DecimalExponent + 1;
+        #Ok := "FRK_IntegerMul"(Number := #TwiceRemainder, Factor := 10, Addend := 0);
+        IF NOT #Ok THEN RETURN; END_IF;
+    END_WHILE;
+    FOR #Index := 1 TO 17 DO
+        #Digits[#Index] := 0;
+        WHILE "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator) >= 0 DO
+            "FRK_IntegerSubtract"(LeftValue := #Numerator, RightValue := #Denominator);
+            #Digits[#Index] := #Digits[#Index] + 1;
+        END_WHILE;
+        IF #Index < 17 THEN
+            #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 10, Addend := 0);
+            IF NOT #Ok THEN RETURN; END_IF;
+        END_IF;
+    END_FOR;
+    #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 2, Addend := 0);
+    IF NOT #Ok THEN RETURN; END_IF;
+    #Comparison := "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator);
+    IF #Comparison > 0 OR (#Comparison = 0 AND #Digits[17] MOD 2 = 1) THEN
+        #Index := 17;
+        WHILE #Index > 0 DO
+            #Digits[#Index] := #Digits[#Index] + 1;
+            IF #Digits[#Index] < 10 THEN EXIT; END_IF;
+            #Digits[#Index] := 0; #Index := #Index - 1;
+        END_WHILE;
+        IF #Index = 0 THEN #Digits[1] := 1; #DecimalExponent := #DecimalExponent + 1; END_IF;
+    END_IF;
+    #Text := WSTRING#'';
+    FOR #Index := 1 TO 17 DO
+        #Text := CONCAT(IN1 := #Text, IN2 := WCHAR_TO_WSTRING(UINT_TO_WCHAR(INT_TO_UINT(#Digits[#Index]) + UINT#48)));
+        IF #Index = 1 THEN #Text := CONCAT(IN1 := #Text, IN2 := WSTRING#'.'); END_IF;
+    END_FOR;
+    #ExponentText := DINT_TO_WSTRING(INT_TO_DINT(#DecimalExponent));
+    #Text := CONCAT(IN1 := #Text, IN2 := WSTRING#'E');
+    #Text := CONCAT(IN1 := #Text, IN2 := #ExponentText);
+    IF #Number < 0.0 THEN #Text := CONCAT(IN1 := WSTRING#'-', IN2 := #Text); END_IF;
+    #FRK_DecimalFormat := #Text;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigDecimalText" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Number : LReal;
+END_VAR
+VAR_TEMP
+    Text : WString[80];
+    RoundTrip : LReal;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_ConfigDecimalText := WSTRING#'';
+    #Text := "FRK_DecimalFormat"(Number := #Number);
+    #Ok := "FRK_DecimalDecode"(Text := #Text, SinglePrecision := FALSE, Value := #RoundTrip);
+    IF #Ok AND #RoundTrip = #Number THEN #FRK_ConfigDecimalText := #Text; END_IF;
+END_FUNCTION
+
 // Keyed local-retain config. The typed owner validates before publishing a value.
 FUNCTION "FRK_ConfigDecode" : Bool
 { S7_Optimized_Access := 'TRUE' }
@@ -18,6 +404,9 @@ VAR_TEMP
     Negative : Bool;
     Magnitude : ULInt;
     Digit : ULInt;
+    Decimal : LReal;
+    Converted : Real;
+    ConvertedOk : Bool;
 END_VAR
 BEGIN
     #FRK_ConfigDecode := FALSE;
@@ -38,6 +427,22 @@ BEGIN
         #FRK_ConfigDecode := TRUE;
         RETURN;
     END_IF;
+    IF #Storage = 5 OR #Storage = 6 THEN
+        #ConvertedOk := "FRK_DecimalDecode"(Text := #Text,
+            SinglePrecision := #Storage = 5, Value := #Decimal);
+        IF NOT #ConvertedOk OR #Decimal < #Minimum OR #Decimal > #Maximum THEN RETURN; END_IF;
+        IF #Storage = 5 THEN
+            #Converted := LREAL_TO_REAL(#Decimal);
+            IF #Converted = 0.0 AND #Decimal <> 0.0 THEN RETURN; END_IF;
+            #Decimal := REAL_TO_LREAL(#Converted);
+            IF #Decimal < #Minimum OR #Decimal > #Maximum THEN RETURN; END_IF;
+        END_IF;
+        #Value.Decimal := #Decimal;
+        #FRK_ConfigDecode := TRUE;
+        RETURN;
+    END_IF;
+    IF #Storage <> 2 AND #Storage <> 3
+        AND #Storage <> 4 AND #Storage <> 7 THEN RETURN; END_IF;
     #Width := LEN(#Text);
     IF #Width = 0 THEN RETURN; END_IF;
     #Negative := FALSE;
@@ -58,6 +463,42 @@ BEGIN
     IF #Negative THEN #Value.Number := -#Value.Number; END_IF;
     IF LINT_TO_LREAL(#Value.Number) < #Minimum OR LINT_TO_LREAL(#Value.Number) > #Maximum THEN RETURN; END_IF;
     #FRK_ConfigDecode := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigEnumText" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Number : DInt;
+END_VAR
+BEGIN
+    #FRK_ConfigEnumText := DINT_TO_WSTRING(#Number);
+    IF #FRK_ConfigEnumText[1] = WCHAR#'+' THEN
+        #FRK_ConfigEnumText := MID(IN := #FRK_ConfigEnumText, L := LEN(#FRK_ConfigEnumText) - 1, P := 2);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Text : WString;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ConfigValidate := "FRK_ConfigDecode"(Text := #Text,
+        Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum,
+        Maximum := "FRK_ConfigScratch".Maximum, MaxLength := "FRK_ConfigScratch".MaxLength,
+        Value := "FRK_ConfigScratch".Value);
+    IF NOT #FRK_ConfigValidate OR "FRK_ConfigScratch".EnumCount = 0 THEN RETURN; END_IF;
+    #FRK_ConfigValidate := FALSE;
+    FOR #Index := 1 TO "FRK_ConfigScratch".EnumCount DO
+        IF "FRK_ConfigScratch".Value.Number = DINT_TO_LINT("FRK_ConfigScratch".EnumValues[#Index]) THEN
+            #FRK_ConfigValidate := TRUE; RETURN;
+        END_IF;
+    END_FOR;
 END_FUNCTION
 
 FUNCTION "FRK_ConfigFind" : Int
@@ -101,6 +542,7 @@ BEGIN
     IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
     IF "FRK_ConfigRuntime".Unavailable THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
     IF LEN(#Scope) > 80 OR LEN(#Text) > 80 THEN RETURN; END_IF;
+    IF NOT "FRK_ConfigValidate"(Text := #Text) THEN RETURN; END_IF;
     #Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
     IF #Index = 0 THEN
         FOR #Index := 1 TO 3 DO
@@ -164,10 +606,11 @@ BEGIN
         OR "FRK_ConfigStore".Rows[#Index].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision
         OR "FRK_ConfigStore".Rows[#Index].Record.Kind <> "FRK_ConfigScratch".Entry.ConfigKind
         OR "FRK_ConfigStore".Rows[#Index].Record.ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
-    #FRK_ConfigGet := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText),
-        Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum, Maximum := "FRK_ConfigScratch".Maximum,
-        MaxLength := "FRK_ConfigScratch".MaxLength, Value := "FRK_ConfigScratch".Value);
+    #FRK_ConfigGet := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText));
     "FRK_ConfigScratch".Entry.ValueText := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText);
+    IF #FRK_ConfigGet AND "FRK_ConfigScratch".EnumCount > 0 THEN
+        "FRK_ConfigScratch".Entry.ValueText := "FRK_ConfigEnumText"(Number := LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+    END_IF;
 END_FUNCTION
 
 FUNCTION "FRK_ConfigLoss" : Void

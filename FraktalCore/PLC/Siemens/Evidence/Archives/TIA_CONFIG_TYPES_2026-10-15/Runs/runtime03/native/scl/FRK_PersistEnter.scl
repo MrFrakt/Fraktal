@@ -1,0 +1,215 @@
+﻿FUNCTION "FRK_PersistEnter" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Startup THEN
+	    "FRK_PersistRuntime".Active := 0;
+	    "FRK_PersistRuntime".Stage := 0;
+	    "FRK_PersistRuntime".HadWrite := TRUE;
+	    "FRK_PersistRuntime".LastWriteMs := "FRK_Clock".NowMs;
+	    "FRK_PersistRuntime".LastScan := "FRK_PersistRuntime".Scan;
+	    FOR #Index := 1 TO 4 DO
+	        "FRK_PersistRuntime".Queue[#Index].State := 0;
+	    END_FOR;
+	    "FRK_PersistRuntime".Leased[1] := FALSE;
+	    "FRK_PersistRuntime".Capacity[1] := 14150;
+	    "FRK_PersistRuntime".KeyCrc[1] := "FRK_PersistKeyCrc"(Key := 'StationA.station');
+	    IF "FRK_PersistAnchors".SelectedB[1] THEN
+	        "FRK_PersistRuntime".Anchor[1] := "FRK_PersistAnchors".RowsB[1];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[1] := "FRK_PersistAnchors".RowsA[1];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[1] AND "FRK_PersistRuntime".Anchor[1].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[1].Generation = 0 AND "FRK_PersistRuntime".Anchor[1].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[1].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[1].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 1);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[2] := FALSE;
+	    "FRK_PersistRuntime".Capacity[2] := 11378;
+	    "FRK_PersistRuntime".KeyCrc[2] := "FRK_PersistKeyCrc"(Key := 'StationA.model.MODEL_A');
+	    IF "FRK_PersistAnchors".SelectedB[2] THEN
+	        "FRK_PersistRuntime".Anchor[2] := "FRK_PersistAnchors".RowsB[2];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[2] := "FRK_PersistAnchors".RowsA[2];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[2] AND "FRK_PersistRuntime".Anchor[2].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[2].Generation = 0 AND "FRK_PersistRuntime".Anchor[2].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[2].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[2].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 2);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[3] := FALSE;
+	    "FRK_PersistRuntime".Capacity[3] := 11378;
+	    "FRK_PersistRuntime".KeyCrc[3] := "FRK_PersistKeyCrc"(Key := 'StationA.model.MODEL_B');
+	    IF "FRK_PersistAnchors".SelectedB[3] THEN
+	        "FRK_PersistRuntime".Anchor[3] := "FRK_PersistAnchors".RowsB[3];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[3] := "FRK_PersistAnchors".RowsA[3];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[3] AND "FRK_PersistRuntime".Anchor[3].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[3].Generation = 0 AND "FRK_PersistRuntime".Anchor[3].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[3].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[3].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 3);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[4] := FALSE;
+	    "FRK_PersistRuntime".Capacity[4] := 390;
+	    "FRK_PersistRuntime".KeyCrc[4] := "FRK_PersistKeyCrc"(Key := 'StationA.policy');
+	    IF "FRK_PersistAnchors".SelectedB[4] THEN
+	        "FRK_PersistRuntime".Anchor[4] := "FRK_PersistAnchors".RowsB[4];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[4] := "FRK_PersistAnchors".RowsA[4];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[4] AND "FRK_PersistRuntime".Anchor[4].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[4].Generation = 0 AND "FRK_PersistRuntime".Anchor[4].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[4].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[4].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 4);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[5] := FALSE;
+	    "FRK_PersistRuntime".Capacity[5] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[5] := "FRK_PersistKeyCrc"(Key := 'StationA.set1');
+	    IF "FRK_PersistAnchors".SelectedB[5] THEN
+	        "FRK_PersistRuntime".Anchor[5] := "FRK_PersistAnchors".RowsB[5];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[5] := "FRK_PersistAnchors".RowsA[5];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[5] AND "FRK_PersistRuntime".Anchor[5].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[5].Generation = 0 AND "FRK_PersistRuntime".Anchor[5].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[5].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[5].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 5);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[6] := FALSE;
+	    "FRK_PersistRuntime".Capacity[6] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[6] := "FRK_PersistKeyCrc"(Key := 'StationA.set2');
+	    IF "FRK_PersistAnchors".SelectedB[6] THEN
+	        "FRK_PersistRuntime".Anchor[6] := "FRK_PersistAnchors".RowsB[6];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[6] := "FRK_PersistAnchors".RowsA[6];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[6] AND "FRK_PersistRuntime".Anchor[6].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[6].Generation = 0 AND "FRK_PersistRuntime".Anchor[6].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[6].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[6].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 6);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[7] := FALSE;
+	    "FRK_PersistRuntime".Capacity[7] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[7] := "FRK_PersistKeyCrc"(Key := 'StationA.set3');
+	    IF "FRK_PersistAnchors".SelectedB[7] THEN
+	        "FRK_PersistRuntime".Anchor[7] := "FRK_PersistAnchors".RowsB[7];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[7] := "FRK_PersistAnchors".RowsA[7];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[7] AND "FRK_PersistRuntime".Anchor[7].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[7].Generation = 0 AND "FRK_PersistRuntime".Anchor[7].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[7].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[7].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 7);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[8] := FALSE;
+	    "FRK_PersistRuntime".Capacity[8] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[8] := "FRK_PersistKeyCrc"(Key := 'StationA.set4');
+	    IF "FRK_PersistAnchors".SelectedB[8] THEN
+	        "FRK_PersistRuntime".Anchor[8] := "FRK_PersistAnchors".RowsB[8];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[8] := "FRK_PersistAnchors".RowsA[8];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[8] AND "FRK_PersistRuntime".Anchor[8].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[8].Generation = 0 AND "FRK_PersistRuntime".Anchor[8].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[8].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[8].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 8);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[9] := FALSE;
+	    "FRK_PersistRuntime".Capacity[9] := 14150;
+	    "FRK_PersistRuntime".KeyCrc[9] := "FRK_PersistKeyCrc"(Key := 'StationB.station');
+	    IF "FRK_PersistAnchors".SelectedB[9] THEN
+	        "FRK_PersistRuntime".Anchor[9] := "FRK_PersistAnchors".RowsB[9];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[9] := "FRK_PersistAnchors".RowsA[9];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[9] AND "FRK_PersistRuntime".Anchor[9].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[9].Generation = 0 AND "FRK_PersistRuntime".Anchor[9].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[9].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[9].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 9);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[10] := FALSE;
+	    "FRK_PersistRuntime".Capacity[10] := 11378;
+	    "FRK_PersistRuntime".KeyCrc[10] := "FRK_PersistKeyCrc"(Key := 'StationB.model.MODEL_A');
+	    IF "FRK_PersistAnchors".SelectedB[10] THEN
+	        "FRK_PersistRuntime".Anchor[10] := "FRK_PersistAnchors".RowsB[10];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[10] := "FRK_PersistAnchors".RowsA[10];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[10] AND "FRK_PersistRuntime".Anchor[10].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[10].Generation = 0 AND "FRK_PersistRuntime".Anchor[10].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[10].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[10].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 10);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[11] := FALSE;
+	    "FRK_PersistRuntime".Capacity[11] := 11378;
+	    "FRK_PersistRuntime".KeyCrc[11] := "FRK_PersistKeyCrc"(Key := 'StationB.model.MODEL_B');
+	    IF "FRK_PersistAnchors".SelectedB[11] THEN
+	        "FRK_PersistRuntime".Anchor[11] := "FRK_PersistAnchors".RowsB[11];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[11] := "FRK_PersistAnchors".RowsA[11];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[11] AND "FRK_PersistRuntime".Anchor[11].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[11].Generation = 0 AND "FRK_PersistRuntime".Anchor[11].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[11].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[11].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 11);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[12] := FALSE;
+	    "FRK_PersistRuntime".Capacity[12] := 390;
+	    "FRK_PersistRuntime".KeyCrc[12] := "FRK_PersistKeyCrc"(Key := 'StationB.policy');
+	    IF "FRK_PersistAnchors".SelectedB[12] THEN
+	        "FRK_PersistRuntime".Anchor[12] := "FRK_PersistAnchors".RowsB[12];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[12] := "FRK_PersistAnchors".RowsA[12];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[12] AND "FRK_PersistRuntime".Anchor[12].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[12].Generation = 0 AND "FRK_PersistRuntime".Anchor[12].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[12].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[12].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 12);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[13] := FALSE;
+	    "FRK_PersistRuntime".Capacity[13] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[13] := "FRK_PersistKeyCrc"(Key := 'StationB.set1');
+	    IF "FRK_PersistAnchors".SelectedB[13] THEN
+	        "FRK_PersistRuntime".Anchor[13] := "FRK_PersistAnchors".RowsB[13];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[13] := "FRK_PersistAnchors".RowsA[13];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[13] AND "FRK_PersistRuntime".Anchor[13].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[13].Generation = 0 AND "FRK_PersistRuntime".Anchor[13].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[13].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[13].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 13);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[14] := FALSE;
+	    "FRK_PersistRuntime".Capacity[14] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[14] := "FRK_PersistKeyCrc"(Key := 'StationB.set2');
+	    IF "FRK_PersistAnchors".SelectedB[14] THEN
+	        "FRK_PersistRuntime".Anchor[14] := "FRK_PersistAnchors".RowsB[14];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[14] := "FRK_PersistAnchors".RowsA[14];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[14] AND "FRK_PersistRuntime".Anchor[14].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[14].Generation = 0 AND "FRK_PersistRuntime".Anchor[14].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[14].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[14].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 14);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[15] := FALSE;
+	    "FRK_PersistRuntime".Capacity[15] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[15] := "FRK_PersistKeyCrc"(Key := 'StationB.set3');
+	    IF "FRK_PersistAnchors".SelectedB[15] THEN
+	        "FRK_PersistRuntime".Anchor[15] := "FRK_PersistAnchors".RowsB[15];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[15] := "FRK_PersistAnchors".RowsA[15];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[15] AND "FRK_PersistRuntime".Anchor[15].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[15].Generation = 0 AND "FRK_PersistRuntime".Anchor[15].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[15].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[15].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 15);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[16] := FALSE;
+	    "FRK_PersistRuntime".Capacity[16] := 11556;
+	    "FRK_PersistRuntime".KeyCrc[16] := "FRK_PersistKeyCrc"(Key := 'StationB.set4');
+	    IF "FRK_PersistAnchors".SelectedB[16] THEN
+	        "FRK_PersistRuntime".Anchor[16] := "FRK_PersistAnchors".RowsB[16];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[16] := "FRK_PersistAnchors".RowsA[16];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[16] AND "FRK_PersistRuntime".Anchor[16].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[16].Generation = 0 AND "FRK_PersistRuntime".Anchor[16].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[16].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[16].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 16);
+	    END_IF;
+	    "FRK_PersistRuntime".Leased[17] := FALSE;
+	    "FRK_PersistRuntime".Capacity[17] := 8704;
+	    "FRK_PersistRuntime".KeyCrc[17] := "FRK_PersistKeyCrc"(Key := 'users');
+	    IF "FRK_PersistAnchors".SelectedB[17] THEN
+	        "FRK_PersistRuntime".Anchor[17] := "FRK_PersistAnchors".RowsB[17];
+	    ELSE
+	        "FRK_PersistRuntime".Anchor[17] := "FRK_PersistAnchors".RowsA[17];
+	    END_IF;
+	    IF NOT "FRK_PersistAnchors".Commissioned[17] AND "FRK_PersistRuntime".Anchor[17].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[17].Generation = 0 AND "FRK_PersistRuntime".Anchor[17].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[17].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[17].Checksum = DWORD#0 THEN
+	        "FRK_PersistRepair"(Slot := 17);
+	    END_IF;
+	END_IF;
+	"FRK_PersistRuntime".Scan := "FRK_PersistRuntime".Scan + 1;
+	
+END_FUNCTION
+

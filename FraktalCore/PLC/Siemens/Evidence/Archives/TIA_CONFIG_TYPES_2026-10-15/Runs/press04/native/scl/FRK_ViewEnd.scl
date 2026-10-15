@@ -1,0 +1,70 @@
+﻿FUNCTION "FRK_ViewEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Fallback : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Cursors : Array[*] of "ST_SequenceCursor";
+      Book : "FRK_ViewBook";
+      Touched : Array[*] of Bool;
+      Current : "ST_StepRecord";
+      Defs : Array[*] of "ST_SequenceStepDef";
+      Count : Int;
+      GuardInputs : Array[*] of Time;
+      GuardDefaults : Array[*] of Time;
+      GuardTouched : Array[*] of Bool;
+      Revision : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Expected : Time;
+      RowIdx : Int;
+   END_VAR
+
+
+BEGIN
+	
+	// Resolve the COMPLETE set of awaited timeouts once after step actions.
+	// A zero explicit guard defaults to the longest awaited command timeout.
+	FOR #Index := 1 TO #Count DO
+	    IF #GuardTouched[#Index] THEN
+	        IF #GuardInputs[#Index] > T#0ms THEN
+	            #Expected := #GuardInputs[#Index];
+	        ELSE
+	            #Expected := #GuardDefaults[#Index];
+	        END_IF;
+	        IF #Expected <= T#0ms AND #Defs[#Index].TimeClass = 0 AND #Fallback > T#0ms THEN
+	            #Expected := #Fallback;
+	        END_IF;
+	        IF #Defs[#Index].ExpectedTime <> #Expected THEN
+	            #Defs[#Index].ExpectedTime := #Expected;
+	            #Book.Dirty := TRUE;
+	            #Book.ChangedMs := "FRK_Clock".NowMs;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	FOR #Index := 0 TO UPPER_BOUND(ARR := #Cursors, DIM := 1) DO
+	    IF NOT #Touched[#Index] THEN
+	        #Cursors[#Index] := "FRK_ViewScratch".Cursor;
+	    END_IF;
+	    #RowIdx := #Cursors[#Index].RowIdx;
+	    IF #RowIdx > 0 AND #RowIdx <= #Count THEN
+	        #Cursors[#Index].TimedOut := #Defs[#RowIdx].ExpectedTime > T#0ms AND #Cursors[#Index].Elapsed > #Defs[#RowIdx].ExpectedTime;
+	    END_IF;
+	END_FOR;
+	IF #Cursors[0].RowIdx = 0 THEN
+	    #Current := "FRK_ViewScratch".Step;
+	END_IF;
+	IF #Cursors[0].RowIdx > 0 THEN
+	    #Current.ExpectedTime := #Defs[#Cursors[0].RowIdx].ExpectedTime;
+	END_IF;
+	IF #Book.Dirty AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Book.ChangedMs) >= 1000 THEN
+	    #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	    #Book.Dirty := FALSE;
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,99 @@
+﻿FUNCTION "FRK_AlarmEventCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Ev : "ST_AlarmEvent";
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+      Index : Int;
+      Size : Int;
+      Code : Word;
+      Wide : LWord;
+   END_VAR
+
+
+BEGIN
+	
+	#Work := DWORD#16#FFFFFFFF;
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DINT_TO_UDINT(#Ev.ReasonCode));
+	#Size := LEN(#Ev.Description);
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := INT_TO_UDINT(#Size));
+	FOR #Index := 1 TO #Size DO
+	    #Code := WCHAR_TO_WORD(#Ev.Description[#Index]);
+	    #Work := "FRK_CrcByte"(Previous := #Work,
+	                           Value := WORD_TO_BYTE(#Code));
+	    #Work := "FRK_CrcByte"(Previous := #Work,
+	                           Value := WORD_TO_BYTE(SHR(IN := #Code, N := 8)));
+	END_FOR;
+	#Size := LEN(#Ev.SourcePath);
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := INT_TO_UDINT(#Size));
+	FOR #Index := 1 TO #Size DO
+	    #Code := WCHAR_TO_WORD(#Ev.SourcePath[#Index]);
+	    #Work := "FRK_CrcByte"(Previous := #Work,
+	                           Value := WORD_TO_BYTE(#Code));
+	    #Work := "FRK_CrcByte"(Previous := #Work,
+	                           Value := WORD_TO_BYTE(SHR(IN := #Code, N := 8)));
+	END_FOR;
+	#Size := LEN(#Ev.IoTag);
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := INT_TO_UDINT(#Size));
+	FOR #Index := 1 TO #Size DO
+	    #Work := "FRK_CrcByte"(Previous := #Work,
+	                           Value := CHAR_TO_BYTE(#Ev.IoTag[#Index]));
+	END_FOR;
+	#Size := LEN(#Ev.IoAddress);
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := INT_TO_UDINT(#Size));
+	FOR #Index := 1 TO #Size DO
+	    #Work := "FRK_CrcByte"(Previous := #Work,
+	                           Value := CHAR_TO_BYTE(#Ev.IoAddress[#Index]));
+	END_FOR;
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DINT_TO_UDINT(#Ev.Severity));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DINT_TO_UDINT(#Ev.Category));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DINT_TO_UDINT(#Ev.ResetClass));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DINT_TO_UDINT(#Ev.State));
+	#Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.ComeAt));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+	#Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.GoneAt));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+	#Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.ResetAt));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DINT_TO_UDINT(TIME_TO_DINT(#Ev.Duration)));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := BOOL_TO_UDINT(#Ev.Shelved));
+	#Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.ShelvedUntil));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := BOOL_TO_UDINT(#Ev.ComeTimeSynchronized));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := BOOL_TO_UDINT(#Ev.GoneTimeSynchronized));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := BOOL_TO_UDINT(#Ev.ResetTimeSynchronized));
+	#Work := "FRK_CrcNumber"(Previous := #Work,
+	                         Value := BOOL_TO_UDINT(#Ev.ShelfTimeSynchronized));
+	#FRK_AlarmEventCrc := NOT #Work;
+	
+END_FUNCTION
+

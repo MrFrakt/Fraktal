@@ -39,12 +39,12 @@ class ConfigTests(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(DECL.DeclarationError): self.build(value)
 
     def test_native_storage_bounds_and_lossless_record_width_are_enforced(self):
-        for change in ('integer_range', 'text_width', 'schema_order', 'unsupported_float'):
+        for change in ('integer_range', 'text_width', 'schema_order', 'unsupported_type'):
             value = FIX.declaration()
             if change == 'integer_range': value['types'][0]['config'][1]['maximum'] = 4294967296
             elif change == 'text_width': value['records']['ST_UnitProbeStationCfg'] = value['records']['ST_UnitProbeStationCfg'].replace('STRING(80)', 'STRING(81)')
             elif change == 'schema_order': value['records']['ST_DeclarationParCfg'] = 'STRUCT Timeout : TIME; SchemaVersion : UINT := 4; Preset : DINT; END_STRUCT'
-            else: value['records']['ST_DeclarationParCfg'] = value['records']['ST_DeclarationParCfg'].replace('Preset : DINT', 'Preset : LREAL')
+            else: value['records']['ST_DeclarationParCfg'] = value['records']['ST_DeclarationParCfg'].replace('Preset : DINT', 'Preset : LTIME')
             with self.subTest(change=change), self.assertRaises(DECL.DeclarationError): self.build(value)
 
     def test_project_code_cannot_write_config_or_invoke_its_assembly(self):

@@ -1,0 +1,73 @@
+// Test image only: observations persist until the next reinitialization.
+DATA_BLOCK "S11Semantics"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR
+      State : Int;
+      T0 : UDInt;
+      Probe : "ST_S11GraphProbe";
+      SeqEmpty : "FRK_SeqCtx";
+      SeqAck : "FRK_SeqCtx";
+      SeqAuto : "FRK_SeqCtx";
+      SeqSkip : "FRK_SeqCtx";
+      InitSq : Bool;
+      Ack : Bool;
+      ErrEmpty : Bool;
+      ErrAck : Bool;
+      ErrAuto : Bool;
+      ErrSkip : Bool;
+      EmptyBeyondMax : Bool;
+      SupervisionDetected : Bool;
+      AckBlocks : Bool;
+      AckReleases : Bool;
+      NoAckAdvances : Bool;
+      SkipOmitsSteps : Bool;
+      EmptyStepBeforeAck : DInt;
+      AckStepBeforeAck : DInt;
+      AutoStepBeforeAck : DInt;
+      SkipStepBeforeAck : DInt;
+      AckStepAfterAck : DInt;
+      Calls : UDInt;
+      StartupSeen : Bool;
+      InitialCallSeen : Bool;
+      StartupAt : DTL;
+      InitialCallAt : DTL;
+      FirstSeqStep : DInt := -1;
+      StartupCalls : UDInt;
+      StartupRc : Int;
+   END_VAR
+BEGIN
+END_DATA_BLOCK
+
+DATA_BLOCK "S11Empty"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_S11Empty"
+BEGIN
+END_DATA_BLOCK
+
+DATA_BLOCK "S11Ack"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_S11Ack"
+BEGIN
+END_DATA_BLOCK
+
+DATA_BLOCK "S11Auto"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_S11Auto"
+BEGIN
+END_DATA_BLOCK
+
+DATA_BLOCK "S11Skip"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_S11Skip"
+BEGIN
+END_DATA_BLOCK

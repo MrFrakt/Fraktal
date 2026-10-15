@@ -1,0 +1,23 @@
+﻿DATA_BLOCK "GDB_ConfigNumericTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Native conversion witness, consumed only by the typed configuration bench.
+   VAR 
+      Requested : Bool;
+      InputText : WString[80];
+      InputValue { ExternalWritable := 'False'} : LReal;
+      InputValid { ExternalWritable := 'False'} : Bool;
+      FormattedText { ExternalWritable := 'False'} : WString[80];
+      OutputText { ExternalWritable := 'False'} : WString[80];
+      OutputValue { ExternalWritable := 'False'} : LReal;
+      OutputValid { ExternalWritable := 'False'} : Bool;
+      Texts { ExternalWritable := 'False'} : Array[1..6] of WString[80];
+      Values { ExternalWritable := 'False'} : Array[1..6] of LReal;
+      Valid { ExternalWritable := 'False'} : Array[1..6] of Bool;
+   END_VAR
+
+
+BEGIN
+
+END_DATA_BLOCK
+

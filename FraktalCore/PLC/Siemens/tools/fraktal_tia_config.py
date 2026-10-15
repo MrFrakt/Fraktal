@@ -4,11 +4,33 @@ import math
 from pathlib import Path
 import re
 
-from fraktal_tia_binding import Catalog, PRIVATE, READONLY, literal, type_source
+from fraktal_tia_binding import Catalog, FLOAT_LIMITS, PRIVATE, READONLY, literal, type_source, split_type
+from fraktal_tia_types import bound
 
 TEMPLATE = Path(__file__).resolve().parents[1] / 'Framework/Core/config_services.scl.in'
+DECIMAL_TEMPLATE = TEMPLATE.with_name('config_decimal.scl.in')
+DECIMAL_EXPONENT_LIMIT = 400
 INTEGER = {'INT': (-32768, 32767), 'DINT': (-2147483648, 2147483647),
-           'UDINT': (0, 4294967295), 'TIME': (-2147483648, 2147483647)}
+           'UDINT': (0, 4294967295), 'TIME': (-2147483648, 2147483647),
+           'SINT': (-128, 127), 'USINT': (0, 255), 'UINT': (0, 65535)}
+FLOAT = {name: (-limit, limit) for name, (_, limit) in FLOAT_LIMITS.items()}
+
+
+def record_targets(catalog, record):
+    """Resolve explicit scalar/array-element capabilities from the owning type."""
+    result = {}
+    for member in catalog.records.get(record, []):
+        _, array, scalar, _ = split_type(member['type'])
+        if array:
+            low, high = bound(array[1], catalog.capacities), bound(array[2], catalog.capacities)
+            # A malformed or enormous record must fail before allocating a list.
+            if high < low or high - low + 1 > catalog.capacities['MAX_CONFIG_WRITES']:
+                from fraktal_tia_declaration import DeclarationError
+                raise DeclarationError('T-WIDTH', record, 'config array exceeds the per-module capability bound')
+            result.update((member['name']+'['+str(i)+']', scalar) for i in range(low, high+1))
+        else:
+            result[member['name']] = scalar
+    return result
 
 
 def width(catalog, record, member):
@@ -22,7 +44,7 @@ def validate_definition(fields, location):
     for field in fields:
         object_fields(field, ('member', 'key', 'revision', 'label'),
                       ('minimum', 'maximum', 'requires_ready', 'min_read', 'min_write'), location + '.config')
-        if not isinstance(field['member'], str) or not re.fullmatch(r'(ParCfg|StationCfg)\.[A-Za-z_][A-Za-z0-9_]*', field['member']):
+        if not isinstance(field['member'], str) or not re.fullmatch(r'(ParCfg|StationCfg)\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:0|-?[1-9][0-9]*)\])?', field['member']):
             raise DeclarationError('T-GEN', location, 'config member selects ParCfg or StationCfg')
         for name in ('key', 'label'):
             maximum_width = width(facts, 'ST_ConfigWriteDef', 'Key' if name == 'key' else 'LabelKey')
@@ -61,6 +83,7 @@ class Field:
     min_read: int
     min_write: int
     length: int
+    enum_values: tuple[int, ...]
 
 
 def fields_for(t, catalog):
@@ -77,29 +100,32 @@ def fields_for(t, catalog):
         schema = re.search(r':=\s*(\d+)\s*$', members[0]['type'])
         if not schema or not 1 <= int(schema[1]) <= 65535:
             raise DeclarationError('T-GEN', t.name, 'editable config needs a nonzero declared schema')
-        member = next((m for m in members if m['name'] == name), None)
-        if member is None or name == 'SchemaVersion':
+        scalar_type = record_targets(catalog, record).get(name)
+        if scalar_type is None or name == 'SchemaVersion':
             raise DeclarationError('T-GEN', t.name, 'editable config target is missing or is its schema')
-        scalar = member['type'].split(':=')[0].strip().upper()
+        enum_values = tuple(sorted(set(catalog.enums.get(scalar_type, {}).values())))
+        if len('|'.join(map(str, enum_values))) > width(catalog, 'ST_ConfigEntry', 'EnumDomain'):
+            raise DeclarationError('T-WIDTH', t.name, 'enum domain exceeds the Core manifest width')
+        scalar = 'DINT' if enum_values else scalar_type.upper()
         string = re.fullmatch(r'STRING\((\d+)\)', scalar)
         length = int(string[1]) if string else 0
         # The current Core set-record value contract is 80 characters. Reject
         # wider targets before generation; never truncate accepted live values.
         if string and not 1 <= length <= width(catalog, 'ST_ConfigRecord', 'ValueText'):
             raise DeclarationError('T-WIDTH', t.name, 'config text exceeds the Core persistence value width')
-        if scalar not in INTEGER and scalar != 'BOOL' and not string:
-            raise DeclarationError('T-GEN', t.name, 'config prototype supports Boolean, integer, TIME and bounded STRING')
-        low, high = INTEGER.get(scalar, (0, 1))
+        if scalar not in INTEGER and scalar not in FLOAT and scalar != 'BOOL' and not string:
+            raise DeclarationError('T-GEN', t.name, 'unsupported config scalar or non-scalar target')
+        low, high = (min(enum_values), max(enum_values)) if enum_values else {**INTEGER, **FLOAT}.get(scalar, (0, 1))
         minimum, maximum = value.get('minimum', low), value.get('maximum', high)
-        if not low <= minimum <= maximum <= high or (scalar not in INTEGER and ('minimum' in value or 'maximum' in value)):
+        if not low <= minimum <= maximum <= high or (scalar not in INTEGER and scalar not in FLOAT and ('minimum' in value or 'maximum' in value)):
             raise DeclarationError('T-GEN', t.name, 'config range is incompatible with its native storage')
-        storage = 'AS_STRING' if string else 'AS_' + scalar
+        storage = 'AS_STRING' if string else 'AS_' + ('DINT' if scalar in ('SINT', 'USINT', 'UINT') else scalar)
         value_type = 'TEXT' if string else ('BOOLEAN' if scalar == 'BOOL' else ('DURATION' if scalar == 'TIME' else 'NUMBER'))
         result.append(Field(value['member'], value['key'], value['revision'], value['label'], scalar,
                             int(schema[1]), catalog.enums['E_ConfigKind']['PAR_CFG' if role == 'ParCfg' else 'STATION_CFG'],
                             catalog.enums['E_ConfigStorage'][storage], catalog.enums['E_ConfigValueType'][value_type],
                             minimum, maximum, 'minimum' in value, 'maximum' in value,
-                            value.get('requires_ready', True), value.get('min_read', 0), value.get('min_write', 0), length))
+                            value.get('requires_ready', True), value.get('min_read', 0), value.get('min_write', 0), length, enum_values))
     return tuple(result)
 
 
@@ -121,6 +147,10 @@ def read_value(field, prefix='#Module.'):
         return ['    IF '+source+' THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#\'true\'; ELSE "FRK_ConfigScratch".Entry.ValueText := WSTRING#\'false\'; END_IF;']
     if field.length:
         value = 'STRING_TO_WSTRING('+source+')'
+    elif field.enum_values:
+        value = '"FRK_ConfigEnumText"(Number := '+source+')'
+    elif field.scalar in FLOAT:
+        value = '"FRK_ConfigDecimalText"(Number := '+('REAL_TO_LREAL('+source+')' if field.scalar == 'REAL' else source)+')'
     elif field.scalar == 'TIME':
         value = 'DINT_TO_WSTRING(TIME_TO_DINT('+source+'))'
     else:
@@ -133,6 +163,8 @@ def assign_value(field, target):
     expression = value+'.Text' if field.length else (value+'.Flag' if field.scalar == 'BOOL' else 'LINT_TO_'+('TIME' if field.scalar == 'TIME' else field.scalar)+'('+value+'.Number)')
     if field.scalar == 'TIME':
         expression = 'DINT_TO_TIME(LINT_TO_DINT('+value+'.Number))'
+    elif field.scalar in FLOAT:
+        expression = value+'.Decimal' if field.scalar == 'LREAL' else 'LREAL_TO_REAL('+value+'.Decimal)'
     return '    '+target+' := '+expression+';'
 
 
@@ -167,7 +199,7 @@ class Layout:
             raise DeclarationError('T-WIDTH', 'config', 'retained config pool must fit an Int index')
         for t in model.types:
             if model.model_config:
-                expected = {m['name'] for m in catalog.records[dict(t.contract)['ParCfg']] if m['name'] != 'SchemaVersion'}
+                expected = set(record_targets(catalog, dict(t.contract)['ParCfg'])) - {'SchemaVersion'}
                 provided = {f.member.split('.')[1] for f in self.fields[t.name] if f.member.startswith('ParCfg.')}
                 if expected != provided:
                     raise DeclarationError('T-GEN', t.name, 'model provider requires the complete ParCfg record to be registered')
@@ -254,10 +286,12 @@ class Layout:
         if not self.fields[t.name]:
             return function(name(t, 'Def'), ['FieldIndex : Int;'], [], [],
                             ['    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;'])
-        body = ['    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;', '    CASE #FieldIndex OF']
+        body = ['    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;',
+                '    "FRK_ConfigScratch".EnumCount := 0;', '    CASE #FieldIndex OF']
         for index, f in enumerate(self.fields[t.name], 1):
             body += ['        %d:'%index]
             facts = {'WriteKey': literal(f.key), 'WriteRevision': 'UDINT#'+str(f.revision),
+                     'EnumDomain': 'WSTRING#'+literal('|'.join(map(str, f.enum_values))),
                      'Item': 'WSTRING#'+literal(f.member.replace('.', '/')), 'ConfigKind': str(f.kind),
                      'ValueType': str(f.value_type), 'Writable': 'TRUE', 'RequiresReady': str(f.requires_ready).upper(),
                      'HasMinimum': str(f.has_minimum).upper(), 'HasMaximum': str(f.has_maximum).upper(),
@@ -267,6 +301,9 @@ class Layout:
                 ('Storage', str(f.storage)), ('Schema', str(f.schema)), ('Minimum', str(float(f.minimum))),
                 ('Maximum', str(float(f.maximum))), ('MaxLength', str(f.length)),
                 ('MinRead', str(f.min_read)), ('MinWrite', str(f.min_write)))]
+            body += ['            "FRK_ConfigScratch".EnumCount := %d;'%len(f.enum_values)]
+            body += ['            "FRK_ConfigScratch".EnumValues[%d] := %d;'%(i, v)
+                     for i, v in enumerate(f.enum_values, 1)]
         body += ['        ELSE RETURN;', '    END_CASE;']
         return function(name(t, 'Def'), ['FieldIndex : Int;'], [], [], body)
 
@@ -312,6 +349,10 @@ class Layout:
         service = 'FRK_ConfigUnit' if t.unit_modes else 'FRK_ConfigCatalog'
         facet = 'Policy := #Module.ModePolicy, ModelCount := #Module.AvailableModelCount' if t.name in self.roots else ('Policy := #Module.ModePolicy, ModelCount := 0' if t.unit_modes else 'Catalog := #Module.Catalog, Count := #Module.CatalogCount')
         body += ['        "'+service+'"(Scope := #Module.Status.Name, '+facet+', ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);', '    END_IF;']
+        if self.sets and t.name in self.roots:
+            body += ['    IF #ModelIndex = 0 AND #Module.Core.ParentIndex = 0 THEN',
+                     '        "FRK_ConfigAppend"(Scope := #Module.Status.Name, Item := \'Features/ExportCurrentConfig\', ValueText := WSTRING#\'true\', ValueType := %d, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);'%self.catalog.enums['E_ConfigValueType']['BOOLEAN'],
+                     '    END_IF;']
         if t.sequence_view:
             body += ['    IF #ModelIndex = 0 THEN "FRK_ViewManifest"(Scope := #Module.Status.Name, Defs := #Module.SequenceStepDef, Count := #Module.SequenceStepCount, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page); END_IF;']
         if t.name in self.roots and self.model.model_config:
@@ -336,6 +377,8 @@ class Layout:
                          '            IF NOT #Ok THEN "FRK_ConfigScratch".Entry.Readable := FALSE; END_IF;', '        ELSE', *read_value(f), '        END_IF;']
             else:
                 body += read_value(f)
+            if f.scalar in FLOAT:
+                body += ['        IF "FRK_ConfigScratch".Entry.ValueText = WSTRING#\'\' THEN "FRK_ConfigScratch".Entry.Readable := FALSE; END_IF;']
             body += ['        IF NOT "FRK_ConfigScratch".Entry.Readable THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#\'\'; END_IF;',
                      '        "FRK_ConfigAppendEntry"(Cursor := #Cursor, Page := #Page);', '    END_IF;']
         for child in t.children:
@@ -364,8 +407,7 @@ class Layout:
             body += ['            #Code := '+code+';',
                      '            #Inactive := '+('#Code <> "FRK_ConfigStore".ActiveModels[#RootIndex]' if model_field else 'FALSE')+';',
                      '            IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN RETURN; END_IF;',
-                     '            #Ok := "FRK_ConfigDecode"(Text := #Request.TextValue, Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum, Maximum := "FRK_ConfigScratch".Maximum, MaxLength := "FRK_ConfigScratch".MaxLength, Value := "FRK_ConfigScratch".Value);',
-                     '            IF NOT #Ok THEN RETURN; END_IF;']
+                     ]
             body += ['            #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);',
                      '            IF NOT #Ok THEN RETURN; END_IF;', '            IF NOT #Inactive THEN',
                      assign_value(f, '#Module.'+f.member), '            END_IF;',
@@ -404,9 +446,11 @@ class Layout:
         from fraktal_tia_generate import db
         def udt(n, fields):
             return type_source(n, [{'member': k, 'native_type': v, 'accessible': False, 'initial': ''} for k, v in fields])
+        decimal_limbs = math.ceil((self.value_width + DECIMAL_EXPONENT_LIMIT) * math.log2(10) / 16) + 2
         sources = {
+            '02_FRK_ConfigInteger.udt': udt('FRK_ConfigInteger', [('Used', 'Int'), ('Limbs', 'Array[0..%d] of UDInt' % (decimal_limbs - 1))]),
             '02_FRK_ConfigSlot.udt': udt('FRK_ConfigSlot', [('SchemaVersion', 'UInt'), ('Used', 'Bool'), ('ModelCode', 'String[%d]'%self.model_width), ('Record', '"ST_ConfigRecord"')]),
-            '02_FRK_ConfigValue.udt': udt('FRK_ConfigValue', [('Number', 'LInt'), ('Flag', 'Bool'), ('Text', 'String[%d]'%self.value_width)]),
+            '02_FRK_ConfigValue.udt': udt('FRK_ConfigValue', [('Number', 'LInt'), ('Decimal', 'LReal'), ('Flag', 'Bool'), ('Text', 'String[%d]'%self.value_width)]),
         }
         root_count = len(self.model.roots)
         declarations = [
@@ -426,13 +470,17 @@ class Layout:
         sources['05_FRK_ConfigScratch.db'] = db('FRK_ConfigScratch', [
             'Entry'+PRIVATE+' : "ST_ConfigEntry";', 'Blank'+PRIVATE+' : "ST_ConfigEntry";',
             'Value'+PRIVATE+' : "FRK_ConfigValue";',
+            'EnumCount'+PRIVATE+' : Int;',
+            'EnumValues'+PRIVATE+' : Array[1..%d] of DInt;'%max(1, max((len(f.enum_values) for fs in self.fields.values() for f in fs), default=0)),
             *[k+PRIVATE+' : '+v+';' for k, v in (
                 ('Storage', 'DInt'), ('Schema', 'UInt'), ('Minimum', 'LReal'), ('Maximum', 'LReal'),
                 ('MaxLength', 'Int'), ('MinRead', 'DInt'), ('MinWrite', 'DInt'))],
         ])
-        text = TEMPLATE.read_text('ascii')
+        text = DECIMAL_TEMPLATE.read_text('ascii') + '\n' + TEMPLATE.read_text('ascii')
         text = text.replace('#Persist.StorePresent := FALSE;', '#Persist.StorePresent := '+str(bool(self.sets)).upper()+';')
-        substitutions = {'POOL_CAPACITY': self.capacity, 'ROOT_COUNT': root_count, 'SCOPE_WIDTH': self.scope_width, 'VALUE_WIDTH': self.value_width, **self.catalog.capacities}
+        substitutions = {'POOL_CAPACITY': self.capacity, 'ROOT_COUNT': root_count, 'SCOPE_WIDTH': self.scope_width, 'VALUE_WIDTH': self.value_width,
+                         'DECIMAL_LIMBS': decimal_limbs,
+                         'DECIMAL_EXPONENT_LIMIT': DECIMAL_EXPONENT_LIMIT, **self.catalog.capacities}
         for enum, members in self.catalog.enums.items():
             for member, value in members.items():
                 text = text.replace('@'+enum+'.'+member+'@', str(value))

@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_ExportTokenValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// A current-value document is bound to the existing session and this token.
+   VAR_INPUT 
+      Token : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ExportTokenValid := FALSE;
+	IF LEN(#Token) <> 32 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 32 DO
+	    IF NOT ((#Token[#Index] >= CHAR#'0' AND #Token[#Index] <= CHAR#'9')
+	        OR (#Token[#Index] >= CHAR#'a' AND #Token[#Index] <= CHAR#'f')
+	        OR (#Token[#Index] >= CHAR#'A' AND #Token[#Index] <= CHAR#'F')) THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_ExportTokenValid := TRUE;
+	
+END_FUNCTION
+

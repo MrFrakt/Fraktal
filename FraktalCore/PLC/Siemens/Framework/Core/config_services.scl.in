@@ -18,6 +18,9 @@ VAR_TEMP
     Negative : Bool;
     Magnitude : ULInt;
     Digit : ULInt;
+    Decimal : LReal;
+    Converted : Real;
+    ConvertedOk : Bool;
 END_VAR
 BEGIN
     #FRK_ConfigDecode := FALSE;
@@ -38,6 +41,22 @@ BEGIN
         #FRK_ConfigDecode := TRUE;
         RETURN;
     END_IF;
+    IF #Storage = @E_ConfigStorage.AS_REAL@ OR #Storage = @E_ConfigStorage.AS_LREAL@ THEN
+        #ConvertedOk := "FRK_DecimalDecode"(Text := #Text,
+            SinglePrecision := #Storage = @E_ConfigStorage.AS_REAL@, Value := #Decimal);
+        IF NOT #ConvertedOk OR #Decimal < #Minimum OR #Decimal > #Maximum THEN RETURN; END_IF;
+        IF #Storage = @E_ConfigStorage.AS_REAL@ THEN
+            #Converted := LREAL_TO_REAL(#Decimal);
+            IF #Converted = 0.0 AND #Decimal <> 0.0 THEN RETURN; END_IF;
+            #Decimal := REAL_TO_LREAL(#Converted);
+            IF #Decimal < #Minimum OR #Decimal > #Maximum THEN RETURN; END_IF;
+        END_IF;
+        #Value.Decimal := #Decimal;
+        #FRK_ConfigDecode := TRUE;
+        RETURN;
+    END_IF;
+    IF #Storage <> @E_ConfigStorage.AS_INT@ AND #Storage <> @E_ConfigStorage.AS_DINT@
+        AND #Storage <> @E_ConfigStorage.AS_UDINT@ AND #Storage <> @E_ConfigStorage.AS_TIME@ THEN RETURN; END_IF;
     #Width := LEN(#Text);
     IF #Width = 0 THEN RETURN; END_IF;
     #Negative := FALSE;
@@ -58,6 +77,42 @@ BEGIN
     IF #Negative THEN #Value.Number := -#Value.Number; END_IF;
     IF LINT_TO_LREAL(#Value.Number) < #Minimum OR LINT_TO_LREAL(#Value.Number) > #Maximum THEN RETURN; END_IF;
     #FRK_ConfigDecode := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigEnumText" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Number : DInt;
+END_VAR
+BEGIN
+    #FRK_ConfigEnumText := DINT_TO_WSTRING(#Number);
+    IF #FRK_ConfigEnumText[1] = WCHAR#'+' THEN
+        #FRK_ConfigEnumText := MID(IN := #FRK_ConfigEnumText, L := LEN(#FRK_ConfigEnumText) - 1, P := 2);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Text : WString;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ConfigValidate := "FRK_ConfigDecode"(Text := #Text,
+        Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum,
+        Maximum := "FRK_ConfigScratch".Maximum, MaxLength := "FRK_ConfigScratch".MaxLength,
+        Value := "FRK_ConfigScratch".Value);
+    IF NOT #FRK_ConfigValidate OR "FRK_ConfigScratch".EnumCount = 0 THEN RETURN; END_IF;
+    #FRK_ConfigValidate := FALSE;
+    FOR #Index := 1 TO "FRK_ConfigScratch".EnumCount DO
+        IF "FRK_ConfigScratch".Value.Number = DINT_TO_LINT("FRK_ConfigScratch".EnumValues[#Index]) THEN
+            #FRK_ConfigValidate := TRUE; RETURN;
+        END_IF;
+    END_FOR;
 END_FUNCTION
 
 FUNCTION "FRK_ConfigFind" : Int
@@ -101,6 +156,7 @@ BEGIN
     IF #RootIndex < 1 OR #RootIndex > @ROOT_COUNT@ THEN RETURN; END_IF;
     IF "FRK_ConfigRuntime".Unavailable THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
     IF LEN(#Scope) > @SCOPE_WIDTH@ OR LEN(#Text) > @VALUE_WIDTH@ THEN RETURN; END_IF;
+    IF NOT "FRK_ConfigValidate"(Text := #Text) THEN RETURN; END_IF;
     #Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
     IF #Index = 0 THEN
         FOR #Index := 1 TO @POOL_CAPACITY@ DO
@@ -139,10 +195,11 @@ BEGIN
         OR "FRK_ConfigStore".Rows[#Index].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision
         OR "FRK_ConfigStore".Rows[#Index].Record.Kind <> "FRK_ConfigScratch".Entry.ConfigKind
         OR "FRK_ConfigStore".Rows[#Index].Record.ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
-    #FRK_ConfigGet := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText),
-        Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum, Maximum := "FRK_ConfigScratch".Maximum,
-        MaxLength := "FRK_ConfigScratch".MaxLength, Value := "FRK_ConfigScratch".Value);
+    #FRK_ConfigGet := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText));
     "FRK_ConfigScratch".Entry.ValueText := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText);
+    IF #FRK_ConfigGet AND "FRK_ConfigScratch".EnumCount > 0 THEN
+        "FRK_ConfigScratch".Entry.ValueText := "FRK_ConfigEnumText"(Number := LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+    END_IF;
 END_FUNCTION
 
 FUNCTION "FRK_ConfigLoss" : Void

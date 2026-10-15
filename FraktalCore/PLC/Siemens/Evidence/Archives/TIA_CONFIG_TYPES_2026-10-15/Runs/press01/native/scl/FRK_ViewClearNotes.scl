@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_ViewClearNotes" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core 3.13: discovered definitions, per-leg frontier, PLC-owned history and
+// sparse notes. Open arrays preserve each Unit's declared consumed capacities.
+   VAR_INPUT 
+      RowIdx : Int;
+      IsError : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Notes : Array[*] of "ST_SequenceAnnotation";
+      NoteCount : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #Index := 1 TO #NoteCount DO
+	    IF (#RowIdx = 0 OR #Notes[#Index].RowIdx = #RowIdx) AND #Notes[#Index].IsError = #IsError THEN
+	        #Notes[#Index] := "FRK_ViewScratch".Note;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

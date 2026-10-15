@@ -1,0 +1,12 @@
+ORGANIZATION_BLOCK OB100
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    "S11Scl".StartupSeen := TRUE;
+    "S11Scl".StartupSafe := NOT "SpikeUnit".RunReq AND NOT "SpikeUnit".AbortReq
+        AND NOT "SpikeUnit".CylA.Execute AND NOT "SpikeUnit".CylB.Execute
+        AND NOT "SpkHal".Unit.CylA.Extend AND NOT "SpkHal".Unit.CylA.Retract
+        AND NOT "SpkHal".Unit.CylB.Extend AND NOT "SpkHal".Unit.CylB.Retract
+        AND "SpikeUnit".HmiRequest.Sequence = 0;
+    "S11Scl".StartupRc := RD_SYS_T(OUT => "S11Scl".StartupAt);
+END_ORGANIZATION_BLOCK

@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_PersistPoll" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Ticket : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Result : "ST_PersistResult";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PersistPoll := TRUE;
+	#Result := "FRK_PersistRuntime".EmptyResult;
+	#Result.ErrorId := 1;
+	"FRK_PersistTick"();
+	IF #Ticket = 0 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 4 DO
+	    IF "FRK_PersistRuntime".Queue[#Index].State <> 0 AND "FRK_PersistRuntime".Queue[#Index].Ticket = #Ticket THEN
+	        #FRK_PersistPoll := "FRK_PersistRuntime".Queue[#Index].State = 3;
+	        IF #FRK_PersistPoll THEN
+	            #Result := "FRK_PersistRuntime".Queue[#Index].Result;
+	            "FRK_PersistRuntime".Leased["FRK_PersistRuntime".Queue[#Index].Slot] := FALSE;
+	            "FRK_PersistRuntime".Queue[#Index].State := 0;
+	        END_IF;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

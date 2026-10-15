@@ -1,0 +1,125 @@
+﻿FUNCTION "FRK_DecimalFormat" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Number : LReal;
+   END_VAR
+
+   VAR_TEMP 
+      Numerator : "FRK_ConfigInteger";
+      Denominator : "FRK_ConfigInteger";
+      TwiceRemainder : "FRK_ConfigInteger";
+      Normalized : LReal;
+      BinaryExponent : Int;
+      DecimalExponent : Int;
+      Index : Int;
+      Comparison : Int;
+      Ok : Bool;
+      Digits : Array[1..17] of Int;
+      Text : WString[80];
+      ExponentText : WString[8];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DecimalFormat := WSTRING#'';
+	IF #Number <> #Number OR ABS(#Number) > LREAL#1.7976931348623157E+308 THEN
+	    RETURN;
+	END_IF;
+	IF #Number = 0.0 THEN
+	    #FRK_DecimalFormat := WSTRING#'0';
+	    RETURN;
+	END_IF;
+	#Normalized := ABS(#Number);
+	#BinaryExponent := 0;
+	WHILE #Normalized >= 2.0 DO
+	    #Normalized := #Normalized / 2.0;
+	    #BinaryExponent := #BinaryExponent + 1;
+	END_WHILE;
+	WHILE #Normalized < 1.0 DO
+	    #Normalized := #Normalized * 2.0;
+	    #BinaryExponent := #BinaryExponent - 1;
+	END_WHILE;
+	"FRK_IntegerSet"(Number := #Numerator,
+	                 Value := LREAL_TO_ULINT(#Normalized * LREAL#4503599627370496.0));
+	"FRK_IntegerSet"(Number := #Denominator,
+	                 Value := ULINT#1);
+	#BinaryExponent := #BinaryExponent - 52;
+	IF #BinaryExponent >= 0 THEN
+	    #Ok := "FRK_IntegerShift"(Number := #Numerator, Bits := #BinaryExponent);
+	ELSE
+	    #Ok := "FRK_IntegerShift"(Number := #Denominator, Bits := - #BinaryExponent);
+	END_IF;
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#DecimalExponent := 0;
+	WHILE "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator) < 0 DO
+	    #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 10, Addend := 0);
+	    IF NOT #Ok THEN
+	        RETURN;
+	    END_IF;
+	    #DecimalExponent := #DecimalExponent - 1;
+	END_WHILE;
+	#TwiceRemainder := #Denominator;
+	#Ok := "FRK_IntegerMul"(Number := #TwiceRemainder, Factor := 10, Addend := 0);
+	WHILE "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #TwiceRemainder) >= 0 DO
+	    #Denominator := #TwiceRemainder;
+	    #DecimalExponent := #DecimalExponent + 1;
+	    #Ok := "FRK_IntegerMul"(Number := #TwiceRemainder, Factor := 10, Addend := 0);
+	    IF NOT #Ok THEN
+	        RETURN;
+	    END_IF;
+	END_WHILE;
+	FOR #Index := 1 TO 17 DO
+	    #Digits[#Index] := 0;
+	    WHILE "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator) >= 0 DO
+	        "FRK_IntegerSubtract"(LeftValue := #Numerator,
+	                              RightValue := #Denominator);
+	        #Digits[#Index] := #Digits[#Index] + 1;
+	    END_WHILE;
+	    IF #Index < 17 THEN
+	        #Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 10, Addend := 0);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	#Ok := "FRK_IntegerMul"(Number := #Numerator, Factor := 2, Addend := 0);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Comparison := "FRK_IntegerCompare"(LeftValue := #Numerator, RightValue := #Denominator);
+	IF #Comparison > 0 OR (#Comparison = 0 AND #Digits[17] MOD 2 = 1) THEN
+	    #Index := 17;
+	    WHILE #Index > 0 DO
+	        #Digits[#Index] := #Digits[#Index] + 1;
+	        IF #Digits[#Index] < 10 THEN
+	            EXIT;
+	        END_IF;
+	        #Digits[#Index] := 0;
+	        #Index := #Index - 1;
+	    END_WHILE;
+	    IF #Index = 0 THEN
+	        #Digits[1] := 1;
+	        #DecimalExponent := #DecimalExponent + 1;
+	    END_IF;
+	END_IF;
+	#Text := WSTRING#'';
+	FOR #Index := 1 TO 17 DO
+	    #Text := CONCAT(IN1 := #Text, IN2 := WCHAR_TO_WSTRING(UINT_TO_WCHAR(INT_TO_UINT(#Digits[#Index]) + UINT#48)));
+	    IF #Index = 1 THEN
+	        #Text := CONCAT(IN1 := #Text, IN2 := WSTRING#'.');
+	    END_IF;
+	END_FOR;
+	#ExponentText := DINT_TO_WSTRING(INT_TO_DINT(#DecimalExponent));
+	#Text := CONCAT(IN1 := #Text, IN2 := WSTRING#'E');
+	#Text := CONCAT(IN1 := #Text, IN2 := #ExponentText);
+	IF #Number < 0.0 THEN
+	    #Text := CONCAT(IN1 := WSTRING#'-', IN2 := #Text);
+	END_IF;
+	#FRK_DecimalFormat := #Text;
+	
+END_FUNCTION
+

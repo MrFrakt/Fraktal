@@ -1,0 +1,27 @@
+# CONTROLLER-CHANGING: downloads the S2 test image to 192.168.0.10.
+# Run only with current authorization for this exact target (AGENTS.md).
+# `download` refuses unless --confirm-target equals the project's CPU address.
+#
+#   Fraktal.Tia.Cli plan download_1214c.plan --set work=%LOCALAPPDATA%\Fraktal\TiaStations
+#       --set pc="<PG/PC interface name>" --set pcnum=<n>     (from `interfaces --scan`)
+#       --set um=keep|update|reset
+#       --set protection=            (or protection=--accept-lower-protection)
+#
+# um = what happens to the user-management (UMAC) data on the CPU: keep the online
+# users, update them but keep their online passwords, or reset them to the
+# project. It has no default on purpose: an unset ${um} fails the line.
+#
+# protection = whether TIA may lower the CPU's protection level when it asks
+# ("You are changing the CPU protection to a lower level"). Empty refuses and the
+# download stops before anything is written; it, too, has no default.
+#
+# Bench 2026-10-08: pc="Intel(R) 82574L Gigabit Network Connection" pcnum=2 (adapter Ethernet1).
+#
+# PG/PC protocol: a V4.7 CPU downloaded from this project accepts secure (TLS)
+# PG/PC communication only. The station project holds the certificate the CPU was
+# given, so TLS verifies without a trust decision. --trust-plc is used ONLY to
+# recover a CPU that holds a certificate from another project (trust on first use,
+# logged with the certificate details) - never as a standing default.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+download --plc PLC_1 --pc-interface "${pc}" --pc-number ${pcnum} --target "1 X1" --confirm-target 192.168.0.10 --user-management ${um} ${protection}
+online-state --plc PLC_1 --pc-interface "${pc}" --pc-number ${pcnum} --target "1 X1"

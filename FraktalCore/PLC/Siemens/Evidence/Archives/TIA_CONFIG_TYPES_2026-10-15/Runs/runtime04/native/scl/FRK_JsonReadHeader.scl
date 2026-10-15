@@ -1,0 +1,181 @@
+﻿FUNCTION "FRK_JsonReadHeader" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Count : Int;
+      Fields : Array[1..9] of "FRK_JsonField";
+   END_VAR
+
+   VAR_IN_OUT 
+      Data : "ST_ConfigSetInfo";
+   END_VAR
+
+   VAR_TEMP 
+      Candidate : "ST_ConfigSetInfo";
+      Index : Int;
+      Found : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_JsonReadHeader := FALSE;
+	IF #Count <> 9 THEN
+	    RETURN;
+	END_IF;
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'set' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> TRUE THEN
+	    RETURN;
+	END_IF;
+	IF LEN(#Fields[#Found].Text) > 80 OR STRING_TO_WSTRING(WSTRING_TO_STRING(#Fields[#Found].Text)) <> #Fields[#Found].Text THEN
+	    RETURN;
+	END_IF;
+	#Candidate.SetName := WSTRING_TO_STRING(#Fields[#Found].Text);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'root' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> TRUE THEN
+	    RETURN;
+	END_IF;
+	IF LEN(#Fields[#Found].Text) > 80 OR STRING_TO_WSTRING(WSTRING_TO_STRING(#Fields[#Found].Text)) <> #Fields[#Found].Text THEN
+	    RETURN;
+	END_IF;
+	#Candidate.RootIdentity := WSTRING_TO_STRING(#Fields[#Found].Text);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'schema' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 65535.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.SetSchema := LINT_TO_UINT("FRK_ConfigScratch".Value.Number);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'configRev' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 4294967295.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.ConfigRev := LINT_TO_UDINT("FRK_ConfigScratch".Value.Number);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'kind' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.Kind := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'model' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> TRUE THEN
+	    RETURN;
+	END_IF;
+	IF LEN(#Fields[#Found].Text) > 64 OR STRING_TO_WSTRING(WSTRING_TO_STRING(#Fields[#Found].Text)) <> #Fields[#Found].Text THEN
+	    RETURN;
+	END_IF;
+	#Candidate.ModelCode := WSTRING_TO_STRING(#Fields[#Found].Text);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'records' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 30.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.RecordCount := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'created' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 4294967295.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.CreatedAt := ULINT_TO_LDT(LINT_TO_ULINT("FRK_ConfigScratch".Value.Number) * ULINT#1000000000);
+	#Found := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Fields[#Index].Key = 'clock' THEN
+	        #Found := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Found = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Fields[#Found].Quoted <> FALSE THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Candidate.TimeSynchronized := "FRK_ConfigScratch".Value.Number = 1;
+	#Data := #Candidate;
+	#FRK_JsonReadHeader := TRUE;
+	
+END_FUNCTION
+

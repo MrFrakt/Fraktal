@@ -1,0 +1,8 @@
+open-project --path ${work}\FrkS12\FrkS12.ap20
+set-hw-attribute --plc PLC_1 --attr WebserverActivate --value true
+set-hw-attribute --plc PLC_1 --item "PROFINET interface_1" --attr UseWebServerForInterface --value true
+webserver-user --plc PLC_1 --name fraktal --permissions ReadTagStatus,ModifyTagStatus --password-env FRAKTAL_TIA_WEB_PASSWORD
+webserver-certificate --plc PLC_1
+hw-attributes --plc PLC_1 --filter Web --probe WebserverCertificateType,WebserverHttpsOnly
+compile --plc PLC_1 --hw
+save

@@ -1,0 +1,50 @@
+﻿FUNCTION "FRK_SeqStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      StepNo : DInt;
+      StepName : String;
+      AwaitingLabel : String;
+      AwaitsPath : String;
+      TimeClass : DInt;
+      ExpectedTime : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Row : "FRK_SequenceRow";
+   END_VAR
+
+
+BEGIN
+	
+	#Seq.RetVal := 0;
+	IF NOT #Seq.Running OR #Seq.Error THEN
+	    RETURN;
+	END_IF;
+	IF #Seq.RecordedStep <> #StepNo THEN
+	    #Seq.Visit := #Seq.Visit + 1;
+	    #Seq.Elapsed := T#0ms;
+	    #Seq.DelayElapsed := T#0ms;
+	    #Seq.RecordedStep := #StepNo;
+	    #Seq.Warned := FALSE;
+	END_IF;
+	#Seq.Step := #StepNo;
+	#Seq.StepName := #StepName;
+	#Row.StepNo := #StepNo;
+	#Row.Visited := TRUE;
+	#Row.LastDuration := #Seq.Elapsed;
+	"FRK_SeqViewStep"(Owner := #Seq.OwnerIndex,
+	                  StepNo := #StepNo + #Seq.ViewOffset,
+	                  Branch := #Seq.BranchIndex,
+	                  Depth := #Seq.ViewDepth,
+	                  Visit := #Seq.Visit,
+	                  StepName := #StepName,
+	                  AwaitingLabel := #AwaitingLabel,
+	                  AwaitsPath := #AwaitsPath,
+	                  TimeClass := #TimeClass,
+	                  ExpectedTime := #ExpectedTime,
+	                  Elapsed := #Seq.Elapsed);
+	
+END_FUNCTION
+

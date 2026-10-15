@@ -847,3 +847,25 @@ unchanged approved driver remain preserved. See [qualification](Evidence/TIA_SEQ
 Next: baseline/degradation and gated statistics/OEE reset, configuration-provider
 and line-config integration, module/HAL expansion and deployment acceptance.
 Physical press and broader loss/conformance gates remain separate.
+
+## Progress, 2026-10-15: typed configuration and current documents
+
+Generator0.21 extends the existing typed provider with REAL/LREAL, smaller
+integers, Core enum domains and explicit constant-index array elements. Writes,
+restore, recipe preparation and imported sets use the same validation path.
+Current-value exports reuse the consumed workspace, need no saved slot and bind
+continuations to session generation, client token and exact line order. The
+generic HMI uses its existing feature, choices and export protocol; MAIN gains
+no call. See [qualification](Evidence/TIA_CONFIG_TYPES_2026-10-15.md).
+
+Current projects are Config_Types_Runtime_20261015 and the separate wired
+Config_Types_Press_Offline_20261015. Earlier archives and the simulator's owner,
+storage, addresses, pin and approved driver remain preserved. Next: broader
+provider dispatch, runtime model creation and collection/capture forms; the
+Line profile binds line config and shifts together. Baseline/degradation/OEE,
+module/HAL expansion and deployment/physical acceptance remain separate.
+
+Typed configuration now uses exact integer-rational conversion and verified
+17-digit text. Native REAL leaf JSON remains limited to seven significant
+figures on this bench; configuration editor/export precision uses PLC-owned
+text. Lossless raw REAL telemetry remains part of the wider transport gate.

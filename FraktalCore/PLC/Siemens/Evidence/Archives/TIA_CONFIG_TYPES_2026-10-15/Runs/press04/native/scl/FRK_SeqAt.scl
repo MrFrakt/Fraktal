@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_SeqAt" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      StepNo : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	// Capture dispatch once: a forward LD transition cannot execute the next
+	// state's rung in this scan or hide an Execute-low reset scan.
+	#FRK_SeqAt := #Seq.Running AND NOT #Seq.Error AND #Seq.ScanStep = #StepNo;
+	
+END_FUNCTION
+

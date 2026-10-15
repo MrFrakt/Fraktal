@@ -4,7 +4,7 @@ import re
 import xml.etree.ElementTree as ET
 
 from fraktal_tia_binding import PRIVATE, READONLY, REPO, literal, type_source
-from fraktal_tia_config import function, name, assign_value
+from fraktal_tia_config import function, name, assign_value, read_value
 
 TEMPLATE = Path(__file__).resolve().parents[1] / 'Framework/Core/config_set_services.scl.in'
 LINE_AUTHORITY = REPO / 'FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/Platform/FB_ConfigSetJson.TcPOU'
@@ -33,6 +33,7 @@ class Sets:
 
     def walk(self, t):
         layout = self.layout
+        model_kind = layout.catalog.enums['E_ConfigKind']['PAR_CFG']
         body = ['    #'+name(t, 'SetWalk')+' := FALSE;']
         roles = {f.member.split('.')[0] for f in layout.fields[t.name]}
         for role in sorted(roles):
@@ -42,9 +43,13 @@ class Sets:
                      '        "'+name(t, 'Def')+'"(FieldIndex := %d);' % index,
                      '        "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Module.Status.Name;',
                      '        "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;',
-                     '        IF #Phase = 0 THEN',
+                     '        IF #Phase = 0 OR #Phase = 5 THEN',
                      '            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;',
-                     '            #Ok := "FRK_ConfigGet"(Scope := #Module.Status.Name, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode);',
+                     '            IF #Phase = 5 AND (%d <> %d OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN'%(field.kind, model_kind),
+                     *read_value(field), '                #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);',
+                     '            ELSE',
+                     '                #Ok := "FRK_ConfigGet"(Scope := #Module.Status.Name, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode);',
+                     '            END_IF;',
                      '            IF NOT #Ok OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount >= %d THEN RETURN; END_IF;' % self.records,
                      '            #Slot := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount + 1;',
                      '            "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Slot].Scope := #Module.Status.Name;',
@@ -86,6 +91,7 @@ class Sets:
             '02_FRK_SetWorkspace.udt': udt('FRK_SetWorkspace', [
                 ('Payload', '"FRK_SetPayload"'), ('Seen', 'Array[1..%d] of Bool' % self.records), ('Matched', 'Int'), ('RejectScope', 'String[80]'), ('RejectKey', 'String[160]'),
                 ('Importing', 'Bool'), ('Exporting', 'Bool'), ('NextLine', 'Int'), ('Generation', 'UDInt'), ('Received', 'Int'),
+                ('CurrentExport', 'Bool'), ('ExportToken', 'String[32]'),
                 ('Piece', 'WString[%d]' % LINE_WIDTH), ('Line', 'WString[%d]' % LINE_WIDTH),
                 ('Fields', 'Array[1..9] of "FRK_JsonField"'), ('FieldCount', 'Int')]),
             '05_FRK_SetStore.db': db('FRK_SetStore', ['SchemaVersion'+PRIVATE+' : UInt;',
@@ -165,11 +171,13 @@ class Sets:
     def operation(self, t):
         l = self.layout
         k = l.catalog.enums['E_HmiRequestKind']
+        model_kind = l.catalog.enums['E_ConfigKind']['PAR_CFG']
+        station_kind = l.catalog.enums['E_ConfigKind']['STATION_CFG']
         work = '"FRK_SetRuntime".Work[#RootIndex]'
         payload = work+'.Payload'
         def walk(phase, ready='#Ready'):
             return l.call(t, 'SetWalk', '#Module.', RootIndex='#RootIndex', Phase=str(phase), Access='#Module.Access', Ready=ready)
-        kinds = [k[n] for n in ('SAVE_CONFIG_SET','LOAD_CONFIG_SET','LIST_CONFIG_SETS','EXPORT_CONFIG_SET','IMPORT_CONFIG_SET','DELETE_CONFIG_SET')]
+        kinds = [k[n] for n in ('SAVE_CONFIG_SET','LOAD_CONFIG_SET','LIST_CONFIG_SETS','EXPORT_CONFIG_SET','IMPORT_CONFIG_SET','DELETE_CONFIG_SET','EXPORT_CURRENT_CONFIG')]
         body = ['    #RootIndex := "FRK_ConfigRoot"(RegIndex := #Module.Core.RegIndex);',
                 '    IF #Module.Core.ParentIndex <> 0 OR #RootIndex = 0 THEN RETURN; END_IF;',
                 '    IF #Startup THEN', '        '+work+'.Importing := FALSE; '+work+'.Exporting := FALSE; '+work+'.Piece := WSTRING#\'\';',
@@ -181,6 +189,7 @@ class Sets:
                 '        '+work+'.Generation := #Module.Access.SessionGeneration;', '    END_IF;',
                 '    IF NOT #Module.Unit.RequestPending THEN RETURN; END_IF;',
                 '    #Request := #Module.Unit.Request;',
+                '    #Exporting := '+work+'.Exporting; '+work+'.Exporting := FALSE;',
                 '    IF #Request.Kind <> %d THEN %s.Importing := FALSE; %s.Piece := WSTRING#\'\'; END_IF;' % (k['IMPORT_CONFIG_SET'],work,work),
                 '    IF #Request.Kind <> %d THEN %s.Exporting := FALSE; END_IF;' % (k['EXPORT_CONFIG_SET'],work),
                 '    IF '+ ' AND '.join('#Request.Kind <> %d' % n for n in kinds)+' THEN RETURN; END_IF;',
@@ -236,19 +245,40 @@ class Sets:
                 '                #Module.HmiResponse.Accepted := TRUE;', '            END_IF;',
                 '        %d:' % k['EXPORT_CONFIG_SET'],
                 '            #Module.ConfigSetDocument := WSTRING#\'\'; #Module.ConfigSetDocumentLine := -1; #Module.ConfigSetDocumentLines := 0;',
-                '            IF #Request.NameValue <> \'\' OR #Request.IntValue < 0 THEN RETURN; END_IF;',
+                '            IF #Request.IntValue < 0 THEN '+work+'.Exporting := FALSE; RETURN; END_IF;',
                 '            IF #Request.IntValue = 0 THEN',
+                '                IF #Request.NameValue <> \'\' THEN '+work+'.Exporting := FALSE; RETURN; END_IF;',
                 '                #Slot := "FRK_SetFind"(RootIndex := #RootIndex, SetName := #SetName); IF #Slot = 0 THEN RETURN; END_IF;',
                 '                '+payload+' := "FRK_SetStore".Sets[#RootIndex, #Slot];',
-                '                '+work+'.NextLine := 0; '+work+'.Exporting := TRUE;', '            END_IF;',
-                '            IF NOT '+work+'.Exporting OR #SetName <> '+payload+'.Info.SetName OR #Request.IntValue <> '+work+'.NextLine OR #Request.IntValue > '+payload+'.Info.RecordCount THEN '+work+'.Exporting := FALSE; RETURN; END_IF;',
+                '                '+work+'.CurrentExport := FALSE; '+work+'.ExportToken := \'\';',
+                '                '+work+'.NextLine := 0; #Exporting := TRUE;', '            END_IF;',
+                '            IF ('+work+'.CurrentExport AND #Request.NameValue <> '+work+'.ExportToken) OR (NOT '+work+'.CurrentExport AND #Request.NameValue <> \'\') THEN '+work+'.Exporting := FALSE; RETURN; END_IF;',
+                '            IF NOT #Exporting OR #SetName <> '+payload+'.Info.SetName OR #Request.IntValue <> '+work+'.NextLine OR #Request.IntValue > '+payload+'.Info.RecordCount THEN RETURN; END_IF;',
                 '            #Ok := "FRK_SetShape"(RootIndex := #RootIndex, RootIdentity := #Module.Status.Name);',
                 '            "FRK_SetValidateBegin"(RootIndex := #RootIndex);', '            IF #Ok THEN #Ok := '+walk(3)+'; END_IF;',
                 '            IF NOT #Ok OR '+work+'.Matched <> '+payload+'.Info.RecordCount THEN '+work+'.Exporting := FALSE; RETURN; END_IF;',
                 '            IF #Request.IntValue = 0 THEN #Ok := "FRK_JsonHeader"(Data := '+payload+'.Info, Line := #Module.ConfigSetDocument);',
                 '            ELSE #Ok := "FRK_JsonRecord"(Data := '+payload+'.Records[#Request.IntValue], Line := #Module.ConfigSetDocument); END_IF;',
                 '            IF #Ok THEN #Module.ConfigSetDocumentLine := DINT_TO_INT(#Request.IntValue); #Module.ConfigSetDocumentLines := '+payload+'.Info.RecordCount; '+work+'.NextLine := '+work+'.NextLine + 1; #Module.HmiResponse.Accepted := TRUE; END_IF;',
-                '            IF NOT #Ok OR #Request.IntValue = '+payload+'.Info.RecordCount THEN '+work+'.Exporting := FALSE; END_IF;',
+                '            '+work+'.Exporting := #Ok AND #Request.IntValue < '+payload+'.Info.RecordCount;',
+                '        %d:' % k['EXPORT_CURRENT_CONFIG'],
+                '            #Module.ConfigSetDocument := WSTRING#\'\'; #Module.ConfigSetDocumentLine := -1; #Module.ConfigSetDocumentLines := 0;',
+                '            IF NOT "FRK_ExportTokenValid"(Token := #Request.NameValue) OR (#Request.IntValue <> %d AND #Request.IntValue <> %d) THEN RETURN; END_IF;'%(model_kind, station_kind),
+                '            IF #Request.DurationMs > %d OR (#Request.IntValue = %d AND #Request.DurationMs <> 0) THEN RETURN; END_IF;'%(len(l.model.model_config), station_kind),
+                '            '+payload+'.Info.SetName := #SetName; '+payload+'.Info.RootIdentity := #Module.Status.Name;',
+                '            '+payload+'.Info.SetSchema := 1; '+payload+'.Info.ConfigRev := #Module.ConfigRev;',
+                '            '+payload+'.Info.Kind := #Request.IntValue; '+payload+'.Info.RecordCount := 0;',
+                '            '+payload+'.Info.ModelCode := \'\';',
+                '            IF #Request.IntValue = %d THEN '%model_kind+payload+'.Info.ModelCode := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #Request.DurationMs); END_IF;',
+                '            #ResultCode := RD_SYS_T(OUT => #Stamp); '+payload+'.Info.CreatedAt := DTL_TO_LDT(#Stamp);',
+                '            '+payload+'.Info.TimeSynchronized := FALSE; '+payload+'.Info.Used := TRUE;',
+                '            #Ok := '+walk(5)+';',
+                '            IF #Ok THEN #Ok := "FRK_SetShape"(RootIndex := #RootIndex, RootIdentity := #Module.Status.Name); END_IF;',
+                '            IF NOT #Ok OR '+payload+'.Info.RecordCount = 0 THEN RETURN; END_IF;',
+                '            #Ok := "FRK_JsonHeader"(Data := '+payload+'.Info, Line := #Module.ConfigSetDocument);',
+                '            IF NOT #Ok THEN RETURN; END_IF;',
+                '            '+work+'.ExportToken := #Request.NameValue; '+work+'.CurrentExport := TRUE; '+work+'.NextLine := 1; '+work+'.Exporting := TRUE;',
+                '            #Module.ConfigSetDocumentLine := 0; #Module.ConfigSetDocumentLines := '+payload+'.Info.RecordCount; #Module.HmiResponse.Accepted := TRUE;',
                 '        %d:' % k['IMPORT_CONFIG_SET'],
                 '            #Ok := "FRK_SetImport"(RootIndex := #RootIndex, Request := #Request);',
                 '            IF #Ok AND #Request.BoolValue THEN',
@@ -266,4 +296,4 @@ class Sets:
                 '        #Module.ConfigPersist.LastRejectScope := \'\'; #Module.ConfigPersist.LastRejectKey := \'\';',
                 '    ELSE #Module.ConfigPersist.LastRejectScope := '+work+'.RejectScope; #Module.ConfigPersist.LastRejectKey := '+work+'.RejectKey; END_IF;']
         return l.render(t, 'SetOperation', ['Startup : Bool;'], ['Module : "'+t.name+'";'],
-            ['RootIndex : Int;', 'Request : "ST_HmiRequest";', 'Ready : Bool;', 'SetName : String[80];', 'Slot : Int;', 'Ok : Bool;', 'Stamp : DTL;', 'ResultCode : Int;'], body)
+            ['RootIndex : Int;', 'Request : "ST_HmiRequest";', 'Ready : Bool;', 'SetName : String[80];', 'Slot : Int;', 'Ok : Bool;', 'Exporting : Bool;', 'Stamp : DTL;', 'ResultCode : Int;'], body)

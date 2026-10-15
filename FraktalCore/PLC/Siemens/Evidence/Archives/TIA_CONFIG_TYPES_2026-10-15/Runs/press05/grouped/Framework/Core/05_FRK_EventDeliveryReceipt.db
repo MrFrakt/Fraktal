@@ -1,0 +1,12 @@
+DATA_BLOCK "FRK_EventDeliveryReceipt"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    Count {ExternalWritable := 'False'} : Int := 1;
+    Roots {ExternalWritable := 'False'} : Array[1..1] of String[80];
+    Request : Array[1..1] of "FRK_DeliveryReceipt";
+    Response {ExternalWritable := 'False'} : Array[1..1] of "FRK_DeliveryResponse";
+END_VAR
+BEGIN
+END_DATA_BLOCK

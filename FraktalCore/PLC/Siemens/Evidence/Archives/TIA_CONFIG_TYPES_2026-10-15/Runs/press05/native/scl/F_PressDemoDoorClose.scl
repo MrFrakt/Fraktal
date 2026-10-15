@@ -1,0 +1,41 @@
+﻿FUNCTION "F_PressDemoDoorClose" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Closed : Bool;
+      TwoHandHeld : Bool;
+      RequireTwoHandStart : Bool;
+      SourcePath : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Held : Bool;
+      Diag : "ST_Diagnostic";
+   END_VAR
+
+
+BEGIN
+	
+	#Held := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.twoHandHeldDuringDoorClose', Ok := #TwoHandHeld OR NOT #RequireTwoHandStart);
+	"FRK_SeqSelect"(Seq := #Seq,
+	                AdvanceOk := #Closed,
+	                Jump1Ok := NOT #Held);
+	IF #Seq.RetVal = 2 THEN
+	    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	    #Diag.ReasonCode := 12001;
+	    #Diag.Description := WSTRING#'project.warning.twoHandReleasedDuringDoorClose';
+	    #Diag.SourcePath := STRING_TO_WSTRING(#SourcePath);
+	    #Diag.Severity := 0;
+	    #Diag.Category := 0;
+	    "FRK_SeqMessage"(Seq := #Seq,
+	                     AlarmLog := #AlarmLog,
+	                     Diag := #Diag);
+	END_IF;
+	
+END_FUNCTION
+

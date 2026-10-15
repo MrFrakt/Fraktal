@@ -1,0 +1,45 @@
+﻿FUNCTION "FRK_IntegerShift" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Bits : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Number : "FRK_ConfigInteger";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Words : Int;
+      Remainder : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_IntegerShift := FALSE;
+	IF #Bits < 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Number.Used = 0 THEN
+	    #FRK_IntegerShift := TRUE;
+	    RETURN;
+	END_IF;
+	#Words := #Bits / 16;
+	#Remainder := #Bits MOD 16;
+	IF #Number.Used + #Words > 102 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := #Number.Used - 1 TO 0 BY -1 DO
+	    #Number.Limbs[#Index + #Words] := #Number.Limbs[#Index];
+	END_FOR;
+	FOR #Index := 0 TO #Words - 1 DO
+	    #Number.Limbs[#Index] := 0;
+	END_FOR;
+	#Number.Used := #Number.Used + #Words;
+	#FRK_IntegerShift := "FRK_IntegerMul"(Number := #Number,
+	                                      Factor := SHL(IN := UDINT#1, N := INT_TO_USINT(#Remainder)), Addend := 0);
+	
+END_FUNCTION
+

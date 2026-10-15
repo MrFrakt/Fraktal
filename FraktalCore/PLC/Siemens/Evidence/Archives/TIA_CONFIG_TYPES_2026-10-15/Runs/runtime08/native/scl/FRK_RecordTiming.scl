@@ -1,0 +1,43 @@
+﻿FUNCTION "FRK_RecordTiming" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Slot : DInt;
+      DurationMs : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#DurationMs := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Core.StartMs);
+	// TIME's positive domain is bounded; clamp instead of publishing negatives.
+	IF #DurationMs > UDINT#2147483647 THEN
+	    #DurationMs := UDINT#2147483647;
+	END_IF;
+	#Core.Timing.LastCmdTime := DINT_TO_TIME(UDINT_TO_DINT(#DurationMs));
+	#Slot := 0;
+	FOR #Index := 1 TO 8 DO
+	    IF #Core.Timing.Rows[#Index].Count > 0 AND #Core.Timing.Rows[#Index].Id = #Core.Command THEN
+	        #Slot := #Index;
+	        EXIT;
+	    ELSIF #Slot = 0 AND #Core.Timing.Rows[#Index].Count = 0 THEN
+	        #Slot := #Index;
+	    END_IF;
+	END_FOR;
+	IF #Slot = 0 THEN
+	    #Core.Timing.Truncated := TRUE;
+	ELSE
+	    #Core.Timing.Rows[#Slot].Id := #Core.Command;
+	    #Core.Timing.Rows[#Slot].Label := #Core.CommandLabel;
+	    "FRK_TimingUpdate"(DurationMs := #DurationMs,
+	                       Row := #Core.Timing.Rows[#Slot]);
+	END_IF;
+	#Core.TimingOpen := FALSE;
+	
+END_FUNCTION
+

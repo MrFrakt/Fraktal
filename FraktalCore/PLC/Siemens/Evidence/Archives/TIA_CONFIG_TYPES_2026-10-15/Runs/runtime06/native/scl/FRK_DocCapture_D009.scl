@@ -1,0 +1,191 @@
+﻿FUNCTION "FRK_DocCapture_D009" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Length : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+      Targets : Array[1..30] of Int;
+      Prior : Int;
+      Reserved : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocCapture_D009 := FALSE;
+	"FRK_PersistImages".D009.SchemaVersion := 1;
+	"FRK_PersistImages".D009.Scope := 'StationB';
+	"FRK_PersistImages".D009.Kind := 1;
+	"FRK_PersistImages".D009.ModelCode := '';
+	"FRK_PersistImages".D009.ActiveModel := "FRK_ConfigStore".ActiveModels[2];
+	"FRK_PersistImages".D009.Count := 30;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'siteLabel', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[1] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'enabled', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[2] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'ratio', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[3] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'gain', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[4] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'grade', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[5] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'offset.-1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[6] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'offset.0', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[7] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'offset.1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[8] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[9] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'small', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[10] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'siteLabel', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[11] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'enabled', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[12] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'ratio', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[13] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'gain', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[14] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'grade', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[15] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'offset.-1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[16] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'offset.0', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[17] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'offset.1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[18] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[19] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'small', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[20] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'siteLabel', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[21] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'enabled', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[22] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'ratio', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[23] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'gain', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[24] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'grade', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[25] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'offset.-1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[26] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'offset.0', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[27] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'offset.1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[28] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[29] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'small', ModelCode := '');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D009.Rows[30] := "FRK_ConfigStore".Rows[#Stored];
+	FOR #Index := 0 TO 14173 DO
+	    "FRK_PersistBuffers".D009Data[#Index] := BYTE#0;
+	END_FOR;
+	#Position := 24;
+	#NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D009, DEST_ARRAY => "FRK_PersistBuffers".D009Data, POS := #Position);
+	IF #NativeResult <> 0 OR #Position < 24 OR #Position > 14174 THEN
+	    RETURN;
+	END_IF;
+	#Length := #Position - 24;
+	#FRK_DocCapture_D009 := TRUE;
+	
+END_FUNCTION
+

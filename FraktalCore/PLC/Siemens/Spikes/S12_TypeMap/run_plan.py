@@ -91,6 +91,7 @@ if __name__ == "__main__":
     with args.log.open("xb") as stream:
         stream.write((json.dumps({'event':'driver', 'path':str(args.driver),
                                   'sha256':hashlib.sha256(args.driver.read_bytes()).hexdigest()})+'\n').encode('ascii'))
+        stream.flush()
         guard_downloads(args.plan, args.set, stream, args.allow_empty_owner_instance)
         result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT)
     print("%s: exit %d" % (args.log, result.returncode), flush=True)

@@ -1,0 +1,25 @@
+# Offline program rebuild; station identity and certificates are preserved.
+open-project --path ${work}\FrkS11\FrkS11.ap20
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir ${gen}\base
+import-sources --plc PLC_1 --dir ${s11} --only 10_
+import-xml --plc PLC_1 --file ${gen}\charts\FB_SpkAutoGraph.xml --kind block
+import-sources --plc PLC_1 --dir ${s11} --only 15_,18_,20_,25_,30_
+import-sources --plc PLC_1 --dir ${s11}\Semantics --only 00_
+import-xml --plc PLC_1 --file ${gen}\charts\FB_S11Empty.xml --kind block
+import-xml --plc PLC_1 --file ${gen}\charts\FB_S11Ack.xml --kind block
+import-xml --plc PLC_1 --file ${gen}\charts\FB_S11Auto.xml --kind block
+import-xml --plc PLC_1 --file ${gen}\charts\FB_S11Skip.xml --kind block
+import-sources --plc PLC_1 --dir ${s11}\Semantics --only 10_,20_,30_
+set-block-number --plc PLC_1 --name S11SemanticsCycle --number 124
+import-sources --plc PLC_1 --dir ${s11}\Errors
+set-block-number --plc PLC_1 --name S11ErrorCycle --number 125
+import-sources --plc PLC_1 --dir ${gen}\recovery --only 00_,10_
+import-xml --plc PLC_1 --file ${gen}\charts\FB_S11RecoveryGraph.xml --kind block
+import-sources --plc PLC_1 --dir ${gen}\recovery --only 30_
+import-sources --plc PLC_1 --dir ${gen}\recovery --only 20_,25_
+import-sources --plc PLC_1 --dir ${gen}\late
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out ${export}

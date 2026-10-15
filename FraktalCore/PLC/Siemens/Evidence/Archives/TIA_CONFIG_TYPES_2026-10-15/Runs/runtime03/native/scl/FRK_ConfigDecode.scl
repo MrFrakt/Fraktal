@@ -1,0 +1,212 @@
+﻿FUNCTION "FRK_ConfigDecode" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Keyed local-retain config. The typed owner validates before publishing a value.
+   VAR_INPUT 
+      Text : WString;
+      Storage : DInt;
+      Minimum : LReal;
+      Maximum : LReal;
+      MaxLength : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Value : "FRK_ConfigValue";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Width : Int;
+      Negative : Bool;
+      Magnitude : ULInt;
+      Digit : ULInt;
+      Decimal : LReal;
+      Converted : Real;
+      Fraction : Int;
+      Exponent : Int;
+      Scale : Int;
+      ExponentNegative : Bool;
+      Digits : Int;
+      PointSeen : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigDecode := FALSE;
+	IF #Storage = 8 THEN
+	    IF LEN(#Text) > #MaxLength THEN
+	        RETURN;
+	    END_IF;
+	    #Value.Text := WSTRING_TO_STRING(#Text);
+	    IF STRING_TO_WSTRING(#Value.Text) <> #Text THEN
+	        RETURN;
+	    END_IF;
+	    #FRK_ConfigDecode := TRUE;
+	    RETURN;
+	END_IF;
+	IF #Storage = 1 THEN
+	    IF #Text = WSTRING#'true' OR #Text = WSTRING#'TRUE' OR #Text = WSTRING#'1' THEN
+	        #Value.Flag := TRUE;
+	    ELSIF #Text = WSTRING#'false' OR #Text = WSTRING#'FALSE' OR #Text = WSTRING#'0' THEN
+	        #Value.Flag := FALSE;
+	    ELSE
+	        RETURN;
+	    END_IF;
+	    #FRK_ConfigDecode := TRUE;
+	    RETURN;
+	END_IF;
+	IF #Storage = 5 OR #Storage = 6 THEN
+	    // Parse a bounded decimal grammar ourselves. Native string conversion
+	    // accepts prefixes and can overflow before a post-conversion check.
+	    #Width := LEN(#Text);
+	    IF #Width = 0 OR #Width > 80 THEN
+	        RETURN;
+	    END_IF;
+	    #Index := 1;
+	    #Negative := FALSE;
+	    IF #Text[#Index] = WCHAR#'-' THEN
+	        #Negative := TRUE;
+	        #Index := 2;
+	    ELSIF #Text[#Index] = WCHAR#'+' THEN
+	        #Index := 2;
+	    END_IF;
+	    #Decimal := 0.0;
+	    #Digits := 0;
+	    #Fraction := 0;
+	    #PointSeen := FALSE;
+	    WHILE #Index <= #Width DO
+	        IF #Text[#Index] = WCHAR#'e' OR #Text[#Index] = WCHAR#'E' THEN
+	            EXIT;
+	        END_IF;
+	        IF #Text[#Index] = WCHAR#'.' THEN
+	            IF #PointSeen THEN
+	                RETURN;
+	            END_IF;
+	            #PointSeen := TRUE;
+	        ELSE
+	            IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN
+	                RETURN;
+	            END_IF;
+	            #Decimal := #Decimal * 10.0 + UINT_TO_LREAL(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+	            #Digits := #Digits + 1;
+	            IF #PointSeen THEN
+	                #Fraction := #Fraction + 1;
+	            END_IF;
+	        END_IF;
+	        #Index := #Index + 1;
+	    END_WHILE;
+	    IF #Digits = 0 THEN
+	        RETURN;
+	    END_IF;
+	    #Exponent := 0;
+	    #ExponentNegative := FALSE;
+	    IF #Index <= #Width THEN
+	        #Index := #Index + 1;
+	        IF #Index > #Width THEN
+	            RETURN;
+	        END_IF;
+	        IF #Text[#Index] = WCHAR#'-' THEN
+	            #ExponentNegative := TRUE;
+	            #Index := #Index + 1;
+	        ELSIF #Text[#Index] = WCHAR#'+' THEN
+	            #Index := #Index + 1;
+	        END_IF;
+	        IF #Index > #Width THEN
+	            RETURN;
+	        END_IF;
+	        WHILE #Index <= #Width DO
+	            IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN
+	                RETURN;
+	            END_IF;
+	            #Exponent := #Exponent * 10 + UINT_TO_INT(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+	            IF #Exponent > 400 THEN
+	                RETURN;
+	            END_IF;
+	            #Index := #Index + 1;
+	        END_WHILE;
+	    END_IF;
+	    IF #ExponentNegative THEN
+	        #Exponent := - #Exponent;
+	    END_IF;
+	    #Scale := #Exponent - #Fraction;
+	    WHILE #Scale > 0 DO
+	        IF #Decimal > LREAL#1.7976931348623157E+307 THEN
+	            RETURN;
+	        END_IF;
+	        #Decimal := #Decimal * 10.0;
+	        #Scale := #Scale - 1;
+	    END_WHILE;
+	    WHILE #Scale < 0 DO
+	        IF #Decimal <> 0.0 AND #Decimal / 10.0 = 0.0 THEN
+	            RETURN;
+	        END_IF;
+	        #Decimal := #Decimal / 10.0;
+	        #Scale := #Scale + 1;
+	    END_WHILE;
+	    IF #Negative THEN
+	        #Decimal := - #Decimal;
+	    END_IF;
+	    IF #Decimal <> #Decimal OR #Decimal < #Minimum OR #Decimal > #Maximum THEN
+	        RETURN;
+	    END_IF;
+	    IF #Storage = 5 THEN
+	        IF ABS(#Decimal) > LREAL#3.4028234663852886E+38 THEN
+	            RETURN;
+	        END_IF;
+	        #Converted := LREAL_TO_REAL(#Decimal);
+	        IF #Converted = 0.0 AND #Decimal <> 0.0 THEN
+	            RETURN;
+	        END_IF;
+	        #Decimal := REAL_TO_LREAL(#Converted);
+	        // The rounded native value must also satisfy the declared limits.
+	        IF #Decimal < #Minimum OR #Decimal > #Maximum THEN
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	    #Value.Decimal := #Decimal;
+	    #FRK_ConfigDecode := TRUE;
+	    RETURN;
+	END_IF;
+	IF #Storage <> 2 AND #Storage <> 3
+	    AND #Storage <> 4 AND #Storage <> 7 THEN
+	    RETURN;
+	END_IF;
+	#Width := LEN(#Text);
+	IF #Width = 0 THEN
+	    RETURN;
+	END_IF;
+	#Negative := FALSE;
+	#Index := 1;
+	IF #Text[1] = WCHAR#'-' THEN
+	    #Negative := TRUE;
+	    #Index := 2;
+	ELSIF #Text[1] = WCHAR#'+' THEN
+	    #Index := 2;
+	END_IF;
+	IF #Index > #Width THEN
+	    RETURN;
+	END_IF;
+	#Magnitude := 0;
+	WHILE #Index <= #Width DO
+	    IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN
+	        RETURN;
+	    END_IF;
+	    #Digit := UINT_TO_ULINT(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+	    IF #Magnitude > (ULINT#4294967295 - #Digit) / ULINT#10 THEN
+	        RETURN;
+	    END_IF;
+	    #Magnitude := #Magnitude * ULINT#10 + #Digit;
+	    #Index := #Index + 1;
+	END_WHILE;
+	#Value.Number := ULINT_TO_LINT(#Magnitude);
+	IF #Negative THEN
+	    #Value.Number := - #Value.Number;
+	END_IF;
+	IF LINT_TO_LREAL(#Value.Number) < #Minimum OR LINT_TO_LREAL(#Value.Number) > #Maximum THEN
+	    RETURN;
+	END_IF;
+	#FRK_ConfigDecode := TRUE;
+	
+END_FUNCTION
+

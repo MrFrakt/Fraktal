@@ -1,0 +1,76 @@
+﻿FUNCTION "FRK_DiagRead" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Target : DInt;
+      Faults : Bool;
+      DescendantsOnly : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Summary : "FRK_DiagSummary";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Index : Int;
+      HasReason : Bool;
+      Below : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Summary := "FRK_Diagnostics".Empty;
+	#Slot := "FRK_DiagSlot"(Index := #Target);
+	IF #Slot = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Owner <> 0 THEN
+	    IF #Owner = #Target THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_DiagBelow"(Index := #Target, Owner := #Owner) THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	IF NOT "FRK_Diagnostics".Samples[#Slot].Valid THEN
+	    RETURN;
+	END_IF;
+	#Summary.Valid := TRUE;
+	#Summary.State := "FRK_Diagnostics".Samples[#Slot].State;
+	#Summary.Timeout := "FRK_Diagnostics".Samples[#Slot].Timeout;
+	#HasReason := FALSE;
+	// Target first, then declaration/registration order below it. A real fault
+	// outranks an informational wait; an awaited hold outranks an unnamed wait.
+	FOR #Index := 0 TO 4 DO
+	    IF #Index = 0 THEN
+	        #Slot := "FRK_DiagSlot"(Index := #Target);
+	    ELSE
+	        #Slot := #Index;
+	    END_IF;
+	    IF "FRK_Diagnostics".Samples[#Slot].Valid THEN
+	        #Below := "FRK_DiagBelow"(Index := "FRK_Diagnostics".Samples[#Slot].Index, Owner := #Target);
+	        IF #Below AND (NOT #DescendantsOnly OR "FRK_Diagnostics".Samples[#Slot].Index <> #Target) THEN
+	            IF #Faults AND "FRK_Diagnostics".Samples[#Slot].State = 3 THEN
+	                #Summary.Fault := TRUE;
+	                #Summary.Diagnostic := "FRK_Diagnostics".Samples[#Slot].Diagnostic;
+	                RETURN;
+	            END_IF;
+	            IF "FRK_Diagnostics".Samples[#Slot].State = 1 THEN
+	                IF "FRK_Diagnostics".Samples[#Slot].Held AND NOT #Summary.Held THEN
+	                    #Summary.Held := TRUE;
+	                    #Summary.Diagnostic := "FRK_Diagnostics".Samples[#Slot].Diagnostic;
+	                    #HasReason := TRUE;
+	                ELSIF NOT #HasReason AND "FRK_Diagnostics".Samples[#Slot].Diagnostic.ReasonCode <> 0 THEN
+	                    #Summary.Diagnostic := "FRK_Diagnostics".Samples[#Slot].Diagnostic;
+	                    #HasReason := TRUE;
+	                END_IF;
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

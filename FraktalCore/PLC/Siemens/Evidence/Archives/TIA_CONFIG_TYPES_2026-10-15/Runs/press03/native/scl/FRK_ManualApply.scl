@@ -1,0 +1,73 @@
+﻿FUNCTION "FRK_ManualApply" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+      Status : "ST_ModuleStatus";
+      Core : "FRK_Core";
+      Commands : Array[1..12] of "ST_CommandInfo";
+      Count : DInt;
+      Conditions : Array[1..16] of "FRK_ManualConditionRow";
+   END_VAR
+
+   VAR_IN_OUT 
+      Report : "ST_ReleaseReport";
+      Execute : Bool;
+      Command : DInt;
+      ManualOwned : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Supported : Bool;
+      PreviousCount : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Supported := FALSE;
+	IF #Count >= 0 AND #Count <= 12 THEN
+	    FOR #Index := 1 TO DINT_TO_INT(#Count) DO
+	        IF #Commands[#Index].Value = #Request.IntValue AND #Commands[#Index].Style = 0 THEN
+	            #Supported := TRUE;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF NOT #Supported THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.error.unsupportedHmiRequest',
+	                        Reason := 2008,
+	                        Path := STRING_TO_WSTRING(#Status.Name),
+	                        Kind := 4);
+	END_IF;
+	IF #Core.Exec <> 0 OR #Execute OR #Core.ReleasePending THEN
+	    "FRK_ReleaseReason"(Report := #Report,
+	                        Description := WSTRING#'std.error.hmiRequestRejected',
+	                        Reason := 2011,
+	                        Path := STRING_TO_WSTRING(#Status.Name),
+	                        Kind := 4);
+	END_IF;
+	FOR #Index := 1 TO 16 DO
+	    IF #Conditions[#Index].Used AND NOT #Conditions[#Index].Ok THEN
+	        IF #Conditions[#Index].Value = 0 OR #Conditions[#Index].Value = #Request.IntValue THEN
+	            #PreviousCount := #Report.Count;
+	            "FRK_ReleaseReason"(Report := #Report,
+	                                Description := #Conditions[#Index].Diag.Description,
+	                                Reason := #Conditions[#Index].Diag.ReasonCode,
+	                                Path := STRING_TO_WSTRING(#Status.Name),
+	                                Kind := 3);
+	            IF #Report.Count > #PreviousCount THEN
+	                #Report.Reasons[#Report.Count].Bypassable := #Conditions[#Index].Bypassable;
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	IF #Request.Kind = 11 AND #Report.Released THEN
+	    #Command := #Request.IntValue;
+	    #Execute := TRUE;
+	    #ManualOwned := TRUE;
+	END_IF;
+	
+END_FUNCTION
+

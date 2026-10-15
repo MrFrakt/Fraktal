@@ -1,0 +1,44 @@
+﻿FUNCTION "FRK_DeliveryCapture" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Ev : "ST_AlarmEvent";
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Position : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := #AlarmLog.DeliverySlot;
+	IF #Slot < 1 OR #Slot > 1 OR #AlarmLog.DeliveryMuted THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_EventDeliveryRuntime".Valid[#Slot] THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_EventDeliveryStore".Images[#Slot].Count >= 32 OR "FRK_EventDeliveryStore".Images[#Slot].NextSequence = UDINT#4294967295 THEN
+	    "FRK_EventDeliveryStore".Images[#Slot].Overflow := TRUE;
+	    IF "FRK_EventDeliveryStore".Images[#Slot].Dropped < UDINT#4294967295 THEN
+	        "FRK_EventDeliveryStore".Images[#Slot].Dropped := "FRK_EventDeliveryStore".Images[#Slot].Dropped + 1;
+	    END_IF;
+	    "FRK_DeliverySave"(Slot := #Slot);
+	    RETURN;
+	END_IF;
+	#Position := (("FRK_EventDeliveryStore".Images[#Slot].Head - 1 + "FRK_EventDeliveryStore".Images[#Slot].Count) MOD 32) + 1;
+	"FRK_EventDeliveryStore".Images[#Slot].NextSequence := "FRK_EventDeliveryStore".Images[#Slot].NextSequence + 1;
+	"FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Sequence := "FRK_EventDeliveryStore".Images[#Slot].NextSequence;
+	"FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Ev := #Ev;
+	"FRK_EventDeliveryStore".Images[#Slot].Entries[#Position].Checksum := "FRK_DeliveryRowCrc"(Sequence := "FRK_EventDeliveryStore".Images[#Slot].NextSequence, Ev := #Ev);
+	"FRK_EventDeliveryStore".Images[#Slot].Count := "FRK_EventDeliveryStore".Images[#Slot].Count + 1;
+	"FRK_DeliverySave"(Slot := #Slot);
+	
+END_FUNCTION
+

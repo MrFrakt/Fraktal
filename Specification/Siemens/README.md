@@ -72,3 +72,10 @@ separate Sequence_Recovery_Press_Offline_20261015. Selected native recovery,
 shared diagnostics/view/profile regressions and offline press readback define
 the gate. Provider/line config, baseline/reset/OEE, module/HAL expansion and
 deployment/physical acceptance remain open. Earlier evidence is preserved.
+
+Latest configuration continuation: [typed values and current exports](Evidence/TIA_CONFIG_TYPES_2026-10-15.md),
+generator0.21. Current images are Config_Types_Runtime_20261015 and the separate
+Config_Types_Press_Offline_20261015. Shared configuration covers floating-point,
+small integers, Core enums and explicit array elements, plus token-bound current
+station/model documents. Broader providers, runtime model creation/collections,
+the complete Line profile, baseline/OEE, module/HAL and deployment remain open.

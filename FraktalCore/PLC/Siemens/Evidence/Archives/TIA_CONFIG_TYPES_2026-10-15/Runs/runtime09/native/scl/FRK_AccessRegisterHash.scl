@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_AccessRegisterHash" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Record : "ST_UserRecord";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	// Trusted composition/provider seam, never a remote credential editor.
+	#FRK_AccessRegisterHash := FALSE;
+	IF NOT "FRK_AccessStorage".UsersReady OR #Record.User = '' OR #Record.Level < 0 OR #Record.Level > 4 THEN
+	    RETURN;
+	END_IF;
+	#Slot := 0;
+	FOR #Index := 1 TO DINT_TO_INT("FRK_LocalUsers".Count) DO
+	    IF "FRK_LocalUsers".Rows[#Index].User = #Record.User THEN
+	        #Slot := #Index;
+	        EXIT;
+	    END_IF;
+	END_FOR;
+	IF #Slot = 0 THEN
+	    IF "FRK_LocalUsers".Count = 16 THEN
+	        RETURN;
+	    END_IF;
+	    "FRK_LocalUsers".Count := "FRK_LocalUsers".Count + 1;
+	    #Slot := DINT_TO_INT("FRK_LocalUsers".Count);
+	END_IF;
+	"FRK_LocalUsers".Rows[#Slot] := #Record;
+	#FRK_AccessRegisterHash := "FRK_AccessUsersCommit"();
+	
+END_FUNCTION
+

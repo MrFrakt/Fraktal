@@ -1,0 +1,38 @@
+ORGANIZATION_BLOCK "S11SclCycle"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Initial_Call : Bool;
+      Remanence : Bool;
+   END_VAR
+BEGIN
+    IF #Initial_Call THEN
+        "S11Scl".InitialCallSeen := TRUE;
+    END_IF;
+    CASE "S11Scl".State OF
+        0:
+            IF "SpkResults".T.Done THEN
+                "SpkResults".T.Done := FALSE;
+                "FC_S11SclLocalError"(Idx := "S11Scl".Idx);
+                "FRK_TestRecord"(CaseId := 29, Pass := "S11Scl".StartupSeen AND "S11Scl".StartupSafe AND "S11Scl".InitialCallSeen,
+                                 Expected := 1, Actual := BOOL_TO_DINT("S11Scl".StartupSafe));
+                "FRK_TestRecord"(CaseId := 30, Pass := "S11Scl".LocalCode <> 0 AND "S11Scl".AfterError,
+                                 Expected := 1, Actual := WORD_TO_DINT("S11Scl".LocalCode));
+                "SpkResults".T.Done := TRUE;
+                "S11Scl".State := 99;
+            END_IF;
+        99:
+            // Code-only delta probe: existing storage, no DB layout change.
+            // The salt/counter expose reinitialization independently of the
+            // OB100 timestamp; ValueRead identifies the executing code revision.
+            IF "S11Scl".Samples[0] = 0 THEN
+                "S11Scl".Samples[0] := 21265;
+            END_IF;
+            IF "S11Scl".Samples[1] < 2147483647 THEN
+                "S11Scl".Samples[1] := "S11Scl".Samples[1] + 1;
+            END_IF;
+            "S11Scl".ValueRead := 1102;
+        ELSE
+            "S11Scl".State := 99;
+    END_CASE;
+END_ORGANIZATION_BLOCK

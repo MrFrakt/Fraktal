@@ -1,0 +1,372 @@
+﻿FUNCTION "FRK_CfgWrite_InnerUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+      Access : "FRK_Access";
+      RootIndex : Int;
+      RootReady : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_InnerUnit";
+      Matched : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+      Level : DInt;
+      Code : String[64];
+      Inactive : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgWrite_InnerUnit := FALSE;
+	IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) OR (#Request.TargetPath = WSTRING#'' AND #Module.Core.ParentIndex = 0) THEN
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 1);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #Request.DurationMs);
+	        #Inactive := #Code <> "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.ParCfg.Timeout := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 2);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #Request.DurationMs);
+	        #Inactive := #Code <> "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.ParCfg.Preset := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 3);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.SiteLabel := "FRK_ConfigScratch".Value.Text;
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 4);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Enabled := "FRK_ConfigScratch".Value.Flag;
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 5);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Ratio := "FRK_ConfigScratch".Value.Decimal;
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 6);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Gain := LREAL_TO_REAL("FRK_ConfigScratch".Value.Decimal);
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 7);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Grade := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 8);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Offsets[-1] := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 9);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Offsets[0] := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 10);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Offsets[1] := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 11);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.LongText := "FRK_ConfigScratch".Value.Text;
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 12);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.CurrentLevel < #Level THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT #Inactive THEN
+	            #Module.StationCfg.Small := LINT_TO_USINT("FRK_ConfigScratch".Value.Number);
+	        END_IF;
+	        #FRK_CfgWrite_InnerUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	END_IF;
+	#Ok := "FRK_CfgWrite_DeclarationCell"(Module := #Module.Cell, Access := #Access, Request := #Request, RootIndex := #RootIndex, RootReady := #RootReady, Matched := #Matched);
+	IF #Matched THEN
+	    #FRK_CfgWrite_InnerUnit := #Ok;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

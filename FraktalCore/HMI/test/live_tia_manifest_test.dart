@@ -46,6 +46,8 @@ void main() {
     final configLive = Platform.environment['FRAKTAL_TIA_CONFIG_LIVE'] == '1';
     final setsLive =
         Platform.environment['FRAKTAL_TIA_CONFIG_SETS_LIVE'] == '1';
+    final configTypesLive =
+        Platform.environment['FRAKTAL_TIA_CONFIG_TYPES_LIVE'] == '1';
     PlcRepository? repository;
     IoGatewayOpcUaClient? observer;
     StreamSubscription<List<ModuleNode>>? subscription;
@@ -317,6 +319,50 @@ void main() {
         app!.select(target);
         await tester.pump(const Duration(milliseconds: 500));
       }
+      if (configTypesLive) {
+        await tester.runAsync(() async {
+          expect(
+              await repository!.login('StationA', 'admin',
+                  Platform.environment['FRAKTAL_TIA_ADMIN_PIN']!),
+              isTrue);
+          await until(() =>
+              node('StationA').access?.level == AccessLevel.admin &&
+              node('StationA').exportCurrentConfigEnabled &&
+              node('StationA').config.any((f) => f.writeKey == 'ratio'));
+          final ratio =
+              node('StationA').config.singleWhere((f) => f.writeKey == 'ratio');
+          final grade =
+              node('StationA').config.singleWhere((f) => f.writeKey == 'grade');
+          expect(grade.isChoice, isTrue);
+          expect(grade.enumDomain, contains('2'));
+          expect(grade.enumDomain, contains(grade.value));
+          expect(await repository!.writeConfig('StationA', ratio, '3.125'),
+              isTrue);
+          final current = await repository!
+              .exportCurrentConfig('StationA', CfgKind.stationCfg);
+          expect(current, isNotNull);
+          final rows = current!
+              .split('\n')
+              .map((line) => jsonDecode(line) as Map<String, dynamic>)
+              .toList();
+          expect(rows.first['records'], rows.length - 1);
+          expect(
+              double.parse(rows.singleWhere((row) =>
+                  row['scope'] == 'StationA' &&
+                  row['key'] == 'ratio')['value'] as String),
+              3.125);
+          expect(
+              rows.where((row) =>
+                  row['scope'] == 'StationA' &&
+                  (row['key'] as String).startsWith('offset.')),
+              hasLength(3));
+          expect(await repository!.listConfigSets('StationA'), isEmpty);
+          await File('${evidence.path}/hmi-current-config.jsonl')
+              .writeAsString(current);
+          expect(
+              await repository!.writeConfig('StationA', ratio, '1.25'), isTrue);
+        });
+      }
       if (setsLive) {
         await tester.runAsync(() async {
           expect(
@@ -409,6 +455,7 @@ void main() {
           'stateAlarmProjection': stateAlarm,
           'configProjection': configLive,
           'configSets': setsLive,
+          'configTypes': configTypesLive,
         }));
         if (authenticated) {
           await repository!.logout('StationA');

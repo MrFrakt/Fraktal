@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_DeliveryToken" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+      Sequence : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Work : String[160];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DeliveryToken := '';
+	IF #Slot < 1 OR #Slot > 1 THEN
+	    RETURN;
+	END_IF;
+	#Work := CONCAT(IN1 := "FRK_EventDeliveryStore".Anchors[#Slot].StreamId, IN2 := '/');
+	#Work := CONCAT(IN1 := #Work, IN2 := "FRK_EventDeliveryStore".Anchors[#Slot].Scope);
+	#Work := CONCAT(IN1 := #Work, IN2 := '/');
+	#Work := CONCAT(IN1 := #Work, IN2 := "FRK_DeliveryNumber"(Value := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch));
+	#Work := CONCAT(IN1 := #Work, IN2 := '/');
+	#FRK_DeliveryToken := CONCAT(IN1 := #Work, IN2 := "FRK_DeliveryNumber"(Value := #Sequence));
+	
+END_FUNCTION
+

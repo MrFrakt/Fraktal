@@ -1,0 +1,477 @@
+// Keyed local-retain config. The typed owner validates before publishing a value.
+FUNCTION "FRK_ConfigDecode" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Text : WString;
+    Storage : DInt;
+    Minimum : LReal;
+    Maximum : LReal;
+    MaxLength : Int;
+END_VAR
+VAR_IN_OUT
+    Value : "FRK_ConfigValue";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Width : Int;
+    Negative : Bool;
+    Magnitude : ULInt;
+    Digit : ULInt;
+    Decimal : LReal;
+    Converted : Real;
+    Fraction : Int;
+    Exponent : Int;
+    Scale : Int;
+    ExponentNegative : Bool;
+    Digits : Int;
+    PointSeen : Bool;
+    Position : UInt;
+    Notation : Word;
+    ConvertedOk : Bool;
+    NativeDecimal : LReal;
+END_VAR
+BEGIN
+    #FRK_ConfigDecode := FALSE;
+    IF #Storage = 8 THEN
+        IF LEN(#Text) > #MaxLength THEN RETURN; END_IF;
+        #Value.Text := WSTRING_TO_STRING(#Text);
+        IF STRING_TO_WSTRING(#Value.Text) <> #Text THEN RETURN; END_IF;
+        #FRK_ConfigDecode := TRUE;
+        RETURN;
+    END_IF;
+    IF #Storage = 1 THEN
+        IF #Text = WSTRING#'true' OR #Text = WSTRING#'TRUE' OR #Text = WSTRING#'1' THEN
+            #Value.Flag := TRUE;
+        ELSIF #Text = WSTRING#'false' OR #Text = WSTRING#'FALSE' OR #Text = WSTRING#'0' THEN
+            #Value.Flag := FALSE;
+        ELSE RETURN;
+        END_IF;
+        #FRK_ConfigDecode := TRUE;
+        RETURN;
+    END_IF;
+    IF #Storage = 5 OR #Storage = 6 THEN
+        // Parse a bounded decimal grammar ourselves. Native string conversion
+        // accepts prefixes and can overflow before a post-conversion check.
+        #Width := LEN(#Text);
+        IF #Width = 0 OR #Width > 80 THEN RETURN; END_IF;
+        #Index := 1; #Negative := FALSE;
+        IF #Text[#Index] = WCHAR#'-' THEN #Negative := TRUE; #Index := 2;
+        ELSIF #Text[#Index] = WCHAR#'+' THEN #Index := 2; END_IF;
+        #Decimal := 0.0; #Digits := 0; #Fraction := 0; #PointSeen := FALSE;
+        WHILE #Index <= #Width DO
+            IF #Text[#Index] = WCHAR#'e' OR #Text[#Index] = WCHAR#'E' THEN EXIT; END_IF;
+            IF #Text[#Index] = WCHAR#'.' THEN
+                IF #PointSeen THEN RETURN; END_IF;
+                #PointSeen := TRUE;
+            ELSE
+                IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN RETURN; END_IF;
+                #Decimal := #Decimal * 10.0 + UINT_TO_LREAL(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+                #Digits := #Digits + 1;
+                IF #PointSeen THEN #Fraction := #Fraction + 1; END_IF;
+            END_IF;
+            #Index := #Index + 1;
+        END_WHILE;
+        IF #Digits = 0 THEN RETURN; END_IF;
+        #Exponent := 0; #ExponentNegative := FALSE; #Notation := WORD#16#0000;
+        IF #Index <= #Width THEN
+            #Notation := WORD#16#0002;
+            #Index := #Index + 1;
+            IF #Index > #Width THEN RETURN; END_IF;
+            IF #Text[#Index] = WCHAR#'-' THEN #ExponentNegative := TRUE; #Index := #Index + 1;
+            ELSIF #Text[#Index] = WCHAR#'+' THEN #Index := #Index + 1; END_IF;
+            IF #Index > #Width THEN RETURN; END_IF;
+            WHILE #Index <= #Width DO
+                IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN RETURN; END_IF;
+                #Exponent := #Exponent * 10 + UINT_TO_INT(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+                IF #Exponent > 400 THEN RETURN; END_IF;
+                #Index := #Index + 1;
+            END_WHILE;
+        END_IF;
+        IF #ExponentNegative THEN #Exponent := -#Exponent; END_IF;
+        #Scale := #Exponent - #Fraction;
+        WHILE #Scale > 0 DO
+            IF #Decimal > LREAL#1.7976931348623157E+307 THEN RETURN; END_IF;
+            #Decimal := #Decimal * 10.0; #Scale := #Scale - 1;
+        END_WHILE;
+        WHILE #Scale < 0 DO
+            IF #Decimal <> 0.0 AND #Decimal / 10.0 = 0.0 THEN RETURN; END_IF;
+            #Decimal := #Decimal / 10.0; #Scale := #Scale + 1;
+        END_WHILE;
+        IF #Negative THEN #Decimal := -#Decimal; END_IF;
+        // Grammar/overflow are checked before the platform conversion. It owns
+        // the final IEEE rounding; repeated decimal arithmetic is not a codec.
+        #Position := 1;
+        STRG_VAL(IN := #Text, FORMAT := #Notation, P := #Position, OUT => #NativeDecimal, ENO => #ConvertedOk);
+        IF NOT #ConvertedOk OR (#Decimal <> 0.0 AND #NativeDecimal = 0.0) THEN RETURN; END_IF;
+        #Decimal := #NativeDecimal;
+        IF #Decimal <> #Decimal OR #Decimal < #Minimum OR #Decimal > #Maximum THEN RETURN; END_IF;
+        IF #Storage = 5 THEN
+            IF ABS(#Decimal) > LREAL#3.4028234663852886E+38 THEN RETURN; END_IF;
+            #Converted := LREAL_TO_REAL(#Decimal);
+            IF #Converted = 0.0 AND #Decimal <> 0.0 THEN RETURN; END_IF;
+            #Decimal := REAL_TO_LREAL(#Converted);
+            // The rounded native value must also satisfy the declared limits.
+            IF #Decimal < #Minimum OR #Decimal > #Maximum THEN RETURN; END_IF;
+        END_IF;
+        #Value.Decimal := #Decimal;
+        #FRK_ConfigDecode := TRUE;
+        RETURN;
+    END_IF;
+    IF #Storage <> 2 AND #Storage <> 3
+        AND #Storage <> 4 AND #Storage <> 7 THEN RETURN; END_IF;
+    #Width := LEN(#Text);
+    IF #Width = 0 THEN RETURN; END_IF;
+    #Negative := FALSE;
+    #Index := 1;
+    IF #Text[1] = WCHAR#'-' THEN #Negative := TRUE; #Index := 2;
+    ELSIF #Text[1] = WCHAR#'+' THEN #Index := 2;
+    END_IF;
+    IF #Index > #Width THEN RETURN; END_IF;
+    #Magnitude := 0;
+    WHILE #Index <= #Width DO
+        IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN RETURN; END_IF;
+        #Digit := UINT_TO_ULINT(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+        IF #Magnitude > (ULINT#4294967295 - #Digit) / ULINT#10 THEN RETURN; END_IF;
+        #Magnitude := #Magnitude * ULINT#10 + #Digit;
+        #Index := #Index + 1;
+    END_WHILE;
+    #Value.Number := ULINT_TO_LINT(#Magnitude);
+    IF #Negative THEN #Value.Number := -#Value.Number; END_IF;
+    IF LINT_TO_LREAL(#Value.Number) < #Minimum OR LINT_TO_LREAL(#Value.Number) > #Maximum THEN RETURN; END_IF;
+    #FRK_ConfigDecode := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigEnumText" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Number : DInt;
+END_VAR
+BEGIN
+    #FRK_ConfigEnumText := DINT_TO_WSTRING(#Number);
+    IF #FRK_ConfigEnumText[1] = WCHAR#'+' THEN
+        #FRK_ConfigEnumText := MID(IN := #FRK_ConfigEnumText, L := LEN(#FRK_ConfigEnumText) - 1, P := 2);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigDecimalText" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Number : LReal;
+END_VAR
+VAR_TEMP
+    Position : UInt;
+    Converted : WString[80];
+    Valid : Bool;
+    Decoded : "FRK_ConfigValue";
+END_VAR
+BEGIN
+    #FRK_ConfigDecimalText := WSTRING#'';
+    #Converted := WSTRING#''; #Position := 1;
+    // Scientific notation with seventeen significant digits. Refuse a value
+    // if the platform cannot represent it as an exactly reversible document.
+    VAL_STRG(IN := #Number, SIZE := USINT#0, PREC := USINT#16, FORMAT := WORD#16#0002,
+        P := #Position, OUT => #Converted, ENO => #Valid);
+    IF NOT #Valid THEN RETURN; END_IF;
+    #Valid := "FRK_ConfigDecode"(Text := #Converted, Storage := 6,
+        Minimum := LREAL#-1.7976931348623157E+308, Maximum := LREAL#1.7976931348623157E+308,
+        MaxLength := 0, Value := #Decoded);
+    IF #Valid AND #Decoded.Decimal = #Number THEN #FRK_ConfigDecimalText := #Converted; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Text : WString;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ConfigValidate := "FRK_ConfigDecode"(Text := #Text,
+        Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum,
+        Maximum := "FRK_ConfigScratch".Maximum, MaxLength := "FRK_ConfigScratch".MaxLength,
+        Value := "FRK_ConfigScratch".Value);
+    IF NOT #FRK_ConfigValidate OR "FRK_ConfigScratch".EnumCount = 0 THEN RETURN; END_IF;
+    #FRK_ConfigValidate := FALSE;
+    FOR #Index := 1 TO "FRK_ConfigScratch".EnumCount DO
+        IF "FRK_ConfigScratch".Value.Number = DINT_TO_LINT("FRK_ConfigScratch".EnumValues[#Index]) THEN
+            #FRK_ConfigValidate := TRUE; RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigFind" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Key : String;
+    ModelCode : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ConfigFind := 0;
+    FOR #Index := 1 TO 156 DO
+        IF "FRK_ConfigStore".Rows[#Index].Used
+            AND "FRK_ConfigStore".Rows[#Index].Record.Scope = #Scope
+            AND "FRK_ConfigStore".Rows[#Index].Record.WriteKey = #Key
+            AND "FRK_ConfigStore".Rows[#Index].ModelCode = #ModelCode THEN
+            #FRK_ConfigFind := #Index;
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigPutRaw" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    ModelCode : String;
+    Text : WString;
+    RootIndex : Int;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ConfigPutRaw := FALSE;
+    IF #RootIndex < 1 OR #RootIndex > 2 THEN RETURN; END_IF;
+    IF "FRK_ConfigRuntime".Unavailable THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
+    IF LEN(#Scope) > 80 OR LEN(#Text) > 80 THEN RETURN; END_IF;
+    IF NOT "FRK_ConfigValidate"(Text := #Text) THEN RETURN; END_IF;
+    #Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
+    IF #Index = 0 THEN
+        FOR #Index := 1 TO 156 DO
+            IF NOT "FRK_ConfigStore".Rows[#Index].Used THEN EXIT; END_IF;
+        END_FOR;
+    END_IF;
+    IF #Index < 1 OR #Index > 156 THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
+    "FRK_ConfigStore".Rows[#Index].SchemaVersion := "FRK_ConfigScratch".Schema;
+    "FRK_ConfigStore".Rows[#Index].ModelCode := #ModelCode;
+    "FRK_ConfigStore".Rows[#Index].Record.Scope := #Scope;
+    "FRK_ConfigStore".Rows[#Index].Record.WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
+    "FRK_ConfigStore".Rows[#Index].Record.Revision := "FRK_ConfigScratch".Entry.WriteRevision;
+    "FRK_ConfigStore".Rows[#Index].Record.Kind := "FRK_ConfigScratch".Entry.ConfigKind;
+    "FRK_ConfigStore".Rows[#Index].Record.ValueType := "FRK_ConfigScratch".Entry.ValueType;
+    "FRK_ConfigStore".Rows[#Index].Record.ValueText := WSTRING_TO_STRING(#Text);
+    "FRK_ConfigStore".Rows[#Index].Used := TRUE;
+    "FRK_ConfigRuntime".Failed[#RootIndex] := FALSE;
+    #FRK_ConfigPutRaw := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigPut" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    ModelCode : String;
+    Text : WString;
+    RootIndex : Int;
+END_VAR
+VAR_TEMP
+    Stored : Int;
+    Changed : Bool;
+    Slot : Int;
+END_VAR
+BEGIN
+    #Stored := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
+    #Changed := #Stored = 0;
+    IF #Stored > 0 THEN #Changed := "FRK_ConfigStore".Rows[#Stored].SchemaVersion <> "FRK_ConfigScratch".Schema OR "FRK_ConfigStore".Rows[#Stored].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision OR "FRK_ConfigStore".Rows[#Stored].Record.ValueText <> WSTRING_TO_STRING(#Text); END_IF;
+    #FRK_ConfigPut := "FRK_ConfigPutRaw"(Scope := #Scope, ModelCode := #ModelCode, Text := #Text, RootIndex := #RootIndex);
+    IF #FRK_ConfigPut AND #Changed THEN
+        #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := "FRK_ConfigScratch".Entry.ConfigKind);
+        IF #Slot > 0 THEN "FRK_PersistDirty"(Slot := #Slot); END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigGet" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    ModelCode : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ConfigGet := FALSE;
+    #Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
+    IF #Index = 0 THEN RETURN; END_IF;
+    IF "FRK_ConfigStore".Rows[#Index].SchemaVersion <> "FRK_ConfigScratch".Schema
+        OR "FRK_ConfigStore".Rows[#Index].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision
+        OR "FRK_ConfigStore".Rows[#Index].Record.Kind <> "FRK_ConfigScratch".Entry.ConfigKind
+        OR "FRK_ConfigStore".Rows[#Index].Record.ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
+    #FRK_ConfigGet := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText));
+    "FRK_ConfigScratch".Entry.ValueText := STRING_TO_WSTRING("FRK_ConfigStore".Rows[#Index].Record.ValueText);
+    IF #FRK_ConfigGet AND "FRK_ConfigScratch".EnumCount > 0 THEN
+        "FRK_ConfigScratch".Entry.ValueText := "FRK_ConfigEnumText"(Number := LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigLoss" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Scope : String;
+END_VAR
+BEGIN
+    IF #RootIndex < 1 OR #RootIndex > 2 THEN RETURN; END_IF;
+    "FRK_ConfigStore".Lost[#RootIndex] := TRUE;
+    "FRK_ConfigStore".Acknowledged[#RootIndex] := FALSE;
+    "FRK_ConfigStore".LostPath[#RootIndex] := #Scope;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigAppendEntry" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Slot : DInt;
+END_VAR
+BEGIN
+    #Slot := #Cursor.Position - #Cursor.First;
+    #Cursor.Position := #Cursor.Position + 1;
+    IF #Slot < 0 OR #Slot >= 16 THEN RETURN; END_IF;
+    #Slot := #Slot + 1;
+    #Page.Entries[#Slot] := "FRK_ConfigScratch".Entry;
+    #Page.EntryCount := DINT_TO_INT(#Slot);
+END_FUNCTION
+
+FUNCTION "FRK_ConfigStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Scope : String;
+    PolicyLost : Bool;
+    UsersLost : Bool;
+END_VAR
+VAR_IN_OUT
+    Persist : "ST_ConfigPersistStatus";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Accepted : Bool;
+END_VAR
+BEGIN
+    IF #RootIndex < 1 OR #RootIndex > 2 THEN RETURN; END_IF;
+    #Persist.Pending := FALSE;
+    #Persist.Failed := "FRK_ConfigRuntime".Failed[#RootIndex];
+    #Persist.StoreKind := 0;
+    // Named set operations are not wired by the live retained-value provider.
+    #Persist.StorePresent := TRUE;
+    #Persist.RestoreLost := "FRK_ConfigStore".Lost[#RootIndex] OR #PolicyLost OR #UsersLost;
+    #Persist.RestoreAcknowledged := "FRK_ConfigStore".Acknowledged[#RootIndex] AND NOT #PolicyLost AND NOT #UsersLost;
+    IF #PolicyLost THEN #Persist.LostPath := CONCAT(IN1 := #Scope, IN2 := '.AccessPolicy');
+    ELSIF #UsersLost THEN #Persist.LostPath := CONCAT(IN1 := #Scope, IN2 := '.Access');
+    ELSE #Persist.LostPath := "FRK_ConfigStore".LostPath[#RootIndex]; END_IF;
+    // Access owns its precise loss events; announce only typed-config loss here.
+    IF "FRK_ConfigStore".Lost[#RootIndex] AND NOT "FRK_ConfigStore".Acknowledged[#RootIndex] THEN
+        IF "FRK_ConfigRuntime".LossSlot[#RootIndex] = 0 THEN
+            #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+            #Diag.ReasonCode := 2040;
+            #Diag.Description := WSTRING#'std.error.configRestoreLost';
+            #Diag.SourcePath := STRING_TO_WSTRING("FRK_ConfigStore".LostPath[#RootIndex]);
+            "FRK_ConfigRuntime".LossSlot[#RootIndex] := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+        END_IF;
+    ELSIF "FRK_ConfigRuntime".LossSlot[#RootIndex] > 0 THEN
+        #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := "FRK_ConfigRuntime".LossSlot[#RootIndex]);
+        "FRK_ConfigRuntime".LossSlot[#RootIndex] := 0;
+    END_IF;
+    "FRK_PersistRootStatus"(RootIndex := #RootIndex, Persist := #Persist);
+END_FUNCTION
+FUNCTION "FRK_ConfigRoot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RegIndex : DInt;
+END_VAR
+BEGIN
+    #FRK_ConfigRoot := 0;
+    CASE #RegIndex OF
+        1: #FRK_ConfigRoot := 1;
+        2: #FRK_ConfigRoot := 1;
+        3: #FRK_ConfigRoot := 1;
+        4: #FRK_ConfigRoot := 1;
+        5: #FRK_ConfigRoot := 1;
+        6: #FRK_ConfigRoot := 1;
+        7: #FRK_ConfigRoot := 1;
+        8: #FRK_ConfigRoot := 1;
+        9: #FRK_ConfigRoot := 1;
+        10: #FRK_ConfigRoot := 1;
+        11: #FRK_ConfigRoot := 1;
+        12: #FRK_ConfigRoot := 1;
+        13: #FRK_ConfigRoot := 2;
+        14: #FRK_ConfigRoot := 2;
+        15: #FRK_ConfigRoot := 2;
+        16: #FRK_ConfigRoot := 2;
+        17: #FRK_ConfigRoot := 2;
+        18: #FRK_ConfigRoot := 2;
+        19: #FRK_ConfigRoot := 2;
+        20: #FRK_ConfigRoot := 2;
+        21: #FRK_ConfigRoot := 2;
+        22: #FRK_ConfigRoot := 2;
+        23: #FRK_ConfigRoot := 2;
+        24: #FRK_ConfigRoot := 2;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_ConfigModelCode" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    ModelIndex : UDInt;
+END_VAR
+BEGIN
+    #FRK_ConfigModelCode := '';
+    IF #RootIndex < 1 OR #RootIndex > 2 THEN RETURN; END_IF;
+    IF #ModelIndex = 0 THEN #FRK_ConfigModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]; RETURN; END_IF;
+    CASE #ModelIndex OF
+        1: #FRK_ConfigModelCode := 'MODEL_A';
+        2: #FRK_ConfigModelCode := 'MODEL_B';
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_ConfigBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    "FRK_ConfigRuntime".Fresh := "FRK_ConfigStore".SchemaVersion = 0;
+    IF "FRK_ConfigStore".SchemaVersion <> 1 THEN
+        FOR #Index := 1 TO 156 DO "FRK_ConfigStore".Rows[#Index].Used := FALSE; END_FOR;
+        IF NOT "FRK_ConfigRuntime".Fresh THEN "FRK_ConfigLoss"(RootIndex := 1, Scope := 'StationA'); END_IF;
+        "FRK_ConfigStore".ActiveModels[1] := 'MODEL_A';
+        IF NOT "FRK_ConfigRuntime".Fresh THEN "FRK_ConfigLoss"(RootIndex := 2, Scope := 'StationB'); END_IF;
+        "FRK_ConfigStore".ActiveModels[2] := 'MODEL_A';
+        "FRK_ConfigStore".SchemaVersion := 1;
+    END_IF;
+    IF "FRK_ConfigStore".ActiveModels[1] <> 'MODEL_A' AND "FRK_ConfigStore".ActiveModels[1] <> 'MODEL_B' THEN
+        "FRK_ConfigStore".ActiveModels[1] := 'MODEL_A';
+        "FRK_ConfigLoss"(RootIndex := 1, Scope := 'StationA');
+    END_IF;
+    IF "FRK_ConfigStore".ActiveModels[2] <> 'MODEL_A' AND "FRK_ConfigStore".ActiveModels[2] <> 'MODEL_B' THEN
+        "FRK_ConfigStore".ActiveModels[2] := 'MODEL_A';
+        "FRK_ConfigLoss"(RootIndex := 2, Scope := 'StationB');
+    END_IF;
+END_FUNCTION

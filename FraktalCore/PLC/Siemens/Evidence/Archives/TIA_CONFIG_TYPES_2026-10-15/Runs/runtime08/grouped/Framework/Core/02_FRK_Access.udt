@@ -1,0 +1,29 @@
+TYPE "FRK_Access"
+VERSION : 0.1
+   STRUCT
+      "CurrentLevel" : DInt;
+      "CurrentUser" : String[32];
+      "LoginFailed" : Bool;
+      "Policy" : "ST_AccessPolicy";
+      "SessionGeneration" : UDInt;
+      "LoginBusy" : Bool;
+      "LoginResultSequence" : UDInt;
+      "LoginTimeoutMs" : UDInt;
+      "PolicySlot" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      "PolicyLost" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      "PolicyLossAlarm" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      "UserLossAlarm" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      "ProviderGeneration" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      "CandidateGeneration" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      "ProviderEnabled" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      "LastActivity" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      "LoginSince" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      "LoginSequence" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      "CandidateUser" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String[32];
+      "CandidateLevel" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+      "Round" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+      "Salt" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..15] of Byte;
+      "Digest" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..31] of Byte;
+      "Expected" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..31] of Byte;
+   END_STRUCT;
+END_TYPE

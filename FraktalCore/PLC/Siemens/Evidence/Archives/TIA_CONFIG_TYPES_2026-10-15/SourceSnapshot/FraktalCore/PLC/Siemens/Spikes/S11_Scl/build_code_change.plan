@@ -1,0 +1,7 @@
+# Offline code-only update. Never delete blocks or import any DB/type here.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+import-sources --plc PLC_1 --dir ${code} --only 20_
+set-block-number --plc PLC_1 --name S11SclCycle --number 124
+compile --plc PLC_1
+save
+export --plc PLC_1 --out ${export}

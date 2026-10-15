@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_AlarmEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Gone : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #Slot := 1 TO 16 DO
+	    IF #AlarmLog.Automatic[#Slot] AND NOT #AlarmLog.Touched[#Slot] THEN
+	        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot);
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+
