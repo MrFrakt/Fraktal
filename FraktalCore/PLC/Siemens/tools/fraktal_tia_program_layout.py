@@ -37,6 +37,10 @@ def split_main(text):
 
 
 def group(filename, text):
+    if 'PressIoBridge' in filename:
+        return 'Examples/PressIoBridge/00_System'
+    if 'IoBridge' in filename:
+        return 'Framework/IoBridge' + ('/DUTs' if filename.endswith('.udt') else '')
     if any(token in filename for token in ('RecoveryTest', 'RecoveryWork', 'RecoveryActions', 'RecoveryOwner')):
         return 'Tests/SequenceRecovery'
     if 'PressDemoUnit' in filename and filename.endswith('.scl'):
@@ -49,10 +53,13 @@ def group(filename, text):
         return 'Examples/PressDemo/00_System'
     if 'Release' in filename and 'PressDemo' in filename:
         return 'Examples/PressDemo/01_PneumaticPress/Release'
-    if filename.startswith(('26_','27_','28_')) or 'FB_PressDemoAuto' in filename or 'FB_PressDemoHome' in filename or 'LoadPosition' in filename:
+    if filename.startswith(('26_','27_','28_')) or 'FB_PressDemoAuto' in filename or 'FB_PressDemoHome' in filename or 'FB_PressDemoChangeover' in filename or 'LoadPosition' in filename:
         return 'Examples/PressDemo/01_PneumaticPress/Sequences'
     if 'Cylinder' in filename and not 'Declaration' in filename:
         return 'Framework/Modules/ControlModules/Cylinder'
+    for token, folder in (('TwoHand', 'TwoHand'), ('DigitalInput', 'DigitalInput'), ('AirPressure', 'AirPressure')):
+        if token in filename and not 'PressDemo' in filename:
+            return 'Framework/Modules/ControlModules/' + folder
     if 'ST_PressDemo' in filename:
         return 'Examples/PressDemo/01_PneumaticPress/DUTs'
     if 'PressDemoUnit' in filename:

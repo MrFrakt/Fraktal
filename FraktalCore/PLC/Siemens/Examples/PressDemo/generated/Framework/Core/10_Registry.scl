@@ -22,8 +22,8 @@ END_VAR
 BEGIN
     #Core.Named := TRUE;
     #Core.RegIndex := 0;
-    IF "FRK_Registry".Fault OR "FRK_Registry".Count < 0 OR "FRK_Registry".Count > 4
-        OR #ParentIndex < 0 OR #ParentIndex > "FRK_Registry".Count OR #ParentIndex > 4 THEN
+    IF "FRK_Registry".Fault OR "FRK_Registry".Count < 0 OR "FRK_Registry".Count > 7
+        OR #ParentIndex < 0 OR #ParentIndex > "FRK_Registry".Count OR #ParentIndex > 7 THEN
         "FRK_Registry".Fault := TRUE;
         RETURN;
     END_IF;
@@ -43,7 +43,7 @@ BEGIN
         #Identity := DELETE(IN := #Identity, L := 1, P := #QuotePos);
         #QuotePos := FIND(IN1 := #Identity, IN2 := '"');
     END_WHILE;
-    IF LEN(#Identity) > 80 OR LEN(#Identity) = 0 OR "FRK_Registry".Count >= 4 THEN
+    IF LEN(#Identity) > 80 OR LEN(#Identity) = 0 OR "FRK_Registry".Count >= 7 THEN
         "FRK_Registry".Fault := TRUE;
         RETURN;
     END_IF;
@@ -72,7 +72,7 @@ VAR_INPUT
 END_VAR
 BEGIN
     // Nested checks precede array access; do not depend on short-circuit AND.
-    IF #Index < 1 OR #Index > "FRK_Registry".Count OR #Index > 4 THEN
+    IF #Index < 1 OR #Index > "FRK_Registry".Count OR #Index > 7 THEN
         "FRK_Registry".Fault := TRUE;
         RETURN;
     END_IF;

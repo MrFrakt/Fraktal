@@ -1,0 +1,14 @@
+create-project --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\IoBridge_Protocol_Test_20261015" --name IoBridgeProtocolTest
+add-device --order "OrderNumber:6ES7 516-3AP03-0AB0/V3.0" --name PLC_1 --station ProtocolTest
+set-ip --plc PLC_1 --ip 169.254.212.51 --mask 255.255.0.0
+project-set --prop IsSimulationDuringBlockCompilationEnabled --value true
+hw-attributes --plc PLC_1 --filter PROFINET
+save
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\protocol01" --only "00_ST_IoBridgeConfig.udt"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\protocol01" --only "01_IoBridge.scl"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\protocol01" --only "03_ProtocolTest.scl"
+save
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\protocol01_native" --scl

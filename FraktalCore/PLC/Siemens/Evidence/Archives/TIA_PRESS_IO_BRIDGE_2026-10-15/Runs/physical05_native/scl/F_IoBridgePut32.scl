@@ -1,0 +1,22 @@
+﻿FUNCTION "F_IoBridgePut32" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Offset : Int;
+      Value : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Bytes : Array[0..31] of Byte;
+   END_VAR
+
+
+BEGIN
+	
+	#Bytes[#Offset] := DWORD_TO_BYTE(SHR(IN := UDINT_TO_DWORD(#Value), N := 24));
+	#Bytes[#Offset + 1] := DWORD_TO_BYTE(SHR(IN := UDINT_TO_DWORD(#Value), N := 16));
+	#Bytes[#Offset + 2] := DWORD_TO_BYTE(SHR(IN := UDINT_TO_DWORD(#Value), N := 8));
+	#Bytes[#Offset + 3] := UDINT_TO_BYTE(#Value);
+	
+END_FUNCTION
+

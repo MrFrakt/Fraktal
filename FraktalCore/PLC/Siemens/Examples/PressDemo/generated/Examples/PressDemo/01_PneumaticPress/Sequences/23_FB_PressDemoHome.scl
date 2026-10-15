@@ -64,9 +64,11 @@ BEGIN
                 "FRK_SeqComplete"(Seq := #Seq);
             END_IF;
         ELSE
-            #Seq.Error := TRUE;
-            #Seq.ErrorDiagnostic.ReasonCode := 10001;
-            #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';
+            IF #Seq.Running AND NOT #Seq.Error THEN
+                #Seq.Error := TRUE;
+                #Seq.ErrorDiagnostic.ReasonCode := 10001;
+                #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';
+            END_IF;
     END_CASE;
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PressRam);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #Door);

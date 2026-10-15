@@ -1,0 +1,21 @@
+﻿FUNCTION "F_IoBridgeGet32" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Offset : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Bytes : Array[0..31] of Byte;
+   END_VAR
+
+
+BEGIN
+	
+	#F_IoBridgeGet32 := DWORD_TO_UDINT(SHL(IN := BYTE_TO_DWORD(#Bytes[#Offset]), N := 24)
+	                                   OR SHL(IN := BYTE_TO_DWORD(#Bytes[#Offset + 1]), N := 16)
+	                                   OR SHL(IN := BYTE_TO_DWORD(#Bytes[#Offset + 2]), N := 8)
+	                                   OR BYTE_TO_DWORD(#Bytes[#Offset + 3]));
+	
+END_FUNCTION
+

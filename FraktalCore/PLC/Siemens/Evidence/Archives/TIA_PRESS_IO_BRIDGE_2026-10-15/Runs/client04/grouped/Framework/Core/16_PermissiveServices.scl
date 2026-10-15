@@ -1,0 +1,30 @@
+// One collection sweep and first FALSE condition, shared by ST and LAD.
+FUNCTION "FRK_PermBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Perm : "FRK_PermCtx";
+END_VAR
+BEGIN
+    #Perm.Permit := TRUE;
+    #Perm.Blocker := '';
+    #Perm.Count := 0;
+END_FUNCTION
+
+FUNCTION "FRK_PermCondition" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Label : String;
+    Ok : Bool;
+END_VAR
+VAR_IN_OUT
+    Perm : "FRK_PermCtx";
+END_VAR
+BEGIN
+    #Perm.Count := #Perm.Count + 1;
+    IF NOT #Ok THEN
+        IF #Perm.Permit THEN #Perm.Blocker := #Label; END_IF;
+        #Perm.Permit := FALSE;
+    END_IF;
+END_FUNCTION

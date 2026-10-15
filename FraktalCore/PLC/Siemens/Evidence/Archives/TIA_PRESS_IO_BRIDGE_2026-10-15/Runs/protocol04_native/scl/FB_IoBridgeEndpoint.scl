@@ -1,0 +1,165 @@
+﻿FUNCTION_BLOCK "FB_IoBridgeEndpoint"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+      Enabled : Bool;
+      PhysicalRole : Bool;
+      LocalSignals : DWord;
+      LocalEnable : Bool;
+   END_VAR
+
+   VAR_OUTPUT 
+      LinkHealthy { ExternalWritable := 'False'} : Bool;
+      PeerEnable { ExternalWritable := 'False'} : Bool;
+      PeerSignals { ExternalWritable := 'False'} : DWord;
+      SendStatus { ExternalWritable := 'False'} : Word;
+      ReceiveStatus { ExternalWritable := 'False'} : Word;
+   END_VAR
+
+   VAR_IN_OUT 
+      BootEpoch : UDInt;
+      Config : "ST_IoBridgeConfig";
+   END_VAR
+
+   VAR 
+      SendLink {InstructionName := 'TSEND_C'; LibVersion := '3.2'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TSEND_C;
+      ReceiveLink {InstructionName := 'TRCV_C'; LibVersion := '3.2'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TRCV_C;
+      Protocol { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_IoBridgeProtocol";
+      SendConnection {InstructionName := 'TCON_IP_v4'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TCON_IP_v4;
+      ReceiveConnection {InstructionName := 'TCON_IP_v4'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : TCON_IP_v4;
+      SendBytes { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..31] of Byte;
+      ReceiveBytes { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..31] of Byte;
+      ClockMemory { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : LReal;
+      ClockMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : LReal;
+      NowMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      LastSendMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      Started { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      SendBusy { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      SendPulse { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      HadHealthy { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      PendingReset { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      SendReset { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      ReceiveReset { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      LastRejected { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      DeltaS : LReal;
+      Received : Bool;
+      SendDone : Bool;
+      SendError : Bool;
+      ReceiveError : Bool;
+      ReceivedLength : UDInt;
+      BuildFrame : Bool;
+      LinkOk : Bool;
+      Slot : Int;
+      ResetCycle : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#DeltaS := RUNTIME(#ClockMemory);
+	IF #DeltaS < 0.0 THEN
+	    #DeltaS := 0.0;
+	END_IF;
+	IF #DeltaS > 60.0 THEN
+	    #DeltaS := 60.0;
+	END_IF;
+	#ClockMs := #ClockMs + #DeltaS * 1000.0;
+	IF #ClockMs >= 4294967296.0 THEN
+	    #ClockMs := #ClockMs - 4294967296.0;
+	END_IF;
+	#NowMs := TRUNC_UDINT(#ClockMs);
+	IF #Startup OR NOT #Started THEN
+	    #Started := TRUE;
+	    #SendConnection.InterfaceId := #Config.InterfaceId;
+	    #SendConnection.ID := #Config.SendId;
+	    #SendConnection.ConnectionType := B#16#11;
+	    #SendConnection.ActiveEstablished := TRUE;
+	    #SendConnection.LocalPort := 0;
+	    #SendConnection.RemotePort := #Config.SendPort;
+	    #ReceiveConnection.InterfaceId := #Config.InterfaceId;
+	    #ReceiveConnection.ID := #Config.ReceiveId;
+	    #ReceiveConnection.ConnectionType := B#16#11;
+	    #ReceiveConnection.ActiveEstablished := FALSE;
+	    #ReceiveConnection.LocalPort := #Config.ReceivePort;
+	    #ReceiveConnection.RemotePort := 0;
+	    FOR #Slot := 1 TO 4 DO
+	        #SendConnection.RemoteAddress.ADDR[#Slot] := #Config.PeerAddress[#Slot];
+	        #ReceiveConnection.RemoteAddress.ADDR[#Slot] := #Config.PeerAddress[#Slot];
+	    END_FOR;
+	END_IF;
+	#LinkOk := #Enabled AND #Config.SchemaVersion = 1
+	AND #Config.SendId <> #Config.ReceiveId AND #Config.SendId <> 0 AND #Config.ReceiveId <> 0
+	AND #Config.PeriodMs >= 20 AND #Config.PeriodMs <= 100
+	AND #Config.WatchdogMs >= 200 AND #Config.WatchdogMs <= 1000;
+	// Flush a truncated/misaligned TCP stream after loss. Each instruction
+	// owns its reset argument, which it clears after consuming the pulse.
+	#ResetCycle := #PendingReset AND NOT #SendBusy AND NOT #SendPulse;
+	IF #ResetCycle THEN
+	    #SendReset := TRUE;
+	    #ReceiveReset := TRUE;
+	    #PendingReset := FALSE;
+	END_IF;
+	#ReceiveLink(EN_R := #LinkOk,
+	             CONT := #LinkOk,
+	             LEN := 0,
+	             ADHOC := FALSE,
+	             CONNECT := #ReceiveConnection,
+	             DATA := #ReceiveBytes,
+	             DONE => #Received,
+	             ERROR => #ReceiveError,
+	             STATUS => #ReceiveStatus,
+	             RCVD_LEN => #ReceivedLength,
+	             COM_RST := #ReceiveReset);
+	#BuildFrame := #LinkOk AND NOT #SendBusy AND NOT #SendPulse AND NOT #ResetCycle
+	AND "F_IoBridgeElapsed"(NowMs := #NowMs, SinceMs := #LastSendMs) >= #Config.PeriodMs;
+	#Protocol(Startup := #Startup,
+	          Enabled := #LinkOk AND NOT #ReceiveError AND NOT #ResetCycle,
+	          PhysicalRole := #PhysicalRole,
+	          NowMs := #NowMs,
+	          WatchdogMs := #Config.WatchdogMs,
+	          Received := #Received AND #ReceivedLength = 32,
+	          SendFrame := #BuildFrame,
+	          LocalSignals := #LocalSignals,
+	          LocalEnable := #LocalEnable,
+	          BootEpoch := #BootEpoch,
+	          ReceiveBytes := #ReceiveBytes,
+	          SendBytes := #SendBytes,
+	          LinkHealthy => #LinkHealthy,
+	          PeerEnable => #PeerEnable,
+	          PeerSignals => #PeerSignals);
+	IF #BuildFrame THEN
+	    #LastSendMs := #NowMs;
+	END_IF;
+	#SendLink(REQ := #BuildFrame,
+	          CONT := #LinkOk,
+	          LEN := 0,
+	          CONNECT := #SendConnection,
+	          DATA := #SendBytes,
+	          DONE => #SendDone,
+	          BUSY => #SendBusy,
+	          ERROR => #SendError,
+	          STATUS => #SendStatus,
+	          COM_RST := #SendReset);
+	#SendPulse := #BuildFrame;
+	IF #SendError OR #ReceiveError THEN
+	    #LinkHealthy := FALSE;
+	    #PeerEnable := FALSE;
+	    #PeerSignals := DW#16#0;
+	END_IF;
+	IF #Protocol.LinkHealthy THEN
+	    #HadHealthy := TRUE;
+	ELSIF #HadHealthy THEN
+	    #HadHealthy := FALSE;
+	    #PendingReset := TRUE;
+	END_IF;
+	IF #Protocol.RejectedFrames <> #LastRejected THEN
+	    #PendingReset := TRUE;
+	    #LastRejected := #Protocol.RejectedFrames;
+	END_IF;
+	
+END_FUNCTION_BLOCK
+

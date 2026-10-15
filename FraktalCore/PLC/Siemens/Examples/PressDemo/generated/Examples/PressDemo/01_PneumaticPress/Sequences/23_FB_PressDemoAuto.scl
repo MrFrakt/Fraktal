@@ -78,7 +78,7 @@ BEGIN
     "FRK_SeqStart"(Seq := #Seq, StartPulse := #StartPulse);
     "F_PressDemoReset"(Seq := #Seq, Cycle := #Cycle);
     #LoadActive := "FRK_SeqSubActive"(Seq := #Seq, Run := #Run, StepNo := 240);
-    #LoadDone := "F_PressDemoLoadPosition"(Target := #LoadPosition, Run := #LoadActive, Reset := #Seq.SubReset, OwnerIndex := #OwnerIndex, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
+    #LoadDone := "F_PressDemoLoadPosition"(Target := #LoadPosition, Run := #LoadActive, Reset := #Seq.SubReset, OwnerIndex := #OwnerIndex, ChainIndex := 3, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PressRam);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #Door);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PartSlide);
@@ -199,9 +199,11 @@ BEGIN
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 100, OnJump1 := -1);
             END_IF;
         ELSE
-            #Seq.Error := TRUE;
-            #Seq.ErrorDiagnostic.ReasonCode := 10001;
-            #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';
+            IF #Seq.Running AND NOT #Seq.Error THEN
+                #Seq.Error := TRUE;
+                #Seq.ErrorDiagnostic.ReasonCode := 10001;
+                #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';
+            END_IF;
     END_CASE;
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PressRam);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #Door);

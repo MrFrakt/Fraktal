@@ -1,0 +1,12 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Press_IoBridge_1214C_20261015\FrkSpikeS2.ap20"
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\physical05" --only "00_ST_IoBridgeConfig.udt" --group Framework/IoBridge/DUTs
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\physical05" --only "02_GDB_IoBridgeEpoch.db" --group Examples/PressIoBridge/00_System
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\physical05" --only "01_IoBridge.scl" --group Framework/IoBridge
+import-xml --plc PLC_1 --file "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\physical05\03_GVL_PressBridgeIO.xml" --kind tags
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\physical05" --only "10_PressIoBridge.scl" --group Examples/PressIoBridge/00_System
+save
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\physical05_native" --scl

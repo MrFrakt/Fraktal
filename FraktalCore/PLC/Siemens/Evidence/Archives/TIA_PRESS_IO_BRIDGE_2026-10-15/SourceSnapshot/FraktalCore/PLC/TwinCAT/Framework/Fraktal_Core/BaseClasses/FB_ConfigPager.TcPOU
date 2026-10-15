@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ConfigPager" Id="{d41f78e2-3b06-4c9a-b7d8-9156ea20cf35}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.10.2 — windowed writer for the configuration manifest. QUERY_CONFIG
+// re-walks the whole export enumeration each request; the pager counts every
+// appended entry and stores only the requested page window into the published
+// ST_ConfigPage, so no full manifest buffer ever exists in PLC memory and the
+// walk order alone defines the paging. Exporters call M_Append*/ignore paging.
+//
+// §3.8b — it is ALSO the sink for a parameter-set save, and that is the whole
+// point of putting it here. A set is "a projection produced by the same
+// deterministic walk that builds the §3.10.2 manifest, keyed per value by
+// (Scope, WriteKey)". Making the set a second walk would be a second authority
+// on what a station's configuration consists of, and the two would drift the
+// first time a module registered a value (§1.1 O9). So M_SetupSetSave puts the
+// pager in record mode, the ordinary M_AppendConfig walk runs unchanged, and
+// every capability it emits is offered to the store. No exporter knows which
+// mode it is feeding, and none can be written to feed only one of them.
+FUNCTION_BLOCK FB_ConfigPager
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _pTarget : POINTER TO ST_ConfigPage;
+    _cursor  : DINT;   // entries appended so far in this walk
+    _first   : DINT;   // first cursor index stored in the window (0-based)
+    _storedSlot : INT; // 1-based slot written by the last M_Append; 0 if absent
+    // §3.8b set-save mode. Exactly one of _pTarget / _setStore is ever live.
+    {attribute 'OPC.UA.DA' := '0'}
+    _setStore  : I_ConfigStore;
+    _setKind   : E_ConfigKind;
+    _setCount  : INT;
+    _setFailed : BOOL;
+    // §3.8d - the root's access manager, set before a manifest walk. 0 (a pager
+    // nobody configured, such as a test's) publishes every value as readable.
+    {attribute 'OPC.UA.DA' := '0'}
+    _pAccess : POINTER TO FB_AccessManager;
+    // §3.8a - another model's page: only model-scoped capabilities are counted
+    // and stored. Reset by every M_Setup.
+    _modelOnly : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[; // stateless between requests — driven entirely by M_Setup/M_Append/M_Finish]]></ST>
+    </Implementation>
+    <Method Name="M_SetAccess" Id="{c9bbe44a-68f0-4229-986f-124009875d23}">
+      <Declaration><![CDATA[// §3.8d - the access manager whose policy and session decide what the next
+// manifest walk may show. Set by the root before each QUERY_CONFIG.
+METHOD M_SetAccess : BOOL
+VAR_INPUT
+    pAccess : POINTER TO FB_AccessManager;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_pAccess := pAccess;
+M_SetAccess := (pAccess <> 0);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Setup" Id="{6a92cd10-84e7-4fb3-a1c9-73805d21be48}">
+      <Declaration><![CDATA[// Begin one QUERY_CONFIG walk targeting the published page window.
+METHOD M_Setup : BOOL
+VAR_INPUT
+    Target    : POINTER TO ST_ConfigPage;
+    PageIndex : INT;
+    Revision  : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Setup := FALSE;
+_pTarget := 0;
+_storedSlot := 0;
+_setStore := 0;                 // a manifest walk never writes set records
+_modelOnly := FALSE;
+IF Target = 0 THEN
+    RETURN;
+END_IF
+_pTarget := Target;
+_cursor := 0;
+IF PageIndex < 0 THEN
+    _first := 0;
+ELSE
+    _first := TO_DINT(PageIndex) * TO_DINT(PL_Fraktal.MAX_CONFIG_PAGE);
+END_IF
+_pTarget^.Revision := Revision;
+_pTarget^.PageIndex := SEL(PageIndex < 0, PageIndex, 0);
+_pTarget^.PageCount := 0;
+_pTarget^.EntryCount := 0;
+M_Setup := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Append" Id="{c3e5b1f7-2d84-49a0-9c61-08d7a4325e9b}">
+      <Declaration><![CDATA[// Append one manifest entry; stored only when it falls inside the page window.
+// Always returns TRUE so exporters can chain without branching.
+METHOD M_Append : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    Item      : STRING(255);
+    ValueText : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Append := TRUE;
+_storedSlot := 0;
+// Another model's page holds its model data only; a plain entry is none.
+IF _modelOnly THEN
+    RETURN;
+END_IF
+_M_Window(Scope := Scope, Item := Item, ValueText := ValueText);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Window" Id="{658f0208-44a3-42a1-8b16-2a4ae7e884c0}">
+      <Declaration><![CDATA[// Count one entry of the walk and store it when it falls in the page window.
+METHOD PRIVATE _M_Window
+VAR_INPUT
+    Scope     : STRING(255);
+    Item      : STRING(255);
+    ValueText : STRING(255);
+END_VAR
+VAR
+    slot : DINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_storedSlot := 0;
+IF _pTarget = 0 THEN
+    RETURN;
+END_IF
+slot := _cursor - _first;   // window-relative 0-based position
+_cursor := _cursor + 1;
+IF (slot < 0) OR (slot >= TO_DINT(PL_Fraktal.MAX_CONFIG_PAGE)) THEN
+    RETURN;                 // outside the requested window — counted, not stored
+END_IF
+_pTarget^.Entries[TO_INT(slot) + 1].Scope := Scope;
+_pTarget^.Entries[TO_INT(slot) + 1].Item := Item;
+_pTarget^.Entries[TO_INT(slot) + 1].ValueText := ValueText;
+// Explicitly clear the capability tail so a reused response slot cannot retain
+// write authority from an earlier page.
+_pTarget^.Entries[TO_INT(slot) + 1].WriteKey := '';
+_pTarget^.Entries[TO_INT(slot) + 1].WriteRevision := 0;
+_pTarget^.Entries[TO_INT(slot) + 1].ConfigKind := E_ConfigKind.PAR_CFG;
+_pTarget^.Entries[TO_INT(slot) + 1].ValueType := E_ConfigValueType.TEXT;
+_pTarget^.Entries[TO_INT(slot) + 1].Writable := FALSE;
+_pTarget^.Entries[TO_INT(slot) + 1].RequiresReady := FALSE;
+_pTarget^.Entries[TO_INT(slot) + 1].HasMinimum := FALSE;
+_pTarget^.Entries[TO_INT(slot) + 1].HasMaximum := FALSE;
+_pTarget^.Entries[TO_INT(slot) + 1].Minimum := 0.0;
+_pTarget^.Entries[TO_INT(slot) + 1].Maximum := 0.0;
+_pTarget^.Entries[TO_INT(slot) + 1].Unit := '';
+_pTarget^.Entries[TO_INT(slot) + 1].LabelKey := '';
+_pTarget^.Entries[TO_INT(slot) + 1].EnumDomain := '';
+_pTarget^.Entries[TO_INT(slot) + 1].UnitCode := E_EngUnit.NONE;
+_pTarget^.Entries[TO_INT(slot) + 1].EnumLabelKey := '';
+_pTarget^.Entries[TO_INT(slot) + 1].ClassId := '';
+_pTarget^.Entries[TO_INT(slot) + 1].ReadLevel := E_AccessLevel.NONE;
+_pTarget^.Entries[TO_INT(slot) + 1].WriteLevel := E_AccessLevel.NONE;
+_pTarget^.Entries[TO_INT(slot) + 1].Readable := TRUE;
+_pTarget^.Entries[TO_INT(slot) + 1].ModelScoped := FALSE;
+// §3.8d - a plain (non-capability) entry is readable at DATA_READ.
+IF _pAccess <> 0 THEN
+    _pTarget^.Entries[TO_INT(slot) + 1].ReadLevel :=
+        _pAccess^.M_DataLevel(ClassId := '', MinLevel := E_AccessLevel.NONE, ForWrite := FALSE);
+    IF NOT _pAccess^.M_PermitsLevel(Required := _pTarget^.Entries[TO_INT(slot) + 1].ReadLevel) THEN
+        _pTarget^.Entries[TO_INT(slot) + 1].ValueText := '';
+        _pTarget^.Entries[TO_INT(slot) + 1].Readable := FALSE;
+    END_IF
+END_IF
+_storedSlot := TO_INT(slot) + 1;
+_pTarget^.EntryCount := TO_INT(slot) + 1;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_AppendCapability" Id="{85cd5fd0-870c-4670-86d9-109d689910cd}">
+      <Declaration><![CDATA[// Append one typed configuration-write capability. All inputs are explicit for
+// TwinCAT 4024 compatibility. The owning handler remains authoritative.
+METHOD M_AppendCapability : BOOL
+VAR_INPUT
+    Scope         : STRING(255);
+    Item          : STRING(255);
+    ValueText     : STRING(255);
+    WriteKey      : STRING(160);
+    WriteRevision : UDINT;
+    ConfigKind    : E_ConfigKind;
+    ValueType     : E_ConfigValueType;
+    Writable      : BOOL;
+    RequiresReady : BOOL;
+    HasMinimum    : BOOL;
+    HasMaximum    : BOOL;
+    Minimum       : LREAL;
+    Maximum       : LREAL;
+    Unit          : E_EngUnit;
+    LabelKey      : STRING(160);
+    EnumDomain    : STRING(255);
+    EnumLabelKey  : STRING(80);
+    ClassId       : STRING(40);    // §3.8d; '' = built-in class
+    MinReadLevel  : E_AccessLevel;
+    MinWriteLevel : E_AccessLevel;
+    ModelScoped   : BOOL;          // Core 0.19 - follows the model a request names
+END_VAR
+VAR
+    readLevel  : E_AccessLevel;
+    writeLevel : E_AccessLevel;
+    readable   : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_AppendCapability := TRUE;
+_storedSlot := 0;
+IF _modelOnly THEN
+    IF NOT ModelScoped THEN
+        RETURN;
+    END_IF
+    _M_Window(Scope := Scope, Item := Item, ValueText := ValueText);
+ELSE
+    M_AppendCapability := M_Append(Scope := Scope, Item := Item,
+        ValueText := ValueText);
+END_IF
+// §3.8b — offered to an open set save BEFORE the page-window test, because a
+// set has no window: it takes every record the walk produces, whichever page
+// the same walk would have put it on.
+_M_OfferRecord(Scope := Scope, ValueText := ValueText, WriteKey := WriteKey,
+    WriteRevision := WriteRevision, ConfigKind := ConfigKind,
+    ValueType := ValueType, Writable := Writable);
+IF (_pTarget = 0) OR (_storedSlot <= 0) THEN
+    RETURN;
+END_IF
+_pTarget^.Entries[_storedSlot].WriteKey := WriteKey;
+_pTarget^.Entries[_storedSlot].WriteRevision := WriteRevision;
+_pTarget^.Entries[_storedSlot].ConfigKind := ConfigKind;
+_pTarget^.Entries[_storedSlot].ValueType := ValueType;
+_pTarget^.Entries[_storedSlot].Writable := Writable
+    AND (WriteKey <> '') AND (WriteRevision > 0);
+_pTarget^.Entries[_storedSlot].RequiresReady := RequiresReady;
+_pTarget^.Entries[_storedSlot].HasMinimum := HasMinimum;
+_pTarget^.Entries[_storedSlot].HasMaximum := HasMaximum;
+_pTarget^.Entries[_storedSlot].Minimum := Minimum;
+_pTarget^.Entries[_storedSlot].Maximum := Maximum;
+_pTarget^.Entries[_storedSlot].Unit := F_EngUnitSymbol(Unit := Unit);
+_pTarget^.Entries[_storedSlot].UnitCode := Unit;
+_pTarget^.Entries[_storedSlot].LabelKey := LabelKey;
+_pTarget^.Entries[_storedSlot].EnumDomain := EnumDomain;
+_pTarget^.Entries[_storedSlot].EnumLabelKey := EnumLabelKey;
+_pTarget^.Entries[_storedSlot].ModelScoped := ModelScoped;
+// §3.8d - effective levels, computed once and before the value is placed, so a
+// class that is readable below DATA_READ shows its value and one that is not
+// never does. The set record above was offered the real value regardless: a
+// save reveals nothing outside the PLC.
+readLevel := MinReadLevel;
+writeLevel := MinWriteLevel;
+readable := TRUE;
+IF _pAccess <> 0 THEN
+    readLevel := _pAccess^.M_DataLevel(ClassId := ClassId, MinLevel := MinReadLevel,
+        ForWrite := FALSE);
+    writeLevel := _pAccess^.M_DataLevel(ClassId := ClassId, MinLevel := MinWriteLevel,
+        ForWrite := TRUE);
+    readable := _pAccess^.M_PermitsLevel(Required := readLevel);
+END_IF
+_pTarget^.Entries[_storedSlot].ClassId := ClassId;
+_pTarget^.Entries[_storedSlot].ReadLevel := readLevel;
+_pTarget^.Entries[_storedSlot].WriteLevel := writeLevel;
+_pTarget^.Entries[_storedSlot].Readable := readable;
+IF readable THEN
+    _pTarget^.Entries[_storedSlot].ValueText := ValueText;
+ELSE
+    _pTarget^.Entries[_storedSlot].ValueText := '';
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_OfferRecord" Id="{3e91d5a7-06c2-4b48-8f13-72a0c64e5b91}">
+      <Declaration><![CDATA[// §3.8b — offer one capability to an open set save. Called from
+// M_AppendCapability, so the set contains exactly what the manifest publishes
+// as editable and nothing else: no unregistered value can enter a set, and no
+// registered one can be forgotten by it.
+//
+// Only records of the set's own ConfigKind are taken — a station set carries
+// STATION_CFG, a model set carries PAR_CFG (§3.8b "one mechanism, two kinds").
+// Anything that will not fit a record FAILS the save rather than shortening a
+// value: a set that quietly lost a character restores a machine to almost its
+// commissioned state, which is worse than not restoring it.
+METHOD PRIVATE _M_OfferRecord
+VAR_INPUT
+    Scope         : STRING(255);
+    ValueText     : STRING(255);
+    WriteKey      : STRING(160);
+    WriteRevision : UDINT;
+    ConfigKind    : E_ConfigKind;
+    ValueType     : E_ConfigValueType;
+    Writable      : BOOL;
+END_VAR
+VAR
+    record : ST_ConfigRecord;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF _setStore = 0 THEN
+    RETURN;
+END_IF
+IF _setFailed THEN
+    RETURN;                     // a failed transaction takes no further records
+END_IF
+IF NOT Writable THEN
+    RETURN;                     // read-only publication is not configuration
+END_IF
+IF (WriteKey = '') OR (WriteRevision = 0) THEN
+    RETURN;                     // fails closed exactly as the manifest does
+END_IF
+IF ConfigKind <> _setKind THEN
+    RETURN;                     // the other kind of set owns this record
+END_IF
+IF TO_INT(LEN(Scope)) > 80 THEN
+    _setFailed := TRUE;
+    RETURN;
+END_IF
+IF TO_INT(LEN(ValueText)) > 80 THEN
+    _setFailed := TRUE;
+    RETURN;
+END_IF
+record.Scope := Scope;
+record.WriteKey := WriteKey;
+record.Revision := WriteRevision;
+record.Kind := ConfigKind;
+record.ValueType := ValueType;
+record.ValueText := ValueText;
+IF _setStore.M_SaveRecord(Record := record) THEN
+    _setCount := _setCount + 1;
+ELSE
+    _setFailed := TRUE;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SetupSetSave" Id="{7c48b23e-9105-4d6f-a927-b0e3546f18cd}">
+      <Declaration><![CDATA[// §3.8b — begin a parameter-set save. The caller then runs the ordinary
+// M_AppendConfig walk and closes with M_FinishSetSave.
+METHOD M_SetupSetSave : BOOL
+VAR_INPUT
+    Store : I_ConfigStore;
+    Info  : ST_ConfigSetInfo;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetupSetSave := FALSE;
+_pTarget := 0;                  // a set walk never writes a manifest page
+_storedSlot := 0;
+_setStore := 0;
+_setCount := 0;
+_setFailed := FALSE;
+_modelOnly := FALSE;
+IF Store = 0 THEN
+    RETURN;
+END_IF
+IF NOT Store.M_SaveBegin(Info := Info) THEN
+    RETURN;
+END_IF
+_setStore := Store;
+_setKind := Info.Kind;
+M_SetupSetSave := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_FinishSetSave" Id="{2a0fe671-d3b9-4c07-85ae-916bc4d270e3}">
+      <Declaration><![CDATA[// §3.8b — close the set save. FALSE means nothing was stored: an empty set, a
+// record that would not fit, or a store that refused the commit. The previous
+// set of that name is left exactly as it was.
+METHOD M_FinishSetSave : BOOL
+VAR_OUTPUT
+    Records : INT;
+END_VAR
+VAR
+    store : I_ConfigStore;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_FinishSetSave := FALSE;
+Records := _setCount;
+store := _setStore;
+_setStore := 0;
+IF store = 0 THEN
+    RETURN;
+END_IF
+IF _setFailed OR (_setCount = 0) THEN
+    // An empty set is refused rather than stored: a named set that restores
+    // nothing is the one somebody loads believing it did something.
+    store.M_SaveAbort();
+    RETURN;
+END_IF
+M_FinishSetSave := store.M_SaveCommit();]]></ST></Implementation>
+    </Method>
+    <Method Name="M_AppendNumber" Id="{f0b6c823-5a1d-4e97-8b40-1c9ea6d0742f}">
+      <Declaration><![CDATA[METHOD M_AppendNumber : BOOL
+VAR_INPUT
+    Scope  : STRING(255);
+    Item   : STRING(255);
+    Number : DINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_AppendNumber := M_Append(Scope := Scope, Item := Item,
+    ValueText := TO_STRING(Number));
+// Declare the type the caller already knows. M_Append stores every entry as
+// TEXT, so without this the number crosses the wire indistinguishable from a
+// string and the consumer has to guess from the leaf NAME. The HMI did exactly
+// that, against a hand-maintained allowlist that did not include StepNo — so
+// every §3.13 flow-chart row rendered as "N0" with an empty drill-down while
+// the value was sitting there as the string "100". A type the sender knows
+// must never be re-derived by the receiver.
+IF (_pTarget <> 0) AND (_storedSlot > 0) THEN
+    _pTarget^.Entries[_storedSlot].ValueType := E_ConfigValueType.NUMBER;
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SetModelOnly" Id="{50d0003a-2c3d-41a7-a85f-846428eac2d6}">
+      <Declaration><![CDATA[// §3.8a - the rest of this walk serves another model's record: only
+// capabilities marked ModelScoped are counted and stored, so the answer is that
+// model's data - a page or two - not the whole station manifest.
+METHOD M_SetModelOnly : BOOL
+VAR_INPUT
+    Enabled : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_modelOnly := Enabled;
+M_SetModelOnly := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Finish" Id="{92cf5e48-71b3-4da6-a5f2-3e08b19dc271}">
+      <Declaration><![CDATA[// Close the walk: publish the total page count for the HMI's fetch loop.
+METHOD M_Finish : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_Finish := FALSE;
+IF _pTarget = 0 THEN
+    RETURN;
+END_IF
+_pTarget^.PageCount := TO_INT(
+    (_cursor + TO_DINT(PL_Fraktal.MAX_CONFIG_PAGE) - 1)
+    / TO_DINT(PL_Fraktal.MAX_CONFIG_PAGE));
+M_Finish := TRUE;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

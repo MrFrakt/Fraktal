@@ -1,0 +1,60 @@
+FUNCTION_BLOCK "FB_PressIoBridgeClient"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR
+    Endpoint {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_IoBridgeEndpoint";
+    Config {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_IoBridgeConfig";
+    Signals {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DWord;
+    Demands {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DWord;
+    Connected {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    PeerEnabled {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+BEGIN
+    #Config.SchemaVersion := 1;
+    #Config.InterfaceId := 64;
+    #Config.SendId := 257;
+    #Config.ReceiveId := 258;
+    #Config.PeerAddress[1] := 192;
+    #Config.PeerAddress[2] := 168;
+    #Config.PeerAddress[3] := 0;
+    #Config.PeerAddress[4] := 10;
+    #Config.SendPort := 24001;
+    #Config.ReceivePort := 24002;
+    #Config.PeriodMs := 50;
+    #Config.WatchdogMs := 500;
+    #Demands := DW#16#0;
+    #Demands.%X0 := "GDB_PressDemoIO".SlideExtend;
+    #Demands.%X1 := "GDB_PressDemoIO".SlideRetract;
+    #Demands.%X2 := "GDB_PressDemoIO".DoorClose;
+    #Demands.%X3 := "GDB_PressDemoIO".DoorRelease;
+    #Demands.%X4 := "GDB_PressDemoIO".RamExtend;
+    #Demands.%X5 := "GDB_PressDemoIO".RamRetract;
+    #Demands.%X6 := "GDB_PressDemoIO".StartLamp;
+    #Demands.%X7 := "GDB_PressDemoIO".StartLamp;
+    #Endpoint(Startup := FALSE, Enabled := TRUE, PhysicalRole := FALSE,
+        LocalSignals := #Demands, LocalEnable := TRUE,
+        BootEpoch := "GDB_IoBridgeEpoch".Epoch, Config := #Config,
+        LinkHealthy => #Connected, PeerEnable => #PeerEnabled, PeerSignals => #Signals);
+    "GDB_PressDemoIO".SlideInside := #Signals.%X0;
+    "GDB_PressDemoIO".SlideOutside := #Signals.%X1;
+    "GDB_PressDemoIO".DoorClosed := #Signals.%X2;
+    "GDB_PressDemoIO".DoorOpen := #Signals.%X3;
+    "GDB_PressDemoIO".RamExtended := #Signals.%X4;
+    "GDB_PressDemoIO".RamRetracted := #Signals.%X5;
+    "GDB_PressDemoIO".TwoHandRight := #Signals.%X6;
+    "GDB_PressDemoIO".TwoHandLeft := #Signals.%X7;
+    "GDB_PressDemoIO".AirLowPressure := #Signals.%X8;
+    "GDB_PressDemoIO".AirOperatingPressure := #Signals.%X9;
+    "GDB_PressDemoIO".PartPresent := #Signals.%X10;
+    "GDB_PressDemoIO".TwoHandSafeActive := #Signals.%X13;
+    "GDB_PressDemoIO".StandardIoHealthy := #Connected AND #PeerEnabled;
+    "GDB_PressDemoIO".PartQuality := FALSE; // No quality sensor exists in the supplied I/O list.
+END_FUNCTION_BLOCK
+
+DATA_BLOCK "GDB_PressIoBridgeClient"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_PressIoBridgeClient"
+BEGIN
+END_DATA_BLOCK

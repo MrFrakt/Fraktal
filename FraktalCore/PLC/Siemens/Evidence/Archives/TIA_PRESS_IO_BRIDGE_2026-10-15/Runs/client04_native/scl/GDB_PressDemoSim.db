@@ -1,0 +1,39 @@
+﻿DATA_BLOCK "GDB_PressDemoSim"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+// SIMULATION ONLY - a plant model for virtual commissioning, never a safety
+// calculation. The defaults run the press autonomously: air present, good
+// parts swapped at the load position. The stimuli are readable but never
+// writable over the Web API (its write surface stays the HmiRequest mailbox);
+// change one through the engineering/simulation tools, not the HMI.
+   VAR 
+      LeftButton { ExternalWritable := 'False'} : Bool;
+      RightButton { ExternalWritable := 'False'} : Bool;
+      AirPressureOk { ExternalWritable := 'False'} : Bool;
+      PartQuality { ExternalWritable := 'False'} : Bool;
+      FieldbusHealthy { ExternalWritable := 'False'} : Bool;   // AutoLoad swaps the part whenever the slide returns to the load position; without it PartPresent is the operator's manual stimulus.
+      AutoLoad { ExternalWritable := 'False'} : Bool;
+      PartPresent { ExternalWritable := 'False'} : Bool;
+      RamPositionMs { ExternalWritable := 'False'} : DInt;
+      DoorPositionMs { ExternalWritable := 'False'} : DInt;
+      SlidePositionMs { ExternalWritable := 'False'} : DInt;
+      PartLoaded { ExternalWritable := 'False'} : Bool;
+      SwapSinceMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      Swapping { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      SlideWasInside { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      LastMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      Started { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+
+BEGIN
+   AirPressureOk := TRUE;
+   PartQuality := TRUE;
+   FieldbusHealthy := TRUE;
+   AutoLoad := TRUE;
+   PartPresent := TRUE;
+   PartLoaded := TRUE;
+
+END_DATA_BLOCK
+

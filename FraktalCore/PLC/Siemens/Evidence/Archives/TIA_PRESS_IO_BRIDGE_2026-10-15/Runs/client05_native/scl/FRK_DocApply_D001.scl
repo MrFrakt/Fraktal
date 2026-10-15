@@ -1,0 +1,60 @@
+﻿FUNCTION "FRK_DocApply_D001" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+      Targets : Array[1..1] of Int;
+      Prior : Int;
+      Reserved : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocApply_D001 := FALSE;
+	#Position := 24;
+	#NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D001Data, DEST_VARIABLE => "FRK_PersistImages".D001, POS := #Position);
+	IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[1].Result.Length) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D001.SchemaVersion <> 1 OR "FRK_PersistImages".D001.Scope <> 'PressDemo' THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D001.Kind <> 1 OR "FRK_PersistImages".D001.ModelCode <> '' OR "FRK_PersistImages".D001.Count <> 1 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D001.ActiveModel <> 'ALUMINUM' AND "FRK_PersistImages".D001.ActiveModel <> 'PLASTIC' AND "FRK_PersistImages".D001.ActiveModel <> 'STEEL' THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D001.Rows[1].Used OR "FRK_PersistImages".D001.Rows[1].SchemaVersion <> 1 OR "FRK_PersistImages".D001.Rows[1].ModelCode <> '' OR "FRK_PersistImages".D001.Rows[1].Record.Scope <> 'PressDemo' OR "FRK_PersistImages".D001.Rows[1].Record.WriteKey <> 'requireTwoHandStart' OR "FRK_PersistImages".D001.Rows[1].Record.Revision <> 1 OR "FRK_PersistImages".D001.Rows[1].Record.Kind <> 1 OR "FRK_PersistImages".D001.Rows[1].Record.ValueType <> 2 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D001.Rows[1].Record.ValueText), Storage := 1, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'requireTwoHandStart', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 10 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 10 THEN
+	    RETURN;
+	END_IF;
+	#Targets[1] := #Stored;
+	"FRK_ConfigStore".Rows[#Targets[1]] := "FRK_PersistImages".D001.Rows[1];
+	"FRK_ConfigStore".ActiveModels[1] := "FRK_PersistImages".D001.ActiveModel;
+	"FRK_ConfigStore".SchemaVersion := 1;
+	#FRK_DocApply_D001 := TRUE;
+	
+END_FUNCTION
+

@@ -11,6 +11,9 @@ BEGIN
         2: #FRK_DiagSlot := 2;
         3: #FRK_DiagSlot := 3;
         4: #FRK_DiagSlot := 4;
+        5: #FRK_DiagSlot := 5;
+        6: #FRK_DiagSlot := 6;
+        7: #FRK_DiagSlot := 7;
         ELSE RETURN;
     END_CASE;
 END_FUNCTION
@@ -26,6 +29,9 @@ BEGIN
         2: #FRK_DiagName := 'PressDemo.PressRam';
         3: #FRK_DiagName := 'PressDemo.Door';
         4: #FRK_DiagName := 'PressDemo.PartSlide';
+        5: #FRK_DiagName := 'PressDemo.TwoHand';
+        6: #FRK_DiagName := 'PressDemo.PartPresentSensor';
+        7: #FRK_DiagName := 'PressDemo.AirPressureMonitor';
         ELSE RETURN;
     END_CASE;
 END_FUNCTION
@@ -60,9 +66,9 @@ VAR_TEMP Parent : DInt; Depth : DInt; END_VAR
 BEGIN
     #FRK_DiagBelow := FALSE;
     IF "FRK_Registry".Fault OR #Index < 1 OR #Index > "FRK_Registry".Count
-        OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > 4 THEN RETURN; END_IF;
+        OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > 7 THEN RETURN; END_IF;
     #Parent := #Index;
-    FOR #Depth := 1 TO 4 DO
+    FOR #Depth := 1 TO 7 DO
         IF #Parent = #Owner THEN #FRK_DiagBelow := TRUE; RETURN; END_IF;
         IF #Parent < 1 OR #Parent > "FRK_Registry".Count THEN RETURN; END_IF;
         IF NOT "FRK_Registry".Rows[#Parent].Valid THEN RETURN; END_IF;
@@ -91,7 +97,7 @@ BEGIN
     #HasReason := FALSE;
     // Target first, then declaration/registration order below it. A real fault
     // outranks an informational wait; an awaited hold outranks an unnamed wait.
-    FOR #Index := 0 TO 4 DO
+    FOR #Index := 0 TO 7 DO
         IF #Index = 0 THEN #Slot := "FRK_DiagSlot"(Index := #Target);
         ELSE #Slot := #Index; END_IF;
         IF "FRK_Diagnostics".Samples[#Slot].Valid THEN

@@ -1,0 +1,96 @@
+{
+  "children": [
+    "PressDemo.AirPressureMonitor",
+    "PressDemo.Door",
+    "PressDemo.PartPresentSensor",
+    "PressDemo.PartSlide",
+    "PressDemo.PressRam",
+    "PressDemo.TwoHand"
+  ],
+  "initial": {
+    "mode": "manual",
+    "state": "ready",
+    "good": 0
+  },
+  "config": [
+    "pressSettleTime=300",
+    "requireTwoHandStart=true",
+    "transferSettleTime=200"
+  ],
+  "manualRamRefusedDoorOpen": true,
+  "manualDoorClosed": true,
+  "events": [
+    {
+      "ms": 838,
+      "event": "until",
+      "what": "press discovered",
+      "ok": true
+    },
+    {
+      "ms": 1147,
+      "event": "until",
+      "what": "station config hydrated",
+      "ok": true
+    },
+    {
+      "ms": 1193,
+      "event": "command",
+      "what": "requireTwoHandStart=false",
+      "accepted": true
+    },
+    {
+      "ms": 1395,
+      "event": "until",
+      "what": "two-hand off",
+      "ok": true
+    },
+    {
+      "ms": 1430,
+      "event": "command",
+      "what": "manual PressRam EXTEND (door open)",
+      "accepted": false
+    },
+    {
+      "ms": 1467,
+      "event": "command",
+      "what": "manual Door EXTEND",
+      "accepted": true
+    },
+    {
+      "ms": 1974,
+      "event": "until",
+      "what": "door closed",
+      "ok": true
+    },
+    {
+      "ms": 2007,
+      "event": "command",
+      "what": "HOME",
+      "accepted": true
+    },
+    {
+      "ms": 2211,
+      "event": "until",
+      "what": "HOME active",
+      "ok": true
+    },
+    {
+      "ms": 2261,
+      "event": "command",
+      "what": "start HOME",
+      "accepted": true
+    },
+    {
+      "ms": 92268,
+      "event": "until",
+      "what": "HOME steps visited",
+      "ok": false
+    },
+    {
+      "ms": 92324,
+      "event": "restore",
+      "requireTwoHandStart": "true",
+      "accepted": true
+    }
+  ]
+}

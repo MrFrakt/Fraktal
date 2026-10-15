@@ -1,0 +1,41 @@
+{
+  "tree": "9bf136190ff5bec9dc2396a40eea161b597f8595",
+  "base": "57c0e1ec9171a5ef84752b591b7e6b5f01afd252",
+  "commands": [
+    {
+      "args": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "FraktalCore/PLC/Siemens/tools",
+        "-t",
+        "FraktalCore/PLC/Siemens/tools",
+        "-q"
+      ],
+      "exit_code": 1,
+      "log": "index_complete_01.log"
+    },
+    {
+      "args": [
+        "python",
+        "FraktalCore/PLC/Siemens/tools/fraktal_tia_examples.py",
+        "--verify",
+        "FraktalCore/PLC/Siemens/Examples/PressDemo/generated"
+      ],
+      "exit_code": 1,
+      "log": "index_complete_02.log"
+    },
+    {
+      "args": [
+        "python",
+        "FraktalCore/PLC/Siemens/tools/fraktal_tia_io_bridge.py",
+        "--verify",
+        "FraktalCore/PLC/Siemens/Examples/PressIoBridge/generated/Physical"
+      ],
+      "exit_code": 0,
+      "log": "index_complete_03.log"
+    }
+  ]
+}

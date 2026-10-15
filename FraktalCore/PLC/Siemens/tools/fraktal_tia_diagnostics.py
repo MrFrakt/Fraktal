@@ -41,4 +41,4 @@ def sync(t,model,owner='#',withdraw=False):
     if not any(i.type_name==t.name for i in consumers(model)):return []
     return ['    "FRK_DiagSync"(Index := '+owner+'Core.RegIndex, Withdraw := '+('TRUE' if withdraw else 'FALSE')+',',
             '        Status := '+owner+'Status, Held := '+owner+'Core.Held,',
-            '        Timeout := '+('T#0ms' if withdraw else owner+'ParCfg.'+t.timeout)+', ActiveTimeoutMs := '+owner+'Core.TimeoutMs);']
+            '        Timeout := '+('T#0ms' if withdraw or not t.timeout else owner+'ParCfg.'+t.timeout)+', ActiveTimeoutMs := '+owner+'Core.TimeoutMs);']

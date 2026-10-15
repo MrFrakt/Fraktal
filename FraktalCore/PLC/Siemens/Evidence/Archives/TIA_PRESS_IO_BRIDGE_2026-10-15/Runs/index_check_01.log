@@ -1,0 +1,1272 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import importlib.util,hashlib,json;import fraktal_tia_generate as g;from fraktal_tia_binding import REPO;s=importlib.util.spec_from_file_location('fixture',REPO/'FraktalCore/PLC/Siemens/Tests/Config/make_fixture.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m);v,_=g.build(g.DECL.validate(m.declaration()),True);print(json.dumps({k:hashlib.sha256(b.encode('ascii')).hexdigest() for k,b in v.items()},sort_keys=True))
+                                                                                                                                                                                                                                                                                              ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+======================================================================
+ERROR: test_hash_authorities_are_bound_and_hidden_worker_contains_no_secret (test_fraktal_tia_access.AccessTests.test_hash_authorities_are_bound_and_hidden_worker_contains_no_secret)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_access.py", line 27, in test_hash_authorities_are_bound_and_hidden_worker_contains_no_secret
+    sources, manifest = GEN.build(DECL.validate(FIXTURE.declaration()),True)
+                        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_persistence_globals_cannot_shadow_deployed_root_names (test_fraktal_tia_access.AccessTests.test_persistence_globals_cannot_shadow_deployed_root_names)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_access.py", line 62, in test_persistence_globals_cannot_shadow_deployed_root_names
+    GEN.build(DECL.validate(value), True)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_retained_adapter_preserves_narrow_core_and_root_bounds (test_fraktal_tia_access.AccessTests.test_retained_adapter_preserves_narrow_core_and_root_bounds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_access.py", line 66, in test_retained_adapter_preserves_narrow_core_and_root_bounds
+    sources, manifest = GEN.build(DECL.validate(value), True)
+                        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_event_capacities_and_sink_dependency_are_owned_by_authorities (test_fraktal_tia_alarms.AlarmTests.test_event_capacities_and_sink_dependency_are_owned_by_authorities)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_alarms.py", line 51, in test_event_capacities_and_sink_dependency_are_owned_by_authorities
+    s,m=GEN.build(DECL.validate(v),True)
+        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_no_recovery_store_or_ticks_are_emitted_by_default (test_fraktal_tia_alarms.AlarmTests.test_no_recovery_store_or_ticks_are_emitted_by_default)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_alarms.py", line 131, in test_no_recovery_store_or_ticks_are_emitted_by_default
+    sources,manifest=GEN.build(DECL.validate(FIX.declaration()),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_recovery_requires_selected_history_and_owns_startup_fence (test_fraktal_tia_alarms.AlarmTests.test_recovery_requires_selected_history_and_owns_startup_fence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_alarms.py", line 118, in test_recovery_requires_selected_history_and_owns_startup_fence
+    sources,manifest=GEN.build(DECL.validate(value),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_reset_and_fault_capture_follow_the_existing_lifecycle (test_fraktal_tia_alarms.AlarmTests.test_reset_and_fault_capture_follow_the_existing_lifecycle)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_alarms.py", line 60, in test_reset_and_fault_capture_follow_the_existing_lifecycle
+    s,m=GEN.build(DECL.validate(FIX.declaration()),True)
+        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_retained_history_is_keyed_by_consumed_units_and_private (test_fraktal_tia_alarms.AlarmTests.test_retained_history_is_keyed_by_consumed_units_and_private)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_alarms.py", line 69, in test_retained_history_is_keyed_by_consumed_units_and_private
+    s,m=GEN.build(DECL.validate(value),True)
+        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_retention_is_optional_and_only_deployed_units_are_selectable (test_fraktal_tia_alarms.AlarmTests.test_retention_is_optional_and_only_deployed_units_are_selectable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_alarms.py", line 95, in test_retention_is_optional_and_only_deployed_units_are_selectable
+    s,m=GEN.build(DECL.validate(value),True)
+        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_state_context_and_freshness_are_generated_only_for_consumers (test_fraktal_tia_alarms.AlarmTests.test_state_context_and_freshness_are_generated_only_for_consumers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_alarms.py", line 22, in test_state_context_and_freshness_are_generated_only_for_consumers
+    s,m=GEN.build(DECL.validate(self.state_model()),True)
+        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_a_type_without_model_fields_keeps_fixed_par_cfg (test_fraktal_tia_config.ConfigTests.test_a_type_without_model_fields_keeps_fixed_par_cfg)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 44, in test_a_type_without_model_fields_keeps_fixed_par_cfg
+    sources, _ = self.build(value)
+                 ~~~~~~~~~~^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 34, in build
+    return GEN.build(DECL.validate(value or FIX.declaration()), True)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_editable_par_cfg_is_owned_static_and_restore_precedes_init (test_fraktal_tia_config.ConfigTests.test_editable_par_cfg_is_owned_static_and_restore_precedes_init)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 90, in test_editable_par_cfg_is_owned_static_and_restore_precedes_init
+    sources, manifest = self.build()
+                        ~~~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 34, in build
+    return GEN.build(DECL.validate(value or FIX.declaration()), True)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_generation_is_independent_of_python_hash_seed (test_fraktal_tia_config.ConfigTests.test_generation_is_independent_of_python_hash_seed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 31, in test_generation_is_independent_of_python_hash_seed
+    outputs.append(subprocess.check_output([sys.executable, '-c', script], cwd=REPO/'FraktalCore/PLC/Siemens/tools', env=environment))
+                   ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\subprocess.py", line 473, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "C:\Python314\Lib\subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['C:\\Python314\\python.exe', '-c', "import importlib.util,hashlib,json;import fraktal_tia_generate as g;from fraktal_tia_binding import REPO;s=importlib.util.spec_from_file_location('fixture',REPO/'FraktalCore/PLC/Siemens/Tests/Config/make_fixture.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m);v,_=g.build(g.DECL.validate(m.declaration()),True);print(json.dumps({k:hashlib.sha256(b.encode('ascii')).hexdigest() for k,b in v.items()},sort_keys=True))"]' returned non-zero exit status 1.
+
+======================================================================
+ERROR: test_model_seed_starts_an_absent_record_from_its_declared_value (test_fraktal_tia_config.ConfigTests.test_model_seed_starts_an_absent_record_from_its_declared_value)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 77, in test_model_seed_starts_an_absent_record_from_its_declared_value
+    sources, _ = self.build(value)
+                 ~~~~~~~~~~^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 34, in build
+    return GEN.build(DECL.validate(value or FIX.declaration()), True)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_station_and_model_restore_are_separate_and_commit_does_no_io (test_fraktal_tia_config.ConfigTests.test_station_and_model_restore_are_separate_and_commit_does_no_io)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 102, in test_station_and_model_restore_are_separate_and_commit_does_no_io
+    sources, _ = self.build()
+                 ~~~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config.py", line 34, in build
+    return GEN.build(DECL.validate(value or FIX.declaration()), True)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_project_cannot_mutate_published_set_results_or_private_store (test_fraktal_tia_config_sets.SetTests.test_project_cannot_mutate_published_set_results_or_private_store) (logic='#ConfigSetCount := 1;')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config_sets.py", line 35, in test_project_cannot_mutate_published_set_results_or_private_store
+    with self.subTest(logic=logic),self.assertRaises(DECL.DeclarationError):GEN.build(DECL.validate(value),True)
+                                                                            ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_project_cannot_mutate_published_set_results_or_private_store (test_fraktal_tia_config_sets.SetTests.test_project_cannot_mutate_published_set_results_or_private_store) (logic="#ConfigSets[1].SetName := 'forged';")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config_sets.py", line 35, in test_project_cannot_mutate_published_set_results_or_private_store
+    with self.subTest(logic=logic),self.assertRaises(DECL.DeclarationError):GEN.build(DECL.validate(value),True)
+                                                                            ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_project_cannot_mutate_published_set_results_or_private_store (test_fraktal_tia_config_sets.SetTests.test_project_cannot_mutate_published_set_results_or_private_store) (logic='"FRK_SetStore".SchemaVersion := 99;')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config_sets.py", line 35, in test_project_cannot_mutate_published_set_results_or_private_store
+    with self.subTest(logic=logic),self.assertRaises(DECL.DeclarationError):GEN.build(DECL.validate(value),True)
+                                                                            ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_project_cannot_mutate_published_set_results_or_private_store (test_fraktal_tia_config_sets.SetTests.test_project_cannot_mutate_published_set_results_or_private_store) (logic='"FRK_SetBoot"(Startup := TRUE);')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config_sets.py", line 35, in test_project_cannot_mutate_published_set_results_or_private_store
+    with self.subTest(logic=logic),self.assertRaises(DECL.DeclarationError):GEN.build(DECL.validate(value),True)
+                                                                            ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_project_root_cannot_shadow_a_new_framework_store (test_fraktal_tia_config_sets.SetTests.test_project_root_cannot_shadow_a_new_framework_store)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config_sets.py", line 12, in test_project_root_cannot_shadow_a_new_framework_store
+    with self.assertRaises(DECL.DeclarationError):GEN.build(DECL.validate(value),True)
+                                                  ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_set_deployment_survives_declaration_roundtrip (test_fraktal_tia_config_sets.SetTests.test_set_deployment_survives_declaration_roundtrip)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config_sets.py", line 24, in test_set_deployment_survives_declaration_roundtrip
+    sources,manifest=GEN.build(model,True)
+                     ~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_store_is_opt_in_and_capacity_is_a_core_bound (test_fraktal_tia_config_sets.SetTests.test_store_is_opt_in_and_capacity_is_a_core_bound)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_config_sets.py", line 18, in test_store_is_opt_in_and_capacity_is_a_core_bound
+    sources,_=GEN.build(DECL.validate(FIX.declaration()),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: setUpClass (test_fraktal_tia_examples.NativeGraphGate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_examples.py", line 17, in setUpClass
+    cls.sources, _, _ = EX.build()
+                        ~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: setUpClass (test_fraktal_tia_examples.PressRecoveryGraph)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_examples.py", line 84, in setUpClass
+    cls.sources,cls.definition,_=EX.build()
+                                 ~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_client_io_image_cannot_be_an_external_command_path (test_fraktal_tia_io_bridge.IoBridgeTests.test_client_io_image_cannot_be_an_external_command_path)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_io_bridge.py", line 94, in test_client_io_image_cannot_be_an_external_command_path
+    source = bridge.build(False)['38_PressDemoHardwareDriver.scl']
+             ~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_io_bridge.py", line 228, in build
+    sources, _, _ = press_build()
+                    ~~~~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_consumed_document_geometry (test_fraktal_tia_persistence.PersistenceDeclaration.test_consumed_document_geometry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_persistence.py", line 41, in test_consumed_document_geometry
+    sources,_=GEN.build(DECL.validate(self.value),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_decimal_config_limits_generate_native_numbers (test_fraktal_tia_persistence.PersistenceDeclaration.test_decimal_config_limits_generate_native_numbers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_persistence.py", line 51, in test_decimal_config_limits_generate_native_numbers
+    sources,_=GEN.build(DECL.validate(self.value),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_empty_profile_allocates_nothing (test_fraktal_tia_persistence.PersistenceDeclaration.test_empty_profile_allocates_nothing)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_persistence.py", line 32, in test_empty_profile_allocates_nothing
+    sources,_=GEN.build(DECL.validate(self.value),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_invalid_derived_keys_are_rejected (test_fraktal_tia_persistence.PersistenceDeclaration.test_invalid_derived_keys_are_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_persistence.py", line 38, in test_invalid_derived_keys_are_rejected
+    with self.assertRaises(DECL.DeclarationError):GEN.build(DECL.validate(self.value),True)
+                                                  ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_named_set_apply_queues_its_live_document (test_fraktal_tia_persistence.PersistenceDeclaration.test_named_set_apply_queues_its_live_document)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_persistence.py", line 57, in test_named_set_apply_queues_its_live_document
+    sources,_=GEN.build(DECL.validate(self.value),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_restore_barrier_withdraws_selected_view_through_owning_quiesce (test_fraktal_tia_persistence.PersistenceDeclaration.test_restore_barrier_withdraws_selected_view_through_owning_quiesce)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_persistence.py", line 65, in test_restore_barrier_withdraws_selected_view_through_owning_quiesce
+    sources,_=GEN.build(DECL.validate(self.value),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_frame_and_step_own_profile_and_finish_flush (test_fraktal_tia_profile.ProfileTests.test_frame_and_step_own_profile_and_finish_flush)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_profile.py", line 28, in test_frame_and_step_own_profile_and_finish_flush
+    sources,_,_=EX.build()
+                ~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_profile_arrays_are_consumed_and_core_bounded (test_fraktal_tia_profile.ProfileTests.test_profile_arrays_are_consumed_and_core_bounded)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_profile.py", line 20, in test_profile_arrays_are_consumed_and_core_bounded
+    sources,_=GEN.build(DECL.validate(value),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_replay_binds_profile_source (test_fraktal_tia_profile.ProfileTests.test_replay_binds_profile_source)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_profile.py", line 47, in test_replay_binds_profile_source
+    out=Path(tmp)/'generated';GEN.generate(model,out,True)
+                              ~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 703, in generate
+    sources, manifest = build(model, shared_runtime)
+                        ~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_unselected_station_pays_no_profile_storage (test_fraktal_tia_profile.ProfileTests.test_unselected_station_pays_no_profile_storage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_profile.py", line 14, in test_unselected_station_pays_no_profile_storage
+    sources,_=GEN.build(DECL.validate(FIXTURE.CONFIG.declaration()),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_frame_captures_fault_after_kernel_resolves (test_fraktal_tia_sequence_recovery.RecoveryTests.test_frame_captures_fault_after_kernel_resolves)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_recovery.py", line 22, in test_frame_captures_fault_after_kernel_resolves
+    sources, _ = GEN.build(DECL.validate(FIXTURE.select(FIXTURE.CONFIG.declaration())), True)
+                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_native_graph_adapters_share_the_correct_scan_boundary (test_fraktal_tia_sequence_recovery.RecoveryTests.test_native_graph_adapters_share_the_correct_scan_boundary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_recovery.py", line 29, in test_native_graph_adapters_share_the_correct_scan_boundary
+    sources, _, _ = EX.build()
+                    ~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_consumed_arrays_readonly_and_defs_private (test_fraktal_tia_sequence_view.SequenceViewTests.test_consumed_arrays_readonly_and_defs_private)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 71, in test_consumed_arrays_readonly_and_defs_private
+    value=self.value();sources,manifest=GEN.build(DECL.validate(value),True)
+                                        ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_diagnostic_samples_are_scoped_to_consumed_descendants (test_fraktal_tia_sequence_view.SequenceViewTests.test_diagnostic_samples_are_scoped_to_consumed_descendants)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 42, in test_diagnostic_samples_are_scoped_to_consumed_descendants
+    sources,_=GEN.build(model,True)
+              ~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_pending_is_readonly_and_diagnostic_work_is_frame_owned (test_fraktal_tia_sequence_view.SequenceViewTests.test_pending_is_readonly_and_diagnostic_work_is_frame_owned)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 47, in test_pending_is_readonly_and_diagnostic_work_is_frame_owned
+    value=self.value();sources,_=GEN.build(DECL.validate(value),True)
+                                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_press_projection_is_declared_once_and_main_stays_three_calls (test_fraktal_tia_sequence_view.SequenceViewTests.test_press_projection_is_declared_once_and_main_stays_three_calls)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 100, in test_press_projection_is_declared_once_and_main_stays_three_calls
+    sources,definition,_=EX.build()
+                         ~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_roundtrip_and_replay_cover_profile_and_template (test_fraktal_tia_sequence_view.SequenceViewTests.test_roundtrip_and_replay_cover_profile_and_template)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 89, in test_roundtrip_and_replay_cover_profile_and_template
+    out=Path(tmp)/'sources';GEN.generate(model,out,True);self.assertGreater(GEN.verify(out),0)
+                            ~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 703, in generate
+    sources, manifest = build(model, shared_runtime)
+                        ~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_snapshot_capture_does_not_borrow_readonly_config (test_fraktal_tia_sequence_view.SequenceViewTests.test_snapshot_capture_does_not_borrow_readonly_config)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 60, in test_snapshot_capture_does_not_borrow_readonly_config
+    sources,_,_=EX.build()
+                ~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_unselected_units_pay_no_view_storage (test_fraktal_tia_sequence_view.SequenceViewTests.test_unselected_units_pay_no_view_storage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 30, in test_unselected_units_pay_no_view_storage
+    sources,_=GEN.build(DECL.validate(FIXTURE.CONFIG.declaration()),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_catalog_and_typed_manual_route_are_derived_from_commands_and_tree (test_fraktal_tia_unit.UnitTests.test_catalog_and_typed_manual_route_are_derived_from_commands_and_tree)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_unit.py", line 68, in test_catalog_and_typed_manual_route_are_derived_from_commands_and_tree
+    sources,_=GEN.build(DECL.validate(FIXTURE.declaration()),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_management_precedes_consumption_and_reset_release_is_generated (test_fraktal_tia_unit.UnitTests.test_management_precedes_consumption_and_reset_release_is_generated)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_unit.py", line 41, in test_management_precedes_consumption_and_reset_release_is_generated
+    sources,_=GEN.build(DECL.validate(FIXTURE.declaration()),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_manifest_static_facets_are_private_and_generated_names_cannot_collide (test_fraktal_tia_unit.UnitTests.test_manifest_static_facets_are_private_and_generated_names_cannot_collide)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_unit.py", line 86, in test_manifest_static_facets_are_private_and_generated_names_cannot_collide
+    sources,_=GEN.build(DECL.validate(FIXTURE.declaration()),True)
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: test_unit_mailbox_is_writable_static_and_other_facets_read_only (test_fraktal_tia_unit.UnitTests.test_unit_mailbox_is_writable_static_and_other_facets_read_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_unit.py", line 28, in test_unit_mailbox_is_writable_static_and_other_facets_read_only
+    out=Path(tmp)/'frames';GEN.generate(DECL.validate(FIXTURE.declaration()),out,True)
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 703, in generate
+    sources, manifest = build(model, shared_runtime)
+                        ~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+======================================================================
+ERROR: setUpClass (test_fraktal_tia_users.UsersOverlay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_users.py", line 13, in setUpClass
+    sources, _, _ = EX.build()
+                    ~~~~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'
+
+======================================================================
+ERROR: test_opt_in_allocates_only_consumed_scopes (test_tia_event_collector.GenerationTests.test_opt_in_allocates_only_consumed_scopes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\test_tia_event_collector.py", line 84, in test_opt_in_allocates_only_consumed_scopes
+    value=self.fixture();sources,_=generate(validate(value),True)
+                                   ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 305, in build
+    runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_runtime.py", line 55, in build
+    unit_sources = build_unit(catalog,event_sink,history,recovery,delivery)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_unit.py", line 74, in build
+    access_sources=build_access(catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_access.py", line 29, in build
+    source = ET.fromstring(SHA_AUTHORITY.read_bytes())
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\F_Sha256.TcPOU'
+
+----------------------------------------------------------------------
+Ran 209 tests in 39.484s
+
+FAILED (errors=50)
+{"cases": 55, "checks": 238, "sources": 31}
+{"generated": "C:\\Users\\Siemens\\AppData\\Local\\Temp\\tmpq8dzmy5j\\ldt", "structs": 88, "enums": 42, "witnesses": 1146}

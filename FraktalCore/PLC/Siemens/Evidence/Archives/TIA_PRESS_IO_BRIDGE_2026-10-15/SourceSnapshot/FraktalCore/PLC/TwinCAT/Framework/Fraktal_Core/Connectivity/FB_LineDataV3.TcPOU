@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LineDataV3" Id="{4d674346-4956-4b50-9b1f-3a632a537063}" SpecialFunc="None">
+    <Declaration><![CDATA[// Versioned weekly Line owner/mirror; inherited V1 image is retained for migration.
+FUNCTION_BLOCK FB_LineDataV3 EXTENDS FB_LineData
+VAR PERSISTENT
+    CalendarV2 : ST_ShiftCalendarV2; // explicit V2 migration image, never reinterpreted
+    CalendarV3 : ST_ShiftCalendarV3;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _weeklyConfig : ARRAY[1..21] OF ST_ConfigWriteDef;
+    _candidate : ST_ShiftCalendarV3;
+    _batch : BOOL;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
+    <Method Name="_M_RegisterCalendar" Id="{4f076d09-519c-4685-8d6b-869e76c31e0e}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_RegisterCalendar : BOOL
+VAR
+    n : INT;
+    ok : BOOL;
+    found : UINT;
+    key : STRING(160);
+    item : STRING(255);
+    label : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_RegisterCalendar := FALSE;
+IF NOT _M_UseConfigRegistry(pRecords := ADR(_weeklyConfig), Capacity := 21) THEN RETURN; END_IF
+IF CalendarV3.SchemaVersion = 0 THEN
+    IF CalendarV2.SchemaVersion = 2 THEN
+        ok := _schedule.M_MigrateV2(Source := CalendarV2, Target := _candidate);
+    ELSIF CalendarV2.SchemaVersion = 0 THEN
+        ok := _schedule.M_MigrateV1(Source := Calendar, Target := _candidate);
+    ELSE
+        // A present incompatible weekly image is not a missing image.
+        ok := FALSE;
+    END_IF
+    IF ok THEN CalendarV3 := _candidate; END_IF
+END_IF
+IF NOT _schedule.M_Validate(Calendar := CalendarV3) THEN
+    // Reject a real incompatible image visibly; keep the schedule empty.
+    found := CalendarV3.SchemaVersion;
+    IF found = 0 THEN found := 65535; END_IF
+    M_RestoreStationCfg(pVersion := ADR(found), SchemaVersion := 3);
+    CalendarV3.SchemaVersion := 3;
+    CalendarV3.UtcOffsetMin := 0;
+    FOR n := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+        CalendarV3.Rows[n].StartMin := -1;
+        CalendarV3.Rows[n].DurationMin := 1440;
+        CalendarV3.Rows[n].ActiveDays := 0;
+        CalendarV3.Rows[n].ProductionTarget := 0;
+    END_FOR
+END_IF
+ok := M_RegisterConfigNumber(Key := 'line.shift.utcOffsetMin', Item := 'CalendarV3/UtcOffsetMin',
+    LabelKey := 'std.config.shiftUtcOffset', Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG,
+    Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(CalendarV3.UtcOffsetMin),
+    Minimum := -840.0, Maximum := 840.0, RequiresReady := FALSE);
+M_SetConfigAccess(WriteKey := 'line.shift.utcOffsetMin', ClassId := '',
+    MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.ENGINEER);
+FOR n := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    key := CONCAT('line.shift.', CONCAT(TO_STRING(n), '.startMin'));
+    item := CONCAT('CalendarV3/Rows[', CONCAT(TO_STRING(n), ']/StartMin'));
+    label := CONCAT('std.config.shift.', CONCAT(TO_STRING(n), '.start'));
+    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := label,
+        Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(CalendarV3.Rows[n].StartMin), Minimum := -1.0, Maximum := 1439.0,
+        RequiresReady := FALSE) AND ok;
+    M_SetConfigAccess(WriteKey := key, ClassId := '', MinReadLevel := E_AccessLevel.NONE,
+        MinWriteLevel := E_AccessLevel.ENGINEER);
+    key := CONCAT('line.shift.', CONCAT(TO_STRING(n), '.durationMin'));
+    item := CONCAT('CalendarV3/Rows[', CONCAT(TO_STRING(n), ']/DurationMin'));
+    label := CONCAT('std.config.shift.', CONCAT(TO_STRING(n), '.duration'));
+    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := label,
+        Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(CalendarV3.Rows[n].DurationMin), Minimum := 1.0, Maximum := 1440.0,
+        RequiresReady := FALSE) AND ok;
+    M_SetConfigAccess(WriteKey := key, ClassId := '', MinReadLevel := E_AccessLevel.NONE,
+        MinWriteLevel := E_AccessLevel.ENGINEER);
+    key := CONCAT('line.shift.', CONCAT(TO_STRING(n), '.activeDays'));
+    item := CONCAT('CalendarV3/Rows[', CONCAT(TO_STRING(n), ']/ActiveDays'));
+    label := CONCAT('std.config.shift.', CONCAT(TO_STRING(n), '.activeDays'));
+    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := label,
+        Unit := E_EngUnit.NONE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(CalendarV3.Rows[n].ActiveDays), Minimum := 0.0, Maximum := 127.0,
+        RequiresReady := FALSE) AND ok;
+    M_SetConfigAccess(WriteKey := key, ClassId := '', MinReadLevel := E_AccessLevel.NONE,
+        MinWriteLevel := E_AccessLevel.ENGINEER);
+    key := CONCAT('line.shift.', CONCAT(TO_STRING(n), '.productionTarget'));
+    item := CONCAT('CalendarV3/Rows[', CONCAT(TO_STRING(n), ']/ProductionTarget'));
+    label := CONCAT('std.config.shift.', CONCAT(TO_STRING(n), '.productionTarget'));
+    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := label,
+        Unit := E_EngUnit.PIECE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(CalendarV3.Rows[n].ProductionTarget), Minimum := 0.0, Maximum := 2147483647.0,
+        RequiresReady := FALSE) AND ok;
+    M_SetConfigAccess(WriteKey := key, ClassId := '', MinReadLevel := E_AccessLevel.NONE,
+        MinWriteLevel := E_AccessLevel.ENGINEER);
+END_FOR
+_M_RegisterCalendar := ok;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ShiftInterval" Id="{73bda5f2-9773-44e0-a4e1-3f6dad6dab3b}">
+      <Declaration><![CDATA[METHOD M_ShiftInterval : BOOL
+VAR_INPUT
+    Now : DT;
+END_VAR
+VAR_OUTPUT
+    ShiftIndex : INT;
+    StartAt : DT;
+    EndAt : DT;
+    Target : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ShiftInterval := _schedule.M_Interval(Now := Now, Calendar := CalendarV3,
+    ShiftIndex => ShiftIndex, StartAt => StartAt, EndAt => EndAt, Target => Target);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_StageConfigWrite" Id="{358aa899-ac1f-45b6-ae4f-de6f1e8e2bee}">
+      <Declaration><![CDATA[METHOD M_StageConfigWrite : BOOL
+VAR_INPUT
+    Scope : STRING(255);
+    WriteKey : STRING(160);
+    Revision : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR
+VAR
+    i : INT;
+    original : PVOID;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_StageConfigWrite := FALSE;
+IF NOT _batch THEN _candidate := CalendarV3; END_IF
+IF NOT SUPER^.M_StageConfigWrite(Scope := Scope, WriteKey := WriteKey, Revision := Revision,
+        TextValue := TextValue, RootReady := RootReady) THEN RETURN; END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        original := _pConfigWrite[i - 1].pTarget;
+        IF (original < ADR(CalendarV3)) OR (original >= ADR(CalendarV3) + SIZEOF(CalendarV3)) THEN RETURN; END_IF
+        _pConfigWrite[i - 1].pTarget := ADR(_candidate) + (original - ADR(CalendarV3));
+        M_StageConfigWrite := _M_StoreConfigValue(Idx := i, TextValue := TextValue, Commit := TRUE);
+        _pConfigWrite[i - 1].pTarget := original;
+        EXIT;
+    END_IF
+END_FOR
+IF M_StageConfigWrite AND NOT _batch THEN
+    M_StageConfigWrite := _schedule.M_Validate(Calendar := _candidate);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{0efbacae-c18c-4b88-be8b-11d11f545503}">
+      <Declaration><![CDATA[METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope : STRING(255);
+    WriteKey : STRING(160);
+    Revision : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyConfigWrite := M_StageConfigWrite(Scope := Scope, WriteKey := WriteKey,
+    Revision := Revision, TextValue := TextValue, RootReady := RootReady);
+IF NOT M_ApplyConfigWrite THEN RETURN; END_IF
+IF NOT _batch THEN
+    CalendarV3 := _candidate;
+    IF _role = E_LineRole.OWNER THEN _revision := _revision + 1; END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_BeginConfigBatch" Id="{51d86eeb-afa9-4332-a2f2-e763ddac488f}">
+      <Declaration><![CDATA[METHOD M_BeginConfigBatch : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_BeginConfigBatch := NOT _batch;
+IF M_BeginConfigBatch THEN _candidate := CalendarV3; _batch := TRUE; END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ValidateConfigBatch" Id="{efb14d59-9686-47a7-98e4-744964da9717}">
+      <Declaration><![CDATA[METHOD M_ValidateConfigBatch : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_ValidateConfigBatch := _batch AND _schedule.M_Validate(Calendar := _candidate);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_EndConfigBatch" Id="{69855fc4-229b-426d-856e-668b33761df9}">
+      <Declaration><![CDATA[METHOD M_EndConfigBatch]]></Declaration>
+      <Implementation><ST><![CDATA[_batch := FALSE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_CommitConfigBatch" Id="{62c81567-2c36-4e97-ad71-8178e47f6bb7}">
+      <Declaration><![CDATA[METHOD M_CommitConfigBatch : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_CommitConfigBatch := M_ValidateConfigBatch();
+IF M_CommitConfigBatch THEN
+    CalendarV3 := _candidate;
+    IF _role = E_LineRole.OWNER THEN _revision := _revision + 1; END_IF
+END_IF
+_batch := FALSE;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

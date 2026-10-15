@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_DiagComposite" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      AdoptErrors : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+   END_VAR
+
+   VAR_TEMP 
+      Summary : "FRK_DiagSummary";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Core.Exec <> 1 THEN
+	    RETURN;
+	END_IF;
+	"FRK_DiagRead"(Owner := 0,
+	               Target := #Core.RegIndex,
+	               Faults := #AdoptErrors,
+	               DescendantsOnly := TRUE,
+	               Summary := #Summary);
+	IF #Summary.Fault THEN
+	    "FRK_AdoptFault"(Core := #Core,
+	                     Status := #Status,
+	                     Diag := #Summary.Diagnostic);
+	ELSIF #Summary.Held THEN
+	    "FRK_HoldDiag"(Core := #Core,
+	                   Status := #Status,
+	                   Diag := #Summary.Diagnostic);
+	END_IF;
+	
+END_FUNCTION
+

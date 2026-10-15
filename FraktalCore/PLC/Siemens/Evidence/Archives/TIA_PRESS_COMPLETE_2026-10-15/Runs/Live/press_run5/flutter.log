@@ -1,0 +1,42 @@
+00:00 +0: loading C:/Projects/Fraktal/FraktalCore/HMI/test/live_tia_press_direct_test.dart
+00:00 +0: TIA press over s7web://: HOME, AUTO cycles, stop at cycle boundary
+[Fraktal/Connection] stage=s7web-connect host=169.254.212.49 port=443 user=fraktal pin=33f3df01cd14f8dd… batch=64
+[Fraktal/Connection] stage=opcua-read-tiers discovered=4115 fast=1239 slow=0 excluded=2876 offContract=0 manifest=0 scopes=0
+[Fraktal/Connection] stage=opcua-read-tiers discovered=4115 fast=1239 slow=0 excluded=2876 offContract=0 manifest=0 scopes=1
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=18
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=18 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=19
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=19 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=setMode unit=PressDemo sequence=20
+[Fraktal/Connection] stage=opcua-request-ack kind=setMode sequence=20 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=21
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=21 accepted=true diagnostic=
+[Fraktal/Connection] stage=config-manifest-hydrated entries=44 values=44
+[Fraktal/Connection] stage=opcua-read-tiers discovered=4115 fast=1239 slow=0 excluded=2876 offContract=0 manifest=0 scopes=1
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=22
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=22 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=23
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=23 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=24
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=24 accepted=true diagnostic=
+[Fraktal/Connection] stage=config-manifest-hydrated entries=44 values=44
+[Fraktal/Connection] stage=opcua-read-tiers discovered=4115 fast=1239 slow=0 excluded=2876 offContract=0 manifest=0 scopes=1
+[Fraktal/Connection] stage=opcua-request-start kind=writeConfig unit=PressDemo sequence=25
+[Fraktal/Connection] stage=opcua-request-ack kind=writeConfig sequence=25 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=manualCommand unit=PressDemo sequence=26
+[Fraktal/Connection] stage=opcua-request-ack kind=manualCommand sequence=26 accepted=false diagnostic=std.audit.manualCommandRejected
+[Fraktal/Connection] stage=opcua-request-start kind=writeConfig unit=PressDemo sequence=27
+[Fraktal/Connection] stage=opcua-request-ack kind=writeConfig sequence=27 accepted=true diagnostic=
+00:03 +0 -1: TIA press over s7web://: HOME, AUTO cycles, stop at cycle boundary [E]
+  Expected: true
+    Actual: <false>
+  acknowledged: manual PressRam EXTEND
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\live_tia_press_direct_test.dart 82:7           main.<fn>.command
+  
+00:03 +0 -1: Some tests failed.
+
+Failing tests:
+  C:/Projects/Fraktal/FraktalCore/HMI/test/live_tia_press_direct_test.dart: TIA press over s7web://: HOME, AUTO cycles, stop at cycle boundary

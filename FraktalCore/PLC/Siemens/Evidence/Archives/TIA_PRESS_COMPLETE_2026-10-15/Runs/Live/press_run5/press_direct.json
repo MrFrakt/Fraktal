@@ -1,0 +1,70 @@
+{
+  "children": [
+    "PressDemo.AirPressureMonitor",
+    "PressDemo.Door",
+    "PressDemo.PartPresentSensor",
+    "PressDemo.PartSlide",
+    "PressDemo.PressRam",
+    "PressDemo.TwoHand"
+  ],
+  "initial": {
+    "mode": "home",
+    "state": "ready",
+    "good": 0
+  },
+  "config": [
+    "pressSettleTime=300",
+    "requireTwoHandStart=true",
+    "transferSettleTime=200"
+  ],
+  "events": [
+    {
+      "ms": 848,
+      "event": "until",
+      "what": "press discovered",
+      "ok": true
+    },
+    {
+      "ms": 934,
+      "event": "command",
+      "what": "MANUAL",
+      "accepted": true
+    },
+    {
+      "ms": 1237,
+      "event": "until",
+      "what": "MANUAL",
+      "ok": true
+    },
+    {
+      "ms": 3262,
+      "event": "until",
+      "what": "station config hydrated",
+      "ok": true
+    },
+    {
+      "ms": 3310,
+      "event": "command",
+      "what": "requireTwoHandStart=false",
+      "accepted": true
+    },
+    {
+      "ms": 3715,
+      "event": "until",
+      "what": "two-hand off",
+      "ok": true
+    },
+    {
+      "ms": 3748,
+      "event": "command",
+      "what": "manual PressRam EXTEND",
+      "accepted": false
+    },
+    {
+      "ms": 3790,
+      "event": "restore",
+      "requireTwoHandStart": "true",
+      "accepted": true
+    }
+  ]
+}

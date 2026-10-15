@@ -1,0 +1,28 @@
+00:00 +0: loading C:/Projects/Fraktal/FraktalCore/HMI/test/live_tia_press_direct_test.dart
+00:00 +0: TIA press over s7web://: HOME, AUTO cycles, stop at cycle boundary
+[Fraktal/Connection] stage=s7web-connect host=169.254.212.49 port=443 user=fraktal pin=33f3df01cd14f8dd… batch=64
+[Fraktal/Connection] stage=opcua-read-tiers discovered=4115 fast=1239 slow=0 excluded=2876 offContract=0 manifest=0 scopes=0
+[Fraktal/Connection] stage=opcua-read-tiers discovered=4115 fast=1239 slow=0 excluded=2876 offContract=0 manifest=0 scopes=1
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=4
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=4 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=5
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=5 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=operatorReset unit=PressDemo sequence=6
+[Fraktal/Connection] stage=opcua-request-ack kind=operatorReset sequence=6 accepted=true diagnostic=
+[Fraktal/Connection] stage=opcua-request-start kind=queryConfig unit=PressDemo sequence=7
+[Fraktal/Connection] stage=opcua-request-ack kind=queryConfig sequence=7 accepted=true diagnostic=
+[Fraktal/Connection] stage=config-manifest-hydrated entries=44 values=44
+[Fraktal/Connection] stage=opcua-read-tiers discovered=4115 fast=1239 slow=0 excluded=2876 offContract=0 manifest=0 scopes=1
+01:31 +0 -1: TIA press over s7web://: HOME, AUTO cycles, stop at cycle boundary [E]
+  Expected: true
+    Actual: <false>
+  deadline: reset cleared (state=ExecState.error mode=UnitMode.manual step=null message=std.reason.10001)
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\live_tia_press_direct_test.dart 63:7           main.<fn>.until
+  
+01:31 +0 -1: Some tests failed.
+
+Failing tests:
+  C:/Projects/Fraktal/FraktalCore/HMI/test/live_tia_press_direct_test.dart: TIA press over s7web://: HOME, AUTO cycles, stop at cycle boundary

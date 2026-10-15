@@ -1,0 +1,1958 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-15T20:18:25.6055512Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Slot" Datatype="Int" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp">
+    <Member Name="Stored" Datatype="Int" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_DocReject</Name>
+      <Namespace />
+      <Number>229</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="CASE" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Slot" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="OF" UId="28" />
+  <NewLine Num="1" UId="29" />
+  <Blank Num="4" UId="30" />
+  <Access Scope="LiteralConstant" UId="31">
+    <Constant UId="32">
+      <ConstantValue UId="34">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="35" />
+  <NewLine Num="1" UId="36" />
+  <Blank Num="8" UId="37" />
+  <Access Scope="LocalVariable" UId="38">
+    <Symbol UId="39">
+      <Component Name="Stored" UId="40" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="41" />
+  <Token Text=":=" UId="42" />
+  <Blank Num="1" UId="43" />
+  <Access Scope="Call" UId="44">
+    <CallInfo UId="45" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="47">
+        <Component Name="FRK_ConfigFind" UId="46" />
+      </Instance>
+      <Token Text="(" UId="48" />
+      <Parameter Name="Scope" UId="49">
+        <Blank Num="1" UId="50" />
+        <Token Text=":=" UId="51" />
+        <Blank Num="1" UId="52" />
+        <Access Scope="LiteralConstant" UId="53">
+          <Constant UId="54">
+            <ConstantValue UId="56">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="57" />
+      <Blank Num="1" UId="58" />
+      <Parameter Name="Key" UId="59">
+        <Blank Num="1" UId="60" />
+        <Token Text=":=" UId="61" />
+        <Blank Num="1" UId="62" />
+        <Access Scope="LiteralConstant" UId="63">
+          <Constant UId="64">
+            <ConstantValue UId="66">'requireTwoHandStart'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="67" />
+      <Blank Num="1" UId="68" />
+      <Parameter Name="ModelCode" UId="69">
+        <Blank Num="1" UId="70" />
+        <Token Text=":=" UId="71" />
+        <Blank Num="1" UId="72" />
+        <Access Scope="LiteralConstant" UId="73">
+          <Constant UId="74">
+            <ConstantValue UId="76">''</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="78" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="79" />
+  <NewLine Num="1" UId="80" />
+  <Blank Num="8" UId="81" />
+  <Token Text="IF" UId="82" />
+  <Blank Num="1" UId="83" />
+  <Access Scope="LocalVariable" UId="84">
+    <Symbol UId="85">
+      <Component Name="Stored" UId="86" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="87" />
+  <Token Text="&gt;" UId="88" />
+  <Blank Num="1" UId="89" />
+  <Access Scope="LiteralConstant" UId="90">
+    <Constant UId="91">
+      <ConstantValue UId="93">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="94" />
+  <Token Text="THEN" UId="95" />
+  <NewLine Num="1" UId="96" />
+  <Blank Num="12" UId="97" />
+  <Access Scope="GlobalVariable" UId="98">
+    <Symbol UId="99">
+      <Component Name="FRK_ConfigStore" UId="100">
+        <BooleanAttribute Name="HasQuotes" UId="101">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="102" />
+      <Component Name="Rows" UId="103">
+        <Token Text="[" UId="104" />
+        <Access Scope="LocalVariable" UId="105">
+          <Symbol UId="106">
+            <Component Name="Stored" UId="107" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="108" />
+      </Component>
+      <Token Text="." UId="109" />
+      <Component Name="Used" UId="110" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="111" />
+  <Token Text=":=" UId="112" />
+  <Blank Num="1" UId="113" />
+  <Access Scope="LiteralConstant" UId="114">
+    <Constant UId="115">
+      <ConstantValue UId="117">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="118" />
+  <NewLine Num="1" UId="119" />
+  <Blank Num="8" UId="120" />
+  <Token Text="END_IF" UId="121" />
+  <Token Text=";" UId="122" />
+  <NewLine Num="1" UId="123" />
+  <Blank Num="8" UId="124" />
+  <Access Scope="Call" UId="125">
+    <CallInfo UId="126" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="128">
+        <Component Name="FRK_ConfigLoss" UId="127" />
+      </Instance>
+      <Token Text="(" UId="129" />
+      <Parameter Name="RootIndex" UId="130">
+        <Blank Num="1" UId="131" />
+        <Token Text=":=" UId="132" />
+        <Blank Num="1" UId="133" />
+        <Access Scope="LiteralConstant" UId="134">
+          <Constant UId="135">
+            <ConstantValue UId="137">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="138" />
+      <NewLine Num="1" UId="139" />
+      <Blank Num="25" UId="140" />
+      <Parameter Name="Scope" UId="141">
+        <Blank Num="1" UId="142" />
+        <Token Text=":=" UId="143" />
+        <Blank Num="1" UId="144" />
+        <Access Scope="LiteralConstant" UId="145">
+          <Constant UId="146">
+            <ConstantValue UId="148">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="149" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="150" />
+  <NewLine Num="1" UId="151" />
+  <Blank Num="4" UId="152" />
+  <Access Scope="LiteralConstant" UId="153">
+    <Constant UId="154">
+      <ConstantValue UId="156">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="157" />
+  <NewLine Num="1" UId="158" />
+  <Blank Num="8" UId="159" />
+  <Access Scope="LocalVariable" UId="160">
+    <Symbol UId="161">
+      <Component Name="Stored" UId="162" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="163" />
+  <Token Text=":=" UId="164" />
+  <Blank Num="1" UId="165" />
+  <Access Scope="Call" UId="166">
+    <CallInfo UId="167" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="169">
+        <Component Name="FRK_ConfigFind" UId="168" />
+      </Instance>
+      <Token Text="(" UId="170" />
+      <Parameter Name="Scope" UId="171">
+        <Blank Num="1" UId="172" />
+        <Token Text=":=" UId="173" />
+        <Blank Num="1" UId="174" />
+        <Access Scope="LiteralConstant" UId="175">
+          <Constant UId="176">
+            <ConstantValue UId="178">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="179" />
+      <Blank Num="1" UId="180" />
+      <Parameter Name="Key" UId="181">
+        <Blank Num="1" UId="182" />
+        <Token Text=":=" UId="183" />
+        <Blank Num="1" UId="184" />
+        <Access Scope="LiteralConstant" UId="185">
+          <Constant UId="186">
+            <ConstantValue UId="188">'modeSwitchTimeout'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="189" />
+      <Blank Num="1" UId="190" />
+      <Parameter Name="ModelCode" UId="191">
+        <Blank Num="1" UId="192" />
+        <Token Text=":=" UId="193" />
+        <Blank Num="1" UId="194" />
+        <Access Scope="LiteralConstant" UId="195">
+          <Constant UId="196">
+            <ConstantValue UId="198">'ALUMINUM'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="200" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="201" />
+  <NewLine Num="1" UId="202" />
+  <Blank Num="8" UId="203" />
+  <Token Text="IF" UId="204" />
+  <Blank Num="1" UId="205" />
+  <Access Scope="LocalVariable" UId="206">
+    <Symbol UId="207">
+      <Component Name="Stored" UId="208" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="209" />
+  <Token Text="&gt;" UId="210" />
+  <Blank Num="1" UId="211" />
+  <Access Scope="LiteralConstant" UId="212">
+    <Constant UId="213">
+      <ConstantValue UId="215">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="216" />
+  <Token Text="THEN" UId="217" />
+  <NewLine Num="1" UId="218" />
+  <Blank Num="12" UId="219" />
+  <Access Scope="GlobalVariable" UId="220">
+    <Symbol UId="221">
+      <Component Name="FRK_ConfigStore" UId="222">
+        <BooleanAttribute Name="HasQuotes" UId="223">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="224" />
+      <Component Name="Rows" UId="225">
+        <Token Text="[" UId="226" />
+        <Access Scope="LocalVariable" UId="227">
+          <Symbol UId="228">
+            <Component Name="Stored" UId="229" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="230" />
+      </Component>
+      <Token Text="." UId="231" />
+      <Component Name="Used" UId="232" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="233" />
+  <Token Text=":=" UId="234" />
+  <Blank Num="1" UId="235" />
+  <Access Scope="LiteralConstant" UId="236">
+    <Constant UId="237">
+      <ConstantValue UId="239">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="240" />
+  <NewLine Num="1" UId="241" />
+  <Blank Num="8" UId="242" />
+  <Token Text="END_IF" UId="243" />
+  <Token Text=";" UId="244" />
+  <NewLine Num="1" UId="245" />
+  <Blank Num="8" UId="246" />
+  <Access Scope="LocalVariable" UId="247">
+    <Symbol UId="248">
+      <Component Name="Stored" UId="249" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="250" />
+  <Token Text=":=" UId="251" />
+  <Blank Num="1" UId="252" />
+  <Access Scope="Call" UId="253">
+    <CallInfo UId="254" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="256">
+        <Component Name="FRK_ConfigFind" UId="255" />
+      </Instance>
+      <Token Text="(" UId="257" />
+      <Parameter Name="Scope" UId="258">
+        <Blank Num="1" UId="259" />
+        <Token Text=":=" UId="260" />
+        <Blank Num="1" UId="261" />
+        <Access Scope="LiteralConstant" UId="262">
+          <Constant UId="263">
+            <ConstantValue UId="265">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="266" />
+      <Blank Num="1" UId="267" />
+      <Parameter Name="Key" UId="268">
+        <Blank Num="1" UId="269" />
+        <Token Text=":=" UId="270" />
+        <Blank Num="1" UId="271" />
+        <Access Scope="LiteralConstant" UId="272">
+          <Constant UId="273">
+            <ConstantValue UId="275">'transferSettleTime'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="276" />
+      <Blank Num="1" UId="277" />
+      <Parameter Name="ModelCode" UId="278">
+        <Blank Num="1" UId="279" />
+        <Token Text=":=" UId="280" />
+        <Blank Num="1" UId="281" />
+        <Access Scope="LiteralConstant" UId="282">
+          <Constant UId="283">
+            <ConstantValue UId="285">'ALUMINUM'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="287" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="288" />
+  <NewLine Num="1" UId="289" />
+  <Blank Num="8" UId="290" />
+  <Token Text="IF" UId="291" />
+  <Blank Num="1" UId="292" />
+  <Access Scope="LocalVariable" UId="293">
+    <Symbol UId="294">
+      <Component Name="Stored" UId="295" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="296" />
+  <Token Text="&gt;" UId="297" />
+  <Blank Num="1" UId="298" />
+  <Access Scope="LiteralConstant" UId="299">
+    <Constant UId="300">
+      <ConstantValue UId="302">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="303" />
+  <Token Text="THEN" UId="304" />
+  <NewLine Num="1" UId="305" />
+  <Blank Num="12" UId="306" />
+  <Access Scope="GlobalVariable" UId="307">
+    <Symbol UId="308">
+      <Component Name="FRK_ConfigStore" UId="309">
+        <BooleanAttribute Name="HasQuotes" UId="310">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="311" />
+      <Component Name="Rows" UId="312">
+        <Token Text="[" UId="313" />
+        <Access Scope="LocalVariable" UId="314">
+          <Symbol UId="315">
+            <Component Name="Stored" UId="316" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="317" />
+      </Component>
+      <Token Text="." UId="318" />
+      <Component Name="Used" UId="319" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="320" />
+  <Token Text=":=" UId="321" />
+  <Blank Num="1" UId="322" />
+  <Access Scope="LiteralConstant" UId="323">
+    <Constant UId="324">
+      <ConstantValue UId="326">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="327" />
+  <NewLine Num="1" UId="328" />
+  <Blank Num="8" UId="329" />
+  <Token Text="END_IF" UId="330" />
+  <Token Text=";" UId="331" />
+  <NewLine Num="1" UId="332" />
+  <Blank Num="8" UId="333" />
+  <Access Scope="LocalVariable" UId="334">
+    <Symbol UId="335">
+      <Component Name="Stored" UId="336" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="337" />
+  <Token Text=":=" UId="338" />
+  <Blank Num="1" UId="339" />
+  <Access Scope="Call" UId="340">
+    <CallInfo UId="341" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="343">
+        <Component Name="FRK_ConfigFind" UId="342" />
+      </Instance>
+      <Token Text="(" UId="344" />
+      <Parameter Name="Scope" UId="345">
+        <Blank Num="1" UId="346" />
+        <Token Text=":=" UId="347" />
+        <Blank Num="1" UId="348" />
+        <Access Scope="LiteralConstant" UId="349">
+          <Constant UId="350">
+            <ConstantValue UId="352">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="353" />
+      <Blank Num="1" UId="354" />
+      <Parameter Name="Key" UId="355">
+        <Blank Num="1" UId="356" />
+        <Token Text=":=" UId="357" />
+        <Blank Num="1" UId="358" />
+        <Access Scope="LiteralConstant" UId="359">
+          <Constant UId="360">
+            <ConstantValue UId="362">'pressSettleTime'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="363" />
+      <Blank Num="1" UId="364" />
+      <Parameter Name="ModelCode" UId="365">
+        <Blank Num="1" UId="366" />
+        <Token Text=":=" UId="367" />
+        <Blank Num="1" UId="368" />
+        <Access Scope="LiteralConstant" UId="369">
+          <Constant UId="370">
+            <ConstantValue UId="372">'ALUMINUM'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="374" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="375" />
+  <NewLine Num="1" UId="376" />
+  <Blank Num="8" UId="377" />
+  <Token Text="IF" UId="378" />
+  <Blank Num="1" UId="379" />
+  <Access Scope="LocalVariable" UId="380">
+    <Symbol UId="381">
+      <Component Name="Stored" UId="382" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="383" />
+  <Token Text="&gt;" UId="384" />
+  <Blank Num="1" UId="385" />
+  <Access Scope="LiteralConstant" UId="386">
+    <Constant UId="387">
+      <ConstantValue UId="389">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="390" />
+  <Token Text="THEN" UId="391" />
+  <NewLine Num="1" UId="392" />
+  <Blank Num="12" UId="393" />
+  <Access Scope="GlobalVariable" UId="394">
+    <Symbol UId="395">
+      <Component Name="FRK_ConfigStore" UId="396">
+        <BooleanAttribute Name="HasQuotes" UId="397">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="398" />
+      <Component Name="Rows" UId="399">
+        <Token Text="[" UId="400" />
+        <Access Scope="LocalVariable" UId="401">
+          <Symbol UId="402">
+            <Component Name="Stored" UId="403" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="404" />
+      </Component>
+      <Token Text="." UId="405" />
+      <Component Name="Used" UId="406" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="407" />
+  <Token Text=":=" UId="408" />
+  <Blank Num="1" UId="409" />
+  <Access Scope="LiteralConstant" UId="410">
+    <Constant UId="411">
+      <ConstantValue UId="413">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="414" />
+  <NewLine Num="1" UId="415" />
+  <Blank Num="8" UId="416" />
+  <Token Text="END_IF" UId="417" />
+  <Token Text=";" UId="418" />
+  <NewLine Num="1" UId="419" />
+  <Blank Num="8" UId="420" />
+  <Access Scope="Call" UId="421">
+    <CallInfo UId="422" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="424">
+        <Component Name="FRK_ConfigLoss" UId="423" />
+      </Instance>
+      <Token Text="(" UId="425" />
+      <Parameter Name="RootIndex" UId="426">
+        <Blank Num="1" UId="427" />
+        <Token Text=":=" UId="428" />
+        <Blank Num="1" UId="429" />
+        <Access Scope="LiteralConstant" UId="430">
+          <Constant UId="431">
+            <ConstantValue UId="433">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="434" />
+      <NewLine Num="1" UId="435" />
+      <Blank Num="25" UId="436" />
+      <Parameter Name="Scope" UId="437">
+        <Blank Num="1" UId="438" />
+        <Token Text=":=" UId="439" />
+        <Blank Num="1" UId="440" />
+        <Access Scope="LiteralConstant" UId="441">
+          <Constant UId="442">
+            <ConstantValue UId="444">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="445" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="446" />
+  <NewLine Num="1" UId="447" />
+  <Blank Num="4" UId="448" />
+  <Access Scope="LiteralConstant" UId="449">
+    <Constant UId="450">
+      <ConstantValue UId="452">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="453" />
+  <NewLine Num="1" UId="454" />
+  <Blank Num="8" UId="455" />
+  <Access Scope="LocalVariable" UId="456">
+    <Symbol UId="457">
+      <Component Name="Stored" UId="458" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="459" />
+  <Token Text=":=" UId="460" />
+  <Blank Num="1" UId="461" />
+  <Access Scope="Call" UId="462">
+    <CallInfo UId="463" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="465">
+        <Component Name="FRK_ConfigFind" UId="464" />
+      </Instance>
+      <Token Text="(" UId="466" />
+      <Parameter Name="Scope" UId="467">
+        <Blank Num="1" UId="468" />
+        <Token Text=":=" UId="469" />
+        <Blank Num="1" UId="470" />
+        <Access Scope="LiteralConstant" UId="471">
+          <Constant UId="472">
+            <ConstantValue UId="474">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="475" />
+      <Blank Num="1" UId="476" />
+      <Parameter Name="Key" UId="477">
+        <Blank Num="1" UId="478" />
+        <Token Text=":=" UId="479" />
+        <Blank Num="1" UId="480" />
+        <Access Scope="LiteralConstant" UId="481">
+          <Constant UId="482">
+            <ConstantValue UId="484">'modeSwitchTimeout'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="485" />
+      <Blank Num="1" UId="486" />
+      <Parameter Name="ModelCode" UId="487">
+        <Blank Num="1" UId="488" />
+        <Token Text=":=" UId="489" />
+        <Blank Num="1" UId="490" />
+        <Access Scope="LiteralConstant" UId="491">
+          <Constant UId="492">
+            <ConstantValue UId="494">'PLASTIC'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="496" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="497" />
+  <NewLine Num="1" UId="498" />
+  <Blank Num="8" UId="499" />
+  <Token Text="IF" UId="500" />
+  <Blank Num="1" UId="501" />
+  <Access Scope="LocalVariable" UId="502">
+    <Symbol UId="503">
+      <Component Name="Stored" UId="504" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="505" />
+  <Token Text="&gt;" UId="506" />
+  <Blank Num="1" UId="507" />
+  <Access Scope="LiteralConstant" UId="508">
+    <Constant UId="509">
+      <ConstantValue UId="511">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="512" />
+  <Token Text="THEN" UId="513" />
+  <NewLine Num="1" UId="514" />
+  <Blank Num="12" UId="515" />
+  <Access Scope="GlobalVariable" UId="516">
+    <Symbol UId="517">
+      <Component Name="FRK_ConfigStore" UId="518">
+        <BooleanAttribute Name="HasQuotes" UId="519">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="520" />
+      <Component Name="Rows" UId="521">
+        <Token Text="[" UId="522" />
+        <Access Scope="LocalVariable" UId="523">
+          <Symbol UId="524">
+            <Component Name="Stored" UId="525" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="526" />
+      </Component>
+      <Token Text="." UId="527" />
+      <Component Name="Used" UId="528" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="529" />
+  <Token Text=":=" UId="530" />
+  <Blank Num="1" UId="531" />
+  <Access Scope="LiteralConstant" UId="532">
+    <Constant UId="533">
+      <ConstantValue UId="535">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="536" />
+  <NewLine Num="1" UId="537" />
+  <Blank Num="8" UId="538" />
+  <Token Text="END_IF" UId="539" />
+  <Token Text=";" UId="540" />
+  <NewLine Num="1" UId="541" />
+  <Blank Num="8" UId="542" />
+  <Access Scope="LocalVariable" UId="543">
+    <Symbol UId="544">
+      <Component Name="Stored" UId="545" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="546" />
+  <Token Text=":=" UId="547" />
+  <Blank Num="1" UId="548" />
+  <Access Scope="Call" UId="549">
+    <CallInfo UId="550" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="552">
+        <Component Name="FRK_ConfigFind" UId="551" />
+      </Instance>
+      <Token Text="(" UId="553" />
+      <Parameter Name="Scope" UId="554">
+        <Blank Num="1" UId="555" />
+        <Token Text=":=" UId="556" />
+        <Blank Num="1" UId="557" />
+        <Access Scope="LiteralConstant" UId="558">
+          <Constant UId="559">
+            <ConstantValue UId="561">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="562" />
+      <Blank Num="1" UId="563" />
+      <Parameter Name="Key" UId="564">
+        <Blank Num="1" UId="565" />
+        <Token Text=":=" UId="566" />
+        <Blank Num="1" UId="567" />
+        <Access Scope="LiteralConstant" UId="568">
+          <Constant UId="569">
+            <ConstantValue UId="571">'transferSettleTime'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="572" />
+      <Blank Num="1" UId="573" />
+      <Parameter Name="ModelCode" UId="574">
+        <Blank Num="1" UId="575" />
+        <Token Text=":=" UId="576" />
+        <Blank Num="1" UId="577" />
+        <Access Scope="LiteralConstant" UId="578">
+          <Constant UId="579">
+            <ConstantValue UId="581">'PLASTIC'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="583" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="584" />
+  <NewLine Num="1" UId="585" />
+  <Blank Num="8" UId="586" />
+  <Token Text="IF" UId="587" />
+  <Blank Num="1" UId="588" />
+  <Access Scope="LocalVariable" UId="589">
+    <Symbol UId="590">
+      <Component Name="Stored" UId="591" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="592" />
+  <Token Text="&gt;" UId="593" />
+  <Blank Num="1" UId="594" />
+  <Access Scope="LiteralConstant" UId="595">
+    <Constant UId="596">
+      <ConstantValue UId="598">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="599" />
+  <Token Text="THEN" UId="600" />
+  <NewLine Num="1" UId="601" />
+  <Blank Num="12" UId="602" />
+  <Access Scope="GlobalVariable" UId="603">
+    <Symbol UId="604">
+      <Component Name="FRK_ConfigStore" UId="605">
+        <BooleanAttribute Name="HasQuotes" UId="606">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="607" />
+      <Component Name="Rows" UId="608">
+        <Token Text="[" UId="609" />
+        <Access Scope="LocalVariable" UId="610">
+          <Symbol UId="611">
+            <Component Name="Stored" UId="612" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="613" />
+      </Component>
+      <Token Text="." UId="614" />
+      <Component Name="Used" UId="615" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="616" />
+  <Token Text=":=" UId="617" />
+  <Blank Num="1" UId="618" />
+  <Access Scope="LiteralConstant" UId="619">
+    <Constant UId="620">
+      <ConstantValue UId="622">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="623" />
+  <NewLine Num="1" UId="624" />
+  <Blank Num="8" UId="625" />
+  <Token Text="END_IF" UId="626" />
+  <Token Text=";" UId="627" />
+  <NewLine Num="1" UId="628" />
+  <Blank Num="8" UId="629" />
+  <Access Scope="LocalVariable" UId="630">
+    <Symbol UId="631">
+      <Component Name="Stored" UId="632" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="633" />
+  <Token Text=":=" UId="634" />
+  <Blank Num="1" UId="635" />
+  <Access Scope="Call" UId="636">
+    <CallInfo UId="637" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="639">
+        <Component Name="FRK_ConfigFind" UId="638" />
+      </Instance>
+      <Token Text="(" UId="640" />
+      <Parameter Name="Scope" UId="641">
+        <Blank Num="1" UId="642" />
+        <Token Text=":=" UId="643" />
+        <Blank Num="1" UId="644" />
+        <Access Scope="LiteralConstant" UId="645">
+          <Constant UId="646">
+            <ConstantValue UId="648">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="649" />
+      <Blank Num="1" UId="650" />
+      <Parameter Name="Key" UId="651">
+        <Blank Num="1" UId="652" />
+        <Token Text=":=" UId="653" />
+        <Blank Num="1" UId="654" />
+        <Access Scope="LiteralConstant" UId="655">
+          <Constant UId="656">
+            <ConstantValue UId="658">'pressSettleTime'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="659" />
+      <Blank Num="1" UId="660" />
+      <Parameter Name="ModelCode" UId="661">
+        <Blank Num="1" UId="662" />
+        <Token Text=":=" UId="663" />
+        <Blank Num="1" UId="664" />
+        <Access Scope="LiteralConstant" UId="665">
+          <Constant UId="666">
+            <ConstantValue UId="668">'PLASTIC'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="670" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="671" />
+  <NewLine Num="1" UId="672" />
+  <Blank Num="8" UId="673" />
+  <Token Text="IF" UId="674" />
+  <Blank Num="1" UId="675" />
+  <Access Scope="LocalVariable" UId="676">
+    <Symbol UId="677">
+      <Component Name="Stored" UId="678" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="679" />
+  <Token Text="&gt;" UId="680" />
+  <Blank Num="1" UId="681" />
+  <Access Scope="LiteralConstant" UId="682">
+    <Constant UId="683">
+      <ConstantValue UId="685">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="686" />
+  <Token Text="THEN" UId="687" />
+  <NewLine Num="1" UId="688" />
+  <Blank Num="12" UId="689" />
+  <Access Scope="GlobalVariable" UId="690">
+    <Symbol UId="691">
+      <Component Name="FRK_ConfigStore" UId="692">
+        <BooleanAttribute Name="HasQuotes" UId="693">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="694" />
+      <Component Name="Rows" UId="695">
+        <Token Text="[" UId="696" />
+        <Access Scope="LocalVariable" UId="697">
+          <Symbol UId="698">
+            <Component Name="Stored" UId="699" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="700" />
+      </Component>
+      <Token Text="." UId="701" />
+      <Component Name="Used" UId="702" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="703" />
+  <Token Text=":=" UId="704" />
+  <Blank Num="1" UId="705" />
+  <Access Scope="LiteralConstant" UId="706">
+    <Constant UId="707">
+      <ConstantValue UId="709">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="710" />
+  <NewLine Num="1" UId="711" />
+  <Blank Num="8" UId="712" />
+  <Token Text="END_IF" UId="713" />
+  <Token Text=";" UId="714" />
+  <NewLine Num="1" UId="715" />
+  <Blank Num="8" UId="716" />
+  <Access Scope="Call" UId="717">
+    <CallInfo UId="718" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="720">
+        <Component Name="FRK_ConfigLoss" UId="719" />
+      </Instance>
+      <Token Text="(" UId="721" />
+      <Parameter Name="RootIndex" UId="722">
+        <Blank Num="1" UId="723" />
+        <Token Text=":=" UId="724" />
+        <Blank Num="1" UId="725" />
+        <Access Scope="LiteralConstant" UId="726">
+          <Constant UId="727">
+            <ConstantValue UId="729">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="730" />
+      <NewLine Num="1" UId="731" />
+      <Blank Num="25" UId="732" />
+      <Parameter Name="Scope" UId="733">
+        <Blank Num="1" UId="734" />
+        <Token Text=":=" UId="735" />
+        <Blank Num="1" UId="736" />
+        <Access Scope="LiteralConstant" UId="737">
+          <Constant UId="738">
+            <ConstantValue UId="740">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="741" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="742" />
+  <NewLine Num="1" UId="743" />
+  <Blank Num="4" UId="744" />
+  <Access Scope="LiteralConstant" UId="745">
+    <Constant UId="746">
+      <ConstantValue UId="748">4</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="749" />
+  <NewLine Num="1" UId="750" />
+  <Blank Num="8" UId="751" />
+  <Access Scope="LocalVariable" UId="752">
+    <Symbol UId="753">
+      <Component Name="Stored" UId="754" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="755" />
+  <Token Text=":=" UId="756" />
+  <Blank Num="1" UId="757" />
+  <Access Scope="Call" UId="758">
+    <CallInfo UId="759" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="761">
+        <Component Name="FRK_ConfigFind" UId="760" />
+      </Instance>
+      <Token Text="(" UId="762" />
+      <Parameter Name="Scope" UId="763">
+        <Blank Num="1" UId="764" />
+        <Token Text=":=" UId="765" />
+        <Blank Num="1" UId="766" />
+        <Access Scope="LiteralConstant" UId="767">
+          <Constant UId="768">
+            <ConstantValue UId="770">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="771" />
+      <Blank Num="1" UId="772" />
+      <Parameter Name="Key" UId="773">
+        <Blank Num="1" UId="774" />
+        <Token Text=":=" UId="775" />
+        <Blank Num="1" UId="776" />
+        <Access Scope="LiteralConstant" UId="777">
+          <Constant UId="778">
+            <ConstantValue UId="780">'modeSwitchTimeout'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="781" />
+      <Blank Num="1" UId="782" />
+      <Parameter Name="ModelCode" UId="783">
+        <Blank Num="1" UId="784" />
+        <Token Text=":=" UId="785" />
+        <Blank Num="1" UId="786" />
+        <Access Scope="LiteralConstant" UId="787">
+          <Constant UId="788">
+            <ConstantValue UId="790">'STEEL'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="792" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="793" />
+  <NewLine Num="1" UId="794" />
+  <Blank Num="8" UId="795" />
+  <Token Text="IF" UId="796" />
+  <Blank Num="1" UId="797" />
+  <Access Scope="LocalVariable" UId="798">
+    <Symbol UId="799">
+      <Component Name="Stored" UId="800" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="801" />
+  <Token Text="&gt;" UId="802" />
+  <Blank Num="1" UId="803" />
+  <Access Scope="LiteralConstant" UId="804">
+    <Constant UId="805">
+      <ConstantValue UId="807">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="808" />
+  <Token Text="THEN" UId="809" />
+  <NewLine Num="1" UId="810" />
+  <Blank Num="12" UId="811" />
+  <Access Scope="GlobalVariable" UId="812">
+    <Symbol UId="813">
+      <Component Name="FRK_ConfigStore" UId="814">
+        <BooleanAttribute Name="HasQuotes" UId="815">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="816" />
+      <Component Name="Rows" UId="817">
+        <Token Text="[" UId="818" />
+        <Access Scope="LocalVariable" UId="819">
+          <Symbol UId="820">
+            <Component Name="Stored" UId="821" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="822" />
+      </Component>
+      <Token Text="." UId="823" />
+      <Component Name="Used" UId="824" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="825" />
+  <Token Text=":=" UId="826" />
+  <Blank Num="1" UId="827" />
+  <Access Scope="LiteralConstant" UId="828">
+    <Constant UId="829">
+      <ConstantValue UId="831">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="832" />
+  <NewLine Num="1" UId="833" />
+  <Blank Num="8" UId="834" />
+  <Token Text="END_IF" UId="835" />
+  <Token Text=";" UId="836" />
+  <NewLine Num="1" UId="837" />
+  <Blank Num="8" UId="838" />
+  <Access Scope="LocalVariable" UId="839">
+    <Symbol UId="840">
+      <Component Name="Stored" UId="841" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="842" />
+  <Token Text=":=" UId="843" />
+  <Blank Num="1" UId="844" />
+  <Access Scope="Call" UId="845">
+    <CallInfo UId="846" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="848">
+        <Component Name="FRK_ConfigFind" UId="847" />
+      </Instance>
+      <Token Text="(" UId="849" />
+      <Parameter Name="Scope" UId="850">
+        <Blank Num="1" UId="851" />
+        <Token Text=":=" UId="852" />
+        <Blank Num="1" UId="853" />
+        <Access Scope="LiteralConstant" UId="854">
+          <Constant UId="855">
+            <ConstantValue UId="857">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="858" />
+      <Blank Num="1" UId="859" />
+      <Parameter Name="Key" UId="860">
+        <Blank Num="1" UId="861" />
+        <Token Text=":=" UId="862" />
+        <Blank Num="1" UId="863" />
+        <Access Scope="LiteralConstant" UId="864">
+          <Constant UId="865">
+            <ConstantValue UId="867">'transferSettleTime'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="868" />
+      <Blank Num="1" UId="869" />
+      <Parameter Name="ModelCode" UId="870">
+        <Blank Num="1" UId="871" />
+        <Token Text=":=" UId="872" />
+        <Blank Num="1" UId="873" />
+        <Access Scope="LiteralConstant" UId="874">
+          <Constant UId="875">
+            <ConstantValue UId="877">'STEEL'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="879" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="880" />
+  <NewLine Num="1" UId="881" />
+  <Blank Num="8" UId="882" />
+  <Token Text="IF" UId="883" />
+  <Blank Num="1" UId="884" />
+  <Access Scope="LocalVariable" UId="885">
+    <Symbol UId="886">
+      <Component Name="Stored" UId="887" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="888" />
+  <Token Text="&gt;" UId="889" />
+  <Blank Num="1" UId="890" />
+  <Access Scope="LiteralConstant" UId="891">
+    <Constant UId="892">
+      <ConstantValue UId="894">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="895" />
+  <Token Text="THEN" UId="896" />
+  <NewLine Num="1" UId="897" />
+  <Blank Num="12" UId="898" />
+  <Access Scope="GlobalVariable" UId="899">
+    <Symbol UId="900">
+      <Component Name="FRK_ConfigStore" UId="901">
+        <BooleanAttribute Name="HasQuotes" UId="902">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="903" />
+      <Component Name="Rows" UId="904">
+        <Token Text="[" UId="905" />
+        <Access Scope="LocalVariable" UId="906">
+          <Symbol UId="907">
+            <Component Name="Stored" UId="908" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="909" />
+      </Component>
+      <Token Text="." UId="910" />
+      <Component Name="Used" UId="911" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="912" />
+  <Token Text=":=" UId="913" />
+  <Blank Num="1" UId="914" />
+  <Access Scope="LiteralConstant" UId="915">
+    <Constant UId="916">
+      <ConstantValue UId="918">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="919" />
+  <NewLine Num="1" UId="920" />
+  <Blank Num="8" UId="921" />
+  <Token Text="END_IF" UId="922" />
+  <Token Text=";" UId="923" />
+  <NewLine Num="1" UId="924" />
+  <Blank Num="8" UId="925" />
+  <Access Scope="LocalVariable" UId="926">
+    <Symbol UId="927">
+      <Component Name="Stored" UId="928" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="929" />
+  <Token Text=":=" UId="930" />
+  <Blank Num="1" UId="931" />
+  <Access Scope="Call" UId="932">
+    <CallInfo UId="933" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="935">
+        <Component Name="FRK_ConfigFind" UId="934" />
+      </Instance>
+      <Token Text="(" UId="936" />
+      <Parameter Name="Scope" UId="937">
+        <Blank Num="1" UId="938" />
+        <Token Text=":=" UId="939" />
+        <Blank Num="1" UId="940" />
+        <Access Scope="LiteralConstant" UId="941">
+          <Constant UId="942">
+            <ConstantValue UId="944">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="945" />
+      <Blank Num="1" UId="946" />
+      <Parameter Name="Key" UId="947">
+        <Blank Num="1" UId="948" />
+        <Token Text=":=" UId="949" />
+        <Blank Num="1" UId="950" />
+        <Access Scope="LiteralConstant" UId="951">
+          <Constant UId="952">
+            <ConstantValue UId="954">'pressSettleTime'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="955" />
+      <Blank Num="1" UId="956" />
+      <Parameter Name="ModelCode" UId="957">
+        <Blank Num="1" UId="958" />
+        <Token Text=":=" UId="959" />
+        <Blank Num="1" UId="960" />
+        <Access Scope="LiteralConstant" UId="961">
+          <Constant UId="962">
+            <ConstantValue UId="964">'STEEL'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="966" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="967" />
+  <NewLine Num="1" UId="968" />
+  <Blank Num="8" UId="969" />
+  <Token Text="IF" UId="970" />
+  <Blank Num="1" UId="971" />
+  <Access Scope="LocalVariable" UId="972">
+    <Symbol UId="973">
+      <Component Name="Stored" UId="974" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="975" />
+  <Token Text="&gt;" UId="976" />
+  <Blank Num="1" UId="977" />
+  <Access Scope="LiteralConstant" UId="978">
+    <Constant UId="979">
+      <ConstantValue UId="981">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="982" />
+  <Token Text="THEN" UId="983" />
+  <NewLine Num="1" UId="984" />
+  <Blank Num="12" UId="985" />
+  <Access Scope="GlobalVariable" UId="986">
+    <Symbol UId="987">
+      <Component Name="FRK_ConfigStore" UId="988">
+        <BooleanAttribute Name="HasQuotes" UId="989">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="990" />
+      <Component Name="Rows" UId="991">
+        <Token Text="[" UId="992" />
+        <Access Scope="LocalVariable" UId="993">
+          <Symbol UId="994">
+            <Component Name="Stored" UId="995" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="996" />
+      </Component>
+      <Token Text="." UId="997" />
+      <Component Name="Used" UId="998" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="999" />
+  <Token Text=":=" UId="1000" />
+  <Blank Num="1" UId="1001" />
+  <Access Scope="LiteralConstant" UId="1002">
+    <Constant UId="1003">
+      <ConstantValue UId="1005">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1006" />
+  <NewLine Num="1" UId="1007" />
+  <Blank Num="8" UId="1008" />
+  <Token Text="END_IF" UId="1009" />
+  <Token Text=";" UId="1010" />
+  <NewLine Num="1" UId="1011" />
+  <Blank Num="8" UId="1012" />
+  <Access Scope="Call" UId="1013">
+    <CallInfo UId="1014" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1016">
+        <Component Name="FRK_ConfigLoss" UId="1015" />
+      </Instance>
+      <Token Text="(" UId="1017" />
+      <Parameter Name="RootIndex" UId="1018">
+        <Blank Num="1" UId="1019" />
+        <Token Text=":=" UId="1020" />
+        <Blank Num="1" UId="1021" />
+        <Access Scope="LiteralConstant" UId="1022">
+          <Constant UId="1023">
+            <ConstantValue UId="1025">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1026" />
+      <NewLine Num="1" UId="1027" />
+      <Blank Num="25" UId="1028" />
+      <Parameter Name="Scope" UId="1029">
+        <Blank Num="1" UId="1030" />
+        <Token Text=":=" UId="1031" />
+        <Blank Num="1" UId="1032" />
+        <Access Scope="LiteralConstant" UId="1033">
+          <Constant UId="1034">
+            <ConstantValue UId="1036">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1037" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1038" />
+  <NewLine Num="1" UId="1039" />
+  <Blank Num="4" UId="1040" />
+  <Access Scope="LiteralConstant" UId="1041">
+    <Constant UId="1042">
+      <ConstantValue UId="1044">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1045" />
+  <NewLine Num="1" UId="1046" />
+  <Blank Num="8" UId="1047" />
+  <Access Scope="GlobalVariable" UId="1048">
+    <Symbol UId="1049">
+      <Component Name="FRK_AccessPolicies" UId="1050">
+        <BooleanAttribute Name="HasQuotes" UId="1051">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1052" />
+      <Component Name="Rows" UId="1053">
+        <Token Text="[" UId="1054" />
+        <Access Scope="LiteralConstant" UId="1055">
+          <Constant UId="1056">
+            <ConstantValue UId="1058">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1059" />
+      </Component>
+      <Token Text="." UId="1060" />
+      <Component Name="Scope" UId="1061" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1062" />
+  <Token Text=":=" UId="1063" />
+  <Blank Num="1" UId="1064" />
+  <Access Scope="LiteralConstant" UId="1065">
+    <Constant UId="1066">
+      <ConstantValue UId="1068">'PressDemo'</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1069" />
+  <NewLine Num="1" UId="1070" />
+  <Blank Num="8" UId="1071" />
+  <Access Scope="GlobalVariable" UId="1072">
+    <Symbol UId="1073">
+      <Component Name="FRK_AccessPolicies" UId="1074">
+        <BooleanAttribute Name="HasQuotes" UId="1075">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1076" />
+      <Component Name="Rows" UId="1077">
+        <Token Text="[" UId="1078" />
+        <Access Scope="LiteralConstant" UId="1079">
+          <Constant UId="1080">
+            <ConstantValue UId="1082">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1083" />
+      </Component>
+      <Token Text="." UId="1084" />
+      <Component Name="SchemaVersion" UId="1085" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1086" />
+  <Token Text=":=" UId="1087" />
+  <Blank Num="1" UId="1088" />
+  <Access Scope="LiteralConstant" UId="1089">
+    <Constant UId="1090">
+      <ConstantValue UId="1092">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1093" />
+  <NewLine Num="1" UId="1094" />
+  <Blank Num="8" UId="1095" />
+  <Access Scope="GlobalVariable" UId="1096">
+    <Symbol UId="1097">
+      <Component Name="FRK_AccessPolicies" UId="1098">
+        <BooleanAttribute Name="HasQuotes" UId="1099">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1100" />
+      <Component Name="Rows" UId="1101">
+        <Token Text="[" UId="1102" />
+        <Access Scope="LiteralConstant" UId="1103">
+          <Constant UId="1104">
+            <ConstantValue UId="1106">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1107" />
+      </Component>
+      <Token Text="." UId="1108" />
+      <Component Name="Initialized" UId="1109" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1110" />
+  <Token Text=":=" UId="1111" />
+  <Blank Num="1" UId="1112" />
+  <Access Scope="LiteralConstant" UId="1113">
+    <Constant UId="1114">
+      <ConstantValue UId="1116">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1117" />
+  <NewLine Num="1" UId="1118" />
+  <Blank Num="4" UId="1119" />
+  <Access Scope="LiteralConstant" UId="1120">
+    <Constant UId="1121">
+      <ConstantValue UId="1123">6</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1124" />
+  <NewLine Num="1" UId="1125" />
+  <Blank Num="8" UId="1126" />
+  <Access Scope="GlobalVariable" UId="1127">
+    <Symbol UId="1128">
+      <Component Name="FRK_SetStore" UId="1129">
+        <BooleanAttribute Name="HasQuotes" UId="1130">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1131" />
+      <Component Name="Sets" UId="1132">
+        <Token Text="[" UId="1133" />
+        <Access Scope="LiteralConstant" UId="1134">
+          <Constant UId="1135">
+            <ConstantValue UId="1137">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="," UId="1138" />
+        <Blank Num="1" UId="1139" />
+        <Access Scope="LiteralConstant" UId="1140">
+          <Constant UId="1141">
+            <ConstantValue UId="1143">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1144" />
+      </Component>
+      <Token Text="." UId="1145" />
+      <Component Name="Info" UId="1146" />
+      <Token Text="." UId="1147" />
+      <Component Name="Used" UId="1148" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1149" />
+  <Token Text=":=" UId="1150" />
+  <Blank Num="1" UId="1151" />
+  <Access Scope="LiteralConstant" UId="1152">
+    <Constant UId="1153">
+      <ConstantValue UId="1155">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1156" />
+  <NewLine Num="1" UId="1157" />
+  <Blank Num="8" UId="1158" />
+  <Access Scope="Call" UId="1159">
+    <CallInfo UId="1160" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1162">
+        <Component Name="FRK_ConfigLoss" UId="1161" />
+      </Instance>
+      <Token Text="(" UId="1163" />
+      <Parameter Name="RootIndex" UId="1164">
+        <Blank Num="1" UId="1165" />
+        <Token Text=":=" UId="1166" />
+        <Blank Num="1" UId="1167" />
+        <Access Scope="LiteralConstant" UId="1168">
+          <Constant UId="1169">
+            <ConstantValue UId="1171">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1172" />
+      <NewLine Num="1" UId="1173" />
+      <Blank Num="25" UId="1174" />
+      <Parameter Name="Scope" UId="1175">
+        <Blank Num="1" UId="1176" />
+        <Token Text=":=" UId="1177" />
+        <Blank Num="1" UId="1178" />
+        <Access Scope="LiteralConstant" UId="1179">
+          <Constant UId="1180">
+            <ConstantValue UId="1182">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1183" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1184" />
+  <NewLine Num="1" UId="1185" />
+  <Blank Num="4" UId="1186" />
+  <Access Scope="LiteralConstant" UId="1187">
+    <Constant UId="1188">
+      <ConstantValue UId="1190">7</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1191" />
+  <NewLine Num="1" UId="1192" />
+  <Blank Num="8" UId="1193" />
+  <Access Scope="GlobalVariable" UId="1194">
+    <Symbol UId="1195">
+      <Component Name="FRK_SetStore" UId="1196">
+        <BooleanAttribute Name="HasQuotes" UId="1197">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1198" />
+      <Component Name="Sets" UId="1199">
+        <Token Text="[" UId="1200" />
+        <Access Scope="LiteralConstant" UId="1201">
+          <Constant UId="1202">
+            <ConstantValue UId="1204">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="," UId="1205" />
+        <Blank Num="1" UId="1206" />
+        <Access Scope="LiteralConstant" UId="1207">
+          <Constant UId="1208">
+            <ConstantValue UId="1210">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1211" />
+      </Component>
+      <Token Text="." UId="1212" />
+      <Component Name="Info" UId="1213" />
+      <Token Text="." UId="1214" />
+      <Component Name="Used" UId="1215" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1216" />
+  <Token Text=":=" UId="1217" />
+  <Blank Num="1" UId="1218" />
+  <Access Scope="LiteralConstant" UId="1219">
+    <Constant UId="1220">
+      <ConstantValue UId="1222">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1223" />
+  <NewLine Num="1" UId="1224" />
+  <Blank Num="8" UId="1225" />
+  <Access Scope="Call" UId="1226">
+    <CallInfo UId="1227" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1229">
+        <Component Name="FRK_ConfigLoss" UId="1228" />
+      </Instance>
+      <Token Text="(" UId="1230" />
+      <Parameter Name="RootIndex" UId="1231">
+        <Blank Num="1" UId="1232" />
+        <Token Text=":=" UId="1233" />
+        <Blank Num="1" UId="1234" />
+        <Access Scope="LiteralConstant" UId="1235">
+          <Constant UId="1236">
+            <ConstantValue UId="1238">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1239" />
+      <NewLine Num="1" UId="1240" />
+      <Blank Num="25" UId="1241" />
+      <Parameter Name="Scope" UId="1242">
+        <Blank Num="1" UId="1243" />
+        <Token Text=":=" UId="1244" />
+        <Blank Num="1" UId="1245" />
+        <Access Scope="LiteralConstant" UId="1246">
+          <Constant UId="1247">
+            <ConstantValue UId="1249">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1250" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1251" />
+  <NewLine Num="1" UId="1252" />
+  <Blank Num="4" UId="1253" />
+  <Access Scope="LiteralConstant" UId="1254">
+    <Constant UId="1255">
+      <ConstantValue UId="1257">8</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1258" />
+  <NewLine Num="1" UId="1259" />
+  <Blank Num="8" UId="1260" />
+  <Access Scope="GlobalVariable" UId="1261">
+    <Symbol UId="1262">
+      <Component Name="FRK_SetStore" UId="1263">
+        <BooleanAttribute Name="HasQuotes" UId="1264">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1265" />
+      <Component Name="Sets" UId="1266">
+        <Token Text="[" UId="1267" />
+        <Access Scope="LiteralConstant" UId="1268">
+          <Constant UId="1269">
+            <ConstantValue UId="1271">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="," UId="1272" />
+        <Blank Num="1" UId="1273" />
+        <Access Scope="LiteralConstant" UId="1274">
+          <Constant UId="1275">
+            <ConstantValue UId="1277">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1278" />
+      </Component>
+      <Token Text="." UId="1279" />
+      <Component Name="Info" UId="1280" />
+      <Token Text="." UId="1281" />
+      <Component Name="Used" UId="1282" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1283" />
+  <Token Text=":=" UId="1284" />
+  <Blank Num="1" UId="1285" />
+  <Access Scope="LiteralConstant" UId="1286">
+    <Constant UId="1287">
+      <ConstantValue UId="1289">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1290" />
+  <NewLine Num="1" UId="1291" />
+  <Blank Num="8" UId="1292" />
+  <Access Scope="Call" UId="1293">
+    <CallInfo UId="1294" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1296">
+        <Component Name="FRK_ConfigLoss" UId="1295" />
+      </Instance>
+      <Token Text="(" UId="1297" />
+      <Parameter Name="RootIndex" UId="1298">
+        <Blank Num="1" UId="1299" />
+        <Token Text=":=" UId="1300" />
+        <Blank Num="1" UId="1301" />
+        <Access Scope="LiteralConstant" UId="1302">
+          <Constant UId="1303">
+            <ConstantValue UId="1305">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1306" />
+      <NewLine Num="1" UId="1307" />
+      <Blank Num="25" UId="1308" />
+      <Parameter Name="Scope" UId="1309">
+        <Blank Num="1" UId="1310" />
+        <Token Text=":=" UId="1311" />
+        <Blank Num="1" UId="1312" />
+        <Access Scope="LiteralConstant" UId="1313">
+          <Constant UId="1314">
+            <ConstantValue UId="1316">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1317" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1318" />
+  <NewLine Num="1" UId="1319" />
+  <Blank Num="4" UId="1320" />
+  <Access Scope="LiteralConstant" UId="1321">
+    <Constant UId="1322">
+      <ConstantValue UId="1324">9</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1325" />
+  <NewLine Num="1" UId="1326" />
+  <Blank Num="8" UId="1327" />
+  <Access Scope="GlobalVariable" UId="1328">
+    <Symbol UId="1329">
+      <Component Name="FRK_SetStore" UId="1330">
+        <BooleanAttribute Name="HasQuotes" UId="1331">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1332" />
+      <Component Name="Sets" UId="1333">
+        <Token Text="[" UId="1334" />
+        <Access Scope="LiteralConstant" UId="1335">
+          <Constant UId="1336">
+            <ConstantValue UId="1338">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="," UId="1339" />
+        <Blank Num="1" UId="1340" />
+        <Access Scope="LiteralConstant" UId="1341">
+          <Constant UId="1342">
+            <ConstantValue UId="1344">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1345" />
+      </Component>
+      <Token Text="." UId="1346" />
+      <Component Name="Info" UId="1347" />
+      <Token Text="." UId="1348" />
+      <Component Name="Used" UId="1349" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1350" />
+  <Token Text=":=" UId="1351" />
+  <Blank Num="1" UId="1352" />
+  <Access Scope="LiteralConstant" UId="1353">
+    <Constant UId="1354">
+      <ConstantValue UId="1356">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1357" />
+  <NewLine Num="1" UId="1358" />
+  <Blank Num="8" UId="1359" />
+  <Access Scope="Call" UId="1360">
+    <CallInfo UId="1361" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="1363">
+        <Component Name="FRK_ConfigLoss" UId="1362" />
+      </Instance>
+      <Token Text="(" UId="1364" />
+      <Parameter Name="RootIndex" UId="1365">
+        <Blank Num="1" UId="1366" />
+        <Token Text=":=" UId="1367" />
+        <Blank Num="1" UId="1368" />
+        <Access Scope="LiteralConstant" UId="1369">
+          <Constant UId="1370">
+            <ConstantValue UId="1372">1</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="1373" />
+      <NewLine Num="1" UId="1374" />
+      <Blank Num="25" UId="1375" />
+      <Parameter Name="Scope" UId="1376">
+        <Blank Num="1" UId="1377" />
+        <Token Text=":=" UId="1378" />
+        <Blank Num="1" UId="1379" />
+        <Access Scope="LiteralConstant" UId="1380">
+          <Constant UId="1381">
+            <ConstantValue UId="1383">'PressDemo'</ConstantValue>
+          </Constant>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="1384" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="1385" />
+  <NewLine Num="1" UId="1386" />
+  <Blank Num="4" UId="1387" />
+  <Access Scope="LiteralConstant" UId="1388">
+    <Constant UId="1389">
+      <ConstantValue UId="1391">10</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1392" />
+  <NewLine Num="1" UId="1393" />
+  <Blank Num="8" UId="1394" />
+  <Access Scope="GlobalVariable" UId="1395">
+    <Symbol UId="1396">
+      <Component Name="FRK_LocalUsers" UId="1397">
+        <BooleanAttribute Name="HasQuotes" UId="1398">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1399" />
+      <Component Name="SchemaVersion" UId="1400" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1401" />
+  <Token Text=":=" UId="1402" />
+  <Blank Num="1" UId="1403" />
+  <Access Scope="LiteralConstant" UId="1404">
+    <Constant UId="1405">
+      <ConstantValue UId="1407">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1408" />
+  <NewLine Num="1" UId="1409" />
+  <Blank Num="8" UId="1410" />
+  <Access Scope="GlobalVariable" UId="1411">
+    <Symbol UId="1412">
+      <Component Name="FRK_LocalUsers" UId="1413">
+        <BooleanAttribute Name="HasQuotes" UId="1414">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1415" />
+      <Component Name="Generation" UId="1416" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1417" />
+  <Token Text=":=" UId="1418" />
+  <Blank Num="1" UId="1419" />
+  <Access Scope="LiteralConstant" UId="1420">
+    <Constant UId="1421">
+      <ConstantValue UId="1423">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1424" />
+  <NewLine Num="1" UId="1425" />
+  <Blank Num="8" UId="1426" />
+  <Access Scope="GlobalVariable" UId="1427">
+    <Symbol UId="1428">
+      <Component Name="FRK_LocalUsers" UId="1429">
+        <BooleanAttribute Name="HasQuotes" UId="1430">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1431" />
+      <Component Name="Checksum" UId="1432" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1433" />
+  <Token Text=":=" UId="1434" />
+  <Blank Num="1" UId="1435" />
+  <Access Scope="TypedConstant" UId="1436">
+    <Constant UId="1437">
+      <ConstantValue UId="1438">DWORD#0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1439" />
+  <NewLine Num="1" UId="1440" />
+  <Blank Num="8" UId="1441" />
+  <Access Scope="GlobalVariable" UId="1442">
+    <Symbol UId="1443">
+      <Component Name="FRK_AccessStorage" UId="1444">
+        <BooleanAttribute Name="HasQuotes" UId="1445">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1446" />
+      <Component Name="UsersCommissioned" UId="1447" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1448" />
+  <Token Text=":=" UId="1449" />
+  <Blank Num="1" UId="1450" />
+  <Access Scope="LiteralConstant" UId="1451">
+    <Constant UId="1452">
+      <ConstantValue UId="1454">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1455" />
+  <NewLine Num="1" UId="1456" />
+  <Blank Num="8" UId="1457" />
+  <Access Scope="GlobalVariable" UId="1458">
+    <Symbol UId="1459">
+      <Component Name="FRK_AccessStorage" UId="1460">
+        <BooleanAttribute Name="HasQuotes" UId="1461">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1462" />
+      <Component Name="UsersReady" UId="1463" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1464" />
+  <Token Text=":=" UId="1465" />
+  <Blank Num="1" UId="1466" />
+  <Access Scope="LiteralConstant" UId="1467">
+    <Constant UId="1468">
+      <ConstantValue UId="1470">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1471" />
+  <NewLine Num="1" UId="1472" />
+  <Blank Num="8" UId="1473" />
+  <Access Scope="GlobalVariable" UId="1474">
+    <Symbol UId="1475">
+      <Component Name="FRK_AccessStorage" UId="1476">
+        <BooleanAttribute Name="HasQuotes" UId="1477">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1478" />
+      <Component Name="UsersLost" UId="1479" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1480" />
+  <Token Text=":=" UId="1481" />
+  <Blank Num="1" UId="1482" />
+  <Access Scope="LiteralConstant" UId="1483">
+    <Constant UId="1484">
+      <ConstantValue UId="1486">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1487" />
+  <NewLine Num="1" UId="1488" />
+  <Blank Num="4" UId="1489" />
+  <Token Text="ELSE" UId="1490" />
+  <NewLine Num="1" UId="1491" />
+  <Blank Num="8" UId="1492" />
+  <Token Text="RETURN" UId="1493" />
+  <Token Text=";" UId="1494" />
+  <NewLine Num="1" UId="1495" />
+  <Token Text="END_CASE" UId="1496" />
+  <Token Text=";" UId="1497" />
+  <NewLine Num="1" UId="1498" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

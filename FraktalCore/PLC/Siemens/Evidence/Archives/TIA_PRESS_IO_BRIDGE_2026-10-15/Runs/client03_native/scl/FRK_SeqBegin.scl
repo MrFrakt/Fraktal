@@ -1,0 +1,94 @@
+﻿FUNCTION "FRK_SeqBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Shared sequence services. The examples generator binds Core enum constants.
+   VAR_INPUT 
+      Run : Bool;
+      Reset : Bool;
+      OwnerIndex : DInt;
+      ChainIndex : DInt;
+      BranchIndex : DInt;
+      ViewOffset : DInt;
+      ViewDepth : Int;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+   VAR_TEMP 
+      Life : "FRK_SequenceLifecycle";
+      Boundary : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Seq.Scan := #Seq.Scan + 1;
+	"FRK_SeqLifecycleRead"(Owner := #OwnerIndex, Life := #Life);
+	#Boundary := NOT #Seq.Initialized OR #Seq.RestartEpoch <> #Life.RestartEpoch;
+	#Seq.RestartPending := #Seq.RestartPending OR #Boundary;
+	#Seq.Rearm := FALSE;
+	IF NOT #Boundary AND #Seq.ResumeEpoch <> #Life.ResumeEpoch AND #Seq.Frozen THEN
+	    // Leaving ERROR only re-arms. A new accepted Unit Start is still needed.
+	    #Seq.ResumePending := NOT #Seq.RestartPending;
+	    #Seq.Error := FALSE;
+	    #Seq.Rearm := TRUE;
+	    #Seq.Visit := #Seq.Visit + 1;
+	    #Seq.EventVisit := #Seq.Visit - 1;
+	    #Seq.Warned := FALSE;
+	    #Seq.StartLatched := FALSE;
+	    #Seq.Elapsed := T#0ms;
+	    #Seq.DelayElapsed := T#0ms;
+	    #Seq.ErrorDiagnostic.ReasonCode := 0;
+	END_IF;
+	IF #Life.Faulted AND (#Seq.RunPrevious OR #Seq.Error OR #Seq.Frozen) THEN
+	    #Seq.Frozen := TRUE;
+	END_IF;
+	#Seq.Restart := #Boundary OR (#Run AND #Seq.RestartPending) OR (#Reset AND NOT #Life.Faulted)
+	OR (#Run AND NOT #Seq.RunPrevious AND NOT #Seq.Frozen AND NOT #Seq.ResumePending);
+	#Seq.Initialized := TRUE;
+	#Seq.RestartEpoch := #Life.RestartEpoch;
+	#Seq.ResumeEpoch := #Life.ResumeEpoch;
+	#Seq.OwnerIndex := #OwnerIndex;
+	#Seq.ChainIndex := #ChainIndex;
+	#Seq.BranchIndex := #BranchIndex;
+	#Seq.ViewOffset := #ViewOffset;
+	#Seq.ViewDepth := #ViewDepth;
+	#Seq.RetVal := 0;
+	#Seq.Pending := FALSE;
+	#Seq.CommandFailed := FALSE;
+	#Seq.CommandIssued := FALSE;
+	#Seq.Awaiting := '';
+	IF #Seq.Restart OR (NOT #Run AND NOT #Seq.Frozen AND NOT #Seq.ResumePending) THEN
+	    #Seq.Step := 0;
+	    #Seq.RecordedStep := -1;
+	    #Seq.Visit := #Seq.Visit + 1;
+	    #Seq.Done := FALSE;
+	    #Seq.Error := FALSE;
+	    #Seq.StartLatched := FALSE;
+	    #Seq.Frozen := FALSE;
+	    #Seq.ResumePending := FALSE;
+	    #Seq.Elapsed := T#0ms;
+	    #Seq.DelayElapsed := T#0ms;
+	    #Seq.ErrorDiagnostic.ReasonCode := 0;
+	END_IF;
+	#Seq.Running := #Run AND NOT #Seq.Done AND NOT #Seq.Error AND NOT #Life.Faulted
+	AND #Life.Valid AND #OwnerIndex > 0 AND #ChainIndex > 0;
+	IF #Seq.Running AND #Seq.ResumePending THEN
+	    #Seq.Frozen := FALSE;
+	    #Seq.ResumePending := FALSE;
+	END_IF;
+	IF #Seq.Running THEN
+	    #Seq.RestartPending := FALSE;
+	END_IF;
+	#Seq.SubReset := #Seq.Restart OR #Seq.Rearm;
+	#Seq.RunPrevious := #Run;
+	#Seq.ScanStep := #Seq.Step;
+	IF #Seq.Running AND #Delta > T#0ms THEN
+	    #Seq.Elapsed := #Seq.Elapsed + #Delta;
+	END_IF;
+	
+END_FUNCTION
+

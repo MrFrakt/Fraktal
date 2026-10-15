@@ -170,7 +170,7 @@ def build(model, shared_runtime=False):
                 raise DECL.DeclarationError('T-CORE', t.name, 'authored region writes Unit lifecycle storage')
             if re.search(r'#(?:ConfigRev|ConfigCursor|Catalog|CatalogCount)\b[^;]*:=|"FRK_Config\w*"\s*\(', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'manifest revision, pager and catalog belong to the generated frame')
-            if config_runtime and re.search(r'#(?:\w+\.)*(?:ParCfg|StationCfg|ConfigPersist|ModelId|ConfigStage\w*|ConfigDefault\w*|ConfigStaged|AvailableModelCount|AvailableModels|ConfigSets|ConfigSetCount|ConfigSetDocument|ConfigSetDocumentLine|ConfigSetDocumentLines)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Cfg|Set|Json)\w*"\s*\(|"FRK_(?:Config(?:Store|Scratch|Runtime)|Set(?:Store|Runtime))"', code, re.I):
+            if config_runtime and re.search(r'#(?:\w+\.)*(?:ParCfg|StationCfg|ConfigPersist|Model|ConfigStage\w*|ConfigDefault\w*|ConfigStaged|AvailableModelCount|AvailableModels|ConfigSets|ConfigSetCount|ConfigSetDocument|ConfigSetDocumentLine|ConfigSetDocumentLines)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Cfg|Set|Json)\w*"\s*\(|"FRK_(?:Config(?:Store|Scratch|Runtime)|Set(?:Store|Runtime))"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'editable config, staging and model identity belong to the owning handlers')
             if re.search(r'#Access\b[^;]*:=|"FRK_Access\w*"\s*\(|"FRK_(?:LocalUsers|AccessPolicies|AccessStorage)"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'access authority belongs to generated services and composition injection')
@@ -263,7 +263,7 @@ def build(model, shared_runtime=False):
         config.prepare(ordered)
     ready = catalog.enums["E_ExecState"]["READY"]
     for index, t in enumerate(ordered):
-        text = frame(t, model, lookup, hal_names, type_ids[t.name], ready, catalog, unit_runtime, config)
+        text = frame(t, model, lookup, hal_names, type_ids[t.name], ready, catalog, unit_runtime, config, shared_runtime)
         if unit_runtime:
             if len(t.commands) > catalog.capacities['MAX_CMD_CATALOG']:
                 raise DECL.DeclarationError('T-WIDTH', t.name, 'command catalog exceeds Core capacity')
@@ -297,8 +297,10 @@ def build(model, shared_runtime=False):
         '    "GDB_FraktalMain"(Startup := #Initial_Call);', 'END_ORGANIZATION_BLOCK', ''])
     runtime_metadata = None
     if shared_runtime:
-        if any(not t.commands for t in model.types):
-            raise DECL.DeclarationError('T-GEN', 'runtime', 'every runtime type requires declared commands and a ParCfg timeout')
+        # Only a passive control module (a sensor monitor) may omit commands;
+        # its frame then rejects every request as UNSUPPORTED_COMMAND.
+        if any(t.tier != 'CONTROL_MODULE' and not t.commands for t in model.types):
+            raise DECL.DeclarationError('T-GEN', 'runtime', 'every Unit and EM requires declared commands and a ParCfg timeout')
         import fraktal_tia_runtime
         runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
         if config:
@@ -425,7 +427,7 @@ def alarm_walk(t,lookup):
     return '\n'.join(lines+['END_FUNCTION',''])
 
 
-def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, config=None):
+def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, config=None, shared_runtime=False):
     contract, logic = dict(t.contract), dict(t.logic)
     derived,has_states=state_calls(logic.get('cyclic','// No cyclic extension declared.'),catalog)
     from tia_lint import strip_comments
@@ -553,6 +555,10 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
             else:
                 lines += ['            %d: "FRK_Start"(Core := #Core, Status := #Status, Supported := TRUE, Timeout := #ParCfg.%s, Label := %s);' % (command, t.timeout, literal(label))]
         lines += ['            ELSE "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := \'\');', '        END_CASE;']
+    elif shared_runtime:
+        # A passive module (a sensor monitor) declares no command: the frame
+        # rejects every request once, here, rather than leaving it BUSY.
+        lines += ['        "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := \'\');']
     lines += ['    END_IF;']
     reaction('CommandStart')
     if strip_comments(logic.get('Cyclic', '')).strip():

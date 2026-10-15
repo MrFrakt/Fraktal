@@ -1,0 +1,27 @@
+﻿FUNCTION "F_PressDemoSimCylinder" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// One double-acting cylinder: position in milliseconds of travel.
+   VAR_INPUT 
+      TravelMs : DInt;
+      DeltaMs : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      PositionMs : DInt;
+      Hal : "ST_CylinderHal";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Hal.CoilExtend AND NOT #Hal.CoilRetract THEN
+	    #PositionMs := MIN(IN1 := #PositionMs + #DeltaMs, IN2 := #TravelMs);
+	ELSIF #Hal.CoilRetract AND NOT #Hal.CoilExtend THEN
+	    #PositionMs := MAX(IN1 := #PositionMs - #DeltaMs, IN2 := 0);
+	END_IF;
+	#Hal.FeedbackExtended := #PositionMs >= #TravelMs;
+	#Hal.FeedbackRetracted := #PositionMs <= 0;
+	
+END_FUNCTION
+

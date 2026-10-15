@@ -1,0 +1,35 @@
+{"event": "driver", "path": "FraktalCore\\PLC\\Siemens\\tools\\TiaCli\\bin\\candidate_structure_examples\\Fraktal.Tia.Cli.exe", "sha256": "ba24e6aaa0338b286accaf3d19c0d9dfaf2b394268b57a1a43ff1d330652fc74"}
+{"t":"2026-10-15T20:05:08.0199462Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-15T20:05:08.0628564Z","event":"step","command":"open-project","args":"--path C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\IoBridge_Protocol_Test_20261015\\IoBridgeProtocolTest\\IoBridgeProtocolTest.ap20"}
+{"t":"2026-10-15T20:05:14.3310961Z","event":"project-opened","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\IoBridge_Protocol_Test_20261015\\IoBridgeProtocolTest\\IoBridgeProtocolTest.ap20"}
+{"t":"2026-10-15T20:05:14.3334258Z","event":"step","command":"delete-blocks","args":"--plc PLC_1"}
+{"t":"2026-10-15T20:05:16.3201250Z","event":"block-deleted","name":"F_IoBridgeElapsed"}
+{"t":"2026-10-15T20:05:17.6593957Z","event":"block-deleted","name":"F_IoBridgeGet32"}
+{"t":"2026-10-15T20:05:17.6754270Z","event":"block-deleted","name":"F_IoBridgePut32"}
+{"t":"2026-10-15T20:05:17.6903976Z","event":"block-deleted","name":"F_IoBridgeCrc"}
+{"t":"2026-10-15T20:05:17.7054846Z","event":"block-deleted","name":"FB_IoBridgeProtocol"}
+{"t":"2026-10-15T20:05:17.7293708Z","event":"block-deleted","name":"FB_IoBridgeEndpoint"}
+{"t":"2026-10-15T20:05:17.8723737Z","event":"block-deleted","name":"F_IoBridgeAssert"}
+{"t":"2026-10-15T20:05:17.8874337Z","event":"block-deleted","name":"FB_IoBridgeProtocolTest"}
+{"t":"2026-10-15T20:05:17.9494216Z","event":"block-deleted","name":"GDB_IoBridgeProtocolTest"}
+{"t":"2026-10-15T20:05:18.1672725Z","event":"block-deleted","name":"Main"}
+{"t":"2026-10-15T20:05:18.2538711Z","event":"type-deleted","name":"ST_IoBridgeConfig"}
+{"t":"2026-10-15T20:05:18.3132306Z","event":"step","command":"set-ip","args":"--plc PLC_1 --item PROFINET interface_2 --ip 172.31.254.51 --mask 255.255.255.0"}
+{"t":"2026-10-15T20:05:19.5989707Z","event":"ip-set","interface":"PROFINET interface_2","address":"172.31.254.51","mask":"255.255.255.0"}
+{"t":"2026-10-15T20:05:19.5989707Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\protocol02 --only 00_ST_IoBridgeConfig.udt"}
+{"t":"2026-10-15T20:05:21.8049460Z","event":"source-generated","file":"00_ST_IoBridgeConfig.udt","sha256":"b5674f2e9162295555060b7bf1eb5eb7c18177b758b0dc7689e3833d80ba2a9c"}
+{"t":"2026-10-15T20:05:21.8049460Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\protocol02 --only 01_IoBridge.scl"}
+{"t":"2026-10-15T20:05:24.8686461Z","event":"source-generated","file":"01_IoBridge.scl","sha256":"5af2dbdf0e1a61c640964556674b4ac46dbe6953bee03d81d9d2896f51f31d1d"}
+{"t":"2026-10-15T20:05:24.8686461Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\protocol02 --only 03_ProtocolTest.scl"}
+{"t":"2026-10-15T20:05:26.6780015Z","event":"source-generated","file":"03_ProtocolTest.scl","sha256":"a6cd828904c6e5f28af4890abae229ed8cd75d3f95b941ac304ed7c563f23955"}
+{"t":"2026-10-15T20:05:26.6795178Z","event":"step","command":"save","args":""}
+{"t":"2026-10-15T20:05:26.7972378Z","event":"saved","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\IoBridge_Protocol_Test_20261015\\IoBridgeProtocolTest\\IoBridgeProtocolTest.ap20"}
+{"t":"2026-10-15T20:05:26.7972378Z","event":"step","command":"compile","args":"--plc PLC_1"}
+{"t":"2026-10-15T20:05:30.2492804Z","event":"compile","state":"Error","errors":1,"warnings":0}
+{"t":"2026-10-15T20:05:30.2592110Z","event":"compile-message","depth":0,"state":"Error","path":"PLC_1","text":""}
+{"t":"2026-10-15T20:05:30.2632539Z","event":"compile-message","depth":1,"state":"Success","path":"PLC data types","text":""}
+{"t":"2026-10-15T20:05:30.2692514Z","event":"compile-message","depth":1,"state":"Error","path":"Program blocks","text":""}
+{"t":"2026-10-15T20:05:30.2815769Z","event":"compile-message","depth":2,"state":"Error","path":"Main (OB1)","text":""}
+{"t":"2026-10-15T20:05:30.2843490Z","event":"compile-message","depth":3,"state":"Error","path":"Main (OB1)","text":"The interface of the standard OB is smaller than the minimum value of 20 bytes."}
+{"t":"2026-10-15T20:05:30.3002309Z","event":"compile-message","depth":0,"state":"Error","path":null,"text":"Compiling finished (errors: 1; warnings: 0)"}
+{"t":"2026-10-15T20:05:30.3023780Z","event":"step-failed","command":"compile","rc":5,"continue":false}

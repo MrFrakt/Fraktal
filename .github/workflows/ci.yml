@@ -97,6 +97,8 @@ jobs:
           python FraktalCore/PLC/Siemens/tools/fraktal_tia_examples.py --verify FraktalCore/PLC/Siemens/Examples/PressDemo/generated
       - name: Check full-profile generated contract interfaces
         run: python tools/check_tia_contracts.py --generated FraktalCore/PLC/Siemens/Examples/PressDemo/generated
+      - name: Replay physical press I/O companion
+        run: python FraktalCore/PLC/Siemens/tools/fraktal_tia_io_bridge.py --verify FraktalCore/PLC/Siemens/Examples/PressIoBridge/generated/Physical
 
   # ---- lint + test: HMI app (Flutter) -------------------------------------
   hmi:

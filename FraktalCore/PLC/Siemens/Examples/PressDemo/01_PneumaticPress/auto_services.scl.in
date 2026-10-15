@@ -182,3 +182,43 @@ BEGIN
     ELSE #F_PressDemoCycleEnd := #Core.Exec <> @E_ExecState.ERROR@;
     END_IF;
 END_FUNCTION
+
+// CHANGEOVER policy: the model is already applied atomically by SET_MODEL
+// (prepare/commit, gated by the CHANGEOVER release); the chain proves one is
+// selected, establishes the shared load position and asks the operator.
+FUNCTION "F_PressDemoModelSelected" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT ModelCode : String; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+BEGIN
+    #F_PressDemoModelSelected := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.pressModelSelected', Ok := #ModelCode <> '');
+END_FUNCTION
+
+FUNCTION "F_PressDemoChangeoverAsk" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT SourcePath : String; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Request : "ST_DecisionRequest"; END_VAR
+BEGIN
+    #Request := "FRK_Decisions".EmptyRequest;
+    #Request.Prompt := WSTRING#'project.decision.pressChangeoverConfirm';
+    #Request.Options[1] := 'project.decision.confirmChangeover';
+    #Request.Options[2] := 'project.decision.repeatChangeoverPosition';
+    // Tooling/material confirmation is deliberate: no timeout, no default.
+    #F_PressDemoChangeoverAsk := "FRK_DecisionAsk"(Owner := #Seq.OwnerIndex, OwnerPath := STRING_TO_WSTRING(#SourcePath),
+        Request := #Request, AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "F_PressDemoChangeoverAnswer" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Answer : Int; Answered : Bool; END_VAR
+BEGIN
+    #Answer := "FRK_DecisionTake"(Owner := #Seq.OwnerIndex, AlarmLog := #AlarmLog);
+    #Answered := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.pressChangeoverConfirmation', Ok := #Answer <> 0);
+    // 1 confirms tooling/material; 2 repeats the guided position (JUMP1).
+    "FRK_SeqSelect"(Seq := #Seq, AdvanceOk := #Answered AND #Answer = 1, Jump1Ok := #Answered AND #Answer = 2);
+END_FUNCTION

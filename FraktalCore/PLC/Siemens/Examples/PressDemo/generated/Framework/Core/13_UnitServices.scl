@@ -472,17 +472,17 @@ VAR_TEMP
 END_VAR
 BEGIN
     #FRK_AlarmTreeBlocking := TRUE;
-    IF "FRK_Registry".Fault OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > 4 THEN RETURN; END_IF;
+    IF "FRK_Registry".Fault OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > 7 THEN RETURN; END_IF;
     FOR #Index := 1 TO "FRK_Registry".Count DO
         IF "FRK_Registry".Rows[#Index].AlarmBlocking THEN
             #Ancestor := #Index;
-            FOR #Depth := 1 TO 4 DO
+            FOR #Depth := 1 TO 7 DO
                 IF #Ancestor = #Owner THEN RETURN; END_IF;
                 IF #Ancestor = 0 THEN EXIT; END_IF;
                 IF #Ancestor < 1 OR #Ancestor > "FRK_Registry".Count THEN RETURN; END_IF;
                 #Ancestor := "FRK_Registry".Rows[#Ancestor].Parent;
             END_FOR;
-            IF #Depth > 4 AND #Ancestor <> 0 THEN RETURN; END_IF;
+            IF #Depth > 7 AND #Ancestor <> 0 THEN RETURN; END_IF;
         END_IF;
     END_FOR;
     #FRK_AlarmTreeBlocking := FALSE;
@@ -2210,8 +2210,8 @@ BEGIN
     "FRK_AccessStorage".UsersReady := TRUE;
     "FRK_AccessStorage".UsersLost := FALSE;
     IF "FRK_PersistConsumers".Ready THEN
-        "FRK_PersistConsumers".Rows[7].Acknowledged := TRUE;
-        "FRK_PersistRepair"(Slot := 7);
+        "FRK_PersistConsumers".Rows[10].Acknowledged := TRUE;
+        "FRK_PersistRepair"(Slot := 10);
         "FRK_PersistUsersDirty"();
     END_IF;
 END_FUNCTION
@@ -2519,7 +2519,7 @@ VAR_IN_OUT
 END_VAR
 BEGIN
     #Unit.CarrierIndex := 0;
-    IF #Index < 1 OR #Index > 4 THEN RETURN; END_IF;
+    IF #Index < 1 OR #Index > 7 THEN RETURN; END_IF;
     "FRK_Carriers".Slots[#Index].Enabled := TRUE;
     "FRK_Carriers".Slots[#Index].Kind := 2;
     #Unit.CarrierIndex := #Index;
@@ -2570,7 +2570,7 @@ BEGIN
     #FRK_PartReceived := FALSE;
     #Index := #Unit.CarrierIndex;
     IF #Index = 0 THEN RETURN; END_IF;
-    IF #Index < 1 OR #Index > 4 THEN
+    IF #Index < 1 OR #Index > 7 THEN
         "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2020, Description := WSTRING#'std.error.partCarrierReadFailed');
         RETURN;
     END_IF;
@@ -2638,7 +2638,7 @@ BEGIN
         "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2023, Description := WSTRING#'std.error.nokReasonRequired');
         RETURN;
     END_IF;
-    IF #Index < 1 OR #Index > 4 THEN
+    IF #Index < 1 OR #Index > 7 THEN
         "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2021, Description := WSTRING#'std.error.partCarrierWriteFailed');
         RETURN;
     END_IF;
@@ -3011,10 +3011,10 @@ VAR_TEMP
 END_VAR
 BEGIN
     #FRK_DescendantsReady := FALSE;
-    IF "FRK_Registry".Fault OR #OwnerIndex < 1 OR #OwnerIndex > "FRK_Registry".Count OR "FRK_Registry".Count > 4 THEN RETURN; END_IF;
+    IF "FRK_Registry".Fault OR #OwnerIndex < 1 OR #OwnerIndex > "FRK_Registry".Count OR "FRK_Registry".Count > 7 THEN RETURN; END_IF;
     FOR #Index := 1 TO "FRK_Registry".Count DO
         #Parent := "FRK_Registry".Rows[#Index].Parent;
-        FOR #Depth := 1 TO 4 DO
+        FOR #Depth := 1 TO 7 DO
             IF #Parent = #OwnerIndex THEN
                 IF "FRK_Registry".Rows[#Index].Exec <> 0 THEN RETURN; END_IF;
                 EXIT;
@@ -3023,7 +3023,7 @@ BEGIN
             IF #Parent < 1 OR #Parent > "FRK_Registry".Count THEN RETURN; END_IF;
             #Parent := "FRK_Registry".Rows[#Parent].Parent;
         END_FOR;
-        IF #Depth > 4 AND #Parent <> 0 THEN RETURN; END_IF;
+        IF #Depth > 7 AND #Parent <> 0 THEN RETURN; END_IF;
     END_FOR;
     #FRK_DescendantsReady := TRUE;
 END_FUNCTION
@@ -3367,9 +3367,9 @@ VAR_INPUT Owner : DInt; Create : Bool; END_VAR
 VAR_TEMP RootIndex : DInt; Depth : DInt; Slot : Int; END_VAR
 BEGIN
     #FRK_DecisionRoot := 0;
-    IF "FRK_Registry".Fault OR "FRK_Registry".Count < 1 OR "FRK_Registry".Count > 4 THEN RETURN; END_IF;
+    IF "FRK_Registry".Fault OR "FRK_Registry".Count < 1 OR "FRK_Registry".Count > 7 THEN RETURN; END_IF;
     #RootIndex := #Owner;
-    FOR #Depth := 1 TO 4 DO
+    FOR #Depth := 1 TO 7 DO
         IF #RootIndex < 1 OR #RootIndex > "FRK_Registry".Count THEN RETURN; END_IF;
         IF NOT "FRK_Registry".Rows[#RootIndex].Valid THEN RETURN; END_IF;
         IF "FRK_Registry".Rows[#RootIndex].Parent = 0 THEN EXIT; END_IF;

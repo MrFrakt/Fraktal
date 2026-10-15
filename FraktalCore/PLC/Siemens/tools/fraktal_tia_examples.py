@@ -17,6 +17,10 @@ from fraktal_tia_binding import Catalog, PRIVATE, READONLY, literal, type_source
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / 'Examples/PressDemo/01_PneumaticPress'
 MODULES = ROOT / 'Framework/Modules/ControlModules/Cylinder'
+CONTROL_MODULES = ROOT / 'Framework/Modules/ControlModules'
+TC3_MODULE_REASONS = 'FraktalCore/PLC/TwinCAT/Framework/Fraktal_Modules/Params/PL_ModuleReasons.TcGVL'
+# Passive sensor CMs the press composes beside its cylinders: (folder, stem).
+SENSOR_MODULES = (('TwoHand', 'two_hand'), ('DigitalInput', 'digital_input'), ('AirPressure', 'air_pressure'))
 CORE = ROOT / 'Framework/Core'
 FN = 'http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4'
 IFACE = 'http://www.siemens.com/automation/Openness/SW/Interface/v5'
@@ -149,7 +153,7 @@ def interface(chain,roles):
     consumed.update(step['delay'] for step in chain['steps'] if step.get('delay'))
     if 'StartLatched' in consumed:consumed.add('StartPulse')
     if any(step.get('hold_force') for step in chain['steps']):consumed.add('TwoHandHeld')
-    inputs=[('Run','Bool'),('Reset','Bool'),('OwnerIndex','DInt'),('Delta','Time')]
+    inputs=[('Run','Bool'),('Reset','Bool'),('OwnerIndex','DInt'),*([('ChainIndex','DInt')] if chain.get('shared') else []),('Delta','Time')]
     inputs += [(n,t) for n,t in [('PartPresent','Bool'),('AirPressureOk','Bool'),('TwoHandHeld','Bool'),('StartPulse','Bool'),
                                ('TransferSettleTime','Time'),('PressSettleTime','Time')] if n in consumed]
     if chain.get('process')=='auto':
@@ -158,6 +162,10 @@ def interface(chain,roles):
                     ('TransferSettleTime','Time'),('PressSettleTime','Time')]:
             if n not in dict(inputs):inputs.append((n,t))
     inout=[(role,'"FB_CylinderCM"') for role in roles]
+    changeover=chain.get('process')=='changeover'
+    if changeover:
+        inputs += [('ModelCode','String'),('SourcePath','String[80]')]
+        inout += [('AlarmLog','"FRK_AlarmLog"')]
     if chain.get('process')=='auto':
         inout += [(n,'"'+t+'"') for n,t in [('Core','FRK_Core'),('Unit','FRK_Unit'),('Status','ST_ModuleStatus'),
                                            ('Part','ST_PartContext'),('AlarmLog','FRK_AlarmLog')]]
@@ -167,8 +175,9 @@ def interface(chain,roles):
             'Static':[('Seq','"FRK_SequenceCtx"'),*[( 'Row'+str(i),'"FRK_SequenceRow"') for i,_ in enumerate(chain['steps'],1)]] +
                      [('At'+str(s['no']),'Bool') for s in chain['steps']] +
                      [('Ready'+str(i),'Bool') for i in range(1,6)] + [('Advance','Bool')] +
-                     ([('Cycle','"ST_PressDemoCycle"'),('LoadPosition','"FB_PressDemoLoadPosition"'),
-                       ('LoadDone','Bool'),('LoadActive','Bool')] if chain.get('process')=='auto' else [])}
+                     ([('Cycle','"ST_PressDemoCycle"')] if chain.get('process')=='auto' else []) +
+                     ([('LoadPosition','"FB_PressDemoLoadPosition"'),('LoadDone','Bool'),('LoadActive','Bool')]
+                      if chain.get('process')=='auto' or changeover else [])}
 
 
 def header(name,intf):
@@ -184,7 +193,7 @@ def header(name,intf):
 
 def frame_ops(chain,roles,graph=False):
     begin=[call('FRK_SeqGraphBegin' if graph else 'FRK_SeqBegin',Run='#Run',Reset='#Reset',OwnerIndex='#OwnerIndex',
-                ChainIndex=str(chain['chain_index']),BranchIndex=str(chain.get('branch_index',0)),
+                ChainIndex='#ChainIndex' if chain.get('shared') else str(chain['chain_index']),BranchIndex=str(chain.get('branch_index',0)),
                 ViewOffset=str(chain.get('view_offset',0)),ViewDepth=str(chain.get('view_depth',0)),Delta='#Delta',Seq='#Seq')]
     leases=[call('F_CylinderSequenceLease',Seq='#Seq',Target='#'+role) for role in roles]
     if chain.get('initial_step'):
@@ -195,8 +204,14 @@ def frame_ops(chain,roles,graph=False):
         begin += [call('F_PressDemoReset',Seq='#Seq',Cycle='#Cycle'),
                   call('FRK_SeqSubActive',Seq='#Seq',Run='#Run',StepNo='240',Ret_Val='#LoadActive'),
                   call('F_PressDemoLoadPosition',Target='#LoadPosition',Run='#LoadActive',Reset='#Seq.SubReset',
-                       OwnerIndex='#OwnerIndex',Delta='#Delta',**{r:'#'+r for r in roles},Ret_Val='#LoadDone')]
+                       OwnerIndex='#OwnerIndex',ChainIndex=str(chain['load_chain_index']),Delta='#Delta',**{r:'#'+r for r in roles},Ret_Val='#LoadDone')]
         leases.append(call('FRK_SeqOwnerStatus',Seq='#Seq',Core='#Core',Status='#Status'))
+        leases.append(call('FRK_SeqSubStatus',Seq='#Seq',Child='#LoadPosition.Seq'))
+    elif chain.get('load_step'):
+        # Same shared motion chain under this chain's own lease identity.
+        begin += [call('FRK_SeqSubActive',Seq='#Seq',Run='#Run',StepNo=str(chain['load_step']),Ret_Val='#LoadActive'),
+                  call('F_PressDemoLoadPosition',Target='#LoadPosition',Run='#LoadActive',Reset='#Seq.SubReset',
+                       OwnerIndex='#OwnerIndex',ChainIndex=str(chain['load_chain_index']),Delta='#Delta',**{r:'#'+r for r in roles},Ret_Val='#LoadDone')]
         leases.append(call('FRK_SeqSubStatus',Seq='#Seq',Child='#LoadPosition.Seq'))
     return begin+leases,leases
 
@@ -207,7 +222,7 @@ def step_ops(step,index,module):
     # A typed, private zero avoids the native LAD importer's time-literal
     # ambiguity. All languages use the same operand for an unguarded step.
     expected = '#'+step['delay'] if step.get('delay') else '#Seq.NoTimeGuard'
-    time_class = Catalog.read().enums['E_TimeClass']['WAIT_OPERATOR' if step.get('policy') in ('AwaitCycle','ConfirmScrap') or 'StartLatched' in step.get('wait',[]) else 'WORK']
+    time_class = Catalog.read().enums['E_TimeClass']['WAIT_OPERATOR' if step.get('policy') in ('AwaitCycle','ConfirmScrap','ModelSelected','ChangeoverAnswer') or 'StartLatched' in step.get('wait',[]) else 'WORK']
     operations=[call('FRK_SeqStep',StepNo=str(step['no']),StepName=literal(step['label']),
         AwaitingLabel=literal(awaiting),AwaitsPath='#'+command[0]+'.Status.Name' if command else "''",
         TimeClass=str(time_class),ExpectedTime=expected,Seq='#Seq',Row='#Row'+str(index))]
@@ -245,8 +260,11 @@ def step_ops(step,index,module):
         elif policy in ('Scrap','CycleEnd'):params.update(shared)
         elif policy=='Dwell':params.update(TwoHandHeld='#TwoHandHeld',RequireTwoHandStart='#RequireTwoHandStart',PT='#PressSettleTime',Delta='#Delta',PressRam='#PressRam')
         elif policy=='Record':params.update(Dwell='#PressSettleTime',Core='#Core',Status='#Status',Part='#Part')
+        elif policy=='ModelSelected':params.update(ModelCode='#ModelCode')
+        elif policy=='ChangeoverAsk':params.update(SourcePath='#SourcePath',AlarmLog='#AlarmLog')
+        elif policy=='ChangeoverAnswer':params.update(AlarmLog='#AlarmLog')
         else:raise ValueError('Unknown project policy '+policy)
-        if policy not in ('Started','DoorClose','ClearStart','RamResult'):
+        if policy not in ('Started','DoorClose','ClearStart','RamResult','ChangeoverAnswer'):
             params['Ret_Val']='#Ready5';ready=['#Ready5']
         operations.append((name,params))
     if not step.get('selects') and not step.get('complete'):
@@ -364,7 +382,7 @@ def graph_sources(chain,roles,module,sources,definition):
         before=[op for op in before if op[0] not in ('F_CylinderSequenceLease','FRK_SeqSubActive','F_PressDemoLoadPosition','FRK_SeqOwnerStatus','FRK_SeqSubStatus')]
         for branch in (1,2):before.append(call('FRK_SeqGraphBegin',Run='#Run',Reset='#Reset',OwnerIndex='#OwnerIndex',ChainIndex=str(chain['chain_index']),BranchIndex=str(branch),ViewOffset='0',ViewDepth='0',Delta='#Delta',Seq='#Branch'+str(branch)))
         before += [call('FRK_SeqSubActive',Seq='#Branch1',Run='#Run',StepNo='240',Ret_Val='#LoadActive'),
-                   call('F_PressDemoLoadPosition',Target='#LoadPosition',Run='#LoadActive',Reset='#Seq.SubReset',OwnerIndex='#OwnerIndex',Delta='#Delta',**{r:'#'+r for r in roles},Ret_Val='#LoadDone')]
+                   call('F_PressDemoLoadPosition',Target='#LoadPosition',Run='#LoadActive',Reset='#Seq.SubReset',OwnerIndex='#OwnerIndex',ChainIndex=str(chain['load_chain_index']),Delta='#Delta',**{r:'#'+r for r in roles},Ret_Val='#LoadDone')]
         before += [call('F_CylinderSequenceLease',Seq=seq,Target='#'+r) for seq in ('#Seq','#Branch1','#Branch2') for r in roles]
         after=[call('FRK_SeqSubStatus',Seq='#Branch1',Child='#LoadPosition.Seq')]
         after += [call('FRK_SeqOwnerStatus',Seq=seq,Core='#Core',Status='#Status') for seq in ('#Branch1','#Branch2','#Seq')]
@@ -378,14 +396,32 @@ def graph_sources(chain,roles,module,sources,definition):
     sources['28_FB_'+chain['name']+'GraphOwner.scl']=text
 
 
+def sensor_module(folder, stem, catalog):
+    """One passive sensor CM: its declaration, records and bound logic regions."""
+    module=json.loads((CONTROL_MODULES/folder/(stem+'.json')).read_bytes())
+    reasons=(GEN.REPO/TC3_MODULE_REASONS).read_text('utf-8-sig')
+    template=(CONTROL_MODULES/folder/(stem+'_logic.scl.in')).read_text('ascii')
+    # Module band reasons have one source: the TC3 module reason list.
+    tokens={name:int(re.search(name+r'\s*:\s*DINT\s*:=\s*(\d+)',reasons)[1])
+            for name in set(re.findall(r'@([A-Z][A-Z_]+)@',template))}
+    pieces=re.split(r'@REGION:(\w+)@\n',bind(template,catalog,tokens))[1:]
+    records=module.pop('records')
+    module['logic']=dict(zip(pieces[::2],pieces[1::2]));module['children']=[]
+    return module,records
+
+
 def unit_policy(catalog):
     busy=catalog.enums['E_ExecState']['BUSY'];auto=catalog.enums['E_Mode']['AUTO'];home=catalog.enums['E_Mode']['HOME']
+    changeover=catalog.enums['E_Mode']['CHANGEOVER']
     return {
       'Release':'    "FRK_UnitSetPermit"(Unit := #Unit, Ok := #Hal.Process.AirPressureOk, Diag := #Hal.Process.PermitDiagnostic);',
-      'Cyclic':'''    #Release(AirPressureOk := #Hal.Process.AirPressureOk, DoorClosed := #Hal.Door.FeedbackExtended AND NOT #Hal.Door.FeedbackRetracted,
+      'Cyclic':'''    // The monitor CM owns air availability; the Unit's release function
+    // receives only its HAL, so the Unit hands the derived fact across here.
+    #Hal.Process.AirPressureOk := #AirPressureMonitor.OutImm.PressureOk;
+    #Release(AirPressureOk := #Hal.Process.AirPressureOk, DoorClosed := #Hal.Door.FeedbackExtended AND NOT #Hal.Door.FeedbackRetracted,
         SlideInside := #Hal.PartSlide.FeedbackExtended AND NOT #Hal.PartSlide.FeedbackRetracted, RamHealthy := NOT #PressRam.Error AND NOT #PressRam.Aborted,
         DoorHealthy := NOT #Door.Error AND NOT #Door.Aborted, SlideHealthy := NOT #PartSlide.Error AND NOT #PartSlide.Aborted,
-        TwoHandHeld := #Hal.Process.TwoHandHeld OR NOT #StationCfg.RequireTwoHandStart);
+        TwoHandHeld := #TwoHand.OutImm.SafeActive OR NOT #StationCfg.RequireTwoHandStart);
     #Hal.Process.PermitDiagnostic := "FRK_UnitScratch".EmptyDiagnostic;
     #Hal.Process.PermitDiagnostic.Description := STRING_TO_WSTRING(#Release.ModeStart.Blocker);
     #Hal.Process.PermitDiagnostic.SourcePath := STRING_TO_WSTRING(#Status.Name);
@@ -407,10 +443,11 @@ def unit_policy(catalog):
     #SequenceReset := #Core.EvCommandStart;
     #Auto(Run := #Core.Exec = @BUSY@ AND #Unit.Mode = @AUTO@ AND NOT "FRK_Registry".Fault,
         Reset := #SequenceReset, OwnerIndex := #Core.RegIndex, Delta := DINT_TO_TIME(UDINT_TO_DINT(#Core.DeltaMs)),
-        PartPresent := #Hal.Process.PartPresent, PartQuality := #Hal.Process.PartQuality,
-        AirPressureOk := #Hal.Process.AirPressureOk, TwoHandHeld := #Hal.Process.TwoHandHeld,
-        StartPulse := #Hal.Process.StartPulse, RequireTwoHandStart := #StationCfg.RequireTwoHandStart,
-        TransferSettleTime := #StationCfg.TransferSettleTime, PressSettleTime := #StationCfg.PressSettleTime,
+        PartPresent := #PartPresentSensor.OutImm.Value AND #PartPresentSensor.OutImm.Quality,
+        PartQuality := #Hal.Process.PartQuality,
+        AirPressureOk := #AirPressureMonitor.OutImm.PressureOk, TwoHandHeld := #TwoHand.OutImm.SafeActive,
+        StartPulse := #TwoHand.OutImm.StartPulse, RequireTwoHandStart := #StationCfg.RequireTwoHandStart,
+        TransferSettleTime := #ParCfg.TransferSettleTime, PressSettleTime := #ParCfg.PressSettleTime,
         SourcePath := #Status.Name, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide,
         Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog,
         Chart := "GDB_GRAPH_PressDemoAuto");
@@ -421,7 +458,18 @@ def unit_policy(catalog):
     IF #Home.Seq.Done AND #Core.Exec = @BUSY@ AND #Unit.Mode = @HOME@ THEN
         "FRK_Complete"(Core := #Core, Status := #Status);
     END_IF;
-    #OutCmd.CycleCompleted := #Auto.Cycle.CycleCompleted;'''.replace('@BUSY@',str(busy)).replace('@AUTO@',str(auto)).replace('@HOME@',str(home))}
+    #Changeover(Run := #Core.Exec = @BUSY@ AND #Unit.Mode = @CHANGEOVER@ AND NOT "FRK_Registry".Fault,
+        Reset := #SequenceReset, OwnerIndex := #Core.RegIndex, Delta := DINT_TO_TIME(UDINT_TO_DINT(#Core.DeltaMs)),
+        ModelCode := #Model.ModelCode, SourcePath := #Status.Name,
+        PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, AlarmLog := #AlarmLog);
+    "FRK_SeqOwnerStatus"(Seq := #Changeover.Seq, Core := #Core, Status := #Status);
+    IF #Changeover.Seq.Done AND #Core.Exec = @BUSY@ AND #Unit.Mode = @CHANGEOVER@ THEN
+        // A command result: it stands until the next command replaces it.
+        #OutCmd.ChangeoverCompleted := TRUE;
+        "FRK_Complete"(Core := #Core, Status := #Status);
+    END_IF;
+    #OutCmd.CycleCompleted := #Auto.Cycle.CycleCompleted;'''.replace('@BUSY@',str(busy)).replace('@AUTO@',str(auto)).replace('@HOME@',str(home)).replace('@CHANGEOVER@',str(changeover)),
+      'CommandStart':'    #OutCmd.ChangeoverCompleted := FALSE;'}
 
 
 def wire_demo(sources,definition,catalog):
@@ -429,16 +477,19 @@ def wire_demo(sources,definition,catalog):
     text=sources.pop(name)
     anchor='    Unit'+PRIVATE+' : "FRK_Unit";'
     assert text.count(anchor)==1
-    text=text.replace(anchor,anchor+'\n    Auto'+READONLY+' : "FB_PressDemoAutoGraphOwner";\n    Home'+READONLY+' : "FB_PressDemoHomeGraphOwner";\n    Release'+READONLY+' : "FB_PressDemoRelease";\n    SequenceReset'+PRIVATE+' : Bool;')
+    text=text.replace(anchor,anchor+'\n    Auto'+READONLY+' : "FB_PressDemoAutoGraphOwner";\n    Home'+READONLY+' : "FB_PressDemoHomeGraphOwner";\n    Changeover'+READONLY+' : "FB_PressDemoChangeover";\n    Release'+READONLY+' : "FB_PressDemoRelease";\n    SequenceReset'+PRIVATE+' : Bool;')
     sources['29_FB_PressDemoUnit.scl']=text
     if '23_PersistQuiesce.scl' in sources:
         sources['29_PersistQuiesce.scl']=sources.pop('23_PersistQuiesce.scl')
     for chain in definition['chains']:
+        if chain.get('language','GRAPH')!='GRAPH':continue
         name='GDB_GRAPH_'+chain['name']
         sources['29_'+name+'.db']='\n'.join(['DATA_BLOCK "'+name+'"',"{ S7_Optimized_Access := 'TRUE' }",'VERSION : 0.1','NON_RETAIN','"FB_GRAPH_'+chain['name']+'"','BEGIN','END_DATA_BLOCK',''])
     for old in list(sources):
         if old.startswith('25_'):sources['29_'+old[3:].replace('GDB_FraktalHal','GDB_PressDemoHal')]=sources.pop(old)
-    sources['38_PressDemoHardwareDriver.scl']=(EXAMPLE/'hardware_driver.scl.in').read_text('ascii')
+    simulate=definition['integration']['simulate_feedback']
+    sources['38_PressDemoHardwareDriver.scl']=bind((EXAMPLE/'hardware_driver.scl.in').read_text('ascii'),catalog,
+        {'USE_SIMULATION':'TRUE' if simulate else 'FALSE'})
     main=sources['40_Main.scl'];anchor='    "GDB_FraktalMain"(Startup := #Initial_Call);'
     main=main.replace(anchor,'    "F_PressDemoReadInputs"();\n'+anchor+'\n    "F_PressDemoWriteOutputs"();')
     sources['40_Main.scl']=main
@@ -452,29 +503,44 @@ def build():
     catalog=Catalog.read();width=DECL.CoreFacts.read().key_width
     records=copy.deepcopy(module['records'])
     records['ST_SequenceCommandLease']='STRUCT OwnerIndex : DINT; ChainIndex : DINT; BranchIndex : DINT; Step : DINT; Raised : BOOL; AbortIssued : BOOL; ReleasedScan : UDINT; END_STRUCT'
-    records.update({'ST_PressDemoParCfg':'STRUCT SchemaVersion : UINT := 1; Timeout : TIME := T#0ms; END_STRUCT',
+    # model_fields declares the whole record, the Unit's mode-switch Timeout
+    # included: a model change is migrate-or-fault over every member.
+    records.update({'ST_PressDemoParCfg':'STRUCT SchemaVersion : UINT := 2; '+
+                        ''.join(f['name']+' : '+f['type']+' := '+f['default']+'; ' for f in definition['model_fields'])+'END_STRUCT',
                     'ST_PressDemoParCmd':'STRUCT Reserved : BOOL; END_STRUCT',
-                    'ST_PressDemoOutCmd':'STRUCT CycleCompleted : BOOL; END_STRUCT',
-                    'ST_PressDemoOutImm':'STRUCT Homed : BOOL; END_STRUCT'})
+                    'ST_PressDemoOutCmd':'STRUCT CycleCompleted : BOOL; ChangeoverCompleted : BOOL; END_STRUCT',
+                    'ST_PressDemoOutImm':'STRUCT Homed : BOOL; TwoHandStartReady : BOOL; END_STRUCT'})
     cm={k:v for k,v in module.items() if k not in ('records',)}
     cm['commands']=[{k:v for k,v in c.items() if k!='api'} for c in cm['commands']]
     command_ids={c['label']:c['id'] for c in module['commands']}
     logic=bind((MODULES/'cylinder_logic.scl.in').read_text('ascii'),catalog,command_ids)
     pieces=re.split(r'@REGION:(\w+)@\n',logic)[1:]
     cm['logic']=dict(zip(pieces[::2],pieces[1::2]));cm['children']=[]
-    owner={'name':'FB_PressDemoUnit','tier':'UNIT','type_key':'project.pressDemo','children':[{'name':r,'type':module['name']} for r in definition['roles']],
+    sensors=[sensor_module(folder,stem,catalog) for folder,stem in SENSOR_MODULES]
+    for _,sensor_records in sensors:records.update(sensor_records)
+    assert {s['type'] for s in definition['sensors']}<={s['name'] for s,_ in sensors},'press sensor names an undeclared module type'
+    owner={'name':'FB_PressDemoUnit','tier':'UNIT','type_key':'project.pressDemo','children':[{'name':r,'type':module['name']} for r in definition['roles']]+
+           [{'name':s['name'],'type':s['type']} for s in definition['sensors']],
            'contract':{k:'ST_PressDemo'+k for k in ('ParCfg','ParCmd','OutCmd','OutImm')},
            'commands':[{'id':1,'label':'Run'}],'timeout':'Timeout',
-           'unit':{'modes':['AUTO','MANUAL','HOME'],'initial':'MANUAL','run_command':1}}
+           'unit':{'modes':['AUTO','MANUAL','HOME','CHANGEOVER'],'initial':'MANUAL','run_command':1}}
     records['ST_PressDemoStationCfg']='STRUCT SchemaVersion : UINT := 1; '+''.join(f["name"]+' : '+f["type"]+' := '+f["default"]+'; ' for f in definition['station_config'])+'END_STRUCT'
     owner['station_config']='ST_PressDemoStationCfg'
     owner['sequence_view']=definition['sequence_view']
     owner['logic']=unit_policy(catalog)
-    owner['config']=[{'member':'StationCfg.'+f['name'],'revision':1,**{k:v for k,v in f.items() if k in ('key','label','minimum','maximum')}} for f in definition['station_config']]
+    owner['config']=[{'member':role+'.'+f['name'],'revision':1,**{k:v for k,v in f.items() if k in ('key','label','minimum','maximum')}}
+                     for role,group in (('StationCfg','station_config'),('ParCfg','model_fields')) for f in definition[group]]
     owner['logic']['cyclic'] = """    #OutImm.Homed := "FRK_State"(Idx := 1, Key := 'project.state.pressAtLoadPosition',
-        Ok := #PressRam.OutImm.Retracted AND #Door.OutImm.Retracted AND #PartSlide.OutImm.Retracted);"""
-    declaration={'schema_version':1,'target_family':'S7-1500','registry_capacity':4,'types':[owner,cm],
+        Ok := #PressRam.OutImm.Retracted AND #Door.OutImm.Retracted AND #PartSlide.OutImm.Retracted);
+    // The start lamp's condition, derived where the facts live; the hardware
+    // driver only maps it to the output.
+    #OutImm.TwoHandStartReady := "FRK_State"(Idx := 2, Key := 'project.state.pressTwoHandStartReady',
+        Ok := #TwoHand.OutImm.Armed AND #PartPresentSensor.OutImm.Value AND #PartPresentSensor.OutImm.Quality
+            AND #AirPressureMonitor.OutImm.PressureOk);"""
+    declaration={'schema_version':1,'target_family':'S7-1500','registry_capacity':4+len(definition['sensors']),'types':[owner,cm,*(s for s,_ in sensors)],
                  'roots':[{'name':'PressDemo','type':'FB_PressDemoUnit'}],'records':records}
+    if definition.get('model_config'):
+        declaration['model_config']=definition['model_config']
     if definition.get('config_sets'):
         declaration['config_sets']=definition['config_sets']
     if definition.get('alarm_history'):
@@ -488,7 +554,7 @@ def build():
     sources,manifest=GEN.build(DECL.validate(declaration),True)
     # The complete package includes the composition root, chart DBs and one
     # hardware-driver boundary. Optional ST/LAD twins have no instances.
-    signals=[('PartPresent','Bool'),('PartQuality','Bool'),('AirPressureOk','Bool'),('TwoHandHeld','Bool'),('StartPulse','Bool'),('PermitDiagnostic','"ST_Diagnostic"')]
+    signals=[('PartQuality','Bool'),('AirPressureOk','Bool'),('PermitDiagnostic','"ST_Diagnostic"')]
     sources['00_000a_ST_PressDemoSignals.udt']=udt('ST_PressDemoSignals',signals)
     for name in sources:
         if 'ST_PressDemoUnitHal' in name:
@@ -519,7 +585,7 @@ def build():
         [('PartInMachine','Bool'),('PartDispositioned','Bool'),('CycleCompleted','Bool'),('FailureReason','DInt')]])
     reason_path=GEN.REPO/'FraktalCore/PLC/TwinCAT/Examples/PressDemo/Fraktal_Press_Demo/01_PneumaticPress/PL_PressReasons.TcGVL'
     reason=int(re.search(r'PRESS_TWO_HAND_RELEASED\s*:\s*DINT\s*:=\s*(\d+)',reason_path.read_text('utf-8-sig'))[1])
-    sources['22_PressDemoAutoServices.scl']=bind((EXAMPLE/'auto_services.scl.in').read_text('ascii'),catalog,{'PRESS_TWO_HAND_RELEASED':reason,'MAX_PRESS_DWELL_MS':next(f['maximum'] for f in definition['station_config'] if f['name']=='PressSettleTime')})
+    sources['22_PressDemoAutoServices.scl']=bind((EXAMPLE/'auto_services.scl.in').read_text('ascii'),catalog,{'PRESS_TWO_HAND_RELEASED':reason,'MAX_PRESS_DWELL_MS':next(f['maximum'] for f in definition['model_fields'] if f['name']=='PressSettleTime')})
     for chain in [definition['load_position'],*definition['chains']]:
         sigs=signatures(sources)
         name='FB_'+chain['name'];intf=interface(chain,definition['roles']);before,after=frame_ops(chain,definition['roles'])
@@ -539,26 +605,31 @@ def build():
             for op in operations:ladder.call(*op,gate=at)
             if 'next' in step:
                 ladder.call('FRK_SeqRoute',{'Seq':'#Seq','OnAdvance':str(step['next']),'OnJump1':str(step.get('jump1',-1))},gate=at)
-        text+='        ELSE\n            #Seq.Error := TRUE;\n'
-        text+='            #Seq.ErrorDiagnostic.ReasonCode := '+str(definition['invalid_step_reason'])+';\n'
-        text+="            #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';\n"
+        # The shared begin service parks an idle chain at step 0; a chain
+        # without a step 0 (the load-position sub-chain) must not fault there.
+        text+='        ELSE\n            IF #Seq.Running AND NOT #Seq.Error THEN\n                #Seq.Error := TRUE;\n'
+        text+='                #Seq.ErrorDiagnostic.ReasonCode := '+str(definition['invalid_step_reason'])+';\n'
+        text+="                #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';\n            END_IF;\n"
         text+='    END_CASE;\n'+'\n'.join('    '+scl_call(op) for op in after)+'\nEND_FUNCTION_BLOCK\n'
         for op in after:ladder.call(*op)
         if chain is definition['load_position']:
             wrapper='''FUNCTION "F_PressDemoLoadPosition" : Bool
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
-VAR_INPUT Run : Bool; Reset : Bool; OwnerIndex : DInt; Delta : Time; END_VAR
+VAR_INPUT Run : Bool; Reset : Bool; OwnerIndex : DInt; ChainIndex : DInt; Delta : Time; END_VAR
 VAR_IN_OUT Target : "FB_PressDemoLoadPosition"; PressRam : "FB_CylinderCM"; Door : "FB_CylinderCM"; PartSlide : "FB_CylinderCM"; END_VAR
 BEGIN
-    #Target(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
+    // Each embedding chain passes its own identity, so two owners of the one
+    // motion chain never share a command lease.
+    #Target(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := #ChainIndex, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
     #F_PressDemoLoadPosition := #Target.Seq.Done;
 END_FUNCTION
 '''
             sources['23_00_'+name+'.scl']=text+wrapper
         else:
             sources['23_'+name+'.scl']=text
-            graph_sources(chain,definition['roles'],module,sources,definition)
+            if chain.get('language','GRAPH')=='GRAPH':
+                graph_sources(chain,definition['roles'],module,sources,definition)
         sources['26_FB_LD_'+chain['name']+'.xml']=ladder.text()
     wire_demo(sources,definition,catalog)
     return sources,definition,manifest

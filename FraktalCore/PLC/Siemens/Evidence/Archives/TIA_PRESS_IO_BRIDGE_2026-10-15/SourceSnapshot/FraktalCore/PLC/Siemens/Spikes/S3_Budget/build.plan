@@ -1,0 +1,9 @@
+# Rebuild measurement sources in the existing station; no controller access.
+open-project --path ${work}\FrkSpikeS2\FrkSpikeS2.ap20
+delete-blocks --plc PLC_1
+import-sources --plc PLC_1 --dir ${src}
+set-block-number --plc PLC_1 --name S11SclCycle --number 124
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+save
+export --plc PLC_1 --out ${export}

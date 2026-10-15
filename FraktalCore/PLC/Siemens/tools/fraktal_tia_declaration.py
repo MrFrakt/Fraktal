@@ -123,6 +123,9 @@ class Declaration:
     alarm_delivery_stream: str = ''
     persistence_min_write_ms: int = 0
     persistence_queue_capacity: int = 0
+    # (model, 'ParCfg.Member', SCL literal): the value an absent model record
+    # starts from, instead of the record default (the TC3 recipe seeds).
+    model_seeds: tuple[tuple[str, str, str], ...] = ()
 
     def inventory(self):
         types = {item.name: item for item in self.types}
@@ -378,10 +381,10 @@ def validate(value, core=None):
     elif not isinstance(event_sink,str):
         raise DeclarationError('T-GEN','event_sink','sink must be a function name')
     model_config = value.get('model_config', {})
-    object_fields(model_config, (), ('models', 'initial'), 'model_config')
-    models, initial_model = (), ''
+    object_fields(model_config, (), ('models', 'initial', 'seeds'), 'model_config')
+    models, initial_model, seeds = (), '', ()
     if model_config:
-        object_fields(model_config, ('models', 'initial'), (), 'model_config')
+        object_fields(model_config, ('models', 'initial'), ('seeds',), 'model_config')
         models = tuple(items(model_config['models'], 'model_config.models'))
         from fraktal_tia_config import width
         from fraktal_tia_binding import Catalog
@@ -391,6 +394,19 @@ def validate(value, core=None):
         initial_model = model_config['initial']
         if initial_model not in models:
             raise DeclarationError('T-GEN', 'model_config', 'initial model must be in the catalog')
+        rows = []
+        seeded = model_config.get('seeds', {})
+        if not isinstance(seeded, dict):
+            raise DeclarationError('T-GEN', 'model_config.seeds', 'seeds map a model to member values')
+        for model, values in seeded.items():
+            if model not in models or not isinstance(values, dict):
+                raise DeclarationError('T-GEN', 'model_config.seeds', 'a seed names a catalog model and its member values')
+            for seed_member, seed_value in values.items():
+                if (not isinstance(seed_member, str) or not re.fullmatch(r'ParCfg\.[A-Za-z_]\w*', seed_member)
+                        or not isinstance(seed_value, str) or not re.fullmatch(r'[A-Za-z0-9#_.+\-]{1,40}', seed_value)):
+                    raise DeclarationError('T-GEN', 'model_config.seeds.' + model, 'a seed is ParCfg.<member> with an SCL literal')
+                rows.append((model, seed_member, seed_value))
+        seeds = tuple(rows)
     sets = value.get('config_sets', {})
     object_fields(sets, (), ('capacity',), 'config_sets')
     set_capacity = sets.get('capacity', 0)
@@ -437,7 +453,7 @@ def validate(value, core=None):
             raise DeclarationError('T-WIDTH','persistence','queue capacity exceeds the Core bound')
         if not all(lookup[r.type_name.casefold()].unit_modes for r in roots) or not any(t.config for t in types):
             raise DeclarationError('T-GEN','persistence','LOAD_DB requires runtime Units with registered config')
-    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity)
+    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds)
 
 
 def unique_json_object(pairs):

@@ -1,0 +1,403 @@
+{
+  "children": [
+    "PressDemo.AirPressureMonitor",
+    "PressDemo.Door",
+    "PressDemo.PartPresentSensor",
+    "PressDemo.PartSlide",
+    "PressDemo.PressRam",
+    "PressDemo.TwoHand"
+  ],
+  "initial": {
+    "mode": "changeover",
+    "state": "busy",
+    "good": 0
+  },
+  "config": [
+    "pressSettleTime=1200",
+    "modeSwitchTimeout=10000",
+    "transferSettleTime=150",
+    "requireTwoHandStart=false"
+  ],
+  "manualRamRefusedDoorOpen": true,
+  "manualDoorClosed": true,
+  "homeVisited": [
+    {
+      "step": 0,
+      "ms": 0
+    },
+    {
+      "step": 900,
+      "ms": 1
+    },
+    {
+      "step": 910,
+      "ms": 201
+    },
+    {
+      "step": 999,
+      "ms": 0
+    }
+  ],
+  "retractedAfterHome": true,
+  "homed": true,
+  "initialModel": "STEEL",
+  "availableModels": [
+    "ALUMINUM",
+    "PLASTIC",
+    "STEEL"
+  ],
+  "decision": {
+    "prompt": "project.decision.pressChangeoverConfirm",
+    "options": [
+      "project.decision.confirmChangeover",
+      "project.decision.repeatChangeoverPosition"
+    ]
+  },
+  "repeatAudited": true,
+  "changeoverVisited": [
+    0,
+    800,
+    600,
+    810,
+    620,
+    640,
+    660,
+    870,
+    880,
+    999
+  ],
+  "changeoverCompleted": true,
+  "autoCycles": 3,
+  "autoMs": 11877,
+  "lastCycleMs": 3870,
+  "steelDwellMs": 1199,
+  "autoVisited": [
+    {
+      "step": 0,
+      "branch": 0,
+      "ms": 0
+    },
+    {
+      "step": 100,
+      "branch": 0,
+      "ms": 761
+    },
+    {
+      "step": 110,
+      "branch": 0,
+      "ms": 1
+    },
+    {
+      "step": 130,
+      "branch": 0,
+      "ms": 1
+    },
+    {
+      "step": 150,
+      "branch": 0,
+      "ms": 301
+    },
+    {
+      "step": 170,
+      "branch": 0,
+      "ms": 149
+    },
+    {
+      "step": 180,
+      "branch": 0,
+      "ms": 201
+    },
+    {
+      "step": 200,
+      "branch": 1,
+      "ms": 251
+    },
+    {
+      "step": 300,
+      "branch": 2,
+      "ms": 0
+    },
+    {
+      "step": 310,
+      "branch": 2,
+      "ms": 2212
+    },
+    {
+      "step": 220,
+      "branch": 1,
+      "ms": 1199
+    },
+    {
+      "step": 230,
+      "branch": 1,
+      "ms": 0
+    },
+    {
+      "step": 240,
+      "branch": 1,
+      "ms": 759
+    },
+    {
+      "step": 600,
+      "branch": 1,
+      "ms": 252
+    },
+    {
+      "step": 620,
+      "branch": 1,
+      "ms": 202
+    },
+    {
+      "step": 640,
+      "branch": 1,
+      "ms": 301
+    },
+    {
+      "step": 660,
+      "branch": 1,
+      "ms": 0
+    },
+    {
+      "step": 250,
+      "branch": 1,
+      "ms": 0
+    },
+    {
+      "step": 999,
+      "branch": 0,
+      "ms": 0
+    }
+  ],
+  "autoSteps": [
+    150,
+    100,
+    150,
+    180,
+    100,
+    150,
+    180,
+    100,
+    150,
+    180
+  ],
+  "finalGood": 4,
+  "nok": 0,
+  "result": "PASS",
+  "rowsAtEnd": {
+    "enabled": true,
+    "count": 0,
+    "rows": []
+  },
+  "events": [
+    {
+      "ms": 1017,
+      "event": "until",
+      "what": "press discovered",
+      "ok": true
+    },
+    {
+      "ms": 1084,
+      "event": "command",
+      "what": "settle pending decision",
+      "accepted": true
+    },
+    {
+      "ms": 1494,
+      "event": "until",
+      "what": "pending chain completed",
+      "ok": true
+    },
+    {
+      "ms": 1541,
+      "event": "command",
+      "what": "MANUAL",
+      "accepted": true
+    },
+    {
+      "ms": 1844,
+      "event": "until",
+      "what": "MANUAL",
+      "ok": true
+    },
+    {
+      "ms": 4275,
+      "event": "until",
+      "what": "station config hydrated",
+      "ok": true
+    },
+    {
+      "ms": 4308,
+      "event": "command",
+      "what": "manual PressRam EXTEND (door open)",
+      "accepted": false
+    },
+    {
+      "ms": 4345,
+      "event": "command",
+      "what": "manual Door EXTEND",
+      "accepted": true
+    },
+    {
+      "ms": 4852,
+      "event": "until",
+      "what": "door closed",
+      "ok": true
+    },
+    {
+      "ms": 4903,
+      "event": "command",
+      "what": "HOME",
+      "accepted": true
+    },
+    {
+      "ms": 5814,
+      "event": "until",
+      "what": "HOME active",
+      "ok": true
+    },
+    {
+      "ms": 5824,
+      "event": "command",
+      "what": "start HOME",
+      "accepted": true
+    },
+    {
+      "ms": 9468,
+      "event": "until",
+      "what": "HOME steps visited",
+      "ok": true
+    },
+    {
+      "ms": 9476,
+      "event": "command",
+      "what": "CHANGEOVER",
+      "accepted": true
+    },
+    {
+      "ms": 9881,
+      "event": "until",
+      "what": "CHANGEOVER active",
+      "ok": true
+    },
+    {
+      "ms": 9891,
+      "event": "command",
+      "what": "model STEEL",
+      "accepted": true
+    },
+    {
+      "ms": 9892,
+      "event": "until",
+      "what": "STEEL active",
+      "ok": true
+    },
+    {
+      "ms": 9936,
+      "event": "command",
+      "what": "start CHANGEOVER",
+      "accepted": true
+    },
+    {
+      "ms": 10344,
+      "event": "until",
+      "what": "confirmation asked",
+      "ok": true
+    },
+    {
+      "ms": 10380,
+      "event": "command",
+      "what": "answer: repeat position",
+      "accepted": true
+    },
+    {
+      "ms": 10380,
+      "event": "until",
+      "what": "repeat resolved and asked again",
+      "ok": true
+    },
+    {
+      "ms": 10414,
+      "event": "command",
+      "what": "answer: confirm",
+      "accepted": true
+    },
+    {
+      "ms": 12547,
+      "event": "until",
+      "what": "CHANGEOVER steps visited",
+      "ok": true
+    },
+    {
+      "ms": 12580,
+      "event": "command",
+      "what": "AUTO",
+      "accepted": true
+    },
+    {
+      "ms": 12987,
+      "event": "until",
+      "what": "AUTO active",
+      "ok": true
+    },
+    {
+      "ms": 12996,
+      "event": "command",
+      "what": "start AUTO",
+      "accepted": true
+    },
+    {
+      "ms": 24864,
+      "event": "until",
+      "what": "3 good parts",
+      "ok": true
+    },
+    {
+      "ms": 24899,
+      "event": "command",
+      "what": "stop",
+      "accepted": true
+    },
+    {
+      "ms": 28852,
+      "event": "until",
+      "what": "stopped at the cycle boundary",
+      "ok": true
+    },
+    {
+      "ms": 28885,
+      "event": "command",
+      "what": "CHANGEOVER (restore)",
+      "accepted": true
+    },
+    {
+      "ms": 29289,
+      "event": "until",
+      "what": "CHANGEOVER for restore",
+      "ok": true
+    },
+    {
+      "ms": 29322,
+      "event": "command",
+      "what": "model STEEL",
+      "accepted": true
+    },
+    {
+      "ms": 29323,
+      "event": "until",
+      "what": "initial model restored",
+      "ok": true
+    },
+    {
+      "ms": 29366,
+      "event": "command",
+      "what": "MANUAL",
+      "accepted": true
+    },
+    {
+      "ms": 30276,
+      "event": "until",
+      "what": "back to MANUAL",
+      "ok": true
+    }
+  ]
+}

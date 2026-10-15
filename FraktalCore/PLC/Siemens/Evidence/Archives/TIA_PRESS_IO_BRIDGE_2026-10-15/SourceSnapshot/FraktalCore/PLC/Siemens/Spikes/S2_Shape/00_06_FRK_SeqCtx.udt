@@ -1,0 +1,14 @@
+TYPE "FRK_SeqCtx"
+VERSION : 0.1
+   STRUCT
+      Step : DInt;                 // the chain's only progression token
+      RetVal : DInt;               // E_StepResult NONE=0 ADVANCE=1 JUMP1..3=2..4; one writer per scan
+      Issued : Bool;               // step-scoped one-shot issue latch
+      StepStartMs : UDInt;
+      Record : "ST_StepRecord";
+      LastRecorded : DInt := -1;   // last StepNo appended to the trace (-1: none yet)
+      TraceCount : Int;            // S11 evidence: the first steps visited
+      Trace : Array[0..15] of DInt;
+   END_STRUCT;
+
+END_TYPE

@@ -1,0 +1,231 @@
+FUNCTION "F_IoBridgeAssert" : Void
+VERSION : 0.1
+VAR_INPUT
+    Condition : Bool;
+    Code : DInt;
+END_VAR
+VAR_IN_OUT
+    Checks : UDInt;
+    Failures : UDInt;
+    FirstFailure : DInt;
+END_VAR
+BEGIN
+    #Checks := #Checks + 1;
+    IF NOT #Condition THEN
+        #Failures := #Failures + 1;
+        IF #FirstFailure = 0 THEN #FirstFailure := #Code; END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION_BLOCK "FB_IoBridgeProtocolTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_OUTPUT
+    Done {ExternalWritable := 'False'} : Bool;
+    Checks {ExternalWritable := 'False'} : UDInt;
+    Failures {ExternalWritable := 'False'} : UDInt;
+    FirstFailure {ExternalWritable := 'False'} : DInt;
+END_VAR
+VAR
+    Ran {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Physical {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_IoBridgeProtocol";
+    Controller {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_IoBridgeProtocol";
+    PhysicalEpoch {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+    ControllerEpoch {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+    PhysicalBytes {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..31] of Byte;
+    ControllerBytes {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..31] of Byte;
+    NowMs {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+    CheckCount {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+    FailureCount {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+    FailedCode {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+END_VAR
+VAR_TEMP
+    Visit : Int;
+    Checksum : Word;
+    RejectBefore : UDInt;
+    AcceptBefore : UDInt;
+END_VAR
+BEGIN
+    IF NOT #Ran THEN
+    FOR #Visit := 1 TO 12 DO
+        #NowMs := #NowMs + 50;
+        #Physical(Startup := #Visit = 1, Enabled := TRUE, PhysicalRole := TRUE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := #Visit > 1 OR NOT TRUE,
+            SendFrame := TRUE, LocalSignals := DW#16#2001, LocalEnable := TRUE,
+            BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+        #Controller(Startup := #Visit = 1, Enabled := TRUE, PhysicalRole := FALSE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := TRUE,
+            LocalSignals := DW#16#0, LocalEnable := FALSE,
+            BootEpoch := #ControllerEpoch, ReceiveBytes := #PhysicalBytes, SendBytes := #ControllerBytes);
+    END_FOR;
+    "F_IoBridgeAssert"(Condition := #Physical.LinkHealthy AND #Controller.LinkHealthy, Code := 1, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    "F_IoBridgeAssert"(Condition := NOT #Physical.PeerEnable AND #Physical.PeerSignals = DW#16#0, Code := 2, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    "F_IoBridgeAssert"(Condition := #Controller.PeerSignals = DW#16#2001, Code := 3, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    FOR #Visit := 1 TO 3 DO
+        #NowMs := #NowMs + 50;
+        #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := #Visit > 1 OR NOT FALSE,
+            SendFrame := TRUE, LocalSignals := DW#16#2001, LocalEnable := TRUE,
+            BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+        #Controller(Startup := FALSE, Enabled := TRUE, PhysicalRole := FALSE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := TRUE,
+            LocalSignals := DW#16#01, LocalEnable := TRUE,
+            BootEpoch := #ControllerEpoch, ReceiveBytes := #PhysicalBytes, SendBytes := #ControllerBytes);
+    END_FOR;
+    "F_IoBridgeAssert"(Condition := #Physical.PeerEnable AND #Physical.PeerSignals = DW#16#01, Code := 4, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #RejectBefore := #Physical.RejectedFrames;
+    #ControllerBytes[31] := #ControllerBytes[31] XOR B#16#01;
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := NOT #Physical.LinkHealthy AND NOT #Physical.PeerEnable AND #Physical.PeerSignals = DW#16#0, Code := 5, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    "F_IoBridgeAssert"(Condition := #Physical.RejectedFrames = #RejectBefore + 1, Code := 6, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #ControllerBytes[31] := #ControllerBytes[31] XOR B#16#01;
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    #RejectBefore := #Physical.RejectedFrames;
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := #Physical.RejectedFrames = #RejectBefore + 1 AND NOT #Physical.PeerEnable, Code := 7, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    FOR #Visit := 1 TO 12 DO
+        #NowMs := #NowMs + 50;
+        #Physical(Startup := #Visit = 1, Enabled := TRUE, PhysicalRole := TRUE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := #Visit > 1 OR NOT TRUE,
+            SendFrame := TRUE, LocalSignals := DW#16#2001, LocalEnable := TRUE,
+            BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+        #Controller(Startup := #Visit = 1, Enabled := TRUE, PhysicalRole := FALSE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := TRUE,
+            LocalSignals := DW#16#01, LocalEnable := TRUE,
+            BootEpoch := #ControllerEpoch, ReceiveBytes := #PhysicalBytes, SendBytes := #ControllerBytes);
+    END_FOR;
+    "F_IoBridgeAssert"(Condition := #Physical.LinkHealthy AND #Controller.LinkHealthy AND NOT #Physical.PeerEnable, Code := 8, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    "F_IoBridgeAssert"(Condition := #Physical.PeerSignals = DW#16#0, Code := 9, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    FOR #Visit := 1 TO 3 DO
+        #NowMs := #NowMs + 50;
+        #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := #Visit > 1 OR NOT FALSE,
+            SendFrame := TRUE, LocalSignals := DW#16#2001, LocalEnable := TRUE,
+            BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+        #Controller(Startup := FALSE, Enabled := TRUE, PhysicalRole := FALSE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := TRUE,
+            LocalSignals := DW#16#0, LocalEnable := FALSE,
+            BootEpoch := #ControllerEpoch, ReceiveBytes := #PhysicalBytes, SendBytes := #ControllerBytes);
+    END_FOR;
+    FOR #Visit := 1 TO 3 DO
+        #NowMs := #NowMs + 50;
+        #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := #Visit > 1 OR NOT FALSE,
+            SendFrame := TRUE, LocalSignals := DW#16#2001, LocalEnable := TRUE,
+            BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+        #Controller(Startup := FALSE, Enabled := TRUE, PhysicalRole := FALSE,
+            NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := TRUE,
+            LocalSignals := DW#16#01, LocalEnable := TRUE,
+            BootEpoch := #ControllerEpoch, ReceiveBytes := #PhysicalBytes, SendBytes := #ControllerBytes);
+    END_FOR;
+    "F_IoBridgeAssert"(Condition := #Physical.PeerEnable AND #Physical.PeerSignals = DW#16#01, Code := 10, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #NowMs := #NowMs + 500;
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := FALSE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := NOT #Physical.LinkHealthy AND NOT #Physical.PeerEnable AND #Physical.PeerSignals = DW#16#0, Code := 11, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    "F_IoBridgeAssert"(Condition := "F_IoBridgeElapsed"(NowMs := 5, SinceMs := UDINT#4294967290) = 11, Code := 12, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #RejectBefore := #Physical.RejectedFrames;
+    "F_IoBridgePut32"(Offset := 8, Value := 1, Bytes := #ControllerBytes);
+    #Checksum := "F_IoBridgeCrc"(Bytes := #ControllerBytes);
+    #ControllerBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+    #ControllerBytes[31] := WORD_TO_BYTE(#Checksum);
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := #Physical.RejectedFrames = #RejectBefore + 1, Code := 13, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #RejectBefore := #Physical.RejectedFrames;
+    #ControllerBytes[5] := 1;
+    #Checksum := "F_IoBridgeCrc"(Bytes := #ControllerBytes);
+    #ControllerBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+    #ControllerBytes[31] := WORD_TO_BYTE(#Checksum);
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := #Physical.RejectedFrames = #RejectBefore + 1, Code := 14, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #ControllerBytes[5] := 2;
+    #ControllerBytes[4] := 2;
+    #Checksum := "F_IoBridgeCrc"(Bytes := #ControllerBytes);
+    #ControllerBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+    #ControllerBytes[31] := WORD_TO_BYTE(#Checksum);
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := #Physical.RejectedFrames = #RejectBefore + 2, Code := 15, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #ControllerBytes[4] := 1;
+    "F_IoBridgePut32"(Offset := 8, Value := 3, Bytes := #ControllerBytes);
+    "F_IoBridgePut32"(Offset := 12, Value := UDINT#4294967294, Bytes := #ControllerBytes);
+    #AcceptBefore := #Physical.AcceptedFrames;
+    #Checksum := "F_IoBridgeCrc"(Bytes := #ControllerBytes);
+    #ControllerBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+    #ControllerBytes[31] := WORD_TO_BYTE(#Checksum);
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgePut32"(Offset := 12, Value := UDINT#4294967295, Bytes := #ControllerBytes);
+    #Checksum := "F_IoBridgeCrc"(Bytes := #ControllerBytes);
+    #ControllerBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+    #ControllerBytes[31] := WORD_TO_BYTE(#Checksum);
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgePut32"(Offset := 12, Value := 1, Bytes := #ControllerBytes);
+    #Checksum := "F_IoBridgeCrc"(Bytes := #ControllerBytes);
+    #ControllerBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+    #ControllerBytes[31] := WORD_TO_BYTE(#Checksum);
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := #Physical.AcceptedFrames = #AcceptBefore + 3, Code := 16, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #RejectBefore := #Physical.RejectedFrames;
+    "F_IoBridgePut32"(Offset := 12, Value := 0, Bytes := #ControllerBytes);
+    #Checksum := "F_IoBridgeCrc"(Bytes := #ControllerBytes);
+    #ControllerBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+    #ControllerBytes[31] := WORD_TO_BYTE(#Checksum);
+    #Physical(Startup := FALSE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := TRUE, SendFrame := FALSE,
+        LocalSignals := DW#16#2001, LocalEnable := TRUE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := #Physical.RejectedFrames = #RejectBefore + 1, Code := 17, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+    #PhysicalEpoch := UDINT#4294967295;
+    #Physical(Startup := TRUE, Enabled := TRUE, PhysicalRole := TRUE,
+        NowMs := #NowMs, WatchdogMs := 500, Received := FALSE, SendFrame := FALSE,
+        LocalSignals := DW#16#0, LocalEnable := FALSE,
+        BootEpoch := #PhysicalEpoch, ReceiveBytes := #ControllerBytes, SendBytes := #PhysicalBytes);
+    "F_IoBridgeAssert"(Condition := #PhysicalEpoch = 1 AND NOT #Physical.PeerEnable, Code := 18, Checks := #CheckCount, Failures := #FailureCount, FirstFailure := #FailedCode);
+        #Ran := TRUE;
+    END_IF;
+    #Done := #Ran;
+    #Checks := #CheckCount;
+    #Failures := #FailureCount;
+    #FirstFailure := #FailedCode;
+END_FUNCTION_BLOCK
+
+DATA_BLOCK "GDB_IoBridgeProtocolTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_IoBridgeProtocolTest"
+BEGIN
+END_DATA_BLOCK
+
+ORGANIZATION_BLOCK "Main"
+BEGIN
+    "GDB_IoBridgeProtocolTest"();
+END_ORGANIZATION_BLOCK

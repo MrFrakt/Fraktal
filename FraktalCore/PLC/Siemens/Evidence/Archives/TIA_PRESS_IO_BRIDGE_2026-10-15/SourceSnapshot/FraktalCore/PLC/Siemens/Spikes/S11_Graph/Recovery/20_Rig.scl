@@ -1,0 +1,107 @@
+// Test-only owner. Native startup and explicit reset withdraw the child's
+// request before its cyclic call, and reset the generated GRAPH chart.
+FUNCTION_BLOCK "FB_S11RecoveryRig"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      InitialCall : Bool;
+   END_VAR
+   VAR
+      Root : "FB_SpkUnit";
+      Hal : "ST_SpkUnitHal";
+      Seq : "FRK_SeqCtx";
+      Control : "ST_S11RecoveryControl";
+      Arm : Bool;
+      ReleaseFeedback : Bool;
+      ResetRequest : Bool;
+      State : Int;
+      Marker : DInt;
+      Calls : UDInt;
+      StartupCalls : UDInt;
+      StartupAt : DTL;
+      StartupRc : Int;
+      SafeFirstScan : Bool;
+      StayedIdle : Bool;
+      IdleScans : UDInt;
+      RestartDropped : Bool;
+      ResetCount : UDInt;
+      ResetBeforeExecute : Bool;
+      InitPending : Bool;
+      ErrGraph : Bool;
+      NativeStep : Int;
+      NativeActive : Bool;
+      AutoMode : Bool;
+   END_VAR
+   VAR_TEMP
+      resetNow : Bool;
+   END_VAR
+BEGIN
+    #resetNow := #InitialCall OR #ResetRequest;
+    IF #resetNow THEN
+        #ResetBeforeExecute := #Root.CylA.Execute;
+        #Arm := FALSE;
+        #ReleaseFeedback := FALSE;
+        #Control.Go := FALSE;
+        #Root.CylA.Execute := FALSE;
+        #Root.CylB.Execute := FALSE;
+        #Root.CylA.Abort := TRUE;
+        #Root.CylB.Abort := TRUE;
+        #Seq.Step := 0;
+        #Seq.RetVal := 0;
+        #Seq.Issued := FALSE;
+        #Seq.LastRecorded := -1;
+        #Seq.TraceCount := 0;
+        #InitPending := TRUE;
+        #State := 10;
+        #StayedIdle := TRUE;
+        #IdleScans := 0;
+        IF #InitialCall THEN
+            #StartupCalls := #StartupCalls + 1;
+            #StartupRc := RD_SYS_T(OUT => #StartupAt);
+        ELSE
+            #ResetCount := #ResetCount + 1;
+        END_IF;
+        #ResetRequest := FALSE;
+    END_IF;
+
+    #Root.CylA.ParCfg.MoveTimeoutMs := 600000;
+    #Root.CylB.ParCfg.MoveTimeoutMs := 600000;
+    #Root.CylA.IntlkOk := #State <> 10;
+    #Root.CylB.IntlkOk := #State <> 10;
+    #Hal.CylA.Extended := #ReleaseFeedback;
+    #Hal.CylA.Retracted := NOT #ReleaseFeedback;
+    #Hal.CylB.Retracted := TRUE;
+    // A second forest root: its children still tick exactly once each scan.
+    #Root(Hal := #Hal);
+    #Root.CylA.Abort := FALSE;
+    #Root.CylB.Abort := FALSE;
+
+    IF #State = 10 AND #Arm THEN
+        #Control.Go := TRUE;
+        #InitPending := TRUE;
+        #State := 20;
+    END_IF;
+    IF #resetNow OR #State = 20 THEN
+        "S11RecoveryGraph"(INIT_SQ := #InitPending, OFF_SQ := FALSE, SW_AUTO := TRUE,
+                           Seq := #Seq, Control := #Control,
+                           CylA := #Root.CylA, CylB := #Root.CylB,
+                           ERR_FLT => #ErrGraph, S_NO => #NativeStep,
+                           S_ACTIVE => #NativeActive, AUTO_ON => #AutoMode);
+        #InitPending := FALSE;
+    END_IF;
+    IF #resetNow THEN
+        #RestartDropped := NOT #Root.CylA.Execute AND NOT #Root.CylB.Execute
+            AND NOT #Hal.CylA.Extend AND NOT #Hal.CylA.Retract
+            AND NOT #Hal.CylB.Extend AND NOT #Hal.CylB.Retract;
+        IF #InitialCall THEN
+            #SafeFirstScan := #RestartDropped;
+        END_IF;
+    END_IF;
+    IF #State = 10 THEN
+        #StayedIdle := #StayedIdle AND NOT #Root.CylA.Execute AND NOT #Root.CylA.Busy
+            AND NOT #Hal.CylA.Extend AND NOT #Hal.CylA.Retract;
+        #IdleScans := #IdleScans + 1;
+    END_IF;
+    "FC_S11RecoveryMarker"(Marker := #Marker);
+    #Calls := #Calls + 1;
+END_FUNCTION_BLOCK

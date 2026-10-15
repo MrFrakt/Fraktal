@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_CyclicHook_AirPressureMonitorCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Device : "ST_AirPressureDevice";
+      Hal : "ST_AirPressureHal";
+      OutImm : "ST_AirPressureOutImm";
+   END_VAR
+
+
+BEGIN
+	
+	#OutImm.LowPressure := #Hal.LowPressure;
+	#OutImm.OperatingPressure := #Hal.OperatingPressure;
+	#OutImm.Quality := #Hal.Quality;
+	#OutImm.Contradictory := #Device.Contradictory;
+	#OutImm.PressureOk := #Hal.OperatingPressure AND NOT #Hal.LowPressure AND #Hal.Quality;
+	
+END_FUNCTION
+

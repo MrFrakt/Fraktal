@@ -1,0 +1,296 @@
+{
+  "children": [
+    "PressDemo.AirPressureMonitor",
+    "PressDemo.Door",
+    "PressDemo.PartPresentSensor",
+    "PressDemo.PartSlide",
+    "PressDemo.PressRam",
+    "PressDemo.TwoHand"
+  ],
+  "initial": {
+    "mode": "home",
+    "state": "ready",
+    "good": 0
+  },
+  "config": [
+    "pressSettleTime=300",
+    "requireTwoHandStart=true",
+    "transferSettleTime=200"
+  ],
+  "manualRamRefusedDoorOpen": true,
+  "manualDoorClosed": true,
+  "homeVisited": [
+    {
+      "step": 0,
+      "ms": 0
+    },
+    {
+      "step": 900,
+      "ms": 1
+    },
+    {
+      "step": 910,
+      "ms": 201
+    },
+    {
+      "step": 999,
+      "ms": 0
+    }
+  ],
+  "retractedAfterHome": true,
+  "homed": true,
+  "autoCycles": 3,
+  "autoMs": 8958,
+  "lastCycleMs": 3020,
+  "autoVisited": [
+    {
+      "step": 0,
+      "branch": 0,
+      "ms": 0
+    },
+    {
+      "step": 100,
+      "branch": 0,
+      "ms": 687
+    },
+    {
+      "step": 110,
+      "branch": 0,
+      "ms": 1
+    },
+    {
+      "step": 130,
+      "branch": 0,
+      "ms": 1
+    },
+    {
+      "step": 150,
+      "branch": 0,
+      "ms": 301
+    },
+    {
+      "step": 170,
+      "branch": 0,
+      "ms": 199
+    },
+    {
+      "step": 180,
+      "branch": 0,
+      "ms": 201
+    },
+    {
+      "step": 200,
+      "branch": 1,
+      "ms": 251
+    },
+    {
+      "step": 300,
+      "branch": 2,
+      "ms": 0
+    },
+    {
+      "step": 310,
+      "branch": 2,
+      "ms": 1312
+    },
+    {
+      "step": 220,
+      "branch": 1,
+      "ms": 299
+    },
+    {
+      "step": 230,
+      "branch": 1,
+      "ms": 0
+    },
+    {
+      "step": 240,
+      "branch": 1,
+      "ms": 759
+    },
+    {
+      "step": 600,
+      "branch": 1,
+      "ms": 252
+    },
+    {
+      "step": 620,
+      "branch": 1,
+      "ms": 202
+    },
+    {
+      "step": 640,
+      "branch": 1,
+      "ms": 301
+    },
+    {
+      "step": 660,
+      "branch": 1,
+      "ms": 0
+    },
+    {
+      "step": 250,
+      "branch": 1,
+      "ms": 0
+    },
+    {
+      "step": 999,
+      "branch": 0,
+      "ms": 0
+    }
+  ],
+  "autoSteps": [
+    150,
+    180,
+    100,
+    150,
+    170,
+    100,
+    150,
+    170,
+    180,
+    100
+  ],
+  "finalGood": 3,
+  "nok": 0,
+  "result": "PASS",
+  "rowsAtEnd": {
+    "enabled": true,
+    "count": 0,
+    "rows": []
+  },
+  "events": [
+    {
+      "ms": 822,
+      "event": "until",
+      "what": "press discovered",
+      "ok": true
+    },
+    {
+      "ms": 891,
+      "event": "command",
+      "what": "MANUAL",
+      "accepted": true
+    },
+    {
+      "ms": 1196,
+      "event": "until",
+      "what": "MANUAL",
+      "ok": true
+    },
+    {
+      "ms": 3325,
+      "event": "until",
+      "what": "station config hydrated",
+      "ok": true
+    },
+    {
+      "ms": 3336,
+      "event": "command",
+      "what": "requireTwoHandStart=false",
+      "accepted": true
+    },
+    {
+      "ms": 3538,
+      "event": "until",
+      "what": "two-hand off",
+      "ok": true
+    },
+    {
+      "ms": 3571,
+      "event": "command",
+      "what": "manual PressRam EXTEND (door open)",
+      "accepted": false
+    },
+    {
+      "ms": 3603,
+      "event": "command",
+      "what": "manual Door EXTEND",
+      "accepted": true
+    },
+    {
+      "ms": 4212,
+      "event": "until",
+      "what": "door closed",
+      "ok": true
+    },
+    {
+      "ms": 4248,
+      "event": "command",
+      "what": "HOME",
+      "accepted": true
+    },
+    {
+      "ms": 4856,
+      "event": "until",
+      "what": "HOME active",
+      "ok": true
+    },
+    {
+      "ms": 4865,
+      "event": "command",
+      "what": "start HOME",
+      "accepted": true
+    },
+    {
+      "ms": 8209,
+      "event": "until",
+      "what": "HOME steps visited",
+      "ok": true
+    },
+    {
+      "ms": 8242,
+      "event": "command",
+      "what": "AUTO",
+      "accepted": true
+    },
+    {
+      "ms": 8445,
+      "event": "until",
+      "what": "AUTO active",
+      "ok": true
+    },
+    {
+      "ms": 8483,
+      "event": "command",
+      "what": "start AUTO",
+      "accepted": true
+    },
+    {
+      "ms": 17403,
+      "event": "until",
+      "what": "3 good parts",
+      "ok": true
+    },
+    {
+      "ms": 17412,
+      "event": "command",
+      "what": "stop",
+      "accepted": true
+    },
+    {
+      "ms": 17614,
+      "event": "until",
+      "what": "stopped at the cycle boundary",
+      "ok": true
+    },
+    {
+      "ms": 17623,
+      "event": "command",
+      "what": "MANUAL",
+      "accepted": true
+    },
+    {
+      "ms": 17826,
+      "event": "until",
+      "what": "back to MANUAL",
+      "ok": true
+    },
+    {
+      "ms": 17858,
+      "event": "restore",
+      "requireTwoHandStart": "true",
+      "accepted": true
+    }
+  ]
+}

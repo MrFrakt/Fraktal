@@ -199,6 +199,16 @@ optional OPC UA and S7-1200 remain provisional; the native orchestration script,
 PLC test runner and broader suites remain open. P1 line owner/local mirror is
 the next functional slice; P12 transport decisions do not block it.
 
+**P1 prerequisite complete:** station and model config capabilities now refuse
+the reserved `line.*` namespace, with both cases tested. Owner/local mirror,
+replication, persistence and Line presentation remain open.
+
+**Physical bench companion added at the owner's request:** the
+[1214C I/O bridge and matching simulator driver](../Evidence/TIA_PRESS_IO_BRIDGE_2026-10-15.md)
+compile and pass native protocol/read-back gates. Its output commissioning
+gates remain disabled. It supplies bench connectivity without claiming the
+S7-1200 Fraktal profile or closing P8's generic topology/PN-health scope.
+
 ## 6. Decisions for the owner
 
 1. **Cross-controller line transport** (P12): OUC TCP client on the mirror PLC,

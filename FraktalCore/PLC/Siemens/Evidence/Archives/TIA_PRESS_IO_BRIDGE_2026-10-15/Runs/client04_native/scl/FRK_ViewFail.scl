@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_ViewFail" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      StepNo : DInt;
+      Branch : DInt;
+      Diag : "ST_Diagnostic";
+   END_VAR
+
+   VAR_IN_OUT 
+      Defs : Array[*] of "ST_SequenceStepDef";
+      Rows : Array[*] of "ST_SequenceStep";
+      Notes : Array[*] of "ST_SequenceAnnotation";
+      Count : Int;
+      NoteCount : Int;
+      Book : "FRK_ViewBook";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Book.FaultFound THEN
+	    #Book.FaultFound := TRUE;
+	    #Book.FaultDiagnostic := #Diag;
+	END_IF;
+	"FRK_ViewNote"(StepNo := #StepNo,
+	               Branch := #Branch,
+	               IsError := TRUE,
+	               Key := WSTRING_TO_STRING(#Diag.Description),
+	               SourcePath := WSTRING_TO_STRING(#Diag.SourcePath),
+	               Defs := #Defs,
+	               Rows := #Rows,
+	               Notes := #Notes,
+	               Count := #Count,
+	               NoteCount := #NoteCount);
+	
+END_FUNCTION
+

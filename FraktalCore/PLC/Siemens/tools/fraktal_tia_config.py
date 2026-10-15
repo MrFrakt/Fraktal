@@ -50,6 +50,8 @@ def validate_definition(fields, location):
             maximum_width = width(facts, 'ST_ConfigWriteDef', 'Key' if name == 'key' else 'LabelKey')
             if not isinstance(field[name], str) or not field[name].isascii() or not 1 <= len(field[name]) <= maximum_width or any(ord(c) < 32 for c in field[name]):
                 raise DeclarationError('T-WIDTH', location, 'config key/label exceeds Core width')
+        if field['key'].startswith('line.'):
+            raise DeclarationError('T-GEN', location, 'line.* keys belong exclusively to LINE_CFG capabilities')
         if type(field['revision']) is not int or not 1 <= field['revision'] <= 4294967295:
             raise DeclarationError('T-GEN', location, 'config revision must be a nonzero UDInt')
         if type(field.get('requires_ready', True)) is not bool:
@@ -187,6 +189,10 @@ class Layout:
             self.root_map[instance.index] = ordinal
             if self.fields[instance.type_name] and len(instance.path) > self.scope_width:
                 raise DeclarationError('T-WIDTH', instance.path, 'canonical config scope exceeds the Core persistence record width')
+        model_members = {f.member for name in self.roots for f in self.fields[name] if f.member.startswith('ParCfg.')}
+        for code, member, _ in model.model_seeds:
+            if member not in model_members:
+                raise DeclarationError('T-GEN', 'model_config.seeds.' + code, member + ' is not declared root model config')
         self.capacity = sum((len(self.models) if f.kind == catalog.enums['E_ConfigKind']['PAR_CFG'] else 1)
                             for i in model.instances for f in self.fields[i.type_name])
         self.required = {}
@@ -201,7 +207,10 @@ class Layout:
             if model.model_config:
                 expected = set(record_targets(catalog, dict(t.contract)['ParCfg'])) - {'SchemaVersion'}
                 provided = {f.member.split('.')[1] for f in self.fields[t.name] if f.member.startswith('ParCfg.')}
-                if expected != provided:
+                # A type opts into model data by registering ParCfg members, and then
+                # registers all of them; one that registers none keeps its fixed
+                # type defaults (TC3: a module set up with no recipe).
+                if provided and expected != provided:
                     raise DeclarationError('T-GEN', t.name, 'model provider requires the complete ParCfg record to be registered')
 
     def components(self, t):
@@ -211,7 +220,7 @@ class Layout:
                   'Access': '"FRK_Access"', 'Unit': '"FRK_Unit"',
                   'HmiResponse': '"ST_HmiResponse"', 'ConfigPersist': '"ST_ConfigPersistStatus"',
                   'ConfigCursor': '"FRK_ConfigCursor"', 'ConfigRev': 'UDInt',
-                  'ModelId': '"ST_ModelId"', 'AvailableModelCount': 'Int', 'ConfigStaged': 'Bool'}
+                  'Model': '"ST_ModelId"', 'AvailableModelCount': 'Int', 'ConfigStaged': 'Bool'}
         if t.sequence_view:
             fields.update({'SequenceStepDef': 'Array[1..%d] of "ST_SequenceStepDef"'%t.sequence_view[0], 'SequenceStepCount': 'Int'})
         if self.sets:
@@ -275,7 +284,7 @@ class Layout:
             result += ['    ConfigStaged'+PRIVATE+' : Bool;']
         if t.name in self.roots:
             result += ['    ConfigPersist'+READONLY+' : "ST_ConfigPersistStatus";',
-                       '    ModelId'+READONLY+' : "ST_ModelId";',
+                       '    Model'+READONLY+' : "ST_ModelId";',
                        '    AvailableModelCount'+READONLY+' : Int;',
                        '    AvailableModels'+READONLY+' : Array[1..%d] of "ST_ModelId";'%len(self.models)]
         if self.sets:
@@ -322,8 +331,13 @@ class Layout:
                 body += ['    "'+name(t, 'Def')+'"(FieldIndex := %d);'%index]
                 models = self.models if role == 'ParCfg' else ('',)
                 for code in models:
+                    seed = self.seed(code, f.member) if role == 'ParCfg' else None
                     body += ['    IF "FRK_ConfigFind"(Scope := #Module.Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := '+literal(code)+') = 0 THEN',
-                             *read_value(f, '#Module.ConfigDefault'),
+                             # A seeded model starts from its declared value, staged
+                             # through the same text encoder, then the stage is reset.
+                             *(['        #Module.ConfigStage'+f.member+' := '+seed+';', *read_value(f, '#Module.ConfigStage'),
+                                '        #Module.ConfigStage'+f.member+' := #Module.ConfigDefault'+f.member+';']
+                               if seed else read_value(f, '#Module.ConfigDefault')),
                              '        #Stored := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := '+literal(code)+', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);',
                              ('        IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Module.Status.Name, ModelCode := '+literal(code)+', Kind := %d) THEN'%f.kind if self.model.persistence_min_write_ms else '        IF NOT "FRK_ConfigRuntime".Fresh THEN'),
                              '            '+('IF "FRK_ConfigStore".ActiveModels[#RootIndex] = '+literal(code)+' THEN #Ok := FALSE; END_IF;' if role == 'ParCfg' else '#Ok := FALSE;'),
@@ -342,6 +356,11 @@ class Layout:
             body += ['    END_IF;']
         return self.render(t, 'Restore', [], ['Module : "'+t.name+'";'],
                         ['RootIndex : Int;', 'Ok : Bool;', 'Stored : Bool;'], body)
+
+    def seed(self, code, member):
+        """The declared seed literal for (model, member), or None."""
+        return next((value for model, name, value in self.model.model_seeds
+                     if model == code and name == member), None)
 
     def read(self, t):
         from fraktal_tia_generate import config_name
@@ -522,7 +541,7 @@ class Layout:
         fields = []
         body = ['    #RootIndex := "FRK_ConfigRoot"(RegIndex := #Module.Core.RegIndex);',
                 '    IF #Module.Core.ParentIndex <> 0 OR #RootIndex = 0 THEN RETURN; END_IF;',
-                '    #Module.ModelId.ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex];',
+                '    #Module.Model.ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex];',
                 '    IF NOT #Module.Unit.RequestPending THEN RETURN; END_IF;',
                 '    #Request := #Module.Unit.Request;',
                 '    #Ready := #Module.Core.Exec = %d AND NOT #Module.Unit.ModePending AND NOT #Module.Unit.Clearing AND "FRK_DescendantsReady"(OwnerIndex := #Module.Core.RegIndex);'%self.catalog.enums['E_ExecState']['READY'],
@@ -563,7 +582,7 @@ class Layout:
                      '                IF #Ok THEN',
                      '                    #Ok := '+self.call(t, 'Recipe', '#Module.', ModelCode='#Desired', Phase='2', RejectScope='#Scope', RejectKey='#Key')+';',
                      '                    "FRK_ConfigStore".ActiveModels[#RootIndex] := #Desired;',
-                     '                    #Module.ModelId.ModelCode := #Desired;',
+                     '                    #Module.Model.ModelCode := #Desired;',
                      '                    #Module.ConfigRev := "FRK_ConfigRevision"(Previous := #Module.ConfigRev);',
                      '                    #Module.HmiResponse.Accepted := TRUE; #Module.HmiResponse.Diagnostic := WSTRING#\'\';',
                      '                ELSE',

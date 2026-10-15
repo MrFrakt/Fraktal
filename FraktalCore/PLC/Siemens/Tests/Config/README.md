@@ -52,7 +52,7 @@ values intact. Named-set StorePresent remains FALSE.
 
 SET_MODEL uses the same CHANGEOVER release as its pure query. Every participant
 validates into private typed staging; one late rejection leaves all live values
-and ModelId intact, names the offending owner/key, and faults RECIPE_INVALID.
+and Model intact, names the offending owner/key, and faults RECIPE_INVALID.
 Commit is bounded memory publication without validation or I/O. Station config
 is excluded. Session activity/audit use the existing shared access lifecycle.
 

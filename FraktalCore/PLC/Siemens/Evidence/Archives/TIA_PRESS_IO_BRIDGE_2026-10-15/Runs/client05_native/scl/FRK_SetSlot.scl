@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_SetSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      SetName : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetSlot := "FRK_SetFind"(RootIndex := #RootIndex, SetName := #SetName);
+	IF #FRK_SetSlot <> 0 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 4 DO
+	    IF NOT "FRK_SetStore".Sets[#RootIndex, #Index].Info.Used THEN
+	        #FRK_SetSlot := #Index;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

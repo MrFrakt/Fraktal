@@ -1,0 +1,16 @@
+# Analyzer/package root for the test-only native bench in this folder.
+# run_gateway.dart drives the production gateway and Web API session client,
+# so it depends on those packages by path instead of copying them.
+name: fraktal_tia_manifest_bench
+description: Test-only isolated-simulator guard around the production gateway.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  fraktal_gateway:
+    path: ../../../../HMI/gateway
+  fraktal_opcua_client:
+    path: ../../../../HMI/packages/fraktal_opcua_client

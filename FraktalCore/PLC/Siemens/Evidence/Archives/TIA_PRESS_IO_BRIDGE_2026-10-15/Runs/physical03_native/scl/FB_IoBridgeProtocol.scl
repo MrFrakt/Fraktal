@@ -1,0 +1,220 @@
+﻿FUNCTION_BLOCK "FB_IoBridgeProtocol"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+      Enabled : Bool;
+      PhysicalRole : Bool;
+      NowMs : UDInt;
+      WatchdogMs : UDInt;
+      Received : Bool;
+      SendFrame : Bool;
+      LocalSignals : DWord;
+      LocalEnable : Bool;
+   END_VAR
+
+   VAR_OUTPUT 
+      LinkHealthy { ExternalWritable := 'False'} : Bool;
+      PeerEnable { ExternalWritable := 'False'} : Bool;
+      PeerSignals { ExternalWritable := 'False'} : DWord;
+      AcceptedFrames { ExternalWritable := 'False'} : UDInt;
+      RejectedFrames { ExternalWritable := 'False'} : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      BootEpoch : UDInt;
+      ReceiveBytes : Array[0..31] of Byte;
+      SendBytes : Array[0..31] of Byte;
+   END_VAR
+
+   VAR 
+      Started { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Sequence { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      PeerEpoch { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      PeerSequence { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      LastReceiveMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      PeerSeen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      EchoGood { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      NeutralSeen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      HeldSignals { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DWord;
+      HeldEnable { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      SentSequence { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..7] of UDInt;
+      SentAtMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..7] of UDInt;
+      SendSlot { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      Healthy { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      AcceptCount { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      RejectCount { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Checksum : Word;
+      Epoch : UDInt;
+      CandidateSequence : UDInt;
+      EchoEpoch : UDInt;
+      EchoSequence : UDInt;
+      Signals : UDInt;
+      Delta : UDInt;
+      ExpectedRole : Byte;
+      ValidFrame : Bool;
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Startup OR NOT #Started THEN
+	    #Started := TRUE;
+	    IF #BootEpoch = UDINT#4294967295 THEN
+	        #BootEpoch := 1;
+	    ELSE
+	        #BootEpoch := #BootEpoch + 1;
+	    END_IF;
+	    #Sequence := 0;
+	    #PeerSeen := FALSE;
+	    #EchoGood := FALSE;
+	    #NeutralSeen := FALSE;
+	    #HeldEnable := FALSE;
+	    #HeldSignals := DW#16#0;
+	    #SendSlot := 0;
+	    FOR #Slot := 0 TO 7 DO
+	        #SentSequence[#Slot] := 0;
+	    END_FOR;
+	END_IF;
+	IF NOT #Enabled OR #WatchdogMs < 100 OR #WatchdogMs > 5000 THEN
+	    #PeerSeen := FALSE;
+	    #EchoGood := FALSE;
+	    #NeutralSeen := FALSE;
+	END_IF;
+	IF #Received AND #Enabled THEN
+	    #Epoch := "F_IoBridgeGet32"(Offset := 8, Bytes := #ReceiveBytes);
+	    #CandidateSequence := "F_IoBridgeGet32"(Offset := 12, Bytes := #ReceiveBytes);
+	    #EchoEpoch := "F_IoBridgeGet32"(Offset := 16, Bytes := #ReceiveBytes);
+	    #EchoSequence := "F_IoBridgeGet32"(Offset := 20, Bytes := #ReceiveBytes);
+	    #Signals := "F_IoBridgeGet32"(Offset := 24, Bytes := #ReceiveBytes);
+	    #Checksum := "F_IoBridgeCrc"(Bytes := #ReceiveBytes);
+	    IF #PhysicalRole THEN
+	        #ExpectedRole := B#16#02;
+	    ELSE
+	        #ExpectedRole := B#16#01;
+	    END_IF;
+	    #ValidFrame := #ReceiveBytes[0] = B#16#46 AND #ReceiveBytes[1] = B#16#52
+	    AND #ReceiveBytes[2] = B#16#49 AND #ReceiveBytes[3] = B#16#4F
+	    AND #ReceiveBytes[4] = 1 AND #ReceiveBytes[5] = #ExpectedRole
+	    AND #ReceiveBytes[6] = 0 AND #ReceiveBytes[7] = 0
+	    AND #ReceiveBytes[28] <= 1 AND #ReceiveBytes[29] = 0
+	    AND #ReceiveBytes[30] = WORD_TO_BYTE(SHR(IN := #Checksum, N := 8))
+	    AND #ReceiveBytes[31] = WORD_TO_BYTE(#Checksum)
+	    AND #Epoch <> 0 AND #CandidateSequence <> 0;
+	    IF #PhysicalRole THEN
+	        #ValidFrame := #ValidFrame AND #Signals <= 255;
+	    ELSE
+	        #ValidFrame := #ValidFrame AND #Signals <= 16383;
+	    END_IF;
+	    IF #ValidFrame AND #PeerSeen THEN
+	        IF #Epoch = #PeerEpoch THEN
+	            #Delta := "F_IoBridgeElapsed"(NowMs := #CandidateSequence, SinceMs := #PeerSequence);
+	        ELSE
+	            #Delta := "F_IoBridgeElapsed"(NowMs := #Epoch, SinceMs := #PeerEpoch);
+	        END_IF;
+	        #ValidFrame := #Delta > 0 AND #Delta < UDINT#2147483648;
+	    END_IF;
+	    IF #ValidFrame THEN
+	        IF NOT #PeerSeen OR #Epoch <> #PeerEpoch THEN
+	            #NeutralSeen := FALSE;
+	        END_IF;
+	        #PeerSeen := TRUE;
+	        #PeerEpoch := #Epoch;
+	        #PeerSequence := #CandidateSequence;
+	        #LastReceiveMs := #NowMs;
+	        #HeldSignals := UDINT_TO_DWORD(#Signals);
+	        #HeldEnable := #ReceiveBytes[28] = 1;
+	        #EchoGood := FALSE;
+	        IF #EchoEpoch = #BootEpoch AND #EchoSequence <> 0 THEN
+	            FOR #Slot := 0 TO 7 DO
+	                IF #SentSequence[#Slot] = #EchoSequence
+	                    AND "F_IoBridgeElapsed"(NowMs := #NowMs, SinceMs := #SentAtMs[#Slot]) < #WatchdogMs THEN
+	                    #EchoGood := TRUE;
+	                END_IF;
+	            END_FOR;
+	        END_IF;
+	        // After boot/link loss the controller must first send a neutral,
+	        // disabled image. Cached nonzero demands cannot rearm this endpoint.
+	        IF #Signals = 0 AND NOT #HeldEnable AND #EchoGood THEN
+	            #NeutralSeen := TRUE;
+	        END_IF;
+	        IF #AcceptCount < UDINT#4294967295 THEN
+	            #AcceptCount := #AcceptCount + 1;
+	        END_IF;
+	    ELSE
+	        #EchoGood := FALSE;
+	        #NeutralSeen := FALSE;
+	        IF #RejectCount < UDINT#4294967295 THEN
+	            #RejectCount := #RejectCount + 1;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	#Healthy := #Enabled AND #PeerSeen AND #EchoGood
+	AND "F_IoBridgeElapsed"(NowMs := #NowMs, SinceMs := #LastReceiveMs) < #WatchdogMs;
+	IF NOT #Healthy THEN
+	    #NeutralSeen := FALSE;
+	END_IF;
+	#PeerEnable := #Healthy AND #HeldEnable AND (NOT #PhysicalRole OR #NeutralSeen);
+	IF #Healthy THEN
+	    #PeerSignals := #HeldSignals;
+	ELSE
+	    #PeerSignals := DW#16#0;
+	END_IF;
+	#LinkHealthy := #Healthy;
+	#AcceptedFrames := #AcceptCount;
+	#RejectedFrames := #RejectCount;
+	IF #SendFrame THEN
+	    IF #Sequence = UDINT#4294967295 THEN
+	        #Sequence := 1;
+	    ELSE
+	        #Sequence := #Sequence + 1;
+	    END_IF;
+	    #SendBytes[0] := B#16#46;
+	    #SendBytes[1] := B#16#52;
+	    #SendBytes[2] := B#16#49;
+	    #SendBytes[3] := B#16#4F;
+	    #SendBytes[4] := 1;
+	    IF #PhysicalRole THEN
+	        #SendBytes[5] := 1;
+	    ELSE
+	        #SendBytes[5] := 2;
+	    END_IF;
+	    #SendBytes[6] := 0;
+	    #SendBytes[7] := 0;
+	    "F_IoBridgePut32"(Offset := 8,
+	                      Value := #BootEpoch,
+	                      Bytes := #SendBytes);
+	    "F_IoBridgePut32"(Offset := 12,
+	                      Value := #Sequence,
+	                      Bytes := #SendBytes);
+	    "F_IoBridgePut32"(Offset := 16,
+	                      Value := #PeerEpoch,
+	                      Bytes := #SendBytes);
+	    "F_IoBridgePut32"(Offset := 20,
+	                      Value := #PeerSequence,
+	                      Bytes := #SendBytes);
+	    #Signals := DWORD_TO_UDINT(#LocalSignals);
+	    // A controller with a lost link emits neutral until the round trip is
+	    // healthy; the physical endpoint continues publishing its real inputs.
+	    IF NOT #PhysicalRole AND NOT #Healthy THEN
+	        #Signals := 0;
+	    END_IF;
+	    "F_IoBridgePut32"(Offset := 24,
+	                      Value := #Signals,
+	                      Bytes := #SendBytes);
+	    #SendBytes[28] := BOOL_TO_BYTE(#LocalEnable AND (#PhysicalRole OR #Healthy));
+	    #SendBytes[29] := 0;
+	    #Checksum := "F_IoBridgeCrc"(Bytes := #SendBytes);
+	    #SendBytes[30] := WORD_TO_BYTE(SHR(IN := #Checksum, N := 8));
+	    #SendBytes[31] := WORD_TO_BYTE(#Checksum);
+	    #SentSequence[#SendSlot] := #Sequence;
+	    #SentAtMs[#SendSlot] := #NowMs;
+	    #SendSlot := (#SendSlot + 1) MOD 8;
+	END_IF;
+	
+END_FUNCTION_BLOCK
+

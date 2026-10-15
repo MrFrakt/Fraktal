@@ -297,6 +297,9 @@ BEGIN
         OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount < 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount > 3 THEN RETURN; END_IF;
     IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 0 THEN
         #KnownModel := FALSE;
+        FOR #ModelIndex := 1 TO 3 DO
+            IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := INT_TO_UDINT(#ModelIndex)) THEN #KnownModel := TRUE; END_IF;
+        END_FOR;
         IF NOT #KnownModel THEN RETURN; END_IF;
     ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN RETURN;
     END_IF;

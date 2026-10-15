@@ -1,0 +1,31 @@
+﻿FUNCTION "F_IoBridgeCrc" : Word
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Bytes : Array[0..31] of Byte;
+   END_VAR
+
+   VAR_TEMP 
+      Checksum : Word;
+      Slot : Int;
+      BitIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Checksum := W#16#FFFF;
+	FOR #Slot := 0 TO 29 DO
+	    #Checksum := #Checksum XOR SHL(IN := BYTE_TO_WORD(#Bytes[#Slot]), N := 8);
+	    FOR #BitIndex := 0 TO 7 DO
+	        IF (#Checksum AND W#16#8000) <> W#16#0000 THEN
+	            #Checksum := SHL(IN := #Checksum, N := 1) XOR W#16#1021;
+	        ELSE
+	            #Checksum := SHL(IN := #Checksum, N := 1);
+	        END_IF;
+	    END_FOR;
+	END_FOR;
+	#F_IoBridgeCrc := #Checksum;
+	
+END_FUNCTION
+

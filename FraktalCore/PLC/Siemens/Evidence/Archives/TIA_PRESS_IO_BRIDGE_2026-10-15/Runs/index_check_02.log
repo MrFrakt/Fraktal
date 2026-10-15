@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 682, in <module>
+    print(json.dumps(verify(args.verify,args.native) if args.verify else {'generated':generate(args.out)},indent=2))
+                     ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 652, in verify
+    sources,definition,manifest=build()
+                                ~~~~~^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_examples.py", line 554, in build
+    sources,manifest=GEN.build(DECL.validate(declaration),True)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 107, in build
+    config = Layout(model, catalog)
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config.py", line 202, in __init__
+    from fraktal_tia_config_sets import Sets
+  File "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Press_IoBridge_20261015\index_source\FraktalCore\PLC\Siemens\tools\fraktal_tia_config_sets.py", line 11, in <module>
+    LINE_WIDTH = int(re.search(r'LINE_MAX\s*:\s*INT\s*:=\s*(\d+)', ET.fromstring(LINE_AUTHORITY.read_bytes()).findtext('.//Declaration'))[1])
+                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\Press_IoBridge_20261015\\index_source\\FraktalCore\\PLC\\TwinCAT\\Framework\\Fraktal_Core\\Platform\\FB_ConfigSetJson.TcPOU'

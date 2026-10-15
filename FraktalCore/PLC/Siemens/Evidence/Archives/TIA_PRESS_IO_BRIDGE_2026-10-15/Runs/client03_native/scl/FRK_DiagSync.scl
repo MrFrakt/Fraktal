@@ -1,0 +1,36 @@
+﻿FUNCTION "FRK_DiagSync" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Index : DInt;
+      Withdraw : Bool;
+      Status : "ST_ModuleStatus";
+      Held : Bool;
+      Timeout : Time;
+      ActiveTimeoutMs : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := "FRK_DiagSlot"(Index := #Index);
+	IF #Slot = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_Diagnostics".Samples[#Slot].Valid := NOT #Withdraw;
+	"FRK_Diagnostics".Samples[#Slot].Index := #Index;
+	"FRK_Diagnostics".Samples[#Slot].State := #Status.State;
+	"FRK_Diagnostics".Samples[#Slot].Held := #Held;
+	"FRK_Diagnostics".Samples[#Slot].Diagnostic := #Status.Diagnostic;
+	IF #Status.State = 1 AND #ActiveTimeoutMs > 0 AND #ActiveTimeoutMs <= UDINT#2147483647 THEN
+	    "FRK_Diagnostics".Samples[#Slot].Timeout := DINT_TO_TIME(UDINT_TO_DINT(#ActiveTimeoutMs));
+	ELSE
+	    "FRK_Diagnostics".Samples[#Slot].Timeout := #Timeout;
+	END_IF;
+	
+END_FUNCTION
+

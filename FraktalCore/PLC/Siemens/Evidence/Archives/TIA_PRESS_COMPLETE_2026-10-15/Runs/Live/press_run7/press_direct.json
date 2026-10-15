@@ -1,0 +1,118 @@
+{
+  "children": [
+    "PressDemo.AirPressureMonitor",
+    "PressDemo.Door",
+    "PressDemo.PartPresentSensor",
+    "PressDemo.PartSlide",
+    "PressDemo.PressRam",
+    "PressDemo.TwoHand"
+  ],
+  "initial": {
+    "mode": "home",
+    "state": "ready",
+    "good": 0
+  },
+  "config": [
+    "pressSettleTime=300",
+    "requireTwoHandStart=true",
+    "transferSettleTime=200"
+  ],
+  "manualRamRefusedDoorOpen": true,
+  "manualDoorClosed": true,
+  "rowsAtEnd": {
+    "enabled": true,
+    "count": 4,
+    "rows": [
+      "0/0:-",
+      "0/900:-",
+      "0/910:-",
+      "0/999:-"
+    ]
+  },
+  "events": [
+    {
+      "ms": 839,
+      "event": "until",
+      "what": "press discovered",
+      "ok": true
+    },
+    {
+      "ms": 916,
+      "event": "command",
+      "what": "MANUAL",
+      "accepted": true
+    },
+    {
+      "ms": 1224,
+      "event": "until",
+      "what": "MANUAL",
+      "ok": true
+    },
+    {
+      "ms": 3353,
+      "event": "until",
+      "what": "station config hydrated",
+      "ok": true
+    },
+    {
+      "ms": 3396,
+      "event": "command",
+      "what": "requireTwoHandStart=false",
+      "accepted": true
+    },
+    {
+      "ms": 3598,
+      "event": "until",
+      "what": "two-hand off",
+      "ok": true
+    },
+    {
+      "ms": 3629,
+      "event": "command",
+      "what": "manual PressRam EXTEND (door open)",
+      "accepted": false
+    },
+    {
+      "ms": 3663,
+      "event": "command",
+      "what": "manual Door EXTEND",
+      "accepted": true
+    },
+    {
+      "ms": 4273,
+      "event": "until",
+      "what": "door closed",
+      "ok": true
+    },
+    {
+      "ms": 4313,
+      "event": "command",
+      "what": "HOME",
+      "accepted": true
+    },
+    {
+      "ms": 4821,
+      "event": "until",
+      "what": "HOME active",
+      "ok": true
+    },
+    {
+      "ms": 4831,
+      "event": "command",
+      "what": "start HOME",
+      "accepted": true
+    },
+    {
+      "ms": 94838,
+      "event": "until",
+      "what": "HOME steps visited",
+      "ok": false
+    },
+    {
+      "ms": 94886,
+      "event": "restore",
+      "requireTwoHandStart": "true",
+      "accepted": true
+    }
+  ]
+}

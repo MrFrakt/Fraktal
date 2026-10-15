@@ -1,0 +1,152 @@
+{
+  "children": [
+    "PressDemo.AirPressureMonitor",
+    "PressDemo.Door",
+    "PressDemo.PartPresentSensor",
+    "PressDemo.PartSlide",
+    "PressDemo.PressRam",
+    "PressDemo.TwoHand"
+  ],
+  "initial": {
+    "mode": "manual",
+    "state": "ready",
+    "good": 0
+  },
+  "config": [
+    "pressSettleTime=300",
+    "modeSwitchTimeout=10000",
+    "transferSettleTime=80",
+    "requireTwoHandStart=true"
+  ],
+  "manualRamRefusedDoorOpen": true,
+  "manualDoorClosed": true,
+  "homeVisited": [
+    {
+      "step": 0,
+      "ms": 0
+    },
+    {
+      "step": 900,
+      "ms": 1
+    },
+    {
+      "step": 910,
+      "ms": 201
+    },
+    {
+      "step": 999,
+      "ms": 0
+    }
+  ],
+  "retractedAfterHome": true,
+  "homed": true,
+  "initialModel": "",
+  "availableModels": [
+    "ALUMINUM",
+    "PLASTIC",
+    "STEEL"
+  ],
+  "rowsAtEnd": {
+    "enabled": true,
+    "count": 0,
+    "rows": []
+  },
+  "events": [
+    {
+      "ms": 946,
+      "event": "until",
+      "what": "press discovered",
+      "ok": true
+    },
+    {
+      "ms": 1355,
+      "event": "until",
+      "what": "station config hydrated",
+      "ok": true
+    },
+    {
+      "ms": 1392,
+      "event": "command",
+      "what": "requireTwoHandStart=false",
+      "accepted": true
+    },
+    {
+      "ms": 1804,
+      "event": "until",
+      "what": "two-hand off",
+      "ok": true
+    },
+    {
+      "ms": 1845,
+      "event": "command",
+      "what": "manual PressRam EXTEND (door open)",
+      "accepted": false
+    },
+    {
+      "ms": 1894,
+      "event": "command",
+      "what": "manual Door EXTEND",
+      "accepted": true
+    },
+    {
+      "ms": 2298,
+      "event": "until",
+      "what": "door closed",
+      "ok": true
+    },
+    {
+      "ms": 2340,
+      "event": "command",
+      "what": "HOME",
+      "accepted": true
+    },
+    {
+      "ms": 2844,
+      "event": "until",
+      "what": "HOME active",
+      "ok": true
+    },
+    {
+      "ms": 2995,
+      "event": "command",
+      "what": "start HOME",
+      "accepted": true
+    },
+    {
+      "ms": 6038,
+      "event": "until",
+      "what": "HOME steps visited",
+      "ok": true
+    },
+    {
+      "ms": 6047,
+      "event": "command",
+      "what": "CHANGEOVER",
+      "accepted": true
+    },
+    {
+      "ms": 6250,
+      "event": "until",
+      "what": "CHANGEOVER active",
+      "ok": true
+    },
+    {
+      "ms": 6281,
+      "event": "command",
+      "what": "model STEEL",
+      "accepted": true
+    },
+    {
+      "ms": 96368,
+      "event": "until",
+      "what": "STEEL active",
+      "ok": false
+    },
+    {
+      "ms": 96416,
+      "event": "restore",
+      "requireTwoHandStart": "true",
+      "accepted": true
+    }
+  ]
+}

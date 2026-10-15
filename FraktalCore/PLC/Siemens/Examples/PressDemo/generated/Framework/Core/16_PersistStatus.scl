@@ -10,7 +10,7 @@ END_VAR
 BEGIN
     IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
     #Persist.Pending := FALSE; #Persist.PendingSince := LDT#1970-01-01-00:00:00;
-    #Persist.WindowMs := 13000;
+    #Persist.WindowMs := 16000;
     IF #RootIndex = 1 THEN 
         #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[1].Failed;
         IF "FRK_PersistConsumers".Rows[1].Dirty OR "FRK_PersistConsumers".Rows[1].Ticket <> 0 THEN
@@ -53,11 +53,32 @@ BEGIN
             IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[6].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[6].PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := "FRK_PersistConsumers".Rows[6].PendingSince; END_IF;
         END_IF;
     END_IF;
-    
+    IF #RootIndex = 1 THEN 
         #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[7].Failed;
         IF "FRK_PersistConsumers".Rows[7].Dirty OR "FRK_PersistConsumers".Rows[7].Ticket <> 0 THEN
             #Persist.Pending := TRUE;
             IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[7].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[7].PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := "FRK_PersistConsumers".Rows[7].PendingSince; END_IF;
+        END_IF;
+    END_IF;
+    IF #RootIndex = 1 THEN 
+        #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[8].Failed;
+        IF "FRK_PersistConsumers".Rows[8].Dirty OR "FRK_PersistConsumers".Rows[8].Ticket <> 0 THEN
+            #Persist.Pending := TRUE;
+            IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[8].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[8].PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := "FRK_PersistConsumers".Rows[8].PendingSince; END_IF;
+        END_IF;
+    END_IF;
+    IF #RootIndex = 1 THEN 
+        #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[9].Failed;
+        IF "FRK_PersistConsumers".Rows[9].Dirty OR "FRK_PersistConsumers".Rows[9].Ticket <> 0 THEN
+            #Persist.Pending := TRUE;
+            IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[9].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[9].PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := "FRK_PersistConsumers".Rows[9].PendingSince; END_IF;
+        END_IF;
+    END_IF;
+    
+        #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[10].Failed;
+        IF "FRK_PersistConsumers".Rows[10].Dirty OR "FRK_PersistConsumers".Rows[10].Ticket <> 0 THEN
+            #Persist.Pending := TRUE;
+            IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[10].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[10].PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := "FRK_PersistConsumers".Rows[10].PendingSince; END_IF;
         END_IF;
     IF #Persist.Pending THEN
         IF "FRK_PersistRootSince".WasPending[#RootIndex] THEN
@@ -102,5 +123,20 @@ BEGIN
         "FRK_PersistConsumers".Rows[6].Acknowledged := TRUE;
         "FRK_PersistRepair"(Slot := 6);
         "FRK_PersistDirty"(Slot := 6);
+    END_IF;
+    IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[7].Rejected THEN
+        "FRK_PersistConsumers".Rows[7].Acknowledged := TRUE;
+        "FRK_PersistRepair"(Slot := 7);
+        "FRK_PersistDirty"(Slot := 7);
+    END_IF;
+    IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[8].Rejected THEN
+        "FRK_PersistConsumers".Rows[8].Acknowledged := TRUE;
+        "FRK_PersistRepair"(Slot := 8);
+        "FRK_PersistDirty"(Slot := 8);
+    END_IF;
+    IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[9].Rejected THEN
+        "FRK_PersistConsumers".Rows[9].Acknowledged := TRUE;
+        "FRK_PersistRepair"(Slot := 9);
+        "FRK_PersistDirty"(Slot := 9);
     END_IF;
 END_FUNCTION

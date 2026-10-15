@@ -1,0 +1,102 @@
+﻿FUNCTION "FRK_CfgRecipe_PressDemoUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ModelCode : String;
+      Phase : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Status : "ST_ModuleStatus";
+      ParCfg : "ST_PressDemoParCfg";
+      ConfigStaged : Bool;
+      ConfigStageParCfg : "ST_PressDemoParCfg";
+      ConfigDefaultParCfg : "ST_PressDemoParCfg";
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+      TwoHand : "FB_TwoHandStartCM";
+      PartPresentSensor : "FB_DigitalInputCM";
+      AirPressureMonitor : "FB_AirPressureMonitorCM";
+      RejectScope : String;
+      RejectKey : String;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgRecipe_PressDemoUnit := TRUE;
+	IF #Phase = 1 THEN
+	    #ConfigStaged := FALSE;
+	    #ConfigStageParCfg := #ConfigDefaultParCfg;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 2);
+	    #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := #ModelCode);
+	    IF NOT #Ok THEN
+	        #RejectScope := #Status.Name;
+	        #RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	        #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	        RETURN;
+	    END_IF;
+	    #ConfigStageParCfg.Timeout := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+	    #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := #ModelCode);
+	    IF NOT #Ok THEN
+	        #RejectScope := #Status.Name;
+	        #RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	        #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	        RETURN;
+	    END_IF;
+	    #ConfigStageParCfg.TransferSettleTime := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+	    #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := #ModelCode);
+	    IF NOT #Ok THEN
+	        #RejectScope := #Status.Name;
+	        #RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	        #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	        RETURN;
+	    END_IF;
+	    #ConfigStageParCfg.PressSettleTime := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	    #ConfigStaged := TRUE;
+	ELSIF #Phase = 2 THEN
+	    #ParCfg := #ConfigStageParCfg;
+	    #ConfigStaged := FALSE;
+	ELSE
+	    #ConfigStaged := FALSE;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_CylinderCM"(Module := #PressRam, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_CylinderCM"(Module := #Door, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_CylinderCM"(Module := #PartSlide, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_TwoHandStartCM"(Module := #TwoHand, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_DigitalInputCM"(Module := #PartPresentSensor, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgRecipe_AirPressureMonitorCM"(Module := #AirPressureMonitor, ModelCode := #ModelCode, Phase := #Phase, RejectScope := #RejectScope, RejectKey := #RejectKey);
+	IF NOT #Ok THEN
+	    #FRK_CfgRecipe_PressDemoUnit := FALSE;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

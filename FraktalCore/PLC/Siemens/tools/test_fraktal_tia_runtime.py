@@ -54,6 +54,18 @@ class RuntimeTests(unittest.TestCase):
         value['types'][0].pop('commands'); value['types'][0].pop('timeout')
         with self.assertRaises(DECL.DeclarationError): GEN.build(DECL.validate(value), shared_runtime=True)
 
+    def test_passive_control_module_rejects_every_request(self):
+        value = FIXTURE.declaration()
+        cm = next(t for t in value['types'] if t['tier'] == 'CONTROL_MODULE')
+        cm.pop('commands'); cm.pop('timeout')
+        cm['logic'] = {k: v for k, v in cm.get('logic', {}).items() if k in ('cyclic', 'Cyclic')}
+        sources, _ = GEN.build(DECL.validate(value), shared_runtime=True)
+        frame = next(t for n, t in sources.items() if 'FUNCTION_BLOCK "%s"' % cm['name'] in t)
+        start = frame.index('IF #Core.EvCommandStart THEN')
+        block = frame[start:frame.index('END_IF;', start)]
+        self.assertIn('"FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE', block)
+        self.assertNotIn('CASE #Core.Command OF', block)
+
     def test_root_idb_cannot_collide_with_shared_clock_storage(self):
         value = FIXTURE.declaration()
         value['roots'][0]['name'] = 'FRK_Clock'

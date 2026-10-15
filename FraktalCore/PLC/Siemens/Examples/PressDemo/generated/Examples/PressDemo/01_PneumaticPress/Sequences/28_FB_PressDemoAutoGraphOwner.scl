@@ -86,7 +86,7 @@ BEGIN
     "FRK_SeqGraphBegin"(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := 1, BranchIndex := 1, ViewOffset := 0, ViewDepth := 0, Delta := #Delta, Seq := #Branch1);
     "FRK_SeqGraphBegin"(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := 1, BranchIndex := 2, ViewOffset := 0, ViewDepth := 0, Delta := #Delta, Seq := #Branch2);
     #LoadActive := "FRK_SeqSubActive"(Seq := #Branch1, Run := #Run, StepNo := 240);
-    #LoadDone := "F_PressDemoLoadPosition"(Target := #LoadPosition, Run := #LoadActive, Reset := #Seq.SubReset, OwnerIndex := #OwnerIndex, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
+    #LoadDone := "F_PressDemoLoadPosition"(Target := #LoadPosition, Run := #LoadActive, Reset := #Seq.SubReset, OwnerIndex := #OwnerIndex, ChainIndex := 3, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PressRam);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #Door);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PartSlide);

@@ -1,0 +1,58 @@
+﻿FUNCTION "FRK_PersistInspectSlot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Done : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Done := FALSE;
+	CASE "FRK_PersistRuntime".Slot OF
+	    1:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D001A,
+	                             BytesB := "FRK_PersistBuffers".D001B,
+	                             Payload := "FRK_PersistBuffers".D001Data);
+	    2:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D002A,
+	                             BytesB := "FRK_PersistBuffers".D002B,
+	                             Payload := "FRK_PersistBuffers".D002Data);
+	    3:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D003A,
+	                             BytesB := "FRK_PersistBuffers".D003B,
+	                             Payload := "FRK_PersistBuffers".D003Data);
+	    4:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D004A,
+	                             BytesB := "FRK_PersistBuffers".D004B,
+	                             Payload := "FRK_PersistBuffers".D004Data);
+	    5:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D005A,
+	                             BytesB := "FRK_PersistBuffers".D005B,
+	                             Payload := "FRK_PersistBuffers".D005Data);
+	    6:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D006A,
+	                             BytesB := "FRK_PersistBuffers".D006B,
+	                             Payload := "FRK_PersistBuffers".D006Data);
+	    7:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D007A,
+	                             BytesB := "FRK_PersistBuffers".D007B,
+	                             Payload := "FRK_PersistBuffers".D007Data);
+	    8:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D008A,
+	                             BytesB := "FRK_PersistBuffers".D008B,
+	                             Payload := "FRK_PersistBuffers".D008Data);
+	    9:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D009A,
+	                             BytesB := "FRK_PersistBuffers".D009B,
+	                             Payload := "FRK_PersistBuffers".D009Data);
+	    10:
+	        "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D010A,
+	                             BytesB := "FRK_PersistBuffers".D010B,
+	                             Payload := "FRK_PersistBuffers".D010Data);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

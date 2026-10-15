@@ -1,0 +1,25 @@
+﻿FUNCTION "F_PressDemoChangeoverAnswer" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Answer : Int;
+      Answered : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Answer := "FRK_DecisionTake"(Owner := #Seq.OwnerIndex, AlarmLog := #AlarmLog);
+	#Answered := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.pressChangeoverConfirmation', Ok := #Answer <> 0);
+	// 1 confirms tooling/material; 2 repeats the guided position (JUMP1).
+	"FRK_SeqSelect"(Seq := #Seq,
+	                AdvanceOk := #Answered AND #Answer = 1,
+	                Jump1Ok := #Answered AND #Answer = 2);
+	
+END_FUNCTION
+

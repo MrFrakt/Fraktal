@@ -1,0 +1,27 @@
+﻿FUNCTION "F_CylinderExtendHandled" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// The step deliberately owns a failure branch. The shared command service
+// still verifies ownership; the original child first-out is retained verbatim.
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Target : "FB_CylinderCM";
+   END_VAR
+
+
+BEGIN
+	
+	#F_CylinderExtendHandled := "FRK_SeqCommand"(Seq := #Seq, Lease := #Target.Device.Lease,
+	                                             Execute := #Target.Execute, Command := #Target.Command, Value := 1,
+	                                             Label := 'EXTEND', TargetIndex := #Target.Core.RegIndex, OwnFailure := TRUE);
+	"FRK_SeqHandled"(Seq := #Seq,
+	                 ChildCore := #Target.Core);
+	IF #Seq.CommandFailed THEN
+	    // Releasing the terminal handshake must not re-energize the failed
+	    // direction while the owning step awaits an operator decision.
+	    "F_CylinderForcePermit"(Target := #Target,
+	                            Permit := FALSE);
+	END_IF;
+	
+END_FUNCTION
+

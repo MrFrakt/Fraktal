@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_IntegerBits" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Number : "FRK_ConfigInteger";
+   END_VAR
+
+   VAR_TEMP 
+      TopWord : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_IntegerBits := 0;
+	IF #Number.Used = 0 THEN
+	    RETURN;
+	END_IF;
+	#FRK_IntegerBits := (#Number.Used - 1) * 16;
+	#TopWord := #Number.Limbs[#Number.Used - 1];
+	WHILE #TopWord > 0 DO
+	    #FRK_IntegerBits := #FRK_IntegerBits + 1;
+	    #TopWord := #TopWord / UDINT#2;
+	END_WHILE;
+	
+END_FUNCTION
+

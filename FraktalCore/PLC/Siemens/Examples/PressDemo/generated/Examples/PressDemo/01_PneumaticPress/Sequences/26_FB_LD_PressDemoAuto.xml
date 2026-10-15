@@ -738,6 +738,7 @@
                     <Parameter Name="Run" Section="Input" Type="Bool" />
                     <Parameter Name="Reset" Section="Input" Type="Bool" />
                     <Parameter Name="OwnerIndex" Section="Input" Type="DInt" />
+                    <Parameter Name="ChainIndex" Section="Input" Type="DInt" />
                     <Parameter Name="Delta" Section="Input" Type="Time" />
                     <Parameter Name="Target" Section="InOut" Type="&quot;FB_PressDemoLoadPosition&quot;" />
                     <Parameter Name="PressRam" Section="InOut" Type="&quot;FB_CylinderCM&quot;" />
@@ -762,32 +763,38 @@
                     <Component Name="OwnerIndex" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="29">
+                <Access Scope="LiteralConstant" UId="29">
+                  <Constant>
+                    <ConstantType>DInt</ConstantType>
+                    <ConstantValue>3</ConstantValue>
+                  </Constant>
+                </Access>
+                <Access Scope="LocalVariable" UId="31">
                   <Symbol>
                     <Component Name="Delta" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="31">
+                <Access Scope="LocalVariable" UId="33">
                   <Symbol>
                     <Component Name="LoadPosition" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="33">
+                <Access Scope="LocalVariable" UId="35">
                   <Symbol>
                     <Component Name="PressRam" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="35">
+                <Access Scope="LocalVariable" UId="37">
                   <Symbol>
                     <Component Name="Door" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="37">
+                <Access Scope="LocalVariable" UId="39">
                   <Symbol>
                     <Component Name="PartSlide" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="39">
+                <Access Scope="LocalVariable" UId="41">
                   <Symbol>
                     <Component Name="LoadDone" />
                   </Symbol>
@@ -812,26 +819,30 @@
                 </Wire>
                 <Wire UId="30">
                   <IdentCon UId="29" />
-                  <NameCon UId="21" Name="Delta" />
+                  <NameCon UId="21" Name="ChainIndex" />
                 </Wire>
                 <Wire UId="32">
                   <IdentCon UId="31" />
-                  <NameCon UId="21" Name="Target" />
+                  <NameCon UId="21" Name="Delta" />
                 </Wire>
                 <Wire UId="34">
                   <IdentCon UId="33" />
-                  <NameCon UId="21" Name="PressRam" />
+                  <NameCon UId="21" Name="Target" />
                 </Wire>
                 <Wire UId="36">
                   <IdentCon UId="35" />
-                  <NameCon UId="21" Name="Door" />
+                  <NameCon UId="21" Name="PressRam" />
                 </Wire>
                 <Wire UId="38">
                   <IdentCon UId="37" />
-                  <NameCon UId="21" Name="PartSlide" />
+                  <NameCon UId="21" Name="Door" />
                 </Wire>
                 <Wire UId="40">
                   <IdentCon UId="39" />
+                  <NameCon UId="21" Name="PartSlide" />
+                </Wire>
+                <Wire UId="42">
+                  <IdentCon UId="41" />
                   <NameCon UId="21" Name="Ret_Val" />
                 </Wire>
               </Wires>

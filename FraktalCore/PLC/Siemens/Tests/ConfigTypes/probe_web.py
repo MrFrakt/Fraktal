@@ -207,7 +207,7 @@ def probe(out):
             model = export(kind=0, model=2, name='inactive-model')
             check('inactive model snapshot identity', model[0]['model'], 'MODEL_B')
             check('inactive model snapshot value', next(r['value'] for r in model[1:] if r['scope']=='StationA' and r['key']=='preset'), '83')
-            check('inactive export does not change active identity', box.read('StationA.ModelId.ModelCode'), 'MODEL_A')
+            check('inactive export does not change active identity', box.read('StationA.Model.ModelCode'), 'MODEL_A')
             ready()
             api.conn.close()
             for action in ('halt', 'run'):

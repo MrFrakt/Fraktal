@@ -1,0 +1,16 @@
+// Absolute OB121 selects ProgrammingError. It records the exception in the test
+// image. A production handler must withdraw outputs and latch a diagnostic.
+ORGANIZATION_BLOCK OB121
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      BlockNr : UInt;
+      Reaction : USInt;
+      Fault_ID : Byte;
+   END_VAR
+BEGIN
+    "S11Errors".GlobalCalls := "S11Errors".GlobalCalls + 1;
+    "S11Errors".FaultId := #Fault_ID;
+    "S11Errors".ReactionSeen := #Reaction;
+    "S11Errors".BlockSeen := #BlockNr;
+END_ORGANIZATION_BLOCK

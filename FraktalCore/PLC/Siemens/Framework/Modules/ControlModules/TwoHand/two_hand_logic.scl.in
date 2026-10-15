@@ -1,0 +1,23 @@
+// Functional cycle-start edge from a certified two-hand-control result.
+// This CM implements no simultaneity, anti-tie-down, PL or safe output: the
+// certified device owns SafeActive. It accepts no command; the shared frame
+// rejects any request as UNSUPPORTED_COMMAND before dispatch.
+@REGION:Cyclic@
+    #Device.SafeActive := #Hal.SafeActive AND #Hal.FieldbusHealthy;
+    IF NOT #Hal.FieldbusHealthy THEN
+        #Device.Armed := FALSE;
+    ELSIF NOT #Hal.LeftPressed AND NOT #Hal.RightPressed AND NOT #Hal.SafeActive THEN
+        #Device.Armed := TRUE;
+    END_IF;
+    #Device.StartPulse := #Device.SafeActive AND NOT #Device.SafePrevious
+        AND (#Device.Armed OR NOT #ParCfg.RequireReleaseBetweenCycles);
+    IF #Device.StartPulse THEN
+        #Device.Armed := FALSE;
+    END_IF;
+    #Device.SafePrevious := #Device.SafeActive;
+    #OutImm.LeftPressed := #Hal.LeftPressed;
+    #OutImm.RightPressed := #Hal.RightPressed;
+    #OutImm.FieldbusHealthy := #Hal.FieldbusHealthy;
+    #OutImm.SafeActive := #Device.SafeActive;
+    #OutImm.StartPulse := #Device.StartPulse;
+    #OutImm.Armed := #Device.Armed;

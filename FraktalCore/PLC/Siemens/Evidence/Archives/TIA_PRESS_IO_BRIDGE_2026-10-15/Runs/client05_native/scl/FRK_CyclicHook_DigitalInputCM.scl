@@ -1,0 +1,16 @@
+﻿FUNCTION "FRK_CyclicHook_DigitalInputCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Hal : "ST_DigitalInputHal";
+      OutImm : "ST_DigitalInputOutImm";
+   END_VAR
+
+
+BEGIN
+	
+	#OutImm.Value := #Hal.Value;
+	#OutImm.Quality := #Hal.Quality;
+	
+END_FUNCTION
+

@@ -1,0 +1,199 @@
+{
+  "children": [
+    "PressDemo.AirPressureMonitor",
+    "PressDemo.Door",
+    "PressDemo.PartPresentSensor",
+    "PressDemo.PartSlide",
+    "PressDemo.PressRam",
+    "PressDemo.TwoHand"
+  ],
+  "initial": {
+    "mode": "changeover",
+    "state": "busy",
+    "good": 0
+  },
+  "config": [
+    "pressSettleTime=1200",
+    "modeSwitchTimeout=10000",
+    "transferSettleTime=150",
+    "requireTwoHandStart=false"
+  ],
+  "manualRamRefusedDoorOpen": true,
+  "manualDoorClosed": true,
+  "homeVisited": [
+    {
+      "step": 0,
+      "ms": 0
+    },
+    {
+      "step": 900,
+      "ms": 1
+    },
+    {
+      "step": 910,
+      "ms": 200
+    },
+    {
+      "step": 999,
+      "ms": 0
+    }
+  ],
+  "retractedAfterHome": true,
+  "homed": true,
+  "initialModel": "STEEL",
+  "availableModels": [
+    "ALUMINUM",
+    "PLASTIC",
+    "STEEL"
+  ],
+  "decision": {
+    "prompt": "project.decision.pressChangeoverConfirm",
+    "options": [
+      "project.decision.confirmChangeover",
+      "project.decision.repeatChangeoverPosition"
+    ]
+  },
+  "rowsAtEnd": {
+    "enabled": true,
+    "count": 9,
+    "rows": [
+      "0/0:v",
+      "0/800:v",
+      "1/600:v",
+      "0/810:v",
+      "1/620:v",
+      "1/640:v",
+      "1/660:v",
+      "0/870:v",
+      "0/880:va"
+    ]
+  },
+  "events": [
+    {
+      "ms": 1022,
+      "event": "until",
+      "what": "press discovered",
+      "ok": true
+    },
+    {
+      "ms": 1124,
+      "event": "command",
+      "what": "settle pending decision",
+      "accepted": true
+    },
+    {
+      "ms": 1529,
+      "event": "until",
+      "what": "pending chain completed",
+      "ok": true
+    },
+    {
+      "ms": 1577,
+      "event": "command",
+      "what": "MANUAL",
+      "accepted": true
+    },
+    {
+      "ms": 1881,
+      "event": "until",
+      "what": "MANUAL",
+      "ok": true
+    },
+    {
+      "ms": 4518,
+      "event": "until",
+      "what": "station config hydrated",
+      "ok": true
+    },
+    {
+      "ms": 4563,
+      "event": "command",
+      "what": "manual PressRam EXTEND (door open)",
+      "accepted": false
+    },
+    {
+      "ms": 4600,
+      "event": "command",
+      "what": "manual Door EXTEND",
+      "accepted": true
+    },
+    {
+      "ms": 5208,
+      "event": "until",
+      "what": "door closed",
+      "ok": true
+    },
+    {
+      "ms": 5245,
+      "event": "command",
+      "what": "HOME",
+      "accepted": true
+    },
+    {
+      "ms": 6058,
+      "event": "until",
+      "what": "HOME active",
+      "ok": true
+    },
+    {
+      "ms": 6090,
+      "event": "command",
+      "what": "start HOME",
+      "accepted": true
+    },
+    {
+      "ms": 9746,
+      "event": "until",
+      "what": "HOME steps visited",
+      "ok": true
+    },
+    {
+      "ms": 9778,
+      "event": "command",
+      "what": "CHANGEOVER",
+      "accepted": true
+    },
+    {
+      "ms": 10185,
+      "event": "until",
+      "what": "CHANGEOVER active",
+      "ok": true
+    },
+    {
+      "ms": 10233,
+      "event": "command",
+      "what": "model STEEL",
+      "accepted": true
+    },
+    {
+      "ms": 10233,
+      "event": "until",
+      "what": "STEEL active",
+      "ok": true
+    },
+    {
+      "ms": 10276,
+      "event": "command",
+      "what": "start CHANGEOVER",
+      "accepted": true
+    },
+    {
+      "ms": 11086,
+      "event": "until",
+      "what": "confirmation asked",
+      "ok": true
+    },
+    {
+      "ms": 11121,
+      "event": "command",
+      "what": "answer: repeat position",
+      "accepted": true
+    },
+    {
+      "ms": 101129,
+      "event": "until",
+      "what": "repeat resolved and asked again",
+      "ok": false
+    }
+  ]
+}

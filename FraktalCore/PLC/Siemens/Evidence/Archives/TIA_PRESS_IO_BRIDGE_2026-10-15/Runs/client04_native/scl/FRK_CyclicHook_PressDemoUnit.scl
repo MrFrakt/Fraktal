@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_CyclicHook_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AirPressureMonitor : "FB_AirPressureMonitorCM";
+      Door : "FB_CylinderCM";
+      OutImm : "ST_PressDemoOutImm";
+      PartPresentSensor : "FB_DigitalInputCM";
+      PartSlide : "FB_CylinderCM";
+      PressRam : "FB_CylinderCM";
+      StateFlagCount : Int;
+      StateFlags : Array[1..12] of "ST_StateFlag";
+      StateTouched : Array[1..12] of Bool;
+      TwoHand : "FB_TwoHandStartCM";
+   END_VAR
+
+
+BEGIN
+	
+	#OutImm.Homed := "FRK_State"(Idx := 1, Key := 'project.state.pressAtLoadPosition',
+	                             Ok := #PressRam.OutImm.Retracted AND #Door.OutImm.Retracted AND #PartSlide.OutImm.Retracted, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+	// The start lamp's condition, derived where the facts live; the hardware
+	// driver only maps it to the output.
+	#OutImm.TwoHandStartReady := "FRK_State"(Idx := 2, Key := 'project.state.pressTwoHandStartReady',
+	                                         Ok := #TwoHand.OutImm.Armed AND #PartPresentSensor.OutImm.Value AND #PartPresentSensor.OutImm.Quality
+	                                         AND #AirPressureMonitor.OutImm.PressureOk, Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched);
+	
+END_FUNCTION
+

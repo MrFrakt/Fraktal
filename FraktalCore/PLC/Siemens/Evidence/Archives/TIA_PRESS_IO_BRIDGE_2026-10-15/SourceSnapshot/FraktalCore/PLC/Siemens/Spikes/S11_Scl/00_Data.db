@@ -1,0 +1,20 @@
+// S7-1200 S11: startup and local-error observations, test image only.
+DATA_BLOCK "S11Scl"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR
+      State : Int;
+      StartupSeen : Bool;
+      StartupSafe : Bool;
+      InitialCallSeen : Bool;
+      StartupAt : DTL;
+      StartupRc : Int;
+      Idx : Int := 99;
+      Samples : Array[0..1] of DInt;
+      ValueRead : DInt := -1;
+      LocalCode : Word;
+      AfterError : Bool;
+   END_VAR
+BEGIN
+END_DATA_BLOCK
