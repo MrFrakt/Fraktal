@@ -1,0 +1,22 @@
+{
+  "name": "FB_AirPressureMonitorCM",
+  "tier": "CONTROL_MODULE",
+  "type_key": "std.moduleType.airPressure",
+  "commands": [],
+  "records": {
+    "ST_AirPressureParCfg": "STRUCT SchemaVersion : UINT := 1; ConflictTime : TIME := T#500ms; END_STRUCT",
+    "ST_AirPressureParCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_AirPressureOutCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_AirPressureOutImm": "STRUCT LowPressure : BOOL; OperatingPressure : BOOL; PressureOk : BOOL; Contradictory : BOOL; Quality : BOOL; END_STRUCT",
+    "ST_AirPressureHal": "STRUCT LowPressure : BOOL; OperatingPressure : BOOL; Quality : BOOL := TRUE; END_STRUCT",
+    "ST_AirPressureDevice": "STRUCT Conflicting : BOOL; Contradictory : BOOL; ConflictSinceMs : UDINT; END_STRUCT"
+  },
+  "contract": {
+    "ParCfg": "ST_AirPressureParCfg",
+    "ParCmd": "ST_AirPressureParCmd",
+    "OutCmd": "ST_AirPressureOutCmd",
+    "OutImm": "ST_AirPressureOutImm"
+  },
+  "hal": "ST_AirPressureHal",
+  "storage": "ST_AirPressureDevice"
+}

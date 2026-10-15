@@ -7,6 +7,13 @@ plan to close it. Line configuration is planned in detail because it is the
 largest functional gap an operator meets. This is a plan, not a claim: every
 item below is **not implemented** unless the census says otherwise.
 
+Continuation, 2026-10-15: **P1 is in progress.** The shared typed line engine now
+has native owner/mirror, atomic-image, staleness/event and image-reapplication
+evidence. See [line engine evidence](../Evidence/TIA_LINE_ENGINE_2026-10-15.md).
+Production composition, root mailbox/audit routing, named line sets, LOAD_DB
+document consumers, the press declaration and live HMI proof remain. The census
+below continues to describe the shipped press; the Line profile is not closed.
+
 ## 1. Method
 
 - **Published Unit facets**: every published member of TC3 `FB_UnitBase`/

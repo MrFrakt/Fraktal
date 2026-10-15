@@ -1,0 +1,277 @@
+// Orthogonal line infrastructure. Source images are input, never live storage.
+// Clock quality is explicit; a restored image is not a fresh source observation.
+FUNCTION "FRK_LineBuild" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+VAR_TEMP
+    FieldIndex : Int;
+    StageImage : "ST_LineImage";
+END_VAR
+BEGIN
+    IF #State.Status.LineId <> @LINE_ID@ OR #State.Status.Owner <> @OWNER@
+        OR #State.Status.Role <> @OWNER_ROLE@ OR #State.Status.Revision = 0
+        OR #State.BuiltRevision = #State.Status.Revision THEN RETURN; END_IF;
+    #StageImage := "FRK_LineDefaults".Image;
+    #StageImage.LineId := @LINE_ID@;
+    #StageImage.Owner := @OWNER@;
+    #StageImage.Revision := #State.Status.Revision;
+    #StageImage.Count := @COUNT@;
+    FOR #FieldIndex := 1 TO @COUNT@ DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #State.Values);
+        IF NOT "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText) THEN
+            #State.Status.SourceError := 2; RETURN;
+        END_IF;
+        #StageImage.Records[#FieldIndex].WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
+        #StageImage.Records[#FieldIndex].Revision := "FRK_ConfigScratch".Entry.WriteRevision;
+        #StageImage.Records[#FieldIndex].ValueText := WSTRING_TO_STRING("FRK_ConfigScratch".Entry.ValueText);
+    END_FOR;
+    #State.Image := #StageImage;
+    #State.Applied := TRUE;
+    #State.Status.SourceError := 0;
+    #State.BuiltRevision := #State.Status.Revision;
+END_FUNCTION
+
+FUNCTION "FRK_LineBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    OwnerRole : Bool;
+    NowMs : UDInt;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+BEGIN
+    #State.Values := "FRK_LineDefaults".Values;
+    #State.Image := "FRK_LineDefaults".Image;
+    #State.Status := "FRK_LineDefaults".Status;
+    #State.Status.LineId := @LINE_ID@;
+    #State.Status.Owner := @OWNER@;
+    #State.Status.Role := @MIRROR_ROLE@;
+    #State.Applied := FALSE;
+    #State.HaveSuccess := FALSE;
+    #State.LastSuccessMs := #NowMs;
+    #State.StartedMs := #NowMs;
+    #State.BuiltRevision := 0;
+    #State.Dirty := FALSE;
+    #State.StaleSlot := 0;
+    IF #OwnerRole THEN
+        #State.Status.Role := @OWNER_ROLE@;
+        #State.Status.Revision := 1;
+        #State.Dirty := TRUE;
+        "FRK_LineBuild"(State := #State);
+        #State.Applied := #State.Image.Revision <> 0;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_LineAnnounce" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Gone : Bool;
+END_VAR
+BEGIN
+    IF #State.Status.Role = @MIRROR_ROLE@ AND #State.Status.Stale THEN
+        IF #State.StaleSlot = 0 THEN
+            #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+            #Diag.ReasonCode := @REASON_NONE@;
+            #Diag.Description := WSTRING#'std.error.lineDataStale';
+            #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+            #Diag.Severity := @SEVERITY_LOW@;
+            #Diag.Category := @CATEGORY_SYSTEM@;
+            #State.StaleSlot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @AUTO_RESET@);
+        END_IF;
+    ELSIF #State.StaleSlot > 0 THEN
+        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #State.StaleSlot);
+        #State.StaleSlot := 0;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_LineWrite" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Access : "FRK_Access";
+    Ready : Bool;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+    Matched : Bool;
+END_VAR
+VAR_TEMP
+    FieldIndex : Int;
+END_VAR
+BEGIN
+    #FRK_LineWrite := FALSE;
+    FOR #FieldIndex := 1 TO @COUNT@ DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+            #Matched := TRUE;
+            IF #State.Status.LineId <> @LINE_ID@ OR #State.Status.Owner <> @OWNER@
+                OR #State.Status.Role <> @OWNER_ROLE@ OR #Request.Kind <> @WRITE_CONFIG@
+                OR #Request.DurationMs <> 0
+                OR DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision
+                OR #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite)
+                OR ("FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready) THEN RETURN; END_IF;
+            IF NOT "FRK_ConfigValidate"(Text := #Request.TextValue) THEN RETURN; END_IF;
+            "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #State.Values);
+            IF #State.Status.Revision = UDINT#4294967295 THEN #State.Status.Revision := 1;
+            ELSE #State.Status.Revision := #State.Status.Revision + 1; END_IF;
+            #State.Dirty := TRUE;
+            "FRK_LineBuild"(State := #State);
+            #FRK_LineWrite := TRUE;
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_LineApply" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Image : "ST_LineImage";
+    Restore : Bool;
+    NowMs : UDInt;
+    Stamp : LDT;
+    TimeSynchronized : Bool;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+VAR_TEMP
+    Stage : "@RECORD@";
+    FieldIndex : Int;
+    SourceIndex : Int;
+    Found : Int;
+    Delta : UDInt;
+    CandidateText : WString[@VALUE_WIDTH@];
+END_VAR
+BEGIN
+    #FRK_LineApply := FALSE;
+    IF #State.Status.LineId <> @LINE_ID@ OR #State.Status.Owner <> @OWNER@ THEN RETURN; END_IF;
+    IF #State.Status.Role <> @MIRROR_ROLE@ AND NOT #Restore THEN RETURN; END_IF;
+    #State.Status.SourceError := 1;
+    IF #Image.LineId <> @LINE_ID@ THEN RETURN; END_IF;
+    #State.Status.SourceError := 2;
+    IF #Image.Owner <> @OWNER@ OR #Image.Revision = 0 OR #Image.Count <> @COUNT@ THEN RETURN; END_IF;
+    // Modular revision ordering permits wrap, but never rolls a mirror back.
+    IF #State.Applied AND NOT #Restore AND #Image.Revision <> #State.Status.Revision THEN
+        IF #Image.Revision >= #State.Status.Revision THEN #Delta := #Image.Revision - #State.Status.Revision;
+        ELSE #Delta := (UDINT#4294967295 - #State.Status.Revision) + #Image.Revision + 1; END_IF;
+        IF #Delta > UDINT#2147483647 THEN RETURN; END_IF;
+    END_IF;
+    #Stage := "FRK_LineDefaults".Values;
+    FOR #FieldIndex := 1 TO @COUNT@ DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        #Found := 0;
+        FOR #SourceIndex := 1 TO @COUNT@ DO
+            IF #Image.Records[#SourceIndex].WriteKey = "FRK_ConfigScratch".Entry.WriteKey THEN
+                IF #Found <> 0 THEN RETURN; END_IF;
+                #Found := #SourceIndex;
+            END_IF;
+        END_FOR;
+        IF #Found = 0 THEN RETURN; END_IF;
+        IF #Image.Records[#Found].Revision <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
+        IF NOT "FRK_ConfigValidate"(Text := STRING_TO_WSTRING(#Image.Records[#Found].ValueText)) THEN RETURN; END_IF;
+        "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #Stage);
+        // Same revision must describe the same values; a corrupt heartbeat
+        // cannot renew freshness or change data while keeping the revision.
+        IF #State.Applied AND NOT #Restore AND #Image.Revision = #State.Status.Revision THEN
+            "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #Stage);
+            #CandidateText := "FRK_ConfigScratch".Entry.ValueText;
+            "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #State.Values);
+            IF "FRK_ConfigScratch".Entry.ValueText <> #CandidateText THEN RETURN; END_IF;
+        END_IF;
+    END_FOR;
+    #State.Values := #Stage;
+    #State.Image := #Image;
+    #State.Dirty := #State.Dirty OR NOT #State.Applied OR #State.Status.Revision <> #Image.Revision;
+    #State.Status.Revision := #Image.Revision;
+    #State.Applied := TRUE;
+    #State.Status.SourceError := 0;
+    IF NOT #Restore THEN
+        #State.HaveSuccess := TRUE;
+        #State.LastSuccessMs := #NowMs;
+        #State.Status.LastUpdate := #Stamp;
+        #State.Status.TimeSynchronized := #TimeSynchronized;
+        #State.Status.Stale := FALSE;
+    END_IF;
+    #FRK_LineApply := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_LineTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    NowMs : UDInt;
+    SourceError : DInt;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+VAR_TEMP
+    SinceMs : UDInt;
+END_VAR
+BEGIN
+    IF #State.Status.Role <> @MIRROR_ROLE@ THEN RETURN; END_IF;
+    IF #SourceError <> 0 THEN #State.Status.SourceError := #SourceError; END_IF;
+    #SinceMs := #State.StartedMs;
+    IF #State.HaveSuccess THEN #SinceMs := #State.LastSuccessMs; END_IF;
+    #State.Status.Stale := "FRK_Elapsed"(OldMs := #SinceMs, NewMs := #NowMs) >= @STALE_AFTER_MS@;
+END_FUNCTION
+
+FUNCTION "FRK_LineLocalRead" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    OwnerState : "FRK_LineState";
+    Image : "ST_LineImage";
+END_VAR
+BEGIN
+    #FRK_LineLocalRead := #OwnerState.Status.Role = @OWNER_ROLE@
+        AND #OwnerState.Status.Revision <> 0
+        AND #OwnerState.Image.Revision = #OwnerState.Status.Revision;
+    IF #FRK_LineLocalRead THEN #Image := #OwnerState.Image; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_LineManifest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Access : "FRK_Access";
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    FieldIndex : Int;
+END_VAR
+BEGIN
+    FOR #FieldIndex := 1 TO @COUNT@ DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #State.Values);
+        "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Scope);
+        "FRK_ConfigScratch".Entry.Writable := #State.Status.Role = @OWNER_ROLE@;
+        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
+        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.Readable := #State.Applied AND #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+        IF NOT "FRK_ConfigScratch".Entry.Readable THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#''; END_IF;
+        "FRK_ConfigAppendEntry"(Cursor := #Cursor, Page := #Page);
+    END_FOR;
+END_FUNCTION

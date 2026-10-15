@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_RecipeStore" Id="{6e2b9c41-7d38-4a05-b1f6-3c8e0d5a9f72}">
+    <Declaration><![CDATA[// Core §3.8a - a recipe provider whose records can be edited. Optional: a provider
+// that implements it lets a root edit the recipe of ANY model it offers, not only
+// the active one, and keeps an edit of the active model across a changeover.
+// Found by __QUERYINTERFACE on the I_RecipeProvider a module was given.
+INTERFACE I_RecipeStore]]></Declaration>
+    <Method Name="Save" Id="{1f9a4d63-c2e8-4b07-9a51-8d3e6f0b2c94}">
+      <Declaration><![CDATA[// Replace the record of exactly (ModelCode, RecipeKey) with Size bytes at pData.
+// FALSE when that record does not exist or its size or SchemaVersion differs:
+// a fallback record is never edited in a specific model's name.
+METHOD Save : BOOL
+VAR_INPUT
+    ModelCode : STRING;
+    RecipeKey : STRING;
+    pData     : PVOID;
+    Size      : UDINT;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

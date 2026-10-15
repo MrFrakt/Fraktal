@@ -1,0 +1,8 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Line_Kernel_20261015\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Kernel_20261015\native02\grouped\Framework\Core" --only "02_FRK_AlarmLog.udt" --group "Framework/Core"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Kernel_20261015\native02\grouped\Framework\Core" --only "13_UnitServices.scl" --group "Framework/Core"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Kernel_20261015\native02\grouped\Framework\Core" --only "17_Line.scl" --group "Framework/Core"
+compile --plc PLC_1
+list-groups --plc PLC_1
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Kernel_20261015\native02\native" --scl true
+save

@@ -1,0 +1,41 @@
+﻿FUNCTION "FRK_LineValue" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      FieldIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Values : "ST_LineProbeConfig";
+   END_VAR
+
+
+BEGIN
+	
+	CASE #FieldIndex OF
+	    1:
+	        "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#Values.TaktMs);
+	    2:
+	        "FRK_ConfigScratch".Entry.ValueText := "FRK_ConfigDecimalText"(Number := #Values.Gain);
+	    3:
+	        "FRK_ConfigScratch".Entry.ValueText := "FRK_ConfigEnumText"(Number := #Values.Grade);
+	    4:
+	        IF #Values.Enabled THEN
+	            "FRK_ConfigScratch".Entry.ValueText := WSTRING#'true';
+	        ELSE
+	            "FRK_ConfigScratch".Entry.ValueText := WSTRING#'false';
+	        END_IF;
+	    5:
+	        "FRK_ConfigScratch".Entry.ValueText := STRING_TO_WSTRING(#Values.HostName);
+	    6:
+	        "FRK_ConfigScratch".Entry.ValueText := INT_TO_WSTRING(#Values.Offsets[0]);
+	    7:
+	        "FRK_ConfigScratch".Entry.ValueText := INT_TO_WSTRING(#Values.Offsets[1]);
+	    8:
+	        "FRK_ConfigScratch".Entry.ValueText := USINT_TO_WSTRING(#Values.Small);
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	END_CASE;
+	
+END_FUNCTION
+

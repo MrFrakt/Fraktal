@@ -16,7 +16,7 @@ INTEGER = {'INT': (-32768, 32767), 'DINT': (-2147483648, 2147483647),
 FLOAT = {name: (-limit, limit) for name, (_, limit) in FLOAT_LIMITS.items()}
 
 
-def record_targets(catalog, record):
+def record_targets(catalog, record, capacity=None):
     """Resolve explicit scalar/array-element capabilities from the owning type."""
     result = {}
     for member in catalog.records.get(record, []):
@@ -24,7 +24,7 @@ def record_targets(catalog, record):
         if array:
             low, high = bound(array[1], catalog.capacities), bound(array[2], catalog.capacities)
             # A malformed or enormous record must fail before allocating a list.
-            if high < low or high - low + 1 > catalog.capacities['MAX_CONFIG_WRITES']:
+            if high < low or high - low + 1 > (capacity or catalog.capacities['MAX_CONFIG_WRITES']):
                 from fraktal_tia_declaration import DeclarationError
                 raise DeclarationError('T-WIDTH', record, 'config array exceeds the per-module capability bound')
             result.update((member['name']+'['+str(i)+']', scalar) for i in range(low, high+1))
@@ -38,19 +38,19 @@ def width(catalog, record, member):
     return int(re.fullmatch(r'(?:W)?String\[(\d+)\]', native, re.I)[1])
 
 
-def validate_definition(fields, location):
+def validate_definition(fields, location, *, roles=('ParCfg', 'StationCfg'), line=False):
     from fraktal_tia_declaration import DeclarationError, object_fields
     facts = Catalog.read() if fields else None
     for field in fields:
         object_fields(field, ('member', 'key', 'revision', 'label'),
                       ('minimum', 'maximum', 'requires_ready', 'min_read', 'min_write'), location + '.config')
-        if not isinstance(field['member'], str) or not re.fullmatch(r'(ParCfg|StationCfg)\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:0|-?[1-9][0-9]*)\])?', field['member']):
-            raise DeclarationError('T-GEN', location, 'config member selects ParCfg or StationCfg')
+        if not isinstance(field['member'], str) or not re.fullmatch('('+'|'.join(map(re.escape, roles))+r')\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:0|-?[1-9][0-9]*)\])?', field['member']):
+            raise DeclarationError('T-GEN', location, 'config member selects '+ ' or '.join(roles))
         for name in ('key', 'label'):
             maximum_width = width(facts, 'ST_ConfigWriteDef', 'Key' if name == 'key' else 'LabelKey')
             if not isinstance(field[name], str) or not field[name].isascii() or not 1 <= len(field[name]) <= maximum_width or any(ord(c) < 32 for c in field[name]):
                 raise DeclarationError('T-WIDTH', location, 'config key/label exceeds Core width')
-        if field['key'].startswith('line.'):
+        if field['key'].startswith('line.') != line:
             raise DeclarationError('T-GEN', location, 'line.* keys belong exclusively to LINE_CFG capabilities')
         if type(field['revision']) is not int or not 1 <= field['revision'] <= 4294967295:
             raise DeclarationError('T-GEN', location, 'config revision must be a nonzero UDInt')
@@ -92,39 +92,46 @@ def fields_for(t, catalog):
     from fraktal_tia_declaration import DeclarationError
     if len(t.config) > catalog.capacities['MAX_CONFIG_WRITES']:
         raise DeclarationError('T-WIDTH', t.name, 'editable config exceeds Core per-module capacity')
+    return fields_for_records(t.config, {'ParCfg': dict(t.contract).get('ParCfg', ''), 'StationCfg': t.station_config},
+                              catalog, {'ParCfg': 'PAR_CFG', 'StationCfg': 'STATION_CFG'}, t.name)
+
+
+def fields_for_records(values, records, catalog, kinds, location, capacity=None):
+    """One typed capability resolver for module config and orthogonal line config."""
+    from fraktal_tia_declaration import DeclarationError
     result = []
-    for value in t.config:
+    for value in values:
         role, name = value['member'].split('.')
-        record = dict(t.contract)['ParCfg'] if role == 'ParCfg' else t.station_config
+        record = records[role]
         members = catalog.records.get(record, [])
         if not members or members[0]['name'] != 'SchemaVersion' or members[0]['type'].split(':=')[0].strip().upper() != 'UINT':
-            raise DeclarationError('T-GEN', t.name, 'model/station config must start with SchemaVersion : UINT')
+            raise DeclarationError('T-GEN', location, 'config must start with SchemaVersion : UINT')
         schema = re.search(r':=\s*(\d+)\s*$', members[0]['type'])
         if not schema or not 1 <= int(schema[1]) <= 65535:
-            raise DeclarationError('T-GEN', t.name, 'editable config needs a nonzero declared schema')
-        scalar_type = record_targets(catalog, record).get(name)
+            raise DeclarationError('T-GEN', location, 'editable config needs a nonzero declared schema')
+        scalar_type = record_targets(catalog, record, capacity).get(name)
         if scalar_type is None or name == 'SchemaVersion':
-            raise DeclarationError('T-GEN', t.name, 'editable config target is missing or is its schema')
+            raise DeclarationError('T-GEN', location, 'editable config target is missing or is its schema')
         enum_values = tuple(sorted(set(catalog.enums.get(scalar_type, {}).values())))
         if len('|'.join(map(str, enum_values))) > width(catalog, 'ST_ConfigEntry', 'EnumDomain'):
-            raise DeclarationError('T-WIDTH', t.name, 'enum domain exceeds the Core manifest width')
+            raise DeclarationError('T-WIDTH', location, 'enum domain exceeds the Core manifest width')
         scalar = 'DINT' if enum_values else scalar_type.upper()
         string = re.fullmatch(r'STRING\((\d+)\)', scalar)
         length = int(string[1]) if string else 0
         # The current Core set-record value contract is 80 characters. Reject
         # wider targets before generation; never truncate accepted live values.
         if string and not 1 <= length <= width(catalog, 'ST_ConfigRecord', 'ValueText'):
-            raise DeclarationError('T-WIDTH', t.name, 'config text exceeds the Core persistence value width')
+            raise DeclarationError('T-WIDTH', location, 'config text exceeds the Core persistence value width')
         if scalar not in INTEGER and scalar not in FLOAT and scalar != 'BOOL' and not string:
-            raise DeclarationError('T-GEN', t.name, 'unsupported config scalar or non-scalar target')
+            raise DeclarationError('T-GEN', location, 'unsupported config scalar or non-scalar target')
         low, high = (min(enum_values), max(enum_values)) if enum_values else {**INTEGER, **FLOAT}.get(scalar, (0, 1))
         minimum, maximum = value.get('minimum', low), value.get('maximum', high)
         if not low <= minimum <= maximum <= high or (scalar not in INTEGER and scalar not in FLOAT and ('minimum' in value or 'maximum' in value)):
-            raise DeclarationError('T-GEN', t.name, 'config range is incompatible with its native storage')
+            raise DeclarationError('T-GEN', location, 'config range is incompatible with its native storage')
         storage = 'AS_STRING' if string else 'AS_' + ('DINT' if scalar in ('SINT', 'USINT', 'UINT') else scalar)
         value_type = 'TEXT' if string else ('BOOLEAN' if scalar == 'BOOL' else ('DURATION' if scalar == 'TIME' else 'NUMBER'))
         result.append(Field(value['member'], value['key'], value['revision'], value['label'], scalar,
-                            int(schema[1]), catalog.enums['E_ConfigKind']['PAR_CFG' if role == 'ParCfg' else 'STATION_CFG'],
+                            int(schema[1]), catalog.enums['E_ConfigKind'][kinds[role]],
                             catalog.enums['E_ConfigStorage'][storage], catalog.enums['E_ConfigValueType'][value_type],
                             minimum, maximum, 'minimum' in value, 'maximum' in value,
                             value.get('requires_ready', True), value.get('min_read', 0), value.get('min_write', 0), length, enum_values))
@@ -168,6 +175,32 @@ def assign_value(field, target):
     elif field.scalar in FLOAT:
         expression = value+'.Decimal' if field.scalar == 'LREAL' else 'LREAL_TO_REAL('+value+'.Decimal)'
     return '    '+target+' := '+expression+';'
+
+
+def definition_source(fields, function_name):
+    if not fields:
+        return function(function_name, ['FieldIndex : Int;'], [], [],
+                        ['    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;'])
+    body = ['    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;',
+            '    "FRK_ConfigScratch".EnumCount := 0;', '    CASE #FieldIndex OF']
+    for index, f in enumerate(fields, 1):
+        body += ['        %d:'%index]
+        facts = {'WriteKey': literal(f.key), 'WriteRevision': 'UDINT#'+str(f.revision),
+                 'EnumDomain': 'WSTRING#'+literal('|'.join(map(str, f.enum_values))),
+                 'Item': 'WSTRING#'+literal(f.member.replace('.', '/')), 'ConfigKind': str(f.kind),
+                 'ValueType': str(f.value_type), 'Writable': 'TRUE', 'RequiresReady': str(f.requires_ready).upper(),
+                 'HasMinimum': str(f.has_minimum).upper(), 'HasMaximum': str(f.has_maximum).upper(),
+                 'Minimum': str(float(f.minimum)), 'Maximum': str(float(f.maximum)), 'LabelKey': literal(f.label)}
+        body += ['            "FRK_ConfigScratch".Entry.'+n+' := '+v+';' for n, v in facts.items()]
+        body += ['            "FRK_ConfigScratch".'+n+' := '+v+';' for n, v in (
+            ('Storage', str(f.storage)), ('Schema', str(f.schema)), ('Minimum', str(float(f.minimum))),
+            ('Maximum', str(float(f.maximum))), ('MaxLength', str(f.length)),
+            ('MinRead', str(f.min_read)), ('MinWrite', str(f.min_write)))]
+        body += ['            "FRK_ConfigScratch".EnumCount := %d;'%len(f.enum_values)]
+        body += ['            "FRK_ConfigScratch".EnumValues[%d] := %d;'%(i, v)
+                 for i, v in enumerate(f.enum_values, 1)]
+    body += ['        ELSE RETURN;', '    END_CASE;']
+    return function(function_name, ['FieldIndex : Int;'], [], [], body)
 
 
 class Layout:
@@ -292,29 +325,7 @@ class Layout:
         return result
 
     def definitions(self, t):
-        if not self.fields[t.name]:
-            return function(name(t, 'Def'), ['FieldIndex : Int;'], [], [],
-                            ['    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;'])
-        body = ['    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;',
-                '    "FRK_ConfigScratch".EnumCount := 0;', '    CASE #FieldIndex OF']
-        for index, f in enumerate(self.fields[t.name], 1):
-            body += ['        %d:'%index]
-            facts = {'WriteKey': literal(f.key), 'WriteRevision': 'UDINT#'+str(f.revision),
-                     'EnumDomain': 'WSTRING#'+literal('|'.join(map(str, f.enum_values))),
-                     'Item': 'WSTRING#'+literal(f.member.replace('.', '/')), 'ConfigKind': str(f.kind),
-                     'ValueType': str(f.value_type), 'Writable': 'TRUE', 'RequiresReady': str(f.requires_ready).upper(),
-                     'HasMinimum': str(f.has_minimum).upper(), 'HasMaximum': str(f.has_maximum).upper(),
-                     'Minimum': str(float(f.minimum)), 'Maximum': str(float(f.maximum)), 'LabelKey': literal(f.label)}
-            body += ['            "FRK_ConfigScratch".Entry.'+n+' := '+v+';' for n, v in facts.items()]
-            body += ['            "FRK_ConfigScratch".'+n+' := '+v+';' for n, v in (
-                ('Storage', str(f.storage)), ('Schema', str(f.schema)), ('Minimum', str(float(f.minimum))),
-                ('Maximum', str(float(f.maximum))), ('MaxLength', str(f.length)),
-                ('MinRead', str(f.min_read)), ('MinWrite', str(f.min_write)))]
-            body += ['            "FRK_ConfigScratch".EnumCount := %d;'%len(f.enum_values)]
-            body += ['            "FRK_ConfigScratch".EnumValues[%d] := %d;'%(i, v)
-                     for i, v in enumerate(f.enum_values, 1)]
-        body += ['        ELSE RETURN;', '    END_CASE;']
-        return function(name(t, 'Def'), ['FieldIndex : Int;'], [], [], body)
+        return definition_source(self.fields[t.name], name(t, 'Def'))
 
     def restore(self, t):
         fields = self.fields[t.name]

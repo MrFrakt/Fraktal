@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_ManualTarget" Id="{4b17e920-6c85-4d3a-9f01-2e7d5306ba48}">
+    <Declaration><![CDATA[// Core §7.6.1 — a module that can be commanded by hand, reached by the SAME
+// deterministic walk that already carries configuration writes (I_ConfigSource).
+//
+// This exists because the walk was missing and every Unit hand-wrote its own
+// routing instead:
+//
+//     IF TargetPath = PressRam.Name THEN _M_RouteManual := PressRam.ManualCommand(...)
+//     ELSIF TargetPath = Door.Name  THEN ...
+//
+// That is a call a project has to remember for correctness, which §1.1 O1 names
+// as a framework defect rather than a project style. It failed exactly the way
+// O1 predicts: the press registered eight children and routed three, so the
+// feed axis, the two-hand control, the power group, the part sensor and the air
+// monitor all published manual commands that the HMI rendered as buttons and
+// the Unit refused, with no diagnostic anybody could act on. Nothing was wrong
+// with those modules; the routing chain simply had no branch for them.
+//
+// Configuration never had this problem because it was built as a capability
+// walk from the start: a module answers for its own Scope and the composite
+// recurses. Manual commands now use the identical shape, so a registered child
+// is commandable BECAUSE it is registered, and a new module type costs no
+// routing code anywhere.
+INTERFACE I_ManualTarget EXTENDS __System.IQueryInterface]]></Declaration>
+    <Method Name="M_ApplyManual" Id="{7d0c4e51-93a6-42b8-85f7-1064ba9d2e37}">
+      <Declaration><![CDATA[// Apply one one-shot manual command to the module named by Scope. TRUE only
+// from the module that owns the path AND accepted the value, so the walk
+// continues past every module that is not the target. The owning module still
+// validates the command against its own published catalogue (§5.6) — this
+// carries the request, it does not privilege it.
+METHOD M_ApplyManual : BOOL
+VAR_INPUT
+    Scope : STRING(255);
+    Value : DINT;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ApplyHeld" Id="{0a5f3b8c-27d1-4e60-b93a-c8145e70d926}">
+      <Declaration><![CDATA[// §7.6.1a — apply one HELD manual request (hold-to-run) to the module named by
+// Scope, carrying the enabling-device status the root derived from its §9
+// safety facet.
+//
+// Enable travels WITH the request rather than being read by the module, because
+// the fact belongs to the safety system and the root is where it is mirrored.
+// A module that does not implement held commands inherits FB_ModuleBase's
+// refusal, so an unsupported hold is a defined FALSE and never a silent no-op.
+METHOD M_ApplyHeld : BOOL
+VAR_INPUT
+    Scope  : STRING(255);
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

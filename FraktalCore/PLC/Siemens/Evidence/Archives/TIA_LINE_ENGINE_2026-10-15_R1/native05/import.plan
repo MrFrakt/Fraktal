@@ -1,0 +1,8 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Line_Kernel_20261015\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Kernel_20261015\native05\grouped\Framework\Core" --only "17_Line.scl" --group "Framework/Core"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Kernel_20261015\native05\grouped\Tests\ConfigBench\Modules" --only "37_LineTest.scl" --group "Tests/ConfigBench/Modules"
+compile --plc PLC_1
+compile --plc PLC_1 --hw
+list-groups --plc PLC_1
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Kernel_20261015\native05\native" --scl true
+save

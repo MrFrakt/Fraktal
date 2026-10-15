@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LocalRecipeProvider" Id="{1c0f8ef1-f5d0-4936-be06-851daa076225}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8 local provider. Validation is generic BECAUSE SchemaVersion is the
+// first UINT of every ParCfg/record (§3.8): stored first-UINT must equal the
+// target's initialized first-UINT, else Load = FALSE and the caller faults
+// RECIPE_INVALID. Never a partial apply. Types stage through PrepareRecipe.
+FUNCTION_BLOCK FB_LocalRecipeProvider IMPLEMENTS I_RecipeProvider, I_RecipeStore, I_RecipeCatalog
+VAR PERSISTENT
+    {attribute 'OPC.UA.DA' := '0'}
+    _catalog : ST_LocalRecipeCatalog;
+END_VAR
+VAR
+    _catalogInitialized : BOOL;
+    _catalogRestoreVersion : UINT;
+    _n    : INT;
+    _models : ARRAY[1..PL_Fraktal.MAX_RECIPES] OF STRING(80);
+    _keys   : ARRAY[1..PL_Fraktal.MAX_RECIPES] OF STRING(80);
+    {attribute 'OPC.UA.DA' := '0'}
+    _ptr  : ARRAY[1..PL_Fraktal.MAX_RECIPES] OF PVOID;
+    _size : ARRAY[1..PL_Fraktal.MAX_RECIPES] OF UDINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// no cyclic body]]></ST>
+    </Implementation>
+    <Method Name="Load" Id="{b1aef472-8321-4e67-becf-11964cf574b7}">
+      <Declaration><![CDATA[METHOD Load : BOOL
+VAR_INPUT
+    ModelCode : STRING;
+    RecipeKey : STRING;
+    pParCfg : PVOID;
+    Size    : UDINT;
+END_VAR
+VAR
+    i, hit, fallback : INT;
+    puT, puS : POINTER TO UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_InitCatalog();
+Load := FALSE;
+IF (pParCfg = 0) OR (Size < SIZEOF(puT^)) THEN RETURN; END_IF
+FOR i := 1 TO _catalog.Count DO
+    IF (_catalog.Records[i].ModelCode = ModelCode)
+    AND (_catalog.Records[i].RecipeKey = RecipeKey) THEN
+        IF _catalog.Records[i].DataSize <> Size THEN RETURN; END_IF
+        puT := pParCfg;
+        puS := ADR(_catalog.Records[i].Data);
+        IF puT^ <> puS^ THEN RETURN; END_IF
+        MEMCPY(destAddr := pParCfg,
+            srcAddr := ADR(_catalog.Records[i].Data), n := Size);
+        Load := TRUE;
+        RETURN;
+    END_IF
+END_FOR
+hit := 0;
+fallback := 0;
+FOR i := 1 TO _n DO
+    IF (_keys[i] = RecipeKey) AND (_models[i] = ModelCode) THEN
+        hit := i;
+        EXIT;
+    ELSIF (_keys[i] = RecipeKey) AND (_models[i] = '') THEN
+        fallback := i;
+    END_IF
+END_FOR
+IF hit = 0 THEN
+    hit := fallback;
+END_IF
+// Two statements, not one condition: IEC 61131-3 does not mandate short-circuit
+// evaluation and TwinCAT's compile option for it is off by default, so a single
+// `(hit = 0) OR (_size[hit] <> Size)` still reads _size[0] on the ordinary
+// not-found path - out of bounds for ARRAY[1..MAX_RECIPES] (§3.8).
+IF (hit = 0) OR (pParCfg = 0) THEN
+    RETURN;                                       // unknown recipe -> caller faults (§3.8)
+END_IF
+IF _size[hit] <> Size THEN
+    RETURN;                                       // size mismatch -> caller faults (§3.8)
+END_IF
+puT := pParCfg;
+puS := _ptr[hit];
+IF puT^ <> puS^ THEN
+    RETURN;                                       // SchemaVersion mismatch: migrate-or-fault (§3.8)
+END_IF
+MEMCPY(destAddr := pParCfg, srcAddr := _ptr[hit], n := Size);
+Load := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Save" Id="{94fd026d-2726-4a9c-be43-91276ef36e97}">
+      <Declaration><![CDATA[// I_RecipeStore - write an edited record back into the registered storage of
+// exactly (ModelCode, RecipeKey). The fallback record is never edited in a
+// specific model's name, and a size or SchemaVersion mismatch changes nothing.
+METHOD Save : BOOL
+VAR_INPUT
+    ModelCode : STRING;
+    RecipeKey : STRING;
+    pData     : PVOID;
+    Size      : UDINT;
+END_VAR
+VAR
+    i, hit : INT;
+    puT, puS : POINTER TO UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_InitCatalog();
+Save := FALSE;
+IF (pData = 0) OR (Size < SIZEOF(puT^)) THEN RETURN; END_IF
+FOR i := 1 TO _catalog.Count DO
+    IF (_catalog.Records[i].ModelCode = ModelCode)
+    AND (_catalog.Records[i].RecipeKey = RecipeKey) THEN
+        IF _catalog.Records[i].DataSize <> Size THEN RETURN; END_IF
+        puT := pData;
+        puS := ADR(_catalog.Records[i].Data);
+        IF puT^ <> puS^ THEN RETURN; END_IF
+        MEMCPY(destAddr := ADR(_catalog.Records[i].Data),
+            srcAddr := pData, n := Size);
+        Save := TRUE;
+        RETURN;
+    END_IF
+END_FOR
+hit := 0;
+FOR i := 1 TO _n DO
+    IF (_keys[i] = RecipeKey) AND (_models[i] = ModelCode) THEN
+        hit := i;
+        EXIT;
+    END_IF
+END_FOR
+IF (hit = 0) OR (pData = 0) THEN
+    RETURN;
+END_IF
+IF _size[hit] <> Size THEN
+    RETURN;
+END_IF
+puT := _ptr[hit];
+puS := pData;
+IF puT^ <> puS^ THEN
+    RETURN;                                       // SchemaVersion differs: nothing written
+END_IF
+MEMCPY(destAddr := _ptr[hit], srcAddr := pData, n := Size);
+Save := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Register" Id="{df7be18b-5d33-4de5-8a36-02fc90bfd518}">
+      <Declaration><![CDATA[// application wiring: one record per (ModelCode, RecipeKey); empty ModelCode is fallback.
+METHOD Register : BOOL
+VAR_INPUT
+    ModelCode : STRING(80);
+    RecipeKey : STRING(80);
+    pData  : PVOID;
+    Size   : UDINT;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_InitCatalog();
+IF (_n + _catalog.Count >= PL_Fraktal.MAX_RECIPES) OR (pData = 0) OR (RecipeKey = '') OR (Size < SIZEOF(UINT)) THEN
+    Register := FALSE;
+    RETURN;
+END_IF
+FOR i := 1 TO _n DO
+    IF (_models[i] = ModelCode) AND (_keys[i] = RecipeKey) THEN
+        Register := FALSE;
+        RETURN;
+    END_IF
+END_FOR
+FOR i := 1 TO _catalog.Count DO
+    IF (_catalog.Records[i].ModelCode = ModelCode)
+    AND (_catalog.Records[i].RecipeKey = RecipeKey) THEN
+        Register := FALSE;
+        RETURN;
+    END_IF
+END_FOR
+_n := _n + 1;
+_models[_n] := ModelCode;
+_keys[_n]   := RecipeKey;
+_ptr[_n]  := pData;
+_size[_n] := Size;
+Register := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Ready" Id="{5012cd35-f8d3-4752-893d-710a9a976af9}">
+      <Declaration><![CDATA[PROPERTY Ready : BOOL]]></Declaration>
+      <Get Name="Get" Id="{ed439f68-57a6-4ba8-9c56-d5b8a2eb482c}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Ready := (_n > 0);]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Source" Id="{f8bb7684-b985-4251-a2ed-a6cff3c51e9c}">
+      <Declaration><![CDATA[PROPERTY Source : E_RecipeSource]]></Declaration>
+      <Get Name="Get" Id="{702d2ac1-64c4-4474-8c33-95a6f866cc73}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Source := E_RecipeSource.LOCAL;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="_M_InitCatalog" Id="{3ff15a12-c468-4d38-a96b-1d087cb0cabd}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_InitCatalog
+VAR
+    i, j : INT;
+    schema : UINT;
+    pSchema : POINTER TO UINT;
+    valid : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF _catalogInitialized THEN RETURN; END_IF
+_catalogInitialized := TRUE;
+IF (_catalog.SchemaVersion = 1) AND (_catalog.Count >= 0)
+AND (_catalog.Count <= PL_Fraktal.MAX_RECIPES) THEN
+    valid := TRUE;
+    FOR i := 1 TO _catalog.Count DO
+        IF (_catalog.Records[i].SchemaVersion <> 1)
+        OR (_catalog.Records[i].ModelCode = '') OR (_catalog.Records[i].RecipeKey = '')
+        OR (_catalog.Records[i].DataSize < SIZEOF(schema))
+        OR (_catalog.Records[i].DataSize > PL_Fraktal.MAX_MODEL_DATA_BYTES) THEN
+            valid := FALSE;
+        END_IF
+        pSchema := ADR(_catalog.Records[i].Data);
+        IF pSchema^ = 0 THEN valid := FALSE; END_IF
+        FOR j := 1 TO i - 1 DO
+            IF _catalog.Records[i].ModelCode = _catalog.Records[j].ModelCode THEN
+                valid := FALSE;
+            END_IF
+        END_FOR
+    END_FOR
+    IF valid THEN RETURN; END_IF
+END_IF
+IF _catalog.SchemaVersion <> 0 THEN
+    _catalogRestoreVersion := _catalog.SchemaVersion;
+END_IF
+_catalog.Count := 0;
+_catalog.SchemaVersion := 1;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ModelCount" Id="{459fe8db-3de5-4d3e-b72a-a3b39669ffeb}">
+      <Declaration><![CDATA[METHOD M_ModelCount : INT
+VAR_INPUT
+    RecipeKey : STRING(80);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InitCatalog();
+M_ModelCount := 0;
+FOR i := 1 TO _n DO
+    IF (_keys[i] = RecipeKey) AND (_models[i] <> '') THEN
+        M_ModelCount := M_ModelCount + 1;
+    END_IF
+END_FOR
+FOR i := 1 TO _catalog.Count DO
+    IF _catalog.Records[i].RecipeKey = RecipeKey THEN
+        M_ModelCount := M_ModelCount + 1;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ModelCapacity" Id="{94848a5a-801c-4ccf-93d5-8662a0a1b374}">
+      <Declaration><![CDATA[METHOD M_ModelCapacity : INT
+VAR_INPUT
+    RecipeKey : STRING(80);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InitCatalog();
+M_ModelCapacity := M_ModelCount(RecipeKey := RecipeKey)
+    + PL_Fraktal.MAX_RECIPES - _n - _catalog.Count;
+// Released seed registration accepts 80 bytes; the root identity accepts 64.
+// Preserve that API while refusing a catalog projection that would truncate it.
+FOR i := 1 TO _n DO
+    IF (_keys[i] = RecipeKey) AND (LEN(_models[i]) > 64) THEN
+        M_ModelCapacity := 0; RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ModelAt" Id="{20deadd0-5e66-4058-bac4-52b54539de86}">
+      <Declaration><![CDATA[METHOD M_ModelAt : BOOL
+VAR_INPUT
+    RecipeKey : STRING(80);
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Id : ST_ModelId;
+END_VAR
+VAR
+    i, ordinal : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InitCatalog();
+M_ModelAt := FALSE;
+IF Index < 1 THEN RETURN; END_IF
+ordinal := 0;
+FOR i := 1 TO _n DO
+    IF (_keys[i] = RecipeKey) AND (_models[i] <> '') THEN
+        ordinal := ordinal + 1;
+        IF ordinal = Index THEN
+            IF LEN(_models[i]) > 64 THEN RETURN; END_IF
+            Id.ModelCode := _models[i];
+            M_ModelAt := TRUE;
+            RETURN;
+        END_IF
+    END_IF
+END_FOR
+FOR i := 1 TO _catalog.Count DO
+    IF _catalog.Records[i].RecipeKey = RecipeKey THEN
+        ordinal := ordinal + 1;
+        IF ordinal = Index THEN
+            Id.ModelCode := _catalog.Records[i].ModelCode;
+            M_ModelAt := TRUE;
+            RETURN;
+        END_IF
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_CreateModel" Id="{4d3d2312-24e6-490a-a4bf-a15b5055e914}">
+      <Declaration><![CDATA[METHOD M_CreateModel : BOOL
+VAR_INPUT
+    ModelCode : STRING(64);
+    RecipeKey : STRING(80);
+    pData : PVOID;
+    Size : UDINT;
+END_VAR
+VAR
+    i, slot : INT;
+    pSchema : POINTER TO UINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InitCatalog();
+M_CreateModel := FALSE;
+IF (ModelCode = '') OR (RecipeKey = '') OR (pData = 0)
+OR (Size < SIZEOF(pSchema^)) OR (Size > PL_Fraktal.MAX_MODEL_DATA_BYTES)
+OR (_n + _catalog.Count >= PL_Fraktal.MAX_RECIPES) THEN RETURN; END_IF
+pSchema := pData;
+IF pSchema^ = 0 THEN RETURN; END_IF
+FOR i := 1 TO _n DO
+    IF _models[i] = ModelCode THEN RETURN; END_IF
+END_FOR
+FOR i := 1 TO _catalog.Count DO
+    IF _catalog.Records[i].ModelCode = ModelCode THEN RETURN; END_IF
+END_FOR
+slot := _catalog.Count + 1;
+_catalog.Records[slot].SchemaVersion := 1;
+_catalog.Records[slot].ModelCode := ModelCode;
+_catalog.Records[slot].RecipeKey := RecipeKey;
+_catalog.Records[slot].DataSize := Size;
+MEMCPY(destAddr := ADR(_catalog.Records[slot].Data), srcAddr := pData, n := Size);
+_catalog.Count := slot; // publication LAST; every existing address stays stable
+M_CreateModel := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_TakeCatalogRestoreLoss" Id="{5644c8f6-80ec-4944-b87e-1af1a35738ff}">
+      <Declaration><![CDATA[METHOD M_TakeCatalogRestoreLoss : BOOL
+VAR_OUTPUT
+    Found : UINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InitCatalog();
+Found := _catalogRestoreVersion;
+M_TakeCatalogRestoreLoss := Found <> 0;
+_catalogRestoreVersion := 0;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

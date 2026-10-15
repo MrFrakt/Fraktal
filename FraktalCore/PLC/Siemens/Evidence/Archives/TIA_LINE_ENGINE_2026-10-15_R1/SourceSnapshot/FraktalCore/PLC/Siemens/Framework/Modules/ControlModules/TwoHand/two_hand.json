@@ -1,0 +1,22 @@
+{
+  "name": "FB_TwoHandStartCM",
+  "tier": "CONTROL_MODULE",
+  "type_key": "std.moduleType.twoHand",
+  "commands": [],
+  "records": {
+    "ST_TwoHandParCfg": "STRUCT SchemaVersion : UINT := 1; RequireReleaseBetweenCycles : BOOL := TRUE; END_STRUCT",
+    "ST_TwoHandParCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_TwoHandOutCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_TwoHandOutImm": "STRUCT LeftPressed : BOOL; RightPressed : BOOL; SafeActive : BOOL; Armed : BOOL; StartPulse : BOOL; FieldbusHealthy : BOOL; END_STRUCT",
+    "ST_TwoHandHal": "STRUCT LeftPressed : BOOL; RightPressed : BOOL; SafeActive : BOOL; FieldbusHealthy : BOOL; END_STRUCT",
+    "ST_TwoHandDevice": "STRUCT Armed : BOOL; SafeActive : BOOL; SafePrevious : BOOL; StartPulse : BOOL; END_STRUCT"
+  },
+  "contract": {
+    "ParCfg": "ST_TwoHandParCfg",
+    "ParCmd": "ST_TwoHandParCmd",
+    "OutCmd": "ST_TwoHandOutCmd",
+    "OutImm": "ST_TwoHandOutImm"
+  },
+  "hal": "ST_TwoHandHal",
+  "storage": "ST_TwoHandDevice"
+}

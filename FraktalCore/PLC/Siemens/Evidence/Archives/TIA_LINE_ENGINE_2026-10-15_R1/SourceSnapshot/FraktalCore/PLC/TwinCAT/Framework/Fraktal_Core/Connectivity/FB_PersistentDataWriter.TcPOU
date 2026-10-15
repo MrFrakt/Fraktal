@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PersistentDataWriter" Id="{9d3f61a0-47b2-4e85-b0c6-51748ea3d29f}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b — the SHIPPED DEFAULT durability provider for E_ConfigStore
+// .LOCAL_RETAIN: it makes the PLC's retentive image reach non-volatile storage
+// on demand, so an accepted configuration write is DURABLE and not merely LIVE.
+//
+// Why this exists at all: on TwinCAT the persistent image is written by the
+// runtime, normally at a controlled shutdown. Every configuration write since
+// the last write is therefore lost to a power cut - the station silently
+// reverts at its next restart, which is exactly the failure §3.8b replaces with
+// a stated property. Requesting the write explicitly turns that hope into an
+// operation with a latency, a completion and a failure mode the root publishes.
+//
+// The ADS port is read from the runtime's own _AppInfo rather than hard-coded:
+// a station on port 852 must not silently persist port 851's image.
+FUNCTION_BLOCK FB_PersistentDataWriter IMPLEMENTS I_ConfigPersistence
+VAR
+    _writer  : Tc2_Utilities.FB_WritePersistentData;
+    _busy    : BOOL;      // a write is in flight
+    _queued  : BOOL;      // a request arrived while one was in flight
+    _failed  : BOOL;      // latched until the next SUCCESSFUL write
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Driven through M_Cyclic by the owning root; no standalone scan behaviour.
+;]]></ST>
+    </Implementation>
+    <Method Name="M_Request" Id="{3c6b90e5-14a7-42fd-8b09-e75d2c48136a}">
+      <Declaration><![CDATA[// A write already in flight cannot be told about a value accepted after it
+// started, so a request arriving now is QUEUED rather than merged: the value
+// gets its own write and PersistPending stays TRUE until that one finishes.
+// Merging them is the bug that reports a value durable which was never written.
+METHOD M_Request : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_queued := TRUE;                           // picked up by the next M_Cyclic
+M_Request := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Cyclic" Id="{7f2d54c8-b016-4e39-a5d2-608c31be74f5}">
+      <Declaration><![CDATA[// Drive the ADS write. Returns TRUE while data is still not durable, which is
+// what the root publishes as PersistPending.
+METHOD M_Cyclic : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _busy THEN
+    _writer(START := FALSE);
+    IF NOT _writer.BUSY THEN
+        _busy := FALSE;
+        _failed := _writer.ERR;
+    END_IF
+ELSIF _queued THEN
+    _queued := FALSE;
+    _busy := TRUE;
+    // SPDM_2PASS is Beckhoff's optimized two-pass mode: the boot image stays
+    // consistent even if the write is interrupted, which is the only mode worth
+    // using for data whose whole purpose is surviving an uncontrolled stop.
+    _writer(NETID := '',
+            PORT := TwinCAT_SystemInfoVarList._AppInfo.AdsPort,
+            START := TRUE,
+            TMOUT := T#10S,
+            MODE := Tc2_Utilities.SPDM_2PASS);
+    IF NOT _writer.BUSY THEN
+        // Refused before it began (bad port, runtime not accepting): that is a
+        // completed failure, not an operation still in progress.
+        _busy := FALSE;
+        _failed := TRUE;
+    END_IF
+END_IF
+M_Cyclic := _busy OR _queued;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Failed" Id="{e51a8407-2db6-4c93-87fe-90b524a6d3f1}">
+      <Declaration><![CDATA[METHOD M_Failed : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Failed := _failed;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

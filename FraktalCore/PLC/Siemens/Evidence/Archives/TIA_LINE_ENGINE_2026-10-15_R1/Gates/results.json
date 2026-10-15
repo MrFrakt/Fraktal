@@ -1,0 +1,52 @@
+{
+  "tia_lint": {
+    "command": [
+      "python",
+      "FraktalCore/PLC/Siemens/tools/tia_lint.py"
+    ],
+    "exit_code": 0
+  },
+  "consistency": {
+    "command": [
+      "python",
+      "tools/check_consistency.py"
+    ],
+    "exit_code": 0
+  },
+  "candidate": {
+    "command": [
+      "python",
+      "tools/check_tia_contracts.py",
+      "--generated",
+      "FraktalCore/PLC/Siemens/Examples/PressDemo/generated"
+    ],
+    "exit_code": 0
+  },
+  "press_replay": {
+    "command": [
+      "python",
+      "FraktalCore/PLC/Siemens/tools/fraktal_tia_examples.py",
+      "--verify",
+      "FraktalCore/PLC/Siemens/Examples/PressDemo/generated"
+    ],
+    "exit_code": 0
+  },
+  "frame_replay": {
+    "command": [
+      "python",
+      "FraktalCore/PLC/Siemens/tools/fraktal_tia_generate.py",
+      "--verify",
+      "FraktalCore/PLC/Siemens/Tests/Generator/generated"
+    ],
+    "exit_code": 0
+  },
+  "bridge_replay": {
+    "command": [
+      "python",
+      "FraktalCore/PLC/Siemens/tools/fraktal_tia_io_bridge.py",
+      "--verify",
+      "FraktalCore/PLC/Siemens/Examples/PressIoBridge/generated/Physical"
+    ],
+    "exit_code": 0
+  }
+}
