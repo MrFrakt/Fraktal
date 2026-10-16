@@ -106,10 +106,35 @@ class LineTests(unittest.TestCase):
 
     def test_project_code_cannot_write_or_invoke_line_internals(self):
         import fraktal_tia_generate as gen
-        for body in ('#Line.Revision := 3;', '#LineRevisionSeen := 3;', '"FRK_Line".Data.Dirty := TRUE;'):
+        for body in ('#Line.Revision := 3;', '#LineRevisionSeen := 3;', '"FRK_Line".Data.Dirty := TRUE;',
+                     '"FRK_LineSetStage".Values.TaktMs := 1;', '"FRK_LineDefaults".Values.TaktMs := 1;'):
             value = OWNER.declaration(); value['types'][0]['logic']['cyclic'] = body
             with self.subTest(body=body), self.assertRaises(DeclarationError):
                 gen.build(gen.DECL.validate(value), True, line_workbench=True)
+
+    def test_line_sets_reuse_root_catalog_and_existing_persistence_slots(self):
+        import fraktal_tia_generate as gen
+        value = OWNER.declaration(); value['config_sets'] = {'capacity': 3}
+        sources, metadata = gen.build(gen.DECL.validate(value), True, line_workbench=True)
+        self.assertIn('Array[1..2, 1..3]', sources['05_FRK_SetStore.db'])
+        self.assertIn('FRK_LineSetWalk', sources['18_LineSets.scl'])
+        documents = metadata['runtime']['persistence']['documents']
+        self.assertEqual(sum(d['role'] == 'set' for d in documents), 6)
+        self.assertEqual(sum(d['role'] == 'line' for d in documents), 1)
+        self.assertNotIn('LineSetStore', ''.join(sources))
+
+    def test_line_set_capacity_is_complete_and_commit_is_owned_once(self):
+        import fraktal_tia_generate as gen
+        value = OWNER.declaration(); value['config_sets'] = {'capacity': 1}
+        count = Catalog.read().capacities['MAX_LINE_RECORDS']
+        value['records'][FIX.RECORD[0]] = 'STRUCT SchemaVersion : UINT := 1; Slots : ARRAY[0..%d] OF INT; END_STRUCT'%(count-1)
+        value['line']['values'] = [dict(member='Line.Slots[%d]'%n, key='line.slot.%d'%n,
+            revision=1, label='test.config.preset') for n in range(count)]
+        sources, _ = gen.build(gen.DECL.validate(value), True, line_workbench=True)
+        self.assertIn('Array[1..%d] of "ST_ConfigRecord"'%count, sources['02_FRK_SetPayload.udt'])
+        self.assertEqual(sources['18_LineSets.scl'].count('"FRK_LineCommit"('), 1)
+        self.assertIn('#Phase = 4 OR "FRK_Line".Ready', sources['18_LineSets.scl'])
+        self.assertEqual(sources['17_Line.scl'].count('FUNCTION "FRK_LineCommit"'), 1)
 
     def test_partial_line_profile_requires_explicit_workbench_generation(self):
         import fraktal_tia_generate as gen
@@ -123,6 +148,28 @@ class LineTests(unittest.TestCase):
             manifest = gen.generate(model, output, True, line_workbench=True)
             self.assertIs(manifest['line_workbench'], True)
             self.assertEqual(gen.verify(output), len(manifest['generated']))
+
+    def test_bound_mirror_round_trip_and_restore_boot_order(self):
+        import fraktal_tia_generate as gen
+        value = OWNER.declaration(); value['config_sets'] = {'capacity': 2}
+        value['line'].update(role='MIRROR', source='F_TestLineSource')
+        model = gen.DECL.validate(value)
+        sources, metadata = gen.build(model, True, line_workbench=True)
+        self.assertEqual(metadata['declaration']['line']['source'], 'F_TestLineSource')
+        main = sources['30_FB_FraktalMain.scl']
+        self.assertLess(main.index('"FRK_LineBoot"(OwnerRole := FALSE'), main.index('"FRK_DocBoot"'))
+        self.assertEqual(sources['17_Line.scl'].count('"F_TestLineSource"('), 1)
+        self.assertIn('#Available AND #SourceError = 0', sources['17_Line.scl'])
+        self.assertIn('OR "FRK_Line".Data.Applied THEN "FRK_PersistDirty"', sources['15_PersistMedium.scl'])
+        self.assertNotIn('RegIndex', sources['05_FRK_LineSource.db'])
+        root = ''.join(text for name,text in sources.items() if name.startswith('20_'))
+        self.assertIn("LastRejectScope := 'BenchLineOwner'", root)
+
+    def test_source_is_separate_and_owner_needs_no_provider(self):
+        import fraktal_tia_generate as gen
+        for source, role in (('FB_Bad','MIRROR'), ('F_Test','OWNER'), ('bad.name','MIRROR'), (True,'MIRROR')):
+            value = OWNER.declaration(); value['line'].update(role=role,source=source)
+            with self.subTest(source=source), self.assertRaises(DeclarationError):gen.DECL.validate(value)
 
 
 if __name__ == '__main__': unittest.main()

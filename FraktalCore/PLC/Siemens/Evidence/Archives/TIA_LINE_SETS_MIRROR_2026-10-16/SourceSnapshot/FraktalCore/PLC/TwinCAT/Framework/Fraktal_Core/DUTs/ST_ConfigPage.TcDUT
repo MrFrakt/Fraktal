@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ConfigPage" Id="{5b7a20c9-91e4-4f5d-8a36-c04d1be97a24}">
+    <Declaration><![CDATA[// Core §3.10.2 — one bounded page of the configuration manifest, published in
+// ST_HmiResponse. The HMI requests QUERY_CONFIG with IntValue = PageIndex and
+// walks 0..PageCount-1; Revision lets it detect a changed manifest (activation,
+// changeover, config write) and refetch.
+TYPE ST_ConfigPage :
+STRUCT
+    Revision   : UDINT;
+    PageIndex  : INT;
+    PageCount  : INT;
+    EntryCount : INT;
+    Entries    : ARRAY[1..PL_Fraktal.MAX_CONFIG_PAGE] OF ST_ConfigEntry;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

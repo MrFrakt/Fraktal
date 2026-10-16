@@ -1,0 +1,25 @@
+﻿FUNCTION "FRK_AlarmRecoveryPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	// All selected descendants are conservative until their owning frame restores.
+	FOR #Slot := 1 TO 2 DO
+	    "FRK_AlarmRecoveryRuntime".Ready[#Slot] := FALSE;
+	    "FRK_AlarmRecoveryRuntime".Blocked[#Slot] := TRUE;
+	END_FOR;
+	
+END_FUNCTION
+

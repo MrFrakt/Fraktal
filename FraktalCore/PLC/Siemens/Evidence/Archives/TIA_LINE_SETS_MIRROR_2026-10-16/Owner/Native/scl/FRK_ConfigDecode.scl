@@ -1,0 +1,115 @@
+﻿FUNCTION "FRK_ConfigDecode" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Keyed local-retain config. The typed owner validates before publishing a value.
+   VAR_INPUT 
+      Text : WString;
+      Storage : DInt;
+      Minimum : LReal;
+      Maximum : LReal;
+      MaxLength : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Value : "FRK_ConfigValue";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Width : Int;
+      Negative : Bool;
+      Magnitude : ULInt;
+      Digit : ULInt;
+      Decimal : LReal;
+      Converted : Real;
+      ConvertedOk : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigDecode := FALSE;
+	IF #Storage = 8 THEN
+	    IF LEN(#Text) > #MaxLength THEN
+	        RETURN;
+	    END_IF;
+	    #Value.Text := WSTRING_TO_STRING(#Text);
+	    IF STRING_TO_WSTRING(#Value.Text) <> #Text THEN
+	        RETURN;
+	    END_IF;
+	    #FRK_ConfigDecode := TRUE;
+	    RETURN;
+	END_IF;
+	IF #Storage = 1 THEN
+	    IF #Text = WSTRING#'true' OR #Text = WSTRING#'TRUE' OR #Text = WSTRING#'1' THEN
+	        #Value.Flag := TRUE;
+	    ELSIF #Text = WSTRING#'false' OR #Text = WSTRING#'FALSE' OR #Text = WSTRING#'0' THEN
+	        #Value.Flag := FALSE;
+	    ELSE
+	        RETURN;
+	    END_IF;
+	    #FRK_ConfigDecode := TRUE;
+	    RETURN;
+	END_IF;
+	IF #Storage = 5 OR #Storage = 6 THEN
+	    #ConvertedOk := "FRK_DecimalDecode"(Text := #Text,
+	                                        SinglePrecision := #Storage = 5, Value := #Decimal);
+	    IF NOT #ConvertedOk OR #Decimal < #Minimum OR #Decimal > #Maximum THEN
+	        RETURN;
+	    END_IF;
+	    IF #Storage = 5 THEN
+	        #Converted := LREAL_TO_REAL(#Decimal);
+	        IF #Converted = 0.0 AND #Decimal <> 0.0 THEN
+	            RETURN;
+	        END_IF;
+	        #Decimal := REAL_TO_LREAL(#Converted);
+	        IF #Decimal < #Minimum OR #Decimal > #Maximum THEN
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	    #Value.Decimal := #Decimal;
+	    #FRK_ConfigDecode := TRUE;
+	    RETURN;
+	END_IF;
+	IF #Storage <> 2 AND #Storage <> 3
+	    AND #Storage <> 4 AND #Storage <> 7 THEN
+	    RETURN;
+	END_IF;
+	#Width := LEN(#Text);
+	IF #Width = 0 THEN
+	    RETURN;
+	END_IF;
+	#Negative := FALSE;
+	#Index := 1;
+	IF #Text[1] = WCHAR#'-' THEN
+	    #Negative := TRUE;
+	    #Index := 2;
+	ELSIF #Text[1] = WCHAR#'+' THEN
+	    #Index := 2;
+	END_IF;
+	IF #Index > #Width THEN
+	    RETURN;
+	END_IF;
+	#Magnitude := 0;
+	WHILE #Index <= #Width DO
+	    IF #Text[#Index] < WCHAR#'0' OR #Text[#Index] > WCHAR#'9' THEN
+	        RETURN;
+	    END_IF;
+	    #Digit := UINT_TO_ULINT(WCHAR_TO_UINT(#Text[#Index]) - UINT#48);
+	    IF #Magnitude > (ULINT#4294967295 - #Digit) / ULINT#10 THEN
+	        RETURN;
+	    END_IF;
+	    #Magnitude := #Magnitude * ULINT#10 + #Digit;
+	    #Index := #Index + 1;
+	END_WHILE;
+	#Value.Number := ULINT_TO_LINT(#Magnitude);
+	IF #Negative THEN
+	    #Value.Number := - #Value.Number;
+	END_IF;
+	IF LINT_TO_LREAL(#Value.Number) < #Minimum OR LINT_TO_LREAL(#Value.Number) > #Maximum THEN
+	    RETURN;
+	END_IF;
+	#FRK_ConfigDecode := TRUE;
+	
+END_FUNCTION
+

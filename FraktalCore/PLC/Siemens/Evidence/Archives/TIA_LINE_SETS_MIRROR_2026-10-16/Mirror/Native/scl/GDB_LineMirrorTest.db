@@ -1,0 +1,33 @@
+﻿DATA_BLOCK "GDB_LineMirrorTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      PublishPulse : Bool;
+      IncomingRevision : UDInt;
+      TaktMs : UDInt;
+      ImageMode : Int;
+      SourceError : DInt;
+      Synchronized : Bool;
+      SourceCalls { ExternalWritable := 'False'} : UDInt;
+      ReadyScans { ExternalWritable := 'False'} : UDInt;
+      SourceOncePerScan { ExternalWritable := 'False'} : Bool;
+      WorkingTaktMs { ExternalWritable := 'False'} : UDInt;
+      BootDefaultSeen { ExternalWritable := 'False'} : Bool;
+      BootDefaultValue { ExternalWritable := 'False'} : UDInt;
+      PoisonPulse : Bool;
+      Available { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Incoming { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_LineImage";
+      SourceOwner { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_LineState";
+   END_VAR
+   VAR RETAIN
+      Enabled : Bool;
+   END_VAR
+
+
+BEGIN
+   IncomingRevision := 10;
+   TaktMs := 1500;
+
+END_DATA_BLOCK
+

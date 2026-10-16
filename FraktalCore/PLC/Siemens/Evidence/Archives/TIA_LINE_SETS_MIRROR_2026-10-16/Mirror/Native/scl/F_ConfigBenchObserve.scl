@@ -1,0 +1,56 @@
+﻿FUNCTION "F_ConfigBenchObserve" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	"GDB_StateAlarmTest".NativeFaultSlot := "StationA".Cell.Gate.Core.FaultSlot;
+	"GDB_RoutingTest".ManExecute := "StationA".Cell.Gate.Execute;
+	"GDB_RoutingTest".ManStarts := "StationA".Cell.Gate.Device.StartCount;
+	"GDB_UnitTest".Scans := "GDB_UnitTest".Scans + 1;
+	"GDB_UnitTest".ChildExecute := "StationA".Cell.Clamp.Execute;
+	"GDB_UnitTest".ChildState := "StationA".Cell.Clamp.Core.Exec;
+	"GDB_UnitTest".CarrierWrites := "FRK_Carriers".Slots[1].Writes;
+	"GDB_UnitTest".CarrierSerial := "FRK_Carriers".Slots[1].Serial;
+	"GDB_UnitTest".WrittenUid := "FRK_Carriers".Slots[1].Written.Uid;
+	"GDB_UnitTest".WrittenVerdict := "FRK_Carriers".Slots[1].Written.Result.Verdict;
+	IF "StationA".AlarmLog.RingHead > 0 AND "StationA".AlarmLog.RingHead <= 64 THEN
+	    "GDB_UnitTest".LastEvent := "StationA".AlarmLog.Ring["StationA".AlarmLog.RingHead].ReasonCode;
+	END_IF;
+	"GDB_UnitTest".SecretCleared := "StationA".HmiRequest.Secret = '';
+	"GDB_UnitTest".SnapshotSecretCleared := "StationA".Unit.Request.Secret = '';
+	IF "StationA".Access.LoginBusy AND ("GDB_AccessTest".CancelOnLogin OR "GDB_AccessTest".SupersedeOnLogin) THEN
+	    "GDB_AccessTest".InterruptedBusy := TRUE;
+	    IF "GDB_AccessTest".CancelOnLogin THEN
+	        "GDB_AccessTest".InterruptRequest.Kind := 2;
+	        "FRK_UnitOperation"(Core := "StationA".Core,
+	                            Unit := "StationA".Unit,
+	                            Status := "StationA".Status,
+	                            Policy := "StationA".ModePolicy,
+	                            Access := "StationA".Access,
+	                            Supported := "StationA".SupportedModesPublished,
+	                            Request := "GDB_AccessTest".InterruptRequest,
+	                            Response := "FRK_UnitScratch".Response,
+	                            Trusted := FALSE);
+	    ELSE
+	        "GDB_AccessTest".SupersededSequence := "FRK_AccessNext"(Previous := "StationA".Access.LoginSequence);
+	        "FRK_AccessLogin"(Access := "StationA".Access,
+	                          User := 'unknown',
+	                          Secret := 'wrong',
+	                          Sequence := "GDB_AccessTest".SupersededSequence);
+	    END_IF;
+	    "GDB_AccessTest".CancelOnLogin := FALSE;
+	    "GDB_AccessTest".SupersedeOnLogin := FALSE;
+	END_IF;
+	"F_ConfigSetBench"();
+	"F_AccessPersistenceBench"(Startup := #Startup);
+	"F_AlarmPersistenceBench"();
+	"F_AlarmRecoveryBench"();
+	"F_LineMirrorObserve"(Startup := #Startup);
+	
+END_FUNCTION
+

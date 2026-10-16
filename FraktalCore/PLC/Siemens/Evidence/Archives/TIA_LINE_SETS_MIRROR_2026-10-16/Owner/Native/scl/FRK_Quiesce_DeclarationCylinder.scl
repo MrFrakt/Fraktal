@@ -1,0 +1,41 @@
+﻿FUNCTION "FRK_Quiesce_DeclarationCylinder" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Module : "FB_DeclarationCylinder";
+      Hal : "ST_DeclarationLeafHal";
+   END_VAR
+
+   VAR_TEMP 
+      WasBusy : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Module.Execute := FALSE;
+	#Module.Abort := FALSE;
+	#WasBusy := #Module.Core.Exec = 1;
+	"FRK_RouteAbort"(Abort := TRUE,
+	                 Core := #Module.Core);
+	IF #WasBusy THEN
+	    "FRK_AbortHook_DeclarationCylinder"(Device := #Module.Device);
+	END_IF;
+	IF #Module.Core.RegIndex > 0 THEN
+	    "FRK_End"(Core := #Module.Core,
+	              Status := #Module.Status,
+	              Busy => #Module.Busy,
+	              Done => #Module.Done,
+	              Error => #Module.Error,
+	              Aborted => #Module.Aborted,
+	              Held => #Module.Held,
+	              ErrorID => #Module.ErrorID,
+	              Timing => #Module.Timing);
+	END_IF;
+	"FRK_CyclicHook_DeclarationCylinder"(Core := #Module.Core,
+	                                     Device := #Module.Device,
+	                                     Hal := #Hal,
+	                                     OutImm := #Module.OutImm);
+	
+END_FUNCTION
+

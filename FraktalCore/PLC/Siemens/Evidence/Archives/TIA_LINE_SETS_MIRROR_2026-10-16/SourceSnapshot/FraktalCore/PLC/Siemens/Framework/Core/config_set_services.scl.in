@@ -1,0 +1,467 @@
+// Deployment-sized keyed set storage; validation belongs to the typed walk.
+FUNCTION "FRK_SetFind" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    SetName : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_SetFind := 0;
+    FOR #Index := 1 TO @SET_CAPACITY@ DO
+        IF "FRK_SetStore".Sets[#RootIndex, #Index].Info.Used AND "FRK_SetStore".Sets[#RootIndex, #Index].Info.SetName = #SetName THEN
+            #FRK_SetFind := #Index; RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_SetSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    SetName : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_SetSlot := "FRK_SetFind"(RootIndex := #RootIndex, SetName := #SetName);
+    IF #FRK_SetSlot <> 0 THEN RETURN; END_IF;
+    FOR #Index := 1 TO @SET_CAPACITY@ DO
+        IF NOT "FRK_SetStore".Sets[#RootIndex, #Index].Info.Used THEN #FRK_SetSlot := #Index; RETURN; END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_SetRecord" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Scope : String;
+    WriteKey : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_SetRecord := 0;
+    FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
+        IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope = #Scope AND "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey = #WriteKey THEN
+            #FRK_SetRecord := #Index; RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_SetCheck" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Scope : String;
+    Access : "FRK_Access";
+    Ready : Bool;
+    WriteAccess : Bool;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_SetCheck := 0;
+    "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Scope;
+    "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+    #Index := "FRK_SetRecord"(RootIndex := #RootIndex, Scope := #Scope, WriteKey := "FRK_ConfigScratch".Entry.WriteKey);
+    IF #Index = 0 THEN RETURN; END_IF;
+    IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[@E_GatedAction.DATA_READ@], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+    IF #WriteAccess THEN
+        IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[@E_GatedAction.DATA_WRITE@], IN2 := "FRK_ConfigScratch".MinWrite) THEN RETURN; END_IF;
+        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready THEN RETURN; END_IF;
+    END_IF;
+    IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Revision <> "FRK_ConfigScratch".Entry.WriteRevision
+        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Kind <> "FRK_ConfigScratch".Entry.ConfigKind
+        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
+    #Ok := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING("FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueText));
+    IF NOT #Ok THEN RETURN; END_IF;
+    // Existing keyed slots are reserved before commit: commit cannot allocate.
+@SET_SLOT_GUARD@
+    "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := TRUE;
+    "FRK_SetRuntime".Work[#RootIndex].Matched := "FRK_SetRuntime".Work[#RootIndex].Matched + 1;
+    #FRK_SetCheck := #Index;
+END_FUNCTION
+
+// Append complete text or refuse. Explicit destination width and length check
+// protect long WSTRING lines against truncation in the Siemens string runtime.
+FUNCTION "FRK_JsonPut" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Text : WString;
+END_VAR
+VAR_IN_OUT
+    Line : WString;
+END_VAR
+VAR_TEMP
+    Expected : Int;
+END_VAR
+BEGIN
+    #FRK_JsonPut := FALSE;
+    #Expected := LEN(#Line) + LEN(#Text);
+    IF #Expected > @LINE_WIDTH@ THEN RETURN; END_IF;
+    #Line := CONCAT(IN1 := #Line, IN2 := #Text);
+    #FRK_JsonPut := LEN(#Line) = #Expected;
+END_FUNCTION
+
+FUNCTION "FRK_JsonAdd" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Key : String;
+    Value : WString;
+    Quoted : Bool;
+    LastField : Bool;
+END_VAR
+VAR_IN_OUT
+    Line : WString;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Ch : WChar;
+    FirstChar : Int;
+    Piece : WString[2];
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_JsonAdd := FALSE;
+    #Ok := "FRK_JsonPut"(Text := CONCAT(IN1 := WSTRING#'"', IN2 := STRING_TO_WSTRING(#Key), IN3 := WSTRING#'":'), Line := #Line);
+    IF NOT #Ok THEN RETURN; END_IF;
+    IF #Quoted THEN
+        #Ok := "FRK_JsonPut"(Text := WSTRING#'"', Line := #Line);
+        IF NOT #Ok THEN RETURN; END_IF;
+    END_IF;
+    #FirstChar := 1;
+    // Siemens integer conversions include a leading '+'. JSON numbers do not.
+    IF NOT #Quoted THEN
+        IF LEN(#Value) = 0 THEN RETURN; END_IF;
+        IF #Value[1] = WCHAR#'+' THEN #FirstChar := 2; END_IF;
+        IF #FirstChar > LEN(#Value) THEN RETURN; END_IF;
+    END_IF;
+    FOR #Index := #FirstChar TO LEN(#Value) DO
+        #Ch := #Value[#Index]; #Piece := WSTRING#' ';
+        #Piece[1] := #Ch;
+        IF NOT #Quoted AND (#Ch < WCHAR#'0' OR #Ch > WCHAR#'9') THEN RETURN; END_IF;
+        IF #Quoted THEN
+            IF #Ch = WCHAR#'"' THEN #Piece := WSTRING#'\"';
+            ELSIF #Ch = WCHAR#'\' THEN #Piece := WSTRING#'\\';
+            ELSIF #Ch = WCHAR#'$000A' THEN #Piece := WSTRING#'\n';
+            ELSIF #Ch = WCHAR#'$000D' THEN #Piece := WSTRING#'\r';
+            ELSIF #Ch = WCHAR#'$0009' THEN #Piece := WSTRING#'\t';
+            ELSIF #Ch = WCHAR#'$0008' THEN #Piece := WSTRING#'\b';
+            ELSIF #Ch = WCHAR#'$000C' THEN #Piece := WSTRING#'\f';
+            ELSIF #Ch < WCHAR#'$0020' THEN RETURN;
+            END_IF;
+        END_IF;
+        #Ok := "FRK_JsonPut"(Text := #Piece, Line := #Line);
+        IF NOT #Ok THEN RETURN; END_IF;
+    END_FOR;
+    IF #Quoted THEN
+        #Ok := "FRK_JsonPut"(Text := WSTRING#'"', Line := #Line);
+        IF NOT #Ok THEN RETURN; END_IF;
+    END_IF;
+    IF #LastField THEN #Piece := WSTRING#'}'; ELSE #Piece := WSTRING#','; END_IF;
+    #FRK_JsonAdd := "FRK_JsonPut"(Text := #Piece, Line := #Line);
+END_FUNCTION
+
+// Strict flat JSON object scanner: whole object, unique known fields, exact
+// types, numeric integer grammar; strings decode escapes before owner checks.
+FUNCTION "FRK_JsonParse" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Line : WString;
+END_VAR
+VAR_IN_OUT
+    Fields : Array[1..9] of "FRK_JsonField";
+    Count : Int;
+END_VAR
+VAR_TEMP
+    Pos : Int;
+    Limit : Int;
+    Digit : Int;
+    CodePoint : UInt;
+    HexIndex : Int;
+    Index : Int;
+    Part : Int;
+    Text : WString[160];
+    Piece : WString[1];
+    Quoted : Bool;
+    Closed : Bool;
+    Ch : WChar;
+END_VAR
+BEGIN
+    #FRK_JsonParse := FALSE; #Count := 0; #Pos := 1; #Limit := LEN(#Line);
+    IF #Limit < 2 OR #Line[#Pos] <> WCHAR#'{' THEN RETURN; END_IF;
+    #Pos := #Pos + 1;
+    WHILE #Pos <= #Limit DO
+        "FRK_JsonSkip"(Line := #Line, Pos := #Pos);
+        IF #Pos > #Limit OR #Count >= 9 THEN RETURN; END_IF;
+        #Count := #Count + 1;
+        FOR #Part := 1 TO 2 DO
+            #Text := WSTRING#''; #Closed := FALSE;
+            #Quoted := #Line[#Pos] = WCHAR#'"';
+            IF #Part = 1 AND NOT #Quoted THEN RETURN; END_IF;
+            IF #Quoted THEN #Pos := #Pos + 1; END_IF;
+            WHILE #Pos <= #Limit DO
+                #Ch := #Line[#Pos];
+                IF #Quoted AND #Ch = WCHAR#'"' THEN #Closed := TRUE; #Pos := #Pos + 1; EXIT; END_IF;
+                IF NOT #Quoted AND (#Ch = WCHAR#',' OR #Ch = WCHAR#'}' OR #Ch = WCHAR#' ') THEN #Closed := TRUE; EXIT; END_IF;
+                IF #Ch < WCHAR#'$0020' THEN RETURN; END_IF;
+                IF #Quoted AND #Ch = WCHAR#'\' THEN
+                    #Pos := #Pos + 1; IF #Pos > #Limit THEN RETURN; END_IF;
+                    #Ch := #Line[#Pos];
+                    IF #Ch = WCHAR#'u' THEN
+                        #CodePoint := 0;
+                        FOR #HexIndex := 1 TO 4 DO
+                            #Pos := #Pos + 1; IF #Pos > #Limit THEN RETURN; END_IF;
+                            #Ch := #Line[#Pos]; #Digit := -1;
+                            IF #Ch >= WCHAR#'0' AND #Ch <= WCHAR#'9' THEN #Digit := WORD_TO_INT(WCHAR_TO_WORD(#Ch)) - 48;
+                            ELSIF #Ch >= WCHAR#'a' AND #Ch <= WCHAR#'f' THEN #Digit := WORD_TO_INT(WCHAR_TO_WORD(#Ch)) - 87;
+                            ELSIF #Ch >= WCHAR#'A' AND #Ch <= WCHAR#'F' THEN #Digit := WORD_TO_INT(WCHAR_TO_WORD(#Ch)) - 55; END_IF;
+                            IF #Digit < 0 THEN RETURN; END_IF;
+                            #CodePoint := #CodePoint * 16 + INT_TO_UINT(#Digit);
+                        END_FOR;
+                        IF #CodePoint = 0 OR #CodePoint >= UINT#16#D000 THEN RETURN; END_IF;
+                        #Ch := WORD_TO_WCHAR(UINT_TO_WORD(#CodePoint));
+                    ELSIF #Ch = WCHAR#'n' THEN #Ch := WCHAR#'$000A';
+                    ELSIF #Ch = WCHAR#'r' THEN #Ch := WCHAR#'$000D';
+                    ELSIF #Ch = WCHAR#'t' THEN #Ch := WCHAR#'$0009';
+                    ELSIF #Ch = WCHAR#'b' THEN #Ch := WCHAR#'$0008';
+                    ELSIF #Ch = WCHAR#'f' THEN #Ch := WCHAR#'$000C';
+                    ELSIF #Ch <> WCHAR#'"' AND #Ch <> WCHAR#'\' AND #Ch <> WCHAR#'/' THEN RETURN;
+                    END_IF;
+                ELSIF NOT #Quoted AND (#Ch < WCHAR#'0' OR #Ch > WCHAR#'9') THEN RETURN;
+                END_IF;
+                IF LEN(#Text) >= 160 THEN RETURN; END_IF;
+                #Piece := WSTRING#' '; #Piece[1] := #Ch;
+                #Text := CONCAT(IN1 := #Text, IN2 := #Piece); #Pos := #Pos + 1;
+            END_WHILE;
+            IF NOT #Closed THEN RETURN; END_IF;
+            IF #Part = 1 THEN
+                IF LEN(#Text) < 1 OR LEN(#Text) > 16 THEN RETURN; END_IF;
+                #Fields[#Count].Key := WSTRING_TO_STRING(#Text);
+                FOR #Index := 1 TO #Count - 1 DO IF #Fields[#Index].Key = #Fields[#Count].Key THEN RETURN; END_IF; END_FOR;
+                "FRK_JsonSkip"(Line := #Line, Pos := #Pos);
+                IF #Pos > #Limit THEN RETURN; END_IF;
+                IF #Line[#Pos] <> WCHAR#':' THEN RETURN; END_IF;
+                #Pos := #Pos + 1;
+                "FRK_JsonSkip"(Line := #Line, Pos := #Pos);
+                IF #Pos > #Limit THEN RETURN; END_IF;
+            ELSE
+                IF NOT #Quoted AND (LEN(#Text) = 0 OR (LEN(#Text) > 1 AND #Text[1] = WCHAR#'0')) THEN RETURN; END_IF;
+                #Fields[#Count].Text := #Text; #Fields[#Count].Quoted := #Quoted;
+            END_IF;
+        END_FOR;
+        "FRK_JsonSkip"(Line := #Line, Pos := #Pos);
+        IF #Pos > #Limit THEN RETURN; END_IF;
+        IF #Line[#Pos] = WCHAR#'}' THEN
+            #Pos := #Pos + 1;
+            "FRK_JsonSkip"(Line := #Line, Pos := #Pos);
+            #FRK_JsonParse := #Pos > #Limit; RETURN;
+        END_IF;
+        IF #Line[#Pos] <> WCHAR#',' THEN RETURN; END_IF;
+        #Pos := #Pos + 1;
+    END_WHILE;
+END_FUNCTION
+
+FUNCTION "FRK_SetShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    RootIdentity : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Other : Int;
+    ModelIndex : Int;
+    KnownModel : Bool;
+END_VAR
+BEGIN
+    #FRK_SetShape := FALSE;
+    IF NOT "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Used OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RootIdentity <> #RootIdentity
+        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetSchema <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ConfigRev = 0
+        OR LEN("FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName) = 0
+        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount < 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount > @SET_RECORDS@ THEN RETURN; END_IF;
+    IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 0 THEN
+        #KnownModel := FALSE;
+        FOR #ModelIndex := 1 TO @MODEL_COUNT@ DO
+            IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := INT_TO_UDINT(#ModelIndex)) THEN #KnownModel := TRUE; END_IF;
+        END_FOR;
+        IF NOT #KnownModel THEN RETURN; END_IF;
+@LINE_SET_SHAPE@    ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN RETURN;
+    END_IF;
+    FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
+        "FRK_SetRuntime".Work[#RootIndex].RejectScope := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope;
+        "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey;
+        IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Kind <> "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind THEN RETURN; END_IF;
+        FOR #Other := 1 TO #Index - 1 DO
+            IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Other].Scope = "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope
+                AND "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Other].WriteKey = "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey THEN RETURN; END_IF;
+        END_FOR;
+    END_FOR;
+    #FRK_SetShape := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_SetImport" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Request : "ST_HmiRequest";
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_SetImport := FALSE;
+    IF #Request.IntValue <> 0 AND #Request.IntValue <> 1 THEN RETURN; END_IF;
+    IF #Request.NameValue <> '' OR #Request.TargetPath <> WSTRING#'' OR #Request.DurationMs <> 0 THEN RETURN; END_IF;
+    #Ok := "FRK_JsonPut"(Text := #Request.TextValue, Line := "FRK_SetRuntime".Work[#RootIndex].Piece);
+    IF NOT #Ok THEN RETURN; END_IF;
+    IF #Request.IntValue = 1 THEN #FRK_SetImport := NOT #Request.BoolValue; RETURN; END_IF;
+    "FRK_SetRuntime".Work[#RootIndex].Line := "FRK_SetRuntime".Work[#RootIndex].Piece;
+    "FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+    #Ok := "FRK_JsonParse"(Line := "FRK_SetRuntime".Work[#RootIndex].Line, Fields := "FRK_SetRuntime".Work[#RootIndex].Fields, Count := "FRK_SetRuntime".Work[#RootIndex].FieldCount);
+    IF NOT #Ok THEN RETURN; END_IF;
+    IF NOT "FRK_SetRuntime".Work[#RootIndex].Importing THEN
+        #Ok := "FRK_JsonReadHeader"(Count := "FRK_SetRuntime".Work[#RootIndex].FieldCount, Fields := "FRK_SetRuntime".Work[#RootIndex].Fields, Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Info);
+        IF NOT #Ok OR #Request.BoolValue THEN RETURN; END_IF;
+        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Used := TRUE;
+        "FRK_SetRuntime".Work[#RootIndex].Received := 0;
+        "FRK_SetRuntime".Work[#RootIndex].Importing := TRUE;
+    ELSE
+        #Index := "FRK_SetRuntime".Work[#RootIndex].Received + 1;
+        IF #Index > @SET_RECORDS@ OR #Index > "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN RETURN; END_IF;
+        #Ok := "FRK_JsonReadRecord"(Count := "FRK_SetRuntime".Work[#RootIndex].FieldCount, Fields := "FRK_SetRuntime".Work[#RootIndex].Fields, Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index]);
+        IF NOT #Ok THEN RETURN; END_IF;
+        "FRK_SetRuntime".Work[#RootIndex].Received := #Index;
+    END_IF;
+    IF #Request.BoolValue THEN
+        "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+        IF "FRK_SetRuntime".Work[#RootIndex].Received <> "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN RETURN; END_IF;
+    END_IF;
+    #FRK_SetImport := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_JsonSkip" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Line : WString;
+END_VAR
+VAR_IN_OUT
+    Pos : Int;
+END_VAR
+BEGIN
+    WHILE #Pos <= LEN(#Line) DO
+        IF #Line[#Pos] <> WCHAR#' ' AND #Line[#Pos] <> WCHAR#'$0009' AND #Line[#Pos] <> WCHAR#'$000A' AND #Line[#Pos] <> WCHAR#'$000D' THEN RETURN; END_IF;
+        #Pos := #Pos + 1;
+    END_WHILE;
+END_FUNCTION
+
+FUNCTION "FRK_SetValidateBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    "FRK_SetRuntime".Work[#RootIndex].Matched := 0;
+    FOR #Index := 1 TO @SET_RECORDS@ DO "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := FALSE; END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_SetValidateEnd" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_SetValidateEnd := FALSE;
+    FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
+        IF NOT "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] THEN
+            "FRK_SetRuntime".Work[#RootIndex].RejectScope := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope;
+            "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].WriteKey;
+            RETURN;
+        END_IF;
+    END_FOR;
+    #FRK_SetValidateEnd := "FRK_SetRuntime".Work[#RootIndex].Matched = "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount;
+END_FUNCTION
+
+FUNCTION "FRK_SetResult" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Response : "ST_HmiResponse";
+    Scope : String;
+    RootIndex : Int;
+END_VAR
+VAR_IN_OUT
+    Persist : "ST_ConfigPersistStatus";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Slot : Int;
+    Ok : Bool;
+END_VAR
+BEGIN
+    IF #Request.Kind <> @E_HmiRequestKind.LOAD_CONFIG_SET@ THEN RETURN; END_IF;
+    IF NOT #Response.Accepted THEN
+        #Persist.LastRejectScope := "FRK_SetRuntime".Work[#RootIndex].RejectScope;
+        #Persist.LastRejectKey := "FRK_SetRuntime".Work[#RootIndex].RejectKey;
+    END_IF;
+    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+    #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+    IF #Response.Accepted THEN
+        #Diag.ReasonCode := @E_Reason.EVENT_CONFIG_SET_APPLIED@;
+        #Diag.Description := WSTRING#'std.event.configSetApplied';
+    ELSE
+        #Diag.ReasonCode := @E_Reason.CONFIG_SET_REJECTED@;
+        #Diag.Description := WSTRING#'std.error.configSetRejected';
+        #Diag.SourcePath := STRING_TO_WSTRING(#Persist.LastRejectScope);
+    END_IF;
+    #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
+    IF #Slot > 0 THEN #Ok := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+END_FUNCTION
+// A current-value document is bound to the existing session and this token.
+FUNCTION "FRK_ExportTokenValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Token : String;
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_ExportTokenValid := FALSE;
+    IF LEN(#Token) <> 32 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 32 DO
+        IF NOT ((#Token[#Index] >= CHAR#'0' AND #Token[#Index] <= CHAR#'9')
+            OR (#Token[#Index] >= CHAR#'a' AND #Token[#Index] <= CHAR#'f')
+            OR (#Token[#Index] >= CHAR#'A' AND #Token[#Index] <= CHAR#'F')) THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ExportTokenValid := TRUE;
+END_FUNCTION

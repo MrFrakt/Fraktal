@@ -175,7 +175,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
                 raise DECL.DeclarationError('T-CORE', t.name, 'manifest revision, pager and catalog belong to the generated frame')
             if config_runtime and re.search(r'#(?:\w+\.)*(?:ParCfg|StationCfg|ConfigPersist|Model|ConfigStage\w*|ConfigDefault\w*|ConfigStaged|AvailableModelCount|AvailableModels|ConfigSets|ConfigSetCount|ConfigSetDocument|ConfigSetDocumentLine|ConfigSetDocumentLines)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Cfg|Set|Json)\w*"\s*\(|"FRK_(?:Config(?:Store|Scratch|Runtime)|Set(?:Store|Runtime))"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'editable config, staging and model identity belong to the owning handlers')
-            if model.line and re.search(r'#(?:Line|LineRevisionSeen)(?:\.\w+)*\s*:=|"FRK_Line\w*"\s*\(|"FRK_Line"', code, re.I):
+            if model.line and re.search(r'#(?:Line|LineRevisionSeen)(?:\.\w+)*\s*:=|"FRK_Line\w*"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'line config and publication belong to the shared owner and generated frame')
             if re.search(r'#Access\b[^;]*:=|"FRK_Access\w*"\s*\(|"FRK_(?:LocalUsers|AccessPolicies|AccessStorage)"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'access authority belongs to generated services and composition injection')
@@ -290,7 +290,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
         if config.sets:
             calls.insert(1, '    "FRK_SetBoot"(Startup := #Startup);')
         if config.line:
-            calls.insert(0, '    IF #Startup THEN "FRK_LineBoot"(OwnerRole := TRUE, NowMs := "FRK_Clock".NowMs, State := "FRK_Line".Data); END_IF;')
+            calls.insert(0, config.line.boot_call())
             ready = []
             for root in model.line.roots:
                 prefix = '"'+root+'"'

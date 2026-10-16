@@ -1,0 +1,14 @@
+FUNCTION "F_LineMirrorSource" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_OUTPUT SourceError : DInt; Stamp : LDT; TimeSynchronized : Bool; END_VAR
+VAR_IN_OUT Image : "ST_LineImage"; END_VAR
+BEGIN
+    "GDB_LineMirrorTest".SourceCalls := "GDB_LineMirrorTest".SourceCalls + 1;
+    #SourceError := "GDB_LineMirrorTest".SourceError;
+    #Stamp := LDT#2026-10-16-12:00:00; #TimeSynchronized := "GDB_LineMirrorTest".Synchronized;
+    #F_LineMirrorSource := "GDB_LineMirrorTest".Enabled AND "GDB_LineMirrorTest".Available;
+    IF #F_LineMirrorSource THEN
+        #Image := "GDB_LineMirrorTest".Incoming; "GDB_LineMirrorTest".Available := FALSE;
+    END_IF;
+END_FUNCTION

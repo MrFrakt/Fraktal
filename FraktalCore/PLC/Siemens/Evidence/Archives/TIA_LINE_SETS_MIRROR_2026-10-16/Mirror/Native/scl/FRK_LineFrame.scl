@@ -1,0 +1,35 @@
+﻿FUNCTION "FRK_LineFrame" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Startup : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seen : UDInt;
+      ConfigRevision : UDInt;
+      Published : "ST_LineStatus";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT "FRK_LineScope"(Scope := #Scope) THEN
+	    RETURN;
+	END_IF;
+	IF #Scope = 'StationA' THEN
+	    "FRK_LineSourceTick"();
+	    "FRK_LineAnnounce"(Scope := #Scope,
+	                       State := "FRK_Line".Data,
+	                       AlarmLog := #AlarmLog);
+	END_IF;
+	#Published := "FRK_Line".Data.Status;
+	IF #Startup OR #Seen <> #Published.Revision THEN
+	    #Seen := #Published.Revision;
+	    #ConfigRevision := "FRK_ConfigRevision"(Previous := #ConfigRevision);
+	END_IF;
+	
+END_FUNCTION
+

@@ -601,6 +601,10 @@ class Layout:
                  '                #Module.ConfigRev := "FRK_ConfigRevision"(Previous := #Module.ConfigRev);',
                  '                #Module.HmiResponse.Diagnostic := WSTRING#\'\';',
                  '                #Module.ConfigPersist.LastRejectScope := \'\'; #Module.ConfigPersist.LastRejectKey := \'\';', '            END_IF;']
+        if self.model.line and self.model.line.role == 'MIRROR':
+            body.insert(body.index('            #Module.HmiResponse.Accepted := FALSE;', body.index('        %d:'%kinds['WRITE_CONFIG']))+1, '            #Matched := FALSE;')
+            body += ['            IF #Matched AND LEFT(IN := #Request.NameValue, L := 5) = \'line.\' AND NOT #Module.HmiResponse.Accepted THEN',
+                     '                #Module.ConfigPersist.LastRejectScope := '+literal(self.model.line.owner)+';', '            END_IF;']
         if self.model.model_config:
             body += ['        %d:'%kinds['SET_MODEL'],
                      '            #Module.HmiResponse.Accepted := FALSE;',

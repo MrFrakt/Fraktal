@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_HostEventPublisher" Id="{a6ce2335-90bc-43f7-834f-8948fd7ec5e5}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §11.6 — bounded per-Unit L3 event projection. Event production is local;
+// transport is an optional injected sink and can never command the Unit.
+FUNCTION_BLOCK FB_HostEventPublisher
+VAR_OUTPUT
+    Ring     : ARRAY[1..PL_Fraktal.MAX_HOST_EVENTS] OF ST_HostEvent;
+    RingHead : INT;       // newest record, 0 when empty
+    Count    : INT;       // valid records, saturates at the bound
+    Capacity : INT := PL_Fraktal.MAX_HOST_EVENTS; // published bound; clients do not duplicate it
+    Wrapped  : BOOL;      // oldest records have been overwritten
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _sink : I_HostEventSink;
+    _sequence : UDINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// event-driven; no cyclic body]]></ST>
+    </Implementation>
+    <Method Name="Emit" Id="{b9773a19-a4f7-4c3f-a90d-5809086a7f43}">
+      <Declaration><![CDATA[METHOD Emit : BOOL
+VAR_INPUT
+    Kind          : E_HostEventKind;
+    StationPath   : STRING(255);
+    PartUid       : STRING(64);
+    Subject       : STRING(80);
+    Value         : STRING(80);
+    Verdict       : E_Verdict;
+    ReasonCode    : E_Reason;
+END_VAR
+VAR
+    validKind : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[Emit := FALSE;
+CASE Kind OF
+    E_HostEventKind.PART_RECEIVED,
+    E_HostEventKind.PROCESSING_STARTED,
+    E_HostEventKind.PROCESSED,
+    E_HostEventKind.PROCESSING_ABORTED,
+    E_HostEventKind.CHANGEOVER_STARTED,
+    E_HostEventKind.CHANGEOVER_DONE,
+    E_HostEventKind.TOOL_CHANGED,
+    E_HostEventKind.MATERIAL_CHANGED,
+    E_HostEventKind.MODE_CHANGED,
+    E_HostEventKind.NOK:
+        validKind := TRUE;
+ELSE
+    validKind := FALSE;
+END_CASE
+IF NOT validKind OR (StationPath = '') THEN
+    RETURN;
+END_IF
+_sequence := _sequence + 1;
+RingHead := (RingHead MOD PL_Fraktal.MAX_HOST_EVENTS) + 1;
+Ring[RingHead].Sequence := _sequence;
+Ring[RingHead].Kind := Kind;
+Ring[RingHead].StationPath := StationPath;
+Ring[RingHead].PartUid := PartUid;
+Ring[RingHead].Subject := Subject;
+Ring[RingHead].Value := Value;
+Ring[RingHead].Stamp := F_Now();
+Ring[RingHead].TimeSynchronized := F_TimeSynchronized();
+Ring[RingHead].Verdict := Verdict;
+Ring[RingHead].ReasonCode := ReasonCode;
+IF Count < PL_Fraktal.MAX_HOST_EVENTS THEN
+    Count := Count + 1;
+ELSE
+    Wrapped := TRUE;
+END_IF
+IF _sink <> 0 THEN
+    _sink.OnHostEvent(Ev := Ring[RingHead]);
+END_IF
+Emit := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="SetSink" Id="{674d20cb-6d42-4c58-aebb-0030021be42a}">
+      <Declaration><![CDATA[METHOD SetSink : BOOL
+VAR_INPUT
+    Sink : I_HostEventSink;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_sink := Sink;
+SetSink := TRUE;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

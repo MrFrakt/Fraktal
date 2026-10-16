@@ -1,0 +1,60 @@
+﻿FUNCTION "FRK_AccessPersist" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Unit : "FRK_Unit";
+      SourcePath : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Diag : "ST_Diagnostic";
+      Accepted : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Unit.RequestPending AND #Unit.Request.Kind = 31 AND #Access.PolicyLost THEN
+	    // Explicit ENGINEER acknowledgement accepts the restrictive fallback.
+	    #Response.Accepted := #Access.CurrentLevel >= 3 AND #Access.PolicySlot > 0;
+	    IF #Response.Accepted THEN
+	        "FRK_AccessPolicySave"(Access := #Access,
+	                               Scope := WSTRING_TO_STRING(#SourcePath));
+	        #Access.PolicyLost := FALSE;
+	        #Response.Diagnostic := WSTRING#'';
+	    ELSE
+	        #Response.Diagnostic := WSTRING#'std.error.configRestoreAckRefused';
+	    END_IF;
+	ELSIF #Unit.RequestPending AND #Response.Accepted AND NOT #Access.PolicyLost AND (#Unit.Request.Kind = 24 OR #Unit.Request.Kind = 25) THEN
+	    "FRK_AccessPolicySave"(Access := #Access,
+	                           Scope := WSTRING_TO_STRING(#SourcePath));
+	END_IF;
+	IF #Access.PolicyLost AND #Access.PolicyLossAlarm = 0 THEN
+	    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	    #Diag.ReasonCode := 2040;
+	    #Diag.Description := WSTRING#'std.error.configRestoreLost';
+	    #Diag.SourcePath := #SourcePath;
+	    #Access.PolicyLossAlarm := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	ELSIF NOT #Access.PolicyLost AND #Access.PolicyLossAlarm > 0 THEN
+	    #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Access.PolicyLossAlarm);
+	    #Access.PolicyLossAlarm := 0;
+	END_IF;
+	IF "FRK_AccessStorage".UsersLost AND #Access.PolicySlot > 0 AND #Access.UserLossAlarm = 0 THEN
+	    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	    #Diag.ReasonCode := 2040;
+	    #Diag.Description := WSTRING#'std.error.accessRestoreLost';
+	    #Diag.SourcePath := #SourcePath;
+	    #Access.UserLossAlarm := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	ELSIF NOT "FRK_AccessStorage".UsersLost AND #Access.UserLossAlarm > 0 THEN
+	    #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Access.UserLossAlarm);
+	    #Access.UserLossAlarm := 0;
+	END_IF;
+	
+END_FUNCTION
+

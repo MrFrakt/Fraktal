@@ -462,8 +462,10 @@ def validate(value, core=None):
         line = Line.read(value['line'], [r.name for r in roots if lookup[r.type_name.casefold()].unit_modes])
         if not minimum_write_ms:
             raise DeclarationError('T-GEN', 'line', 'production line config requires LOAD_DB persistence')
-        if line.role != 'OWNER':
-            raise DeclarationError('T-GEN', 'line', 'production MIRROR needs a bound source; the local mirror engine is tested separately')
+        if line.role == 'MIRROR' and not line.source:
+            raise DeclarationError('T-GEN', 'line', 'MIRROR needs a bound F_ image provider')
+        if line.source and line.source.casefold() in {*(r.name.casefold() for r in roots), *lookup, *(n.casefold() for n in records), str(event_sink).casefold()}:
+            raise DeclarationError('T-COLLIDE', 'line.source', 'provider collides with another project object')
     return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds,line)
 
 

@@ -5,7 +5,8 @@ P1 is in progress. `tools/fraktal_tia_line.py` and
 The kernel bench uses two independent copies on an isolated S7-1500. A second
 bench wires one owner beside two referencing roots, their normal config
 mailboxes and one shared LOAD_DB document. The shipped press does not yet
-declare a line. Named line sets, a bound mirror source and P2 shifts remain.
+declare a line. Owner line sets/current export and a bound mirror source now
+have isolated tests; P2 shifts and complete profile integration remain.
 Core 1.5 forbids shipping a partial Line profile: normal generation refuses a
 line declaration. Only the Python API's explicit `line_workbench=True` switch
 enables this isolated test package; its manifest records that restriction.
@@ -83,3 +84,48 @@ The bench has separate per-root access sessions, so both roots authenticate
 before checking that the peer displays the edited shared value.
 
 See [owner evidence](../../../../../Specification/Siemens/Evidence/TIA_LINE_OWNER_2026-10-16.md).
+
+## Line sets and source-bound mirrors
+
+`probe_sets.py` exercises the existing root set catalog and JSON/current-export
+protocol with complete owner line snapshots. A referencing root owns its saved
+snapshot identity; loading it updates the one shared working owner. Every field
+is validated and staged before one whole-record commit advances the line revision
+once. Existing station/model sets exclude line values. The ordinary LOAD_DB set
+documents retain line snapshots; there is no second catalog or persistence path.
+The line capacity comes from Core's 32 records, independently of the 12-field
+per-module capability bound. Native runtime checks cover eight typed fields;
+the 32-record shape is a generator test.
+
+`make_mirror_fixture.py` binds a separate `F_LineMirrorSource` provider, called
+once per scan by the first referencing root after restore. Its signature is:
+
+```scl
+FUNCTION F_LineMirrorSource : Bool
+VAR_OUTPUT SourceError : DInt; Stamp : LDT; TimeSynchronized : Bool; END_VAR
+VAR_IN_OUT Image : ST_LineImage; END_VAR
+```
+
+TRUE with SourceError zero offers a complete image to the framework validator.
+FALSE means no new image. The provider receives an image buffer, never the live
+working state. Mirrors preserve their last valid image through LOAD_DB, require
+fresh source observation after restart, expose read-only capabilities and name
+the owner when refusing line edits/sets. A virgin mirror with no observed image
+does not report a persistence-media failure.
+
+The fixture deliberately uses a synthetic local provider and explicit clock
+quality. It does not implement cross-controller transport or qualify synchronized
+UTC. `bench_mirror.json` fixes the second CPU to .54, with no physical mappings.
+`mirror_target.py` reuses the target guards and exclusive download path. A
+completed test can use the helper's `release` action to power off/unregister only
+that guarded test identity, preserving storage; an already-off CPU can restart.
+
+`probe_mirror.py` checks whole-image refusal, source errors, freshness, events,
+write/set refusal and offline restore. It can run again against an already
+restored image by advancing from its initial revision. The initial cold run is
+retained separately. Closed alarm slots retain their descriptions, so event
+checks count only non-CLOSED slots. The HMI component test saves a line set,
+edits the shared value, exports current config, reloads the saved set and deletes
+its test snapshot through the existing production repository.
+
+See [sets and mirror evidence](../../../../../Specification/Siemens/Evidence/TIA_LINE_SETS_MIRROR_2026-10-16.md).

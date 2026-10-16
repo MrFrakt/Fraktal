@@ -1,0 +1,34 @@
+﻿FUNCTION "FRK_ConfigPut" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      ModelCode : String;
+      Text : WString;
+      RootIndex : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Stored : Int;
+      Changed : Bool;
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Stored := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
+	#Changed := #Stored = 0;
+	IF #Stored > 0 THEN
+	    #Changed := "FRK_ConfigStore".Rows[#Stored].SchemaVersion <> "FRK_ConfigScratch".Schema OR "FRK_ConfigStore".Rows[#Stored].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision OR "FRK_ConfigStore".Rows[#Stored].Record.ValueText <> WSTRING_TO_STRING(#Text);
+	END_IF;
+	#FRK_ConfigPut := "FRK_ConfigPutRaw"(Scope := #Scope, ModelCode := #ModelCode, Text := #Text, RootIndex := #RootIndex);
+	IF #FRK_ConfigPut AND #Changed THEN
+	    #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := "FRK_ConfigScratch".Entry.ConfigKind);
+	    IF #Slot > 0 THEN
+	        "FRK_PersistDirty"(Slot := #Slot);
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

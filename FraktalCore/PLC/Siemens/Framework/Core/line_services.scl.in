@@ -99,6 +99,21 @@ BEGIN
     END_IF;
 END_FUNCTION
 
+// Every whole owner change advances exactly once, regardless of record count.
+FUNCTION "FRK_LineCommit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+BEGIN
+    IF #State.Status.Role <> @OWNER_ROLE@ THEN RETURN; END_IF;
+    IF #State.Status.Revision = UDINT#4294967295 THEN #State.Status.Revision := 1;
+    ELSE #State.Status.Revision := #State.Status.Revision + 1; END_IF;
+    #State.Dirty := TRUE;
+    "FRK_LineBuild"(State := #State);
+END_FUNCTION
+
 FUNCTION "FRK_LineWrite" : Bool
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
@@ -128,10 +143,7 @@ BEGIN
                 OR ("FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready) THEN RETURN; END_IF;
             IF NOT "FRK_ConfigValidate"(Text := #Request.TextValue) THEN RETURN; END_IF;
             "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #State.Values);
-            IF #State.Status.Revision = UDINT#4294967295 THEN #State.Status.Revision := 1;
-            ELSE #State.Status.Revision := #State.Status.Revision + 1; END_IF;
-            #State.Dirty := TRUE;
-            "FRK_LineBuild"(State := #State);
+            "FRK_LineCommit"(State := #State);
             #FRK_LineWrite := TRUE;
             RETURN;
         END_IF;

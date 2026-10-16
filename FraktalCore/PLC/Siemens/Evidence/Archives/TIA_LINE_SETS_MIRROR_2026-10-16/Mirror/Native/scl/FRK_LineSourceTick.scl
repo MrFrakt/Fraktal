@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_LineSourceTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Available : Bool;
+      Applied : Bool;
+      SourceError : DInt;
+      Stamp : LDT;
+      Synchronized : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#SourceError := 0;
+	#Stamp := LDT#1970-01-01-00:00:00;
+	#Synchronized := FALSE;
+	#Available := "F_LineMirrorSource"(Image := "FRK_LineSource".Image, SourceError => #SourceError, Stamp => #Stamp, TimeSynchronized => #Synchronized);
+	IF #Available AND #SourceError = 0 THEN
+	    #Applied := "FRK_LineApply"(Image := "FRK_LineSource".Image, Restore := FALSE, NowMs := "FRK_Clock".NowMs, Stamp := #Stamp, TimeSynchronized := #Synchronized, State := "FRK_Line".Data);
+	END_IF;
+	"FRK_LineTick"(NowMs := "FRK_Clock".NowMs,
+	               SourceError := #SourceError,
+	               State := "FRK_Line".Data);
+	
+END_FUNCTION
+

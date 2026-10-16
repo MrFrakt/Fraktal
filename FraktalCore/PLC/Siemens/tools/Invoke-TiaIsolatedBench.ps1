@@ -1,7 +1,7 @@
 <# Own one newly registered, unmapped CPU1516 bench; preserve every existing instance. #>
 param(
   [Parameter(Mandatory=$true)] [string] $Profile,
-  [ValidateSet('host','status','run','read','restart')] [string] $Action = 'status',
+  [ValidateSet('host','status','run','read','restart','release')] [string] $Action = 'status',
   [string] $StopFile,
   [int] $ExpectedChecks = 0
 )
@@ -36,6 +36,13 @@ function Assert-Bench($instance,[bool]$AllowEmpty=$false) {
   foreach ($number in 0,1,2) { if ($instance.GetNetInterfaceMapping($number) -ne 0) { throw 'Bench is mapped to real networking' } }
   Emit 'bench' @{name=$benchName;cpu="$($instance.CPUType)";state="$($instance.OperatingState)";address=$benchAddress;ie1=0;ie2=0;ie3=0}
 }
+function Release-Bench($instance) {
+  if ("$($instance.OperatingState)" -ne 'Off') {
+    try { $instance.PowerOff(30000) | Out-Null }
+    catch { if ("$($instance.OperatingState)" -ne 'Off') { throw } }
+  }
+  $instance.UnregisterInstance()
+}
 if ($Action -eq 'host') {
   $allowedRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Fraktal\TiaSpikes')) + '\'
   if (-not $StopFile -or -not [IO.Path]::GetFullPath($StopFile).StartsWith($allowedRoot,[StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $StopFile)) { throw 'A new stop-file inside TiaSpikes is required' }
@@ -67,9 +74,7 @@ if ($Action -eq 'host') {
     while (-not (Test-Path -LiteralPath $StopFile) -and [datetime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 500 }
   } finally {
     if ($instance) {
-      $instance.PowerOff(30000) | Out-Null
-      $instance.UnregisterInstance()
-      $instance.Dispose()
+      try { Release-Bench $instance } finally { $instance.Dispose() }
     }
     $after = @($manager.GetProperty('RegisteredInstanceInfo').GetValue($null) | ForEach-Object { $_.Name })
     Emit 'preserved-instances-after' @{names=$after}
@@ -79,8 +84,13 @@ if ($Action -eq 'host') {
 $instance = Find-Bench
 try {
 Assert-Bench $instance ($Action -eq 'status')
+if ($Action -eq 'release') {
+  Release-Bench $instance
+  Emit 'released' @{name=$benchName;storage='preserved'}
+  exit
+}
 if ($Action -eq 'restart') {
-  $instance.PowerOff(30000) | Out-Null
+  if ("$($instance.OperatingState)" -ne 'Off') { $instance.PowerOff(30000) | Out-Null }
   $instance.PowerOn(60000) | Out-Null
   Assert-Bench $instance
   $instance.Run(30000) | Out-Null

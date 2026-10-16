@@ -9,6 +9,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/content/content_store.dart';
 import 'package:fraktal_hmi/content/module_content_controller.dart';
@@ -56,6 +57,13 @@ void main() {
 
     try {
       await tester.runAsync(() async {
+        final font = FontLoader('Segoe UI')
+          ..addFont(Future.value(ByteData.sublistView(
+              File(r'C:\Windows\Fonts\segoeui.ttf').readAsBytesSync())));
+        await font.load();
+        final icons = FontLoader('MaterialIcons')
+          ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+        await icons.load();
         final client = await WebApiSessionClient.connect(
             transport: GuardedLineTransport(
                 HttpsWebApiTransport(
@@ -97,6 +105,11 @@ void main() {
             .singleWhere((f) => f.writeKey == 'line.taktMs')
             .value);
         editValue = beforeValue == 2600 ? 2700 : 2600;
+        expect(beforeValue, 2500);
+        expect(
+            await repository!
+                .saveConfigSet('StationA', 'hmi-line-example', CfgKind.lineCfg),
+            isTrue);
         final localization = LocalizationController(
             enabledLanguages: {'en'}, activeLanguage: 'en');
         app = AppState(repository!,
@@ -113,6 +126,7 @@ void main() {
               node: app!.forest.singleWhere((n) => n.path == 'StationA'),
               kind: CfgKind.lineCfg));
       final window = MaterialApp(
+          theme: ThemeData(fontFamily: 'Segoe UI'),
           home: Scaffold(body: SingleChildScrollView(child: editor)));
       final localized =
           LocalizationScope(controller: app!.localization, child: window);
@@ -146,11 +160,22 @@ void main() {
         await File('${output.path}/line-editor.png')
             .writeAsBytes(png!.buffer.asUint8List());
         image.dispose();
-        final field = node('StationA')
-            .config
-            .singleWhere((f) => f.writeKey == 'line.taktMs');
-        expect(
-            await repository!.writeConfig('StationA', field, '2500'), isTrue);
+        final sets = await repository!.listConfigSets('StationA');
+        final saved = sets!.singleWhere((s) => s.name == 'hmi-line-example');
+        expect(saved.kind, CfgKind.lineCfg);
+        expect(saved.recordCount, 8);
+        final document =
+            await repository!.exportCurrentConfig('StationA', CfgKind.lineCfg);
+        expect(document, isNotNull);
+        final records = const LineSplitter()
+            .convert(document!)
+            .where((line) => line.trim().isNotEmpty)
+            .map((line) => jsonDecode(line) as Map<String, dynamic>)
+            .toList();
+        expect(records.length, 9);
+        expect(records.first['kind'], 2);
+        expect(await repository!.loadConfigSet('StationA', 'hmi-line-example'),
+            isTrue);
         await until(
             () => ['StationA', 'StationB'].every((root) => node(root)
                 .config
@@ -158,6 +183,9 @@ void main() {
                     f.writeKey == 'line.taktMs' &&
                     int.tryParse(f.value) == 2500)),
             'normalized shared value');
+        expect(
+            await repository!.deleteConfigSet('StationA', 'hmi-line-example'),
+            isTrue);
         for (final root in ['StationA', 'StationB']) {
           await repository!.logout(root);
           await until(() => node(root).access?.level == AccessLevel.none,
@@ -169,6 +197,8 @@ void main() {
           'renderedEditorWrite': editValue,
           'peerValue': editValue,
           'normalizedValue': 2500,
+          'lineSetSaveLoad': 'PASS',
+          'currentLineRecords': records.length - 1,
           'productionHmiChanged': false,
         }));
       });

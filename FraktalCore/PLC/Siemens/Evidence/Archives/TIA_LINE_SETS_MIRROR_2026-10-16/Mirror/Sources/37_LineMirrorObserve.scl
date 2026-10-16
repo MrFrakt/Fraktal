@@ -1,0 +1,37 @@
+FUNCTION "F_LineMirrorObserve" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+BEGIN
+    IF #Startup THEN "GDB_LineMirrorTest".BootDefaultSeen := FALSE; END_IF;
+    IF "FRK_PersistStatus".Restoring AND NOT "GDB_LineMirrorTest".BootDefaultSeen THEN
+        "GDB_LineMirrorTest".BootDefaultValue := "FRK_Line".Data.Values.TaktMs;
+        "GDB_LineMirrorTest".BootDefaultSeen := TRUE;
+    END_IF;
+    IF NOT "FRK_PersistStatus".Restoring THEN
+        "GDB_LineMirrorTest".ReadyScans := "GDB_LineMirrorTest".ReadyScans + 1;
+        "GDB_LineMirrorTest".SourceOncePerScan := "GDB_LineMirrorTest".SourceCalls = "GDB_LineMirrorTest".ReadyScans;
+    END_IF;
+    IF "GDB_LineMirrorTest".PublishPulse THEN
+        "FRK_LineBoot"(OwnerRole := TRUE, NowMs := 0, State := "GDB_LineMirrorTest".SourceOwner);
+        "GDB_LineMirrorTest".SourceOwner.Values.TaktMs := "GDB_LineMirrorTest".TaktMs;
+        "GDB_LineMirrorTest".SourceOwner.Status.Revision := "GDB_LineMirrorTest".IncomingRevision;
+        "GDB_LineMirrorTest".SourceOwner.BuiltRevision := 0;
+        "FRK_LineBuild"(State := "GDB_LineMirrorTest".SourceOwner);
+        "GDB_LineMirrorTest".Incoming := "GDB_LineMirrorTest".SourceOwner.Image;
+        "GDB_LineMirrorTest".Incoming.Revision := "GDB_LineMirrorTest".IncomingRevision;
+        CASE "GDB_LineMirrorTest".ImageMode OF
+            1: "GDB_LineMirrorTest".Incoming.LineId := 'WRONG-LINE';
+            2: "GDB_LineMirrorTest".Incoming.Count := "GDB_LineMirrorTest".Incoming.Count - 1;
+            3: "GDB_LineMirrorTest".Incoming.Records[8].ValueText := '999';
+            ELSE "GDB_LineMirrorTest".Incoming.Owner := 'BenchLineOwner';
+        END_CASE;
+        "GDB_LineMirrorTest".PublishPulse := FALSE; "GDB_LineMirrorTest".Available := TRUE;
+    END_IF;
+    IF "GDB_LineMirrorTest".PoisonPulse THEN
+        "FRK_Line".Data.Values.TaktMs := 99999; "GDB_LineMirrorTest".PoisonPulse := FALSE;
+    END_IF;
+    "GDB_LineMirrorTest".WorkingTaktMs := "FRK_Line".Data.Values.TaktMs;
+END_FUNCTION

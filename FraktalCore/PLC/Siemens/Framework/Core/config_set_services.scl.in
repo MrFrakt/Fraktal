@@ -87,7 +87,7 @@ BEGIN
     #Ok := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING("FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueText));
     IF NOT #Ok THEN RETURN; END_IF;
     // Existing keyed slots are reserved before commit: commit cannot allocate.
-    IF #WriteAccess AND "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) = 0 THEN RETURN; END_IF;
+@SET_SLOT_GUARD@
     "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := TRUE;
     "FRK_SetRuntime".Work[#RootIndex].Matched := "FRK_SetRuntime".Work[#RootIndex].Matched + 1;
     #FRK_SetCheck := #Index;
@@ -301,7 +301,7 @@ BEGIN
             IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := INT_TO_UDINT(#ModelIndex)) THEN #KnownModel := TRUE; END_IF;
         END_FOR;
         IF NOT #KnownModel THEN RETURN; END_IF;
-    ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN RETURN;
+@LINE_SET_SHAPE@    ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN RETURN;
     END_IF;
     FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Scope;

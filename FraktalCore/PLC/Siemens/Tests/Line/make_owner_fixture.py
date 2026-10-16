@@ -43,12 +43,16 @@ def prepare(out, frames):
             '        "GDB_LineOwnerTest".Poisoned := TRUE;', '    END_IF;',
             '    "GDB_LineOwnerTest".WorkingTaktMs := "FRK_Line".Data.Values.TaktMs;']
     (out/'37_LineOwnerObserve.scl').write_bytes(function('F_LineOwnerObserve', ['Startup : Bool;'], [], [], body).encode('ascii'))
+    append_observer(out, 'F_LineOwnerObserve')
+
+
+def append_observer(out, name):
     path = out/'38_ConfigBenchRoutines.scl'
     text = path.read_text('ascii')
     anchor = 'FUNCTION "F_ConfigBenchObserve"'
     before, after = text.split(anchor)
     pos = after.index('END_FUNCTION')
-    after = after[:pos]+'    "F_LineOwnerObserve"(Startup := #Startup);\n'+after[pos:]
+    after = after[:pos]+'    "'+name+'"(Startup := #Startup);\n'+after[pos:]
     path.write_bytes((before+anchor+after).encode('ascii'))
 
 

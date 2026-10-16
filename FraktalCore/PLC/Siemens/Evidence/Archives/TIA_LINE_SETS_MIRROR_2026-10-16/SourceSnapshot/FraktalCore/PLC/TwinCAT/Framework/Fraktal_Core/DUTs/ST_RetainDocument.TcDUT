@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RetainDocument" Id="{fd15d883-7e91-404f-9d6b-e04e5246daba}">
+    <Declaration><![CDATA[// Core §3.8b - one document in FB_RetainPersistMedium's persistent pool.
+TYPE ST_RetainDocument :
+STRUCT
+    Key        : STRING(80);     // '' = free slot
+    Generation : UDINT;          // increases with every write of this key
+    Length     : UDINT;
+    Crc        : DWORD;          // F_Crc32 of Data[0..Length-1]
+    Data       : ARRAY[0..PL_Fraktal.MAX_PERSIST_DOC_BYTES - 1] OF BYTE;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

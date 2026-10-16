@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_LineTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      NowMs : UDInt;
+      SourceError : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      State : "FRK_LineState";
+   END_VAR
+
+   VAR_TEMP 
+      SinceMs : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF #State.Status.Role <> 2 THEN
+	    RETURN;
+	END_IF;
+	IF #SourceError <> 0 THEN
+	    #State.Status.SourceError := #SourceError;
+	END_IF;
+	#SinceMs := #State.StartedMs;
+	IF #State.HaveSuccess THEN
+	    #SinceMs := #State.LastSuccessMs;
+	END_IF;
+	#State.Status.Stale := "FRK_Elapsed"(OldMs := #SinceMs, NewMs := #NowMs) >= 3000;
+	
+END_FUNCTION
+

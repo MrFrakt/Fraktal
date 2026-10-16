@@ -1,0 +1,19 @@
+FUNCTION "F_LineOwnerObserve" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+BEGIN
+    IF #Startup THEN "GDB_LineOwnerTest".BootDefaultSeen := FALSE; END_IF;
+    IF "FRK_PersistStatus".Restoring AND NOT "GDB_LineOwnerTest".BootDefaultSeen THEN
+        "GDB_LineOwnerTest".BootDefaultValue := "FRK_Line".Data.Values.TaktMs;
+        "GDB_LineOwnerTest".BootDefaultSeen := TRUE;
+    END_IF;
+    IF "GDB_LineOwnerTest".PoisonPulse THEN
+        "FRK_Line".Data.Values.TaktMs := 99999;
+        "GDB_LineOwnerTest".PoisonPulse := FALSE;
+        "GDB_LineOwnerTest".Poisoned := TRUE;
+    END_IF;
+    "GDB_LineOwnerTest".WorkingTaktMs := "FRK_Line".Data.Values.TaktMs;
+END_FUNCTION

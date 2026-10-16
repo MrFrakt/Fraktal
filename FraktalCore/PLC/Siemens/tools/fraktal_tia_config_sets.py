@@ -20,6 +20,8 @@ class Sets:
             for field in layout.fields[instance.type_name]:
                 key = (layout.root_map[instance.index], field.kind)
                 counts[key] = counts.get(key, 0) + 1
+        if layout.line:
+            counts['line'] = len(layout.line.fields)
         self.records = min(max(counts.values(), default=1), layout.catalog.capacities['MAX_SET_RECORDS'])
 
     def declarations(self, t):
@@ -35,6 +37,10 @@ class Sets:
         layout = self.layout
         model_kind = layout.catalog.enums['E_ConfigKind']['PAR_CFG']
         body = ['    #'+name(t, 'SetWalk')+' := FALSE;']
+        if t.name in layout.line_types:
+            body += ['    IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = %d THEN'%layout.catalog.enums['E_ConfigKind']['LINE_CFG'],
+                     '        #'+name(t, 'SetWalk')+' := "FRK_LineSetWalk"(RootIndex := #RootIndex, Scope := #Module.Status.Name, Phase := #Phase, Access := #Access, Ready := #Ready);',
+                     '        RETURN;', '    END_IF;']
         roles = {f.member.split('.')[0] for f in layout.fields[t.name]}
         for role in sorted(roles):
             body += ['    IF #Phase = 1 THEN #Module.ConfigStage%s := #Module.%s; END_IF;' % (role, role)]
@@ -99,6 +105,15 @@ class Sets:
             '05_FRK_SetRuntime.db': db('FRK_SetRuntime', ['Work'+PRIVATE+' : Array[1..%d] of "FRK_SetWorkspace";' % roots]),
         }
         text = TEMPLATE.read_text('ascii')
+        slot_guard = '    IF #WriteAccess AND "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) = 0 THEN RETURN; END_IF;'
+        line_shape = ''
+        if self.layout.line:
+            line_kind = self.layout.catalog.enums['E_ConfigKind']['LINE_CFG']
+            slot_guard = slot_guard.replace('IF #WriteAccess AND ', 'IF #WriteAccess AND "FRK_ConfigScratch".Entry.ConfigKind <> %d AND '%line_kind)
+            line_shape = ('    ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = %d THEN\n'%line_kind
+                          +'        IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> \'\' THEN RETURN; END_IF;\n')
+            sources.update(self.layout.line.set_sources(self.records))
+        text = text.replace('@SET_SLOT_GUARD@', slot_guard).replace('@LINE_SET_SHAPE@', line_shape)
         if not self.layout.model.model_config:
             # A station-only deployment has no model loop (TIA rejects 1..0).
             text, hits = re.subn(r'        FOR #ModelIndex := 1 TO @MODEL_COUNT@ DO\n.*?        END_FOR;\n', '', text, flags=re.S)
@@ -153,7 +168,7 @@ class Sets:
                 else:
                     maximum = 4294967295
                     if member == 'SetSchema': maximum = 65535
-                    if member == 'Kind': maximum = 1
+                    if member == 'Kind': maximum = max(self.layout.catalog.enums['E_ConfigKind'].values()) if self.layout.line else 1
                     if member == 'ValueType': maximum = 3
                     if member == 'RecordCount': maximum = self.records
                     if member == 'TimeSynchronized': maximum = 1
@@ -295,5 +310,29 @@ class Sets:
                 '        #Module.ConfigPersist.LastSetName := '+payload+'.Info.SetName; #Module.ConfigPersist.LastSetRecords := '+payload+'.Info.RecordCount;',
                 '        #Module.ConfigPersist.LastRejectScope := \'\'; #Module.ConfigPersist.LastRejectKey := \'\';',
                 '    ELSE #Module.ConfigPersist.LastRejectScope := '+work+'.RejectScope; #Module.ConfigPersist.LastRejectKey := '+work+'.RejectKey; END_IF;']
+        if l.line:
+            line_kind = l.catalog.enums['E_ConfigKind']['LINE_CFG']
+            before = '(#Request.IntValue <> %d AND #Request.IntValue <> %d)'%(model_kind, station_kind)
+            assert sum(s.count(before) for s in body) == 2
+            body = [s.replace(before, '(#Request.IntValue <> %d AND #Request.IntValue <> %d AND #Request.IntValue <> %d)'%(model_kind, station_kind, line_kind)) for s in body]
+            body = [s.replace('(#Request.IntValue = %d AND #Request.DurationMs <> 0)'%station_kind,
+                              '(#Request.IntValue <> %d AND #Request.DurationMs <> 0)'%model_kind) for s in body]
+            if l.model.line.role == 'MIRROR':
+                # Keep ordinary station/model operations available. Refuse a
+                # line snapshot as soon as its kind is known, naming its owner.
+                refuse = ['            '+work+'.Importing := FALSE; '+work+'.Exporting := FALSE; '+work+'.Piece := WSTRING#\'\';',
+                          '            '+work+'.RejectScope := '+literal(l.model.line.owner)+';',
+                          '            #Module.ConfigPersist.LastRejectScope := '+literal(l.model.line.owner)+';',
+                          '            #Module.ConfigPersist.LastRejectKey := \'line.\';', '            RETURN;']
+                insert = body.index('    CASE #Request.Kind OF')
+                guard = ['    IF (#Request.Kind = %d OR #Request.Kind = %d) AND #Request.IntValue = %d THEN'%(k['SAVE_CONFIG_SET'],k['EXPORT_CURRENT_CONFIG'],line_kind), *refuse, '    END_IF;',
+                         '    IF #Request.Kind = %d OR #Request.Kind = %d OR #Request.Kind = %d THEN'%(k['LOAD_CONFIG_SET'],k['EXPORT_CONFIG_SET'],k['DELETE_CONFIG_SET']),
+                         '        #Slot := "FRK_SetFind"(RootIndex := #RootIndex, SetName := #SetName);',
+                         '        IF #Slot > 0 THEN',
+                         '            IF "FRK_SetStore".Sets[#RootIndex, #Slot].Info.Kind = %d THEN'%line_kind,
+                         *['    '+s for s in refuse], '            END_IF;', '        END_IF;', '    END_IF;']
+                body[insert:insert] = guard
+                insert = body.index('            #Ok := "FRK_SetImport"(RootIndex := #RootIndex, Request := #Request);')+1
+                body[insert:insert] = ['            IF #Ok AND '+payload+'.Info.Kind = %d THEN'%line_kind, *refuse, '            END_IF;']
         return l.render(t, 'SetOperation', ['Startup : Bool;'], ['Module : "'+t.name+'";'],
             ['RootIndex : Int;', 'Request : "ST_HmiRequest";', 'Ready : Bool;', 'SetName : String[80];', 'Slot : Int;', 'Ok : Bool;', 'Exporting : Bool;', 'Stamp : DTL;', 'ResultCode : Int;'], body)

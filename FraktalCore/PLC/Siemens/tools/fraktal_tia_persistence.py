@@ -423,7 +423,9 @@ class Medium:
            '                    IF #Ok AND "FRK_PersistConsumers".Rows[#Slot].Result.Found THEN #Ok := "FRK_DocApply"(Slot := #Slot); END_IF;',
            '                    IF NOT #Ok THEN', '                        "FRK_DocReject"(Slot := #Slot);',
            '                        "FRK_PersistConsumers".Rows[#Slot].Rejected := TRUE;',
-           '                    ELSIF "FRK_PersistConsumers".Rows[#Slot].Virgin THEN "FRK_PersistDirty"(Slot := #Slot); END_IF;',
+           '                    ELSIF "FRK_PersistConsumers".Rows[#Slot].Virgin THEN '+(
+               'IF #Slot <> %d OR "FRK_Line".Data.Applied THEN "FRK_PersistDirty"(Slot := #Slot); END_IF;'%next(d.index for d in docs if d.role=='line')
+               if self.model.line and self.model.line.role == 'MIRROR' else '"FRK_PersistDirty"(Slot := #Slot);')+' END_IF;',
            '                    "FRK_PersistConsumers".Rows[#Slot].State := 2;', '                END_IF;', '            END_IF;',
            '        END_IF;', '        IF "FRK_PersistConsumers".Rows[#Slot].State <> 2 THEN #Ready := FALSE; END_IF;',
            '        "FRK_PersistStatus".Failed := "FRK_PersistStatus".Failed OR "FRK_PersistConsumers".Rows[#Slot].Failed;', '    END_FOR;',
@@ -643,7 +645,7 @@ class Medium:
               '    "FRK_DocBoot"(Startup := #Startup, Ready := #MediaReady);',
               '    IF NOT #MediaReady THEN']
         if self.model.line:
-            line_boot = '    IF #Startup THEN "FRK_LineBoot"(OwnerRole := TRUE, NowMs := "FRK_Clock".NowMs, State := "FRK_Line".Data); END_IF;'
+            line_boot = self.layout.line.boot_call()
             assert s.count(line_boot) == 1
             s = s.replace(line_boot+'\n', '')
             boot.insert(1, line_boot)

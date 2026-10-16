@@ -14,7 +14,11 @@ Continuation, 2026-10-16: the isolated owner composition now shares its normal
 mailbox/manifest and one LOAD_DB document across two roots. Native compile,
 read-back and 54 live checks include an actual simulated power cycle after
 corrupting the working cache. See [owner evidence](../Evidence/TIA_LINE_OWNER_2026-10-16.md).
-Named line sets, a bound mirror source, shifts and press integration remain.
+Continuation, 2026-10-16: owner named line sets/current export now reuse the
+ordinary root catalog, typed staging and LOAD_DB documents. A bound synthetic
+mirror provider and offline mirror restore are implemented and measured; see
+[sets/mirror evidence](../Evidence/TIA_LINE_SETS_MIRROR_2026-10-16.md).
+Shifts, data classes/capture and complete press profile integration remain.
 Normal generation refuses the partial profile (Core 1.5); the explicit workbench
 API is for isolated tests only. The census below continues to describe the
 shipped press; the Line profile is not closed.
@@ -213,7 +217,12 @@ workbench progress is recorded above; P12 transport decisions do not block it.
 
 **P1 prerequisite complete:** station and model config capabilities now refuse
 the reserved `line.*` namespace, with both cases tested. Owner/local mirror,
-replication, persistence and Line presentation remain open.
+replication, persistence and Line presentation are now measured on the isolated
+workbench. Owner sets/current export and a bound synthetic mirror source with
+durable offline restore are also measured. P1 stays open until the complete
+profile can ship: shifts (P2), classes/capture (P7) and press integration remain;
+the normal generator continues to refuse partial Line profiles. P12 transport
+is separate and is not implemented by the synthetic source fixture.
 
 **Physical bench companion added at the owner's request:** the
 [1214C I/O bridge and matching simulator driver](../Evidence/TIA_PRESS_IO_BRIDGE_2026-10-15.md)

@@ -10,7 +10,7 @@ from pathlib import Path
 from fraktal_tia_binding import Catalog, PRIVATE, literal, type_source
 from fraktal_tia_config import (assign_value, definition_source, fields_for_records,
                                 function, read_value, record_targets, validate_definition, width)
-from fraktal_tia_declaration import DeclarationError, object_fields, items
+from fraktal_tia_declaration import DeclarationError, object_fields, items, identifier
 
 TEMPLATE = Path(__file__).resolve().parents[1] / 'Framework/Core/line_services.scl.in'
 
@@ -24,14 +24,16 @@ class Line:
     record: str
     values: tuple[dict, ...]
     stale_after_ms: int
+    source: str = ''
 
     def definition(self):
         return dict(id=self.line_id, owner=self.owner, role=self.role, roots=list(self.roots),
-                    record=self.record, values=list(self.values), stale_after_ms=self.stale_after_ms)
+                    record=self.record, values=list(self.values), stale_after_ms=self.stale_after_ms,
+                    **({'source': self.source} if self.source else {}))
 
     @classmethod
     def read(cls, value, roots):
-        object_fields(value, ('id', 'owner', 'role', 'roots', 'record', 'values', 'stale_after_ms'), (), 'line')
+        object_fields(value, ('id', 'owner', 'role', 'roots', 'record', 'values', 'stale_after_ms'), ('source',), 'line')
         facts = Catalog.read()
         for key, maximum in (('id', width(facts, 'ST_LineStatus', 'LineId')),
                              ('owner', width(facts, 'ST_LineStatus', 'Owner'))):
@@ -53,8 +55,15 @@ class Line:
         # Elapsed arithmetic is modular UDInt; keep the declared window unambiguous.
         if type(stale) is not int or not 1 <= stale <= 2147483647:
             raise DeclarationError('T-WIDTH', 'line.stale_after_ms', 'expected 1..2147483647 ms')
+        source = value.get('source', '')
+        if source:
+            identifier(source, 'line.source')
+            if not source.startswith('F_') or value['role'] != 'MIRROR':
+                raise DeclarationError('T-GEN', 'line.source', 'only a mirror binds a separate F_ image provider')
+        elif not isinstance(source, str):
+            raise DeclarationError('T-GEN', 'line.source', 'expected an F_ image provider')
         return cls(value['id'], value['owner'], value['role'], tuple(references),
-                   value['record'], values, stale)
+                   value['record'], values, stale, source)
 
 
 class Engine:
@@ -69,6 +78,10 @@ class Engine:
         if expected != {f.member.split('.')[1] for f in self.fields}:
             raise DeclarationError('T-GEN', 'line.values', 'line replication requires the complete config record')
 
+    def boot_call(self):
+        role = str(self.line.role == 'OWNER').upper()
+        return '    IF #Startup THEN "FRK_LineBoot"(OwnerRole := '+role+', NowMs := "FRK_Clock".NowMs, State := "FRK_Line".Data); END_IF;'
+
     def production_sources(self):
         from fraktal_tia_generate import db
         sources = self.sources()
@@ -76,9 +89,20 @@ class Engine:
                                                   'Ready'+PRIVATE+' : Bool;'])
         body = ['    #FRK_LineScope := '+' OR '.join('#Scope = '+literal(n) for n in self.line.roots)+';']
         sources['17_Line.scl'] += function('FRK_LineScope', ['Scope : String;'], [], [], body, 'Bool')
+        if self.line.source:
+            sources['05_FRK_LineSource.db'] = db('FRK_LineSource', ['Image'+PRIVATE+' : "ST_LineImage";'])
+            body = ['    #SourceError := 0; #Stamp := LDT#1970-01-01-00:00:00; #Synchronized := FALSE;',
+                    '    #Available := "'+self.line.source+'"(Image := "FRK_LineSource".Image, SourceError => #SourceError, Stamp => #Stamp, TimeSynchronized => #Synchronized);',
+                    '    IF #Available AND #SourceError = 0 THEN',
+                    '        #Applied := "FRK_LineApply"(Image := "FRK_LineSource".Image, Restore := FALSE, NowMs := "FRK_Clock".NowMs, Stamp := #Stamp, TimeSynchronized := #Synchronized, State := "FRK_Line".Data);',
+                    '    END_IF;',
+                    '    "FRK_LineTick"(NowMs := "FRK_Clock".NowMs, SourceError := #SourceError, State := "FRK_Line".Data);']
+            sources['17_Line.scl'] += function('FRK_LineSourceTick', [], [],
+                ['Available : Bool;', 'Applied : Bool;', 'SourceError : DInt;', 'Stamp : LDT;', 'Synchronized : Bool;'], body)
         body = ['    IF NOT "FRK_LineScope"(Scope := #Scope) THEN RETURN; END_IF;',
                 '    IF #Scope = '+literal(self.line.roots[0])+' THEN',
-                '        "FRK_LineTick"(NowMs := "FRK_Clock".NowMs, SourceError := 0, State := "FRK_Line".Data);',
+                ('        "FRK_LineSourceTick"();' if self.line.source else
+                 '        "FRK_LineTick"(NowMs := "FRK_Clock".NowMs, SourceError := 0, State := "FRK_Line".Data);'),
                 '        "FRK_LineAnnounce"(Scope := #Scope, State := "FRK_Line".Data, AlarmLog := #AlarmLog);',
                 '    END_IF;',
                 '    #Published := "FRK_Line".Data.Status;',
@@ -138,3 +162,43 @@ class Engine:
         text += template
         sources['17_Line.scl'] = text
         return sources
+
+    def set_sources(self, record_capacity):
+        """The ordinary root set walk delegates line records to their owner."""
+        from fraktal_tia_generate import db
+        state = '"FRK_Line".Data'
+        work = '"FRK_SetRuntime".Work[#RootIndex]'
+        payload = work+'.Payload'
+        stage = '"FRK_LineSetStage".Values'
+        body = ['    #FRK_LineSetWalk := FALSE;',
+                '    '+work+'.RejectScope := '+literal(self.line.owner)+';',
+                '    IF NOT "FRK_LineScope"(Scope := #Scope) OR NOT '+state+'.Applied',
+                '        OR '+state+'.Status.Role <> %d THEN RETURN; END_IF;'%self.catalog.enums['E_LineRole']['OWNER'],
+                '    IF #Phase = 2 THEN',
+                '        '+state+'.Values := '+stage+';',
+                '        "FRK_LineCommit"(State := '+state+');',
+                '        #FRK_LineSetWalk := TRUE; RETURN;', '    END_IF;',
+                '    IF #Phase = 1 THEN '+stage+' := '+state+'.Values; END_IF;']
+        for index, field in enumerate(self.fields, 1):
+            body += ['    "FRK_LineDef"(FieldIndex := %d);'%index,
+                     '    '+work+'.RejectScope := #Scope; '+work+'.RejectKey := "FRK_ConfigScratch".Entry.WriteKey;',
+                     '    IF #Phase = 0 OR #Phase = 5 THEN',
+                     '        IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;',
+                     '        "FRK_LineValue"(FieldIndex := %d, Values := '%index+state+'.Values);',
+                     '        IF NOT "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText)',
+                     '            OR '+payload+'.Info.RecordCount >= %d THEN RETURN; END_IF;'%record_capacity,
+                     '        #Slot := '+payload+'.Info.RecordCount + 1;',
+                     '        '+payload+'.Records[#Slot].Scope := #Scope;']
+            for member, source in (('WriteKey','WriteKey'),('Revision','WriteRevision'),('Kind','ConfigKind'),('ValueType','ValueType')):
+                body += ['        '+payload+'.Records[#Slot].'+member+' := "FRK_ConfigScratch".Entry.'+source+';']
+            body += ['        '+payload+'.Records[#Slot].ValueText := WSTRING_TO_STRING("FRK_ConfigScratch".Entry.ValueText);',
+                     '        '+payload+'.Info.RecordCount := #Slot;',
+                     '    ELSE',
+                     '        #Slot := "FRK_SetCheck"(RootIndex := #RootIndex, Scope := #Scope, Access := #Access, Ready := #Ready AND (#Phase = 4 OR "FRK_Line".Ready), WriteAccess := #Phase <> 3);',
+                     '        IF #Slot = 0 THEN RETURN; END_IF;',
+                     '        IF #Phase = 1 THEN', assign_value(field, stage+'.'+field.member.split('.')[1]),
+                     '        END_IF;', '    END_IF;']
+        body += ['    #FRK_LineSetWalk := TRUE;']
+        return {'05_FRK_LineSetStage.db': db('FRK_LineSetStage', ['Values'+PRIVATE+' : "'+self.line.record+'";']),
+                '18_LineSets.scl': function('FRK_LineSetWalk', ['RootIndex : Int;', 'Scope : String;', 'Phase : Int;', 'Access : "FRK_Access";', 'Ready : Bool;'],
+                                           [], ['Slot : Int;'], body, 'Bool')}
