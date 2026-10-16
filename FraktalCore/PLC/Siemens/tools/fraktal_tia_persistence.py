@@ -57,6 +57,9 @@ class Medium:
                 for ordinal in range(1, layout.sets.capacity + 1):
                     self.add(root.name + '.set' + str(ordinal), root_index, 'set', ordinal=ordinal)
         self.add('users', 0, 'users')
+        if self.model.line:
+            host = next(i for i, root in enumerate(self.model.roots, 1) if root.name == self.model.line.roots[0])
+            self.add('line.'+hashlib.sha256(self.model.line.line_id.encode('ascii')).hexdigest(), host, 'line')
         if len(self.documents) > self.catalog.capacities['MAX_PERSIST_KEYS']:
             self.reject('document count exceeds the Core key bound')
         import xml.etree.ElementTree as ET
@@ -85,11 +88,15 @@ class Medium:
             fields += [('Image', '"FRK_AccessPolicyImage"')]
         elif role == 'users':
             fields += [('Generation', 'UDInt'), ('Count', 'DInt'), ('Rows', 'Array[1..%d] of "ST_UserRecord"' % self.catalog.capacities['MAX_USERS']), ('Checksum', 'DWord')]
+        elif role == 'line':
+            fields += [('Image', '"ST_LineImage"')]
         else:
             fields += [('Ordinal', 'Int'), ('Payload', '"FRK_SetPayload"')]
         self.fields[d.tag] = fields
         # Conservative standard serialization bound, proportional to owned fields.
         definitions = self.catalog.resolve(['ST_ConfigRecord', 'ST_UserRecord', 'ST_AccessPolicy', 'ST_ConfigSetInfo'])
+        if self.model.line:
+            definitions.update(self.catalog.resolve(['ST_LineImage']))
         definitions.update({
             'FRK_ConfigSlot': [dict(member=n, native_type=t) for n, t in [('SchemaVersion','UInt'),('Used','Bool'),('ModelCode','String[64]'),('Record','"ST_ConfigRecord"')]],
             'FRK_AccessPolicyImage': [dict(member=n,native_type=t) for n,t in [('SchemaVersion','UInt'),('Initialized','Bool'),('Scope','String[80]'),('Generation','UDInt'),('Policy','"ST_AccessPolicy"'),('Checksum','DWord')]],
@@ -263,6 +270,8 @@ class Medium:
             image='"FRK_PersistImages".'+d.tag
             data='"FRK_PersistBuffers".'+d.tag+'Data'
             scope=self.model.roots[d.root-1].name if d.root else 'users'
+            if d.role == 'line':
+                scope = self.model.line.owner
             capture=['    #FRK_DocCapture_'+d.tag+' := FALSE;',
                      '    '+image+'.SchemaVersion := 1; '+image+'.Scope := '+literal(scope)+';']
             validate=['    #FRK_DocApply_'+d.tag+' := FALSE;',
@@ -320,6 +329,12 @@ class Medium:
                 validate += ['    IF '+image+'.Generation = 0 OR NOT "FRK_AccessUsersShapeData"(Count := '+image+'.Count, Rows := '+image+'.Rows) THEN RETURN; END_IF;',
                              '    IF '+image+'.Checksum <> "FRK_AccessUsersCrcData"(SchemaVersion := '+image+'.SchemaVersion, Generation := '+image+'.Generation, Count := '+image+'.Count, Rows := '+image+'.Rows) THEN RETURN; END_IF;']
                 apply += ['    "FRK_LocalUsers".SchemaVersion := 1; "FRK_AccessStorage".UsersCommissioned := TRUE;']
+            elif d.role=='line':
+                capture += ['    IF NOT "FRK_Line".Data.Applied OR "FRK_Line".Data.Image.Revision <> "FRK_Line".Data.Status.Revision THEN RETURN; END_IF;',
+                            '    '+image+'.Image := "FRK_Line".Data.Image;']
+                validate += ['    IF NOT "FRK_LineApply"(Image := '+image+'.Image, Restore := TRUE, NowMs := "FRK_Clock".NowMs, Stamp := LDT#1970-01-01-00:00:00, TimeSynchronized := FALSE, State := "FRK_Line".Data) THEN RETURN; END_IF;']
+                apply += ['    "FRK_Line".Data.Dirty := FALSE;',
+                          '    "FRK_Line".Data.BuiltRevision := "FRK_Line".Data.Status.Revision;']
             else:
                 payload=image+'.Payload'
                 capture += ['    '+image+'.Ordinal := %d;'%d.ordinal,
@@ -363,6 +378,10 @@ class Medium:
                 b += ['            "FRK_AccessPolicies".Rows[%d].Scope := %s;'%(d.root,scope),
                       '            "FRK_AccessPolicies".Rows[%d].SchemaVersion := 0;'%d.root,
                       '            "FRK_AccessPolicies".Rows[%d].Initialized := TRUE;'%d.root]
+            elif d.role=='line':
+                b += ['            "FRK_Line".Data.Dirty := FALSE;',
+                      '            "FRK_Line".Data.Status.SourceError := 0;',
+                      '            "FRK_ConfigLoss"(RootIndex := %d, Scope := %s);'%(d.root,literal(self.model.line.owner))]
             else:
                 b += ['            "FRK_SetStore".Sets[%d, %d].Info.Used := FALSE;'%(d.root,d.ordinal),
                       '            "FRK_ConfigLoss"(RootIndex := %d, Scope := %s);'%(d.root,literal(self.model.roots[d.root-1].name))]
@@ -464,7 +483,18 @@ class Medium:
            '    #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := #Kind);',
            '    IF #Slot > 0 THEN #FRK_PersistVirginConfig := "FRK_PersistConsumers".Rows[#Slot].Virgin; END_IF;']
         text+=function('FRK_PersistVirginConfig',['Scope : String;','ModelCode : String;','Kind : DInt;'],[],['Slot : Int;'],b,'Bool')
+        if self.model.line:
+            d = next(d for d in self.documents if d.role == 'line')
+            text += function('FRK_PersistLineTick', [], [], [], [
+                '    IF "FRK_PersistConsumers".Ready AND "FRK_Line".Data.Dirty THEN',
+                '        "FRK_PersistDirty"(Slot := %d);'%d.index,
+                '        "FRK_Line".Data.Dirty := FALSE;', '    END_IF;'])
         return text
+
+    def root_condition(self, document):
+        if document.role == 'line':
+            return ' OR '.join('#RootIndex = %d'%i for i, r in enumerate(self.model.roots, 1) if r.name in self.model.line.roots)
+        return '#RootIndex = %d'%document.root if document.root else ''
 
     def status_functions(self):
         b=['    IF #RootIndex < 1 OR #RootIndex > %d THEN RETURN; END_IF;'%len(self.model.roots),
@@ -472,7 +502,8 @@ class Medium:
            '    #Persist.WindowMs := %d;'%self.window]
         for d in self.documents:
             c='"FRK_PersistConsumers".Rows[%d]'%d.index
-            cond='IF #RootIndex = %d THEN '%d.root if d.root else ''
+            condition = self.root_condition(d)
+            cond = 'IF '+condition+' THEN ' if condition else ''
             b+=['    '+cond,
                 '        #Persist.Failed := #Persist.Failed OR '+c+'.Failed;',
                 '        IF '+c+'.Dirty OR '+c+'.Ticket <> 0 THEN',
@@ -480,6 +511,10 @@ class Medium:
                 '            IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ('+c+'.PendingSince <> LDT#1970-01-01-00:00:00 AND '+c+'.PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := '+c+'.PendingSince; END_IF;',
                 '        END_IF;']
             if cond:b+=['    END_IF;']
+            if d.role == 'line':
+                b += ['    IF ('+condition+') AND '+c+'.Rejected AND NOT '+c+'.Acknowledged THEN',
+                      '        #Persist.RestoreLost := TRUE; #Persist.RestoreAcknowledged := FALSE;',
+                      '        #Persist.LostPath := '+literal(self.model.line.owner)+';', '    END_IF;']
         # Wall clock is display-only; the store's bounded service window uses monotonic time.
         b+=['    IF #Persist.Pending THEN',
             '        IF "FRK_PersistRootSince".WasPending[#RootIndex] THEN',
@@ -491,9 +526,13 @@ class Medium:
         for d in self.documents:
             if not d.root:continue
             c='"FRK_PersistConsumers".Rows[%d]'%d.index
-            b+=['    IF #RootIndex = %d AND '%d.root+c+'.Rejected THEN',
+            condition = '('+self.root_condition(d)+')' if d.role == 'line' else self.root_condition(d)
+            b+=['    IF '+condition+' AND '+c+'.Rejected THEN',
                 '        '+c+'.Acknowledged := TRUE;', '        "FRK_PersistRepair"(Slot := %d);'%d.index,
                 '        "FRK_PersistDirty"(Slot := %d);'%d.index, '    END_IF;']
+            if d.role == 'line':
+                b += ['    IF ('+self.root_condition(d)+') AND '+c+'.Acknowledged AND "FRK_ConfigStore".LostPath[%d] = '%d.root+literal(self.model.line.owner)+' THEN',
+                      '        "FRK_ConfigStore".Acknowledged[%d] := TRUE;'%d.root, '    END_IF;']
         return text+function('FRK_PersistAckRoot',['RootIndex : Int;'],[],[],b)
 
     def adapt(self, sources):
@@ -603,6 +642,11 @@ class Medium:
               '    "FRK_PersistEnter"(Startup := #Startup);',
               '    "FRK_DocBoot"(Startup := #Startup, Ready := #MediaReady);',
               '    IF NOT #MediaReady THEN']
+        if self.model.line:
+            line_boot = '    IF #Startup THEN "FRK_LineBoot"(OwnerRole := TRUE, NowMs := "FRK_Clock".NowMs, State := "FRK_Line".Data); END_IF;'
+            assert s.count(line_boot) == 1
+            s = s.replace(line_boot+'\n', '')
+            boot.insert(1, line_boot)
         for root in self.model.roots:
             boot += ['        "'+root.name+'".ConfigPersist.Failed := "FRK_PersistStatus".Failed;']
         boot+=['        RETURN;', '    END_IF;', '    #RootStartup := #MediaBoot; #MediaBoot := FALSE;']
@@ -614,7 +658,7 @@ class Medium:
             a='Hal := "GDB_FraktalHal".Data.'+root.name+');'
             assert after.count(a)==1
             after=after.replace(a,'Hal := "GDB_FraktalHal".Data.'+root.name+', BoundPath := WSTRING#'+literal(root.name)+');')
-        after=after.replace('END_FUNCTION_BLOCK','    "FRK_DocCyclic"();\nEND_FUNCTION_BLOCK')
+        after=after.replace('END_FUNCTION_BLOCK',('    "FRK_PersistLineTick"();\n' if self.model.line else '')+'    "FRK_DocCyclic"();\nEND_FUNCTION_BLOCK')
         sources['30_FB_FraktalMain.scl']=before+'    #RootStartup := #MediaBoot; #MediaBoot := FALSE;'+after
 
     def quiesce(self,sources):

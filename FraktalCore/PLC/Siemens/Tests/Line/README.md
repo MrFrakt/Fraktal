@@ -2,10 +2,13 @@
 
 P1 is in progress. `tools/fraktal_tia_line.py` and
 `Framework/Core/line_services.scl.in` implement the shared owner/mirror engine.
-This bench uses two independent copies on an isolated S7-1500. The shipped press
-does not yet declare a line; production composition, mailbox/audit routing,
-named line sets, LOAD_DB document consumers and live HMI verification remain.
-The optional Core Line profile also needs P2 shifts.
+The kernel bench uses two independent copies on an isolated S7-1500. A second
+bench wires one owner beside two referencing roots, their normal config
+mailboxes and one shared LOAD_DB document. The shipped press does not yet
+declare a line. Named line sets, a bound mirror source and P2 shifts remain.
+Core 1.5 forbids shipping a partial Line profile: normal generation refuses a
+line declaration. Only the Python API's explicit `line_workbench=True` switch
+enables this isolated test package; its manifest records that restriction.
 
 The engine is infrastructure beside the Unit forest. It has no HAL, parent,
 registry row or equipment command lifecycle. It shares config capability
@@ -49,3 +52,34 @@ plan/log is exclusive; `--observe` reads without repeating a download.
 
 See [dated evidence](../../../../../Specification/Siemens/Evidence/TIA_LINE_ENGINE_2026-10-15.md)
 for native read-back, runtime checks, initial compiler findings and remaining P1 work.
+
+## Shared owner and LOAD_DB bench
+
+`make_owner_fixture.py` extends the existing typed configuration fixture, keeping
+the lifecycle and persistence implementation in the framework. `bench_owner.json`
+fixes the CPU1516 identity to `FrkLineOwnerTest`, virtual address .53, with zero
+physical adapter mappings. Prepare through `Tests/Access/with_credentials.ps1`
+so credentials enter through DPAPI/environment only. Never archive its private
+credential initializer (`38_ConfigBenchRoutines.scl` / `F_AccessBenchProvision`).
+
+`verify_owner_exports.py` compares canonical code/types and every authored DB's
+members, native types and external-access flags. TIA relocates DB initializers
+into BEGIN assignments, so DB declarations are checked separately; live default
+and restored-value checks qualify the behavior. `owner_target.py` requires that
+read-back and a clean program compile before an exclusive download to .53.
+Its web provisioning command updates only that test project's process-data user,
+using the existing environment secret and ReadTagStatus/ModifyTagStatus rights.
+
+`probe_owner.py` checks root-scoped manifests, access and typed refusal paths,
+shared readiness and ConfigRev propagation. It waits for verified document
+writes, corrupts only the working cache, then powers the isolated CPU off/on.
+It proves defaults were installed before LOAD_DB restored the saved value and
+revision. This is a simulated power cycle, not physical abrupt-loss acceptance.
+
+`run_owner_hmi.py` runs the generic production config editor/repository against
+the same bench. Every write is guarded by a fresh SDK observation. An SDK status
+process failure can retry only that observation; the write is never replayed.
+The bench has separate per-root access sessions, so both roots authenticate
+before checking that the peer displays the edited shared value.
+
+See [owner evidence](../../../../../Specification/Siemens/Evidence/TIA_LINE_OWNER_2026-10-16.md).

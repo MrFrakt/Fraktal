@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_StateFlag" Id="{b5fdd507-214b-4c6c-9fa6-2fb1e29d414f}">
+    <Declaration><![CDATA[// Core §3.12 — one published DERIVED state flag.
+//
+// The distinction it enforces: `OutCmd` is what a command PRODUCED, latched
+// until the next command; a state flag is what is TRUE RIGHT NOW, recomputed
+// from the modules underneath every scan. `Homed` is the worked example - as a
+// command result it keeps claiming "homed" after an operator jogs an axis off
+// home in MANUAL, because no sequence runs to clear the latch. As a derived flag
+// it simply stops being true.
+TYPE ST_StateFlag :
+STRUCT
+    Key   : STRING(120);   // localization key; '' = slot never published
+    Value : BOOL;
+    // When Value last changed, on the synchronized clock (§2.7). This is what a
+    // bare assignment cannot give and the operator always asks for: not just
+    // "is the door closed" but "how long has it been closed".
+    Since : DT;
+    // The owner stopped publishing this flag - it was computed behind an IF that
+    // stopped being true, or the code that produced it was removed. Value is
+    // forced FALSE: a flag nobody is computing is not a claim (§5.6 fail-safe).
+    Stale : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

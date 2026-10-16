@@ -1,0 +1,21 @@
+﻿DATA_BLOCK "FRK_PersistStatus"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      SchemaVersion { ExternalWritable := 'False'} : UInt;
+      Medium { ExternalWritable := 'False'} : String[16];
+      Restoring { ExternalWritable := 'False'} : Bool;
+      Failed { ExternalWritable := 'False'} : Bool;
+      NativeStatus { ExternalWritable := 'False'} : Word;
+      DocumentCount { ExternalWritable := 'False'} : Int;
+   END_VAR
+
+
+BEGIN
+   SchemaVersion := 1;
+   Medium := 'LOAD_DB';
+   DocumentCount := 18;
+
+END_DATA_BLOCK
+

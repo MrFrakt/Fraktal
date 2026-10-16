@@ -1,0 +1,139 @@
+﻿python : ======================================================================
+At line:3 char:1
++ python -B -m unittest discover -s FraktalCore/PLC/Siemens/tools -t Fr ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (===============...===============:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ERROR: test_deleted_and_extra_generated_sources_are_rejected 
+(test_fraktal_tia_generate.GeneratorTests.test_deleted_and_extra_generated_sources_are_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_generate.py", line 71, in 
+test_deleted_and_extra_generated_sources_are_rejected
+    with self.assertRaises(DECL.DeclarationError): GEN.verify(out)
+                                                   ~~~~~~~~~~^^^^^
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 742, in verify
+    if manifest.get(field) != expected[field]:
+                              ~~~~~~~~^^^^^^^
+KeyError: 'line_workbench'
+
+======================================================================
+ERROR: test_mutated_source_is_rejected_even_if_manifest_hash_is_rewritten 
+(test_fraktal_tia_generate.GeneratorTests.test_mutated_source_is_rejected_even_if_manifest_hash_is_rewritten)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_generate.py", line 63, in 
+test_mutated_source_is_rejected_even_if_manifest_hash_is_rewritten
+    with self.assertRaises(DECL.DeclarationError): GEN.verify(out)
+                                                   ~~~~~~~~~~^^^^^
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 742, in verify
+    if manifest.get(field) != expected[field]:
+                              ~~~~~~~~^^^^^^^
+KeyError: 'line_workbench'
+
+======================================================================
+ERROR: test_replay_binds_profile_source (test_fraktal_tia_profile.ProfileTests.test_replay_binds_profile_source)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_profile.py", line 48, in 
+test_replay_binds_profile_source
+    GEN.verify(out)
+    ~~~~~~~~~~^^^^^
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 742, in verify
+    if manifest.get(field) != expected.get(field):
+                              ^^^^^^^^^^^^^^^
+KeyError: 'line_workbench'
+
+======================================================================
+ERROR: test_runtime_frame_replay_rejects_changed_kernel_even_with_rehashed_manifest 
+(test_fraktal_tia_runtime.RuntimeTests.test_runtime_frame_replay_rejects_changed_kernel_even_with_rehashed_manifest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_runtime.py", line 44, in 
+test_runtime_frame_replay_rejects_changed_kernel_even_with_rehashed_manifest
+    self.assertEqual(GEN.verify(out), len(manifest['generated']))
+                     ~~~~~~~~~~^^^^^
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 742, in verify
+    if manifest.get(field) != expected.get(field):
+                              ^^^^^^^^^^^^^^^
+KeyError: 'line_workbench'
+
+======================================================================
+ERROR: test_test_package_contains_actual_kernel_and_bounded_diagnostics 
+(test_fraktal_tia_runtime.RuntimeTests.test_test_package_contains_actual_kernel_and_bounded_diagnostics)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_runtime.py", line 89, in 
+test_test_package_contains_actual_kernel_and_bounded_diagnostics
+    self.assertEqual(GEN.verify(root / 'frames'), 27)
+                     ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 742, in verify
+    if manifest.get(field) != expected.get(field):
+                              ^^^^^^^^^^^^^^^
+KeyError: 'line_workbench'
+
+======================================================================
+ERROR: test_roundtrip_and_replay_cover_profile_and_template 
+(test_fraktal_tia_sequence_view.SequenceViewTests.test_roundtrip_and_replay_cover_profile_and_template)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_sequence_view.py", line 89, in 
+test_roundtrip_and_replay_cover_profile_and_template
+    out=Path(tmp)/'sources';GEN.generate(model,out,True);self.assertGreater(GEN.verify(out),0)
+                                                                            ~~~~~~~~~~^^^^^
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\fraktal_tia_generate.py", line 742, in verify
+    if manifest.get(field) != expected.get(field):
+                              ^^^^^^^^^^^^^^^
+KeyError: 'line_workbench'
+
+======================================================================
+FAIL: test_generated_contract_classes_children_and_cyclic_guard_pass_lint 
+(test_fraktal_tia_generate.GeneratorTests.test_generated_contract_classes_children_and_cyclic_guard_pass_lint)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_generate.py", line 44, in 
+test_generated_contract_classes_children_and_cyclic_guard_pass_lint
+    self.assertEqual(tia_lint.lint([out]), [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [Finding(path=WindowsPath('C:/Users/Siemen[103 chars]h'")] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+Finding(path=WindowsPath('C:/Users/Siemens/AppData/Local/Temp/tmpgthl101n/sources/manifest.json'), line=1, 
+rule='T-GEN', message="'line_workbench'")
+
++ []
+- [Finding(path=WindowsPath('C:/Users/Siemens/AppData/Local/Temp/tmpgthl101n/sources/manifest.json'),
+-          line=1,
+-          rule='T-GEN',
+-          message="'line_workbench'")]
+
+======================================================================
+FAIL: test_unit_mailbox_is_writable_static_and_other_facets_read_only 
+(test_fraktal_tia_unit.UnitTests.test_unit_mailbox_is_writable_static_and_other_facets_read_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\test_fraktal_tia_unit.py", line 29, in 
+test_unit_mailbox_is_writable_static_and_other_facets_read_only
+    self.assertEqual(tia_lint.lint([out]),[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [Finding(path=WindowsPath('C:/Users/Siemen[102 chars]h'")] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+Finding(path=WindowsPath('C:/Users/Siemens/AppData/Local/Temp/tmp1c4r_zso/frames/manifest.json'), line=1, 
+rule='T-GEN', message="'line_workbench'")
+
++ []
+- [Finding(path=WindowsPath('C:/Users/Siemens/AppData/Local/Temp/tmp1c4r_zso/frames/manifest.json'),
+-          line=1,
+-          rule='T-GEN',
+-          message="'line_workbench'")]
+
+----------------------------------------------------------------------
+Ran 231 tests in 61.568s
+
+FAILED (failures=2, errors=6)
+{"cases": 55, "checks": 238, "sources": 31}
+{"generated": "C:\\Users\\Siemens\\AppData\\Local\\Temp\\tmpf37y6kl5\\ldt", "structs": 88, "enums": 42, "witnesses": 1146}

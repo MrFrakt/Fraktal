@@ -1,0 +1,20 @@
+{
+  "name": "FB_DigitalInputCM",
+  "tier": "CONTROL_MODULE",
+  "type_key": "std.moduleType.digitalInput",
+  "commands": [],
+  "records": {
+    "ST_DigitalInputParCfg": "STRUCT SchemaVersion : UINT := 1; END_STRUCT",
+    "ST_DigitalInputParCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_DigitalInputOutCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_DigitalInputOutImm": "STRUCT Value : BOOL; Quality : BOOL; END_STRUCT",
+    "ST_DigitalInputHal": "STRUCT Value : BOOL; Quality : BOOL := TRUE; END_STRUCT"
+  },
+  "contract": {
+    "ParCfg": "ST_DigitalInputParCfg",
+    "ParCmd": "ST_DigitalInputParCmd",
+    "OutCmd": "ST_DigitalInputOutCmd",
+    "OutImm": "ST_DigitalInputOutImm"
+  },
+  "hal": "ST_DigitalInputHal"
+}

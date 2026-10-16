@@ -1,4 +1,4 @@
-"""P1 typed line engine. Composition/mailbox/LOAD_DB integration is separate.
+"""P1 typed line engine and isolated owner composition (Core 1.5 workbench).
 
 The engine has no module identity, HAL, registry row or command lifecycle. Its
 caller supplies a complete source image and clock quality; it never trusts a
@@ -24,6 +24,10 @@ class Line:
     record: str
     values: tuple[dict, ...]
     stale_after_ms: int
+
+    def definition(self):
+        return dict(id=self.line_id, owner=self.owner, role=self.role, roots=list(self.roots),
+                    record=self.record, values=list(self.values), stale_after_ms=self.stale_after_ms)
 
     @classmethod
     def read(cls, value, roots):
@@ -64,6 +68,27 @@ class Engine:
         expected = set(record_targets(catalog, line.record, capacity)) - {'SchemaVersion'}
         if expected != {f.member.split('.')[1] for f in self.fields}:
             raise DeclarationError('T-GEN', 'line.values', 'line replication requires the complete config record')
+
+    def production_sources(self):
+        from fraktal_tia_generate import db
+        sources = self.sources()
+        sources['05_FRK_Line.db'] = db('FRK_Line', ['Data'+PRIVATE+' : "FRK_LineState";',
+                                                  'Ready'+PRIVATE+' : Bool;'])
+        body = ['    #FRK_LineScope := '+' OR '.join('#Scope = '+literal(n) for n in self.line.roots)+';']
+        sources['17_Line.scl'] += function('FRK_LineScope', ['Scope : String;'], [], [], body, 'Bool')
+        body = ['    IF NOT "FRK_LineScope"(Scope := #Scope) THEN RETURN; END_IF;',
+                '    IF #Scope = '+literal(self.line.roots[0])+' THEN',
+                '        "FRK_LineTick"(NowMs := "FRK_Clock".NowMs, SourceError := 0, State := "FRK_Line".Data);',
+                '        "FRK_LineAnnounce"(Scope := #Scope, State := "FRK_Line".Data, AlarmLog := #AlarmLog);',
+                '    END_IF;',
+                '    #Published := "FRK_Line".Data.Status;',
+                '    IF #Startup OR #Seen <> #Published.Revision THEN',
+                '        #Seen := #Published.Revision;',
+                '        #ConfigRevision := "FRK_ConfigRevision"(Previous := #ConfigRevision);',
+                '    END_IF;']
+        sources['17_Line.scl'] += function('FRK_LineFrame', ['Scope : String;', 'Startup : Bool;'],
+            ['Seen : UDInt;', 'ConfigRevision : UDInt;', 'Published : "ST_LineStatus";', 'AlarmLog : "FRK_AlarmLog";'], [], body)
+        return sources
 
     def sources(self):
         from fraktal_tia_generate import db

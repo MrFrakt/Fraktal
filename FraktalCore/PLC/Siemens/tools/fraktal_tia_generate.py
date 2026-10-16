@@ -60,7 +60,8 @@ def definition(model):
             **({'alarm_history': {'scopes': list(model.alarm_history_scopes)}} if model.alarm_history_scopes else {}),
             **({'alarm_recovery': {'scopes': list(model.alarm_recovery_scopes)}} if model.alarm_recovery_scopes else {}),
             **({'alarm_delivery': {'scopes':list(model.alarm_delivery_scopes),'capacity':model.alarm_delivery_capacity,'stream_id':model.alarm_delivery_stream}} if model.alarm_delivery_scopes else {}),
-            **({'persistence': {'medium':'LOAD_DB','minimum_write_ms':model.persistence_min_write_ms,'queue_capacity':model.persistence_queue_capacity}} if model.persistence_min_write_ms else {})}
+            **({'persistence': {'medium':'LOAD_DB','minimum_write_ms':model.persistence_min_write_ms,'queue_capacity':model.persistence_queue_capacity}} if model.persistence_min_write_ms else {}),
+            **({'line': model.line.definition()} if model.line else {})}
 
 
 def state_calls(body, catalog):
@@ -98,9 +99,11 @@ def state_calls(body, catalog):
     return body,bool(matches)
 
 
-def build(model, shared_runtime=False):
+def build(model, shared_runtime=False, *, line_workbench=False):
+    if model.line and not line_workbench:
+        raise DECL.DeclarationError('T-GEN', 'line', 'Line profile is incomplete (Core 1.5); isolated line_workbench only until shifts and owner sets are qualified')
     catalog = Catalog.read(model.records)
-    config_runtime = bool(model.config_set_capacity or model.model_config or any(t.config or t.station_config for t in model.types))
+    config_runtime = bool(model.line or model.config_set_capacity or model.model_config or any(t.config or t.station_config for t in model.types))
     config = None
     if config_runtime:
         from fraktal_tia_config import Layout
@@ -172,6 +175,8 @@ def build(model, shared_runtime=False):
                 raise DECL.DeclarationError('T-CORE', t.name, 'manifest revision, pager and catalog belong to the generated frame')
             if config_runtime and re.search(r'#(?:\w+\.)*(?:ParCfg|StationCfg|ConfigPersist|Model|ConfigStage\w*|ConfigDefault\w*|ConfigStaged|AvailableModelCount|AvailableModels|ConfigSets|ConfigSetCount|ConfigSetDocument|ConfigSetDocumentLine|ConfigSetDocumentLines)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Cfg|Set|Json)\w*"\s*\(|"FRK_(?:Config(?:Store|Scratch|Runtime)|Set(?:Store|Runtime))"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'editable config, staging and model identity belong to the owning handlers')
+            if model.line and re.search(r'#(?:Line|LineRevisionSeen)(?:\.\w+)*\s*:=|"FRK_Line\w*"\s*\(|"FRK_Line"', code, re.I):
+                raise DECL.DeclarationError('T-CORE', t.name, 'line config and publication belong to the shared owner and generated frame')
             if re.search(r'#Access\b[^;]*:=|"FRK_Access\w*"\s*\(|"FRK_(?:LocalUsers|AccessPolicies|AccessStorage)"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'access authority belongs to generated services and composition injection')
             if re.search(r'#(?:StateFlags|StateFlagCount|StateTouched)\b|"FRK_StateSweep"\s*\(',code,re.I) or (region!='cyclic' and '"FRK_State"' in code):
@@ -226,6 +231,8 @@ def build(model, shared_runtime=False):
         if not unit_runtime or not shared_runtime:
             raise DECL.DeclarationError('T-GEN', 'config', 'editable config requires the Unit shared runtime')
         requests.extend(('ST_ConfigRecord', 'ST_ConfigPersistStatus', 'ST_ModelId'))
+        if model.line:
+            requests.extend((model.line.record, 'ST_LineStatus', 'ST_LineImage'))
         if model.persistence_min_write_ms: requests.append('ST_PersistResult')
         if model.config_set_capacity:
             requests.append('ST_ConfigSetInfo')
@@ -282,6 +289,13 @@ def build(model, shared_runtime=False):
         calls.insert(0, '    "FRK_ConfigBoot"(Startup := #Startup);')
         if config.sets:
             calls.insert(1, '    "FRK_SetBoot"(Startup := #Startup);')
+        if config.line:
+            calls.insert(0, '    IF #Startup THEN "FRK_LineBoot"(OwnerRole := TRUE, NowMs := "FRK_Clock".NowMs, State := "FRK_Line".Data); END_IF;')
+            ready = []
+            for root in model.line.roots:
+                prefix = '"'+root+'"'
+                ready.append('('+prefix+'.Core.Exec = %d AND NOT '%catalog.enums['E_ExecState']['READY']+prefix+'.Unit.ModePending AND NOT '+prefix+'.Unit.Clearing AND "FRK_DescendantsReady"(OwnerIndex := '+prefix+'.Core.RegIndex))')
+            calls.insert(1, '    "FRK_Line".Ready := '+' AND '.join(ready)+';')
     if unit_runtime:
         calls.insert(0, '    "FRK_AccessStoreBoot"(Startup := #Startup);')
         if model.alarm_recovery_scopes:calls.insert(0,'    "FRK_AlarmRecoveryPrepare"(Startup := #Startup);')
@@ -307,6 +321,9 @@ def build(model, shared_runtime=False):
             from fraktal_tia_config import TEMPLATE as config_template, DECIMAL_TEMPLATE
             for config_source in (config_template, DECIMAL_TEMPLATE):
                 runtime_metadata['authority_inputs'][config_source.relative_to(REPO).as_posix()] = hashlib.sha256(config_source.read_bytes()).hexdigest()
+            if config.line:
+                from fraktal_tia_line import TEMPLATE as line_template
+                runtime_metadata['authority_inputs'][line_template.relative_to(REPO).as_posix()] = hashlib.sha256(line_template.read_bytes()).hexdigest()
             if config.sets:
                 from fraktal_tia_config_sets import TEMPLATE as set_template, LINE_AUTHORITY
                 runtime_metadata['authority_inputs'][set_template.relative_to(REPO).as_posix()] = hashlib.sha256(set_template.read_bytes()).hexdigest()
@@ -346,6 +363,7 @@ def build(model, shared_runtime=False):
         duplicate = next(n for n in emitted if emitted.count(n) > 1)
         raise DECL.DeclarationError('T-COLLIDE', duplicate, 'project and framework global declarations collide')
     return sources, {"kind": KIND, "generator_version": VERSION, "declaration": definition(model),
+                     **({'line_workbench': True} if model.line else {}),
                      "inventory": model.inventory(), "core_inputs": catalog.inputs,
                      "types": types, "type_ids": type_ids, "hal_types": hal_names,
                      "runtime_dependencies": ["FRK_Core", "FRK_Begin", "FRK_RouteAbort", "FRK_End", "FRK_ClockTick", "FRK_Start"] + ([model.event_sink] if model.event_sink else []),
@@ -526,6 +544,8 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
                   '    "FRK_AccessCyclic"(Access := #Access, Startup := #Startup, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog, Revision := #ConfigRev);',
                   *(['    IF #Core.ParentIndex = 0 THEN "FRK_DeliveryMailbox"(RootScope := #Status.Name, Access := #Access, AlarmLog := #AlarmLog); END_IF;'] if model.alarm_delivery_scopes else []),
                   '    "FRK_UnitMailbox"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Request := #HmiRequest, Response := #HmiResponse, Supported := #SupportedModesPublished);']
+        if config and t.name in config.line_types:
+            lines.insert(len(lines)-1, '    "FRK_LineFrame"(Scope := #Status.Name, Startup := #Startup, Seen := #LineRevisionSeen, ConfigRevision := #ConfigRev, Published := #Line, AlarmLog := #AlarmLog);')
         if config and t.name in config.roots:
             lines += ['    "FRK_ConfigStatus"(RootIndex := #ConfigRootIndex, Scope := #Status.Name, PolicyLost := #Access.PolicyLost, UsersLost := "FRK_AccessStorage".UsersLost, Persist := #ConfigPersist, AlarmLog := #AlarmLog);',
                       '    #Unit.ConfigEnabled := #Core.ParentIndex = 0;',
@@ -679,6 +699,9 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
                   '    IF #Core.RegIndex > 0 THEN "FRK_Registry".Rows[#Core.RegIndex].AlarmBlocking := #AlarmLog.Blocking; END_IF;',
                   '    #Unit.AlarmBlocking := "FRK_AlarmTreeBlocking"(Owner := #Core.RegIndex)'+(' OR "FRK_AlarmRecoveryTreeBlocking"(Scope := #Status.Name)' if model.alarm_recovery_scopes else '')+';']
         lines += ['    "FRK_AccessPersist"(Access := #Access, Unit := #Unit, Response := #HmiResponse, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog);']
+        if config and t.name in config.line_types:
+            lines += ['    IF #Core.ParentIndex = 0 AND "FRK_LineScope"(Scope := #Status.Name) THEN',
+                      '        #Line := "FRK_Line".Data.Status; #LineRevisionSeen := #Line.Revision;', '    END_IF;']
         lines += ['    "FRK_AccessFinish"(Access := #Access, Unit := #Unit, Response := #HmiResponse, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog, Revision := #ConfigRev);',
                   '    "FRK_UnitFinish"(Core := #Core, Unit := #Unit, Response := #HmiResponse, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, History := #History, Head := #HistoryHead);',
                   '    #ModeActivePublished := #Unit.Mode;','    #RunningPublished := #Core.Exec = %d;' % catalog.enums['E_ExecState']['BUSY'],
@@ -699,8 +722,8 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
     return text
 
 
-def generate(model, directory, shared_runtime=False):
-    sources, manifest = build(model, shared_runtime)
+def generate(model, directory, shared_runtime=False, *, line_workbench=False):
+    sources, manifest = build(model, shared_runtime, line_workbench=line_workbench)
     directory.mkdir(parents=True, exist_ok=False)
     for name, text in sources.items():
         (directory / name).write_bytes(text.encode('ascii'))
@@ -713,9 +736,10 @@ def verify(directory):
     manifest = json.loads((directory / 'manifest.json').read_text(encoding='ascii'), object_pairs_hook=DECL.unique_json_object)
     if manifest.get('kind') != KIND:
         raise ValueError('not a generated frame manifest')
-    sources, expected = build(DECL.validate(manifest['declaration']), manifest.get('shared_runtime', False))
-    for field in ('core_inputs', 'inventory', 'types', 'type_ids', 'hal_types', 'template_sha256', 'generator_version', 'shared_runtime', 'runtime', 'runtime_dependencies'):
-        if manifest.get(field) != expected[field]:
+    sources, expected = build(DECL.validate(manifest['declaration']), manifest.get('shared_runtime', False),
+                              line_workbench=manifest.get('line_workbench') is True)
+    for field in ('core_inputs', 'inventory', 'types', 'type_ids', 'hal_types', 'template_sha256', 'generator_version', 'shared_runtime', 'line_workbench', 'runtime', 'runtime_dependencies'):
+        if manifest.get(field) != expected.get(field):
             raise DECL.DeclarationError('T-GEN', field, 'generated metadata is stale or changed')
     names = {p.name for p in directory.iterdir() if p.suffix in ('.scl', '.udt', '.db')}
     if names != set(sources):

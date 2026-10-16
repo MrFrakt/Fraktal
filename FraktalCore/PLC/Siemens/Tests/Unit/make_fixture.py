@@ -66,7 +66,7 @@ def declaration():
 
 def prepare(out, value=None):
     model=DECL.validate(declaration() if value is None else value)
-    manifest=GEN.generate(model,out,shared_runtime=True)
+    manifest=GEN.generate(model,out,shared_runtime=True,line_workbench=bool(model.line))
     print(json.dumps({'sources':len(manifest['generated']),'types':len(manifest['types']),'instances':len(model.instances)}))
 
 

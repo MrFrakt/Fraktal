@@ -1,0 +1,270 @@
+﻿FUNCTION "FRK_PersistIo" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Operation : Int;
+   END_VAR
+
+
+BEGIN
+	
+	CASE "FRK_PersistRuntime".Slot OF
+	    1:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D001A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D001A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D001B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D001B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D001Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D001A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D001Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D001B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    2:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D002A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D002A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D002B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D002B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D002Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D002A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D002Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D002B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    3:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D003A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D003A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D003B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D003B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D003Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D003A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D003Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D003B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    4:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D004A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D004A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D004B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D004B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D004Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D004A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D004Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D004B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    5:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D005A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D005A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D005B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D005B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D005Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D005A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D005Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D005B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    6:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D006A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D006A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D006B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D006B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D006Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D006A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D006Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D006B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    7:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D007A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D007A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D007B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D007B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D007Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D007A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D007Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D007B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    8:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D008A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D008A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D008B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D008B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D008Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D008A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D008Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D008B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    9:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D009A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D009A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D009B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D009B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D009Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D009A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D009Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D009B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    10:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D010A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D010A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D010B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D010B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D010Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D010A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D010Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D010B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    11:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D011A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D011A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D011B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D011B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D011Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D011A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D011Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D011B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    12:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D012A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D012A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D012B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D012B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D012Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D012A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D012Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D012B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    13:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D013A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D013A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D013B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D013B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D013Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D013A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D013Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D013B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    14:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D014A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D014A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D014B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D014B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D014Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D014A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D014Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D014B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    15:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D015A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D015A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D015B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D015B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D015Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D015A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D015Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D015B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    16:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D016A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D016A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D016B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D016B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D016Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D016A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D016Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D016B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    17:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D017A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D017A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D017B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D017B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D017Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D017A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D017Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D017B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    18:
+	        CASE #Operation OF
+	            1:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D018A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D018A);
+	            2:
+	                "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D018B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D018B);
+	            3:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D018Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D018A".Bytes);
+	            4:
+	                "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D018Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D018B".Bytes);
+	            ELSE
+	                "FRK_PersistRuntime".NativeResult := -1;
+	                "FRK_PersistRuntime".NativeBusy := FALSE;
+	        END_CASE;
+	    ELSE
+	        "FRK_PersistRuntime".NativeResult := -1;
+	        "FRK_PersistRuntime".NativeBusy := FALSE;
+	END_CASE;
+	
+END_FUNCTION
+

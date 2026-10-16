@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_AccessStore" Id="{e3f54a8b-8b28-4016-b710-9c270f1e35cf}">
+    <Declaration><![CDATA[// Core §7.7(c) - an access provider whose user table outlives a restart.
+// Optional: found by __QUERYINTERFACE on the I_AccessProvider a root was given and
+// driven by that root's FB_AccessManager every scan, so a project calls nothing to
+// make its users durable. Several roots may share one provider.
+INTERFACE I_AccessStore]]></Declaration>
+    <Method Name="M_Service" Id="{063b67dc-0f8e-4e8e-869b-88cf8e105680}">
+      <Declaration><![CDATA[// Advance the restore, then keep the written table current. TRUE once the
+// retained table has been read (or there was none to read).
+METHOD M_Service : BOOL]]></Declaration>
+    </Method>
+    <Method Name="M_RestoreLost" Id="{9c07e8cb-884c-4c09-a681-729fd722c5fa}">
+      <Declaration><![CDATA[// TRUE for the rest of this run when the restore found a retained table that was
+// corrupt, missing or older than one confirmed written: some users are gone.
+METHOD M_RestoreLost : BOOL]]></Declaration>
+    </Method>
+    <Method Name="M_SaveFailed" Id="{d9515f44-bb51-4a16-9247-3185d9a387aa}">
+      <Declaration><![CDATA[// TRUE while the table on storage is not under control: the latest change could
+// not be written (live now, lost at the next restart), or - before M_Service
+// returns TRUE - the retained table could not be read.
+METHOD M_SaveFailed : BOOL]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

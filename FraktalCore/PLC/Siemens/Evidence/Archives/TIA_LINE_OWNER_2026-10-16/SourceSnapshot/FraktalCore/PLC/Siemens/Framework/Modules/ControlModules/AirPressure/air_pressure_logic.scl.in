@@ -1,0 +1,26 @@
+// Passive two-threshold pneumatic-pressure monitor. Both switches active is
+// only a wiring/sensor defect when it PERSISTS for ConflictTime: the switches
+// trip at different pressures, so a brief overlap while the system fills is
+// normal physics. A qualified conflict faults (MANUAL_RESET through the Unit).
+@REGION:Cyclic@
+    IF #Hal.LowPressure AND #Hal.OperatingPressure THEN
+        IF NOT #Device.Conflicting THEN
+            #Device.Conflicting := TRUE;
+            #Device.ConflictSinceMs := "FRK_Clock".NowMs;
+        END_IF;
+    ELSE
+        #Device.Conflicting := FALSE;
+    END_IF;
+    #Device.Contradictory := #Device.Conflicting
+        AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.ConflictSinceMs)
+            >= DINT_TO_UDINT(TIME_TO_DINT(#ParCfg.ConflictTime));
+    IF #Device.Contradictory THEN
+        "FRK_Fault"(ReasonCode := @AIR_SWITCH_CONFLICT@,
+            Description := WSTRING#'std.error.airPressureSwitchConflict', Core := #Core, Status := #Status);
+    END_IF;
+@REGION:cyclic@
+    #OutImm.LowPressure := #Hal.LowPressure;
+    #OutImm.OperatingPressure := #Hal.OperatingPressure;
+    #OutImm.Quality := #Hal.Quality;
+    #OutImm.Contradictory := #Device.Contradictory;
+    #OutImm.PressureOk := #Hal.OperatingPressure AND NOT #Hal.LowPressure AND #Hal.Quality;

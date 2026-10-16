@@ -126,6 +126,7 @@ class Declaration:
     # (model, 'ParCfg.Member', SCL literal): the value an absent model record
     # starts from, instead of the record default (the TC3 recipe seeds).
     model_seeds: tuple[tuple[str, str, str], ...] = ()
+    line: object = None
 
     def inventory(self):
         types = {item.name: item for item in self.types}
@@ -186,7 +187,7 @@ def member(value, location):
 
 def validate(value, core=None):
     core = core or CoreFacts.read()
-    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records", "event_sink", "model_config", "config_sets", "alarm_history", "alarm_recovery", "alarm_delivery", "persistence"), "declaration")
+    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records", "event_sink", "model_config", "config_sets", "alarm_history", "alarm_recovery", "alarm_delivery", "persistence", "line"), "declaration")
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise DeclarationError("T-GEN", "schema_version", "only declaration version1 is supported")
     if value["target_family"] != "S7-1500":
@@ -209,6 +210,8 @@ def validate(value, core=None):
     frame_members |= {n.casefold() for n in ('SequenceViewEnabled', 'SequenceStepCount', 'SequenceAnnotationCount',
         'Profiler', 'Starved', 'Blocked', 'CurrentStep', 'CurrentStepElapsed', 'CurrentStepTimedOut', 'SequenceSteps', 'ActiveSteps',
         'SequenceAnnotations', 'SequenceStepDef', 'SequenceViewBook', 'SequenceViewTouched', 'SequenceViewDepths', 'SequenceViewVisits')}
+    if value.get('line') is not None:
+        frame_members |= {'line', 'linerevisionseen'}
     for index, data in enumerate(items(value["types"], "types")):
         location = f"types[{index}]"
         object_fields(data, ("name", "tier", "children"), ("type_key", "contract", "hal", "capabilities", "logic", "commands", "timeout", "storage", "unit", "station_config", "config", "sequence_view"), location)
@@ -451,9 +454,17 @@ def validate(value, core=None):
             raise DeclarationError('T-GEN','persistence','LOAD_DB requires a bounded write interval of at least 1000 ms')
         if type(queue_capacity) is not int or not 1 <= queue_capacity <= Catalog.read().capacities['MAX_PERSIST_QUEUE']:
             raise DeclarationError('T-WIDTH','persistence','queue capacity exceeds the Core bound')
-        if not all(lookup[r.type_name.casefold()].unit_modes for r in roots) or not any(t.config for t in types):
+        if not all(lookup[r.type_name.casefold()].unit_modes for r in roots) or not (any(t.config for t in types) or 'line' in value):
             raise DeclarationError('T-GEN','persistence','LOAD_DB requires runtime Units with registered config')
-    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds)
+    line = None
+    if 'line' in value:
+        from fraktal_tia_line import Line
+        line = Line.read(value['line'], [r.name for r in roots if lookup[r.type_name.casefold()].unit_modes])
+        if not minimum_write_ms:
+            raise DeclarationError('T-GEN', 'line', 'production line config requires LOAD_DB persistence')
+        if line.role != 'OWNER':
+            raise DeclarationError('T-GEN', 'line', 'production MIRROR needs a bound source; the local mirror engine is tested separately')
+    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds,line)
 
 
 def unique_json_object(pairs):

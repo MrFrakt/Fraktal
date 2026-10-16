@@ -1,0 +1,53 @@
+﻿FUNCTION "FRK_LineWrite" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+      Access : "FRK_Access";
+      Ready : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      State : "FRK_LineState";
+      Matched : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      FieldIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_LineWrite := FALSE;
+	FOR #FieldIndex := 1 TO 8 DO
+	    "FRK_LineDef"(FieldIndex := #FieldIndex);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        IF #State.Status.LineId <> 'PRESS-LINE-1' OR #State.Status.Owner <> 'BenchLineOwner'
+	            OR #State.Status.Role <> 1 OR #Request.Kind <> 19
+	            OR #Request.DurationMs <> 0
+	            OR DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision
+	            OR #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite)
+	            OR ("FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready) THEN
+	            RETURN;
+	        END_IF;
+	        IF NOT "FRK_ConfigValidate"(Text := #Request.TextValue) THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_LineAssign"(FieldIndex := #FieldIndex,
+	                         Values := #State.Values);
+	        IF #State.Status.Revision = UDINT#4294967295 THEN
+	            #State.Status.Revision := 1;
+	        ELSE
+	            #State.Status.Revision := #State.Status.Revision + 1;
+	        END_IF;
+	        #State.Dirty := TRUE;
+	        "FRK_LineBuild"(State := #State);
+	        #FRK_LineWrite := TRUE;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

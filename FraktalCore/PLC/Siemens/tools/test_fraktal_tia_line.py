@@ -10,6 +10,9 @@ from fraktal_tia_line import Engine, Line
 spec = importlib.util.spec_from_file_location('line_fixture', REPO/'FraktalCore/PLC/Siemens/Tests/Line/make_fixture.py')
 FIX = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(FIX)
+spec = importlib.util.spec_from_file_location('line_owner_fixture', REPO/'FraktalCore/PLC/Siemens/Tests/Line/make_owner_fixture.py')
+OWNER = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(OWNER)
 
 
 class LineTests(unittest.TestCase):
@@ -59,6 +62,67 @@ class LineTests(unittest.TestCase):
                        FIX.RECORD[1].replace('Gain : LREAL', 'Gain : LTIME')):
             with self.subTest(record=record), self.assertRaises(DeclarationError):
                 self.engine(record=(FIX.RECORD[0], record))
+
+    def test_owner_declaration_round_trips_and_adds_no_registry_row(self):
+        import fraktal_tia_generate as gen
+        value = OWNER.declaration()
+        model = gen.DECL.validate(value)
+        sources, metadata = gen.build(model, True, line_workbench=True)
+        self.assertEqual(metadata['declaration']['line'], value['line'])
+        self.assertEqual(len(model.instances), 24)
+        self.assertNotIn('RegIndex', sources['02_FRK_LineState.udt'])
+        self.assertIn('FRK_LineManifest', ''.join(v for k,v in sources.items() if k.startswith('20_')))
+
+    def test_line_restore_precedes_the_media_barrier_and_root_startup(self):
+        import fraktal_tia_generate as gen
+        sources, _ = gen.build(gen.DECL.validate(OWNER.declaration()), True, line_workbench=True)
+        main = sources['30_FB_FraktalMain.scl']
+        self.assertLess(main.index('"FRK_LineBoot"'), main.index('"FRK_DocBoot"'))
+        self.assertLess(main.index('"FRK_DocBoot"'), main.index('"StationA"(ParentIndex'))
+        self.assertLess(main.index('"FRK_PersistLineTick"'), main.index('"FRK_DocCyclic"'))
+
+    def test_line_document_is_appended_and_shared_by_all_referencing_roots(self):
+        import fraktal_tia_generate as gen
+        value = OWNER.declaration()
+        _, baseline = gen.build(gen.DECL.validate(OWNER.CONFIG.declaration()), True)
+        sources, metadata = gen.build(gen.DECL.validate(value), True, line_workbench=True)
+        previous = baseline['runtime']['persistence']['documents']
+        documents = metadata['runtime']['persistence']['documents']
+        self.assertEqual(documents[:-1], previous)
+        self.assertEqual(documents[-1]['role'], 'line')
+        self.assertLessEqual(documents[-1]['capacity'], Catalog.read().capacities['MAX_PERSIST_DOC_BYTES'])
+        self.assertIn('IF #RootIndex = 1 OR #RootIndex = 2 THEN', sources['16_PersistStatus.scl'])
+        self.assertIn('IF (#RootIndex = 1 OR #RootIndex = 2)', sources['16_PersistStatus.scl'])
+
+    def test_unbound_mirrors_and_nonpersistent_lines_are_refused(self):
+        import fraktal_tia_generate as gen
+        for change in ('mirror', 'medium', 'nested-root'):
+            value = OWNER.declaration()
+            if change == 'mirror': value['line']['role'] = 'MIRROR'
+            elif change == 'medium': value.pop('persistence')
+            else: value['line']['roots'] = ['StationA.Satellite']
+            with self.subTest(change=change), self.assertRaises(DeclarationError):
+                gen.DECL.validate(value)
+
+    def test_project_code_cannot_write_or_invoke_line_internals(self):
+        import fraktal_tia_generate as gen
+        for body in ('#Line.Revision := 3;', '#LineRevisionSeen := 3;', '"FRK_Line".Data.Dirty := TRUE;'):
+            value = OWNER.declaration(); value['types'][0]['logic']['cyclic'] = body
+            with self.subTest(body=body), self.assertRaises(DeclarationError):
+                gen.build(gen.DECL.validate(value), True, line_workbench=True)
+
+    def test_partial_line_profile_requires_explicit_workbench_generation(self):
+        import fraktal_tia_generate as gen
+        import tempfile
+        from pathlib import Path
+        model = gen.DECL.validate(OWNER.declaration())
+        with self.assertRaisesRegex(DeclarationError, 'Core 1.5'):
+            gen.build(model, True)
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)/'frames'
+            manifest = gen.generate(model, output, True, line_workbench=True)
+            self.assertIs(manifest['line_workbench'], True)
+            self.assertEqual(gen.verify(output), len(manifest['generated']))
 
 
 if __name__ == '__main__': unittest.main()

@@ -211,6 +211,12 @@ class Layout:
         self.value_width = width(catalog, 'ST_ConfigRecord', 'ValueText')
         self.model_width = width(catalog, 'ST_ModelId', 'ModelCode')
         self.lookup = {t.name.casefold(): t for t in model.types}
+        self.line = None
+        self.line_types = set()
+        if model.line:
+            from fraktal_tia_line import Engine
+            self.line = Engine(model.line, catalog)
+            self.line_types = {self.lookup[r.type_name.casefold()].name for r in model.roots if r.name in model.line.roots}
         self.fields = {t.name: fields_for(t, catalog) for t in model.types}
         self.roots = {self.lookup[r.type_name.casefold()].name for r in model.roots}
         self.models = model.model_config or ('',)
@@ -228,6 +234,8 @@ class Layout:
                 raise DeclarationError('T-GEN', 'model_config.seeds.' + code, member + ' is not declared root model config')
         self.capacity = sum((len(self.models) if f.kind == catalog.enums['E_ConfigKind']['PAR_CFG'] else 1)
                             for i in model.instances for f in self.fields[i.type_name])
+        if self.line:
+            self.capacity = max(1, self.capacity)
         self.required = {}
         self.texts = {}
         self.sets = None
@@ -256,6 +264,8 @@ class Layout:
                   'Model': '"ST_ModelId"', 'AvailableModelCount': 'Int', 'ConfigStaged': 'Bool'}
         if t.sequence_view:
             fields.update({'SequenceStepDef': 'Array[1..%d] of "ST_SequenceStepDef"'%t.sequence_view[0], 'SequenceStepCount': 'Int'})
+        if t.name in self.line_types:
+            fields.update({'Line': '"ST_LineStatus"', 'LineRevisionSeen': 'UDInt'})
         if self.sets:
             fields.update({'ConfigSets': 'Array[1..%d] of "ST_ConfigSetInfo"'%self.sets.capacity,
                            'ConfigSetCount': 'Int', 'ConfigSetDocument': 'WString',
@@ -306,6 +316,9 @@ class Layout:
 
     def declarations(self, t):
         result = []
+        if t.name in self.line_types:
+            result += ['    Line'+READONLY+' : "ST_LineStatus";',
+                       '    LineRevisionSeen'+PRIVATE+' : UDInt;']
         if t.station_config:
             result.append('    StationCfg'+READONLY+' : "'+t.station_config+'";')
         roles = {f.member.split('.')[0] for f in self.fields[t.name]}
@@ -413,6 +426,9 @@ class Layout:
                      '        "FRK_ConfigAppendEntry"(Cursor := #Cursor, Page := #Page);', '    END_IF;']
         for child in t.children:
             body += ['    IF #ModelIndex = 0 THEN '+self.call(self.lookup[child.type_name.casefold()], 'Read', '#Module.'+child.name+'.', Access='#Access', RootIndex='#RootIndex', ModelIndex='#ModelIndex', Cursor='#Cursor', Page='#Page')+'; END_IF;']
+        if t.name in self.line_types:
+            body += ['    IF #ModelIndex = 0 AND #Module.Core.ParentIndex = 0 AND "FRK_LineScope"(Scope := #Module.Status.Name) THEN',
+                     '        "FRK_LineManifest"(Scope := #Module.Status.Name, Access := #Access, State := "FRK_Line".Data, Cursor := #Cursor, Page := #Page);', '    END_IF;']
         return self.render(t, 'Read', ['Access : "FRK_Access";', 'RootIndex : Int;', 'ModelIndex : UDInt;'],
                            ['Module : "'+t.name+'";', 'Cursor : "FRK_ConfigCursor";', 'Page : "ST_ConfigPage";'], ['Ok : Bool;'], body, function_name=config_name(t))
 
@@ -442,8 +458,12 @@ class Layout:
                      '            IF NOT #Ok THEN RETURN; END_IF;', '            IF NOT #Inactive THEN',
                      assign_value(f, '#Module.'+f.member), '            END_IF;',
                      '            #'+name(t, 'Write')+' := TRUE;', '            RETURN;', '        END_IF;']
+        if t.name in self.line_types:
+            body += ['        IF #Module.Core.ParentIndex = 0 AND "FRK_LineScope"(Scope := #Module.Status.Name) THEN',
+                     '            #Ok := "FRK_LineWrite"(Request := #Request, Access := #Access, Ready := #RootReady AND "FRK_Line".Ready, State := "FRK_Line".Data, Matched := #Matched);',
+                     '            IF #Matched THEN #'+name(t, 'Write')+' := #Ok; RETURN; END_IF;', '        END_IF;']
         body += ['    END_IF;']
-        if not self.fields[t.name]:
+        if not self.fields[t.name] and t.name not in self.line_types:
             # TIA rejects an empty IF body, even when it is unreachable.
             body = [body[0]]
         for child in t.children:
@@ -501,7 +521,7 @@ class Layout:
             'Entry'+PRIVATE+' : "ST_ConfigEntry";', 'Blank'+PRIVATE+' : "ST_ConfigEntry";',
             'Value'+PRIVATE+' : "FRK_ConfigValue";',
             'EnumCount'+PRIVATE+' : Int;',
-            'EnumValues'+PRIVATE+' : Array[1..%d] of DInt;'%max(1, max((len(f.enum_values) for fs in self.fields.values() for f in fs), default=0)),
+            'EnumValues'+PRIVATE+' : Array[1..%d] of DInt;'%max(1, max((len(f.enum_values) for fs in [*self.fields.values(), self.line.fields if self.line else ()] for f in fs), default=0)),
             *[k+PRIVATE+' : '+v+';' for k, v in (
                 ('Storage', 'DInt'), ('Schema', 'UInt'), ('Minimum', 'LReal'), ('Maximum', 'LReal'),
                 ('MaxLength', 'Int'), ('MinRead', 'DInt'), ('MinWrite', 'DInt'))],
@@ -544,6 +564,8 @@ class Layout:
         sources['14_ConfigServices.scl'] = text
         if self.sets:
             sources.update(self.sets.sources())
+        if self.line:
+            sources.update(self.line.production_sources())
         return sources
 
     def operations(self, t):

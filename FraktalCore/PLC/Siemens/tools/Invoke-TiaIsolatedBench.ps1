@@ -1,7 +1,7 @@
 <# Own one newly registered, unmapped CPU1516 bench; preserve every existing instance. #>
 param(
   [Parameter(Mandatory=$true)] [string] $Profile,
-  [ValidateSet('host','status','run','read')] [string] $Action = 'status',
+  [ValidateSet('host','status','run','read','restart')] [string] $Action = 'status',
   [string] $StopFile,
   [int] $ExpectedChecks = 0
 )
@@ -39,7 +39,8 @@ function Assert-Bench($instance,[bool]$AllowEmpty=$false) {
 if ($Action -eq 'host') {
   $allowedRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Fraktal\TiaSpikes')) + '\'
   if (-not $StopFile -or -not [IO.Path]::GetFullPath($StopFile).StartsWith($allowedRoot,[StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $StopFile)) { throw 'A new stop-file inside TiaSpikes is required' }
-  if (Find-Bench) { throw 'Refusing to take ownership of an existing bench' }
+  $existingBench = Find-Bench
+  if ($existingBench) { $existingBench.Dispose(); throw 'Refusing to take ownership of an existing bench' }
   if ("$($manager.GetProperty('NetworkMode').GetValue($null))" -ne 'Non_Promiscuous') { throw 'Preserve network mode; bench requires existing Non_Promiscuous mode' }
   $adapter = @(Get-NetAdapter | Where-Object InterfaceDescription -eq 'Siemens PLCSIM Virtual Ethernet Adapter')
   if ($adapter.Count -ne 1 -or $adapter[0].Status -ne 'Up') { throw 'Exactly one enabled virtual adapter is required' }
@@ -68,6 +69,7 @@ if ($Action -eq 'host') {
     if ($instance) {
       $instance.PowerOff(30000) | Out-Null
       $instance.UnregisterInstance()
+      $instance.Dispose()
     }
     $after = @($manager.GetProperty('RegisteredInstanceInfo').GetValue($null) | ForEach-Object { $_.Name })
     Emit 'preserved-instances-after' @{names=$after}
@@ -75,7 +77,16 @@ if ($Action -eq 'host') {
   exit
 }
 $instance = Find-Bench
+try {
 Assert-Bench $instance ($Action -eq 'status')
+if ($Action -eq 'restart') {
+  $instance.PowerOff(30000) | Out-Null
+  $instance.PowerOn(60000) | Out-Null
+  Assert-Bench $instance
+  $instance.Run(30000) | Out-Null
+  Assert-Bench $instance
+  exit
+}
 if ($Action -eq 'run') { $instance.Run(30000) | Out-Null; Assert-Bench $instance; exit }
 if ($Action -eq 'status') { exit }
 if ($ExpectedChecks -lt 1) { throw 'Expected assertion count is required for a result read' }
@@ -91,3 +102,6 @@ foreach ($tag in $instance.TagInfos) {
 if ($values.Count -ne 4) { throw 'Bench result interface incomplete' }
 Emit 'results' $values
 if (-not $values.Done -or $values.Failures -ne 0 -or $values.FirstFailure -ne 0 -or $values.Checks -ne $ExpectedChecks) { throw 'Native assertions failed' }
+} finally {
+  if ($instance) { $instance.Dispose() }
+}

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_ConfigSource" Id="{4e8b6d05-a2c1-47f9-b3e4-6f90d215c887}">
+    <Declaration><![CDATA[// Core §3.10.2 — a module that contributes entries to the root Unit's
+// configuration manifest (static data deliberately excluded from the cyclic
+// OPC UA tree and served through the QUERY_CONFIG mailbox instead).
+// FB_ModuleBase implements it once for the base-owned facets; composites
+// recurse their children, so a new module type inherits participation and
+// only overrides M_AppendConfig to add type-owned static data (rare).
+// The same walk carries writes back (M_ApplyConfigWrite): read publication
+// and write authority stay one participation, so a module cannot end up
+// publishing an editable value it has no path to apply (§3.8b).
+INTERFACE I_ConfigSource EXTENDS __System.IQueryInterface]]></Declaration>
+    <Method Name="M_AppendConfig" Id="{a7c40d92-58e6-4b1a-9f27-31d8ce6b40e5}">
+      <Declaration><![CDATA[// Append this module's (and its children's) manifest entries to the pager.
+// Deterministic order across calls — the walk order defines the paging.
+METHOD M_AppendConfig : BOOL
+VAR_INPUT
+    Pager : REFERENCE TO FB_ConfigPager;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ConfigAccessOf" Id="{a5761e33-de56-4dc6-a86c-831a8a411150}">
+      <Declaration><![CDATA[// §3.8d - report what the module named by Scope declared about access to one
+// of its registered values. TRUE only from the owner; the root resolves the
+// effective level with its policy before it lets a write, capture or set
+// record reach the value.
+METHOD M_ConfigAccessOf : BOOL
+VAR_INPUT
+    Scope    : STRING(255);
+    WriteKey : STRING(160);
+END_VAR
+VAR_IN_OUT
+    Grant : ST_ConfigAccess;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{0b5f92c7-3a41-4de8-97b2-6c8d05e1743f}">
+      <Declaration><![CDATA[// Apply one registered configuration write to the module named by Scope.
+// TRUE only from the module that owns the key and accepted the value; a module
+// that does not own it returns FALSE so the walk continues past it.
+METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ApplyCapture" Id="{bccc12ea-7a33-4c09-a534-e0399aef0a0a}">
+      <Declaration><![CDATA[// §3.8c - capture: store this module's OWN live value into the registered
+// field named by WriteKey. No TextValue: the whole point is that the number
+// comes from the machine, not from the client. Everything else - revision,
+// RequiresReady, the type's own invariants, range, domain, storage - is the
+// write path unchanged, so a capture can never accept what a typed write
+// would refuse.
+METHOD M_ApplyCapture : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_StageConfigWrite" Id="{5b18e0c4-73a9-4d26-91f8-e07c5a2d3b96}">
+      <Declaration><![CDATA[// §3.8b — validate one write WITHOUT applying it. Same module, same key lookup,
+// same revision check, same RequiresReady rule, same type-specific invariant
+// hook, same range and domain checks as M_ApplyConfigWrite — and then nothing
+// is stored.
+//
+// This exists because a parameter-set load is staged and all-or-nothing: every
+// record must be proven acceptable BEFORE any value changes, since a
+// half-applied machine parametrization is never a valid outcome. A separate
+// validation predicate would be free to drift from the write path; this one
+// shares the single validator with it, so "would be accepted" and "was
+// accepted" cannot disagree.
+METHOD M_StageConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_TakeRestoreLoss" Id="{a3c07e91-6425-4b8d-bf03-19e582c74011}">
+      <Declaration><![CDATA[// §3.8b — hand the root ONE not-yet-reported configuration restore loss from
+// this module or its children, so the root can annunciate it with the owning
+// module's canonical path and apply the deployment's E_ConfigRestorePolicy.
+//
+// The module marks each loss reported as it hands it over, so the root simply
+// drains this until it returns FALSE. That is what makes the annunciation
+// exactly-once without either side keeping a list.
+METHOD M_TakeRestoreLoss : BOOL
+VAR_OUTPUT
+    Path     : STRING(80);   // canonical identity of the module that lost it
+    Expected : UINT;         // schema version this build understands
+    Found    : UINT;         // schema version actually retained
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

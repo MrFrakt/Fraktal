@@ -10,9 +10,14 @@ item below is **not implemented** unless the census says otherwise.
 Continuation, 2026-10-15: **P1 is in progress.** The shared typed line engine now
 has native owner/mirror, atomic-image, staleness/event and image-reapplication
 evidence. See [line engine evidence](../Evidence/TIA_LINE_ENGINE_2026-10-15.md).
-Production composition, root mailbox/audit routing, named line sets, LOAD_DB
-document consumers, the press declaration and live HMI proof remain. The census
-below continues to describe the shipped press; the Line profile is not closed.
+Continuation, 2026-10-16: the isolated owner composition now shares its normal
+mailbox/manifest and one LOAD_DB document across two roots. Native compile,
+read-back and 54 live checks include an actual simulated power cycle after
+corrupting the working cache. See [owner evidence](../Evidence/TIA_LINE_OWNER_2026-10-16.md).
+Named line sets, a bound mirror source, shifts and press integration remain.
+Normal generation refuses the partial profile (Core 1.5); the explicit workbench
+API is for isolated tests only. The census below continues to describe the
+shipped press; the Line profile is not closed.
 
 ## 1. Method
 
@@ -203,8 +208,8 @@ runs Siemens lint, tool tests and shipped-package replay.
 
 This is the first P13 slice, not R3/R4/R5 completion. Coherence, clock quality,
 optional OPC UA and S7-1200 remain provisional; the native orchestration script,
-PLC test runner and broader suites remain open. P1 line owner/local mirror is
-the next functional slice; P12 transport decisions do not block it.
+PLC test runner and broader suites remain open. P1's engine and shared-owner
+workbench progress is recorded above; P12 transport decisions do not block it.
 
 **P1 prerequisite complete:** station and model config capabilities now refuse
 the reserved `line.*` namespace, with both cases tested. Owner/local mirror,
