@@ -1,0 +1,73 @@
+﻿FUNCTION "FRK_PartReceived" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Uid : String[64];
+      ResultIndex : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PartReceived := FALSE;
+	#Index := #Unit.CarrierIndex;
+	IF #Index = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Index < 1 OR #Index > 32 THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2020,
+	                Description := WSTRING#'std.error.partCarrierReadFailed');
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_Carriers".Slots[#Index].Enabled OR "FRK_Carriers".Slots[#Index].Kind <> 2 OR "FRK_Carriers".Slots[#Index].Serial = UDINT#4294967295 THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2020,
+	                Description := WSTRING#'std.error.partCarrierReadFailed');
+	    RETURN;
+	END_IF;
+	"FRK_Carriers".Slots[#Index].Serial := "FRK_Carriers".Slots[#Index].Serial + 1;
+	#Uid := CONCAT(IN1 := 'FRK-', IN2 := DINT_TO_STRING(#Index));
+	#Uid := CONCAT(IN1 := #Uid, IN2 := '-');
+	#Uid := CONCAT(IN1 := #Uid, IN2 := UDINT_TO_STRING("FRK_Carriers".Slots[#Index].Serial));
+	#Part.Uid := #Uid;
+	#Part.Present := TRUE;
+	#Part.CarrierKind := 2;
+	#Part.Result.Verdict := 0;
+	#Part.Result.ReasonCode := 0;
+	#Part.Result.StationPath := STRING_TO_WSTRING(#Status.Name);
+	#Part.Result.Stamp := LDT#1970-01-01-00:00:00.000000000;
+	#Part.Result.TimeSynchronized := FALSE;
+	FOR #ResultIndex := 1 TO 32 DO
+	    #Part.Result.Records[#ResultIndex].Name := '';
+	END_FOR;
+	FOR #ResultIndex := 1 TO 8 DO
+	    #Part.Parents[#ResultIndex] := '';
+	END_FOR;
+	"FRK_Carriers".Slots[#Index].Context := #Part;
+	"FRK_PartEvent"(AlarmLog := #AlarmLog,
+	                Reason := 2024,
+	                Uid := #Part.Uid,
+	                SourcePath := #Status.Name);
+	"FRK_HostEmit"(Kind := 1,
+	               Scope := #Status.Name,
+	               PartUid := #Part.Uid,
+	               Subject := '',
+	               Value := '',
+	               Verdict := 0,
+	               Reason := 0);
+	#FRK_PartReceived := TRUE;
+	
+END_FUNCTION
+

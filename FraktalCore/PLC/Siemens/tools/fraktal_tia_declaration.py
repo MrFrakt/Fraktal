@@ -133,6 +133,7 @@ class Declaration:
     line: object = None
     nameplates: tuple = ()
     engineering_gates: tuple = ()
+    data_classes: tuple = ()
 
     def inventory(self):
         types = {item.name: item for item in self.types}
@@ -193,7 +194,7 @@ def member(value, location):
 
 def validate(value, core=None):
     core = core or CoreFacts.read()
-    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records", "event_sink", "model_config", "config_sets", "alarm_history", "alarm_recovery", "alarm_delivery", "persistence", "line", "nameplates", "engineering_gates"), "declaration")
+    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records", "event_sink", "model_config", "config_sets", "alarm_history", "alarm_recovery", "alarm_delivery", "persistence", "line", "nameplates", "engineering_gates", "data_classes"), "declaration")
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise DeclarationError("T-GEN", "schema_version", "only declaration version1 is supported")
     if value["target_family"] != "S7-1500":
@@ -528,8 +529,10 @@ def validate(value, core=None):
                 raise DeclarationError('T-WIDTH','engineering_gates','gate identity exceeds its Core bound')
         names.append(gate['name'])
     if len(names)!=len(set(names)):raise DeclarationError('T-GEN','engineering_gates','gate names must be unique')
+    from fraktal_tia_data_classes import validate_classes
+    classes = validate_classes(value.get('data_classes', {}), roots, types, facts)
     return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds,line,
-                       tuple((p,tuple(v.items())) for p,v in nameplates.items()),tuple(tuple(g.items()) for g in gates))
+                       tuple((p,tuple(v.items())) for p,v in nameplates.items()),tuple(tuple(g.items()) for g in gates),classes)
 
 
 def unique_json_object(pairs):

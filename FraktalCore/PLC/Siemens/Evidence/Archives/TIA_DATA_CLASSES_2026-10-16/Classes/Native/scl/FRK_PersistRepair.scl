@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_PersistRepair" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	// Trusted consumer seam; never a remote command or authorization authority.
+	IF #Slot < 1 OR #Slot > 20 THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistAnchorValid"(Slot := #Slot) THEN
+	    "FRK_PersistRuntime".Anchor[#Slot].SchemaVersion := 1;
+	    "FRK_PersistRuntime".Anchor[#Slot].KeyCrc := "FRK_PersistRuntime".KeyCrc[#Slot];
+	    "FRK_PersistRuntime".Anchor[#Slot].Generation := 0;
+	    "FRK_PersistRuntime".Anchor[#Slot].DocumentCrc := DWORD#0;
+	    "FRK_PersistRuntime".Anchor[#Slot].Checksum := "FRK_PersistAnchorCrc"(Image := "FRK_PersistRuntime".Anchor[#Slot]);
+	    "FRK_PersistAnchors".Commissioned[#Slot] := TRUE;
+	END_IF;
+	"FRK_PersistCommitAnchor"(Slot := #Slot);
+	
+END_FUNCTION
+

@@ -50,7 +50,7 @@ class Sets:
                      '        "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Module.Status.Name;',
                      '        "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;',
                      '        IF #Phase = 0 OR #Phase = 5 THEN',
-                     '            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;',
+                     '            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Module.Status.Name) THEN RETURN; END_IF;',
                      '            IF #Phase = 5 AND (%d <> %d OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN'%(field.kind, model_kind),
                      *read_value(field), '                #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);',
                      '            ELSE',

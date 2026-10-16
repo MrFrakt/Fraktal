@@ -60,6 +60,11 @@ class Medium:
         if self.model.line:
             host = next(i for i, root in enumerate(self.model.roots, 1) if root.name == self.model.line.roots[0])
             self.add('line.'+hashlib.sha256(self.model.line.line_id.encode('ascii')).hexdigest(), host, 'line')
+        # Append optional policy documents; existing action-policy documents and
+        # their station/model/set slots keep their identities and layouts.
+        for root_index, root in enumerate(self.model.roots, 1):
+            if root.name in dict(self.model.data_classes):
+                self.add(root.name+'.classes', root_index, 'classes')
         if len(self.documents) > self.catalog.capacities['MAX_PERSIST_KEYS']:
             self.reject('document count exceeds the Core key bound')
         import xml.etree.ElementTree as ET
@@ -86,6 +91,8 @@ class Medium:
                        ('Rows', 'Array[1..%d] of "FRK_ConfigSlot"' % max(1, len(d.entries)))]
         elif role == 'policy':
             fields += [('Image', '"FRK_AccessPolicyImage"')]
+        elif role == 'classes':
+            fields += [('Image', '"FRK_ClassPolicyImage"')]
         elif role == 'users':
             fields += [('Generation', 'UDInt'), ('Count', 'DInt'), ('Rows', 'Array[1..%d] of "ST_UserRecord"' % self.catalog.capacities['MAX_USERS']), ('Checksum', 'DWord')]
         elif role == 'line':
@@ -97,6 +104,10 @@ class Medium:
         definitions = self.catalog.resolve(['ST_ConfigRecord', 'ST_UserRecord', 'ST_AccessPolicy', 'ST_ConfigSetInfo'])
         if self.model.line:
             definitions.update(self.catalog.resolve(['ST_LineImage']))
+        if self.model.data_classes:
+            from fraktal_tia_data_classes import image_fields
+            definitions.update(self.catalog.resolve(['ST_DataClassPolicy']))
+            definitions['FRK_ClassPolicyImage'] = [dict(member=n,native_type=t) for n,t in image_fields(self.catalog)]
         definitions.update({
             'FRK_ConfigSlot': [dict(member=n, native_type=t) for n, t in [('SchemaVersion','UInt'),('Used','Bool'),('ModelCode','String[64]'),('Record','"ST_ConfigRecord"')]],
             'FRK_AccessPolicyImage': [dict(member=n,native_type=t) for n,t in [('SchemaVersion','UInt'),('Initialized','Bool'),('Scope','String[80]'),('Generation','UDInt'),('Policy','"ST_AccessPolicy"'),('Checksum','DWord')]],
@@ -321,6 +332,11 @@ class Medium:
                             '    IF NOT "FRK_AccessPolicyValid"(Image := '+image+'.Image) THEN RETURN; END_IF;']
                 validate += ['    IF '+image+'.Image.Scope <> '+literal(scope)+' OR NOT "FRK_AccessPolicyValid"(Image := '+image+'.Image) THEN RETURN; END_IF;']
                 apply += ['    "FRK_AccessPolicies".Rows[%d] := '%d.root+image+'.Image;']
+            elif d.role=='classes':
+                capture += ['    '+image+'.Image := "FRK_ClassPolicies".Rows[%d];'%d.root,
+                            '    IF NOT "FRK_ClassValid"(Image := '+image+'.Image) THEN RETURN; END_IF;']
+                validate += ['    IF '+image+'.Image.Scope <> '+literal(scope)+' OR NOT "FRK_ClassValid"(Image := '+image+'.Image) THEN RETURN; END_IF;']
+                apply += ['    "FRK_ClassPolicies".Rows[%d] := '%d.root+image+'.Image;']
             elif d.role=='users':
                 capture += ['    IF NOT "FRK_AccessStorage".UsersReady THEN RETURN; END_IF;']
                 for member in ('Generation','Count','Rows','Checksum'):
@@ -378,6 +394,9 @@ class Medium:
                 b += ['            "FRK_AccessPolicies".Rows[%d].Scope := %s;'%(d.root,scope),
                       '            "FRK_AccessPolicies".Rows[%d].SchemaVersion := 0;'%d.root,
                       '            "FRK_AccessPolicies".Rows[%d].Initialized := TRUE;'%d.root]
+            elif d.role=='classes':
+                b += ['            "FRK_ClassPolicies".Rows[%d].Scope := %s;'%(d.root,literal(self.model.roots[d.root-1].name)),
+                      '            "FRK_ClassPolicies".Rows[%d].SchemaVersion := 0;'%d.root]
             elif d.role=='line':
                 b += ['            "FRK_Line".Data.Dirty := FALSE;',
                       '            "FRK_Line".Data.Status.SourceError := 0;',
@@ -471,7 +490,7 @@ class Medium:
             for instance,field in d.entries:
                 b += ['    IF #Scope = '+literal(instance.path)+' AND #ModelCode = '+literal(d.model)+' AND #Kind = %d THEN #FRK_PersistConfigSlot := %d; RETURN; END_IF;'%(field.kind,d.index)]
         text+=function('FRK_PersistConfigSlot',['Scope : String;','ModelCode : String;','Kind : DInt;'],[],[],b,'Int')
-        for role in ('users','policy','set','model'):
+        for role in ('users','policy','set','model', *(['classes'] if self.model.data_classes else [])):
             inputs=[] if role=='users' else ['RootIndex : Int;']
             if role=='set':inputs+=['Ordinal : Int;']
             b=[]
@@ -566,6 +585,12 @@ class Medium:
         b='\n'.join('    IF #Scope = '+literal(self.model.roots[d.root-1].name)+' THEN "FRK_PersistPolicyDirty"(RootIndex := %d); END_IF;'%d.root for d in self.documents if d.role=='policy')
         s=s.replace(a,a+'\n'+b)
         sources[p]=s
+        if self.model.data_classes:
+            marker='    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Checksum := "FRK_ClassCrc"(Image := "FRK_ClassPolicies".Rows[#Access.ClassSlot]);'
+            p='13_UnitServices.scl';s=sources[p]
+            assert s.count(marker)==1
+            s=s.replace(marker,marker+'\n    IF "FRK_PersistConsumers".Ready THEN "FRK_PersistClassesDirty"(RootIndex := #Access.ClassSlot); END_IF;')
+            sources[p]=s
         # Public live write still owns all validation; the medium is a side effect
         # only after success, and unchanged values do not wear flash.
         p='14_ConfigServices.scl';s=sources[p]

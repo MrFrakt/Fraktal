@@ -70,7 +70,11 @@ class Target:
             stream.write((json.dumps(dict(original_after=after,exit_code=result.returncode))+'\n').encode('ascii'))
         if after != before: raise RuntimeError('original Fraktal state changed')
         if result.returncode: raise RuntimeError('web provisioning failed; no replay')
-        self.action('run')
+        # A full download can already start the CPU. Observe its actual state
+        # before issuing a redundant SDK mutation (which cannot be retried if
+        # the Siemens SDK fails while disposing its instance wrapper).
+        if self.action('status')['state'] != 'Run':
+            self.action('run')
 
     def configure_web(self, output):
         """Prepare credentials on the saved isolated project before hosting.

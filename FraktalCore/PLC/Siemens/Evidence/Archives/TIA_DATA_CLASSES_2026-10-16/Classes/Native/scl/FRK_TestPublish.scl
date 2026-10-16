@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_TestPublish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Complete : Bool;
+      Image0 : DWord;
+      Image1 : DWord;
+      Image2 : DWord;
+      Image3 : DWord;
+      Image4 : DWord;
+      Image5 : DWord;
+      Image6 : DWord;
+      Image7 : DWord;
+   END_VAR
+
+   VAR_IN_OUT 
+      Result : "FRK_TestResult";
+      Status : "FRK_TestStatus";
+   END_VAR
+
+
+BEGIN
+	
+	#Status.Done := #Complete AND NOT #Result.ProtocolError;
+	#Status.Checks := #Result.Checks;
+	#Status.Failures := #Result.Failures;
+	#Status.FirstFailure := #Result.FirstFailure;
+	#Status.ImageHash[0] := #Image0;
+	#Status.ImageHash[1] := #Image1;
+	#Status.ImageHash[2] := #Image2;
+	#Status.ImageHash[3] := #Image3;
+	#Status.ImageHash[4] := #Image4;
+	#Status.ImageHash[5] := #Image5;
+	#Status.ImageHash[6] := #Image6;
+	#Status.ImageHash[7] := #Image7;
+	
+END_FUNCTION
+

@@ -1,6 +1,12 @@
 # Siemens press demo
 
-Latest qualification (2026-10-16): generator0.22 produces254 grouped sources.
+Latest qualification (2026-10-16): generator0.23 keeps254 grouped sources and
+passes both native software compile stages,561 canonical sources,152 FB/type
+interfaces,62 DB interfaces and the same independent GRAPH/LD parity below.
+The shared typed configuration now supports optional root data classes; the
+press's built-in class behavior is preserved. See [the class-policy evidence](../../../../../Specification/Siemens/Evidence/TIA_DATA_CLASSES_2026-10-16.md).
+
+Operations qualification (2026-10-16): generator0.22 produces254 grouped sources.
 AUTO, HOME, CHANGEOVER and shared LoadPosition are wired GRAPH; ST permissives
 own the release policy. Optional ST/LD twins remain unwired. Native compile,
 canonical source/interface read-back and independent chart/ladder replay pass.

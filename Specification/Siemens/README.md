@@ -26,6 +26,10 @@ repository root to verify relocated bytes and historical checksums.
 
 Keep normative text here, implementation outside it, and dated evidence immutable.
 
+Latest class-policy continuation: [root data classes and independent recovery](Evidence/TIA_DATA_CLASSES_2026-10-16.md).
+Generator0.23 passes16 PLC assertions,97 live checks and native runtime/press
+read-back. Runtime model creation and complete Line-profile integration remain.
+
 
 Latest config continuation: [named sets and JSON exchange](Evidence/TIA_CONFIG_SETS_2026-10-12.md).
 The simulator image and the separately compiled press image are identified there.

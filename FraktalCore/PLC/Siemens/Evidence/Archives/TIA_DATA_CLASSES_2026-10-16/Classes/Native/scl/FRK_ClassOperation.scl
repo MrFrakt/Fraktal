@@ -1,0 +1,54 @@
+﻿FUNCTION "FRK_ClassOperation" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Unit : "FRK_Unit";
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Changed : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> 36 THEN
+	    RETURN;
+	END_IF;
+	#Response.Accepted := FALSE;
+	#Response.Diagnostic := WSTRING#'std.error.accessDenied';
+	IF #Access.PolicyLost OR #Access.ClassesLost OR #Access.ClassSlot = 0
+	    OR #Access.ClassCount < 1 OR #Access.ClassCount > 8
+	    OR #Access.CurrentLevel < #Access.Policy.Required[8]
+	    OR #Unit.Request.IntValue < 0 OR #Unit.Request.IntValue > 4
+	    OR #Unit.Request.IntValue > #Access.CurrentLevel THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO #Access.ClassCount DO
+	    IF #Access.Classes[#Index].ClassId = #Unit.Request.NameValue THEN
+	        IF #Unit.Request.BoolValue THEN
+	            #Changed := #Access.Classes[#Index].WriteLevel <> #Unit.Request.IntValue;
+	            #Access.Classes[#Index].WriteLevel := #Unit.Request.IntValue;
+	        ELSE
+	            #Changed := #Access.Classes[#Index].ReadLevel <> #Unit.Request.IntValue;
+	            #Access.Classes[#Index].ReadLevel := #Unit.Request.IntValue;
+	        END_IF;
+	        IF #Changed THEN
+	            "FRK_ClassSave"(Access := #Access,
+	                            Scope := #Scope);
+	        END_IF;
+	        #Response.Accepted := TRUE;
+	        #Response.Diagnostic := WSTRING#'';
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

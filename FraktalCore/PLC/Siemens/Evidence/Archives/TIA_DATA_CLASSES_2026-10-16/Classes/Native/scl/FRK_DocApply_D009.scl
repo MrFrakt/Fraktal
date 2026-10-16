@@ -1,0 +1,789 @@
+﻿FUNCTION "FRK_DocApply_D009" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+      Targets : Array[1..28] of Int;
+      Prior : Int;
+      Reserved : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocApply_D009 := FALSE;
+	#Position := 24;
+	#NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D009Data, DEST_VARIABLE => "FRK_PersistImages".D009, POS := #Position);
+	IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[9].Result.Length) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D009.SchemaVersion <> 1 OR "FRK_PersistImages".D009.Scope <> 'StationB' THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D009.Kind <> 1 OR "FRK_PersistImages".D009.ModelCode <> '' OR "FRK_PersistImages".D009.Count <> 28 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D009.ActiveModel <> 'MODEL_A' AND "FRK_PersistImages".D009.ActiveModel <> 'MODEL_B' THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[1].Used OR "FRK_PersistImages".D009.Rows[1].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[1].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[1].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[1].Record.WriteKey <> 'siteLabel' OR "FRK_PersistImages".D009.Rows[1].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[1].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[1].Record.ValueType <> 1 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[1].Record.ValueText), Storage := 8, Minimum := 0.0, Maximum := 1.0, MaxLength := 80, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[2].Used OR "FRK_PersistImages".D009.Rows[2].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[2].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[2].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[2].Record.WriteKey <> 'enabled' OR "FRK_PersistImages".D009.Rows[2].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[2].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[2].Record.ValueType <> 2 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[2].Record.ValueText), Storage := 1, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[3].Used OR "FRK_PersistImages".D009.Rows[3].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[3].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[3].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[3].Record.WriteKey <> 'ratio' OR "FRK_PersistImages".D009.Rows[3].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[3].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[3].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[3].Record.ValueText), Storage := 6, Minimum := -1000000.0, Maximum := 1000000.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[4].Used OR "FRK_PersistImages".D009.Rows[4].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[4].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[4].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[4].Record.WriteKey <> 'gain' OR "FRK_PersistImages".D009.Rows[4].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[4].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[4].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[4].Record.ValueText), Storage := 5, Minimum := -1000.0, Maximum := 1000.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[5].Used OR "FRK_PersistImages".D009.Rows[5].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[5].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[5].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[5].Record.WriteKey <> 'grade' OR "FRK_PersistImages".D009.Rows[5].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[5].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[5].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[5].Record.ValueText), Storage := 3, Minimum := 0.0, Maximum := 6.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[6].Used OR "FRK_PersistImages".D009.Rows[6].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[6].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[6].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[6].Record.WriteKey <> 'degradationPercent' OR "FRK_PersistImages".D009.Rows[6].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[6].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[6].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[6].Record.ValueText), Storage := 3, Minimum := 0.0, Maximum := 65535.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[7].Used OR "FRK_PersistImages".D009.Rows[7].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[7].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[7].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[7].Record.WriteKey <> 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' OR "FRK_PersistImages".D009.Rows[7].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[7].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[7].Record.ValueType <> 1 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[7].Record.ValueText), Storage := 8, Minimum := 0.0, Maximum := 1.0, MaxLength := 80, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[8].Used OR "FRK_PersistImages".D009.Rows[8].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[8].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[8].Record.Scope <> 'StationB' OR "FRK_PersistImages".D009.Rows[8].Record.WriteKey <> 'capturedCycles' OR "FRK_PersistImages".D009.Rows[8].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[8].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[8].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[8].Record.ValueText), Storage := 4, Minimum := 0.0, Maximum := 10.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[9].Used OR "FRK_PersistImages".D009.Rows[9].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[9].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[9].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[9].Record.WriteKey <> 'siteLabel' OR "FRK_PersistImages".D009.Rows[9].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[9].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[9].Record.ValueType <> 1 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[9].Record.ValueText), Storage := 8, Minimum := 0.0, Maximum := 1.0, MaxLength := 80, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[10].Used OR "FRK_PersistImages".D009.Rows[10].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[10].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[10].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[10].Record.WriteKey <> 'enabled' OR "FRK_PersistImages".D009.Rows[10].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[10].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[10].Record.ValueType <> 2 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[10].Record.ValueText), Storage := 1, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[11].Used OR "FRK_PersistImages".D009.Rows[11].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[11].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[11].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[11].Record.WriteKey <> 'ratio' OR "FRK_PersistImages".D009.Rows[11].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[11].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[11].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[11].Record.ValueText), Storage := 6, Minimum := -1000000.0, Maximum := 1000000.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[12].Used OR "FRK_PersistImages".D009.Rows[12].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[12].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[12].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[12].Record.WriteKey <> 'gain' OR "FRK_PersistImages".D009.Rows[12].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[12].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[12].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[12].Record.ValueText), Storage := 5, Minimum := -1000.0, Maximum := 1000.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[13].Used OR "FRK_PersistImages".D009.Rows[13].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[13].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[13].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[13].Record.WriteKey <> 'grade' OR "FRK_PersistImages".D009.Rows[13].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[13].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[13].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[13].Record.ValueText), Storage := 3, Minimum := 0.0, Maximum := 6.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[14].Used OR "FRK_PersistImages".D009.Rows[14].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[14].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[14].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[14].Record.WriteKey <> 'offset.-1' OR "FRK_PersistImages".D009.Rows[14].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[14].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[14].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[14].Record.ValueText), Storage := 2, Minimum := -32768.0, Maximum := 32767.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[15].Used OR "FRK_PersistImages".D009.Rows[15].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[15].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[15].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[15].Record.WriteKey <> 'offset.0' OR "FRK_PersistImages".D009.Rows[15].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[15].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[15].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[15].Record.ValueText), Storage := 2, Minimum := -32768.0, Maximum := 32767.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[16].Used OR "FRK_PersistImages".D009.Rows[16].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[16].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[16].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[16].Record.WriteKey <> 'offset.1' OR "FRK_PersistImages".D009.Rows[16].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[16].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[16].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[16].Record.ValueText), Storage := 2, Minimum := -32768.0, Maximum := 32767.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[17].Used OR "FRK_PersistImages".D009.Rows[17].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[17].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[17].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[17].Record.WriteKey <> 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' OR "FRK_PersistImages".D009.Rows[17].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[17].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[17].Record.ValueType <> 1 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[17].Record.ValueText), Storage := 8, Minimum := 0.0, Maximum := 1.0, MaxLength := 80, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[18].Used OR "FRK_PersistImages".D009.Rows[18].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[18].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[18].Record.Scope <> 'StationB.Satellite' OR "FRK_PersistImages".D009.Rows[18].Record.WriteKey <> 'small' OR "FRK_PersistImages".D009.Rows[18].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[18].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[18].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[18].Record.ValueText), Storage := 3, Minimum := 0.0, Maximum := 255.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[19].Used OR "FRK_PersistImages".D009.Rows[19].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[19].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[19].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[19].Record.WriteKey <> 'siteLabel' OR "FRK_PersistImages".D009.Rows[19].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[19].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[19].Record.ValueType <> 1 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[19].Record.ValueText), Storage := 8, Minimum := 0.0, Maximum := 1.0, MaxLength := 80, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[20].Used OR "FRK_PersistImages".D009.Rows[20].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[20].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[20].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[20].Record.WriteKey <> 'enabled' OR "FRK_PersistImages".D009.Rows[20].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[20].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[20].Record.ValueType <> 2 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[20].Record.ValueText), Storage := 1, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[21].Used OR "FRK_PersistImages".D009.Rows[21].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[21].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[21].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[21].Record.WriteKey <> 'ratio' OR "FRK_PersistImages".D009.Rows[21].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[21].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[21].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[21].Record.ValueText), Storage := 6, Minimum := -1000000.0, Maximum := 1000000.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[22].Used OR "FRK_PersistImages".D009.Rows[22].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[22].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[22].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[22].Record.WriteKey <> 'gain' OR "FRK_PersistImages".D009.Rows[22].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[22].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[22].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[22].Record.ValueText), Storage := 5, Minimum := -1000.0, Maximum := 1000.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[23].Used OR "FRK_PersistImages".D009.Rows[23].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[23].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[23].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[23].Record.WriteKey <> 'grade' OR "FRK_PersistImages".D009.Rows[23].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[23].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[23].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[23].Record.ValueText), Storage := 3, Minimum := 0.0, Maximum := 6.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[24].Used OR "FRK_PersistImages".D009.Rows[24].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[24].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[24].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[24].Record.WriteKey <> 'offset.-1' OR "FRK_PersistImages".D009.Rows[24].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[24].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[24].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[24].Record.ValueText), Storage := 2, Minimum := -32768.0, Maximum := 32767.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[25].Used OR "FRK_PersistImages".D009.Rows[25].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[25].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[25].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[25].Record.WriteKey <> 'offset.0' OR "FRK_PersistImages".D009.Rows[25].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[25].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[25].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[25].Record.ValueText), Storage := 2, Minimum := -32768.0, Maximum := 32767.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[26].Used OR "FRK_PersistImages".D009.Rows[26].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[26].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[26].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[26].Record.WriteKey <> 'offset.1' OR "FRK_PersistImages".D009.Rows[26].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[26].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[26].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[26].Record.ValueText), Storage := 2, Minimum := -32768.0, Maximum := 32767.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[27].Used OR "FRK_PersistImages".D009.Rows[27].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[27].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[27].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[27].Record.WriteKey <> 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' OR "FRK_PersistImages".D009.Rows[27].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[27].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[27].Record.ValueType <> 1 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[27].Record.ValueText), Storage := 8, Minimum := 0.0, Maximum := 1.0, MaxLength := 80, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistImages".D009.Rows[28].Used OR "FRK_PersistImages".D009.Rows[28].SchemaVersion <> 5 OR "FRK_PersistImages".D009.Rows[28].ModelCode <> '' OR "FRK_PersistImages".D009.Rows[28].Record.Scope <> 'StationB.Satellite.Inner' OR "FRK_PersistImages".D009.Rows[28].Record.WriteKey <> 'small' OR "FRK_PersistImages".D009.Rows[28].Record.Revision <> 1 OR "FRK_PersistImages".D009.Rows[28].Record.Kind <> 1 OR "FRK_PersistImages".D009.Rows[28].Record.ValueType <> 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_ConfigDecode"(Text := STRING_TO_WSTRING("FRK_PersistImages".D009.Rows[28].Record.ValueText), Storage := 3, Minimum := 0.0, Maximum := 255.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'siteLabel', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[1] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'enabled', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 1 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[2] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'ratio', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 2 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[3] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'gain', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 3 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[4] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'grade', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 4 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[5] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'degradationPercent', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 5 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[6] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 6 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[7] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'capturedCycles', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 7 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[8] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'siteLabel', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 8 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[9] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'enabled', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 9 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[10] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'ratio', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 10 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[11] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'gain', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 11 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[12] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'grade', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 12 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[13] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'offset.-1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 13 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[14] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'offset.0', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 14 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[15] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'offset.1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 15 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[16] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 16 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[17] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'small', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 17 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[18] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'siteLabel', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 18 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[19] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'enabled', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 19 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[20] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'ratio', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 20 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[21] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'gain', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 21 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[22] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'grade', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 22 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[23] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'offset.-1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 23 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[24] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'offset.0', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 24 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[25] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'offset.1', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 25 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[26] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'long.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 26 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[27] := #Stored;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'small', ModelCode := '');
+	IF #Stored = 0 THEN
+	    FOR #Index := 1 TO 160 DO
+	        #Reserved := NOT "FRK_ConfigStore".Rows[#Index].Used;
+	        FOR #Prior := 1 TO 27 DO
+	            IF #Targets[#Prior] = #Index THEN
+	                #Reserved := FALSE;
+	            END_IF;
+	        END_FOR;
+	        IF #Reserved THEN
+	            #Stored := #Index;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Stored < 1 OR #Stored > 160 THEN
+	    RETURN;
+	END_IF;
+	#Targets[28] := #Stored;
+	"FRK_ConfigStore".Rows[#Targets[1]] := "FRK_PersistImages".D009.Rows[1];
+	"FRK_ConfigStore".Rows[#Targets[2]] := "FRK_PersistImages".D009.Rows[2];
+	"FRK_ConfigStore".Rows[#Targets[3]] := "FRK_PersistImages".D009.Rows[3];
+	"FRK_ConfigStore".Rows[#Targets[4]] := "FRK_PersistImages".D009.Rows[4];
+	"FRK_ConfigStore".Rows[#Targets[5]] := "FRK_PersistImages".D009.Rows[5];
+	"FRK_ConfigStore".Rows[#Targets[6]] := "FRK_PersistImages".D009.Rows[6];
+	"FRK_ConfigStore".Rows[#Targets[7]] := "FRK_PersistImages".D009.Rows[7];
+	"FRK_ConfigStore".Rows[#Targets[8]] := "FRK_PersistImages".D009.Rows[8];
+	"FRK_ConfigStore".Rows[#Targets[9]] := "FRK_PersistImages".D009.Rows[9];
+	"FRK_ConfigStore".Rows[#Targets[10]] := "FRK_PersistImages".D009.Rows[10];
+	"FRK_ConfigStore".Rows[#Targets[11]] := "FRK_PersistImages".D009.Rows[11];
+	"FRK_ConfigStore".Rows[#Targets[12]] := "FRK_PersistImages".D009.Rows[12];
+	"FRK_ConfigStore".Rows[#Targets[13]] := "FRK_PersistImages".D009.Rows[13];
+	"FRK_ConfigStore".Rows[#Targets[14]] := "FRK_PersistImages".D009.Rows[14];
+	"FRK_ConfigStore".Rows[#Targets[15]] := "FRK_PersistImages".D009.Rows[15];
+	"FRK_ConfigStore".Rows[#Targets[16]] := "FRK_PersistImages".D009.Rows[16];
+	"FRK_ConfigStore".Rows[#Targets[17]] := "FRK_PersistImages".D009.Rows[17];
+	"FRK_ConfigStore".Rows[#Targets[18]] := "FRK_PersistImages".D009.Rows[18];
+	"FRK_ConfigStore".Rows[#Targets[19]] := "FRK_PersistImages".D009.Rows[19];
+	"FRK_ConfigStore".Rows[#Targets[20]] := "FRK_PersistImages".D009.Rows[20];
+	"FRK_ConfigStore".Rows[#Targets[21]] := "FRK_PersistImages".D009.Rows[21];
+	"FRK_ConfigStore".Rows[#Targets[22]] := "FRK_PersistImages".D009.Rows[22];
+	"FRK_ConfigStore".Rows[#Targets[23]] := "FRK_PersistImages".D009.Rows[23];
+	"FRK_ConfigStore".Rows[#Targets[24]] := "FRK_PersistImages".D009.Rows[24];
+	"FRK_ConfigStore".Rows[#Targets[25]] := "FRK_PersistImages".D009.Rows[25];
+	"FRK_ConfigStore".Rows[#Targets[26]] := "FRK_PersistImages".D009.Rows[26];
+	"FRK_ConfigStore".Rows[#Targets[27]] := "FRK_PersistImages".D009.Rows[27];
+	"FRK_ConfigStore".Rows[#Targets[28]] := "FRK_PersistImages".D009.Rows[28];
+	"FRK_ConfigStore".ActiveModels[2] := "FRK_PersistImages".D009.ActiveModel;
+	"FRK_ConfigStore".SchemaVersion := 1;
+	#FRK_DocApply_D009 := TRUE;
+	
+END_FUNCTION
+

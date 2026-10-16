@@ -13,7 +13,7 @@ from fraktal_tia_binding import Catalog, PRIVATE, READONLY, REPO, literal, type_
 import fraktal_tia_declaration as DECL
 
 HERE = Path(__file__).resolve().parent
-VERSION = "0.22"
+VERSION = "0.23"
 KIND = "fraktal.tia.generated.frames.v1"
 ROLES = ("ParCfg", "ParCmd", "OutCmd", "OutImm")
 RESERVED_BLOCKS = {"frk_core", "frk_registry", "frk_registryrow", "frk_setidentity",
@@ -63,6 +63,7 @@ def definition(model):
             **({'event_sink':model.event_sink} if model.event_sink else {}),
             **({'nameplates':{path:dict(values) for path,values in model.nameplates}} if model.nameplates else {}),
             **({'engineering_gates':[dict(g) for g in model.engineering_gates]} if model.engineering_gates else {}),
+            **({'data_classes':{root:[dict(row) for row in rows] for root,rows in model.data_classes}} if model.data_classes else {}),
             **({'model_config': {'models': list(model.model_config), 'initial': model.initial_model}} if model.model_config else {}),
             **({'config_sets': {'capacity': model.config_set_capacity}} if model.config_set_capacity else {}),
             **({'alarm_history': {'scopes': list(model.alarm_history_scopes)}} if model.alarm_history_scopes else {}),
@@ -195,7 +196,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
                 raise DECL.DeclarationError('T-CORE',t.name,'health evaluation belongs to the generated Unit frame')
             if t.tower is not None and re.search(r'#(?:SignalTower|TowerBook|TowerConfig)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_Tower\w*"',code,re.I):
                 raise DECL.DeclarationError('T-CORE',t.name,'signal tower mapping belongs to the generated Unit frame')
-            if re.search(r'#Access\b[^;]*:=|"FRK_Access\w*"\s*\(|"FRK_(?:LocalUsers|AccessPolicies|AccessStorage)"', code, re.I):
+            if re.search(r'#Access\b[^;]*:=|"FRK_Access\w*"\s*\(|"FRK_Class(?:Save|Boot|Operation)"\s*\(|"FRK_(?:LocalUsers|AccessPolicies|AccessStorage|ClassPolicies|ClassScratch)"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'access authority belongs to generated services and composition injection')
             if re.search(r'#(?:StateFlags|StateFlagCount|StateTouched)\b|"FRK_StateSweep"\s*\(',code,re.I) or (region!='cyclic' and '"FRK_State"' in code):
                 raise DECL.DeclarationError('T-CORE',t.name,'state lifecycle is owned by the frame; publish from unconditional cyclic')
@@ -245,6 +246,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
     requests.append("ST_FraktalHal")
     if unit_runtime:
         requests.extend(('ST_CommandInfo','ST_Nameplate','ST_HostEvent'))
+        if model.data_classes: requests.append('ST_DataClassPolicy')
     elif model.nameplates:
         requests.append('ST_Nameplate')
     if config_runtime:
@@ -400,6 +402,12 @@ def build(model, shared_runtime=False, *, line_workbench=False):
         if set(runtime_sources) & set(sources):
             raise DECL.DeclarationError('T-COLLIDE', 'runtime', 'runtime source filename collision')
         sources.update(runtime_sources)
+        if unit_runtime:
+            from fraktal_tia_data_classes import build as classes_build, adapt as classes_adapt, TEMPLATE as classes_template
+            text = classes_build(model, catalog, sources)
+            sources['13_UnitServices.scl'] += '\n'+text
+            classes_adapt(model, sources)
+            runtime_metadata['authority_inputs'][classes_template.relative_to(REPO).as_posix()] = hashlib.sha256(classes_template.read_bytes()).hexdigest()
         if any(t.sequence_view for t in ordered):
             from fraktal_tia_sequence_view import build as view_build
             view_sources, view_inputs = view_build(model, catalog)
@@ -726,10 +734,12 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
     if t.unit_modes:
         lines += ['    #Unit.CascadePending := FALSE;']
         if config and t.name in config.roots:
+            lines += ['    "FRK_ConfigScratch".AccessRejected := FALSE;']
             lines += ['    '+config.call(t, 'Operation', '#')+';']
             if config.sets:
                 lines += ['    '+config.call(t, 'SetOperation', '#', Startup='#Startup')+';',
                           '    IF #Unit.RequestPending AND #Core.ParentIndex = 0 THEN "FRK_SetResult"(Request := #Unit.Request, Response := #HmiResponse, Persist := #ConfigPersist, AlarmLog := #AlarmLog, Scope := #Status.Name, RootIndex := #ConfigRootIndex); END_IF;']
+            lines += ['    "FRK_ConfigAccessRefusal"(Unit := #Unit, Access := #Access, Response := #HmiResponse, Persist := #ConfigPersist, AlarmLog := #AlarmLog);']
             lines += ['    "FRK_ConfigStatus"(RootIndex := #ConfigRootIndex, Scope := #Status.Name, PolicyLost := #Access.PolicyLost, UsersLost := "FRK_AccessStorage".UsersLost, Persist := #ConfigPersist, AlarmLog := #AlarmLog);']
         else:
             lines += ['    IF #Unit.RequestPending AND #Unit.Request.Kind = %d THEN' % catalog.enums['E_HmiRequestKind']['QUERY_CONFIG'],

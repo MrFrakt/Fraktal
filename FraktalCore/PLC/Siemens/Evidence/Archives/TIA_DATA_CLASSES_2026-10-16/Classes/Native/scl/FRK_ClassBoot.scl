@@ -1,0 +1,97 @@
+﻿FUNCTION "FRK_ClassBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+      Root : Bool;
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Index : Int;
+      Stored : Int;
+      Found : Bool;
+      Changed : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	#Access.ClassCount := 0;
+	#Access.ClassSlot := 0;
+	#Access.ClassesLost := FALSE;
+	FOR #Index := 1 TO 8 DO
+	    #Access.Classes[#Index] := "FRK_ClassScratch".Blank;
+	END_FOR;
+	IF NOT #Root THEN
+	    RETURN;
+	END_IF;
+	#Slot := 0;
+	#Access.ClassCount := 0;
+	IF #Scope = 'StationA' THEN
+	    #Slot := 1;
+	    #Access.ClassCount := 2;
+	    #Access.Classes[1].ClassId := 'public';
+	    #Access.Classes[1].LabelKey := 'test.config.preset';
+	    #Access.Classes[1].ReadLevel := 0;
+	    #Access.Classes[1].WriteLevel := 1;
+	    #Access.Classes[2].ClassId := 'commissioning';
+	    #Access.Classes[2].LabelKey := 'test.config.timeout';
+	    #Access.Classes[2].ReadLevel := 3;
+	    #Access.Classes[2].WriteLevel := 3;
+	END_IF;
+	IF #Scope = 'StationB' THEN
+	    #Slot := 2;
+	    #Access.ClassCount := 1;
+	    #Access.Classes[1].ClassId := 'public';
+	    #Access.Classes[1].LabelKey := 'test.config.preset';
+	    #Access.Classes[1].ReadLevel := 2;
+	    #Access.Classes[1].WriteLevel := 2;
+	END_IF;
+	#Access.ClassSlot := #Slot;
+	IF #Slot = 0 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_ClassVirgin"(Image := "FRK_ClassPolicies".Rows[#Slot]) THEN
+	    // A new optional domain cannot reset the existing action policy.
+	    "FRK_ClassSave"(Access := #Access,
+	                    Scope := #Scope);
+	    RETURN;
+	END_IF;
+	IF "FRK_ClassPolicies".Rows[#Slot].Scope <> #Scope OR NOT "FRK_ClassValid"(Image := "FRK_ClassPolicies".Rows[#Slot]) THEN
+	    #Access.ClassesLost := TRUE;
+	    FOR #Index := 1 TO #Access.ClassCount DO
+	        #Access.Classes[#Index].ReadLevel := 4;
+	        #Access.Classes[#Index].WriteLevel := 4;
+	    END_FOR;
+	    RETURN;
+	END_IF;
+	#Changed := #Access.ClassCount <> "FRK_ClassPolicies".Rows[#Slot].Count;
+	FOR #Index := 1 TO #Access.ClassCount DO
+	    #Found := FALSE;
+	    FOR #Stored := 1 TO "FRK_ClassPolicies".Rows[#Slot].Count DO
+	        IF #Access.Classes[#Index].ClassId = "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].ClassId THEN
+	            #Access.Classes[#Index].ReadLevel := "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].ReadLevel;
+	            #Access.Classes[#Index].WriteLevel := "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].WriteLevel;
+	            #Changed := #Changed OR #Stored <> #Index OR #Access.Classes[#Index].LabelKey <> "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].LabelKey;
+	            #Found := TRUE;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	    #Changed := #Changed OR NOT #Found;
+	END_FOR;
+	IF #Changed THEN
+	    "FRK_ClassSave"(Access := #Access,
+	                    Scope := #Scope);
+	END_IF;
+	
+END_FUNCTION
+

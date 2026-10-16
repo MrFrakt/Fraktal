@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_AlarmShelfTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Changed : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #Slot := 1 TO 16 DO
+	    IF #AlarmLog.Active[#Slot].Shelved THEN
+	        // No surviving monotonic witness after reboot: immediately unshelve.
+	        IF #AlarmLog.ShelfDuration[#Slot] = 0 OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ShelfSince[#Slot]) >= #AlarmLog.ShelfDuration[#Slot] THEN
+	            #Changed := "FRK_AlarmUnshelve"(Slot := #Slot, AlarmLog := #AlarmLog);
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

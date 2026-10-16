@@ -1,0 +1,74 @@
+// Shelving changes annunciation only. Blocking and interlock scans ignore it.
+FUNCTION "FRK_AlarmUnshelve" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Slot : Int; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    #FRK_AlarmUnshelve := FALSE;
+    IF #Slot < 1 OR #Slot > @MAX_ALARM_ACTIVE@ THEN RETURN; END_IF;
+    IF NOT #AlarmLog.Active[#Slot].Shelved THEN RETURN; END_IF;
+    #AlarmLog.Active[#Slot].Shelved := FALSE; #AlarmLog.ShelfDuration[#Slot] := 0;
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := @E_Reason.NONE@, Description := WSTRING#'std.audit.alarmUnshelved', SourcePath := #AlarmLog.Active[#Slot].SourcePath);
+    #FRK_AlarmUnshelve := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmShelve" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Slot : Int; DurationMs : UDInt; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Duration : UDInt; Stamp : LDT; END_VAR
+BEGIN
+    #FRK_AlarmShelve := FALSE;
+    IF #Slot < 1 OR #Slot > @MAX_ALARM_ACTIVE@ OR #DurationMs = 0 THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#Slot].State = @E_AlarmState.CLOSED@ OR #AlarmLog.Active[#Slot].Category = @E_Category.SAFETY@
+        OR NOT "FRK_ReasonShelvable"(Reason := #AlarmLog.Active[#Slot].ReasonCode) THEN RETURN; END_IF;
+    #Duration := #DurationMs;
+    IF #Duration > UDINT#@MAX_SHELF_MS@ THEN #Duration := UDINT#@MAX_SHELF_MS@; END_IF;
+    #AlarmLog.ShelfSince[#Slot] := "FRK_Clock".NowMs; #AlarmLog.ShelfDuration[#Slot] := #Duration;
+    #AlarmLog.Active[#Slot].Shelved := TRUE;
+    #Stamp := "FRK_Now"() + LT#1ms * UDINT_TO_LINT(#Duration);
+    #AlarmLog.Active[#Slot].ShelvedUntil := LDT_TO_DT(#Stamp);
+    #AlarmLog.Active[#Slot].ShelfTimeSynchronized := FALSE;
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := @E_Reason.NONE@, Description := WSTRING#'std.audit.alarmShelved', SourcePath := #AlarmLog.Active[#Slot].SourcePath);
+    #FRK_AlarmShelve := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmShelfTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; Changed : Bool; END_VAR
+BEGIN
+    FOR #Slot := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Active[#Slot].Shelved THEN
+            // No surviving monotonic witness after reboot: immediately unshelve.
+            IF #AlarmLog.ShelfDuration[#Slot] = 0 OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ShelfSince[#Slot]) >= #AlarmLog.ShelfDuration[#Slot] THEN
+                #Changed := "FRK_AlarmUnshelve"(Slot := #Slot, AlarmLog := #AlarmLog);
+            END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmShelfRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; END_VAR
+VAR_IN_OUT Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse"; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR (#Unit.Request.Kind <> @E_HmiRequestKind.SHELVE_ALARM@ AND #Unit.Request.Kind <> @E_HmiRequestKind.UNSHELVE_ALARM@) THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[@E_GatedAction.ALARM_SHELVE@] THEN
+        #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    ELSIF #Unit.Request.IntValue >= 1 AND #Unit.Request.IntValue <= @MAX_ALARM_ACTIVE@ THEN
+        IF #Unit.Request.Kind = @E_HmiRequestKind.SHELVE_ALARM@ THEN
+            #Response.Accepted := "FRK_AlarmShelve"(Slot := DINT_TO_INT(#Unit.Request.IntValue), DurationMs := #Unit.Request.DurationMs, AlarmLog := #AlarmLog);
+        ELSE
+            #Response.Accepted := "FRK_AlarmUnshelve"(Slot := DINT_TO_INT(#Unit.Request.IntValue), AlarmLog := #AlarmLog);
+        END_IF;
+    END_IF;
+    IF #Response.Accepted THEN #Response.Diagnostic := WSTRING#'';
+    ELSE "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Scope), Kind := @E_ReleaseKind.OTHER@); END_IF;
+END_FUNCTION

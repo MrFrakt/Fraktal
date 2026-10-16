@@ -2260,7 +2260,7 @@ BEGIN
     IF #Response.Accepted THEN
         #What := WSTRING#'std.audit.operatorAction';
         IF #Access.CurrentLevel > 0 THEN #Access.LastActivity := "FRK_Clock".NowMs; END_IF;
-        IF #Unit.Request.Kind = 24 OR #Unit.Request.Kind = 25 THEN #Revision := "FRK_ConfigRevision"(Previous := #Revision); END_IF;
+        IF #Unit.Request.Kind = 24 OR #Unit.Request.Kind = 25 OR #Unit.Request.Kind = 36 THEN #Revision := "FRK_ConfigRevision"(Previous := #Revision); END_IF;
     END_IF;
     #AuditPath := #SourcePath;
     IF #Unit.Request.Kind = 11 THEN
@@ -2271,6 +2271,12 @@ BEGIN
     #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.Kind));
     #What := CONCAT(IN1 := #What, IN2 := WSTRING#' value=');
     #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.IntValue));
+    IF #Unit.Request.Kind = 36 THEN
+        #What := CONCAT(IN1 := #What, IN2 := WSTRING#' class=');
+        #What := CONCAT(IN1 := #What, IN2 := STRING_TO_WSTRING(#Unit.Request.NameValue));
+        IF #Unit.Request.BoolValue THEN #What := CONCAT(IN1 := #What, IN2 := WSTRING#' write');
+        ELSE #What := CONCAT(IN1 := #What, IN2 := WSTRING#' read'); END_IF;
+    END_IF;
     "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := #What, Who := #Unit.RequestUser, SourcePath := #AuditPath);
 END_FUNCTION
 
@@ -3887,4 +3893,38 @@ BEGIN
     IF "FRK_Decisions".Slots[#Slot].RootIndex <> #Owner THEN RETURN; END_IF;
     #Decision := "FRK_Decisions".Slots[#Slot].Request;
     #DecisionAnswer := "FRK_Decisions".Slots[#Slot].Answer;
+END_FUNCTION
+
+FUNCTION "FRK_DataLevel" : DInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Access : "FRK_Access";
+    ClassId : String;
+    Minimum : DInt;
+    ForWrite : Bool;
+END_VAR
+VAR_TEMP
+    Required : DInt;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_DataLevel := 4;
+    IF #Minimum < 0 OR #Minimum > 4 THEN RETURN; END_IF;
+    #Required := #Access.Policy.Required[0];
+    IF #ForWrite THEN #Required := #Access.Policy.Required[1]; END_IF;
+    IF #ClassId <> '' THEN
+        RETURN;
+    END_IF;
+    IF #Required < 0 OR #Required > 4 THEN RETURN; END_IF;
+    #FRK_DataLevel := MAX(IN1 := #Required, IN2 := #Minimum);
+END_FUNCTION
+FUNCTION "FRK_DataPolicyReady" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    #FRK_DataPolicyReady := NOT #Access.PolicyLost;
 END_FUNCTION

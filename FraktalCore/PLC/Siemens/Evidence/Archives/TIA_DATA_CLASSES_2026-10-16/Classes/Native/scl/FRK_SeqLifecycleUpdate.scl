@@ -1,0 +1,33 @@
+﻿FUNCTION "FRK_SeqLifecycleUpdate" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Exec : DInt;
+      Restart : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        IF "FRK_SequenceOwners".O001.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O001);
+	    13:
+	        IF "FRK_SequenceOwners".O013.Faulted AND #Exec <> 3 THEN
+	            "FRK_SeqViewClearErrors"(Owner := #Owner);
+	        END_IF;
+	        "FRK_SequenceOwnerUpdate"(Exec := #Exec,
+	                                  Restart := #Restart,
+	                                  Life := "FRK_SequenceOwners".O013);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

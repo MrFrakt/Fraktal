@@ -1,0 +1,79 @@
+﻿FUNCTION "FRK_AlarmRaise" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Diag : "ST_Diagnostic";
+      ResetClass : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+      Rational : "ST_Diagnostic";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AlarmRaise := 0;
+	IF #ResetClass < 0 OR #ResetClass > 1
+	    OR #Diag.Severity < 0 OR #Diag.Severity > 2
+	    OR #Diag.Category < 0 OR #Diag.Category > 2
+	    OR #Diag.SourcePath = WSTRING#'' OR #Diag.Description = WSTRING#'' THEN
+	    RETURN;
+	END_IF;
+	#Slot := "FRK_AlarmRecoveryClaim"(AlarmLog := #AlarmLog,
+	                                  Diag := #Diag,
+	                                  ResetClass := #ResetClass);
+	IF #Slot > 0 THEN
+	    #FRK_AlarmRaise := #Slot;
+	    RETURN;
+	END_IF;
+	FOR #Slot := 1 TO 16 DO
+	    IF #AlarmLog.Active[#Slot].State = 0 THEN
+	        #Rational := #Diag;
+	        "FRK_Rationalize"(Diag := #Rational);
+	        #AlarmLog.Active[#Slot] := "FRK_UnitScratch".EmptyEvent;
+	        #AlarmLog.Active[#Slot].ReasonCode := #Rational.ReasonCode;
+	        #AlarmLog.Active[#Slot].Description := #Rational.Description;
+	        #AlarmLog.Active[#Slot].SourcePath := #Rational.SourcePath;
+	        #AlarmLog.Active[#Slot].IoTag := #Rational.IoTag;
+	        #AlarmLog.Active[#Slot].IoAddress := #Rational.IoAddress;
+	        #AlarmLog.Active[#Slot].Severity := #Rational.Severity;
+	        #AlarmLog.Active[#Slot].Category := #Rational.Category;
+	        #AlarmLog.Active[#Slot].ResetClass := #ResetClass;
+	        #AlarmLog.Active[#Slot].State := 1;
+	        #AlarmLog.ComeMs[#Slot] := "FRK_Clock".NowMs;
+	        #AlarmLog.ShelfDuration[#Slot] := 0;
+	        #AlarmLog.ElapsedBefore[#Slot] := 0;
+	        #AlarmLog.Recovering[#Slot] := FALSE;
+	        #AlarmLog.Automatic[#Slot] := FALSE;
+	        #AlarmLog.Touched[#Slot] := FALSE;
+	        #ResultCode := RD_SYS_T(OUT => #Stamp);
+	        IF #ResultCode = 0 THEN
+	            #AlarmLog.Active[#Slot].ComeAt := DTL_TO_LDT(#Stamp);
+	        END_IF;
+	        // The UTC source has no proven synchronization witness yet.
+	        #AlarmLog.Active[#Slot].ComeTimeSynchronized := FALSE;
+	        "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+	        "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog,
+	                                 EventSlot := #Slot);
+	        
+	        "FRK_AlarmNotify"(AlarmLog := #AlarmLog,
+	                          Ev := #AlarmLog.Active[#Slot]);
+	        #FRK_AlarmRaise := #Slot;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	IF NOT #AlarmLog.Truncated THEN
+	    #AlarmLog.Truncated := TRUE;
+	    "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+	END_IF;
+	
+END_FUNCTION
+

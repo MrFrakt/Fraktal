@@ -1,0 +1,86 @@
+﻿FUNCTION "FRK_ShiftInterval" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Now : LDT;
+   END_VAR
+
+   VAR_OUTPUT 
+      ShiftIndex : Int;
+      StartAt : LDT;
+      EndAt : LDT;
+      Target : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Calendar : "ST_ShiftCalendarV3";
+   END_VAR
+
+   VAR_TEMP 
+      NowSec : LInt;
+      LocalSec : LInt;
+      DayNo : LInt;
+      WeekStart : LInt;
+      StartSec : LInt;
+      EndSec : LInt;
+      NextSec : LInt;
+      Index : Int;
+      DayIndex : Int;
+      WeekDelta : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ShiftInterval := FALSE;
+	#ShiftIndex := 0;
+	#StartAt := #Now;
+	#EndAt := LDT#1970-01-01-00:00:00;
+	#Target := 0;
+	IF NOT "FRK_ShiftValidate"(Calendar := #Calendar) THEN
+	    RETURN;
+	END_IF;
+	#NowSec := LDT_TO_LINT(#Now) / LINT#1000000000;
+	IF #NowSec < 0 OR #NowSec > LINT#4294967295 THEN
+	    RETURN;
+	END_IF;
+	#LocalSec := #NowSec + DINT_TO_LINT(#Calendar.UtcOffsetMin) * LINT#60;
+	#DayNo := #LocalSec / LINT#86400;
+	IF #LocalSec < 0 THEN
+	    #DayNo := (#LocalSec - LINT#86399) / LINT#86400;
+	END_IF;
+	#WeekStart := (#DayNo - ((#DayNo + 10) MOD 7)) * LINT#86400;
+	#NextSec := LINT#4294967296;
+	FOR #Index := 1 TO 5 DO
+	    IF #Calendar.Rows[#Index].StartMin >= 0 AND #Calendar.Rows[#Index].ActiveDays > 0 THEN
+	        FOR #DayIndex := 0 TO 6 DO
+	            IF (DINT_TO_DWORD(#Calendar.Rows[#Index].ActiveDays) AND SHL(IN := DWORD#1, N := INT_TO_UINT(#DayIndex))) <> DWORD#0 THEN
+	                FOR #WeekDelta := -1 TO 1 DO
+	                    #StartSec := #WeekStart + INT_TO_LINT(#WeekDelta) * LINT#604800 + INT_TO_LINT(#DayIndex) * LINT#86400
+	                    + DINT_TO_LINT(#Calendar.Rows[#Index].StartMin) * LINT#60 - DINT_TO_LINT(#Calendar.UtcOffsetMin) * LINT#60;
+	                    #EndSec := #StartSec + DINT_TO_LINT(#Calendar.Rows[#Index].DurationMin) * LINT#60;
+	                    IF #StartSec <= #NowSec AND #NowSec < #EndSec THEN
+	                        #ShiftIndex := #Index;
+	                        IF #StartSec >= 0 THEN
+	                            #StartAt := LINT_TO_LDT(#StartSec * LINT#1000000000);
+	                        END_IF;
+	                        IF #EndSec <= LINT#4294967295 THEN
+	                            #EndAt := LINT_TO_LDT(#EndSec * LINT#1000000000);
+	                        END_IF;
+	                        #Target := DINT_TO_UDINT(#Calendar.Rows[#Index].ProductionTarget);
+	                    END_IF;
+	                    IF #StartSec > #NowSec AND #StartSec < #NextSec THEN
+	                        #NextSec := #StartSec;
+	                    END_IF;
+	                END_FOR;
+	            END_IF;
+	        END_FOR;
+	    END_IF;
+	END_FOR;
+	IF #ShiftIndex = 0 AND #NextSec <= LINT#4294967295 THEN
+	    #EndAt := LINT_TO_LDT(#NextSec * LINT#1000000000);
+	END_IF;
+	#FRK_ShiftInterval := TRUE;
+	
+END_FUNCTION
+

@@ -1,0 +1,34 @@
+﻿FUNCTION "F_PressDemoSimCylinder" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Composition-owned logical I/O boundary. Bind to commissioned hardware
+// when a bench is available; feedback is never synthesized on that path.
+// SIMULATION ONLY - a plant model for virtual commissioning, never a safety
+// calculation. The defaults run the press autonomously: air present, good
+// parts swapped at the load position. The stimuli are readable but never
+// writable over the Web API (its write surface stays the HmiRequest mailbox);
+// change one through the engineering/simulation tools, not the HMI.
+// One double-acting cylinder: position in milliseconds of travel.
+   VAR_INPUT 
+      TravelMs : DInt;
+      DeltaMs : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      PositionMs : DInt;
+      Hal : "ST_CylinderHal";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Hal.CoilExtend AND NOT #Hal.CoilRetract THEN
+	    #PositionMs := MIN(IN1 := #PositionMs + #DeltaMs, IN2 := #TravelMs);
+	ELSIF #Hal.CoilRetract AND NOT #Hal.CoilExtend THEN
+	    #PositionMs := MAX(IN1 := #PositionMs - #DeltaMs, IN2 := 0);
+	END_IF;
+	#Hal.FeedbackExtended := #PositionMs >= #TravelMs;
+	#Hal.FeedbackRetracted := #PositionMs <= 0;
+	
+END_FUNCTION
+

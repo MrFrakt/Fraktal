@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_PersistDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Stamp : LDT;
+      NativeResult : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 20 THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_PersistConsumers".Rows[#Slot].Dirty THEN
+	    #NativeResult := RD_SYS_T(OUT => #Stamp);
+	    IF "FRK_PersistConsumers".Rows[#Slot].Ticket = 0 THEN
+	        "FRK_PersistConsumers".Rows[#Slot].PendingSince := #Stamp;
+	    ELSE
+	        "FRK_PersistConsumers".Rows[#Slot].NextSince := #Stamp;
+	    END_IF;
+	END_IF;
+	"FRK_PersistConsumers".Rows[#Slot].Dirty := TRUE;
+	
+END_FUNCTION
+

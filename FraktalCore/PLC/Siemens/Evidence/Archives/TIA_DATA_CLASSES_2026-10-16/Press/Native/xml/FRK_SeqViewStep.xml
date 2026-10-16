@@ -1,0 +1,596 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-16T22:36:08.7546745Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Owner" Datatype="DInt" Accessibility="Public" />
+    <Member Name="StepNo" Datatype="DInt" Accessibility="Public" />
+    <Member Name="Branch" Datatype="DInt" Accessibility="Public" />
+    <Member Name="Depth" Datatype="Int" Accessibility="Public" />
+    <Member Name="Visit" Datatype="UDInt" Accessibility="Public" />
+    <Member Name="StepName" Datatype="String" Accessibility="Public" />
+    <Member Name="AwaitingLabel" Datatype="String" Accessibility="Public" />
+    <Member Name="AwaitsPath" Datatype="String" Accessibility="Public" />
+    <Member Name="TimeClass" Datatype="DInt" Accessibility="Public" />
+    <Member Name="ExpectedTime" Datatype="Time" Accessibility="Public" />
+    <Member Name="Elapsed" Datatype="Time" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_SeqViewStep</Name>
+      <Namespace />
+      <Number>309</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="CASE" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="Owner" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="OF" UId="28" />
+  <NewLine Num="1" UId="29" />
+  <Blank Num="4" UId="30" />
+  <Access Scope="LiteralConstant" UId="31">
+    <Constant UId="32">
+      <ConstantValue UId="34">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="35" />
+  <NewLine Num="1" UId="36" />
+  <Blank Num="8" UId="37" />
+  <Access Scope="Call" UId="38">
+    <CallInfo UId="39" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="41">
+        <Component Name="FRK_ViewRecord" UId="40" />
+      </Instance>
+      <Token Text="(" UId="42" />
+      <Parameter Name="StepNo" UId="43">
+        <Blank Num="1" UId="44" />
+        <Token Text=":=" UId="45" />
+        <Blank Num="1" UId="46" />
+        <Access Scope="LocalVariable" UId="47">
+          <Symbol UId="48">
+            <Component Name="StepNo" UId="49" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="50" />
+      <NewLine Num="1" UId="51" />
+      <Blank Num="25" UId="52" />
+      <Parameter Name="Branch" UId="53">
+        <Blank Num="1" UId="54" />
+        <Token Text=":=" UId="55" />
+        <Blank Num="1" UId="56" />
+        <Access Scope="LocalVariable" UId="57">
+          <Symbol UId="58">
+            <Component Name="Branch" UId="59" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="60" />
+      <NewLine Num="1" UId="61" />
+      <Blank Num="25" UId="62" />
+      <Parameter Name="Depth" UId="63">
+        <Blank Num="1" UId="64" />
+        <Token Text=":=" UId="65" />
+        <Blank Num="1" UId="66" />
+        <Access Scope="LocalVariable" UId="67">
+          <Symbol UId="68">
+            <Component Name="Depth" UId="69" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="70" />
+      <NewLine Num="1" UId="71" />
+      <Blank Num="25" UId="72" />
+      <Parameter Name="Visit" UId="73">
+        <Blank Num="1" UId="74" />
+        <Token Text=":=" UId="75" />
+        <Blank Num="1" UId="76" />
+        <Access Scope="LocalVariable" UId="77">
+          <Symbol UId="78">
+            <Component Name="Visit" UId="79" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="80" />
+      <NewLine Num="1" UId="81" />
+      <Blank Num="25" UId="82" />
+      <Parameter Name="StepName" UId="83">
+        <Blank Num="1" UId="84" />
+        <Token Text=":=" UId="85" />
+        <Blank Num="1" UId="86" />
+        <Access Scope="LocalVariable" UId="87">
+          <Symbol UId="88">
+            <Component Name="StepName" UId="89" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="90" />
+      <NewLine Num="1" UId="91" />
+      <Blank Num="25" UId="92" />
+      <Parameter Name="AwaitingLabel" UId="93">
+        <Blank Num="1" UId="94" />
+        <Token Text=":=" UId="95" />
+        <Blank Num="1" UId="96" />
+        <Access Scope="LocalVariable" UId="97">
+          <Symbol UId="98">
+            <Component Name="AwaitingLabel" UId="99" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="100" />
+      <NewLine Num="1" UId="101" />
+      <Blank Num="25" UId="102" />
+      <Parameter Name="AwaitsPath" UId="103">
+        <Blank Num="1" UId="104" />
+        <Token Text=":=" UId="105" />
+        <Blank Num="1" UId="106" />
+        <Access Scope="LocalVariable" UId="107">
+          <Symbol UId="108">
+            <Component Name="AwaitsPath" UId="109" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="110" />
+      <NewLine Num="1" UId="111" />
+      <Blank Num="25" UId="112" />
+      <Parameter Name="TimeClass" UId="113">
+        <Blank Num="1" UId="114" />
+        <Token Text=":=" UId="115" />
+        <Blank Num="1" UId="116" />
+        <Access Scope="LocalVariable" UId="117">
+          <Symbol UId="118">
+            <Component Name="TimeClass" UId="119" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="120" />
+      <NewLine Num="1" UId="121" />
+      <Blank Num="25" UId="122" />
+      <Parameter Name="ExpectedTime" UId="123">
+        <Blank Num="1" UId="124" />
+        <Token Text=":=" UId="125" />
+        <Blank Num="1" UId="126" />
+        <Access Scope="LocalVariable" UId="127">
+          <Symbol UId="128">
+            <Component Name="ExpectedTime" UId="129" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="130" />
+      <NewLine Num="1" UId="131" />
+      <Blank Num="25" UId="132" />
+      <Parameter Name="Elapsed" UId="133">
+        <Blank Num="1" UId="134" />
+        <Token Text=":=" UId="135" />
+        <Blank Num="1" UId="136" />
+        <Access Scope="LocalVariable" UId="137">
+          <Symbol UId="138">
+            <Component Name="Elapsed" UId="139" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="140" />
+      <NewLine Num="1" UId="141" />
+      <Blank Num="25" UId="142" />
+      <Parameter Name="Owner" UId="143">
+        <Blank Num="1" UId="144" />
+        <Token Text=":=" UId="145" />
+        <Blank Num="1" UId="146" />
+        <Access Scope="LocalVariable" UId="147">
+          <Symbol UId="148">
+            <Component Name="Owner" UId="149" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="150" />
+      <NewLine Num="1" UId="151" />
+      <Blank Num="25" UId="152" />
+      <Parameter Name="Defs" UId="153">
+        <Blank Num="1" UId="154" />
+        <Token Text=":=" UId="155" />
+        <Blank Num="1" UId="156" />
+        <Access Scope="GlobalVariable" UId="157">
+          <Symbol UId="158">
+            <Component Name="FRK_Views" UId="159">
+              <BooleanAttribute Name="HasQuotes" UId="160">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="161" />
+            <Component Name="V001" UId="162" />
+            <Token Text="." UId="163" />
+            <Component Name="Defs" UId="164" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="165" />
+      <NewLine Num="1" UId="166" />
+      <Blank Num="25" UId="167" />
+      <Parameter Name="Rows" UId="168">
+        <Blank Num="1" UId="169" />
+        <Token Text=":=" UId="170" />
+        <Blank Num="1" UId="171" />
+        <Access Scope="GlobalVariable" UId="172">
+          <Symbol UId="173">
+            <Component Name="FRK_Views" UId="174">
+              <BooleanAttribute Name="HasQuotes" UId="175">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="176" />
+            <Component Name="V001" UId="177" />
+            <Token Text="." UId="178" />
+            <Component Name="Rows" UId="179" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="180" />
+      <NewLine Num="1" UId="181" />
+      <Blank Num="25" UId="182" />
+      <Parameter Name="Cursors" UId="183">
+        <Blank Num="1" UId="184" />
+        <Token Text=":=" UId="185" />
+        <Blank Num="1" UId="186" />
+        <Access Scope="GlobalVariable" UId="187">
+          <Symbol UId="188">
+            <Component Name="FRK_Views" UId="189">
+              <BooleanAttribute Name="HasQuotes" UId="190">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="191" />
+            <Component Name="V001" UId="192" />
+            <Token Text="." UId="193" />
+            <Component Name="Cursors" UId="194" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="195" />
+      <NewLine Num="1" UId="196" />
+      <Blank Num="25" UId="197" />
+      <Parameter Name="Notes" UId="198">
+        <Blank Num="1" UId="199" />
+        <Token Text=":=" UId="200" />
+        <Blank Num="1" UId="201" />
+        <Access Scope="GlobalVariable" UId="202">
+          <Symbol UId="203">
+            <Component Name="FRK_Views" UId="204">
+              <BooleanAttribute Name="HasQuotes" UId="205">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="206" />
+            <Component Name="V001" UId="207" />
+            <Token Text="." UId="208" />
+            <Component Name="Notes" UId="209" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="210" />
+      <NewLine Num="1" UId="211" />
+      <Blank Num="25" UId="212" />
+      <Parameter Name="Count" UId="213">
+        <Blank Num="1" UId="214" />
+        <Token Text=":=" UId="215" />
+        <Blank Num="1" UId="216" />
+        <Access Scope="GlobalVariable" UId="217">
+          <Symbol UId="218">
+            <Component Name="FRK_Views" UId="219">
+              <BooleanAttribute Name="HasQuotes" UId="220">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="221" />
+            <Component Name="V001" UId="222" />
+            <Token Text="." UId="223" />
+            <Component Name="Count" UId="224" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="225" />
+      <NewLine Num="1" UId="226" />
+      <Blank Num="25" UId="227" />
+      <Parameter Name="NoteCount" UId="228">
+        <Blank Num="1" UId="229" />
+        <Token Text=":=" UId="230" />
+        <Blank Num="1" UId="231" />
+        <Access Scope="GlobalVariable" UId="232">
+          <Symbol UId="233">
+            <Component Name="FRK_Views" UId="234">
+              <BooleanAttribute Name="HasQuotes" UId="235">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="236" />
+            <Component Name="V001" UId="237" />
+            <Token Text="." UId="238" />
+            <Component Name="NoteCount" UId="239" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="240" />
+      <NewLine Num="1" UId="241" />
+      <Blank Num="25" UId="242" />
+      <Parameter Name="Current" UId="243">
+        <Blank Num="1" UId="244" />
+        <Token Text=":=" UId="245" />
+        <Blank Num="1" UId="246" />
+        <Access Scope="GlobalVariable" UId="247">
+          <Symbol UId="248">
+            <Component Name="FRK_Views" UId="249">
+              <BooleanAttribute Name="HasQuotes" UId="250">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="251" />
+            <Component Name="V001" UId="252" />
+            <Token Text="." UId="253" />
+            <Component Name="Current" UId="254" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="255" />
+      <NewLine Num="1" UId="256" />
+      <Blank Num="25" UId="257" />
+      <Parameter Name="Book" UId="258">
+        <Blank Num="1" UId="259" />
+        <Token Text=":=" UId="260" />
+        <Blank Num="1" UId="261" />
+        <Access Scope="GlobalVariable" UId="262">
+          <Symbol UId="263">
+            <Component Name="FRK_Views" UId="264">
+              <BooleanAttribute Name="HasQuotes" UId="265">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="266" />
+            <Component Name="V001" UId="267" />
+            <Token Text="." UId="268" />
+            <Component Name="Book" UId="269" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="270" />
+      <NewLine Num="1" UId="271" />
+      <Blank Num="25" UId="272" />
+      <Parameter Name="Touched" UId="273">
+        <Blank Num="1" UId="274" />
+        <Token Text=":=" UId="275" />
+        <Blank Num="1" UId="276" />
+        <Access Scope="GlobalVariable" UId="277">
+          <Symbol UId="278">
+            <Component Name="FRK_Views" UId="279">
+              <BooleanAttribute Name="HasQuotes" UId="280">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="281" />
+            <Component Name="V001" UId="282" />
+            <Token Text="." UId="283" />
+            <Component Name="Touched" UId="284" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="285" />
+      <NewLine Num="1" UId="286" />
+      <Blank Num="25" UId="287" />
+      <Parameter Name="Depths" UId="288">
+        <Blank Num="1" UId="289" />
+        <Token Text=":=" UId="290" />
+        <Blank Num="1" UId="291" />
+        <Access Scope="GlobalVariable" UId="292">
+          <Symbol UId="293">
+            <Component Name="FRK_Views" UId="294">
+              <BooleanAttribute Name="HasQuotes" UId="295">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="296" />
+            <Component Name="V001" UId="297" />
+            <Token Text="." UId="298" />
+            <Component Name="Depths" UId="299" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="300" />
+      <NewLine Num="1" UId="301" />
+      <Blank Num="25" UId="302" />
+      <Parameter Name="Visits" UId="303">
+        <Blank Num="1" UId="304" />
+        <Token Text=":=" UId="305" />
+        <Blank Num="1" UId="306" />
+        <Access Scope="GlobalVariable" UId="307">
+          <Symbol UId="308">
+            <Component Name="FRK_Views" UId="309">
+              <BooleanAttribute Name="HasQuotes" UId="310">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="311" />
+            <Component Name="V001" UId="312" />
+            <Token Text="." UId="313" />
+            <Component Name="Visits" UId="314" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="315" />
+      <NewLine Num="1" UId="316" />
+      <Blank Num="25" UId="317" />
+      <Parameter Name="GuardInputs" UId="318">
+        <Blank Num="1" UId="319" />
+        <Token Text=":=" UId="320" />
+        <Blank Num="1" UId="321" />
+        <Access Scope="GlobalVariable" UId="322">
+          <Symbol UId="323">
+            <Component Name="FRK_Views" UId="324">
+              <BooleanAttribute Name="HasQuotes" UId="325">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="326" />
+            <Component Name="V001" UId="327" />
+            <Token Text="." UId="328" />
+            <Component Name="GuardInputs" UId="329" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="330" />
+      <NewLine Num="1" UId="331" />
+      <Blank Num="25" UId="332" />
+      <Parameter Name="GuardDefaults" UId="333">
+        <Blank Num="1" UId="334" />
+        <Token Text=":=" UId="335" />
+        <Blank Num="1" UId="336" />
+        <Access Scope="GlobalVariable" UId="337">
+          <Symbol UId="338">
+            <Component Name="FRK_Views" UId="339">
+              <BooleanAttribute Name="HasQuotes" UId="340">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="341" />
+            <Component Name="V001" UId="342" />
+            <Token Text="." UId="343" />
+            <Component Name="GuardDefaults" UId="344" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="345" />
+      <NewLine Num="1" UId="346" />
+      <Blank Num="25" UId="347" />
+      <Parameter Name="GuardTouched" UId="348">
+        <Blank Num="1" UId="349" />
+        <Token Text=":=" UId="350" />
+        <Blank Num="1" UId="351" />
+        <Access Scope="GlobalVariable" UId="352">
+          <Symbol UId="353">
+            <Component Name="FRK_Views" UId="354">
+              <BooleanAttribute Name="HasQuotes" UId="355">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="356" />
+            <Component Name="V001" UId="357" />
+            <Token Text="." UId="358" />
+            <Component Name="GuardTouched" UId="359" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="360" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="361" />
+  <NewLine Num="1" UId="362" />
+  <Blank Num="4" UId="363" />
+  <Token Text="ELSE" UId="364" />
+  <NewLine Num="1" UId="365" />
+  <Blank Num="8" UId="366" />
+  <Token Text="RETURN" UId="367" />
+  <Token Text=";" UId="368" />
+  <NewLine Num="1" UId="369" />
+  <Token Text="END_CASE" UId="370" />
+  <Token Text=";" UId="371" />
+  <NewLine Num="1" UId="372" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

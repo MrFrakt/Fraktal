@@ -32,7 +32,7 @@ END_VAR
 BEGIN
     "FRK_UnitSetPermit"(Unit := #Unit, Ok := #Hal.Process.AirPressureOk, Diag := #Hal.Process.PermitDiagnostic);
 END_FUNCTION
-// Generated frame v0.22; change the declaration, then regenerate.
+// Generated frame v0.23; change the declaration, then regenerate.
 FUNCTION_BLOCK "FB_PressDemoUnit"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
@@ -312,9 +312,11 @@ BEGIN
     #AirPressureMonitor(ParentIndex := #Core.RegIndex, Startup := #Startup, Hal := #Hal.AirPressureMonitor, BoundPath := CONCAT(IN1 := #BoundPath, IN2 := WSTRING#'.AirPressureMonitor'));
     "FRK_ManualFinish"(Core := #AirPressureMonitor.Core, Execute := #AirPressureMonitor.Execute, ManualOwned := #AirPressureMonitor.ManualOwned);
     #Unit.CascadePending := FALSE;
+    "FRK_ConfigScratch".AccessRejected := FALSE;
     "FRK_CfgOperation_PressDemoUnit"(Core := #Core, Status := #Status, ParCfg := #ParCfg, ModePolicy := #ModePolicy, Access := #Access, Unit := #Unit, HmiResponse := #HmiResponse, AlarmLog := #AlarmLog, ConfigPersist := #ConfigPersist, ConfigCursor := #ConfigCursor, ConfigRev := #ConfigRev, Model := #Model, AvailableModelCount := #AvailableModelCount, ConfigStaged := #ConfigStaged, SequenceStepDef := #SequenceStepDef, SequenceStepCount := #SequenceStepCount, SupportedModesPublished := #SupportedModesPublished, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigDefaultParCfg := #ConfigDefaultParCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor);
     "FRK_CfgSetOperation_PressDemoUnit"(Core := #Core, Status := #Status, ParCfg := #ParCfg, ModePolicy := #ModePolicy, Access := #Access, Unit := #Unit, HmiResponse := #HmiResponse, ConfigPersist := #ConfigPersist, ConfigRev := #ConfigRev, Model := #Model, ConfigSets := #ConfigSets, ConfigSetCount := #ConfigSetCount, ConfigSetDocument := #ConfigSetDocument, ConfigSetDocumentLine := #ConfigSetDocumentLine, ConfigSetDocumentLines := #ConfigSetDocumentLines, SupportedModesPublished := #SupportedModesPublished, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigStageStationCfg := #ConfigStageStationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor, Startup := #Startup);
     IF #Unit.RequestPending AND #Core.ParentIndex = 0 THEN "FRK_SetResult"(Request := #Unit.Request, Response := #HmiResponse, Persist := #ConfigPersist, AlarmLog := #AlarmLog, Scope := #Status.Name, RootIndex := #ConfigRootIndex); END_IF;
+    "FRK_ConfigAccessRefusal"(Unit := #Unit, Access := #Access, Response := #HmiResponse, Persist := #ConfigPersist, AlarmLog := #AlarmLog);
     "FRK_ConfigStatus"(RootIndex := #ConfigRootIndex, Scope := #Status.Name, PolicyLost := #Access.PolicyLost, UsersLost := "FRK_AccessStorage".UsersLost, Persist := #ConfigPersist, AlarmLog := #AlarmLog);
     "FRK_RouteAbort"(Core := #Core, Abort := (#Abort OR #Unit.AbortReq));
     IF #Core.EvAbort THEN
@@ -499,6 +501,7 @@ BEGIN
         1:
             "FRK_ConfigScratch".Entry.WriteKey := 'degradationPercent';
             "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.ClassId := '';
             "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
             "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/DegradationPercent';
             "FRK_ConfigScratch".Entry.ConfigKind := 1;
@@ -521,6 +524,7 @@ BEGIN
         2:
             "FRK_ConfigScratch".Entry.WriteKey := 'requireTwoHandStart';
             "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.ClassId := '';
             "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
             "FRK_ConfigScratch".Entry.Item := WSTRING#'StationCfg/RequireTwoHandStart';
             "FRK_ConfigScratch".Entry.ConfigKind := 1;
@@ -543,6 +547,7 @@ BEGIN
         3:
             "FRK_ConfigScratch".Entry.WriteKey := 'idealCycleMs';
             "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.ClassId := '';
             "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
             "FRK_ConfigScratch".Entry.Item := WSTRING#'ParCfg/IdealCycleMs';
             "FRK_ConfigScratch".Entry.ConfigKind := 0;
@@ -565,6 +570,7 @@ BEGIN
         4:
             "FRK_ConfigScratch".Entry.WriteKey := 'baselineWorkMs';
             "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.ClassId := '';
             "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
             "FRK_ConfigScratch".Entry.Item := WSTRING#'ParCfg/BaselineWorkMs';
             "FRK_ConfigScratch".Entry.ConfigKind := 0;
@@ -587,6 +593,7 @@ BEGIN
         5:
             "FRK_ConfigScratch".Entry.WriteKey := 'modeSwitchTimeout';
             "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.ClassId := '';
             "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
             "FRK_ConfigScratch".Entry.Item := WSTRING#'ParCfg/Timeout';
             "FRK_ConfigScratch".Entry.ConfigKind := 0;
@@ -609,6 +616,7 @@ BEGIN
         6:
             "FRK_ConfigScratch".Entry.WriteKey := 'transferSettleTime';
             "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.ClassId := '';
             "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
             "FRK_ConfigScratch".Entry.Item := WSTRING#'ParCfg/TransferSettleTime';
             "FRK_ConfigScratch".Entry.ConfigKind := 0;
@@ -631,6 +639,7 @@ BEGIN
         7:
             "FRK_ConfigScratch".Entry.WriteKey := 'pressSettleTime';
             "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.ClassId := '';
             "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
             "FRK_ConfigScratch".Entry.Item := WSTRING#'ParCfg/PressSettleTime';
             "FRK_ConfigScratch".Entry.ConfigKind := 0;
@@ -948,8 +957,8 @@ BEGIN
     IF #ModelIndex = 0 THEN
         "FRK_CfgDef_PressDemoUnit"(FieldIndex := 1);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         "FRK_ConfigScratch".Entry.ModelScoped := FALSE;
     "FRK_ConfigScratch".Entry.ValueText := UINT_TO_WSTRING(#StationCfg.DegradationPercent);
@@ -959,8 +968,8 @@ BEGIN
     IF #ModelIndex = 0 THEN
         "FRK_CfgDef_PressDemoUnit"(FieldIndex := 2);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         "FRK_ConfigScratch".Entry.ModelScoped := FALSE;
     IF #StationCfg.RequireTwoHandStart THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#'true'; ELSE "FRK_ConfigScratch".Entry.ValueText := WSTRING#'false'; END_IF;
@@ -970,8 +979,8 @@ BEGIN
     IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
         "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
         IF #ModelIndex <> 0 THEN
@@ -987,8 +996,8 @@ BEGIN
     IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
         "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
         IF #ModelIndex <> 0 THEN
@@ -1004,8 +1013,8 @@ BEGIN
     IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
         "FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
         IF #ModelIndex <> 0 THEN
@@ -1021,8 +1030,8 @@ BEGIN
     IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
         "FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
         IF #ModelIndex <> 0 THEN
@@ -1038,8 +1047,8 @@ BEGIN
     IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
         "FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
         IF #ModelIndex <> 0 THEN
@@ -1083,7 +1092,6 @@ VAR_IN_OUT
 END_VAR
 VAR_TEMP
     Ok : Bool;
-    Level : DInt;
     Code : String[64];
     Inactive : Bool;
     Text : WString[255];
@@ -1096,8 +1104,7 @@ BEGIN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := #Status.Name;
             IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
-            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
-            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Status.Name) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := 2002; RETURN; END_IF;
             IF #Request.DurationMs <> 0 THEN RETURN; END_IF;
@@ -1122,8 +1129,7 @@ BEGIN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := #Status.Name;
             IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
-            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
-            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Status.Name) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := 2002; RETURN; END_IF;
             IF #Request.DurationMs <> 0 THEN RETURN; END_IF;
@@ -1148,8 +1154,7 @@ BEGIN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := #Status.Name;
             IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
-            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
-            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Status.Name) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := 2002; RETURN; END_IF;
             IF #Request.DurationMs <> 0 AND #Core.ParentIndex <> 0 THEN RETURN; END_IF;
@@ -1174,8 +1179,7 @@ BEGIN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := #Status.Name;
             IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
-            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
-            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Status.Name) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := 2002; RETURN; END_IF;
             IF #Request.DurationMs <> 0 AND #Core.ParentIndex <> 0 THEN RETURN; END_IF;
@@ -1200,8 +1204,7 @@ BEGIN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := #Status.Name;
             IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
-            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
-            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Status.Name) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := 2002; RETURN; END_IF;
             IF #Request.DurationMs <> 0 AND #Core.ParentIndex <> 0 THEN RETURN; END_IF;
@@ -1226,8 +1229,7 @@ BEGIN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := #Status.Name;
             IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
-            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
-            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Status.Name) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := 2002; RETURN; END_IF;
             IF #Request.DurationMs <> 0 AND #Core.ParentIndex <> 0 THEN RETURN; END_IF;
@@ -1252,8 +1254,7 @@ BEGIN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := #Status.Name;
             IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
-            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
-            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Status.Name) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := 2002; RETURN; END_IF;
             IF #Request.DurationMs <> 0 AND #Core.ParentIndex <> 0 THEN RETURN; END_IF;
@@ -1392,7 +1393,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
         "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
         IF #Phase = 0 OR #Phase = 5 THEN
-            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Status.Name) THEN RETURN; END_IF;
             IF #Phase = 5 AND (1 <> 0 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN
     "FRK_ConfigScratch".Entry.ValueText := UINT_TO_WSTRING(#StationCfg.DegradationPercent);
                 #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);
@@ -1429,7 +1430,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
         "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
         IF #Phase = 0 OR #Phase = 5 THEN
-            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Status.Name) THEN RETURN; END_IF;
             IF #Phase = 5 AND (1 <> 0 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN
     IF #StationCfg.RequireTwoHandStart THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#'true'; ELSE "FRK_ConfigScratch".Entry.ValueText := WSTRING#'false'; END_IF;
                 #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);
@@ -1466,7 +1467,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
         "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
         IF #Phase = 0 OR #Phase = 5 THEN
-            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Status.Name) THEN RETURN; END_IF;
             IF #Phase = 5 AND (0 <> 0 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN
     "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ParCfg.IdealCycleMs);
                 #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);
@@ -1503,7 +1504,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
         "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
         IF #Phase = 0 OR #Phase = 5 THEN
-            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Status.Name) THEN RETURN; END_IF;
             IF #Phase = 5 AND (0 <> 0 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN
     "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ParCfg.BaselineWorkMs);
                 #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);
@@ -1540,7 +1541,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
         "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
         IF #Phase = 0 OR #Phase = 5 THEN
-            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Status.Name) THEN RETURN; END_IF;
             IF #Phase = 5 AND (0 <> 0 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN
     "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ParCfg.Timeout));
                 #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);
@@ -1577,7 +1578,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
         "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
         IF #Phase = 0 OR #Phase = 5 THEN
-            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Status.Name) THEN RETURN; END_IF;
             IF #Phase = 5 AND (0 <> 0 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN
     "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ParCfg.TransferSettleTime));
                 #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);
@@ -1614,7 +1615,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
         "FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
         IF #Phase = 0 OR #Phase = 5 THEN
-            IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;
+            IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Status.Name) THEN RETURN; END_IF;
             IF #Phase = 5 AND (0 <> 0 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigStore".ActiveModels[#RootIndex]) THEN
     "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ParCfg.PressSettleTime));
                 #Ok := "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText);

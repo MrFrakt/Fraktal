@@ -1,0 +1,66 @@
+﻿FUNCTION "FRK_DiagName" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Index : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DiagName := '';
+	CASE #Index OF
+	    1:
+	        #FRK_DiagName := 'StationA';
+	    2:
+	        #FRK_DiagName := 'StationA.Cell';
+	    3:
+	        #FRK_DiagName := 'StationA.Cell.Clamp';
+	    4:
+	        #FRK_DiagName := 'StationA.Cell.Gate';
+	    5:
+	        #FRK_DiagName := 'StationA.Satellite';
+	    6:
+	        #FRK_DiagName := 'StationA.Satellite.Cell';
+	    7:
+	        #FRK_DiagName := 'StationA.Satellite.Cell.Clamp';
+	    8:
+	        #FRK_DiagName := 'StationA.Satellite.Cell.Gate';
+	    9:
+	        #FRK_DiagName := 'StationA.Satellite.Inner';
+	    10:
+	        #FRK_DiagName := 'StationA.Satellite.Inner.Cell';
+	    11:
+	        #FRK_DiagName := 'StationA.Satellite.Inner.Cell.Clamp';
+	    12:
+	        #FRK_DiagName := 'StationA.Satellite.Inner.Cell.Gate';
+	    13:
+	        #FRK_DiagName := 'StationB';
+	    14:
+	        #FRK_DiagName := 'StationB.Cell';
+	    15:
+	        #FRK_DiagName := 'StationB.Cell.Clamp';
+	    16:
+	        #FRK_DiagName := 'StationB.Cell.Gate';
+	    17:
+	        #FRK_DiagName := 'StationB.Satellite';
+	    18:
+	        #FRK_DiagName := 'StationB.Satellite.Cell';
+	    19:
+	        #FRK_DiagName := 'StationB.Satellite.Cell.Clamp';
+	    20:
+	        #FRK_DiagName := 'StationB.Satellite.Cell.Gate';
+	    21:
+	        #FRK_DiagName := 'StationB.Satellite.Inner';
+	    22:
+	        #FRK_DiagName := 'StationB.Satellite.Inner.Cell';
+	    23:
+	        #FRK_DiagName := 'StationB.Satellite.Inner.Cell.Clamp';
+	    24:
+	        #FRK_DiagName := 'StationB.Satellite.Inner.Cell.Gate';
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

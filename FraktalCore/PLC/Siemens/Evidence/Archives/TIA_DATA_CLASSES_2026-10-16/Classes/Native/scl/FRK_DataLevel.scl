@@ -1,0 +1,48 @@
+﻿FUNCTION "FRK_DataLevel" : DInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Access : "FRK_Access";
+      ClassId : String;
+      Minimum : DInt;
+      ForWrite : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Required : DInt;
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DataLevel := 4;
+	IF #Minimum < 0 OR #Minimum > 4 THEN
+	    RETURN;
+	END_IF;
+	#Required := #Access.Policy.Required[0];
+	IF #ForWrite THEN
+	    #Required := #Access.Policy.Required[1];
+	END_IF;
+	IF #ClassId <> '' THEN
+	    #Required := 4;
+	    IF #Access.ClassesLost OR #Access.ClassCount < 0 OR #Access.ClassCount > 8 THEN
+	        RETURN;
+	    END_IF;
+	    FOR #Index := 1 TO #Access.ClassCount DO
+	        IF #Access.Classes[#Index].ClassId = #ClassId THEN
+	            #Required := #Access.Classes[#Index].ReadLevel;
+	            IF #ForWrite THEN
+	                #Required := #Access.Classes[#Index].WriteLevel;
+	            END_IF;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Required < 0 OR #Required > 4 THEN
+	    RETURN;
+	END_IF;
+	#FRK_DataLevel := MAX(IN1 := #Required, IN2 := #Minimum);
+	
+END_FUNCTION
+

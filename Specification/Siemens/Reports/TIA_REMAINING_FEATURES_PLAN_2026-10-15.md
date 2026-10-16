@@ -200,6 +200,16 @@ later phase adds published surface that the frozen contract must then cover.
 
 ### Implementation progress
 
+**October16 data classes milestone — generator0.23.**
+[Measured scope and evidence](../Evidence/TIA_DATA_CLASSES_2026-10-16.md):
+P7 root class policies, raise-only value minima, redacted manifests, typed
+write/capture/set/export admission and independent LOAD_DB recovery pass16 PLC
+assertions and97 live checks. Existing action-policy layouts and document
+identities are preserved. The current press passes both native compile stages,
+read-back and GRAPH/LD parity;254 tool tests pass. Runtime model creation and
+full Line-profile press integration remain. Roadmap§7's native-first guidance
+is applied: Fraktal owns class semantics; the native persistence medium is kept.
+
 **October16 operations milestone — generator0.22.**
 [Measured scope and evidence](../Evidence/TIA_OPERATIONS_GRAPH_2026-10-16.md):
 P2/P3/P4 algorithms and two-root integration pass native/runtime checks;
@@ -234,7 +244,8 @@ the reserved `line.*` namespace, with both cases tested. Owner/local mirror,
 replication, persistence and Line presentation are now measured on the isolated
 workbench. Owner sets/current export and a bound synthetic mirror source with
 durable offline restore are also measured. P1 stays open until the complete
-profile can ship: shifts (P2), classes/capture (P7) and press integration remain;
+profile can ship: shifts (P2) and classes/capture (P7) are now measured; full
+press integration and profile admission remain;
 the normal generator continues to refuse partial Line profiles. P12 transport
 is separate and is not implemented by the synthetic source fixture.
 
@@ -255,3 +266,60 @@ S7-1200 Fraktal profile or closing P8's generic topology/PN-health scope.
 4. **Scope of P15**: owner selected **reusable connector infrastructure** on
    October16. Device-specific robot, vision and axis ports remain deferred
    until their actual targets are specified.
+
+## 7. Native S7-1500 first
+
+Added 2026-10-16. Fraktal/TIA should not re-implement what the S7-1500 already
+provides; where the Core contract requires its own behaviour it keeps it and,
+where useful, also **projects** onto the native mechanism. Verdicts were checked
+against the generated sources on 2026-10-16; Web API alarm methods (firmware
+V3.x) and the LGF library come from Siemens documentation and are to be
+confirmed for the target firmware before use.
+
+### 7.1 Already native — keep
+
+| Function | Native mechanism in use |
+|---|---|
+| Monotonic clock / UTC time | `RUNTIME`, `RD_SYS_T` |
+| Module identity | `GetInstancePath` |
+| Persistence medium | `WRIT_DBL`/`READ_DBL`, UNLINKED load-memory DBs, `Serialize` |
+| Cycle statistics (health) | `RT_INFO` |
+| PLC-to-PLC links (I/O bridge; P12 line transport by owner decision) | Open User Communication `TCON`/`TSEND_C`/`TRCV_C` |
+| Self-description transport | licence-free Web API |
+
+### 7.2 Contract-required — keep, add a native projection
+
+| Fraktal service | Native counterpart | Why Fraktal keeps its own | Action |
+|---|---|---|---|
+| Alarm log (first-out, reset classes, history, recovery, delivery) | `Program_Alarm`/ProDiag, CPU alarm display, Web API `Alarms.Browse`/`Acknowledge` | §8 alarm model must match TC3/AB; native alarms lack first-out SourcePath, reset classes and the §6.9 walk | **N1**: optionally raise every Fraktal event as a `Program_Alarm` with the same text key and severity, so TIA, the web server, a display and WinCC see it; acknowledgement stays in the Fraktal path |
+| Sequence step record, stall diagnostics, step timing | GRAPH step times, supervision/interlocks, ProDiag criteria analysis | identical behaviour for ST and LD chains, which have no GRAPH supervision | **N2**: for GRAPH-only stations, evaluate feeding GRAPH supervision into the stall record instead of computing it twice; keep the ST/LD path |
+| Operator users with salted PINs (Core §14) | UMAC (FW V3.1+), web-server users (FW V3.0) | per-root levels and audit; the reference CPU is V3.0 | **N3**: on V3.1+ targets, offer a UMAC-backed login provider; the in-SCL SHA-256 then becomes the fallback provider only |
+
+### 7.3 Duplication to review
+
+| Fraktal code | Alternative | Verdict |
+|---|---|---|
+| SHA-256 in SCL (`FRK_Sha256Pin`) | none native; UMAC provider (N3) avoids hashing on the PLC | keep for V3.0 targets |
+| CRC-32 in SCL (persistence integrity) | Siemens LGF library `LGF_CalcCRC32` | keep (one owned, tested implementation) unless LGF becomes an accepted dependency |
+| Named config sets as JSON | `RecipeExport`/`RecipeImport` (CSV on the card, served by the web server), `DataLog*` | **N4**: keep JSON for the generic HMI; optionally also export sets as native recipe CSV for maintenance |
+| Own millisecond timers on the shared clock | IEC `TON` | keep: needed for idle-module quiescence and HELD timeout suspension; `TON` per module costs more |
+| Hand-entered nameplate records | I&M data (`Get_IM_Data`) of the CPU and modules | **N5**: fill CPU/module nameplates from I&M at startup; keep declared fields only for what I&M cannot hold |
+
+### 7.4 Rules for the open phases
+
+- **P5 health**: take PROFINET and module health from `DeviceStates`/`ModuleStates`
+  and the CPU's own diagnostic status; declare anything the CPU cannot supply
+  as an exclusion (as AB does for controller metrics) instead of synthesizing it.
+- **P8 I/O topology and fieldbus**: build on `DeviceStates`/`ModuleStates`,
+  `Get_Diag`, `RALRM` and the diagnostic/rack-failure OBs (OB82/OB86) and the
+  configured PROFINET topology. Do **not** port TC3's EtherCAT scanner; the CPU
+  already reports device health.
+- **P8 forcing**: native forcing exists only in TIA Portal (no runtime API), so
+  the HMI forcing path stays Fraktal's; it must honour the CPU's own force state
+  and annunciate it.
+- **P11 MES**: deliver host events through the existing FIFO and, where the
+  OPC UA licence is present, map them onto OPC UA Alarms & Conditions rather
+  than a second transport.
+- **Review question for every new SCL service**: name the native S7-1500
+  instruction or system function it replaces, or state why the Core contract
+  needs its own (record the answer in the evidence report).

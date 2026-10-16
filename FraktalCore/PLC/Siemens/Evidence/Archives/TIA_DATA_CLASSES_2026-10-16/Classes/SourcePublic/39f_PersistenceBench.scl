@@ -1,0 +1,384 @@
+FUNCTION "F_PersistenceBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Result : Int;
+END_VAR
+BEGIN
+    "FRK_PersistRuntime".Unavailable := "GDB_PersistenceTest".Unavailable;
+    "GDB_PersistenceTest".Generation[1] := "FRK_PersistRuntime".Anchor[1].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D001A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[1].Generation) THEN "GDB_PersistenceTest".CurrentBank[1] := 1; ELSE "GDB_PersistenceTest".CurrentBank[1] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[2] := "FRK_PersistRuntime".Anchor[2].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D002A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[2].Generation) THEN "GDB_PersistenceTest".CurrentBank[2] := 1; ELSE "GDB_PersistenceTest".CurrentBank[2] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[3] := "FRK_PersistRuntime".Anchor[3].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D003A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[3].Generation) THEN "GDB_PersistenceTest".CurrentBank[3] := 1; ELSE "GDB_PersistenceTest".CurrentBank[3] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[4] := "FRK_PersistRuntime".Anchor[4].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D004A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[4].Generation) THEN "GDB_PersistenceTest".CurrentBank[4] := 1; ELSE "GDB_PersistenceTest".CurrentBank[4] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[5] := "FRK_PersistRuntime".Anchor[5].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D005A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[5].Generation) THEN "GDB_PersistenceTest".CurrentBank[5] := 1; ELSE "GDB_PersistenceTest".CurrentBank[5] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[6] := "FRK_PersistRuntime".Anchor[6].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D006A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[6].Generation) THEN "GDB_PersistenceTest".CurrentBank[6] := 1; ELSE "GDB_PersistenceTest".CurrentBank[6] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[7] := "FRK_PersistRuntime".Anchor[7].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D007A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[7].Generation) THEN "GDB_PersistenceTest".CurrentBank[7] := 1; ELSE "GDB_PersistenceTest".CurrentBank[7] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[8] := "FRK_PersistRuntime".Anchor[8].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D008A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[8].Generation) THEN "GDB_PersistenceTest".CurrentBank[8] := 1; ELSE "GDB_PersistenceTest".CurrentBank[8] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[9] := "FRK_PersistRuntime".Anchor[9].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D009A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[9].Generation) THEN "GDB_PersistenceTest".CurrentBank[9] := 1; ELSE "GDB_PersistenceTest".CurrentBank[9] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[10] := "FRK_PersistRuntime".Anchor[10].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D010A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[10].Generation) THEN "GDB_PersistenceTest".CurrentBank[10] := 1; ELSE "GDB_PersistenceTest".CurrentBank[10] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[11] := "FRK_PersistRuntime".Anchor[11].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D011A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[11].Generation) THEN "GDB_PersistenceTest".CurrentBank[11] := 1; ELSE "GDB_PersistenceTest".CurrentBank[11] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[12] := "FRK_PersistRuntime".Anchor[12].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D012A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[12].Generation) THEN "GDB_PersistenceTest".CurrentBank[12] := 1; ELSE "GDB_PersistenceTest".CurrentBank[12] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[13] := "FRK_PersistRuntime".Anchor[13].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D013A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[13].Generation) THEN "GDB_PersistenceTest".CurrentBank[13] := 1; ELSE "GDB_PersistenceTest".CurrentBank[13] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[14] := "FRK_PersistRuntime".Anchor[14].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D014A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[14].Generation) THEN "GDB_PersistenceTest".CurrentBank[14] := 1; ELSE "GDB_PersistenceTest".CurrentBank[14] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[15] := "FRK_PersistRuntime".Anchor[15].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D015A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[15].Generation) THEN "GDB_PersistenceTest".CurrentBank[15] := 1; ELSE "GDB_PersistenceTest".CurrentBank[15] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[16] := "FRK_PersistRuntime".Anchor[16].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D016A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[16].Generation) THEN "GDB_PersistenceTest".CurrentBank[16] := 1; ELSE "GDB_PersistenceTest".CurrentBank[16] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[17] := "FRK_PersistRuntime".Anchor[17].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D017A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[17].Generation) THEN "GDB_PersistenceTest".CurrentBank[17] := 1; ELSE "GDB_PersistenceTest".CurrentBank[17] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[18] := "FRK_PersistRuntime".Anchor[18].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D018A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[18].Generation) THEN "GDB_PersistenceTest".CurrentBank[18] := 1; ELSE "GDB_PersistenceTest".CurrentBank[18] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[19] := "FRK_PersistRuntime".Anchor[19].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D019A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[19].Generation) THEN "GDB_PersistenceTest".CurrentBank[19] := 1; ELSE "GDB_PersistenceTest".CurrentBank[19] := 2; END_IF;
+    "GDB_PersistenceTest".Generation[20] := "FRK_PersistRuntime".Anchor[20].Generation;
+    IF "FRK_PersistNumber"(Bytes := "FRK_PersistBuffers".D020A, Offset := 8) = UDINT_TO_DWORD("FRK_PersistRuntime".Anchor[20].Generation) THEN "GDB_PersistenceTest".CurrentBank[20] := 1; ELSE "GDB_PersistenceTest".CurrentBank[20] := 2; END_IF;
+    IF "GDB_PersistenceTest".Operation <> 0 AND "GDB_PersistenceTest".Step = 0 THEN
+        "GDB_PersistenceTest".Applied := FALSE; "GDB_PersistenceTest".Done := FALSE;
+        #Slot := "GDB_PersistenceTest".Slot;
+        IF #Slot < 1 OR #Slot > 20 THEN "GDB_PersistenceTest".Operation := 0; RETURN; END_IF;
+        IF "FRK_PersistRuntime".Leased[#Slot] THEN RETURN; END_IF;
+        CASE "GDB_PersistenceTest".Operation OF
+            1:
+                IF "GDB_PersistenceTest".Offset < 0 OR "GDB_PersistenceTest".Offset >= "FRK_PersistRuntime".Capacity[#Slot] + 24 THEN "GDB_PersistenceTest".Operation := 0; RETURN; END_IF;
+                IF "GDB_PersistenceTest".Bank <> 1 AND "GDB_PersistenceTest".Bank <> 2 THEN "GDB_PersistenceTest".Operation := 0; RETURN; END_IF;
+                "GDB_PersistenceTest".Step := 1; "GDB_PersistenceTest".Pulse := TRUE;
+            2:
+                IF "FRK_PersistAnchors".SelectedB[#Slot] THEN "FRK_PersistAnchors".RowsB[#Slot].Checksum := "FRK_PersistAnchors".RowsB[#Slot].Checksum XOR DWORD#1;
+                ELSE "FRK_PersistAnchors".RowsA[#Slot].Checksum := "FRK_PersistAnchors".RowsA[#Slot].Checksum XOR DWORD#1; END_IF;
+                "GDB_PersistenceTest".Applied := TRUE; "GDB_PersistenceTest".Done := TRUE; "GDB_PersistenceTest".Operation := 0;
+            3:
+                // Deliberately poison retained caches: subsequent boot must read the selected medium.
+                FOR #Index := 1 TO 160 DO "FRK_ConfigStore".Rows[#Index].Record.ValueText := 'poison-cache'; END_FOR;
+                "FRK_LocalUsers".Checksum := DWORD#0;
+                "GDB_PersistenceTest".Applied := TRUE; "GDB_PersistenceTest".Done := TRUE; "GDB_PersistenceTest".Operation := 0;
+            ELSE "GDB_PersistenceTest".Operation := 0;
+        END_CASE;
+    END_IF;
+    IF "GDB_PersistenceTest".Step = 0 THEN RETURN; END_IF;
+    #Slot := "GDB_PersistenceTest".Slot;
+    CASE #Slot OF
+        1:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D001A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D001A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D001B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D001A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D001A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D001A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D001A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D001B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D001A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        2:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D002A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D002A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D002B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D002A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D002A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D002A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D002A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D002B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D002A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        3:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D003A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D003A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D003B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D003A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D003A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D003A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D003A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D003B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D003A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        4:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D004A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D004A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D004B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D004A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D004A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D004A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D004A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D004B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D004A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        5:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D005A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D005A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D005B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D005A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D005A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D005A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D005A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D005B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D005A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        6:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D006A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D006A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D006B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D006A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D006A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D006A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D006A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D006B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D006A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        7:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D007A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D007A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D007B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D007A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D007A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D007A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D007A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D007B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D007A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        8:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D008A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D008A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D008B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D008A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D008A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D008A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D008A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D008B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D008A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        9:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D009A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D009A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D009B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D009A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D009A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D009A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D009A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D009B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D009A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        10:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D010A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D010A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D010B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D010A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D010A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D010A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D010A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D010B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D010A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        11:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D011A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D011A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D011B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D011A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D011A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D011A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D011A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D011B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D011A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        12:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D012A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D012A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D012B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D012A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D012A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D012A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D012A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D012B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D012A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        13:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D013A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D013A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D013B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D013A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D013A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D013A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D013A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D013B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D013A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        14:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D014A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D014A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D014B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D014A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D014A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D014A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D014A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D014B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D014A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        15:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D015A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D015A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D015B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D015A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D015A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D015A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D015A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D015B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D015A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        16:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D016A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D016A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D016B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D016A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D016A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D016A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D016A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D016B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D016A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        17:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D017A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D017A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D017B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D017A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D017A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D017A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D017A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D017B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D017A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        18:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D018A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D018A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D018B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D018A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D018A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D018A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D018A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D018B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D018A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        19:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D019A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D019A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D019B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D019A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D019A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D019A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D019A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D019B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D019A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        20:
+            IF "GDB_PersistenceTest".Step = 1 THEN
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D020A".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D020A);
+                ELSE
+                    #Result := READ_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_Load_D020B".Bytes, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_PersistBuffers".D020A);
+                END_IF;
+            ELSE
+                IF "GDB_PersistenceTest".Bank = 1 THEN
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D020A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D020A".Bytes);
+                ELSE
+                    #Result := WRIT_DBL(REQ := "GDB_PersistenceTest".Pulse, SRCBLK := "FRK_PersistBuffers".D020A, BUSY => "GDB_PersistenceTest".Busy, DSTBLK => "FRK_Load_D020B".Bytes);
+                END_IF;
+            END_IF;
+            IF "GDB_PersistenceTest".Step = 1 AND NOT "GDB_PersistenceTest".Busy AND #Result = 0 THEN "FRK_PersistBuffers".D020A["GDB_PersistenceTest".Offset] := "GDB_PersistenceTest".ByteValue; END_IF;
+        ELSE "GDB_PersistenceTest".Step := 0; RETURN;
+    END_CASE;
+    "GDB_PersistenceTest".Pulse := FALSE;
+    "GDB_PersistenceTest".NativeStatus := INT_TO_WORD(#Result);
+    IF "GDB_PersistenceTest".Busy THEN RETURN; END_IF;
+    IF #Result <> 0 THEN "GDB_PersistenceTest".Step := 0; "GDB_PersistenceTest".Done := TRUE; "GDB_PersistenceTest".Operation := 0; RETURN; END_IF;
+    IF "GDB_PersistenceTest".Step = 1 THEN "GDB_PersistenceTest".Step := 2; "GDB_PersistenceTest".Pulse := TRUE;
+    ELSE "GDB_PersistenceTest".Step := 0; "GDB_PersistenceTest".Applied := TRUE; "GDB_PersistenceTest".Done := TRUE; "GDB_PersistenceTest".Operation := 0; END_IF;
+END_FUNCTION

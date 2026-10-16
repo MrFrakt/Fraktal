@@ -1,0 +1,321 @@
+// Core section 7.7 prototype: private retained provider injection and independent root sessions.
+// User records are salted Core-compatible hashes, never commissioning plaintext.
+FUNCTION "FRK_Sha256Pin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Size : DInt;
+END_VAR
+VAR_IN_OUT
+    Data : Array[0..47] of Byte;
+    Digest : Array[0..31] of Byte;
+END_VAR
+VAR_TEMP
+    BlockBytes : Array[0..63] of Byte;
+    Words : Array[0..63] of DWord;
+    Hash : Array[0..7] of DWord;
+    Index : DInt;
+    A : DWord;
+    B : DWord;
+    C : DWord;
+    D : DWord;
+    E : DWord;
+    F : DWord;
+    G : DWord;
+    H : DWord;
+    S0 : DWord;
+    S1 : DWord;
+    T1 : DWord;
+    T2 : DWord;
+    K : Array[0..63] of DWord;
+END_VAR
+BEGIN
+    #FRK_Sha256Pin := FALSE;
+@SHA_K@
+    FOR #Index := 0 TO 31 DO #Digest[#Index] := 0; END_FOR;
+    IF #Size < 0 OR #Size > 48 THEN RETURN; END_IF;
+    // Authentication messages fit exactly one SHA-256 block.
+    FOR #Index := 0 TO 63 DO #BlockBytes[#Index] := 0; END_FOR;
+    FOR #Index := 0 TO #Size - 1 DO #BlockBytes[#Index] := #Data[#Index]; END_FOR;
+    #BlockBytes[#Size] := BYTE#16#80;
+    #BlockBytes[62] := DWORD_TO_BYTE(SHR(IN := DINT_TO_DWORD(#Size * 8), N := 8));
+    #BlockBytes[63] := DINT_TO_BYTE(#Size * 8);
+@SHA_INIT@
+    FOR #Index := 0 TO 15 DO
+        #Words[#Index] := SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index]), N := 24)
+            OR SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index + 1]), N := 16)
+            OR SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index + 2]), N := 8)
+            OR BYTE_TO_DWORD(#BlockBytes[4 * #Index + 3]);
+    END_FOR;
+    FOR #Index := 16 TO 63 DO
+        #S0 := ROR(IN := #Words[#Index-15], N := 7) XOR ROR(IN := #Words[#Index-15], N := 18) XOR SHR(IN := #Words[#Index-15], N := 3);
+        #S1 := ROR(IN := #Words[#Index-2], N := 17) XOR ROR(IN := #Words[#Index-2], N := 19) XOR SHR(IN := #Words[#Index-2], N := 10);
+        #Words[#Index] := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index-16])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S0)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index-7])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S1))));
+    END_FOR;
+    #A := #Hash[0]; #B := #Hash[1]; #C := #Hash[2]; #D := #Hash[3];
+    #E := #Hash[4]; #F := #Hash[5]; #G := #Hash[6]; #H := #Hash[7];
+    FOR #Index := 0 TO 63 DO
+        #S1 := ROR(IN := #E, N := 6) XOR ROR(IN := #E, N := 11) XOR ROR(IN := #E, N := 25);
+        #T1 := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#H)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S1)) + UDINT_TO_ULINT(DWORD_TO_UDINT((#E AND #F) XOR ((NOT #E) AND #G))) + UDINT_TO_ULINT(DWORD_TO_UDINT(#K[#Index])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index]))));
+        #S0 := ROR(IN := #A, N := 2) XOR ROR(IN := #A, N := 13) XOR ROR(IN := #A, N := 22);
+        #T2 := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#S0)) + UDINT_TO_ULINT(DWORD_TO_UDINT((#A AND #B) XOR (#A AND #C) XOR (#B AND #C)))));
+        #H := #G; #G := #F; #F := #E;
+        #E := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#D)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#T1))));
+        #D := #C; #C := #B; #B := #A;
+        #A := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#T1)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#T2))));
+    END_FOR;
+    #Words[0] := #A; #Words[1] := #B; #Words[2] := #C; #Words[3] := #D;
+    #Words[4] := #E; #Words[5] := #F; #Words[6] := #G; #Words[7] := #H;
+    FOR #Index := 0 TO 7 DO
+        #Hash[#Index] := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#Hash[#Index])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index]))));
+        #Digest[4 * #Index] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 24));
+        #Digest[4 * #Index + 1] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 16));
+        #Digest[4 * #Index + 2] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 8));
+        #Digest[4 * #Index + 3] := DWORD_TO_BYTE(#Hash[#Index]);
+    END_FOR;
+    FOR #Index := 0 TO 63 DO #BlockBytes[#Index] := 0; #Words[#Index] := 0; END_FOR;
+    #FRK_Sha256Pin := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessCancel" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+END_VAR
+BEGIN
+    #Access.LoginBusy := FALSE;
+    #Access.CandidateUser := '';
+    #Access.CandidateLevel := 0;
+    #Access.Round := 0;
+    FOR #Index := 0 TO 15 DO #Access.Salt[#Index] := 0; END_FOR;
+    FOR #Index := 0 TO 31 DO #Access.Digest[#Index] := 0; #Access.Expected[#Index] := 0; END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AccessLogout" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    "FRK_AccessCancel"(Access := #Access);
+    "FRK_AccessDropSession"(Access := #Access);
+END_FUNCTION
+
+FUNCTION "FRK_AccessDropSession" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    #Access.CurrentLevel := @E_AccessLevel.NONE@;
+    #Access.CurrentUser := '';
+    #Access.LoginFailed := FALSE;
+    #Access.SessionGeneration := "FRK_AccessNext"(Previous := #Access.SessionGeneration);
+END_FUNCTION
+
+FUNCTION "FRK_AccessNext" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Previous : UDInt;
+END_VAR
+BEGIN
+    IF #Previous = UDINT#4294967295 THEN #FRK_AccessNext := 1; ELSE #FRK_AccessNext := #Previous + 1; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AccessLogin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    User : String;
+    Secret : String;
+    Sequence : UDInt;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Data : Array[0..47] of Byte;
+    Index : DInt;
+    Slot : DInt;
+    Size : Int;
+    HashOk : Bool;
+END_VAR
+BEGIN
+    "FRK_AccessCancel"(Access := #Access);
+    #Access.LoginFailed := FALSE;
+    #Access.LoginSequence := #Sequence;
+    #Access.CandidateGeneration := "FRK_LocalUsers".Generation;
+    #Access.LoginSince := "FRK_Clock".NowMs;
+    #Access.LoginTimeoutMs := 6000;
+    #Access.CandidateUser := #User;
+    // Unknown users execute the same bounded work with a dummy salt/digest.
+    IF #Access.ProviderEnabled AND "FRK_AccessStorage".UsersReady AND "FRK_LocalUsers".Count >= 0 AND "FRK_LocalUsers".Count <= @MAX_USERS@ THEN
+        FOR #Slot := 1 TO "FRK_LocalUsers".Count DO
+            IF #User <> '' AND "FRK_LocalUsers".Rows[#Slot].User = #User THEN
+                IF "FRK_LocalUsers".Rows[#Slot].Level >= @E_AccessLevel.OPERATOR@ AND "FRK_LocalUsers".Rows[#Slot].Level <= @E_AccessLevel.ADMIN@ THEN
+                    #Access.CandidateLevel := "FRK_LocalUsers".Rows[#Slot].Level;
+                    #Access.Salt := "FRK_LocalUsers".Rows[#Slot].Salt;
+                    #Access.Expected := "FRK_LocalUsers".Rows[#Slot].PinHash;
+                END_IF;
+                EXIT;
+            END_IF;
+        END_FOR;
+    END_IF;
+    FOR #Index := 0 TO 47 DO #Data[#Index] := 0; END_FOR;
+    FOR #Index := 0 TO 15 DO #Data[#Index] := #Access.Salt[#Index]; END_FOR;
+    #Size := LEN(#Secret);
+    IF #Size > 32 THEN #Size := 0; #Access.CandidateLevel := 0; END_IF;
+    FOR #Index := 1 TO #Size DO #Data[15 + #Index] := CHAR_TO_BYTE(#Secret[#Index]); END_FOR;
+    #HashOk := "FRK_Sha256Pin"(Data := #Data, Size := 16 + INT_TO_DINT(#Size), Digest := #Access.Digest);
+    FOR #Index := 0 TO 47 DO #Data[#Index] := 0; END_FOR;
+    #Access.LoginBusy := #HashOk;
+END_FUNCTION
+
+FUNCTION "FRK_AccessAudit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    What : WString;
+    Who : String;
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Description : WString[480];
+END_VAR
+BEGIN
+    #Description := CONCAT(IN1 := #What, IN2 := WSTRING#': ');
+    #Description := CONCAT(IN1 := #Description, IN2 := STRING_TO_WSTRING(#Who));
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := 0, Description := #Description, SourcePath := #SourcePath);
+END_FUNCTION
+
+FUNCTION "FRK_AccessCyclic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+    AlarmLog : "FRK_AlarmLog";
+    Revision : UDInt;
+END_VAR
+VAR_TEMP
+    Data : Array[0..47] of Byte;
+    Index : DInt;
+    Difference : Byte;
+    HashOk : Bool;
+END_VAR
+BEGIN
+    #Access.LoginTimeoutMs := 6000;
+    IF #Startup THEN
+        "FRK_AccessLogout"(Access := #Access);
+        #Access.LoginResultSequence := 0;
+    END_IF;
+    IF #Access.ProviderGeneration <> "FRK_LocalUsers".Generation OR NOT "FRK_AccessStorage".UsersReady THEN
+        IF #Access.CurrentLevel > @E_AccessLevel.NONE@ THEN
+            "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.autoLogout', Who := #Access.CurrentUser, SourcePath := #SourcePath);
+            "FRK_AccessDropSession"(Access := #Access);
+            #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+        END_IF;
+        IF #Access.LoginBusy THEN #Access.CandidateLevel := 0; END_IF;
+        #Access.ProviderGeneration := "FRK_LocalUsers".Generation;
+    END_IF;
+    IF #Access.CurrentLevel > @E_AccessLevel.NONE@ AND #Access.Policy.SessionTimeout > T#0ms THEN
+        IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Access.LastActivity) >= DINT_TO_UDINT(TIME_TO_DINT(#Access.Policy.SessionTimeout)) THEN
+            "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.autoLogout', Who := #Access.CurrentUser, SourcePath := #SourcePath);
+            // Expiring the old session does not discard a separately committed
+            // credential attempt. Explicit logout cancels both.
+            "FRK_AccessDropSession"(Access := #Access);
+            #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+        END_IF;
+    END_IF;
+    IF NOT #Access.LoginBusy THEN RETURN; END_IF;
+    // One compression per active scan; never run all PIN rounds in one scan.
+    FOR #Index := 0 TO 31 DO #Data[#Index] := #Access.Digest[#Index]; END_FOR;
+    FOR #Index := 0 TO 15 DO #Data[32 + #Index] := #Access.Salt[#Index]; END_FOR;
+    #HashOk := "FRK_Sha256Pin"(Data := #Data, Size := 48, Digest := #Access.Digest);
+    FOR #Index := 0 TO 47 DO #Data[#Index] := 0; END_FOR;
+    #Access.Round := #Access.Round + 1;
+    IF NOT #HashOk OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Access.LoginSince) >= #Access.LoginTimeoutMs THEN
+        #Access.CandidateLevel := 0;
+    ELSIF #Access.Round < @PIN_HASH_ROUNDS@ THEN RETURN;
+    END_IF;
+    #Difference := 0;
+    FOR #Index := 0 TO 31 DO #Difference := #Difference OR (#Access.Digest[#Index] XOR #Access.Expected[#Index]); END_FOR;
+    #Access.LoginFailed := #Difference <> 0 OR #Access.CandidateLevel = 0 OR NOT #Access.ProviderEnabled OR NOT "FRK_AccessStorage".UsersReady OR #Access.CandidateGeneration <> "FRK_LocalUsers".Generation;
+    IF #Access.LoginFailed THEN
+        "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.loginFailed', Who := #Access.CandidateUser, SourcePath := #SourcePath);
+    ELSE
+        #Access.CurrentUser := #Access.CandidateUser;
+        #Access.CurrentLevel := #Access.CandidateLevel;
+        #Access.LastActivity := "FRK_Clock".NowMs;
+        #Access.SessionGeneration := "FRK_AccessNext"(Previous := #Access.SessionGeneration);
+        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+        "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.login', Who := #Access.CurrentUser, SourcePath := #SourcePath);
+    END_IF;
+    #Access.LoginResultSequence := #Access.LoginSequence;
+    "FRK_AccessCancel"(Access := #Access);
+END_FUNCTION
+
+FUNCTION "FRK_AccessFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Unit : "FRK_Unit";
+    Response : "ST_HmiResponse";
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+    AlarmLog : "FRK_AlarmLog";
+    Revision : UDInt;
+END_VAR
+VAR_TEMP
+    What : WString[160];
+    AuditPath : WString[255];
+END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending THEN RETURN; END_IF;
+    CASE #Unit.Request.Kind OF
+        @E_HmiRequestKind.QUERY_CONFIG@, @E_HmiRequestKind.RELEASE_START@,
+        @E_HmiRequestKind.RELEASE_MANUAL@, @E_HmiRequestKind.RELEASE_ACTION@,
+        @E_HmiRequestKind.LOGIN@: RETURN;
+        @E_HmiRequestKind.LOGOUT@:
+            "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.logout', Who := #Unit.RequestUser, SourcePath := #SourcePath);
+            #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+            RETURN;
+        ELSE #What := WSTRING#'std.audit.accessDenied';
+    END_CASE;
+    IF #Response.Accepted THEN
+        #What := WSTRING#'std.audit.operatorAction';
+        IF #Access.CurrentLevel > @E_AccessLevel.NONE@ THEN #Access.LastActivity := "FRK_Clock".NowMs; END_IF;
+        IF #Unit.Request.Kind = @E_HmiRequestKind.SET_ACCESS_LEVEL@ OR #Unit.Request.Kind = @E_HmiRequestKind.SET_SESSION_TIMEOUT@ OR #Unit.Request.Kind = @E_HmiRequestKind.SET_CLASS_LEVEL@ THEN #Revision := "FRK_ConfigRevision"(Previous := #Revision); END_IF;
+    END_IF;
+    #AuditPath := #SourcePath;
+    IF #Unit.Request.Kind = @E_HmiRequestKind.MANUAL_COMMAND@ THEN
+        IF #Response.Accepted THEN #AuditPath := #Unit.Request.TargetPath; END_IF;
+        IF #Response.Accepted THEN #What := WSTRING#'std.audit.manualCommandAccepted'; ELSE #What := WSTRING#'std.audit.manualCommandRejected'; END_IF;
+    END_IF;
+    #What := CONCAT(IN1 := #What, IN2 := WSTRING#' kind=');
+    #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.Kind));
+    #What := CONCAT(IN1 := #What, IN2 := WSTRING#' value=');
+    #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.IntValue));
+    IF #Unit.Request.Kind = @E_HmiRequestKind.SET_CLASS_LEVEL@ THEN
+        #What := CONCAT(IN1 := #What, IN2 := WSTRING#' class=');
+        #What := CONCAT(IN1 := #What, IN2 := STRING_TO_WSTRING(#Unit.Request.NameValue));
+        IF #Unit.Request.BoolValue THEN #What := CONCAT(IN1 := #What, IN2 := WSTRING#' write');
+        ELSE #What := CONCAT(IN1 := #What, IN2 := WSTRING#' read'); END_IF;
+    END_IF;
+    "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := #What, Who := #Unit.RequestUser, SourcePath := #AuditPath);
+END_FUNCTION

@@ -29,6 +29,8 @@ def hosted(target,label):
                 time.sleep(.25)
             yield
         finally:
-            stop.touch(exist_ok=False)
+            # A resource monitor or operator may already have requested stop.
+            # Always wait for host cleanup, including that early-stop path.
+            stop.touch(exist_ok=True)
             process.wait(timeout=60)
             if process.returncode:raise RuntimeError('simulator session failed; inspect '+str(err))

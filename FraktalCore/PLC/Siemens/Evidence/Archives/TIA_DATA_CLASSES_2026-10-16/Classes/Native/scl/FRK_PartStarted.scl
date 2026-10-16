@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_PartStarted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN
+	    RETURN;
+	END_IF;
+	"FRK_PartEvent"(AlarmLog := #AlarmLog,
+	                Reason := 2025,
+	                Uid := #Part.Uid,
+	                SourcePath := #Status.Name);
+	"FRK_HostEmit"(Kind := 2,
+	               Scope := #Status.Name,
+	               PartUid := #Part.Uid,
+	               Subject := '',
+	               Value := '',
+	               Verdict := 0,
+	               Reason := 0);
+	
+END_FUNCTION
+

@@ -8,7 +8,15 @@ driver, bench tooling, spike fixtures, declaration/frame generator and a shared
 [command-kernel prototype](Framework/Core/README.md).
 Do not describe it as a conforming implementation.
 
-Latest qualification (2026-10-16): generator0.22 adds shared OEE/shifts/work
+Latest qualification (2026-10-16): generator0.23 adds root data-class policy,
+raise-only minima and consistent manifest/write/capture/set/export admission.
+Separate class documents preserve the existing action-policy image. The
+[class-policy report](../../../Specification/Siemens/Evidence/TIA_DATA_CLASSES_2026-10-16.md)
+records16 PLC assertions,97 live/restart checks,254 tool tests and clean native
+runtime/press builds. See [the fixture](Tests/DataClasses/README.md) for the
+declaration grammar. Runtime model creation and full Line integration remain.
+
+Operations qualification (2026-10-16): generator0.22 adds shared OEE/shifts/work
 degradation, health/nameplates/build gates, shelving/tower/lamp test, pacing,
 typed teach capture and fixed host-event rings. The254-source press now wires
 GRAPH AUTO/HOME/CHANGEOVER/LoadPosition with ST permissives; ST/LD twins remain

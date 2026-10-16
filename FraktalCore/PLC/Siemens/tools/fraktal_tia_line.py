@@ -227,7 +227,7 @@ class Engine:
             body += ['    "FRK_LineDef"(FieldIndex := %d);'%index,
                      '    '+work+'.RejectScope := #Scope; '+work+'.RejectKey := "FRK_ConfigScratch".Entry.WriteKey;',
                      '    IF #Phase = 0 OR #Phase = 5 THEN',
-                     '        IF #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead) THEN RETURN; END_IF;',
+                     '        IF #Phase = 5 AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Scope) THEN RETURN; END_IF;',
                      '        "FRK_LineValue"(FieldIndex := %d, Values := '%index+state+'.Values);',
                      '        IF NOT "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText)',
                      '            OR '+payload+'.Info.RecordCount >= %d THEN RETURN; END_IF;'%record_capacity,

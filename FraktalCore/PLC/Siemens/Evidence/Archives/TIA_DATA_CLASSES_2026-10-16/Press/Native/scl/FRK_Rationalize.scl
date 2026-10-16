@@ -1,0 +1,248 @@
+﻿FUNCTION "FRK_Rationalize" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Diag : "ST_Diagnostic";
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Diag.ReasonCode OF
+	    10:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    11:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    12:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    13:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    14:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    15:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 2;
+	    16:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    17:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    18:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    19:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    20:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    21:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    2001:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    2002:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2003:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    2004:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    2005:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2006:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    2007:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2008:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2010:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    2011:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2012:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    2020:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    2021:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    2022:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    2023:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    2024:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2025:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2026:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2027:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    2030:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    2040:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    2041:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    2042:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    2043:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    2901:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    10101:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10102:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10103:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    10111:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10112:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10113:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    10114:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10115:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    10116:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10401:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    10402:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    10403:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    10404:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	    10405:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    10406:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 2;
+	    10501:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    10502:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    10601:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    11001:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10001:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10002:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10003:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10004:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10005:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10201:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10202:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10203:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 2;
+	    10204:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10308:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10310:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10304:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    10303:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    10305:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10311:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10313:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    10314:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10315:
+	        #Diag.Severity := 2;
+	        #Diag.Category := 0;
+	    10301:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10205:
+	        #Diag.Severity := 1;
+	        #Diag.Category := 0;
+	    10206:
+	        #Diag.Severity := 0;
+	        #Diag.Category := 0;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

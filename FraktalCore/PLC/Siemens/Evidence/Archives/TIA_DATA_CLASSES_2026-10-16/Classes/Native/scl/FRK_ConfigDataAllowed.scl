@@ -1,0 +1,34 @@
+﻿FUNCTION "FRK_ConfigDataAllowed" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Keyed local-retain config. The typed owner validates before publishing a value.
+   VAR_INPUT 
+      Access : "FRK_Access";
+      ForWrite : Bool;
+      Scope : String;
+   END_VAR
+
+   VAR_TEMP 
+      Required : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Required := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	IF #ForWrite THEN
+	    #Required := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	END_IF;
+	#FRK_ConfigDataAllowed := #Access.CurrentLevel >= #Required;
+	IF #ForWrite AND NOT "FRK_DataPolicyReady"(Access := #Access) THEN
+	    #FRK_ConfigDataAllowed := FALSE;
+	END_IF;
+	IF NOT #FRK_ConfigDataAllowed THEN
+	    "FRK_ConfigScratch".AccessRejected := TRUE;
+	    "FRK_ConfigScratch".RequiredLevel := #Required;
+	    "FRK_ConfigScratch".RejectedScope := #Scope;
+	    "FRK_ConfigScratch".RejectedKey := "FRK_ConfigScratch".Entry.WriteKey;
+	END_IF;
+	
+END_FUNCTION
+

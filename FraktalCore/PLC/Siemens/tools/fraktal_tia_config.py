@@ -43,7 +43,10 @@ def validate_definition(fields, location, *, roles=('ParCfg', 'StationCfg'), lin
     facts = Catalog.read() if fields else None
     for field in fields:
         object_fields(field, ('member', 'key', 'revision', 'label'),
-                      ('minimum', 'maximum', 'requires_ready', 'min_read', 'min_write', 'capture'), location + '.config')
+                      ('minimum', 'maximum', 'requires_ready', 'min_read', 'min_write', 'capture', 'class_id'), location + '.config')
+        class_id = field.get('class_id', '')
+        if not isinstance(class_id, str) or not class_id.isascii() or len(class_id) > width(facts, 'ST_DataClassPolicy', 'ClassId') or any(ord(c) < 32 for c in class_id):
+            raise DeclarationError('T-WIDTH', location, 'data class identity exceeds the Core bound')
         if 'capture' in field and (line or not isinstance(field['capture'],str) or not re.fullmatch(r'(OutImm|OutCmd)\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:0|-?[1-9][0-9]*)\])?',field['capture'])):
             raise DeclarationError('T-GEN',location,'capture binds a scalar published by the owning module')
         if not isinstance(field['member'], str) or not re.fullmatch('('+'|'.join(map(re.escape, roles))+r')\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:0|-?[1-9][0-9]*)\])?', field['member']):
@@ -89,6 +92,7 @@ class Field:
     length: int
     enum_values: tuple[int, ...]
     capture: str = ''
+    class_id: str = ''
 
 
 def fields_for(t, catalog):
@@ -146,7 +150,7 @@ def fields_for_records(values, records, catalog, kinds, location, capacity=None)
                             int(schema[1]), catalog.enums['E_ConfigKind'][kinds[role]],
                             catalog.enums['E_ConfigStorage'][storage], catalog.enums['E_ConfigValueType'][value_type],
                             minimum, maximum, 'minimum' in value, 'maximum' in value,
-                            value.get('requires_ready', True), value.get('min_read', 0), value.get('min_write', 0), length, enum_values,value.get('capture','')))
+                            value.get('requires_ready', True), value.get('min_read', 0), value.get('min_write', 0), length, enum_values,value.get('capture',''),value.get('class_id','')))
     return tuple(result)
 
 
@@ -197,7 +201,7 @@ def definition_source(fields, function_name):
             '    "FRK_ConfigScratch".EnumCount := 0;', '    CASE #FieldIndex OF']
     for index, f in enumerate(fields, 1):
         body += ['        %d:'%index]
-        facts = {'WriteKey': literal(f.key), 'WriteRevision': 'UDINT#'+str(f.revision),
+        facts = {'WriteKey': literal(f.key), 'WriteRevision': 'UDINT#'+str(f.revision), 'ClassId': literal(f.class_id),
                  'EnumDomain': 'WSTRING#'+literal('|'.join(map(str, f.enum_values))),
                  'Item': 'WSTRING#'+literal(f.member.replace('.', '/')), 'ConfigKind': str(f.kind),
                  'ValueType': str(f.value_type), 'Writable': 'TRUE', 'RequiresReady': str(f.requires_ready).upper(),
@@ -401,6 +405,7 @@ class Layout:
 
     def read(self, t):
         from fraktal_tia_generate import config_name
+        from fraktal_tia_data_classes import effective_level
         body = ['    IF #ModelIndex = 0 THEN']
         service = 'FRK_ConfigUnit' if t.unit_modes else 'FRK_ConfigCatalog'
         facet = 'Policy := #Module.ModePolicy, ModelCount := #Module.AvailableModelCount' if t.name in self.roots else ('Policy := #Module.ModePolicy, ModelCount := 0' if t.unit_modes else 'Catalog := #Module.Catalog, Count := #Module.CatalogCount')
@@ -426,8 +431,8 @@ class Layout:
             condition = '#ModelIndex = 0' if not scoped else '(#ModelIndex = 0 OR #Module.Core.ParentIndex = 0)'
             body += ['    IF '+condition+' THEN', '        "'+name(t, 'Def')+'"(FieldIndex := %d);'%index,
                      '        "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Module.Status.Name);',
-                     '        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);',
-                     '        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);',
+                     '        "FRK_ConfigScratch".Entry.ReadLevel := '+effective_level(False)+';',
+                     '        "FRK_ConfigScratch".Entry.WriteLevel := '+effective_level(True)+';',
                      '        "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;',
                      '        "FRK_ConfigScratch".Entry.ModelScoped := '+('#Module.Core.ParentIndex = 0' if scoped else 'FALSE')+';']
             if scoped:
@@ -459,8 +464,7 @@ class Layout:
                      '            #Matched := TRUE;',
                      '            "FRK_ConfigScratch".CommittedScope := #Module.Status.Name;',
                      '            IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;',
-                     '            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);',
-                     '            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN',
+                     '            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Module.Status.Name) THEN',
                      '                "FRK_ConfigScratch".RejectDescription := WSTRING#\'std.error.accessDenied\';',
                      '                "FRK_ConfigScratch".RejectReason := %d; RETURN; END_IF;'%self.catalog.enums['E_Reason']['PERMISSIVE_NOT_MET']]
             model_field = f.member.startswith('ParCfg.')
@@ -502,7 +506,7 @@ class Layout:
             body += ['    #Ok := '+self.call(self.lookup[child.type_name.casefold()], 'Write', '#Module.'+child.name+'.', Access='#Access', Request='#Request', RootIndex='#RootIndex', RootReady='#RootReady', Matched='#Matched')+';',
                      '    IF #Matched THEN #'+name(t, 'Write')+' := #Ok; RETURN; END_IF;']
         return self.render(t, 'Write', ['Request : "ST_HmiRequest";', 'Access : "FRK_Access";', 'RootIndex : Int;', 'RootReady : Bool;'],
-                        ['Module : "'+t.name+'";', 'Matched : Bool;'], ['Ok : Bool;', 'Level : DInt;', 'Code : String[64];', 'Inactive : Bool;', 'Text : WString[255];'], body, 'Bool')
+                        ['Module : "'+t.name+'";', 'Matched : Bool;'], ['Ok : Bool;', 'Code : String[64];', 'Inactive : Bool;', 'Text : WString[255];'], body, 'Bool')
 
     def recipe(self, t):
         body = ['    #'+name(t, 'Recipe')+' := TRUE;']
@@ -557,7 +561,7 @@ class Layout:
             *[k+PRIVATE+' : '+v+';' for k, v in (
                 ('Storage', 'DInt'), ('Schema', 'UInt'), ('Minimum', 'LReal'), ('Maximum', 'LReal'),
                 ('MaxLength', 'Int'), ('MinRead', 'DInt'), ('MinWrite', 'DInt'), ('CommittedText','WString[255]'),('CommittedScope','String[80]'),
-                ('RejectReason','DInt'),('RejectDescription','WString[255]'))],
+                ('RejectReason','DInt'),('RejectDescription','WString[255]'),('AccessRejected','Bool'),('RequiredLevel','DInt'),('RejectedScope','String[80]'),('RejectedKey','String[160]'))],
         ])
         text = DECIMAL_TEMPLATE.read_text('ascii') + '\n' + TEMPLATE.read_text('ascii')
         text = text.replace('#Persist.StorePresent := FALSE;', '#Persist.StorePresent := '+str(bool(self.sets)).upper()+';')

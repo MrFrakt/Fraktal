@@ -1,0 +1,336 @@
+﻿FUNCTION "FRK_CfgSetOperation_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      ParCfg : "ST_PressDemoParCfg";
+      ModePolicy : Array[0..6] of "ST_ModePolicy";
+      Access : "FRK_Access";
+      Unit : "FRK_Unit";
+      HmiResponse : "ST_HmiResponse";
+      ConfigPersist : "ST_ConfigPersistStatus";
+      ConfigRev : UDInt;
+      Model : "ST_ModelId";
+      ConfigSets : Array[1..4] of "ST_ConfigSetInfo";
+      ConfigSetCount : Int;
+      ConfigSetDocument : WString;
+      ConfigSetDocumentLine : Int;
+      ConfigSetDocumentLines : Int;
+      SupportedModesPublished : Array[0..6] of Bool;
+      StationCfg : "ST_PressDemoStationCfg";
+      ConfigStageParCfg : "ST_PressDemoParCfg";
+      ConfigStageStationCfg : "ST_PressDemoStationCfg";
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+      TwoHand : "FB_TwoHandStartCM";
+      PartPresentSensor : "FB_DigitalInputCM";
+      AirPressureMonitor : "FB_AirPressureMonitorCM";
+   END_VAR
+
+   VAR_TEMP 
+      RootIndex : Int;
+      Request : "ST_HmiRequest";
+      Ready : Bool;
+      SetName : String[80];
+      Slot : Int;
+      Ok : Bool;
+      Exporting : Bool;
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#RootIndex := "FRK_ConfigRoot"(RegIndex := #Core.RegIndex);
+	IF #Core.ParentIndex <> 0 OR #RootIndex = 0 THEN
+	    RETURN;
+	END_IF;
+	IF #Startup THEN
+	    "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+	    IF "FRK_SetStore".SchemaVersion <> 1 THEN
+	        FOR #Slot := 1 TO 4 DO
+	            "FRK_SetStore".Sets[#RootIndex, #Slot].Info.Used := FALSE;
+	        END_FOR;
+	    END_IF;
+	END_IF;
+	IF "FRK_SetRuntime".Work[#RootIndex].Generation <> #Access.SessionGeneration THEN
+	    "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+	    "FRK_SetRuntime".Work[#RootIndex].Generation := #Access.SessionGeneration;
+	END_IF;
+	IF NOT #Unit.RequestPending THEN
+	    RETURN;
+	END_IF;
+	#Request := #Unit.Request;
+	#Exporting := "FRK_SetRuntime".Work[#RootIndex].Exporting;
+	"FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	IF #Request.Kind <> 33 THEN
+	    "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+	END_IF;
+	IF #Request.Kind <> 32 THEN
+	    "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	END_IF;
+	IF #Request.Kind <> 28 AND #Request.Kind <> 29 AND #Request.Kind <> 30 AND #Request.Kind <> 32 AND #Request.Kind <> 33 AND #Request.Kind <> 35 AND #Request.Kind <> 38 THEN
+	    RETURN;
+	END_IF;
+	#HmiResponse.Accepted := FALSE;
+	#HmiResponse.Diagnostic := WSTRING#'std.error.configSetRejected';
+	#ConfigPersist.LastRejectScope := #Status.Name;
+	#ConfigPersist.LastRejectKey := '';
+	"FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
+	"FRK_SetRuntime".Work[#RootIndex].RejectKey := '';
+	IF #Access.CurrentLevel < #Access.Policy.Required[11] THEN
+	    "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+	    RETURN;
+	END_IF;
+	IF "FRK_ConfigRuntime".Unavailable THEN
+	    "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE;
+	    "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	    "FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+	    RETURN;
+	END_IF;
+	#Ready := #Core.Exec = 0 AND NOT #Unit.ModePending AND NOT #Unit.Clearing AND "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex);
+	#SetName := WSTRING_TO_STRING(#Request.TextValue);
+	IF #Request.Kind <> 33 THEN
+	    IF LEN(#Request.TextValue) < 1 AND #Request.Kind <> 30 THEN
+	        RETURN;
+	    END_IF;
+	    IF LEN(#Request.TextValue) > 80 OR STRING_TO_WSTRING(#SetName) <> #Request.TextValue THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	"FRK_SetRuntime".Work[#RootIndex].RejectScope := #Status.Name;
+	"FRK_SetRuntime".Work[#RootIndex].RejectKey := '';
+	CASE #Request.Kind OF
+	    30:
+	        #ConfigSetCount := 0;
+	        FOR #Slot := 1 TO 4 DO
+	            IF "FRK_SetStore".Sets[#RootIndex, #Slot].Info.Used THEN
+	                #ConfigSetCount := #ConfigSetCount + 1;
+	                #ConfigSets[#ConfigSetCount] := "FRK_SetStore".Sets[#RootIndex, #Slot].Info;
+	            END_IF;
+	        END_FOR;
+	        #HmiResponse.Accepted := TRUE;
+	    35:
+	        #Slot := "FRK_SetFind"(RootIndex := #RootIndex, SetName := #SetName);
+	        IF #Slot > 0 THEN
+	            "FRK_SetStore".Sets[#RootIndex, #Slot].Info.Used := FALSE;
+	            #HmiResponse.Accepted := TRUE;
+	        END_IF;
+	    28:
+	        #Slot := "FRK_SetSlot"(RootIndex := #RootIndex, SetName := #SetName);
+	        IF #Slot = 0 OR (#Request.IntValue <> 0 AND #Request.IntValue <> 1) THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName := #SetName;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RootIdentity := #Status.Name;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetSchema := 1;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ConfigRev := #ConfigRev;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind := #Request.IntValue;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount := 0;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode := '';
+	        IF #Request.IntValue = 0 THEN
+	            "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode := #Model.ModelCode;
+	        END_IF;
+	        #ResultCode := RD_SYS_T(OUT => #Stamp);
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.CreatedAt := DTL_TO_LDT(#Stamp);
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.TimeSynchronized := FALSE;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Used := TRUE;
+	        #Ok := "FRK_CfgSetWalk_PressDemoUnit"(Status := #Status, ParCfg := #ParCfg, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigStageStationCfg := #ConfigStageStationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor, RootIndex := #RootIndex, Phase := 0, Access := #Access, Ready := #Ready);
+	        IF #Ok THEN
+	            #Ok := "FRK_SetShape"(RootIndex := #RootIndex, RootIdentity := #Status.Name);
+	        END_IF;
+	        IF #Ok AND "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount > 0 THEN
+	            "FRK_SetStore".Sets[#RootIndex, #Slot] := "FRK_SetRuntime".Work[#RootIndex].Payload;
+	            #HmiResponse.Accepted := TRUE;
+	        END_IF;
+	    29:
+	        #Slot := "FRK_SetFind"(RootIndex := #RootIndex, SetName := #SetName);
+	        IF #Slot = 0 THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload := "FRK_SetStore".Sets[#RootIndex, #Slot];
+	        #Ok := "FRK_SetShape"(RootIndex := #RootIndex, RootIdentity := #Status.Name);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 0 THEN
+	            "FRK_UnitRelease"(Core := #Core,
+	                              Unit := #Unit,
+	                              Status := #Status,
+	                              Policy := #ModePolicy,
+	                              Access := #Access,
+	                              Supported := #SupportedModesPublished,
+	                              Report := #HmiResponse.Report,
+	                              Gate := 3,
+	                              Desired := -1,
+	                              Trusted := FALSE);
+	            IF NOT #HmiResponse.Report.Released THEN
+	                RETURN;
+	            END_IF;
+	        END_IF;
+	        "FRK_SetValidateBegin"(RootIndex := #RootIndex);
+	        #Ok := "FRK_CfgSetWalk_PressDemoUnit"(Status := #Status, ParCfg := #ParCfg, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigStageStationCfg := #ConfigStageStationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor, RootIndex := #RootIndex, Phase := 1, Access := #Access, Ready := #Ready);
+	        IF #Ok THEN
+	            #Ok := "FRK_SetValidateEnd"(RootIndex := #RootIndex);
+	        END_IF;
+	        IF #Ok AND "FRK_SetRuntime".Work[#RootIndex].Matched = "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN
+	            #Ok := "FRK_CfgSetWalk_PressDemoUnit"(Status := #Status, ParCfg := #ParCfg, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigStageStationCfg := #ConfigStageStationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor, RootIndex := #RootIndex, Phase := 2, Access := #Access, Ready := #Ready);
+	            IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 0 THEN
+	                "FRK_ConfigStore".ActiveModels[#RootIndex] := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode;
+	                #Model.ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode;
+	            END_IF;
+	            #ConfigRev := "FRK_ConfigRevision"(Previous := #ConfigRev);
+	            #HmiResponse.Accepted := TRUE;
+	        END_IF;
+	    32:
+	        #ConfigSetDocument := WSTRING#'';
+	        #ConfigSetDocumentLine := -1;
+	        #ConfigSetDocumentLines := 0;
+	        IF #Request.IntValue < 0 THEN
+	            "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	            RETURN;
+	        END_IF;
+	        IF #Request.IntValue = 0 THEN
+	            IF #Request.NameValue <> '' THEN
+	                "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	                RETURN;
+	            END_IF;
+	            #Slot := "FRK_SetFind"(RootIndex := #RootIndex, SetName := #SetName);
+	            IF #Slot = 0 THEN
+	                RETURN;
+	            END_IF;
+	            "FRK_SetRuntime".Work[#RootIndex].Payload := "FRK_SetStore".Sets[#RootIndex, #Slot];
+	            "FRK_SetRuntime".Work[#RootIndex].CurrentExport := FALSE;
+	            "FRK_SetRuntime".Work[#RootIndex].ExportToken := '';
+	            "FRK_SetRuntime".Work[#RootIndex].NextLine := 0;
+	            #Exporting := TRUE;
+	        END_IF;
+	        IF ("FRK_SetRuntime".Work[#RootIndex].CurrentExport AND #Request.NameValue <> "FRK_SetRuntime".Work[#RootIndex].ExportToken) OR (NOT "FRK_SetRuntime".Work[#RootIndex].CurrentExport AND #Request.NameValue <> '') THEN
+	            "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	            RETURN;
+	        END_IF;
+	        IF NOT #Exporting OR #SetName <> "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName OR #Request.IntValue <> "FRK_SetRuntime".Work[#RootIndex].NextLine OR #Request.IntValue > "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_SetShape"(RootIndex := #RootIndex, RootIdentity := #Status.Name);
+	        "FRK_SetValidateBegin"(RootIndex := #RootIndex);
+	        IF #Ok THEN
+	            #Ok := "FRK_CfgSetWalk_PressDemoUnit"(Status := #Status, ParCfg := #ParCfg, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigStageStationCfg := #ConfigStageStationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor, RootIndex := #RootIndex, Phase := 3, Access := #Access, Ready := #Ready);
+	        END_IF;
+	        IF NOT #Ok OR "FRK_SetRuntime".Work[#RootIndex].Matched <> "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN
+	            "FRK_SetRuntime".Work[#RootIndex].Exporting := FALSE;
+	            RETURN;
+	        END_IF;
+	        IF #Request.IntValue = 0 THEN
+	            #Ok := "FRK_JsonHeader"(Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Info, Line := #ConfigSetDocument);
+	        ELSE
+	            #Ok := "FRK_JsonRecord"(Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Request.IntValue], Line := #ConfigSetDocument);
+	        END_IF;
+	        IF #Ok THEN
+	            #ConfigSetDocumentLine := DINT_TO_INT(#Request.IntValue);
+	            #ConfigSetDocumentLines := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount;
+	            "FRK_SetRuntime".Work[#RootIndex].NextLine := "FRK_SetRuntime".Work[#RootIndex].NextLine + 1;
+	            #HmiResponse.Accepted := TRUE;
+	        END_IF;
+	        "FRK_SetRuntime".Work[#RootIndex].Exporting := #Ok AND #Request.IntValue < "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount;
+	    38:
+	        #ConfigSetDocument := WSTRING#'';
+	        #ConfigSetDocumentLine := -1;
+	        #ConfigSetDocumentLines := 0;
+	        IF NOT "FRK_ExportTokenValid"(Token := #Request.NameValue) OR (#Request.IntValue <> 0 AND #Request.IntValue <> 1) THEN
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs > 3 OR (#Request.IntValue = 1 AND #Request.DurationMs <> 0) THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName := #SetName;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RootIdentity := #Status.Name;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetSchema := 1;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ConfigRev := #ConfigRev;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind := #Request.IntValue;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount := 0;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode := '';
+	        IF #Request.IntValue = 0 THEN
+	            "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #Request.DurationMs);
+	        END_IF;
+	        #ResultCode := RD_SYS_T(OUT => #Stamp);
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.CreatedAt := DTL_TO_LDT(#Stamp);
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.TimeSynchronized := FALSE;
+	        "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Used := TRUE;
+	        #Ok := "FRK_CfgSetWalk_PressDemoUnit"(Status := #Status, ParCfg := #ParCfg, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigStageStationCfg := #ConfigStageStationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor, RootIndex := #RootIndex, Phase := 5, Access := #Access, Ready := #Ready);
+	        IF #Ok THEN
+	            #Ok := "FRK_SetShape"(RootIndex := #RootIndex, RootIdentity := #Status.Name);
+	        END_IF;
+	        IF NOT #Ok OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount = 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_JsonHeader"(Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Info, Line := #ConfigSetDocument);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_SetRuntime".Work[#RootIndex].ExportToken := #Request.NameValue;
+	        "FRK_SetRuntime".Work[#RootIndex].CurrentExport := TRUE;
+	        "FRK_SetRuntime".Work[#RootIndex].NextLine := 1;
+	        "FRK_SetRuntime".Work[#RootIndex].Exporting := TRUE;
+	        #ConfigSetDocumentLine := 0;
+	        #ConfigSetDocumentLines := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount;
+	        #HmiResponse.Accepted := TRUE;
+	    33:
+	        #Ok := "FRK_SetImport"(RootIndex := #RootIndex, Request := #Request);
+	        IF #Ok AND #Request.BoolValue THEN
+	            #Ok := "FRK_SetShape"(RootIndex := #RootIndex, RootIdentity := #Status.Name);
+	            "FRK_SetValidateBegin"(RootIndex := #RootIndex);
+	            IF #Ok THEN
+	                #Ok := "FRK_CfgSetWalk_PressDemoUnit"(Status := #Status, ParCfg := #ParCfg, StationCfg := #StationCfg, ConfigStageParCfg := #ConfigStageParCfg, ConfigStageStationCfg := #ConfigStageStationCfg, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, TwoHand := #TwoHand, PartPresentSensor := #PartPresentSensor, AirPressureMonitor := #AirPressureMonitor, RootIndex := #RootIndex, Phase := 4, Access := #Access, Ready := TRUE);
+	            END_IF;
+	            IF #Ok THEN
+	                #Ok := "FRK_SetValidateEnd"(RootIndex := #RootIndex);
+	            END_IF;
+	            #Slot := "FRK_SetSlot"(RootIndex := #RootIndex, SetName := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName);
+	            IF #Ok AND #Slot > 0 THEN
+	                "FRK_SetStore".Sets[#RootIndex, #Slot] := "FRK_SetRuntime".Work[#RootIndex].Payload;
+	            ELSE
+	                #Ok := FALSE;
+	            END_IF;
+	        END_IF;
+	        #HmiResponse.Accepted := #Ok;
+	        IF NOT #Ok THEN
+	            "FRK_SetRuntime".Work[#RootIndex].Importing := FALSE;
+	            "FRK_SetRuntime".Work[#RootIndex].Piece := WSTRING#'';
+	        END_IF;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	IF #HmiResponse.Accepted THEN
+	    #HmiResponse.Diagnostic := WSTRING#'';
+	    "FRK_ConfigRuntime".Failed[#RootIndex] := FALSE;
+	    #ConfigPersist.LastSetName := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName;
+	    #ConfigPersist.LastSetRecords := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount;
+	    #ConfigPersist.LastRejectScope := '';
+	    #ConfigPersist.LastRejectKey := '';
+	ELSE
+	    #ConfigPersist.LastRejectScope := "FRK_SetRuntime".Work[#RootIndex].RejectScope;
+	    #ConfigPersist.LastRejectKey := "FRK_SetRuntime".Work[#RootIndex].RejectKey;
+	END_IF;
+	IF #HmiResponse.Accepted AND (#Request.Kind = 28 OR #Request.Kind = 35 OR (#Request.Kind = 33 AND #Request.BoolValue)) THEN
+	    "FRK_PersistSetDirty"(RootIndex := #RootIndex,
+	                          Ordinal := #Slot);
+	END_IF;
+	
+END_FUNCTION
+

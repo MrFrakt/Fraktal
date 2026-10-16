@@ -1,0 +1,126 @@
+﻿FUNCTION_BLOCK "FB_TwoHandStartCM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Generated frame v0.23; change the declaration, then regenerate.
+   VAR_INPUT 
+      Execute { ExternalWritable := 'False'} : Bool;
+      Abort { ExternalWritable := 'False'} : Bool;
+      Command { ExternalWritable := 'False'} : DInt;
+      ParCfg { ExternalWritable := 'False'} : "ST_TwoHandParCfg";
+      ParCmd { ExternalWritable := 'False'} : "ST_TwoHandParCmd";
+      ParentIndex { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+      Startup { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      BoundPath { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : WString[254];
+   END_VAR
+
+   VAR_OUTPUT 
+      Busy { ExternalWritable := 'False'} : Bool;
+      Done { ExternalWritable := 'False'} : Bool;
+      Error { ExternalWritable := 'False'} : Bool;
+      Aborted { ExternalWritable := 'False'} : Bool;
+      Held { ExternalWritable := 'False'} : Bool;
+      ErrorID { ExternalWritable := 'False'} : DWord;
+      Timing { ExternalWritable := 'False'} : "ST_ModuleTiming";
+      OutCmd { ExternalWritable := 'False'} : "ST_TwoHandOutCmd";
+   END_VAR
+
+   VAR_IN_OUT 
+      Hal : "ST_TwoHandHal";
+   END_VAR
+
+   VAR 
+      OutImm { ExternalWritable := 'False'} : "ST_TwoHandOutImm";
+      Status { ExternalWritable := 'False'} : "ST_ModuleStatus";
+      Core { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+      LatchedParCmd { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_TwoHandParCmd";
+      Device { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_TwoHandDevice";
+      Catalog { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of "ST_CommandInfo";
+      CatalogCount { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      ManConditions { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of "FRK_ManualConditionRow";
+      ManualOwned { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      InstancePath : WString[254];
+   END_VAR
+
+   VAR CONSTANT 
+      EXEC_READY : DInt := 0;
+      MODULE_TIER : DInt := 3;
+   END_VAR
+
+
+BEGIN
+	
+	// ---- GENERATED: setup
+	IF #Startup OR NOT #Core.Named THEN
+	    #InstancePath := #BoundPath;
+	    "FRK_SetIdentity"(Core := #Core,
+	                      Status := #Status,
+	                      InstancePath := #InstancePath,
+	                      ModuleType := 3,
+	                      TypeId := 3,
+	                      Capabilities := DWORD#16#00000000,
+	                      ParentIndex := #ParentIndex,
+	                      TypeKey := 'std.moduleType.twoHand');
+	    #CatalogCount := 0;
+	END_IF;
+	// ---- GENERATED: begin
+	"FRK_Begin"(Core := #Core,
+	            Status := #Status,
+	            Execute := #Execute,
+	            Abort := #Abort,
+	            Command := #Command);
+	IF #Core.EvCommandStart THEN
+	    #LatchedParCmd := #ParCmd;
+	    "FRK_Start"(Core := #Core,
+	                Status := #Status,
+	                Supported := FALSE,
+	                Timeout := T#0ms,
+	                Label := '');
+	END_IF;
+	// ---- AUTHORED: cyclic management
+	#Device.SafeActive := #Hal.SafeActive AND #Hal.FieldbusHealthy;
+	IF NOT #Hal.FieldbusHealthy THEN
+	    #Device.Armed := FALSE;
+	ELSIF NOT #Hal.LeftPressed AND NOT #Hal.RightPressed AND NOT #Hal.SafeActive THEN
+	    #Device.Armed := TRUE;
+	END_IF;
+	#Device.StartPulse := #Device.SafeActive AND NOT #Device.SafePrevious
+	AND (#Device.Armed OR NOT #ParCfg.RequireReleaseBetweenCycles);
+	IF #Device.StartPulse THEN
+	    #Device.Armed := FALSE;
+	END_IF;
+	#Device.SafePrevious := #Device.SafeActive;
+	#OutImm.LeftPressed := #Hal.LeftPressed;
+	#OutImm.RightPressed := #Hal.RightPressed;
+	#OutImm.FieldbusHealthy := #Hal.FieldbusHealthy;
+	#OutImm.SafeActive := #Device.SafeActive;
+	#OutImm.StartPulse := #Device.StartPulse;
+	#OutImm.Armed := #Device.Armed;
+	
+	// ---- GENERATED: end management
+	"FRK_RouteAbort"(Core := #Core,
+	                 Abort := #Abort);
+	"FRK_End"(Core := #Core,
+	          Status := #Status,
+	          Busy => #Busy,
+	          Done => #Done,
+	          Error => #Error,
+	          Aborted => #Aborted,
+	          Held => #Held,
+	          ErrorID => #ErrorID,
+	          Timing => #Timing);
+	// ---- AUTHORED: unconditional cyclic/derived data
+	"FRK_CyclicHook_TwoHandStartCM"();
+	// ---- GENERATED: diagnostic snapshot
+	"FRK_DiagSync"(Index := #Core.RegIndex,
+	               Withdraw := FALSE,
+	               Status := #Status,
+	               Held := #Core.Held,
+	               Timeout := T#0ms,
+	               ActiveTimeoutMs := #Core.TimeoutMs);
+	// ---- GENERATED: frame end
+	
+END_FUNCTION_BLOCK
+

@@ -1,0 +1,37 @@
+﻿FUNCTION "FRK_IntegerCompare" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      LeftValue : "FRK_ConfigInteger";
+      RightValue : "FRK_ConfigInteger";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_IntegerCompare := 0;
+	IF #LeftValue.Used > #RightValue.Used THEN
+	    #FRK_IntegerCompare := 1;
+	    RETURN;
+	END_IF;
+	IF #LeftValue.Used < #RightValue.Used THEN
+	    #FRK_IntegerCompare := -1;
+	    RETURN;
+	END_IF;
+	FOR #Index := #LeftValue.Used - 1 TO 0 BY -1 DO
+	    IF #LeftValue.Limbs[#Index] > #RightValue.Limbs[#Index] THEN
+	        #FRK_IntegerCompare := 1;
+	        RETURN;
+	    END_IF;
+	    IF #LeftValue.Limbs[#Index] < #RightValue.Limbs[#Index] THEN
+	        #FRK_IntegerCompare := -1;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

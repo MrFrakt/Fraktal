@@ -1,0 +1,58 @@
+﻿FUNCTION "FRK_PersistAckRoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[1].Rejected THEN
+	    "FRK_PersistConsumers".Rows[1].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 1);
+	    "FRK_PersistDirty"(Slot := 1);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[2].Rejected THEN
+	    "FRK_PersistConsumers".Rows[2].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 2);
+	    "FRK_PersistDirty"(Slot := 2);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[3].Rejected THEN
+	    "FRK_PersistConsumers".Rows[3].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 3);
+	    "FRK_PersistDirty"(Slot := 3);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[4].Rejected THEN
+	    "FRK_PersistConsumers".Rows[4].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 4);
+	    "FRK_PersistDirty"(Slot := 4);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[5].Rejected THEN
+	    "FRK_PersistConsumers".Rows[5].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 5);
+	    "FRK_PersistDirty"(Slot := 5);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[6].Rejected THEN
+	    "FRK_PersistConsumers".Rows[6].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 6);
+	    "FRK_PersistDirty"(Slot := 6);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[7].Rejected THEN
+	    "FRK_PersistConsumers".Rows[7].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 7);
+	    "FRK_PersistDirty"(Slot := 7);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[8].Rejected THEN
+	    "FRK_PersistConsumers".Rows[8].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 8);
+	    "FRK_PersistDirty"(Slot := 8);
+	END_IF;
+	IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[9].Rejected THEN
+	    "FRK_PersistConsumers".Rows[9].Acknowledged := TRUE;
+	    "FRK_PersistRepair"(Slot := 9);
+	    "FRK_PersistDirty"(Slot := 9);
+	END_IF;
+	
+END_FUNCTION
+

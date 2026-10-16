@@ -1,4 +1,41 @@
 // Keyed local-retain config. The typed owner validates before publishing a value.
+FUNCTION "FRK_ConfigDataAllowed" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Access : "FRK_Access"; ForWrite : Bool; Scope : String; END_VAR
+VAR_TEMP Required : DInt; END_VAR
+BEGIN
+    #Required := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+    IF #ForWrite THEN #Required := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE); END_IF;
+    #FRK_ConfigDataAllowed := #Access.CurrentLevel >= #Required;
+    IF #ForWrite AND NOT "FRK_DataPolicyReady"(Access := #Access) THEN #FRK_ConfigDataAllowed := FALSE; END_IF;
+    IF NOT #FRK_ConfigDataAllowed THEN
+        "FRK_ConfigScratch".AccessRejected := TRUE;
+        "FRK_ConfigScratch".RequiredLevel := #Required;
+        "FRK_ConfigScratch".RejectedScope := #Scope;
+        "FRK_ConfigScratch".RejectedKey := "FRK_ConfigScratch".Entry.WriteKey;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigAccessRefusal" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Unit : "FRK_Unit"; Access : "FRK_Access"; END_VAR
+VAR_IN_OUT Response : "ST_HmiResponse"; Persist : "ST_ConfigPersistStatus"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Text : WString[255]; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR #Response.Accepted OR NOT "FRK_ConfigScratch".AccessRejected THEN RETURN; END_IF;
+    #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING("FRK_ConfigScratch".RejectedScope), Kind := @E_ReleaseKind.ACCESS@);
+    #Persist.LastRejectScope := "FRK_ConfigScratch".RejectedScope;
+    #Persist.LastRejectKey := "FRK_ConfigScratch".RejectedKey;
+    #Text := CONCAT(IN1 := WSTRING#'std.audit.dataAccessDenied field=', IN2 := STRING_TO_WSTRING("FRK_ConfigScratch".RejectedKey));
+    #Text := CONCAT(IN1 := #Text, IN2 := WSTRING#' required=');
+    #Text := CONCAT(IN1 := #Text, IN2 := DINT_TO_WSTRING("FRK_ConfigScratch".RequiredLevel));
+    "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := #Text, Who := #Access.CurrentUser, SourcePath := STRING_TO_WSTRING("FRK_ConfigScratch".RejectedScope));
+END_FUNCTION
+
 FUNCTION "FRK_ConfigWriteAudit" : Void
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1

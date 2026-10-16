@@ -1,0 +1,182 @@
+﻿FUNCTION "FRK_Sha256Pin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core section 7.7 prototype: private retained provider injection and independent root sessions.
+// User records are salted Core-compatible hashes, never commissioning plaintext.
+   VAR_INPUT 
+      Size : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Data : Array[0..47] of Byte;
+      Digest : Array[0..31] of Byte;
+   END_VAR
+
+   VAR_TEMP 
+      BlockBytes : Array[0..63] of Byte;
+      Words : Array[0..63] of DWord;
+      Hash : Array[0..7] of DWord;
+      Index : DInt;
+      A : DWord;
+      B : DWord;
+      C : DWord;
+      D : DWord;
+      E : DWord;
+      F : DWord;
+      G : DWord;
+      H : DWord;
+      S0 : DWord;
+      S1 : DWord;
+      T1 : DWord;
+      T2 : DWord;
+      K : Array[0..63] of DWord;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_Sha256Pin := FALSE;
+	#K[0] := DWORD#16#428A2F98;
+	#K[1] := DWORD#16#71374491;
+	#K[2] := DWORD#16#B5C0FBCF;
+	#K[3] := DWORD#16#E9B5DBA5;
+	#K[4] := DWORD#16#3956C25B;
+	#K[5] := DWORD#16#59F111F1;
+	#K[6] := DWORD#16#923F82A4;
+	#K[7] := DWORD#16#AB1C5ED5;
+	#K[8] := DWORD#16#D807AA98;
+	#K[9] := DWORD#16#12835B01;
+	#K[10] := DWORD#16#243185BE;
+	#K[11] := DWORD#16#550C7DC3;
+	#K[12] := DWORD#16#72BE5D74;
+	#K[13] := DWORD#16#80DEB1FE;
+	#K[14] := DWORD#16#9BDC06A7;
+	#K[15] := DWORD#16#C19BF174;
+	#K[16] := DWORD#16#E49B69C1;
+	#K[17] := DWORD#16#EFBE4786;
+	#K[18] := DWORD#16#0FC19DC6;
+	#K[19] := DWORD#16#240CA1CC;
+	#K[20] := DWORD#16#2DE92C6F;
+	#K[21] := DWORD#16#4A7484AA;
+	#K[22] := DWORD#16#5CB0A9DC;
+	#K[23] := DWORD#16#76F988DA;
+	#K[24] := DWORD#16#983E5152;
+	#K[25] := DWORD#16#A831C66D;
+	#K[26] := DWORD#16#B00327C8;
+	#K[27] := DWORD#16#BF597FC7;
+	#K[28] := DWORD#16#C6E00BF3;
+	#K[29] := DWORD#16#D5A79147;
+	#K[30] := DWORD#16#06CA6351;
+	#K[31] := DWORD#16#14292967;
+	#K[32] := DWORD#16#27B70A85;
+	#K[33] := DWORD#16#2E1B2138;
+	#K[34] := DWORD#16#4D2C6DFC;
+	#K[35] := DWORD#16#53380D13;
+	#K[36] := DWORD#16#650A7354;
+	#K[37] := DWORD#16#766A0ABB;
+	#K[38] := DWORD#16#81C2C92E;
+	#K[39] := DWORD#16#92722C85;
+	#K[40] := DWORD#16#A2BFE8A1;
+	#K[41] := DWORD#16#A81A664B;
+	#K[42] := DWORD#16#C24B8B70;
+	#K[43] := DWORD#16#C76C51A3;
+	#K[44] := DWORD#16#D192E819;
+	#K[45] := DWORD#16#D6990624;
+	#K[46] := DWORD#16#F40E3585;
+	#K[47] := DWORD#16#106AA070;
+	#K[48] := DWORD#16#19A4C116;
+	#K[49] := DWORD#16#1E376C08;
+	#K[50] := DWORD#16#2748774C;
+	#K[51] := DWORD#16#34B0BCB5;
+	#K[52] := DWORD#16#391C0CB3;
+	#K[53] := DWORD#16#4ED8AA4A;
+	#K[54] := DWORD#16#5B9CCA4F;
+	#K[55] := DWORD#16#682E6FF3;
+	#K[56] := DWORD#16#748F82EE;
+	#K[57] := DWORD#16#78A5636F;
+	#K[58] := DWORD#16#84C87814;
+	#K[59] := DWORD#16#8CC70208;
+	#K[60] := DWORD#16#90BEFFFA;
+	#K[61] := DWORD#16#A4506CEB;
+	#K[62] := DWORD#16#BEF9A3F7;
+	#K[63] := DWORD#16#C67178F2;
+	FOR #Index := 0 TO 31 DO
+	    #Digest[#Index] := 0;
+	END_FOR;
+	IF #Size < 0 OR #Size > 48 THEN
+	    RETURN;
+	END_IF;
+	// Authentication messages fit exactly one SHA-256 block.
+	FOR #Index := 0 TO 63 DO
+	    #BlockBytes[#Index] := 0;
+	END_FOR;
+	FOR #Index := 0 TO #Size - 1 DO
+	    #BlockBytes[#Index] := #Data[#Index];
+	END_FOR;
+	#BlockBytes[#Size] := BYTE#16#80;
+	#BlockBytes[62] := DWORD_TO_BYTE(SHR(IN := DINT_TO_DWORD(#Size * 8), N := 8));
+	#BlockBytes[63] := DINT_TO_BYTE(#Size * 8);
+	#Hash[0] := DWORD#16#6A09E667;
+	#Hash[1] := DWORD#16#BB67AE85;
+	#Hash[2] := DWORD#16#3C6EF372;
+	#Hash[3] := DWORD#16#A54FF53A;
+	#Hash[4] := DWORD#16#510E527F;
+	#Hash[5] := DWORD#16#9B05688C;
+	#Hash[6] := DWORD#16#1F83D9AB;
+	#Hash[7] := DWORD#16#5BE0CD19;
+	FOR #Index := 0 TO 15 DO
+	    #Words[#Index] := SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index]), N := 24)
+	    OR SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index + 1]), N := 16)
+	    OR SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index + 2]), N := 8)
+	    OR BYTE_TO_DWORD(#BlockBytes[4 * #Index + 3]);
+	END_FOR;
+	FOR #Index := 16 TO 63 DO
+	    #S0 := ROR(IN := #Words[#Index - 15], N := 7) XOR ROR(IN := #Words[#Index - 15], N := 18) XOR SHR(IN := #Words[#Index - 15], N := 3);
+	    #S1 := ROR(IN := #Words[#Index - 2], N := 17) XOR ROR(IN := #Words[#Index - 2], N := 19) XOR SHR(IN := #Words[#Index - 2], N := 10);
+	    #Words[#Index] := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index - 16])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S0)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index - 7])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S1))));
+	END_FOR;
+	#A := #Hash[0];
+	#B := #Hash[1];
+	#C := #Hash[2];
+	#D := #Hash[3];
+	#E := #Hash[4];
+	#F := #Hash[5];
+	#G := #Hash[6];
+	#H := #Hash[7];
+	FOR #Index := 0 TO 63 DO
+	    #S1 := ROR(IN := #E, N := 6) XOR ROR(IN := #E, N := 11) XOR ROR(IN := #E, N := 25);
+	    #T1 := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#H)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S1)) + UDINT_TO_ULINT(DWORD_TO_UDINT((#E AND #F) XOR ((NOT #E) AND #G))) + UDINT_TO_ULINT(DWORD_TO_UDINT(#K[#Index])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index]))));
+	    #S0 := ROR(IN := #A, N := 2) XOR ROR(IN := #A, N := 13) XOR ROR(IN := #A, N := 22);
+	    #T2 := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#S0)) + UDINT_TO_ULINT(DWORD_TO_UDINT((#A AND #B) XOR (#A AND #C) XOR (#B AND #C)))));
+	    #H := #G;
+	    #G := #F;
+	    #F := #E;
+	    #E := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#D)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#T1))));
+	    #D := #C;
+	    #C := #B;
+	    #B := #A;
+	    #A := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#T1)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#T2))));
+	END_FOR;
+	#Words[0] := #A;
+	#Words[1] := #B;
+	#Words[2] := #C;
+	#Words[3] := #D;
+	#Words[4] := #E;
+	#Words[5] := #F;
+	#Words[6] := #G;
+	#Words[7] := #H;
+	FOR #Index := 0 TO 7 DO
+	    #Hash[#Index] := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#Hash[#Index])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index]))));
+	    #Digest[4 * #Index] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 24));
+	    #Digest[4 * #Index + 1] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 16));
+	    #Digest[4 * #Index + 2] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 8));
+	    #Digest[4 * #Index + 3] := DWORD_TO_BYTE(#Hash[#Index]);
+	END_FOR;
+	FOR #Index := 0 TO 63 DO
+	    #BlockBytes[#Index] := 0;
+	    #Words[#Index] := 0;
+	END_FOR;
+	#FRK_Sha256Pin := TRUE;
+	
+END_FUNCTION
+

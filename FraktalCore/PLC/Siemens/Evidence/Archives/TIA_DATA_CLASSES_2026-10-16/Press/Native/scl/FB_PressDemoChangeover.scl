@@ -1,0 +1,202 @@
+﻿FUNCTION_BLOCK "FB_PressDemoChangeover"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Run { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Reset { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      OwnerIndex { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+      Delta { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+      ModelCode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String;
+      SourcePath { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String[80];
+   END_VAR
+
+   VAR_IN_OUT 
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR 
+      Seq { ExternalWritable := 'False'} : "FRK_SequenceCtx";
+      Row1 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row2 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row3 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row4 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row5 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      Row6 { ExternalWritable := 'False'} : "FRK_SequenceRow";
+      At0 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At800 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At810 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At870 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At880 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      At999 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready3 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Ready5 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Advance { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      LoadPosition { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_PressDemoLoadPosition";
+      LoadDone { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      LoadActive { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_SeqBegin"(Run := #Run,
+	               Reset := #Reset,
+	               OwnerIndex := #OwnerIndex,
+	               ChainIndex := 4,
+	               BranchIndex := 0,
+	               ViewOffset := 0,
+	               ViewDepth := 0,
+	               Delta := #Delta,
+	               Seq := #Seq);
+	#LoadActive := "FRK_SeqSubActive"(Seq := #Seq, Run := #Run, StepNo := 810);
+	#LoadDone := "F_PressDemoLoadPosition"(Target := #LoadPosition, Run := #LoadActive, Reset := #Seq.SubReset, OwnerIndex := #OwnerIndex, ChainIndex := 5, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PressRam);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #Door);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PartSlide);
+	"FRK_SeqSubStatus"(Seq := #Seq,
+	                   Child := #LoadPosition.Seq);
+	CASE #Seq.ScanStep OF
+	    0:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(Steppable := TRUE,
+	                          StepNo := 0,
+	                          StepName := 'project.step.pressChangeoverInitialize',
+	                          AwaitingLabel := '',
+	                          AwaitsPath := '',
+	                          TimeClass := 0,
+	                          ExpectedTime := #Seq.NoTimeGuard,
+	                          Seq := #Seq,
+	                          Row := #Row1);
+	            "FRK_SeqReady"(Seq := #Seq,
+	                           Ok1 := TRUE,
+	                           Ok2 := TRUE,
+	                           Ok3 := TRUE,
+	                           Ok4 := TRUE,
+	                           Ok5 := TRUE);
+	            "FRK_SeqRoute"(Seq := #Seq,
+	                           OnAdvance := 800,
+	                           OnJump1 := -1);
+	        END_IF;
+	    800:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(Steppable := TRUE,
+	                          StepNo := 800,
+	                          StepName := 'project.step.pressChangeoverValidateModel',
+	                          AwaitingLabel := '',
+	                          AwaitsPath := '',
+	                          TimeClass := 3,
+	                          ExpectedTime := #Seq.NoTimeGuard,
+	                          Seq := #Seq,
+	                          Row := #Row2);
+	            #Ready5 := "F_PressDemoModelSelected"(Seq := #Seq, ModelCode := #ModelCode);
+	            "FRK_SeqReady"(Seq := #Seq,
+	                           Ok1 := #Ready5,
+	                           Ok2 := TRUE,
+	                           Ok3 := TRUE,
+	                           Ok4 := TRUE,
+	                           Ok5 := TRUE);
+	            "FRK_SeqRoute"(Seq := #Seq,
+	                           OnAdvance := 810,
+	                           OnJump1 := -1);
+	        END_IF;
+	    810:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(Steppable := TRUE,
+	                          StepNo := 810,
+	                          StepName := 'project.step.pressReturnToLoad',
+	                          AwaitingLabel := 'project.condition.LoadDone',
+	                          AwaitsPath := '',
+	                          TimeClass := 0,
+	                          ExpectedTime := #Seq.NoTimeGuard,
+	                          Seq := #Seq,
+	                          Row := #Row3);
+	            #Ready1 := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.LoadDone', Ok := #LoadDone);
+	            "FRK_SeqReady"(Seq := #Seq,
+	                           Ok1 := #Ready1,
+	                           Ok2 := TRUE,
+	                           Ok3 := TRUE,
+	                           Ok4 := TRUE,
+	                           Ok5 := TRUE);
+	            "FRK_SeqRoute"(Seq := #Seq,
+	                           OnAdvance := 870,
+	                           OnJump1 := -1);
+	        END_IF;
+	    870:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(Steppable := TRUE,
+	                          StepNo := 870,
+	                          StepName := 'project.step.pressChangeoverRequestConfirmation',
+	                          AwaitingLabel := '',
+	                          AwaitsPath := '',
+	                          TimeClass := 0,
+	                          ExpectedTime := #Seq.NoTimeGuard,
+	                          Seq := #Seq,
+	                          Row := #Row4);
+	            #Ready5 := "F_PressDemoChangeoverAsk"(Seq := #Seq, SourcePath := #SourcePath, AlarmLog := #AlarmLog);
+	            "FRK_SeqReady"(Seq := #Seq,
+	                           Ok1 := #Ready5,
+	                           Ok2 := TRUE,
+	                           Ok3 := TRUE,
+	                           Ok4 := TRUE,
+	                           Ok5 := TRUE);
+	            "FRK_SeqRoute"(Seq := #Seq,
+	                           OnAdvance := 880,
+	                           OnJump1 := -1);
+	        END_IF;
+	    880:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(Steppable := TRUE,
+	                          StepNo := 880,
+	                          StepName := 'project.step.pressChangeoverAwaitConfirmation',
+	                          AwaitingLabel := '',
+	                          AwaitsPath := '',
+	                          TimeClass := 3,
+	                          ExpectedTime := #Seq.NoTimeGuard,
+	                          Seq := #Seq,
+	                          Row := #Row5);
+	            "F_PressDemoChangeoverAnswer"(Seq := #Seq,
+	                                          AlarmLog := #AlarmLog);
+	            "FRK_SeqRoute"(Seq := #Seq,
+	                           OnAdvance := 999,
+	                           OnJump1 := 810);
+	        END_IF;
+	    999:
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            "FRK_SeqStep"(Steppable := TRUE,
+	                          StepNo := 999,
+	                          StepName := 'project.step.pressChangeoverComplete',
+	                          AwaitingLabel := '',
+	                          AwaitsPath := '',
+	                          TimeClass := 0,
+	                          ExpectedTime := #Seq.NoTimeGuard,
+	                          Seq := #Seq,
+	                          Row := #Row6);
+	            "FRK_SeqComplete"(Seq := #Seq);
+	        END_IF;
+	    ELSE
+	        IF #Seq.Running AND NOT #Seq.Error THEN
+	            #Seq.Error := TRUE;
+	            #Seq.ErrorDiagnostic.ReasonCode := 10001;
+	            #Seq.ErrorDiagnostic.Description := WSTRING#'project.sequence.invalidStep';
+	        END_IF;
+	END_CASE;
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PressRam);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #Door);
+	"F_CylinderSequenceLease"(Seq := #Seq,
+	                          Target := #PartSlide);
+	"FRK_SeqSubStatus"(Seq := #Seq,
+	                   Child := #LoadPosition.Seq);
+	
+END_FUNCTION_BLOCK
+

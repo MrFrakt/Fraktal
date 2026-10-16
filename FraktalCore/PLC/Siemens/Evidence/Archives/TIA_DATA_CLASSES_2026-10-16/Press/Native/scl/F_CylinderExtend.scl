@@ -1,0 +1,18 @@
+﻿FUNCTION "F_CylinderExtend" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// The typed device API owns handshake access; sequence authors call actions.
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      Target : "FB_CylinderCM";
+   END_VAR
+
+
+BEGIN
+	
+	#F_CylinderExtend := "FRK_SeqCommand"(Seq := #Seq, Lease := #Target.Device.Lease,
+	                                      Execute := #Target.Execute, Command := #Target.Command,
+	                                      Value := 1, Label := 'EXTEND', TargetIndex := #Target.Core.RegIndex, OwnFailure := FALSE);
+	
+END_FUNCTION
+

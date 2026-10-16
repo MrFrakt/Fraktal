@@ -1,0 +1,952 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-16T22:31:15.082684Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input" />
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Values" Datatype="&quot;ST_LineProductionConfig&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="SchemaVersion" Datatype="UInt" />
+          <Member Name="TaktMs" Datatype="UDInt" />
+          <Member Name="Gain" Datatype="LReal" />
+          <Member Name="Grade" Datatype="DInt" />
+          <Member Name="Enabled" Datatype="Bool" />
+          <Member Name="HostName" Datatype="String[40]" />
+          <Member Name="Offsets" Datatype="Array[0..1] of Int" />
+          <Member Name="Small" Datatype="USInt" />
+          <Member Name="UtcOffsetMin" Datatype="DInt" />
+          <Member Name="ShiftStartMin" Datatype="Array[1..5] of DInt" />
+          <Member Name="ShiftDurationMin" Datatype="Array[1..5] of DInt" />
+          <Member Name="ShiftActiveDays" Datatype="Array[1..5] of DInt" />
+          <Member Name="ShiftTarget" Datatype="Array[1..5] of DInt" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Calendar" Datatype="&quot;ST_ShiftCalendarV3&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="SchemaVersion" Datatype="UInt" />
+          <Member Name="UtcOffsetMin" Datatype="DInt" />
+          <Member Name="Rows" Datatype="Array[1..5] of &quot;ST_ShiftRowV3&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="StartMin" Datatype="DInt" />
+                <Member Name="DurationMin" Datatype="DInt" />
+                <Member Name="ActiveDays" Datatype="DInt" />
+                <Member Name="ProductionTarget" Datatype="DInt" />
+              </Section>
+            </Sections>
+          </Member>
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_LineCalendar</Name>
+      <Namespace />
+      <Number>281</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="Calendar" UId="24" />
+      <Token Text="." UId="25" />
+      <Component Name="SchemaVersion" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text=":=" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="LiteralConstant" UId="30">
+    <Constant UId="31">
+      <ConstantValue UId="33">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="34" />
+  <NewLine Num="1" UId="35" />
+  <Access Scope="LocalVariable" UId="36">
+    <Symbol UId="37">
+      <Component Name="Calendar" UId="38" />
+      <Token Text="." UId="39" />
+      <Component Name="UtcOffsetMin" UId="40" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="41" />
+  <Token Text=":=" UId="42" />
+  <Blank Num="1" UId="43" />
+  <Access Scope="LocalVariable" UId="44">
+    <Symbol UId="45">
+      <Component Name="Values" UId="46" />
+      <Token Text="." UId="47" />
+      <Component Name="UtcOffsetMin" UId="48" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="49" />
+  <NewLine Num="1" UId="50" />
+  <Access Scope="LocalVariable" UId="51">
+    <Symbol UId="52">
+      <Component Name="Calendar" UId="53" />
+      <Token Text="." UId="54" />
+      <Component Name="Rows" UId="55">
+        <Token Text="[" UId="56" />
+        <Access Scope="LiteralConstant" UId="57">
+          <Constant UId="58">
+            <ConstantValue UId="60">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="61" />
+      </Component>
+      <Token Text="." UId="62" />
+      <Component Name="StartMin" UId="63" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="64" />
+  <Token Text=":=" UId="65" />
+  <Blank Num="1" UId="66" />
+  <Access Scope="LocalVariable" UId="67">
+    <Symbol UId="68">
+      <Component Name="Values" UId="69" />
+      <Token Text="." UId="70" />
+      <Component Name="ShiftStartMin" UId="71">
+        <Token Text="[" UId="72" />
+        <Access Scope="LiteralConstant" UId="73">
+          <Constant UId="74">
+            <ConstantValue UId="76">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="77" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="78" />
+  <NewLine Num="1" UId="79" />
+  <Access Scope="LocalVariable" UId="80">
+    <Symbol UId="81">
+      <Component Name="Calendar" UId="82" />
+      <Token Text="." UId="83" />
+      <Component Name="Rows" UId="84">
+        <Token Text="[" UId="85" />
+        <Access Scope="LiteralConstant" UId="86">
+          <Constant UId="87">
+            <ConstantValue UId="89">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="90" />
+      </Component>
+      <Token Text="." UId="91" />
+      <Component Name="DurationMin" UId="92" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="93" />
+  <Token Text=":=" UId="94" />
+  <Blank Num="1" UId="95" />
+  <Access Scope="LocalVariable" UId="96">
+    <Symbol UId="97">
+      <Component Name="Values" UId="98" />
+      <Token Text="." UId="99" />
+      <Component Name="ShiftDurationMin" UId="100">
+        <Token Text="[" UId="101" />
+        <Access Scope="LiteralConstant" UId="102">
+          <Constant UId="103">
+            <ConstantValue UId="105">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="106" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="107" />
+  <NewLine Num="1" UId="108" />
+  <Access Scope="LocalVariable" UId="109">
+    <Symbol UId="110">
+      <Component Name="Calendar" UId="111" />
+      <Token Text="." UId="112" />
+      <Component Name="Rows" UId="113">
+        <Token Text="[" UId="114" />
+        <Access Scope="LiteralConstant" UId="115">
+          <Constant UId="116">
+            <ConstantValue UId="118">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="119" />
+      </Component>
+      <Token Text="." UId="120" />
+      <Component Name="ActiveDays" UId="121" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="122" />
+  <Token Text=":=" UId="123" />
+  <Blank Num="1" UId="124" />
+  <Access Scope="LocalVariable" UId="125">
+    <Symbol UId="126">
+      <Component Name="Values" UId="127" />
+      <Token Text="." UId="128" />
+      <Component Name="ShiftActiveDays" UId="129">
+        <Token Text="[" UId="130" />
+        <Access Scope="LiteralConstant" UId="131">
+          <Constant UId="132">
+            <ConstantValue UId="134">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="135" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="136" />
+  <NewLine Num="1" UId="137" />
+  <Access Scope="LocalVariable" UId="138">
+    <Symbol UId="139">
+      <Component Name="Calendar" UId="140" />
+      <Token Text="." UId="141" />
+      <Component Name="Rows" UId="142">
+        <Token Text="[" UId="143" />
+        <Access Scope="LiteralConstant" UId="144">
+          <Constant UId="145">
+            <ConstantValue UId="147">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="148" />
+      </Component>
+      <Token Text="." UId="149" />
+      <Component Name="ProductionTarget" UId="150" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="151" />
+  <Token Text=":=" UId="152" />
+  <Blank Num="1" UId="153" />
+  <Access Scope="LocalVariable" UId="154">
+    <Symbol UId="155">
+      <Component Name="Values" UId="156" />
+      <Token Text="." UId="157" />
+      <Component Name="ShiftTarget" UId="158">
+        <Token Text="[" UId="159" />
+        <Access Scope="LiteralConstant" UId="160">
+          <Constant UId="161">
+            <ConstantValue UId="163">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="164" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="165" />
+  <NewLine Num="1" UId="166" />
+  <Access Scope="LocalVariable" UId="167">
+    <Symbol UId="168">
+      <Component Name="Calendar" UId="169" />
+      <Token Text="." UId="170" />
+      <Component Name="Rows" UId="171">
+        <Token Text="[" UId="172" />
+        <Access Scope="LiteralConstant" UId="173">
+          <Constant UId="174">
+            <ConstantValue UId="176">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="177" />
+      </Component>
+      <Token Text="." UId="178" />
+      <Component Name="StartMin" UId="179" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="180" />
+  <Token Text=":=" UId="181" />
+  <Blank Num="1" UId="182" />
+  <Access Scope="LocalVariable" UId="183">
+    <Symbol UId="184">
+      <Component Name="Values" UId="185" />
+      <Token Text="." UId="186" />
+      <Component Name="ShiftStartMin" UId="187">
+        <Token Text="[" UId="188" />
+        <Access Scope="LiteralConstant" UId="189">
+          <Constant UId="190">
+            <ConstantValue UId="192">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="193" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="194" />
+  <NewLine Num="1" UId="195" />
+  <Access Scope="LocalVariable" UId="196">
+    <Symbol UId="197">
+      <Component Name="Calendar" UId="198" />
+      <Token Text="." UId="199" />
+      <Component Name="Rows" UId="200">
+        <Token Text="[" UId="201" />
+        <Access Scope="LiteralConstant" UId="202">
+          <Constant UId="203">
+            <ConstantValue UId="205">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="206" />
+      </Component>
+      <Token Text="." UId="207" />
+      <Component Name="DurationMin" UId="208" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="209" />
+  <Token Text=":=" UId="210" />
+  <Blank Num="1" UId="211" />
+  <Access Scope="LocalVariable" UId="212">
+    <Symbol UId="213">
+      <Component Name="Values" UId="214" />
+      <Token Text="." UId="215" />
+      <Component Name="ShiftDurationMin" UId="216">
+        <Token Text="[" UId="217" />
+        <Access Scope="LiteralConstant" UId="218">
+          <Constant UId="219">
+            <ConstantValue UId="221">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="222" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="223" />
+  <NewLine Num="1" UId="224" />
+  <Access Scope="LocalVariable" UId="225">
+    <Symbol UId="226">
+      <Component Name="Calendar" UId="227" />
+      <Token Text="." UId="228" />
+      <Component Name="Rows" UId="229">
+        <Token Text="[" UId="230" />
+        <Access Scope="LiteralConstant" UId="231">
+          <Constant UId="232">
+            <ConstantValue UId="234">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="235" />
+      </Component>
+      <Token Text="." UId="236" />
+      <Component Name="ActiveDays" UId="237" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="238" />
+  <Token Text=":=" UId="239" />
+  <Blank Num="1" UId="240" />
+  <Access Scope="LocalVariable" UId="241">
+    <Symbol UId="242">
+      <Component Name="Values" UId="243" />
+      <Token Text="." UId="244" />
+      <Component Name="ShiftActiveDays" UId="245">
+        <Token Text="[" UId="246" />
+        <Access Scope="LiteralConstant" UId="247">
+          <Constant UId="248">
+            <ConstantValue UId="250">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="251" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="252" />
+  <NewLine Num="1" UId="253" />
+  <Access Scope="LocalVariable" UId="254">
+    <Symbol UId="255">
+      <Component Name="Calendar" UId="256" />
+      <Token Text="." UId="257" />
+      <Component Name="Rows" UId="258">
+        <Token Text="[" UId="259" />
+        <Access Scope="LiteralConstant" UId="260">
+          <Constant UId="261">
+            <ConstantValue UId="263">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="264" />
+      </Component>
+      <Token Text="." UId="265" />
+      <Component Name="ProductionTarget" UId="266" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="267" />
+  <Token Text=":=" UId="268" />
+  <Blank Num="1" UId="269" />
+  <Access Scope="LocalVariable" UId="270">
+    <Symbol UId="271">
+      <Component Name="Values" UId="272" />
+      <Token Text="." UId="273" />
+      <Component Name="ShiftTarget" UId="274">
+        <Token Text="[" UId="275" />
+        <Access Scope="LiteralConstant" UId="276">
+          <Constant UId="277">
+            <ConstantValue UId="279">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="280" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="281" />
+  <NewLine Num="1" UId="282" />
+  <Access Scope="LocalVariable" UId="283">
+    <Symbol UId="284">
+      <Component Name="Calendar" UId="285" />
+      <Token Text="." UId="286" />
+      <Component Name="Rows" UId="287">
+        <Token Text="[" UId="288" />
+        <Access Scope="LiteralConstant" UId="289">
+          <Constant UId="290">
+            <ConstantValue UId="292">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="293" />
+      </Component>
+      <Token Text="." UId="294" />
+      <Component Name="StartMin" UId="295" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="296" />
+  <Token Text=":=" UId="297" />
+  <Blank Num="1" UId="298" />
+  <Access Scope="LocalVariable" UId="299">
+    <Symbol UId="300">
+      <Component Name="Values" UId="301" />
+      <Token Text="." UId="302" />
+      <Component Name="ShiftStartMin" UId="303">
+        <Token Text="[" UId="304" />
+        <Access Scope="LiteralConstant" UId="305">
+          <Constant UId="306">
+            <ConstantValue UId="308">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="309" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="310" />
+  <NewLine Num="1" UId="311" />
+  <Access Scope="LocalVariable" UId="312">
+    <Symbol UId="313">
+      <Component Name="Calendar" UId="314" />
+      <Token Text="." UId="315" />
+      <Component Name="Rows" UId="316">
+        <Token Text="[" UId="317" />
+        <Access Scope="LiteralConstant" UId="318">
+          <Constant UId="319">
+            <ConstantValue UId="321">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="322" />
+      </Component>
+      <Token Text="." UId="323" />
+      <Component Name="DurationMin" UId="324" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="325" />
+  <Token Text=":=" UId="326" />
+  <Blank Num="1" UId="327" />
+  <Access Scope="LocalVariable" UId="328">
+    <Symbol UId="329">
+      <Component Name="Values" UId="330" />
+      <Token Text="." UId="331" />
+      <Component Name="ShiftDurationMin" UId="332">
+        <Token Text="[" UId="333" />
+        <Access Scope="LiteralConstant" UId="334">
+          <Constant UId="335">
+            <ConstantValue UId="337">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="338" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="339" />
+  <NewLine Num="1" UId="340" />
+  <Access Scope="LocalVariable" UId="341">
+    <Symbol UId="342">
+      <Component Name="Calendar" UId="343" />
+      <Token Text="." UId="344" />
+      <Component Name="Rows" UId="345">
+        <Token Text="[" UId="346" />
+        <Access Scope="LiteralConstant" UId="347">
+          <Constant UId="348">
+            <ConstantValue UId="350">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="351" />
+      </Component>
+      <Token Text="." UId="352" />
+      <Component Name="ActiveDays" UId="353" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="354" />
+  <Token Text=":=" UId="355" />
+  <Blank Num="1" UId="356" />
+  <Access Scope="LocalVariable" UId="357">
+    <Symbol UId="358">
+      <Component Name="Values" UId="359" />
+      <Token Text="." UId="360" />
+      <Component Name="ShiftActiveDays" UId="361">
+        <Token Text="[" UId="362" />
+        <Access Scope="LiteralConstant" UId="363">
+          <Constant UId="364">
+            <ConstantValue UId="366">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="367" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="368" />
+  <NewLine Num="1" UId="369" />
+  <Access Scope="LocalVariable" UId="370">
+    <Symbol UId="371">
+      <Component Name="Calendar" UId="372" />
+      <Token Text="." UId="373" />
+      <Component Name="Rows" UId="374">
+        <Token Text="[" UId="375" />
+        <Access Scope="LiteralConstant" UId="376">
+          <Constant UId="377">
+            <ConstantValue UId="379">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="380" />
+      </Component>
+      <Token Text="." UId="381" />
+      <Component Name="ProductionTarget" UId="382" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="383" />
+  <Token Text=":=" UId="384" />
+  <Blank Num="1" UId="385" />
+  <Access Scope="LocalVariable" UId="386">
+    <Symbol UId="387">
+      <Component Name="Values" UId="388" />
+      <Token Text="." UId="389" />
+      <Component Name="ShiftTarget" UId="390">
+        <Token Text="[" UId="391" />
+        <Access Scope="LiteralConstant" UId="392">
+          <Constant UId="393">
+            <ConstantValue UId="395">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="396" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="397" />
+  <NewLine Num="1" UId="398" />
+  <Access Scope="LocalVariable" UId="399">
+    <Symbol UId="400">
+      <Component Name="Calendar" UId="401" />
+      <Token Text="." UId="402" />
+      <Component Name="Rows" UId="403">
+        <Token Text="[" UId="404" />
+        <Access Scope="LiteralConstant" UId="405">
+          <Constant UId="406">
+            <ConstantValue UId="408">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="409" />
+      </Component>
+      <Token Text="." UId="410" />
+      <Component Name="StartMin" UId="411" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="412" />
+  <Token Text=":=" UId="413" />
+  <Blank Num="1" UId="414" />
+  <Access Scope="LocalVariable" UId="415">
+    <Symbol UId="416">
+      <Component Name="Values" UId="417" />
+      <Token Text="." UId="418" />
+      <Component Name="ShiftStartMin" UId="419">
+        <Token Text="[" UId="420" />
+        <Access Scope="LiteralConstant" UId="421">
+          <Constant UId="422">
+            <ConstantValue UId="424">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="425" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="426" />
+  <NewLine Num="1" UId="427" />
+  <Access Scope="LocalVariable" UId="428">
+    <Symbol UId="429">
+      <Component Name="Calendar" UId="430" />
+      <Token Text="." UId="431" />
+      <Component Name="Rows" UId="432">
+        <Token Text="[" UId="433" />
+        <Access Scope="LiteralConstant" UId="434">
+          <Constant UId="435">
+            <ConstantValue UId="437">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="438" />
+      </Component>
+      <Token Text="." UId="439" />
+      <Component Name="DurationMin" UId="440" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="441" />
+  <Token Text=":=" UId="442" />
+  <Blank Num="1" UId="443" />
+  <Access Scope="LocalVariable" UId="444">
+    <Symbol UId="445">
+      <Component Name="Values" UId="446" />
+      <Token Text="." UId="447" />
+      <Component Name="ShiftDurationMin" UId="448">
+        <Token Text="[" UId="449" />
+        <Access Scope="LiteralConstant" UId="450">
+          <Constant UId="451">
+            <ConstantValue UId="453">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="454" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="455" />
+  <NewLine Num="1" UId="456" />
+  <Access Scope="LocalVariable" UId="457">
+    <Symbol UId="458">
+      <Component Name="Calendar" UId="459" />
+      <Token Text="." UId="460" />
+      <Component Name="Rows" UId="461">
+        <Token Text="[" UId="462" />
+        <Access Scope="LiteralConstant" UId="463">
+          <Constant UId="464">
+            <ConstantValue UId="466">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="467" />
+      </Component>
+      <Token Text="." UId="468" />
+      <Component Name="ActiveDays" UId="469" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="470" />
+  <Token Text=":=" UId="471" />
+  <Blank Num="1" UId="472" />
+  <Access Scope="LocalVariable" UId="473">
+    <Symbol UId="474">
+      <Component Name="Values" UId="475" />
+      <Token Text="." UId="476" />
+      <Component Name="ShiftActiveDays" UId="477">
+        <Token Text="[" UId="478" />
+        <Access Scope="LiteralConstant" UId="479">
+          <Constant UId="480">
+            <ConstantValue UId="482">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="483" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="484" />
+  <NewLine Num="1" UId="485" />
+  <Access Scope="LocalVariable" UId="486">
+    <Symbol UId="487">
+      <Component Name="Calendar" UId="488" />
+      <Token Text="." UId="489" />
+      <Component Name="Rows" UId="490">
+        <Token Text="[" UId="491" />
+        <Access Scope="LiteralConstant" UId="492">
+          <Constant UId="493">
+            <ConstantValue UId="495">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="496" />
+      </Component>
+      <Token Text="." UId="497" />
+      <Component Name="ProductionTarget" UId="498" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="499" />
+  <Token Text=":=" UId="500" />
+  <Blank Num="1" UId="501" />
+  <Access Scope="LocalVariable" UId="502">
+    <Symbol UId="503">
+      <Component Name="Values" UId="504" />
+      <Token Text="." UId="505" />
+      <Component Name="ShiftTarget" UId="506">
+        <Token Text="[" UId="507" />
+        <Access Scope="LiteralConstant" UId="508">
+          <Constant UId="509">
+            <ConstantValue UId="511">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="512" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="513" />
+  <NewLine Num="1" UId="514" />
+  <Access Scope="LocalVariable" UId="515">
+    <Symbol UId="516">
+      <Component Name="Calendar" UId="517" />
+      <Token Text="." UId="518" />
+      <Component Name="Rows" UId="519">
+        <Token Text="[" UId="520" />
+        <Access Scope="LiteralConstant" UId="521">
+          <Constant UId="522">
+            <ConstantValue UId="524">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="525" />
+      </Component>
+      <Token Text="." UId="526" />
+      <Component Name="StartMin" UId="527" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="528" />
+  <Token Text=":=" UId="529" />
+  <Blank Num="1" UId="530" />
+  <Access Scope="LocalVariable" UId="531">
+    <Symbol UId="532">
+      <Component Name="Values" UId="533" />
+      <Token Text="." UId="534" />
+      <Component Name="ShiftStartMin" UId="535">
+        <Token Text="[" UId="536" />
+        <Access Scope="LiteralConstant" UId="537">
+          <Constant UId="538">
+            <ConstantValue UId="540">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="541" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="542" />
+  <NewLine Num="1" UId="543" />
+  <Access Scope="LocalVariable" UId="544">
+    <Symbol UId="545">
+      <Component Name="Calendar" UId="546" />
+      <Token Text="." UId="547" />
+      <Component Name="Rows" UId="548">
+        <Token Text="[" UId="549" />
+        <Access Scope="LiteralConstant" UId="550">
+          <Constant UId="551">
+            <ConstantValue UId="553">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="554" />
+      </Component>
+      <Token Text="." UId="555" />
+      <Component Name="DurationMin" UId="556" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="557" />
+  <Token Text=":=" UId="558" />
+  <Blank Num="1" UId="559" />
+  <Access Scope="LocalVariable" UId="560">
+    <Symbol UId="561">
+      <Component Name="Values" UId="562" />
+      <Token Text="." UId="563" />
+      <Component Name="ShiftDurationMin" UId="564">
+        <Token Text="[" UId="565" />
+        <Access Scope="LiteralConstant" UId="566">
+          <Constant UId="567">
+            <ConstantValue UId="569">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="570" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="571" />
+  <NewLine Num="1" UId="572" />
+  <Access Scope="LocalVariable" UId="573">
+    <Symbol UId="574">
+      <Component Name="Calendar" UId="575" />
+      <Token Text="." UId="576" />
+      <Component Name="Rows" UId="577">
+        <Token Text="[" UId="578" />
+        <Access Scope="LiteralConstant" UId="579">
+          <Constant UId="580">
+            <ConstantValue UId="582">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="583" />
+      </Component>
+      <Token Text="." UId="584" />
+      <Component Name="ActiveDays" UId="585" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="586" />
+  <Token Text=":=" UId="587" />
+  <Blank Num="1" UId="588" />
+  <Access Scope="LocalVariable" UId="589">
+    <Symbol UId="590">
+      <Component Name="Values" UId="591" />
+      <Token Text="." UId="592" />
+      <Component Name="ShiftActiveDays" UId="593">
+        <Token Text="[" UId="594" />
+        <Access Scope="LiteralConstant" UId="595">
+          <Constant UId="596">
+            <ConstantValue UId="598">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="599" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="600" />
+  <NewLine Num="1" UId="601" />
+  <Access Scope="LocalVariable" UId="602">
+    <Symbol UId="603">
+      <Component Name="Calendar" UId="604" />
+      <Token Text="." UId="605" />
+      <Component Name="Rows" UId="606">
+        <Token Text="[" UId="607" />
+        <Access Scope="LiteralConstant" UId="608">
+          <Constant UId="609">
+            <ConstantValue UId="611">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="612" />
+      </Component>
+      <Token Text="." UId="613" />
+      <Component Name="ProductionTarget" UId="614" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="615" />
+  <Token Text=":=" UId="616" />
+  <Blank Num="1" UId="617" />
+  <Access Scope="LocalVariable" UId="618">
+    <Symbol UId="619">
+      <Component Name="Values" UId="620" />
+      <Token Text="." UId="621" />
+      <Component Name="ShiftTarget" UId="622">
+        <Token Text="[" UId="623" />
+        <Access Scope="LiteralConstant" UId="624">
+          <Constant UId="625">
+            <ConstantValue UId="627">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="628" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="629" />
+  <NewLine Num="1" UId="630" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

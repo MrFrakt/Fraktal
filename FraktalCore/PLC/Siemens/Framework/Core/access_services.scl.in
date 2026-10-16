@@ -300,7 +300,7 @@ BEGIN
     IF #Response.Accepted THEN
         #What := WSTRING#'std.audit.operatorAction';
         IF #Access.CurrentLevel > @E_AccessLevel.NONE@ THEN #Access.LastActivity := "FRK_Clock".NowMs; END_IF;
-        IF #Unit.Request.Kind = @E_HmiRequestKind.SET_ACCESS_LEVEL@ OR #Unit.Request.Kind = @E_HmiRequestKind.SET_SESSION_TIMEOUT@ THEN #Revision := "FRK_ConfigRevision"(Previous := #Revision); END_IF;
+        IF #Unit.Request.Kind = @E_HmiRequestKind.SET_ACCESS_LEVEL@ OR #Unit.Request.Kind = @E_HmiRequestKind.SET_SESSION_TIMEOUT@ OR #Unit.Request.Kind = @E_HmiRequestKind.SET_CLASS_LEVEL@ THEN #Revision := "FRK_ConfigRevision"(Previous := #Revision); END_IF;
     END_IF;
     #AuditPath := #SourcePath;
     IF #Unit.Request.Kind = @E_HmiRequestKind.MANUAL_COMMAND@ THEN
@@ -311,5 +311,11 @@ BEGIN
     #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.Kind));
     #What := CONCAT(IN1 := #What, IN2 := WSTRING#' value=');
     #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.IntValue));
+    IF #Unit.Request.Kind = @E_HmiRequestKind.SET_CLASS_LEVEL@ THEN
+        #What := CONCAT(IN1 := #What, IN2 := WSTRING#' class=');
+        #What := CONCAT(IN1 := #What, IN2 := STRING_TO_WSTRING(#Unit.Request.NameValue));
+        IF #Unit.Request.BoolValue THEN #What := CONCAT(IN1 := #What, IN2 := WSTRING#' write');
+        ELSE #What := CONCAT(IN1 := #What, IN2 := WSTRING#' read'); END_IF;
+    END_IF;
     "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := #What, Who := #Unit.RequestUser, SourcePath := #AuditPath);
 END_FUNCTION

@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_LineManifest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_IN_OUT 
+      State : "FRK_LineState";
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+   VAR_TEMP 
+      FieldIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	FOR #FieldIndex := 1 TO 29 DO
+	    "FRK_LineDef"(FieldIndex := #FieldIndex);
+	    "FRK_LineValue"(FieldIndex := #FieldIndex,
+	                    Values := #State.Values);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Scope);
+	    "FRK_ConfigScratch".Entry.Writable := #State.Status.Role = 1;
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #State.Applied AND #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_FOR;
+	
+END_FUNCTION
+

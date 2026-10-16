@@ -1,0 +1,66 @@
+﻿FUNCTION "FRK_DocCapture_D003" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Length : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+      Targets : Array[1..5] of Int;
+      Prior : Int;
+      Reserved : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocCapture_D003 := FALSE;
+	"FRK_PersistImages".D003.SchemaVersion := 1;
+	"FRK_PersistImages".D003.Scope := 'PressDemo';
+	"FRK_PersistImages".D003.Kind := 0;
+	"FRK_PersistImages".D003.ModelCode := 'PLASTIC';
+	"FRK_PersistImages".D003.ActiveModel := "FRK_ConfigStore".ActiveModels[1];
+	"FRK_PersistImages".D003.Count := 5;
+	#Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'idealCycleMs', ModelCode := 'PLASTIC');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D003.Rows[1] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'baselineWorkMs', ModelCode := 'PLASTIC');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D003.Rows[2] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'modeSwitchTimeout', ModelCode := 'PLASTIC');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D003.Rows[3] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'transferSettleTime', ModelCode := 'PLASTIC');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D003.Rows[4] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'pressSettleTime', ModelCode := 'PLASTIC');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D003.Rows[5] := "FRK_ConfigStore".Rows[#Stored];
+	FOR #Index := 0 TO 2623 DO
+	    "FRK_PersistBuffers".D003Data[#Index] := BYTE#0;
+	END_FOR;
+	#Position := 24;
+	#NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D003, DEST_ARRAY => "FRK_PersistBuffers".D003Data, POS := #Position);
+	IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2624 THEN
+	    RETURN;
+	END_IF;
+	#Length := #Position - 24;
+	#FRK_DocCapture_D003 := TRUE;
+	
+END_FUNCTION
+

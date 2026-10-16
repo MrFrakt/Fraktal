@@ -138,7 +138,7 @@ BEGIN
         IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
             #Matched := TRUE;
             "FRK_ConfigScratch".CommittedScope := @OWNER@;
-            IF #Access.PolicyLost OR #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite) THEN
+            IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := @OWNER@) THEN
                 "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
                 "FRK_ConfigScratch".RejectReason := @E_Reason.PERMISSIVE_NOT_MET@; RETURN;
             END_IF;
@@ -291,8 +291,8 @@ BEGIN
         "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #State.Values);
         "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Scope);
         "FRK_ConfigScratch".Entry.Writable := #State.Status.Role = @OWNER_ROLE@;
-        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
-        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+        "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
         "FRK_ConfigScratch".Entry.Readable := #State.Applied AND #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
         IF NOT "FRK_ConfigScratch".Entry.Readable THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#''; END_IF;
         "FRK_ConfigAppendEntry"(Cursor := #Cursor, Page := #Page);

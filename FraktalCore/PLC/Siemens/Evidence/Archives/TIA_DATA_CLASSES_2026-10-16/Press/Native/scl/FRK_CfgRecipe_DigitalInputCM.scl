@@ -1,0 +1,25 @@
+﻿FUNCTION "FRK_CfgRecipe_DigitalInputCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      ModelCode : String;
+      Phase : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_DigitalInputCM";
+      RejectScope : String;
+      RejectKey : String;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgRecipe_DigitalInputCM := TRUE;
+	
+END_FUNCTION
+

@@ -1,0 +1,19 @@
+﻿FUNCTION "FRK_PersistClassesDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex = 1 THEN
+	    "FRK_PersistDirty"(Slot := 19);
+	END_IF;
+	IF #RootIndex = 2 THEN
+	    "FRK_PersistDirty"(Slot := 20);
+	END_IF;
+	
+END_FUNCTION
+
